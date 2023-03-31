@@ -1,0 +1,189 @@
+# -----------------------------------------------------------------------------
+# BSD 3-Clause License
+#
+# Copyright (c) 2017-2023, Science and Technology Facilities Council.
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# * Redistributions of source code must retain the above copyright notice, this
+#   list of conditions and the following disclaimer.
+#
+# * Redistributions in binary form must reproduce the above copyright notice,
+#   this list of conditions and the following disclaimer in the documentation
+#   and/or other materials provided with the distribution.
+#
+# * Neither the name of the copyright holder nor the names of its
+#   contributors may be used to endorse or promote products derived from
+#   this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+# -----------------------------------------------------------------------------
+# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+# Modified I. Kavcic, A. Coughtrie, L. Turner Met Office
+# Modified J. Henrichs, Bureau of Meteorology
+# Modified A. B. G. Chalk and N. Nobre, STFC Daresbury Lab
+
+''' This module implements the PSyclone Dynamo 0.3 API by 1)
+    specialising the required base classes in parser.py (KernelType) and
+    adding a new class (DynFuncDescriptor03) to capture function descriptor
+    metadata and 2) specialising the required base classes in psyGen.py
+    (PSy, Invokes, Invoke, InvokeSchedule, Loop, Kern, Inf, Arguments and
+    Argument). '''
+
+# Imports
+import abc
+import os
+from enum import Enum
+from collections import OrderedDict, namedtuple, Counter
+import fparser
+
+from psyclone import psyGen
+from psyclone.configuration import Config
+from psyclone.core import AccessType, Signature
+from psyclone.domain.lfric.lfric_builtins import (LFRicTypes,
+                                                  LFRicBuiltInCallFactory,
+                                                  LFRicBuiltIn, BUILTIN_MAP)
+from psyclone.domain.common.psylayer import PSyLoop
+from psyclone.domain.lfric import (FunctionSpace, KernCallAccArgList,
+                                   KernCallArgList, KernStubArgList,
+                                   LFRicArgDescriptor, KernelInterface,
+                                   LFRicConstants, LFRicSymbolTable)
+from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
+from psyclone.f2pygen import (AllocateGen, AssignGen, CallGen, CommentGen,
+                              DeallocateGen, DeclGen, DoGen, IfThenGen,
+                              ModuleGen, SubroutineGen, TypeDeclGen, UseGen,
+                              PSyIRGen)
+from psyclone.parse.algorithm import Arg, KernelCall
+from psyclone.parse.kernel import KernelType, getkerneldescriptors
+from psyclone.parse.utils import ParseError
+from psyclone.psyGen import (PSy, Invokes, Invoke, InvokeSchedule,
+                             Arguments, KernelArgument, HaloExchange,
+                             GlobalSum, FORTRAN_INTENT_NAMES, DataAccess,
+                             CodedKern)
+from psyclone.psyir.frontend.fortran import FortranReader
+from psyclone.psyir.frontend.fparser2 import Fparser2Reader
+from psyclone.psyir.nodes import (Loop, Literal, Schedule, Reference,
+                                  ArrayReference, ACCEnterDataDirective,
+                                  ACCRegionDirective, OMPRegionDirective,
+                                  Routine, ScopingNode, StructureReference,
+                                  KernelSchedule)
+from psyclone.psyir.symbols import (INTEGER_TYPE, DataSymbol, ScalarType,
+                                    DeferredType, DataTypeSymbol,
+                                    ContainerSymbol, ImportInterface,
+                                    ArrayType, SymbolError)
+
+
+class LFRicCollection():
+    '''
+    Base class for managing the declaration and initialisation of a
+    group of related entities within an Invoke or Kernel stub
+
+    :param node: the Kernel or Invoke for which to manage variable \
+                 declarations and initialisation.
+    :type node: :py:class:`psyclone.dynamo0p3.DynInvoke` or \
+                :py:class:`psyclone.dynamo0p3.DynKern`
+
+    :raises InternalError: if the supplied node is not a DynInvoke or a \
+                           DynKern.
+    '''
+    def __init__(self, node):
+        if isinstance(node, DynInvoke):
+            # We are handling declarations/initialisations for an Invoke
+            self._invoke = node
+            self._kernel = None
+            self._symbol_table = self._invoke.schedule.symbol_table
+            # The list of kernel calls we are responsible for
+            self._calls = node.schedule.kernels()
+        elif isinstance(node, DynKern):
+            # We are handling declarations for a Kernel stub
+            self._invoke = None
+            self._kernel = node
+            # TODO 719 The symbol table is not connected to other parts of
+            # the Stub generation.
+            self._symbol_table = LFRicSymbolTable()
+            # We only have a single kernel call in this case
+            self._calls = [node]
+        else:
+            raise InternalError(f"LFRicCollection takes only a DynInvoke "
+                                f"or a DynKern but got: {type(node)}")
+
+        # Whether or not the associated Invoke contains only kernels that
+        # operate on dofs.
+        if self._invoke:
+            self._dofs_only = self._invoke.operates_on_dofs_only
+        else:
+            self._dofs_only = False
+
+    def declarations(self, parent):
+        '''
+        Insert declarations for all necessary variables into the AST of
+        the generated code. Simply calls either _invoke_declarations() or
+        _stub_declarations() depending on whether we're handling an Invoke
+        or a Kernel stub.
+
+        :param parent: the node in the f2pygen AST representing the routine \
+                       in which to insert the declarations.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
+        :raises InternalError: if neither self._invoke or self._kernel \
+                               are set.
+        '''
+        if self._invoke:
+            self._invoke_declarations(parent)
+        elif self._kernel:
+            self._stub_declarations(parent)
+        else:
+            raise InternalError("LFRicCollection has neither a Kernel "
+                                "or an Invoke - should be impossible.")
+
+    def initialise(self, parent):
+        '''
+        Add code to initialise the entities being managed by this class.
+        We do nothing by default - it is up to the sub-class to override
+        this method if initialisation is required.
+
+        :param parent: the node in the f2pygen AST to which to add \
+                       initialisation code.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        '''
+
+    @abc.abstractmethod
+    def _invoke_declarations(self, parent):
+        '''
+        Add all necessary declarations for an Invoke.
+
+        :param parent: node in the f2pygen AST representing the Invoke to \
+                       which to add declarations.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
+        '''
+
+    def _stub_declarations(self, parent):
+        '''
+        Add all necessary declarations for a Kernel stub. Not abstract because
+        not all entities need representing within a Kernel.
+
+        :param parent: node in the f2pygen AST representing the Kernel stub \
+                       to which to add declarations.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
+        '''
+
+
+# ---------- Documentation utils -------------------------------------------- #
+# The list of module members that we wish AutoAPI to generate
+# documentation for. (See https://psyclone-ref.readthedocs.io)
+__all__ = ['LFRicCollection']

@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified I. Kavcic and A. Coughtrie, Met Office
+# Modified I. Kavcic, A. Coughtrie and L. Turner, Met Office
 # Modified J. Henrichs, Bureau of Meteorology
 # Modified A. B. G. Chalk and N. Nobre, STFC Daresbury Lab
 
@@ -60,7 +60,7 @@ from psyclone.domain.common.psylayer import PSyLoop
 from psyclone.domain.lfric import (FunctionSpace, KernCallAccArgList,
                                    KernCallArgList, KernStubArgList,
                                    LFRicArgDescriptor, KernelInterface,
-                                   LFRicConstants, LFRicSymbolTable)
+                                   LFRicConstants, LFRicSymbolTable,LFRicCollection)
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 from psyclone.f2pygen import (AllocateGen, AssignGen, CallGen, CommentGen,
                               DeallocateGen, DeclGen, DoGen, IfThenGen,
@@ -1138,101 +1138,7 @@ class DynamoInvokes(Invokes):
         Invokes.__init__(self, alg_calls, DynInvoke, psy)
 
 
-class LFRicCollection():
-    '''
-    Base class for managing the declaration and initialisation of a
-    group of related entities within an Invoke or Kernel stub
 
-    :param node: the Kernel or Invoke for which to manage variable \
-                 declarations and initialisation.
-    :type node: :py:class:`psyclone.dynamo0p3.DynInvoke` or \
-                :py:class:`psyclone.dynamo0p3.DynKern`
-
-    :raises InternalError: if the supplied node is not a DynInvoke or a \
-                           DynKern.
-    '''
-    def __init__(self, node):
-        if isinstance(node, DynInvoke):
-            # We are handling declarations/initialisations for an Invoke
-            self._invoke = node
-            self._kernel = None
-            self._symbol_table = self._invoke.schedule.symbol_table
-            # The list of kernel calls we are responsible for
-            self._calls = node.schedule.kernels()
-        elif isinstance(node, DynKern):
-            # We are handling declarations for a Kernel stub
-            self._invoke = None
-            self._kernel = node
-            # TODO 719 The symbol table is not connected to other parts of
-            # the Stub generation.
-            self._symbol_table = LFRicSymbolTable()
-            # We only have a single kernel call in this case
-            self._calls = [node]
-        else:
-            raise InternalError(f"LFRicCollection takes only a DynInvoke "
-                                f"or a DynKern but got: {type(node)}")
-
-        # Whether or not the associated Invoke contains only kernels that
-        # operate on dofs.
-        if self._invoke:
-            self._dofs_only = self._invoke.operates_on_dofs_only
-        else:
-            self._dofs_only = False
-
-    def declarations(self, parent):
-        '''
-        Insert declarations for all necessary variables into the AST of
-        the generated code. Simply calls either _invoke_declarations() or
-        _stub_declarations() depending on whether we're handling an Invoke
-        or a Kernel stub.
-
-        :param parent: the node in the f2pygen AST representing the routine \
-                       in which to insert the declarations.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
-
-        :raises InternalError: if neither self._invoke or self._kernel \
-                               are set.
-        '''
-        if self._invoke:
-            self._invoke_declarations(parent)
-        elif self._kernel:
-            self._stub_declarations(parent)
-        else:
-            raise InternalError("LFRicCollection has neither a Kernel "
-                                "or an Invoke - should be impossible.")
-
-    def initialise(self, parent):
-        '''
-        Add code to initialise the entities being managed by this class.
-        We do nothing by default - it is up to the sub-class to override
-        this method if initialisation is required.
-
-        :param parent: the node in the f2pygen AST to which to add \
-                       initialisation code.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
-        '''
-
-    @abc.abstractmethod
-    def _invoke_declarations(self, parent):
-        '''
-        Add all necessary declarations for an Invoke.
-
-        :param parent: node in the f2pygen AST representing the Invoke to \
-                       which to add declarations.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
-
-        '''
-
-    def _stub_declarations(self, parent):
-        '''
-        Add all necessary declarations for a Kernel stub. Not abstract because
-        not all entities need representing within a Kernel.
-
-        :param parent: node in the f2pygen AST representing the Kernel stub \
-                       to which to add declarations.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
-
-        '''
 
 
 class DynStencils(LFRicCollection):
@@ -10195,7 +10101,6 @@ __all__ = [
     'DynKernMetadata',
     'DynamoPSy',
     'DynamoInvokes',
-    'LFRicCollection',
     'DynStencils',
     'DynDofmaps',
     'DynFunctionSpaces',

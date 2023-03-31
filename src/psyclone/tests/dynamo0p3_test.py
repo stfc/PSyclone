@@ -48,7 +48,7 @@ from fparser import api as fpapi
 from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
 from psyclone.domain.lfric import FunctionSpace, LFRicArgDescriptor, \
-    LFRicConstants
+    LFRicConstants, LFRicCollection
 from psyclone.dynamo0p3 import DynACCEnterDataDirective, \
     DynBoundaryConditions, DynCellIterators, DynGlobalSum, DynKern, \
     DynKernelArguments, DynKernMetadata, DynLoop, DynProxies, \
