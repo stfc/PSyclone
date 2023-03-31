@@ -184,10 +184,23 @@ class ModuleInfo:
 
         '''
         if self._routine_info is None:
-            # This will trigger to add routine information:
+            # This will trigger adding routine information:
             self.get_parse_tree()
 
         return self._routine_info[routine_name.lower()]
+
+    # ------------------------------------------------------------------------
+    def contains_routine(self, routine_name):
+        ''':returns: whether the specified routine name is part of this \
+            module or not.
+        :rtype: bool
+
+        '''
+        if self._routine_info is None:
+            # This will trigger adding routine information
+            self.get_parse_tree()
+
+        return routine_name.lower() in self._routine_info
 
     # ------------------------------------------------------------------------
     def _extract_import_information(self):
