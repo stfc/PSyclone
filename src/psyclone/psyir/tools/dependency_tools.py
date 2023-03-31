@@ -972,10 +972,11 @@ class DependencyTools():
                 continue
             done.add(info)
             external_type, module_name, symbol_name = info
-            if external_type == "subroutine":
+            if external_type == "routine":
                 if module_name is None:
                     # We don't know where the subroutine comes from.
                     # For now ignore this
+                    print(f"Unknown routine '{symbol_name} - ignored.")
                     continue
                 try:
                     mod_info = mod_manager.get_module_info(module_name)
@@ -989,15 +990,17 @@ class DependencyTools():
                           f"'{module_name}' - ignored.")
                     continue
                 non_locals = routine_info.get_non_local_symbols()
-                print(f"MOD: Adding non-locals from subroutine '{symbol_name} "
-                      f"in module '{module_name}': '{non_locals}'")
+                # Add the list of non-locals to our todo list:
                 todo.extend(non_locals)
-            elif external_type == "function":
-                print("function", module_name, symbol_name)
+
             elif external_type == "reference":
+                # We know it is a reference, so add it to the result:
                 result.add((module_name, symbol_name))
+
             else:
-                print("unknown", module_name, symbol_name)
+                # It is unknown, i.e. it could be a function (TODO #1314).
+                # or a variable. Check if there is a routine with that name
+                # in the module information:
                 try:
                     mod_info = mod_manager.get_module_info(module_name)
                 except FileNotFoundError:
