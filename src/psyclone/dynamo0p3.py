@@ -1103,7 +1103,7 @@ class DynamoPSy(PSy):
 
         # Include required constants and infrastructure modules. The sets of
         # required LFRic data structures and their proxies are updated in
-        # the relevant field and operator subclasses of DynCollection.
+        # the relevant field and operator subclasses of LFRicCollection.
         # Here we sort the inputs in reverse order to have "_type" before
         # "_proxy_type" and "operator_" before "columnwise_operator_".
         # We also iterate through the dictionary in reverse order so the
@@ -1138,7 +1138,7 @@ class DynamoInvokes(Invokes):
         Invokes.__init__(self, alg_calls, DynInvoke, psy)
 
 
-class DynCollection():
+class LFRicCollection():
     '''
     Base class for managing the declaration and initialisation of a
     group of related entities within an Invoke or Kernel stub
@@ -1169,7 +1169,7 @@ class DynCollection():
             # We only have a single kernel call in this case
             self._calls = [node]
         else:
-            raise InternalError(f"DynCollection takes only a DynInvoke "
+            raise InternalError(f"LFRicCollection takes only a DynInvoke "
                                 f"or a DynKern but got: {type(node)}")
 
         # Whether or not the associated Invoke contains only kernels that
@@ -1198,7 +1198,7 @@ class DynCollection():
         elif self._kernel:
             self._stub_declarations(parent)
         else:
-            raise InternalError("DynCollection has neither a Kernel "
+            raise InternalError("LFRicCollection has neither a Kernel "
                                 "or an Invoke - should be impossible.")
 
     def initialise(self, parent):
@@ -1235,7 +1235,7 @@ class DynCollection():
         '''
 
 
-class DynStencils(DynCollection):
+class DynStencils(LFRicCollection):
     '''
     Stencil information and code generation associated with a PSy-layer
     routine or Kernel stub.
@@ -1827,7 +1827,7 @@ class DynStencils(DynCollection):
                     entity_decls=[self.dofmap_symbol(symtab, arg).name]))
 
 
-class LFRicMeshProperties(DynCollection):
+class LFRicMeshProperties(LFRicCollection):
     '''
     Holds all information on the the mesh properties required by either an
     invoke or a kernel stub. Note that the creation of a suitable mesh
@@ -2153,7 +2153,7 @@ class LFRicMeshProperties(DynCollection):
             parent.add(AssignGen(parent, lhs=lhs, rhs=rhs))
 
 
-class DynReferenceElement(DynCollection):
+class DynReferenceElement(LFRicCollection):
     '''
     Holds all information on the properties of the Reference Element
     required by an Invoke or a Kernel stub.
@@ -2512,7 +2512,7 @@ class DynReferenceElement(DynCollection):
                     f"faces({self._face_out_normals_symbol.name})"))
 
 
-class DynDofmaps(DynCollection):
+class DynDofmaps(LFRicCollection):
     '''
     Holds all information on the dofmaps (including column-banded and
     indirection) required by an invoke.
@@ -2749,7 +2749,7 @@ class DynDofmaps(DynCollection):
                                entity_decls=[dmap]))
 
 
-class DynFunctionSpaces(DynCollection):
+class DynFunctionSpaces(LFRicCollection):
     '''
     Handles the declaration and initialisation of all function-space-related
     quantities required by an Invoke.
@@ -2870,7 +2870,7 @@ class DynFunctionSpaces(DynCollection):
                                          "%get_undf()"))
 
 
-class LFRicFields(DynCollection):
+class LFRicFields(LFRicCollection):
     '''
     Manages the declarations for all field arguments required by an Invoke
     or Kernel stub.
@@ -3003,7 +3003,7 @@ class LFRicFields(DynCollection):
                                           fld.function_space.mangled_name]))
 
 
-class LFRicRunTimeChecks(DynCollection):
+class LFRicRunTimeChecks(LFRicCollection):
     '''Handle declarations and code generation for run-time checks. This
     is not used in the stub generator.
 
@@ -3182,10 +3182,10 @@ class LFRicRunTimeChecks(DynCollection):
         # extending function space checks to operators.
 
 
-class DynProxies(DynCollection):
+class DynProxies(LFRicCollection):
     '''
     Handles all proxy-related declarations and initialisation. Unlike other
-    sub-classes of DynCollection, we do not have to handle Kernel-stub
+    sub-classes of LFRicCollection, we do not have to handle Kernel-stub
     generation since Kernels know nothing about proxies.
 
     '''
@@ -3299,7 +3299,7 @@ class DynProxies(DynCollection):
                                      rhs=arg.name+"%get_proxy()"))
 
 
-class DynCellIterators(DynCollection):
+class DynCellIterators(LFRicCollection):
     '''
     Handles all entities required by kernels that operate on cell-columns.
 
@@ -3383,7 +3383,7 @@ class DynCellIterators(DynCollection):
                 self._first_var.ref_name() + "%get_nlayers()"))
 
 
-class LFRicLoopBounds(DynCollection):
+class LFRicLoopBounds(LFRicCollection):
     '''
     Handles all variables required for specifying loop limits within a
     PSy-layer routine.
@@ -3446,7 +3446,7 @@ class LFRicLoopBounds(DynCollection):
                                entity_decls=entities))
 
 
-class LFRicScalarArgs(DynCollection):
+class LFRicScalarArgs(LFRicCollection):
     '''
     Handles the declarations of scalar kernel arguments appearing in either
     an Invoke or a Kernel stub.
@@ -3670,7 +3670,7 @@ class LFRicScalarArgs(DynCollection):
                         "kernel stub, but it is neither.")
 
 
-class DynLMAOperators(DynCollection):
+class DynLMAOperators(LFRicCollection):
     '''
     Handles all entities associated with Local-Matrix-Assembly Operators.
     '''
@@ -3741,7 +3741,7 @@ class DynLMAOperators(DynCollection):
              add(op_datatype))
 
 
-class DynCMAOperators(DynCollection):
+class DynCMAOperators(LFRicCollection):
     '''
     Holds all information on the Column-Matrix-Assembly operators
     required by an Invoke or Kernel stub.
@@ -4553,7 +4553,7 @@ class DynInterGrid():
         return self._last_cell_var_symbol
 
 
-class DynBasisFunctions(DynCollection):
+class DynBasisFunctions(LFRicCollection):
     ''' Holds all information on the basis and differential basis
     functions required by an invoke or kernel call. This covers both those
     required for quadrature and for evaluators.
@@ -5458,7 +5458,7 @@ class DynBasisFunctions(DynCollection):
             parent.add(DeallocateGen(parent, sorted(func_space_var_names)))
 
 
-class DynBoundaryConditions(DynCollection):
+class DynBoundaryConditions(LFRicCollection):
     '''
     Manages declarations and initialisation of quantities required by
     kernels that need boundary condition information.
@@ -10195,7 +10195,7 @@ __all__ = [
     'DynKernMetadata',
     'DynamoPSy',
     'DynamoInvokes',
-    'DynCollection',
+    'LFRicCollection',
     'DynStencils',
     'DynDofmaps',
     'DynFunctionSpaces',

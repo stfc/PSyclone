@@ -3645,32 +3645,32 @@ def test_haloex_not_required(monkeypatch):
         assert haloex.required() == (False, True)
 
 
-def test_dyncollection_err1():
-    ''' Check that the DynCollection constructor raises the expected
+def test_lfriccollection_err1():
+    ''' Check that the LFRicCollection constructor raises the expected
     error if it is not provided with a DynKern or DynInvoke. '''
     _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                     api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     with pytest.raises(InternalError) as err:
         _ = DynProxies(psy)
-    assert ("DynCollection takes only a DynInvoke or a DynKern but"
+    assert ("LFRicCollection takes only a DynInvoke or a DynKern but"
             in str(err.value))
 
 
-def test_dyncollection_err2(monkeypatch):
-    ''' Check that the DynCollection constructor raises the expected
+def test_lfriccollection_err2(monkeypatch):
+    ''' Check that the LFRicCollection constructor raises the expected
     error if it is not provided with a DynKern or DynInvoke. '''
     _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                     api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     invoke = psy.invokes.invoke_list[0]
-    # Create a valid sub-class of a DynCollection
+    # Create a valid sub-class of a LFRicCollection
     proxies = DynProxies(invoke)
     # Monkeypatch it to break internal state
     monkeypatch.setattr(proxies, "_invoke", None)
     with pytest.raises(InternalError) as err:
         proxies.declarations(ModuleGen(name="testmodule"))
-    assert "DynCollection has neither a Kernel or an Invoke" in str(err.value)
+    assert "LFRicCollection has neither a Kernel or an Invoke" in str(err.value)
 
 
 def test_dyncelliterators_err(monkeypatch):
