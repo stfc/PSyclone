@@ -35,16 +35,23 @@
 
 '''This module contains the ModuleInfo class, which is used to store
 and cache information about a module: the filename, source code (if requested)
-and the fparser tree (if requested).
+and the fparser tree (if requested), and information about routine it
+includes, and external symbol usage.
 '''
 
+import os
 
 from fparser.common.readfortran import FortranStringReader
-from fparser.two.Fortran2003 import Use_Stmt
+from fparser.two.Fortran2003 import (Function_Subprogram,
+                                     Subroutine_Subprogram, Use_Stmt)
 from fparser.two.parser import ParserFactory
 from fparser.two.utils import walk
 
-from psyclone.errors import PSycloneError
+from psyclone.errors import InternalError, PSycloneError
+from psyclone.psyir.nodes import FileContainer, Routine
+from psyclone.parse.routine_info import RoutineInfo
+from psyclone.psyir.frontend.fparser2 import Fparser2Reader
+from psyclone.psyir.symbols import SymbolError
 
 
 # ============================================================================
@@ -64,7 +71,8 @@ class ModuleInfoError(PSycloneError):
 
 # ============================================================================
 class ModuleInfo:
-    '''This class stores mostly cached information about modules: it stores
+    # pylint: disable=too-many-instance-attributes
+    '''This class stores and caches information about modules: it stores
     the original filename, if requested it will read the file and then caches
     the plain text file, and if required it will parse the file, and then
     cache the fparser AST.
@@ -84,6 +92,9 @@ class ModuleInfo:
         # A cache for the fparser tree
         self._parse_tree = None
 
+        # A cache for the PSyIR representation
+        self._psyir = None
+
         # A cache for the module dependencies: this is just a set
         # of all modules used by this module. Type: Set[str]
         self._used_modules = None
@@ -91,6 +102,22 @@ class ModuleInfo:
         # This is a dictionary containing the sets of symbols imported from
         # each module, indexed by the module names: Dict[str, Set(str)].
         self._used_symbols_from_module = None
+
+        # This dictionary will store the mapping of routine name to
+        # RoutineInfo objects.
+        self._routine_info = None
+
+        # This is a dictionary that will cache non-local symbols used in
+        # each routine. The key is the lowercase routine name, and the
+        # value is a list of triplets:
+        # - the type ('subroutine', 'function', 'reference', 'unknown').
+        #   The latter is used for array references or function calls,
+        #   which we cannot distinguish till #1314 is done.
+        # - the name of the module (lowercase)
+        # - the name of the symbol (lowercase)
+        self._routine_non_locals = None
+
+        self._processor = Fparser2Reader()
 
     # ------------------------------------------------------------------------
     @property
@@ -138,7 +165,29 @@ class ModuleInfo:
             reader = FortranStringReader(self.get_source_code())
             parser = ParserFactory().create(std="f2008")
             self._parse_tree = parser(reader)
+            self._routine_info = {}
+            for routine in walk(self._parse_tree, (Function_Subprogram,
+                                                   Subroutine_Subprogram)):
+                routine_info = RoutineInfo(self, routine)
+                self._routine_info[routine_info.name] = routine_info
+
         return self._parse_tree
+
+    # ------------------------------------------------------------------------
+    def get_routine_info(self, routine_name):
+        '''Returns the routine information for the specified routine name.
+
+        :param str routine_name: the name of the routine.
+
+        :returns: the RoutineInfo object for the specified routine.
+        :rtype: :py:class:`psyclone.parse.RoutineInfo`
+
+        '''
+        if self._routine_info is None:
+            # This will trigger to add routine information:
+            self.get_parse_tree()
+
+        return self._routine_info[routine_name.lower()]
 
     # ------------------------------------------------------------------------
     def _extract_import_information(self):
@@ -210,3 +259,30 @@ class ModuleInfo:
             self._extract_import_information()
 
         return self._used_symbols_from_module
+
+    # ------------------------------------------------------------------------
+    def get_psyir(self):
+        '''Returns the PSyIR representation of this module. This is based
+        on the fparser tree (see get_parse_tree), and the information is
+        cached. If the PSyIR must be modified, it needs to be copied,
+        otherwise the modified tree will be returned from the cache in the
+        future.
+        If the conversion to PSyIR fails, an empty FileContainer is returned.
+        #TODO: Maybe return a copy of the tree??
+
+        :returns: PSyIR representing this module.
+        :rtype: :py:class:`psyclone.psyir.nodes.Node`
+
+        '''
+        if self._psyir is None:
+            try:
+                self._psyir = \
+                    self._processor.generate_psyir(self.get_parse_tree())
+            except (KeyError, SymbolError, InternalError):
+                self._psyir = FileContainer(os.path.basename(self._filename))
+            # Now update all RoutineInfo objects:
+            for routine in self._psyir.walk(Routine):
+                routine_info = self._routine_info[routine.name]
+                routine_info.set_psyir(routine)
+
+        return self._psyir
