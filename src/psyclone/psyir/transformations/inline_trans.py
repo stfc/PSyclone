@@ -764,21 +764,15 @@ class InlineTrans(Transformation):
 
         # We can't handle a clash between (apparently) different symbols that
         # share a name but are imported from different containers.
-        callsite_imports = table.imported_symbols
-        routine_imports = routine_table.imported_symbols
-        routine_import_names = [sym.name for sym in routine_imports]
-        for sym in callsite_imports:
-            if sym.name in routine_import_names:
-                routine_sym = routine_table.lookup(sym.name)
-                if (routine_sym.interface.container_symbol.name !=
-                        sym.interface.container_symbol.name):
-                    raise TransformationError(
-                        f"Routine '{routine.name}' imports '{sym.name}' from "
-                        f"Container "
-                        f"'{routine_sym.interface.container_symbol.name}' but "
-                        f"the call site has an import of a symbol with the "
-                        f"same name from Container "
-                        f"'{sym.interface.container_symbol.name}'.")
+        symbols =  table.import_clashes(routine_table)
+        if symbols:
+            raise TransformationError(
+                f"Routine '{routine.name}' imports '{symbols[1].name}' from "
+                f"Container "
+                f"'{symbols[1].interface.container_symbol.name}' but "
+                f"the call site has an import of a symbol with the "
+                f"same name from Container "
+                f"'{symbols[0].interface.container_symbol.name}'.")
 
         # Check for unresolved symbols or for any accessed from the Container
         # containing the target routine.

@@ -546,7 +546,23 @@ class SymbolTable():
 
         self._symbols[key] = new_symbol
 
-    def _inline_container_symbols(self, other_table):
+    def import_clashes(self, other_table):
+        '''
+        Checks the imported symbols in the supplied table against those in
+        this table. If a symbol with the same name appears in both tables but
+        is imported from different Containers then the two are returned.
+        '''
+        other_import_names = [sym.name for sym in other_table.imported_symbols]
+        for sym in self.imported_symbols:
+            if sym.name in other_import_names:
+                routine_sym = other_table.lookup(sym.name)
+                if (routine_sym.interface.container_symbol.name !=
+                        sym.interface.container_symbol.name):
+                    # TODO raise a GenerationError instead?
+                    return sym, routine_sym
+        return None
+
+    def _add_container_symbols(self, other_table):
         '''
         Takes container symbols from the supplied symbol table and adds them to
         this table. All references to each container symbol are also updated.
@@ -597,20 +613,18 @@ class SymbolTable():
                                 callsite_sym.name, other_table=other_table))
                 isym.interface = ImportInterface(self.lookup(csym.name))
 
-    def _inline_symbols(self, other_table, include_arguments=True):
+    def _add_symbols(self, other_table, include_arguments=True):
         '''
-        Takes symbols from the symbol table of the routine and adds
-        them to the table of the call site. Any literals that refer to
-        precision symbols are updated to refer to the appropriate symbol in
-        the table at the call site.
+        Takes symbols from the supplied symbol table and adds them to this
+        table.
 
-        :param table: the symbol table at the call site.
-        :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
-        :param routine_table: the symbol table of the routine being inlined.
-        :type routine_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+        :param other_table: the symbol table from which to add symbols.
+        :type other_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+        :param bool include_arguments: whether or not to include symbols that \
+                                       are formal routine arguments.
 
         :raises InternalError: if an imported symbol is found that has not \
-            been updated to refer to a Container at the call site.
+            been updated to refer to a Container in this table.
 
         '''
         if include_arguments:
@@ -619,36 +633,35 @@ class SymbolTable():
             formal_args = other_table.argument_list
 
         try:
-            itself = other_table.lookup_with_tag("own_routine_symbol")
-            if not isinstance(itself, RoutineSymbol):
+            sym_to_skip = other_table.lookup_with_tag("own_routine_symbol")
+            if not isinstance(sym_to_skip, RoutineSymbol):
                 # We only want to skip RoutineSymbols, not DataSymbols (which
                 # we may have if we have a Fortran function).
-                itself = None
+                sym_to_skip = None
         except KeyError:
-            itself = None
+            sym_to_skip = None
 
         for old_sym in other_table.symbols:
 
             if isinstance(old_sym, ContainerSymbol) or old_sym in formal_args:
-                # We've dealt with Container symbols in
-                # _inline_container_symbols() and we deal with formal arguments
-                # in apply().
+                # We've dealt with Container symbols in _add_container_symbols
+                # and we're excluding those that represent formal arguments.
                 continue
 
-            if old_sym is itself:
-                # We don't want or need the symbol representing the routine
-                # that is being inlined.
+            if old_sym is sym_to_skip:
+                # In the case where the 'other_table' belongs to a routine,
+                # we don't want or need the symbol representing that routine.
                 continue
 
             try:
                 self.add(old_sym)
 
             except KeyError:
-                # We have a clash with a symbol at the call site.
+                # We have a clash with a symbol in this table.
                 if old_sym.is_import:
                     # This symbol is imported from a Container so should
                     # already have been updated so as to be imported from the
-                    # corresponding container in scope at the call site.
+                    # corresponding container in this table.
                     callsite_csym = self.lookup(
                         old_sym.interface.container_symbol.name)
                     if old_sym.interface.container_symbol is not callsite_csym:
@@ -667,26 +680,37 @@ class SymbolTable():
 
     def extend(self, other_table, include_arguments=True):
         '''
-        Extends this symbol table by adding all of the symbols found in
-        `other_table`. The only exception is that if other_table belongs
-        to a Routine and contains a symbol with the same name as the
+        Extends this symbol table by moving all of the symbols found in
+        `other_table` into it. Symbol objects in either table may be
+        renamed in the event of clashes.
+
+        If `other_table` belongs to a Routine and contains a symbol with the
+        same name as the
         Routine (i.e. a function in Fortran) then that symbol is *not*
-        added to this symbol table.
+        added to this symbol table. Also, if `include_arguments` is False then
+        any Symbols representing formal routine arguments are excluded.
 
         :param other_table: the symbol table from which to add symbols.
         :type other_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
 
+        :raises TypeError: if `other_table` is not a SymbolTable.
+
         '''
         if not isinstance(other_table, SymbolTable):
-            raise TypeError("huh")
+            raise TypeError(f"SymbolTable.extend() expects a SymbolTable "
+                            f"instance but got '{type(other_table).__name__}'")
 
+        clashing_symbols = self.import_clashes(other_table)
+        if clashing_symbols:
+            raise GenerationError
+        
         # Deal with any Container symbols first.
-        self._inline_container_symbols(other_table)
+        self._add_container_symbols(other_table)
 
-        # Copy each Symbol from the Routine into the symbol table associated
-        # with the call site, excluding those that represent formal arguments
-        # or containers.
-        self._inline_symbols(other_table, include_arguments)
+        # Copy each Symbol from the supplied table into this one, excluding
+        # ContainerSymbols and, optionally, those that represent formal
+        # arguments.
+        self._add_symbols(other_table, include_arguments)
 
     def swap_symbol_properties(self, symbol1, symbol2):
         '''Swaps the properties of symbol1 and symbol2 apart from the symbol
