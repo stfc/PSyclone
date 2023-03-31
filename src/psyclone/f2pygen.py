@@ -44,7 +44,7 @@ from fparser.common.sourceinfo import FortranFormat
 from fparser.one.statements import Comment, Case
 from fparser.one.block_statements import SelectCase, SelectType, EndSelect
 from fparser.one.parsefortran import FortranParser
-# This alis is useful to refer to parts of fparser.one later but
+# This alias is useful to refer to parts of fparser.one later but
 # cannot be used for imports (as that involves looking for the
 # specified name in sys.modules).
 from fparser import one as fparser1
@@ -250,7 +250,7 @@ class BaseGen():
         self.children.append(new_object)
 
     def previous_loop(self):
-        ''' Returns the *last* occurence of a loop in the list of
+        ''' Returns the *last* occurrence of a loop in the list of
         siblings of this node '''
         from fparser.one.block_statements import Do
         for sibling in reversed(self.root.content):

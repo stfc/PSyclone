@@ -88,7 +88,7 @@ through the rules for each supported statement type.
 Assignment
 ----------
 
-If a tangent-linear assigment statement contains no active variables
+If a tangent-linear assignment statement contains no active variables
 then it is left unchanged when creating the adjoint code.
 
 If a tangent-linear assignment statement contains one or more active
@@ -189,7 +189,7 @@ Rules
 Rather than creating a matrix and transposing it, it can be seen that
 there are some relatively simple rules that can be followed in order
 to create the adjoint of a tangent-linear assignment. This is how the
-PSyAD `AssigmentTrans` transformation is implemented. Let's look
+PSyAD `AssignmentTrans` transformation is implemented. Let's look
 again at the previous example tangent-linear statement:
 
 .. math::
@@ -200,9 +200,9 @@ If each of the terms on the right-hand-side (RHS) of the statement are taken in 
 (i.e. :math:`xA`, then :math:`yB`, then :math:`xC`) there are two cases to consider:
 
 1) the active variable in the RHS term is different to the active
-   variable on the left-hand-side (LHS) of the assigment.
+   variable on the left-hand-side (LHS) of the assignment.
 2) the active variable in the RHS term is the same as the active
-   variable on the LHS of the assigment.
+   variable on the LHS of the assignment.
 
 In case 1, the adjoint is simply the active variable on the RHS being
 updated with the product of its multiplier in the tangent-linear
@@ -450,7 +450,7 @@ used to perform these manipulations. See the
 :ref:`user_guide:available_trans` section of the user guide for more
 information on these transformations.
 
-.. note:: At the moment all ``dot_product`` and ``matmul`` instrinsics
+.. note:: At the moment all ``dot_product`` and ``matmul`` intrinsics
 	  are transformed irrespective of whether their arguments and
 	  return values are (or contain) active variables or not.
 

@@ -363,7 +363,7 @@ class Config:
                     f"variable name.", config=self)
 
         # Now we deal with the API-specific sections of the config file. We
-        # create a dictionary to hold the API-specifc Config objects.
+        # create a dictionary to hold the API-specific Config objects.
         self._api_conf = {}
         for api in Config._supported_api_list:
             if api in self._config:
