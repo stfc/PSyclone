@@ -501,21 +501,21 @@ class MetadataToArgumentsRules():
 
             # Provide additional arguments if there is a field or
             # field vector on this space
-            if (cls._field_meta_args_on_fs(
+            if (cls._metadata.field_meta_args_on_fs(
                     [FieldArgMetadata, FieldVectorArgMetadata],
-                    function_space, cls._metadata)):
+                    function_space)):
                 cls._fs_compulsory_field(function_space)
 
             # Provide additional arguments if there is a intergrid
             # field or intergrid vector field on this space
-            intergrid_field = cls._field_meta_args_on_fs(
+            intergrid_field = cls._metadata.field_meta_args_on_fs(
                 [InterGridArgMetadata, InterGridVectorArgMetadata],
-                function_space, cls._metadata)
+                function_space)
             if intergrid_field:
                 cls._fs_intergrid(intergrid_field[0])
 
-            cma_ops = cls._operator_meta_args_on_fs(
-                ColumnwiseOperatorArgMetadata, function_space, cls._metadata)
+            cma_ops = cls._metadata.operator_meta_args_on_fs(
+                ColumnwiseOperatorArgMetadata, function_space)
             if cma_ops:
                 if cls._metadata.kernel_type == "cma-assembly":
                     # CMA-assembly requires banded dofmaps
@@ -565,56 +565,3 @@ class MetadataToArgumentsRules():
            any(shape for shape in cls._metadata.shapes if shape in
                const.VALID_QUADRATURE_SHAPES):
             cls._quad_rule(cls._metadata.shapes)
-
-    @staticmethod
-    def _field_meta_args_on_fs(arg_types, function_space, metadata):
-        '''Utility function to return any field (plus field vector, intergrid
-        or intergrid vector) meta_args in metadata that have the same
-        type as those specified in arg_types and are on the function
-        space specified in function_space.
-
-        :param arg_types: meta_arg classes indicating which meta_arg \
-            arguments to check.
-        :type arg_types: \
-            :py:class:`psyclone.domain.lfric.kernel.CommonMetaArgMetadata` or \
-            List[ \
-            :py:class:`psyclone.domain.lfric.kernel.CommonMetaArgMetadata`]
-        :param str function_space: the specified function space.
-        :param metadata: the kernel metadata.
-        :type metadata: \
-            :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
-
-        :returns: a list of meta_args.
-        :type arg_types: List[ \
-            :py:class:`psyclone.domain.lfric.kernel.CommonMetaArgMetadata`]
-
-        '''
-        return [arg for arg in metadata.meta_args_get(arg_types)
-                if arg.function_space == function_space]
-
-    @staticmethod
-    def _operator_meta_args_on_fs(arg_types, function_space, metadata):
-        '''Utility function to return any operator meta_args in metadata that
-        have the same type as those specified in arg_types and their
-        from or to function spaces are the same as the function space
-        specified in function_space.
-
-        :param arg_types: meta_arg classes indicating which meta_arg \
-            arguments to check.
-        :type arg_types: \
-            :py:class:`psyclone.domain.lfric.kernel.CommonMetaArgMetadata` or \
-            List[ \
-            :py:class:`psyclone.domain.lfric.kernel.CommonMetaArgMetadata`]
-        :param str function_space: the specified function space.
-        :param metadata: the kernel metadata.
-        :type metadata: \
-            :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
-
-        :returns: a list of meta_args.
-        :type arg_types: List[ \
-            :py:class:`psyclone.domain.lfric.kernel.CommonMetaArgMetadata`]
-
-        '''
-        return [arg for arg in metadata.meta_args_get(arg_types)
-                if function_space in [arg.function_space_to,
-                                      arg.function_space_from]]
