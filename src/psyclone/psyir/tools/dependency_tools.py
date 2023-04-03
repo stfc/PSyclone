@@ -1015,5 +1015,7 @@ class DependencyTools():
                     # Now it must be a reference, so add it to the result:
                     result.add((module_name, symbol_name))
 
-        print("RESULT IS", result)
+        print(f"Result for '{node_list[0].root.children[0].name}'",
+              f"'{node_list[0].children[3].children[0].name}' is '{result}'")
+
         return in_local, out_local
