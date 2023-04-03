@@ -605,7 +605,7 @@ class FortranWriter(LanguageWriter):
             dims = self.gen_indices(array_shape)
             result += ", dimension(" + ",".join(dims) + ")"
 
-        if symbol.is_argument:
+        if isinstance(symbol, DataSymbol) and symbol.is_argument:
             intent = gen_intent(symbol)
             if intent:
                 result += f", intent({intent})"
@@ -861,7 +861,7 @@ class FortranWriter(LanguageWriter):
         SymbolTable.
 
         :param symbol_table: the SymbolTable instance.
-        :type symbol: :py:class:`psyclone.psyir.symbols.SymbolTable`
+        :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
         :param bool is_module_scope: whether or not the declarations are in \
                                      a module scoping unit. Default is False.
 
@@ -869,8 +869,9 @@ class FortranWriter(LanguageWriter):
         :rtype: str
 
         :raises VisitorError: if one of the symbols is a RoutineSymbol which \
-            does not have an ImportInterface or ModuleDefaultInterface (and is \
-            not a Fortran intrinsic) as this is not supported by this backend.
+            does not have an ImportInterface or ModuleDefaultInterface (and \
+            is not a Fortran intrinsic) as this is not supported by this \
+            backend.
         :raises VisitorError: if args_allowed is False and one or more \
             argument declarations exist in symbol_table.
         :raises VisitorError: if there are any symbols in the supplied table \

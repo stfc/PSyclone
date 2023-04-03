@@ -319,6 +319,15 @@ class Symbol():
         return isinstance(self._interface, AutomaticInterface)
 
     @property
+    def is_module(self):
+        '''
+        :returns: whether the Symbol has a DefaultModuleInterface.
+        :rtype: bool
+
+        '''
+        return isinstance(self._interface, DefaultModuleInterface)
+
+    @property
     def is_import(self):
         '''
         :returns: whether the Symbol has an ImportInterface.

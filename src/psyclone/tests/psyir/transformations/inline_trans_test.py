@@ -1675,7 +1675,7 @@ def test_validate_static_var(fortran_reader):
     inline_trans = InlineTrans()
     with pytest.raises(TransformationError) as err:
         inline_trans.validate(routine)
-    assert ("Routine 'sub' cannot be inlined because it has a static (Fortran"
+    assert ("Routine 'sub' cannot be inlined because it has a static (Fortran "
             "SAVE) interface for Symbol 'state'." in str(err.value))
 
 
@@ -2073,7 +2073,7 @@ SUB_IN_MODULE = (
 
 def test_find_routine_local(fortran_reader):
     '''Test that the PSyIR of the Routine is returned when it is local to
-    the associated call.
+    the module associated with the call.
 
     '''
     code = (
@@ -2086,14 +2086,14 @@ def test_find_routine_local(fortran_reader):
     call = psyir.walk(Call)[0]
     inline_trans = InlineTrans()
     result = inline_trans._find_routine(call)
-    assert call.routine.is_auto
+    assert call.routine.is_module
     assert isinstance(result, Routine)
     assert result.name == "sub"
 
 
 def test_find_routine_missing_exception(fortran_reader):
     '''Test that the expected exception is raised if the Call's Routine
-    symbol has a local interface but the Routine can't be found in the
+    symbol has a module interface but the Routine can't be found in the
     PSyIR.
 
     '''
@@ -2108,7 +2108,7 @@ def test_find_routine_missing_exception(fortran_reader):
     psyir.children[0].children[1].detach()
     call = psyir.walk(Call)[0]
     inline_trans = InlineTrans()
-    assert call.routine.is_auto
+    assert call.routine.is_module
     with pytest.raises(InternalError) as info:
         _ = inline_trans._find_routine(call)
     assert ("Failed to find the source code of the local routine 'sub'."

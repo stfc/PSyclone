@@ -958,7 +958,7 @@ class InlineTrans(Transformation):
         name = call_node.routine.name
         routine_sym = call_node.routine
 
-        if routine_sym.is_auto:
+        if routine_sym.is_module:
             table = routine_sym.find_symbol_table(call_node)
             for routine in table.node.walk(Routine):
                 if routine.name.lower() == name.lower():
