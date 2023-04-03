@@ -123,6 +123,15 @@ class ModuleInfo:
 
     # ------------------------------------------------------------------------
     @property
+    def name(self):
+        ''':returns: the name of this module.
+        :rtype: str
+
+        '''
+        return self._name
+
+    # ------------------------------------------------------------------------
+    @property
     def filename(self):
         ''':returns: the filename that contains the source code for this \
             module.
