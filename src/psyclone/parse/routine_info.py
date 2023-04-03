@@ -135,7 +135,7 @@ class RoutineInfo(RoutineInfoBase):
 
     # ------------------------------------------------------------------------
     @staticmethod
-    def _compute_non_locals_references(access, sym):
+    def _compute_non_locals_references(reference, sym):
         '''This function analyses if the symbol is a local variable, or if
         it was declared in the container, which is considered a non-local
         access. The symbol's interface is LocalInterface in any case.
@@ -144,8 +144,20 @@ class RoutineInfo(RoutineInfoBase):
         further up in the tree in the container (i.e. module).
         # TODO #1089: this should simplify the implementation.
 
+        :param reference: the Reference node which accessed the specified \
+            symbol.
+        :type reference: :py:class:`psyclone.psyir.nodes.Reference`
+        :param sym: the symbol which needs to be identified to be either \
+            local or not.
+        :type sym: :py:class:`psyclone.psyir.symbols.Symbol`
+
+        :returns: either None (if the symbol cannot be found or is a \
+            constant), or a tuple indicating type, module name and symbol \
+            name.
+        :rtype: Union[None, Tuple[str, str, str]]
+
         '''
-        node = access
+        node = reference
         while node:
             # A routine has its own name as a symbol in its symbol table.
             # That reference is not useful to decide what kind of symbol
