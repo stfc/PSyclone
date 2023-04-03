@@ -38,30 +38,28 @@ and cache information about a routine (i.e. a subroutine or a function) in a
 module.
 '''
 
-from fparser.two.Fortran2003 import Function_Subprogram
-
 from psyclone.psyir.nodes import (Call, Container, Reference)
 from psyclone.psyir.symbols import (ArgumentInterface, ImportInterface,
                                     RoutineSymbol)
 
 
 # ============================================================================
-class RoutineInfo:
-    '''This class stores information about a routine (function, subroutine).
+class RoutineInfoBase:
 
-    :param str name: the module name.
-    :param str filename: the name of the source file that stores this module \
-        (including path).
+    '''This is the base class for all classes that store information about
+    subroutines, functions or generic interfaces. It stores the
+    ModuleInformation object to which the routine belongs, the name and
+    provides an interface to store the PSyIR (if it is created by the
+    ModuleInfo object).
+
+    :param module_info: the ModuleInfo object to which this routine belongs.
+    :type module_info: :py:class:`psyclone.parse.ModuleInfo`
+    :param str name: the name of the routine or generic interface.
 
     '''
-
-    def __init__(self, module_info, ast):
+    def __init__(self, module_info, name):
         self._module_info = module_info
-        self._ast = ast
-        self._name = str(ast.content[0].items[1])
-
-        self._non_locals = None
-
+        self._name = name
         self._psyir = None
 
     # -------------------------------------------------------------------------
@@ -83,6 +81,57 @@ class RoutineInfo:
 
         '''
         self._psyir = psyir
+
+    # -------------------------------------------------------------------------
+    @property
+    def psyir(self):
+        ''':returns: the PSyIR of this routine.
+        :rtype: :py:class:`psyclone.psyir.nodes.Node`
+
+        '''
+        return self._psyir
+
+    # -------------------------------------------------------------------------
+    @property
+    def module_info(self):
+        ''':returns: the ModuleInfo object to which this Routine belongs.
+        :rtype: :py:class:`psyclone.parse.ModuleInfo`
+
+        '''
+        return self._module_info
+
+    # -------------------------------------------------------------------------
+    def get_non_local_symbols(self):
+        '''This function returns a list of non-local accesses in the given
+        routine. It returns a list of triplets, each one containing:
+        - the type ('routine', 'function', 'reference', 'unknown').
+          The latter is used for array references or function calls,
+          which we cannot distinguish till #1314 is done.
+        - the name of the module (lowercase). This can be 'None' if no
+          module information is available.
+        - the name of the symbol (lowercase)
+
+        :returns: the non-local accesses in this routine.
+        :rtype: List[Tuple[str, str, str]]
+
+        '''
+
+
+# ============================================================================
+class RoutineInfo(RoutineInfoBase):
+    '''This class stores information about a routine (function, subroutine).
+
+    :param module_info: the ModuleInfo object which manages this object.
+    :type module_info: :py:class:`psyclone.parse.ModuleInfo`
+    :param ast: the AST of this routine.
+    :type ast: Union[:py:class:`fparser.two.Fortran2003.Function_Subprogram`,
+                     :py:class:`fparser.two.Fortran2003.Subroutine_Subprogram`]
+
+    '''
+    def __init__(self, module_info, ast):
+        super().__init__(module_info, str(ast.content[0].items[1]))
+        self._ast = ast
+        self._non_locals = None
 
     # ------------------------------------------------------------------------
     @staticmethod
@@ -129,10 +178,10 @@ class RoutineInfo:
 
         self._non_locals = []
 
-        if not self._psyir:
+        if not self.psyir:
             # Parsing the PSyIR in the parent will populate the PSyIR
             # information for each subroutine and function.
-            self._module_info.get_psyir()
+            self.module_info.get_psyir()
 
         for access in self._psyir.walk((Kern, Call, Reference)):
             # Builtins are certainly not externals, so ignore them.
@@ -155,10 +204,10 @@ class RoutineInfo:
                 # No import. This could either be a subroutine from
                 # this module, or just a global function.
                 try:
-                    self._module_info.get_routine_info(sym.name)
+                    self.module_info.get_routine_info(sym.name)
                     # A local function that is in the same module:
                     self._non_locals.append(("routine",
-                                             self._module_info.name, sym.name))
+                                             self.module_info.name, sym.name))
                 except KeyError:
                     # We don't know where the subroutine comes from
                     self._non_locals.append(("routine", None, sym.name))
@@ -190,7 +239,7 @@ class RoutineInfo:
 
     # ------------------------------------------------------------------------
     def get_non_local_symbols(self):
-        '''This function returns a list of non-local accesses in the given
+        '''This function returns a list of non-local accesses in this
         routine. It returns a list of triplets, each one containing:
         - the type ('routine', 'function', 'reference', 'unknown').
           The latter is used for array references or function calls,
@@ -199,17 +248,60 @@ class RoutineInfo:
           module information is available.
         - the name of the symbol (lowercase)
 
-        :param str routine_name: the name of the routine.
-
-        :returns: the non-local accesses in the given routine.
+        :returns: the non-local accesses in this routine.
         :rtype: List[Tuple[str, str, str]]
 
-        :raises ModuleInfoError: if the given routine name is not defined \
-            in this module.
-
         '''
-
         if self._non_locals is None:
             self._compute_all_non_locals()
 
         return self._non_locals
+
+
+# ============================================================================
+class GenericRoutineInfo(RoutineInfoBase):
+    '''This class provides information about a generic function. It uses
+    the RoutineInfo objects of the various routines it applies to to
+    query the required data.
+
+    :param module_info: the ModuleInfo object which manages this object.
+    :type module_info: :py:class:`psyclone.parse.ModuleInfo`
+    :param str name: name of the generic routine.
+    :param List[str] list_of_routines: the list of routine names which are \
+        part of this generic interface.
+
+    '''
+    def __init__(self, module_info, name, list_of_routines):
+        super().__init__(module_info, name)
+
+        self._all_routines = []
+        for routine_name in list_of_routines:
+            routine_info = module_info.get_routine_info(routine_name)
+            self._all_routines.append(routine_info)
+
+    # ------------------------------------------------------------------------
+    def get_non_local_symbols(self):
+        '''This function returns a list of non-local accesses in the functions
+        that are part of this generic interface. Since PSyclone in general has
+        no information about which specific function will be called (since this
+        can depend on compile-time information like precision of variables),
+        it will combine the information from each specific routine.
+        It returns a list of triplets, each one containing:
+        - the type ('routine', 'function', 'reference', 'unknown').
+          The latter is used for array references or function calls,
+          which we cannot distinguish till #1314 is done.
+        - the name of the module (lowercase). This can be 'None' if no
+          module information is available.
+        - the name of the symbol (lowercase)
+
+        :returns: the non-local accesses for all specific routines of this \
+            generic interface.
+        :rtype: List[Tuple[str, str, str]]
+
+        '''
+        non_locals = []
+
+        for routine_info in self._all_routines:
+            non_locals.extend(routine_info.get_non_local_symbols())
+
+        return non_locals

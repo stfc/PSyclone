@@ -42,14 +42,15 @@ includes, and external symbol usage.
 import os
 
 from fparser.common.readfortran import FortranStringReader
-from fparser.two.Fortran2003 import (Function_Subprogram,
+from fparser.two.Fortran2003 import (Function_Subprogram, Interface_Block,
+                                     Interface_Stmt, Procedure_Stmt,
                                      Subroutine_Subprogram, Use_Stmt)
 from fparser.two.parser import ParserFactory
 from fparser.two.utils import walk
 
 from psyclone.errors import InternalError, PSycloneError
 from psyclone.psyir.nodes import FileContainer, Routine
-from psyclone.parse.routine_info import RoutineInfo
+from psyclone.parse.routine_info import GenericRoutineInfo, RoutineInfo
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.symbols import SymbolError
 
@@ -166,10 +167,22 @@ class ModuleInfo:
             parser = ParserFactory().create(std="f2008")
             self._parse_tree = parser(reader)
             self._routine_info = {}
+            # First collect information about all subroutines/functions
             for routine in walk(self._parse_tree, (Function_Subprogram,
                                                    Subroutine_Subprogram)):
                 routine_info = RoutineInfo(self, routine)
                 self._routine_info[routine_info.name] = routine_info
+
+            # Then handle all generic interfaces, which will internally
+            # use references to the RoutineInfo objects collected above:
+            for interface in walk(self._parse_tree, Interface_Block):
+                name = str(walk(interface, Interface_Stmt)[0].items[0])
+                routine_names = []
+                for proc_stmt in walk(interface, Procedure_Stmt):
+                    routine_names.extend([str(i) for i in
+                                          proc_stmt.items[0].items])
+                generic_info = GenericRoutineInfo(self, name, routine_names)
+                self._routine_info[name] = generic_info
 
         return self._parse_tree
 
