@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022, Science and Technology Facilities Council
+# Copyright (c) 2022-2023, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: R. W. Ford, STFC Daresbury Lab
+# Modified: S. Siso, STFC Daresbury Lab
 
 '''Module providing a transformation from a PSyIR DOT_PRODUCT operator
 to PSyIR code. This could be useful if the DOT_PRODUCT operator is not
@@ -202,7 +203,7 @@ class DotProduct2CodeTrans(Operator2CodeTrans):
                     f"The DotProduct2CodeTrans transformation only supports "
                     f"the transformation of a dotproduct intrinsic if its "
                     f"arguments are plain arrays, but found "
-                    f"{self._writer(arg)} in {self._writer(node)}.")
+                    f"{arg.debug_string()} in {node.debug_string()}.")
 
         for arg in node.children:
             # The argument should be a 1D array if the argument does
@@ -218,8 +219,8 @@ class DotProduct2CodeTrans(Operator2CodeTrans):
                         f"supports the transformation of a dotproduct "
                         f"intrinsic with an argument not containing an array "
                         f"slice if the argument is a 1D array, but found "
-                        f"{self._writer(arg)} with {len(symbol.shape)} "
-                        f"dimensions in {self._writer(node)}.")
+                        f"{arg.debug_string()} with {len(symbol.shape)} "
+                        f"dimensions in {node.debug_string()}.")
 
         for arg in node.children:
             # If the argument does provide array slice information
@@ -233,8 +234,8 @@ class DotProduct2CodeTrans(Operator2CodeTrans):
                         f"supports the transformation of a dotproduct "
                         f"intrinsic with an argument containing an array "
                         f"slice if the array slice is for the 1st dimension "
-                        f"of the array, but found {self._writer(arg)} in "
-                        f"{self._writer(node)}.")
+                        f"of the array, but found {arg.debug_string()} in "
+                        f"{node.debug_string()}.")
 
                 if not arg.is_full_range(0):
                     raise TransformationError(
@@ -243,18 +244,18 @@ class DotProduct2CodeTrans(Operator2CodeTrans):
                         f"intrinsic with an argument containing an array "
                         f"slice if the argument is for the 1st dimension "
                         f"of the array and is for the full range of that "
-                        f"dimension, but found {self._writer(arg)} in "
-                        f"{self._writer(node)}.")
+                        f"dimension, but found {arg.debug_string()} in "
+                        f"{node.debug_string()}.")
 
         # Both arguments should be real (as other intrinsic datatypes
-        # are not suported).
+        # are not supported).
         for arg in node.children:
             if arg.symbol.datatype.intrinsic != ScalarType.Intrinsic.REAL:
                 raise TransformationError(
                     f"The DotProduct2CodeTrans transformation only supports "
-                    f"arrays of real data, but found {self._writer(arg)} of "
+                    f"arrays of real data, but found {arg.debug_string()} of "
                     f"type {arg.symbol.datatype.intrinsic.name} in "
-                    f"{self._writer(node)}.")
+                    f"{node.debug_string()}.")
 
     def apply(self, node, options=None):
         '''Apply the DOT_PRODUCT intrinsic conversion transformation to the

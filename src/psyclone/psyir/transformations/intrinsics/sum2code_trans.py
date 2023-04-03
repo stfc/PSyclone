@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022, Science and Technology Facilities Council
+# Copyright (c) 2022-2023, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: R. W. Ford, STFC Daresbury Lab
+# Modified: S. Siso, STFC Daresbury Lab
 
 '''Module providing a transformation from a PSyIR SUM operator to
 PSyIR code. This could be useful if the SUM operator is not supported
@@ -217,7 +218,7 @@ class Sum2CodeTrans(Operator2CodeTrans):
             raise TransformationError(
                 f"Can't find the value of the dimension argument. Expected "
                 f"it to be a literal or a reference but found "
-                f"'{self._writer(dim_ref)}' which is a "
+                f"'{dim_ref.debug_string()}' which is a "
                 f"'{type(dim_ref).__name__}'.")
 
         # pylint: disable=unidiomatic-typecheck
@@ -237,7 +238,7 @@ class Sum2CodeTrans(Operator2CodeTrans):
                 raise TransformationError(
                     f"Sum2CodeTrans only supports arrays with array ranges, "
                     f"but found a fixed dimension in "
-                    f"'{self._writer(array_ref)}'.")
+                    f"'{array_ref.debug_string()}'.")
 
         for shape in array_ref.symbol.shape:
             if not (shape in [

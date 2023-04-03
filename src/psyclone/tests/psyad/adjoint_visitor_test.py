@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford, A. R. Porter and N. Nobre, STFC Daresbury Lab
+# Authors: R. W. Ford, A. R. Porter, N. Nobre and S. Siso, STFC Daresbury Lab
 
 '''A module to perform pytest tests on the code in the
 adjoint_visitor.py file within the psyad directory.
@@ -156,11 +156,6 @@ def test_create():
     assert adj_visitor._active_variable_names == ["dummy"]
     assert adj_visitor._active_variables is None
     assert isinstance(adj_visitor._logger, logging.Logger)
-    assert isinstance(adj_visitor._writer, FortranWriter)
-    # Optional writer argument
-    c_writer = CWriter()
-    adj_visitor = AdjointVisitor(["dummy"], writer=c_writer)
-    assert adj_visitor._writer == c_writer
 
 
 def test_create_error_active():
@@ -172,17 +167,6 @@ def test_create_error_active():
         _ = AdjointVisitor([])
     assert ("There should be at least one active variable supplied to an "
             "AdjointVisitor." in str(info.value))
-
-
-def test_create_error_writer():
-    '''Test that an AdjointVisitor raises an exception if an invalid
-    writer argument is supplied.
-
-    '''
-    with pytest.raises(TypeError) as info:
-        _ = AdjointVisitor(["dummy"], writer=None)
-    assert ("The writer argument should be a subclass of LanguageWriter but "
-            "found 'NoneType'." in str(info.value))
 
 
 # AdjointVisitor.container_node()
@@ -725,7 +709,7 @@ def test_loop_node_active(fortran_reader, fortran_writer, in_bounds,
     loop step is not, or might not be, 1 or -1. Note that in the
     PSyIR, -1 can be represented as a unitary minus containing a
     literal with value 1 and that, in such a case, an offset will be
-    computed (see the 3rd parametrised case where this occurs).
+    computed (see the 3rd parameterised case where this occurs).
 
     '''
     code = TL_LOOP_CODE.replace("lo,hi,step", in_bounds)

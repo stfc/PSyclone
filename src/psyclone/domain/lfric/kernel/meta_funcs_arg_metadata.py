@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022, Science and Technology Facilities Council
+# Copyright (c) 2022-2023, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -149,7 +149,7 @@ class MetaFuncsArgMetadata(CommonArgMetadata):
         '''
         const = LFRicConstants()
         self.validate_scalar_value(
-            value, const.VALID_FUNCTION_SPACES, "function_space")
+            value, const.VALID_FUNCTION_SPACE_NAMES, "function_space")
         self._function_space = value.lower()
 
     @property

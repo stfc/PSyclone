@@ -1813,7 +1813,7 @@ class GOStencil():
             # order
             for idx0 in range(3):
                 for idx1 in range(3):
-                    # The j coordincate needs to be 'reversed': the first
+                    # The j coordinate needs to be 'reversed': the first
                     # row (index 0 in args) is 'top', which should be
                     # accessed using '+1', and the last row (index 2 in args)
                     # needs to be accessed using '-1' (see depth()). Using
@@ -2174,6 +2174,9 @@ class GOACCEnterDataDirective(ACCEnterDataDirective):
         GOACCEnterDataDirective sets up the 'data_on_device' flag for
         each of the fields accessed.
 
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
+
         '''
         self._acc_dirs = self.ancestor(InvokeSchedule).walk(
                 (ACCParallelDirective, ACCKernelsDirective))
@@ -2201,7 +2204,7 @@ class GOACCEnterDataDirective(ACCEnterDataDirective):
 
             self.parent.children.insert(self.position, codeblock)
 
-        super().lower_to_language_level()
+        return super().lower_to_language_level()
 
 
 class GOKernelSchedule(KernelSchedule):
@@ -2238,6 +2241,9 @@ class GOHaloExchange(HaloExchange):
         PSyIR constructs. A GOHaloExchange is replaced by a call to the
         appropriate library method.
 
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
+
         '''
         # TODO 856: Wrap Halo call with an is_dirty flag when necessary.
 
@@ -2251,6 +2257,7 @@ class GOHaloExchange(HaloExchange):
                                 self._halo_exchange_name)
         call_node = Call.create(rsymbol, [Literal("1", INTEGER_TYPE)])
         self.replace_with(call_node)
+        return call_node
 
 
 # For Sphinx AutoAPI documentation generation

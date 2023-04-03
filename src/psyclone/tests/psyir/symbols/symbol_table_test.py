@@ -58,7 +58,7 @@ def create_hierarchy():
     '''Utility routine that creates a symbol table hierarchy with a
     symbol in each symbol table.
 
-    :returns: two symbol tables created in a hierachy.
+    :returns: two symbol tables created in a hierarchy.
     :rtype: (:py:class:`psyclone.psyir.symbols.SymbolTable`, \
         :py:class:`psyclone.psyir.symbols.SymbolTable`)
 
@@ -2095,6 +2095,43 @@ def test_resolve_imports_common_symbol(fortran_reader, tmpdir, monkeypatch,
     for dependency in dependency_order:
         symtab.resolve_imports([symtab.lookup(dependency)])
     assert symtab.lookup("common_import").datatype.intrinsic.name == "INTEGER"
+
+
+def test_resolve_imports_parent_scope(fortran_reader, tmpdir, monkeypatch):
+    '''Test that resolve_imports() works as expected if a Symbol is brought
+    into scope from a parent table (which does not itself contain the Symbol
+    in question).'''
+    # Set up include_path to import the proper modules
+    monkeypatch.setattr(Config.get(), '_include_paths', [str(tmpdir)])
+    filename = os.path.join(str(tmpdir), "a_mod.f90")
+    with open(filename, "w", encoding='UTF-8') as module:
+        module.write('''
+        module a_mod
+            integer :: some_var
+            integer, parameter :: wp = kind(1.0)
+        end module a_mod
+        ''')
+    psyir = fortran_reader.psyir_from_source('''
+        module b_mod
+            use a_mod
+            use other_mod
+        contains
+          subroutine my_sub()
+            real(kind=wp) :: rvar
+            some_var = some_var + 1_wp
+          end subroutine
+        end module b_mod
+        ''')
+    mod = psyir.children[0]
+    subroutine = psyir.walk(Routine)[0]
+    lit = subroutine.walk(Literal)[0]
+    sym = lit.datatype.precision
+    mod.symbol_table.resolve_imports(symbol_target=sym)
+    # A new Symbol with the correct properties should have been added to the
+    # table associated with the Container.
+    new_sym = mod.symbol_table.lookup(sym.name)
+    assert isinstance(new_sym.interface, ImportInterface)
+    assert new_sym.interface.container_symbol.name == "a_mod"
 
 
 def test_scope():

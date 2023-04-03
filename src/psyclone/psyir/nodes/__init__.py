@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author S. Siso, STFC Daresbury Lab
-# Modified: A. R. Porter and R. W. Ford, STFC Daresbury Lab
+# Modified: A. R. Porter, R. W. Ford and N. Nobre, STFC Daresbury Lab
 # Modified: J. Henrichs, Bureau of Meteorology
 # Modified: A. B. G. Chalk, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
@@ -55,7 +55,7 @@ from psyclone.psyir.nodes.array_of_structures_member import \
 from psyclone.psyir.nodes.operation import Operation, UnaryOperation, \
     BinaryOperation, NaryOperation
 from psyclone.psyir.nodes.literal import Literal
-from psyclone.psyir.nodes.ifblock import IfBlock
+from psyclone.psyir.nodes.if_block import IfBlock
 from psyclone.psyir.nodes.intrinsic_call import IntrinsicCall
 from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.nodes.loop import Loop
@@ -93,6 +93,7 @@ from psyclone.psyir.nodes.omp_clauses import OMPGrainsizeClause, \
     OMPFirstprivateClause, OMPSharedClause, OMPDependClause
 from psyclone.psyir.nodes.omp_task_directive import OMPTaskDirective, \
     DynamicOMPTaskDirective
+from psyclone.psyir.nodes.while_loop import WhileLoop
 
 
 # The entities in the __all__ list are made available to import directly from
@@ -130,6 +131,7 @@ __all__ = [
         'StructureReference',
         'UnaryOperation',
         'ScopingNode',
+        'WhileLoop',
         # PSyclone-specific nodes
         'KernelSchedule',
         # PSyData Nodes

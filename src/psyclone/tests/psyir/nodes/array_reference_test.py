@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2022, Science and Technology Facilities Council.
+# Copyright (c) 2019-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -44,9 +44,9 @@ from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes.node import colored
 from psyclone.psyir.nodes import Reference, ArrayReference, Assignment, \
     Literal, BinaryOperation, Range, KernelSchedule
-from psyclone.psyir.symbols import DataSymbol, ArrayType, ScalarType, \
-    REAL_SINGLE_TYPE, INTEGER_SINGLE_TYPE, REAL_TYPE, INTEGER_TYPE, Symbol, \
-    StructureType, DataTypeSymbol
+from psyclone.psyir.symbols import (
+    ArrayType, DataSymbol, DataTypeSymbol, DeferredType, ScalarType,
+    REAL_SINGLE_TYPE, INTEGER_SINGLE_TYPE, REAL_TYPE, INTEGER_TYPE)
 from psyclone.tests.utilities import check_links
 
 
@@ -447,25 +447,6 @@ def test_array_is_full_range():
     assert array_reference.is_full_range(0)
 
 
-def test_array_lbound():
-    '''
-    Test the lbound() method for an ArrayReference to an array of structures.
-
-    '''
-    sgrid_type = StructureType.create(
-        [("id", INTEGER_TYPE, Symbol.Visibility.PUBLIC)])
-    sgrid_type_sym = DataTypeSymbol("subgrid_type", sgrid_type)
-    sym = DataSymbol("subgrids", ArrayType(sgrid_type_sym, [(3, 10)]))
-    one = Literal("1", INTEGER_TYPE)
-    lbound = BinaryOperation.create(BinaryOperation.Operator.LBOUND,
-                                    Reference(sym), one)
-    ubound = BinaryOperation.create(BinaryOperation.Operator.UBOUND,
-                                    Reference(sym), one.copy())
-    array = ArrayReference.create(sym, [Range.create(lbound, ubound)])
-    lbnd = array.lbound(0)
-    assert lbnd.value == "3"
-
-
 def test_array_indices():
     ''' Tests for the indices property (provided by the ArrayMixin class). '''
     one = Literal("1", INTEGER_TYPE)
@@ -530,6 +511,12 @@ def test_array_datatype(fortran_writer):
     # The easiest way to check the expression is to convert it to Fortran
     code = fortran_writer(upper)
     assert code == "(4 - 2) / 1 + 1"
+    # Reference to a single element of an array of structures.
+    stype = DataTypeSymbol("grid_type", DeferredType())
+    atype = ArrayType(stype, [10])
+    asym = DataSymbol("aos", atype)
+    aref = ArrayReference.create(asym, [two.copy()])
+    assert aref.datatype is stype
 
 
 def test_array_create_colon(fortran_writer):

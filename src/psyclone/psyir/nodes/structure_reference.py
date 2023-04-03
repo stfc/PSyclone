@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: A. R. Porter and N. Nobre, STFC Daresbury Lab
+# Author: A. R. Porter, N. Nobre and S. Siso STFC Daresbury Lab
 # Author: J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
@@ -42,8 +42,8 @@ from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.nodes.member import Member
 from psyclone.psyir.nodes.array_member import ArrayMember
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
-from psyclone.psyir.nodes.array_of_structures_member import \
-    ArrayOfStructuresMember
+from psyclone.psyir.nodes.array_of_structures_member import (
+    ArrayOfStructuresMember)
 from psyclone.psyir.nodes.structure_member import StructureMember
 from psyclone.psyir.symbols import (ArrayType, DataSymbol, DataType,
                                     DataTypeSymbol, DeferredType, ScalarType,
@@ -319,7 +319,7 @@ class StructureReference(Reference):
 
         # Walk down the structure, collecting information on any array slices
         # as we go.
-        while hasattr(cursor, "member"):
+        while isinstance(cursor, (StructureMember, StructureReference)):
             cursor = cursor.member
             if isinstance(cursor_type, ArrayType):
                 cursor_type = cursor_type.intrinsic
@@ -350,17 +350,11 @@ class StructureReference(Reference):
                     # This ultimate access is an array but we've already
                     # encountered one or more slices earlier in the access
                     # expression.
-                    # TODO #1887. Allow the writer to be used in error messages
-                    # to be set in the Config object?
-                    # pylint: disable=import-outside-toplevel
-                    from psyclone.psyir.backend.fortran import FortranWriter
-                    fwriter = FortranWriter()
                     raise NotImplementedError(
                         f"Array of arrays not supported: the ultimate member "
                         f"'{cursor.name}' of the StructureAccess represents "
                         f"an array but other array notation is present in the "
-                        f"full access expression: '{fwriter(self)}'")
-                return ArrayType(cursor_type, shape)
+                        f"full access expression: '{self.debug_string()}'")
 
             return ArrayType(cursor_type, shape)
 

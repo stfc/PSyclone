@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2022, Science and Technology Facilities Council
+# Copyright (c) 2019-2023, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -174,6 +174,10 @@ class ExtractNode(PSyDataNode):
         '''
         Lowers this node (and all children) to language-level PSyIR. The
         PSyIR tree is modified in-place.
+
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
+
         '''
         # Avoid circular dependency
         # pylint: disable=import-outside-toplevel
@@ -187,7 +191,7 @@ class ExtractNode(PSyDataNode):
                    'post_var_list': output_list,
                    'post_var_postfix': self._post_name}
 
-        super().lower_to_language_level(options)
+        return super().lower_to_language_level(options)
 
 
 # For AutoAPI documentation generation

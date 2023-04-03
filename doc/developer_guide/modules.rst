@@ -130,7 +130,7 @@ is specified in either a config file or the command line
 consistency checks on the values it obtains from the configuration file.
 
 Since the PSyclone API to use can be read from the configuration
-file, it is not possible to have API-specifc sub-classes of ``Config``
+file, it is not possible to have API-specific sub-classes of ``Config``
 as we don't know which API is in use before we read the file. However, the
 configuration file can contain API-specific settings. These are placed in
 separate sections, named for the API to which they apply, e.g.::
@@ -143,7 +143,7 @@ configuration file, the ``Config`` constructor then creates a
 dictionary using the list of supported APIs to provide the keys. The
 configuration file is then checked for API-specific sections (again
 using the API names from the default section) and, if any are found,
-an API-specifc sub-class is created using the parsed entries from the
+an API-specific sub-class is created using the parsed entries from the
 corresponding section. The resulting object is stored in the
 dictionary under the appropriate key. The API-specific values may then
 be accessed as, e.g.::
