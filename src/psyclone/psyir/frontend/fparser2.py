@@ -66,7 +66,7 @@ from psyclone.psyir.symbols import (
 # fparser dynamically generates classes which confuses pylint membership checks
 # pylint: disable=maybe-no-member
 
-#: The list of Fortran instrinsic functions that we know about (and can
+#: The list of Fortran intrinsic functions that we know about (and can
 #: therefore distinguish from array accesses). These are taken from
 #: fparser.
 FORTRAN_INTRINSICS = Fortran2003.Intrinsic_Name.function_names
@@ -1454,7 +1454,7 @@ class Fparser2Reader():
                                 f"symbol table as either an argument or a "
                                 f"local ({existing_symbol}).")
                         # TODO #11 Log the fact that we've already got an
-                        # import of this symbol and that will take precendence.
+                        # import of this symbol and that will take precedence.
             elif not decl.items[3]:
                 # We have a USE statement without an ONLY clause.
                 if not new_container and not container.wildcard_import and \
@@ -2106,7 +2106,7 @@ class Fparser2Reader():
                     # We didn't previously know that this Symbol was an
                     # argument (as it had no 'intent' qualifier). Mark
                     # that it is an argument by specifying its interface.
-                    # Athough a Fortran argument has intent(inout) by default,
+                    # Although a Fortran argument has intent(inout) by default,
                     # specifying this for an argument that is actually read
                     # only (and is declared as such in the caller) causes
                     # gfortran to complain. We therefore specify that the
@@ -2142,7 +2142,7 @@ class Fparser2Reader():
 
                     assignment_rhs = scalar_expr
 
-                    # Create assingment node
+                    # Create assignment node
                     assignment = Assignment(parent=parent)
                     parent.addchild(assignment)
 

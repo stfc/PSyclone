@@ -112,7 +112,7 @@ def test_notype_eq():
                                        ScalarType.Intrinsic.CHARACTER])
 def test_scalartype_enum_precision(intrinsic, precision):
     '''Test that the ScalarType class can be created successfully for all
-    supported ScalarType intrinsics and all suported enumerated precisions.
+    supported ScalarType intrinsics and all supported enumerated precisions.
     Also test that two such types are equal.
 
     '''

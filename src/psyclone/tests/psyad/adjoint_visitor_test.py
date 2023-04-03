@@ -709,7 +709,7 @@ def test_loop_node_active(fortran_reader, fortran_writer, in_bounds,
     loop step is not, or might not be, 1 or -1. Note that in the
     PSyIR, -1 can be represented as a unitary minus containing a
     literal with value 1 and that, in such a case, an offset will be
-    computed (see the 3rd parametrised case where this occurs).
+    computed (see the 3rd parameterised case where this occurs).
 
     '''
     code = TL_LOOP_CODE.replace("lo,hi,step", in_bounds)

@@ -784,7 +784,7 @@ Rules specific to General-Purpose Kernels without CMA Operators
 
 3) A Kernel may not write to a scalar argument. (Only
    :ref:`built-ins <lfric-built-ins>` are permitted to do this.) Any
-   scalar aguments must therefore be declared in the metadata as
+   scalar arguments must therefore be declared in the metadata as
    ``GH_READ`` - see :ref:`below <dynamo0.3-kernel-valid-access>`.
 
 .. _dynamo0.3-cma-mdata-rules:

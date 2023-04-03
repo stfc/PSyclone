@@ -58,7 +58,7 @@ def create_hierarchy():
     '''Utility routine that creates a symbol table hierarchy with a
     symbol in each symbol table.
 
-    :returns: two symbol tables created in a hierachy.
+    :returns: two symbol tables created in a hierarchy.
     :rtype: (:py:class:`psyclone.psyir.symbols.SymbolTable`, \
         :py:class:`psyclone.psyir.symbols.SymbolTable`)
 

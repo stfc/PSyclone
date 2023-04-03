@@ -55,7 +55,7 @@ from psyclone.psyir.symbols import (
     SymbolTable, UnknownFortranType, UnknownType, UnresolvedInterface,
     IntrinsicSymbol)
 
-# The list of Fortran instrinsic functions that we know about (and can
+# The list of Fortran intrinsic functions that we know about (and can
 # therefore distinguish from array accesses). These are taken from
 # fparser.
 FORTRAN_INTRINSICS = Fortran2003.Intrinsic_Name.function_names
@@ -208,7 +208,7 @@ def precedence(fortran_operator):
 
     '''
     # The index of the fortran_precedence list indicates relative
-    # precedence. Strings within sub-lists have the same precendence
+    # precedence. Strings within sub-lists have the same precedence
     # apart from the following two caveats. 1) unary + and - have
     # a higher precedence than binary + and -, e.g. -(a-b) !=
     # -a-b and 2) floating point operations are not actually

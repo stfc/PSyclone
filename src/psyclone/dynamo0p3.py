@@ -78,7 +78,8 @@ from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import (Loop, Literal, Schedule, Reference,
                                   ArrayReference, ACCEnterDataDirective,
                                   ACCRegionDirective, OMPRegionDirective,
-                                  ScopingNode, KernelSchedule)
+                                  Routine, ScopingNode, StructureReference,
+                                  KernelSchedule)
 from psyclone.psyir.symbols import (INTEGER_TYPE, DataSymbol, ScalarType,
                                     DeferredType, DataTypeSymbol,
                                     ContainerSymbol, ImportInterface,
@@ -3043,7 +3044,7 @@ class LFRicRunTimeChecks(DynCollection):
             parent, " Check field function space and kernel metadata "
             "function spaces are compatible"))
 
-        # When issue #753 is addressed (with isue #79 helping further)
+        # When issue #753 is addressed (with issue #79 helping further)
         # we may know some or all field function spaces statically. If
         # so, we should remove these from the fields to check at run
         # time (as they will have already been checked at code
@@ -3118,7 +3119,7 @@ class LFRicRunTimeChecks(DynCollection):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         '''
-        # When issue #753 is addressed (with isue #79 helping further)
+        # When issue #753 is addressed (with issue #79 helping further)
         # we may know some or all field function spaces statically. If
         # so, we should remove these from the fields to check at run
         # time (as they will have already been checked at code
@@ -6056,7 +6057,7 @@ class DynHaloExchange(HaloExchange):
 
         '''
         # get information about stencil accesses from all read fields
-        # dependendent on this halo exchange
+        # dependent on this halo exchange
         halo_info_list = self._compute_halo_read_info()
 
         trial_stencil = halo_info_list[0].stencil_type
@@ -6078,7 +6079,7 @@ class DynHaloExchange(HaloExchange):
 
         '''
         # get information about reading from the halo from all read fields
-        # dependendent on this halo exchange
+        # dependent on this halo exchange
         depth_info_list = self._compute_halo_read_depth_info()
 
         # if there is only one entry in the list we can just return
@@ -6087,7 +6088,7 @@ class DynHaloExchange(HaloExchange):
             return str(depth_info_list[0])
         # the depth information can't be reduced to a single
         # expression, therefore we need to determine the maximum
-        # of all expresssions
+        # of all expressions
         depth_str_list = [str(depth_info) for depth_info in
                           depth_info_list]
         return "max("+",".join(depth_str_list)+")"
@@ -6355,7 +6356,7 @@ class DynHaloExchange(HaloExchange):
 
         # The only other case where we know that a halo exchange is
         # required (or not) is where we read the halo to a known
-        # literal depth. As the read inforation is aggregated, a known
+        # literal depth. As the read information is aggregated, a known
         # literal depth will mean that there is only one
         # required_clean_info entry
         if len(required_clean_info) == 1:
@@ -7728,7 +7729,7 @@ class DynLoop(PSyLoop):
         :rtype: :py:class:`psyclone.psyir.Node`
 
         '''
-        inv_sched = self.ancestor(InvokeSchedule)
+        inv_sched = self.ancestor(Routine)
         sym_table = inv_sched.symbol_table
         loops = inv_sched.loops()
         posn = None
@@ -7749,7 +7750,7 @@ class DynLoop(PSyLoop):
         :rtype: :py:class:`psyclone.psyir.Node`
 
         '''
-        inv_sched = self.ancestor(InvokeSchedule)
+        inv_sched = self.ancestor(Routine)
         sym_table = inv_sched.symbol_table
 
         if self._loop_type == "colour":
@@ -8273,6 +8274,7 @@ class DynKern(CodedKern):
                 colourmap_symbol.name
         else:
             cmap = self.scope.symbol_table.lookup_with_tag("cmap").name
+
         return cmap
 
     @property
@@ -9540,7 +9542,7 @@ class DynKernelArgument(KernelArgument):
             expected_precision = const.DATA_TYPE_MAP["reduction"]["kind"]
             # If the algorithm information is not being ignored
             # then check that the expected precision and the
-            # precision defined in the algorithn layer are
+            # precision defined in the algorithm layer are
             # the same.
             if check and alg_precision and \
                alg_precision != expected_precision:
@@ -9565,7 +9567,7 @@ class DynKernelArgument(KernelArgument):
                 self._precision = alg_precision
             else:
                 # Use default precision for this datatype if the
-                # algorithm precision is either not avaiable or is
+                # algorithm precision is either not available or is
                 # being ignored.
                 self._precision = const.SCALAR_PRECISION_MAP[
                     self.intrinsic_type]
@@ -9844,7 +9846,7 @@ class DynKernelArgument(KernelArgument):
                 sym = symbol_table.new_symbol(
                     self.proxy_name, symbol_type=DataSymbol,
                     datatype=self.infer_datatype(proxy=True))
-            return Reference(sym)
+            return StructureReference.create(sym, ["data"])
 
         raise NotImplementedError(
             f"Unsupported kernel argument type: '{self.name}' is of type "

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022, Science and Technology Facilities Council.
+# Copyright (c) 2022-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,8 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors A. B. G. Chalk, STFC Daresbury Lab
+# Author: A. B. G. Chalk, STFC Daresbury Lab
+# Modified: S. Siso, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' Performs py.test tests on the OpenMP PSyIR Clause nodes. '''
@@ -141,24 +142,52 @@ def test_shared_clause():
     assert shared.clause_string == "shared"
 
 
-def test_private_clause():
-    ''' Test the OMPPrivateClause functionality. '''
-    private = OMPPrivateClause()
+@pytest.mark.parametrize("testclass, string",
+                         [(OMPPrivateClause, "private"),
+                          (OMPFirstprivateClause, "firstprivate")])
+def test_private_and_firstprivate_clause(testclass, string):
+    ''' Test the OMPPrivateClause and OMPFirstprivateClause functionality. '''
+    private = testclass()
     assert private.clause_string == ""
     tmp = DataSymbol("tmp", INTEGER_TYPE)
     ref1 = Reference(tmp)
     private.addchild(ref1)
-    assert private.clause_string == "private"
+    assert private.clause_string == string
 
 
-def test_firstprivate_clause():
-    ''' Test the OMPFirstprivateClause functionality. '''
-    firp = OMPFirstprivateClause()
-    assert firp.clause_string == ""
-    tmp = DataSymbol("tmp", INTEGER_TYPE)
-    ref1 = Reference(tmp)
-    firp.addchild(ref1)
-    assert firp.clause_string == "firstprivate"
+@pytest.mark.parametrize("testclass, string",
+                         [(OMPPrivateClause, "OMPPrivateClause"),
+                          (OMPFirstprivateClause, "OMPFirstprivateClause")])
+def test_private_clause_create(testclass, string):
+    ''' Test that OMPPrivateClause and OMPFirstprivateClause create methods
+    accept a list of symbols and add children with references containing
+    those symbols. '''
+
+    symbol1 = DataSymbol("a", INTEGER_TYPE)
+    symbol2 = DataSymbol("b", INTEGER_TYPE)
+    symbol3 = DataSymbol("c", INTEGER_TYPE)
+
+    # Check that it just accepts a list of symbols
+    with pytest.raises(TypeError) as err:
+        testclass.create(symbol1)
+    assert (f"{string} expected the 'symbols' argument to be a list, "
+            f"but found 'DataSymbol' instead." in str(err.value))
+
+    with pytest.raises(TypeError) as err:
+        testclass.create([symbol1, 4, symbol2])
+    assert (f"{string} expected all the items in the 'symbols' list to "
+            f"be PSyIR Symbols, but found a 'int'." in str(err.value))
+
+    # Check a working create method
+    new_clause = testclass.create([symbol1, symbol2, symbol3])
+    assert isinstance(new_clause, testclass)
+    assert len(new_clause.children) == 3
+    assert isinstance(new_clause.children[0], Reference)
+    assert isinstance(new_clause.children[1], Reference)
+    assert isinstance(new_clause.children[2], Reference)
+    assert new_clause.children[0].symbol.name == "a"
+    assert new_clause.children[1].symbol.name == "b"
+    assert new_clause.children[2].symbol.name == "c"
 
 
 def test_depend_clause():
