@@ -37,12 +37,27 @@ module dummy_mod
   real :: dummy_var2
   real, parameter :: dummy_var3 = 3
 
+  public :: dummy_code
+
+  interface dummy_code
+   module procedure dummy_code_1, dummy_code_2
+  end interface
+
   contains
 
-  subroutine dummy_code()
-    print *,"dummy_code called"
+  subroutine dummy_code_1(a)
+    implicit none
+    integer :: a
+    print *,"dummy_code_1 called"
     dummy_var1 = dummy_var1 + 1
-  end subroutine dummy_code
+  end subroutine dummy_code_1
+
+  subroutine dummy_code_2(a)
+    implicit none
+    real :: a
+    print *,"dummy_code_2 called"
+    dummy_var1 = dummy_var1 + 1
+  end subroutine dummy_code_2
 
   integer function dummy_func(a)
     implicit none

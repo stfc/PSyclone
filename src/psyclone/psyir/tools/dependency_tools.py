@@ -1008,17 +1008,12 @@ class DependencyTools():
                           f"unknown symbol '{symbol_name}'.")
                     continue
 
-                try:
-                    # This will raise an exception if the symbol
-                    # is not a routine:
-                    mod_info.get_routine_info(symbol_name)
-                    info = ("subroutine", module_name, symbol_name)
-                    todo.append(info)
-                except KeyError:
-                    # If the symbol is not in the routine info, it must be
-                    # a reference, so add it to the result list:
+                if mod_info.contains_routine(symbol_name):
+                    # It is a routine, which we need to analyse:
+                    todo.append(("routine", module_name, symbol_name))
+                else:
+                    # Now it must be a reference, so add it to the result:
                     result.add((module_name, symbol_name))
-                continue
 
         print("RESULT IS", result)
         return in_local, out_local
