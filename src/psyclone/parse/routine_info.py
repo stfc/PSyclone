@@ -171,6 +171,9 @@ class RoutineInfo(RoutineInfoBase):
                     # current function is, so it is a non-local access
                     if isinstance(existing_sym, RoutineSymbol):
                         return ("routine", node.name, sym.name)
+                    if sym.is_constant:
+                        # Constants don't need to be saved
+                        return None
                     return ("reference", node.name, sym.name)
 
             # Otherwise keep on looking
