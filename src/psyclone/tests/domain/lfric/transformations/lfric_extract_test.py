@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2022, Science and Technology Facilities Council.
+# Copyright (c) 2019-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -34,6 +34,7 @@
 # Author I. Kavcic, Met Office
 # Modified by A. R. Porter and R, W, Ford, STFC Daresbury Lab
 # Modified by J. Henrichs, Bureau of Meteorology
+# Modified by L. Turner, Met Office
 # -----------------------------------------------------------------------------
 
 ''' Module containing tests for PSyclone LFRicExtractTrans
@@ -90,7 +91,7 @@ def test_node_list_error(tmpdir):
     assert ("Error in LFRicExtractTrans: Argument must be "
             "a single Node in a Schedule, a Schedule or a list of Nodes in a "
             "Schedule but have been passed an object of type: "
-            "<class 'psyclone.dynamo0p3.DynInvoke'>") in str(excinfo.value)
+            "<class 'psyclone.dynamo0p3.LFRicInvoke'>") in str(excinfo.value)
 
     # Supply Nodes in incorrect order or duplicate Nodes
     node_list = [invoke0.schedule.children[0],

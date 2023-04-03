@@ -35,6 +35,7 @@
 #         I. Kavcic and A. Coughtrie, Met Office;
 #         C. M. Maynard, Met Office/University of Reading;
 #         J. Henrichs, Bureau of Meteorology.
+# Modified by L. Turner, Met Office
 
 '''
 Module containing pytest tests for the general LFRic field arguments
@@ -507,8 +508,8 @@ def test_lfricfields_call_err():
             "types are ['real', 'integer', 'logical']." in test_str)
 
 
-def test_dyninvoke_uniq_declns_intent_fields():
-    ''' Tests that DynInvoke.unique_declns_by_intent() returns the correct
+def test_lfricinvoke_uniq_declns_intent_fields():
+    ''' Tests that LFRicInvoke.unique_declns_by_intent() returns the correct
     list of arguments for 'gh_field' argument type. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.7_single_invoke_3scalar.f90"),
