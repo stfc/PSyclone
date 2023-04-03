@@ -46,11 +46,8 @@ from psyclone.domain.lfric.kernel import (
     ScalarArgMetadata)
 from psyclone.errors import InternalError
 
-# pylint: disable=too-many-branches
-# pylint: disable=too-many-statements
+
 # pylint: disable=too-few-public-methods
-
-
 class MetadataToArgumentsRules():
     '''This class encapsulates rules to map LFRic kernel metadata to
     kernel arguments. It does this by calling class methods each, of
@@ -380,6 +377,8 @@ class MetadataToArgumentsRules():
 
         '''
 
+    # pylint: disable=too-many-branches
+    # pylint: disable=too-many-statements
     @classmethod
     def _generate(cls):
         '''Specifies which arguments appear in an argument list and their

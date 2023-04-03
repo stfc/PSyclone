@@ -61,8 +61,10 @@ class ArgIndexToMetadataIndex(MetadataToArgumentsRules):
         class.
 
         '''
-        # Passing {} to initialise initialise _info to an empty dict.
-        super()._initialise({})
+        # We could use super()._initialise({}) here but it is simpler
+        # to just set the value of _info directly and it avoids pylint
+        # complaining.
+        cls._info = {}
         # Initialise the local _index variable. This is used to keep
         # track of the current argument index.
         cls._index = 0
@@ -138,7 +140,6 @@ class ArgIndexToMetadataIndex(MetadataToArgumentsRules):
 
         '''
         meta_arg_index = cls._metadata.meta_args.index(meta_arg)
-        # pylint: disable=unsupported-assignment-operation
         cls._info[cls._index] = meta_arg_index
         cls._index += 1
 
