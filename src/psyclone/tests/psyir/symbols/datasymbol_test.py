@@ -393,7 +393,7 @@ def test_datasymbol_copy_properties():
     assert symbol.name == "myname"
     assert symbol.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
     assert symbol.datatype.precision == ScalarType.Precision.SINGLE
-    assert symbol.is_local
+    assert symbol.is_auto
     assert isinstance(symbol.constant_value, Literal)
     assert symbol.constant_value.value == "7"
     assert (symbol.constant_value.datatype.intrinsic ==

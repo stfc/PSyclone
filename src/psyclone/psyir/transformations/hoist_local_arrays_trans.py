@@ -266,7 +266,7 @@ then
 
         '''
         local_arrays = {}
-        for sym in node.symbol_table.local_datasymbols:
+        for sym in node.symbol_table.automatic_datasymbols:
             if (sym is node.return_symbol or not sym.is_array or
                     sym.is_constant):
                 continue

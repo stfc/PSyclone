@@ -1621,9 +1621,39 @@ def test_validate_codeblock(fortran_reader):
             "cannot be inlined" in str(err.value))
 
 
-def test_validate_saved_var(fortran_reader):
+def test_validate_unknowntype_var(fortran_reader):
     '''
-    Test that validate rejects a subroutine with a 'save'd variable.
+    Test that validate rejects a subroutine with UnknownType variables.
+
+    '''
+    code = (
+        "module test_mod\n"
+        "contains\n"
+        "subroutine main\n"
+        "  real, target :: var = 0.0\n"
+        "  real, pointer :: ptr => null()\n"
+        "  ptr => var\n"
+        "  call sub(ptr)\n"
+        "end subroutine main\n"
+        "subroutine sub(x)\n"
+        "  real, pointer, intent(inout) :: x\n"
+        "  x = x + 1.0\n"
+        "end subroutine sub\n"
+        "end module test_mod\n"
+    )
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Call)[0]
+    inline_trans = InlineTrans()
+    with pytest.raises(TransformationError) as err:
+        inline_trans.validate(routine)
+    assert ("Routine 'sub' cannot be inlined because it contains a Symbol "
+            "'x' which is of unknown type: 'REAL, POINTER, INTENT(INOUT) :: x'"
+            in str(err.value))
+
+
+def test_validate_static_var(fortran_reader):
+    '''
+    Test that validate rejects a subroutine with StaticInterface variables.
 
     '''
     code = (
@@ -1635,7 +1665,7 @@ def test_validate_saved_var(fortran_reader):
         "  end subroutine run_it\n"
         "  subroutine sub(x)\n"
         "    real, intent(inout) :: x\n"
-        "    real, save :: state = 0.0\n"
+        "    real, save :: state\n"
         "    state = state + x\n"
         "    x = 2.0*x + state\n"
         "  end subroutine sub\n"
@@ -1645,9 +1675,8 @@ def test_validate_saved_var(fortran_reader):
     inline_trans = InlineTrans()
     with pytest.raises(TransformationError) as err:
         inline_trans.validate(routine)
-    assert ("Routine 'sub' cannot be inlined because it contains a Symbol "
-            "'state' which is of unknown type: 'REAL, SAVE :: state"
-            in str(err.value))
+    assert ("Routine 'sub' cannot be inlined because it has a static (Fortran"
+            "SAVE) interface for Symbol 'state'." in str(err.value))
 
 
 @pytest.mark.parametrize("code_body", ["idx = idx + 5_i_def",
@@ -1876,34 +1905,6 @@ def test_validate_unresolved_array_dim(fortran_reader):
             "directly imported into its symbol table" in str(err.value))
 
 
-def test_validate_unknown_arg_type(fortran_reader):
-    '''Check that validate rejects a formal argument of UnknownType (since
-    we can't then correctly map any array index expressions into the call
-    site).'''
-    code = (
-        "module test_mod\n"
-        "contains\n"
-        "subroutine main\n"
-        "  real, target :: var = 0.0\n"
-        "  real, pointer :: ptr => null()\n"
-        "  ptr => var\n"
-        "  call sub(ptr)\n"
-        "end subroutine main\n"
-        "subroutine sub(x)\n"
-        "  real, pointer, intent(inout) :: x\n"
-        "  x = x + 1.0\n"
-        "end subroutine sub\n"
-        "end module test_mod\n"
-    )
-    psyir = fortran_reader.psyir_from_source(code)
-    call = psyir.walk(Call)[0]
-    inline_trans = InlineTrans()
-    with pytest.raises(TransformationError) as err:
-        inline_trans.validate(call)
-    assert ("Routine 'sub' cannot be inlined because formal argument 'x' is "
-            "of UnknownType" in str(err.value))
-
-
 def test_validate_array_reshape(fortran_reader):
     '''Test that the validate method rejects an attempt to inline a routine
     if any of its formal arguments are declared to be a different shape from
@@ -2085,7 +2086,7 @@ def test_find_routine_local(fortran_reader):
     call = psyir.walk(Call)[0]
     inline_trans = InlineTrans()
     result = inline_trans._find_routine(call)
-    assert call.routine.is_local
+    assert call.routine.is_auto
     assert isinstance(result, Routine)
     assert result.name == "sub"
 
@@ -2107,7 +2108,7 @@ def test_find_routine_missing_exception(fortran_reader):
     psyir.children[0].children[1].detach()
     call = psyir.walk(Call)[0]
     inline_trans = InlineTrans()
-    assert call.routine.is_local
+    assert call.routine.is_auto
     with pytest.raises(InternalError) as info:
         _ = inline_trans._find_routine(call)
     assert ("Failed to find the source code of the local routine 'sub'."

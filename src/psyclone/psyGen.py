@@ -1737,8 +1737,8 @@ class CodedKern(Kern):
         # manually fix the name of the procedure within the text that stores
         # the kernel metadata.
         container_table = container.symbol_table
-        for sym in container_table.local_datatypesymbols:
-            if isinstance(sym.datatype, UnknownFortranType):
+        for sym in container_table.datatypesymbols:
+            if sym.is_auto and isinstance(sym.datatype, UnknownFortranType):
                 orig_declaration = sym.datatype.declaration
                 sym.datatype.declaration = orig_declaration.replace(
                     orig_kern_name, new_kern_name)

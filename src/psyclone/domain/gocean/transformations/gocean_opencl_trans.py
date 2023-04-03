@@ -1151,6 +1151,7 @@ class GOOpenCLTrans(Transformation):
         code = f'''
         subroutine initialise_device_grid(field)
             USE fortcl, ONLY: create_ronly_buffer
+            USE iso_c_binding, only: c_size_t
             use field_mod
             type(r2d_field), intent(inout), target :: field
             integer(kind=c_size_t) size_in_bytes
@@ -1508,6 +1509,7 @@ class GOOpenCLTrans(Transformation):
         code = f'''
         subroutine initialise_device_buffer(field)
             USE fortcl, ONLY: create_rw_buffer
+            USE iso_c_binding, only: c_size_t
             use field_mod
             type(r2d_field), intent(inout), target :: field
             integer(kind=c_size_t) size_in_bytes

@@ -303,6 +303,7 @@ def test_invoke_opencl_initialisation_grid():
     expected = '''
     subroutine initialise_grid_device_buffers(field)
       use fortcl, only: create_ronly_buffer
+      use iso_c_binding, only: c_size_t
       use field_mod
       type(r2d_field), intent(inout), target :: field
       integer(kind=c_size_t) size_in_bytes
@@ -515,6 +516,7 @@ offset_in_bytes,size_in_bytes,c_loc(from(1,starty)),0,c_null_ptr,c_null_ptr)
     expected = '''\
     subroutine initialise_device_buffer(field)
       use fortcl, only: create_rw_buffer
+      use iso_c_binding, only: c_size_t
       use field_mod
       type(r2d_field), intent(inout), target :: field
       integer(kind=c_size_t) size_in_bytes

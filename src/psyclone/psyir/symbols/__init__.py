@@ -40,8 +40,9 @@
 from psyclone.psyir.symbols.datasymbol import DataSymbol
 from psyclone.psyir.symbols.containersymbol import ContainerSymbol
 from psyclone.psyir.symbols.data_type_symbol import DataTypeSymbol
-from psyclone.psyir.symbols.interfaces import \
-    AutomaticInterface, ImportInterface, ArgumentInterface, UnresolvedInterface
+from psyclone.psyir.symbols.interfaces import AutomaticInterface, \
+    ImportInterface, ArgumentInterface, UnresolvedInterface, StaticInterface, \
+    DefaultModuleInterface, UnknownInterface, CommonBlockInterface
 from psyclone.psyir.symbols.intrinsic_symbol import IntrinsicSymbol
 from psyclone.psyir.symbols.routinesymbol import RoutineSymbol
 from psyclone.psyir.symbols.symbol import Symbol, SymbolError
@@ -60,10 +61,12 @@ __all__ = ['ArgumentInterface',
            'ArrayType',
            'BOOLEAN_TYPE',
            'CHARACTER_TYPE',
+           'CommonBlockInterface',
            'ContainerSymbol',
            'DataSymbol',
            'DataType',
            'DataTypeSymbol',
+           'DefaultModuleInterface',
            'DeferredType',
            'ImportInterface',
            'INTEGER_TYPE',
@@ -87,5 +90,6 @@ __all__ = ['ArgumentInterface',
            'TYPE_MAP_TO_PYTHON',
            'TypedSymbol',
            'UnknownFortranType',
+           'UnknownInterface',
            'UnknownType',
            'UnresolvedInterface']

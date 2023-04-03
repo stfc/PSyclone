@@ -52,7 +52,8 @@ from psyclone.psyir.nodes import BinaryOperation, Call, CodeBlock, DataNode, \
 from psyclone.psyir.symbols import (
     ArgumentInterface, ArrayType, ContainerSymbol, DataSymbol, DataTypeSymbol,
     DeferredType, ImportInterface, RoutineSymbol, ScalarType, Symbol,
-    SymbolTable, UnknownFortranType, UnknownType, UnresolvedInterface)
+    SymbolTable, UnknownFortranType, UnknownType, UnresolvedInterface,
+    IntrinsicSymbol)
 
 # The list of Fortran instrinsic functions that we know about (and can
 # therefore distinguish from array accesses). These are taken from
@@ -552,28 +553,12 @@ class FortranWriter(LanguageWriter):
 
         '''
         # pylint: disable=too-many-branches
-        # Whether we're dealing with a Symbol or a member of a derived type
-        is_symbol = isinstance(symbol, (DataSymbol, RoutineSymbol))
         # Whether we're dealing with an array declaration and, if so, the
         # shape of that array.
         if isinstance(symbol.datatype, ArrayType):
             array_shape = symbol.datatype.shape
         else:
             array_shape = []
-
-        if is_symbol:
-            if isinstance(symbol.datatype, UnknownFortranType):
-                if isinstance(symbol, RoutineSymbol) and not symbol.is_local:
-                    raise VisitorError(
-                        f"{type(symbol).__name__} '{symbol.name}' is of "
-                        f"UnknownFortranType but has interface "
-                        f"'{symbol.interface}' instead of AutomaticInterface."
-                        f"This is not supported by the Fortran back-end.")
-            elif not (symbol.is_local or symbol.is_argument):
-                raise VisitorError(
-                    f"gen_vardecl requires the symbol '{symbol.name}' to have "
-                    f"a Local or an Argument interface but found a "
-                    f"'{type(symbol.interface).__name__}' interface.")
 
         if isinstance(symbol.datatype, UnknownType):
             if isinstance(symbol.datatype, UnknownFortranType):
@@ -614,33 +599,34 @@ class FortranWriter(LanguageWriter):
                         f"last dimension unspecified (as 'ATTRIBUTE') but "
                         f"symbol '{symbol.name}' has shape: "
                         f"{self.gen_indices(array_shape)}.")
+
+        # Specify Fortran attributes
         if array_shape:
             dims = self.gen_indices(array_shape)
             result += ", dimension(" + ",".join(dims) + ")"
-        if is_symbol:
-            # A member of a derived type cannot have the 'intent' or
-            # 'parameter' attribute.
+
+        if symbol.is_argument:
             intent = gen_intent(symbol)
             if intent:
                 result += f", intent({intent})"
-            if symbol.is_constant:
-                result += ", parameter"
+
+        if isinstance(symbol, DataSymbol) and symbol.is_constant:
+            result += ", parameter"
 
         if include_visibility:
             if symbol.visibility == Symbol.Visibility.PRIVATE:
                 result += ", private"
-            elif symbol.visibility == Symbol.Visibility.PUBLIC:
-                result += ", public"
             else:
-                raise InternalError(
-                    f"A Symbol must be either public or private but symbol "
-                    f"'{symbol.name}' has visibility '{symbol.visibility}'")
+                result += ", public"
 
+        # Specify name
         result += f" :: {symbol.name}"
-        if is_symbol and symbol.is_constant:
+
+        # Specify initialization expression
+        if isinstance(symbol, DataSymbol) and symbol.is_constant:
             result += " = " + self._visit(symbol.constant_value)
-        result += "\n"
-        return result
+
+        return result + "\n"
 
     def gen_typedecl(self, symbol, include_visibility=True):
         '''
@@ -769,8 +755,7 @@ class FortranWriter(LanguageWriter):
         private_symbols = []
         for symbol in symbol_table.symbols:
             if (isinstance(symbol, RoutineSymbol) or
-                    isinstance(symbol.interface, (UnresolvedInterface,
-                                                  ImportInterface))):
+                    symbol.is_unresolved or symbol.is_import):
 
                 # Skip the symbol representing the routine where these
                 # declarations belong
@@ -823,8 +808,8 @@ class FortranWriter(LanguageWriter):
 
         '''
         declarations = ""
-        local_constants = [sym for sym in symbol_table.local_datasymbols if
-                           sym.is_constant]
+        local_constants = [sym for sym in symbol_table.datasymbols if
+                           sym.is_constant and sym.is_auto]
         if not local_constants:
             return declarations
 
@@ -884,7 +869,7 @@ class FortranWriter(LanguageWriter):
         :rtype: str
 
         :raises VisitorError: if one of the symbols is a RoutineSymbol which \
-            does not have an ImportInterface or AutomaticInterface (and is \
+            does not have an ImportInterface or ModuleDefaultInterface (and is \
             not a Fortran intrinsic) as this is not supported by this backend.
         :raises VisitorError: if args_allowed is False and one or more \
             argument declarations exist in symbol_table.
@@ -903,7 +888,7 @@ class FortranWriter(LanguageWriter):
         routine_symbols = [symbol for symbol in symbol_table.symbols
                            if isinstance(symbol, RoutineSymbol)]
         for sym in routine_symbols:
-            if isinstance(sym.interface, ArgumentInterface):
+            if sym.is_argument:
                 raise VisitorError(
                     f"Routine symbol '{sym.name}' is passed as an argument "
                     f"(has an ArgumentInterface). This is not supported by "
@@ -917,9 +902,12 @@ class FortranWriter(LanguageWriter):
 
         # Does the symbol table contain any symbols with a deferred
         # interface (i.e. we don't know how they are brought into scope)
-        unresolved_datasymbols = symbol_table.get_unresolved_datasymbols()
+        unresolved_symbols = []
+        for sym in symbol_table.unresolved_datasymbols:
+            if not isinstance(sym.datatype, UnknownType):
+                unresolved_symbols.append(sym)
 
-        if unresolved_datasymbols:
+        if unresolved_symbols:
             # We do have unresolved symbols. Is there at least one wildcard
             # import which could be bringing them into scope?
             if not wildcard_imports_checked:
@@ -927,7 +915,7 @@ class FortranWriter(LanguageWriter):
                 wildcard_imports_checked = True
             if not has_wildcard_import:
                 symbols_txt = ", ".join(
-                    ["'" + sym + "'" for sym in unresolved_datasymbols])
+                    ["'" + sym.name + "'" for sym in unresolved_symbols])
                 raise VisitorError(
                     f"The following symbols are not explicitly declared or "
                     f"imported from a module and there are no wildcard "
@@ -955,13 +943,20 @@ class FortranWriter(LanguageWriter):
 
         # 3: Derived-type declarations. These must come before any declarations
         #    of symbols of these types.
-        for symbol in symbol_table.local_datatypesymbols:
+        for symbol in [sym for sym in symbol_table.datatypesymbols if
+                       sym.is_auto]:
             declarations += self.gen_typedecl(
                 symbol, include_visibility=is_module_scope)
 
-        # 4: Local variable declarations.
-        local_vars = [sym for sym in symbol_table.local_datasymbols if not
-                      sym.is_constant]
+        # 4: The rest of the symbols
+        local_vars = [sym for sym in symbol_table.datasymbols if
+                      not sym.is_constant and
+                      not sym.is_argument and
+                      not sym.is_import and
+                      not sym.is_unresolved]
+        local_vars += [sym for sym in symbol_table.datasymbols if
+                       sym.is_unresolved and
+                       isinstance(sym.datatype, UnknownType)]
         for symbol in local_vars:
             declarations += self.gen_vardecl(
                 symbol, include_visibility=is_module_scope)

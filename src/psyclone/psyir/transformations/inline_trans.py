@@ -47,7 +47,7 @@ from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.symbols import (ContainerSymbol, DataSymbol, ScalarType,
                                     RoutineSymbol, ImportInterface, Symbol,
                                     ArrayType, INTEGER_TYPE, DeferredType,
-                                    UnknownType)
+                                    UnknownType, StaticInterface)
 from psyclone.psyir.transformations.reference2arrayrange_trans import (
     Reference2ArrayRangeTrans)
 from psyclone.psyir.transformations.transformation_error import (
@@ -109,6 +109,7 @@ class InlineTrans(Transformation):
         * the routine is not in the same file as the call;
         * the routine contains an early Return statement;
         * the routine contains a variable with UnknownType;
+        * the routine contains a variable with StaticInterface;
         * the routine has a named argument;
         * the shape of any array arguments as declared inside the routine does
           not match the shape of the arrays being passed as arguments;
@@ -705,6 +706,8 @@ class InlineTrans(Transformation):
             argument.
         :raises TransformationError: if any of the variables declared within \
             the called routine are of UnknownType.
+        :raises TransformationError: if any of the variables declared within \
+            the called routine have a StaticInterface.
         :raises TransformationError: if a symbol of a given name is imported \
             from different containers at the call site and within the routine.
         :raises TransformationError: if the routine accesses an un-resolved \
@@ -767,12 +770,17 @@ class InlineTrans(Transformation):
         # don't know whether the routine is called from other places).
         # TODO #2008 - at the moment we only check for symbols of UnknownType
         # which is safe but possibly overkill.
-        for sym in routine_table.local_datasymbols:
+        for sym in routine_table.datasymbols:
             if isinstance(sym.datatype, UnknownType):
                 raise TransformationError(
                     f"Routine '{routine.name}' cannot be inlined because it "
                     f"contains a Symbol '{sym.name}' which is of unknown type:"
                     f" '{sym.datatype.declaration}')")
+            if isinstance(sym.interface, StaticInterface):
+                raise TransformationError(
+                    f"Routine '{routine.name}' cannot be inlined because it "
+                    f"has a static (Fortran SAVE) interface for Symbol "
+                    f"'{sym.name}'.")
 
         # We can't handle a clash between (apparently) different symbols that
         # share a name but are imported from different containers.
@@ -803,7 +811,7 @@ class InlineTrans(Transformation):
         ref_or_lits = routine.walk((Reference, Literal))
         # Check for symbols in any constant-value expressions
         # (Fortran parameters) or array dimensions.
-        for sym in routine_table.local_datasymbols:
+        for sym in [sym for sym in routine_table.datasymbols if sym.is_auto]:
             if sym.is_constant:
                 ref_or_lits.extend(
                     sym.constant_value.walk((Reference, Literal)))
@@ -859,13 +867,6 @@ class InlineTrans(Transformation):
                                           node.children):
             # If the formal argument is an array with non-default bounds then
             # we also need to know the bounds of that array at the call site.
-            # For this reason, we cannot support formal arguments of
-            # UnknownType because they might be arrays with non-default bounds.
-            if isinstance(formal_arg.datatype, UnknownType):
-                raise TransformationError(
-                    f"Routine '{routine.name}' cannot be inlined because "
-                    f"formal argument '{formal_arg.name}' is of UnknownType")
-
             if not isinstance(formal_arg.datatype, ArrayType):
                 # Formal argument is not an array so we don't need to do any
                 # further checks.
@@ -957,7 +958,7 @@ class InlineTrans(Transformation):
         name = call_node.routine.name
         routine_sym = call_node.routine
 
-        if routine_sym.is_local:
+        if routine_sym.is_auto:
             table = routine_sym.find_symbol_table(call_node)
             for routine in table.node.walk(Routine):
                 if routine.name.lower() == name.lower():

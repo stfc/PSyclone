@@ -42,7 +42,8 @@
 import pytest
 
 from psyclone.psyir.symbols.interfaces import SymbolInterface, \
-    AutomaticInterface, ArgumentInterface, ImportInterface, UnresolvedInterface
+    AutomaticInterface, ArgumentInterface, ImportInterface, \
+    UnresolvedInterface, StaticInterface
 from psyclone.psyir.symbols import ContainerSymbol
 
 
@@ -56,13 +57,22 @@ def test_symbolinterface():
     assert inter2 is not inter1
 
 
-def test_localinterface():
+def test_automatic_interface():
     '''Test we can create a AutomaticInterface instance and check its __str__
     value
 
     '''
     interface = AutomaticInterface()
     assert str(interface) == "Automatic"
+
+
+def test_static_interface():
+    '''Test we can create a StaticInterface instance and check its __str__
+    value
+
+    '''
+    interface = StaticInterface()
+    assert str(interface) == "Static"
 
 
 def test_unresolvedinterface():

@@ -34,14 +34,14 @@
 # Author: S. Siso STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
-''' This module contains the SymbolInterface class and its subclasses.
-
-'''
+''' This module contains the SymbolInterface class and its subclasses. '''
 
 from enum import Enum
 
+# pylint: disable=too-few-public-methods
 
-class SymbolInterface():   # pylint: disable=too-few-public-methods
+
+class SymbolInterface():
     ''' Abstract class of a Symbol Interface '''
 
     def copy(self):
@@ -53,18 +53,50 @@ class SymbolInterface():   # pylint: disable=too-few-public-methods
 
 
 class AutomaticInterface(SymbolInterface):
-    # pylint: disable=too-few-public-methods
-    ''' The symbol is declared without specifiers. It's properties depend
-    on which context it is found.
+    ''' The symbol is declared without attributes. Its data will live
+    during the local context.
     '''
 
     def __str__(self):
         return "Automatic"
 
 
+class StaticInterface(SymbolInterface):
+    ''' The symbol contains data that is kept alive through the execution
+    of the program.
+    '''
+
+    def __str__(self):
+        return "Static"
+
+
+class DefaultModuleInterface(SymbolInterface):
+    ''' The symbol contains data declared in a module scope without additional
+    attributes.
+    '''
+
+    def __str__(self):
+        return "DefaultModule"
+
+
+class UnknownInterface(SymbolInterface):
+    ''' We have a symbol with a declaration but PSyclone does not support its
+    attributes. '''
+
+    def __str__(self):
+        return "Unknown"
+
+
+class CommonBlockInterface(SymbolInterface):
+    ''' All the CommonBlock symbols with the same name reference the same data
+    that is available during the whole execution of the program. '''
+
+    def __str__(self):
+        return "CommonBlock"
+
+
 class UnresolvedInterface(SymbolInterface):
-    # pylint: disable=too-few-public-methods
-    '''We have a symbol but we don't know where it is declared.'''
+    ''' We have a symbol but we don't know where it is declared. '''
 
     def __str__(self):
         return "Unresolved"

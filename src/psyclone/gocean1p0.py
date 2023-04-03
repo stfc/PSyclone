@@ -291,8 +291,8 @@ class GOInvoke(Invoke):
                                        entity_decls=i_args)
             invoke_sub.add(my_decl_iscalars)
 
-        # Add remaining local scalar symbols using the symbol table
-        for symbol in self.schedule.symbol_table.local_datasymbols:
+        # Add remaining scalar symbols using the symbol table
+        for symbol in self.schedule.symbol_table.automatic_datasymbols:
             if isinstance(symbol.datatype, ScalarType):
                 invoke_sub.add(DeclGen(
                     invoke_sub,

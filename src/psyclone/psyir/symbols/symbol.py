@@ -42,7 +42,8 @@
 from enum import Enum
 from psyclone.errors import PSycloneError, InternalError
 from psyclone.psyir.symbols.interfaces import AutomaticInterface, \
-    SymbolInterface, ArgumentInterface, UnresolvedInterface, ImportInterface
+    SymbolInterface, ArgumentInterface, UnresolvedInterface, ImportInterface, \
+    UnknownInterface, CommonBlockInterface, DefaultModuleInterface
 
 
 class SymbolError(PSycloneError):
@@ -309,9 +310,9 @@ class Symbol():
         self._interface = value
 
     @property
-    def is_local(self):
+    def is_auto(self):
         '''
-        :returns: whether the Symbol has a Local interface.
+        :returns: whether the Symbol has an AutomaticInterface.
         :rtype: bool
 
         '''
@@ -338,18 +339,38 @@ class Symbol():
     @property
     def is_unresolved(self):
         '''
-        :returns: whether the Symbol has an unresolved interface.
+        :returns: whether the Symbol has an Unresolved interface.
         :rtype: bool
 
         '''
         return isinstance(self._interface, UnresolvedInterface)
 
-    # TODO: is_sinkable()
-    # locals and input arguments are sinkable, ...
-    # the rest are not
-    # def has_potential_hidden_access()
-    # locals and save do not,
-    # the rest can have it
+    @property
+    def is_unknown(self):
+        '''
+        :returns: whether the Symbol has an Unknown interface.
+        :rtype: bool
+
+        '''
+        return isinstance(self._interface, UnknownInterface)
+
+    @property
+    def is_commonblock(self):
+        '''
+        :returns: whether the Symbol has a CommonBlock interface.
+        :rtype: bool
+
+        '''
+        return isinstance(self._interface, CommonBlockInterface)
+
+    @property
+    def is_defaultmodule(self):
+        '''
+        :returns: whether the Symbol has a DefaultModule interface.
+        :rtype: bool
+
+        '''
+        return isinstance(self._interface, DefaultModuleInterface)
 
     def find_symbol_table(self, node):
         '''

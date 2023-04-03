@@ -284,7 +284,7 @@ def _add_precision_symbol(symbol, table):
     if symbol.name in table:
         return
 
-    if symbol.is_local:
+    if symbol.is_auto:
         table.add(symbol.copy())
     elif symbol.is_import:
         contr_sym = symbol.interface.container_symbol
