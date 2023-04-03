@@ -65,7 +65,8 @@ from psyclone.psyir.symbols import (
     DataSymbol, ContainerSymbol, SymbolTable, ArgumentInterface,
     SymbolError, ScalarType, ArrayType, INTEGER_TYPE, REAL_TYPE,
     UnknownFortranType, DeferredType, Symbol, UnresolvedInterface,
-    ImportInterface, BOOLEAN_TYPE, StaticInterface, UnknownInterface)
+    ImportInterface, BOOLEAN_TYPE, StaticInterface, UnknownInterface,
+    AutomaticInterface, DefaultModuleInterface)
 
 # Tests
 
@@ -790,6 +791,56 @@ def test_process_declarations():
         processor.process_declarations(fake_parent, [fparser2spec], [])
     assert ("Symbol 'i2' already present in SymbolTable with a defined "
             "interface" in str(error.value))
+
+
+@pytest.mark.usefixtures("f2008_parser")
+def test_declarations_with_initialisations(fortran_reader, fortran_writer):
+    '''Test that Fparser2Reader keeps all the variable initialisation
+    expressions, even thought some may end up in UnknownTypes for now.
+    '''
+
+    psyir = fortran_reader.psyir_from_source(
+        """
+        module test
+            integer :: a = 1
+            integer, save :: b = 1
+            integer, parameter :: c = 1
+            contains
+            subroutine mysub()
+                integer :: d = 1
+                integer, save :: e = 1
+                integer, parameter :: f = 1
+            end subroutine mysub
+        end module test
+        """)
+
+    inner_st = psyir.walk(Routine)[0].symbol_table
+    # All initialisation variables are DataSymbols
+    assert isinstance(inner_st.lookup('a'), DataSymbol)
+    assert isinstance(inner_st.lookup('b'), DataSymbol)
+    assert isinstance(inner_st.lookup('c'), DataSymbol)
+    assert isinstance(inner_st.lookup('d'), DataSymbol)
+    assert isinstance(inner_st.lookup('e'), DataSymbol)
+    assert isinstance(inner_st.lookup('f'), DataSymbol)
+
+    # When it is not a parameter they are unknown interface and datatype
+    assert isinstance(inner_st.lookup('a').interface, UnknownInterface)
+    assert isinstance(inner_st.lookup('b').interface, UnknownInterface)
+    assert isinstance(inner_st.lookup('d').interface, UnknownInterface)
+    assert isinstance(inner_st.lookup('e').interface, UnknownInterface)
+    assert isinstance(inner_st.lookup('a').datatype, UnknownFortranType)
+    assert isinstance(inner_st.lookup('b').datatype, UnknownFortranType)
+    assert isinstance(inner_st.lookup('d').datatype, UnknownFortranType)
+    assert isinstance(inner_st.lookup('e').datatype, UnknownFortranType)
+
+    # When it is a parameter the interface, type and constant_value is defined
+    assert isinstance(inner_st.lookup('c').interface, DefaultModuleInterface)
+    assert isinstance(inner_st.lookup('c').datatype, ScalarType)
+    assert isinstance(inner_st.lookup('c').constant_value, Literal)
+    assert isinstance(inner_st.lookup('f').interface, AutomaticInterface)
+    assert isinstance(inner_st.lookup('f').datatype, ScalarType)
+    assert isinstance(inner_st.lookup('f').constant_value, Literal)
+    assert isinstance(inner_st.lookup('f').interface, AutomaticInterface)
 
 
 @pytest.mark.usefixtures("f2008_parser")

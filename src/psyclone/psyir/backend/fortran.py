@@ -809,7 +809,7 @@ class FortranWriter(LanguageWriter):
         '''
         declarations = ""
         local_constants = [sym for sym in symbol_table.datasymbols if
-                           sym.is_constant and sym.is_auto]
+                           sym.is_constant and (sym.is_auto or sym.is_module)]
         if not local_constants:
             return declarations
 
