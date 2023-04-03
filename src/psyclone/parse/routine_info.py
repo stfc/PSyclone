@@ -183,6 +183,11 @@ class RoutineInfo(RoutineInfoBase):
             # information for each subroutine and function.
             self.module_info.get_psyir()
 
+        if not self.psyir:
+            print(f"Could not create PSyIR for '{self.name}' in module "
+                  f"'{self.module_info.name}'- ignored.")
+            return
+
         for access in self._psyir.walk((Kern, Call, Reference)):
             # Builtins are certainly not externals, so ignore them.
             if isinstance(access, BuiltIn):
