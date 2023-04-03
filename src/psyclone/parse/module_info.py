@@ -176,20 +176,31 @@ class ModuleInfo:
             parser = ParserFactory().create(std="f2008")
             self._parse_tree = parser(reader)
             self._routine_info = {}
-            # First collect information about all subroutines/functions
+            # First collect information about all subroutines/functions.
+            # Store information about generic interface to be handled later
+            # (so we only walk the tree once):
+            all_generic_interfaces = []
             for routine in walk(self._parse_tree, (Function_Subprogram,
-                                                   Subroutine_Subprogram)):
+                                                   Subroutine_Subprogram,
+                                                   Interface_Block)):
+                if isinstance(routine, Interface_Block):
+                    all_generic_interfaces.append(routine)
+                    continue
                 routine_info = RoutineInfo(self, routine)
                 self._routine_info[routine_info.name] = routine_info
 
             # Then handle all generic interfaces, which will internally
             # use references to the RoutineInfo objects collected above:
-            for interface in walk(self._parse_tree, Interface_Block):
+            for interface in all_generic_interfaces:
+                # Get the name of the interface from the Interface_Stmt:
                 name = str(walk(interface, Interface_Stmt)[0].items[0])
+                # Now collect all specific functions
                 routine_names = []
                 for proc_stmt in walk(interface, Procedure_Stmt):
+                    # Convert the items to strings:
                     routine_names.extend([str(i) for i in
                                           proc_stmt.items[0].items])
+                # Create a GenericRoutineInfo object to store this information:
                 generic_info = GenericRoutineInfo(self, name, routine_names)
                 self._routine_info[name] = generic_info
 
