@@ -763,7 +763,7 @@ below does the same thing as the example in the
 
 In the gocean1.0 API (and in the future the lfric (dynamo0.3) API) an
 optional **trans_alg** function may also be supplied. This function
-accepts **PSyIR** (reprenting the algorithm layer) as an argument and
+accepts **PSyIR** (representing the algorithm layer) as an argument and
 returns **PSyIR** i.e.:
 ::
 

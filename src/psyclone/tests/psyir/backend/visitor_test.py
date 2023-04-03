@@ -155,7 +155,7 @@ def test_psyirvisitor_visit_no_string():
     '''
     class MyVisitor(PSyIRVisitor):
         '''Test visitor to check that non-strings can be returned by a visitor
-        and are returned as a hierachy. In this example the supplied
+        and are returned as a hierarchy. In this example the supplied
         nodes are returned unmodified.
 
         '''
@@ -337,7 +337,7 @@ def test_psyirvisitor_visit_skip_nodes():
         def _validate_child(_, child):
             return isinstance(child, TestNode2)
 
-    # Create a simple Node hierachy with an instance of class
+    # Create a simple Node hierarchy with an instance of class
     # TestNode2 being the child of an instance of class TestNode1.
     test_node2 = TestNode2()
     test_node1 = TestNode1(children=[test_node2])
@@ -438,7 +438,7 @@ def test_psyirvisitor_validation():
             ''' Match with class Node2. '''
             return "node2\n"
 
-    # Create a simple Node hierachy with an instance of class
+    # Create a simple Node hierarchy with an instance of class
     # Node2 being the child of an instance of class Node1.
     test_node2 = Node2()
     test_node1 = Node1(children=[test_node2])
