@@ -1134,8 +1134,8 @@ class DynamoInvokes(Invokes):
 
     '''
     def __init__(self, alg_calls, psy):
-        self._0_to_n = DynInvoke(None, None, None)  # for pyreverse
-        Invokes.__init__(self, alg_calls, DynInvoke, psy)
+        self._0_to_n = LFRicInvoke(None, None, None)  # for pyreverse
+        Invokes.__init__(self, alg_calls, LFRicInvoke, psy)
 
 
 class DynCollection():
@@ -1145,14 +1145,14 @@ class DynCollection():
 
     :param node: the Kernel or Invoke for which to manage variable \
                  declarations and initialisation.
-    :type node: :py:class:`psyclone.dynamo0p3.DynInvoke` or \
+    :type node: :py:class:`psyclone.dynamo0p3.LFRicInvoke` or \
                 :py:class:`psyclone.dynamo0p3.DynKern`
 
-    :raises InternalError: if the supplied node is not a DynInvoke or a \
+    :raises InternalError: if the supplied node is not a LFRicInvoke or a \
                            DynKern.
     '''
     def __init__(self, node):
-        if isinstance(node, DynInvoke):
+        if isinstance(node, LFRicInvoke):
             # We are handling declarations/initialisations for an Invoke
             self._invoke = node
             self._kernel = None
@@ -1169,7 +1169,7 @@ class DynCollection():
             # We only have a single kernel call in this case
             self._calls = [node]
         else:
-            raise InternalError(f"DynCollection takes only a DynInvoke "
+            raise InternalError(f"DynCollection takes only a LFRicInvoke "
                                 f"or a DynKern but got: {type(node)}")
 
         # Whether or not the associated Invoke contains only kernels that
@@ -1241,7 +1241,7 @@ class DynStencils(DynCollection):
     routine or Kernel stub.
 
     :param node: the Invoke or Kernel stub for which to provide stencil info.
-    :type node: :py:class:`psyclone.dynamo0p3.DynInvoke` or \
+    :type node: :py:class:`psyclone.dynamo0p3.LFRicInvoke` or \
                 :py:class:`psyclone.dynamo0p3.DynKern`
 
     :raises GenerationError: if a literal has been supplied for a stencil \
@@ -1837,7 +1837,7 @@ class LFRicMeshProperties(DynCollection):
 
     :param node: kernel or invoke for which to manage mesh properties.
     :type node: :py:class:`psyclone.dynamo0p3.DynKern` or \
-                :py:class:`psyclone.dynamo0p3.DynInvoke`
+                :py:class:`psyclone.dynamo0p3.LFRicInvoke`
 
     '''
     def __init__(self, node):
@@ -2161,7 +2161,7 @@ class DynReferenceElement(DynCollection):
     :param node: Kernel or Invoke for which to manage Reference-Element \
                  properties.
     :type node: :py:class:`psyclone.dynamo0p3.DynKern` or \
-                :py:class:`psyclone.dynamo0p3.DynInvoke`
+                :py:class:`psyclone.dynamo0p3.LFRicInvoke`
 
     :raises InternalError: if an unsupported reference-element property \
                            is encountered.
@@ -2519,7 +2519,7 @@ class DynDofmaps(DynCollection):
 
     :param node: Kernel or Invoke for which to manage dofmaps.
     :type node: :py:class:`psyclone.dynamo0p3.DynKern` or \
-                :py:class:`psyclone.dynamo0p3.DynInvoke`
+                :py:class:`psyclone.dynamo0p3.LFRicInvoke`
 
     '''
     def __init__(self, node):
@@ -3306,7 +3306,7 @@ class DynCellIterators(DynCollection):
     :param kern_or_invoke: the Kernel or Invoke for which to manage cell \
                            iterators.
     :type kern_or_invoke: :py:class:`psyclone.dynamo0p3.DynKern` or \
-                          :py:class:`psyclone.dynamo0p3.DynInvoke`
+                          :py:class:`psyclone.dynamo0p3.LFRicInvoke`
 
     : raises GenerationError: if an Invoke has no field or operator arguments.
 
@@ -3454,7 +3454,7 @@ class LFRicScalarArgs(DynCollection):
     :param node: the Invoke or Kernel stub for which to manage the scalar \
                  arguments.
     :type node: :py:class:`psyclone.dynamo0p3.DynKern` or \
-                :py:class:`psyclone.dynamo0p3.DynInvoke`
+                :py:class:`psyclone.dynamo0p3.LFRicInvoke`
 
     '''
     def __init__(self, node):
@@ -3967,7 +3967,7 @@ class DynMeshes():
 
     :param invoke: the Invoke for which to extract information on all \
                    required inter-grid operations.
-    :type invoke: :py:class:`psyclone.dynamo0p3.DynInvoke`
+    :type invoke: :py:class:`psyclone.dynamo0p3.LFRicInvoke`
     :param unique_psy_vars: list of arguments to the PSy-layer routine.
     :type unique_psy_vars: list of \
                       :py:class:`psyclone.dynamo0p3.DynKernelArgument` objects.
@@ -5465,7 +5465,7 @@ class DynBoundaryConditions(DynCollection):
 
     :param node: the Invoke or Kernel stub for which we are to handle \
                  any boundary conditions.
-    :type node: :py:class:`psyclone.dynamo0p3.DynInvoke` or \
+    :type node: :py:class:`psyclone.dynamo0p3.LFRicInvoke` or \
                 :py:class:`psyclone.dynamo0p3.DynKern`
 
     :raises GenerationError: if a kernel named "enforce_bc_code" is found \
@@ -5561,7 +5561,7 @@ class DynBoundaryConditions(DynCollection):
                               "get_boundary_dofs()"])))
 
 
-class DynInvoke(Invoke):
+class LFRicInvoke(Invoke):
     '''The Dynamo specific invoke class. This passes the Dynamo specific
     InvokeSchedule class to the base class so it creates the one we
     require.  Also overrides the gen_code method so that we generate
@@ -5571,7 +5571,7 @@ class DynInvoke(Invoke):
     :type alg_invocation: :py:class:`psyclone.parse.algorithm.InvokeCall`
     :param int idx: the position of the invoke in the list of invokes \
         contained in the Algorithm.
-    :param invokes: the Invokes object containing this DynInvoke \
+    :param invokes: the Invokes object containing this LFRicInvoke \
         object.
     :type invokes: :py:class:`psyclone.dynamo0p3.DynamoInvokes`
 
@@ -10209,7 +10209,7 @@ __all__ = [
     'DynInterGrid',
     'DynBasisFunctions',
     'DynBoundaryConditions',
-    'DynInvoke',
+    'LFRicInvoke',
     'DynInvokeSchedule',
     'DynGlobalSum',
     'DynHaloExchange',
