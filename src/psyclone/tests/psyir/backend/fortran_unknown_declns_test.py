@@ -126,22 +126,6 @@ def test_fw_unknowntype_routine_symbols_error(fortran_writer):
             " by the Fortran backend" in str(err.value))
 
 
-def test_fw_unknowntype_nonlocal_routine_symbols_error(fortran_writer):
-    ''' Check that the backend raises the expected error if a RoutineSymbol
-    of UnknownFortranType with a non-local interface is encountered. '''
-    container = Container("my_mod")
-    csym = ContainerSymbol("other_mod")
-    container.symbol_table.add(csym)
-    sym = RoutineSymbol("eos", UnknownFortranType("some code"),
-                        interface=ImportInterface(csym))
-    container.symbol_table.add(sym)
-    with pytest.raises(VisitorError) as err:
-        fortran_writer.gen_decls(container.symbol_table)
-    assert ("RoutineSymbol 'eos' is of UnknownFortranType but has interface "
-            "'Import(container='other_mod')' instead of AutomaticInterface" in
-            str(err.value))
-
-
 def test_fw_add_accessibility_errors():
     ''' Check that the add_accessibility_to_unknown_declaration() method
     raises the expected errors. '''

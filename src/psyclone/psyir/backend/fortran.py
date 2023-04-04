@@ -553,6 +553,12 @@ class FortranWriter(LanguageWriter):
 
         '''
         # pylint: disable=too-many-branches
+
+        if isinstance(symbol.datatype, DeferredType):
+            raise VisitorError(f"Symbol '{symbol.name}' has a DeferredType "
+                               f" and we can not generate a declaration for "
+                               f" DeferredTypes.")
+
         # Whether we're dealing with an array declaration and, if so, the
         # shape of that array.
         if isinstance(symbol.datatype, ArrayType):
@@ -809,9 +815,7 @@ class FortranWriter(LanguageWriter):
         '''
         declarations = ""
         local_constants = [sym for sym in symbol_table.datasymbols if
-                           sym.is_constant and (sym.is_auto or sym.is_module)]
-        if not local_constants:
-            return declarations
+                           sym.is_constant]
 
         # There may be dependencies between these constants so setup a dict
         # listing the required inputs for each one.
@@ -881,84 +885,94 @@ class FortranWriter(LanguageWriter):
         '''
         # pylint: disable=too-many-branches
         declarations = ""
-        # Keep a record of whether we've already checked for any wildcard
-        # imports to save doing so repeatedly
-        wildcard_imports_checked = False
-        has_wildcard_import = False
 
-        routine_symbols = [symbol for symbol in symbol_table.symbols
-                           if isinstance(symbol, RoutineSymbol)]
-        for sym in routine_symbols:
-            if sym.is_argument:
-                raise VisitorError(
-                    f"Routine symbol '{sym.name}' is passed as an argument "
-                    f"(has an ArgumentInterface). This is not supported by "
-                    f"the Fortran back-end.")
-            # Interfaces to module procedures are captured by the frontend as
-            # RoutineSymbols of UnknownFortranType. These must therefore be
-            # declared.
-            if isinstance(sym.datatype, UnknownType):
-                declarations += self.gen_vardecl(
-                    sym, include_visibility=is_module_scope)
+        # Get all symbols local to this symbol table
+        all_symbols = list(symbol_table.get_local_symbols().values())
 
-        # Does the symbol table contain any symbols with a deferred
-        # interface (i.e. we don't know how they are brought into scope)
+        # Before processing the declarations we remove:
+        for sym in all_symbols[:]:
+            # Everything that is a container or imported (because it should
+            # already be done by the gen_use() method before)
+            if isinstance(sym, ContainerSymbol):
+                all_symbols.remove(sym)
+            if sym.is_import:
+                all_symbols.remove(sym)
+            # All the IntrinsicSymbols (and unless we support all intrinsics,
+            # also the RoutineSymbols with an UresolvedInterface)
+            if isinstance(sym, IntrinsicSymbol) or (
+                    isinstance(sym, RoutineSymbol) and
+                    isinstance(sym.interface, UnresolvedInterface)):
+                all_symbols.remove(sym)
+
+        # Does the symbol table contain any symbols with a UnresolvedInterface
+        # interface? We don't know how they are brought into scope, so unless
+        # we have wildcard import which could be bringing them into scope it
         unresolved_symbols = []
-        for sym in symbol_table.unresolved_datasymbols:
-            if not isinstance(sym.datatype, UnknownType):
+        for sym in all_symbols[:]:
+            if isinstance(sym.interface, UnresolvedInterface):
                 unresolved_symbols.append(sym)
+                all_symbols.remove(sym)
+        if unresolved_symbols and not symbol_table.has_wildcard_imports():
+            symbols_txt = ", ".join(
+                ["'" + sym.name + "'" for sym in unresolved_symbols])
+            raise VisitorError(
+                f"The following symbols are not explicitly declared or "
+                f"imported from a module and there are no wildcard "
+                f"imports which could be bringing them into scope: "
+                f"{symbols_txt}")
 
-        if unresolved_symbols:
-            # We do have unresolved symbols. Is there at least one wildcard
-            # import which could be bringing them into scope?
-            if not wildcard_imports_checked:
-                has_wildcard_import = symbol_table.has_wildcard_imports()
-                wildcard_imports_checked = True
-            if not has_wildcard_import:
-                symbols_txt = ", ".join(
-                    ["'" + sym.name + "'" for sym in unresolved_symbols])
-                raise VisitorError(
-                    f"The following symbols are not explicitly declared or "
-                    f"imported from a module and there are no wildcard "
-                    f"imports which could be bringing them into scope: "
-                    f"{symbols_txt}")
+        # As a convention, we will declare the variables in the following
+        # order:
 
-        # Fortran requires use statements to be specified before
-        # variable declarations. As a convention, this method also
-        # declares any argument variables before local variables.
+        # 1: Routines (Interfaces)
+        for sym in all_symbols[:]:
+            if isinstance(sym, RoutineSymbol):
+                if sym.is_argument:
+                    raise VisitorError(
+                        f"Routine symbol '{sym.name}' is passed as an argument"
+                        f" (has an ArgumentInterface). This is not supported "
+                        f"by the Fortran back-end.")
+                # Interfaces to module procedures are captured by the frontend
+                # as RoutineSymbols of UnknownFortranType. These must therefore
+                # be declared.
+                if isinstance(sym.datatype, UnknownType):
+                    declarations += self.gen_vardecl(
+                        sym, include_visibility=is_module_scope)
+                all_symbols.remove(sym)
 
-        # 1: Local constants.
+        # 2: Constants.
         declarations += self._gen_parameter_decls(symbol_table,
                                                   is_module_scope)
+        for sym in all_symbols[:]:
+            if isinstance(sym, DataSymbol) and sym.is_constant:
+                all_symbols.remove(sym)
 
-        # 2: Argument variable declarations
+        # 3: Argument variable declarations
         if symbol_table.argument_datasymbols and is_module_scope:
             raise VisitorError(
                 f"Arguments are not allowed in this context but this symbol "
                 f"table contains argument(s): "
                 f"'{[sym.name for sym in symbol_table.argument_datasymbols]}'."
                 )
+        # We use symbol_table.argument_datasymbols because it has the
+        # symbol order that we need
         for symbol in symbol_table.argument_datasymbols:
             declarations += self.gen_vardecl(
                 symbol, include_visibility=is_module_scope)
+            all_symbols.remove(symbol)
 
-        # 3: Derived-type declarations. These must come before any declarations
-        #    of symbols of these types.
-        for symbol in [sym for sym in symbol_table.datatypesymbols if
-                       sym.is_auto]:
-            declarations += self.gen_typedecl(
-                symbol, include_visibility=is_module_scope)
+        # 4: Derived-type declarations. These must come before any declarations
+        # of symbols of these types.
+        for symbol in all_symbols[:]:
+            if isinstance(symbol, DataTypeSymbol):
+                declarations += self.gen_typedecl(
+                    symbol, include_visibility=is_module_scope)
+                all_symbols.remove(symbol)
 
-        # 4: The rest of the symbols
-        local_vars = [sym for sym in symbol_table.datasymbols if
-                      not sym.is_constant and
-                      not sym.is_argument and
-                      not sym.is_import and
-                      not sym.is_unresolved]
-        local_vars += [sym for sym in symbol_table.datasymbols if
-                       sym.is_unresolved and
-                       isinstance(sym.datatype, UnknownType)]
-        for symbol in local_vars:
+        # 5: The rest of the symbols
+        for symbol in all_symbols:
+            if type(symbol) is Symbol:
+                import pdb; pdb.set_trace()
             declarations += self.gen_vardecl(
                 symbol, include_visibility=is_module_scope)
 

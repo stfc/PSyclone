@@ -186,8 +186,7 @@ class SymbolTable():
             scope (all symbol tables in ancestor nodes) is searched \
             otherwise ancestors of the scope_limit node are not \
             searched.
-        :type scope_limit: :py:class:`psyclone.psyir.nodes.Node` or \
-            `NoneType`
+        :type scope_limit: Optional[:py:class:`psyclone.psyir.nodes.Node`]
 
         :returns: ordered dictionary of symbols indexed by symbol name.
         :rtype: OrderedDict[str] = :py:class:`psyclone.psyir.symbols.Symbol`
@@ -201,6 +200,9 @@ class SymbolTable():
                     all_symbols[symbol_name] = symbol
             current = current.parent_symbol_table(scope_limit)
         return all_symbols
+
+    def get_local_symbols(self):
+        return self.get_symbols(scope_limit=self.node)
 
     def get_tags(self, scope_limit=None):
         '''Return tags from this symbol table and all symbol tables associated

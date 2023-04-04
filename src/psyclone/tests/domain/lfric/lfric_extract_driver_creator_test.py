@@ -181,6 +181,9 @@ def test_lfric_driver_add_call(fortran_writer):
         driver_creator._add_call(program, "test", [])
     assert ("Routine 'test' is a symbol of type 'Symbol', not a "
             "'RoutineSymbol'" in str(err.value))
+    # Clean up previous invalid test symbol
+    del program.symbol_table._symbols['test']
+    del program.symbol_table._tags['test']
 
     driver_creator._add_call(program, "my_sub", [])
     driver_creator._add_call(program, "my_sub_2", [Literal("1", INTEGER_TYPE)])
