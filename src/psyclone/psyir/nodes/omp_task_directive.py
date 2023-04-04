@@ -271,7 +271,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         # Store the parent parallel directive node
         self._parent_parallel = anc
         # pylint: disable=protected-access
-        self._parallel_private = anc._get_private_clause().children
+        self._parallel_private = anc._get_private_clauses()[0].children
 
     def _is_reference_private(self, ref):
         """

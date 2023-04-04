@@ -1523,7 +1523,10 @@ class OMPParallelDirective(OMPRegionDirective):
                     if loop_ancestor:
                         # The assignment to the variable is inside a loop, so
                         # declare it to be private
-                        name = str(signature).lower()
+                        if str(signature).find("%") > 0:
+                            name = str(signature).lower()[0:str(signature).find("%")]
+                        else:
+                            name = str(signature).lower()
                         symbol = access.node.scope.symbol_table.lookup(name)
 
                         # Is the write conditional?

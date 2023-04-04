@@ -68,6 +68,7 @@ from psyclone.psyir.nodes import (
     OMPNumTasksClause,
     OMPNogroupClause,
     OMPPrivateClause,
+    OMPFirstprivateClause,
     OMPDefaultClause,
     OMPReductionClause,
     OMPScheduleClause,
