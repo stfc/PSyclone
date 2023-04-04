@@ -54,7 +54,7 @@ from psyclone.psyad.domain.lfric.lfric_adjoint_harness import (
     _validate_geom_arg,
     generate_lfric_adjoint_harness)
 from psyclone.psyir import nodes
-from psyclone.psyir.symbols import (DataSymbol, REAL_TYPE,
+from psyclone.psyir.symbols import (DataSymbol, REAL_TYPE, BOOLEAN_TYPE,
                                     ArrayType, DataTypeSymbol, DeferredType,
                                     INTEGER_TYPE, ContainerSymbol,
                                     ImportInterface, ScalarType)
@@ -70,7 +70,7 @@ def lfric_consts_fixture():
 
 def test_compute_inner_products_scalars(fortran_writer):
     '''Test that _compute_lfric_inner_products generates the expected code
-    for scalars.'''
+    for scalars and ignores any of boolean type.'''
     table = LFRicSymbolTable()
     prog = nodes.Routine.create("test_prog", table, [], is_program=True)
     sum_sym = table.new_symbol(root_name="my_sum",
@@ -79,12 +79,16 @@ def test_compute_inner_products_scalars(fortran_writer):
                             datatype=REAL_TYPE)
     sym2 = table.new_symbol(root_name="var2", symbol_type=DataSymbol,
                             datatype=REAL_TYPE)
-    _compute_lfric_inner_products(prog, [(sym1, sym1), (sym1, sym2)], [],
-                                  sum_sym)
+    sym3 = table.new_symbol(root_name="var3", symbol_type=DataSymbol,
+                            datatype=BOOLEAN_TYPE)
+    _compute_lfric_inner_products(
+        prog, [(sym1, sym1), (sym1, sym2), (sym3, sym3)], [], sum_sym)
     gen = fortran_writer(prog)
+    # The resulting code should not include var3 since it is boolean.
     assert ("  my_sum = 0.0\n"
             "  my_sum = my_sum + var1 * var1\n"
-            "  my_sum = my_sum + var1 * var2\n" in gen)
+            "  my_sum = my_sum + var1 * var2\n\n"
+            "end program" in gen)
 
 
 def test_compute_inner_products_fields(fortran_writer):
@@ -341,9 +345,12 @@ def test_init_scalar_value():
     assert routine[1].rhs.value == "1"
     # and we should store this value as it's listed as an 'input'.
     assert isinstance(routine[2], nodes.Assignment)
+    assert routine[2].lhs.symbol.name == "my_int2_input"
+    # A logical argument should just be assigned False (TODO #2087)
     sym3 = DataSymbol("my_bool", LFRicTypes("LFRicLogicalScalarDataType")())
     _init_scalar_value(sym3, routine, {})
-    assert 0 # ARPDBG - add check for saved value
+    assert isinstance(routine[3], nodes.Assignment)
+    assert routine[3].rhs.value == "false"
 
 
 # _validate_geom_arg
