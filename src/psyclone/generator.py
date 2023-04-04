@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+# Copyright (c) 2017-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,9 +31,9 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors: R. W. Ford, A. R. Porter and N. Nobre, STFC Daresbury Lab
 # Modified A. J. Voysey, Met Office
-# Modified work Copyright (c) 2018 by J. Henrichs, Bureau of Meteorology
+# Modified by J. Henrichs, Bureau of Meteorology
 
 '''
     This module provides the PSyclone 'main' routine which is intended
@@ -97,34 +97,37 @@ def handle_script(script_name, info, function_name, is_optional=False):
         script function is called.
 
     '''
-    sys_path_appended = False
+    # pylint: disable=too-many-locals
+    sys_path_prepended = False
     try:
-        # a script has been provided
         filepath, filename = os.path.split(script_name)
-        if filepath:
-            # a path to a file has been provided
-            # we need to check the file exists
-            if not os.path.isfile(script_name):
-                raise IOError(f"script file '{script_name}' not found")
-            # it exists so we need to add the path to the python
-            # search path
-            sys_path_appended = True
-            sys.path.append(filepath)
-        filename, fileext = os.path.splitext(filename)
+        module_name, fileext = os.path.splitext(filename)
+        # the file must either be:
+        # a) at the given path or, given no path, in the current directory; or
+        # b) given no path, in the system path
+        if not (os.path.isfile(script_name) or
+                not filepath and any(os.path.isfile(os.path.join(p, filename))
+                                     for p in sys.path)):
+            raise GenerationError(
+                f"generator: script file '{script_name}' not found")
+        # the file must have the .py extension
         if fileext != '.py':
             raise GenerationError(
                 f"generator: expected the script file '{filename}' to have "
                 f"the '.py' extension")
+        # prepend file path - if none, the empty string equates to the current
+        # working directory - to the system path to guarantee we find the user
+        # provided module instead of a similarly named module that might
+        # already exist elsewhere in the system path
+        sys_path_prepended = True
+        sys.path.insert(0, filepath)
         try:
-            transmod = __import__(filename)
-        except ImportError as error:
+            transmod = __import__(module_name)
+        except Exception as error:
             raise GenerationError(
-                f"generator: attempted to import '{filename}' but script "
-                f"file '{script_name}' has not been found") from error
-        except SyntaxError as error:
-            raise GenerationError(
-                f"generator: attempted to import '{filename}' but script "
-                f"file '{script_name}' is not valid python") from error
+                f"generator: attempted to import specified PSyclone "
+                f"transformation module '{module_name}' but a problem was "
+                f"found: {error}") from error
         if callable(getattr(transmod, function_name, None)):
             try:
                 func_call = getattr(transmod, function_name)
@@ -133,24 +136,20 @@ def handle_script(script_name, info, function_name, is_optional=False):
                 exc_type, exc_value, exc_traceback = sys.exc_info()
                 lines = traceback.format_exception(exc_type, exc_value,
                                                    exc_traceback)
-                e_str = '{\n' +\
-                    ''.join('    ' + line for line in lines[2:]) + '}'
+                e_str = '{\n' + ''.join('    ' + ln for ln in lines[2:]) + '}'
                 # pylint: disable=raise-missing-from
                 raise GenerationError(
-                    f"Generator: script file '{script_name}'\nraised the "
-                    f"following exception during execution "
-                    f"...\n{e_str}\nPlease check your script")
+                    f"generator: specified PSyclone transformation module "
+                    f"'{module_name}'\nraised the following exception during "
+                    f"execution...\n{e_str}\nplease check your script")
         elif not is_optional:
             raise GenerationError(
-                f"generator: attempted to import '{filename}' but script file "
-                f"'{script_name}' does not contain a '{function_name}' "
-                f"function")
-    except Exception as msg:
-        if sys_path_appended:
-            os.sys.path.pop()
-        raise msg
-    if sys_path_appended:
-        os.sys.path.pop()
+                f"generator: attempted to use specified PSyclone "
+                f"transformation module '{module_name}' but it does not "
+                f"contain a '{function_name}' function")
+    finally:
+        if sys_path_prepended:
+            sys.path.pop(0)
 
 
 def generate(filename, api="", kernel_paths=None, script_name=None,
@@ -158,7 +157,8 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
              distributed_memory=None,
              kern_out_path="",
              kern_naming="multiple"):
-    # pylint: disable=too-many-arguments
+    # pylint: disable=too-many-arguments, too-many-statements
+    # pylint: disable=too-many-branches, too-many-locals
     '''Takes a PSyclone algorithm specification as input and outputs the
     associated generated algorithm and psy codes suitable for
     compiling with the specified kernel(s) and support

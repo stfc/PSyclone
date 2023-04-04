@@ -31,9 +31,9 @@
 .. ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .. POSSIBILITY OF SUCH DAMAGE.
 .. -----------------------------------------------------------------------------
-.. Written by: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab.
-..             A. B. G. Chalk, STFC Daresbury Lab.
-..             I. Kavcic, Met Office.
+.. Written by: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+..             A. B. G. Chalk and N. Nobre, STFC Daresbury Lab
+..             I. Kavcic, Met Office
 
 .. _transformations:
 
@@ -721,13 +721,14 @@ example::
 
     > psyclone -s opt.py algspec.f90
 
-In this case the Python search path **PYTHONPATH** will be used to try
-to find the script file.
+In this case, the current directory is prepended to the Python search path
+**PYTHONPATH** which will then be used to try to find the script file. Thus,
+the search begins in the current directory and continues over any pre-existing
+directories in the search path, failing if the file cannot be found.
 
 Alternatively, script files may be specified with a path. In this case
-the file is expected to be found in the specified location. For
-example ...
-::
+the file must exist in the specified location. This location is then added to
+the Python search path **PYTHONPATH** as before. For example::
 
     > psyclone -s ./opt.py algspec.f90
     > psyclone -s ../scripts/opt.py algspec.f90
@@ -762,7 +763,7 @@ below does the same thing as the example in the
 
 In the gocean1.0 API (and in the future the lfric (dynamo0.3) API) an
 optional **trans_alg** function may also be supplied. This function
-accepts **PSyIR** (reprenting the algorithm layer) as an argument and
+accepts **PSyIR** (representing the algorithm layer) as an argument and
 returns **PSyIR** i.e.:
 ::
 

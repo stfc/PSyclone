@@ -126,7 +126,9 @@ def test_check_datatype():
 def test_check_access():
     '''Test the check_access method works as expected.'''
     ScalarArgMetadata.check_access("GH_READ")
+    ScalarArgMetadata.check_access("gh_sum")
     with pytest.raises(ValueError) as info:
         ScalarArgMetadata.check_access("invalid")
     assert ("The 'access descriptor' metadata should be a recognised value "
-            "(one of ['gh_read']) but found 'invalid'." in str(info.value))
+            "(one of ['gh_read', 'gh_sum']) but found 'invalid'."
+            in str(info.value))

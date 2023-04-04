@@ -981,7 +981,7 @@ def test_validate_rhs_term_active(operator, string):
     trans = AssignmentTrans(active_variables=[lhs_symbol, rhs_symbol1])
     with pytest.raises(TangentLinearError) as info:
         trans.validate(assignment)
-    assert (f"Each non-zero term on the RHS of the assigment 'a = b "
+    assert (f"Each non-zero term on the RHS of the assignment 'a = b "
             f"{string} c\n' must have an active variable but 'c' does "
             f"not." in str(info.value))
 
@@ -1005,7 +1005,7 @@ def test_validate_rhs_assign():
     trans = AssignmentTrans(active_variables=[lhs_symbol])
     with pytest.raises(TangentLinearError) as info:
         trans.validate(assignment)
-    assert ("Each non-zero term on the RHS of the assigment 'a = 1.0\n' must "
+    assert ("Each non-zero term on the RHS of the assignment 'a = 1.0\n' must "
             "have an active variable but '1.0' does not." in str(info.value))
 
 
@@ -1028,7 +1028,7 @@ def test_validate_rhs_term_multi_active():
         lhs_symbol, rhs_symbol1, rhs_symbol2])
     with pytest.raises(TangentLinearError) as info:
         trans.validate(assignment)
-    assert ("Each term on the RHS of the assigment 'a = b * c\n' must not "
+    assert ("Each term on the RHS of the assignment 'a = b * c\n' must not "
             "have more than one active variable but 'b * c' has 2."
             in str(info.value))
 

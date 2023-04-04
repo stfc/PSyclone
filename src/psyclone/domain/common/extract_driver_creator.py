@@ -55,7 +55,7 @@ from psyclone.psyir.symbols import (ArrayType, CHARACTER_TYPE,
                                     REAL8_TYPE, RoutineSymbol, ScalarType)
 from psyclone.psyir.transformations import ExtractTrans
 
-# TODO 1392: once we support LFRic, make this into a proper base class
+# TODO 1382: once we support LFRic, make this into a proper base class
 # and put the domain-specific implementations into the domain/* directories.
 
 
@@ -610,7 +610,7 @@ class ExtractDriverCreator:
                              prefix, postfix, region_name,
                              writer=FortranWriter()):
         # pylint: disable=too-many-arguments
-        '''This function uses 'create()` function to get a PSyIR of a
+        '''This function uses `create()` function to get the PSyIR of a
         stand-alone driver, and then uses the provided language writer
         to create a string representation in the selected language
         (defaults to Fortran).
@@ -651,7 +651,7 @@ class ExtractDriverCreator:
     def write_driver(self, nodes, input_list, output_list,
                      prefix, postfix, region_name, writer=FortranWriter()):
         # pylint: disable=too-many-arguments
-        '''This function uses the 'get_driver_as_string()` function to get a
+        '''This function uses the `get_driver_as_string()` function to get a
         a stand-alone driver, and then writes this source code to a file. The
         file name is derived from the region name:
         "driver-"+module_name+"_"+region_name+".f90"

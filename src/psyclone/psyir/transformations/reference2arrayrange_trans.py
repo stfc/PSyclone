@@ -43,7 +43,6 @@
 '''
 from psyclone.errors import LazyString
 from psyclone.psyGen import Transformation
-from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import (Range, Reference, ArrayReference, Literal,
                                   BinaryOperation, IntrinsicCall)
 from psyclone.psyir.symbols import INTEGER_TYPE, ArrayType
@@ -161,11 +160,10 @@ class Reference2ArrayRangeTrans(Transformation):
                 "operators should not be transformed.")
         if (isinstance(node.parent, IntrinsicCall) and
                 node.parent.routine.name in ["DEALLOCATE"]):
-            fwriter = FortranWriter()
             raise TransformationError(LazyString(
                 lambda: f"References to arrays within "
                 f"{node.parent.routine.name} intrinsics should not be "
-                f"transformed, but found:\n {fwriter(node.parent)}"))
+                f"transformed, but found:\n {node.parent.debug_string()}"))
 
     def apply(self, node, options=None):
         '''Apply the Reference2ArrayRangeTrans transformation to the specified

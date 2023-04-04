@@ -1813,7 +1813,7 @@ class GOStencil():
             # order
             for idx0 in range(3):
                 for idx1 in range(3):
-                    # The j coordincate needs to be 'reversed': the first
+                    # The j coordinate needs to be 'reversed': the first
                     # row (index 0 in args) is 'top', which should be
                     # accessed using '+1', and the last row (index 2 in args)
                     # needs to be accessed using '-1' (see depth()). Using

@@ -363,7 +363,7 @@ def test_same_range():
     assert ArrayRange2LoopTrans.same_range(array_x, 0, array_x_2, 0) is False
 
 
-# The parametrised tests are 1: x(:)=0.0, 2: x(:)=y(n,:), 3:
+# The parameterised tests are 1: x(:)=0.0, 2: x(:)=y(n,:), 3:
 # y(n,:)=x(:), 4: y2(:,:)=z(:,n,:) and 5:
 # y3(n,2:n:2)=x(2:n:2)*z(1,2:n:2)+a(1)
 @pytest.mark.parametrize("lhs_create,rhs_create,expected",
