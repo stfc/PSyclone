@@ -508,16 +508,6 @@ class ArrayMixin(metaclass=abc.ABCMeta):
             elif isinstance(idx_expr, (Call, Operation, CodeBlock)):
                 # We can't yet straightforwardly query the type of a function
                 # call or Operation - TODO #1799.
-<<<<<<< HEAD
-                # We use the FortranWriter in the exception but have
-                # to import it here to avoid circular dependencies.
-                # pylint: disable=import-outside-toplevel
-                # TODO #1887 - get type of writer to use from Config object?
-                from psyclone.psyir.backend.fortran import FortranWriter
-                fvisitor = FortranWriter()
-                # pylint: enable=import-outside-toplevel
-=======
->>>>>>> master
                 raise NotImplementedError(
                     f"The array index expressions for access "
                     f"'{self.debug_string()}' include a function call or "
