@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author J. Henrichs, Bureau of Meteorology
-# Modified: I. Kavcic, Met Office
+# Modified: I. Kavcic and L. Turner, Met Office
 #           R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
 '''Module for the LFRic domain.
@@ -56,6 +56,7 @@ from psyclone.domain.lfric.lfric_extract_driver_creator import \
 from psyclone.domain.lfric.lfric_symbol_table import LFRicSymbolTable
 from psyclone.domain.lfric.lfric_types import LFRicTypes
 from psyclone.domain.lfric.kern_stub_arg_list import KernStubArgList
+from psyclone.domain.lfric.lfric_kern_call_factory import LFRicKernCallFactory
 
 __all__ = [
     'ArgOrdering',
