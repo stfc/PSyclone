@@ -494,7 +494,7 @@ def test_generate_lfric_adjoint_harness(fortran_reader, fortran_writer):
     expected test-harness code.'''
     tl_psyir = fortran_reader.psyir_from_source(TL_CODE)
     psyir = generate_lfric_adjoint_harness(tl_psyir)
-    gen = fortran_writer(psyir)
+    gen = fortran_writer(psyir).lower()
     assert "module adjoint_test_mod" in gen
     assert "subroutine adjoint_test(mesh, chi, panel_id)" in gen
     # We should have a field, a copy of that field and an inner-product value
@@ -517,7 +517,7 @@ def test_generate_lfric_adjoint_harness(fortran_reader, fortran_writer):
     # The TL kernel must then be called and the inner-product of the result
     # computed.
     assert "field_2_inner_prod = 0.0_r_def" in gen
-    assert ("    ! Initialise arguments and call the tangent-linear kernel.\n"
+    assert ("    ! initialise arguments and call the tangent-linear kernel.\n"
             "    call invoke(setval_random(field_2), setval_x(field_2_input, "
             "field_2), testkern_type(rscalar_1, field_2), x_innerproduct_x("
             "field_2_inner_prod, field_2))\n" in gen)

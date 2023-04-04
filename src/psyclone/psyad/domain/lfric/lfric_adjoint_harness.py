@@ -47,8 +47,9 @@ from psyclone.errors import InternalError, GenerationError
 from psyclone.psyad.domain.common.adjoint_utils import (create_adjoint_name,
                                                         create_real_comparison,
                                                         find_container)
-from psyclone.psyir.nodes import (Call, Reference, ArrayReference, Assignment,
-                                  Literal, BinaryOperation, Routine)
+from psyclone.psyir.nodes import (
+    IntrinsicCall, Reference, ArrayReference, Assignment,
+    Literal, BinaryOperation, Routine)
 from psyclone.psyir.symbols import (ImportInterface, ContainerSymbol,
                                     ScalarType, ArrayType, RoutineSymbol,
                                     DataTypeSymbol, DataSymbol, DeferredType)
@@ -347,10 +348,12 @@ def _init_scalar_value(scalar_arg, routine, input_symbols):
     :raises InternalError: if the type of the scalar argument is not supported.
 
     '''
-    # Intrinsics are not stored in a SymbolTable.
-    random_num = RoutineSymbol("random_number")
     if scalar_arg.datatype.intrinsic == ScalarType.Intrinsic.REAL:
-        routine.addchild(Call.create(random_num, [Reference(scalar_arg)]))
+        # TODO #2087 - we use the RANDOM_NUMBER intrinsic but make no attempt
+        # to scale the resulting value.
+        routine.addchild(
+            IntrinsicCall.create(IntrinsicCall.Intrinsic.RANDOM_NUMBER,
+                                 [Reference(scalar_arg)]))
     elif scalar_arg.datatype.intrinsic == ScalarType.Intrinsic.BOOLEAN:
         # TODO #2087 - just set the variable to False for the moment.
         routine.addchild(Assignment.create(
