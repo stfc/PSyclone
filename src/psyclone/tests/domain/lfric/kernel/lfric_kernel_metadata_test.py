@@ -52,6 +52,8 @@ from psyclone.parse.utils import ParseError
 from psyclone.psyir.symbols import DataTypeSymbol, REAL_TYPE, \
     UnknownFortranType
 
+# pylint: disable=too-many-statements
+
 
 def test_init_noargs():
     '''Test that a LFRicKernelMetadata instance can be created
@@ -1481,3 +1483,54 @@ def test_meta_args_get():
     # OK (empty list matches nothing)
     result = metadata.meta_args_get([])
     assert result == []
+
+
+# pylint: disable=unidiomatic-typecheck
+def test_field_utility():
+    '''Test the LFRicKernelMetadata class field_meta_args_on_fs utility
+    method.
+
+    '''
+    meta_args = [
+        FieldArgMetadata("GH_REAL", "GH_INC", "W0"),
+        FieldVectorArgMetadata("GH_REAL", "GH_READ", "W0", "3")]
+    metadata = LFRicKernelMetadata(
+        operates_on="cell_column", meta_args=meta_args)
+    metadata.validate()
+    result = metadata.field_meta_args_on_fs(FieldArgMetadata, "w0")
+    assert len(result) == 1
+    assert type(result[0]) == FieldArgMetadata
+    result = metadata.field_meta_args_on_fs(FieldArgMetadata, "w1")
+    assert len(result) == 0
+    result = metadata.field_meta_args_on_fs(
+        [FieldArgMetadata, FieldVectorArgMetadata], "w0")
+    assert len(result) == 2
+    assert type(result[0]) == FieldArgMetadata
+    assert type(result[1]) == FieldVectorArgMetadata
+
+
+def test_operator_utility():
+    '''Test the LFRicKernelMetadata class operator_meta_args_on_fs utility
+    method.
+
+    '''
+    meta_args = [
+        ColumnwiseOperatorArgMetadata("GH_REAL", "GH_READWRITE", "W0", "W1"),
+        OperatorArgMetadata("GH_REAL", "GH_READ", "W0", "W1")]
+    metadata = LFRicKernelMetadata(
+        operates_on="cell_column", meta_args=meta_args)
+    metadata.validate()
+    result = metadata.operator_meta_args_on_fs(
+        ColumnwiseOperatorArgMetadata, "w0")
+    assert len(result) == 1
+    assert type(result[0]) == ColumnwiseOperatorArgMetadata
+    result = metadata.operator_meta_args_on_fs(OperatorArgMetadata, "w1")
+    assert len(result) == 1
+    assert type(result[0]) == OperatorArgMetadata
+    result = metadata.operator_meta_args_on_fs(FieldArgMetadata, "w2")
+    assert len(result) == 0
+    result = metadata.operator_meta_args_on_fs(
+        [OperatorArgMetadata, ColumnwiseOperatorArgMetadata], "w0")
+    assert len(result) == 2
+    assert type(result[0]) == ColumnwiseOperatorArgMetadata
+    assert type(result[1]) == OperatorArgMetadata
