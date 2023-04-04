@@ -65,6 +65,8 @@ class LFRicCollection():
                            DynKern.
     '''
     def __init__(self, node):
+        # Import here to avoid circular dependency
+        # pylint: disable=import-outside-toplevel
         from psyclone.dynamo0p3 import DynInvoke, DynKern
         if isinstance(node, DynInvoke):
             # We are handling declarations/initialisations for an Invoke
