@@ -330,11 +330,21 @@ def _init_operators_random(operators, table):
 
 def _init_scalar_value(scalar_arg, routine, input_symbols):
     '''
-    :param kern_args: information on all kernel arguments.
-    :type kern_args: :py:class:`psyclone.domain.lfric.KernCallInvokeArgList`
+    Extends the supplied Routine with the necessary statements to initialise
+    the supplied scalar argument. If that argument appears in the
+    `input_symbols` dict then its initial value is also assigned to the Symbol
+    in the dict entry.
+
+    :param scalar_arg: the scalar kernel argument to initialise.
+    :type scalar_arg: :py:class:`psyclone.psyir.symbols.DataSymbol`
     :param routine: the routine to which to add assignments.
     :type routine: :py:class:`psyclone.psyir.nodes.Routine`
-    :param input_symbols: 
+    :param input_symbols: dict containing those kernel arguments for which we \
+                          need to keep copies of their input values.
+    :type input_symbols: Dict[str, \
+                              :py:class:`psyclone.psyir.symbols.DataSymbol`]
+
+    :raises InternalError: if the type of the scalar argument is not supported.
 
     '''
     # Intrinsics are not stored in a SymbolTable.
@@ -351,9 +361,15 @@ def _init_scalar_value(scalar_arg, routine, input_symbols):
         routine.addchild(Assignment.create(
             Reference(scalar_arg),
             Literal("1", LFRicTypes("LFRicIntegerScalarDataType")())))
+    else:
+        raise InternalError(
+            f"_init_scalar_value: only scalars of REAL, INTEGER or BOOLEAN "
+            f"type are supported but got symbol '{scalar_arg.name}' of type "
+            f"'{scalar_arg.datatype}'.")
 
     if scalar_arg.name in input_symbols:
-        input_sym = routine.symbol_table.lookup(scalar_arg.name + "_input")
+        # We need to keep a copy of the input value of this argument.
+        input_sym = input_symbols[scalar_arg.name]
         routine.addchild(Assignment.create(Reference(input_sym),
                                            Reference(scalar_arg)))
 

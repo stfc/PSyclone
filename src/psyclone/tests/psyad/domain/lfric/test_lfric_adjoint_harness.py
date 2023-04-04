@@ -324,7 +324,7 @@ def test_init_operators_random(type_map):
 
 # _init_scalar_values
 
-def test_init_scalar_value():
+def test_init_scalar_value(monkeypatch):
     '''Check that _init_scalar_value() adds the expected nodes to the supplied
     Routine.'''
     table = LFRicSymbolTable()
@@ -338,7 +338,7 @@ def test_init_scalar_value():
     assert len(routine.children) == 1
     # We should get a call to random_number for a real scalar.
     assert isinstance(routine[0], nodes.Call)
-    _init_scalar_value(sym2, routine, {"my_int2": None})
+    _init_scalar_value(sym2, routine, {"my_int2": sym2_input})
     assert len(routine.children) == 3
     # An integer should just be assigned the value 1 (TODO #2087)
     assert isinstance(routine[1], nodes.Assignment)
@@ -351,6 +351,19 @@ def test_init_scalar_value():
     _init_scalar_value(sym3, routine, {})
     assert isinstance(routine[3], nodes.Assignment)
     assert routine[3].rhs.value == "false"
+    # Unrecognised type of scalar. This is tricky to reproduce so we create
+    # a new class that has a 'name' attribute and monkeypatch the 'intrinsic'
+    # property of the datatype.
+    sym4 = DataSymbol("my_var", LFRicTypes("LFRicRealScalarDataType")())
+
+    class broken_type:
+        def __init__(self):
+            self.name = "wrong"
+    monkeypatch.setattr(sym4.datatype, "intrinsic", broken_type())
+    with pytest.raises(InternalError) as err:
+        _init_scalar_value(sym4, routine, {})
+    assert ("scalars of REAL, INTEGER or BOOLEAN type are supported but got "
+            "symbol 'my_var' of type 'Scalar<wrong" in str(err.value))
 
 
 # _validate_geom_arg
