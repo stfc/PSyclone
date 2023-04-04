@@ -56,6 +56,7 @@ from psyclone.domain.lfric.lfric_extract_driver_creator import \
 from psyclone.domain.lfric.lfric_symbol_table import LFRicSymbolTable
 from psyclone.domain.lfric.lfric_types import LFRicTypes
 from psyclone.domain.lfric.kern_stub_arg_list import KernStubArgList
+from psyclone.domain.lfric.lfric_invoke import LFRicInvoke
 
 __all__ = [
     'ArgOrdering',
