@@ -174,7 +174,10 @@ def test_ompparallel_structures_private_clause():
     parallel.children[0].addchild(do_dir)
     parallel.children[0].addchild(do_dir2)
 
-    parallel._get_private_clauses()
+    priv_clause, firstpriv_clause = parallel._get_private_clauses()
+    assert isinstance(priv_clause, OMPPrivateClause)
+    assert isinstance(firstpriv_clause, OMPFirstprivateClause)
+    assert firstpriv_clause.children[0].symbol.name == "rval"
 
 
 def test_ompparallel_changes_gen_code(monkeypatch):
