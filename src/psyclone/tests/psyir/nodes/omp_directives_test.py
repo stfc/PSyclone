@@ -53,9 +53,10 @@ from psyclone.psyir.nodes import OMPDoDirective, OMPParallelDirective, \
     OMPGrainsizeClause, OMPNumTasksClause, OMPNogroupClause, \
     OMPPrivateClause, OMPDefaultClause, OMPReductionClause, \
     OMPScheduleClause, OMPTeamsDistributeParallelDoDirective, \
-    OMPFirstprivateClause
+    OMPFirstprivateClause, StructureReference
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, SymbolTable, \
-    REAL_SINGLE_TYPE, INTEGER_SINGLE_TYPE, Symbol
+    REAL_SINGLE_TYPE, INTEGER_SINGLE_TYPE, Symbol, StructureType, ArrayType, \
+    REAL_TYPE
 from psyclone.errors import InternalError, GenerationError
 from psyclone.transformations import Dynamo0p3OMPLoopTrans, OMPParallelTrans, \
     OMPParallelLoopTrans, DynamoOMPParallelLoopTrans, OMPSingleTrans, \
@@ -111,6 +112,69 @@ def test_ompparallel_changes_begin_string(fortran_reader):
 
     pdir.lower_to_language_level()
     assert pdir.children[2] is not priv_clause
+
+
+def test_ompparallel_structures_private_clause():
+    '''TODO'''
+    subroutine = Routine("testsub")
+    parallel = OMPParallelDirective.create()
+    subroutine.addchild(parallel)
+    sing = OMPSingleDirective()
+    tmp = DataSymbol("tmp", INTEGER_SINGLE_TYPE)
+    tmp2 = DataSymbol("tmp2", INTEGER_SINGLE_TYPE)
+    tmp3 = DataSymbol("tmp3", INTEGER_SINGLE_TYPE)
+    # StructureType for Structure tests
+    grid_type = StructureType.create(
+        [
+            ("nx", INTEGER_TYPE, Symbol.Visibility.PUBLIC),
+            (
+                "sub_grids",
+                ArrayType(INTEGER_TYPE, [3]),
+                Symbol.Visibility.PUBLIC,
+            ),
+            (
+                "data",
+                ArrayType(REAL_TYPE, [128, 128]),
+                Symbol.Visibility.PUBLIC,
+            ),
+        ]
+    )
+    rval = DataSymbol("rval", grid_type)
+    subroutine.symbol_table.add(tmp)
+    subroutine.symbol_table.add(tmp2)
+    subroutine.symbol_table.add(tmp3)
+    subroutine.symbol_table.add(rval)
+
+    do_dir = OMPDoDirective()
+    assign1 = Assignment.create(
+        Reference(tmp2), StructureReference.create(rval, ["nx"])
+    )
+    loop1 = Loop.create(
+        tmp,
+        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("128", INTEGER_SINGLE_TYPE),
+        Literal("1", INTEGER_SINGLE_TYPE),
+        [assign1],
+    )
+    do_dir.children[0].addchild(loop1)
+
+    do_dir2 = OMPDoDirective()
+    assign2 = Assignment.create(
+        StructureReference.create(rval, ["nx"]), Reference(tmp2)
+    )
+    loop2 = Loop.create(
+        tmp,
+        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("128", INTEGER_SINGLE_TYPE),
+        Literal("1", INTEGER_SINGLE_TYPE),
+        [assign2]
+    )
+    do_dir2.children[0].addchild(loop2)
+
+    parallel.children[0].addchild(do_dir)
+    parallel.children[0].addchild(do_dir2)
+
+    parallel._get_private_clauses()
 
 
 def test_ompparallel_changes_gen_code(monkeypatch):
