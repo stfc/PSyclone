@@ -57,6 +57,10 @@ from psyclone.domain.lfric.lfric_symbol_table import LFRicSymbolTable
 from psyclone.domain.lfric.lfric_types import LFRicTypes
 from psyclone.domain.lfric.kern_stub_arg_list import KernStubArgList
 from psyclone.domain.lfric.lfric_kern_call_factory import LFRicKernCallFactory
+from psyclone.domain.lfric.metadata_to_arguments_rules import \
+    MetadataToArgumentsRules
+from psyclone.domain.lfric.arg_index_to_metadata_index import \
+    ArgIndexToMetadataIndex
 
 __all__ = [
     'ArgOrdering',

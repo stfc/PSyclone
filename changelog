@@ -359,6 +359,9 @@
 	120) PR #2025 for #1483. Adds driver generation for LFRic kernel
 	extraction (PSyKE).
 
+	121) PR #2048 towards #1772. Implements a new MetadataToArgumentsRules
+	class using the new LFRic metadata functionality.
+
 release 2.3.1 17th of June 2022
 
 	1) PR #1747 for #1720. Adds support for If blocks to PSyAD.
