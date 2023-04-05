@@ -44,6 +44,7 @@ the output data contained in the input file.
 from psyclone.core import Signature
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.errors import GenerationError, InternalError
+from psyclone.line_length import FortLineLength
 from psyclone.parse import ModuleManager
 from psyclone.psyGen import InvokeSchedule, Kern
 from psyclone.psyir.backend.fortran import FortranWriter
@@ -997,6 +998,8 @@ class LFRicExtractDriverCreator:
         code = self.get_driver_as_string(nodes, input_list, output_list,
                                          prefix, postfix, region_name,
                                          writer=writer)
+        fll = FortLineLength()
+        code = fll.process(code)
         if not code:
             # This indicates an error that was already printed,
             # so ignore it here.
