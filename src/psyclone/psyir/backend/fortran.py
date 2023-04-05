@@ -814,8 +814,12 @@ class FortranWriter(LanguageWriter):
 
         '''
         declarations = ""
-        local_constants = [sym for sym in symbol_table.datasymbols if
-                           sym.is_constant]
+        local_constants = []
+        for sym in symbol_table.datasymbols:
+            if sym.is_import or sym.is_unresolved:
+                continue  # Skip, these don't need declarations
+            if sym.is_constant:
+                local_constants.append(sym)
 
         # There may be dependencies between these constants so setup a dict
         # listing the required inputs for each one.
