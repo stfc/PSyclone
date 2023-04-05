@@ -239,6 +239,10 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
             raise IOError(
                 f"Kernel search path '{kernel_path}' not found")
 
+    # TODO #2011: investigate if kernel search path and module manager
+    # can be combined.
+    ModuleManager.get().add_search_path(kernel_paths)
+
     ast, invoke_info = parse(filename, api=api, invoke_name="invoke",
                              kernel_paths=kernel_paths,
                              line_length=line_length)
@@ -446,17 +450,6 @@ def main(args):
     except ConfigurationError as err:
         print(str(err), file=sys.stderr)
         sys.exit(1)
-
-    try:
-        ModuleManager.get().add_search_path(args.directory)
-    except IOError:
-        # TODO #2011: We ignore the error here (indicating an invalid
-        # search path), since atm the kernel search path (args.directory)
-        # is checked later, and this way no existing code is broken (raising
-        # the error in the ModuleManager would have to change the error
-        # message to be a bit less specific, since it handles generic
-        # search paths, not only kernel directories).
-        pass
 
     try:
         alg, psy = generate(args.filename, api=api,
