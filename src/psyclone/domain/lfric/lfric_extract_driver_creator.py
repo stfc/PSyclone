@@ -871,9 +871,10 @@ class LFRicExtractDriverCreator:
     def collect_all_required_modules(file_container):
         '''Collects recursively all modules used in the file container.
         It returns a dictionary, with the keys being all the (directly or
-        indirectly used modules)
+        indirectly) used modules.
 
-        :param file_container:
+        :param file_container: the FileContainer for which to collect all \
+            used modules.
         :type file_container: \
             :py:class:`psyclone.psyir.psyir.nodes.FileContainer`
 
@@ -882,14 +883,12 @@ class LFRicExtractDriverCreator:
         :rtype: Set[str]
 
         '''
-        sym_tab = file_container.children[0].symbol_table
-
-        # Add all modules imported, except intrinsic ones
         all_mods = set()
-        for symbol in sym_tab.symbols:
-            if isinstance(symbol, ContainerSymbol) and \
-                    ",intrinsic" not in symbol.name:
-                all_mods.add(symbol.name)
+        for container in file_container.children:
+            sym_tab = container.symbol_table
+            # Add all imported modules (i.e. all container symbols)
+            all_mods.update(symbol.name for symbol in sym_tab.symbols
+                            if isinstance(symbol, ContainerSymbol))
 
         mod_manager = ModuleManager.get()
         return mod_manager.get_all_dependencies_recursively(all_mods)
