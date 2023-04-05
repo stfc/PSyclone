@@ -77,7 +77,7 @@ def test_kcial_generate(lfrickern):
     assert "Scalar of type 'boolean' not supported" in str(err.value)
 
 
-def test_kcial_generate_operator(dynkern_op):
+def test_kcial_generate_operator(lfrickern_op):
     '''Test the generate() method correctly populates the list of operator
     arguments required by the kernel.'''
     # generate() assumes a suitably initialised symbol table so create
@@ -87,7 +87,7 @@ def test_kcial_generate_operator(dynkern_op):
                      datatype=DeferredType())
     table.new_symbol("field_type", symbol_type=DataTypeSymbol,
                      datatype=DeferredType())
-    kcial = KernCallInvokeArgList(dynkern_op, table)
+    kcial = KernCallInvokeArgList(lfrickern_op, table)
     kcial.generate()
     opers = kcial.operators
     assert len(opers) == 1
