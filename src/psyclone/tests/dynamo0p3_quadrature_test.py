@@ -713,7 +713,7 @@ def test_lfrickern_setup(monkeypatch):
     ast = fpapi.parse(os.path.join(BASE_PATH, "testkern_qr.F90"),
                       ignore_comments=False)
     name = "testkern_qr_type"
-    dkm = LFRicKernMetadata(ast, name=name)
+    dkm = DynKernMetadata(ast, name=name)
     # Finally, call the _setup() method
     with pytest.raises(InternalError) as excinfo:
         kern._setup(dkm, "my module", None, None)
