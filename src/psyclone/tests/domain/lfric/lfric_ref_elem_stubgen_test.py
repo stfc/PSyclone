@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2022, Science and Technology Facilities Council.
+# Copyright (c) 2020-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author: I. Kavcic, Met Office
 # Modified: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+#           L. Turner, Met Office
 
 '''
 Module containing pytest tests for the reference-element stub generation
@@ -41,7 +42,7 @@ functionality of the LFRic (Dynamo0.3) API.
 
 import os
 from fparser import api as fpapi
-from psyclone.dynamo0p3 import DynKernMetadata, DynKern
+from psyclone.dynamo0p3 import DynKernMetadata, LFRicKern
 
 
 # Constants
@@ -81,7 +82,7 @@ def test_refelem_stub_gen():
                                    "testkern_ref_elem_mod.F90"),
                       ignore_comments=False)
     metadata = DynKernMetadata(ast)
-    kernel = DynKern()
+    kernel = LFRicKern()
     kernel.load_meta(metadata)
     gen = str(kernel.gen_stub)
 
@@ -130,7 +131,7 @@ def test_refelem_quad_stub_gen():
     properties should be placed at the end of subroutine argument list). '''
     ast = fpapi.parse(REF_ELEM_QUAD_MDATA, ignore_comments=False)
     metadata = DynKernMetadata(ast)
-    kernel = DynKern()
+    kernel = LFRicKern()
     kernel.load_meta(metadata)
     gen = str(kernel.gen_stub)
 

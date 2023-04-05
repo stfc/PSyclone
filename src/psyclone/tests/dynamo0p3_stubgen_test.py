@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+# Copyright (c) 2017-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
-# Modified I. Kavcic, Met Office
+# Modified I. Kavcic and L. Turner, Met Office
 # Modified J. Henrichs, Bureau of Meteorology
 
 ''' This module tests the LFRic (Dynamo 0.3) kernel-stub generator using

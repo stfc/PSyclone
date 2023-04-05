@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2022, Science and Technology Facilities Council.
+# Copyright (c) 2020-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
-# Modified: I. Kavcic, Met Office
+# Modified: I. Kavcic and L. Turner, Met Office
 # Modified: J. Henrichs, Bureau of Meteorology
 
 
@@ -42,7 +42,7 @@
 import os
 import pytest
 from fparser import api as fpapi
-from psyclone.dynamo0p3 import DynKernMetadata, DynKern
+from psyclone.dynamo0p3 import DynKernMetadata, LFRicKern
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory
@@ -314,8 +314,8 @@ def test_psy_gen_domain_kernel(dist_mem, tmpdir, fortran_writer):
     # `lower_to_language_level` method in DynLoop can (likely) be removed,
     # and then we can just call `fortran_writer(schedule)` here.
     schedule = psy.invokes.invoke_list[0].schedule
-    # Lower the DynKern:
-    for kern in schedule.walk(DynKern):
+    # Lower the LFRicKern:
+    for kern in schedule.walk(LFRicKern):
         kern.lower_to_language_level()
     # Now call the loop handling method directly.
     out = fortran_writer.loop_node(schedule.children[0])

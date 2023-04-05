@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council
+# Copyright (c) 2021-2023, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified I. Kavcic and A. Coughtrie, Met Office,
+# Modified I. Kavcic, A. Coughtrie and L. Turner, Met Office,
 #          C. M. Maynard, Met Office/University of Reading,
 #          J. Henrichs, Bureau of Meteorology.
 
@@ -48,7 +48,7 @@ from psyclone.configuration import Config
 from psyclone.core import AccessType
 from psyclone.domain.common.psylayer import PSyLoop
 from psyclone.domain.lfric import LFRicConstants, LFRicSymbolTable
-from psyclone.dynamo0p3 import DynLoop, DynKern, DynKernMetadata
+from psyclone.dynamo0p3 import DynLoop, LFRicKern, DynKernMetadata
 from psyclone.errors import GenerationError, InternalError
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
@@ -990,7 +990,7 @@ contains
 end module testkern_mod
 ''', ignore_comments=False)
     dkm = DynKernMetadata(ast, name="testkern_type")
-    kern = DynKern()
+    kern = LFRicKern()
     kern.load_meta(dkm)
     with pytest.raises(GenerationError) as err:
         loop.load(kern)

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -35,6 +35,7 @@
 #         I. Kavcic and A. Coughtrie, Met Office,
 #         C. M. Maynard, Met Office/University of Reading,
 #         J. Henrichs, Bureau of Meteorology.
+# Modified by: L. Turner, Met Office
 
 ''' Module containing tests of LFRic stencils through the LFRic API '''
 
@@ -45,7 +46,7 @@ import fparser
 from fparser import api as fpapi
 
 from psyclone.domain.lfric import LFRicConstants
-from psyclone.dynamo0p3 import (DynKern, DynKernelArguments,
+from psyclone.dynamo0p3 import (LFRicKern, DynKernelArguments,
                                 DynKernMetadata, DynStencils)
 from psyclone.errors import GenerationError, InternalError
 from psyclone.f2pygen import ModuleGen
@@ -166,7 +167,7 @@ def test_stencil_field_arg_lfricconst_properties(monkeypatch):
     # Test 'real'-valued field of 'field_type' with stencil access
     ast = fpapi.parse(STENCIL_CODE, ignore_comments=False)
     metadata = DynKernMetadata(ast, name=name)
-    kernel = DynKern()
+    kernel = LFRicKern()
     kernel.load_meta(metadata)
     stencil_arg = kernel.arguments.args[1]
     assert stencil_arg.module_name == "field_mod"
@@ -181,7 +182,7 @@ def test_stencil_field_arg_lfricconst_properties(monkeypatch):
                                 "gh_field, gh_integer")
     ast = fpapi.parse(code, ignore_comments=False)
     metadata = DynKernMetadata(ast, name=name)
-    kernel = DynKern()
+    kernel = LFRicKern()
     kernel.load_meta(metadata)
     stencil_arg = kernel.arguments.args[1]
     assert stencil_arg.module_name == "integer_field_mod"

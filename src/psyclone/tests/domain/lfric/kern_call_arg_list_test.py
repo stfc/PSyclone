@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
-# Modified I. Kavcic, Met Office
+# Modified I. Kavcic and L. Turner, Met Office
 # Modified J. Henrichs, Bureau of Meteorology
 
 ''' This module tests the LFric KernCallArg class.'''
@@ -45,7 +45,7 @@ from psyclone.core import Signature, VariablesAccessInfo
 from psyclone.domain.lfric import (KernCallArgList, LFRicConstants,
                                    LFRicSymbolTable, LFRicTypes)
 from psyclone.errors import GenerationError, InternalError
-from psyclone.dynamo0p3 import DynKern
+from psyclone.dynamo0p3 import LFRicKern
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import Literal, Loop, Reference, UnaryOperation
@@ -199,7 +199,7 @@ def test_kerncallarglist_face_edge(dist_mem, fortran_writer):
 
     # Test that invalid kernel arguments raise the expected error:
     create_arg_list._kern._qr_rules["gh_quadrature_face"] = \
-        DynKern.QRRule("invalid", "invalid", ["invalid"])
+        LFRicKern.QRRule("invalid", "invalid", ["invalid"])
     with pytest.raises(InternalError) as err:
         create_arg_list.generate()
     assert "Found invalid kernel argument 'invalid'" in str(err.value)

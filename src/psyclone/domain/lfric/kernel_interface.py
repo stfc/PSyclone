@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
-# Modified: I. Kavcic, Met Office
+# Modified: I. Kavcic and L. Turner, Met Office
 #           A. R. Porter and N. Nobre, STFC Daresbury Lab
 # Modified: J. Henrichs, Bureau of Meteorology
 

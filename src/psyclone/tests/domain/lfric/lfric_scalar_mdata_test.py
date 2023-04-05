@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+# Copyright (c) 2017-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -35,6 +35,7 @@
 #         I. Kavcic and A. Coughtrie, Met Office;
 #         C. M. Maynard, Met Office/University of Reading;
 #         J. Henrichs, Bureau of Meteorology.
+# Modified by L. Turner, Met Office
 
 '''
 Module containing pytest tests for the general LFRic scalar arguments
@@ -46,7 +47,7 @@ import pytest
 import fparser
 from fparser import api as fpapi
 from psyclone.domain.lfric import LFRicArgDescriptor
-from psyclone.dynamo0p3 import (DynKern, DynKernMetadata,
+from psyclone.dynamo0p3 import (LFRicKern, DynKernMetadata,
                                 LFRicScalarArgs, LFRicConstants)
 from psyclone.errors import InternalError, GenerationError
 from psyclone.f2pygen import ModuleGen
@@ -468,7 +469,7 @@ def test_scalar_arg_lfricconst_properties(monkeypatch):
     ast = fpapi.parse(CODE, ignore_comments=False)
     name = "testkern_qr_type"
     metadata = DynKernMetadata(ast, name=name)
-    kernel = DynKern()
+    kernel = LFRicKern()
     kernel.load_meta(metadata)
 
     # Test 'real' scalars

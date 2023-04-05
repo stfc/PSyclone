@@ -32,12 +32,13 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
+# Modified by: L. Turner, Met Office
 
 ''' Module containing pytest fixtures for the LFRic-specific tests. '''
 
 import pytest
 from psyclone.configuration import Config
-from psyclone.dynamo0p3 import DynKern
+from psyclone.dynamo0p3 import LFRicKern
 from psyclone.parse.kernel import get_kernel_parse_tree, KernelTypeFactory
 
 
@@ -49,11 +50,11 @@ def api_setup_fixture():
     Config._instance = None
 
 
-@pytest.fixture(name="dynkern", scope="module")
-def dynkern_fixture():
+@pytest.fixture(name="lfrickern", scope="module")
+def lfrickern_fixture():
     '''
-    :returns: a DynKern object created from example metadata.
-    :rtype: :py:class:`psyclone.dynamo0p3.DynKern`
+    :returns: a LFRicKern object created from example metadata.
+    :rtype: :py:class:`psyclone.dynamo0p3.LFRicKern`
     '''
     mdata_code = '''
 module testkern_field_mod
@@ -88,17 +89,17 @@ end module testkern_field_mod
     kernel_metadata = get_kernel_parse_tree(mdata_code)
     ktype = KernelTypeFactory(api="dynamo0.3").create(
         kernel_metadata, name="testkern_field_type")
-    kern = DynKern()
+    kern = LFRicKern()
     kern.load_meta(ktype)
     return kern
 
 
-@pytest.fixture(name="dynkern_op", scope="module")
-def dynkern_op_fixture():
+@pytest.fixture(name="lfrickern_op", scope="module")
+def lfrickern_op_fixture():
     '''
-    :returns: a DynKern object created from example metadata that includes \
+    :returns: a LFRicKern object created from example metadata that includes \
               an operator argument.
-    :rtype: :py:class:`psyclone.dynamo0p3.DynKern`
+    :rtype: :py:class:`psyclone.dynamo0p3.LFRicKern`
     '''
     mdata_code = '''
 module testkern_field_mod
@@ -131,6 +132,6 @@ end module testkern_field_mod
     kernel_metadata = get_kernel_parse_tree(mdata_code)
     ktype = KernelTypeFactory(api="dynamo0.3").create(
         kernel_metadata, name="testkern_field_type")
-    kern = DynKern()
+    kern = LFRicKern()
     kern.load_meta(ktype)
     return kern
