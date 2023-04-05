@@ -108,7 +108,7 @@ class ModuleInfo:
         '''Returns the source code for the module. The first time, it
         will be read from the file, but the data is then cached.
 
-        :returns: the source code as string.
+        :returns: the source code.
         :rtype: str
 
         :raises ModuleInfoError: when the file cannot be read.
@@ -128,7 +128,8 @@ class ModuleInfo:
     # ------------------------------------------------------------------------
     def get_parse_tree(self):
         '''Returns the fparser AST for this module. The first time, the file
-        will be parsed by fpaser, then the AST is cached for any future uses.
+        will be parsed by fparser using the Fortran 2008 standard. The AST is
+        then cached for any future uses.
 
         :returns: the fparser AST for this module.
         :rtype: :py:class:`fparser.two.Fortran2003.Program`
@@ -168,11 +169,11 @@ class ModuleInfo:
             all_symbols = set()
 
             only_list = use.items[4]
-            # If there is no only_list, then the set of symbols is
+            # If there is no only_list, then the set of symbols
             # will stay empty
             if only_list:
                 # Parse the only list:
-                for symbol in use.items[4].children:
+                for symbol in only_list.children:
                     all_symbols.add(str(symbol))
 
             self._used_symbols_from_module[mod_name] = all_symbols
@@ -196,7 +197,7 @@ class ModuleInfo:
 
     # ------------------------------------------------------------------------
     def get_used_symbols_from_modules(self):
-        '''This function returns a information about which module is used by
+        '''This function returns information about which modules are used by
         this module, and also which symbols are imported. The return value is
         a dictionary with the used module name as key, and a set of all
         imported symbol names as value.

@@ -898,10 +898,14 @@ class LFRicExtractDriverCreator:
                              prefix, postfix, region_name,
                              writer=FortranWriter()):
         # pylint: disable=too-many-arguments, too-many-locals
-        '''This function uses `create()` function to get a PSyIR of a
+        '''This function uses the `create()` function to get the PSyIR of a
         stand-alone driver, and then uses the provided language writer
         to create a string representation in the selected language
         (defaults to Fortran).
+        All required modules will be inlined in the correct order, i.e. each
+        module will only depend on modules inlined earlier, which will allow
+        compilation of the driver. No other dependencies (except system
+        dependencies like NetCDF) are required for compilation.
 
         :param nodes: a list of nodes.
         :type nodes: List[:py:obj:`psyclone.psyir.nodes.Node`]
@@ -947,6 +951,8 @@ class LFRicExtractDriverCreator:
         # compile a module.
         sorted_modules = ModuleManager.sort_modules(module_dependencies)
 
+        # Inline all required modules into the driver source file so that
+        # it is stand-alone:
         out = []
         mod_manager = ModuleManager.get()
         for module in sorted_modules:
