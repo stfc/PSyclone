@@ -1,4 +1,4 @@
-# PSyclone and NEMO
+# Transforming existing code with PSyclone
 
 The tutorial on the use of PSyclone to transform existing code is
 broken into four parts:
