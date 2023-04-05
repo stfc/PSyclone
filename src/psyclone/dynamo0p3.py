@@ -1146,10 +1146,10 @@ class DynCollection():
     :param node: the Kernel or Invoke for which to manage variable \
                  declarations and initialisation.
     :type node: :py:class:`psyclone.dynamo0p3.DynInvoke` or \
-                :py:class:`psyclone.dynamo0p3.DynKern`
+                :py:class:`psyclone.dynamo0p3.LFRicKern`
 
     :raises InternalError: if the supplied node is not a DynInvoke or a \
-                           DynKern.
+                           LFRicKern.
     '''
     def __init__(self, node):
         if isinstance(node, DynInvoke):
@@ -1159,7 +1159,7 @@ class DynCollection():
             self._symbol_table = self._invoke.schedule.symbol_table
             # The list of kernel calls we are responsible for
             self._calls = node.schedule.kernels()
-        elif isinstance(node, DynKern):
+        elif isinstance(node, LFRicKern):
             # We are handling declarations for a Kernel stub
             self._invoke = None
             self._kernel = node
@@ -1170,7 +1170,7 @@ class DynCollection():
             self._calls = [node]
         else:
             raise InternalError(f"DynCollection takes only a DynInvoke "
-                                f"or a DynKern but got: {type(node)}")
+                                f"or a LFRicKern but got: {type(node)}")
 
         # Whether or not the associated Invoke contains only kernels that
         # operate on dofs.
@@ -1242,7 +1242,7 @@ class DynStencils(DynCollection):
 
     :param node: the Invoke or Kernel stub for which to provide stencil info.
     :type node: :py:class:`psyclone.dynamo0p3.DynInvoke` or \
-                :py:class:`psyclone.dynamo0p3.DynKern`
+                :py:class:`psyclone.dynamo0p3.LFRicKern`
 
     :raises GenerationError: if a literal has been supplied for a stencil \
                              direction.
@@ -1836,7 +1836,7 @@ class LFRicMeshProperties(DynCollection):
     kernels.
 
     :param node: kernel or invoke for which to manage mesh properties.
-    :type node: :py:class:`psyclone.dynamo0p3.DynKern` or \
+    :type node: :py:class:`psyclone.dynamo0p3.LFRicKern` or \
                 :py:class:`psyclone.dynamo0p3.DynInvoke`
 
     '''
@@ -2160,7 +2160,7 @@ class DynReferenceElement(DynCollection):
 
     :param node: Kernel or Invoke for which to manage Reference-Element \
                  properties.
-    :type node: :py:class:`psyclone.dynamo0p3.DynKern` or \
+    :type node: :py:class:`psyclone.dynamo0p3.LFRicKern` or \
                 :py:class:`psyclone.dynamo0p3.DynInvoke`
 
     :raises InternalError: if an unsupported reference-element property \
@@ -2518,7 +2518,7 @@ class DynDofmaps(DynCollection):
     indirection) required by an invoke.
 
     :param node: Kernel or Invoke for which to manage dofmaps.
-    :type node: :py:class:`psyclone.dynamo0p3.DynKern` or \
+    :type node: :py:class:`psyclone.dynamo0p3.LFRicKern` or \
                 :py:class:`psyclone.dynamo0p3.DynInvoke`
 
     '''
@@ -3305,7 +3305,7 @@ class DynCellIterators(DynCollection):
 
     :param kern_or_invoke: the Kernel or Invoke for which to manage cell \
                            iterators.
-    :type kern_or_invoke: :py:class:`psyclone.dynamo0p3.DynKern` or \
+    :type kern_or_invoke: :py:class:`psyclone.dynamo0p3.LFRicKern` or \
                           :py:class:`psyclone.dynamo0p3.DynInvoke`
 
     : raises GenerationError: if an Invoke has no field or operator arguments.
@@ -3453,7 +3453,7 @@ class LFRicScalarArgs(DynCollection):
 
     :param node: the Invoke or Kernel stub for which to manage the scalar \
                  arguments.
-    :type node: :py:class:`psyclone.dynamo0p3.DynKern` or \
+    :type node: :py:class:`psyclone.dynamo0p3.LFRicKern` or \
                 :py:class:`psyclone.dynamo0p3.DynInvoke`
 
     '''
@@ -3748,7 +3748,7 @@ class DynCMAOperators(DynCollection):
 
     :param node: either an Invoke schedule or a single Kernel object.
     :type node: :py:class:`psyclone.dynamo0p3.DynSchedule` or \
-                :py:class:`psyclone.dynamo0p3.DynKern`
+                :py:class:`psyclone.dynamo0p3.LFRicKern`
 
     '''
     # The scalar parameters that must be passed along with a CMA operator
@@ -4562,7 +4562,7 @@ class DynBasisFunctions(DynCollection):
                  for which to extract information on all required \
                  basis/diff-basis functions.
     :type node: :py:class:`psyclone.dynamo0p3.DynInvokeSchedule` or \
-                :py:class:`psyclone.dynamo0p3.DynKern`
+                :py:class:`psyclone.dynamo0p3.LFRicKern`
 
     :raises InternalError: if a call has an unrecognised evaluator shape.
 
@@ -4735,14 +4735,14 @@ class DynBasisFunctions(DynCollection):
         functions required by the supplied Call.
 
         :param call: the kernel call for which basis functions are required.
-        :type call: :py:class:`psyclone.dynamo0p3.DynKern`
+        :type call: :py:class:`psyclone.dynamo0p3.LFRicKern`
 
         :raises InternalError: if the supplied call is of incorrect type.
         :raises InternalError: if the supplied call has an unrecognised \
                                evaluator shape.
         '''
-        if not isinstance(call, DynKern):
-            raise InternalError(f"Expected a DynKern object but got: "
+        if not isinstance(call, LFRicKern):
+            raise InternalError(f"Expected a LFRicKern object but got: "
                                 f"'{type(call)}'")
         const = LFRicConstants()
         # We need a full FunctionSpace object for each function space
@@ -5466,7 +5466,7 @@ class DynBoundaryConditions(DynCollection):
     :param node: the Invoke or Kernel stub for which we are to handle \
                  any boundary conditions.
     :type node: :py:class:`psyclone.dynamo0p3.DynInvoke` or \
-                :py:class:`psyclone.dynamo0p3.DynKern`
+                :py:class:`psyclone.dynamo0p3.LFRicKern`
 
     :raises GenerationError: if a kernel named "enforce_bc_code" is found \
                              but does not have an argument on ANY_SPACE_1.
@@ -6782,7 +6782,7 @@ def halo_check_arg(field, access_types):
         raise GenerationError(
             f"In HaloInfo class, field '{field.name}' should be one of "
             f"{api_strings}, but found '{field.access.api_specific_name()}'")
-    if not isinstance(call, (LFRicBuiltIn, DynKern)):
+    if not isinstance(call, (LFRicBuiltIn, LFRicKern)):
         raise GenerationError(
             f"In HaloInfo class, field '{field.name}' should be from a call "
             f"but found {type(call)}")
@@ -7175,7 +7175,7 @@ class DynLoop(PSyLoop):
         construct Loop objects for a given kernel call.
 
         :param kern: Kernel object to use to populate state of Loop
-        :type kern: :py:class:`psyclone.dynamo0p3.DynKern`
+        :type kern: :py:class:`psyclone.dynamo0p3.LFRicKern`
 
         :raises GenerationError: if the field updated by the kernel has an \
             unexpected function space or if the kernel's 'operates-on' is \
@@ -7404,7 +7404,7 @@ class DynLoop(PSyLoop):
 
         if self._upper_bound_name == "ncolours":
             # Loop over colours
-            kernels = self.walk(DynKern)
+            kernels = self.walk(LFRicKern)
             if not kernels:
                 raise InternalError(
                     "Failed to find a kernel within a loop over colours.")
@@ -7933,7 +7933,7 @@ class DynLoop(PSyLoop):
                     parent.add(call)
 
 
-class DynKern(CodedKern):
+class LFRicKern(CodedKern):
     ''' Stores information about Dynamo Kernels as specified by the
     Kernel metadata and associated algorithm call. Uses this
     information to generate appropriate PSy layer code for the Kernel
@@ -8064,7 +8064,7 @@ class DynKern(CodedKern):
                         f"'{descriptor.data_type}'.")
             else:
                 raise GenerationError(
-                    f"DynKern.load_meta() expected one of "
+                    f"LFRicKern.load_meta() expected one of "
                     f"{const.VALID_ARG_TYPE_NAMES} but found "
                     f"'{descriptor.argument_type}'")
             args.append(Arg("variable", pre+str(idx+1)))
@@ -8195,7 +8195,7 @@ class DynKern(CodedKern):
                 qr_args = ["nedges", "np_xyz", "weights_xyz"]
             else:
                 raise InternalError(f"Unsupported quadrature shape "
-                                    f"('{shape}') found in DynKern._setup")
+                                    f"('{shape}') found in LFRicKern._setup")
 
             # Append the name of the qr argument to the names of the qr-related
             # variables.
@@ -8227,7 +8227,7 @@ class DynKern(CodedKern):
         :return: details of each of the quadrature rules required by this \
                  kernel.
         :rtype: OrderedDict containing \
-                :py:class:`psyclone.dynamo0p3.DynKern.QRRule` indexed by \
+                :py:class:`psyclone.dynamo0p3.LFRicKern.QRRule` indexed by \
                 quadrature shape.
         '''
         return self._qr_rules
@@ -8564,7 +8564,7 @@ class DynKern(CodedKern):
 
         parent.add(CommentGen(parent, ""))
 
-        super(DynKern, self).gen_code(parent)
+        super(LFRicKern, self).gen_code(parent)
 
     def get_kernel_schedule(self):
         '''Returns a PSyIR Schedule representing the kernel code. The base
@@ -8962,7 +8962,7 @@ class DynKernelArguments(Arguments):
     :param call: the kernel meta-data for which to extract argument info.
     :type call: :py:class:`psyclone.parse.KernelCall`
     :param parent_call: the kernel-call object.
-    :type parent_call: :py:class:`psyclone.dynamo0p3.DynKern`
+    :type parent_call: :py:class:`psyclone.dynamo0p3.LFRicKern`
     :param bool check: whether to check for consistency between the \
         kernel metadata and the algorithm layer. Defaults to True.
 
@@ -9296,7 +9296,7 @@ class DynKernelArgument(KernelArgument):
                      the Algorithm layer.
     :type arg_info: :py:class:`psyclone.parse.algorithm.Arg`
     :param call: the kernel object with which this argument is associated.
-    :type call: :py:class:`psyclone.dynamo0p3.DynKern`
+    :type call: :py:class:`psyclone.dynamo0p3.LFRicKern`
     :param bool check: whether to check for consistency between the \
         kernel metadata and the algorithm layer. Defaults to True.
 
@@ -10161,7 +10161,7 @@ class DynKernCallFactory():
         cloop = DynLoop(parent=parent, loop_type=loop_type)
 
         # The kernel itself
-        kern = DynKern()
+        kern = LFRicKern()
         kern.load(call, cloop.loop_body)
 
         # Add the kernel as a child of the loop
@@ -10219,7 +10219,7 @@ __all__ = [
     'HaloWriteAccess',
     'HaloReadAccess',
     'DynLoop',
-    'DynKern',
+    'LFRicKern',
     'FSDescriptor',
     'FSDescriptors',
     'DynStencil',

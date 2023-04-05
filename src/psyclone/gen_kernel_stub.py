@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council
+# Copyright (c) 2017-2023, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,7 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author R. Ford STFC Daresbury Lab
 # Modified work Copyright (c) 2017 by J. Henrichs, Bureau of Meteorology
-# Modified: I. Kavcic, Met Office
+# Modified: I. Kavcic and L. Turner, Met Office
 #           A. R. Porter and N. Nobre, STFC Daresbury Lab
 
 ''' Contains a Python function to generate an empty kernel
@@ -45,7 +45,7 @@ from __future__ import print_function
 import os
 
 import fparser
-from psyclone.dynamo0p3 import DynKern, DynKernMetadata
+from psyclone.dynamo0p3 import LFRicKern, DynKernMetadata
 from psyclone.errors import GenerationError
 from psyclone.parse.utils import ParseError
 from psyclone.configuration import Config
@@ -94,7 +94,7 @@ def generate(filename, api=""):
                          f"Fortran: {error}.")
 
     metadata = DynKernMetadata(ast)
-    kernel = DynKern()
+    kernel = LFRicKern()
     kernel.load_meta(metadata)
 
     return kernel.gen_stub

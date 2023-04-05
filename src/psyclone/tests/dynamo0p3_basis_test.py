@@ -51,7 +51,7 @@ from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory
 from psyclone.errors import GenerationError, InternalError
-from psyclone.dynamo0p3 import DynKernMetadata, DynKern
+from psyclone.dynamo0p3 import DynKernMetadata, LFRicKern
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.utilities import print_diffs
 
@@ -1444,7 +1444,7 @@ def test_basis_evaluator():
     '''
     ast = fpapi.parse(BASIS_EVAL, ignore_comments=False)
     metadata = DynKernMetadata(ast)
-    kernel = DynKern()
+    kernel = LFRicKern()
     kernel.load_meta(metadata)
     generated_code = str(kernel.gen_stub)
 
@@ -1571,7 +1571,7 @@ def test_basis_unsupported_space():
     # Test any_space_*
     ast = fpapi.parse(BASIS_UNSUPPORTED_SPACE, ignore_comments=False)
     metadata = DynKernMetadata(ast)
-    kernel = DynKern()
+    kernel = LFRicKern()
     kernel.load_meta(metadata)
     with pytest.raises(GenerationError) as excinfo:
         _ = kernel.gen_stub
@@ -1585,7 +1585,7 @@ def test_basis_unsupported_space():
     code = code.replace("gh_inc", "gh_readwrite")
     ast = fpapi.parse(code, ignore_comments=False)
     metadata = DynKernMetadata(ast)
-    kernel = DynKern()
+    kernel = LFRicKern()
     kernel.load_meta(metadata)
     with pytest.raises(GenerationError) as excinfo:
         _ = kernel.gen_stub
@@ -1647,7 +1647,7 @@ def test_diff_basis():
     '''
     ast = fpapi.parse(DIFF_BASIS, ignore_comments=False)
     metadata = DynKernMetadata(ast)
-    kernel = DynKern()
+    kernel = LFRicKern()
     kernel.load_meta(metadata)
     generated_code = str(kernel.gen_stub)
     output = (
@@ -1813,7 +1813,7 @@ def test_diff_basis_eval():
     '''
     ast = fpapi.parse(DIFF_BASIS_EVAL, ignore_comments=False)
     metadata = DynKernMetadata(ast)
-    kernel = DynKern()
+    kernel = LFRicKern()
     kernel.load_meta(metadata)
     generated_code = str(kernel.gen_stub)
 
@@ -1930,7 +1930,7 @@ def test_2eval_stubgen():
         "     integer :: gh_evaluator_targets(2) = (/w2h, wtheta/)\n")
     ast = fpapi.parse(twoeval_meta, ignore_comments=False)
     metadata = DynKernMetadata(ast)
-    kernel = DynKern()
+    kernel = LFRicKern()
     kernel.load_meta(metadata)
     generated_code = str(kernel.gen_stub)
 
@@ -2041,7 +2041,7 @@ def test_diff_basis_unsupp_space():
     # Test any_space_*
     ast = fpapi.parse(DIFF_BASIS_UNSUPPORTED_SPACE, ignore_comments=False)
     metadata = DynKernMetadata(ast)
-    kernel = DynKern()
+    kernel = LFRicKern()
     kernel.load_meta(metadata)
     with pytest.raises(GenerationError) as excinfo:
         _ = kernel.gen_stub
@@ -2055,7 +2055,7 @@ def test_diff_basis_unsupp_space():
     code = code.replace("gh_inc", "gh_readwrite")
     ast = fpapi.parse(code, ignore_comments=False)
     metadata = DynKernMetadata(ast)
-    kernel = DynKern()
+    kernel = LFRicKern()
     kernel.load_meta(metadata)
     with pytest.raises(GenerationError) as excinfo:
         _ = kernel.gen_stub
@@ -2070,7 +2070,7 @@ def test_dynbasisfns_unsupp_qr(monkeypatch):
     shape is encountered. '''
     ast = fpapi.parse(DIFF_BASIS, ignore_comments=False)
     metadata = DynKernMetadata(ast)
-    kernel = DynKern()
+    kernel = LFRicKern()
     kernel.load_meta(metadata)
     dbasis = DynBasisFunctions(kernel)
     monkeypatch.setattr(
@@ -2087,7 +2087,7 @@ def test_dynbasisfns_declns(monkeypatch):
     DynBasisFunctions._basis_fn_declns can raise. '''
     ast = fpapi.parse(DIFF_BASIS, ignore_comments=False)
     metadata = DynKernMetadata(ast)
-    kernel = DynKern()
+    kernel = LFRicKern()
     kernel.load_meta(metadata)
     dbasis = DynBasisFunctions(kernel)
     # Missing name for qr variable

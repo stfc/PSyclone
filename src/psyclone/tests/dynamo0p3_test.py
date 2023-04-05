@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified I. Kavcic and A. Coughtrie, Met Office,
+# Modified I. Kavcic, A. Coughtrie and L. Turner, Met Office,
 #          C. M. Maynard, Met Office/University of Reading,
 #          J. Henrichs, Bureau of Meteorology.
 
@@ -50,7 +50,7 @@ from psyclone.core.access_type import AccessType
 from psyclone.domain.lfric import FunctionSpace, LFRicArgDescriptor, \
     LFRicConstants
 from psyclone.dynamo0p3 import DynACCEnterDataDirective, \
-    DynBoundaryConditions, DynCellIterators, DynGlobalSum, DynKern, \
+    DynBoundaryConditions, DynCellIterators, DynGlobalSum, LFRicKern, \
     DynKernelArguments, DynKernMetadata, DynLoop, DynProxies, \
     HaloReadAccess, KernCallArgList
 from psyclone.errors import FieldNotFoundError, GenerationError, InternalError
@@ -876,7 +876,7 @@ def test_bc_kernel_anyspace1_only():
     psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    kernels = schedule.walk(DynKern)
+    kernels = schedule.walk(LFRicKern)
     assert kernels[0].base_name == "enforce_bc"
     # Ensure that none of the arguments are listed as being on ANY_SPACE_1
     for fspace in kernels[0].arguments._unique_fss:
@@ -897,7 +897,7 @@ def test_bc_op_kernel_wrong_args():
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
-    kernels = invoke.schedule.walk(DynKern)
+    kernels = invoke.schedule.walk(LFRicKern)
     # Ensure that the kernel has the wrong number of arguments - duplicate
     # the existing argument in the list
     kernels[0].arguments.args.append(kernels[0].arguments.args[0])
@@ -2315,7 +2315,7 @@ def test_func_descriptor_str():
     assert output in func_str
 
 
-def test_dynkern_arg_for_fs():
+def test_lfrickern_arg_for_fs():
     ''' Test that DynInvoke.arg_for_funcspace() raises an error if
     passed an invalid function space.
 
@@ -3647,19 +3647,19 @@ def test_haloex_not_required(monkeypatch):
 
 def test_dyncollection_err1():
     ''' Check that the DynCollection constructor raises the expected
-    error if it is not provided with a DynKern or DynInvoke. '''
+    error if it is not provided with a LFRicKern or DynInvoke. '''
     _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                     api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     with pytest.raises(InternalError) as err:
         _ = DynProxies(psy)
-    assert ("DynCollection takes only a DynInvoke or a DynKern but"
+    assert ("DynCollection takes only a DynInvoke or a LFRicKern but"
             in str(err.value))
 
 
 def test_dyncollection_err2(monkeypatch):
     ''' Check that the DynCollection constructor raises the expected
-    error if it is not provided with a DynKern or DynInvoke. '''
+    error if it is not provided with a LFRicKern or DynInvoke. '''
     _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                     api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(info)

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2022 Science and Technology Facilities Council.
+# Copyright (c) 2019-2023 Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter and N. Nobre, STFC Daresbury Lab
-# Modified I. Kavcic, Met Office
+# Modified I. Kavcic and L.Turner, Met Office
 # Modified J. Henrichs, Bureau of Meteorology
 
 ''' This module tests the support for LMA operators in the LFRic (Dynamo 0.3)
@@ -50,7 +50,7 @@ from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
 from psyclone.domain.lfric import LFRicArgDescriptor, LFRicConstants
 from psyclone.dynamo0p3 import (DynFuncDescriptor03, DynKernMetadata,
-                                DynKern, FunctionSpace)
+                                LFRicKern, FunctionSpace)
 from psyclone.errors import GenerationError, InternalError
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
@@ -440,7 +440,7 @@ def test_operator_arg_lfricconst_properties(monkeypatch):
     ast = fpapi.parse(CODE, ignore_comments=False)
     name = "testkern_qr_type"
     metadata = DynKernMetadata(ast, name=name)
-    kernel = DynKern()
+    kernel = LFRicKern()
     kernel.load_meta(metadata)
 
     op_arg = kernel.arguments.args[3]
@@ -881,7 +881,7 @@ def test_operators():
     '''
     ast = fpapi.parse(OPERATORS, ignore_comments=False)
     metadata = DynKernMetadata(ast)
-    kernel = DynKern()
+    kernel = LFRicKern()
     kernel.load_meta(metadata)
     generated_code = str(kernel.gen_stub)
     output = (
@@ -973,7 +973,7 @@ def test_stub_operator_different_spaces():
     # Check the original code (to- and from- spaces both continuous)
     ast = fpapi.parse(OPERATOR_DIFFERENT_SPACES, ignore_comments=False)
     metadata = DynKernMetadata(ast)
-    kernel = DynKern()
+    kernel = LFRicKern()
     kernel.load_meta(metadata)
     result = str(kernel.gen_stub)
     assert "(cell, nlayers, op_1_ncell_3d, op_1, ndf_w0, ndf_w1)" in result
@@ -984,7 +984,7 @@ def test_stub_operator_different_spaces():
         "(gh_operator, gh_real, gh_write, w3, any_discontinuous_space_2)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     metadata = DynKernMetadata(ast)
-    kernel = DynKern()
+    kernel = LFRicKern()
     kernel.load_meta(metadata)
     result = str(kernel.gen_stub)
     assert ("(cell, nlayers, op_1_ncell_3d, op_1, ndf_w3, ndf_adspc2_op_1)"

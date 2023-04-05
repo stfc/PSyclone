@@ -54,7 +54,7 @@ from psyclone.core.access_type import AccessType
 from psyclone.domain.common.psylayer import PSyLoop
 from psyclone.domain.lfric import lfric_builtins
 from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
-from psyclone.dynamo0p3 import DynKern, DynKernMetadata, DynInvokeSchedule, \
+from psyclone.dynamo0p3 import LFRicKern, DynKernMetadata, DynInvokeSchedule, \
     DynKernelArguments, DynGlobalSum
 from psyclone.errors import GenerationError, FieldNotFoundError, InternalError
 from psyclone.generator import generate
@@ -456,11 +456,11 @@ def test_codedkern_node_str():
     '''
     ast = fpapi.parse(FAKE_KERNEL_METADATA, ignore_comments=False)
     metadata = DynKernMetadata(ast)
-    my_kern = DynKern()
+    my_kern = LFRicKern()
     my_kern.load_meta(metadata)
     out = my_kern.node_str()
     expected_output = (
-        colored("CodedKern", DynKern._colour) +
+        colored("CodedKern", LFRicKern._colour) +
         " dummy_code(field_1,field_2,field_3) [module_inline=False]")
     assert expected_output in out
 
@@ -668,10 +668,10 @@ def test_kern_children_validation():
     accept any children.
 
     '''
-    # We use a subclass (CodedKern->DynKern) to test this functionality.
+    # We use a subclass (CodedKern->LFRicKern) to test this functionality.
     ast = fpapi.parse(FAKE_KERNEL_METADATA, ignore_comments=False)
     metadata = DynKernMetadata(ast)
-    kern = DynKern()
+    kern = LFRicKern()
     kern.load_meta(metadata)
 
     with pytest.raises(GenerationError) as excinfo:
@@ -764,7 +764,7 @@ def test_incremented_arg():
     for descriptor in metadata.arg_descriptors:
         if descriptor.access == AccessType.INC:
             descriptor._access = AccessType.READ
-    my_kern = DynKern()
+    my_kern = LFRicKern()
     my_kern.load_meta(metadata)
     with pytest.raises(FieldNotFoundError) as excinfo:
         CodedKern.incremented_arg(my_kern)
@@ -798,7 +798,7 @@ def test_kern_is_coloured2():
         table.new_symbol(f"cell{idx}", symbol_type=DataSymbol,
                          datatype=INTEGER_TYPE)
     # Create a loop nest of depth 3 containing the kernel, innermost first
-    my_kern = DynKern()
+    my_kern = LFRicKern()
     loops = [PSyLoop.create(table.lookup("cell0"),
                             Literal("1", INTEGER_TYPE),
                             Literal("10", INTEGER_TYPE),
@@ -1877,7 +1877,7 @@ def test_find_w_args_hes_vec_no_dep(monkeypatch, annexed):
     # kernel.
     node_list = field_e_v1.forward_read_dependencies()
     assert len(node_list) == 1
-    assert isinstance(node_list[0].call, DynKern)
+    assert isinstance(node_list[0].call, LFRicKern)
     # There are two halo exchanges after e_v1 which should not count
     # as dependencies and a read access from a kernel, so there should
     # be no write dependencies.

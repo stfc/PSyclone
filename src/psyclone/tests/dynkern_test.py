@@ -36,8 +36,8 @@
 #           J. Henrichs, Bureau of Meteorology
 #           A. R. Porter, STFC Daresbury Laboratory
 
-'''This module tests the DynKern class within dynamo0p3 using
-pytest. At the moment the tests here do not fully cover DynKern as
+'''This module tests the LFRicKern class within dynamo0p3 using
+pytest. At the moment the tests here do not fully cover LFRicKern as
 tests for other classes end up covering the rest.'''
 
 import os
@@ -48,7 +48,7 @@ from fparser import api as fpapi
 import psyclone
 from psyclone.core import AccessType
 from psyclone.domain.lfric import LFRicConstants, LFRicTypes
-from psyclone.dynamo0p3 import DynKernMetadata, DynKern, DynLoop
+from psyclone.dynamo0p3 import DynKernMetadata, LFRicKern, DynLoop
 from psyclone.errors import InternalError, GenerationError
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
@@ -91,7 +91,7 @@ end module testkern_qr
 
 
 def test_scalar_kernel_load_meta_err():
-    ''' Check that the DynKern.load_meta() method raises the expected
+    ''' Check that the LFRicKern.load_meta() method raises the expected
     internal error if it encounters an unrecognised data type for
     a scalar descriptor.
 
@@ -99,7 +99,7 @@ def test_scalar_kernel_load_meta_err():
     ast = fpapi.parse(CODE, ignore_comments=False)
     name = "testkern_qr_type"
     metadata = DynKernMetadata(ast, name=name)
-    kernel = DynKern()
+    kernel = LFRicKern()
     # Get a scalar argument descriptor and set an invalid data type
     scalar_arg = metadata.arg_descriptors[5]
     scalar_arg._data_type = "gh_triple"
@@ -111,7 +111,7 @@ def test_scalar_kernel_load_meta_err():
 
 
 def test_kern_colourmap(monkeypatch):
-    ''' Tests for error conditions in the colourmap getter of DynKern. '''
+    ''' Tests for error conditions in the colourmap getter of LFRicKern. '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
@@ -129,7 +129,7 @@ def test_kern_colourmap(monkeypatch):
 
 
 def test_kern_ncolours(monkeypatch):
-    ''' Tests for error conditions in the ncolours getter of DynKern. '''
+    ''' Tests for error conditions in the ncolours getter of LFRicKern. '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
@@ -177,7 +177,7 @@ def test_get_kernel_schedule_mixed_precision():
     _, invoke = get_invoke("26.8_mixed_precision_args.f90", TEST_API,
                            name="invoke_0", dist_mem=False)
     sched = invoke.schedule
-    kernels = sched.walk(DynKern, stop_type=DynKern)
+    kernels = sched.walk(LFRicKern, stop_type=LFRicKern)
     # 26.8 contains an invoke of three kernels, one each at the following
     # precisions.
     kernel_precisions = ["r_def", "r_solver", "r_tran"]
@@ -201,14 +201,14 @@ def test_get_kernel_sched_mixed_precision_no_match(monkeypatch):
     _, invoke = get_invoke("26.8_mixed_precision_args.f90", TEST_API,
                            name="invoke_0", dist_mem=False)
     sched = invoke.schedule
-    kernels = sched.walk(DynKern, stop_type=DynKern)
+    kernels = sched.walk(LFRicKern, stop_type=LFRicKern)
 
     # To simplify things we just monkeypatch the 'validate_kernel_code_args'
     # method so that it never succeeds.
     def fake_validate(_1, _2):
         raise GenerationError("Just a test")
 
-    monkeypatch.setattr(DynKern, "validate_kernel_code_args",
+    monkeypatch.setattr(LFRicKern, "validate_kernel_code_args",
                         fake_validate)
     with pytest.raises(GenerationError) as err:
         _ = kernels[0].get_kernel_schedule()
@@ -234,7 +234,7 @@ def test_validate_kernel_code_args(monkeypatch):
     sched = kernel.get_kernel_schedule()
     kernel.validate_kernel_code_args(sched.symbol_table)
 
-    # Force DynKern to think that this kernel is an 'apply' kernel and
+    # Force LFRicKern to think that this kernel is an 'apply' kernel and
     # therefore does not need the mesh height argument.
     monkeypatch.setattr(kernel, "_cma_operation", "apply")
     with pytest.raises(GenerationError) as info:
@@ -252,7 +252,7 @@ def test_validate_kernel_code_arg(monkeypatch):
     exceptions are raised.
 
     '''
-    kernel = DynKern()
+    kernel = LFRicKern()
     # Kernel name needs to be set when testing exceptions.
     kernel._name = "dummy"
     read_access = ArgumentInterface(ArgumentInterface.Access.READ)
@@ -369,12 +369,12 @@ def test_validate_kernel_code_arg(monkeypatch):
 
 def test_kern_last_cell_all_colours_errors(monkeypatch):
     ''' Tests for the checks in the last_cell_all_colours property
-    of DynKern. '''
+    of LFRicKern. '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     sched = psy.invokes.invoke_list[0].schedule
-    kern = sched.walk(DynKern)[0]
+    kern = sched.walk(LFRicKern)[0]
     # Kernel is not coloured.
     with pytest.raises(InternalError) as err:
         _ = kern.last_cell_all_colours_symbol
@@ -389,7 +389,7 @@ def test_kern_last_cell_all_colours_errors(monkeypatch):
 
 
 def test_kern_last_cell_all_colours():
-    ''' Tests for the last_cell_all_colours property of DynKern. '''
+    ''' Tests for the last_cell_all_colours property of LFRicKern. '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
@@ -406,7 +406,7 @@ def test_kern_last_cell_all_colours():
 
 
 def test_kern_last_cell_all_colours_intergrid():
-    ''' Test the last_cell_all_colours property for an inter-grid DynKern. '''
+    ''' Test the last_cell_all_colours property for an inter-grid LFRicKern. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "22.1_intergrid_restrict.f90"),
                            api=TEST_API)
@@ -424,7 +424,7 @@ def test_kern_last_cell_all_colours_intergrid():
 
 
 def test_kern_all_updates_are_writes():
-    ''' Tests for the 'all_updates_are_writes' property of DynKern. '''
+    ''' Tests for the 'all_updates_are_writes' property of LFRicKern. '''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)

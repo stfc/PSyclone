@@ -70,7 +70,7 @@ class KernelInterface(ArgOrdering):
     code when all of its methods are implemented.
 
     :param kern: the kernel for which to create arguments.
-    :type kern: :py:class:`psyclone.dynamo0p3.DynKern`
+    :type kern: :py:class:`psyclone.dynamo0p3.LFRicKern`
 
     '''
     #: Mapping from a generic PSyIR datatype to the equivalent

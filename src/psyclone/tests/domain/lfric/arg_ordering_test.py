@@ -45,7 +45,7 @@ from psyclone.domain.lfric import (KernCallArgList,
                                    KernStubArgList, LFRicConstants,
                                    LFRicSymbolTable)
 from psyclone.domain.lfric.arg_ordering import ArgOrdering
-from psyclone.dynamo0p3 import DynKern, DynKernMetadata, DynLoop
+from psyclone.dynamo0p3 import LFRicKern, DynKernMetadata, DynLoop
 from psyclone.errors import GenerationError, InternalError
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
@@ -84,7 +84,7 @@ def test_argordering_append():
     _, invoke_info = parse(full_path, api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
-    kern = schedule.walk(DynKern)[0]
+    kern = schedule.walk(LFRicKern)[0]
     arg_list = ArgOrdering(kern)
     arg_list.append("roger")
     assert len(arg_list._arglist) == 1
@@ -112,7 +112,7 @@ def test_argordering_get_array_reference():
     psy, _ = get_invoke("1.0.1_single_named_invoke.f90",
                         TEST_API, 0)
     schedule = psy.invokes.invoke_list[0].schedule
-    kern = schedule.walk(DynKern)[0]
+    kern = schedule.walk(LFRicKern)[0]
     arg_list = ArgOrdering(kern)
 
     # First test access using an index, e.g. `array(1)`
@@ -165,7 +165,7 @@ def test_argordering_extend():
     _, invoke_info = parse(full_path, api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
-    kern = schedule.walk(DynKern)[0]
+    kern = schedule.walk(LFRicKern)[0]
     arg_list = ArgOrdering(kern)
     arg_list.append("roger")
     arg_list.extend(["peggy", "nancy"])
@@ -196,7 +196,7 @@ def test_unexpected_type_error(dist_mem):
     psy = PSyFactory(TEST_API,
                      distributed_memory=dist_mem).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
-    kernel = schedule.walk(DynKern)[0]
+    kernel = schedule.walk(LFRicKern)[0]
     # Sabotage one of the arguments to make it have an invalid type.
     kernel.arguments.args[0]._argument_type = "invalid"
     # Now call KernCallArgList to raise an exception
@@ -216,7 +216,7 @@ def test_kernel_stub_invalid_scalar_argument():
     ast = get_ast(TEST_API, "testkern_one_int_scalar_mod.f90")
 
     metadata = DynKernMetadata(ast)
-    kernel = DynKern()
+    kernel = LFRicKern()
     kernel.load_meta(metadata)
     # Sabotage the scalar argument to make it have an invalid type.
     arg = kernel.arguments.args[1]
@@ -305,7 +305,7 @@ def test_arg_ordering_mdata_index():
     psy = PSyFactory(TEST_API,
                      distributed_memory=False).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
-    kernels = schedule.walk(DynKern)
+    kernels = schedule.walk(LFRicKern)
     arg_list = ArgOrdering(kernels[0])
     arg_list.generate()
     # Scalar argument.
@@ -319,7 +319,7 @@ def test_kernel_stub_ind_dofmap_errors():
     are supplied to KernelStubArgList.indirection_dofmap() '''
     ast = get_ast(TEST_API, "testkern_one_int_scalar_mod.f90")
     metadata = DynKernMetadata(ast)
-    kernel = DynKern()
+    kernel = LFRicKern()
     kernel.load_meta(metadata)
     # Now call KernStubArgList to raise an exception
     create_arg_list = KernStubArgList(kernel)
@@ -420,7 +420,7 @@ def test_kerncallarglist_metadata_index_op_vector():
     psy = PSyFactory(TEST_API,
                      distributed_memory=False).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
-    kernels = schedule.walk(DynKern)
+    kernels = schedule.walk(LFRicKern)
     arg_list = KernCallArgList(kernels[0])
     arg_list.generate()
     # Operator
@@ -440,7 +440,7 @@ def test_kernstubarglist_arglist_error():
     ast = get_ast(TEST_API, "testkern_one_int_scalar_mod.f90")
 
     metadata = DynKernMetadata(ast)
-    kernel = DynKern()
+    kernel = LFRicKern()
     kernel.load_meta(metadata)
     # Now call KernStubArgList to raise an exception
     create_arg_list = KernStubArgList(kernel)
@@ -458,7 +458,7 @@ def test_kernstubarglist_eval_shape_error():
     invalid. '''
     ast = get_ast(TEST_API, "testkern_qr_faces_mod.F90")
     metadata = DynKernMetadata(ast)
-    kernel = DynKern()
+    kernel = LFRicKern()
     kernel.load_meta(metadata)
     create_arg_list = KernStubArgList(kernel)
     # Break the list of qr rules
@@ -479,7 +479,7 @@ def test_refelem_stub_arglist_err():
     # Create the Kernel object
     ast = get_ast(TEST_API, "testkern_ref_elem_all_faces_mod.F90")
     metadata = DynKernMetadata(ast)
-    kernel = DynKern()
+    kernel = LFRicKern()
     kernel.load_meta(metadata)
     # Break the list of ref-element properties required by the Kernel
     kernel.reference_element.properties.append("Wrong property")
