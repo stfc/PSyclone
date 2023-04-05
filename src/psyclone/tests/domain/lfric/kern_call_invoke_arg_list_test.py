@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
 # Modified: J. Henrichs, Bureau of Meteorology
+#           L. Turner, Met Office
 
 ''' Module containing pytest tests for the KernCallInvokeArgList class. '''
 
@@ -42,26 +43,26 @@ from psyclone.domain.lfric import (KernCallInvokeArgList, LFRicSymbolTable)
 from psyclone.psyir.symbols import DataTypeSymbol, DeferredType, DataSymbol
 
 
-def test_kcial_construct(dynkern):
+def test_kcial_construct(lfrickern):
     ''' Tests for the KernCallInvokeArgList constructor. '''
     with pytest.raises(TypeError) as err:
-        KernCallInvokeArgList(dynkern, None)
+        KernCallInvokeArgList(lfrickern, None)
     assert ("Argument 'symbol_table' must be a SymbolTable instance but got "
             "'NoneType'" in str(err.value))
-    obj = KernCallInvokeArgList(dynkern, LFRicSymbolTable())
+    obj = KernCallInvokeArgList(lfrickern, LFRicSymbolTable())
     assert obj.fields == []
     assert obj.scalars == []
     assert obj.quadrature_objects == []
 
 
-def test_kcial_generate(dynkern):
+def test_kcial_generate(lfrickern):
     ''' Tests for the KernCallInvokeArgList.generate() method. '''
     # generate() assumes a suitably initialised symbol table so create
     # that here.
     table = LFRicSymbolTable()
     table.new_symbol("field_type", symbol_type=DataTypeSymbol,
                      datatype=DeferredType())
-    kcial = KernCallInvokeArgList(dynkern, table)
+    kcial = KernCallInvokeArgList(lfrickern, table)
     kcial.generate()
     assert len(kcial.fields) == 5
     assert len(kcial.scalars) == 2
@@ -69,8 +70,8 @@ def test_kcial_generate(dynkern):
     kcial.generate()
     assert len(kcial.fields) == 5
     # Check that an unsupported scalar type gives the expected error.
-    dynkern.arguments.args[0]._intrinsic_type = 'boolean'
-    kcial = KernCallInvokeArgList(dynkern, table)
+    lfrickern.arguments.args[0]._intrinsic_type = 'boolean'
+    kcial = KernCallInvokeArgList(lfrickern, table)
     with pytest.raises(NotImplementedError) as err:
         kcial.generate()
     assert "Scalar of type 'boolean' not supported" in str(err.value)
@@ -96,10 +97,10 @@ def test_kcial_generate_operator(dynkern_op):
     assert opers[0][2] == "w2"
 
 
-def test_kcial_not_implemented(dynkern):
+def test_kcial_not_implemented(lfrickern):
     ''' Check all the methods that handle unsupported types of kernel
     argument. '''
-    kcial = KernCallInvokeArgList(dynkern, LFRicSymbolTable())
+    kcial = KernCallInvokeArgList(lfrickern, LFRicSymbolTable())
     with pytest.raises(NotImplementedError) as err:
         kcial.stencil(None)
     assert "Stencils are not yet supported" in str(err.value)
