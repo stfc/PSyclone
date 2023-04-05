@@ -46,6 +46,7 @@ module testkern_w0_kernel_mod
   implicit none
 
   integer :: some_other_var
+  integer, parameter :: some_other_const = 123
   private
 
   type, public, extends(kernel_type) :: testkern_w0_kernel_type
@@ -87,10 +88,12 @@ contains
     do k=0, nlayers-1
       do i=1, ndf_w0
         some_r = some_r + 1
-        fld1(map_w0(i)+k) = fld1(map_w0(i)+k) + fld2(map_w0(i)+k) + dummy_func(i)
+        fld1(map_w0(i)+k) = fld1(map_w0(i)+k) + fld2(map_w0(i)+k)             &
+                          + dummy_func(i)
         if (some_logical) then
           fld1(map_w0(i)+k) = fld1(map_w0(i)+k) + 1 + dummy_var1 + dummy_var2 &
-                            + some_other_var + some_r + dummy_var3
+                            + some_other_var + some_r + dummy_var3            &
+                            + some_other_const
         endif
       end do
     end do
