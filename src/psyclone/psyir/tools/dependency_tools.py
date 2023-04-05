@@ -971,7 +971,7 @@ class DependencyTools():
             if info in done:
                 continue
             done.add(info)
-            external_type, module_name, symbol_name = info
+            external_type, module_name, symbol_name, access_info = info
             if external_type == "routine":
                 if module_name is None:
                     # We don't know where the subroutine comes from.
@@ -995,7 +995,7 @@ class DependencyTools():
 
             elif external_type == "reference":
                 # We know it is a reference, so add it to the result:
-                result.add((module_name, symbol_name))
+                result.add((module_name, symbol_name, access_info))
 
             else:
                 # It is unknown, i.e. it could be a function (TODO #1314).
@@ -1010,10 +1010,11 @@ class DependencyTools():
 
                 if mod_info.contains_routine(symbol_name):
                     # It is a routine, which we need to analyse:
-                    todo.append(("routine", module_name, symbol_name))
+                    todo.append(("routine", module_name, symbol_name,
+                                 access_info))
                 else:
                     # Now it must be a reference, so add it to the result:
-                    result.add((module_name, symbol_name))
+                    result.add((module_name, symbol_name, access_info))
 
         print(f"Result for '{node_list[0].root.children[0].name}'",
               f"'{node_list[0].children[3].children[0].name}' is '{result}'")

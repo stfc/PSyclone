@@ -38,6 +38,7 @@ and cache information about a routine (i.e. a subroutine or a function) in a
 module.
 '''
 
+from psyclone.core import Signature, VariablesAccessInfo
 from psyclone.psyir.nodes import (Call, Container, Reference)
 from psyclone.psyir.symbols import (ArgumentInterface, ImportInterface,
                                     RoutineSymbol)
@@ -89,6 +90,11 @@ class RoutineInfoBase:
         :rtype: :py:class:`psyclone.psyir.nodes.Node`
 
         '''
+        if self._psyir is None:
+            # Parsing the PSyIR in the parent ModuleInfo will populate the
+            # PSyIR information for each routine, including this one:
+            self.module_info.get_psyir()
+
         return self._psyir
 
     # -------------------------------------------------------------------------
@@ -116,6 +122,13 @@ class RoutineInfoBase:
 
         '''
 
+    # ------------------------------------------------------------------------
+    def get_var_accesses(self):
+        ''':returns: the variable access information for this routine.
+        :rtype: :py:class:`psyclone.core.VariablesAccessInfo`
+
+        '''
+
 
 # ============================================================================
 class RoutineInfo(RoutineInfoBase):
@@ -129,9 +142,22 @@ class RoutineInfo(RoutineInfoBase):
 
     '''
     def __init__(self, module_info, ast):
-        super().__init__(module_info, str(ast.content[0].items[1]))
+        name = str(ast.content[0].items[1])
+        super().__init__(module_info, name)
         self._ast = ast
         self._non_locals = None
+        self._var_accesses = None
+
+    # ------------------------------------------------------------------------
+    def get_var_accesses(self):
+        ''':returns: the variable access information for this routine.
+        :rtype: :py:class:`psyclone.core.VariablesAccessInfo`
+
+        '''
+        if self._var_accesses is None:
+            self._var_accesses = VariablesAccessInfo(self.psyir)
+
+        return self._var_accesses
 
     # ------------------------------------------------------------------------
     @staticmethod
@@ -194,16 +220,13 @@ class RoutineInfo(RoutineInfoBase):
         self._non_locals = []
 
         if not self.psyir:
-            # Parsing the PSyIR in the parent will populate the PSyIR
-            # information for each subroutine and function.
-            self.module_info.get_psyir()
-
-        if not self.psyir:
+            # Since the psyir property will parse the file if required,
+            # if the value is None, the file could not be parsed.
             print(f"Could not create PSyIR for '{self.name}' in module "
                   f"'{self.module_info.name}'- ignored.")
             return
 
-        for access in self._psyir.walk((Kern, Call, Reference)):
+        for access in self.psyir.walk((Kern, Call, Reference)):
             # Builtins are certainly not externals, so ignore them.
             if isinstance(access, BuiltIn):
                 continue
@@ -221,7 +244,7 @@ class RoutineInfo(RoutineInfoBase):
                     self._non_locals.append(("routine", module_name,
                                              sym.name))
                     continue
-                # No import. This could either be a subroutine from
+                # No import. This could either be a routine from
                 # this module, or just a global function.
                 try:
                     self.module_info.get_routine_info(sym.name)
@@ -242,7 +265,8 @@ class RoutineInfo(RoutineInfoBase):
 
             if isinstance(sym.interface, ImportInterface):
                 # It is imported, record the information. The type needs
-                # to be identified when parsing the corresponding module:
+                # to be identified when parsing the corresponding module,
+                # so for now set the type as unknown:
                 module_name = sym.interface.container_symbol.name
                 self._non_locals.append(("unknown", module_name, sym.name))
                 continue
@@ -269,13 +293,24 @@ class RoutineInfo(RoutineInfoBase):
         - the name of the symbol (lowercase)
 
         :returns: the non-local accesses in this routine.
-        :rtype: List[Tuple[str, str, str]]
+        :rtype: List[Tuple[str, str, str, \
+                          :py:class:`psyclone.core.SingleVariableAccessInfo`]]
 
         '''
         if self._non_locals is None:
             self._compute_all_non_locals()
 
-        return self._non_locals
+        var_accesses = self.get_var_accesses()
+        result = []
+        for (symbol_type, module, sym_name) in self._non_locals:
+            if symbol_type == "routine":
+                result.append((symbol_type, module, sym_name, None))
+                continue
+            sig = Signature(sym_name)
+            result.append((symbol_type, module, sym_name,
+                           var_accesses[sig]))
+
+        return result
 
 
 # ============================================================================
