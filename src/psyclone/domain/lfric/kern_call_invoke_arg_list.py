@@ -53,7 +53,7 @@ class KernCallInvokeArgList(ArgOrdering):
     kernel, according to that kernel's metadata.
 
     :param kern: the kernel object for which to determine arguments.
-    :type kern: :py:class:`psyclone.dynamo0p3.LFRicKern`
+    :type kern: :py:class:`psyclone.domain.lfric.LFRicKern`
     :param symbol_table: the symbol table associated with the routine that \
         contains the `invoke` of this kernel.
     :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`

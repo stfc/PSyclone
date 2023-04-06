@@ -331,7 +331,7 @@ def _validate_geom_arg(kern, arg_idx, name, valid_spaces, vec_len):
     properties of the field that it is supposed to represent.
 
     :param kern: the kernel under consideration.
-    :type kern: :py:class:`psyclone.dynamo0p3.LFRicKern`
+    :type kern: :py:class:`psyclone.domain.lfric.LFRicKern`
     :param in arg_idx: the 1-indexed position of the argument in the list \
                        defined in the kernel metadata.
     :param str name: the name of the argument that we are expecting.

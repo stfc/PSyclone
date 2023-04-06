@@ -65,7 +65,7 @@ class ArgOrdering:
     a list.
 
     :param kern: the kernel call object to use.
-    :type kern: :py:class:`psyclone.dynamo0p3.LFRicKern`
+    :type kern: :py:class:`psyclone.domain.lfric.LFRicKern`
 
     '''
     def __init__(self, kern):

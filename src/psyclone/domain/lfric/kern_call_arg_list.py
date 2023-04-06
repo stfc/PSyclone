@@ -72,7 +72,7 @@ class KernCallArgList(ArgOrdering):
     captured by the base class.
 
     :param kern: The kernel that is being called.
-    :type kern: :py:class:`psyclone.dynamo0p3.LFRicKern`
+    :type kern: :py:class:`psyclone.domain.lfric.LFRicKern`
 
     '''
     NdfInfo = namedtuple("NdfInfo", ["position", "function_space"])

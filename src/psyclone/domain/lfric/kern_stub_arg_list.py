@@ -51,7 +51,7 @@ class KernStubArgList(ArgOrdering):
     of the arguments is captured by the base class.
 
     :param kern: Kernel for which to create argument list.
-    :type kern: :py:class:`psyclone.dynamo0p3.LFRicKern`
+    :type kern: :py:class:`psyclone.domain.lfric.LFRicKern`
 
     :raises NotImplementedError: if the kernel is inter-grid.
     :raises NotImplementedError: if the kernel requires properties of the \

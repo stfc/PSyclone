@@ -60,6 +60,7 @@ from psyclone.domain.lfric.metadata_to_arguments_rules import \
     MetadataToArgumentsRules
 from psyclone.domain.lfric.arg_index_to_metadata_index import \
     ArgIndexToMetadataIndex
+from psyclone.domain.lfric.lfric_kern import LFRicKern
 
 __all__ = [
     'ArgOrdering',

@@ -420,7 +420,7 @@ class LFRicAlg:
             supplied parse tree for which a LFRicKern is to be created.
 
         :returns: a LFRicKern object describing the LFRic kernel.
-        :rtype: :py:class:`psyclone.dynamo0p3.LFRicKern`
+        :rtype: :py:class:`psyclone.domain.lfric.LFRicKern`
 
         :raises ValueError: if an LFRic kernel with the specified name cannot \
                             be found in the supplied parse tree.
@@ -446,7 +446,7 @@ class LFRicAlg:
         :param prog: the routine to which to add the declarations etc.
         :type prog: :py:class:`psyclone.psyir.nodes.Routine`
         :param kern: the kernel for which we are to create arguments.
-        :type kern: :py:class:`psyclone.dynamo0p3.LFRicKern`
+        :type kern: :py:class:`psyclone.domain.lfric.LFRicKern`
 
         :returns: object capturing all of the kernel arguments.
         :rtype: :py:class:`psyclone.domain.lfric.KernCallInvokeArgList`

@@ -54,7 +54,7 @@ def api_setup_fixture():
 def lfrickern_fixture():
     '''
     :returns: a LFRicKern object created from example metadata.
-    :rtype: :py:class:`psyclone.dynamo0p3.LFRicKern`
+    :rtype: :py:class:`psyclone.domain.lfric.LFRicKern`
     '''
     mdata_code = '''
 module testkern_field_mod
@@ -99,7 +99,7 @@ def lfrickern_op_fixture():
     '''
     :returns: a LFRicKern object created from example metadata that includes \
               an operator argument.
-    :rtype: :py:class:`psyclone.dynamo0p3.LFRicKern`
+    :rtype: :py:class:`psyclone.domain.lfric.LFRicKern`
     '''
     mdata_code = '''
 module testkern_field_mod
