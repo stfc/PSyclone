@@ -45,7 +45,8 @@ from __future__ import print_function
 import os
 
 import fparser
-from psyclone.dynamo0p3 import LFRicKern, DynKernMetadata
+from psyclone.domain.lfric import LFRicKern
+from psyclone.dynamo0p3 import DynKernMetadata
 from psyclone.errors import GenerationError
 from psyclone.parse.utils import ParseError
 from psyclone.configuration import Config

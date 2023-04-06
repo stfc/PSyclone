@@ -44,7 +44,7 @@ from psyclone.domain.lfric import (KernCallInvokeArgList, LFRicConstants,
                                    LFRicSymbolTable, LFRicTypes)
 from psyclone.domain.lfric.algorithm.psyir import (
     LFRicAlgorithmInvokeCall, LFRicBuiltinFunctorFactory, LFRicKernelFunctor)
-from psyclone.dynamo0p3 import LFRicKern
+from psyclone.domain.lfric import LFRicKern
 from psyclone.errors import InternalError
 from psyclone.parse.kernel import get_kernel_parse_tree, KernelTypeFactory
 from psyclone.parse.utils import ParseError
