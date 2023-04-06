@@ -41,9 +41,8 @@ import os
 import pytest
 
 from fparser import api as fpapi
-from psyclone.domain.lfric import KernCallInvokeArgList
+from psyclone.domain.lfric import KernCallInvokeArgList, LFRicKern
 from psyclone.domain.lfric.algorithm.lfric_alg import LFRicAlg
-from psyclone.dynamo0p3 import LFRicKern
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import Container, Routine
 from psyclone.psyir.symbols import (ContainerSymbol, DataSymbol, DeferredType,

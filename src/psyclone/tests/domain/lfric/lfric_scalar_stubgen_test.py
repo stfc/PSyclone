@@ -47,8 +47,8 @@ import os
 import pytest
 
 from fparser import api as fpapi
-from psyclone.domain.lfric import LFRicConstants
-from psyclone.dynamo0p3 import DynKernMetadata, LFRicKern, LFRicScalarArgs
+from psyclone.domain.lfric import LFRicConstants, LFRicKern
+from psyclone.dynamo0p3 import DynKernMetadata, LFRicScalarArgs
 from psyclone.f2pygen import ModuleGen
 from psyclone.errors import InternalError
 from psyclone.gen_kernel_stub import generate

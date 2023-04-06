@@ -41,11 +41,11 @@ import os
 import pytest
 
 from psyclone.core import AccessType, VariablesAccessInfo, Signature
-from psyclone.domain.lfric import (KernCallArgList,
+from psyclone.domain.lfric import (KernCallArgList, LFRicKern,
                                    KernStubArgList, LFRicConstants,
                                    LFRicSymbolTable)
 from psyclone.domain.lfric.arg_ordering import ArgOrdering
-from psyclone.dynamo0p3 import LFRicKern, DynKernMetadata, DynLoop
+from psyclone.dynamo0p3 import DynKernMetadata, DynLoop
 from psyclone.errors import GenerationError, InternalError
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory

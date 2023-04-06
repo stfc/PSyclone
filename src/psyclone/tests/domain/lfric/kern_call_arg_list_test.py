@@ -43,9 +43,9 @@ import pytest
 
 from psyclone.core import Signature, VariablesAccessInfo
 from psyclone.domain.lfric import (KernCallArgList, LFRicConstants,
-                                   LFRicSymbolTable, LFRicTypes)
+                                   LFRicSymbolTable, LFRicTypes,
+                                   LFRicKern)
 from psyclone.errors import GenerationError, InternalError
-from psyclone.dynamo0p3 import LFRicKern
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import Literal, Loop, Reference, UnaryOperation

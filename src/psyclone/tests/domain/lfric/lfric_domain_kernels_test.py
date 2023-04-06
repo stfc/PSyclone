@@ -42,7 +42,8 @@
 import os
 import pytest
 from fparser import api as fpapi
-from psyclone.dynamo0p3 import DynKernMetadata, LFRicKern
+from psyclone.dynamo0p3 import DynKernMetadata
+from psyclone.domain.lfric import LFRicKern
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory

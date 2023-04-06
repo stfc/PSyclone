@@ -38,7 +38,7 @@
 
 import pytest
 from psyclone.configuration import Config
-from psyclone.dynamo0p3 import LFRicKern
+from psyclone.domain.lfric import LFRicKern
 from psyclone.parse.kernel import get_kernel_parse_tree, KernelTypeFactory
 
 
