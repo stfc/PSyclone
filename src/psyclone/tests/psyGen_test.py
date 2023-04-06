@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+# Copyright (c) 2017-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+# Authors: R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 # Modified I. Kavcic, Met Office
 # -----------------------------------------------------------------------------
 
@@ -167,10 +167,7 @@ def test_base_class_not_callable():
 
 
 def test_transformation_init_name():
-    '''Make sure a FortranWriter is created by default, is stored by the
-    base class, can be changed if required and an exception is raised
-    if the wrong argument type is supplied. Also test that the name()
-    method behaves in the expected way.
+    '''Test that the name() method behaves in the expected way.
 
     '''
     class TestTrans(Transformation):
@@ -179,19 +176,12 @@ def test_transformation_init_name():
         transformation methods.
 
         '''
-        def apply(self, _1, _2=None):
+        def apply(self, _1):
             '''Dummy apply method to ensure this transformation is not
             abstract.'''
 
     trans = TestTrans()
     assert trans.name == "TestTrans"
-    assert isinstance(trans._writer, FortranWriter)
-    with pytest.raises(TypeError) as info:
-        _ = TestTrans(writer="wrong")
-    assert ("The writer argument to a transformation should be a "
-            "PSyIRVisitor, but found 'str'." in str(info.value))
-    trans = TestTrans(writer=CWriter())
-    assert isinstance(trans._writer, CWriter)
 
 
 # TransInfo class unit tests
@@ -631,10 +621,11 @@ def test_codedkern_lower_to_language_level(monkeypatch):
     assert len(kern.children) == 0
     number_of_arguments = len(kern.arguments.psyir_expressions())
 
-    kern.lower_to_language_level()
+    lowered = kern.lower_to_language_level()
 
     # In language-level it is a Call with arguments as children
     call = schedule.children[0].loop_body[0]
+    assert call is lowered
     assert not isinstance(call, CodedKern)
     assert isinstance(call, Call)
     assert call.routine.name == 'testkern_code'
@@ -1156,8 +1147,8 @@ def test_invalid_reprod_pad_size(monkeypatch, dist_mem):
     with pytest.raises(GenerationError) as excinfo:
         _ = str(psy.gen)
     assert (
-        "REPROD_PAD_SIZE in {0} should be a positive "
-        "integer".format(Config.get().filename) in str(excinfo.value))
+        f"REPROD_PAD_SIZE in {Config.get().filename} should be a positive "
+        f"integer" in str(excinfo.value))
 
 
 def test_argument_properties():

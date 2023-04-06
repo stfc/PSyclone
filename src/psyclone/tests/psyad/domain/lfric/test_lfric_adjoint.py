@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022, Science and Technology Facilities Council.
+# Copyright (c) 2022-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -117,7 +117,6 @@ def test_generate_lfric_adjoint_multi_kernel(fortran_reader, fortran_writer):
         "  INTEGER :: OPERATES_ON = cell_column\n"
         "END TYPE adj_test_type\n\n"
         "  public\n\n"
-        "  public :: adj_kern1, adj_kern2, adj_kern3\n\n"
         "  contains\n"
         "  subroutine adj_kern1()\n"
         "    real :: psyir_tmp\n"

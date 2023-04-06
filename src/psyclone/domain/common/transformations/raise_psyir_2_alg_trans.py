@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors: R. W. Ford, A. R. Porter, N. Nobre and S. Siso STFC Daresbury Lab
 
 '''Specialise generic PSyIR representing an invoke call within the
 algorithm layer to a PSyclone algorithm-layer-specific invoke call
@@ -40,8 +40,7 @@ which uses specialised classes.
 '''
 # pylint: disable=protected-access
 
-from fparser.two.Fortran2003 import Structure_Constructor, Actual_Arg_Spec, \
-    Name, Char_Literal_Constant
+from fparser.two.Fortran2003 import Structure_Constructor
 
 from psyclone.psyir.nodes import Call, ArrayReference, CodeBlock, Literal
 from psyclone.psyir.symbols import Symbol, DataTypeSymbol, StructureType, \
@@ -150,7 +149,7 @@ class RaisePSyIR2AlgTrans(Transformation):
             generic PSyIR.
         :type node: :py:class:`psyclone.psyir.nodes.Call`
         :param options: a dictionary with options for transformations.
-        :type options: dictionary of string:values or None
+        :type options: Optional[Dict[str, Any]]
 
         :raises TransformationError: if the supplied call argument is \
             not a PSyIR Call node.
@@ -182,7 +181,7 @@ class RaisePSyIR2AlgTrans(Transformation):
             raise TransformationError(
                 f"Error in {self.name} transformation. There should be at "
                 f"most one named argument in an invoke, but there are "
-                f"{len(names)} in '{self._writer(node)}'.")
+                f"{len(names)} in '{node.debug_string()}'.")
         for idx, arg in enumerate(node.children):
             if ((node.argument_names[idx]) and
                     (not (node.argument_names[idx].lower() == "name")
@@ -193,7 +192,7 @@ class RaisePSyIR2AlgTrans(Transformation):
                 raise TransformationError(
                     f"Error in {self.name} transformation. If there is a "
                     f"named argument, it must take the form name='str', "
-                    f"but found '{self._writer(node)}'.")
+                    f"but found '{node.debug_string()}'.")
             if node.argument_names[idx]:
                 pass
             elif isinstance(arg, ArrayReference):
@@ -217,7 +216,7 @@ class RaisePSyIR2AlgTrans(Transformation):
         :param int index: the position of this invoke call relative to \
             other invokes in the algorithm layer.
         :param options: a dictionary with options for transformations.
-        :type options: dictionary of string:values or None
+        :type options: Optional[Dict[str, Any]]
 
         '''
         self.validate(call, options=options)

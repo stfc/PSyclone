@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2022, Science and Technology Facilities Council.
+# Copyright (c) 2019-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -85,7 +85,7 @@ class PSyDataNode(Statement):
     :param parent: the parent of this node in the PSyIR tree.
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
     :param options: a dictionary with options for transformations.
-    :type options: dictionary of string:values or None
+    :type options: Optional[Dict[str, Any]]
     :param str options["prefix"]: a prefix to use for the PSyData module name \
         (``prefix_psy_data_mod``) and the PSyDataType \
         (``prefix_PSyDataType``) - a "_" will be added automatically. \
@@ -280,7 +280,7 @@ class PSyDataNode(Statement):
             instrumented with PSyData calls.
         :type ast: :py:class:`fparser.two.Fortran2003.Base`
         :param options: a dictionary with options for transformations.
-        :type options: dictionary of string:values or None
+        :type options: Optional[Dict[str, Any]]
         :param str options[prefix"]: a prefix to use for the PSyData module \
             name (``prefix_psy_data_mod``) and the PSyDataType \
             (``prefix_PSyDataType``) - a "_" will be added automatically. \
@@ -626,6 +626,9 @@ class PSyDataNode(Statement):
         :param str options["post_var_postfix"]: an optional postfix that will \
             be added to each variable name in the post_var_list.
 
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
+
         :raises GenerationError: if the node is not inside a Routine.
 
         '''
@@ -773,6 +776,7 @@ class PSyDataNode(Statement):
 
         # Finally we can remove the original PSyDataNode from here
         self.detach()
+        return self.parent
 
 
 # For AutoAPI documentation generation

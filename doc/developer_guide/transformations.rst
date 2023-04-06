@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2019-2022, Science and Technology Facilities Council.
+.. Copyright (c) 2019-2023, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 .. ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .. POSSIBILITY OF SUCH DAMAGE.
 .. -----------------------------------------------------------------------------
-.. Written by R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+.. Written by R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 
 .. testsetup::
 
@@ -134,32 +134,59 @@ PSyclone is able to generate code for execution on a GPU through the
 use of OpenACC. Support for generating OpenACC code is implemented via
 :ref:`transformations`. The specification of parallel regions and
 loops is very similar to that in OpenMP and does not require any
-special treatment.  However, a key feature of GPUs is the fact that
+special treatment.  However, a key feature of GPUs is that, typically,
 they have their own, on-board memory which is separate from that of
 the host. Managing (i.e. minimising) data movement between host and
 GPU is then a very important part of obtaining good performance.
 
-Since PSyclone operates at the level of Invokes, it has no information
-about when an application starts and thus no single place in which to
-initiate data transfers to a GPU. (We assume that the host is
-responsible for model I/O and therefore for populating fields with
-initial values.) Fortunately, OpenACC provides support for this kind of
-situation with the ``enter data`` directive. This may be used to
-"define scalars, arrays and subarrays to be allocated in the current
-device memory for the remaining duration of the program"
+Since PSyclone operates at the level of Invokes for the LFRic (Dynamo0.3) and
+GOcean1.0 APIs and of single routines for the NEMO API, it has no information
+about where an application starts and thus no single place in which to initiate
+data transfers to a GPU. (We assume that the host is responsible for model I/O
+and therefore for populating fields with initial values.) Fortunately, OpenACC
+provides support for this kind of situation with the ``enter data`` directive.
+This may be used to "define scalars, arrays and subarrays to be allocated in
+the current device memory for the remaining duration of the program"
 :cite:`openacc_enterdata`. The ``ACCEnterDataTrans`` transformation adds
-an ``enter data`` directive to an Invoke:
+an ``enter data`` directive to an Invoke or a routine:
 
 .. autoclass:: psyclone.transformations.ACCEnterDataTrans
    :noindex:
 
-The resulting generated code will then contain an ``enter data``
-directive.
+The resulting generated code will then contain an ``enter data`` directive. The
+directive is placed in the body of the Invoke or the routine just before the
+first of its statements containing an OpenACC parallel or kernels construct.
+All the data that is accessed on the device, i.e. on at least one of all the
+OpenACC parallel and kernels constructs in the Invoke or the routine, is copied
+to the device's memory. For derived types, if a member is accessed on one of
+these constructs, in addition to that member, its parent is also copied in
+beforehand. This guarantees that, if the member is an allocatable or pointer,
+we levarage the implicit pointer attach behaviour of OpenACC.
 
 Of course, a given field may already be on the device (and have been
-updated) due to a previous Invoke. In this case, the fact that the
-OpenACC run-time does not copy over the now out-dated host version of
-the field is essential for correctness.
+updated) due to a previous Invoke or routine. In this case, the fact that the
+OpenACC runtime does not copy over the now outdated host version of the field
+is essential for correctness.
+
+On the other hand, if a section of the code must be executed on the host, it is
+paramount it accesses an up to date version of the data and that, at the end,
+any written data is returned to the device. To enable this workflow, the NEMO
+API supports the OpenACC ``update`` directive with either the ``self``/``host``
+or the ``device`` clause to update each target before and after a host code
+section in a routine:
+
+.. autoclass:: psyclone.psyir.transformations.ACCUpdateTrans
+   :noindex:
+
+The ``update`` directives will not necessarily be placed immediately next to
+the host code section. In fact, this could lead to poor performance whenever
+those sections happen to be inside a loop statement. Instead, the algorithm
+tries to push the directives up the routine's body as far as legally possible
+as determined by the data dependencies of parallel and kernels constructs in
+the routine and potential dependencies in called routines. In addition,
+whenever the scheme would place an ``update`` directive immediately next to a
+previously placed ``update`` directive with the same target, these are instead
+combined together.
 
 In order to support the incremental porting and/or debugging of an
 application, PSyclone also supports the OpenACC ``data`` directive
@@ -330,6 +357,65 @@ issues:
    subject of #685. For the moment the test just checks for MATMUL as
    that is currently the only non-elementwise operation in the PSyiR.
 
+Inlining
+========
+
+PSyclone supports two different inlining transformations:
+``KernelModuleInlineTrans`` and ``InlineTrans``. The former is relatively
+simple and creates a copy of the Kernel routine within the same Container
+as the routine from which it is called. The latter is far more intrusive
+and replaces a call to a routine with the actual body of that routine.
+This can be complex due to the fact that Fortran allows the bounds of
+arrays within a routine to differ from those at the call site, e.g.:
+
+.. code-block:: fortran
+
+  integer :: my_array(10)
+  ...
+  call my_sub(my_array)
+
+  subroutine my_sub(x)
+    integer, intent(inout), :: x(2:11)
+    ...
+
+As a consequence of this, ensuring that any array index expressions are
+correctly handled when inlining the routine body will often mean that
+full type information is required for every dummy argument. However, there are
+exceptions that arise when the dimensions of an array are not actually
+declared within the subroutine, e.g.:
+
+.. code-block:: fortran
+
+   type(my_type) :: var
+   ...
+   call my_sub(var)
+
+   subroutine my_sub(x)
+     type(my_var), intent(inout) :: x
+     x%data(3:5) = ...
+
+In this case, the definition of the array being accessed is contained
+within `my_var` and is therefore common to both the call site and
+the subroutine. We therefore do not require full type information
+for the dummy argument `x` in order to safely inline the routine.
+However, as soon as the dummy argument is in the form of an array
+then we will require full type information for the corresponding
+argument at both the call site and within the routine, e.g.:
+
+.. code-block:: fortran
+
+   type(my_type) :: var
+   ...
+   call my_sub(var%data)
+
+   subroutine my_sub(x)
+     real, dimension(2:5, 6) :: x
+     x(2, 4) = ...
+
+In this case, the correct index expressions for the inlined code will
+depend on the bounds with which the `data` member of `my_type` is
+declared and therefore this information must be available.
+
 OpenMP Tasking
 ==============
 OpenMP tasking is supported in PSyclone, currently by the combination
@@ -375,6 +461,6 @@ during the `OMPTaskwaitTransformation.apply` call, as any solvable dependencies
 will be satisfied by the implicit taskgroup.
 
 These structures are the only way to satisfy dependencies between taskloops,
-and any other structures of dependendent taskloops will be caught by the
+and any other structures of dependent taskloops will be caught by the
 `OMPTaskwaitTransformation.validate` call, which will raise an Error explaining
 why the dependencies cannot be resolved.

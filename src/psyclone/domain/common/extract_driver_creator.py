@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,8 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: J. Henrichs, Bureau of Meteorology
+# Authors: J. Henrichs, Bureau of Meteorology
+#          N. Nobre, STFC Daresbury Lab
 
 '''This module provides functionality for the PSyclone kernel extraction
 functionality. It contains the class that creates a driver that
@@ -39,16 +40,13 @@ reads in extracted data, calls the kernel, and then compares the result with
 the output data contained in the input file.
 '''
 
-from __future__ import absolute_import
-
-import six
 
 from psyclone.configuration import Config
 from psyclone.errors import InternalError
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (Assignment, Call, FileContainer,
-                                  Literal, Reference, Routine,
+                                  IntrinsicCall, Literal, Reference, Routine,
                                   StructureReference)
 from psyclone.psyir.symbols import (ArrayType, CHARACTER_TYPE,
                                     ContainerSymbol, DataSymbol,
@@ -57,7 +55,7 @@ from psyclone.psyir.symbols import (ArrayType, CHARACTER_TYPE,
                                     REAL8_TYPE, RoutineSymbol, ScalarType)
 from psyclone.psyir.transformations import ExtractTrans
 
-# TODO 1392: once we support LFRic, make this into a proper base class
+# TODO 1382: once we support LFRic, make this into a proper base class
 # and put the domain-specific implementations into the domain/* directories.
 
 
@@ -130,12 +128,12 @@ class ExtractDriverCreator:
         try:
             base_type = self._default_types[gocean_property.intrinsic_type]
         except KeyError as err:
-            raise six.raise_from(
-                InternalError(f"Type '{gocean_property.intrinsic_type}' of "
+            raise InternalError(
+                              f"Type '{gocean_property.intrinsic_type}' of "
                               f"the property reference '{fortran_expression}' "
                               f"as defined in the config file "
                               f"'{Config.get().filename}' is not supported "
-                              f"in the GOcean API."), err)
+                              f"in the GOcean API.") from err
         # Handle name clashes (e.g. if the user used a variable that is
         # the same as a flattened grid property)
         flattened_name = symbol_table.next_available_name(flattened_name)
@@ -261,11 +259,11 @@ class ExtractDriverCreator:
                 valid = list(self._default_types.keys())
                 # Sort to make sure we get a reproducible order for testing
                 valid.sort()
-                six.raise_from(InternalError(
+                raise InternalError(
                     f"Error when constructing driver for '{sched.name}': "
                     f"Unknown intrinsic data type "
                     f"'{old_symbol.datatype.intrinsic}' in reference "
-                    f"'{fortran_string}'. Valid types are '{valid}'."), err)
+                    f"'{fortran_string}'. Valid types are '{valid}'.") from err
             new_symbol = symbol_table.new_symbol(root_name=reference.name,
                                                  tag=reference.name,
                                                  symbol_type=DataSymbol,
@@ -427,22 +425,9 @@ class ExtractDriverCreator:
             # is not allocated. So we need to allocate it and set it to 0.
             if not is_input:
                 if isinstance(post_sym.datatype, ArrayType):
-                    # TODO #1366 Once allocate is supported in PSyIR
-                    # this parsing of a file can be replaced. Also,
-                    # if the mold parameter is supported, we can
-                    # use the second allocate statement to create code
-                    # that's independent of the number of dimensions.
-                    code = (f'''
-                        subroutine tmp()
-                          integer, allocatable, dimension(:,:) :: b
-                          allocate({sig_str}(size({post_name},1), '''
-                            f'''size({post_name},2)))
-                          !allocate({sig_str}, mold={post_name})
-                        end subroutine tmp''')
-                    fortran_reader = FortranReader()
-                    container = fortran_reader.psyir_from_source(code)\
-                        .children[0]
-                    alloc = container.children[0].detach()
+                    alloc = IntrinsicCall.create(
+                        IntrinsicCall.Intrinsic.ALLOCATE,
+                        [Reference(sym), ("mold", Reference(post_sym))])
                     program.addchild(alloc)
                 set_zero = Assignment.create(Reference(sym),
                                              Literal("0", INTEGER_TYPE))
@@ -625,7 +610,7 @@ class ExtractDriverCreator:
                              prefix, postfix, region_name,
                              writer=FortranWriter()):
         # pylint: disable=too-many-arguments
-        '''This function uses 'create()` function to get a PSyIR of a
+        '''This function uses `create()` function to get the PSyIR of a
         stand-alone driver, and then uses the provided language writer
         to create a string representation in the selected language
         (defaults to Fortran).
@@ -666,7 +651,7 @@ class ExtractDriverCreator:
     def write_driver(self, nodes, input_list, output_list,
                      prefix, postfix, region_name, writer=FortranWriter()):
         # pylint: disable=too-many-arguments
-        '''This function uses the 'get_driver_as_string()` function to get a
+        '''This function uses the `get_driver_as_string()` function to get a
         a stand-alone driver, and then writes this source code to a file. The
         file name is derived from the region name:
         "driver-"+module_name+"_"+region_name+".f90"

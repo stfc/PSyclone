@@ -171,7 +171,7 @@ def test_ai2psycall_apply_error(fortran_reader):
 
 def test_ai2psycall_apply_expr(fortran_reader):
     '''Check that the apply() method deals correctly with
-    simple associative expresssions, i.e. i+1 is the same as 1+i.
+    simple associative expressions, i.e. i+1 is the same as 1+i.
 
     '''
     code = (

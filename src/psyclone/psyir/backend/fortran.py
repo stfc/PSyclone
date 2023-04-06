@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2022, Science and Technology Facilities Council
+# Copyright (c) 2019-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,10 +31,9 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford and S. Siso, STFC Daresbury Lab.
+# Authors R. W. Ford and S. Siso, STFC Daresbury Lab
 # Modified J. Henrichs, Bureau of Meteorology
-# Modified A. R. Porter, STFC Daresbury Lab.
-# Modified A. B. G. Chalk, STFC Daresbury Lab.
+# Modified A. R. Porter, A. B. G. Chalk and N. Nobre, STFC Daresbury Lab
 
 '''PSyIR Fortran backend. Implements a visitor that generates Fortran code
 from a PSyIR tree. '''
@@ -49,13 +48,13 @@ from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
     TYPE_MAP_FROM_FORTRAN
 from psyclone.psyir.nodes import BinaryOperation, Call, CodeBlock, DataNode, \
-    Literal, Operation, Range, Routine, Schedule, UnaryOperation
-from psyclone.psyir.symbols import ArgumentInterface, ArrayType, \
-    ContainerSymbol, DataSymbol, DataTypeSymbol, DeferredType, RoutineSymbol, \
-    ScalarType, Symbol, SymbolTable, UnknownFortranType, UnknownType
+    IntrinsicCall, Literal, Operation, Range, Routine, Schedule, UnaryOperation
+from psyclone.psyir.symbols import (
+    ArgumentInterface, ArrayType, ContainerSymbol, DataSymbol, DataTypeSymbol,
+    DeferredType, ImportInterface, RoutineSymbol, ScalarType, Symbol,
+    SymbolTable, UnknownFortranType, UnknownType, UnresolvedInterface)
 
-
-# The list of Fortran instrinsic functions that we know about (and can
+# The list of Fortran intrinsic functions that we know about (and can
 # therefore distinguish from array accesses). These are taken from
 # fparser.
 FORTRAN_INTRINSICS = Fortran2003.Intrinsic_Name.function_names
@@ -208,7 +207,7 @@ def precedence(fortran_operator):
 
     '''
     # The index of the fortran_precedence list indicates relative
-    # precedence. Strings within sub-lists have the same precendence
+    # precedence. Strings within sub-lists have the same precedence
     # apart from the following two caveats. 1) unary + and - have
     # a higher precedence than binary + and -, e.g. -(a-b) !=
     # -a-b and 2) floating point operations are not actually
@@ -413,7 +412,6 @@ class FortranWriter(LanguageWriter):
         :rtype: bool
 
         '''
-        # pylint: disable=no-self-use
         return operator in FORTRAN_INTRINSICS
 
     def get_operator(self, operator):
@@ -716,7 +714,7 @@ class FortranWriter(LanguageWriter):
         result += f"{self._nindent}end type {symbol.name}\n"
         return result
 
-    def gen_access_stmt(self, symbol_table):
+    def gen_default_access_stmt(self, symbol_table):
         '''
         Generates the access statement for a module - either "private" or
         "public". Although the PSyIR captures the visibility of every Symbol
@@ -746,22 +744,20 @@ class FortranWriter(LanguageWriter):
             f"either 'Symbol.Visibility.PUBLIC' or "
             f"'Symbol.Visibility.PRIVATE'\n")
 
-    def gen_routine_access_stmts(self, symbol_table):
+    def gen_access_stmts(self, symbol_table):
         '''
-        Creates the accessibility statements (R518) for any routine symbols
-        in the supplied symbol table.
+        Creates the accessibility statements (R518) for any routine or
+        imported symbols in the supplied symbol table.
 
         :param symbol_table: the symbol table for which to generate \
                              accessibility statements.
         :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
 
-        :returns: the accessibility statements for any routine symbols.
+        :returns: the accessibility statements for any routine or imported \
+                  symbols.
         :rtype: str
 
-        :raises InternalError: if a Routine symbol with an unrecognised \
-                               visibility is encountered.
         '''
-
         # Find the symbol that represents itself, this one will not need
         # an accessibility statement
         try:
@@ -769,40 +765,42 @@ class FortranWriter(LanguageWriter):
         except KeyError:
             itself = None
 
-        public_routines = []
-        private_routines = []
+        public_symbols = []
+        private_symbols = []
         for symbol in symbol_table.symbols:
-            if isinstance(symbol, RoutineSymbol):
+            if (isinstance(symbol, RoutineSymbol) or
+                    isinstance(symbol.interface, (UnresolvedInterface,
+                                                  ImportInterface))):
 
                 # Skip the symbol representing the routine where these
                 # declarations belong
-                if symbol is itself:
+                if isinstance(symbol, RoutineSymbol) and symbol is itself:
                     continue
 
-                # It doesn't matter whether this symbol has a local or global
+                # It doesn't matter whether this symbol has a local or import
                 # interface - its accessibility in *this* context is determined
                 # by the local accessibility statements. e.g. if we are
                 # dealing with the declarations in a given module which itself
                 # uses a public symbol from some other module, the
                 # accessibility of that symbol is determined by the
                 # accessibility statements in the current module.
-                if symbol.visibility == Symbol.Visibility.PUBLIC:
-                    public_routines.append(symbol.name)
-                elif symbol.visibility == Symbol.Visibility.PRIVATE:
-                    private_routines.append(symbol.name)
+                if (symbol_table.default_visibility in
+                        [None, Symbol.Visibility.PUBLIC]):
+                    if symbol.visibility == Symbol.Visibility.PRIVATE:
+                        # Default vis. is public but this symbol is private
+                        private_symbols.append(symbol.name)
                 else:
-                    raise InternalError(
-                        f"Unrecognised visibility ('{symbol.visibility}') "
-                        f"found for symbol '{symbol.name}'. Should be either "
-                        f"'Symbol.Visibility.PUBLIC' or "
-                        f"'Symbol.Visibility.PRIVATE'.")
+                    if symbol.visibility == Symbol.Visibility.PUBLIC:
+                        # Default vis. is private but this symbol is public
+                        public_symbols.append(symbol.name)
+
         result = "\n"
-        if public_routines:
-            result += f"{self._nindent}public :: "
-            result += ", ".join(public_routines) + "\n"
-        if private_routines:
-            result += f"{self._nindent}private :: "
-            result += ", ".join(private_routines) + "\n"
+        if public_symbols:
+            result += f"{self._nindent}public :: {', '.join(public_symbols)}\n"
+        if private_symbols:
+            result += (f"{self._nindent}private :: "
+                       f"{', '.join(private_symbols)}\n")
+
         if len(result) > 1:
             return result
         return ""
@@ -1051,10 +1049,10 @@ class FortranWriter(LanguageWriter):
         declarations = self.gen_decls(node.symbol_table, is_module_scope=True)
 
         # Generate the access statement (PRIVATE or PUBLIC)
-        declarations += self.gen_access_stmt(node.symbol_table)
+        declarations += self.gen_default_access_stmt(node.symbol_table)
 
-        # Accessibility statements for routine symbols
-        declarations += self.gen_routine_access_stmts(node.symbol_table)
+        # Accessibility statements for imported and routine symbols
+        declarations += self.gen_access_stmts(node.symbol_table)
 
         # Get the subroutine statements.
         subroutines = ""
@@ -1108,35 +1106,41 @@ class FortranWriter(LanguageWriter):
 
         self._depth += 1
 
-        # The PSyIR has nested scopes but Fortran only supports declaring
-        # variables at the routine level scope. For this reason, at this
-        # point we have to unify all declarations and resolve possible name
-        # clashes that appear when merging the scopes. Make sure we use
-        # the same SymbolTable class used in the base class to get an
-        # API-specific table here:
-        whole_routine_scope = type(node.symbol_table)()
+        if self._DISABLE_LOWERING:
+            # If we are not lowering we don't have a deep_copied tree so it
+            # should NOT make any modifications to the provided node or
+            # symbol table.
+            whole_routine_scope = node.symbol_table
+        else:
+            # The PSyIR has nested scopes but Fortran only supports declaring
+            # variables at the routine level scope. For this reason, at this
+            # point we have to unify all declarations and resolve possible name
+            # clashes that appear when merging the scopes. Make sure we use
+            # the same SymbolTable class used in the base class to get an
+            # API-specific table here:
+            whole_routine_scope = type(node.symbol_table)()
 
-        own_symbol = node.symbol_table.lookup_with_tag("own_routine_symbol")
-        for schedule in node.walk(Schedule):
-            for symbol in schedule.symbol_table.symbols[:]:
+            itself = node.symbol_table.lookup_with_tag("own_routine_symbol")
+            for schedule in node.walk(Schedule):
+                for symbol in schedule.symbol_table.symbols[:]:
 
-                # We don't need to add the Symbol representing this Routine to
-                # the top level symbol table because in Fortran it is already
-                # implicitly declared by the subroutine statement.
-                if symbol is own_symbol and isinstance(symbol, RoutineSymbol):
-                    continue
+                    # We don't need to add the Symbol representing this Routine
+                    # to the top level symbol table because in Fortran it is
+                    # already implicitly declared by the subroutine statement.
+                    if symbol is itself and isinstance(symbol, RoutineSymbol):
+                        continue
 
-                try:
-                    whole_routine_scope.add(symbol)
-                except KeyError:
-                    new_name = whole_routine_scope.next_available_name(
-                        symbol.name, other_table=schedule.symbol_table)
-                    schedule.symbol_table.rename_symbol(symbol, new_name)
-                    whole_routine_scope.add(symbol)
+                    try:
+                        whole_routine_scope.add(symbol)
+                    except KeyError:
+                        new_name = whole_routine_scope.next_available_name(
+                            symbol.name, other_table=schedule.symbol_table)
+                        schedule.symbol_table.rename_symbol(symbol, new_name)
+                        whole_routine_scope.add(symbol)
 
-        # Replace the symbol table
-        node.symbol_table.detach()
-        whole_routine_scope.attach(node)
+            # Replace the symbol table
+            node.symbol_table.detach()
+            whole_routine_scope.attach(node)
 
         # Generate module imports
         imports = ""
@@ -1295,7 +1299,6 @@ class FortranWriter(LanguageWriter):
             result += f":{step}"
         return result
 
-    # pylint: disable=no-self-use
     def literal_node(self, node):
         '''This method is called when a Literal instance is found in the PSyIR
         tree.
@@ -1356,7 +1359,6 @@ class FortranWriter(LanguageWriter):
 
         return result
 
-    # pylint: enable=no-self-use
     def ifblock_node(self, node):
         '''This method is called when an IfBlock instance is found in the
         PSyIR tree.
@@ -1393,6 +1395,31 @@ class FortranWriter(LanguageWriter):
                 f"{self._nindent}if ({condition}) then\n"
                 f"{if_body}"
                 f"{self._nindent}end if\n")
+        return result
+
+    def whileloop_node(self, node):
+        '''This method is called when a WhileLoop instance is found in the
+        PSyIR tree.
+
+        :param node: a WhileLoop PSyIR node.
+        :type node: :py:class:`psyclone.psyir.nodes.WhileLoop`
+
+        :returns: the Fortran code.
+        :rtype: str
+
+        '''
+        condition = self._visit(node.condition)
+
+        self._depth += 1
+        body = ""
+        for child in node.loop_body:
+            body += self._visit(child)
+        self._depth -= 1
+
+        result = (
+            f"{self._nindent}do while ({condition})\n"
+            f"{body}"
+            f"{self._nindent}end do\n")
         return result
 
     def loop_node(self, node):
@@ -1640,6 +1667,10 @@ class FortranWriter(LanguageWriter):
             else:
                 result_list.append(self._visit(child))
         args = ", ".join(result_list)
+        if isinstance(node, IntrinsicCall) and node.routine.name in [
+                "ALLOCATE", "DEALLOCATE"]:
+            # An allocate/deallocate doesn't have 'call'.
+            return f"{self._nindent}{node.routine.name}({args})\n"
         if not node.parent or isinstance(node.parent, Schedule):
             return f"{self._nindent}call {node.routine.name}({args})\n"
         # Otherwise it is inside-expression function call

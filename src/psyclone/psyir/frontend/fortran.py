@@ -61,10 +61,11 @@ class FortranReader():
         self._processor = Fparser2Reader()
         SYMBOL_TABLES.clear()
 
-    def psyir_from_source(self, source_code):
+    def psyir_from_source(self, source_code, free_form=True):
         ''' Generate the PSyIR tree representing the given Fortran source code.
 
         :param str source_code: text representation of the code to be parsed.
+        :param bool free_form: If parsing free-form code or not (default True).
 
         :returns: PSyIR representing the provided Fortran source code.
         :rtype: :py:class:`psyclone.psyir.nodes.Node`
@@ -73,7 +74,7 @@ class FortranReader():
         SYMBOL_TABLES.clear()
         string_reader = FortranStringReader(source_code)
         # Set reader to free format.
-        string_reader.set_format(FortranFormat(True, False))
+        string_reader.set_format(FortranFormat(free_form, False))
         parse_tree = self._parser(string_reader)
         psyir = self._processor.generate_psyir(parse_tree)
         return psyir
@@ -112,7 +113,7 @@ class FortranReader():
         # that we can process the expression and lookup any symbols that it
         # references. We provide the SymbolTable directly to the private
         # attribute to avoid the symbol table's node link to connect to the
-        # new Schedule and therfore stealing it from its original scope.
+        # new Schedule and therefore stealing it from its original scope.
         # pylint: disable=protected-access
         fake_parent = Schedule()
         fake_parent._symbol_table = symbol_table
@@ -176,11 +177,14 @@ class FortranReader():
                 f"imports which might be bringing them into scope.") from err
         return fake_parent[0].detach()
 
-    def psyir_from_file(self, file_path):
+    def psyir_from_file(self, file_path, free_form=True):
         ''' Generate the PSyIR tree representing the given Fortran file.
 
         :param file_path: path of the file to be read and parsed.
         :type file_path: str or any Python Path format.
+
+        :param free_form: If parsing free-form code or not (default True).
+        :type free_form: bool
 
         :returns: PSyIR representing the provided Fortran file.
         :rtype: :py:class:`psyclone.psyir.nodes.Node`
@@ -194,7 +198,7 @@ class FortranReader():
         # that have already been done before.
 
         with open(file_path, "r") as source:
-            return self.psyir_from_source(source.read())
+            return self.psyir_from_source(source.read(), free_form=free_form)
 
 
 # For Sphinx AutoAPI documentation generation

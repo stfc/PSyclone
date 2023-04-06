@@ -31,7 +31,7 @@
 .. ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .. POSSIBILITY OF SUCH DAMAGE.
 .. -----------------------------------------------------------------------------
-.. Written by R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+.. Authors: R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 
 Working With PSyclone from GitHub
 #################################
@@ -276,8 +276,7 @@ these code snippets to be tested. For example::
     for count, indx in enumerate(access_info.component_indices.iterate()):
         psyir_index = access_info.component_indices[indx]
         # fortran writer converts a PSyIR node to Fortran:
-        print("Index-id {0} of 'a(i,j)': {1}"
-              .format(count, fortran_writer(psyir_index)))
+        print(f"Index-id {count} of 'a(i,j)': {fortran_writer(psyir_index)}")
 
   .. testoutput::
 
@@ -449,13 +448,13 @@ computational cost (so that we 'fail fast'):
  4. All links within the Sphinx documentation (rst files) are checked (see
     note below);
 
- 5. All of the examples are tested (for Python versions 3.6, 3.8 and 3.10.0)
+ 5. All of the examples are tested (for Python versions 3.7, 3.8 and 3.11)
     using the ``Makefile`` in the ``examples`` directory. No compilation is
     performed; only the ``transform`` (performs the PSyclone transformations)
     and ``notebook`` (runs the various Jupyter notebooks) targets are used.
     The ``transform`` target is run 2-way parallel (``-j 2``).
 
- 6. The full test suite is run for Python versions 3.6, 3.8 and 3.10.0 but
+ 6. The full test suite is run for Python versions 3.7, 3.8 and 3.11 but
     without the compilation checks. ``pytest`` is passed the ``-n auto`` flag
     so that it will run the tests in parallel on as many cores as are
     available (currently 2 on GHA instances).
@@ -494,7 +493,7 @@ Link checking
 
 The link checking performed for the Sphinx documentation
 uses Sphinx's `linkcheck` functionality. Some URLs are excluded from
-this checking (due to ssl isues with an outdated http server or pages
+this checking (due to ssl issues with an outdated http server or pages
 requiring authentication) and this is configured in the ``conf.py``
 file of each document.  Note also that anchors on GitHub actually have
 "user-content-" prepended but this is not shown in the links displayed

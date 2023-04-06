@@ -32,32 +32,33 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author S. Siso, STFC Daresbury Lab
-# Modified: A. R. Porter and R. W. Ford, STFC Daresbury Lab
+# Modified: A. R. Porter, R. W. Ford and N. Nobre, STFC Daresbury Lab
 # Modified: J. Henrichs, Bureau of Meteorology
 # Modified: A. B. G. Chalk, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' PSyIR nodes package module '''
 
+from psyclone.psyir.nodes.array_reference import ArrayReference
+from psyclone.psyir.nodes.array_of_structures_reference import (
+    ArrayOfStructuresReference)
+from psyclone.psyir.nodes.assignment import Assignment
+from psyclone.psyir.nodes.codeblock import CodeBlock
+from psyclone.psyir.nodes.container import Container
 from psyclone.psyir.nodes.node import colored, Node
 from psyclone.psyir.nodes.scoping_node import ScopingNode
 from psyclone.psyir.nodes.schedule import Schedule
 from psyclone.psyir.nodes.return_stmt import Return
-from psyclone.psyir.nodes.assignment import Assignment
 from psyclone.psyir.nodes.array_member import ArrayMember
 from psyclone.psyir.nodes.array_of_structures_member import \
     ArrayOfStructuresMember
 from psyclone.psyir.nodes.operation import Operation, UnaryOperation, \
     BinaryOperation, NaryOperation
 from psyclone.psyir.nodes.literal import Literal
-from psyclone.psyir.nodes.ifblock import IfBlock
+from psyclone.psyir.nodes.if_block import IfBlock
+from psyclone.psyir.nodes.intrinsic_call import IntrinsicCall
 from psyclone.psyir.nodes.reference import Reference
-from psyclone.psyir.nodes.array_reference import ArrayReference
-from psyclone.psyir.nodes.array_of_structures_reference import \
-    ArrayOfStructuresReference
 from psyclone.psyir.nodes.loop import Loop
-from psyclone.psyir.nodes.container import Container
-from psyclone.psyir.nodes.codeblock import CodeBlock
 from psyclone.psyir.nodes.extract_node import ExtractNode
 from psyclone.psyir.nodes.kernel_schedule import KernelSchedule
 from psyclone.psyir.nodes.member import Member
@@ -90,6 +91,7 @@ from psyclone.psyir.nodes.omp_clauses import OMPGrainsizeClause, \
     OMPNogroupClause, OMPNowaitClause, OMPNumTasksClause, OMPPrivateClause, \
     OMPDefaultClause, OMPReductionClause, OMPScheduleClause, \
     OMPFirstprivateClause, OMPSharedClause, OMPDependClause
+from psyclone.psyir.nodes.while_loop import WhileLoop
 
 
 # The entities in the __all__ list are made available to import directly from
@@ -109,6 +111,7 @@ __all__ = [
         'DataNode',
         'FileContainer',
         'IfBlock',
+        'IntrinsicCall',
         'Literal',
         'Loop',
         'Member',
@@ -126,6 +129,7 @@ __all__ = [
         'StructureReference',
         'UnaryOperation',
         'ScopingNode',
+        'WhileLoop',
         # PSyclone-specific nodes
         'KernelSchedule',
         # PSyData Nodes

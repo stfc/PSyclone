@@ -217,6 +217,6 @@ def test_trans_with_shape_function(monkeypatch, fortran_reader,
     # be in the list of input parameters anymore, and therefore
     transformation.apply(loop, options={"COLLECT-ARRAY-SHAPE-READS": False})
     out = fortran_writer(psyir_copy)
-    # No referene to 'dummy' should be in the created code:
+    # No reference to 'dummy' should be in the created code:
     assert 'PreDeclareVariable("dummy", dummy)' not in out
     assert 'ProvideVariable("dummy", dummy)' not in out

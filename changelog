@@ -211,6 +211,157 @@
 	73) PR #1898 towards #1708. Extends PSyAD LFRic harness support to
 	kernels with field arguments that contain geometry information.
 
+	74) PR #1982 for #1981. Updates the GHA configuration to use
+	Python 3.7 instead of 3.6.
+
+	75) PR #1956 for #1955. Updates the tests/.pylintrc file to remove
+	unsupported options.
+
+	76) PR #1888 for #1783. Adds NEMO OpenMP transformation scripts
+	to the examples.
+
+	77) PR #1933 for #1902. Adds run-time checks when hoisting
+	local work arrays.
+
+	78) PR #1963 towards #1883. More work to improving the use of PSyIR
+	in LFRic (as needed for PSyKE driver creation).
+
+	79) PR #1964 for #1961. Adds lower_to_language_level to DynLoop to
+	ensure loop variable names preserved in PSyKE driver creation.
+
+	80) PR #1952 for #310. Adds support for ACCEnterData and ACCUpdate
+	directives in the NEMO API.
+
+	81) PR #1925 for #1832. Add a 'force' option to the ParallelLoopTrans.
+
+	82) PR #1988 for #1507. Drop 'six' dependency and fix many pylint issues.
+
+	83) PR #1968 towards #1823. Fixes additional issues with module-
+	inlining in LFRic. (Interfaces, imported global variables and some
+	validation problems.)
+
+	84) PR #1996. Addendum to #1952 to cover missed lines.
+
+	85) PR #1994 for #1986. Fix issues with LFRic OMP support by skipping
+	dependence analysis for coloured loops.
+
+	86) PR #1997 for #888. Updates the handling of the '-v'
+	command-line flag for requesting version information. The
+	psyclone script will now quit after outputting the version
+	information.
+
+	87) PR #1970 for #1966. Add an overwrite_datatype option to
+	StructureReferences for when an API knows what type a DeferedType is.
+
+	88) PR #2003. Pins the Sphinx version to < 6.1 to avoid a bug in
+	the link-checking functionality. Also corrects various links to
+	the VirtualBox site.
+
+	89) PR #1972 for #1967. Ensures that proper Signatures are created
+	for structure accesses that appear in LFRic kernel arguments.
+
+	90) PR #1907 for #1366. Introduces the IntrinsicCall node and the
+	IntrinsicSymbol symbol. Adds ALLOCATE, DEALLOCATE and RANDOM_NUMBER
+	intrinsics.
+
+	91) PR #2007 for #2000. Removes pinning of Sphinx version in setup.py
+	now that the linkcheck bug has been fixed in a new release.
+
+	92) PR #1976 for #1974. Fixes issues with literal constants and
+	array accesses in VariableAccessInfo for the LFRic API.
+
+	93) PR #2015 for #2012. Fixes crash in access-information
+	collection when there is an LFRic 'domain' loop.
+
+	94) PR #2014. Extends psyir_from_source() so that the caller
+	can specify if the Fortran is in fixed format.
+
+	95) PR #1993 towards #1953. Extends the LFRicKernelMetadata
+	class to support stencil specifications.
+
+	96) PR #2020 for #2019. Fix inconsistencies in handling of precision
+	symbols
+
+	97) PR #2023 for #1975. Extends DynReferenceElement to ensure that
+	it adds related kernel arguments to KernCallArgList as PSyIR.
+
+	98) PR #2030 for #1529. Update eg19 Makefile so that compilation
+	works.
+
+	99) PR #2029 for #1567. Fix visibility issues with imported symbols.
+
+	100) PR #2024 for #1984. Fixes the dependence analysis for the case
+	where a single element of an array of fields is passed as an
+	argument to an LFRic built-in.
+
+	101) PR #1980 for #1978. Updated LFRic Infrastructure files in
+	PSyclone repository and PSyData libraries to support 32- and
+	64-bit mixed precision.
+
+	102) PR #2034 for #1864: Add support for adjoint test-harness
+	generation for kernels with operator arguments.
+
+	103) PR #2038 for #1998. Adds support for r_tran_operator_type to
+	LFRic (dynamo0.3).
+
+	104) PR #2036 for #2033. Splits core/access_info into its constiutent
+	classes and moves utility functions out of the DependencyTools
+	module.
+
+	105) PR #2056 for #2055. Extends the Reference2ArrayRange
+	transformation such that it rejects any References that are args to
+	the DEALLOCATE intrinsic.
+
+	106) PR #2047 for #2046. Adds a 'return' statement to the
+	lower_to_language_level() methods.
+
+	107) PR #2032 for #92. Forbid include statements (which should have been
+	processed by the preprocessor or fparser before PSyclone).
+
+	108) PR #1973 for #1904. Fix inlining issues with complex access
+	expressions (e.g. array offsets and partial derived types accesses).
+
+	109) PR #2044 for #1295. Changes LFRic psyir to avoid use of exec
+	and ensures that LFRicConstants is not created *before* the config.
+	file has been read.
+
+	110) PR #2066 for #1587. Introduces new DebugWriter visitor for
+	fast generation of Fortran-like content in error messages.
+
+	111) PR #1914 for #1891. Improves error handling when there are
+	undeclared arguments.
+
+	112) PR #2067 towards #1618. Fixes bugs relating to gh_sum for
+        scalars and use of any_space_* spaces in the new metadata
+	handling. Also corrects a (tested) docstring so that it sets
+	up a Config object first.
+
+	113) PR #2063. Improve search for optimisation script and handling
+	of any errors when it is imported.
+
+	114) PR #2071 for #2042. Adds support for the Fortran 'parameter'
+	statement to the fparser2 frontend.
+
+	115) PR #2068 for #352 and #1422. Adds a 'DoWhile' node to represent
+	Fortran DO WHILE and unbounded DO loops.
+
+	116) PR #2072 tidying of IfBlock following #2068.
+
+	117) PR #2061 towards #598. Improves the use of dependence analysis
+	in the OMP transformations to infer which variables are firstprivate
+	in some cases.
+
+	118) PR #2059 for #2057. Adds kernel-extraction support for the
+	NEMO API.
+
+	119) PR #2073. Fixes typos across the repo.
+
+	120) PR #2025 for #1483. Adds driver generation for LFRic kernel
+	extraction (PSyKE).
+
+	121) PR #2048 towards #1772. Implements a new MetadataToArgumentsRules
+	class using the new LFRic metadata functionality.
+
 release 2.3.1 17th of June 2022
 
 	1) PR #1747 for #1720. Adds support for If blocks to PSyAD.
@@ -1641,7 +1792,7 @@ release 1.8.0 8th November 2019
 	fparser master (contains bug fix for Python 2 installation).
 
 	39) #329 and PR #371. Removes the global psyGen.MAPPINGS_ACCESSES by
-	moving the functionality into the api-specifc config section of
+	moving the functionality into the api-specific config section of
 	the configuration file.
 
 	40) #361 and PR #365. Identify NemoKernel nodes via the PSyIR

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2022, Science and Technology Facilities Council
+# Copyright (c) 2019-2023, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,8 +32,8 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author I. Kavcic, Met Office
-# Modified by A. R. Porter, S. Siso and R. W. Ford, STFC Daresbury Lab
-# Modified by J. Henrichs, Bureau of Meteorology
+# Modified A. R. Porter, S. Siso, R. W. Ford and N. Nobre, STFC Daresbury Lab
+# Modified J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
 '''
@@ -68,7 +68,7 @@ class ExtractNode(PSyDataNode):
     :param parent: the parent of this node in the PSyIR tree.
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
     :param options: a dictionary with options provided via transformations.
-    :type options: dictionary of string:values or None
+    :type options: Optional[Dict[str, Any]]
     :param str options["prefix"]: a prefix to use for the PSyData module name \
         (``prefix_psy_data_mod``) and the PSyDataType
         (``prefix_PSyDataType``) - a "_" will be added automatically. \
@@ -174,6 +174,10 @@ class ExtractNode(PSyDataNode):
         '''
         Lowers this node (and all children) to language-level PSyIR. The
         PSyIR tree is modified in-place.
+
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
+
         '''
         # Avoid circular dependency
         # pylint: disable=import-outside-toplevel
@@ -187,7 +191,7 @@ class ExtractNode(PSyDataNode):
                    'post_var_list': output_list,
                    'post_var_postfix': self._post_name}
 
-        super().lower_to_language_level(options)
+        return super().lower_to_language_level(options)
 
 
 # For AutoAPI documentation generation

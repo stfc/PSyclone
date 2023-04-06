@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+# Copyright (c) 2017-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,7 +40,10 @@
 It provides convenience functions to create often used symbols.
 '''
 
-from psyclone.domain.lfric import LFRicConstants, psyir
+from psyclone.domain.lfric import LFRicConstants
+# Avoid circular import:
+from psyclone.domain.lfric.lfric_types import LFRicTypes
+
 from psyclone.psyir.symbols import (ArrayType, ContainerSymbol, DataSymbol,
                                     ImportInterface, INTEGER_TYPE, ScalarType,
                                     Symbol, SymbolTable)
@@ -71,12 +74,13 @@ class LFRicSymbolTable(SymbolTable):
         super().__init__(node, default_visibility)
         # First time an instance of this is created, define
         # the precision mapping.
-        if LFRicSymbolTable._constants_mod is None:
+        if not LFRicSymbolTable._precision_map:
             const = LFRicConstants()
             mod_name = const.UTILITIES_MOD_MAP["constants"]["module"]
             LFRicSymbolTable._constants_mod = ContainerSymbol(mod_name)
-            for intrinsic, precision in const.SCALAR_PRECISION_MAP.items():
-                LFRicSymbolTable._precision_map[intrinsic] = \
+
+            for precision in const.PRECISION_MAP:
+                LFRicSymbolTable._precision_map[precision] = \
                     DataSymbol(precision, INTEGER_TYPE,
                                interface=ImportInterface(self._constants_mod))
 
@@ -111,7 +115,7 @@ class LFRicSymbolTable(SymbolTable):
             except KeyError:
                 sym = None
 
-        datatype = psyir.LfricIntegerScalarDataType()
+        datatype = LFRicTypes("LFRicIntegerScalarDataType")()
         if sym is None:
             # Create a DataSymbol for this kernel argument.
             sym = self.new_symbol(name, tag=tag,
@@ -131,7 +135,9 @@ class LFRicSymbolTable(SymbolTable):
     def find_or_create_array(self, array_name, num_dimensions, intrinsic_type,
                              tag=None):
         '''This function returns a symbol for an ArrayReference. If the
-        symbol does not exist, it is created.
+        symbol does not exist, it is created. If a new array symbol is
+        created, it gets the DEFERRED attribute, which in Fortran means
+        it will be declared as an allocatable array.
 
         :param str array_name: the name and tag of the array.
         :param int num_dimensions: the number of dimensions of this array.
@@ -149,11 +155,11 @@ class LFRicSymbolTable(SymbolTable):
 
         '''
         if intrinsic_type == ScalarType.Intrinsic.REAL:
-            datatype = psyir.LfricRealScalarDataType()
+            datatype = LFRicTypes("LFRicRealScalarDataType")()
         elif intrinsic_type == ScalarType.Intrinsic.INTEGER:
-            datatype = psyir.LfricIntegerScalarDataType()
+            datatype = LFRicTypes("LFRicIntegerScalarDataType")()
         elif intrinsic_type == ScalarType.Intrinsic.BOOLEAN:
-            datatype = psyir.LfricLogicalScalarDataType()
+            datatype = LFRicTypes("LFRicLogicalScalarDataType")()
         else:
             raise TypeError(f"Unsupported data type "
                             f"'{intrinsic_type}' in "
@@ -168,7 +174,7 @@ class LFRicSymbolTable(SymbolTable):
             # pylint: disable=raise-missing-from
             # Create a DataSymbol for this kernel argument.
             array_type = ArrayType(datatype,
-                                   [ArrayType.Extent.ATTRIBUTE]*num_dimensions)
+                                   [ArrayType.Extent.DEFERRED]*num_dimensions)
 
             sym = self.new_symbol(array_name, tag=tag,
                                   symbol_type=DataSymbol,
@@ -215,26 +221,21 @@ class LFRicSymbolTable(SymbolTable):
             table but is not imported from the correct container.
 
         '''
-        if name == "i_def":
-            sym = LFRicSymbolTable._precision_map["integer"]
-        elif name == "r_def":
-            sym = LFRicSymbolTable._precision_map["real"]
-        elif name == "l_def":
-            sym = LFRicSymbolTable._precision_map["logical"]
-        else:
+        consts = LFRicConstants()
+        if name not in consts.PRECISION_MAP:
             raise ValueError(f"'{name}' is not a recognised LFRic precision.")
+        sym = LFRicSymbolTable._precision_map[name]
 
         if name in self:
             # Sanity check that the existing symbol is the right one.
             existing_sym = self.lookup(name)
             if (not isinstance(existing_sym.interface, ImportInterface) or
-                    existing_sym.interface.container_symbol !=
-                    LFRicSymbolTable._constants_mod):
+                    existing_sym.interface.container_symbol.name !=
+                    self._constants_mod.name):
                 raise ValueError(
                     f"Precision symbol '{name}' already exists in the "
                     f"supplied symbol table but is not imported from the "
-                    f"LFRic constants module "
-                    f"({LFRicSymbolTable._constants_mod.name}).")
+                    f"LFRic constants module ({self._constants_mod.name}).")
             return existing_sym
 
         # pylint: disable=undefined-variable

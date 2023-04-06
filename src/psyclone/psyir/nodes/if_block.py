@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council.
+# Copyright (c) 2017-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -38,10 +38,10 @@
 
 ''' This module contains the IfBlock node implementation.'''
 
-from psyclone.psyir.nodes.datanode import DataNode
-from psyclone.psyir.nodes.statement import Statement
-from psyclone.psyir.nodes.schedule import Schedule
 from psyclone.errors import InternalError, GenerationError
+from psyclone.psyir.nodes.datanode import DataNode
+from psyclone.psyir.nodes.schedule import Schedule
+from psyclone.psyir.nodes.statement import Statement
 
 
 class IfBlock(Statement):
@@ -66,17 +66,6 @@ class IfBlock(Statement):
     _children_valid_format = "DataNode, Schedule [, Schedule]"
     _text_name = "If"
     _colour = "red"
-
-    def __init__(self, parent=None, annotations=None):
-        super(IfBlock, self).__init__(parent=parent)
-        if annotations:
-            for annotation in annotations:
-                if annotation in IfBlock.valid_annotations:
-                    self._annotations.append(annotation)
-                else:
-                    raise InternalError(
-                        f"IfBlock with unknown annotation '{annotation}', "
-                        f"valid annotations are: {IfBlock.valid_annotations}.")
 
     @staticmethod
     def _validate_child(position, child):
@@ -147,11 +136,10 @@ class IfBlock(Statement):
         :type if_condition: :py:class:`psyclone.psyir.nodes.Node`
         :param if_body: the PSyIR nodes representing the if body of \
             the if block.
-        :type if_body: list of :py:class:`psyclone.psyir.nodes.Node`
+        :type if_body: List[:py:class:`psyclone.psyir.nodes.Node`]
         :param else_body: PSyIR nodes representing the else body of the \
-            if block of None if there is no else body (defaults to None).
-        :type else_body: list of :py:class:`psyclone.psyir.nodes.Node` or \
-            NoneType
+            if block or None if there is no else body (defaults to None).
+        :type else_body: Optional[List[:py:class:`psyclone.psyir.nodes.Node`]]
 
         :returns: an IfBlock instance.
         :rtype: :py:class:`psyclone.psyir.nodes.IfBlock`
@@ -162,43 +150,28 @@ class IfBlock(Statement):
         '''
         if not isinstance(if_body, list):
             raise GenerationError(
-                "if_body argument in create method of IfBlock class should be "
-                "a list.")
+                f"if_body argument in create method of IfBlock class should "
+                f"be a list but found '{type(if_body).__name__}'.")
         if else_body is not None and not isinstance(else_body, list):
             raise GenerationError(
-                "else_body argument in create method of IfBlock class should "
-                "be a list.")
+                f"else_body argument in create method of IfBlock class should "
+                f"be a list but found '{type(else_body).__name__}'.")
 
         if_stmt = IfBlock()
-        if_schedule = Schedule(parent=if_stmt)
-        if_schedule.children = if_body
+        if_schedule = Schedule(parent=if_stmt, children=if_body)
         if else_body is not None:
-            else_schedule = Schedule(parent=if_stmt)
-            else_schedule.children = else_body
+            else_schedule = Schedule(parent=if_stmt, children=else_body)
             if_stmt.children = [if_condition, if_schedule, else_schedule]
         else:
             if_stmt.children = [if_condition, if_schedule]
         return if_stmt
 
-    def node_str(self, colour=True):
-        ''' Returns the name of this node with (optional) control codes
-        to generate coloured output in a terminal that supports it.
-
-        :param bool colour: whether or not to include colour control codes.
-
-        :returns: description of this node, possibly coloured.
-        :rtype: str
-        '''
-        text = self.coloured_name(colour) + "["
-        if self.annotations:
-            text += "annotations='" + ','.join(self.annotations) + "'"
-        text += "]"
-        return text
-
     def __str__(self):
-        result = "If[]\n"
+        name = self._text_name
+        result = name + "[]\n"
         for entity in self._children:
             result += str(entity)
+        result += "End " + name
         return result
 
     def reference_accesses(self, var_accesses):
@@ -210,7 +183,7 @@ class IfBlock(Statement):
         :param var_accesses: VariablesAccessInfo instance that stores the \
             information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
         '''
 
         # The first child is the if condition - all variables are read-only

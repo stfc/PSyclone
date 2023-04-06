@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -61,6 +61,10 @@ class LFRicConstants():
         if LFRicConstants.HAS_BEEN_INITIALISED:
             return
 
+        if not Config.has_config_been_initialised():
+            raise InternalError("LFRicConstants is being created before the "
+                                "config file is loaded")
+
         LFRicConstants.HAS_BEEN_INITIALISED = True
         api_config = Config.get().api_conf("dynamo0.3")
 
@@ -94,13 +98,17 @@ class LFRicConstants():
         # pylint: disable=too-many-instance-attributes
 
         # Supported access types
-        LFRicConstants.VALID_SCALAR_ACCESS_TYPES = ["gh_read"]
+        # gh_sum for scalars is restricted to iterates_over == 'dof'
+        LFRicConstants.VALID_SCALAR_ACCESS_TYPES = ["gh_read", "gh_sum"]
         LFRicConstants.VALID_FIELD_ACCESS_TYPES = [
             "gh_read", "gh_write", "gh_readwrite", "gh_inc", "gh_readinc"]
         LFRicConstants.VALID_OPERATOR_ACCESS_TYPES = [
             "gh_read", "gh_write", "gh_readwrite"]
         LFRicConstants.VALID_ACCESS_TYPES = [
             "gh_read", "gh_write", "gh_readwrite", "gh_inc", "gh_readinc"]
+
+        LFRicConstants.WRITE_ACCESSES = [
+            "gh_write", "gh_readwrite", "gh_inc", "gh_readinc", "gh_sum"]
 
         # Supported LFRic API stencil types and directions
         LFRicConstants.VALID_STENCIL_TYPES = ["x1d", "y1d", "xory1d", "cross",
@@ -133,8 +141,9 @@ class LFRicConstants():
         LFRicConstants.VALID_INTRINSIC_TYPES = supported_fortran_datatypes
 
         # Valid intrinsic types for field kernel argument data
-        # ('real' and 'integer').
-        LFRicConstants.VALID_FIELD_INTRINSIC_TYPES = ["real", "integer"]
+        # ('real', 'integer', and 'logical').
+        LFRicConstants.VALID_FIELD_INTRINSIC_TYPES = ["real", "integer",
+                                                      "logical"]
 
         # ---------- Mapping from metadata data_type to Fortran intrinsic type
         LFRicConstants.MAPPING_DATA_TYPES = \
@@ -300,13 +309,16 @@ class LFRicConstants():
         # from the constants_mod.f90 file in the LFRic infrastructure. The
         # values for 'r_tran', 'r_solver' and 'r_def' are set according to
         # CPP ifdefs. The values given below are the defaults.
+        # l_def is included in this dict so that it contains a complete record
+        # of the various precision symbols used in LFRic.
         LFRicConstants.PRECISION_MAP = {"i_def": 4,
+                                        "l_def": 1,
                                         "r_def": 8,
                                         "r_double": 8,
                                         "r_ncdf": 8,
                                         "r_quad": 16,
                                         "r_single": 4,
-                                        "r_solver": 8,
+                                        "r_solver": 4,
                                         "r_tran": 8,
                                         "r_um": 8}
 
@@ -361,6 +373,13 @@ class LFRicConstants():
                 "proxy_type": "r_solver_operator_proxy_type",
                 "intrinsic": "real",
                 "kind": "r_solver"},
+            # 'real'-valued operator with data of kind 'r_tran'
+            "r_tran_operator": {
+                "module": "r_tran_operator_mod",
+                "type": "r_tran_operator_type",
+                "proxy_type": "r_tran_operator_proxy_type",
+                "intrinsic": "real",
+                "kind": "r_tran"},
             # 'real'-valued columnwise operator with data of kind 'r_solver'
             "columnwise_operator": {
                 "module": "columnwise_operator_mod",

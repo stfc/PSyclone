@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022, Science and Technology Facilities Council.
+# Copyright (c) 2022-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,7 +40,9 @@ This module implements a class that captures all the arguments
 of a Kernel as required by an `invoke` of that kernel.
 '''
 
-from psyclone.domain.lfric import ArgOrdering, LFRicConstants, psyir
+from psyclone.domain.lfric import ArgOrdering, LFRicConstants
+# Avoid circular dependency:
+from psyclone.domain.lfric.lfric_types import LFRicTypes
 from psyclone.psyir.symbols import (ArrayType, DataSymbol,
                                     DataTypeSymbol, DeferredType, SymbolTable,
                                     ContainerSymbol, ImportInterface)
@@ -66,9 +68,13 @@ class KernCallInvokeArgList(ArgOrdering):
                 f"Argument 'symbol_table' must be a SymbolTable "
                 f"instance but got '{type(symbol_table).__name__}'")
         self._symtab = symbol_table
+        # Once generate() is called, this list will contain 2-tuples, each
+        # containing a Symbol and a function space (string).
         self._fields = []
         self._scalars = []
         self._qr_objects = []
+        # Once generate() is called, this list will contain 3-tuples, each
+        # containing a Symbol and from- and to-function spaces (strings).
         self._operators = []
 
     @property
@@ -101,8 +107,10 @@ class KernCallInvokeArgList(ArgOrdering):
     def operators(self):
         '''
         :returns: the symbols representing the operators required by the \
-                  kernel.
-        :rtype: List[:py:class:`psyclone.psyir.symbols.DataSymbol`]
+                  kernel along with the names of the from- and to- function \
+                  spaces.
+        :rtype: List[Tuple[:py:class:`psyclone.psyir.symbols.DataSymbol`, \
+                           str, str]]
         '''
         return self._operators
 
@@ -114,7 +122,7 @@ class KernCallInvokeArgList(ArgOrdering):
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
         '''
         self._fields = []
         self._scalars = []
@@ -132,7 +140,7 @@ class KernCallInvokeArgList(ArgOrdering):
         :param var_accesses: optional VariablesAccessInfo instance that \
             stores information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
 
         :raises NotImplementedError: if a scalar of type other than real \
             or integer is found.
@@ -142,9 +150,9 @@ class KernCallInvokeArgList(ArgOrdering):
 
         # Create a DataSymbol for this kernel argument.
         if scalar_arg.intrinsic_type == "real":
-            datatype = psyir.LfricRealScalarDataType()
+            datatype = LFRicTypes("LFRicRealScalarDataType")()
         elif scalar_arg.intrinsic_type == "integer":
-            datatype = psyir.LfricIntegerScalarDataType()
+            datatype = LFRicTypes("LFRicIntegerScalarDataType")()
         else:
             raise NotImplementedError(
                 f"Scalar of type '{scalar_arg.intrinsic_type}' not supported.")
@@ -168,7 +176,7 @@ class KernCallInvokeArgList(ArgOrdering):
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
         '''
 
     def field_vector(self, argvect, var_accesses=None):
@@ -180,7 +188,7 @@ class KernCallInvokeArgList(ArgOrdering):
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
         ftype = self._symtab.lookup("field_type")
@@ -203,7 +211,7 @@ class KernCallInvokeArgList(ArgOrdering):
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
         ftype = self._symtab.lookup("field_type")
@@ -225,7 +233,7 @@ class KernCallInvokeArgList(ArgOrdering):
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
 
         :raises NotImplementedError: stencils are not yet supported.
 
@@ -243,7 +251,7 @@ class KernCallInvokeArgList(ArgOrdering):
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
         self.stencil(arg, var_accesses)
@@ -258,7 +266,7 @@ class KernCallInvokeArgList(ArgOrdering):
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
 
         :raises NotImplementedError: stencils are not yet supported.
 
@@ -276,7 +284,7 @@ class KernCallInvokeArgList(ArgOrdering):
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
 
         :raises NotImplementedError: stencils are not yet supported.
 
@@ -293,12 +301,28 @@ class KernCallInvokeArgList(ArgOrdering):
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
-
-        :raises NotImplementedError: operators are not yet supported.
+            :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
-        raise NotImplementedError("Operators are not yet supported.")
+        consts = LFRicConstants()
+        tmap = consts.DATA_TYPE_MAP
+        try:
+            otype = self._symtab.lookup(tmap["operator"]["type"])
+        except KeyError:
+            csym = self._symtab.new_symbol(tmap["operator"]["module"],
+                                           symbol_type=ContainerSymbol)
+            otype = self._symtab.new_symbol(tmap["operator"]["type"],
+                                            symbol_type=DataTypeSymbol,
+                                            datatype=DeferredType(),
+                                            interface=ImportInterface(csym))
+        sym = self._symtab.new_symbol(arg.name,
+                                      symbol_type=DataSymbol, datatype=otype)
+        fs_from = consts.specific_function_space(
+            arg.function_space_from.orig_name)
+        fs_to = consts.specific_function_space(arg.function_space_to.orig_name)
+        self._operators.append((sym, fs_from, fs_to))
+        self.append(sym.name, var_accesses, mode=arg.access,
+                    metadata_posn=arg.metadata_index)
 
     def quad_rule(self, var_accesses=None):
         '''Add quadrature-related information to the kernel argument list.
@@ -309,7 +333,7 @@ class KernCallInvokeArgList(ArgOrdering):
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
         lfric_const = LFRicConstants()

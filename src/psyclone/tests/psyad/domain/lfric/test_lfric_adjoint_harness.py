@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022, Science and Technology Facilities Council.
+# Copyright (c) 2022-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors: R. W. Ford, A. R. Porter and N. Nobre, STFC Daresbury Lab
 
 '''Provides py.test tests of LFRic-specific PSyclone adjoint test-harness
    functionality.'''
@@ -39,15 +39,17 @@
 import pytest
 from fparser import api as fpapi
 
-from psyclone.domain.lfric import KernCallInvokeArgList, LFRicSymbolTable
-from psyclone.domain.lfric.algorithm import (LFRicBuiltinFunctor, LFRicAlg,
-                                             LFRicBuiltinFunctorFactory)
-from psyclone.errors import InternalError
+from psyclone.domain.lfric import LFRicSymbolTable, LFRicConstants
+from psyclone.domain.lfric.algorithm import (
+    LFRicBuiltinFunctor, LFRicAlg, LFRicBuiltinFunctorFactory,
+    LFRicKernelFunctor)
+from psyclone.errors import InternalError, GenerationError
 from psyclone.psyad.domain.lfric import lfric_adjoint_harness
 from psyclone.psyad.domain.lfric.lfric_adjoint_harness import (
     _compute_lfric_inner_products,
     _compute_field_inner_products,
     _init_fields_random,
+    _init_operators_random,
     _validate_geom_arg,
     generate_lfric_adjoint_harness)
 from psyclone.psyir.nodes import Routine, Literal, Assignment
@@ -55,6 +57,12 @@ from psyclone.psyir.symbols import (DataSymbol, REAL_TYPE,
                                     ArrayType, DataTypeSymbol, DeferredType,
                                     INTEGER_TYPE, ContainerSymbol,
                                     ImportInterface, ScalarType)
+
+
+@pytest.fixture(name="type_map", scope="module")
+def lfric_consts_fixture():
+    '''pytest fixture that returns the DATA_TYPE_MAP from LFRicConstants.'''
+    return LFRicConstants().DATA_TYPE_MAP
 
 
 # _compute_lfric_inner_products
@@ -105,14 +113,16 @@ def test_compute_inner_products_fields(fortran_writer):
 
 # _compute_field_inner_products
 
-def test_compute_field_inner_products(fortran_writer):
+def test_compute_field_inner_products(fortran_writer, type_map):
     '''Check that _compute_field_inner_products generates the expected symbols,
     assignments and functors for fields.'''
     bin_factory = LFRicBuiltinFunctorFactory.get()
     table = LFRicSymbolTable()
     prog = Routine.create("test_prog", table, [], is_program=True)
-    csym = table.new_symbol("field_mod", symbol_type=ContainerSymbol)
-    fld_type = table.new_symbol("field_type", symbol_type=DataTypeSymbol,
+    csym = table.new_symbol(type_map["field"]["module"],
+                            symbol_type=ContainerSymbol)
+    fld_type = table.new_symbol(type_map["field"]["type"],
+                                symbol_type=DataTypeSymbol,
                                 datatype=DeferredType(),
                                 interface=ImportInterface(csym))
     fld1 = table.new_symbol("field1", symbol_type=DataSymbol,
@@ -136,14 +146,16 @@ def test_compute_field_inner_products(fortran_writer):
     assert "field1_field2_inner_prod = 0.0_r_def" in code
 
 
-def test_compute_field_vector_inner_products(fortran_writer):
+def test_compute_field_vector_inner_products(fortran_writer, type_map):
     '''Check that _compute_field_inner_products generates the expected symbols,
     assignments and functors for field vectors.'''
     bin_factory = LFRicBuiltinFunctorFactory.get()
     table = LFRicSymbolTable()
     prog = Routine.create("test_prog", table, [], is_program=True)
-    csym = table.new_symbol("field_mod", symbol_type=ContainerSymbol)
-    fld_type = table.new_symbol("field_type", symbol_type=DataTypeSymbol,
+    csym = table.new_symbol(type_map["field"]["module"],
+                            symbol_type=ContainerSymbol)
+    fld_type = table.new_symbol(type_map["field"]["type"],
+                                symbol_type=DataTypeSymbol,
                                 datatype=DeferredType(),
                                 interface=ImportInterface(csym))
     fld1 = table.new_symbol("field1", symbol_type=DataSymbol,
@@ -169,13 +181,15 @@ def test_compute_field_vector_inner_products(fortran_writer):
         assert f"field2_field1_inner_prod({dim}_i_def) = 0.0_r_def" in code
 
 
-def test_compute_field_inner_products_errors():
+def test_compute_field_inner_products_errors(type_map):
     '''Check that _compute_field_inner_products raises the expected errors
     when passed incorrect arguments.'''
     table = LFRicSymbolTable()
     prog = Routine.create("test_prog", table, [], is_program=True)
-    csym = table.new_symbol("field_mod", symbol_type=ContainerSymbol)
-    fld_type = table.new_symbol("field_type", symbol_type=DataTypeSymbol,
+    csym = table.new_symbol(type_map["field"]["module"],
+                            symbol_type=ContainerSymbol)
+    fld_type = table.new_symbol(type_map["field"]["type"],
+                                symbol_type=DataTypeSymbol,
                                 datatype=DeferredType(),
                                 interface=ImportInterface(csym))
     fld1 = table.new_symbol("field1", symbol_type=DataSymbol,
@@ -204,10 +218,11 @@ def test_compute_field_inner_products_errors():
 
 # _init_fields_random
 
-def test_init_fields_random():
+def test_init_fields_random(type_map):
     '''Check that the _init_fields_random() routine works as expected.'''
     table = LFRicSymbolTable()
-    fld_type = DataTypeSymbol("field_type", datatype=DeferredType())
+    fld_type = DataTypeSymbol(type_map["field"]["type"],
+                              datatype=DeferredType())
     table.add(fld_type)
     fld1 = DataSymbol("field1", datatype=fld_type)
     fields = [fld1]
@@ -226,7 +241,7 @@ def test_init_fields_random():
     assert kernels[1].children[0].symbol.name == "field1_input"
 
 
-def test_init_fields_random_vector():
+def test_init_fields_random_vector(type_map):
     '''Check that the _init_fields_random() routine works as expected for
     a field vector.
 
@@ -235,7 +250,8 @@ def test_init_fields_random_vector():
     idef_sym = table.add_lfric_precision_symbol("i_def")
     idef_type = ScalarType(ScalarType.Intrinsic.REAL, idef_sym)
 
-    fld_type = DataTypeSymbol("field_type", datatype=DeferredType())
+    fld_type = DataTypeSymbol(type_map["field"]["type"],
+                              datatype=DeferredType())
     table.add(fld_type)
     fld1 = DataSymbol("field1", datatype=ArrayType(fld_type, [3]))
     fields = [fld1]
@@ -274,6 +290,31 @@ def test_init_fields_random_error():
     assert ("Expected a field symbol to either be of ArrayType or have a type "
             "specified by a DataTypeSymbol but found Scalar<INTEGER, "
             "UNDEFINED> for field 'field1'" in str(err.value))
+
+
+# _init_operators_random
+
+def test_init_operators_random(type_map):
+    '''Check that the _init_operators_random() routine works as expected.'''
+    table = LFRicSymbolTable()
+    op_type = DataTypeSymbol(type_map["operator"]["type"],
+                             datatype=DeferredType())
+    table.add(op_type)
+    op1 = DataSymbol("op1", datatype=op_type)
+    op2 = DataSymbol("op2", datatype=op_type)
+    ops = [op1, op2]
+    table.add(op1)
+    kernels = _init_operators_random(ops, table)
+    assert len(kernels) == 2
+    assert isinstance(kernels[0], LFRicKernelFunctor)
+    assert kernels[0].symbol.name == "setop_random_kernel_type"
+    assert kernels[0].children[0].symbol is op1
+    assert kernels[1].symbol.name == "setop_random_kernel_type"
+    assert kernels[1].children[0].symbol is op2
+    csym = table.lookup("setop_random_kernel_mod")
+    assert isinstance(csym, ContainerSymbol)
+    assert (table.lookup("setop_random_kernel_type").interface.container_symbol
+            is csym)
 
 
 # _validate_geom_arg
@@ -449,45 +490,70 @@ def test_generate_lfric_adjoint_harness(fortran_reader, fortran_writer):
 
 def test_generate_lfric_adj_test_quadrature(fortran_reader):
     '''Check that input copies of quadrature arguments are not created.'''
-    new_code = TL_CODE.replace("     integer :: operates_on = cell_column\n",
-                               '''\
-    type(func_type) :: meta_funcs(1) = (/                                   &
-         func_type(W3,          GH_BASIS)                                   &
-         /)
-    integer :: operates_on = CELL_COLUMN
-    integer :: gh_shape = GH_QUADRATURE_XYOZ
-''')
+    # Change the metadata so that it requires quadrature.
+    new_code = TL_CODE.replace(
+        "     integer :: operates_on = cell_column\n",
+        "     type(func_type) :: meta_funcs(1) = (/               &\n"
+        "          func_type(W3, gh_basis)                        &\n"
+        "          /)\n"
+        "     integer :: operates_on = cell_column\n"
+        "     integer :: gh_shape = gh_quadrature_xyoz\n")
     tl_psyir = fortran_reader.psyir_from_source(new_code)
     psyir = generate_lfric_adjoint_harness(tl_psyir)
     routine = psyir.walk(Routine)[0]
     for sym in routine.symbol_table.datasymbols:
-        # All input variables should be either scalars or fields.
-        # TODO #1864 add support for operators.
+        # All input variables should be either scalars or fields (operators
+        # are never active).
         if sym.name.endswith("_input"):
             assert (sym.name.startswith("field") or
                     sym.name.startswith("rscalar"))
 
 
-def test_generate_lfric_adjoint_harness_no_operators(monkeypatch,
-                                                     fortran_reader):
-    '''Check that a kernel that has an operator as argument raises the
-    expected error. This limitation will be lifted in #1864.
+def test_generate_lfric_adjoint_harness_operator(fortran_reader,
+                                                 fortran_writer):
+    '''Check the test harness generation for a kernel that has an operator
+    as argument.
 
     '''
-    code = TL_CODE.replace("arg_type(gh_field,  gh_real, gh_write,  w3)",
-                           "arg_type(gh_operator,gh_real,gh_write,w0,w0)")
+    # Alter the metadata so that the kernel expects an operator that maps
+    # from W0 to W3.
+    code = TL_CODE.replace("arg_type(gh_field,  gh_real, gh_write,  w3)  &",
+                           "arg_type(gh_field,  gh_real, gh_write,  w3), &\n"
+                           "arg_type(gh_operator,gh_real,gh_read,w3,w0) &")
+    code = code.replace("dimension(2)", "dimension(3)")
     tl_psyir = fortran_reader.psyir_from_source(code)
-    # We have to monkeypatch KernCallInvokeArgList as that too doesn't yet
-    # support operators.
-    monkeypatch.setattr(KernCallInvokeArgList, "operator",
-                        lambda _1, _2, var_accesses=None: None)
-    monkeypatch.setattr(KernCallInvokeArgList, "operators",
-                        lambda: [1])
-    with pytest.raises(NotImplementedError) as err:
-        _ = generate_lfric_adjoint_harness(tl_psyir)
-    assert ("Kernel testkern_type has one or more operator arguments. Test "
-            "harness creation for such a kernel is not yet supported (Issue "
-            "#1864)." in str(err.value))
+    psyir = generate_lfric_adjoint_harness(tl_psyir)
+    gen = fortran_writer(psyir)
+    assert "type(operator_type) :: op_3\n" in gen
+    assert ("vector_space_w0_ptr => function_space_collection % get_fs(mesh, "
+            "element_order, w0)\n" in gen)
+    assert ("vector_space_w3_ptr => function_space_collection % get_fs(mesh, "
+            "element_order, w3)\n" in gen)
+    # Initialise takes the *to* and *from* spaces as arguments in that order.
+    assert ("call op_3 % initialise(vector_space_w3_ptr, vector_space_w0_ptr)"
+            in gen)
+    # Operator is given random values and passed to the TL kernel.
+    assert ("setop_random_kernel_type(op_3), "
+            "testkern_type(rscalar_1, field_2, op_3)" in gen)
+    # Operator is passed to the Adjoint kernel too.
+    assert "call invoke(adj_testkern_type(rscalar_1, field_2, op_3)" in gen
+
+
+def test_gen_lfric_adjoint_harness_written_operator(fortran_reader,):
+    '''Check that the test-harness generation rejects a kernel that writes to
+    an operator argument.
+
+    '''
+    # Alter the metadata so that the kernel writes to an operator.
+    code = TL_CODE.replace("arg_type(gh_field,  gh_real, gh_write,  w3)  &",
+                           "arg_type(gh_field,  gh_real, gh_write,  w3), &\n"
+                           "arg_type(gh_operator,gh_real,gh_write,w3,w0) &")
+    code = code.replace("dimension(2)", "dimension(3)")
+    tl_psyir = fortran_reader.psyir_from_source(code)
+    with pytest.raises(GenerationError) as err:
+        generate_lfric_adjoint_harness(tl_psyir)
+    assert ("Operator argument 'op_3' to TL kernel 'testkern_type' is written "
+            "to. This is not supported." in str(err.value))
 
 
 def test_generate_lfric_adjoint_harness_invalid_geom_arg(fortran_reader):
@@ -523,7 +589,8 @@ TL_CODE_WITH_GEOM = (
     "     procedure, nopass :: code => testkern_code\n"
     "  end type testkern_type\n"
     "contains\n"
-    "  subroutine testkern_code(nlayers, ascalar, cfield1, cfield2, cfield3, &\n"
+    "  subroutine testkern_code(nlayers, ascalar, cfield1, cfield2, cfield3, &"
+    "\n"
     "field, pids, ndf_wchi, undf_wchi, map_wchi, ndf_w3, undf_w3, &\n"
     "map_w3, ndf_adspace1, undf_adspace1, map_adspace1)\n"
     "    integer(kind=i_def), intent(in) :: nlayers\n"
@@ -532,9 +599,11 @@ TL_CODE_WITH_GEOM = (
     "    integer(kind=i_def), intent(in) :: ndf_adspace1, undf_adspace1\n"
     "    integer(kind=i_def), intent(in), dimension(ndf_w3) :: map_w3\n"
     "    integer(kind=i_def), intent(in), dimension(ndf_wchi) :: map_wchi\n"
-    "    integer(kind=i_def), intent(in), dimension(ndf_adspace1) :: map_adspace1\n"
+    "    integer(kind=i_def), intent(in), dimension(ndf_adspace1) :: "
+    "map_adspace1\n"
     "    real(kind=r_def), intent(in) :: ascalar\n"
-    "    real(kind=r_def), intent(inout), dimension(undf_wchi) :: cfield1, cfield2, cfield3\n"
+    "    real(kind=r_def), intent(inout), dimension(undf_wchi) :: cfield1, "
+    "cfield2, cfield3\n"
     "    real(kind=r_def), intent(inout), dimension(undf_w3) :: field\n"
     "    integer(kind=i_def), intent(in), dimension(undf_adspace1) :: pids\n"
     "    field = ascalar\n"

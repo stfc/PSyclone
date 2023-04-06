@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2022, Science and Technology Facilities Council.
+# Copyright (c) 2020-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
-# Modified S. Siso, STFC Daresbury Lab
+# Modified S. Siso and N. Nobre, STFC Daresbury Lab
 
 '''Module providing a transformation that given an Assignment node to an
 ArrayReference in its left-hand-side which has at least one PSyIR Range
@@ -42,19 +42,16 @@ to the equivalent explicit loop representation using a NemoLoop node.
 '''
 
 from __future__ import absolute_import
-from psyclone.configuration import Config
 from psyclone.domain.nemo.transformations.create_nemo_kernel_trans import \
     CreateNemoKernelTrans
 from psyclone.errors import LazyString, InternalError
 from psyclone.nemo import NemoLoop
 from psyclone.psyGen import Transformation
-from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import Range, Reference, ArrayReference, Call, \
-    Assignment, Literal, Operation, CodeBlock, ArrayMember, Loop, Routine, \
-    BinaryOperation, StructureReference, StructureMember, Node
+    Assignment, Operation, CodeBlock, ArrayMember, Routine, BinaryOperation, \
+    StructureReference, StructureMember, Node
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
-from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, DeferredType, \
-    ScalarType
+from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, ScalarType
 from psyclone.psyir.transformations.transformation_error import \
     TransformationError
 
@@ -113,7 +110,7 @@ class NemoArrayRange2LoopTrans(Transformation):
             transformations. No options are used in this \
             transformation. This is an optional argument that defaults \
             to None.
-        :type options: dict of string:values or None
+        :type options: Optional[Dict[str, Any]]
 
         '''
         self.validate(node)
@@ -191,7 +188,7 @@ class NemoArrayRange2LoopTrans(Transformation):
             transformations. No options are used in this \
             transformation. This is an optional argument that defaults \
             to None.
-        :type options: dict of string:values or None
+        :type options: Optional[Dict[str, Any]]
 
         :raises TransformationError: if the node argument is not a \
             Range, if the Range node is not part of an ArrayReference, \
@@ -239,7 +236,7 @@ class NemoArrayRange2LoopTrans(Transformation):
                     lambda: f"Error in NemoArrayRange2LoopTrans transformation"
                     f". This transformation does not support array assignments"
                     f" that contain nested Range structures, but found:"
-                    f"\n{FortranWriter()(assignment)}"))
+                    f"\n{assignment.debug_string()}"))
 
         # Does the rhs of the assignment have any operations that are not
         # elemental?
@@ -265,7 +262,7 @@ class NemoArrayRange2LoopTrans(Transformation):
                 lambda: f"Error in NemoArrayRange2LoopTrans transformation. "
                 f"This transformation does not support array assignments that"
                 f" contain a CodeBlock anywhere in the expression, but found:"
-                f"\n{FortranWriter()(assignment)}"))
+                f"\n{assignment.debug_string()}"))
         # Do not allow to transform expressions with function calls (to allow
         # this we need to differentiate between elemental and not elemental
         # functions as they have different semantics in array notation)
@@ -274,7 +271,7 @@ class NemoArrayRange2LoopTrans(Transformation):
                 lambda: f"Error in NemoArrayRange2LoopTrans transformation. "
                 f"This transformation does not support array assignments that"
                 f" contain a Call anywhere in the expression, but found:"
-                f"\n{FortranWriter()(assignment)}"))
+                f"\n{assignment.debug_string()}"))
 
         references = [n for n in nodes_to_check if isinstance(n, Reference)]
         for reference in references:

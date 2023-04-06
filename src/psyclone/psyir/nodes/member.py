@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2022, Science and Technology Facilities Council.
+# Copyright (c) 2020-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,14 +32,12 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
-# Modified by: R. W. Ford, STFC Daresbury Lab
-# Modified by J. Henrichs, Bureau of Meteorology
-# Modified by A. B. G. Chalk, STFC Daresbury Lab
+# Modified by: R. W. Ford, A. B. G. Chalk and N. Nobre, STFC Daresbury Lab
+# Modified by: J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
 ''' This module contains the implementation of the Member node.'''
 
-from __future__ import absolute_import
 
 from psyclone.core import Signature
 from psyclone.psyir.nodes.node import Node
@@ -80,7 +78,7 @@ class Member(Node):
                 f"(ArrayOf)Structure(s)Reference or (ArrayOf)Structure(s)"
                 f"Member but found '{type(parent).__name__}'.")
 
-        super(Member, self).__init__(parent=parent)
+        super().__init__(parent=parent)
         # Store the name of the component that this member represents
         self._component_name = member_name
 
@@ -122,11 +120,10 @@ class Member(Node):
 
     @property
     def is_array(self):
-        ''':returns: if this member is an array.
+        ''':returns: whether this member is an array.
         :rtype: bool
 
         '''
-        # pylint: disable=no-self-use
         return False
 
     def get_signature_and_indices(self):

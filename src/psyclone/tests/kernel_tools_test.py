@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2022, Science and Technology Facilities Council
+# Copyright (c) 2018-2023, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -41,10 +41,22 @@ import os
 import pytest
 
 from psyclone import gen_kernel_stub, kernel_tools
+from psyclone.configuration import Config
 from psyclone.domain.lfric import algorithm
 from psyclone.psyir.nodes import Container, Routine
 from psyclone.psyir.symbols import SymbolTable, DataSymbol, CHARACTER_TYPE
 from psyclone.version import __VERSION__
+
+
+def test_config_loaded_before_constants_created():
+    '''Make sure that the main entry point sets the flag that the config
+    has been loaded, before an instance of LFRicConstants is created. '''
+
+    kern_file = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                             "test_files", "dynamo0p3", "testkern_w0_mod.f90")
+    Config._HAS_CONFIG_BEEN_INITIALISED = False
+    kernel_tools.run([str(kern_file)])
+    assert Config.has_config_been_initialised() is True
 
 
 def test_run_default_mode(capsys):
@@ -82,10 +94,11 @@ def test_run(capsys, tmpdir):
 
 def test_run_version(capsys):
     ''' Test that the flag requesting version information works correctly. '''
-    with pytest.raises(SystemExit):
-        kernel_tools.run(["-v", "not-a-file.f90"])
-    result, _ = capsys.readouterr()
-    assert f"psyclone-kern version: {__VERSION__}" in result
+    for arg in ["-v", "--version"]:
+        with pytest.raises(SystemExit):
+            kernel_tools.run([arg])
+        result, _ = capsys.readouterr()
+        assert f"psyclone-kern version: {__VERSION__}" in result
 
 
 def test_run_invalid_api(capsys):

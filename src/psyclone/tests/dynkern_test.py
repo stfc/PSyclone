@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2022, Science and Technology Facilities Council.
+# Copyright (c) 2020-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,8 +40,6 @@
 pytest. At the moment the tests here do not fully cover DynKern as
 tests for other classes end up covering the rest.'''
 
-# pylint: disable=no-name-in-module
-
 import os
 import pytest
 
@@ -49,10 +47,7 @@ from fparser import api as fpapi
 
 import psyclone
 from psyclone.core import AccessType
-from psyclone.domain.lfric import LFRicConstants
-from psyclone.domain.lfric.psyir import LfricRealScalarDataSymbol, \
-    RealFieldDataDataSymbol, LfricIntegerScalarDataSymbol, \
-    NumberOfUniqueDofsDataSymbol
+from psyclone.domain.lfric import LFRicConstants, LFRicTypes
 from psyclone.dynamo0p3 import DynKernMetadata, DynKern, DynLoop
 from psyclone.errors import InternalError, GenerationError
 from psyclone.parse.algorithm import parse
@@ -269,11 +264,11 @@ def test_validate_kernel_code_arg(monkeypatch):
     real_scalar_rw_symbol = DataSymbol(
         "generic_scalar_rw", REAL_TYPE,
         interface=ArgumentInterface(ArgumentInterface.Access.READWRITE))
-    lfric_real_scalar_symbol = LfricRealScalarDataSymbol(
+    lfric_real_scalar_symbol = LFRicTypes("LFRicRealScalarDataSymbol")(
         "scalar", interface=read_access)
-    lfric_int_scalar_symbol = LfricIntegerScalarDataSymbol(
+    lfric_int_scalar_symbol = LFRicTypes("LFRicIntegerScalarDataSymbol")(
         "scalar", interface=read_access)
-    lfric_real_field_symbol = RealFieldDataDataSymbol(
+    lfric_real_field_symbol = LFRicTypes("RealFieldDataSymbol")(
         "field", dims=[1], fs="w0", interface=read_access)
 
     kernel._validate_kernel_code_arg(
@@ -312,8 +307,9 @@ def test_validate_kernel_code_arg(monkeypatch):
     assert ("Argument 'scalar' to kernel 'dummy' should be an array "
             "according to the LFRic API, but it is not." in str(info.value))
 
-    undf = NumberOfUniqueDofsDataSymbol("undf", fs="w0", interface=read_access)
-    lfric_real_field_symbol2 = RealFieldDataDataSymbol(
+    undf = LFRicTypes("NumberOfUniqueDofsDataSymbol")("undf", fs="w0",
+                                                      interface=read_access)
+    lfric_real_field_symbol2 = LFRicTypes("RealFieldDataSymbol")(
         "field", dims=[Reference(undf)], fs="w0", interface=read_access)
     # if one of the dimensions is not a datasymbol then the arguments
     # are not checked.
@@ -322,7 +318,7 @@ def test_validate_kernel_code_arg(monkeypatch):
     kernel._validate_kernel_code_arg(lfric_real_field_symbol2,
                                      lfric_real_field_symbol)
 
-    lfric_real_field_symbol3 = RealFieldDataDataSymbol(
+    lfric_real_field_symbol3 = LFRicTypes("RealFieldDataSymbol")(
         "field", dims=[Reference(undf)], fs="w0", interface=read_access)
     monkeypatch.setattr(lfric_real_field_symbol3.datatype, "_shape",
                         [Reference(undf), Reference(undf)])
@@ -343,7 +339,7 @@ def test_validate_kernel_code_arg(monkeypatch):
             "for all dimensions. However, array 'field' has a lower bound of "
             "'2' for dimension 0" in str(info.value))
 
-    lfric_real_field_symbol4 = RealFieldDataDataSymbol(
+    lfric_real_field_symbol4 = LFRicTypes("RealFieldDataSymbol")(
         "field", dims=[Reference(int_scalar_symbol)], fs="w0",
         interface=read_access)
     with pytest.raises(GenerationError) as info:
@@ -353,8 +349,8 @@ def test_validate_kernel_code_arg(monkeypatch):
         "For dimension 1 in array argument 'field' to kernel 'dummy' the "
         "following error was found: An argument to an LFRic kernel must have a"
         " precision defined by either a recognised LFRic type parameter (one "
-        "of ['i_def', 'r_def', 'r_double', 'r_ncdf', 'r_quad', 'r_single', "
-        "'r_solver', 'r_tran', 'r_um']) or an integer number of "
+        "of ['i_def', 'l_def', 'r_def', 'r_double', 'r_ncdf', 'r_quad', "
+        "'r_single', 'r_solver', 'r_tran', 'r_um']) or an integer number of "
         "bytes but argument 'generic_int_scalar' to kernel 'dummy' has "
         "precision Precision.UNDEFINED" in str(info.value))
 
@@ -381,13 +377,13 @@ def test_kern_last_cell_all_colours_errors(monkeypatch):
     kern = sched.walk(DynKern)[0]
     # Kernel is not coloured.
     with pytest.raises(InternalError) as err:
-        _ = kern.last_cell_all_colours
+        _ = kern.last_cell_all_colours_symbol
     assert "'testkern_code' is not inside a coloured loop" in str(err.value)
     # Monkeypatch the Kernel so that it appears to be coloured.
     monkeypatch.setattr(kern, "is_coloured", lambda: True)
     kern._is_intergrid = True
     with pytest.raises(InternalError) as err:
-        _ = kern.last_cell_all_colours
+        _ = kern.last_cell_all_colours_symbol
     assert ("Colourmap information for kernel 'testkern_code' has not yet "
             "been initialised" in str(err.value))
 
@@ -405,7 +401,8 @@ def test_kern_last_cell_all_colours():
     # We have to perform code generation as that sets-up the symbol table.
     # pylint:disable=pointless-statement
     psy.gen
-    assert loop.kernel.last_cell_all_colours == "last_halo_cell_all_colours"
+    assert (loop.kernel.last_cell_all_colours_symbol.name
+            == "last_halo_cell_all_colours")
 
 
 def test_kern_last_cell_all_colours_intergrid():
@@ -422,7 +419,7 @@ def test_kern_last_cell_all_colours_intergrid():
     # We have to perform code generation as that sets-up the symbol table.
     # pylint:disable=pointless-statement
     psy.gen
-    assert (loop.kernel.last_cell_all_colours ==
+    assert (loop.kernel.last_cell_all_colours_symbol.name ==
             "last_edge_cell_all_colours_field1")
 
 

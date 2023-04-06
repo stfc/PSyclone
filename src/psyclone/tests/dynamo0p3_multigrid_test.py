@@ -57,6 +57,7 @@ from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import Node
+from psyclone.psyir.symbols import Symbol
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.transformations import check_intergrid, Dynamo0p3ColourTrans, \
         DynamoOMPParallelLoopTrans, TransformationError
@@ -252,6 +253,31 @@ def test_two_grid_types(monkeypatch):
             "API assumes there are exactly two mesh types but "
             "LFRicConstants.VALID_MESH_TYPES contains 3: "
             "['gh_coarse', 'gh_fine', 'gh_medium']" in str(err.value))
+
+
+def test_dynintergrid():
+    '''Check the setters and getters for colour information in DynIntergrid
+    work as expected. '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "22.0_intergrid_prolong.f90"),
+                           api=API)
+    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    # Get the DynIntergrid object from the tree:
+    dyn_intergrid = list(psy.invokes.invoke_list[0].meshes.
+                         intergrid_kernels.values())[0]
+    # The objects will not get initialised before `gen` is called, so all
+    # values should be None initially:
+    assert dyn_intergrid.colourmap_symbol is None
+    assert dyn_intergrid.last_cell_var_symbol is None
+    assert dyn_intergrid.ncolours_var_symbol is None
+    # Now set some symbols and check that they are correct (note that
+    # there is no individual setter for these attributes).
+    dyn_intergrid.set_colour_info(Symbol("cmap"),
+                                  Symbol("ncolours"),
+                                  Symbol("last_cell"))
+    assert dyn_intergrid.colourmap_symbol.name == "cmap"
+    assert dyn_intergrid.ncolours_var_symbol.name == "ncolours"
+    assert dyn_intergrid.last_cell_var_symbol.name == "last_cell"
 
 
 def test_field_prolong(tmpdir, dist_mem):

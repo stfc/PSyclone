@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+# Copyright (c) 2017-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -49,6 +49,7 @@ from psyclone.domain.lfric import LFRicConstants
 from psyclone.domain.lfric.lfric_symbol_table import LFRicSymbolTable
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.nodes import ArrayReference, Reference
+from psyclone.psyir.symbols import ScalarType
 
 
 class ArgOrdering:
@@ -115,7 +116,7 @@ class ArgOrdering:
         :param var_accesses: optional class to store variable access \
             information.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
         :param str var_access_name: optional name of the variable for \
             which access information is stored (used e.g. when the \
             actual argument is field_proxy, but the access is to be \
@@ -153,7 +154,7 @@ class ArgOrdering:
         :param var_accesses: optional class to store variable access \
             information.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
         :param mode: optional access mode (defaults to READ).
         :type mode: Optional[:py:class:`psyclone.core.access_type.AccessType`]
         :param Optional[List[int]] list_metadata_posn: list of metadata \
@@ -333,7 +334,7 @@ class ArgOrdering:
         :param var_accesses: optional VariablesAccessInfo instance that \
             stores the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
 
         :raises GenerationError: if the kernel arguments break the \
                                  rules for the LFRic API.
@@ -513,7 +514,7 @@ class ArgOrdering:
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
 
@@ -525,7 +526,7 @@ class ArgOrdering:
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
 
@@ -536,7 +537,7 @@ class ArgOrdering:
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
 
@@ -547,7 +548,7 @@ class ArgOrdering:
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
 
@@ -558,7 +559,7 @@ class ArgOrdering:
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
 
@@ -573,7 +574,7 @@ class ArgOrdering:
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
 
@@ -588,7 +589,7 @@ class ArgOrdering:
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
 
@@ -602,7 +603,7 @@ class ArgOrdering:
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
 
@@ -617,7 +618,7 @@ class ArgOrdering:
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
 
@@ -632,7 +633,7 @@ class ArgOrdering:
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
 
@@ -648,7 +649,7 @@ class ArgOrdering:
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
 
@@ -664,7 +665,7 @@ class ArgOrdering:
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
 
@@ -680,7 +681,7 @@ class ArgOrdering:
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
 
@@ -696,7 +697,7 @@ class ArgOrdering:
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
 
@@ -710,7 +711,7 @@ class ArgOrdering:
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
 
@@ -724,7 +725,7 @@ class ArgOrdering:
         :param var_accesses: optional VariablesAccessInfo instance that \
             stores information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
 
         :raises InternalError: if the argument is not a recognised scalar type.
 
@@ -736,8 +737,14 @@ class ArgOrdering:
                 f"{const.VALID_SCALAR_NAMES} but got "
                 f"'{scalar_arg.argument_type}'")
 
-        self.append(scalar_arg.name, var_accesses, mode=scalar_arg.access,
-                    metadata_posn=scalar_arg.metadata_index)
+        if scalar_arg.is_literal:
+            # If we have a literal, do not add it to the variable access
+            # information. We do this by providing None as var access.
+            self.append(scalar_arg.name, None, mode=scalar_arg.access,
+                        metadata_posn=scalar_arg.metadata_index)
+        else:
+            self.append(scalar_arg.name, var_accesses, mode=scalar_arg.access,
+                        metadata_posn=scalar_arg.metadata_index)
 
     def fs_common(self, function_space, var_accesses=None):
         '''Add function-space related arguments common to LMA operators and
@@ -749,7 +756,7 @@ class ArgOrdering:
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
         # There is currently one argument: "ndf"
@@ -766,7 +773,7 @@ class ArgOrdering:
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
 
@@ -780,7 +787,7 @@ class ArgOrdering:
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
 
@@ -795,7 +802,7 @@ class ArgOrdering:
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
 
@@ -811,7 +818,7 @@ class ArgOrdering:
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
 
@@ -825,7 +832,7 @@ class ArgOrdering:
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
 
@@ -840,7 +847,7 @@ class ArgOrdering:
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
 
@@ -853,7 +860,7 @@ class ArgOrdering:
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
 
@@ -866,7 +873,7 @@ class ArgOrdering:
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
 
@@ -879,13 +886,15 @@ class ArgOrdering:
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
         # Note that the necessary ndf values will already have been added
         # to the argument list as they are mandatory for every function
         # space that appears in the meta-data.
-        sym = self.append_integer_reference(function_space.cbanded_map_name)
+        sym = self.append_array_reference(
+            function_space.cbanded_map_name, indices=[":", ":"],
+            intrinsic_type=ScalarType.Intrinsic.INTEGER)
         self.append(sym.name, var_accesses)
 
     def indirection_dofmap(self, function_space, operator=None,
@@ -901,11 +910,13 @@ class ArgOrdering:
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
         # pylint: disable=unused-argument
         map_name = function_space.cma_indirection_map_name
+        self.append_array_reference(map_name, [":"],
+                                    ScalarType.Intrinsic.INTEGER, tag=map_name)
         self.append(map_name, var_accesses)
 
     def ref_element_properties(self, var_accesses=None):
@@ -915,15 +926,19 @@ class ArgOrdering:
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
         if self._kern.reference_element.properties:
             # Avoid circular import
             # pylint: disable=import-outside-toplevel
             from psyclone.dynamo0p3 import DynReferenceElement
-            refelem_args = DynReferenceElement(self._kern).kern_args()
-            self.extend(refelem_args, var_accesses)
+            refelem_args_symbols = \
+                DynReferenceElement(self._kern).kern_args_symbols()
+            for symbol in refelem_args_symbols:
+                # All kernel arguments are simple references:
+                self.psyir_append(Reference(symbol))
+                self.append(symbol.name, var_accesses)
 
 
 # ============================================================================

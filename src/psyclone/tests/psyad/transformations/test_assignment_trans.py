@@ -30,7 +30,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors: R. W. Ford, A. R. Porter and N. Nobre, STFC Daresbury Lab
 # Modified by J. Henrichs, Bureau of Meteorology
 #
 '''Module to test the psyad assignment transformation.'''
@@ -468,7 +468,7 @@ def test_increment_add_reorder(tmpdir, index_str):
         f"  integer :: i\n"
         f"  integer :: k\n\n"
         f"  b({index_str}) = b({index_str}) + a({index_str})\n"
-        f"  a({index_str}) = k * a({index_str})\n\n".format(index_str))
+        f"  a({index_str}) = k * a({index_str})\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
 
 
@@ -981,7 +981,7 @@ def test_validate_rhs_term_active(operator, string):
     trans = AssignmentTrans(active_variables=[lhs_symbol, rhs_symbol1])
     with pytest.raises(TangentLinearError) as info:
         trans.validate(assignment)
-    assert (f"Each non-zero term on the RHS of the assigment 'a = b "
+    assert (f"Each non-zero term on the RHS of the assignment 'a = b "
             f"{string} c\n' must have an active variable but 'c' does "
             f"not." in str(info.value))
 
@@ -1005,7 +1005,7 @@ def test_validate_rhs_assign():
     trans = AssignmentTrans(active_variables=[lhs_symbol])
     with pytest.raises(TangentLinearError) as info:
         trans.validate(assignment)
-    assert ("Each non-zero term on the RHS of the assigment 'a = 1.0\n' must "
+    assert ("Each non-zero term on the RHS of the assignment 'a = 1.0\n' must "
             "have an active variable but '1.0' does not." in str(info.value))
 
 
@@ -1028,7 +1028,7 @@ def test_validate_rhs_term_multi_active():
         lhs_symbol, rhs_symbol1, rhs_symbol2])
     with pytest.raises(TangentLinearError) as info:
         trans.validate(assignment)
-    assert ("Each term on the RHS of the assigment 'a = b * c\n' must not "
+    assert ("Each term on the RHS of the assignment 'a = b * c\n' must not "
             "have more than one active variable but 'b * c' has 2."
             in str(info.value))
 

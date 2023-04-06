@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2022, Science and Technology Facilities Council.
+# Copyright (c) 2019-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -47,6 +47,7 @@ from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
 from psyclone.errors import InternalError, GenerationError
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory, Kern
+from psyclone.psyir.backend.debug_writer import DebugWriter
 from psyclone.psyir.nodes import Schedule, Reference, Container, Routine, \
     Assignment, Return, Loop, Literal, Statement, node, KernelSchedule, \
     BinaryOperation, ArrayReference, Call, Range
@@ -205,7 +206,7 @@ def test_node_view():
         " Literal[value:'1', Scalar<INTEGER, UNDEFINED>]\n")
     assert result == expected
 
-    # diferent depth
+    # different depth
     result = range_node.view(colour=False, indent="--", depth=1)
     expected = (
         "--Range[]\n"
@@ -1038,7 +1039,10 @@ def test_lower_to_language_level(monkeypatch):
     testnode.children = [node1, node2]
 
     # Execute method
-    testnode.lower_to_language_level()
+    lowered = testnode.lower_to_language_level()
+
+    # The generic version returns itself
+    assert testnode is lowered
 
     # Check all children have been visited
     for child in testnode.children:
@@ -1387,3 +1391,11 @@ def test_equality():
                               Literal("2", INTEGER_TYPE))
     parent1.addchild(three)
     assert parent1 != parent2
+
+
+def test_debug_string(monkeypatch):
+    ''' Test that the debug_string() method calls the DebugWriter '''
+
+    monkeypatch.setattr(DebugWriter, "__call__", lambda x, y: "CORRECT STRING")
+    tnode = Node()
+    assert tnode.debug_string() == "CORRECT STRING"

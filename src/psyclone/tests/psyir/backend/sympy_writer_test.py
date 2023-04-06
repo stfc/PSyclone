@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,6 +33,8 @@
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
 # Modified: R. W. Ford, STFC Daresbury Lab
+#           A. R. Porter, STFC Daresbury Lab
+#           S. Siso, STFC Daresbury Lab
 
 ''' Module containing py.test tests the SymPy writer.'''
 
@@ -54,6 +56,28 @@ def test_sym_writer_constructor():
     # Also test that not specifying a type map as argument works:
     sympy_writer = SymPyWriter()
     assert sympy_writer._sympy_type_map == {}
+    assert sympy_writer._DISABLE_LOWERING is True
+
+
+def test_sym_writer_lowering_disabled(monkeypatch):
+    '''Test that by default this Writer does not attempt to lower higher
+    abstraction nodes into language level nodes. We also test that with
+    _DISABLE_LOWERING set to False the same situation would produce an error.
+    '''
+    def error(_):
+        ''' Produce an error '''
+        raise NotImplementedError()
+
+    monkeypatch.setattr(Literal, "lower_to_language_level", error)
+    lit = Literal("true", BOOLEAN_TYPE)
+    sympy_writer = SymPyWriter()
+    sympy_writer(lit)  # No error should be raised here
+
+    # Without disabling lowering it would fail with a VisitorError
+    sympy_writer._DISABLE_LOWERING = False
+    with pytest.raises(VisitorError) as err:
+        sympy_writer(lit)
+    assert "Failed to lower 'Literal" in str(err.value)
 
 
 def test_sym_writer_boolean():
@@ -90,12 +114,13 @@ def test_sym_writer_int_constants(fortran_reader, expressions):
     # A dummy program to easily create the PSyIR for the
     # expressions we need. We just take the RHS of the assignments
     source = f'''program test_prog
+                use some_mod
                 integer :: x
                 x = {expressions[0]}
                 end program test_prog '''
     psyir = fortran_reader.psyir_from_source(source)
-    # psyir is a FileContainer, its first children the program, and its
-    # first children the assignment, of which we take the right hand side
+    # psyir is a FileContainer, its first child the program, and its
+    # first child the assignment, of which we take the right hand side
     lit = psyir.children[0].children[0].rhs
 
     type_map = SymPyWriter.create_type_map([])

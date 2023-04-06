@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford and N. Nobre, STFC Daresbury Lab
+# Authors: R. W. Ford, N. Nobre and S. Siso, STFC Daresbury Lab
 # Modified: J. Henrichs, Bureau of Meteorology
 
 '''This module contains the HoistTrans transformation. HoistTrans
@@ -97,7 +97,7 @@ class HoistTrans(Transformation):
         :param node: target PSyIR node.
         :type node: subclass of :py:class:`psyclone.psyir.nodes.Assignment`
         :param options: a dictionary with options for transformations.
-        :type options: dictionary of string:values or None
+        :type options: Optional[Dict[str, Any]]
 
         '''
         self.validate(node, options)
@@ -121,7 +121,7 @@ class HoistTrans(Transformation):
         :param node: target PSyIR node.
         :type node: subclass of :py:class:`psyclone.psyir.nodes.Assignment`
         :param options: a dictionary with options for transformations.
-        :type options: dict of str:values or None
+        :type options: Optional[Dict[str, Any]]
 
         :raises TransformationError: if the supplied node is not an \
             assignment.
@@ -141,7 +141,7 @@ class HoistTrans(Transformation):
         parent_loop = node.ancestor(Loop)
         if not parent_loop:
             raise TransformationError(
-                f"The supplied assignment node '{self._writer(node)}' should "
+                f"The supplied assignment node '{node.debug_string()}' should "
                 f"be within a loop, but no loop was found.")
 
         # The assignment should be directly within a loop i.e. no other
@@ -150,9 +150,9 @@ class HoistTrans(Transformation):
         while current is not parent_loop:
             if not isinstance(current, Schedule):
                 raise TransformationError(
-                    f"The supplied assignment node '{self._writer(node)}' "
+                    f"The supplied assignment node '{node.debug_string()}' "
                     f"should be directly within a loop but found "
-                    f"'{self._writer(current)}'.")
+                    f"'{current.debug_string()}'.")
             current = current.parent
 
         # Check dependency issues that might prevent hoisting:
@@ -218,7 +218,7 @@ class HoistTrans(Transformation):
             # first write access that is to be hoisted:
             accesses_in_loop = all_loop_vars[written_sig]
             if accesses_in_loop.is_accessed_before(written_node):
-                code = self._writer(statement).strip()
+                code = statement.debug_string().strip()
                 raise TransformationError(f"The statement '{code}' can't be "
                                           f"hoisted as variable "
                                           f"'{written_sig}' is accessed "
@@ -251,7 +251,7 @@ class HoistTrans(Transformation):
             # Get all access to this variable in the whole loop
             accesses_in_loop = all_loop_vars[read_sig]
             if accesses_in_loop.is_written():
-                code = self._writer(statement).strip()
+                code = statement.debug_string().strip()
                 raise TransformationError(f"The statement '{code}' can't be "
                                           f"hoisted as it reads variable "
                                           f"'{read_sig}' which is written "

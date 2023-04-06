@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors: R. W. Ford, A. R. Porter, N. Nobre and S. Siso, STFC Daresbury Lab
 
 '''A PSyIR visitor for PSyAD : the PSyclone Adjoint support. Applies
 transformations to tangent-linear PSyIR to return its PSyIR adjoint.
@@ -59,28 +59,19 @@ class AdjointVisitor(PSyIRVisitor):
 
     :param active_variable_names: a list of the active variables.
     :type active_variable_names: list of str
-    :param writer: the writer to use when outputting PSyIR in error or \
-        logging messages. Defaults to FortranWriter.
-    :type writer: \
-        :py:class:`psyclone.psyir.backend.language_writer.LanguageWriter`
 
     :raises ValueError: if no active variables are supplied.
 
     '''
-    def __init__(self, active_variable_names, writer=FortranWriter()):
+    def __init__(self, active_variable_names):
         super(AdjointVisitor, self).__init__()
         if not active_variable_names:
             raise ValueError(
                 "There should be at least one active variable supplied to "
                 "an AdjointVisitor.")
-        if not isinstance(writer, LanguageWriter):
-            raise TypeError(
-                "The writer argument should be a subclass of LanguageWriter "
-                "but found '{0}'.".format(type(writer).__name__))
         self._active_variable_names = active_variable_names
         self._active_variables = None
         self._logger = logging.getLogger(__name__)
-        self._writer = writer
 
     def container_node(self, node):
         '''This method is called if the visitor finds a Container node. A copy
@@ -307,12 +298,12 @@ class AdjointVisitor(PSyIRVisitor):
                         raise VisitorError(
                             f"The {description} of a loop should not contain "
                             f"active variables, but found '{ref.name}' in "
-                            f"'{self._writer(expr)}'.")
+                            f"'{expr.debug_string()}'.")
 
         if node_is_active(Reference(node.variable), self._active_variables):
             raise VisitorError(
-                "The loop iterator '{0}' should not be an active "
-                "variable.".format(node.variable.name))
+                f"The loop iterator '{node.variable.name}' should not be an "
+                f"active variable.")
 
         if node_is_passive(node, self._active_variables):
             raise VisitorError(
@@ -345,7 +336,7 @@ class AdjointVisitor(PSyIRVisitor):
             step_str = fortran_writer(node.step_expr)
             # TODO: use language independent PSyIR, see issue #1345
             ptree = Fortran2003.Intrinsic_Function_Reference(
-                "mod({0}-{1},{2})".format(hi_str, lo_str, step_str))
+                f"mod({hi_str}-{lo_str},{step_str})")
             offset = CodeBlock([ptree], CodeBlock.Structure.EXPRESSION)
 
         # We only need to copy this node and its bounds. Issue #1440
@@ -397,7 +388,7 @@ class AdjointVisitor(PSyIRVisitor):
 
         if node_is_active(node.condition, self._active_variables):
             raise VisitorError(
-                f"The if condition '{self._writer(node.condition)}' of an "
+                f"The if condition '{node.condition.debug_string()}' of an "
                 f"ifblock node should not contain an active variable (one or "
                 f"more of {self._active_variable_names}).")
 

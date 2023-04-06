@@ -77,7 +77,19 @@ EXCLUDED_FILES = [
     "mpp_map.f90", "obs_mpp.f90", "icblbc.f90",
     "timing.f90", "lib_mpp.f90", "nemogcm.f90",
     # Fns defined within fn are lost
-    "storng.f90"]
+    "storng.f90",
+    # abort intrinsic not recognised
+    "mpp_io.f90",
+    # TODO #1960: There is a bug on a WHERE fparser2 frontend processing
+    "sbccpl.f90",
+    # TODO #1902: Excluded to avoid HoistLocalArraysTrans bug
+    "mpp_ini.f90",
+
+    # TODO # 1142: The following issue only affects the ECMWF Nemo code.
+    # Currently we have to manually uncomment the line below to process ECMWF
+    # NEMO but this can be improved resolving the referenced issue.
+    # "lbclnk.f90",  # has mpif.h in the ECMWF version
+    ]
 
 
 if __name__ == "__main__":
@@ -96,6 +108,10 @@ if __name__ == "__main__":
                         help="PSyclone transformation script")
     PARSER.add_argument('-x', dest='exit_on_error', action='store_true',
                         help="Exit immediately if PSyclone fails")
+    PARSER.add_argument('-p', dest='profile', action='store_true',
+                        help="Add profiling instrumentation to the "
+                             "PROFILE_ONLY list of files. Script-processed "
+                             "files are not affected by this argument.")
     ARGS = PARSER.parse_args()
 
     # Check whether the PSyclone command has been specified in an environment
@@ -118,14 +134,14 @@ if __name__ == "__main__":
             out_file = file_name
 
         args = [PSYCLONE_CMD, "--limit", "output", "-api", "nemo"]
-        if file_name in EXCLUDED_FILES:
-            print(f"Skipping {ffile} entirely.")
-            continue
-        if file_name in PROFILE_ONLY:
+        if file_name in PROFILE_ONLY and ARGS.profile:
             print(f"Instrumenting {file_name} for profiling...")
             extra_args = ["-p", "invokes",
                           "-oalg", "/dev/null",
                           "-opsy", out_file, ffile]
+        elif file_name in EXCLUDED_FILES or file_name in PROFILE_ONLY:
+            print(f"Skipping {ffile} entirely.")
+            continue
         else:
             print(f"Processing {file_name}...")
             extra_args = []

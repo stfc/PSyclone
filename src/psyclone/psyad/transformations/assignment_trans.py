@@ -1,6 +1,6 @@
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -30,7 +30,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors: R. W. Ford, A. R. Porter, N. Nobre and S. Siso, STFC Daresbury Lab
 # Modified by J. Henrichs, Bureau of Meteorology
 
 '''This module contains a transformation that replaces a PSyIR
@@ -66,7 +66,7 @@ class AssignmentTrans(AdjointTransformation):
         :param node: an Assignment node.
         :type node: :py:class:`psyclone.psyir.nodes.Assignment`
         :param options: a dictionary with options for transformations.
-        :type options: dict of string:values or None
+        :type options: Optional[Dict[str, Any]]
 
         '''
         self.validate(node)
@@ -203,7 +203,7 @@ class AssignmentTrans(AdjointTransformation):
                 f"Assignment is to an array range but found a "
                 f"reference to the LHS variable "
                 f"'{assign.lhs.symbol.name}' without array notation"
-                f" on the RHS: '{self._writer(assign)}'")
+                f" on the RHS: '{assign.debug_string()}'")
 
         sym_maths = SymbolicMaths.get()
 
@@ -223,7 +223,7 @@ class AssignmentTrans(AdjointTransformation):
                     f"Different sections of the same active array "
                     f"'{assign.lhs.symbol.name}' are "
                     f"accessed on the LHS and RHS of an assignment: "
-                    f"'{self._writer(assign)}'. This is not supported.")
+                    f"'{assign.debug_string()}'. This is not supported.")
 
     def validate(self, node, options=None):
         '''Perform various checks to ensure that it is valid to apply the
@@ -232,7 +232,7 @@ class AssignmentTrans(AdjointTransformation):
         :param node: the node that is being checked.
         :type node: :py:class:`psyclone.psyir.nodes.Assignment`
         :param options: a dictionary with options for transformations.
-        :type options: dict of string:values or None
+        :type options: Optional[Dict[str, Any]]
 
         :raises TransformationError: if the node argument is not an \
             Assignment.
@@ -252,7 +252,7 @@ class AssignmentTrans(AdjointTransformation):
             var.name for var in assign.walk(Reference)
             if var.symbol in self._active_variables]
         if not assignment_active_var_names:
-            # No active variables in this assigment so the assignment
+            # No active variables in this assignment so the assignment
             # remains unchanged.
             return
 
@@ -260,7 +260,7 @@ class AssignmentTrans(AdjointTransformation):
         if assign.lhs.symbol not in self._active_variables:
             # There are active vars on RHS but not on LHS
             raise TangentLinearError(
-                f"Assignment node '{self._writer(assign)}' has the following "
+                f"Assignment node '{assign.debug_string()}' has the following "
                 f"active variables on its RHS '{assignment_active_var_names}' "
                 f"but its LHS '{assign.lhs.name}' is not an active variable.")
 
@@ -297,16 +297,16 @@ class AssignmentTrans(AdjointTransformation):
             if not active_vars:
                 # This term must contain an active variable
                 raise TangentLinearError(
-                    f"Each non-zero term on the RHS of the assigment "
-                    f"'{self._writer(assign)}' must have an active variable "
-                    f"but '{self._writer(rhs_term)}' does not.")
+                    f"Each non-zero term on the RHS of the assignment "
+                    f"'{assign.debug_string()}' must have an active variable "
+                    f"but '{rhs_term.debug_string()}' does not.")
 
             if len(active_vars) > 1:
                 # This term can only contain one active variable
                 raise TangentLinearError(
-                    f"Each term on the RHS of the assigment "
-                    f"'{self._writer(assign)}' must not have more than one "
-                    f"active variable but '{self._writer(rhs_term)}' has "
+                    f"Each term on the RHS of the assignment "
+                    f"'{assign.debug_string()}' must not have more than one "
+                    f"active variable but '{rhs_term.debug_string()}' has "
                     f"{len(active_vars)}.")
 
             if (isinstance(rhs_term, Reference) and rhs_term.symbol
@@ -345,9 +345,9 @@ class AssignmentTrans(AdjointTransformation):
             else:
                 raise TangentLinearError(
                     f"Each term on the RHS of the assignment "
-                    f"'{self._writer(assign)}' must be linear with respect "
+                    f"'{assign.debug_string()}' must be linear with respect "
                     f"to the active variable, but found "
-                    f"'{self._writer(rhs_term)}'.")
+                    f"'{rhs_term.debug_string()}'.")
 
             # The term must be a product of an active variable with an
             # inactive expression. Check that the active variable does
@@ -365,8 +365,8 @@ class AssignmentTrans(AdjointTransformation):
                     raise TangentLinearError(
                         f"In tangent-linear code an active variable cannot "
                         f"appear as a denominator but "
-                        f"'{self._writer(rhs_term)}' was found in "
-                        f"'{self._writer(assign)}'.")
+                        f"'{rhs_term.debug_string()}' was found in "
+                        f"'{assign.debug_string()}'.")
                 # Continue up the PSyIR tree
                 candidate = parent
                 parent = candidate.parent

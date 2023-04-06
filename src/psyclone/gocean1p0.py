@@ -2,7 +2,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+# Copyright (c) 2017-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -1083,7 +1083,7 @@ class GOKern(CodedKern):
         :param var_accesses: VariablesAccessInfo instance that stores the\
             information about the field accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
         # Query each possible stencil direction and add a corresponding
@@ -1105,7 +1105,7 @@ class GOKern(CodedKern):
         :param var_accesses: VariablesAccessInfo instance that stores the\
             information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
         # Grid properties are accessed using one of the fields. This stores
@@ -1813,7 +1813,7 @@ class GOStencil():
             # order
             for idx0 in range(3):
                 for idx1 in range(3):
-                    # The j coordincate needs to be 'reversed': the first
+                    # The j coordinate needs to be 'reversed': the first
                     # row (index 0 in args) is 'top', which should be
                     # accessed using '+1', and the last row (index 2 in args)
                     # needs to be accessed using '-1' (see depth()). Using
@@ -2151,8 +2151,8 @@ class GOACCEnterDataDirective(ACCEnterDataDirective):
         container = fortran_reader.psyir_from_source(code)
         subroutine = container.children[0]
         # Add an ACCUpdateDirective inside the subroutine
-        symbol = subroutine.symbol_table.lookup("to")
-        subroutine.addchild(ACCUpdateDirective(symbol, "host"))
+        subroutine.addchild(ACCUpdateDirective([Signature("to")], "host",
+                                               if_present=False))
 
         # Rename subroutine
         subroutine.name = subroutine_name
@@ -2173,6 +2173,9 @@ class GOACCEnterDataDirective(ACCEnterDataDirective):
         constructs. In addition to calling this method in the base class, the
         GOACCEnterDataDirective sets up the 'data_on_device' flag for
         each of the fields accessed.
+
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
         self._acc_dirs = self.ancestor(InvokeSchedule).walk(
@@ -2201,7 +2204,7 @@ class GOACCEnterDataDirective(ACCEnterDataDirective):
 
             self.parent.children.insert(self.position, codeblock)
 
-        super().lower_to_language_level()
+        return super().lower_to_language_level()
 
 
 class GOKernelSchedule(KernelSchedule):
@@ -2238,6 +2241,9 @@ class GOHaloExchange(HaloExchange):
         PSyIR constructs. A GOHaloExchange is replaced by a call to the
         appropriate library method.
 
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
+
         '''
         # TODO 856: Wrap Halo call with an is_dirty flag when necessary.
 
@@ -2251,6 +2257,7 @@ class GOHaloExchange(HaloExchange):
                                 self._halo_exchange_name)
         call_node = Call.create(rsymbol, [Literal("1", INTEGER_TYPE)])
         self.replace_with(call_node)
+        return call_node
 
 
 # For Sphinx AutoAPI documentation generation

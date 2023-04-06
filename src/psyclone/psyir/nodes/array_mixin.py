@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+# Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 #         I. Kavcic, Met Office
 #         J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
@@ -49,9 +49,9 @@ from psyclone.psyir.nodes.member import Member
 from psyclone.psyir.nodes.operation import Operation, BinaryOperation
 from psyclone.psyir.nodes.ranges import Range
 from psyclone.psyir.nodes.reference import Reference
-from psyclone.psyir.symbols import SymbolError, DataSymbol
-from psyclone.psyir.symbols.datatypes import (ScalarType, ArrayType,
-                                              INTEGER_TYPE)
+from psyclone.psyir.symbols import SymbolError, DataSymbol, DataTypeSymbol
+from psyclone.psyir.symbols.datatypes import (
+    ScalarType, ArrayType, DeferredType, UnknownType, INTEGER_TYPE)
 
 
 class ArrayMixin(metaclass=abc.ABCMeta):
@@ -80,7 +80,6 @@ class ArrayMixin(metaclass=abc.ABCMeta):
         :rtype: bool
 
         '''
-        # pylint: disable=no-self-use
         return True
 
     def get_signature_and_indices(self):
@@ -166,8 +165,9 @@ class ArrayMixin(metaclass=abc.ABCMeta):
                         and isinstance(array_bounds.lower, Literal)):
                     if lower.value == array_bounds.lower.value:
                         return True
-            except (KeyError, SymbolError):
-                # Can't find symbol declaration
+            except (KeyError, SymbolError, AttributeError):
+                # If any issue is found we can not guarantee that it is
+                # the lower bound
                 pass
             return False
 
@@ -187,6 +187,80 @@ class ArrayMixin(metaclass=abc.ABCMeta):
                 and lower.children[1].value == str(index+1)):
             return False
         return True
+
+    def get_lbound_expression(self, pos):
+        '''
+        Lookup the lower bound of this ArrayMixin. If we don't have the
+        necessary type information then a call to the LBOUND intrinsic is
+        constructed and returned.
+
+        :param int pos: the dimension of the array for which to lookup the \
+                        lower bound.
+
+        :returns: the declared lower bound for the specified dimension of \
+            the array accesed or a call to the LBOUND intrinsic if it is \
+            unknown.
+        :rtype: :py:class:`psyclone.psyir.nodes.Node`
+
+        '''
+        # First, walk up to the parent reference and get its type. For a simple
+        # ArrayReference this will just be self.
+        root_ref = self.ancestor(Reference, include_self=True)
+        cursor_type = root_ref.symbol.datatype
+
+        # Walk back down the structure, looking up the type information as we
+        # go. We also collect the necessary information for creating a new
+        # Reference as argument to the LBOUND intrinsic in case the type
+        # information is not available.
+        cnames = []
+        cursor = root_ref
+        while cursor is not self:
+            cursor = cursor.member
+            # Collect member information.
+            if isinstance(cursor, ArrayMixin):
+                new_indices = [idx.copy() for idx in cursor.indices]
+                cnames.append((cursor.name, new_indices))
+            else:
+                cnames.append(cursor.name)
+            # Continue to resolve datatype unless we hit an
+            # UnknownType or DeferredType.
+            if isinstance(cursor_type, ArrayType):
+                cursor_type = cursor_type.intrinsic
+            if isinstance(cursor_type, DataTypeSymbol):
+                cursor_type = cursor_type.datatype
+            if isinstance(cursor_type, (UnknownType, DeferredType)):
+                continue
+            cursor_type = cursor_type.components[cursor.name].datatype
+
+        if (isinstance(cursor_type, ArrayType) and
+                cursor_type.shape[pos] not in [ArrayType.Extent.DEFERRED,
+                                               ArrayType.Extent.ATTRIBUTE]):
+            # We have the full type information and the lower bound is known.
+            return cursor_type.shape[pos].lower.copy()
+
+        # We've either failed to resolve the type or we don't know the extent
+        # of the array dimension so construct a call to the LBOUND intrinsic.
+        if cnames:
+            # We have some sort of structure access - remove any indexing
+            # information from the ultimate member of the structure access.
+            if len(cnames[-1]) == 2:
+                cnames[-1] = cnames[-1][0]
+            # Have to import here to avoid circular dependencies.
+            # pylint: disable=import-outside-toplevel
+            from psyclone.psyir.nodes import (ArrayOfStructuresReference,
+                                              StructureReference)
+            if isinstance(root_ref, ArrayMixin):
+                new_indices = [idx.copy() for idx in root_ref.indices]
+                ref = ArrayOfStructuresReference.create(
+                    root_ref.symbol, new_indices, cnames)
+            else:
+                ref = StructureReference.create(root_ref.symbol, cnames)
+        else:
+            # A simple Reference.
+            ref = Reference(root_ref.symbol)
+
+        return BinaryOperation.create(BinaryOperation.Operator.LBOUND, ref,
+                                      Literal(str(pos+1), INTEGER_TYPE))
 
     def is_upper_bound(self, index):
         '''Returns True if the specified array index contains a Range node
@@ -234,8 +308,9 @@ class ArrayMixin(metaclass=abc.ABCMeta):
                         isinstance(array_bounds.upper, Literal)):
                     if upper.value == array_bounds.upper.value:
                         return True
-            except (KeyError, SymbolError):
-                # Can't find symbol declaration
+            except (KeyError, SymbolError, AttributeError):
+                # If any issue is found we can not guarantee that it is
+                # the upper bound
                 pass
             return False
 
@@ -298,23 +373,10 @@ class ArrayMixin(metaclass=abc.ABCMeta):
         if self_sig[:depth+1] != node_sig[:]:
             return False
 
-        # We use the FortranWriter to simplify the job of comparing array-index
-        # expressions but have to import it here to avoid circular dependencies
-        # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.backend.fortran import FortranWriter
-        fwriter = FortranWriter()
-
         # Examine the indices, ignoring any on the innermost accesses (hence
         # the slice to `depth` rather than `depth + 1` below).
-        for indices in zip(self_indices[:depth], node_indices[:depth]):
-            # TODO #1424. We need to be able to compare PSyIR fragments
-            # natively rather than using a visitor. We use the `_visit` method
-            # directly here so as to avoid the deep-copying of the complete
-            # tree which is performed when using fwriter(). (This operation
-            # can become very, very costly for large trees.)
-            # pylint: disable=protected-access
-            if ("".join(fwriter._visit(idx) for idx in indices[0]) !=
-                    "".join(fwriter._visit(idx) for idx in indices[1])):
+        for idx1, idx2 in zip(self_indices[:depth], node_indices[:depth]):
+            if idx1 != idx2:
                 return False
         return True
 
@@ -417,26 +479,23 @@ class ArrayMixin(metaclass=abc.ABCMeta):
 
             elif isinstance(idx_expr, Reference):
                 dtype = idx_expr.datatype
-                if dtype.shape:
+                if isinstance(dtype, ArrayType):
                     # An array slice can be defined by a 1D slice of another
                     # array, e.g. `a(b(1:4))`.
-                    if len(dtype.shape) > 1:
+                    indirect_array_shape = dtype.shape
+                    if len(indirect_array_shape) > 1:
                         raise InternalError(
                             f"An array defining a slice of a dimension of "
                             f"another array must be 1D but '{idx_expr.name}' "
                             f"used to index into '{self.name}' has "
-                            f"{len(dtype.shape)} dimensions.")
+                            f"{len(indirect_array_shape)} dimensions.")
                     shape.append(_num_elements(dtype.shape[0]))
             elif isinstance(idx_expr, (Call, Operation, CodeBlock)):
                 # We can't yet straightforwardly query the type of a function
                 # call or Operation - TODO #1799.
-                # pylint: disable=import-outside-toplevel
-                from psyclone.psyir.backend.fortran import FortranWriter
-                # TODO #1887 - get type of writer to use from Config object?
-                fvisitor = FortranWriter()
                 raise NotImplementedError(
                     f"The array index expressions for access "
-                    f"'{fvisitor(self)}' include a function call or "
+                    f"'{self.debug_string()}' include a function call or "
                     f"expression. Querying the return type of "
                     f"such things is yet to be implemented.")
 

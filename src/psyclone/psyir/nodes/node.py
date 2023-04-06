@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+# Copyright (c) 2017-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -397,7 +397,7 @@ class Node():
          The generic implementation always returns False, this simplifies the
          specializations as Leaf nodes will have by default the expected
          behaviour, and non-leaf nodes need to modify this method to its
-         particular constrains anyway. Issue #765 explores if this method
+         particular constraints anyway. Issue #765 explores if this method
          can be auto-generated using the _children_valid_format string.
 
         :param int position: the position to be validated.
@@ -452,7 +452,11 @@ class Node():
                   overridden by sub-class.
         :rtype: str
         '''
-        return self.coloured_name(colour) + "[]"
+        text = self.coloured_name(colour) + "["
+        if self.annotations:
+            text += "annotations='" + ','.join(self.annotations) + "'"
+        text += "]"
+        return text
 
     def __str__(self):
         return self.node_str(False)
@@ -1103,12 +1107,14 @@ class Node():
                 f"The 'limit' argument to ancestor() must be an instance of "
                 f"Node but got '{type(limit).__name__}'")
 
-        while myparent not in [None, limit]:
+        while myparent is not None:
             if isinstance(myparent, my_type):
                 if not (excluding and isinstance(myparent, excludes)):
                     # This parent node is not an instance of an excluded
                     # sub-class so return it
                     return myparent
+            if myparent is limit:
+                break
             myparent = myparent.parent
         return None
 
@@ -1267,10 +1273,13 @@ class Node():
 
     def lower_to_language_level(self):
         '''
-        In-place replacement of DSL or high-level concepts into generic
-        PSyIR constructs. The generic implementation only recurses down
+        In-place replacement of high-level concepts into generic language
+        PSyIR constructs. This generic implementation only recurses down
         to its children, but this method must be re-implemented by Nodes
         that represent high-level concepts.
+
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
         # We recurse only over the original children (hence [:]), this is
@@ -1278,6 +1287,7 @@ class Node():
         # must already be language-level.
         for child in self.children[:]:
             child.lower_to_language_level()
+        return self
 
     def reference_accesses(self, var_accesses):
         '''Get all variable access information. The default implementation
@@ -1285,7 +1295,7 @@ class Node():
 
         :param var_accesses: Stores the output results.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
         '''
         for child in self._children:
             child.reference_accesses(var_accesses)
@@ -1430,6 +1440,21 @@ class Node():
         If an error is found then a GenerationError should be raised.
 
         '''
+
+    def debug_string(self):
+        ''' Generates a Fortran-like output representation but without
+        lowering high-level nodes. This is fast to generate because it
+        doesn't deepcopy the tree like the Language backends and its
+        output, although not compilable, is readable for error messages.
+
+        :returns: a Fortran-like output representation of the tree.
+        :rtype: str
+
+        '''
+        # Import outside top-level to avoid circular dependencies.
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.backend.debug_writer import DebugWriter
+        return DebugWriter()(self)
 
 
 # For automatic documentation generation

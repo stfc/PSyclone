@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2022, Science and Technology Facilities Council.
+# Copyright (c) 2019-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -39,7 +39,6 @@
 of an Invoke into a stand-alone application."
 '''
 
-from __future__ import absolute_import
 from psyclone.configuration import Config
 from psyclone.psyGen import BuiltIn, Kern, HaloExchange, GlobalSum
 from psyclone.psyir.nodes import (CodeBlock, ExtractNode, Loop, Schedule,
@@ -145,7 +144,7 @@ class ExtractTrans(PSyDataTrans):
         :param node_list: the list of Node(s) we are checking.
         :type node_list: list of :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.
-        :type options: dictionary of string:values or None
+        :type options: Optional[Dict[str, Any]]
 
         :raises TransformationError: if distributed memory is configured.
         :raises TransformationError: if transformation is applied to a \
@@ -165,8 +164,11 @@ class ExtractTrans(PSyDataTrans):
         # generation of infrastructure calls to set halos dirty or clean.
         # This constraint covers the presence of HaloExchange and
         # GlobalSum classes as they are only generated when distributed
-        # memory is enabled.
-        if Config.get().distributed_memory:
+        # memory is enabled. But in case of the Nemo API, we don't even
+        # support distributed memory, so ignore the setting of distributed
+        # memory in this case:
+        config = Config.get()
+        if config.distributed_memory and config.api != "nemo":
             raise TransformationError(
                 f"Error in {self.name}: Distributed memory is not supported.")
 

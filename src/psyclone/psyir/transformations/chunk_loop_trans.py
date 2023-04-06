@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors A. B. G. Chalk, STFC Daresbury Lab
-# Modified S. Siso, STFC Daresbury Lab
+# Modified S. Siso and N. Nobre, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 '''This module provides the ChunkLoopTrans, which transforms a Loop into a
@@ -94,7 +94,7 @@ class ChunkLoopTrans(LoopTrans):
         :param node: the loop to validate.
         :type node: :py:class:`psyclone.psyir.nodes.Loop`
         :param options: a dict with options for transformation.
-        :type options: dict of str:values or None
+        :type options: Optional[Dict[str, Any]]
         :param int options["chunksize"]: The size to chunk over for this \
                 transformation. If not specified, the value 32 is used.
 
@@ -217,7 +217,7 @@ class ChunkLoopTrans(LoopTrans):
         :param node: the loop to transform.
         :type node: :py:class:`psyclone.psyir.nodes.Loop`
         :param options: a dict with options for transformations.
-        :type options: dict of str:values or None
+        :type options: Optional[Dict[str, Any]]
         :param int options["chunksize"]: The size to chunk over for this \
                 transformation. If not specified, the value 32 is used.
 
@@ -241,7 +241,7 @@ class ChunkLoopTrans(LoopTrans):
         # so our ancestors cannot use these variables.
 
         # Store the node's parent for replacing later and the start and end
-        # indicies
+        # indices
         start = node.start_expr
         stop = node.stop_expr
 

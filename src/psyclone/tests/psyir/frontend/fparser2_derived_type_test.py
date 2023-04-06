@@ -31,13 +31,18 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Lab
+# Authors: A. R. Porter and N. Nobre, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' Performs py.test tests on the fparser2 PSyIR front-end support for
     derived types. '''
 
 import pytest
+
+from fparser.two import Fortran2003
+from fparser.two.utils import walk
+from fparser.common.readfortran import FortranStringReader
+
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import KernelSchedule, CodeBlock, Assignment, \
     ArrayOfStructuresReference, StructureReference, Member, StructureMember, \
@@ -45,12 +50,10 @@ from psyclone.psyir.nodes import KernelSchedule, CodeBlock, Assignment, \
     BinaryOperation
 from psyclone.psyir.symbols import SymbolError, DeferredType, StructureType, \
     DataTypeSymbol, ScalarType, RoutineSymbol, Symbol, ArrayType, \
-    UnknownFortranType, DataSymbol, INTEGER_TYPE
+    UnknownFortranType, DataSymbol, INTEGER_TYPE, ContainerSymbol, \
+    ImportInterface
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
     _create_struct_reference
-from fparser.two import Fortran2003
-from fparser.two.utils import walk
-from fparser.common.readfortran import FortranStringReader
 
 
 def test_create_struct_reference():
@@ -109,8 +112,8 @@ def test_deferred_derived_type(type_name):
     fake_parent = KernelSchedule("dummy_schedule")
     symtab = fake_parent.symbol_table
     processor = Fparser2Reader()
-    reader = FortranStringReader("use my_mod\n"
-                                 "type({0}) :: var".format(type_name))
+    reader = FortranStringReader(f"use my_mod\n"
+                                 f"type({type_name}) :: var")
     fparser2spec = Fortran2003.Specification_Part(reader)
     processor.process_declarations(fake_parent, fparser2spec.content, [])
     vsym = symtab.lookup("var")
@@ -145,18 +148,18 @@ def test_name_clash_derived_type(f2008_parser, type_name):
     # of the derived type.
     symtab.add(RoutineSymbol("my_type"))
     processor = Fparser2Reader()
-    reader = FortranStringReader("subroutine my_sub()\n"
-                                 "  type({0}) :: some_var\n"
-                                 "end subroutine my_sub\n".format(type_name))
+    reader = FortranStringReader(f"subroutine my_sub()\n"
+                                 f"  type({type_name}) :: some_var\n"
+                                 f"end subroutine my_sub\n")
     fparser2spec = f2008_parser(reader)
     spec_part = walk(fparser2spec, Fortran2003.Specification_Part)[0]
     # This should raise an error because the Container symbol table should
     # already contain a RoutineSymbol named 'my_type'
     with pytest.raises(SymbolError) as err:
         processor.process_declarations(fake_parent, spec_part.children, [])
-    assert ("Search for a DataTypeSymbol named '{0}' (required by "
-            "specification 'TYPE({0})') found a 'RoutineSymbol' instead".
-            format(type_name) in str(err.value))
+    assert (f"Search for a DataTypeSymbol named '{type_name}' (required by "
+            f"specification 'TYPE({type_name})') found a 'RoutineSymbol' "
+            f"instead" in str(err.value))
 
 
 def test_name_clash_derived_type_def(f2008_parser):
@@ -204,6 +207,32 @@ def test_name_clash_derived_type_def(f2008_parser):
             "'DeferredType'" in str(err.value))
 
 
+def test_existing_symbol_derived_type_def(f2008_parser):
+    ''' Check that a new DataTypeSymbol is created in place of an existing
+    Symbol if it is used in a type declaration. '''
+    fake_parent = KernelSchedule("dummy_schedule")
+    symtab = fake_parent.symbol_table
+    csym = symtab.new_symbol("some_mod", symbol_type=ContainerSymbol)
+    # Add a generic Symbol to the symbol table for what will be the type
+    # definition.
+    symtab.add(Symbol("my_type", visibility=Symbol.Visibility.PRIVATE,
+                      interface=ImportInterface(csym)))
+
+    processor = Fparser2Reader()
+    fparser2spec = f2008_parser(
+        FortranStringReader("subroutine my_sub()\n"
+                            "  type(my_type) :: var\n"
+                            "end subroutine my_sub\n"))
+    type_specs = walk(fparser2spec, types=Fortran2003.Declaration_Type_Spec)
+    typ, prec = processor._process_type_spec(fake_parent, type_specs[0])
+    assert prec is None
+    assert isinstance(typ, DataTypeSymbol)
+    # Check that the visibility has been preserved from the original Symbol.
+    assert typ.visibility == Symbol.Visibility.PRIVATE
+    assert typ.name == "my_type"
+    assert isinstance(typ.interface, ImportInterface)
+
+
 @pytest.mark.usefixtures("f2008_parser")
 @pytest.mark.parametrize("use_stmt", ["use grid_mod, only: grid_type",
                                       "use grid_mod, only: GRID_TYPE",
@@ -215,14 +244,13 @@ def test_parse_derived_type(use_stmt, type_name):
     fake_parent = KernelSchedule("dummy_schedule")
     symtab = fake_parent.symbol_table
     processor = Fparser2Reader()
-    reader = FortranStringReader("{0}\n"
-                                 "type :: my_type\n"
-                                 "  integer :: flag\n"
-                                 "  type({1}), private :: grid\n"
-                                 "  real, dimension(3) :: posn\n"
-                                 "end type my_type\n"
-                                 "type(my_type) :: var\n".format(use_stmt,
-                                                                 type_name))
+    reader = FortranStringReader(f"{use_stmt}\n"
+                                 f"type :: my_type\n"
+                                 f"  integer :: flag\n"
+                                 f"  type({type_name}), private :: grid\n"
+                                 f"  real, dimension(3) :: posn\n"
+                                 f"end type my_type\n"
+                                 f"type(my_type) :: var\n")
     fparser2spec = Fortran2003.Specification_Part(reader)
     processor.process_declarations(fake_parent, fparser2spec.content, [])
     sym = symtab.lookup("my_type")
@@ -279,11 +307,12 @@ def test_derived_type_self_ref(type_name):
     fake_parent = KernelSchedule("dummy_schedule")
     symtab = fake_parent.symbol_table
     processor = Fparser2Reader()
-    reader = FortranStringReader("type :: my_type\n"
-                                 "  type({0}), pointer :: next => null()\n"
-                                 "  integer :: flag\n"
-                                 "end type my_type\n"
-                                 "type({0}) :: var\n".format(type_name))
+    reader = FortranStringReader(f"type :: my_type\n"
+                                 f"  type({type_name}), "
+                                 f"pointer :: next => null()\n"
+                                 f"  integer :: flag\n"
+                                 f"end type my_type\n"
+                                 f"type({type_name}) :: var\n")
     fparser2spec = Fortran2003.Specification_Part(reader)
     processor.process_declarations(fake_parent, fparser2spec.content, [])
     sym = symtab.lookup("my_type")

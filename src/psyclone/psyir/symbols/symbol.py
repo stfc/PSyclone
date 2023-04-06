@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+# Copyright (c) 2017-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -43,7 +43,6 @@ class and its subclasses and the generic Symbol class.
 
 from __future__ import absolute_import
 from enum import Enum
-import six
 from psyclone.errors import PSycloneError, InternalError
 
 
@@ -170,7 +169,7 @@ class ArgumentInterface(SymbolInterface):
         UNKNOWN = 4
 
     def __init__(self, access=None):
-        super(ArgumentInterface, self).__init__()
+        super().__init__()
         self._access = None
         # Use the setter as that has error checking
         if not access:
@@ -251,7 +250,7 @@ class Symbol():
 
     def __init__(self, name, visibility=DEFAULT_VISIBILITY, interface=None):
 
-        if not isinstance(name, six.string_types):
+        if not isinstance(name, str):
             raise TypeError(
                 f"{type(self).__name__} 'name' attribute should be of type "
                 f"'str' but '{type(name).__name__}' found.")
@@ -584,7 +583,7 @@ class Symbol():
             to determine if an access is an array access using this variable.
         :param access_info: variable access information, optional.
         :type access_info: \
-            :py:class:`psyclone.core.access_info.SingleVariableAccessInfo`
+            :py:class:`psyclone.core.SingleVariableAccessInfo`
 
         :returns: if the variable is an array.
         :rtype bool:
