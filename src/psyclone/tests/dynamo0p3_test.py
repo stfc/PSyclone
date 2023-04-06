@@ -48,9 +48,9 @@ from fparser import api as fpapi
 from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
 from psyclone.domain.lfric import FunctionSpace, LFRicArgDescriptor, \
-    LFRicConstants
+    LFRicConstants, LFRicKern
 from psyclone.dynamo0p3 import DynACCEnterDataDirective, \
-    DynBoundaryConditions, DynCellIterators, DynGlobalSum, LFRicKern, \
+    DynBoundaryConditions, DynCellIterators, DynGlobalSum, \
     DynKernelArguments, DynKernMetadata, DynLoop, DynProxies, \
     HaloReadAccess, KernCallArgList
 from psyclone.errors import FieldNotFoundError, GenerationError, InternalError

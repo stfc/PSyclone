@@ -47,9 +47,9 @@ import abc
 
 from psyclone import psyGen
 from psyclone.configuration import Config
-from psyclone.domain.lfric import KernCallArgList, LFRicConstants
+from psyclone.domain.lfric import KernCallArgList, LFRicConstants, LFRicKern
 from psyclone.dynamo0p3 import DynHaloExchangeEnd, DynHaloExchangeStart, \
-    DynInvokeSchedule, LFRicKern
+    DynInvokeSchedule
 from psyclone.errors import InternalError
 from psyclone.gocean1p0 import GOInvokeSchedule
 from psyclone.nemo import NemoInvokeSchedule

@@ -46,8 +46,8 @@ import pytest
 from fparser import api as fpapi
 
 from psyclone.configuration import Config
-from psyclone.domain.lfric import LFRicConstants
-from psyclone.dynamo0p3 import DynKernMetadata, LFRicKern, DynBasisFunctions, \
+from psyclone.domain.lfric import LFRicConstants, LFRicKern
+from psyclone.dynamo0p3 import DynKernMetadata, DynBasisFunctions, \
     qr_basis_alloc_args
 from psyclone.errors import InternalError
 from psyclone.f2pygen import ModuleGen

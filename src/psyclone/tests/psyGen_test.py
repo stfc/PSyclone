@@ -52,9 +52,9 @@ from fparser.two import Fortran2003
 from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
 from psyclone.domain.common.psylayer import PSyLoop
-from psyclone.domain.lfric import lfric_builtins
+from psyclone.domain.lfric import LFRicKern, lfric_builtins
 from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
-from psyclone.dynamo0p3 import LFRicKern, DynKernMetadata, DynInvokeSchedule, \
+from psyclone.dynamo0p3 import DynKernMetadata, DynInvokeSchedule, \
     DynKernelArguments, DynGlobalSum
 from psyclone.errors import GenerationError, FieldNotFoundError, InternalError
 from psyclone.generator import generate

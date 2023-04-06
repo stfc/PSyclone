@@ -44,14 +44,13 @@ import pytest
 import fparser
 from fparser import api as fpapi
 from psyclone.configuration import Config
-from psyclone.domain.lfric import LFRicConstants
-from psyclone.dynamo0p3 import DynBasisFunctions
+from psyclone.domain.lfric import LFRicConstants, LFRicKern
+from psyclone.dynamo0p3 import DynKernMetadata, DynBasisFunctions
 from psyclone.f2pygen import ModuleGen
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory
 from psyclone.errors import GenerationError, InternalError
-from psyclone.dynamo0p3 import DynKernMetadata, LFRicKern
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.utilities import print_diffs
 

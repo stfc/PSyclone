@@ -47,8 +47,8 @@ from fparser import api as fpapi
 
 import psyclone
 from psyclone.core import AccessType
-from psyclone.domain.lfric import LFRicConstants, LFRicTypes
-from psyclone.dynamo0p3 import DynKernMetadata, LFRicKern, DynLoop
+from psyclone.domain.lfric import LFRicConstants, LFRicTypes, LFRicKern
+from psyclone.dynamo0p3 import DynKernMetadata, DynLoop
 from psyclone.errors import InternalError, GenerationError
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
