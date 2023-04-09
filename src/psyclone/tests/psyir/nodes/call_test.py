@@ -211,7 +211,7 @@ def test_call_add_args_error1():
             in str(info.value))
 
 
-def test_call__add_args_error2():
+def test_call_add_args_error2():
     '''Test that the appropriate exception is raised if an entry in the
     arguments argument to the _add_args method is is a tuple with two
     elements and the first element is not a string.'''

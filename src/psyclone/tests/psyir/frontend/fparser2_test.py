@@ -2830,7 +2830,7 @@ subroutine test_intrinsic(var1, var2, dim, mask)
   var2 = sum(var1, dim=dim, mask)
 end subroutine test_intrinsic
 '''
-    with pytest.raises(InternalError) as info:
+    with pytest.raises(GenerationError) as info:
         _ = fortran_reader.psyir_from_source(code)
     assert ("In Fortran, all named arguments should follow all positional "
             "arguments, but found 'SUM(var1, dim = dim, mask)'."

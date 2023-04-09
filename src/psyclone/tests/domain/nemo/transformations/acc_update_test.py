@@ -45,8 +45,10 @@ from fparser.two import Fortran2003
 
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyir.nodes import (ACCKernelsDirective, CodeBlock, Routine,
-                                  Schedule)
+from psyclone.psyir.nodes import (
+    ACCKernelsDirective, CodeBlock, Routine, Schedule, Call, IntrinsicCall,
+    Reference, Node)
+from psyclone.psyir.symbols import RoutineSymbol, DataSymbol, REAL_TYPE
 from psyclone.psyir.transformations import TransformationError, ACCUpdateTrans
 from psyclone.transformations import ACCEnterDataTrans, ACCKernelsTrans
 
@@ -67,6 +69,25 @@ def test_validate():
         trans.validate(Schedule(parent=ACCKernelsDirective()))
     assert ("Cannot apply the ACCUpdateTrans to nodes that are "
             "within an OpenACC compute region." in str(err.value))
+
+
+def test_may_compute():
+    ''' Check that the _may_compute method works as expected. '''
+    node = Call.create(RoutineSymbol("hello"), [])
+    assert ACCUpdateTrans._may_compute(node)
+    node = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.ALLOCATE,
+        [Reference(DataSymbol("x", REAL_TYPE))])
+    assert ACCUpdateTrans._may_compute(node)
+    node = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.DEALLOCATE,
+        [Reference(DataSymbol("x", REAL_TYPE))])
+    assert ACCUpdateTrans._may_compute(node)
+    assert not ACCUpdateTrans._may_compute(Node())
+    node = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.SUM,
+        [Reference(DataSymbol("x", REAL_TYPE))])
+    assert not ACCUpdateTrans._may_compute(node)
 
 
 def test_simple_missed_region(parser, fortran_writer):
@@ -223,7 +244,7 @@ SUBROUTINE tra_ldf_iso()
   if(jn == 1)then
     CALL dia_ptr_hst( jn, 'ldf', zftv(:,:,:)  )
   end if
-  checksum = sum(zftv)
+  checksum = SUM(zftv)
 end SUBROUTINE tra_ldf_iso
 '''
     reader = FortranStringReader(code)

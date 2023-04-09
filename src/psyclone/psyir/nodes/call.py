@@ -143,7 +143,7 @@ class Call(Statement, DataNode):
         added as child nodes.
 
         :param call: the supplied call node.
-        :type call: :py:class:`psyclone.psyir/nodes.Call`
+        :type call: :py:class:`psyclone.psyir.nodes.Call`
         :param arguments: the arguments to this call, and/or \
             2-tuples containing an argument name and the \
             argument.

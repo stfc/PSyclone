@@ -51,37 +51,6 @@ from psyclone.psyir.transformations.transformation_error import \
     TransformationError
 
 
-def get_args(node):
-    '''Utility method that returns the sum arguments, (array reference,
-    dimension and mask).
-
-    :param node: a Sum intrinsic.
-    :type node: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
-
-    returns: a tuple containing the 3 sum arguments.
-    rtype: Tuple[py:class:`psyclone.psyir.nodes.reference.Reference`, \
-                 py:class:`psyclone.psyir.nodes.Literal` | \
-                 :py:class:`psyclone.psyir.nodes.Reference`, \
-                 Optional[:py:class:`psyclone.psyir.nodes.node`]]
-
-    '''
-    # Determine the arguments to sum
-    args = [None, None, None]
-    arg_names_map = {"array": 0, "dim": 1, "mask": 2}
-    for idx, child in enumerate(node.children):
-        if not node.argument_names[idx]:
-            # positional arg
-            args[idx] = child
-        else:
-            # named arg
-            name = node.argument_names[idx].lower()
-            args[arg_names_map[name]] = child
-    array_ref = args[0]
-    dimension_ref = args[1]
-    mask_ref = args[2]
-    return (array_ref, dimension_ref, mask_ref)
-
-
 class Sum2CodeTrans(Transformation):
     '''Provides a transformation from a PSyIR SUM Operator node to
     equivalent code in a PSyIR tree. Validity checks are also
@@ -176,6 +145,37 @@ class Sum2CodeTrans(Transformation):
     <BLANKLINE>
 
     '''
+    @staticmethod
+    def _get_args(node):
+        '''Utility method that returns the sum arguments, (array reference,
+        dimension and mask).
+
+        :param node: a Sum intrinsic.
+        :type node: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
+
+        returns: a tuple containing the 3 sum arguments.
+        rtype: Tuple[py:class:`psyclone.psyir.nodes.reference.Reference`, \
+                     py:class:`psyclone.psyir.nodes.Literal` | \
+                     :py:class:`psyclone.psyir.nodes.Reference`, \
+                     Optional[:py:class:`psyclone.psyir.nodes.node`]]
+
+        '''
+        # Determine the arguments to sum
+        args = [None, None, None]
+        arg_names_map = {"array": 0, "dim": 1, "mask": 2}
+        for idx, child in enumerate(node.children):
+            if not node.argument_names[idx]:
+                # positional arg
+                args[idx] = child
+            else:
+                # named arg
+                name = node.argument_names[idx].lower()
+                args[arg_names_map[name]] = child
+        array_ref = args[0]
+        dimension_ref = args[1]
+        mask_ref = args[2]
+        return (array_ref, dimension_ref, mask_ref)
+
     def __str__(self):
         return "Convert the PSyIR SUM intrinsic to equivalent PSyIR code."
 
@@ -188,6 +188,10 @@ class Sum2CodeTrans(Transformation):
         :param options: options for the transformation.
         :type options: Optional[Dict[str, Any]]
 
+        :raises TransformationError: if the supplied node is not an \
+            intrinsic.
+        :raises TransformationError: if the supplied node is not a sum \
+            intrinsic.
         :raises TransformationError: if a valid value for the \
             dimension argument can't be determined.
         :raises TransformationError: if the array argument is not an array.
@@ -197,7 +201,6 @@ class Sum2CodeTrans(Transformation):
             supported.
 
         '''
-        # super().validate(node, options)
         if not isinstance(node, IntrinsicCall):
             raise TransformationError(
                 f"Error in {self.name} transformation. The supplied node "
@@ -210,7 +213,7 @@ class Sum2CodeTrans(Transformation):
                 f"argument is not a sum intrinsic, found "
                 f"'{node.routine.name}'.")
 
-        array_ref, dim_ref, _ = get_args(node)
+        array_ref, dim_ref, _ = self._get_args(node)
         if dim_ref and not isinstance(dim_ref, (Literal, Reference)):
             raise TransformationError(
                 f"Can't find the value of the dimension argument. Expected "
@@ -252,6 +255,9 @@ class Sum2CodeTrans(Transformation):
                 f"Only real and integer types supported for array "
                 f"'{array_ref.name}', but found '{array_intrinsic.name}'.")
 
+    # pylint: disable=too-many-locals
+    # pylint: disable=too-many-branches
+    # pylint: disable=too-many-statements
     def apply(self, node, options=None):
         '''Apply the SUM intrinsic conversion transformation to the specified
         node. This node must be a SUM Operation which is converted to
@@ -265,7 +271,7 @@ class Sum2CodeTrans(Transformation):
         '''
         self.validate(node)
 
-        array_ref, dimension_ref, mask_ref = get_args(node)
+        array_ref, dimension_ref, mask_ref = self._get_args(node)
 
         # Determine the literal value of the dimension argument
         dimension_literal = None

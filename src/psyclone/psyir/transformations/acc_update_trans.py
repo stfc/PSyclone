@@ -96,9 +96,6 @@ class ACCUpdateTrans(Transformation):
     _ACC_IGNORE = (ACCEnterDataDirective, )
     # Tuple of OpenACC compute directives delimiting possible device execution.
     _ACC_COMPUTE = (ACCParallelDirective, ACCKernelsDirective)
-    # Assume Call nodes may (and CodeBlocks may not) call routines whose
-    # (part of their) bodies execute on the device.
-    _MAY_COMPUTE = (Call, )
 
     def validate(self, node, options=None):
         '''
@@ -144,6 +141,29 @@ class ACCUpdateTrans(Transformation):
         # within the supplied Schedule.
         self._add_updates_to_schedule(node)
 
+    @staticmethod
+    def _may_compute(node):
+        '''This method returns True if the supplied node is a Call node. This
+        is because a Call node may call a routine whose body (or part
+        of its body) executes on the device. For consistency with
+        earlier implementations it also returns True if the supplied
+        node is an allocate or deallocate intrinsic.
+
+        :param node: a PSyIR node.
+        :type node: :py:class:`psyclone.psyir.nodes.Node`
+
+        :returns: True if the supplied node is a Call node or an \
+            allocate or deallocate intrinsic.
+        :rtype: bool
+
+        '''
+        # pylint: disable=unidiomatic-typecheck
+        if type(node) is Call or (
+                isinstance(node, IntrinsicCall) and node.routine.name in
+                ["ALLOCATE", "DEALLOCATE"]):
+            return True
+        return False
+
     def _add_updates_to_schedule(self, sched):
         '''
         Recursively identify those statements that are not being executed
@@ -153,21 +173,21 @@ class ACCUpdateTrans(Transformation):
         :type sched: :py:class:`psyclone.psyir.nodes.Schedule`
 
         '''
-        # We must walk through the Schedule and find those nodes representing
-        # contiguous regions of code that are not executed on the device. Any
-        # Call nodes are taken as boundaries of such regions because it may be
-        # that (part of) their bodies are executed on the device.
+        # We must walk through the Schedule and find those nodes
+        # representing contiguous regions of code that are not
+        # executed on the device. Any Call nodes are taken as
+        # boundaries of such regions because it may be that (part of)
+        # their bodies are executed on the device. Allocate and
+        # deallocate intrinsics are also taken as boundaries of such
+        # regions.
         node_list = []
         for child in sched[:]:
             if isinstance(child, self._ACC_IGNORE):
                 continue
-            # Avoid matching IntrinsicCall unless it is allocate or deallocate.
             found = False
             for node in child.walk(Node):
                 if isinstance(node, self._ACC_COMPUTE) or \
-                       type(node) in self._MAY_COMPUTE or \
-                       (isinstance(node, IntrinsicCall) and
-                        node.routine.name in ["ALLOCATE", "DEALLOCATE"]):
+                   self._may_compute(node):
                     found = True
                     break
             if not found:
@@ -175,13 +195,9 @@ class ACCUpdateTrans(Transformation):
             else:
                 self._add_update_directives(node_list)
                 node_list.clear()
-                if type(child) in self._MAY_COMPUTE or \
-                       (isinstance(child, IntrinsicCall) and
-                        child.routine.name in ["ALLOCATE", "DEALLOCATE"]):
-                    # Conservatively add an update host statement just before
-                    # the Call node since, first, any temporary operands need
-                    # to be up to date and, second, since in pass-by-value
-                    # languages, the passed value must also be up to date.
+                if self._may_compute(child):
+                    # Conservatively add an update host statement just
+                    # before the node.
                     self._add_update_directives([child])
                 elif isinstance(child, IfBlock):
                     # Add any update host statements that are required due to
@@ -205,6 +221,8 @@ class ACCUpdateTrans(Transformation):
         # last nodes that represent computation on the host?
         self._add_update_directives(node_list)
 
+    # pylint: disable=too-many-locals
+    # pylint: disable=too-many-branches
     def _add_update_directives(self, node_list):
         '''
         Adds the required OpenACC update directives before and after the nodes
@@ -365,11 +383,15 @@ class ACCUpdateTrans(Transformation):
                          either IN (read) or OUT (write).
 
         '''
-        # If there is a statement (e.g. a call) among the dependent statements
-        # that may launch device kernels, we conservatively assume a dependency
-        # for all variables in the host region regardless of access mode.
-        if any(stmt.walk(self._MAY_COMPUTE) for stmt in dep_stmts):
-            return host_sig.copy()
+        # If there is a statement (e.g. a call) among the dependent
+        # statements that may launch device kernels, we conservatively
+        # assume a dependency for all variables in the host region
+        # regardless of access mode. For the performance of the Python
+        # code there is an assumption here that _may_compute only
+        # returns True for Call nodes.
+        for stmt in dep_stmts:
+            if any(self._may_compute(call) for call in stmt.walk(Call)):
+                return host_sig.copy()
 
         # Set of all signatures in compute kernels that may require syncing.
         kern_sig = set()

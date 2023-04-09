@@ -132,13 +132,14 @@ def test_canonicalise_minmaxsum():
     # NotImplementedError which results in a CodeBlock as we need to
     # try to determine the datatypes to disambiguate and don't do that
     # yet.
-    for string in [
-            "sum(a, d)",
-            "sum(a, m)"]:
-        arg_nodes, arg_names, intrinsic = _get_intrinsic_info(string)
-        with pytest.raises(NotImplementedError) as info:
-            _canonicalise_minmaxsum(arg_nodes, arg_names, intrinsic)
-        assert str(info.value) == "SUM"
+    arg_nodes, arg_names, intrinsic = _get_intrinsic_info("sum(a, d)")
+    with pytest.raises(NotImplementedError) as info:
+        _canonicalise_minmaxsum(arg_nodes, arg_names, intrinsic)
+    assert (str(info.value) ==
+            "In 'SUM(a, d)' there are two arguments that are not named. "
+            "The second could be a dim or a mask so we need datatype "
+            "information to determine which and we do not determine "
+            "this information at the moment.")
 
     # Optional arguments are not named but can be determined from
     # their order. Canonical form has them named. The last version

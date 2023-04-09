@@ -140,6 +140,10 @@ def _canonicalise_minmaxsum(arg_nodes, arg_names, node):
 
     :raises InternalError: if the array argument is not found in the \
         argument list.
+    :raises NotImplementedError: if there are two arguments and both \
+        of them are not named as the second argument could be a \
+        dimension or a mask and it is not currently possible to \
+        determine which.
 
     '''
     # if the array argument is named then make it the first positional
@@ -175,7 +179,11 @@ def _canonicalise_minmaxsum(arg_nodes, arg_names, node):
     # attempt to determine the datatype of the argument
     # but for the moment give up and return a CodeBlock.
     if len(arg_nodes) == 2 and num_arg_names == 0:
-        raise NotImplementedError(node.items[0].string.upper())
+        raise NotImplementedError(
+            f"In '{node}' there are two arguments that are not named. "
+            f"The second could be a dim or a mask so we need datatype "
+            f"information to determine which and we do not determine "
+            f"this information at the moment.")
 
     # If there are three arguments, and fewer than two are
     # named, then the argument order is known, so we can just
@@ -4087,7 +4095,7 @@ class Fparser2Reader():
     def _process_args(self, node, call, canonicalise=None):
         '''Processes fparser2 call or intrinsic arguments contained in the
         node argument and adds them to the PSyIR Call or IntrinsicCall
-        node, respectively.
+        contained in the call argument, respectively.
 
         The optional canonicalise function allows the order of the
         call's arguments and its named arguments to be re-ordered and
@@ -4103,12 +4111,12 @@ class Fparser2Reader():
 
         :param node: an fparser call node representing a call or \
             an intrinsic call.
-        :type node: :py:class:`psyclone.psyir.nodes.Call` or \
-            :py:class:`psyclone.psyir.nodes.IntrinsicCall`
+        :type node: :py:class:`fparser.two.Fortran2003.Call_Stmt` or \
+            :py:class:`fparser.two.Fortran2003.Intrinsic_Function_Reference`
         :param call: a PSyIR call argument representing a call or an \
             intrinsic call.
-        :type call: :py:class:`fparser.two.Fortran2003.Call_Stmt` or \
-            :py:class:`fparser.two.Fortran2003.Intrinsic_Function_Reference`
+        :type call: :py:class:`psyclone.psyir.nodes.Call` or \
+            :py:class:`psyclone.psyir.nodes.IntrinsicCall`
         :param function canonicalise: a function that canonicalises \
             the call arguments.
 
@@ -4117,7 +4125,7 @@ class Fparser2Reader():
         :rtype: :py:class:`psyclone.psyir.nodes.Call` or \
                 :py:class:`psyclone.psyir.nodes.IntrinsicCall
 
-        :raises InternalError: if all named arguments do not follow \
+        :raises GenerationError: if all named arguments do not follow \
             all positional arguments.
 
         '''
@@ -4141,7 +4149,7 @@ class Fparser2Reader():
                 index += 1
             for arg_name in arg_names[index:]:
                 if not arg_name:
-                    raise InternalError(
+                    raise GenerationError(
                         f"In Fortran, all named arguments should follow all "
                         f"positional arguments, but found '{node}'.")
 

@@ -217,14 +217,14 @@ def test_is_array_range():
 
 def test_array_range_with_reduction(monkeypatch):
     '''Test that we correctly identify an array range when it is the
-        result of a reduction from an array. Test when we need to look
-        up the PSyIR tree through multiple intrinsics from the array
-        access to find the reduction. We have to monkeypatch SUM in
-        this example to stop it being a reduction as all
-        IntrinsicCalls that are valid within an assignment are
-        currently reductions. When additional intrinsics are added
-        (see issue #1987) this test can be modified and monkeypatch
-        removed. The example is: x(1, MAXVAL(SUM(map(:, :), dim=1))) = 1.0
+    result of a reduction from an array. Test when we need to look up
+    the PSyIR tree through multiple intrinsics from the array access
+    to find the reduction. We have to monkeypatch SUM in this example
+    to stop it being a reduction as all IntrinsicCalls that are valid
+    within an assignment are currently reductions. When additional
+    intrinsics are added (see issue #1987) this test can be modified
+    and monkeypatch removed. The example is: x(1, MAXVAL(SUM(map(:,
+    :), dim=1))) = 1.0
 
     '''
     one = Literal("1.0", REAL_TYPE)
