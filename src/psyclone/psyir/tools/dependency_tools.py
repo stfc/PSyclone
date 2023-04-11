@@ -843,13 +843,11 @@ class DependencyTools():
 
         input_list = []
         for signature in variables_info.all_signatures:
-            # Take the first access (index 0) of this variable. Note that
-            # loop variables have a WRITE before a READ access, so they
-            # will be ignored
-            first_access = variables_info[signature][0]
             # If the first access is a write, the variable is not an input
-            # parameter and does not need to be saved.
-            if first_access.access_type != AccessType.WRITE:
+            # parameter and does not need to be saved. Note that loop variables
+            # have a WRITE before a READ access, so they will be ignored
+            # automatically.
+            if not variables_info[signature].is_written_first():
                 input_list.append(signature)
 
         return input_list
@@ -915,6 +913,86 @@ class DependencyTools():
                 self.get_output_parameters(node_list, variables_info))
 
     # -------------------------------------------------------------------------
+    @staticmethod
+    def _resolve_non_locals_to_in_out(todo):
+        '''This function updates the list of non-local symbols by:
+        1. replacing all subroutine calls with the list of their corresponding
+            non-local symbols.
+        2. Resolving unknown types to be either function calls (which then
+            get resolved as above), or variables.
+        This is done recursively till only variable accesses remain.
+
+        It will then return the actual non-local accesses sorted into input-
+        and output-externals.
+
+        :param todo: the information about symbol type, module_name, \
+            symbol_name and access information
+        :type todo: List[Tuple[str,str,str,str]]
+
+        :returns: a tuple containing first the input, then the output \
+            non-local symbols.
+        :rtype: Tuple[Set[Tuple[str, str]], Set[Tuple[str, str]]]
+
+        '''
+        mod_manager = ModuleManager.get()
+        done = set()
+        in_vars = set()
+        out_vars = set()
+        while todo:
+            info = todo.pop()
+            if info in done:
+                continue
+            done.add(info)
+            external_type, module_name, symbol_name, access_info = info
+            if external_type == "routine":
+                if module_name is None:
+                    # We don't know where the subroutine comes from.
+                    # For now ignore this
+                    print(f"Unknown routine '{symbol_name} - ignored.")
+                    continue
+                try:
+                    mod_info = mod_manager.get_module_info(module_name)
+                except FileNotFoundError:
+                    print(f"Cannot find module '{module_name}' - ignored.")
+                    continue
+                try:
+                    routine_info = mod_info.get_routine_info(symbol_name)
+                except KeyError:
+                    print(f"Cannot find symbol '{symbol_name}' in module "
+                          f"'{module_name}' - ignored.")
+                    continue
+                # Add the list of non-locals to our todo list:
+                todo.extend(routine_info.get_non_local_symbols())
+                continue
+
+            if external_type == "unknown":
+                # It could be a function (TODO #1314) or a variable. Check if
+                # there is a routine with that name in the module information:
+                try:
+                    mod_info = mod_manager.get_module_info(module_name)
+                except FileNotFoundError:
+                    print(f"Cannot find module '{module_name}' - ignoring "
+                          f"unknown symbol '{symbol_name}'.")
+                    continue
+
+                if mod_info.contains_routine(symbol_name):
+                    # It is a routine, which we need to analyse for the use
+                    # of non-local symbols:
+                    todo.append(("routine", module_name, symbol_name,
+                                 access_info))
+                    continue
+                # Otherwise fall through to the code that adds a reference:
+
+            # Now it must be a reference, so add it to the list of input-
+            # and output-variables as appropriate:
+            if access_info.is_written():
+                out_vars.add((module_name, symbol_name))
+            if not access_info.is_written_first():
+                in_vars.add((module_name, symbol_name))
+
+        return (in_vars, out_vars)
+
+    # -------------------------------------------------------------------------
     def get_in_out_parameters_recursive(self, node_list, options=None):
         '''Return a 2-tuple of lists that contains all variables that are input
         parameters (first entry) and output parameters (second entry).
@@ -957,66 +1035,20 @@ class DependencyTools():
         for node in node_list:
             for kernel in node.walk(Kern):
                 if isinstance(kernel, BuiltIn):
+                    # Builtins don't have non-local accesses
                     continue
                 print(kernel.base_name, kernel.module_name)
+                # Get the non-local access information from the kernel
+                # by querying the module that contains the kernel:
                 mod_info = mod_manager.get_module_info(kernel.module_name)
                 routine_info = mod_info.get_routine_info(kernel.name)
                 non_locals = routine_info.get_non_local_symbols()
                 todo.extend(non_locals)
 
-        done = set()
-        result = set()
-        while todo:
-            info = todo.pop()
-            if info in done:
-                continue
-            done.add(info)
-            external_type, module_name, symbol_name, access_info = info
-            if external_type == "routine":
-                if module_name is None:
-                    # We don't know where the subroutine comes from.
-                    # For now ignore this
-                    print(f"Unknown routine '{symbol_name} - ignored.")
-                    continue
-                try:
-                    mod_info = mod_manager.get_module_info(module_name)
-                except FileNotFoundError:
-                    print(f"Cannot find module '{module_name}' - ignored.")
-                    continue
-                try:
-                    routine_info = mod_info.get_routine_info(symbol_name)
-                except KeyError:
-                    print(f"Cannot find symbol '{symbol_name}' in module "
-                          f"'{module_name}' - ignored.")
-                    continue
-                non_locals = routine_info.get_non_local_symbols()
-                # Add the list of non-locals to our todo list:
-                todo.extend(non_locals)
-
-            elif external_type == "reference":
-                # We know it is a reference, so add it to the result:
-                result.add((module_name, symbol_name, access_info))
-
-            else:
-                # It is unknown, i.e. it could be a function (TODO #1314).
-                # or a variable. Check if there is a routine with that name
-                # in the module information:
-                try:
-                    mod_info = mod_manager.get_module_info(module_name)
-                except FileNotFoundError:
-                    print(f"Cannot find module '{module_name}' - ignoring "
-                          f"unknown symbol '{symbol_name}'.")
-                    continue
-
-                if mod_info.contains_routine(symbol_name):
-                    # It is a routine, which we need to analyse:
-                    todo.append(("routine", module_name, symbol_name,
-                                 access_info))
-                else:
-                    # Now it must be a reference, so add it to the result:
-                    result.add((module_name, symbol_name, access_info))
+        # Resolve routine calls and unknown accesses:
+        resolved = self._resolve_non_locals_to_in_out(todo)
 
         print(f"Result for '{node_list[0].root.children[0].name}'",
-              f"'{node_list[0].children[3].children[0].name}' is '{result}'")
+              f"'{node_list[0].children[3].children[0].name}' is '{resolved}'")
 
         return in_local, out_local
