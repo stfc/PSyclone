@@ -40,13 +40,15 @@
 '''
 
 import pytest
+
 from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
-from psyclone.psyir.frontend.fparser2 import Fparser2Reader
-from psyclone.psyir.symbols import RoutineSymbol, UnresolvedInterface, \
-    ImportInterface, NoType
-from psyclone.psyir.nodes import CodeBlock, Schedule, Call
+
 from psyclone.errors import GenerationError
+from psyclone.psyir.frontend.fparser2 import Fparser2Reader
+from psyclone.psyir.nodes import CodeBlock, Schedule, Call
+from psyclone.psyir.symbols import (
+    RoutineSymbol, UnresolvedInterface, ImportInterface, NoType)
 
 
 @pytest.mark.usefixtures("f2008_parser")
@@ -57,7 +59,7 @@ def test_call_noargs():
     table (with an unresolved interface) when one does not already
     exist. Also test that the Call node ast property is set to
     reference the original fparser2 call node, which indicates that
-    the _process_args method is called..
+    the _process_args method is called.
 
     '''
     reader = FortranStringReader(" call kernel()")

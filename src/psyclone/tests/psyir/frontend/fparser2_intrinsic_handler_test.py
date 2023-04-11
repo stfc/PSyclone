@@ -202,9 +202,9 @@ end subroutine
     assert isinstance(routine_symbol, RoutineSymbol)
     assert intrinsic_call.routine.name == intrinsic_name
     assert isinstance(routine_symbol.interface, LocalInterface)
-    # TODO: intrinsics are not currently added to the symbol table
-    # assert routine_symbol is \
-    #     intrinsic_call.scope.symbol_table.lookup(intrinsic_name)
+    # TODO: issue #2102, intrinsics are not currently added to the
+    # symbol table "assert routine_symbol is \
+    #     intrinsic_call.scope.symbol_table.lookup(intrinsic_name)"
     assert (str(intrinsic_call)) == f"IntrinsicCall[name='{intrinsic_name}']"
 
 
@@ -325,7 +325,8 @@ def test_intrinsic_no_args():
     fp2node.items = (fp2node.items[0],)
     with pytest.raises(NotImplementedError) as err:
         processor._intrinsic_handler(fp2node, fake_parent)
-    assert "MAX" in str(err.value)
+    assert ("Operator 'MAX' has no arguments but operators must have at "
+            "least one." in str(err.value))
 
 
 @pytest.mark.usefixtures("f2008_parser")
