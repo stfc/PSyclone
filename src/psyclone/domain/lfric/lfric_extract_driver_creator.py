@@ -44,6 +44,7 @@ the output data contained in the input file.
 from psyclone.core import Signature
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.errors import GenerationError, InternalError
+from psyclone.line_length import FortLineLength
 from psyclone.parse import ModuleManager
 from psyclone.psyGen import InvokeSchedule, Kern
 from psyclone.psyir.backend.fortran import FortranWriter
@@ -870,9 +871,10 @@ class LFRicExtractDriverCreator:
     def collect_all_required_modules(file_container):
         '''Collects recursively all modules used in the file container.
         It returns a dictionary, with the keys being all the (directly or
-        indirectly used modules)
+        indirectly) used modules.
 
-        :param file_container:
+        :param file_container: the FileContainer for which to collect all \
+            used modules.
         :type file_container: \
             :py:class:`psyclone.psyir.psyir.nodes.FileContainer`
 
@@ -881,14 +883,12 @@ class LFRicExtractDriverCreator:
         :rtype: Set[str]
 
         '''
-        sym_tab = file_container.children[0].symbol_table
-
-        # Add all modules imported, except intrinsic ones
         all_mods = set()
-        for symbol in sym_tab.symbols:
-            if isinstance(symbol, ContainerSymbol) and \
-                    ",intrinsic" not in symbol.name:
-                all_mods.add(symbol.name)
+        for container in file_container.children:
+            sym_tab = container.symbol_table
+            # Add all imported modules (i.e. all container symbols)
+            all_mods.update(symbol.name for symbol in sym_tab.symbols
+                            if isinstance(symbol, ContainerSymbol))
 
         mod_manager = ModuleManager.get()
         return mod_manager.get_all_dependencies_recursively(all_mods)
@@ -898,10 +898,14 @@ class LFRicExtractDriverCreator:
                              prefix, postfix, region_name,
                              writer=FortranWriter()):
         # pylint: disable=too-many-arguments, too-many-locals
-        '''This function uses `create()` function to get a PSyIR of a
+        '''This function uses the `create()` function to get the PSyIR of a
         stand-alone driver, and then uses the provided language writer
         to create a string representation in the selected language
         (defaults to Fortran).
+        All required modules will be inlined in the correct order, i.e. each
+        module will only depend on modules inlined earlier, which will allow
+        compilation of the driver. No other dependencies (except system
+        dependencies like NetCDF) are required for compilation.
 
         :param nodes: a list of nodes.
         :type nodes: List[:py:obj:`psyclone.psyir.nodes.Node`]
@@ -947,6 +951,8 @@ class LFRicExtractDriverCreator:
         # compile a module.
         sorted_modules = ModuleManager.sort_modules(module_dependencies)
 
+        # Inline all required modules into the driver source file so that
+        # it is stand-alone:
         out = []
         mod_manager = ModuleManager.get()
         for module in sorted_modules:
@@ -997,6 +1003,8 @@ class LFRicExtractDriverCreator:
         code = self.get_driver_as_string(nodes, input_list, output_list,
                                          prefix, postfix, region_name,
                                          writer=writer)
+        fll = FortLineLength()
+        code = fll.process(code)
         if not code:
             # This indicates an error that was already printed,
             # so ignore it here.
