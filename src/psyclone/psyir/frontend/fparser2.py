@@ -1981,9 +1981,18 @@ class Fparser2Reader():
                 # corresponding implementation with that name.)
                 # We store its definition using an UnknownFortranType so that
                 # we can recreate it in the Fortran backend.
-                parent.symbol_table.add(
-                    RoutineSymbol(name, UnknownFortranType(str(node).lower()),
-                                  visibility=vis))
+                try:
+                    parent.symbol_table.add(
+                        RoutineSymbol(name, UnknownFortranType(str(node).lower()),
+                                      visibility=vis))
+                except KeyError:
+                    # This symbol has already been declared. However
+                    # we still want to output the interface so we
+                    # store it in the PSyIR with a different name.
+                    parent.symbol_table.new_symbol(
+                        root_name=name, symbol_type=RoutineSymbol,
+                        datatype=UnknownFortranType(str(node).lower()),
+                        visibility=vis)
 
             elif isinstance(node, Fortran2003.Type_Declaration_Stmt):
                 try:
