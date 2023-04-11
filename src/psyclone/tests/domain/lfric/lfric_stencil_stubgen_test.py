@@ -42,7 +42,8 @@ import os
 
 from fparser import api as fpapi
 
-from psyclone.domain.lfric import LFRicKern, DynKernMetadata
+from psyclone.domain.lfric import LFRicKern
+from psyclone.dynamo0p3 import DynKernMetadata
 
 # Constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
