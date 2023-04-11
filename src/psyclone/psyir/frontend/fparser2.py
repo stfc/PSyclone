@@ -64,6 +64,10 @@ from psyclone.psyir.symbols import (
 
 # fparser dynamically generates classes which confuses pylint membership checks
 # pylint: disable=maybe-no-member
+# pylint: disable=too-many-locals
+# pylint: disable=too-many-branches
+# pylint: disable=too-many-statements
+# pylint: disable=too-many-lines
 
 #: The list of Fortran intrinsic functions that we know about (and can
 #: therefore distinguish from array accesses). These are taken from
@@ -1983,12 +1987,14 @@ class Fparser2Reader():
                 # we can recreate it in the Fortran backend.
                 try:
                     parent.symbol_table.add(
-                        RoutineSymbol(name, UnknownFortranType(str(node).lower()),
-                                      visibility=vis))
+                        RoutineSymbol(
+                            name, UnknownFortranType(str(node).lower()),
+                            visibility=vis))
                 except KeyError:
                     # This symbol has already been declared. However
                     # we still want to output the interface so we
-                    # store it in the PSyIR with a different name.
+                    # store it in the PSyIR as an UnkownFortranType
+                    # with a different name.
                     parent.symbol_table.new_symbol(
                         root_name=name, symbol_type=RoutineSymbol,
                         datatype=UnknownFortranType(str(node).lower()),
@@ -2369,6 +2375,7 @@ class Fparser2Reader():
         # An INCLUDE can appear anywhere so we have to allow for the case
         # where we have no enclosing Routine.
         unit = parent.ancestor((Routine, Container), include_self=True)
+        # pylint: disable=unidiomatic-typecheck
         if isinstance(unit, Routine):
             if unit.is_program:
                 out_txt = f"program '{unit.name}'. "
@@ -2378,6 +2385,7 @@ class Fparser2Reader():
             out_txt = f"module '{unit.name}'. "
         else:
             out_txt = f"code:\n{str(node.get_root())}\n"
+        # pylint: enable=unidiomatic-typecheck
         filename = node.children[0].string
         if isinstance(node, Fortran2003.Include_Stmt):
             err_msg = (
