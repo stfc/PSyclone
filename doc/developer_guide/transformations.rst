@@ -461,6 +461,6 @@ during the `OMPTaskwaitTransformation.apply` call, as any solvable dependencies
 will be satisfied by the implicit taskgroup.
 
 These structures are the only way to satisfy dependencies between taskloops,
-and any other structures of dependendent taskloops will be caught by the
+and any other structures of dependent taskloops will be caught by the
 `OMPTaskwaitTransformation.validate` call, which will raise an Error explaining
 why the dependencies cannot be resolved.
