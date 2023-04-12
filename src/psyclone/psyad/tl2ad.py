@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -49,7 +49,7 @@ from psyclone.psyad.transformations.preprocess import preprocess_trans
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Routine, Assignment, Reference, Literal, \
-    Call, Container, BinaryOperation, UnaryOperation, ArrayReference, Range
+    Call, Container, BinaryOperation, IntrinsicCall, ArrayReference, Range
 from psyclone.psyir.symbols import SymbolTable, ImportInterface, Symbol, \
     ContainerSymbol, ScalarType, ArrayType, RoutineSymbol, DataSymbol, \
     INTEGER_TYPE, DeferredType, UnknownType
@@ -693,7 +693,7 @@ def _create_array_inner_product(result, array1, array2, table):
     prod = BinaryOperation.create(BinaryOperation.Operator.MUL,
                                   ref1, ref2)
     # Sum the resulting elements
-    inner = UnaryOperation.create(UnaryOperation.Operator.SUM, prod)
+    inner = IntrinsicCall.create(IntrinsicCall.Intrinsic.SUM, [prod])
     # Accumulate the result
     return Assignment.create(
         Reference(result),

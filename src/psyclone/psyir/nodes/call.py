@@ -69,7 +69,7 @@ class Call(Statement, DataNode):
     _symbol_type = RoutineSymbol
 
     def __init__(self, routine, **kwargs):
-        super(Call, self).__init__(**kwargs)
+        super().__init__(**kwargs)
 
         if not isinstance(routine, self._symbol_type):
             raise TypeError(
@@ -122,8 +122,6 @@ class Call(Statement, DataNode):
             RoutineSymbol.
         :raises GenerationError: if the arguments argument is not a \
             list.
-        :raises GenerationError: if the contents of the arguments \
-            argument are not the expected type.
 
         '''
         if not isinstance(routine, RoutineSymbol):
@@ -136,6 +134,28 @@ class Call(Statement, DataNode):
                 f"'{type(arguments).__name__}'.")
 
         call = cls(routine)
+        cls._add_args(call, arguments)
+        return call
+
+    @staticmethod
+    def _add_args(call, arguments):
+        '''Internal utility method to add arguments to a call node. These are
+        added as child nodes.
+
+        :param call: the supplied call node.
+        :type call: :py:class:`psyclone.psyir.nodes.Call`
+        :param arguments: the arguments to this call, and/or \
+            2-tuples containing an argument name and the \
+            argument.
+        :type arguments: List[ \
+            Union[:py:class:``psyclone.psyir.nodes.DataNode``, \
+                  Tuple[str, :py:class:``psyclone.psyir.nodes.DataNode``]]]
+
+        :raises GenerationError: if the contents of the arguments \
+            argument are not in the expected form or of the expected
+            type.
+
+        '''
         for arg in arguments:
             name = None
             if isinstance(arg, tuple):
@@ -152,7 +172,6 @@ class Call(Statement, DataNode):
                         f"{type(arg[0]).__name__}.")
                 name, arg = arg
             call.append_named_arg(name, arg)
-        return call
 
     def append_named_arg(self, name, arg):
         '''Append a named argument to this call.
@@ -337,7 +356,7 @@ class Call(Statement, DataNode):
         # before copying.
         self._reconcile()
         # copy
-        new_copy = super(Call, self).copy()
+        new_copy = super().copy()
         # Fix invalid id's in _argument_names after copying.
         # pylint: disable=protected-access
         new_list = []
