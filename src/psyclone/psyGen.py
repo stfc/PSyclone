@@ -1739,7 +1739,7 @@ class CodedKern(Kern):
         # the kernel metadata.
         container_table = container.symbol_table
         for sym in container_table.datatypesymbols:
-            if sym.is_auto and isinstance(sym.datatype, UnknownFortranType):
+            if isinstance(sym.datatype, UnknownFortranType):
                 orig_declaration = sym.datatype.declaration
                 sym.datatype.declaration = orig_declaration.replace(
                     orig_kern_name, new_kern_name)
