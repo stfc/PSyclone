@@ -84,11 +84,6 @@ EXCLUDED_FILES = [
     "sbccpl.f90",
     # TODO #1902: Excluded to avoid HoistLocalArraysTrans bug
     "mpp_ini.f90",
-
-    # TODO # 1142: The following issue only affects the ECMWF Nemo code.
-    # Currently we have to manually uncomment the line below to process ECMWF
-    # NEMO but this can be improved resolving the referenced issue.
-    "lbclnk.f90",  # has mpif.h in the ECMWF version
     ]
 
 

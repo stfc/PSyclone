@@ -116,11 +116,7 @@ def trans(psy):
                 region_directive_trans=omp_target_trans,
                 loop_directive_trans=omp_loop_trans,
                 # Collapse is necessary to give GPUs enough parallel items
-                collapse=True,
-                # We exclude loops with calls when parallelising, with the
-                # exception being lib_fortran where we have marked the
-                # called functions as GPU-enabled
-                exclude_calls=psy.name != "psy_lib_fortran_psy",
+                collapse=True
         )
 
     return psy
