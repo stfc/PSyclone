@@ -708,7 +708,7 @@ def test_process_declarations():
     assert isinstance(l1_var.datatype, ScalarType)
     assert l1_var.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
     assert l1_var.datatype.precision == ScalarType.Precision.UNDEFINED
-    assert l1_var.is_auto
+    assert l1_var.is_automatic
 
     reader = FortranStringReader("Real      ::      l2")
     fparser2spec = Specification_Part(reader).content[0]
@@ -718,7 +718,7 @@ def test_process_declarations():
     assert isinstance(l2_var.datatype, ScalarType)
     assert l2_var.datatype.intrinsic == ScalarType.Intrinsic.REAL
     assert l2_var.datatype.precision == ScalarType.Precision.UNDEFINED
-    assert l2_var.is_auto
+    assert l2_var.is_automatic
 
     reader = FortranStringReader("LOGICAL      ::      b")
     fparser2spec = Specification_Part(reader).content[0]
@@ -730,7 +730,7 @@ def test_process_declarations():
     assert isinstance(b_var.datatype, ScalarType)
     assert b_var.datatype.intrinsic == ScalarType.Intrinsic.BOOLEAN
     assert b_var.datatype.precision == ScalarType.Precision.UNDEFINED
-    assert b_var.is_auto
+    assert b_var.is_automatic
 
     # public/private attribute
     reader = FortranStringReader("real, public :: p2")
@@ -1084,7 +1084,7 @@ def test_process_declarations_precision(precision, type_name, fort_name):
     assert isinstance(l1_var.datatype, ScalarType)
     assert l1_var.datatype.intrinsic == type_name
     assert l1_var.datatype.precision == precision
-    assert l1_var.is_auto
+    assert l1_var.is_automatic
 
 
 @pytest.mark.usefixtures("f2008_parser")
@@ -1105,7 +1105,7 @@ def test_process_declarations_double_precision():
     assert isinstance(x_var.datatype, ScalarType)
     assert x_var.datatype.intrinsic == ScalarType.Intrinsic.REAL
     assert x_var.datatype.precision == ScalarType.Precision.DOUBLE
-    assert x_var.is_auto
+    assert x_var.is_automatic
 
 
 @pytest.mark.usefixtures("f2008_parser")

@@ -958,7 +958,7 @@ class SymbolTable():
         :returns: list of symbols representing automatic variables.
         :rtype: list of :py:class:`psyclone.psyir.symbols.DataSymbol`
         '''
-        return [sym for sym in self.datasymbols if sym.is_auto]
+        return [sym for sym in self.datasymbols if sym.is_automatic]
 
     @property
     def argument_datasymbols(self):

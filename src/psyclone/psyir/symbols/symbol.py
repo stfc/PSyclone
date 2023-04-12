@@ -310,7 +310,7 @@ class Symbol():
         self._interface = value
 
     @property
-    def is_auto(self):
+    def is_automatic(self):
         '''
         :returns: whether the Symbol has an AutomaticInterface.
         :rtype: bool
@@ -319,7 +319,7 @@ class Symbol():
         return isinstance(self._interface, AutomaticInterface)
 
     @property
-    def is_module(self):
+    def is_modulevar(self):
         '''
         :returns: whether the Symbol has a DefaultModuleInterface.
         :rtype: bool
@@ -339,16 +339,34 @@ class Symbol():
     @property
     def is_argument(self):
         '''
-        :returns: whether the Symbol has an Argument interface.
+        :returns: whether the Symbol has an ArgumentInterface.
         :rtype: bool
 
         '''
         return isinstance(self._interface, ArgumentInterface)
 
     @property
+    def is_commonblock(self):
+        '''
+        :returns: whether the Symbol has a CommonBlockInterface.
+        :rtype: bool
+
+        '''
+        return isinstance(self._interface, CommonBlockInterface)
+
+    @property
+    def is_static(self):
+        '''
+        :returns: whether the Symbol has a StaticInterface.
+        :rtype: bool
+
+        '''
+        return isinstance(self._interface, CommonBlockInterface)
+
+    @property
     def is_unresolved(self):
         '''
-        :returns: whether the Symbol has an Unresolved interface.
+        :returns: whether the Symbol has an UnresolvedInterface.
         :rtype: bool
 
         '''
@@ -357,29 +375,11 @@ class Symbol():
     @property
     def is_unknown(self):
         '''
-        :returns: whether the Symbol has an Unknown interface.
+        :returns: whether the Symbol has an UnknownInterface.
         :rtype: bool
 
         '''
         return isinstance(self._interface, UnknownInterface)
-
-    @property
-    def is_commonblock(self):
-        '''
-        :returns: whether the Symbol has a CommonBlock interface.
-        :rtype: bool
-
-        '''
-        return isinstance(self._interface, CommonBlockInterface)
-
-    @property
-    def is_defaultmodule(self):
-        '''
-        :returns: whether the Symbol has a DefaultModule interface.
-        :rtype: bool
-
-        '''
-        return isinstance(self._interface, DefaultModuleInterface)
 
     def find_symbol_table(self, node):
         '''

@@ -95,30 +95,30 @@ def test_symbol_initialisation():
 def test_symbol_interface_setter():
     '''Test that the Symbol interface setter behaves as expected,
     including raising an exception if the input is of the wrong
-    type. Also use this to test the is_auto, is_import and
+    type. Also use this to test the is_automatic, is_import and
     is_argument and is_unresolved properties.
 
     '''
     symbol = Symbol('sym1')
-    assert symbol.is_auto
+    assert symbol.is_automatic
     assert not symbol.is_import
     assert not symbol.is_argument
     assert not symbol.is_unresolved
 
     symbol.interface = ImportInterface(ContainerSymbol("my_mod"))
-    assert not symbol.is_auto
+    assert not symbol.is_automatic
     assert symbol.is_import
     assert not symbol.is_argument
     assert not symbol.is_unresolved
 
     symbol.interface = ArgumentInterface()
-    assert not symbol.is_auto
+    assert not symbol.is_automatic
     assert not symbol.is_import
     assert symbol.is_argument
     assert not symbol.is_unresolved
 
     symbol.interface = UnresolvedInterface()
-    assert not symbol.is_auto
+    assert not symbol.is_automatic
     assert not symbol.is_import
     assert not symbol.is_argument
     assert symbol.is_unresolved

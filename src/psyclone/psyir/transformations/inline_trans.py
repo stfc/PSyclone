@@ -811,7 +811,7 @@ class InlineTrans(Transformation):
         ref_or_lits = routine.walk((Reference, Literal))
         # Check for symbols in any constant-value expressions
         # (Fortran parameters) or array dimensions.
-        for sym in [sym for sym in routine_table.datasymbols if sym.is_auto]:
+        for sym in routine_table.automatic_datasymbols:
             if sym.is_constant:
                 ref_or_lits.extend(
                     sym.constant_value.walk((Reference, Literal)))
@@ -958,7 +958,7 @@ class InlineTrans(Transformation):
         name = call_node.routine.name
         routine_sym = call_node.routine
 
-        if routine_sym.is_module:
+        if routine_sym.is_modulevar:
             table = routine_sym.find_symbol_table(call_node)
             for routine in table.node.walk(Routine):
                 if routine.name.lower() == name.lower():

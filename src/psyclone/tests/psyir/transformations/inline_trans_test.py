@@ -2086,7 +2086,7 @@ def test_find_routine_local(fortran_reader):
     call = psyir.walk(Call)[0]
     inline_trans = InlineTrans()
     result = inline_trans._find_routine(call)
-    assert call.routine.is_module
+    assert call.routine.is_modulevar
     assert isinstance(result, Routine)
     assert result.name == "sub"
 
@@ -2108,7 +2108,7 @@ def test_find_routine_missing_exception(fortran_reader):
     psyir.children[0].children[1].detach()
     call = psyir.walk(Call)[0]
     inline_trans = InlineTrans()
-    assert call.routine.is_module
+    assert call.routine.is_modulevar
     with pytest.raises(InternalError) as info:
         _ = inline_trans._find_routine(call)
     assert ("Failed to find the source code of the local routine 'sub'."

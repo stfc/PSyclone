@@ -420,11 +420,19 @@ Interfaces are:
 
 - .. autoclass:: psyclone.psyir.symbols.AutomaticInterface
 
+- .. autoclass:: psyclone.psyir.symbols.DefaultModuleInterface
+
 - .. autoclass:: psyclone.psyir.symbols.ImportInterface
 
 - .. autoclass:: psyclone.psyir.symbols.ArgumentInterface
 
+- .. autoclass:: psyclone.psyir.symbols.StaticInterface
+
+- .. autoclass:: psyclone.psyir.symbols.CommonBlockInterface
+
 - .. autoclass:: psyclone.psyir.symbols.UnresolvedInterface
+
+- .. autoclass:: psyclone.psyir.symbols.UnknownInterface
 
 
 Creating PSyIR

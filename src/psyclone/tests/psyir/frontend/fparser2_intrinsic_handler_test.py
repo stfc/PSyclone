@@ -53,7 +53,7 @@ from psyclone.psyir.nodes import (
     Reference, IntrinsicCall, CodeBlock)
 from psyclone.psyir.symbols import (
     REAL_TYPE, DataSymbol, UnknownFortranType, INTEGER_TYPE, SymbolTable,
-    ArrayType, RoutineSymbol, LocalInterface)
+    ArrayType, RoutineSymbol, AutomaticInterface)
 
 
 @pytest.fixture(scope="function", name="symbol_table")
@@ -201,7 +201,7 @@ end subroutine
 
     assert isinstance(routine_symbol, RoutineSymbol)
     assert intrinsic_call.routine.name == intrinsic_name
-    assert isinstance(routine_symbol.interface, LocalInterface)
+    assert isinstance(routine_symbol.interface, AutomaticInterface)
     # TODO: issue #2102, intrinsics are not currently added to the
     # symbol table "assert routine_symbol is \
     #     intrinsic_call.scope.symbol_table.lookup(intrinsic_name)"

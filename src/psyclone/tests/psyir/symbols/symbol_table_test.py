@@ -628,7 +628,7 @@ def test_swap_symbol_properties():
     assert symbol4.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
     assert symbol4.datatype.precision == ScalarType.Precision.UNDEFINED
     assert not symbol4.shape
-    assert symbol4.is_auto
+    assert symbol4.is_automatic
     assert symbol4.constant_value.value == "7"
     assert (symbol4.constant_value.datatype.intrinsic ==
             symbol4.datatype.intrinsic)
