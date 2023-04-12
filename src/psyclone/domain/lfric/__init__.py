@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author J. Henrichs, Bureau of Meteorology
-# Modified: I. Kavcic, Met Office
+# Modified: I. Kavcic and L. Turner, Met Office
 #           R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
 '''Module for the LFRic domain.
