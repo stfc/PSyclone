@@ -169,7 +169,7 @@ class Assignment(Statement):
         var_accesses.next_location()
 
     @property
-    def is_array_range(self):
+    def is_array_assignment(self):
         '''
         returns: True if the lhs of the assignment is an array access with at \
             least one of its dimensions being a range and False otherwise.

@@ -3808,7 +3808,9 @@ class Fparser2Reader():
             return self._nary_op_handler(node, parent)
 
         # Intrinsic is not handled - this will result in a CodeBlock
-        raise NotImplementedError(name)
+        raise NotImplementedError(
+            f"Operator '{name}' has no arguments but operators must have at "
+            f"least one.")
 
     def _name_handler(self, node, parent):
         '''
