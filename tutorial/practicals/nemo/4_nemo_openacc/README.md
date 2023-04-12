@@ -165,7 +165,7 @@ with KERNELS regions in order to perform them on the GPU.
    array range:
    ```python
         # Enclose array assignments (implicit loops)
-        if isinstance(node, Assignment) and node.is_array_range:
+        if isinstance(node, Assignment) and node.is_array_assignment:
             ACC_KERNELS_TRANS.apply(node)
    ```
 

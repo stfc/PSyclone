@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022, Science and Technology Facilities Council.
+# Copyright (c) 2022-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -39,8 +39,8 @@ import pytest
 
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.psyir.nodes import BinaryOperation, Literal
-from psyclone.psyir.symbols import REAL_TYPE
+from psyclone.psyir.nodes import IntrinsicCall, Reference
+from psyclone.psyir.symbols import REAL_TYPE, DataSymbol
 from psyclone.psyir.transformations import Sum2CodeTrans, TransformationError
 
 
@@ -59,17 +59,16 @@ def test_validate_node():
     with pytest.raises(TransformationError) as info:
         trans.validate(None)
     assert ("Error in Sum2CodeTrans transformation. The supplied node "
-            "argument is not a SUM operator, found 'NoneType'."
+            "argument is not an intrinsic, found 'NoneType'."
             in str(info.value))
 
-    bin_op = BinaryOperation.create(
-        BinaryOperation.Operator.MUL, Literal("1.0", REAL_TYPE),
-        Literal("1.0", REAL_TYPE))
+    intrinsic = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.MINVAL,
+        [Reference(DataSymbol("array", REAL_TYPE))])
     with pytest.raises(TransformationError) as info:
-        trans.validate(bin_op)
-    assert ("Error in Sum2CodeTrans transformation. The supplied node "
-            "operator is invalid, found 'Operator.MUL', but expected one "
-            "of '['SUM']'." in str(info.value))
+        trans.validate(intrinsic)
+    assert ("The supplied node argument is not a sum intrinsic, found "
+            "'MINVAL'." in str(info.value))
 
 
 def test_structure_error(fortran_reader):
@@ -130,7 +129,7 @@ def test_dimension_arg(fortran_reader):
         "  real :: array(10,10)\n"
         "  real :: result\n"
         "  integer :: dimension\n"
-        "  result = sum(array,dimension*2)\n"
+        "  result = sum(array, dim=dimension*2)\n"
         "end subroutine\n")
     psyir = fortran_reader.psyir_from_source(code)
     # FileContainer/Routine/Assignment/UnaryOperation
@@ -314,7 +313,7 @@ def test_apply_dimension_1d(fortran_reader, fortran_writer):
         "  real :: array(:)\n"
         "  real :: value1, value2\n"
         "  real :: result\n"
-        "  result = value1 + sum(array,dimension=1) * value2\n"
+        "  result = value1 + sum(array,dim=1) * value2\n"
         "end subroutine\n")
     expected = (
         "subroutine sum_test(array, value1, value2)\n"
@@ -351,7 +350,7 @@ def test_apply_dimension_multid(fortran_reader, fortran_writer):
         "  real :: array(n,m,p)\n"
         "  real :: value1, value2\n"
         "  real :: result(n,p)\n"
-        "  result(:,:) = value1 + sum(array,dimension=2) * value2\n"
+        "  result(:,:) = value1 + sum(array,dim=2) * value2\n"
         "end subroutine\n")
     expected = (
         "subroutine sum_test(array, value1, value2, n, m, p)\n"
@@ -392,7 +391,7 @@ def test_apply_dimension_multid_unknown(fortran_reader, fortran_writer):
         "  real :: array(:,:,:)\n"
         "  real :: value1, value2\n"
         "  real :: result(:,:)\n"
-        "  result(:,:) = value1 + sum(array,dimension=2) * value2\n"
+        "  result(:,:) = value1 + sum(array,dim=2) * value2\n"
         "end subroutine\n")
     expected = (
         "subroutine sum_test(array, value1, value2, result)\n"
@@ -439,7 +438,7 @@ def test_apply_dimension_multid_range(fortran_reader, fortran_writer):
         "  real :: array(:,:,:)\n"
         "  real :: value1, value2\n"
         "  real :: result(n,p)\n"
-        "  result(:,:) = value1 + sum(array(1:n,m-1:m,1:p),dimension=2) * "
+        "  result(:,:) = value1 + sum(array(1:n,m-1:m,1:p),dim=2) * "
         "value2\n"
         "end subroutine\n")
     expected = (

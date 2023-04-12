@@ -314,7 +314,7 @@ class UnaryOperation(Operation):
 
     Operator = Enum('Operator', [
         # Arithmetic Operators
-        'MINUS', 'PLUS', 'SQRT', 'EXP', 'LOG', 'LOG10', 'SUM',
+        'MINUS', 'PLUS', 'SQRT', 'EXP', 'LOG', 'LOG10',
         # Logical Operators
         'NOT',
         # Trigonometric Operators
@@ -325,7 +325,7 @@ class UnaryOperation(Operation):
         'REAL', 'INT', 'NINT'
         ])
 
-    _non_elemental_ops = [Operator.SUM]
+    _non_elemental_ops = []
 
     @staticmethod
     def _validate_child(position, child):
@@ -394,7 +394,7 @@ class BinaryOperation(Operation):
     '''
     Operator = Enum('Operator', [
         # Arithmetic Operators. ('REM' is remainder AKA 'MOD' in Fortran.)
-        'ADD', 'SUB', 'MUL', 'DIV', 'REM', 'POW', 'SUM',
+        'ADD', 'SUB', 'MUL', 'DIV', 'REM', 'POW',
         # Relational Operators
         'EQ', 'NE', 'GT', 'LT', 'GE', 'LE',
         # Logical Operators
@@ -408,7 +408,7 @@ class BinaryOperation(Operation):
         # Matrix and Vector Operators
         'MATMUL', 'DOT_PRODUCT'
         ])
-    _non_elemental_ops = [Operator.SUM, Operator.MATMUL, Operator.SIZE,
+    _non_elemental_ops = [Operator.MATMUL, Operator.SIZE,
                           Operator.LBOUND, Operator.UBOUND,
                           Operator.DOT_PRODUCT]
     '''Arithmetic operators:
@@ -595,9 +595,9 @@ class NaryOperation(Operation):
 
     Operator = Enum('Operator', [
         # Arithmetic Operators
-        'MAX', 'MIN', 'SUM'
+        'MAX', 'MIN'
         ])
-    _non_elemental_ops = [Operator.SUM]
+    _non_elemental_ops = []
 
     @staticmethod
     def _validate_child(position, child):
@@ -663,13 +663,6 @@ class NaryOperation(Operation):
             nary_op.append_named_arg(name, operand)
         return nary_op
 
-
-# TODO #658 this can be removed once we have support for determining the
-# type of a PSyIR expression.
-#: Those operators that perform a reduction on an array.
-REDUCTION_OPERATORS = [UnaryOperation.Operator.SUM,
-                       BinaryOperation.Operator.SUM,
-                       NaryOperation.Operator.SUM]
 
 # For automatic API documentation generation
 __all__ = ["Operation", "UnaryOperation", "BinaryOperation", "NaryOperation"]

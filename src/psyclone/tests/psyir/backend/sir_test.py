@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2022, Science and Technology Facilities Council.
+# Copyright (c) 2019-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -990,20 +990,21 @@ def test_sirwriter_binaryoperation_sign_node(parser, sir_writer):
             in result)
 
 
-def test_sirwriter_naryoperation_error(parser, sir_writer):
-    '''Check the naryoperation_node method of the SIRWriter class
-    raises the expected exception when the naryoperation is an
-    unsupported operator.
+def test_sirwriter_naryoperation_error(parser, sir_writer, monkeypatch):
+    '''Check the naryoperation_node method of the SIRWriter class raises
+    the expected exception when the naryoperation is an unsupported
+    operator. Both min and max are supported so we need to
+    monkeypatch.
 
     '''
-    # nary SUM is not currently supported in the SIR backend.
-    code = CODE.replace("1.0", "SUM(1.0, 2.0, 3.0)")
+    code = CODE.replace("1.0", "MIN(1.0, 2.0, 3.0)")
     rhs = get_rhs(parser, code)
+    monkeypatch.setattr(rhs, "_operator", None)
     with pytest.raises(VisitorError) as info:
         _ = sir_writer.naryoperation_node(rhs)
     assert ("Method naryoperation_node in class SIRWriter, unsupported "
-            "operator 'Operator.SUM' found. Expected one of "
-            "'['MIN', 'MAX']'." in str(info.value))
+            "operator 'None' found. Expected one of '['MIN', 'MAX']'."
+            in str(info.value))
 
 
 @pytest.mark.parametrize("operation", ["min", "max"])
