@@ -143,7 +143,8 @@ class CreateNemoKernelTrans(Transformation):
 
         # Check for array assignments
         assigns = [assign for assign in nodes if
-                   (isinstance(assign, Assignment) and assign.is_array_range)]
+                   (isinstance(assign, Assignment) and
+                    assign.is_array_assignment)]
         if assigns:
             # Using LazyString to improve performance when using
             # exceptions to skip invalid regions.
