@@ -938,6 +938,8 @@ class DependencyTools():
         '''
         mod_manager = ModuleManager.get()
         done = set()
+        # Using a set here means that duplicated listings will automatically
+        # be filtered out.
         in_vars = set()
         out_vars = set()
         while todo:
@@ -1023,9 +1025,8 @@ class DependencyTools():
         '''
         # pylint: disable=too-many-locals, too-many-branches
         # pylint: disable=too-many-statements
-        in_local, out_local = self.get_in_out_parameters(node_list,
+        local_in, local_out = self.get_in_out_parameters(node_list,
                                                          options=options)
-        print("RRR", in_local, out_local)
         # Find all kernels called from the currently processed PSyIR.
         # While this might contain too many calls (e.g. if only one
         # kernel out of 10 is instrumented), but makes the implementation
@@ -1049,9 +1050,13 @@ class DependencyTools():
                 todo.extend(non_locals)
 
         # Resolve routine calls and unknown accesses:
-        resolved = self._resolve_non_locals_to_in_out(todo)
+        non_local_in, non_local_out = self._resolve_non_locals_to_in_out(todo)
 
+        non_local_in = local_in + sorted(non_local_in)
+        non_local_out = local_out + sorted(non_local_out)
         print(f"Result for '{node_list[0].root.children[0].name}'",
-              f"'{node_list[0].children[3].children[0].name}' is '{resolved}'")
+              f"'{node_list[0].children[3].children[0].name}' is:")
+        print(f"IN :'{non_local_in}'")
+        print(f"OUT:'{non_local_out}'")
 
-        return in_local, out_local
+        return local_in, local_out
