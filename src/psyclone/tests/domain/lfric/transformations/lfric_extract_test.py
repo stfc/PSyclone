@@ -91,7 +91,8 @@ def test_node_list_error(tmpdir):
     assert ("Error in LFRicExtractTrans: Argument must be "
             "a single Node in a Schedule, a Schedule or a list of Nodes in a "
             "Schedule but have been passed an object of type: "
-            "<class 'psyclone.domain.lfric.lfric_invoke.LFRicInvoke'>") in str(excinfo.value)
+            "<class 'psyclone.domain.lfric.lfric_invoke.LFRicInvoke'>") \
+           in str(excinfo.value)
 
     # Supply Nodes in incorrect order or duplicate Nodes
     node_list = [invoke0.schedule.children[0],

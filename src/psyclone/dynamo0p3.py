@@ -71,7 +71,7 @@ from psyclone.parse.algorithm import Arg, KernelCall
 from psyclone.parse.kernel import KernelType, getkerneldescriptors
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import (PSy, Invokes, InvokeSchedule, Arguments,
-                              KernelArgument, HaloExchange, GlobalSum,
+                             KernelArgument, HaloExchange, GlobalSum,
                              FORTRAN_INTENT_NAMES, DataAccess, CodedKern)
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
