@@ -89,9 +89,9 @@ def get_lowercase_builtin_map(builtin_map_capitalised_dict):
 
 
 class LFRicBuiltInCallFactory():
-    '''
-    Creates the necessary framework for a call to an LFRic built-in,
-    This consists of the operation itself and the loop over unique DoFs.
+    '''Creates the necessary framework for a call to an LFRic built-in,
+    This consists of the operation itself and the loop over unique
+    DoFs.
 
     '''
 
@@ -156,8 +156,11 @@ class LFRicBuiltInCallFactory():
 
 
 class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
-    '''
-    Abstract base class for a node representing a call to an LFRic built-in.
+    '''Abstract base class for a node representing a call to an LFRic
+    built-in.
+
+    :raises NotImplementedError: if a subclass of this abstract class \
+        does not set the value of _datatype.
 
     '''
     _case_name = None
@@ -169,6 +172,10 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
         # Builtins cannot request mesh properties
         self.mesh = None
         self._idx_name = None
+        if not self._datatype:
+            raise NotImplementedError(
+                "An LFRicBuiltIn should be overridden by a subclass that "
+                "sets the value of '_datatype', but '_datatype' is not set.")
         super().__init__()
 
     @staticmethod
@@ -199,10 +206,6 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
             name=cls._case_name)
 
     def __str__(self):
-        if not self._datatype:
-            raise NotImplementedError(
-                "An LFRicBuiltIn should be overridden by a subclass that "
-                "sets the value of '_datatype', but '_datatype' is not set.")
         metadata = self.metadata()
         plural = ""
         # Builtins are currenty limited to fields and scalars but add
@@ -2726,6 +2729,9 @@ class LFRicIntXKern(LFRicXKern):
     is the real-valued field being converted.
 
     '''
+    # _datatype is only required to avoid an exception in __init__, it
+    # is not required by this class.
+    _datatype = "dummy"
     _field_type = "int"
     _case_name = "int_X"
 
@@ -3046,6 +3052,9 @@ class LFRicRealXKern(LFRicXKern):
     is the integer-valued field being converted.
 
     '''
+    # _datatype is only required to avoid an exception in __init__, it
+    # is not required by this class.
+    _datatype = "dummy"
     _field_type = "real"
     _case_name = "real_X"
 

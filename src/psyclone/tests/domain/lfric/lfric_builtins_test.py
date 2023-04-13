@@ -87,9 +87,9 @@ def dummy_func(self, _1, _2=True):
     self._module_name = "dummy4"
 
 
-class Dummy(LFRicBuiltIn):
-    '''Utility subclass to allow abstract LFRicBuiltIn class to be
-    tested.
+class Dummy1(LFRicBuiltIn):
+    '''Utility subclass to enable the raising of an exception in the
+    __init__ method of abstract LFRicBuiltIn class.
 
     '''
     @staticmethod
@@ -103,11 +103,20 @@ class Dummy(LFRicBuiltIn):
         return None
 
 
-class Dummy2(Dummy):
+class Dummy2(Dummy1):
+    '''Utility subclass to allow instances of the abstract LFRicBuiltIn
+    class to be tested.
+
+    '''
+    _datatype = "dummy"
+
+
+class Dummy3(Dummy2):
     '''Utility subclass to allow abstract LFRicBuiltIn class
     '_builtin_metadata' method to be tested.
 
     '''
+    # pylint: disable=too-many-ancestors
     _case_name = "test"
 
 
@@ -116,6 +125,8 @@ class XKernDummy(LFRicXKern):
     exception.
 
     '''
+    _datatype = "xkerndummy"
+
     @staticmethod
     def metadata():
         return None
@@ -140,7 +151,7 @@ def test_lfric_builtin_abstract_method():
 
 def test_lfric_builtin_init():
     '''Check initiaisation of the abstract 'LFRicBuiltIn' class.'''
-    instance = Dummy()
+    instance = Dummy2()
     # Check '__init__'
     assert instance.qr_rules == {}
     assert instance.mesh is None
@@ -149,7 +160,13 @@ def test_lfric_builtin_init():
     assert instance._arg_descriptors is None
     # Check static values
     assert instance._case_name is None
-    assert instance._datatype is None
+    assert instance._datatype == "dummy"
+    # Check for exception if _datatype is not specified in the subclass.
+    with pytest.raises(NotImplementedError) as info:
+        _ = Dummy1()
+    assert ("An LFRicBuiltIn should be overridden by a subclass that sets "
+            "the value of '_datatype', but '_datatype' is not set."
+            in str(info.value))
 
 
 def test_lfric_builtin_builtin_metadata():
@@ -158,7 +175,7 @@ def test_lfric_builtin_builtin_metadata():
 
     '''
     meta_args = [FieldArgMetadata("gh_real", "gh_write", "w0")]
-    kernel_metadata = Dummy2._builtin_metadata(meta_args)
+    kernel_metadata = Dummy3._builtin_metadata(meta_args)
     assert isinstance(kernel_metadata, LFRicKernelMetadata)
     assert kernel_metadata.meta_args == meta_args
     assert kernel_metadata.operates_on == "dof"
@@ -166,26 +183,12 @@ def test_lfric_builtin_builtin_metadata():
     assert kernel_metadata.name == "test"
 
 
-def test_lfric_builtin_str():
-    '''Check the '__str__' method in the abstract 'LFRicBuiltIn'
-    class. Only check for an exception here as all other parts of
-    '__str__' are currently tested in subsequent subclass tests.
-
-    '''
-    instance = Dummy()
-    with pytest.raises(NotImplementedError) as info:
-        str(instance)
-    assert ("An LFRicBuiltIn should be overridden by a subclass that sets "
-            "the value of '_datatype', but '_datatype' is not set."
-            in str(info.value))
-
-
 def test_lfric_builtin_qr_required():
     '''Check the 'qr_required' method in the abstract 'LFRicBuiltIn'
     class.
 
     '''
-    instance = Dummy()
+    instance = Dummy2()
     assert not instance.qr_required
 
 
@@ -194,7 +197,7 @@ def test_lfric_builtin_fs_descriptors():
     class.
 
     '''
-    instance = Dummy()
+    instance = Dummy2()
     assert not instance.fs_descriptors
 
 
