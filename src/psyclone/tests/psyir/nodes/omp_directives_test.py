@@ -663,6 +663,27 @@ def test_directive_lastprivate(fortran_reader, fortran_writer):
                      "variables marked as private after the OpenMP region")
 
 
+def test_omp_parallel_private_clause():
+    '''Test the private_clause method in the OMPParallelDirective
+    class.
+
+    '''
+    omp_parallel = OMPParallelDirective.create()
+    clause = omp_parallel.private_clause
+    assert isinstance(clause, OMPPrivateClause)
+
+
+def test_omp_parallel_encloses_omp_directive():
+    '''Test the _encloses_omp_directive method in the OMPParallelDirective
+    class. This tests where there is no OMPRegionDirective within the
+    OMPParallelirective. Nothing is actually done or returned in the
+    method at the moment so this test is purely for coverage.
+
+    '''
+    omp_parallel = OMPParallelDirective.create()
+    omp_parallel._encloses_omp_directive()
+
+
 def test_omp_parallel_validate_child():
     ''' Test the validate_child method of OMPParallelDirective'''
     assert OMPParallelDirective._validate_child(0, Schedule()) is True

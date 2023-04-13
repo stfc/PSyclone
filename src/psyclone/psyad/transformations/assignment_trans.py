@@ -94,7 +94,7 @@ class AssignmentTrans(AdjointTransformation):
                 active_var = ref
                 # Identify whether this reference on the RHS matches the
                 # one on the LHS - if so we have an increment.
-                if node.is_array_range and isinstance(ref, ArrayMixin):
+                if node.is_array_assignment and isinstance(ref, ArrayMixin):
                     # TODO #1537 - we can't just do `sym_maths.equal` if we
                     # have an array range because the SymbolicMaths class does
                     # not currently support them.
@@ -194,7 +194,7 @@ class AssignmentTrans(AdjointTransformation):
         '''
         # This check only needs to proceed if the assignment is to an array
         # range and the supplied active variable is the one being assigned to.
-        if not (assign.is_array_range and active_variable.symbol is
+        if not (assign.is_array_assignment and active_variable.symbol is
                 assign.lhs.symbol):
             return
 
