@@ -674,7 +674,8 @@ class InvokeSchedule(Routine):
 
     :param str name: name of the Invoke.
     :param type KernFactory: class instance of the factory to use when \
-     creating Kernels. e.g. :py:class:`psyclone.domain.lfric.LFRicKernCallFactory`.
+     creating Kernels. e.g. \
+     :py:class:`psyclone.domain.lfric.LFRicKernCallFactory`.
     :param type BuiltInFactory: class instance of the factory to use when \
      creating built-ins. e.g. \
      :py:class:`psyclone.domain.lfric.lfric_builtins.LFRicBuiltInCallFactory`.
