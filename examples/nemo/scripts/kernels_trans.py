@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2022, Science and Technology Facilities Council.
+# Copyright (c) 2018-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -344,7 +344,7 @@ def try_kernels_trans(nodes):
             break
         assigns = node.walk(Assignment)
         for assign in assigns:
-            if assign.is_array_range:
+            if assign.is_array_assignment:
                 have_loop = True
                 break
     if not have_loop:

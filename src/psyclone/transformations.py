@@ -2540,7 +2540,7 @@ class ACCKernelsTrans(RegionTrans):
         # the proposed region
         for node in node_list:
             if (any(assign for assign in node.walk(Assignment)
-                    if assign.is_array_range) or node.walk(Loop)):
+                    if assign.is_array_assignment) or node.walk(Loop)):
                 break
         else:
             # Branch executed if loop does not exit with a break
