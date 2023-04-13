@@ -38,7 +38,7 @@
 
 ''' This module tests the support for built-in operations in the LFRic API
     using pytest. Currently all built-in operations are 'pointwise' in that
-    they iterate over DOFs. However this may change in the future.
+    they iterate over DoFs. However this may change in the future.
 
     TODO #1796 - break the tests for each built-in into separate files under
                  the 'builtins' directory.
@@ -581,7 +581,7 @@ def test_invalid_builtin_kernel():
 
 
 def test_lfricbuiltin_cma(dist_mem):
-    '''Check that an 'LFRicBuiltIn' returns None for CMA type (because
+    '''Check that an 'LFRicBuiltIn' returns 'None' for CMA type (because
     built-ins don't work with CMA operators).
 
     '''
@@ -784,7 +784,7 @@ def test_X_plus_Y(
             "      CALL f3_proxy%set_dirty()\n"
             "      !\n")
         if not annexed:
-            # Only compute owned dofs if '_compute_annexed_dofs' is False
+            # Only compute owned DoFs if '_compute_annexed_dofs' is False
             output_dm_2 = output_dm_2.replace("annexed", "owned")
         assert output_dm_2 in code
 
@@ -939,7 +939,7 @@ def test_inc_a_plus_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
     the expected string and 2) we generate correct code for the
     built-in operation 'X = a + X' where 'a' is a real scalar and 'X'
     is a real-valued field. Test with and without annexed DoFs being
-    computed as this affects the generated code.  3) Also test the
+    computed as this affects the generated code. 3) Also test the
     'lower_to_language_level()' and 'metadata()' methods.
 
     '''
@@ -2586,7 +2586,7 @@ def test_a_times_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
     expected string and 2) we generate correct code for the built-in
     operation 'Y = a*X' where 'a' is a real scalar and 'X' and 'Y' are
     real-valued fields.  Test with and without annexed DoFs being
-    computed as this affects the generated code. 3) Also tests the
+    computed as this affects the generated code. 3) Also test the
     'lower_to_language_level()' and 'metadata()' methods.
 
     '''
@@ -2992,8 +2992,8 @@ def test_inc_X_divideby_a(
     returns the expected string and 2) we generate correct code for
     the built-in operation 'X = X/a' where 'a' is a real scalar and
     'X' is a real-valued field. Test with and without annexed DoFs
-    being computed as this affects the generated code. Also test the
-    'lower_to_language_level()' and 'metadata()' methods.
+    being computed as this affects the generated code. 3) Also test
+    the 'lower_to_language_level()' and 'metadata()' methods.
 
     '''
     metadata = lfric_builtins.LFRicIncXDividebyAKern.metadata()
@@ -3078,7 +3078,7 @@ def test_a_divideby_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
     the expected string and 2) we generate correct code for the
     built-in operation 'Y = a/X' where 'a' is a real scalar and 'X'
     and 'Y' are real-valued fields. Test with and without annexed DoFs
-    being computed as this affects the generated code. 3) Also tests
+    being computed as this affects the generated code. 3) Also test
     the 'lower_to_language_level()' and 'metadata()' methods.
 
     '''
@@ -3225,8 +3225,8 @@ def test_inc_X_powreal_a(
     returns the expected string and 2) we generate correct code for
     the built-in operation 'X = X**a' where 'a' is a real scalar and
     'X' is a real-valued field. Test with and without annexed DoFs
-    being computed as this affects the generated code. Also test the
-    'lower_to_language_level()' and 'metadata()' methods.
+    being computed as this affects the generated code. 3) Also test
+    the 'lower_to_language_level()' and 'metadata()' methods.
 
     '''
     metadata = lfric_builtins.LFRicIncXPowrealAKern.metadata()
@@ -3563,7 +3563,7 @@ def test_X_innerproduct_Y(tmpdir, dist_mem):
     returns the expected string and 2) we generate correct code for
     the built-in operation which calculates inner product of
     real-valued fields 'X' and 'Y' as 'innprod = innprod +
-    X(:)*Y(:). 3)' Also test the 'metadata()' method.
+    X(:)*Y(:)'. 3) Also test the 'metadata()' method.
 
     '''
     metadata = lfric_builtins.LFRicXInnerproductYKern.metadata()
@@ -3642,7 +3642,7 @@ def test_X_innerproduct_X(tmpdir, dist_mem):
     returns the expected string and 2) we generate correct code for
     the built-in operation which calculates inner product of a
     real-valued field 'X' by itself as 'innprod = innprod +
-    X(:)*X(:). 3)'. Also test the 'metadata()' method.
+    X(:)*X(:)'. 3) Also test the 'metadata()' method.
 
     '''
     metadata = lfric_builtins.LFRicXInnerproductXKern.metadata()
@@ -3722,7 +3722,7 @@ def test_sum_X(tmpdir, dist_mem):
     '''Test that 1) the '__str__' method of 'LFRicSumXKern' returns the
     expected string and 2) we generate correct code for the built-in
     operation which sums elements of a real-valued field 'X' as
-    'sumfld = sum(X(:)). 3)'. Also test the 'metadata()' method.
+    'sumfld = sum(X(:))'. 3) Also test the 'metadata()' method.
 
     '''
     metadata = lfric_builtins.LFRicSumXKern.metadata()
@@ -3796,7 +3796,7 @@ def test_sign_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
     expected string and 2) we generate correct code for the built-in
     operation 'Y = sign(a, X)' where 'a' is a real scalar and 'Y' and
     'X' are real-valued fields. Test with and without annexed DoFs
-    being computed as this affects the generated code. Also test the
+    being computed as this affects the generated code. 3) Also test the
     'lower_to_language_level()' and 'metadata()' methods.
 
     '''
@@ -4244,8 +4244,8 @@ def test_int_X_precision(monkeypatch):
     scalar with precision that is not the default i.e. not 'i_def'. At
     the moment there is no other integer precision so we make one up
     and use monkeypatch to get round any error checks. However, this
-    does mean that we can't check whether it compiles. Also test the
-    'metadata()' method.
+    does mean that we can't check whether it compiles. 3) Also test
+    the 'metadata()' method.
 
     '''
     metadata = lfric_builtins.LFRicIncATimesXKern.metadata()
@@ -4596,9 +4596,9 @@ def test_sign_X_by_value(tmpdir, monkeypatch, annexed, dist_mem):
 
 
 def test_multiple_builtin_set(tmpdir, monkeypatch, annexed, dist_mem):
-    '''Tests that we generate correct code when we have an invoke
+    '''Tests that we generate correct code when we have an 'invoke'
     containing multiple set operations. Test with and without annexed
-    dofs being computed as this affects the generated code.
+    DoFs being computed as this affects the generated code.
 
     '''
     api_config = Config.get().api_conf(API)

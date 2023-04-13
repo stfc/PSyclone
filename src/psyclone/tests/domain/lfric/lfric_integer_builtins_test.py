@@ -37,7 +37,7 @@
 
 ''' This module tests the support for integer built-in operations in the
     LFRic API using pytest. Currently all built-in operations are 'pointwise'
-    in that they iterate over DOFs. However this may change in the future.
+    in that they iterate over DoFs. However this may change in the future.
 
     TODO #1796 - break the tests for each built-in into separate files under
                  the 'builtins' directory.
@@ -139,7 +139,7 @@ def test_int_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem):
             "      CALL f3_proxy%set_dirty()\n"
             "      !\n")
         if not annexed:
-            # Only compute owned dofs if _compute_annexed_dofs is False
+            # Only compute owned DoFs if _compute_annexed_dofs is False
             output_dm_2 = output_dm_2.replace("annexed", "owned")
         assert output_dm_2 in code
 
@@ -148,7 +148,7 @@ def test_int_inc_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem):
     '''Test that 1) the '__str__' method of 'LFRicIntIncXPlusYKern'
     returns the expected string and 2) we generate correct code for
     the built-in 'X = X + Y' where 'X' and 'Y' are integer-valued
-    fields. Test with and without annexed dofs being computed as this
+    fields. Test with and without annexed DoFs being computed as this
     affects the generated code.
 
     '''
@@ -209,7 +209,7 @@ def test_int_a_plus_X(tmpdir, monkeypatch, annexed, dist_mem):
     the expected string and 2) we generate correct code for the
     built-in operation 'Y = a + X' where 'a' is an integer scalar and
     'X' and 'Y' are integer-valued fields. Test with and without
-    annexed dofs being computed as this affects the generated code.
+    annexed DoFs being computed as this affects the generated code.
 
     '''
     api_config = Config.get().api_conf(API)
@@ -265,7 +265,7 @@ def test_int_inc_a_plus_X(tmpdir, monkeypatch, annexed, dist_mem):
     returns the expected string and 2) we generate correct code for
     the built-in operation 'X = a + X' where 'a' is an integer scalar
     and 'X' is an integer-valued field. Test with and without annexed
-    dofs being computed as this affects the generated code.
+    DoFs being computed as this affects the generated code.
 
     '''
     api_config = Config.get().api_conf(API)
@@ -321,7 +321,7 @@ def test_int_X_minus_Y(tmpdir, monkeypatch, annexed, dist_mem):
     '''Test that 1) the '__str__' method of 'LFRicIntXMinusYKern' returns
     the expected string and 2) we generate correct code for the
     built-in operation 'Z = X - Y' where 'Z', 'X' and 'Y' are
-    integer-valued fields. Test with and without annexed dofs being
+    integer-valued fields. Test with and without annexed DoFs being
     computed as this affects the generated code.
 
     '''
@@ -388,7 +388,7 @@ def test_int_inc_X_minus_Y(tmpdir, monkeypatch, annexed, dist_mem):
     '''Test that 1) the '__str__' method of 'LFRicIntIncXMinusYKern'
     returns the expected string and 2) we generate correct code for
     the built-in operation 'X = X - Y' where 'X' and 'Y' are
-    integer-valued fields. Test with and without annexed dofs being
+    integer-valued fields. Test with and without annexed DoFs being
     computed as this affects the generated code.
 
     '''
@@ -454,7 +454,7 @@ def test_int_a_minus_X(tmpdir, monkeypatch, annexed, dist_mem):
     the expected string and 2) we generate correct code for the
     built-in operation 'Y = a - X' where 'a' is an integer scalar and
     'X' and 'Y' are integer-valued fields. Test with and without
-    annexed dofs being computed as this affects the generated code.
+    annexed DoFs being computed as this affects the generated code.
 
     '''
     api_config = Config.get().api_conf(API)
@@ -517,7 +517,7 @@ def test_int_inc_a_minus_X(tmpdir, monkeypatch, annexed, dist_mem):
     returns the expected string and 2) we generate correct code for
     the built-in operation 'X = a - X' where 'a' is an integer scalar
     and 'X' is an integer-valued field. Test with and without annexed
-    dofs being computed as this affects the generated code.
+    DoFs being computed as this affects the generated code.
 
     '''
     api_config = Config.get().api_conf(API)
@@ -571,7 +571,7 @@ def test_int_X_minus_a(tmpdir, monkeypatch, annexed, dist_mem):
     the expected string and 2) we generate correct code for the
     built-in operation Y = X - a where 'a' is an integer scalar and X
     and Y are integer-valued fields. Test with and without annexed
-    dofs being computed as this affects the generated code.
+    DoFs being computed as this affects the generated code.
 
     '''
     api_config = Config.get().api_conf(API)
@@ -627,7 +627,7 @@ def test_int_inc_X_minus_a(tmpdir, monkeypatch, annexed, dist_mem):
     returns the expected string and 2) we generate correct code for
     the built-in operation 'X = X - a' where 'a' is an integer scalar
     and 'X' is an integer-valued field. Test with and without annexed
-    dofs being computed as this affects the generated code.
+    DoFs being computed as this affects the generated code.
 
     '''
     api_config = Config.get().api_conf(API)
@@ -683,7 +683,7 @@ def test_int_X_times_Y(tmpdir, monkeypatch, annexed, dist_mem):
     '''Test that 1) the '__str__' method of 'LFRicIntXTimesYKern' returns
     the expected string and 2) we generate correct code for the
     built-in operation 'Z = X*Y' where 'Z', 'X' and 'Y' are
-    integer-valued fields. Test with and without annexed dofs being
+    integer-valued fields. Test with and without annexed DoFs being
     computed as this affects the generated code.
 
     '''
@@ -759,7 +759,7 @@ def test_int_inc_X_times_Y(tmpdir, monkeypatch, annexed, dist_mem):
     '''Test that 1) the '__str__' method of 'LFRicIntIncXTimesYKern'
     returns the expected string and 2) we generate correct code for
     the built-in operation 'X = X*Y' where 'X' and 'Y' are
-    integer-valued fields. Test with and without annexed dofs being
+    integer-valued fields. Test with and without annexed DoFs being
     computed as this affects the generated code.
 
     '''
@@ -830,7 +830,7 @@ def test_int_a_times_X(tmpdir, monkeypatch, annexed, dist_mem):
     the expected string and 2) we generate correct code for the
     built-in operation 'Y = a*X' where 'a' is an integer scalar and
     'X' and 'Y' are integer-valued fields. Test with and without
-    annexed dofs being computed as this affects the generated code.
+    annexed DoFs being computed as this affects the generated code.
 
     '''
     api_config = Config.get().api_conf(API)
@@ -895,7 +895,7 @@ def test_int_inc_a_times_X(tmpdir, monkeypatch, annexed, dist_mem):
     returns the expected string and 2) we generate correct code for
     the built-in operation 'X = a*X' where 'a' is an integer scalar
     and 'X' is an integer-valued field. Test with and without annexed
-    dofs being computed as this affects the generated code.
+    DoFs being computed as this affects the generated code.
 
     '''
     api_config = Config.get().api_conf(API)
@@ -972,7 +972,7 @@ def test_int_setval_c(tmpdir, monkeypatch, annexed, dist_mem):
     the expected string and 2) we generate correct code for the
     built-in operation 'X = c' where 'c' is an integer constant scalar
     value and 'X' is an integer-valued field. Test with and without
-    annexed dofs being computed as this affects the generated code.
+    annexed DoFs being computed as this affects the generated code.
 
     '''
     api_config = Config.get().api_conf(API)
@@ -1044,7 +1044,7 @@ def test_int_setval_X(tmpdir, monkeypatch, annexed, dist_mem):
     '''Test that 1) the '__str__' method of 'LFRicIntSetvalXKern' returns
     the expected string and 2) we generate correct code for the
     built-in operation 'Y = X' where 'X' and 'Y' are integer-valued
-    fields. Also test with and without annexed dofs being computed as
+    fields. Also test with and without annexed DoFs being computed as
     this affects the generated code.
 
     '''
@@ -1121,7 +1121,7 @@ def test_int_sign_X(tmpdir, monkeypatch, annexed, dist_mem):
     the expected string and 2) we generate correct code for the
     built-in operation 'Y = sign(a, X)' where 'a' is an integer scalar
     and 'Y' and 'X' are integer-valued fields. Test with and without
-    annexed dofs being computed as this affects the generated code.
+    annexed DoFs being computed as this affects the generated code.
 
     '''
     api_config = Config.get().api_conf(API)
@@ -1180,7 +1180,7 @@ def test_int_max_aX(tmpdir, monkeypatch, annexed, dist_mem):
     the expected string and 2) we generate correct code for the
     built-in operation 'Y = max(a, X)' where 'a' is an integer scalar
     and 'Y' and 'X' are integer-valued fields. Test with and without
-    annexed dofs being computed as this affects the generated code.
+    annexed DoFs being computed as this affects the generated code.
 
     '''
     api_config = Config.get().api_conf(API)
@@ -1246,7 +1246,7 @@ def test_int_inc_max_aX(tmpdir, monkeypatch, annexed, dist_mem):
     returns the expected string and 2) we generate correct code for
     the built-in operation 'X = max(a, X)' where 'a' is an integer
     scalar and 'X' is an integer-valued field. Test with and without
-    annexed dofs being computed as this affects the generated code.
+    annexed DoFs being computed as this affects the generated code.
 
     '''
     api_config = Config.get().api_conf(API)
@@ -1313,7 +1313,7 @@ def test_int_min_aX(tmpdir, monkeypatch, annexed, dist_mem):
     the expected string and 2) we generate correct code for the
     built-in operation 'Y = min(a, X)' where 'a' is an integer scalar
     and 'Y' and 'X' are integer-valued fields. Test with and without
-    annexed dofs being computed as this affects the generated code.
+    annexed DoFs being computed as this affects the generated code.
 
     '''
     api_config = Config.get().api_conf(API)
@@ -1368,7 +1368,7 @@ def test_int_inc_min_aX(tmpdir, monkeypatch, annexed, dist_mem):
     the expected string and 2) we generate correct code for the
     built-in operation 'X = min(a, X)' where 'a' is an integer scalar
     and 'X' is an integer-valued field. Test with and without annexed
-    dofs being computed as this affects the generated code.
+    DoFs being computed as this affects the generated code.
 
     '''
     api_config = Config.get().api_conf(API)
@@ -1427,8 +1427,8 @@ def test_real_X(tmpdir, monkeypatch, annexed, dist_mem):
     operation 'Y = real(X, r_def)' where 'Y' is a real-valued field,
     'X' is the integer-valued field being converted and the correct
     kind, 'r_def', is read from the PSyclone configuration file. Test
-    with and without annexed dofs being computed as this affects the
-    generated code. 3): Also test the 'metadata()' method.
+    with and without annexed DoFs being computed as this affects the
+    generated code. 3) Also test the 'metadata()' method.
 
     '''
     metadata = LFRicRealXKern.metadata()
