@@ -3670,7 +3670,8 @@ def test_lfriccollection_err2(monkeypatch):
     monkeypatch.setattr(proxies, "_invoke", None)
     with pytest.raises(InternalError) as err:
         proxies.declarations(ModuleGen(name="testmodule"))
-    assert "LFRicCollection has neither a Kernel or an Invoke" in str(err.value)
+    assert "LFRicCollection has neither a Kernel or an Invoke" \
+        in str(err.value)
 
 
 def test_dyncelliterators_err(monkeypatch):

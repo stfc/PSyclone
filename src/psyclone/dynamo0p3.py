@@ -59,7 +59,7 @@ from psyclone.domain.common.psylayer import PSyLoop
 from psyclone.domain.lfric import (FunctionSpace, KernCallAccArgList,
                                    KernCallArgList, KernStubArgList,
                                    LFRicArgDescriptor, KernelInterface,
-                                   LFRicCollection, LFRicConstants, 
+                                   LFRicCollection, LFRicConstants,
                                    LFRicSymbolTable)
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 from psyclone.f2pygen import (AllocateGen, AssignGen, CallGen, CommentGen,
@@ -1136,9 +1136,6 @@ class DynamoInvokes(Invokes):
     def __init__(self, alg_calls, psy):
         self._0_to_n = DynInvoke(None, None, None)  # for pyreverse
         Invokes.__init__(self, alg_calls, DynInvoke, psy)
-
-
-
 
 
 class DynStencils(LFRicCollection):

@@ -45,8 +45,6 @@
 
 # Imports
 import abc
-
-#from psyclone.dynamo0p3 import DynInvoke, DynKern
 from psyclone.domain.lfric import LFRicSymbolTable
 from psyclone.errors import InternalError
 
