@@ -145,6 +145,9 @@ class RoutineInfo(RoutineInfoBase):
         name = str(ast.content[0].items[1])
         super().__init__(module_info, name)
         self._ast = ast
+
+        # List[Tuple[str, str, :py:class:`psyclone.core.Signature`, \
+        #           :py:class:`psyclone.core.SingleVariableAccessInfo`]]
         self._non_locals = None
         self._var_accesses = None
 
@@ -200,7 +203,8 @@ class RoutineInfo(RoutineInfoBase):
                     if sym.is_constant:
                         # Constants don't need to be saved
                         return None
-                    return ("reference", node.name, sym.name)
+                    sig = reference.get_signature_and_indices()[0]
+                    return ("reference", node.name, sig)
 
             # Otherwise keep on looking
             node = node.parent
@@ -234,7 +238,7 @@ class RoutineInfo(RoutineInfoBase):
             if isinstance(access, Kern):
                 # A kernel is a subroutine call from a module:
                 self._non_locals.append(("routine", access.module_name,
-                                         access.name))
+                                         Signature(access.name)))
                 continue
 
             if isinstance(access, Call):
@@ -242,7 +246,7 @@ class RoutineInfo(RoutineInfoBase):
                 if isinstance(sym.interface, ImportInterface):
                     module_name = sym.interface.container_symbol.name
                     self._non_locals.append(("routine", module_name,
-                                             sym.name))
+                                             Signature(sym.name)))
                     continue
                 # No import. This could either be a routine from
                 # this module, or just a global function.
@@ -250,14 +254,16 @@ class RoutineInfo(RoutineInfoBase):
                     self.module_info.get_routine_info(sym.name)
                     # A local function that is in the same module:
                     self._non_locals.append(("routine",
-                                             self.module_info.name, sym.name))
+                                             self.module_info.name,
+                                             Signature(sym.name)))
                 except KeyError:
                     # We don't know where the subroutine comes from
                     self._non_locals.append(("routine", None, sym.name))
 
                 continue
 
-            # Now it's either a variable, or a function call (TODO #1314):
+            # Now it's either a variable, or a function call (TODO #1314),
+            # both currently end up as a Reference:
             sym = access.symbol
             if isinstance(sym.interface, ArgumentInterface):
                 # Arguments are not external symbols and can be ignored
@@ -268,7 +274,8 @@ class RoutineInfo(RoutineInfoBase):
                 # to be identified when parsing the corresponding module,
                 # so for now set the type as unknown:
                 module_name = sym.interface.container_symbol.name
-                self._non_locals.append(("unknown", module_name, sym.name))
+                sig = access.get_signature_and_indices()[0]
+                self._non_locals.append(("unknown", module_name, sig))
                 continue
 
             # Check for an assignment of a result in a function, which
@@ -293,7 +300,7 @@ class RoutineInfo(RoutineInfoBase):
         - the name of the symbol (lowercase)
 
         :returns: the non-local accesses in this routine.
-        :rtype: List[Tuple[str, str, str, \
+        :rtype: List[Tuple[str, str, :py:class:`psyclone.core.Signature`, \
                           :py:class:`psyclone.core.SingleVariableAccessInfo`]]
 
         '''
@@ -304,7 +311,7 @@ class RoutineInfo(RoutineInfoBase):
         result = []
         for (symbol_type, module, sym_name) in self._non_locals:
             if symbol_type == "routine":
-                result.append((symbol_type, module, sym_name, None))
+                result.append((symbol_type, module, Signature(sym_name), None))
                 continue
             sig = Signature(sym_name)
             result.append((symbol_type, module, sym_name,
