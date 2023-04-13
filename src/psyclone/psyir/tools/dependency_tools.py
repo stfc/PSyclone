@@ -927,11 +927,13 @@ class DependencyTools():
 
         :param todo: the information about symbol type, module_name, \
             symbol_name and access information
-        :type todo: List[Tuple[str,str,str,str]]
+        :type todo: List[Tuple[str,str,\
+                              :py:class:`psyclone.core.Signature`,str]]
 
         :returns: a tuple containing first the input, then the output \
             non-local symbols.
-        :rtype: Tuple[Set[Tuple[str, str]], Set[Tuple[str, str]]]
+        :rtype: Tuple[Set[Tuple[str, :py:class:`psyclone.core.Signature`]], \
+                      Set[Tuple[str, :py:class:`psyclone.core.Signature`]]]
 
         '''
         mod_manager = ModuleManager.get()
@@ -943,12 +945,12 @@ class DependencyTools():
             if info in done:
                 continue
             done.add(info)
-            external_type, module_name, symbol_name, access_info = info
+            external_type, module_name, signature, access_info = info
             if external_type == "routine":
                 if module_name is None:
                     # We don't know where the subroutine comes from.
                     # For now ignore this
-                    print(f"Unknown routine '{symbol_name} - ignored.")
+                    print(f"Unknown routine '{signature[0]} - ignored.")
                     continue
                 try:
                     mod_info = mod_manager.get_module_info(module_name)
@@ -956,9 +958,9 @@ class DependencyTools():
                     print(f"Cannot find module '{module_name}' - ignored.")
                     continue
                 try:
-                    routine_info = mod_info.get_routine_info(symbol_name)
+                    routine_info = mod_info.get_routine_info(signature[0])
                 except KeyError:
-                    print(f"Cannot find symbol '{symbol_name}' in module "
+                    print(f"Cannot find symbol '{signature[0]}' in module "
                           f"'{module_name}' - ignored.")
                     continue
                 # Add the list of non-locals to our todo list:
@@ -972,13 +974,13 @@ class DependencyTools():
                     mod_info = mod_manager.get_module_info(module_name)
                 except FileNotFoundError:
                     print(f"Cannot find module '{module_name}' - ignoring "
-                          f"unknown symbol '{symbol_name}'.")
+                          f"unknown symbol '{signature}'.")
                     continue
 
-                if mod_info.contains_routine(symbol_name):
+                if mod_info.contains_routine(str(signature)):
                     # It is a routine, which we need to analyse for the use
                     # of non-local symbols:
-                    todo.append(("routine", module_name, symbol_name,
+                    todo.append(("routine", module_name, signature,
                                  access_info))
                     continue
                 # Otherwise fall through to the code that adds a reference:
@@ -986,9 +988,9 @@ class DependencyTools():
             # Now it must be a reference, so add it to the list of input-
             # and output-variables as appropriate:
             if access_info.is_written():
-                out_vars.add((module_name, symbol_name))
+                out_vars.add((module_name, signature))
             if not access_info.is_written_first():
-                in_vars.add((module_name, symbol_name))
+                in_vars.add((module_name, signature))
 
         return (in_vars, out_vars)
 
@@ -1023,6 +1025,7 @@ class DependencyTools():
         # pylint: disable=too-many-statements
         in_local, out_local = self.get_in_out_parameters(node_list,
                                                          options=options)
+        print("RRR", in_local, out_local)
         # Find all kernels called from the currently processed PSyIR.
         # While this might contain too many calls (e.g. if only one
         # kernel out of 10 is instrumented), but makes the implementation
@@ -1037,7 +1040,7 @@ class DependencyTools():
                 if isinstance(kernel, BuiltIn):
                     # Builtins don't have non-local accesses
                     continue
-                print(kernel.base_name, kernel.module_name)
+
                 # Get the non-local access information from the kernel
                 # by querying the module that contains the kernel:
                 mod_info = mod_manager.get_module_info(kernel.module_name)
