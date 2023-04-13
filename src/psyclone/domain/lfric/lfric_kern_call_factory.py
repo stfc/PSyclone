@@ -91,5 +91,5 @@ class LFRicKernCallFactory():
 
 # ---------- Documentation utils -------------------------------------------- #
 # The list of module members that we wish AutoAPI to generate
-# documentation for. (See https://psyclone-ref.readthedocs.io)
+# documentation for (see https://psyclone-ref.readthedocs.io)
 __all__ = ['LFRicKernCallFactory']
