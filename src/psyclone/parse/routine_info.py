@@ -84,8 +84,7 @@ class RoutineInfoBase:
         self._psyir = psyir
 
     # -------------------------------------------------------------------------
-    @property
-    def psyir(self):
+    def get_psyir(self):
         ''':returns: the PSyIR of this routine.
         :rtype: :py:class:`psyclone.psyir.nodes.Node`
 
@@ -158,7 +157,7 @@ class RoutineInfo(RoutineInfoBase):
 
         '''
         if self._var_accesses is None:
-            self._var_accesses = VariablesAccessInfo(self.psyir)
+            self._var_accesses = VariablesAccessInfo(self.get_psyir())
 
         return self._var_accesses
 
@@ -223,14 +222,14 @@ class RoutineInfo(RoutineInfoBase):
 
         self._non_locals = []
 
-        if not self.psyir:
+        if not self.get_psyir():
             # Since the psyir property will parse the file if required,
             # if the value is None, the file could not be parsed.
             print(f"Could not create PSyIR for '{self.name}' in module "
                   f"'{self.module_info.name}'- ignored.")
             return
 
-        for access in self.psyir.walk((Kern, Call, Reference)):
+        for access in self.get_psyir().walk((Kern, Call, Reference)):
             # Builtins are certainly not externals, so ignore them.
             if isinstance(access, BuiltIn):
                 continue
