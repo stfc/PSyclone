@@ -188,7 +188,7 @@ class ModuleInfo:
                     all_generic_interfaces.append(routine)
                     continue
                 routine_info = RoutineInfo(self, routine)
-                self._routine_info[routine_info.name] = routine_info
+                self._routine_info[routine_info.name.lower()] = routine_info
 
             # Then handle all generic interfaces, which will internally
             # use references to the RoutineInfo objects collected above:
@@ -203,7 +203,7 @@ class ModuleInfo:
                                           proc_stmt.items[0].items])
                 # Create a GenericRoutineInfo object to store this information:
                 generic_info = GenericRoutineInfo(self, name, routine_names)
-                self._routine_info[name] = generic_info
+                self._routine_info[name.lower()] = generic_info
 
         return self._parse_tree
 
@@ -329,7 +329,7 @@ class ModuleInfo:
                 self._psyir = FileContainer(os.path.basename(self._filename))
             # Now update all RoutineInfo objects:
             for routine in self._psyir.walk(Routine):
-                routine_info = self._routine_info[routine.name]
+                routine_info = self._routine_info[routine.name.lower()]
                 routine_info.set_psyir(routine)
 
         return self._psyir
