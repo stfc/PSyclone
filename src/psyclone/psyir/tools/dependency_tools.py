@@ -834,7 +834,7 @@ class DependencyTools():
             'read'. Otherwise, these accesses will be ignored.
 
         :returns: a list of all variable signatures that are read.
-        :rtype: List[:py:class:`psyclone.core.Signature`]
+        :rtype: List[Tuple[str, :py:class:`psyclone.core.Signature`]]
 
         '''
         # Collect the information about all variables used:
@@ -848,7 +848,7 @@ class DependencyTools():
             # have a WRITE before a READ access, so they will be ignored
             # automatically.
             if not variables_info[signature].is_written_first():
-                input_list.append(signature)
+                input_list.append(("", signature))
 
         return input_list
 
@@ -874,14 +874,14 @@ class DependencyTools():
             'read'. Otherwise, these accesses will be ignored.
 
         :returns: a list of all variable signatures that are written.
-        :rtype: List[:py:class:`psyclone.core.Signature`]
+        :rtype: List[Tuple[str,:py:class:`psyclone.core.Signature`]]
 
         '''
         # Collect the information about all variables used:
         if not variables_info:
             variables_info = VariablesAccessInfo(node_list, options=options)
 
-        return [signature for signature in variables_info.all_signatures
+        return [("", signature) for signature in variables_info.all_signatures
                 if variables_info.is_written(signature)]
 
     # -------------------------------------------------------------------------
@@ -1052,11 +1052,7 @@ class DependencyTools():
         # Resolve routine calls and unknown accesses:
         non_local_in, non_local_out = self._resolve_non_locals_to_in_out(todo)
 
-        non_local_in = local_in + sorted(non_local_in)
-        non_local_out = local_out + sorted(non_local_out)
-        print(f"Result for '{node_list[0].root.children[0].name}'",
-              f"'{node_list[0].children[3].children[0].name}' is:")
-        print(f"IN :'{non_local_in}'")
-        print(f"OUT:'{non_local_out}'")
+        all_in = local_in + sorted(non_local_in)
+        all_out = local_out + sorted(non_local_out)
 
-        return local_in, local_out
+        return all_in, all_out

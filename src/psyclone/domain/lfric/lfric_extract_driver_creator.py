@@ -544,7 +544,7 @@ class LFRicExtractDriverCreator:
 
         # First handle variables that are read:
         # -------------------------------------
-        for signature in input_list:
+        for module_name, signature in input_list:
             # Find the right symbol for the variable. Note that all variables
             # in the input and output list have been detected as being used
             # when the variable accesses were analysed. Therefore, these
@@ -577,7 +577,7 @@ class LFRicExtractDriverCreator:
         # file. The content of these two variables should be identical
         # at the end.
         output_symbols = []
-        for signature in output_list:
+        for module_name, signature in output_list:
             # Find the right symbol for the variable. Note that all variables
             # in the input and output list have been detected as being used
             # when the variable accesses were analysed. Therefore, these

@@ -106,6 +106,9 @@ class ExtractNode(PSyDataNode):
             self._post_name = options.get("post_var_postfix", "_post")
         else:
             self._post_name = "_post"
+        # Make copies of the parameter lists:
+        self._input_list = options.get("input_list", [])[:]
+        self._output_list = options.get("output_list", [])[:]
 
     def __eq__(self, other):
         '''
@@ -153,12 +156,20 @@ class ExtractNode(PSyDataNode):
         # Avoid circular dependency
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.tools.dependency_tools import DependencyTools
-        # Determine the variables to write:
-        dep = DependencyTools()
-        input_list, output_list = \
-            dep.get_in_out_parameters(self, options=self.options)
-        options = {'pre_var_list': input_list,
-                   'post_var_list': output_list,
+
+        # Determine the variables to write, if they were not provided
+        # in the constructor.
+        if not self._input_list:
+            dep = DependencyTools()
+            self._input_list = dep.get_input_parameters(self,
+                                                        options=self.options)
+        if not self._output_list:
+            dep = DependencyTools()
+            self._output_list = dep.get_output_parameters(self,
+                                                          options=self.options)
+
+        options = {'pre_var_list': self._input_list,
+                   'post_var_list': self._output_list,
                    'post_var_postfix': self._post_name}
 
         parent.add(CommentGen(parent, ""))
