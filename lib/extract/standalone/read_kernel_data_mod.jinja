@@ -28,6 +28,8 @@
 {% if ALL_TYPES is not defined -%}
    {% set ALL_TYPES = [ ("Double", "real(kind=real64)",   64),
                         ("Real",   "real(kind=real32)",   32),
+                        ("Char",   "character(*)",         8),
+                        ("Logical","integer(kind=real32)",32),
                         ("Int",    "integer(kind=int32)", 32) ] %}
 {% endif -%}
 
@@ -222,7 +224,11 @@ contains
         {% if name == "Logical" %}
         value = .false.
         {% else %}
+        {% if name == "Char" %}
+        value = ""
+        {% else %}
         value = 0.0d0
+        {% endif %}
         {% endif %}
         read(this%unit_number) value
 

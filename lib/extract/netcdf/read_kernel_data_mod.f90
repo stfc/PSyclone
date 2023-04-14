@@ -66,6 +66,11 @@ module read_kernel_data_mod
         ! The various procedures used
         procedure :: OpenRead
 
+        procedure :: ReadScalarChar
+        procedure :: ReadArray1dChar
+        procedure :: ReadArray2dChar
+        procedure :: ReadArray3dChar
+        procedure :: ReadArray4dChar
         procedure :: ReadScalarInt
         procedure :: ReadArray1dInt
         procedure :: ReadArray2dInt
@@ -96,6 +101,11 @@ module read_kernel_data_mod
         !! This is not part of the official PSyData API, but is used in
         !! the drivers created by PSyclone.
         generic, public :: ReadVariable => &
+            ReadScalarChar, &
+            ReadArray1dChar, &
+            ReadArray2dChar, &
+            ReadArray3dChar, &
+            ReadArray4dChar, &
             ReadScalarInt, &
             ReadArray1dInt, &
             ReadArray2dInt, &
@@ -175,6 +185,265 @@ contains
                                         NF90_NOWRITE, this%ncid))
 
     end subroutine OpenRead
+
+
+    ! -------------------------------------------------------------------------
+    !> @brief This subroutine reads the value of a scalar character(*)
+    !! variable from the NetCDF file and returns it to the user. Note that
+    !! this function is not part of the PSyData API, but it is convenient to
+    !! have these functions together here. The driver can then be linked with
+    !! this  PSyData library and will be able to read the files.
+    !! @param[in,out] this The instance of the ReadKernelDataType.
+    !! @param[in] name The name of the variable (string).
+    !! @param[out] value The read value is stored here.
+    subroutine ReadScalarChar(this, name, value)
+
+        use netcdf, only : nf90_inq_varid, nf90_get_var
+
+        implicit none
+
+        class(ReadKernelDataType), intent(inout), target :: this
+        character(*), intent(in)                         :: name
+        character(*), intent(out)                            :: value
+
+        integer                                          :: retval, varid
+
+        retval = CheckError(nf90_inq_varid(this%ncid, name, varid))
+        retval = CheckError(nf90_get_var(this%ncid, varid, value))
+
+    end subroutine ReadScalarChar
+
+
+
+    ! -------------------------------------------------------------------------
+    !> @brief This subroutine reads the values of a 1D array of character(*)
+    !! It allocates memory for the allocatable parameter 'value' to store the
+    !! read values which is then returned to the caller. If the memory for the
+    !! array cannot be allocated, the application will be stopped.
+    !! @param[in,out] this The instance of the extract_PsyDataType.
+    !! @param[in] name The name of the variable (string).
+    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !!             which is allocated here and stores the values read.
+    subroutine ReadArray1dChar(this, name, value)
+
+        use netcdf
+
+        implicit none
+
+        class(ReadKernelDataType), intent(inout), target             :: this
+        character(*), intent(in)                                     :: name
+        character(*), dimension(:), allocatable, intent(out) :: value
+
+        integer        :: retval, varid
+        integer        :: dim_id
+        integer        :: dim_size1
+        integer        :: ierr
+
+        ! First query the dimensions of the original array from the
+        ! NetCDF file
+        retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%1"), &
+                                           dim_id))
+        retval = CheckError(nf90_inquire_dimension(this%ncid, dim_id, &
+                                                   len=dim_size1))
+
+        ! Allocate enough space to store the values to be read:
+        allocate(value(dim_size1), Stat=ierr)
+        if (ierr /= 0) then
+            write(stderr,*) "Cannot allocate array for ", name, &
+                            " of size ", dim_size1, &
+                            " in ReadArray1dChar."
+            stop
+        endif
+
+        retval = CheckError(nf90_inq_varid(this%ncid, name, varid))
+        ! Initialise it with 0, so that an array comparison will work
+        ! even though e.g. boundary areas or so might not be set at all.
+        ! The compiler will convert the double precision value to the right
+        ! type (e.g. int or single precision).
+        value = ""
+        retval = CheckError(nf90_get_var(this%ncid, varid, value))
+
+    end subroutine ReadArray1dChar
+
+
+
+    ! -------------------------------------------------------------------------
+    !> @brief This subroutine reads the values of a 2D array of character(*)
+    !! It allocates memory for the allocatable parameter 'value' to store the
+    !! read values which is then returned to the caller. If the memory for the
+    !! array cannot be allocated, the application will be stopped.
+    !! @param[in,out] this The instance of the extract_PsyDataType.
+    !! @param[in] name The name of the variable (string).
+    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !!             which is allocated here and stores the values read.
+    subroutine ReadArray2dChar(this, name, value)
+
+        use netcdf
+
+        implicit none
+
+        class(ReadKernelDataType), intent(inout), target             :: this
+        character(*), intent(in)                                     :: name
+        character(*), dimension(:,:), allocatable, intent(out) :: value
+
+        integer        :: retval, varid
+        integer        :: dim_id
+        integer        :: dim_size1,dim_size2
+        integer        :: ierr
+
+        ! First query the dimensions of the original array from the
+        ! NetCDF file
+        retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%1"), &
+                                           dim_id))
+        retval = CheckError(nf90_inquire_dimension(this%ncid, dim_id, &
+                                                   len=dim_size1))
+        retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%2"), &
+                                           dim_id))
+        retval = CheckError(nf90_inquire_dimension(this%ncid, dim_id, &
+                                                   len=dim_size2))
+
+        ! Allocate enough space to store the values to be read:
+        allocate(value(dim_size1,dim_size2), Stat=ierr)
+        if (ierr /= 0) then
+            write(stderr,*) "Cannot allocate array for ", name, &
+                            " of size ", dim_size1,dim_size2, &
+                            " in ReadArray2dChar."
+            stop
+        endif
+
+        retval = CheckError(nf90_inq_varid(this%ncid, name, varid))
+        ! Initialise it with 0, so that an array comparison will work
+        ! even though e.g. boundary areas or so might not be set at all.
+        ! The compiler will convert the double precision value to the right
+        ! type (e.g. int or single precision).
+        value = ""
+        retval = CheckError(nf90_get_var(this%ncid, varid, value))
+
+    end subroutine ReadArray2dChar
+
+
+
+    ! -------------------------------------------------------------------------
+    !> @brief This subroutine reads the values of a 3D array of character(*)
+    !! It allocates memory for the allocatable parameter 'value' to store the
+    !! read values which is then returned to the caller. If the memory for the
+    !! array cannot be allocated, the application will be stopped.
+    !! @param[in,out] this The instance of the extract_PsyDataType.
+    !! @param[in] name The name of the variable (string).
+    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !!             which is allocated here and stores the values read.
+    subroutine ReadArray3dChar(this, name, value)
+
+        use netcdf
+
+        implicit none
+
+        class(ReadKernelDataType), intent(inout), target             :: this
+        character(*), intent(in)                                     :: name
+        character(*), dimension(:,:,:), allocatable, intent(out) :: value
+
+        integer        :: retval, varid
+        integer        :: dim_id
+        integer        :: dim_size1,dim_size2,dim_size3
+        integer        :: ierr
+
+        ! First query the dimensions of the original array from the
+        ! NetCDF file
+        retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%1"), &
+                                           dim_id))
+        retval = CheckError(nf90_inquire_dimension(this%ncid, dim_id, &
+                                                   len=dim_size1))
+        retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%2"), &
+                                           dim_id))
+        retval = CheckError(nf90_inquire_dimension(this%ncid, dim_id, &
+                                                   len=dim_size2))
+        retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%3"), &
+                                           dim_id))
+        retval = CheckError(nf90_inquire_dimension(this%ncid, dim_id, &
+                                                   len=dim_size3))
+
+        ! Allocate enough space to store the values to be read:
+        allocate(value(dim_size1,dim_size2,dim_size3), Stat=ierr)
+        if (ierr /= 0) then
+            write(stderr,*) "Cannot allocate array for ", name, &
+                            " of size ", dim_size1,dim_size2,dim_size3, &
+                            " in ReadArray3dChar."
+            stop
+        endif
+
+        retval = CheckError(nf90_inq_varid(this%ncid, name, varid))
+        ! Initialise it with 0, so that an array comparison will work
+        ! even though e.g. boundary areas or so might not be set at all.
+        ! The compiler will convert the double precision value to the right
+        ! type (e.g. int or single precision).
+        value = ""
+        retval = CheckError(nf90_get_var(this%ncid, varid, value))
+
+    end subroutine ReadArray3dChar
+
+
+
+    ! -------------------------------------------------------------------------
+    !> @brief This subroutine reads the values of a 4D array of character(*)
+    !! It allocates memory for the allocatable parameter 'value' to store the
+    !! read values which is then returned to the caller. If the memory for the
+    !! array cannot be allocated, the application will be stopped.
+    !! @param[in,out] this The instance of the extract_PsyDataType.
+    !! @param[in] name The name of the variable (string).
+    !! @param[out] value An allocatable, unallocated 2d-double precision array
+    !!             which is allocated here and stores the values read.
+    subroutine ReadArray4dChar(this, name, value)
+
+        use netcdf
+
+        implicit none
+
+        class(ReadKernelDataType), intent(inout), target             :: this
+        character(*), intent(in)                                     :: name
+        character(*), dimension(:,:,:,:), allocatable, intent(out) :: value
+
+        integer        :: retval, varid
+        integer        :: dim_id
+        integer        :: dim_size1,dim_size2,dim_size3,dim_size4
+        integer        :: ierr
+
+        ! First query the dimensions of the original array from the
+        ! NetCDF file
+        retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%1"), &
+                                           dim_id))
+        retval = CheckError(nf90_inquire_dimension(this%ncid, dim_id, &
+                                                   len=dim_size1))
+        retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%2"), &
+                                           dim_id))
+        retval = CheckError(nf90_inquire_dimension(this%ncid, dim_id, &
+                                                   len=dim_size2))
+        retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%3"), &
+                                           dim_id))
+        retval = CheckError(nf90_inquire_dimension(this%ncid, dim_id, &
+                                                   len=dim_size3))
+        retval = CheckError(nf90_inq_dimid(this%ncid, trim(name//"dim%4"), &
+                                           dim_id))
+        retval = CheckError(nf90_inquire_dimension(this%ncid, dim_id, &
+                                                   len=dim_size4))
+
+        ! Allocate enough space to store the values to be read:
+        allocate(value(dim_size1,dim_size2,dim_size3,dim_size4), Stat=ierr)
+        if (ierr /= 0) then
+            write(stderr,*) "Cannot allocate array for ", name, &
+                            " of size ", dim_size1,dim_size2,dim_size3,dim_size4, &
+                            " in ReadArray4dChar."
+            stop
+        endif
+
+        retval = CheckError(nf90_inq_varid(this%ncid, name, varid))
+        ! Initialise it with 0, so that an array comparison will work
+        ! even though e.g. boundary areas or so might not be set at all.
+        ! The compiler will convert the double precision value to the right
+        ! type (e.g. int or single precision).
+        value = ""
+        retval = CheckError(nf90_get_var(this%ncid, varid, value))
+
+    end subroutine ReadArray4dChar
 
 
     ! -------------------------------------------------------------------------
