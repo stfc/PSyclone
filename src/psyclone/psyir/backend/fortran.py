@@ -92,8 +92,7 @@ def gen_intent(symbol):
         except KeyError as excinfo:
             raise VisitorError(
                     f"Unsupported access '{excinfo}' found.") from excinfo
-    else:
-        return None  # non-Arguments do not have intent
+    return None  # non-Arguments do not have intent
 
 
 def gen_datatype(datatype, name):
