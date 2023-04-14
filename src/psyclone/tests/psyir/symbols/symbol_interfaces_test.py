@@ -43,7 +43,8 @@ import pytest
 
 from psyclone.psyir.symbols.interfaces import SymbolInterface, \
     AutomaticInterface, ArgumentInterface, ImportInterface, \
-    UnresolvedInterface, StaticInterface
+    UnresolvedInterface, StaticInterface, DefaultModuleInterface, \
+    CommonBlockInterface, UnknownInterface
 from psyclone.psyir.symbols import ContainerSymbol
 
 
@@ -66,6 +67,15 @@ def test_automatic_interface():
     assert str(interface) == "Automatic"
 
 
+def test_defaultmoduleinterface():
+    '''Test we can create an DefaultModuleInterface instance and check its
+    __str__ value
+
+    '''
+    interface = DefaultModuleInterface()
+    assert str(interface) == "DefaultModule"
+
+
 def test_static_interface():
     '''Test we can create a StaticInterface instance and check its __str__
     value
@@ -75,6 +85,15 @@ def test_static_interface():
     assert str(interface) == "Static"
 
 
+def test_commonblockinterface():
+    '''Test we can create an CommonBlockInterface instance and check its
+    __str__ value
+
+    '''
+    interface = CommonBlockInterface()
+    assert str(interface) == "CommonBlock"
+
+
 def test_unresolvedinterface():
     '''Test we can create an UnresolvedInterface instance and check its
     __str__ value
@@ -82,6 +101,15 @@ def test_unresolvedinterface():
     '''
     interface = UnresolvedInterface()
     assert str(interface) == "Unresolved"
+
+
+def test_unknowninterface():
+    '''Test we can create an UnknownInterface instance and check its
+    __str__ value
+
+    '''
+    interface = UnknownInterface()
+    assert str(interface) == "Unknown"
 
 
 def test_importinterface():
