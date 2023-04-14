@@ -160,7 +160,7 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
     built-in.
 
     :raises NotImplementedError: if a subclass of this abstract class \
-        does not set the value of _datatype.
+        does not set the value of '_datatype'.
 
     '''
     _case_name = None
@@ -2729,8 +2729,8 @@ class LFRicIntXKern(LFRicXKern):
     is the real-valued field being converted.
 
     '''
-    # _datatype is only required to avoid an exception in __init__, it
-    # is not required by this class.
+    # '_datatype' is only required to avoid an exception in '__init__',
+    # it is not required by this class.
     _datatype = "dummy"
     _field_type = "int"
     _case_name = "int_X"
@@ -3052,8 +3052,8 @@ class LFRicRealXKern(LFRicXKern):
     is the integer-valued field being converted.
 
     '''
-    # _datatype is only required to avoid an exception in __init__, it
-    # is not required by this class.
+    # '_datatype' is only required to avoid an exception in '__init__',
+    # it is not required by this class.
     _datatype = "dummy"
     _field_type = "real"
     _case_name = "real_X"

@@ -89,7 +89,7 @@ def dummy_func(self, _1, _2=True):
 
 class Dummy1(LFRicBuiltIn):
     '''Utility subclass to enable the raising of an exception in the
-    __init__ method of abstract LFRicBuiltIn class.
+    '__init__' method of abstract LFRicBuiltIn class.
 
     '''
     @staticmethod
@@ -161,7 +161,7 @@ def test_lfric_builtin_init():
     # Check static values
     assert instance._case_name is None
     assert instance._datatype == "dummy"
-    # Check for exception if _datatype is not specified in the subclass.
+    # Check for exception if '_datatype' is not specified in the subclass.
     with pytest.raises(NotImplementedError) as info:
         _ = Dummy1()
     assert ("An LFRicBuiltIn should be overridden by a subclass that sets "
