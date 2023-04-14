@@ -725,6 +725,13 @@ def test_fw_gen_vardecl_visibility(fortran_writer):
     result = fortran_writer.gen_vardecl(symbol, include_visibility=True)
     assert result == "integer, parameter, public :: dummy3 = 10\n"
 
+    # Known type but invalid visibility
+    symbol._visibility = "wrong"
+    with pytest.raises(InternalError) as err:
+        fortran_writer.gen_vardecl(symbol, include_visibility=True)
+    assert ("A Symbol must be either public or private but symbol 'dummy3' "
+            "has visibility 'wrong'" in str(err.value))
+
     # A symbol of unknown Fortran type
     symbol = DataSymbol("var", UnknownFortranType("type :: var\n"
                                                   "  integer, private :: id\n"
