@@ -50,10 +50,10 @@ import pytest
 
 from psyclone.psyir.nodes import Container, Literal, KernelSchedule
 from psyclone.psyir.symbols import ArgumentInterface, ContainerSymbol, \
-                                   DataSymbol, ImportInterface, \
-                                   INTEGER_SINGLE_TYPE, AutomaticInterface, \
-                                   RoutineSymbol, Symbol, SymbolError, \
-                                   SymbolTable, UnresolvedInterface
+    DataSymbol, ImportInterface, DefaultModuleInterface, StaticInterface, \
+    INTEGER_SINGLE_TYPE, AutomaticInterface, CommonBlockInterface, \
+    RoutineSymbol, Symbol, SymbolError, UnknownInterface, \
+    SymbolTable, UnresolvedInterface
 
 
 def test_symbol_initialisation():
@@ -92,11 +92,12 @@ def test_symbol_initialisation():
             "'str'" in str(error.value))
 
 
-def test_symbol_interface_setter():
+def test_symbol_interface_setter_and_is_properties():
     '''Test that the Symbol interface setter behaves as expected,
     including raising an exception if the input is of the wrong
     type. Also use this to test the is_automatic, is_import and
-    is_argument and is_unresolved properties.
+    is_argument, is_unresolved, is_modulevar, is_static,
+    is_commonblock, is_unknown properties.
 
     '''
     symbol = Symbol('sym1')
@@ -104,24 +105,80 @@ def test_symbol_interface_setter():
     assert not symbol.is_import
     assert not symbol.is_argument
     assert not symbol.is_unresolved
+    assert not symbol.is_modulevar
+    assert not symbol.is_static
+    assert not symbol.is_commonblock
+    assert not symbol.is_unknown
 
     symbol.interface = ImportInterface(ContainerSymbol("my_mod"))
     assert not symbol.is_automatic
     assert symbol.is_import
     assert not symbol.is_argument
     assert not symbol.is_unresolved
+    assert not symbol.is_modulevar
+    assert not symbol.is_static
+    assert not symbol.is_commonblock
+    assert not symbol.is_unknown
 
     symbol.interface = ArgumentInterface()
     assert not symbol.is_automatic
     assert not symbol.is_import
     assert symbol.is_argument
     assert not symbol.is_unresolved
+    assert not symbol.is_modulevar
+    assert not symbol.is_static
+    assert not symbol.is_commonblock
+    assert not symbol.is_unknown
 
     symbol.interface = UnresolvedInterface()
     assert not symbol.is_automatic
     assert not symbol.is_import
     assert not symbol.is_argument
     assert symbol.is_unresolved
+    assert not symbol.is_modulevar
+    assert not symbol.is_static
+    assert not symbol.is_commonblock
+    assert not symbol.is_unknown
+
+    symbol.interface = DefaultModuleInterface()
+    assert not symbol.is_automatic
+    assert not symbol.is_import
+    assert not symbol.is_argument
+    assert not symbol.is_unresolved
+    assert symbol.is_modulevar
+    assert not symbol.is_static
+    assert not symbol.is_commonblock
+    assert not symbol.is_unknown
+
+    symbol.interface = StaticInterface()
+    assert not symbol.is_automatic
+    assert not symbol.is_import
+    assert not symbol.is_argument
+    assert not symbol.is_unresolved
+    assert not symbol.is_modulevar
+    assert symbol.is_static
+    assert not symbol.is_commonblock
+    assert not symbol.is_unknown
+
+    symbol.interface = CommonBlockInterface()
+    assert not symbol.is_automatic
+    assert not symbol.is_import
+    assert not symbol.is_argument
+    assert not symbol.is_unresolved
+    assert not symbol.is_modulevar
+    assert not symbol.is_static
+    assert symbol.is_commonblock
+    assert not symbol.is_unknown
+
+    symbol.interface = UnknownInterface()
+    assert not symbol.is_automatic
+    assert not symbol.is_import
+    assert not symbol.is_argument
+    assert not symbol.is_unresolved
+    assert not symbol.is_modulevar
+    assert not symbol.is_static
+    assert not symbol.is_commonblock
+    assert symbol.is_unknown
 
     with pytest.raises(TypeError) as info:
         symbol.interface = "hello"

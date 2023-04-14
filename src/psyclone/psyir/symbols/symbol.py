@@ -43,7 +43,8 @@ from enum import Enum
 from psyclone.errors import PSycloneError, InternalError
 from psyclone.psyir.symbols.interfaces import AutomaticInterface, \
     SymbolInterface, ArgumentInterface, UnresolvedInterface, ImportInterface, \
-    UnknownInterface, CommonBlockInterface, DefaultModuleInterface
+    UnknownInterface, CommonBlockInterface, DefaultModuleInterface, \
+    StaticInterface
 
 
 class SymbolError(PSycloneError):
@@ -361,7 +362,7 @@ class Symbol():
         :rtype: bool
 
         '''
-        return isinstance(self._interface, CommonBlockInterface)
+        return isinstance(self._interface, StaticInterface)
 
     @property
     def is_unresolved(self):
