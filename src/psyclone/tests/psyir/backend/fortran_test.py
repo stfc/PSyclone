@@ -83,6 +83,8 @@ def test_gen_intent():
                         interface=ArgumentInterface(
                             ArgumentInterface.Access.READWRITE))
     assert gen_intent(symbol) == "inout"
+    symbol = DataSymbol("dummy", INTEGER_TYPE)  # Non-argument
+    assert gen_intent(symbol) is None
 
 
 def test_gen_intent_error(monkeypatch):
