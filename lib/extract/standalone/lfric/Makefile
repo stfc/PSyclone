@@ -1,7 +1,7 @@
 #------------------------------------------------------------------------------
 # BSD 2-Clause License
 # 
-# Copyright (c) 2022, Science and Technology Facilities Council.
+# Copyright (c) 2022-2023, Science and Technology Facilities Council.
 # All rights reserved.
 # 
 # Redistribution and use in source and binary forms, with or without
@@ -60,7 +60,7 @@ include $(LFRIC_PATH)/lfric_include_flags.inc
 PSYDATA_LIB_NAME = _extract
 PSYDATA_LIB = lib$(PSYDATA_LIB_NAME).a
 
-PROCESS_ARGS = -prefix=extract_ -types=int,logical,real,double \
+PROCESS_ARGS = -prefix=extract_ -types=char,int,logical,real,double \
                        -dims=1,2,3,4
 PROCESS = $$($(PSYDATA_LIB_DIR)/get_python.sh) $(PSYDATA_LIB_DIR)/process.py
 
