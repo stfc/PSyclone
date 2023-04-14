@@ -38,7 +38,7 @@
 
 ''' This module tests the support for built-in operations in the LFRic API
     using pytest. Currently all built-in operations are 'pointwise' in that
-    they iterate over DOFs. However this may change in the future.
+    they iterate over DoFs. However this may change in the future.
 
     TODO #1796 - break the tests for each built-in into separate files under
                  the 'builtins' directory.
@@ -50,17 +50,18 @@ import pytest
 from psyclone.configuration import Config
 from psyclone.core import Signature, VariablesAccessInfo
 from psyclone.domain.lfric import lfric_builtins, LFRicConstants, LFRicTypes
-from psyclone.domain.lfric.lfric_builtins import (LFRicBuiltInCallFactory,
-                                                  LFRicBuiltIn)
+from psyclone.domain.lfric.kernel import LFRicKernelMetadata, FieldArgMetadata
+from psyclone.domain.lfric.lfric_builtins import (
+    LFRicBuiltInCallFactory, LFRicBuiltIn, LFRicXKern)
 from psyclone.dynamo0p3 import DynKernelArgument
 from psyclone.errors import GenerationError, InternalError
 from psyclone.parse.algorithm import BuiltInCall, parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory
-from psyclone.psyir.nodes import (Loop, Reference, UnaryOperation, Literal,
-                                  StructureReference)
-from psyclone.psyir.symbols import (ArrayType, DataTypeSymbol, DeferredType,
-                                    ScalarType)
+from psyclone.psyir.nodes import (
+    Loop, Reference, UnaryOperation, Literal, StructureReference)
+from psyclone.psyir.symbols import (
+    ArrayType, DataTypeSymbol, DeferredType, ScalarType)
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.utilities import get_invoke
 
@@ -75,7 +76,7 @@ API = "dynamo0.3"
 
 
 def dummy_func(self, _1, _2=True):
-    '''Dummy routine that replaces _init_data_type_properties when used
+    '''Dummy routine that replaces '_init_data_type_properties' when used
     with monkeypatch and sets the minimum needed values to return
     without error for the associated tests.
 
@@ -85,23 +86,125 @@ def dummy_func(self, _1, _2=True):
     self._proxy_data_type = "dummy3"
     self._module_name = "dummy4"
 
+
+class Dummy1(LFRicBuiltIn):
+    '''Utility subclass to enable the raising of an exception in the
+    '__init__' method of abstract LFRicBuiltIn class.
+
+    '''
+    @staticmethod
+    def metadata():
+        '''Subclass abstract method.
+
+        :returns: None
+        :rtype: NoneType
+
+        '''
+        return None
+
+
+class Dummy2(Dummy1):
+    '''Utility subclass to allow instances of the abstract LFRicBuiltIn
+    class to be tested.
+
+    '''
+    _datatype = "dummy"
+
+
+class Dummy3(Dummy2):
+    '''Utility subclass to allow abstract LFRicBuiltIn class
+    '_builtin_metadata' method to be tested.
+
+    '''
+    # pylint: disable=too-many-ancestors
+    _case_name = "test"
+
+
+class XKernDummy(LFRicXKern):
+    '''Utility class to test that LFRicXKern raises the expected
+    exception.
+
+    '''
+    _datatype = "xkerndummy"
+
+    @staticmethod
+    def metadata():
+        return None
+
+    def __str__(self):
+        return "dummy"
+
 # ------------- Tests for built-ins methods and arguments ------------------- #
 
 
-def test_lfric_builtin_abstract_methods():
-    ''' Check that the LFRicBuiltIn class is abstract and that the __str__
-    method is abstract. '''
+def test_lfric_builtin_abstract_method():
+    '''Check that the 'LFRicBuiltIn' class is abstract and that the
+    'metadata()' method is abstract.
+
+    '''
     with pytest.raises(TypeError) as err:
         # pylint: disable=abstract-class-instantiated
         lfric_builtins.LFRicBuiltIn()
     assert "abstract class LFRicBuiltIn" in str(err.value)
-    assert "__str__" in str(err.value)
+    assert "metadata" in str(err.value)
+
+
+def test_lfric_builtin_init():
+    '''Check initiaisation of the abstract 'LFRicBuiltIn' class.'''
+    instance = Dummy2()
+    # Check '__init__'
+    assert instance.qr_rules == {}
+    assert instance.mesh is None
+    assert instance._idx_name is None
+    # Check 'super' is called from '__init__'
+    assert instance._arg_descriptors is None
+    # Check static values
+    assert instance._case_name is None
+    assert instance._datatype == "dummy"
+    # Check for exception if '_datatype' is not specified in the subclass.
+    with pytest.raises(NotImplementedError) as info:
+        _ = Dummy1()
+    assert ("An LFRicBuiltIn should be overridden by a subclass that sets "
+            "the value of '_datatype', but '_datatype' is not set."
+            in str(info.value))
+
+
+def test_lfric_builtin_builtin_metadata():
+    '''Check the '_builtin_metadata' method in the abstract 'LFRicBuiltIn'
+    class.
+
+    '''
+    meta_args = [FieldArgMetadata("gh_real", "gh_write", "w0")]
+    kernel_metadata = Dummy3._builtin_metadata(meta_args)
+    assert isinstance(kernel_metadata, LFRicKernelMetadata)
+    assert kernel_metadata.meta_args == meta_args
+    assert kernel_metadata.operates_on == "dof"
+    assert kernel_metadata.procedure_name == "test_code"
+    assert kernel_metadata.name == "test"
+
+
+def test_lfric_builtin_qr_required():
+    '''Check the 'qr_required' method in the abstract 'LFRicBuiltIn'
+    class.
+
+    '''
+    instance = Dummy2()
+    assert not instance.qr_required
+
+
+def test_lfric_builtin_fs_descriptors():
+    '''Check the 'fs_descriptors' method in the abstract 'LFRicBuiltIn'
+    class.
+
+    '''
+    instance = Dummy2()
+    assert not instance.fs_descriptors
 
 
 # pylint: disable=invalid-name
 def test_lfricxkern_abstract():
-    '''Test that the LFRicXKern class is abstract and that it sets its
-    internal _field_type variable to None.
+    '''Test that the 'LFRicXKern' class is abstract and that it sets its
+    internal '_field_type' variable to 'None'.
 
     '''
     with pytest.raises(TypeError) as error:
@@ -113,20 +216,11 @@ def test_lfricxkern_abstract():
 
 
 def test_lfricxkern_exception():
-    '''Test that LFRicXKern raises an exception if it is subclassed and
-    the subclass does not set the variable _field_type to a value.
+    '''Test that 'LFRicXKern' raises an exception if it is subclassed and
+    the subclass does not set the variable '_field_type' to a value.
 
     '''
-
-    class Dummy(lfric_builtins.LFRicXKern):
-        '''Utility class to test that LFRicXKern raises the expected
-        exception
-
-        '''
-        def __str__(self):
-            return "dummy"
-
-    dummy = Dummy()
+    dummy = XKernDummy()
     with pytest.raises(InternalError) as info:
         dummy.gen_code(None)
     assert ("Subclasses of LFRicXKern must set the _field_type variable "
@@ -134,8 +228,10 @@ def test_lfricxkern_exception():
 
 
 def test_lfricbuiltin_missing_defs(monkeypatch):
-    ''' Check that we raise an appropriate error if we cannot find the
-    file specifying meta-data for built-in kernels '''
+    '''Check that we raise an appropriate error if we cannot find the file
+    specifying meta-data for built-in kernels.
+
+    '''
     monkeypatch.setattr(lfric_builtins, "BUILTIN_DEFINITIONS_FILE",
                         "broken")
     with pytest.raises(ParseError) as excinfo:
@@ -147,8 +243,10 @@ def test_lfricbuiltin_missing_defs(monkeypatch):
 
 
 def test_lfricbuiltin_validate_not_over_dofs(monkeypatch):
-    ''' Check that we raise an appropriate error if we encounter a
-    built-in that does not iterate over dofs. '''
+    '''Check that we raise an appropriate error if we encounter a built-in
+    that does not iterate over DoFs.
+
+    '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "15.12.3_single_pointwise_builtin.f90"),
@@ -160,12 +258,15 @@ def test_lfricbuiltin_validate_not_over_dofs(monkeypatch):
     with pytest.raises(ParseError) as err:
         kern._validate()
     assert ("built-in calls must operate on one of ['dof'] but found 'broken' "
-            "for Built-in: Set a real-valued field " in str(err.value))
+            "for Built-in: setval_c (set a real-valued field "
+            in str(err.value))
 
 
 def test_builtin_multiple_writes():
-    ''' Check that we raise an appropriate error if we encounter a built-in
-    that writes to more than one argument. '''
+    '''Check that we raise an appropriate error if we encounter a built-in
+    that writes to more than one argument.
+
+    '''
     # The file containing broken meta-data for the built-ins
     old_name = lfric_builtins.BUILTIN_DEFINITIONS_FILE[:]
     # Define the built-in name and test file
@@ -187,9 +288,9 @@ def test_builtin_multiple_writes():
 
 
 def test_builtin_write_and_readwrite():
-    ''' Check that we raise an appropriate error if we encounter a built-in
-    that updates more than one argument where one is gh_write and one is
-    gh_readwrite.
+    '''Check that we raise an appropriate error if we encounter a built-in
+    that updates more than one argument where one is 'gh_write' and
+    one is 'gh_readwrite'.
 
     '''
     # The file containing broken meta-data for the built-ins
@@ -212,9 +313,9 @@ def test_builtin_write_and_readwrite():
 
 
 def test_builtin_sum_and_readwrite():
-    ''' Check that we raise an appropriate error if we encounter a built-in
-    that updates more than one argument where one is gh_sum and one is
-    gh_readwrite.
+    '''Check that we raise an appropriate error if we encounter a built-in
+    that updates more than one argument where one is 'gh_sum' and one
+    is 'gh_readwrite'.
 
     '''
     # The file containing broken meta-data for the built-ins
@@ -237,8 +338,10 @@ def test_builtin_sum_and_readwrite():
 
 
 def test_builtin_zero_writes(monkeypatch):
-    ''' Check that we raise an appropriate error if we encounter a built-in
-    that does not write to any field. '''
+    '''Check that we raise an appropriate error if we encounter a built-in
+    that does not write to any field.
+
+    '''
     # Use pytest's monkeypatch support to change our configuration to
     # point to a file containing broken meta-data for the
     # built-ins. The definition for aX_plus_bY that it contains erroneously
@@ -288,8 +391,10 @@ def test_builtin_no_field_args(monkeypatch):
 
 
 def test_builtin_invalid_argument_type(monkeypatch):
-    ''' Check that we raise appropriate error if we encounter a built-in
-    that takes something other than a field or scalar argument. '''
+    '''Check that we raise appropriate error if we encounter a built-in
+    that takes something other than a field or scalar argument.
+
+    '''
     # Define the built-in name and test file
     test_builtin_name = "a_times_X"
     test_builtin_file = "15.4.1_" + test_builtin_name + "_builtin.f90"
@@ -317,9 +422,9 @@ def test_builtin_invalid_argument_type(monkeypatch):
 
 
 def test_builtin_invalid_data_type(monkeypatch):
-    ''' Check that we raise appropriate error if we encounter a
-    built-in that takes something other than an argument of a 'real'
-    or an 'integer' data type.
+    '''Check that we raise appropriate error if we encounter a built-in
+    that takes something other than an argument of a 'real' or an
+    'integer' data type.
 
     '''
     # Define the built-in name and test file
@@ -349,8 +454,10 @@ def test_builtin_invalid_data_type(monkeypatch):
 
 
 def test_builtin_args_not_same_space():
-    ''' Check that we raise the correct error if we encounter a built-in
-    that has arguments on different function spaces. '''
+    '''Check that we raise the correct error if we encounter a built-in
+    that has arguments on different function spaces.
+
+    '''
     # Save the name of the actual built-in-definitions file
     old_name = lfric_builtins.BUILTIN_DEFINITIONS_FILE[:]
     # Define the built-in name and test file
@@ -375,9 +482,9 @@ def test_builtin_args_not_same_space():
 
 
 def test_builtin_fld_args_different_data_type(monkeypatch):
-    ''' Check that we raise the correct error if we encounter a built-in
-    that has has different data type of its field arguments and is not one
-    of the data type conversion built-ins ("int_X" and "real_X").
+    '''Check that we raise the correct error if we encounter a built-in
+    that has has different data type of its field arguments and is not
+    one of the data type conversion built-ins ('int_X' and 'real_X').
 
     '''
     # Define the built-in name and test file
@@ -411,19 +518,23 @@ def test_builtin_fld_args_different_data_type(monkeypatch):
 
 
 def test_lfricbuiltincallfactory_str():
-    ''' Check that the str method of LFRicBuiltInCallFactory works as
-    expected. '''
+    '''Check that the '__str__' method of 'LFRicBuiltInCallFactory' works
+    as expected.
+
+    '''
     lfricinf = LFRicBuiltInCallFactory()
     assert str(lfricinf) == "Factory for a call to an LFRic built-in."
 
 
 def test_lfricbuiltin_wrong_name():
-    ''' Check that LFRicBuiltInCallFactory.create() raises an error if it
-    doesn't recognise the name of the kernel it is passed. '''
+    '''Check that 'LFRicBuiltInCallFactory.create()' raises an error if it
+    doesn't recognise the name of the kernel it is passed.
+
+    '''
     lfricinf = LFRicBuiltInCallFactory()
     # We use 'duck-typing' - rather than attempt to create a rather
-    # complex Kernel object we use a ParseError object and monkey
-    # patch it so that it has a func_name member.
+    # complex Kernel object we use a ParseError object and monkeypatch
+    # it so that it has a 'func_name' member.
     fake_kern = ParseError("blah")
     fake_kern.func_name = "pw_blah"
     with pytest.raises(ParseError) as excinfo:
@@ -433,8 +544,10 @@ def test_lfricbuiltin_wrong_name():
 
 
 def test_lfricbuiltin_not_dofs():
-    '''Check that LFRicBuiltInCallFactory.create() raises an error if the
-    builtin doesn't iterate over DoFs.'''
+    '''Check that 'LFRicBuiltInCallFactory.create()' raises an error if
+    the built-in doesn't iterate over DoFs.
+
+    '''
 
     class KtypeDummy():
         '''A fake KernelType class which provides the required variables
@@ -457,8 +570,10 @@ def test_lfricbuiltin_not_dofs():
 
 
 def test_invalid_builtin_kernel():
-    ''' Check that we raise an appropriate error if an unrecognised
-    built-in is specified in the algorithm layer. '''
+    '''Check that we raise an appropriate error if an unrecognised
+    built-in is specified in the algorithm layer.
+
+    '''
     with pytest.raises(ParseError) as excinfo:
         _, _ = parse(os.path.join(BASE_PATH,
                                   "15.12.1_invalid_builtin_kernel.f90"),
@@ -469,8 +584,10 @@ def test_invalid_builtin_kernel():
 
 
 def test_lfricbuiltin_cma(dist_mem):
-    ''' Check that an LFRicBuiltIn returns None for CMA type (because
-    built-ins don't work with CMA operators). '''
+    '''Check that an 'LFRicBuiltIn' returns 'None' for CMA type (because
+    built-ins don't work with CMA operators).
+
+    '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "15.12.3_single_pointwise_builtin.f90"),
@@ -482,14 +599,17 @@ def test_lfricbuiltin_cma(dist_mem):
 
 
 def test_lfricbuiltfactory_str():
-    ''' Check that the str method of LFRicBuiltInCallFactory works as
-    expected. '''
+    '''Check that the '__str__' method of 'LFRicBuiltInCallFactory' works
+    as expected.
+
+    '''
     factory = LFRicBuiltInCallFactory()
     assert "Factory for a call to an LFRic built-in." in str(factory)
 
 
 def test_get_indexed_field_argument_refs():
-    ''' Test the LFRicBuiltIn.get_indexed_field_argument_references() method.
+    '''Test the 'LFRicBuiltIn.get_indexed_field_argument_references()'
+    method.
 
     '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -510,7 +630,7 @@ def test_get_indexed_field_argument_refs():
         # Nothing is known about the field proxy type, so the datatype
         # must be deferred
         assert ref.symbol.datatype.datatype == DeferredType()
-        # The reference in a builtin will have a data type hard coded:
+        # The reference in a built-in will have a data type hard coded
         assert ref.datatype == array_1d
         assert ref.member.name == "data"
         assert len(ref.member.indices) == 1
@@ -522,9 +642,7 @@ def test_get_indexed_field_argument_refs():
 
 
 def test_get_scalar_argument_references():
-    ''' Test the LFRicBuiltIn.get_scalar_argument_references() method.
-
-    '''
+    '''Test the 'LFRicBuiltIn.get_scalar_argument_references()' method.'''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.6.2_inc_X_powint_n_builtin.f90"),
                            api=API)
@@ -545,7 +663,7 @@ def test_get_scalar_argument_references():
 
 
 def test_get_dof_loop_index_symbol():
-    ''' Test the LFRicBuiltIn.get_dof_loop_index_symbol() method. '''
+    '''Test the 'LFRicBuiltIn.get_dof_loop_index_symbol()' method.'''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.1.8_a_plus_X_builtin.f90"),
                            api=API)
@@ -560,17 +678,41 @@ def test_get_dof_loop_index_symbol():
 # ------------- Adding (scaled) real fields --------------------------------- #
 
 
-def test_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
-    ''' Test that:
-    1) the str method of LFRicXPlusYKern returns the expected
+def test_X_plus_Y(
+        tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
+    '''Test that:
+    1) the '__str__' method of 'LFRicXPlusYKern' returns the expected
        string;
-    2) we generate correct code for the built-in Z = X + Y
-       where X and Y are real-valued fields;
+    2) we generate correct code for the built-in 'Z = X + Y'
+       where 'X' and 'Y' are real-valued fields;
     3) that we generate correct bounds when
-       Config.api_conf(API)._compute_annexed_dofs is False and True;
-    4) that the lower_to_language_level() method works as expected.
+       'Config.api_conf(API)._compute_annexed_dofs' is False and True;
+    4) that the 'lower_to_language_level()' method works as expected;
+    5) that the 'metadata()' method of 'LFRicXPlusYKern' returns kernel
+       metadata.
 
     '''
+    # pylint: disable=unidiomatic-typecheck
+    metadata = lfric_builtins.LFRicXPlusYKern.metadata()
+    assert isinstance(metadata, LFRicKernelMetadata)
+    # Test the metadata values in this test. Future tests will just
+    # check that an LFRicKernelMetadata instance is returned.
+    assert metadata.operates_on == "dof"
+    assert metadata.name == "X_plus_Y"
+    assert metadata.procedure_name == "X_plus_Y_code"
+    assert len(metadata.meta_args) == 3
+    assert type(metadata.meta_args[0]) == FieldArgMetadata
+    assert metadata.meta_args[0].datatype == "gh_real"
+    assert metadata.meta_args[0].access == "gh_write"
+    assert metadata.meta_args[0].function_space == "any_space_1"
+    assert type(metadata.meta_args[1]) == FieldArgMetadata
+    assert metadata.meta_args[1].datatype == "gh_real"
+    assert metadata.meta_args[1].access == "gh_read"
+    assert metadata.meta_args[1].function_space == "any_space_1"
+    assert type(metadata.meta_args[2]) == FieldArgMetadata
+    assert metadata.meta_args[2].datatype == "gh_real"
+    assert metadata.meta_args[2].access == "gh_read"
+    assert metadata.meta_args[2].function_space == "any_space_1"
     api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -578,10 +720,10 @@ def test_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
                            api=API)
     psy = PSyFactory(API,
                      distributed_memory=dist_mem).create(invoke_info)
-    # Test string method
+    # Test '__str__' method
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
-    assert str(kern) == "Built-in: Add real-valued fields"
+    assert str(kern) == "Built-in: X_plus_Y (add real-valued fields)"
 
     # Test code generation
     code = str(psy.gen)
@@ -597,7 +739,7 @@ def test_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
     assert output in code
 
     if not dist_mem:
-        # The value of _compute_annexed_dofs should make no difference
+        # The value of '_compute_annexed_dofs' should make no difference
         output = (
             "      f3_proxy = f3%get_proxy()\n"
             "      f1_proxy = f1%get_proxy()\n"
@@ -620,7 +762,7 @@ def test_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      END DO")
         assert output in code
 
-        # Test the lower_to_language_level() method
+        # Test the 'lower_to_language_level()' method
         kern.lower_to_language_level()
         loop = first_invoke.schedule.walk(Loop)[0]
         code = fortran_writer(loop)
@@ -645,19 +787,23 @@ def test_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      CALL f3_proxy%set_dirty()\n"
             "      !\n")
         if not annexed:
-            # Only compute owned dofs if _compute_annexed_dofs is False
+            # Only compute owned DoFs if '_compute_annexed_dofs' is False
             output_dm_2 = output_dm_2.replace("annexed", "owned")
         assert output_dm_2 in code
 
 
 def test_inc_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
-    ''' Test that 1) the str method of LFRicIncXPlusYKern returns the
-    expected string and 2) we generate correct code for the built-in
-    X = X + Y where X and Y are real-valued fields. Test with and without
-    annexed dofs being computed as this affects the generated code.
-    Also test the lower_to_language_level() method for this builtin.
+    '''Test that 1) the '__str__' method of 'LFRicIncXPlusYKern' returns
+    the expected string and 2) we generate correct code for the
+    built-in 'X = X + Y' where 'X' and 'Y' are real-valued
+    fields. Test with and without annexed DoFs being computed as this
+    affects the generated code. 3) Also test the
+    'lower_to_language_level()' and 'metadata()' methods for this
+    built-in.
 
     '''
+    metadata = lfric_builtins.LFRicIncXPlusYKern.metadata()
+    assert isinstance(metadata, LFRicKernelMetadata)
     api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
 
@@ -665,10 +811,11 @@ def test_inc_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
                                         "15.1.2_inc_X_plus_Y_builtin.f90"),
                            api=API)
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
-    # Test string method
+    # Test '__str__' method
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
-    assert str(kern) == "Built-in: Increment a real-valued field"
+    assert (str(kern) == "Built-in: inc_X_plus_Y (increment a "
+            "real-valued field)")
     # Test code generation
     code = str(psy.gen)
 
@@ -691,7 +838,7 @@ def test_inc_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      END DO\n")
         assert output in code
 
-        # Test the lower_to_language_level() method
+        # Test the 'lower_to_language_level()' method
         kern.lower_to_language_level()
         loop = first_invoke.schedule.walk(Loop)[0]
         code = fortran_writer(loop)
@@ -720,14 +867,16 @@ def test_inc_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
 
 
 def test_a_plus_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
-    ''' Test that 1) the str method of LFRicAPlusXKern returns the
+    '''Test that 1) the '__str__' method of 'LFRicAPlusXKern' returns the
     expected string and 2) we generate correct code for the built-in
-    operation Y = a + X where 'a' is a real scalar and X and Y
-    are real-valued fields. Test with and without annexed dofs being
-    computed as this affects the generated code.
-    Also test the lower_to_language_level() method.
+    operation 'Y = a + X' where 'a' is a real scalar and 'X' and 'Y'
+    are real-valued fields. Test with and without annexed DoFs being
+    computed as this affects the generated code. 3) Also test the
+    'lower_to_language_level()' and 'metadata()' methods.
 
     '''
+    metadata = lfric_builtins.LFRicAPlusXKern.metadata()
+    assert isinstance(metadata, LFRicKernelMetadata)
     api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -735,7 +884,7 @@ def test_a_plus_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
                            api=API)
 
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
-    # Test string method
+    # Test '__str__' method
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
     assert str(kern) == "Built-in: a_plus_X (real-valued fields)"
@@ -757,7 +906,7 @@ def test_a_plus_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "    END SUBROUTINE invoke_0\n")
         assert output in code
 
-        # Test the lower_to_language_level() method
+        # Test the 'lower_to_language_level()' method
         kern.lower_to_language_level()
         loop = first_invoke.schedule.walk(Loop)[0]
         # Check the type of the scalar
@@ -789,21 +938,23 @@ def test_a_plus_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
 
 
 def test_inc_a_plus_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
-    ''' Test that 1) the str method of LFRicIncAPlusXKern returns the
-    expected string and 2) we generate correct code for the built-in
-    operation X = a + X where 'a' is a real scalar and X is a
-    real-valued field. Test with and without annexed dofs being
-    computed as this affects the generated code.
-    Also test the lower_to_language_level() method.
+    '''Test that 1) the '__str__' method of 'LFRicIncAPlusXKern' returns
+    the expected string and 2) we generate correct code for the
+    built-in operation 'X = a + X' where 'a' is a real scalar and 'X'
+    is a real-valued field. Test with and without annexed DoFs being
+    computed as this affects the generated code. 3) Also test the
+    'lower_to_language_level()' and 'metadata()' methods.
 
     '''
+    metadata = lfric_builtins.LFRicIncAPlusXKern.metadata()
+    assert isinstance(metadata, LFRicKernelMetadata)
     api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.1.9_inc_a_plus_X_builtin.f90"),
                            api=API)
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
-    # Test string method
+    # Test '__str__' method
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
     assert str(kern) == "Built-in: inc_a_plus_X (real-valued field)"
@@ -825,7 +976,7 @@ def test_inc_a_plus_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "    END SUBROUTINE invoke_0")
         assert output in code
 
-        # Test the lower_to_language_level() method
+        # Test the 'lower_to_language_level()' method
         kern.lower_to_language_level()
         loop = first_invoke.schedule.walk(Loop)[0]
         code = fortran_writer(loop)
@@ -853,13 +1004,16 @@ def test_inc_a_plus_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
 
 
 def test_aX_plus_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
-    ''' Test that 1) the str method of LFRicAXPlusYKern returns the
+    '''Test that 1) the '__str__' method of 'LFRicAXPlusYKern' returns the
     expected string and 2) we generate correct code for the built-in
-    operation Z = a*X + Y where 'a' is a real scalar and Z, X and Y
-    are real-valued fields. Test with and without annexed dofs being
-    computed as this affects the generated code.
+    operation 'Z = a*X + Y' where 'a' is a real scalar and 'Z', 'X'
+    and 'Y' are real-valued fields. Test with and without annexed DoFs
+    being computed as this affects the generated code. 3) Also test
+    the 'lower_to_language_level()' and 'metadata()' methods.
 
     '''
+    metadata = lfric_builtins.LFRicAXPlusYKern.metadata()
+    assert isinstance(metadata, LFRicKernelMetadata)
     api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -867,7 +1021,7 @@ def test_aX_plus_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
                            api=API)
 
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
-    # Test string method
+    # Test '__str__' method
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
     assert str(kern) == "Built-in: aX_plus_Y (real-valued fields)"
@@ -911,7 +1065,7 @@ def test_aX_plus_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "    END SUBROUTINE invoke_0\n")
         assert output in code
 
-        # Test the lower_to_language_level() method
+        # Test the 'lower_to_language_level()' method
         kern.lower_to_language_level()
         loop = first_invoke.schedule.walk(Loop)[0]
         code = fortran_writer(loop)
@@ -941,20 +1095,23 @@ def test_aX_plus_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
 
 
 def test_inc_aX_plus_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
-    ''' Test that 1) the str method of LFRicIncAXPlusYKern returns the
-    expected string and 2) we generate correct code for the built-in
-    operation X = a*X + Y where 'a' is a real scalar and X and Y are
-    real-valued fields. Test with and without annexed dofs being
-    computed as this affects the generated code.
+    '''Test that 1) the '__str__' method of 'LFRicIncAXPlusYKern' returns
+    the expected string and 2) we generate correct code for the
+    built-in operation 'X = a*X + Y' where 'a' is a real scalar and
+    'X' and 'Y' are real-valued fields. Test with and without annexed
+    DoFs being computed as this affects the generated code. 3) Also
+    test the 'lower_to_language_level()' and 'metadata()' methods.
 
     '''
+    metadata = lfric_builtins.LFRicIncAXPlusYKern.metadata()
+    assert isinstance(metadata, LFRicKernelMetadata)
     api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.1.4_inc_aX_plus_Y_builtin.f90"),
                            api=API)
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
-    # Test string method
+    # Test '__str__' method
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
     assert str(kern) == "Built-in: inc_aX_plus_Y (real-valued fields)"
@@ -997,7 +1154,7 @@ def test_inc_aX_plus_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "    END SUBROUTINE invoke_0")
         assert output in code
 
-        # Test the lower_to_language_level() method
+        # Test the 'lower_to_language_level()' method
         kern.lower_to_language_level()
         loop = first_invoke.schedule.walk(Loop)[0]
         code = fortran_writer(loop)
@@ -1027,20 +1184,23 @@ def test_inc_aX_plus_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
 
 
 def test_inc_X_plus_bY(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
-    ''' Test that 1) the str method of LFRicIncXPlusBYKern returns the
-    expected string and 2) we generate correct code for the built-in
-    operation X = X + b*Y where 'b' is a real scalar and X and Y are
-    real-valued fields. Test with and without annexed dofs being
-    computed as this affects the generated code.
+    '''Test that 1) the '__str__' method of 'LFRicIncXPlusBYKern' returns
+    the expected string and 2) we generate correct code for the
+    built-in operation 'X = X + b*Y' where 'b' is a real scalar and
+    'X' and 'Y' are real-valued fields. Test with and without annexed
+    DoFs being computed as this affects the generated code. 3) Also
+    test the 'lower_to_language_level()' and 'metadata()' methods.
 
     '''
+    metadata = lfric_builtins.LFRicIncXPlusBYKern.metadata()
+    assert isinstance(metadata, LFRicKernelMetadata)
     api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.1.5_inc_X_plus_bY_builtin.f90"),
                            api=API)
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
-    # Test string method
+    # Test '__str__' method
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
     assert str(kern) == "Built-in: inc_X_plus_bY (real-valued fields)"
@@ -1083,7 +1243,7 @@ def test_inc_X_plus_bY(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "    END SUBROUTINE invoke_0")
         assert output in code
 
-        # Test the lower_to_language_level() method
+        # Test the 'lower_to_language_level()' method
         kern.lower_to_language_level()
         loop = first_invoke.schedule.walk(Loop)[0]
         code = fortran_writer(loop)
@@ -1113,20 +1273,24 @@ def test_inc_X_plus_bY(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
 
 
 def test_aX_plus_bY(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
-    ''' Test that 1) the str method of LFRicAXPlusBYKern returns the
-    expected string and 2) we generate correct code for the built-in
-    operation Z = a*X + b*Y where 'a' and 'b' are real scalars and Z, X
-    and Y are real-valued fields. Test with and without annexed dofs
-    being computed as this affects the generated code.
+    '''Test that 1) the '__str__' method of 'LFRicAXPlusBYKern' returns
+    the expected string and 2) we generate correct code for the
+    built-in operation 'Z = a*X + b*Y' where 'a' and 'b' are real
+    scalars and 'Z', 'X' and 'Y' are real-valued fields. Test with and
+    without annexed DoFs being computed as this affects the generated
+    code. 3) Also test the 'lower_to_language_level()' and
+    'metadata()' methods.
 
     '''
+    metadata = lfric_builtins.LFRicAXPlusBYKern.metadata()
+    assert isinstance(metadata, LFRicKernelMetadata)
     api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.1.6_aX_plus_bY_builtin.f90"),
                            api=API)
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
-    # Test string method
+    # Test '__str__' method
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
     assert str(kern) == "Built-in: aX_plus_bY (real-valued fields)"
@@ -1170,7 +1334,7 @@ def test_aX_plus_bY(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "    END SUBROUTINE invoke_0\n")
         assert output in code
 
-        # Test the lower_to_language_level() method
+        # Test the 'lower_to_language_level()' method
         kern.lower_to_language_level()
         loop = first_invoke.schedule.walk(Loop)[0]
         code = fortran_writer(loop)
@@ -1199,15 +1363,19 @@ def test_aX_plus_bY(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
         assert output_dm_2 in code
 
 
-def test_inc_aX_plus_bY(tmpdir, monkeypatch, annexed, dist_mem,
-                        fortran_writer):
-    ''' Test that 1) the str method of LFRicIncAXPlusBYKern returns the
-    expected string and 2) we generate correct code for the built-in
-    operation X = a*X + b*Y where 'a' and 'b' are real scalars and X
-    and Y are real-valued fields. Test with and without annexed dofs
-    being computed as this affects the generated code.
+def test_inc_aX_plus_bY(
+        tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
+    '''Test that 1) the '__str__' method of 'LFRicIncAXPlusBYKern' returns
+    the expected string and 2) we generate correct code for the
+    built-in operation 'X = a*X + b*Y' where 'a' and 'b' are real
+    scalars and 'X' and 'Y' are real-valued fields. Test with and
+    without annexed DoFs being computed as this affects the generated
+    code. 3) Also test the 'lower_to_language_level()' and
+    'metadata()' methods.
 
     '''
+    metadata = lfric_builtins.LFRicIncAXPlusBYKern.metadata()
+    assert isinstance(metadata, LFRicKernelMetadata)
     api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(
@@ -1215,7 +1383,7 @@ def test_inc_aX_plus_bY(tmpdir, monkeypatch, annexed, dist_mem,
                      "15.1.7_inc_aX_plus_bY_builtin.f90"),
         api=API)
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
-    # Test string method
+    # Test '__str__' method
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
     assert str(kern) == "Built-in: inc_aX_plus_bY (real-valued fields)"
@@ -1258,7 +1426,7 @@ def test_inc_aX_plus_bY(tmpdir, monkeypatch, annexed, dist_mem,
             "    END SUBROUTINE invoke_0\n")
         assert output in code
 
-        # Test the lower_to_language_level() method
+        # Test the 'lower_to_language_level()' method
         kern.lower_to_language_level()
         loop = first_invoke.schedule.walk(Loop)[0]
         code = fortran_writer(loop)
@@ -1288,20 +1456,24 @@ def test_inc_aX_plus_bY(tmpdir, monkeypatch, annexed, dist_mem,
 
 
 def test_aX_plus_aY(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
-    ''' Test that 1) the str method of LFRicAXPlusAYKern returns the
-    expected string and 2) we generate correct code for the built-in
-    operation Z = a*(X + Y) where 'a' is a real scalar and Z, X and
-    Y are real-valued fields. Test with and without annexed dofs
-    being computed as this affects the generated code.
+    '''Test that 1) the '__str__' method of 'LFRicAXPlusAYKern' returns
+    the expected string and 2) we generate correct code for the
+    built-in operation 'Z = a*(X + Y)' where 'a' is a real scalar and
+    'Z', 'X' and 'Y' are real-valued fields. Test with and without
+    annexed DoFs being computed as this affects the generated code. 3)
+    Also test the 'lower_to_language_level()' and 'metadata()'
+    methods.
 
     '''
+    metadata = lfric_builtins.LFRicAXPlusAYKern.metadata()
+    assert isinstance(metadata, LFRicKernelMetadata)
     api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.1.10_aX_plus_aY_builtin.f90"),
                            api=API)
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
-    # Test string method
+    # Test '__str__' method
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
     assert str(kern) == "Built-in: aX_plus_aY (real-valued fields)"
@@ -1324,7 +1496,7 @@ def test_aX_plus_aY(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "    END SUBROUTINE invoke_0\n")
         assert output in code
 
-        # Test the lower_to_language_level() method
+        # Test the 'lower_to_language_level()' method
         kern.lower_to_language_level()
         loop = first_invoke.schedule.walk(Loop)[0]
         code = fortran_writer(loop)
@@ -1357,22 +1529,26 @@ def test_aX_plus_aY(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
 
 
 def test_X_minus_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
-    ''' Test that 1) the str method of LFRicXMinusYKern returns the expected
-    string and 2) we generate correct code for the built-in operation
-    Z = X - Y where Z, X and Y are real-valued fields. Test with and without
-    annexed dofs being computed as this affects the generated code.
+    '''Test that 1) the '__str__' method of 'LFRicXMinusYKern' returns the
+    expected string and 2) we generate correct code for the built-in
+    operation 'Z = X - Y' where 'Z', 'X' and 'Y' are real-valued
+    fields. Test with and without annexed DoFs being computed as this
+    affects the generated code. 3) Also test the
+    'lower_to_language_level()' and 'metadata()' methods.
 
     '''
+    metadata = lfric_builtins.LFRicXMinusYKern.metadata()
+    assert isinstance(metadata, LFRicKernelMetadata)
     api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.2.1_X_minus_Y_builtin.f90"),
                            api=API)
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
-    # Test string method
+    # Test '__str__' method
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
-    assert str(kern) == "Built-in: Subtract real-valued fields"
+    assert str(kern) == "Built-in: X_minus_Y (subtract real-valued fields)"
     # Test code generation
     code = str(psy.gen)
 
@@ -1401,7 +1577,7 @@ def test_X_minus_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      END DO")
         assert output in code
 
-        # Test the lower_to_language_level() method
+        # Test the 'lower_to_language_level()' method
         kern.lower_to_language_level()
         loop = first_invoke.schedule.walk(Loop)[0]
         code = fortran_writer(loop)
@@ -1431,22 +1607,27 @@ def test_X_minus_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
 
 
 def test_inc_X_minus_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
-    ''' Test that 1) the str method of LFRicIncXMinusYKern returns the
-    expected string and 2) we generate correct code for the built-in
-    operation X = X - Y where X and Y are real-valued fields. Test with and
-    without annexed dofs being computed as this affects the generated code.
+    '''Test that 1) the '__str__' method of 'LFRicIncXMinusYKern' returns
+    the expected string and 2) we generate correct code for the
+    built-in operation 'X = X - Y' where 'X' and 'Y' are real-valued
+    fields. Test with and without annexed DoFs being computed as this
+    affects the generated code. 3) Also test the
+    'lower_to_language_level()' and 'metadata()' methods.
 
     '''
+    metadata = lfric_builtins.LFRicIncXMinusYKern.metadata()
+    assert isinstance(metadata, LFRicKernelMetadata)
     api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "15.2.2_inc_X_minus_Y_builtin.f90"),
         api=API)
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
-    # Test string method
+    # Test '__str__' method
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
-    assert str(kern) == "Built-in: Decrement a real-valued field"
+    assert (str(kern) == "Built-in: inc_X_minus_Y (decrement a "
+            "real-valued field)")
     # Test code generation
     code = str(psy.gen)
 
@@ -1474,7 +1655,7 @@ def test_inc_X_minus_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      END DO\n")
         assert output in code
 
-        # Test the lower_to_language_level() method
+        # Test the 'lower_to_language_level()' method
         kern.lower_to_language_level()
         loop = first_invoke.schedule.walk(Loop)[0]
         code = fortran_writer(loop)
@@ -1503,14 +1684,16 @@ def test_inc_X_minus_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
 
 
 def test_a_minus_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
-    ''' Test that 1) the str method of LFRicAMinusXKern returns the
+    '''Test that 1) the '__str__' method of 'LFRicAMinusXKern' returns the
     expected string and 2) we generate correct code for the built-in
-    operation Y = a - X where 'a' is a real scalar and X and Y
-    are real-valued fields. Test with and without annexed dofs being
-    computed as this affects the generated code.
-    Also test the lower_to_language_level() method.
+    operation 'Y = a - X' where 'a' is a real scalar and 'X' and 'Y'
+    are real-valued fields. Test with and without annexed DoFs being
+    computed as this affects the generated code. 3) Also test the
+    'lower_to_language_level()' and 'metadata()' methods.
 
     '''
+    metadata = lfric_builtins.LFRicAMinusXKern.metadata()
+    assert isinstance(metadata, LFRicKernelMetadata)
     api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -1518,7 +1701,7 @@ def test_a_minus_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
                            api=API)
 
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
-    # Test string method
+    # Test '__str__' method
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
     assert str(kern) == "Built-in: a_minus_X (real-valued fields)"
@@ -1546,7 +1729,7 @@ def test_a_minus_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "    END SUBROUTINE invoke_0\n")
         assert output in code
 
-        # Test the lower_to_language_level() method
+        # Test the 'lower_to_language_level()' method
         kern.lower_to_language_level()
         loop = first_invoke.schedule.walk(Loop)[0]
         code = fortran_writer(loop)
@@ -1575,21 +1758,23 @@ def test_a_minus_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
 
 
 def test_inc_a_minus_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
-    ''' Test that 1) the str method of LFRicIncAMinusXKern returns the
-    expected string and 2) we generate correct code for the built-in
-    operation X = a - X where 'a' is a real scalar and X is a
-    real-valued field. Test with and without annexed dofs being
-    computed as this affects the generated code.
-    Also test the lower_to_language_level() method.
+    '''Test that 1) the '__str__' method of 'LFRicIncAMinusXKern' returns
+    the expected string and 2) we generate correct code for the
+    built-in operation 'X = a - X' where 'a' is a real scalar and 'X'
+    is a real-valued field. Test with and without annexed DoFs being
+    computed as this affects the generated code. 3) Also test the
+    'lower_to_language_level()' and 'metadata()' methods.
 
     '''
+    metadata = lfric_builtins.LFRicIncXMinusYKern.metadata()
+    assert isinstance(metadata, LFRicKernelMetadata)
     api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.2.8_inc_a_minus_X_builtin.f90"),
                            api=API)
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
-    # Test string method
+    # Test '__str__' method
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
     assert str(kern) == "Built-in: inc_a_minus_X (real-valued field)"
@@ -1611,7 +1796,7 @@ def test_inc_a_minus_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "    END SUBROUTINE invoke_0")
         assert output in code
 
-        # Test the lower_to_language_level() method
+        # Test the 'lower_to_language_level()' method
         kern.lower_to_language_level()
         loop = first_invoke.schedule.walk(Loop)[0]
         code = fortran_writer(loop)
@@ -1639,14 +1824,16 @@ def test_inc_a_minus_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
 
 
 def test_X_minus_a(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
-    ''' Test that 1) the str method of LFRicAMinusXKern returns the
+    '''Test that 1) the '__str__' method of 'LFRicAMinusXKern' returns the
     expected string and 2) we generate correct code for the built-in
-    operation Y = X - a where 'a' is a real scalar and X and Y
-    are real-valued fields. Test with and without annexed dofs being
-    computed as this affects the generated code.
-    Also test the lower_to_language_level() method.
+    operation 'Y = X - a' where 'a' is a real scalar and 'X' and 'Y'
+    are real-valued fields. Test with and without annexed DoFs being
+    computed as this affects the generated code. 3) Also test the
+    'lower_to_language_level()' and 'metadata()' methods.
 
     '''
+    metadata = lfric_builtins.LFRicIncAMinusXKern.metadata()
+    assert isinstance(metadata, LFRicKernelMetadata)
     api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -1654,7 +1841,7 @@ def test_X_minus_a(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
                            api=API)
 
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
-    # Test string method
+    # Test '__str__' method
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
     assert str(kern) == "Built-in: X_minus_a (real-valued fields)"
@@ -1683,7 +1870,7 @@ def test_X_minus_a(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "    END SUBROUTINE invoke_0\n")
         assert output in code
 
-        # Test the lower_to_language_level() method
+        # Test the 'lower_to_language_level()' method
         kern.lower_to_language_level()
         loop = first_invoke.schedule.walk(Loop)[0]
         code = fortran_writer(loop)
@@ -1712,21 +1899,23 @@ def test_X_minus_a(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
 
 
 def test_inc_X_minus_a(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
-    ''' Test that 1) the str method of LFRicIncXMinusAKern returns the
-    expected string and 2) we generate correct code for the built-in
-    operation X = X - a where 'a' is a real scalar and X is a
-    real-valued field. Test with and without annexed dofs being
-    computed as this affects the generated code.
-    Also test the lower_to_language_level() method.
+    '''Test that 1) the '__str__' method of 'LFRicIncXMinusAKern' returns
+    the expected string and 2) we generate correct code for the
+    built-in operation 'X = X - a' where 'a' is a real scalar and 'X'
+    is a real-valued field. Test with and without annexed DoFs being
+    computed as this affects the generated code. 3) Also test the
+    'lower_to_language_level()' and 'metadata()' methods.
 
     '''
+    metadata = lfric_builtins.LFRicIncXMinusAKern.metadata()
+    assert isinstance(metadata, LFRicKernelMetadata)
     api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.2.10_inc_X_minus_a_builtin.f90"),
                            api=API)
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
-    # Test string method
+    # Test '__str__' method
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
     assert str(kern) == "Built-in: inc_X_minus_a (real-valued field)"
@@ -1758,7 +1947,7 @@ def test_inc_X_minus_a(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "    END SUBROUTINE invoke_0")
         assert output in code
 
-        # Test the lower_to_language_level() method
+        # Test the 'lower_to_language_level()' method
         kern.lower_to_language_level()
         loop = first_invoke.schedule.walk(Loop)[0]
         code = fortran_writer(loop)
@@ -1787,20 +1976,24 @@ def test_inc_X_minus_a(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
 
 
 def test_aX_minus_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
-    ''' Test that 1) the str method of LFRicAXMinusYKern returns the
-    expected string and 2) we generate correct code for the built-in
-    operation Z = a*X - Y where 'a' is a real scalar and Z, X and Y
-    are real-valued fields. Test with and without annexed dofs being
-    computed as this affects the generated code.
+    '''Test that 1) the '__str__' method of 'LFRicAXMinusYKern' returns
+    the expected string and 2) we generate correct code for the
+    built-in operation 'Z = a*X - Y' where 'a' is a real scalar and
+    'Z', 'X' and 'Y' are real-valued fields. Test with and without
+    annexed DoFs being computed as this affects the generated code. 3)
+    Also test the 'lower_to_language_level()' and 'metadata()'
+    methods.
 
     '''
+    metadata = lfric_builtins.LFRicAXMinusYKern.metadata()
+    assert isinstance(metadata, LFRicKernelMetadata)
     api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.2.3_aX_minus_Y_builtin.f90"),
                            api=API)
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
-    # Test string method
+    # Test '__str__' method
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
     assert str(kern) == "Built-in: aX_minus_Y (real-valued fields)"
@@ -1844,7 +2037,7 @@ def test_aX_minus_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "    END SUBROUTINE invoke_0\n")
         assert output in code
 
-        # Test the lower_to_language_level() method
+        # Test the 'lower_to_language_level()' method
         kern.lower_to_language_level()
         loop = first_invoke.schedule.walk(Loop)[0]
         code = fortran_writer(loop)
@@ -1874,20 +2067,24 @@ def test_aX_minus_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
 
 
 def test_X_minus_bY(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
-    ''' Test that 1) the str method of LFRicXMinusBYKern returns the
-    expected string and 2) we generate correct code for the built-in
-    operation Z = X - b*Y where 'b' is a real scalar and Z, X and Y
-    are real-valued fields. Test with and without annexed dofs being
-    computed as this affects the generated code.
+    '''Test that 1) the '__str__' method of 'LFRicXMinusBYKern' returns
+    the expected string and 2) we generate correct code for the
+    built-in operation 'Z = X - b*Y' where 'b' is a real scalar and
+    'Z', 'X' and 'Y' are real-valued fields. Test with and without
+    annexed DoFs being computed as this affects the generated code. 3)
+    Also test the 'lower_to_language_level()' and 'metadata()'
+    methods.
 
     '''
+    metadata = lfric_builtins.LFRicXMinusBYKern.metadata()
+    assert isinstance(metadata, LFRicKernelMetadata)
     api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.2.4_X_minus_bY_builtin.f90"),
                            api=API)
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
-    # Test string method
+    # Test '__str__' method
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
     assert str(kern) == "Built-in: X_minus_bY (real-valued fields)"
@@ -1931,7 +2128,7 @@ def test_X_minus_bY(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "    END SUBROUTINE invoke_0\n")
         assert output in code
 
-        # Test the lower_to_language_level() method
+        # Test the 'lower_to_language_level()' method
         kern.lower_to_language_level()
         loop = first_invoke.schedule.walk(Loop)[0]
         code = fortran_writer(loop)
@@ -1960,22 +2157,25 @@ def test_X_minus_bY(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
         assert output_dm_2 in code
 
 
-def test_inc_X_minus_bY(tmpdir, monkeypatch, annexed, dist_mem,
-                        fortran_writer):
-    ''' Test that 1) the str method of LFRicIncXMinusBYKern returns the
-    expected string and 2) we generate correct code for the built-in
-    operation X = X - b*Y where 'b' is a real scalar and X and Y are
-    real-valued  fields. Test with and without annexed dofs being
-    computed as this affects the generated code.
+def test_inc_X_minus_bY(
+        tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
+    '''Test that 1) the '__str__' method of 'LFRicIncXMinusBYKern' returns
+    the expected string and 2) we generate correct code for the
+    built-in operation 'X = X - b*Y' where 'b' is a real scalar and
+    'X' and 'Y' are real-valued fields. Test with and without annexed
+    DoFs being computed as this affects the generated code. 3) Also
+    test the lower_to_language() and 'metadata()' methods.
 
     '''
+    metadata = lfric_builtins.LFRicIncXMinusBYKern.metadata()
+    assert isinstance(metadata, LFRicKernelMetadata)
     api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.2.5_inc_X_minus_bY_builtin.f90"),
                            api=API)
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
-    # Test string method
+    # Test '__str__' method
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
     assert str(kern) == "Built-in: inc_X_minus_bY (real-valued fields)"
@@ -2018,7 +2218,7 @@ def test_inc_X_minus_bY(tmpdir, monkeypatch, annexed, dist_mem,
             "    END SUBROUTINE invoke_0")
         assert output in code
 
-        # Test the lower_to_language_level() method
+        # Test the 'lower_to_language_level()' method
         kern.lower_to_language_level()
         loop = first_invoke.schedule.walk(Loop)[0]
         code = fortran_writer(loop)
@@ -2048,20 +2248,24 @@ def test_inc_X_minus_bY(tmpdir, monkeypatch, annexed, dist_mem,
 
 
 def test_aX_minus_bY(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
-    ''' Test that 1) the str method of LFRicAXMinusBYKern returns the
-    expected string and 2) we generate correct code for the built-in
-    operation Z = a*X - b*Y where 'a' and 'b' are real scalars and Z, X
-    and Y are real-valued fields. Test with and without annexed dofs
-    being computed as this affects the generated code.
+    '''Test that 1) the '__str__' method of 'LFRicAXMinusBYKern' returns
+    the expected string and 2) we generate correct code for the
+    built-in operation 'Z = a*X - b*Y' where 'a' and 'b' are real
+    scalars and 'Z', 'X' and 'Y' are real-valued fields. Test with and
+    without annexed DoFs being computed as this affects the generated
+    code. 3) Also test the 'lower_to_language_level()' and
+    'metadata()' methods.
 
     '''
+    metadata = lfric_builtins.LFRicAXMinusBYKern.metadata()
+    assert isinstance(metadata, LFRicKernelMetadata)
     api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.2.6_aX_minus_bY_builtin.f90"),
                            api=API)
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
-    # Test string method
+    # Test '__str__' method
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
     assert str(kern) == "Built-in: aX_minus_bY (real-valued fields)"
@@ -2105,7 +2309,7 @@ def test_aX_minus_bY(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "    END SUBROUTINE invoke_0\n")
         assert output in code
 
-        # Test the lower_to_language_level() method
+        # Test the 'lower_to_language_level()' method
         kern.lower_to_language_level()
         loop = first_invoke.schedule.walk(Loop)[0]
         code = fortran_writer(loop)
@@ -2138,22 +2342,26 @@ def test_aX_minus_bY(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
 
 
 def test_X_times_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
-    ''' Test that 1) the str method of LFRicXTimesYKern returns the expected
-    string and 2) we generate correct code for the built-in operation
-    Z = X*Y where Z, X and Y are real-valued fields. Test with and without
-    annexed dofs being computed as this affects the generated code.
+    '''Test that 1) the '__str__' method of LFRicXTimesYKern returns the
+    expected string and 2) we generate correct code for the built-in
+    operation 'Z = X*Y' where 'Z', 'X' and 'Y' are real-valued
+    fields. Test with and without annexed DoFs being computed as this
+    affects the generated code. 3) Also test the
+    'lower_to_language_level()' and 'metadata()' methods.
 
     '''
+    metadata = lfric_builtins.LFRicXTimesYKern.metadata()
+    assert isinstance(metadata, LFRicKernelMetadata)
     api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "15.3.1_X_times_Y_builtin.f90"), api=API)
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
-    # Test string method
+    # Test '__str__' method
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
-    assert str(kern) == "Built-in: Multiply real-valued fields"
+    assert str(kern) == "Built-in: X_times_Y (multiply real-valued fields)"
     # Test code generation
     code = str(psy.gen)
 
@@ -2184,7 +2392,7 @@ def test_X_times_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      END DO\n")
         assert output in code
 
-        # Test the lower_to_language_level() method
+        # Test the 'lower_to_language_level()' method
         kern.lower_to_language_level()
         loop = first_invoke.schedule.walk(Loop)[0]
         code = fortran_writer(loop)
@@ -2213,12 +2421,16 @@ def test_X_times_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
 
 
 def test_inc_X_times_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
-    ''' Test that 1) the str method of LFRicIncXTimesYKern returns the
-    expected string and 2) we generate correct code for the built-in
-    operation X = X*Y where X and Y are real-valued fields. Test with and
-    without annexed dofs being computed as this affects the generated code.
+    '''Test that 1) the '__str__' method of LFRicIncXTimesYKern returns
+    the expected string and 2) we generate correct code for the
+    built-in operation 'X = X*Y' where 'X' and 'Y' are real-valued
+    fields. Test with and without annexed DoFs being computed as this
+    affects the generated code. 3) Also test the
+    'lower_to_language_level()' and 'metadata()' methods.
 
     '''
+    metadata = lfric_builtins.LFRicIncXTimesYKern.metadata()
+    assert isinstance(metadata, LFRicKernelMetadata)
     api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(
@@ -2226,10 +2438,11 @@ def test_inc_X_times_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
                      "15.3.2_inc_X_times_Y_builtin.f90"),
         api=API)
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
-    # Test string method
+    # Test '__str__' method
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
-    assert str(kern) == "Built-in: Multiply one real-valued field by another"
+    assert (str(kern) == "Built-in: inc_X_times_Y (multiply one real-valued "
+            "field by another)")
     # Test code generation
     code = str(psy.gen)
 
@@ -2257,7 +2470,7 @@ def test_inc_X_times_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      END DO")
         assert output in code
 
-        # Test the lower_to_language_level() method
+        # Test the 'lower_to_language_level()' method
         kern.lower_to_language_level()
         loop = first_invoke.schedule.walk(Loop)[0]
         code = fortran_writer(loop)
@@ -2286,22 +2499,25 @@ def test_inc_X_times_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
         assert output_dm_2 in code
 
 
-def test_inc_aX_times_Y(tmpdir, monkeypatch, annexed, dist_mem,
-                        fortran_writer):
-    ''' Test that 1) the str method of LFRicIncAXTimesYKern returns the
-    expected string and 2) we generate correct code for the built-in
-    operation X = a*X*Y where 'a' is a real scalar and X and Y are
-    real-valued fields. Test with and without annexed dofs being
-    computed as this affects the generated code.
+def test_inc_aX_times_Y(
+        tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
+    '''Test that 1) the '__str__' method of 'LFRicIncAXTimesYKern' returns
+    the expected string and 2) we generate correct code for the
+    built-in operation 'X = a*X*Y' where 'a' is a real scalar and 'X'
+    and 'Y' are real-valued fields. Test with and without annexed DoFs
+    being computed as this affects the generated code. 3) Also test
+    the 'lower_to_language_level()' and 'metadata()' methods.
 
     '''
+    metadata = lfric_builtins.LFRicIncAXTimesYKern.metadata()
+    assert isinstance(metadata, LFRicKernelMetadata)
     api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.3.3_inc_aX_times_Y_builtin.f90"),
                            api=API)
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
-    # Test string method
+    # Test '__str__' method
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
     assert str(kern) == "Built-in: inc_aX_times_Y (real-valued fields)"
@@ -2336,7 +2552,7 @@ def test_inc_aX_times_Y(tmpdir, monkeypatch, annexed, dist_mem,
             "    END SUBROUTINE invoke_0")
         assert output in code
 
-        # Test the lower_to_language_level() method
+        # Test the 'lower_to_language_level()' method
         kern.lower_to_language_level()
         loop = first_invoke.schedule.walk(Loop)[0]
         code = fortran_writer(loop)
@@ -2369,14 +2585,16 @@ def test_inc_aX_times_Y(tmpdir, monkeypatch, annexed, dist_mem,
 
 
 def test_a_times_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
-    ''' Test that 1) the str method of LFRicATimesXKern returns the expected
-    string and 2) we generate correct code for the built-in operation
-    Y = a*X where 'a' is a real scalar and X and Y are real-valued fields.
-    Test with and without annexed dofs being computed as this affects the
-    generated code.
-    Also tests the lower_to_language_level() method.
+    '''Test that 1) the '__str__' method of 'LFRicATimesXKern' returns the
+    expected string and 2) we generate correct code for the built-in
+    operation 'Y = a*X' where 'a' is a real scalar and 'X' and 'Y' are
+    real-valued fields.  Test with and without annexed DoFs being
+    computed as this affects the generated code. 3) Also test the
+    'lower_to_language_level()' and 'metadata()' methods.
 
     '''
+    metadata = lfric_builtins.LFRicATimesXKern.metadata()
+    assert isinstance(metadata, LFRicKernelMetadata)
     api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(
@@ -2384,10 +2602,10 @@ def test_a_times_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
                      "15.4.1_a_times_X_builtin.f90"),
         api=API)
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
-    # Test string method
+    # Test '__str__' method
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
-    assert str(kern) == "Built-in: Copy a scaled real-valued field"
+    assert str(kern) == "Built-in: a_times_X (copy a scaled real-valued field)"
     # Test code generation
     code = str(psy.gen)
 
@@ -2414,7 +2632,7 @@ def test_a_times_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      END DO")
         assert output in code
 
-        # Test the lower_to_language_level() method
+        # Test the 'lower_to_language_level()' method
         kern.lower_to_language_level()
         loop = first_invoke.schedule.walk(Loop)[0]
         code = fortran_writer(loop)
@@ -2442,14 +2660,16 @@ def test_a_times_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
 
 
 def test_inc_a_times_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
-    ''' Test that 1) the str method of LFRicIncATimesXKern returns the
-    expected string and 2) we generate correct code for the built-in
-    operation X = a*X where 'a' is a real scalar and X is a real-valued
-    field. Test with and without annexed dofs being computed as this
-    affects the generated code.
-    Also tests the lower_to_language_level() method.
+    '''Test that 1) the '__str__' method of 'LFRicIncATimesXKern' returns
+    the expected string and 2) we generate correct code for the
+    built-in operation 'X = a*X' where 'a' is a real scalar and 'X' is
+    a real-valued field. Test with and without annexed DoFs being
+    computed as this affects the generated code. 3) Also test the
+    'lower_to_language_level()' and 'metadata()' methods.
 
     '''
+    metadata = lfric_builtins.LFRicIncATimesXKern.metadata()
+    assert isinstance(metadata, LFRicKernelMetadata)
     api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(
@@ -2457,10 +2677,10 @@ def test_inc_a_times_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
                      "15.4.2_inc_a_times_X_builtin.f90"),
         api=API)
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
-    # Test string method
+    # Test '__str__' method
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
-    assert str(kern) == "Built-in: Scale a real-valued field"
+    assert str(kern) == "Built-in: inc_a_times_X (scale a real-valued field)"
     # Test code generation
     code = str(psy.gen)
 
@@ -2497,7 +2717,7 @@ def test_inc_a_times_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      !\n")
         assert output in code
 
-        # Test the lower_to_language_level() method
+        # Test the 'lower_to_language_level()' method
         kern.lower_to_language_level()
         loop = first_invoke.schedule.walk(Loop)[0]
         code = fortran_writer(loop)
@@ -2527,22 +2747,26 @@ def test_inc_a_times_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
 
 
 def test_X_divideby_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
-    ''' Test that 1) the str method of LFRicXDividebyYKern returns the
-    expected string and 2) we generate correct code for the built-in
-    operation Z = X/Y where Z, X and Y are fields real-valued. Test with and
-    without annexed dofs being computed as this affects the generated code.
+    '''Test that 1) the '__str__' method of 'LFRicXDividebyYKern' returns
+    the expected string and 2) we generate correct code for the
+    built-in operation 'Z = X/Y' where 'Z', 'X' and 'Y' are fields
+    real-valued. Test with and without annexed DoFs being computed as
+    this affects the generated code. 3) Also test the
+    'lower_to_language_level()' and 'metadata()' methods.
 
     '''
+    metadata = lfric_builtins.LFRicXDividebyYKern.metadata()
+    assert isinstance(metadata, LFRicKernelMetadata)
     api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.5.1_X_divideby_Y_builtin.f90"),
                            api=API)
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
-    # Test string method
+    # Test '__str__' method
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
-    assert str(kern) == "Built-in: Divide real-valued fields"
+    assert str(kern) == "Built-in: X_divideby_Y (divide real-valued fields)"
     # Test code generation
     code = str(psy.gen)
 
@@ -2571,7 +2795,7 @@ def test_X_divideby_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      END DO")
         assert output in code
 
-        # Test the lower_to_language_level() method
+        # Test the 'lower_to_language_level()' method
         kern.lower_to_language_level()
         loop = first_invoke.schedule.walk(Loop)[0]
         code = fortran_writer(loop)
@@ -2600,24 +2824,29 @@ def test_X_divideby_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
         assert output_dm_2 in code
 
 
-def test_inc_X_divideby_Y(tmpdir, monkeypatch, annexed, dist_mem,
-                          fortran_writer):
-    ''' Test that 1) the str method of LFRicIncXDividebyYKern returns the
-    expected string and 2) we generate correct code for the built-in
-    operation X = X/Y where X and Y are real-valued fields. Test with and
-    without annexed dofs being computed as this affects the generated code.
+def test_inc_X_divideby_Y(
+        tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
+    '''Test that 1) the '__str__' method of 'LFRicIncXDividebyYKern'
+    returns the expected string and 2) we generate correct code for
+    the built-in operation 'X = X/Y' where 'X' and 'Y' are real-valued
+    fields. Test with and without annexed DoFs being computed as this
+    affects the generated code. 3) Also test the
+    'lower_to_language_level()' and 'metadata()' methods.
 
     '''
+    metadata = lfric_builtins.LFRicIncXDividebyYKern.metadata()
+    assert isinstance(metadata, LFRicKernelMetadata)
     api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.5.2_inc_X_divideby_Y_builtin.f90"),
                            api=API)
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
-    # Test string method
+    # Test '__str__' method
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
-    assert str(kern) == "Built-in: Divide one real-valued field by another"
+    assert (str(kern) == "Built-in: inc_X_divideby_Y (divide one real-valued "
+            "field by another)")
     # Test code generation
     code = str(psy.gen)
 
@@ -2645,7 +2874,7 @@ def test_inc_X_divideby_Y(tmpdir, monkeypatch, annexed, dist_mem,
             "      END DO")
         assert output in code
 
-        # Test the lower_to_language_level() method
+        # Test the 'lower_to_language_level()' method
         kern.lower_to_language_level()
         loop = first_invoke.schedule.walk(Loop)[0]
         code = fortran_writer(loop)
@@ -2675,24 +2904,27 @@ def test_inc_X_divideby_Y(tmpdir, monkeypatch, annexed, dist_mem,
 
 
 def test_X_divideby_a(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
-    ''' Test that 1) the str method of LFRicXDividebyAKern returns the
-    expected string and 2) we generate correct code for the built-in
-    operation Y = X/a where 'a' is a real scalar and X and Y are
-    real-valued fields. Test with and without annexed dofs being computed
-    as this affects the generated code.
+    '''Test that 1) the '__str__' method of 'LFRicXDividebyAKern' returns
+    the expected string and 2) we generate correct code for the
+    built-in operation 'Y = X/a' where 'a' is a real scalar and 'X'
+    and 'Y' are real-valued fields. Test with and without annexed DoFs
+    being computed as this affects the generated code. 3) Also test
+    the 'lower_to_language_level()' and 'metadata()' methods.
 
     '''
+    metadata = lfric_builtins.LFRicXDividebyAKern.metadata()
+    assert isinstance(metadata, LFRicKernelMetadata)
     api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.5.5_X_divideby_a_builtin.f90"),
                            api=API)
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
-    # Test string method
+    # Test '__str__' method
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
-    assert str(kern) == ("Built-in: Divide a real-valued field by a real "
-                         "scalar (Y = X/a)")
+    assert str(kern) == ("Built-in: X_divideby_a (divide a real-valued field "
+                         "by a real scalar (Y = X/a))")
     # Test code generation
     code = str(psy.gen)
 
@@ -2730,7 +2962,7 @@ def test_X_divideby_a(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      END DO")
         assert output in code
 
-        # Test the lower_to_language_level() method
+        # Test the 'lower_to_language_level()' method
         kern.lower_to_language_level()
         loop = first_invoke.schedule.walk(Loop)[0]
         code = fortran_writer(loop)
@@ -2757,26 +2989,29 @@ def test_X_divideby_a(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
         assert output_dm_2 in code
 
 
-def test_inc_X_divideby_a(tmpdir, monkeypatch, annexed, dist_mem,
-                          fortran_writer):
-    ''' Test that 1) the str method of LFRicIncXDividebyAKern returns the
-    expected string and 2) we generate correct code for the built-in
-    operation X = X/a where 'a' is a real scalar and X is a real-valued
-    field. Test with and without annexed dofs being computed as this
-    affects the generated code.
+def test_inc_X_divideby_a(
+        tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
+    '''Test that 1) the '__str__' method of 'LFRicIncXDividebyAKern'
+    returns the expected string and 2) we generate correct code for
+    the built-in operation 'X = X/a' where 'a' is a real scalar and
+    'X' is a real-valued field. Test with and without annexed DoFs
+    being computed as this affects the generated code. 3) Also test
+    the 'lower_to_language_level()' and 'metadata()' methods.
 
     '''
+    metadata = lfric_builtins.LFRicIncXDividebyAKern.metadata()
+    assert isinstance(metadata, LFRicKernelMetadata)
     api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.5.6_inc_X_divideby_a_builtin.f90"),
                            api=API)
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
-    # Test string method
+    # Test '__str__' method
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
-    assert str(kern) == ("Built-in: Divide a real-valued field by a real "
-                         "scalar (X = X/a)")
+    assert str(kern) == ("Built-in: inc_X_divideby_a (divide a real-valued "
+                         "field by a real scalar (X = X/a))")
     # Test code generation
     code = str(psy.gen)
 
@@ -2811,7 +3046,7 @@ def test_inc_X_divideby_a(tmpdir, monkeypatch, annexed, dist_mem,
             "      END DO")
         assert output in code
 
-        # Test the lower_to_language_level() method
+        # Test the 'lower_to_language_level()' method
         kern.lower_to_language_level()
         loop = first_invoke.schedule.walk(Loop)[0]
         code = fortran_writer(loop)
@@ -2842,14 +3077,16 @@ def test_inc_X_divideby_a(tmpdir, monkeypatch, annexed, dist_mem,
 
 
 def test_a_divideby_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
-    ''' Test that 1) the str method of LFRicADividebyXKern returns the
-    expected string and 2) we generate correct code for the built-in
-    operation Y = a/X where 'a' is a real scalar and X and Y are
-    real-valued fields. Test with and without annexed dofs being computed
-    as this affects the generated code.
-    Also tests the lower_to_language_level() method.
+    '''Test that 1) the '__str__' method of 'LFRicADividebyXKern' returns
+    the expected string and 2) we generate correct code for the
+    built-in operation 'Y = a/X' where 'a' is a real scalar and 'X'
+    and 'Y' are real-valued fields. Test with and without annexed DoFs
+    being computed as this affects the generated code. 3) Also test
+    the 'lower_to_language_level()' and 'metadata()' methods.
 
     '''
+    metadata = lfric_builtins.LFRicADividebyXKern.metadata()
+    assert isinstance(metadata, LFRicKernelMetadata)
     api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(
@@ -2857,11 +3094,11 @@ def test_a_divideby_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
                      "15.5.3_a_divideby_X_builtin.f90"),
         api=API)
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
-    # Test string method
+    # Test '__str__' method
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
-    assert (str(kern) == "Built-in: Inverse scaling of a real-valued "
-            "field (Y = a/X)")
+    assert (str(kern) == "Built-in: a_divideby_X (inverse scaling of a "
+            "real-valued field (Y = a/X))")
     # Test code generation
     code = str(psy.gen)
 
@@ -2888,7 +3125,7 @@ def test_a_divideby_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      END DO")
         assert output in code
 
-        # Test the lower_to_language_level() method
+        # Test the 'lower_to_language_level()' method
         kern.lower_to_language_level()
         loop = first_invoke.schedule.walk(Loop)[0]
         code = fortran_writer(loop)
@@ -2915,16 +3152,18 @@ def test_a_divideby_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
         assert output_dm in code
 
 
-def test_inc_a_divideby_X(tmpdir, monkeypatch, annexed, dist_mem,
-                          fortran_writer):
-    ''' Test that 1) the str method of LFRicIncADividebyXKern returns the
-    expected string and 2) we generate correct code for the built-in
-    operation X = a/X where 'a' is a real scalar and X is a real-valued
-    field. Test with and without annexed dofs being computed as this
-    affects the generated code.
-    Also tests the lower_to_language_level() method.
+def test_inc_a_divideby_X(
+        tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
+    '''Test that 1) the '__str__' method of 'LFRicIncADividebyXKern'
+    returns the expected string and 2) we generate correct code for
+    the built-in operation 'X = a/X' where 'a' is a real scalar and
+    'X' is a real-valued field. Test with and without annexed DoFs
+    being computed as this affects the generated code. 3) Also test
+    the 'lower_to_language_level()' and 'metadata()' methods.
 
     '''
+    metadata = lfric_builtins.LFRicIncADividebyXKern.metadata()
+    assert isinstance(metadata, LFRicKernelMetadata)
     api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(
@@ -2932,11 +3171,11 @@ def test_inc_a_divideby_X(tmpdir, monkeypatch, annexed, dist_mem,
                      "15.5.4_inc_a_divideby_X_builtin.f90"),
         api=API)
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
-    # Test string method
+    # Test '__str__' method
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
-    assert (str(kern) == "Built-in: Inverse scaling of a real-valued "
-            "field (X = a/X)")
+    assert (str(kern) == "Built-in: inc_a_divideby_X (inverse scaling of a "
+            "real-valued field (X = a/X))")
     # Test code generation
     code = str(psy.gen)
 
@@ -2954,7 +3193,7 @@ def test_inc_a_divideby_X(tmpdir, monkeypatch, annexed, dist_mem,
             "      !\n")
         assert output in code
 
-        # Test the lower_to_language_level() method
+        # Test the 'lower_to_language_level()' method
         kern.lower_to_language_level()
         loop = first_invoke.schedule.walk(Loop)[0]
         code = fortran_writer(loop)
@@ -2983,15 +3222,18 @@ def test_inc_a_divideby_X(tmpdir, monkeypatch, annexed, dist_mem,
 # ------------- Raising a real field to a scalar ---------------------------- #
 
 
-def test_inc_X_powreal_a(tmpdir, monkeypatch, annexed, dist_mem,
-                         fortran_writer):
-    ''' Test that 1) the str method of LFRicIncXPowrealAKern returns the
-    expected string and 2) we generate correct code for the built-in
-    operation X = X**a where 'a' is a real scalar and X is a
-    real-valued field. Test with and without annexed dofs being computed
-    as this affects the generated code.
+def test_inc_X_powreal_a(
+        tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
+    '''Test that 1) the '__str__' method of 'LFRicIncXPowrealAKern'
+    returns the expected string and 2) we generate correct code for
+    the built-in operation 'X = X**a' where 'a' is a real scalar and
+    'X' is a real-valued field. Test with and without annexed DoFs
+    being computed as this affects the generated code. 3) Also test
+    the 'lower_to_language_level()' and 'metadata()' methods.
 
     '''
+    metadata = lfric_builtins.LFRicIncXPowrealAKern.metadata()
+    assert isinstance(metadata, LFRicKernelMetadata)
     api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(
@@ -2999,10 +3241,11 @@ def test_inc_X_powreal_a(tmpdir, monkeypatch, annexed, dist_mem,
                      "15.6.1_inc_X_powreal_a_builtin.f90"),
         api=API)
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
-    # Test string method
+    # Test '__str__' method
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
-    assert str(kern) == "Built-in: Raise a real-valued field to a real power"
+    assert (str(kern) == "Built-in: inc_X_powreal_a (raise a real-valued "
+            "field to a real power)")
     # Test code generation
     code = str(psy.gen)
 
@@ -3027,7 +3270,7 @@ def test_inc_X_powreal_a(tmpdir, monkeypatch, annexed, dist_mem,
             "      END DO\n"
             "      !\n")
 
-        # Test the lower_to_language_level() method
+        # Test the 'lower_to_language_level()' method
         kern.lower_to_language_level()
         loop = first_invoke.schedule.walk(Loop)[0]
         # Check the type of the scalar power
@@ -3061,15 +3304,18 @@ def test_inc_X_powreal_a(tmpdir, monkeypatch, annexed, dist_mem,
                 in code)
 
 
-def test_inc_X_powint_n(tmpdir, monkeypatch, annexed, dist_mem,
-                        fortran_writer):
-    ''' Test that 1) the str method of LFRicIncXPowintNKern returns the
-    expected string and 2) we generate correct code for the built-in
-    operation X = X**n where 'n' is an integer scalar and X is a
-    real-valued field. Also test with and without annexed dofs being
-    computed as this affects the generated code.
+def test_inc_X_powint_n(
+        tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
+    '''Test that 1) the '__str__' method of 'LFRicIncXPowintNKern' returns
+    the expected string and 2) we generate correct code for the
+    built-in operation 'X = X**n' where 'n' is an integer scalar and
+    'X' is a real-valued field. Also test with and without annexed
+    DoFs being computed as this affects the generated code. 3) Also
+    test the 'lower_to_language_level()' and 'metadata()' methods.
 
     '''
+    metadata = lfric_builtins.LFRicIncXPowintNKern.metadata()
+    assert isinstance(metadata, LFRicKernelMetadata)
     api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(
@@ -3077,11 +3323,11 @@ def test_inc_X_powint_n(tmpdir, monkeypatch, annexed, dist_mem,
                      "15.6.2_inc_X_powint_n_builtin.f90"),
         api=API)
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
-    # Test string method
+    # Test '__str__' method
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
-    assert str(kern) == ("Built-in: Raise a real-valued field to an "
-                         "integer power")
+    assert str(kern) == ("Built-in: inc_X_powint_n (raise a real-valued field "
+                         "to an integer power)")
 
     # Test code generation
     code = str(psy.gen)
@@ -3109,7 +3355,7 @@ def test_inc_X_powint_n(tmpdir, monkeypatch, annexed, dist_mem,
             "      END DO\n"
             "      !\n")
 
-        # Test the lower_to_language_level() method
+        # Test the 'lower_to_language_level()' method
         kern.lower_to_language_level()
         loop = first_invoke.schedule.walk(Loop)[0]
         # Check the type of the scalar power
@@ -3151,24 +3397,27 @@ def test_inc_X_powint_n(tmpdir, monkeypatch, annexed, dist_mem,
 
 
 def test_setval_c(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
-    ''' Test that 1) the str method of LFRicSetvalCKern returns the expected
-    string and 2) we generate correct code for the built-in operation
-    X = c where 'c' is a real constant scalar value and X is a real-valued
-    field. Test with and without annexed dofs being computed as this affects
-    the generated code.
+    '''Test that 1) the '__str__' method of 'LFRicSetvalCKern' returns the
+    expected string and 2) we generate correct code for the built-in
+    operation 'X = c' where 'c' is a real constant scalar value and
+    'X' is a real-valued field. Test with and without annexed DoFs
+    being computed as this affects the generated code. 3) Also test
+    the 'lower_to_language_level()' and 'metadata()' methods.
 
     '''
+    metadata = lfric_builtins.LFRicSetvalCKern.metadata()
+    assert isinstance(metadata, LFRicKernelMetadata)
     api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.7.1_setval_c_builtin.f90"),
                            api=API)
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
-    # Test string method
+    # Test '__str__' method
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
-    assert str(kern) == ("Built-in: Set a real-valued field to a real "
-                         "scalar value")
+    assert str(kern) == ("Built-in: setval_c (set a real-valued field to "
+                         "a real scalar value)")
     # Test code generation
     code = str(psy.gen)
 
@@ -3204,7 +3453,7 @@ def test_setval_c(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      END DO")
         assert output in code
 
-        # Test the lower_to_language_level() method
+        # Test the 'lower_to_language_level()' method
         kern.lower_to_language_level()
         loop = first_invoke.schedule.walk(Loop)[0]
         # Check the type of the scalar
@@ -3236,23 +3485,27 @@ def test_setval_c(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
 
 
 def test_setval_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
-    ''' Test that 1) the str method of LFRicSetvalXKern returns the expected
-    string and 2) we generate correct code for the built-in operation
-    Y = X where X and Y are real-valued fields. Also test with and without
-    annexed dofs being computed as this affects the generated code.
+    '''Test that 1) the '__str__' method of 'LFRicSetvalXKern' returns the
+    expected string and 2) we generate correct code for the built-in
+    operation 'Y = X' where 'X' and 'Y' are real-valued fields. Also
+    test with and without annexed DoFs being computed as this affects
+    the generated code. 3) Also test the 'lower_to_language_level()'
+    and 'metadata()' methods.
 
     '''
+    metadata = lfric_builtins.LFRicSetvalXKern.metadata()
+    assert isinstance(metadata, LFRicKernelMetadata)
     api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.7.2_setval_X_builtin.f90"),
                            api=API)
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
-    # Test string method
+    # Test '__str__' method
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
-    assert str(kern) == ("Built-in: Set a real-valued field equal to "
-                         "another such field")
+    assert str(kern) == ("Built-in: setval_X (set a real-valued field "
+                         "equal to another such field)")
     # Test code generation
     code = str(psy.gen)
 
@@ -3279,7 +3532,7 @@ def test_setval_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      END DO")
         assert output in code
 
-        # Test the lower_to_language_level() method
+        # Test the 'lower_to_language_level()' method
         kern.lower_to_language_level()
         loop = first_invoke.schedule.walk(Loop)[0]
         code = fortran_writer(loop)
@@ -3305,24 +3558,26 @@ def test_setval_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             output_dm_2 = output_dm_2.replace("dof_annexed", "dof_owned")
         assert output_dm_2 in code
 
-
 # ------------- Inner product of real fields -------------------------------- #
 
 
 def test_X_innerproduct_Y(tmpdir, dist_mem):
-    ''' Test that 1) the str method of LFRicXInnerproductYKern returns the
-    expected string and 2) we generate correct code for the built-in
-    operation which calculates inner product of real-valued fields X and Y
-    as innprod = innprod + X(:)*Y(:).
+    '''Test that 1) the '__str__' method of 'LFRicXInnerproductYKern'
+    returns the expected string and 2) we generate correct code for
+    the built-in operation which calculates inner product of
+    real-valued fields 'X' and 'Y' as 'innprod = innprod +
+    X(:)*Y(:)'. 3) Also test the 'metadata()' method.
 
     '''
+    metadata = lfric_builtins.LFRicXInnerproductYKern.metadata()
+    assert isinstance(metadata, LFRicKernelMetadata)
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "15.9.1_X_innerproduct_Y_builtin.f90"),
         api=API)
     psy = PSyFactory(API,
                      distributed_memory=dist_mem).create(invoke_info)
-    # Test string method
+    # Test '__str__' method
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
     assert str(kern) == "Built-in: X_innerproduct_Y (real-valued fields)"
@@ -3386,22 +3641,25 @@ def test_X_innerproduct_Y(tmpdir, dist_mem):
 
 
 def test_X_innerproduct_X(tmpdir, dist_mem):
-    ''' Test that 1) the str method of LFRicXInnerproductXKern returns the
-    expected string and 2) we generate correct code for the built-in
-    operation which calculates inner product of a real-valued field X by
-    itself as innprod = innprod + X(:)*X(:).
+    '''Test that 1) the '__str__' method of 'LFRicXInnerproductXKern'
+    returns the expected string and 2) we generate correct code for
+    the built-in operation which calculates inner product of a
+    real-valued field 'X' by itself as 'innprod = innprod +
+    X(:)*X(:)'. 3) Also test the 'metadata()' method.
 
     '''
+    metadata = lfric_builtins.LFRicXInnerproductXKern.metadata()
+    assert isinstance(metadata, LFRicKernelMetadata)
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "15.9.2_X_innerproduct_X_builtin.f90"),
         api=API)
     psy = PSyFactory(API,
                      distributed_memory=dist_mem).create(invoke_info)
-    # Test string method
+    # Test '__str__' method
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
-    assert str(kern) == "Built-in: X_innerproduct_X (real-valued fields)"
+    assert str(kern) == "Built-in: X_innerproduct_X (real-valued field)"
     # Test code generation
     code = str(psy.gen)
 
@@ -3464,20 +3722,23 @@ def test_X_innerproduct_X(tmpdir, dist_mem):
 
 
 def test_sum_X(tmpdir, dist_mem):
-    ''' Test that 1) the str method of LFRicSumXKern returns the expected
-    string and 2) we generate correct code for the built-in operation which
-    sums elements of a real-valued field X as sumfld = sum(X(:)).
+    '''Test that 1) the '__str__' method of 'LFRicSumXKern' returns the
+    expected string and 2) we generate correct code for the built-in
+    operation which sums elements of a real-valued field 'X' as
+    'sumfld = sum(X(:))'. 3) Also test the 'metadata()' method.
 
     '''
+    metadata = lfric_builtins.LFRicSumXKern.metadata()
+    assert isinstance(metadata, LFRicKernelMetadata)
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "15.8.1_sum_X_builtin.f90"), api=API)
     psy = PSyFactory(API,
                      distributed_memory=dist_mem).create(invoke_info)
-    # Test string method
+    # Test '__str__' method
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
-    assert str(kern) == "Built-in: Sum a real-valued field"
+    assert str(kern) == "Built-in: sum_X (sum a real-valued field)"
     # Test code generation
     code = str(psy.gen)
 
@@ -3534,23 +3795,26 @@ def test_sum_X(tmpdir, dist_mem):
 
 
 def test_sign_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
-    ''' Test that 1) the str method of LFRicSignXKern returns the
+    '''Test that 1) the '__str__' method of 'LFRicSignXKern' returns the
     expected string and 2) we generate correct code for the built-in
-    operation Y = sign(a, X) where 'a' is a real scalar and Y and X
-    are real-valued fields. Test with and without annexed dofs
-    being computed as this affects the generated code.
+    operation 'Y = sign(a, X)' where 'a' is a real scalar and 'Y' and
+    'X' are real-valued fields. Test with and without annexed DoFs
+    being computed as this affects the generated code. 3) Also test the
+    'lower_to_language_level()' and 'metadata()' methods.
 
     '''
+    metadata = lfric_builtins.LFRicSignXKern.metadata()
+    assert isinstance(metadata, LFRicKernelMetadata)
     api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.10.1_sign_X_builtin.f90"),
                            api=API)
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
-    # Test string method
+    # Test '__str__' method
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
-    assert str(kern) == "Built-in: Sign of a real-valued field"
+    assert str(kern) == "Built-in: sign_X (sign of a real-valued field)"
     # Test code generation
     code = str(psy.gen)
 
@@ -3569,7 +3833,7 @@ def test_sign_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "    END SUBROUTINE invoke_0\n")
         assert output in code
 
-        # Test the lower_to_language_level() method
+        # Test the 'lower_to_language_level()' method
         kern.lower_to_language_level()
         loop = first_invoke.schedule.walk(Loop)[0]
         code = fortran_writer(loop)
@@ -3600,20 +3864,23 @@ def test_sign_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
 
 
 def test_max_aX(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
-    ''' Test that 1) the str method of LFRicMaxAXKern returns the
+    '''Test that 1) the '__str__' method of 'LFRicMaxAXKern' returns the
     expected string and 2) we generate correct code for the built-in
-    operation Y = max(a, X) where 'a' is a real scalar and Y and X
-    are real-valued fields. Test with and without annexed dofs
-    being computed as this affects the generated code.
+    operation 'Y = max(a, X)' where 'a' is a real scalar and 'Y' and
+    'X' are real-valued fields. Test with and without annexed DoFs
+    being computed as this affects the generated code. 3) Also test
+    the 'lower_to_language_level()' and 'metadata()' methods.
 
     '''
+    metadata = lfric_builtins.LFRicMaxAXKern.metadata()
+    assert isinstance(metadata, LFRicKernelMetadata)
     api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.10.4_max_aX_builtin.f90"),
                            api=API)
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
-    # Test string method
+    # Test '__str__' method
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
     assert str(kern) == "Built-in: max_aX (real-valued fields)"
@@ -3645,7 +3912,7 @@ def test_max_aX(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "    END SUBROUTINE invoke_0\n")
         assert output in code
 
-        # Test the lower_to_language_level() method
+        # Test the 'lower_to_language_level()' method
         kern.lower_to_language_level()
         loop = first_invoke.schedule.walk(Loop)[0]
         code = fortran_writer(loop)
@@ -3674,20 +3941,23 @@ def test_max_aX(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
 
 
 def test_inc_max_aX(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
-    ''' Test that 1) the str method of LFRicIncMaxAXKern returns the
-    expected string and 2) we generate correct code for the built-in
-    operation X = max(a, X) where 'a' is a real scalar and X is a
-    real-valued field. Test with and without annexed dofs being computed
-    as this affects the generated code.
+    '''Test that 1) the '__str__' method of 'LFRicIncMaxAXKern' returns
+    the expected string and 2) we generate correct code for the
+    built-in operation 'X = max(a, X)' where 'a' is a real scalar and
+    'X' is a real-valued field. Test with and without annexed DoFs
+    being computed as this affects the generated code. 3) Also test
+    the 'lower_to_language_level()' and 'metadata()' methods.
 
     '''
+    metadata = lfric_builtins.LFRicIncMaxAXKern.metadata()
+    assert isinstance(metadata, LFRicKernelMetadata)
     api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.10.5_inc_max_aX_builtin.f90"),
                            api=API)
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
-    # Test string method
+    # Test '__str__' method
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
     assert str(kern) == "Built-in: inc_max_aX (real-valued field)"
@@ -3718,7 +3988,7 @@ def test_inc_max_aX(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "    END SUBROUTINE invoke_0\n")
         assert output in code
 
-        # Test the lower_to_language_level() method
+        # Test the 'lower_to_language_level()' method
         kern.lower_to_language_level()
         loop = first_invoke.schedule.walk(Loop)[0]
         code = fortran_writer(loop)
@@ -3749,20 +4019,23 @@ def test_inc_max_aX(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
 
 
 def test_min_aX(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
-    ''' Test that 1) the str method of LFRicMinAXKern returns the
+    '''Test that 1) the '__str__' method of 'LFRicMinAXKern' returns the
     expected string and 2) we generate correct code for the built-in
-    operation Y = min(a, X) where 'a' is a real scalar and Y and X
-    are real-valued fields. Test with and without annexed dofs
-    being computed as this affects the generated code.
+    operation 'Y = min(a, X)' where 'a' is a real scalar and 'Y' and
+    'X' are real-valued fields. Test with and without annexed DoFs
+    being computed as this affects the generated code. 3) Also test
+    the 'lower_to_language_level()' and 'metadata()' methods.
 
     '''
+    metadata = lfric_builtins.LFRicMinAXKern.metadata()
+    assert isinstance(metadata, LFRicKernelMetadata)
     api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.10.6_min_aX_builtin.f90"),
                            api=API)
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
-    # Test string method
+    # Test '__str__' method
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
     assert str(kern) == "Built-in: min_aX (real-valued fields)"
@@ -3784,7 +4057,7 @@ def test_min_aX(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "    END SUBROUTINE invoke_0\n")
         assert output in code
 
-        # Test the lower_to_language_level() method
+        # Test the 'lower_to_language_level()' method
         kern.lower_to_language_level()
         loop = first_invoke.schedule.walk(Loop)[0]
         code = fortran_writer(loop)
@@ -3812,20 +4085,23 @@ def test_min_aX(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
 
 
 def test_inc_min_aX(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
-    ''' Test that 1) the str method of LFRicIncMinAXKern returns the
-    expected string and 2) we generate correct code for the built-in
-    operation X = min(a, X) where 'a' is a real scalar and X is a
-    real-valued field. Test with and without annexed dofs being computed
-    as this affects the generated code.
+    '''Test that 1) the '__str__' method of 'LFRicIncMinAXKern' returns
+    the expected string and 2) we generate correct code for the
+    built-in operation 'X = min(a, X)' where 'a' is a real scalar and
+    'X' is a real-valued field. Test with and without annexed DoFs
+    being computed as this affects the generated code. 3) Also test
+    the 'lower_to_language_level()' and 'metadata()' methods.
 
     '''
+    metadata = lfric_builtins.LFRicIncMinAXKern.metadata()
+    assert isinstance(metadata, LFRicKernelMetadata)
     api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.10.7_inc_min_aX_builtin.f90"),
                            api=API)
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
-    # Test string method
+    # Test '__str__' method
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
     assert str(kern) == "Built-in: inc_min_aX (real-valued field)"
@@ -3847,7 +4123,7 @@ def test_inc_min_aX(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "    END SUBROUTINE invoke_0\n")
         assert output in code
 
-        # Test the lower_to_language_level() method
+        # Test the 'lower_to_language_level()' method
         kern.lower_to_language_level()
         loop = first_invoke.schedule.walk(Loop)[0]
         code = fortran_writer(loop)
@@ -3878,25 +4154,28 @@ def test_inc_min_aX(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
 
 
 def test_int_X(tmpdir, monkeypatch, annexed, dist_mem):
-    ''' Test that 1) the str method of LFRicIntXKern returns the
+    '''Test that 1) the '__str__' method of 'LFRicIntXKern' returns the
     expected string and 2) we generate correct code for the built-in
-    operation Y = int(X, i_def) where Y is an integer-valued field, X is
-    the real-valued field being converted and the correct kind, 'i_def',
-    is picked up from the associated field. Test with and without
-    annexed dofs being computed as this affects the generated code.
+    operation 'Y = int(X, i_def)' where 'Y' is an integer-valued
+    field, 'X' is the real-valued field being converted and the
+    correct kind, 'i_def', is picked up from the associated
+    field. Test with and without annexed DoFs being computed as this
+    affects the generated code. 3) Also test the 'metadata()' method.
 
     '''
+    metadata = lfric_builtins.LFRicIntXKern.metadata()
+    assert isinstance(metadata, LFRicKernelMetadata)
     api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.10.3_int_X_builtin.f90"),
                            api=API)
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
-    # Test string method
+    # Test '__str__' method
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
-    assert str(kern) == ("Built-in: Convert a real-valued to an "
-                         "integer-valued field")
+    assert str(kern) == ("Built-in: int_X (convert a real-valued to an "
+                         "integer-valued field)")
     # Test code generation
     code = str(psy.gen)
 
@@ -3964,18 +4243,21 @@ def test_int_X(tmpdir, monkeypatch, annexed, dist_mem):
 
 
 def test_int_X_precision(monkeypatch):
-    '''Test that the builtin picks up and creates correct code for a
-    scalar with precision that is not the default i.e. not i_def. At
+    '''Test that the built-in picks up and creates correct code for a
+    scalar with precision that is not the default i.e. not 'i_def'. At
     the moment there is no other integer precision so we make one up
     and use monkeypatch to get round any error checks. However, this
-    does mean that we can't check whether it compiles.
+    does mean that we can't check whether it compiles. 3) Also test
+    the 'metadata()' method.
 
     '''
+    metadata = lfric_builtins.LFRicIncATimesXKern.metadata()
+    assert isinstance(metadata, LFRicKernelMetadata)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.10.3_int_X_builtin.f90"),
                            api=API)
     psy = PSyFactory(API).create(invoke_info)
-    # Test string method
+    # Test '__str__' method
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
     monkeypatch.setattr(kern.args[0], "_precision", "i_solver")
@@ -3990,8 +4272,10 @@ def test_int_X_precision(monkeypatch):
     reason="Requires kernel-argument dependency analysis to deduce the "
     "spaces of the fields passed to the built-in kernel")
 def test_X_times_Y_on_different_spaces():
-    ''' Test that we raise an error if X_times_Y() is called for
-    two fields that are on different spaces '''
+    '''Test that we raise an error if 'X_times_Y()' is called for two
+    fields that are on different spaces.
+
+    '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "15.11.2_X_times_Y_different_spaces.f90"),
@@ -4006,9 +4290,11 @@ def test_X_times_Y_on_different_spaces():
     reason="Dependency analysis of kernel arguments within an invoke is "
     "not yet implemented")
 def test_X_times_Y_deduce_space(dist_mem):
-    ''' Test that we generate correct code if X_times_Y() is called
-    in an invoke containing another kernel that allows the space of the
-    fields to be deduced '''
+    '''Test that we generate correct code if 'X_times_Y()' is called in an
+    'invoke' containing another kernel that allows the space of the
+    fields to be deduced.
+
+    '''
     _, invoke_info = parse(
         os.path.join(BASE_PATH,
                      "15.11.1_X_times_Y_deduce_space.f90"),
@@ -4027,9 +4313,10 @@ def test_X_times_Y_deduce_space(dist_mem):
 
 
 def test_builtin_set(tmpdir, monkeypatch, annexed, dist_mem):
-    ''' Tests that we generate correct code for a serial built-in setval_c
-    operation with a scalar passed by value. Test with and without annexed
-    dofs being computed as this affects the generated code.
+    '''Tests that we generate correct code for a serial built-in
+    'setval_c' operation with a scalar passed by value. Test with and
+    without annexed DoFs being computed as this affects the generated
+    code.
 
     '''
     api_config = Config.get().api_conf(API)
@@ -4095,9 +4382,9 @@ def test_builtin_set(tmpdir, monkeypatch, annexed, dist_mem):
 
 
 def test_aX_plus_Y_by_value(tmpdir, monkeypatch, annexed, dist_mem):
-    ''' Test that we generate correct code for the built-in operation
-    Z = a*X + Y when a scalar is passed by value. Also test with and
-    without annexed dofs being computed as this affects the generated
+    '''Test that we generate correct code for the built-in operation 'Z =
+    a*X + Y' when a scalar is passed by value. Also test with and
+    without annexed DoFs being computed as this affects the generated
     code.
 
     '''
@@ -4167,9 +4454,9 @@ def test_aX_plus_Y_by_value(tmpdir, monkeypatch, annexed, dist_mem):
 
 
 def test_aX_plus_bY_by_value(tmpdir, monkeypatch, annexed, dist_mem):
-    ''' Test that we generate correct code for the built-in operation
-    Z = a*X + b*Y when scalars 'a' and 'b' are passed by value. Test
-    with and without annexed dofs being computed as this affects the
+    '''Test that we generate correct code for the built-in operation 'Z =
+    a*X + b*Y' when scalars 'a' and 'b' are passed by value. Test with
+    and without annexed DoFs being computed as this affects the
     generated code.
 
     '''
@@ -4239,9 +4526,9 @@ def test_aX_plus_bY_by_value(tmpdir, monkeypatch, annexed, dist_mem):
 
 
 def test_sign_X_by_value(tmpdir, monkeypatch, annexed, dist_mem):
-    ''' Test that we generate correct code for the built-in operation
-    Y = sign(a, X) when a scalar is passed by value. Also test with and
-    without annexed dofs being computed as this affects the generated
+    '''Test that we generate correct code for the built-in operation 'Y =
+    sign(a, X)' when a scalar is passed by value. Also test with and
+    without annexed DoFs being computed as this affects the generated
     code.
 
     '''
@@ -4312,9 +4599,9 @@ def test_sign_X_by_value(tmpdir, monkeypatch, annexed, dist_mem):
 
 
 def test_multiple_builtin_set(tmpdir, monkeypatch, annexed, dist_mem):
-    ''' Tests that we generate correct code when we have an invoke
+    '''Tests that we generate correct code when we have an 'invoke'
     containing multiple set operations. Test with and without annexed
-    dofs being computed as this affects the generated code.
+    DoFs being computed as this affects the generated code.
 
     '''
     api_config = Config.get().api_conf(API)
@@ -4423,9 +4710,9 @@ def test_multiple_builtin_set(tmpdir, monkeypatch, annexed, dist_mem):
 
 
 def test_builtin_set_plus_normal(tmpdir, monkeypatch, annexed, dist_mem):
-    ''' Tests that we generate correct code for a built-in set operation
-    when the invoke also contains a normal kernel. Test with and
-    without annexed dofs being computed as this affects the generated
+    '''Tests that we generate correct code for a built-in set operation
+    when the 'invoke' also contains a normal kernel. Test with and
+    without annexed DoFs being computed as this affects the generated
     code.
 
     '''
@@ -4546,9 +4833,9 @@ def test_builtin_set_plus_normal(tmpdir, monkeypatch, annexed, dist_mem):
 
 
 def test_multi_builtin_single_invoke(tmpdir, monkeypatch, annexed, dist_mem):
-    ''' Test that multiple built-ins, including one with reductions, produce
-    correct code. Also test with and without annexed dofs being
-    computed as this affects the generated code.
+    '''Test that multiple built-ins, including one with reductions,
+    produce correct code. Also test with and without annexed DoFs
+    being computed as this affects the generated code.
 
     '''
     api_config = Config.get().api_conf(API)
@@ -4659,9 +4946,11 @@ def test_multi_builtin_single_invoke(tmpdir, monkeypatch, annexed, dist_mem):
 
 
 def test_scalar_int_builtin_error(monkeypatch):
-    ''' Test that specifying incorrect meta-data for built-in such that it
+    '''Test that specifying incorrect meta-data for built-in such that it
     claims to perform a reduction into an integer variable raises the
-    expected error. '''
+    expected error.
+
+    '''
     monkeypatch.setattr(lfric_builtins, "BUILTIN_DEFINITIONS_FILE",
                         value=os.path.join(BASE_PATH,
                                            "int_reduction_builtins_mod.f90"))
@@ -4679,9 +4968,12 @@ def test_scalar_int_builtin_error(monkeypatch):
 
 def mesh_code_present(field_str, code):
     '''This test checks for the existance of mesh code. This exists for
-    all built-ins with dm = True (although it is not actually required!) so
-    each test can call this function. Mesh code is generated from the first
-    field in a built-in arguments list, here denoted with field_str.'''
+    all built-ins with dm = True (although it is not actually
+    required!) so each test can call this function. Mesh code is
+    generated from the first field in a built-in arguments list, here
+    denoted with field_str.
+
+    '''
     assert "      USE mesh_mod, ONLY: mesh_type" in code
     assert "      TYPE(mesh_type), pointer :: mesh => null()" in code
     output_dm_1 = (
@@ -4695,10 +4987,9 @@ def mesh_code_present(field_str, code):
 
 
 def test_field_access_info_for_arrays_in_builtins():
-    '''Tests that array of fields in LFRic builtins properly report access
-    information. For example,
-    call invoke( a_plus_X(f2(i), a, f1) )
-    must report the access to f2.
+    '''Tests that array of fields in LFRic built-ins properly report access
+    information. For example, 'call invoke( a_plus_X(f2(i), a, f1) )'
+    must report the access to 'f2'.
 
     '''
     _, invoke = get_invoke("15.1.8_a_plus_X_builtin_array_of_fields.f90",
