@@ -541,8 +541,8 @@ class FortranWriter(LanguageWriter):
         :returns: the Fortran variable declaration as a string.
         :rtype: str
 
-        :raises VisitorError: if the symbol is of UnknownFortranType and \
-            is not local.
+        :raises VisitorError: if the symbol is of DeferredType.
+        :raises VisitorError: if the symbol is of UnknownFortranType.
         :raises VisitorError: if the symbol is of known type but does not \
             specify a variable declaration (it is not a local declaration or \
             an argument declaration).
@@ -553,7 +553,6 @@ class FortranWriter(LanguageWriter):
 
         '''
         # pylint: disable=too-many-branches
-
         if isinstance(symbol.datatype, DeferredType):
             raise VisitorError(f"Symbol '{symbol.name}' has a DeferredType "
                                f" and we can not generate a declaration for "
@@ -619,11 +618,18 @@ class FortranWriter(LanguageWriter):
         if isinstance(symbol, DataSymbol) and symbol.is_constant:
             result += ", parameter"
 
+        if isinstance(symbol, DataSymbol) and symbol.is_static:
+            result += ", save"
+
         if include_visibility:
             if symbol.visibility == Symbol.Visibility.PRIVATE:
                 result += ", private"
-            else:
+            elif symbol.visibility == Symbol.Visibility.PUBLIC:
                 result += ", public"
+            else:
+                raise InternalError(
+                    f"A Symbol must be either public or private but symbol "
+                    f"'{symbol.name}' has visibility '{symbol.visibility}'")
 
         # Specify name
         result += f" :: {symbol.name}"
@@ -891,7 +897,7 @@ class FortranWriter(LanguageWriter):
         declarations = ""
 
         # Get all symbols local to this symbol table
-        all_symbols = list(symbol_table.get_local_symbols().values())
+        all_symbols = symbol_table.symbols
 
         # Before processing the declarations we remove:
         for sym in all_symbols[:]:
@@ -975,8 +981,6 @@ class FortranWriter(LanguageWriter):
 
         # 5: The rest of the symbols
         for symbol in all_symbols:
-            if type(symbol) is Symbol:
-                import pdb; pdb.set_trace()
             declarations += self.gen_vardecl(
                 symbol, include_visibility=is_module_scope)
 

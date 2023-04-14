@@ -164,7 +164,8 @@ whether tags should be unique or not.
 All other methods act only on symbols in the local symbol table. In
 particular `__contains__`, `remove`, `symbols`, `datasymbols`,
 `automatic_datasymbols`, `argument_datasymbols`, `imported_symbols`,
-`unresolved_datasymbols`, `precision_datasymbols` and `containersymbols`.
+`unresolved_datasymbols`, `precision_datasymbols`, `datatypesymbols`
+and `containersymbols`.
 It is currently not clear whether this is the best solution and it is
 possible that these should reflect a global view. One issue is that
 the `__contains__` method has no mechanism to pass a `scope_limit`

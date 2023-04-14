@@ -201,9 +201,6 @@ class SymbolTable():
             current = current.parent_symbol_table(scope_limit)
         return all_symbols
 
-    def get_local_symbols(self):
-        return self.get_symbols(scope_limit=self.node)
-
     def get_tags(self, scope_limit=None):
         '''Return tags from this symbol table and all symbol tables associated
         with ancestors of the node that this symbol table is attached
@@ -985,14 +982,6 @@ class SymbolTable():
         :rtype: list of :py:class:`psyclone.psyir.symbols.DataSymbol`
         '''
         return [sym for sym in self.datasymbols if sym.is_unresolved]
-
-    @property
-    def unknown_datasymbols(self):
-        '''
-        :returns: list of symbols representing unknown variables.
-        :rtype: list of :py:class:`psyclone.psyir.symbols.DataSymbol`
-        '''
-        return [sym for sym in self.datasymbols if sym.is_unknown]
 
     @property
     def precision_datasymbols(self):
