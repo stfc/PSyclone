@@ -660,7 +660,7 @@ def test_main_api():
 
     '''
 
-    # 1) Make sure if no paramenters are given,
+    # 1) Make sure if no parameters are given,
     #   config will give us the default API
 
     # Make sure we get a default config instance

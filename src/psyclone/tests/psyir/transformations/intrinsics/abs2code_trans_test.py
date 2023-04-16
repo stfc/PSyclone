@@ -65,7 +65,7 @@ def example_psyir(create_expression):
     '''Utility function that creates a PSyIR tree containing an ABS
     intrinsic operator and returns the operator.
 
-    :param function create_expresssion: function used to create the \
+    :param function create_expression: function used to create the \
         content of the ABS operator.
 
     :returns: PSyIR ABS operator instance.
@@ -94,8 +94,7 @@ def example_psyir(create_expression):
                               Literal("3.14", REAL_TYPE)), "arg * 3.14")])
 def test_correct(func, output, tmpdir):
     '''Check that a valid example produces the expected output when the
-    argument to ABS is a simple argument and when it is an
-    expresssion.
+    argument to ABS is a simple argument and when it is an expression.
 
     '''
     Config.get().api = "nemo"

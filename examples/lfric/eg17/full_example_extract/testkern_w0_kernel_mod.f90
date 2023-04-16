@@ -46,9 +46,10 @@ module testkern_w0_kernel_mod
 
   type, public, extends(kernel_type) :: testkern_w0_kernel_type
      private
-     type(arg_type), dimension(3) :: meta_args =       &
+     type(arg_type), dimension(4) :: meta_args =       &
           (/ arg_type(gh_field, gh_real, gh_inc,  w0), &
              arg_type(gh_field, gh_real, gh_read, w0), &
+             arg_type(gh_field*3, gh_real, gh_read, w0), &
              arg_type(gh_scalar, gh_logical, gh_read)  &
            /)
      integer :: operates_on = cell_column
@@ -60,8 +61,8 @@ module testkern_w0_kernel_mod
 
 contains
 
-  subroutine testkern_w0_code(nlayers, fld1, fld2, some_logical, &
-                              ndf_w0, undf_w0, map_w0)
+  subroutine testkern_w0_code(nlayers, fld1, fld2, chi1, chi2, chi3, &
+                              some_logical, ndf_w0, undf_w0, map_w0)
 
     implicit none
 
@@ -69,6 +70,7 @@ contains
     integer(kind=i_def)                                 :: ndf_w0, undf_w0
     real(kind=r_def), dimension(undf_w0), intent(inout) :: fld1
     real(kind=r_def), dimension(undf_w0), intent(in)    :: fld2
+    real(kind=r_def), dimension(undf_w0), intent(in)    :: chi1,chi2,chi3
     logical(kind=l_def), intent(in)                     :: some_logical
     integer(kind=i_def), dimension(ndf_w0)              :: map_w0
 

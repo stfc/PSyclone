@@ -493,7 +493,7 @@ Link checking
 
 The link checking performed for the Sphinx documentation
 uses Sphinx's `linkcheck` functionality. Some URLs are excluded from
-this checking (due to ssl isues with an outdated http server or pages
+this checking (due to ssl issues with an outdated http server or pages
 requiring authentication) and this is configured in the ``conf.py``
 file of each document.  Note also that anchors on GitHub actually have
 "user-content-" prepended but this is not shown in the links displayed

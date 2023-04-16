@@ -94,7 +94,7 @@ class AssignmentTrans(AdjointTransformation):
                 active_var = ref
                 # Identify whether this reference on the RHS matches the
                 # one on the LHS - if so we have an increment.
-                if node.is_array_range and isinstance(ref, ArrayMixin):
+                if node.is_array_assignment and isinstance(ref, ArrayMixin):
                     # TODO #1537 - we can't just do `sym_maths.equal` if we
                     # have an array range because the SymbolicMaths class does
                     # not currently support them.
@@ -194,7 +194,7 @@ class AssignmentTrans(AdjointTransformation):
         '''
         # This check only needs to proceed if the assignment is to an array
         # range and the supplied active variable is the one being assigned to.
-        if not (assign.is_array_range and active_variable.symbol is
+        if not (assign.is_array_assignment and active_variable.symbol is
                 assign.lhs.symbol):
             return
 
@@ -252,7 +252,7 @@ class AssignmentTrans(AdjointTransformation):
             var.name for var in assign.walk(Reference)
             if var.symbol in self._active_variables]
         if not assignment_active_var_names:
-            # No active variables in this assigment so the assignment
+            # No active variables in this assignment so the assignment
             # remains unchanged.
             return
 
@@ -297,14 +297,14 @@ class AssignmentTrans(AdjointTransformation):
             if not active_vars:
                 # This term must contain an active variable
                 raise TangentLinearError(
-                    f"Each non-zero term on the RHS of the assigment "
+                    f"Each non-zero term on the RHS of the assignment "
                     f"'{assign.debug_string()}' must have an active variable "
                     f"but '{rhs_term.debug_string()}' does not.")
 
             if len(active_vars) > 1:
                 # This term can only contain one active variable
                 raise TangentLinearError(
-                    f"Each term on the RHS of the assigment "
+                    f"Each term on the RHS of the assignment "
                     f"'{assign.debug_string()}' must not have more than one "
                     f"active variable but '{rhs_term.debug_string()}' has "
                     f"{len(active_vars)}.")
