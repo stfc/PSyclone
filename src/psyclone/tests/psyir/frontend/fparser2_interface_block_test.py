@@ -105,8 +105,8 @@ def test_named_interface_declared(fortran_reader):
     test_symbol = container.symbol_table.lookup("test")
     assert isinstance(test_symbol, DataTypeSymbol)
     # interface symbol
-    assert container.symbol_table.lookup("test_1")
-    test_symbol = container.symbol_table.lookup("test_1")
+    assert container.symbol_table.lookup("_psyclone_internal_test")
+    test_symbol = container.symbol_table.lookup("_psyclone_internal_test")
     assert isinstance(test_symbol, RoutineSymbol)
     assert isinstance(test_symbol.datatype, UnknownFortranType)
     assert (test_symbol.datatype.declaration == "interface test\n"

@@ -2097,9 +2097,10 @@ class Fparser2Reader():
                     # This symbol has already been declared. However
                     # we still want to output the interface so we
                     # store it in the PSyIR as an UnkownFortranType
-                    # with a different name.
+                    # with an internal name.
                     parent.symbol_table.new_symbol(
-                        root_name=name, symbol_type=RoutineSymbol,
+                        root_name=f"_psyclone_internal_{name}",
+                        symbol_type=RoutineSymbol,
                         datatype=UnknownFortranType(str(node).lower()),
                         visibility=vis)
 
