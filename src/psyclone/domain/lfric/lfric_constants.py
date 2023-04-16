@@ -150,6 +150,11 @@ class LFRicConstants():
             OrderedDict(zip(LFRicConstants.VALID_ARG_DATA_TYPES,
                             LFRicConstants.VALID_INTRINSIC_TYPES))
 
+        # ---------- Mapping from Fortran intrinsic type to metadata data_type
+        LFRicConstants.MAPPING_INTRINSIC_TYPES = \
+            OrderedDict(zip(LFRicConstants.VALID_INTRINSIC_TYPES,
+                            LFRicConstants.VALID_ARG_DATA_TYPES))
+
         # ---------- Loops (bounds, types, names) -----------------------------
         # These are loop bound names which identify positions in a field's
         # halo. It is useful to group these together as we often need to
