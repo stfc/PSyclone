@@ -1045,7 +1045,11 @@ class DependencyTools():
 
                 # Get the non-local access information from the kernel
                 # by querying the module that contains the kernel:
-                mod_info = mod_manager.get_module_info(kernel.module_name)
+                try:
+                    mod_info = mod_manager.get_module_info(kernel.module_name)
+                except FileNotFoundError:
+                    print(f"Could not find module '{kernel.module_name}' - ignored.")
+                    continue
                 routine_info = mod_info.get_routine_info(kernel.name)
                 non_locals = routine_info.get_non_local_symbols()
                 todo.extend(non_locals)
