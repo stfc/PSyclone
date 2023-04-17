@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2022, Science and Technology Facilities Council
+# Copyright (c) 2019-2023, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -124,9 +124,9 @@ def create_psyir_tree():
     naryoperation = NaryOperation.create(oper, [tmp1(), tmp2(), one()])
 
     # Operation with named args
-    oper = NaryOperation.Operator.SUM
-    naryoperation_named = NaryOperation.create(
-        oper, [one(), unaryoperation.copy(), ("dim", one()), ("mask", zero())])
+    oper = BinaryOperation.Operator.DOT_PRODUCT
+    binaryoperation_named = BinaryOperation.create(
+        oper, ("vector_a", tmp1()), ("vector_b", tmp2()))
 
     # The create method supports the usage of ":" instead
     # of a range from lower bound to upper bound:
@@ -138,7 +138,7 @@ def create_psyir_tree():
     assign3 = Assignment.create(tmp2(), binaryoperation)
     assign4 = Assignment.create(tmp1(), tmp2())
     assign5 = Assignment.create(tmp1(), naryoperation)
-    assign6 = Assignment.create(tmp2(), naryoperation_named)
+    assign6 = Assignment.create(tmp2(), binaryoperation_named)
     assign7 = Assignment.create(tmparray, two())
 
     # Call with named argument
