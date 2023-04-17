@@ -374,6 +374,9 @@
 	125) PR #2098 towards #2091. Split off and rename DynKernCallFactory
 	to LFRicKernCallFactory.
 
+	126) PR # 2103 towards #1618. Support Fortran interfaces whose symbols
+	are already declared.
+
 release 2.3.1 17th of June 2022
 
 	1) PR #1747 for #1720. Adds support for If blocks to PSyAD.
