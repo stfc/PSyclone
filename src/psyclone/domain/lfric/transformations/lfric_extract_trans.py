@@ -148,21 +148,18 @@ class LFRicExtractTrans(ExtractTrans):
         my_options["region_name"] = region_name
         my_options["prefix"] = my_options.get("prefix", "extract")
         # TODO
-        input_list, output_list = dep.get_in_out_parameters_recursive(nodes)
-        my_options["input_list"] = input_list
-        my_options["output_list"] = output_list
+        read_write_info = dep.get_in_out_parameters_recursive(nodes)
+        my_options["read_write_info"] = read_write_info
         # Determine a unique postfix to be used for output variables
         # that avoid any name clashes
-        postfix = ExtractTrans.determine_postfix(input_list,
-                                                 output_list,
+        postfix = ExtractTrans.determine_postfix(read_write_info,
                                                  postfix="_post")
         my_options["post_var_postfix"] = postfix
         if my_options.get("create_driver", False):
             # We need to create the driver before inserting the ExtractNode
             # (since some of the visitors used in driver creation do not
             # handle an ExtractNode in the tree)
-            self._driver_creator.write_driver(nodes,
-                                              input_list, output_list,
+            self._driver_creator.write_driver(nodes, read_write_info,
                                               postfix=postfix,
                                               prefix=my_options["prefix"],
                                               region_name=region_name)
