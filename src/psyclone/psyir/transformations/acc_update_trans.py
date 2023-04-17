@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022, Science and Technology Facilities Council.
+# Copyright (c) 2022-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter and N. Nobre, STFC Daresbury Lab
+# Modified: J. Henrichs, Bureau of Meteorology
 
 '''
 This module provides the ACCUpdateTrans transformation that, on programs that
@@ -196,6 +197,7 @@ class ACCUpdateTrans(Transformation):
         self._add_update_directives(node_list)
 
     def _add_update_directives(self, node_list):
+        # pylint: disable=too-many-locals, too-many-branches
         '''
         Adds the required OpenACC update directives before and after the nodes
         in the supplied list.
@@ -210,8 +212,9 @@ class ACCUpdateTrans(Transformation):
 
         # TODO #1872: the lack of precise array access descriptions might
         # unnecessarily increase the data transfer volume.
-        inputs, outputs = DependencyTools().get_in_out_parameters(node_list)
-        inputs, outputs = set(inputs), set(outputs)
+        read_write_info = DependencyTools().get_in_out_parameters(node_list)
+        inputs = set(sig for _, sig in read_write_info.read_list)
+        outputs = set(sig for _, sig in read_write_info.write_list)
 
         # TODO #1872: as a workaround for the lack of precise array access
         # descriptions, we currently overapproximate dependencies by adding any

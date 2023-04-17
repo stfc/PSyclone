@@ -41,8 +41,8 @@
 ''' This module contains the implementation of the various OpenACC Directive
 nodes.'''
 
-from __future__ import absolute_import
 import abc
+
 from psyclone.core import AccessType, VariablesAccessInfo, Signature
 from psyclone.f2pygen import DirectiveGen, CommentGen
 from psyclone.errors import GenerationError, InternalError
@@ -123,8 +123,9 @@ class ACCRegionDirective(ACCDirective, RegionDirective, metaclass=abc.ABCMeta):
                     sig_set.add(Signature(arg_str))
             return (sig_set, )
 
-        inp, out = DependencyTools().get_in_out_parameters(self.children)
-        return (set(inp), set(out))
+        rwi = DependencyTools().get_in_out_parameters(self.children)
+        return (set(sig for _, sig in rwi.read_list),
+                set(sig for _, sig in rwi.write_list))
 
 
 class ACCStandaloneDirective(ACCDirective, StandaloneDirective,
