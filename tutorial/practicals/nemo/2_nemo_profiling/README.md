@@ -1,4 +1,4 @@
-# Using Profiling with PSyclone and NEMO - Tutorial 2 #
+# Using Profiling with PSyclone - Tutorial 2 #
 
 This tutorial follows on from Tutorial 1 (../1_nemo_psyir/README.md) and
 assumes that you are comfortable with the topics covered there. It uses
@@ -32,7 +32,7 @@ currently provides wrapper libraries for profiling tools such as
 you have time at the end of this session.)
 
 1. Use the supplied Makefile to generate a version of the mini-app with
-   profiling automatically inserted around each routine:
+   profiling calipers inserted at the beginning and end of each routine:
 
        $ make transform
 
@@ -192,7 +192,7 @@ transformation script to perform finer-grained profiling.
 
 2. Many PSyclone transformations allow additional options to be supplied
    via a dictionary argument to the `apply()` method. The
-   profiling transformation for instance allows the user to supply a
+   profiling transformation, for instance, allows the user to supply a
    specific name for the region that is being created. Try using the
    "region_name" option to configure the names given to the regions,
    e.g.:
