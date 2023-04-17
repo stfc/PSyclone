@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2022, Science and Technology Facilities Council.
+# Copyright (c) 2019-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -161,12 +161,10 @@ class GOceanExtractTrans(ExtractTrans):
         my_options["region_name"] = region_name
         my_options["prefix"] = my_options.get("prefix", "extract")
 
-        input_list, output_list = dep.get_in_out_parameters(nodes,
-                                                            options=my_options)
+        read_write_info = dep.get_in_out_parameters(nodes, options=my_options)
         # Determine a unique postfix to be used for output variables
         # that avoid any name clashes
-        postfix = ExtractTrans.determine_postfix(input_list,
-                                                 output_list,
+        postfix = ExtractTrans.determine_postfix(read_write_info,
                                                  postfix="_post")
         my_options["post_var_postfix"] = postfix
 
@@ -174,8 +172,7 @@ class GOceanExtractTrans(ExtractTrans):
             # We need to create the driver before inserting the ExtractNode
             # (since some of the visitors used in driver creation do not
             # handle an ExtractNode in the tree)
-            self._driver_creator.write_driver(nodes,
-                                              input_list, output_list,
+            self._driver_creator.write_driver(nodes, read_write_info,
                                               postfix=postfix,
                                               prefix=my_options["prefix"],
                                               region_name=region_name)
