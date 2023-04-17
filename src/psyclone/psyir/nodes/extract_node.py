@@ -102,10 +102,15 @@ class ExtractNode(PSyDataNode):
         # variable 'a' exists, which creates 'a_out' for the output variable,
         # which would clash with a variable 'a_out' used in the program unit).
 
+        if not options:
+            options = {}
         if options:
             self._post_name = options.get("post_var_postfix", "_post")
         else:
             self._post_name = "_post"
+
+        # Keep a copy of the parameter list:
+        self._read_write_info = options.get("read_write_info")
 
     def __eq__(self, other):
         '''
@@ -184,11 +189,11 @@ class ExtractNode(PSyDataNode):
         from psyclone.psyir.tools.dependency_tools import DependencyTools
         # Determine the variables to write:
         dep = DependencyTools()
-        input_list, output_list = \
+        read_write_info = \
             dep.get_in_out_parameters(self, options=self.options)
 
-        options = {'pre_var_list': input_list,
-                   'post_var_list': output_list,
+        options = {'pre_var_list': read_write_info.read_list,
+                   'post_var_list': read_write_info.write_list,
                    'post_var_postfix': self._post_name}
 
         return super().lower_to_language_level(options)
