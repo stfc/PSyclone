@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2022, Science and Technology Facilities Council.
+# Copyright (c) 2019-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -46,6 +46,7 @@ from psyclone.core import Signature
 from psyclone.domain.lfric.transformations import LFRicExtractTrans
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import ExtractNode, Node
+from psyclone.psyir.tools import ReadWriteInfo
 from psyclone.psyir.transformations import ExtractTrans
 
 # --------------------------------------------------------------------------- #
@@ -71,43 +72,47 @@ def test_determine_postfix():
     '''
 
     # Test if there is no clash that the specified postfix is returned as is:
-    postfix = ExtractTrans.determine_postfix([], [])
+    read_write_info = ReadWriteInfo()
+    postfix = ExtractTrans.determine_postfix(read_write_info)
     assert postfix == "_post"
-    postfix = ExtractTrans.determine_postfix([], [], postfix="_new_postfix")
+    postfix = ExtractTrans.determine_postfix(read_write_info,
+                                             postfix="_new_postfix")
     assert postfix == "_new_postfix"
 
     # Clash between input variable and a created output variable:
-    postfix = ExtractTrans.determine_postfix([Signature("var_post")],
-                                             [Signature("var")])
+    read_write_info = ReadWriteInfo()
+    read_write_info.add_read(Signature("var_post"))
+    read_write_info.add_write(Signature("var"))
+    postfix = ExtractTrans.determine_postfix(read_write_info)
     assert postfix == "_post0"
 
     # Two clashes between input variable and a created output variable:
-    postfix = ExtractTrans.determine_postfix([Signature("var_post"),
-                                              Signature("var_post0")],
-                                             [Signature("var")])
+    read_write_info.add_read(Signature("var_post0"))
+    postfix = ExtractTrans.determine_postfix(read_write_info)
     assert postfix == "_post1"
 
     # Two clashes between different input variables and created output
     # variables: 'var1' prevents the '_post' to be used, 'var2'
     # prevents "_post0" to be used, 'var3' prevents "_post1":
-    postfix = ExtractTrans.determine_postfix([Signature("var1_post"),
-                                              Signature("var2_post0"),
-                                              Signature("var3_post1")],
-                                             [Signature("var1"),
-                                              Signature("var2"),
-                                              Signature("var3")])
+    read_write_info = ReadWriteInfo()
+    read_write_info.add_read(Signature("var1_post"))
+    read_write_info.add_read(Signature("var2_post0"))
+    read_write_info.add_read(Signature("var3_post1"))
+    read_write_info.add_write(Signature("var1"))
+    read_write_info.add_write(Signature("var2"))
+    read_write_info.add_write(Signature("var3"))
+    postfix = ExtractTrans.determine_postfix(read_write_info)
     assert postfix == "_post2"
 
     # Handle clash between output variables: the first variable will
     # create "var" and var_post", the second "var_post" and "var_post_post".
-    postfix = ExtractTrans.determine_postfix([],
-                                             [Signature("var"),
-                                              Signature("var_post")])
+    read_write_info = ReadWriteInfo()
+    read_write_info. add_write(Signature("var"))
+    read_write_info. add_write(Signature("var_post"))
+    postfix = ExtractTrans.determine_postfix(read_write_info)
     assert postfix == "_post0"
-    postfix = ExtractTrans.determine_postfix([],
-                                             [Signature("var"),
-                                              Signature("var_post"),
-                                              Signature("var_post0")])
+    read_write_info.add_write(Signature("var_post0"))
+    postfix = ExtractTrans.determine_postfix(read_write_info)
     assert postfix == "_post1"
 
 

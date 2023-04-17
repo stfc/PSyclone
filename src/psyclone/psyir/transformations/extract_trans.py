@@ -125,9 +125,9 @@ class ExtractTrans(PSyDataTrans):
         all_vars = read_write_info.set_of_all_used_vars
         # The signatures in the input/output list need to be converted
         # back to strings to easily append the suffix.
-        all_vars_string = [str(input_var) for input_var in all_vars]
+        all_vars_string = [str(input_var) for _, input_var in all_vars]
         while any(str(out_sig)+postfix+str(suffix) in all_vars_string
-                  for out_sig in read_write_info.write_list):
+                  for _, out_sig in read_write_info.write_list):
             if suffix == "":
                 suffix = 0
             else:
