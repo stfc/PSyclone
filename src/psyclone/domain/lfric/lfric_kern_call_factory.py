@@ -37,8 +37,9 @@
 # Modified A. B. G. Chalk and N. Nobre, STFC Daresbury Lab
 
 ''' This module implements a class that creates the necessary framework for an
-    LFRic kernel call. This consists of a Loop over cells containing a call to
-    the user-supplied kernel routine.'''
+    LFRic kernel call.
+
+'''
 
 
 class LFRicKernCallFactory():
@@ -91,5 +92,5 @@ class LFRicKernCallFactory():
 
 # ---------- Documentation utils -------------------------------------------- #
 # The list of module members that we wish AutoAPI to generate
-# documentation for (see https://psyclone-ref.readthedocs.io)
+# documentation for (see https://psyclone-ref.readthedocs.io).
 __all__ = ['LFRicKernCallFactory']
