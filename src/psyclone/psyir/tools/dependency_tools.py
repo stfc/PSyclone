@@ -914,7 +914,7 @@ class DependencyTools():
 
     # -------------------------------------------------------------------------
     @staticmethod
-    def _resolve_non_locals_to_in_out(todo, read_write_info):
+    def _resolve_calls_and_unknowns(todo, read_write_info):
         '''This function updates the list of non-local symbols by:
         1. replacing all subroutine calls with the list of their corresponding
             non-local symbols.
@@ -993,6 +993,8 @@ class DependencyTools():
             if not access_info.is_written_first():
                 in_vars.add((module_name, signature))
 
+        # Now add all accesses to the access. Note that in_vars and out_vars
+        # are sets, so there will be no duplicate entry.
         for module_name, signature in in_vars:
             read_write_info.add_read(signature, module_name)
         for module_name, signature in out_vars:
@@ -1048,13 +1050,14 @@ class DependencyTools():
                 try:
                     mod_info = mod_manager.get_module_info(kernel.module_name)
                 except FileNotFoundError:
-                    print(f"Could not find module '{kernel.module_name}' - ignored.")
+                    print(f"Could not find module '{kernel.module_name}' - "
+                          f"ignored.")
                     continue
                 routine_info = mod_info.get_routine_info(kernel.name)
                 non_locals = routine_info.get_non_local_symbols()
                 todo.extend(non_locals)
 
         # Resolve routine calls and unknown accesses:
-        self._resolve_non_locals_to_in_out(todo, read_write_info)
+        self._resolve_calls_and_unknowns(todo, read_write_info)
 
         return read_write_info
