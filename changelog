@@ -374,8 +374,10 @@
 	125) PR #2098 towards #2091. Split off and rename DynKernCallFactory
 	to LFRicKernCallFactory.
 
-	126) PR # 2103 towards #1618. Support Fortran interfaces whose symbols
+	126) PR #2103 towards #1618. Support Fortran interfaces whose symbols
 	are already declared.
+
+	127) PR #2099. Update of tutorials.
 
 release 2.3.1 17th of June 2022
 
