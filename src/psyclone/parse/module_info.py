@@ -332,3 +332,19 @@ class ModuleInfo:
                 routine_info.set_psyir(routine)
 
         return self._psyir
+
+    # ------------------------------------------------------------------------
+    def get_symbol(self, name):
+        '''Returns the symbol with the specified name from the module symbol
+        table.
+
+        :param str name: name of the symbol to look up.
+
+        :returns: the symbol with the give name.
+        :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
+
+        '''
+        psyir = self.get_psyir()
+        # Get the symbol table from the module
+        symbol_table = psyir.children[0].symbol_table
+        return symbol_table.lookup(name)
