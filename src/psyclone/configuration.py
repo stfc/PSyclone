@@ -439,7 +439,7 @@ class Config:
         '''
         # Moving this to the top causes test failures
         # pylint: disable=import-outside-toplevel
-        from psyclone.virtual_utils import within_virtual_env
+        from psyclone.utils import within_virtual_env
 
         # If $PSYCLONE_CONFIG is set then we use that unless the
         # file it points to does not exist
