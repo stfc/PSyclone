@@ -472,6 +472,7 @@ class PSyDataNode(Statement):
     # -------------------------------------------------------------------------
     def gen_code(self, parent, options=None):
         # pylint: disable=arguments-differ, too-many-branches
+        # pylint: disable=too-many-statements
         '''Creates the PSyData code before and after the children
         of this node.
 
@@ -589,7 +590,7 @@ class PSyDataNode(Statement):
                 if module_name:
                     module_name = f"@{module_name}"
                 self._add_call("PreDeclareVariable", parent,
-                               [f"\"{var_name}{module_name}{post_suffix}\"",
+                               [f"\"{var_name}{post_suffix}{module_name}\"",
                                 var_name])
 
             self._add_call("PreEndDeclaration", parent)
@@ -613,7 +614,7 @@ class PSyDataNode(Statement):
                 if module_name:
                     module_name = f"@{module_name}"
                 self._add_call("ProvideVariable", parent,
-                               [f"\"{var_name}{module_name}{post_suffix}\"",
+                               [f"\"{var_name}{post_suffix}{module_name}\"",
                                 var_name])
 
         self._add_call("PostEnd", parent)
