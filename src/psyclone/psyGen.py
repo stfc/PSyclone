@@ -52,12 +52,12 @@ from psyclone.f2pygen import (AllocateGen, AssignGen, CallGen, CommentGen,
 from psyclone.parse.algorithm import BuiltInCall
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.backend.visitor import PSyIRVisitor
-from psyclone.psyir.nodes import (Node, Schedule, Loop, Statement, Container,
-                                  Routine, Call, OMPDoDirective)
-from psyclone.psyir.symbols import (ArrayType, DataSymbol, RoutineSymbol,
-                                    Symbol, ContainerSymbol, ImportInterface,
-                                    ContainerSymbol, ImportInterface,
-                                    ArgumentInterface, DeferredType)
+from psyclone.psyir.nodes import (
+    ArrayReference, Call, Container, Literal, Loop, Node, Reference, Routine,
+    OMPDoDirective, Schedule, Statement)
+from psyclone.psyir.symbols import (
+    ArgumentInterface, ArrayType, ContainerSymbol, DataSymbol, DeferredType,
+    ImportInterface, INTEGER_TYPE, RoutineSymbol, Symbol)
 from psyclone.psyir.symbols.datatypes import UnknownFortranType
 
 # The types of 'intent' that an argument to a Fortran subroutine
@@ -112,8 +112,19 @@ def get_api(api):
 
 
 def zero_reduction_variables(red_call_list, parent):
-    '''zero all reduction variables associated with the calls in the call
-    list'''
+    '''
+    Zero all reduction variables associated with the calls in the call
+    list.
+    :param red_call_list: list of kernel calls that contain \
+                          a reduction variable.
+    :type red_call_list: list of `psyGen.Kern`
+    :param parent: the node in the f2pygen AST to which to add content.
+    :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+    '''
+    # TODO #2021: It is not clear where this function belongs. For now
+    # it is used in 'Loop.gen_code' and 'OMPParallelDoDirective.gen_code
+    # methods. Also, it does not make sense to zero global min and max
+    # variables before calculating them so this function may be renamed.
     if red_call_list:
         parent.add(CommentGen(parent, ""))
         parent.add(CommentGen(parent, " Zero summation variables"))
@@ -611,11 +622,11 @@ class Invoke():
             if first_arg.access in [AccessType.WRITE, AccessType.SUM]:
                 # If the first access is a write then the intent is
                 # out irrespective of any other accesses. Note,
-                # sum_args behave as if they are write_args from the
-                # PSy-layer's perspective.
+                # reduction args behave as if they are write_args from
+                # the PSy-layer's perspective.
                 declns["out"].append(arg)
                 continue
-            # if all accesses are read, then the intent is in,
+            # If all accesses are read, then the intent is in,
             # otherwise the intent is inout (as we have already
             # dealt with intent out).
             read_only = True
@@ -773,20 +784,20 @@ class InvokeSchedule(Routine):
             entity.gen_code(parent)
 
 
-class GlobalSum(Statement):
+class GlobalReduction(Statement):
     '''
-    Generic Global Sum class which can be added to and manipulated
+    Generic Global Reduction class which can be added to and manipulated
     in, a schedule.
 
-    :param scalar: the scalar that the global sum is stored into
-    :type scalar: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-    :param parent: optional parent (default None) of this object
+    :param scalar: the scalar that the global reduction is stored into
+    :type scalar: :py:class:`psyclone.psyGen.KernelArgument`
+    :param parent: optional parent (default None) of this object.
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
     '''
     # Textual description of the node.
     _children_valid_format = "<LeafNode>"
-    _text_name = "GlobalSum"
+    _text_name = "GlobalReduction"
     _colour = "cyan"
 
     def __init__(self, scalar, parent=None):
@@ -795,14 +806,18 @@ class GlobalSum(Statement):
         self._scalar = copy.copy(scalar)
         if scalar:
             # Update scalar values appropriately
-            # Here "readwrite" denotes how the class GlobalSum
+            # Here "readwrite" denotes how the class GlobalReduction
             # accesses/updates a scalar
             self._scalar.access = AccessType.READWRITE
             self._scalar.call = self
 
     @property
     def scalar(self):
-        ''' Return the scalar field that this global sum acts on '''
+        '''
+        :returns: the scalar field that this global reduction acts on.
+        :rtype: str
+
+        '''
         return self._scalar
 
     @property
@@ -810,13 +825,20 @@ class GlobalSum(Statement):
         '''
         :returns: the name to use in the DAG for this node.
         :rtype: str
+
         '''
-        return f"globalsum({self._scalar.name})_{self.position}"
+        return f"globalreduction({self._scalar.name})_{self.position}"
 
     @property
     def args(self):
-        ''' Return the list of arguments associated with this node. Override
-        the base method and simply return our argument.'''
+        '''
+        Return the list of arguments associated with this node. Override
+        the base method and simply return our argument.
+
+        :returns: the list of scalar reduction arguments.
+        :rtype: list of :py:class:`psyclone.psyGen.KernelArgument`
+
+        '''
         return [self._scalar]
 
     def node_str(self, colour=True):
@@ -828,6 +850,7 @@ class GlobalSum(Statement):
 
         :returns: description of this node, possibly coloured.
         :rtype: str
+
         '''
         return f"{self.coloured_name(colour)}[scalar='{self._scalar.name}']"
 
@@ -991,7 +1014,8 @@ class HaloExchange(Statement):
 
 
 class Kern(Statement):
-    '''Base class representing a call to a sub-program unit from within the
+    '''
+    Base class representing a call to a sub-program unit from within the
     PSy layer. It is possible for this unit to be in-lined within the
     PSy layer.
 
@@ -1056,18 +1080,24 @@ class Kern(Statement):
 
     @property
     def args(self):
-        '''Return the list of arguments associated with this node. Overide the
-        base method and simply return our arguments. '''
+        '''
+        :returns: the list of arguments associated with this node. \
+                  Overide the base method and simply return our arguments.
+        :rtype: list of :py:class:`psyclone.psyGen.KernelArgument`
+
+        '''
         return self.arguments.args
 
     def node_str(self, colour=True):
-        ''' Returns the name of this node with (optional) control codes
+        '''
+        Returns the name of this node with (optional) control codes
         to generate coloured output in a terminal that supports it.
 
         :param bool colour: whether or not to include colour control codes.
 
         :returns: description of this node, possibly coloured.
         :rtype: str
+
         '''
         if self.name:
             return (self.coloured_name(colour) + " " + self.name +
@@ -1095,16 +1125,27 @@ class Kern(Statement):
 
     @property
     def reduction_arg(self):
-        ''' if this kernel/builtin contains a reduction variable then return
-        the variable, otherwise return None'''
+        '''
+        :returns: a reduction variable if this kernel/built-in contains \
+                  one and None otherwise.
+        :rtype: str or None
+
+        '''
         return self._reduction_arg
 
     @property
     def reprod_reduction(self):
-        '''Determine whether this kernel/builtin is enclosed within an OpenMP
-        do loop. If so report whether it has the reproducible flag
+        '''
+        Determine whether this kernel/builtin is enclosed within an OpenMP
+        DO loop. If so, report whether it has the reproducible flag
         set. Note, this also catches OMPParallelDo Directives but they
-        have reprod set to False so it is OK.'''
+        have reprod set to False so it is OK.
+
+        :returns: True if this kernel/built-in is enclosed within an \
+                  OpenMP DO loop and False otherwise.
+        :rtype: bool
+
+        '''
         ancestor = self.ancestor(OMPDoDirective)
         if ancestor:
             return ancestor.reprod
@@ -1112,13 +1153,16 @@ class Kern(Statement):
 
     @property
     def local_reduction_name(self):
-        '''Generate a local variable name that is unique for the current
+        '''
+        Generate a local variable name that is unique for the current
         reduction argument name. This is used for thread-local
-        reductions with reproducible reductions '''
-        tag = self._reduction_arg.name
-        name = self.ancestor(InvokeSchedule).symbol_table.\
-            find_or_create_tag(tag, "l_" + tag).name
-        return name
+        reductions with reproducible reductions.
+
+        :returns: variable name used for thread-local reductions.
+        :rtype: str
+
+        '''
+        return "l_" + self.reduction_arg.name
 
     def zero_reduction_variable(self, parent, position=None):
         '''
@@ -1137,6 +1181,11 @@ class Kern(Statement):
                                  neither 'real' nor 'integer'.
 
         '''
+        # TODO #2021: It makes sense to zero the global sum variable,
+        # however not the global min and global max variables. Depending
+        # on the implementation of global min and max, this function may
+        # need to be renamed and separate initialisation methods for min
+        # and max added.
         if not position:
             position = ["auto"]
         var_name = self._reduction_arg.name
@@ -1200,7 +1249,7 @@ class Kern(Statement):
         '''
         var_name = self._reduction_arg.name
         local_var_name = self.local_reduction_name
-        local_var_ref = self._reduction_ref(var_name)
+        local_var_ref = self._reduction_reference()
         reduction_access = self._reduction_arg.access
         try:
             reduction_operator = REDUCTION_OPERATOR_MAPPING[reduction_access]
@@ -1221,33 +1270,72 @@ class Kern(Statement):
         parent.add(do_loop)
         parent.add(DeallocateGen(parent, local_var_name))
 
-    def _reduction_ref(self, name):
-        '''Return the name unchanged if OpenMP is set to be unreproducible, as
-        we will be using the OpenMP reduction clause. Otherwise we
+    def _reduction_reference(self):
+        '''
+        Return the name unchanged if OpenMP is set to be unreproducible,
+        as we will be using the OpenMP reduction clause. Otherwise we
         will be computing the reduction ourselves and therefore need
         to store values into a (padded) array separately for each
         thread.
 
-        :param str name: original name of the variable to be reduced.
+        :returns: reference to the reduction variable.
+        :rtype: str
 
         '''
+        # TODO #1251: Return a PSyIR Reference instead of str to
+        # lower the reduction built-ins
         symtab = self.scope.symbol_table
+        reduction_name = self._reduction_arg.name
         if self.reprod_reduction:
-            idx_name = symtab.lookup_with_tag("omp_thread_index").name
-            local_name = symtab.find_or_create_tag(name, "l_" + name).name
-            return local_name + "(1," + idx_name + ")"
-        return name
+            # Create a PSyIR representation for the reduction reference,
+            # an array of dimension (1, thdx)
+            reprod_array_dim = [
+                Literal("1", INTEGER_TYPE),
+                Reference(symtab.lookup_with_tag("omp_thread_index"))]
+            reduction_array = ArrayType(
+                symtab.lookup(reduction_name).datatype, reprod_array_dim)
+            # Create the Data Symbol and add it to the Symbol Table
+            symtab.find_or_create_tag(
+                tag=self.local_reduction_name,
+                symbol_type=DataSymbol, datatype=reduction_array)
+            local_reduction = DataSymbol(
+                self.local_reduction_name, datatype=reduction_array)
+            # Return the array reference for code generation
+            return FortranWriter().arrayreference_node(ArrayReference.create(
+                local_reduction, reprod_array_dim))
+        # Return the scalar reference for the original reduction symbol
+        # if OpenMP is set to be unreproducible
+        return Reference(symtab.lookup(reduction_name)).name
 
     @property
     def arg_descriptors(self):
+        '''
+        :returns: a list of kernel argument descriptors.
+        :rtype: list of API-specific specialisation of \
+                :py:class:`psyclone.kernel.Descriptor`
+
+        '''
         return self._arg_descriptors
 
     @arg_descriptors.setter
     def arg_descriptors(self, obj):
+       '''
+        Set the argument descriptors for this kernel.
+
+        :param obj: Argument descriptors populated from the kernel metadata.
+        :type obj: list of API-specific specialisation of \
+                   :py:class:`psyclone.kernel.Descriptor`
+
+        '''
         self._arg_descriptors = obj
 
     @property
     def arguments(self):
+        '''
+        :returns: object that holds all information on the kernel arguments.
+        :rtype: :py:class:`psyclone.psyGen.Arguments`
+
+        '''
         return self._arguments
 
     @property
@@ -1255,6 +1343,7 @@ class Kern(Statement):
         '''
         :returns: the name of the kernel.
         :rtype: str
+
         '''
         return self._name
 
@@ -1264,6 +1353,7 @@ class Kern(Statement):
         Set the name of the kernel.
 
         :param str value: The name of the kernel.
+
         '''
         self._name = value
 
@@ -1272,6 +1362,7 @@ class Kern(Statement):
         :returns: True if this kernel is being called from within a \
                   coloured loop.
         :rtype: bool
+
         '''
         parent_loop = self.ancestor(Loop)
         while parent_loop:
@@ -1282,6 +1373,11 @@ class Kern(Statement):
 
     @property
     def iterates_over(self):
+        '''
+        :returns: the name of the iteration space supported by this kernel.
+        :rtype: str
+
+        '''
         return self._iterates_over
 
     def local_vars(self):
@@ -1952,22 +2048,23 @@ class DataAccess():
     '''
 
     def __init__(self, arg):
-        '''Store the argument associated with the instance of this class and
+        '''
+        Store the argument associated with the instance of this class and
         the Call, HaloExchange or GlobalSum (or a subclass thereof)
         instance with which the argument is associated.
 
         :param arg: the argument that we are concerned with. An \
         argument can be found in a `Kern` a `HaloExchange` or a \
-        `GlobalSum` (or a subclass thereof)
+        `GlobalReduction` (or a subclass thereof)
         :type arg: :py:class:`psyclone.psyGen.Argument`
 
         '''
         # the `psyclone.psyGen.Argument` we are concerned with
         self._arg = arg
-        # The call (Kern, HaloExchange, GlobalSum or subclass)
+        # The call (Kern, HaloExchange, GlobalReduction or subclass)
         # instance with which the argument is associated
         self._call = arg.call
-        # initialise _covered and _vector_index_access to keep pylint
+        # Initialise _covered and _vector_index_access to keep pylint
         # happy
         self._covered = None
         self._vector_index_access = None
@@ -2320,9 +2417,10 @@ class Argument():
         self._call = value
 
     def backward_dependence(self):
-        '''Returns the preceding argument that this argument has a direct
+        '''
+        Returns the preceding argument that this argument has a direct
         dependence with, or None if there is not one. The argument may
-        exist in a call, a haloexchange, or a globalsum.
+        exist in a call, a halo exchange, or a global reduction.
 
         :returns: the first preceding argument that has a dependence \
             on this argument.
@@ -2333,11 +2431,12 @@ class Argument():
         return self._find_argument(nodes)
 
     def forward_write_dependencies(self, ignore_halos=False):
-        '''Returns a list of following write arguments that this argument has
-        dependencies with. The arguments may exist in a call, a
-        haloexchange (unless `ignore_halos` is `True`), or a globalsum. If
-        none are found then return an empty list. If self is not a
-        reader then return an empty list.
+        '''
+        Returns a list of following write arguments that this argument
+        has dependencies with. The arguments may exist in a call, a
+        halo exchange (unless `ignore_halos` is `True`), or a global
+        reduction. If none are found then return an empty list. If
+        self is not a reader then return an empty list.
 
         :param bool ignore_halos: if `True` then any write dependencies \
             involving a halo exchange are ignored. Defaults to `False`.
@@ -2352,11 +2451,12 @@ class Argument():
         return results
 
     def backward_write_dependencies(self, ignore_halos=False):
-        '''Returns a list of previous write arguments that this argument has
-        dependencies with. The arguments may exist in a call, a
-        haloexchange (unless `ignore_halos` is `True`), or a globalsum. If
-        none are found then return an empty list. If self is not a
-        reader then return an empty list.
+        '''
+        Returns a list of previous write arguments that this argument
+        has dependencies with. The arguments may exist in a call, a
+        halo exchange (unless `ignore_halos` is `True`), or a global
+        reduction. If none are found then return an empty list. If
+        self is not a reader then return an empty list.
 
         :param ignore_halos: if `True` then any write dependencies \
             involving a halo exchange are ignored. Defaults to `False`.
@@ -2372,9 +2472,10 @@ class Argument():
         return results
 
     def forward_dependence(self):
-        '''Returns the following argument that this argument has a direct
+        '''
+        Returns the following argument that this argument has a direct
         dependence on, or `None` if there is not one. The argument may
-        exist in a call, a haloexchange, or a globalsum.
+        exist in a call, a halo exchange, or a global reduction.
 
         :returns: the first following argument that has a dependence \
             on this argument.
@@ -2385,9 +2486,10 @@ class Argument():
         return self._find_argument(nodes)
 
     def forward_read_dependencies(self):
-        '''Returns a list of following read arguments that this argument has
-        dependencies with. The arguments may exist in a call, a
-        haloexchange, or a globalsum. If none are found then
+        '''
+        Returns a list of following read arguments that this argument
+        has dependencies with. The arguments may exist in a call, a
+        halo exchange, or a global reduction. If none are found then
         return an empty list. If self is not a writer then return an
         empty list.
 
@@ -2400,7 +2502,8 @@ class Argument():
         return self._find_read_arguments(nodes)
 
     def _find_argument(self, nodes):
-        '''Return the first argument in the list of nodes that has a
+        '''
+        Return the first argument in the list of nodes that has a
         dependency with self. If one is not found return None
 
         :param nodes: the list of nodes that this method examines.
@@ -2410,8 +2513,9 @@ class Argument():
         :rtype: :py:class:`psyclone.psyGen.Argument`
 
         '''
-        nodes_with_args = [x for x in nodes if
-                           isinstance(x, (Kern, HaloExchange, GlobalSum))]
+        nodes_with_args = [
+            x for x in nodes if
+            isinstance(x, (Kern, HaloExchange, GlobalSum))]
         for node in nodes_with_args:
             for argument in node.args:
                 if self._depends_on(argument):
@@ -2419,7 +2523,8 @@ class Argument():
         return None
 
     def _find_read_arguments(self, nodes):
-        '''Return a list of arguments from the list of nodes that have a read
+        '''
+        Return a list of arguments from the list of nodes that have a read
         dependency with self. If none are found then return an empty
         list. If self is not a writer then return an empty list.
 
@@ -2436,8 +2541,9 @@ class Argument():
             return []
 
         # We only need consider nodes that have arguments
-        nodes_with_args = [x for x in nodes if
-                           isinstance(x, (Kern, HaloExchange, GlobalSum))]
+        nodes_with_args = [
+            x for x in nodes if
+            isinstance(x, (Kern, HaloExchange, GlobalSum))]
         access = DataAccess(self)
         arguments = []
         for node in nodes_with_args:
@@ -2458,7 +2564,8 @@ class Argument():
         return arguments
 
     def _find_write_arguments(self, nodes, ignore_halos=False):
-        '''Return a list of arguments from the list of nodes that have a write
+        '''
+        Return a list of arguments from the list of nodes that have a write
         dependency with self. If none are found then return an empty
         list. If self is not a reader then return an empty list.
 
@@ -2478,7 +2585,7 @@ class Argument():
 
         # We only need consider nodes that have arguments
         nodes_with_args = [x for x in nodes if
-                           isinstance(x, (Kern, GlobalSum)) or
+                           isinstance(x, (Kern, GlobalReduction)) or
                            (isinstance(x, HaloExchange) and not ignore_halos)]
         access = DataAccess(self)
         arguments = []
@@ -2797,7 +2904,22 @@ class DummyTransformation(Transformation):
 
 
 # For Sphinx AutoAPI documentation generation
-__all__ = ['PSyFactory', 'PSy', 'Invokes', 'Invoke', 'InvokeSchedule',
-           'GlobalSum', 'HaloExchange', 'Kern', 'CodedKern', 'InlinedKern',
-           'BuiltIn', 'Arguments', 'DataAccess', 'Argument', 'KernelArgument',
-           'TransInfo', 'Transformation', 'DummyTransformation']
+__all__ = [
+    'PSyFactory',
+    'PSy',
+    'Invokes',
+    'Invoke',
+    'InvokeSchedule',
+    'GlobalReduction',
+    'HaloExchange',
+    'Kern',
+    'CodedKern',
+    'InlinedKern',
+    'BuiltIn',
+    'Arguments',
+    'DataAccess',
+    'Argument',
+    'KernelArgument',
+    'TransInfo',
+    'Transformation',
+    'DummyTransformation']
