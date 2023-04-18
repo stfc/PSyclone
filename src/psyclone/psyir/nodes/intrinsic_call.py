@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022, Science and Technology Facilities Council.
+# Copyright (c) 2022-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
+# Modified: R. W. Ford, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' This module contains the IntrinsicCall node implementation.'''
@@ -40,14 +41,24 @@ from collections import namedtuple
 from enum import Enum
 
 from psyclone.psyir.nodes.call import Call
+from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.symbols import IntrinsicSymbol
 
+
+# pylint: disable=too-many-branches
 
 class IntrinsicCall(Call):
     ''' Node representing a call to an intrinsic routine (function or
     subroutine). This can be found as a standalone statement
     or an expression.
+
+    :param routine: the type of Intrinsic being created.
+    :type routine: py:class:`psyclone.psyir.IntrinsicCall.Intrinsic`
+    :param kwargs: additional keyword arguments provided to the PSyIR node.
+    :type kwargs: unwrapped dict.
+
+    :raises TypeError: if the routine argument is not an Intrinsic type.
 
     '''
     # Textual description of the node.
@@ -61,7 +72,7 @@ class IntrinsicCall(Call):
 
     #: The intrinsics that can be represented by this node.
     Intrinsic = Enum('Intrinsic', [
-        'ALLOCATE', 'DEALLOCATE', 'RANDOM_NUMBER'
+        'ALLOCATE', 'DEALLOCATE', 'RANDOM_NUMBER', 'MINVAL', 'MAXVAL', "SUM"
         ])
     #: Named tuple for describing the properties of the required arguments to
     #: a particular intrinsic. If there's no limit on the number of arguments
@@ -76,12 +87,51 @@ class IntrinsicCall(Call):
     # The positional arguments to allocate must all be References (or
     # ArrayReferences but they are a subclass of Reference).
     _required_args[Intrinsic.ALLOCATE] = ArgDesc(1, None, Reference)
-    _optional_args[Intrinsic.ALLOCATE] = {"mold": Reference,
-                                          "stat": Reference}
+    _optional_args[Intrinsic.ALLOCATE] = {
+        "mold": Reference, "stat": Reference}
     _required_args[Intrinsic.DEALLOCATE] = ArgDesc(1, None, Reference)
     _optional_args[Intrinsic.DEALLOCATE] = {"stat": Reference}
     _required_args[Intrinsic.RANDOM_NUMBER] = ArgDesc(1, 1, Reference)
     _optional_args[Intrinsic.RANDOM_NUMBER] = {}
+    _required_args[Intrinsic.MINVAL] = ArgDesc(1, 1, DataNode)
+    _optional_args[Intrinsic.MINVAL] = {
+        "dim": DataNode, "mask": DataNode}
+    _required_args[Intrinsic.MAXVAL] = ArgDesc(1, 1, DataNode)
+    _optional_args[Intrinsic.MAXVAL] = {
+        "dim": DataNode, "mask": DataNode}
+    _required_args[Intrinsic.SUM] = ArgDesc(1, 1, DataNode)
+    _optional_args[Intrinsic.SUM] = {
+        "dim": DataNode, "mask": DataNode}
+
+    def __init__(self, routine, **kwargs):
+        if not isinstance(routine, Enum) or routine not in self.Intrinsic:
+            raise TypeError(
+                f"IntrinsicCall 'routine' argument should be an "
+                f"instance of IntrinsicCall.Intrinsic, but found "
+                f"'{type(routine).__name__}'.")
+
+        # A Call expects a symbol, so give it an intrinsic symbol.
+        super().__init__(IntrinsicSymbol(routine.name), **kwargs)
+        self._intrinsic = routine
+
+    @property
+    def intrinsic(self):
+        ''' Return the type of intrinsic.
+
+        :returns: enumerated type capturing the type of intrinsic.
+        :rtype: :py:class:`psyclone.psyir.nodes.IntrinsicCall.Intrinsic`
+
+        '''
+        return self._intrinsic
+
+    def is_elemental(self):
+        '''
+        :returns: whether this intrinsic is elemental (provided with an input \
+            array it will apply the operation individually to each of the \
+            array elements and return an array with the results).
+        :rtype: bool
+        '''
+        return self.intrinsic in ELEMENTAL_INTRINSICS
 
     @classmethod
     def create(cls, routine, arguments):
@@ -178,8 +228,26 @@ class IntrinsicCall(Call):
             msg += f"arguments but got {len(arguments)}."
             raise ValueError(msg)
 
-        # Create a call, supplying an IntrinsicSymbol in place of a
-        # RoutineSymbol.
-        call = super().create(IntrinsicSymbol(routine.name), arguments)
+        # Create an intrinsic call and add the arguments
+        # afterwards. We can't call the parent create method as it
+        # assumes the routine argument is a symbol and therefore tries
+        # to create an intrinsic call with this symbol, rather than
+        # the intrinsic enum.
+        call = IntrinsicCall(routine)
+        call._add_args(call, arguments)
+        call._intrinsic = routine
 
         return call
+
+
+# TODO #658 this can be removed once we have support for determining the
+# type of a PSyIR expression.
+# Intrinsics that perform a reduction on an array.
+REDUCTION_INTRINSICS = [
+    IntrinsicCall.Intrinsic.SUM, IntrinsicCall.Intrinsic.MINVAL,
+    IntrinsicCall.Intrinsic.MAXVAL]
+
+# Intrinsics that, provided with an input array, apply their operation
+# individually to each of the array elements and return an array with
+# the results.
+ELEMENTAL_INTRINSICS = []
