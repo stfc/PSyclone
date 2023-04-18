@@ -42,7 +42,7 @@
 '''
 
 # Imports
-from psyclone.domain.lfric import LFRicKern
+from psyclone.domain.lfric.lfric_kern import LFRicKern
 
 class LFRicKernCallFactory():
     ''' Create the necessary framework for an LFRic kernel call.
