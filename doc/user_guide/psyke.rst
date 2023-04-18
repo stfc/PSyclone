@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2019-2022, Science and Technology Facilities Council
+.. Copyright (c) 2019-2023, Science and Technology Facilities Council
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -373,7 +373,7 @@ and will create NetCDF files to contain all input- and output-parameters.
 The second one is a stand-alone library which uses only standard Fortran
 IO to write and read kernel data. The binary files produced using this
 library may not be portable between machines and compilers. If you
-require such portabililty then please use the NetCDF extraction library.
+require such portability then please use the NetCDF extraction library.
 
 The two extraction :ref:`libraries <libraries>` are in
 `lib/extract/standalone
@@ -454,8 +454,8 @@ and
 implement the full PSyData API for use with the
 :ref:`LFRic <dynamo0.3-api>` infrastructure library. When running the
 code, it will create an output file for each instrumented code region.
-The same logic for naming variables used in :ref:`extraction_for_gocean`
-is used here.
+The same logic for naming variables (using ``_post`` for output variables)
+used in :ref:`extraction_for_gocean` is used here.
 
 As in the case of e.g. :ref:`read-only verification
 <psydata_read_verification>`, this library uses the pared-down LFRic
@@ -465,7 +465,65 @@ However, this needs to be changed for any user (for instance with
 PSyclone installation). Please refer to the relevant ``README.md``
 documentation on how to build and link this library.
 
+The output file contains the values of all variables used in the
+subroutine. The ``LFRicExtractTrans`` transformation can automatically
+create a driver program which will read the corresponding output file,
+call the instrumented region, and compare the results. In order to create
+this driver program, the options parameter ``create_driver`` must
+be set to true:
+
+.. code-block:: python
+
+    extract = LFRicExtractTrans()
+    extract.apply(schedule.children,
+                  {"create_driver": True,
+                   "region_name": ("main", "init")})
+
+This will create a Fortran file called ``driver-main-init.f90``, which
+can then be compiled and executed. This stand-alone program will read
+the output file created during an execution of the actual program, call
+the kernel with all required input parameter, and compare the output
+variables with the original output variables. This can be used to create
+stand-alone test cases to reproduce a bug, or for performance
+optimisation of a stand-alone kernel.
+
+.. warning:: Care has to be taken that the driver matches the version
+    of the code that was used to create the output file, otherwise the
+    driver will likely crash. The stand-alone driver relies on a
+    strict ordering of variable values in the output file and e.g.
+    even renaming one variable can affect this. The NetCDF version
+    stores the variable names and will not be able to find a variable
+    if its name has changed.
+
+.. note:: If the kernel, or any function called from an extracted kernel
+    should use a variable from a module directly (as opposed to supplying
+    this as parameter in the kernel call), this variable will not be
+    written to the extract data file, and the driver will also not try to
+    read in the value. As a result, the kernel will not be able to
+    run stand-alone. As a work-around, these values can be added manually
+    to the driver program. Issue #1990 tracks improvement of this situation.
+
+When linking the driver program, it needs to be provided with all
+dependencies required by the driver and the kernel used. If the kernel calls
+many other functions, this can result in a long parameter list for the
+linker. Issue #1991 aims at simplifying this.
+
+
+Extraction for NEMO
+++++++++++++++++++++
+The libraries in
+`lib/extract/standalone/nemo
+<https://github.com/stfc/PSyclone/tree/master/lib/extract/standalone/nemo>`_
+and
+`lib/extract/netcdf/nemo
+<https://github.com/stfc/PSyclone/tree/master/lib/extract/netcdf/nemo>`_
+implement the full PSyData API for use with the
+:ref:`NEMO <nemo-api>` API. When running the
+code, it will create an output file for each instrumented code region.
+The same logic for naming variables used in :ref:`extraction_for_gocean`
+is used here.
+
 .. note::
 
-  Driver creation in LFRic is not yet fully supported, and is
-  tracked in issue #1392.
+  Driver creation in NEMO is not yet supported, and is
+  tracked in issue #2058.

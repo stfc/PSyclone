@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council.
+# Copyright (c) 2020-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -349,16 +349,21 @@ def test_same_range():
     array_x_2.children[0].stop = tmp1
     array_x.children[0].stop = tmp2
 
-    # one of lower bounds uses lbound, other does not
+    # One of lower bounds uses lbound, other does not but has the same value.
     array_x_2.children[0].start = Literal("1", INTEGER_TYPE)
+    assert ArrayRange2LoopTrans.same_range(array_x, 0, array_x_2, 0) is True
+
+    # One of lower bounds uses lbound, other does not and has a
+    # different start value.
+    array_x_2.children[0].start = Literal("2", INTEGER_TYPE)
     assert ArrayRange2LoopTrans.same_range(array_x, 0, array_x_2, 0) is False
 
-    # neither use lower bound and are different
-    array_x.children[0].start = Literal("2", INTEGER_TYPE)
+    # Neither use lower bound and are different.
+    array_x.children[0].start = Literal("3", INTEGER_TYPE)
     assert ArrayRange2LoopTrans.same_range(array_x, 0, array_x_2, 0) is False
 
 
-# The parametrised tests are 1: x(:)=0.0, 2: x(:)=y(n,:), 3:
+# The parameterised tests are 1: x(:)=0.0, 2: x(:)=y(n,:), 3:
 # y(n,:)=x(:), 4: y2(:,:)=z(:,n,:) and 5:
 # y3(n,2:n:2)=x(2:n:2)*z(1,2:n:2)+a(1)
 @pytest.mark.parametrize("lhs_create,rhs_create,expected",

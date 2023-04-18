@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2022, Science and Technology Facilities Council.
+# Copyright (c) 2019-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -44,7 +44,7 @@ from psyclone.f2pygen import ModuleGen
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import Assignment, Reference, Literal, \
     ArrayReference, Range, BinaryOperation, StructureReference, \
-    ArrayOfStructuresReference, UnaryOperation
+    ArrayOfStructuresReference, UnaryOperation, IntrinsicCall
 from psyclone.psyir.nodes.node import colored
 from psyclone.psyir.symbols import DataSymbol, REAL_SINGLE_TYPE, Symbol, \
     INTEGER_SINGLE_TYPE, REAL_TYPE, ArrayType, INTEGER_TYPE, StructureType, \
@@ -133,9 +133,10 @@ def test_assignment_children_validation():
             " is: 'DataNode, DataNode'.") in str(excinfo.value)
 
 
-def test_is_array_range():
-    '''test that the is_array_range method behaves as expected, returning
-    true if the LHS of the assignment is an array range access.
+def test_is_array_assignment():
+    '''test that the is_array_assignment method behaves as expected,
+    returning true if the LHS of the assignment has an array range
+    access.
 
     '''
     one = Literal("1.0", REAL_TYPE)
@@ -148,7 +149,7 @@ def test_is_array_range():
     x_range = Range.create(int_one, int_ten.copy(), int_one.copy())
     array_ref = ArrayReference.create(symbol, [x_range, int_one.copy()])
     assignment = Assignment.create(array_ref, one.copy())
-    assert assignment.is_array_range is True
+    assert assignment.is_array_assignment is True
 
     # Check when lhs consists of various forms of structure access
     grid_type = StructureType.create([
@@ -174,14 +175,14 @@ def test_is_array_range():
 
     data_ref = StructureReference.create(field_symbol, [("data", [my_range])])
     assign = Assignment.create(data_ref, one.copy())
-    assert assign.is_array_range is True
+    assert assign.is_array_assignment is True
 
     # Access to slice of 'sub_meshes': wind%sub_meshes(1:3)%dx = 1.0
     sub_range = Range.create(int_one.copy(), Literal("3", INTEGER_TYPE))
     dx_ref = StructureReference.create(field_symbol, [("sub_meshes",
                                                        [sub_range]), "dx"])
     sub_assign = Assignment.create(dx_ref, one.copy())
-    assert sub_assign.is_array_range is True
+    assert sub_assign.is_array_assignment is True
 
     # Create an array of these derived types and assign to a slice:
     # chi(1:10)%data(1) = 1.0
@@ -191,7 +192,7 @@ def test_is_array_range():
                                                 [fld_range],
                                                 [("data", [int_one.copy()])])
     fld_assign = Assignment.create(fld_ref, one.copy())
-    assert fld_assign.is_array_range is True
+    assert fld_assign.is_array_assignment is True
 
     # When the slice has two operator ancestors, none of which are a reduction
     # e.g y(1, INT(ABS(map(:, 1)))) = 1.0
@@ -212,13 +213,19 @@ def test_is_array_range():
     assignment = Assignment.create(
         ArrayReference.create(symbol, [int_one.copy(), int_op]),
         one.copy())
-    assert assignment.is_array_range is True
+    assert assignment.is_array_assignment is True
 
 
-@pytest.mark.xfail(reason="#658 needs typing of PSyIR expressions")
-def test_array_range_with_reduction():
-    ''' Test that we correctly identify an array range when it is the result
-        of a reduction from an array, e.g x(1, INT(SUM(map(:, :), 1))) = 1.0
+def test_array_assignment_with_reduction(monkeypatch):
+    '''Test that we correctly identify an array assignment when it is the
+    result of a reduction from an array that returns an array. Test
+    when we need to look up the PSyIR tree through multiple intrinsics
+    from the array access to find the reduction. We have to
+    monkeypatch SUM in this example to stop it being a reduction as
+    all IntrinsicCalls that are valid within an assignment are
+    currently reductions. When additional intrinsics are added (see
+    issue #1987) this test can be modified and monkeypatch
+    removed. The example is: x(1, MAXVAL(SUM(map(:, :), dim=1))) = 1.0
 
     '''
     one = Literal("1.0", REAL_TYPE)
@@ -242,21 +249,23 @@ def test_array_range_with_reduction():
         BinaryOperation.Operator.UBOUND,
         Reference(map_sym), int_two.copy())
     my_range2 = Range.create(lbound2, ubound2)
-    bsum_op = BinaryOperation.create(BinaryOperation.Operator.SUM,
-                                     ArrayReference.create(map_sym,
-                                                           [my_range1,
-                                                            my_range2]),
-                                     int_one.copy())
-    int_op2 = UnaryOperation.create(UnaryOperation.Operator.INT, bsum_op)
+    bsum_op = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.SUM,
+        [ArrayReference.create(map_sym, [my_range1, my_range2]),
+         ("dim", int_one.copy())])
+    maxval_op = IntrinsicCall.create(IntrinsicCall.Intrinsic.MAXVAL, [bsum_op])
     assignment = Assignment.create(
-        ArrayReference.create(symbol,
-                              [int_one.copy(), int_op2]),
+        ArrayReference.create(symbol, [int_one.copy(), maxval_op]),
         one.copy())
-    assert assignment.is_array_range is True
+    monkeypatch.setattr(
+        bsum_op, "_intrinsic", IntrinsicCall.Intrinsic.ALLOCATE)
+    if not assignment.is_array_assignment:
+        # is_array_assignment should return True
+        pytest.xfail(reason="#658 needs typing of PSyIR expressions")
 
 
-def test_is_not_array_range():
-    ''' Test that is_array_range correctly rejects things that aren't
+def test_is_not_array_assignment():
+    '''Test that is_array_assignment correctly rejects things that aren't
     an assignment to an array range.
 
     '''
@@ -267,14 +276,14 @@ def test_is_not_array_range():
 
     # lhs is not an array
     assignment = Assignment.create(reference, one)
-    assert assignment.is_array_range is False
+    assert assignment.is_array_assignment is False
 
     # lhs is an array reference but has no range
     array_type = ArrayType(REAL_TYPE, [10, 10])
     symbol = DataSymbol("y", array_type)
     array_ref = Reference(symbol)
     assignment = Assignment.create(array_ref, one.copy())
-    assert assignment.is_array_range is False
+    assert assignment.is_array_assignment is False
 
     # lhs is an array reference but the single index value is obtained
     # using an array range, y(1, SUM(map(:), 1)) = 1.0
@@ -285,25 +294,25 @@ def test_is_not_array_range():
     stop = BinaryOperation.create(BinaryOperation.Operator.UBOUND,
                                   Reference(map_sym), int_one.copy())
     my_range = Range.create(start, stop)
-    sum_op = BinaryOperation.create(BinaryOperation.Operator.SUM,
-                                    ArrayReference.create(map_sym, [my_range]),
-                                    int_one.copy())
+    sum_op = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.SUM,
+        [ArrayReference.create(map_sym, [my_range]), ("dim", int_one.copy())])
     assignment = Assignment.create(
         ArrayReference.create(symbol, [int_one.copy(), sum_op]),
         one.copy())
-    assert assignment.is_array_range is False
+    assert assignment.is_array_assignment is False
 
     # When the slice has two operator ancestors, one of which is a reduction
     # e.g y(1, SUM(ABS(map(:)), 1)) = 1.0
     abs_op = UnaryOperation.create(UnaryOperation.Operator.ABS,
                                    ArrayReference.create(map_sym,
                                                          [my_range.copy()]))
-    sum_op2 = BinaryOperation.create(BinaryOperation.Operator.SUM,
-                                     abs_op, int_one.copy())
+    sum_op2 = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.SUM, [abs_op, ("dim", int_one.copy())])
     assignment = Assignment.create(
         ArrayReference.create(symbol, [int_one.copy(), sum_op2]),
         one.copy())
-    assert assignment.is_array_range is False
+    assert assignment.is_array_assignment is False
 
     # lhs is a scalar member of a structure
     grid_type = StructureType.create([
@@ -313,7 +322,7 @@ def test_is_not_array_range():
     grid_sym = DataSymbol("grid", grid_type_symbol)
     assignment = Assignment.create(StructureReference.create(grid_sym, ["dx"]),
                                    one.copy())
-    assert assignment.is_array_range is False
+    assert assignment.is_array_assignment is False
 
 
 def test_assignment_gen_code():

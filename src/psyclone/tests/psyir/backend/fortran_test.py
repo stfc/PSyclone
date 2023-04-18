@@ -488,7 +488,7 @@ def test_reverse_map_duplicates():
 @pytest.mark.parametrize("operator,result",
                          [(UnaryOperation.Operator.SIN, "SIN"),
                           (BinaryOperation.Operator.MIN, "MIN"),
-                          (NaryOperation.Operator.SUM, "SUM")])
+                          (NaryOperation.Operator.MAX, "MAX")])
 def test_get_operator(operator, result):
     '''Check that the get_operator function returns the expected
     values when provided with valid unary, binary and nary operators.
@@ -1089,7 +1089,7 @@ def test_fw_routine(fortran_reader, fortran_writer, monkeypatch, tmpdir):
                                           datatype=INTEGER_TYPE)
     sub_scopes[1].symbol_table.new_symbol("symbol1", symbol_type=DataSymbol,
                                           datatype=INTEGER_TYPE)
-    # Since the scopes are siblings they are alowed the same name
+    # Since the scopes are siblings they are allowed the same name
     assert "symbol1" in sub_scopes[0].symbol_table
     assert "symbol2" in sub_scopes[0].symbol_table
     assert "symbol1" in sub_scopes[1].symbol_table
@@ -1272,12 +1272,13 @@ def test_fw_binaryoperator(fortran_writer, binary_intrinsic, tmpdir,
     assert Compile(tmpdir).string_compiles(result)
 
 
-def test_fw_binaryoperator_namedarg(fortran_writer, tmpdir, fortran_reader):
+def test_fw_binaryoperator_namedarg(
+        fortran_writer, tmpdir, fortran_reader, monkeypatch):
     '''Check the FortranWriter class binary_operation method operator
     correctly prints out the Fortran representation of an intrinsic
-    with a named argument. The sum intrinsic is used here. Also check
-    that the expected exception is raised if all of the named
-    arguments are not after the positional arguments.
+    with a named argument. The dot_oroduct intrinsic is used
+    here. Also check that the expected exception is raised if all of
+    the named arguments are not after the positional arguments.
 
     '''
     # Generate fparser2 parse tree from Fortran code.
@@ -1288,23 +1289,27 @@ def test_fw_binaryoperator_namedarg(fortran_writer, tmpdir, fortran_reader):
         "  integer, intent(in) :: n\n"
         "  real, intent(out) :: array(n)\n"
         "  integer :: a\n"
-        "    a = sum(array,dim=1)\n"
+        "    a = dot_product(vector_a=array,vector_b=array)\n"
         "end subroutine tmp\n"
         "end module test")
     schedule = fortran_reader.psyir_from_source(code)
 
     # Generate Fortran from the PSyIR schedule
     result = fortran_writer(schedule)
-    assert "a = SUM(array, dim=1)" in result
+    assert "a = DOT_PRODUCT(vector_a=array, vector_b=array)" in result
     assert Compile(tmpdir).string_compiles(result)
 
-    code = code.replace("sum(array,dim=1)", "sum(array=array,1)")
-    schedule = fortran_reader.psyir_from_source(code)
+    # FileContainer->Container->Routine->Assignment->IntrinsicCall
+    intrinsic_call = schedule.children[0].children[0][0].children[1]
+    ref1, _ = intrinsic_call._argument_names[0]
+    ref2, _ = intrinsic_call._argument_names[1]
+    monkeypatch.setattr(
+        intrinsic_call, "_argument_names", [(ref1, "array"), (ref2, None)])
     with pytest.raises(VisitorError) as info:
         _ = fortran_writer(schedule)
     assert ("Fortran expects all named arguments to occur after all "
             "positional arguments but this is not the case for "
-            "BinaryOperation[operator:'SUM']" in str(info.value))
+            "BinaryOperation[operator:'DOT_PRODUCT']" in str(info.value))
 
 
 def test_fw_binaryoperator_namedarg2(fortran_writer):
@@ -1313,11 +1318,12 @@ def test_fw_binaryoperator_namedarg2(fortran_writer):
     its first argument being a named argument.
 
     '''
-    intrinsic = BinaryOperation.create(
-        BinaryOperation.Operator.SUM, ("test1", Literal("1.0", REAL_TYPE)),
+    operator = BinaryOperation.create(
+        BinaryOperation.Operator.MIN,
+        ("test1", Literal("1.0", REAL_TYPE)),
         ("test2", Literal("2.0", REAL_TYPE)))
-    result = fortran_writer(intrinsic)
-    assert result == "SUM(test1=1.0, test2=2.0)"
+    result = fortran_writer(operator)
+    assert result == "MIN(test1=1.0, test2=2.0)"
 
 
 def test_fw_binaryoperator_matmul(fortran_writer, tmpdir, fortran_reader):
@@ -1482,40 +1488,46 @@ def test_fw_naryoperator(fortran_reader, fortran_writer, tmpdir):
     assert Compile(tmpdir).string_compiles(result)
 
 
-def test_fw_naryoperator_namedarg(fortran_writer, tmpdir, fortran_reader):
+def test_fw_naryoperator_namedarg(
+        fortran_writer, tmpdir, fortran_reader, monkeypatch):
     '''Check the FortranWriter class nary_operation method operator
     correctly prints out the Fortran representation of an intrinsic
-    with a named argument. The sum intrinsic is used here. Also check
+    with a named argument. The MIN operator is used here. Also check
     that the expected exception is raised if all of the named
-    arguments are not after the positional arguments.
+    arguments are not after the positional arguments (which requires
+    monkeypatching).
 
     '''
     # Generate fparser2 parse tree from Fortran code.
     code = (
         "module test\n"
         "contains\n"
-        "subroutine tmp(array, n)\n"
-        "  integer, intent(in) :: n\n"
-        "  real, intent(out) :: array(n)\n"
-        "  integer :: a\n"
-        "    a = sum(array,dim=1,mask=.false.)\n"
+        "subroutine tmp(a)\n"
+        "  integer, intent(out) :: a\n"
+        "  a = min(a1=1.0, a2=2.0, a3=3.0)\n"
         "end subroutine tmp\n"
         "end module test")
     schedule = fortran_reader.psyir_from_source(code)
 
     # Generate Fortran from the PSyIR schedule
     result = fortran_writer(schedule)
-    assert "a = SUM(array, dim=1, mask=.false.)" in result
+    assert "a = MIN(a1=1.0, a2=2.0, a3=3.0)" in result
     assert Compile(tmpdir).string_compiles(result)
 
-    code = code.replace(
-        "sum(array,dim=1,mask=.false.)", "sum(array,dim=1,.false.)")
-    schedule = fortran_reader.psyir_from_source(code)
+    # monkeypatch the min operator argument names
+    # FileContainer->Container->Routine->Assignment->NaryOperation
+    min_operator = schedule.children[0].children[0][0].children[1]
+    ref_name1 = min_operator._argument_names[0]
+    ref_name2 = min_operator._argument_names[1]
+    ref3, _ = min_operator._argument_names[2]
+    monkeypatch.setattr(min_operator, "_argument_names",
+                        [ref_name1, ref_name2, (ref3, None)])
     with pytest.raises(VisitorError) as info:
         _ = fortran_writer(schedule)
+    print(str(info.value))
     assert ("Fortran expects all named arguments to occur after all "
             "positional arguments but this is not the case for "
-            "NaryOperation[operator:'SUM']" in str(info.value))
+            "NaryOperation[operator:'MIN']" in str(info.value))
 
 
 def test_fw_naryoperator_unknown(fortran_reader, fortran_writer, monkeypatch):
@@ -1623,7 +1635,7 @@ def test_fw_range(fortran_writer):
     array = ArrayReference.create(
         symbol, [range1, range2])
     result = fortran_writer.arrayreference_node(array)
-    assert result == "a(1:,:b + c:3)"
+    assert result == "a(:,:b + c:3)"
 
     array_type = ArrayType(REAL_TYPE, [10, 10, 10])
     symbol = DataSymbol("a", array_type)
@@ -1633,7 +1645,7 @@ def test_fw_range(fortran_writer):
          Range.create(one.copy(), two.copy(), step=three.copy()),
          Range.create(dim3_bound_start, dim3_bound_stop, step=three.copy())])
     result = fortran_writer.arrayreference_node(array)
-    assert result == "a(:,1:2:3,::3)"
+    assert result == "a(:,:2:3,::3)"
 
     # Make a) lbound and ubound come from a different array and b)
     # switch lbound and ubound round. These bounds should then be
@@ -1655,7 +1667,7 @@ def test_fw_range(fortran_writer):
          Range.create(dim3_bound_stop.copy(), dim3_bound_start.copy(),
                       step=three.copy())])
     result = fortran_writer.arrayreference_node(array)
-    assert result == ("a(LBOUND(b, 1):UBOUND(b, 1),1:2:3,"
+    assert result == ("a(LBOUND(b, 1):UBOUND(b, 1),:2:3,"
                       "UBOUND(a, 3):LBOUND(a, 3):3)")
 
 
@@ -1846,9 +1858,9 @@ def test_fw_unaryoperator_namedarg(fortran_writer):
 
     '''
     intrinsic = UnaryOperation.create(
-        UnaryOperation.Operator.SUM, ("value", Literal("1.0", REAL_TYPE)))
+        UnaryOperation.Operator.COS, ("value", Literal("1.0", REAL_TYPE)))
     result = fortran_writer(intrinsic)
-    assert result == "SUM(value=1.0)"
+    assert result == "COS(value=1.0)"
 
 
 def test_fw_unaryoperator_unknown(fortran_reader, fortran_writer, monkeypatch):
@@ -2250,6 +2262,15 @@ def test_fw_intrinsic_call_node(fortran_writer):
                                  [Reference(sym)])
     gen = fortran_writer(rcall)
     assert gen == "call RANDOM_NUMBER(var)\n"
+
+    for intrinsic_function in [IntrinsicCall.Intrinsic.MINVAL,
+                               IntrinsicCall.Intrinsic.MAXVAL,
+                               IntrinsicCall.Intrinsic.SUM]:
+        intrinsic_call = IntrinsicCall.create(
+            intrinsic_function, [Reference(sym)])
+        assignment = Assignment.create(Reference(sym), intrinsic_call)
+        gen = fortran_writer(assignment)
+        assert gen == f"var = {intrinsic_function.name}(var)\n"
 
 
 def test_fw_comments(fortran_writer):

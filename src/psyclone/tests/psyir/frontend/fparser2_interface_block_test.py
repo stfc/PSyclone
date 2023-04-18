@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,16 +32,17 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
+# Modified: R. W. Ford, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' Performs py.test tests on the handling of interface blocks in the fparser2
     PSyIR front-end. '''
 
-from __future__ import absolute_import
-
 from fparser.two import Fortran2003
+
 from psyclone.psyir.nodes import Container, CodeBlock, FileContainer
-from psyclone.psyir.symbols import RoutineSymbol, Symbol, UnknownFortranType
+from psyclone.psyir.symbols import (
+    RoutineSymbol, Symbol, UnknownFortranType, DataTypeSymbol)
 
 
 def test_named_interface(fortran_reader):
@@ -78,6 +79,40 @@ def test_named_interface(fortran_reader):
             "  module procedure eos_insitu, eos_insitu_2d\n"
             "end interface")
     assert eos.visibility == Symbol.Visibility.PUBLIC
+
+
+def test_named_interface_declared(fortran_reader):
+    ''' Test that the frontend creates a RoutineSymbol of
+    UnknownFortranType for a named interface block when the symbol
+    name has already been declared. '''
+    test_module = '''
+    module test_mod
+      type test
+      end type test
+      interface test
+        module procedure test_code
+      end interface test
+    contains
+      function test_code()
+      end function test_code
+    end module test_mod
+    '''
+    file_container = fortran_reader.psyir_from_source(test_module)
+    container = file_container.children[0]
+    assert isinstance(container, Container)
+    # type symbol
+    assert container.symbol_table.lookup("test")
+    test_symbol = container.symbol_table.lookup("test")
+    assert isinstance(test_symbol, DataTypeSymbol)
+    # interface symbol
+    assert container.symbol_table.lookup("_psyclone_internal_test")
+    test_symbol = container.symbol_table.lookup("_psyclone_internal_test")
+    assert isinstance(test_symbol, RoutineSymbol)
+    assert isinstance(test_symbol.datatype, UnknownFortranType)
+    assert (test_symbol.datatype.declaration == "interface test\n"
+            "  module procedure test_code\n"
+            "end interface test")
+    assert test_symbol.visibility == Symbol.Visibility.PUBLIC
 
 
 def test_generic_interface(fortran_reader):
