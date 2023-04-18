@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018, Science and Technology Facilities Council
+# Copyright (c) 2018-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,12 +31,11 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: A. R. Porter, STFC Daresbury Lab
+# Authors: A. R. Porter and R. W. Ford, STFC Daresbury Lab
 
-'''
-Module containing helper routines related to installing/running inside
-virtual environments (such as virtualenv and venv).
-'''
+'''This module provides generic utility functions.'''
+
+import sys
 
 
 def within_virtual_env():
@@ -44,10 +43,27 @@ def within_virtual_env():
     Utility function that identifies whether we are running in a Python
     virtual environment. Works for virtualenv and Python 3's venv.
 
-    :returns: True if we're running in a virtual environment
+    :returns: True if we're running in a virtual environment.
     :rtype: bool
+
     '''
-    import sys
     # pylint: disable=no-member
     return (hasattr(sys, 'real_prefix') or
             (hasattr(sys, 'base_prefix') and sys.base_prefix != sys.prefix))
+
+
+def a_or_an(string):
+    '''Returns 'an' if the supplied string starts with a vowel or 'h',
+    otherwise returns 'a'.
+
+    :param str string: the string to check.
+
+    :returns: 'an' if the supplied string starts with a vowel or 'h', \
+        otherwise returns 'a'.
+    :rtype: str
+
+    '''
+    char = string[0].lower()
+    if char in ["a", "e", "i", "o", "u", "h"]:
+        return "an"
+    return "a"

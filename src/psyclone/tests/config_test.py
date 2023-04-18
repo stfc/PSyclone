@@ -221,7 +221,7 @@ def test_search_path(monkeypatch):
     # environment
     for inside_venv in [True, False]:
         monkeypatch.setattr(
-            "psyclone.virtual_utils.within_virtual_env",
+            "psyclone.utils.within_virtual_env",
             lambda: inside_venv)  # pylint: disable=cell-var-from-loop
         with pytest.raises(ConfigurationError) as err:
             _ = Config.find_file()

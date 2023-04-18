@@ -36,7 +36,6 @@
 
 ''' Performs py.test tests on the Call PSyIR node. '''
 
-from __future__ import absolute_import
 import pytest
 from psyclone.psyir.nodes import (
     Call, Reference, ArrayReference, Schedule, Literal)
@@ -151,30 +150,6 @@ def test_call_create_error2():
 
 
 def test_call_create_error3():
-    '''Test that the appropriate exception is raised if an entry in the
-    arguments argument to the create method is is a tuple that does
-    not have two elements.'''
-    routine = RoutineSymbol("isaac", NoType())
-    with pytest.raises(GenerationError) as info:
-        _ = Call.create(routine, [(1, 2, 3)])
-    assert ("If a child of the children argument in create method of Call "
-            "class is a tuple, it's length should be 2, but found 3."
-            in str(info.value))
-
-
-def test_call_create_error4():
-    '''Test that the appropriate exception is raised if an entry in the
-    arguments argument to the create method is is a tuple with two
-    elements and the first element is not a string.'''
-    routine = RoutineSymbol("isaac", NoType())
-    with pytest.raises(GenerationError) as info:
-        _ = Call.create(routine, [(1, 2)])
-    assert ("If a child of the children argument in create method of Call "
-            "class is a tuple, its first argument should be a str, but "
-            "found int." in str(info.value))
-
-
-def test_call_create_error5():
     '''Test that the appropriate exception is raised if one or more of the
     argument names is not valid.'''
     routine = RoutineSymbol("roo", INTEGER_TYPE)
@@ -185,7 +160,7 @@ def test_call_create_error5():
     assert "Invalid name ' a' found." in str(info.value)
 
 
-def test_call_create_error6():
+def test_call_create_error4():
     '''Test that the appropriate exception is raised if one or more of the
     arguments argument list entries to the create method is not a
     DataNode.
@@ -198,6 +173,54 @@ def test_call_create_error6():
                 "arg1", INTEGER_TYPE)), ("name", None)])
     assert ("Item 'NoneType' can't be child 1 of 'Call'. The valid format "
             "is: '[DataNode]*'." in str(info.value))
+
+
+def test_call_add_args():
+    '''Test the _add_args method in the Call class.'''
+
+    routine = RoutineSymbol("myeloma", INTEGER_TYPE)
+    call = Call(routine)
+    array_type = ArrayType(INTEGER_TYPE, shape=[10, 20])
+    arguments = [Reference(DataSymbol("arg1", INTEGER_TYPE)),
+                 ArrayReference(DataSymbol("arg2", array_type))]
+    Call._add_args(call, [arguments[0], ("name", arguments[1])])
+    assert call.routine is routine
+    assert call.argument_names == [None, "name"]
+    for idx, child, in enumerate(call.children):
+        assert child is arguments[idx]
+        assert child.parent is call
+    # For some reason pylint thinks that call.children[0,1] are of
+    # type Literal and complains about there being no name member,
+    # even though they are not.
+    # pylint: disable=no-member
+    assert call.children[0].name == "arg1"
+    assert call.children[1].name == "arg2"
+
+
+def test_call_add_args_error1():
+    '''Test that the appropriate exception is raised if an entry in the
+    arguments argument to the _add_args method is a tuple that does
+    not have two elements.
+
+    '''
+    routine = RoutineSymbol("isaac", NoType())
+    with pytest.raises(GenerationError) as info:
+        _ = Call._add_args(routine, [(1, 2, 3)])
+    assert ("If a child of the children argument in create method of Call "
+            "class is a tuple, it's length should be 2, but found 3."
+            in str(info.value))
+
+
+def test_call_add_args_error2():
+    '''Test that the appropriate exception is raised if an entry in the
+    arguments argument to the _add_args method is is a tuple with two
+    elements and the first element is not a string.'''
+    routine = RoutineSymbol("isaac", NoType())
+    with pytest.raises(GenerationError) as info:
+        _ = Call._add_args(routine, [(1, 2)])
+    assert ("If a child of the children argument in create method of Call "
+            "class is a tuple, its first argument should be a str, but "
+            "found int." in str(info.value))
 
 
 def test_call_appendnamedarg():
