@@ -700,7 +700,7 @@ def test_inout_parameters_nemo(fortran_reader):
     read_write_info_read = ReadWriteInfo()
     dep_tools.get_input_parameters(read_write_info_read, loops)
     # Use set to be order independent
-    input_set = set(sig for _, sig in read_write_info_read.read_list)
+    input_set = set(read_write_info_read.signatures_read)
     # Note that by default the read access to `dummy` in lbound etc should
     # not be reported, since it does not really read the array values.
     assert input_set == set([Signature("b"), Signature("c"),
@@ -709,7 +709,7 @@ def test_inout_parameters_nemo(fortran_reader):
     read_write_info_write = ReadWriteInfo()
     dep_tools.get_output_parameters(read_write_info_write, loops)
     # Use set to be order independent
-    output_set = set(sig for _, sig in read_write_info_write.write_list)
+    output_set = set(read_write_info_write.signatures_written)
     assert output_set == set([Signature("jj"), Signature("ji"),
                               Signature("a")])
 
@@ -730,7 +730,7 @@ def test_inout_parameters_nemo(fortran_reader):
     read_write_info = dep_tools.\
         get_in_out_parameters(loops,
                               options={'COLLECT-ARRAY-SHAPE-READS': True})
-    output_set = set(sig for _, sig in read_write_info.read_list)
+    output_set = set(read_write_info.signatures_read)
     assert output_set == set([Signature("b"), Signature("c"),
                               Signature("jpj"), Signature("dummy")])
 
@@ -745,9 +745,8 @@ def test_const_argument():
     read_write_info = ReadWriteInfo()
     dep_tools.get_input_parameters(read_write_info, invoke.schedule)
     # Make sure the constant '0' is not listed
-    input_list = [sig for _, sig in read_write_info.read_list]
-    assert "0" not in input_list
-    assert Signature("0") not in input_list
+    assert "0" not in read_write_info.signatures_read
+    assert Signature("0") not in read_write_info.signatures_read
 
 
 # -----------------------------------------------------------------------------

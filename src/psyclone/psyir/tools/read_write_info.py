@@ -72,6 +72,17 @@ class ReadWriteInfo:
 
     # -------------------------------------------------------------------------
     @property
+    def signatures_read(self):
+        '''Convenience function to return only the signatures read.
+
+        :returns the list of all signatures read.
+        :rtype: List[:py:class:`psyclone.core.Signature`]
+
+        '''
+        return [sig for _, sig in self.read_list]
+
+    # -------------------------------------------------------------------------
+    @property
     def write_list(self):
         ''':returns the sorted list of module_name,signature pairs that are \
             written.
@@ -83,6 +94,17 @@ class ReadWriteInfo:
             self._write_list.sort()
             self._sorted = True
         return self._write_list
+
+    # -------------------------------------------------------------------------
+    @property
+    def signatures_written(self):
+        '''Convenience function to return only the signatures written.
+
+        :returns the list of all signatures written.
+        :rtype: List[:py:class:`psyclone.core.Signature`]
+
+        '''
+        return [sig for _, sig in self.write_list]
 
     # -------------------------------------------------------------------------
     @property

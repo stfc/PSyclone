@@ -193,8 +193,10 @@ class AdjointVisitor(PSyIRVisitor):
             # some point.
             read_write_info = dtools.get_in_out_parameters(node_copy.children)
             # Get the variable name associated with each of these signatures.
-            in_names = [sig.var_name for _, sig in read_write_info.read_list]
-            out_names = [sig.var_name for _, sig in read_write_info.write_list]
+            in_names = [sig.var_name
+                        for sig in read_write_info.signatures_read]
+            out_names = [sig.var_name
+                         for sig in read_write_info.signatures_written]
 
             # We must update the symbols in the table of the new tree
             adj_table = node_copy.symbol_table
