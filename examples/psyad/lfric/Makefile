@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018, Science and Technology Facilities Council
+# Copyright (c) 2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -30,24 +30,23 @@
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
-# -----------------------------------------------------------------------------
-# Authors: A. R. Porter, STFC Daresbury Lab
+# ------------------------------------------------------------------------------
+# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Laboratory
 
-'''
-Module containing helper routines related to installing/running inside
-virtual environments (such as virtualenv and venv).
-'''
+include ../../top_level.mk
 
-
-def within_virtual_env():
-    '''
-    Utility function that identifies whether we are running in a Python
-    virtual environment. Works for virtualenv and Python 3's venv.
-
-    :returns: True if we're running in a virtual environment
-    :rtype: bool
-    '''
-    import sys
-    # pylint: disable=no-member
-    return (hasattr(sys, 'real_prefix') or
-            (hasattr(sys, 'base_prefix') and sys.base_prefix != sys.prefix))
+transform:
+	${MAKE} -C tangent_linear transform
+	${MAKE} -C tangent_linear_tweaked transform
+compile:
+	${MAKE} -C tangent_linear compile
+	${MAKE} -C tangent_linear_tweaked compile
+run:
+	${MAKE} -C tangent_linear run
+	${MAKE} -C tangent_linear_tweaked run
+clean:
+	${MAKE} -C tangent_linear clean
+	${MAKE} -C tangent_linear_tweaked clean
+allclean:
+	${MAKE} -C tangent_linear allclean
+	${MAKE} -C tangent_linear_tweaked allclean
