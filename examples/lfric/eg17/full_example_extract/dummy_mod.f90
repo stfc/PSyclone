@@ -35,7 +35,7 @@
 module dummy_mod
   integer :: dummy_var1
   real :: dummy_var2
-  real, parameter :: dummy_var3 = 3
+  real :: dummy_var3 = 3
 
   public :: dummy_code
 

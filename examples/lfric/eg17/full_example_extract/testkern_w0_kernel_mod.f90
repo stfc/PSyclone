@@ -41,11 +41,11 @@ module testkern_w0_kernel_mod
 
   use constants_mod
 
-  use dummy_mod, only: dummy_var1
+  use dummy_mod, only: dummy_var1, dummy_code
 
   implicit none
 
-  integer :: some_other_var
+  integer, public :: some_other_var
   integer, parameter :: some_other_const = 123
   private
 
@@ -83,7 +83,7 @@ contains
     integer(kind=i_def)                                 :: i, k
     real(kind=r_def) :: some_r
 
-    call dummy_code()
+    call dummy_code(1)
     some_r = 0
     do k=0, nlayers-1
       do i=1, ndf_w0
