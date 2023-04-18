@@ -18,7 +18,7 @@ Make then you may need to edit the Makefile and replace the occurances of
 `?=` with `=`.
 
 The flags to enable OpenMP will depend upon which Fortran compiler you
-are using. By default the Makefile is configured to use gfortran. If you
+are using. By default, the Makefile is configured to use gfortran. If you
 are using some other compiler then you must either edit the Makefile
 or set the F90 and F90FLAGS environment variables. (Since OpenMP directives
 are just comments, the compiler will ignore them unless the appropriate
@@ -85,8 +85,8 @@ the majority of the code. (Of course, it would also be possible to use
 OpenMP to parallelise the horizontal domain in NEMO so as to reduce
 the number of MPI processes and resulting inter-process communication.)
 
-1. Now that we have examined the script, the next stage is to attempt to
-   use it to transform the mini-app. You can use the Makefile or just run
+1. Now that we have examined the script, the next stage is to use it to
+   transform the mini-app. You can use the Makefile or just run
    PSyclone directly:
    ```bash
    $ psyclone -s ./omp_trans.py -api nemo -opsy psy.f90 -l output tra_adv_mod.F90
@@ -142,7 +142,7 @@ the number of MPI processes and resulting inter-process communication.)
    directives have been inserted. You should see that there are now
    `Directive` nodes in the PSyIR, e.g.:
 
-       14: OMPParallelDoDirective[]
+       14: OMPParallelDoDirective[omp_schedule=auto]
            Schedule[]
                0: Loop[type='levels', field_space='None', it_space='None']
                    Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
@@ -155,7 +155,7 @@ the number of MPI processes and resulting inter-process communication.)
    and the corresponding Fortran looks like:
 
    ```fortran
-       !$OMP parallel do default(shared), private(ji,jj,jk), schedule(static)
+       !$OMP parallel do default(shared), private(ji,jj,jk), schedule(auto)
        DO jk = 1, jpk
          DO jj = 1, jpj
            DO ji = 1, jpi
@@ -224,12 +224,12 @@ Clearly, the optimisation script needs to be improved so that it finds
 all of the loops over vertical levels, rather than just those that are
 immediate children of the root Schedule.
 
-1. Edit the optimisation script
-   so that it uses `sched.walk()` to do this (in the same way as was done
-   for profiling in tutorial 2). Check that the generated PSyIR looks as
-   you would expect. (You can use a second `walk`, after the
-   transformation is complete, to count the number of `Directive` nodes
-   that have been inserted in the Schedule - there should be 13.)
+1. Edit the optimisation script so that it uses `sched.walk()` to do this
+   (in the same way as was done for profiling in tutorial 2). Check that
+   the generated PSyIR looks as you would expect. (You can use a second
+   `walk`, after the transformation is complete, to count the number of
+   `Directive` nodes that have been inserted in the Schedule - there
+   should be 13.)
 
 2. Now that we've parallelised a reasonable percentage of the mini-app,
    you should see a speed-up as you increase OMP_NUM_THREADS. For
@@ -254,6 +254,9 @@ Virtual Machine, ensuring repeatable timings, and any other, competing
 activity on your machine. This is all well beyond the scope of this
 tutorial.
 
+(Note also that the 'simple_timing' library has been found to have very
+poor granularity on MACOS.)
+
 ## 4. Improving Performance ##
 
 The next section is optional and so, depending on how much time you
@@ -266,7 +269,7 @@ directory.
 
 If time allows then it is possible to improve upon the parallelisation
 achieved in the previous section by creating parallel regions containing
-multiple loop nests (this reduces the overhead associated with the
+multiple loop nests (this reduces any possible overhead associated with the
 creation and destruction of the OpenMP threads). For instance, if
 you examine the `psy.f90` that has been created, you will see:
 
