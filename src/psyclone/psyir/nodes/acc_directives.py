@@ -124,8 +124,8 @@ class ACCRegionDirective(ACCDirective, RegionDirective, metaclass=abc.ABCMeta):
             return (sig_set, )
 
         rwi = DependencyTools().get_in_out_parameters(self.children)
-        return (set(sig for _, sig in rwi.read_list),
-                set(sig for _, sig in rwi.write_list))
+        return (set(rwi.signatures_read),
+                set(rwi.signatures_written))
 
 
 class ACCStandaloneDirective(ACCDirective, StandaloneDirective,

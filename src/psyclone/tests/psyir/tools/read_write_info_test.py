@@ -47,7 +47,9 @@ def test_read_write_info():
     rwi = ReadWriteInfo()
     assert rwi.set_of_all_used_vars == set()
     assert rwi.read_list == []
+    assert rwi.signatures_read == []
     assert rwi.write_list == []
+    assert rwi.signatures_written == []
 
 
 def test_add_read():
@@ -60,6 +62,7 @@ def test_add_read():
     correct.add(("", sig_b))
     assert rwi.set_of_all_used_vars == correct
     assert rwi.read_list == [("", sig_b)]
+    assert rwi.signatures_read == [sig_b]
 
     # Check that the results are sorted as expected: even though
     # 'a' is added later, it must be first in the output list:
@@ -68,12 +71,14 @@ def test_add_read():
     correct.add(("", sig_a))
     assert rwi.set_of_all_used_vars == correct
     assert rwi.read_list == [("", sig_a), ("", sig_b)]
+    assert rwi.signatures_read == [sig_a, sig_b]
 
     sig_c = Signature("c")
     rwi.add_read(sig_c, "c_mod")
     correct.add(("c_mod", sig_c))
     assert rwi.set_of_all_used_vars == correct
     assert rwi.read_list == [("", sig_a), ("", sig_b), ("c_mod", sig_c)]
+    assert rwi.signatures_read == [sig_a, sig_b, sig_c]
 
     assert rwi.is_read(sig_a) is True
 
@@ -88,6 +93,7 @@ def test_add_write():
     correct.add(("", sig_b))
     assert rwi.set_of_all_used_vars == correct
     assert rwi.write_list == [("", sig_b)]
+    assert rwi.signatures_written == [sig_b]
 
     # Check that the results are sorted as expected: even though
     # 'a' is added later, it must be first in the output list:
@@ -96,11 +102,13 @@ def test_add_write():
     correct.add(("", sig_a))
     assert rwi.set_of_all_used_vars == correct
     assert rwi.write_list == [("", sig_a), ("", sig_b)]
+    assert rwi.signatures_written == [sig_a, sig_b]
 
     sig_c = Signature("c")
     rwi.add_write(sig_c, "c_mod")
     correct.add(("c_mod", sig_c))
     assert rwi.set_of_all_used_vars == correct
     assert rwi.write_list == [("", sig_a), ("", sig_b), ("c_mod", sig_c)]
+    assert rwi.signatures_written == [sig_a, sig_b, sig_c]
 
     assert rwi.is_read(sig_a) is False

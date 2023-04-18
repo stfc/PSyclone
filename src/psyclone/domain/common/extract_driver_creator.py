@@ -382,7 +382,7 @@ class ExtractDriverCreator:
 
         # First handle variables that are read:
         # -------------------------------------
-        for _, signature in read_write_info.read_list:
+        for signature in read_write_info.signatures_read:
             # Find the right symbol for the variable. Note that all variables
             # in the input and output list have been detected as being used
             # when the variable accesses were analysed. Therefore, these
@@ -396,7 +396,7 @@ class ExtractDriverCreator:
 
         # Then handle all variables that are written (note that some
         # variables might be read and written)
-        for _, signature in read_write_info.write_list:
+        for signature in read_write_info.signatures_written:
             # Find the right symbol for the variable. Note that all variables
             # in the input and output list have been detected as being used
             # when the variable accesses were analysed. Therefore, these

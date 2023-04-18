@@ -213,8 +213,8 @@ class ACCUpdateTrans(Transformation):
         # TODO #1872: the lack of precise array access descriptions might
         # unnecessarily increase the data transfer volume.
         read_write_info = DependencyTools().get_in_out_parameters(node_list)
-        inputs = set(sig for _, sig in read_write_info.read_list)
-        outputs = set(sig for _, sig in read_write_info.write_list)
+        inputs = set(read_write_info.signatures_read)
+        outputs = set(read_write_info.signatures_written)
 
         # TODO #1872: as a workaround for the lack of precise array access
         # descriptions, we currently overapproximate dependencies by adding any
