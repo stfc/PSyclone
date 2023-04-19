@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Science and Technology Facilities Council.
+# Copyright (c) 2019-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author J. Henrichs, Bureau of Meteorology
+# Modified by R. W. Ford and N. Nobre, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 '''This module implements the AccessType used throughout PSyclone.'''
@@ -45,16 +46,17 @@ class AccessType(Enum):
     '''A simple enum-class for the various valid access types.
     '''
 
-    INC = 1
+    READ = 1
     WRITE = 2
-    READ = 3
-    READWRITE = 4
-    SUM = 5
+    READWRITE = 3
+    INC = 4
+    READINC = 5
+    SUM = 6
     # This is used internally to indicate unknown access type of
     # a variable, e.g. when a variable is passed to a subroutine
     # and the access type of this variable in the subroutine
     # is unknown
-    UNKNOWN = 6
+    UNKNOWN = 7
 
     def __str__(self):
         '''Convert to a string representation, returning just the
@@ -62,7 +64,8 @@ class AccessType(Enum):
         :return: API name for this string.
         :rtype: str
         '''
-        return self.name
+        # pylint complains without str() that the return type is not a str
+        return str(self.name)
 
     def api_specific_name(self):
         '''This convenience function returns the name of the type in the
@@ -78,6 +81,7 @@ class AccessType(Enum):
     def from_string(access_string):
         '''Convert a string (e.g. "read") into the corresponding
         AccessType enum value (AccessType.READ).
+
         :param str access_string: Access type as string.
         :returns: Corresponding AccessType enum.
         :Raises: ValueError if access_string is not a valid access type.
@@ -86,9 +90,8 @@ class AccessType(Enum):
             if access.name == access_string.upper():
                 return access
         valid = [str(access).lower() for access in AccessType]
-        valid.sort()
-        raise ValueError("Unknown access type '{0}'. Valid values are {1}."
-                         .format(access_string, str(valid)))
+        raise ValueError(f"Unknown access type '{access_string}'. "
+                         f"Valid values are {valid}.")
 
     @staticmethod
     def all_write_accesses():
@@ -96,8 +99,8 @@ class AccessType(Enum):
                      argument in some form.
         :rtype: List of py:class:`psyclone.core.access_type.AccessType`.
         '''
-        return [AccessType.WRITE, AccessType.READWRITE, AccessType.INC] + \
-            AccessType.get_valid_reduction_modes()
+        return [AccessType.WRITE, AccessType.READWRITE, AccessType.INC,
+                AccessType.READINC] + AccessType.get_valid_reduction_modes()
 
     @staticmethod
     def all_read_accesses():
@@ -105,7 +108,8 @@ class AccessType(Enum):
                      argument in some form.
         :rtype: List of py:class:`psyclone.core.access_type.AccessType`.
         '''
-        return [AccessType.READ, AccessType.READWRITE, AccessType.INC]
+        return [AccessType.READ, AccessType.READWRITE, AccessType.INC,
+                AccessType.READINC]
 
     @staticmethod
     def get_valid_reduction_modes():
@@ -123,3 +127,9 @@ class AccessType(Enum):
         '''
         return [access.api_specific_name() for access in
                 AccessType.get_valid_reduction_modes()]
+
+
+# ---------- Documentation utils -------------------------------------------- #
+# The list of module members that we wish AutoAPI to generate
+# documentation for. (See https://psyclone-ref.readthedocs.io)
+__all__ = ["AccessType"]

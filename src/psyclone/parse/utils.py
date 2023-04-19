@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2020, Science and Technology Facilities Council.
+# Copyright (c) 2019-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford and A. R. Porter STFC Daresbury Lab
+# Authors: R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 
 '''Utility module containing classes and functions that are used by
 the parser modules.
@@ -40,17 +40,17 @@ the parser modules.
 
 import io
 
-from psyclone.configuration import Config
-from psyclone.line_length import FortLineLength
-from psyclone.errors import InternalError
 from fparser.two.parser import ParserFactory
 from fparser.common.readfortran import FortranFileReader
 from fparser.two.utils import FortranSyntaxError
+from psyclone.configuration import Config
+from psyclone.line_length import FortLineLength
+from psyclone.errors import PSycloneError, InternalError
+
 
 # Exceptions
 
-
-class ParseError(Exception):
+class ParseError(PSycloneError):
     '''Provides a PSyclone-specific error class for the situation when
     the PSyclone code parsing finds an error in the input.
 
@@ -58,11 +58,8 @@ class ParseError(Exception):
 
     '''
     def __init__(self, value):
-        Exception.__init__(self, value)
-        self.value = "Parse Error: " + value
-
-    def __str__(self):
-        return repr(self.value)
+        PSycloneError.__init__(self, value)
+        self.value = "Parse Error: " + str(value)
 
 # support functions
 
@@ -78,9 +75,8 @@ def check_api(api):
 
     if api not in _config.supported_apis:
         raise ParseError(
-            "utils.py:check_api: Unsupported API '{0}' specified. "
-            "Supported types are {1}.".format(api,
-                                              _config.supported_apis))
+            f"utils.py:check_api: Unsupported API '{api}' specified. "
+            f"Supported types are {_config.supported_apis}.")
 
 
 def check_line_length(filename):
@@ -98,13 +94,12 @@ def check_line_length(filename):
         with io.open(filename, "r", encoding='utf8') as myfile:
             code_str = myfile.read()
     except IOError as excinfo:
-        raise InternalError(
-            "In utils.py:check_line_length: {0}".format(str(excinfo)))
+        raise InternalError(f"In utils.py:check_line_length: {excinfo}")
 
     if fll.long_lines(code_str):
         raise ParseError(
-            "the file does not conform to the specified {0} line "
-            "length limit".format(str(fll.length)))
+            f"the file does not conform to the specified {fll.length} line "
+            f"length limit")
 
 
 def parse_fp2(filename):
@@ -117,7 +112,7 @@ def parse_fp2(filename):
     :raises ParseError: if the file could not be parsed.
 
     '''
-    parser = ParserFactory().create()
+    parser = ParserFactory().create(std="f2008")
     # We get the directories to search for any Fortran include files from
     # our configuration object.
     config = Config.get()
@@ -125,12 +120,12 @@ def parse_fp2(filename):
         reader = FortranFileReader(filename, include_dirs=config.include_paths)
     except IOError as error:
         raise ParseError(
-            "algorithm.py:parse_fp2: Failed to parse file '{0}'. Error "
-            "returned was ' {1} '.".format(filename, error))
+            f"algorithm.py:parse_fp2: Failed to parse file '{filename}'. "
+            f"Error returned was ' {error} '.")
     try:
         parse_tree = parser(reader)
     except FortranSyntaxError as msg:
         raise ParseError(
-            "algorithm.py:parse_fp2: Syntax error in file '{0}':\n"
-            "{1}".format(filename, str(msg)))
+            f"algorithm.py:parse_fp2: Syntax error in file '{filename}':\n"
+            f"{msg}")
     return parse_tree

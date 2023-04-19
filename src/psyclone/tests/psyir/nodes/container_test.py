@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2021, Science and Technology Facilities Council.
+# Copyright (c) 2019-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,11 +40,13 @@
 
 from __future__ import absolute_import
 import pytest
-from psyclone.psyir.nodes import Container, Return, KernelSchedule
+from psyclone.psyir.nodes import Container, Return, KernelSchedule, \
+    FileContainer
 from psyclone.psyir.symbols import SymbolTable, DataSymbol, REAL_SINGLE_TYPE
 from psyclone.errors import GenerationError
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.tests.utilities import check_links
+from psyclone.psyir.nodes.node import colored
 
 
 def test_container_init():
@@ -55,10 +57,24 @@ def test_container_init():
     assert isinstance(container._symbol_table, SymbolTable)
 
 
+def test_container_equality():
+    '''Test the __eq__ method of the container class.'''
+    # Subclasses of ScopingNode need to have the same SymbolTable
+    symboltable = SymbolTable()
+    container1 = Container("test")
+    container2 = Container("test")
+    container3 = Container("not_test")
+    container1._symbol_table = symboltable
+    container2._symbol_table = symboltable
+    container3._symbol_table = symboltable
+    assert container1 == container2
+    assert container1 != container3
+
+
 def test_container_init_parent():
     '''Test that a container parent argument is stored as expected.'''
-    container = Container("test", parent="hello")
-    assert container.parent == "hello"
+    container = Container("test", parent=FileContainer("hello"))
+    assert container.parent.name == "hello"
 
 
 def test_container_name():
@@ -70,19 +86,10 @@ def test_container_name():
     assert container.name == "new_test"
 
 
-def test_container_symbol_table():
-    '''Test that the container symbol_table method returns the expected
-    content.'''
-    container = Container("test")
-    assert isinstance(container._symbol_table, SymbolTable)
-    assert container.symbol_table is container._symbol_table
-
-
 def test_container_node_str():
     '''Check the node_str method of the Container class.'''
-    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
     cont_stmt = Container("bin")
-    coloredtext = colored("Container", SCHEDULE_COLOUR_MAP["Container"])
+    coloredtext = colored("Container", Container._colour)
     assert coloredtext+"[bin]" in cont_stmt.node_str()
 
 
@@ -110,7 +117,8 @@ def test_container_create():
     assert result == (
         "module container_name\n"
         "  implicit none\n"
-        "  real :: tmp\n\n"
+        "  real, public :: tmp\n"
+        "  public\n\n"
         "  contains\n"
         "  subroutine mod_1()\n\n\n"
         "  end subroutine mod_1\n"
@@ -150,7 +158,7 @@ def test_container_create_invalid():
     with pytest.raises(GenerationError) as excinfo:
         _ = Container.create("mod_name", symbol_table, ["invalid"])
     assert ("Item 'str' can't be child 0 of 'Container'. The valid format is:"
-            " '[Container | KernelSchedule | InvokeSchedule]*'."
+            " '[Container | Routine | CodeBlock]*'."
             in str(excinfo.value))
 
 
@@ -170,5 +178,5 @@ def test_container_children_validation():
     with pytest.raises(GenerationError) as excinfo:
         container.addchild(ret)
     assert ("Item 'Return' can't be child 1 of 'Container'. The valid format"
-            " is: '[Container | KernelSchedule | InvokeSchedule]*'."
+            " is: '[Container | Routine | CodeBlock]*'."
             "" in str(excinfo.value))

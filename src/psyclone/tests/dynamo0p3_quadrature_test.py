@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council.
+# Copyright (c) 2017-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author R. W. Ford and A. R. Porter, STFC Daresbury Lab
 # Modified I. Kavcic, Met Office
+# Modified by J. Henrichs, Bureau of Meteorology
 
 ''' Module containing py.test tests for functionality related to
 quadrature in the LFRic API '''
@@ -41,12 +42,17 @@ quadrature in the LFRic API '''
 from __future__ import absolute_import, print_function
 import os
 import pytest
+
 from fparser import api as fpapi
+
 from psyclone.configuration import Config
-from psyclone.parse.algorithm import parse
-from psyclone.psyGen import PSyFactory
+from psyclone.domain.lfric import LFRicConstants
+from psyclone.dynamo0p3 import DynKernMetadata, DynKern, DynBasisFunctions, \
+    qr_basis_alloc_args
 from psyclone.errors import InternalError
-from psyclone.dynamo0p3 import DynKernMetadata, DynKern, DynBasisFunctions
+from psyclone.f2pygen import ModuleGen
+from psyclone.parse.algorithm import KernelCall, parse
+from psyclone.psyGen import CodedKern, PSyFactory
 from psyclone.tests.lfric_build import LFRicBuild
 
 # constants
@@ -59,6 +65,8 @@ API = "dynamo0.3"
 def setup():
     '''Make sure that all tests here use dynamo0.3 as API.'''
     Config.get().api = "dynamo0.3"
+    yield
+    Config._instance = None
 
 
 def test_field_xyoz(tmpdir):
@@ -74,6 +82,11 @@ def test_field_xyoz(tmpdir):
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
+    module_declns = (
+        "    USE constants_mod, ONLY: r_def, i_def\n"
+        "    USE field_mod, ONLY: field_type, field_proxy_type\n")
+    assert module_declns in generated_code
+
     output_decls = (
         "    SUBROUTINE invoke_0_testkern_qr_type(f1, f2, m1, a, m2, istp,"
         " qr)\n"
@@ -87,6 +100,7 @@ def test_field_xyoz(tmpdir):
         "      TYPE(field_type), intent(in) :: f1, f2, m1, m2\n"
         "      TYPE(quadrature_xyoz_type), intent(in) :: qr\n"
         "      INTEGER(KIND=i_def) cell\n"
+        "      INTEGER(KIND=i_def) loop0_start, loop0_stop\n"
         "      REAL(KIND=r_def), allocatable :: basis_w1_qr(:,:,:,:), "
         "diff_basis_w2_qr(:,:,:,:), basis_w3_qr(:,:,:,:), "
         "diff_basis_w3_qr(:,:,:,:)\n"
@@ -118,6 +132,7 @@ def test_field_xyoz(tmpdir):
         "      ! Create a mesh object\n"
         "      !\n"
         "      mesh => f1_proxy%vspace%get_mesh()\n"
+        "      max_halo_depth_mesh = mesh%get_halo_depth()\n"
         "      !\n"
         "      ! Look-up dofmaps for each function space\n"
         "      !\n"
@@ -174,6 +189,11 @@ def test_field_xyoz(tmpdir):
         "      CALL qr%compute_function(DIFF_BASIS, m2_proxy%vspace, "
         "diff_dim_w3, ndf_w3, diff_basis_w3_qr)\n"
         "      !\n"
+        "      ! Set-up all of the loop bounds\n"
+        "      !\n"
+        "      loop0_start = 1\n"
+        "      loop0_stop = mesh%get_last_halo_cell(1)\n"
+        "      !\n"
         "      ! Call kernels and communication routines\n"
         "      !\n"
         "      IF (f1_proxy%is_dirty(depth=1)) THEN\n"
@@ -192,7 +212,7 @@ def test_field_xyoz(tmpdir):
         "        CALL m2_proxy%halo_exchange(depth=1)\n"
         "      END IF\n"
         "      !\n"
-        "      DO cell=1,mesh%get_last_halo_cell(1)\n"
+        "      DO cell=loop0_start,loop0_stop\n"
         "        !\n"
         "        CALL testkern_qr_code(nlayers, f1_proxy%data, f2_proxy%data, "
         "m1_proxy%data, a, m2_proxy%data, istp, ndf_w1, undf_w1, "
@@ -266,6 +286,11 @@ def test_face_qr(tmpdir, dist_mem):
     assert LFRicBuild(tmpdir).code_compiles(psy)
     generated_code = str(psy.gen)
 
+    module_declns = (
+        "    USE constants_mod, ONLY: r_def, i_def\n"
+        "    USE field_mod, ONLY: field_type, field_proxy_type\n")
+    assert module_declns in generated_code
+
     output_decls = (
         "      USE testkern_qr_faces_mod, ONLY: testkern_qr_faces_code\n"
         "      USE quadrature_face_mod, ONLY: quadrature_face_type, "
@@ -277,6 +302,7 @@ def test_face_qr(tmpdir, dist_mem):
         "      TYPE(field_type), intent(in) :: f1, f2, m1, m2\n"
         "      TYPE(quadrature_face_type), intent(in) :: qr\n"
         "      INTEGER(KIND=i_def) cell\n"
+        "      INTEGER(KIND=i_def) loop0_start, loop0_stop\n"
         "      REAL(KIND=r_def), allocatable :: basis_w1_qr(:,:,:,:), "
         "diff_basis_w2_qr(:,:,:,:), basis_w3_qr(:,:,:,:), "
         "diff_basis_w3_qr(:,:,:,:)\n"
@@ -308,6 +334,7 @@ def test_face_qr(tmpdir, dist_mem):
         init_output += ("      ! Create a mesh object\n"
                         "      !\n"
                         "      mesh => f1_proxy%vspace%get_mesh()\n"
+                        "      max_halo_depth_mesh = mesh%get_halo_depth()\n"
                         "      !\n")
     init_output += (
         "      ! Look-up dofmaps for each function space\n"
@@ -363,9 +390,14 @@ def test_face_qr(tmpdir, dist_mem):
         "ndf_w3, basis_w3_qr)\n"
         "      CALL qr%compute_function(DIFF_BASIS, m2_proxy%vspace, "
         "diff_dim_w3, ndf_w3, diff_basis_w3_qr)\n"
-        "      !\n")
+        "      !\n"
+        "      ! Set-up all of the loop bounds\n"
+        "      !\n"
+        "      loop0_start = 1\n")
     if dist_mem:
         init_output2 += (
+            "      loop0_stop = mesh%get_last_halo_cell(1)\n"
+            "      !\n"
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      IF (f1_proxy%is_dirty(depth=1)) THEN\n"
@@ -386,15 +418,13 @@ def test_face_qr(tmpdir, dist_mem):
             "      !\n")
     else:
         init_output2 += (
+            "      loop0_stop = f1_proxy%vspace%get_ncell()\n"
+            "      !\n"
             "      ! Call our kernels\n")
     assert init_output2 in generated_code
-    if dist_mem:
-        compute_output = (
-            "      DO cell=1,mesh%get_last_halo_cell(1)\n")
-    else:
-        compute_output = (
-            "      DO cell=1,f1_proxy%vspace%get_ncell()\n")
-    compute_output += (
+
+    compute_output = (
+        "      DO cell=loop0_start,loop0_stop\n"
         "        !\n"
         "        CALL testkern_qr_faces_code(nlayers, f1_proxy%data, "
         "f2_proxy%data, "
@@ -505,13 +535,12 @@ def test_field_qr_deref(tmpdir):
 def test_internal_qr_err(monkeypatch):
     ''' Check that internal error for unrecognised QR type is raised
     as expected '''
-    from psyclone import dynamo0p3
     # Monkeypatch the list of valid quadrature and evaluator shapes so we
     # get past some of the earlier checks
-    monkeypatch.setattr(dynamo0p3, "VALID_EVALUATOR_SHAPES",
+    monkeypatch.setattr(LFRicConstants, "VALID_EVALUATOR_SHAPES",
                         value=["gh_quadrature_xyz", "gh_quadrature_xyoz",
                                "gh_quadrature_xoyoz", "gh_quadrature_wrong"])
-    monkeypatch.setattr(dynamo0p3, "VALID_QUADRATURE_SHAPES",
+    monkeypatch.setattr(LFRicConstants, "VALID_QUADRATURE_SHAPES",
                         value=["gh_quadrature_xyz", "gh_quadrature_xyoz",
                                "gh_quadrature_xoyoz", "gh_quadrature_wrong"])
     _, invoke_info = parse(os.path.join(BASE_PATH, "1.1.4_wrong_qr_shape.f90"),
@@ -534,7 +563,6 @@ def test_dynbasisfunctions(monkeypatch):
     # Test the error check in dynamo0p3.qr_basis_alloc_args() by passing in a
     # dictionary containing an invalid shape entry
     basis_dict = {"shape": "gh_wrong_shape"}
-    from psyclone.dynamo0p3 import qr_basis_alloc_args
     with pytest.raises(InternalError) as excinfo:
         _ = qr_basis_alloc_args("size1", basis_dict)
     assert ("Unrecognised shape ('gh_wrong_shape') specified "
@@ -596,7 +624,6 @@ def test_dynbasisfns_setup(monkeypatch):
 def test_dynbasisfns_initialise(monkeypatch):
     ''' Check that the DynBasisFunctions.initialise() method
     raises the expected InternalErrors. '''
-    from psyclone.f2pygen import ModuleGen
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.1.0_single_invoke_xyoz_qr.f90"),
                            api=API)
@@ -621,7 +648,6 @@ def test_dynbasisfns_compute(monkeypatch):
     ''' Check that the DynBasisFunctions._compute_basis_fns() method
     raises the expected InternalErrors if an unrecognised type or shape of
     basis function is encountered. '''
-    from psyclone.f2pygen import ModuleGen
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.1.0_single_invoke_xyoz_qr.f90"),
                            api=API)
@@ -647,7 +673,6 @@ def test_dynbasisfns_dealloc(monkeypatch):
     ''' Check that the DynBasisFunctions.deallocate() method
     raises the expected InternalError if an unrecognised type of
     basis function is encountered. '''
-    from psyclone.f2pygen import ModuleGen
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.1.0_single_invoke_xyoz_qr.f90"),
                            api=API)
@@ -677,10 +702,8 @@ def test_dynkern_setup(monkeypatch):
     kern = schedule.children[4].loop_body[0]
     # Monkeypatch a couple of __init__ routines so that we can get past
     # them in the _setup() routine.
-    from psyclone.psyGen import CodedKern
     monkeypatch.setattr(CodedKern, "__init__",
                         lambda me, ktype, kcall, parent, check: None)
-    from psyclone.parse.algorithm import KernelCall
     monkeypatch.setattr(KernelCall, "__init__",
                         lambda me, mname, ktype, args: None)
     # Break the shape of the quadrature for this kernel
@@ -771,7 +794,7 @@ def test_qr_basis_stub():
         "ndf_w2htrace, undf_w2htrace, map_w2htrace, basis_w2htrace_qr_xyoz, "
         "ndf_w2vtrace, basis_w2vtrace_qr_xyoz, np_xy_qr_xyoz, np_z_qr_xyoz, "
         "weights_xy_qr_xyoz, weights_z_qr_xyoz)\n"
-        "      USE constants_mod, ONLY: r_def, i_def\n"
+        "      USE constants_mod\n"
         "      IMPLICIT NONE\n"
         "      INTEGER(KIND=i_def), intent(in) :: nlayers\n"
         "      INTEGER(KIND=i_def), intent(in) :: ndf_w0\n"
@@ -797,7 +820,7 @@ def test_qr_basis_stub():
         ":: field_1_w0\n"
         "      REAL(KIND=r_def), intent(in), dimension(undf_w2) "
         ":: field_3_w2\n"
-        "      REAL(KIND=r_def), intent(out), dimension(undf_wtheta) "
+        "      REAL(KIND=r_def), intent(inout), dimension(undf_wtheta) "
         ":: field_5_wtheta\n"
         "      REAL(KIND=r_def), intent(in), dimension(undf_w2v) "
         ":: field_7_w2v\n"
@@ -810,7 +833,7 @@ def test_qr_basis_stub():
         "      REAL(KIND=r_def), intent(inout), dimension(ndf_w1,ndf_w1,"
         "op_2_ncell_3d) :: op_2\n"
         "      INTEGER(KIND=i_def), intent(in) :: op_4_ncell_3d\n"
-        "      REAL(KIND=r_def), intent(out), dimension(ndf_w3,ndf_w3,"
+        "      REAL(KIND=r_def), intent(inout), dimension(ndf_w3,ndf_w3,"
         "op_4_ncell_3d) :: op_4\n"
         "      INTEGER(KIND=i_def), intent(in) :: op_6_ncell_3d\n"
         "      REAL(KIND=r_def), intent(inout), dimension(ndf_w2h,ndf_w2h,"
@@ -819,7 +842,7 @@ def test_qr_basis_stub():
         "      REAL(KIND=r_def), intent(inout), dimension(ndf_w2broken,"
         "ndf_w2broken,op_8_ncell_3d) :: op_8\n"
         "      INTEGER(KIND=i_def), intent(in) :: op_10_ncell_3d\n"
-        "      REAL(KIND=r_def), intent(out), dimension(ndf_w2trace,"
+        "      REAL(KIND=r_def), intent(inout), dimension(ndf_w2trace,"
         "ndf_w2trace,op_10_ncell_3d) :: op_10\n"
         "      INTEGER(KIND=i_def), intent(in) :: op_12_ncell_3d\n"
         "      REAL(KIND=r_def), intent(in), dimension(ndf_w2vtrace,"
@@ -863,7 +886,6 @@ def test_stub_basis_wrong_shape(monkeypatch):
     ''' Check that stub generation for a kernel requiring basis functions
     for quadrature raises the correct errors if the kernel meta-data is
     broken '''
-    from psyclone import dynamo0p3
     ast = fpapi.parse(BASIS, ignore_comments=False)
     metadata = DynKernMetadata(ast)
     kernel = DynKern()
@@ -874,7 +896,7 @@ def test_stub_basis_wrong_shape(monkeypatch):
         _ = kernel.gen_stub
     assert ("Unrecognised evaluator shape: 'gh_quadrature_wrong'"
             in str(excinfo.value))
-    monkeypatch.setattr(dynamo0p3, "VALID_QUADRATURE_SHAPES",
+    monkeypatch.setattr(LFRicConstants, "VALID_QUADRATURE_SHAPES",
                         value=["gh_quadrature_xyz", "gh_quadrature_xyoz",
                                "gh_quadrature_xoyoz", "gh_quadrature_wrong"])
     # Add a fake QR rule for the invalid shape (so that we can get to the bit
@@ -891,7 +913,6 @@ def test_stub_dbasis_wrong_shape(monkeypatch):
     ''' Check that stub generation for a kernel requiring differential basis
     functions for quadrature raises the correct errors if the kernel meta-data
     is broken '''
-    from psyclone import dynamo0p3
     # Change meta-data to specify differential basis functions
     diff_basis = BASIS.replace("gh_basis", "gh_diff_basis")
 
@@ -905,7 +926,7 @@ def test_stub_dbasis_wrong_shape(monkeypatch):
         _ = kernel.gen_stub
     assert ("Unrecognised evaluator shape: 'gh_quadrature_wrong'"
             in str(excinfo.value))
-    monkeypatch.setattr(dynamo0p3, "VALID_QUADRATURE_SHAPES",
+    monkeypatch.setattr(LFRicConstants, "VALID_QUADRATURE_SHAPES",
                         value=["gh_quadrature_xyz", "gh_quadrature_xyoz",
                                "gh_quadrature_xoyoz", "gh_quadrature_wrong"])
     # Add a fake QR rule for the invalid shape (so that we can get to the bit

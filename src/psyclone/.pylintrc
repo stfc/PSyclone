@@ -5,9 +5,13 @@ max-line-length=79
 
 # fparser dynamically generates *_List classes so pylint can't
 # find them.
-generated-members=Fortran2003.*_List
+generated-members=Fortran2003.*_List,psyir.Lfric*
 
-[MESSAGES CONTROL]
+[DESIGN]
+# Maximum number of parents for a class (see R0901)
+max-parents=9
 
-# These can be re-enabled when we drop support for python2
-disable=super-with-arguments,useless-object-inheritance
+# Make sure private functions (_my_private_function) are also
+# documented, but standard double-underscore functions do not
+# need to have a docstring.
+no-docstring-rgx=__.*__

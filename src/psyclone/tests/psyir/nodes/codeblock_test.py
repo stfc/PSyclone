@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2020, Science and Technology Facilities Council.
+# Copyright (c) 2019-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,15 +40,16 @@
 
 from __future__ import absolute_import
 import pytest
+from fparser.common.readfortran import FortranStringReader
 from psyclone.psyir.nodes import CodeBlock
+from psyclone.psyir.nodes.node import colored
 from psyclone.errors import GenerationError
 
 
 def test_codeblock_node_str():
     ''' Check the node_str method of the Code Block class.'''
-    from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
     cblock = CodeBlock([], "dummy")
-    coloredtext = colored("CodeBlock", SCHEDULE_COLOUR_MAP["CodeBlock"])
+    coloredtext = colored("CodeBlock", CodeBlock._colour)
     output = cblock.node_str()
     assert coloredtext+"[" in output
     assert "]" in output
@@ -89,7 +90,7 @@ def test_codeblock_structure(structure):
     assert cblock.structure == structure
 
 
-def test_assignment_children_validation():
+def test_codeblock_children_validation():
     '''Test that children added to CodeBlock are validated. CodeBlock does
     not accept any children.
 
@@ -99,3 +100,41 @@ def test_assignment_children_validation():
         cblock.addchild(CodeBlock([], "dummy2"))
     assert ("Item 'CodeBlock' can't be child 0 of 'CodeBlock'. CodeBlock is a"
             " LeafNode and doesn't accept children.") in str(excinfo.value)
+
+
+def test_codeblock_get_symbol_names(parser):
+    '''Test that the get_symbol_names methods returns the names of the symbols
+    used inside the CodeBlock.'''
+    reader = FortranStringReader('''
+    subroutine mytest
+        a = b + sqrt(c)
+    end subroutine mytest''')
+    prog = parser(reader)
+    block = CodeBlock(prog.children, CodeBlock.Structure.STATEMENT)
+    assert "a" in block.get_symbol_names()
+    assert "b" in block.get_symbol_names()
+    assert "c" in block.get_symbol_names()
+    assert "mytest" in block.get_symbol_names()
+    assert "subroutine" not in block.get_symbol_names()
+    assert "sqrt" not in block.get_symbol_names()
+
+
+def test_codeblock_equality(parser):
+    '''Test the __eq__ method of the Codeblock class.'''
+    reader = FortranStringReader('''
+    subroutine mytest
+        a = b + sqrt(c)
+    end subroutine mytest''')
+    prog = parser(reader)
+    block = CodeBlock(prog.children, CodeBlock.Structure.STATEMENT)
+    block2 = CodeBlock(prog.children, CodeBlock.Structure.STATEMENT)
+    block3 = CodeBlock(prog.children, CodeBlock.Structure.EXPRESSION)
+    assert block == block2
+    assert block != block3
+    reader = FortranStringReader('''
+    subroutine mytest
+        a = b + c
+    end subroutine mytest''')
+    prog = parser(reader)
+    block4 = CodeBlock(prog.children, CodeBlock.Structure.STATEMENT)
+    assert block != block4

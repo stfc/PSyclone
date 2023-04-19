@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2020, Science and Technology Facilities Council.
+# Copyright (c) 2019-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,28 +32,41 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author J. Henrichs, Bureau of Meteorology
+# Modified I. Kavcic, Met Office
 
+# ----------- Default "make" values, can be overwritten by the user -----------
+# Compiler and compiler flags
+F90 ?= gfortran
+F90FLAGS ?= -g
+# Path to the PSyclone wrapper libraries. It defaults to the relative path to
+# the top-level 'lib' directory. Overwrite for a custom location.
+PSYDATA_LIB_DIR ?= ./../..
+# -----------------------------------------------------------------------------
 
-F90?=gfortran
-FFLAGS?=
+PSYDATA_LIB_NAME = dummy
+PSYDATA_LIB := lib$(PSYDATA_LIB_NAME).a
 
 OBJS = dummy_lib.o psy_data_base.o
+
 PROCESS_ARGS = -prefix=profile_ -types= -dims=
-PROCESS=$$(../../get_python.sh) ../../process.py
+PROCESS = $$($(PSYDATA_LIB_DIR)/get_python.sh) $(PSYDATA_LIB_DIR)/process.py
 
-default: libdummy.a
+.PHONY: default clean allclean
 
-libdummy.a: $(OBJS)
-	ar rs libdummy.a $(OBJS)
+default: $(PSYDATA_LIB)
+
+$(PSYDATA_LIB): $(OBJS)
+	ar rs $(PSYDATA_LIB) $(OBJS)
 
 dummy_lib.o:	psy_data_base.o
 
-psy_data_base.f90: ../../psy_data_base.jinja
+psy_data_base.f90: $(PSYDATA_LIB_DIR)/psy_data_base.jinja
 	$(PROCESS) $(PROCESS_ARGS) $< > psy_data_base.f90
 
 %.o: %.f90
 	$(F90) $(F90FLAGS) -c $<
 
 clean:
-	rm -f libdummy.a $(OBJS) *.mod psy_data_base.f90
+	rm -f *.o *.mod $(PSYDATA_LIB) psy_data_base.*
 
+allclean: clean

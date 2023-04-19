@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council
+# Copyright (c) 2020-2021, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
-# Modified: R. W. Ford and S. Siso, STFC Daresbury Lab
+# Modified: R. W. Ford, S. Siso and N. Nobre, STFC Daresbury Lab
 
 ''' Module containing the definition of the Range node. '''
 
@@ -72,15 +72,15 @@ class Range(Node):
       >>> # Return the lower bound of the first dimension of array 'a'
       >>> lbound = BinaryOperation.create(
               BinaryOperation.Operator.LBOUND,
-              Reference(symbol), one)
+              Reference(symbol), one.copy())
       >>> # Return the upper bound of the first dimension of array 'a'
       >>> ubound = BinaryOperation.create(
               BinaryOperation.Operator.UBOUND,
-              Reference(symbol), one)
+              Reference(symbol), one.copy())
       >>> # Step defaults to 1 so no need to include it when creating range
       >>> my_range = Range.create(lbound, ubound)
       >>> # Create an access to all elements in the 1st dimension of array 'a'
-      >>> array_access = Array.create(symbol, [my_range])
+      >>> array_access = ArrayReference.create(symbol, [my_range])
 
     In Fortran the above access ``array_access`` can be represented by
     ``a(:)``. The Fortran front-ends and back-ends are aware of array
@@ -91,7 +91,7 @@ class Range(Node):
     # Textual description of the node.
     _children_valid_format = "DataNode, DataNode, DataNode"
     _text_name = "Range"
-    _colour_key = "Range"
+    _colour = "white"
 
     @staticmethod
     def _validate_child(position, child):
@@ -107,35 +107,32 @@ class Range(Node):
         return position < 3 and isinstance(child, DataNode)
 
     @staticmethod
-    def create(start, stop, step=None, parent=None):
+    def create(start, stop, step=None):
         '''
         Create an internally-consistent Range object. If no step
         is provided then it defaults to an integer Literal with value 1.
 
         :param start: the PSyIR for the start value.
-        :type start: :py:class:`psyclone.psyGen.Node`
+        :type start: :py:class:`psyclone.psyir.nodes.Node`
         :param stop: the PSyIR for the stop value.
-        :type stop: :py:class:`psyclone.psyGen.Node`
+        :type stop: :py:class:`psyclone.psyir.nodes.Node`
         :param step: the PSyIR for the increment/step or None.
-        :type step: :py:class:`psyclone.psyGen.Node` or NoneType
+        :type step: :py:class:`psyclone.psyir.nodes.Node` or NoneType
         :param parent: the parent node of this Range in the PSyIR.
-        :type parent: :py:class:`psyclone.psyGen.Node` or NoneType
+        :type parent: :py:class:`psyclone.psyir.nodes.Node` or NoneType
 
         :returns: a fully-populated Range object.
         :rtype: :py:class:`psyclone.psyir.nodes.ranges.Range`
 
         '''
-        erange = Range(parent=parent)
+        erange = Range()
         erange.start = start
-        start.parent = erange
         erange.stop = stop
-        stop.parent = erange
         if step:
             erange.step = step
-            step.parent = erange
         else:
             # No step supplied so default to a value of 1
-            erange.step = Literal("1", INTEGER_TYPE, parent=erange)
+            erange.step = Literal("1", INTEGER_TYPE)
         return erange
 
     @staticmethod
@@ -154,14 +151,13 @@ class Range(Node):
         '''
         if not isinstance(value, Node):
             raise TypeError(
-                "The {0} value of a Range must be a sub-class of "
-                "Node but got: {1}".format(name, type(value).__name__))
+                f"The {name} value of a Range must be a sub-class of "
+                f"Node but got: {type(value).__name__}")
         if (isinstance(value, Literal) and
                 value.datatype.intrinsic != ScalarType.Intrinsic.INTEGER):
             raise TypeError(
-                "If the {0} value of a Range is a Literal then it "
-                "must be of type INTEGER but got {1}".format(
-                    name, value.datatype))
+                f"If the {name} value of a Range is a Literal then it "
+                f"must be of type INTEGER but got {value.datatype}")
 
     def _check_completeness(self):
         ''' Perform internal consistency checks for this Range.
@@ -174,8 +170,8 @@ class Range(Node):
 
         if len(self._children) != 3:
             raise InternalError(
-                "Malformed Range: should have three children but "
-                "found {0}: {1}".format(len(self._children), self._children))
+                f"Malformed Range: should have three children but "
+                f"found {len(self._children)}: {self._children}")
 
     @property
     def start(self):
@@ -184,7 +180,7 @@ class Range(Node):
         for the starting value of the range.
 
         :returns: the starting value of this range.
-        :rtype: :py:class:`psyclone.psyGen.Node`
+        :rtype: :py:class:`psyclone.psyir.nodes.Node`
         '''
         self._check_completeness()
         return self._children[0]
@@ -195,7 +191,7 @@ class Range(Node):
         Sets the start value/expression of this explicit range.
 
         :param value: the PSyIR node representing the starting value.
-        :type value: :py:class:`psyclone.psyGen.Node`
+        :type value: :py:class:`psyclone.psyir.nodes.Node`
 
         '''
         self._check_valid_input(value, "start")
@@ -211,27 +207,27 @@ class Range(Node):
         value/expression.
 
         :returns: the end value of this range.
-        :rtype: :py:class:`psyclone.psyGen.Node`
+        :rtype: :py:class:`psyclone.psyir.nodes.Node`
         '''
         self._check_completeness()
-        return self._children[1]
+        return self.children[1]
 
     @stop.setter
     def stop(self, value):
         ''' Set the stop value/expression of this Range.
 
         :param value: the PSyIR node representing the stop value.
-        :type value: :py:class:`psyclone.psyGen.Node`
+        :type value: :py:class:`psyclone.psyir.nodes.Node`
         '''
         self._check_valid_input(value, "stop")
         if not self.children:
             raise IndexError(
-                "The Stop value '{0}' can not be inserted into range '{1}'"
-                " before the Start value is provided.".format(value, self))
+                f"The Stop value '{value}' can not be inserted into range "
+                f"'{self}' before the Start value is provided.")
         if len(self.children) == 1:
             self.children.append(value)
         else:
-            self._children[1] = value
+            self.children[1] = value
 
     @property
     def step(self):
@@ -240,24 +236,23 @@ class Range(Node):
         (increment) value/expression.
 
         :returns: the increment used in this range.
-        :rtype: :py:class:`psyclone.psyGen.Node`
+        :rtype: :py:class:`psyclone.psyir.nodes.Node`
         '''
         self._check_completeness()
-        return self._children[2]
+        return self.children[2]
 
     @step.setter
     def step(self, value):
         ''' Set the step value/expression of this Range.
 
         :param value: the PSyIR node representing the step value.
-        :type value: :py:class:`psyclone.psyGen.Node`
+        :type value: :py:class:`psyclone.psyir.nodes.Node`
         '''
         self._check_valid_input(value, "step")
         if len(self.children) < 2:
             raise IndexError(
-                "The Step value '{0}' can not be inserted into range '{1}'"
-                " before the Start and Stop values are provided."
-                "".format(value, self))
+                f"The Step value '{value}' can not be inserted into range "
+                f"'{self}' before the Start and Stop values are provided.")
         if len(self.children) == 2:
             self.children.append(value)
         else:

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -45,41 +45,8 @@ class KernelSchedule(Routine):
     '''
     A KernelSchedule is the parent node of the PSyIR for Kernel source code.
 
-    :param str name: kernel subroutine name.
-    :param parent: parent of the KernelSchedule, defaults to None.
-    :type parent: :py:class:`psyclone.psyir.nodes.Node`
-
     '''
     _text_name = "KernelSchedule"
-
-    def __init__(self, name, parent=None):
-        # A kernel does not return anything and is not a main program
-        super(KernelSchedule, self).__init__(name, is_program=False,
-                                             return_type=None,
-                                             parent=parent)
-
-    @classmethod
-    def create(cls, name, symbol_table, children):
-        '''Create a KernelSchedule instance given a name, a symbol table and a
-        list of child nodes. This is a classmethod so that no instance
-        of KernelSchedule is required in order to call it and the classmethod
-        in the base class can be called straightforwardly.
-
-        :param str name: the name of the KernelSchedule.
-        :param symbol_table: the symbol table associated with this \
-            KernelSchedule.
-        :type symbol_table: :py:class:`psyclone.psyGen.SymbolTable`
-        :param children: a list of PSyIR nodes contained in the \
-            KernelSchedule.
-        :type children: list of :py:class:`psyclone.psyir.nodes.Node`
-
-        :returns: a KernelSchedule instance.
-        :rtype: :py:class:`psyclone.psyGen.KernelInstance`
-
-        '''
-        return super(cls, KernelSchedule).create(name, symbol_table, children,
-                                                 is_program=False,
-                                                 return_type=None)
 
 
 # For automatic documentation generation

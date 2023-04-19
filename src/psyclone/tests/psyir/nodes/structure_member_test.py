@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,8 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
+# Modified by: R. W. Ford, STFC Daresbury Lab
+# Modified by: A. B. G. Chalk, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' Performs py.test tests on the StructureMember PSyIR node. '''
@@ -41,7 +43,7 @@ import pytest
 from psyclone.psyir import nodes
 from psyclone.psyir import symbols
 from psyclone.errors import GenerationError, InternalError
-from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
+from psyclone.psyir.nodes.node import colored
 
 
 def create_structure_symbol(table):
@@ -59,15 +61,15 @@ def create_structure_symbol(table):
     region_type = symbols.StructureType.create([
         ("nx", symbols.INTEGER_TYPE, symbols.Symbol.Visibility.PUBLIC),
         ("ny", symbols.INTEGER_TYPE, symbols.Symbol.Visibility.PUBLIC),
-        ("domain", symbols.TypeSymbol("dom_type", symbols.DeferredType()),
+        ("domain", symbols.DataTypeSymbol("dom_type", symbols.DeferredType()),
          symbols.Symbol.Visibility.PUBLIC)])
-    region_type_sym = symbols.TypeSymbol("grid_type", region_type)
+    region_type_sym = symbols.DataTypeSymbol("grid_type", region_type)
     region_array_type = symbols.ArrayType(region_type_sym, [2, 2])
     grid_type = symbols.StructureType.create([
         ("dx", symbols.INTEGER_TYPE, symbols.Symbol.Visibility.PUBLIC),
         ("area", region_type_sym, symbols.Symbol.Visibility.PUBLIC),
         ("levels", region_array_type, symbols.Symbol.Visibility.PUBLIC)])
-    grid_type_sym = symbols.TypeSymbol("grid_type", grid_type)
+    grid_type_sym = symbols.DataTypeSymbol("grid_type", grid_type)
     grid_var = symbols.DataSymbol("grid", grid_type_sym)
     table.add(grid_type_sym)
     table.add(grid_var)
@@ -92,8 +94,7 @@ def test_sm_node_str():
     # The first child of the StructureReference is itself a reference to a
     # structure and is therefore a StructureMember
     assert isinstance(grid_ref.children[0], nodes.StructureMember)
-    coloredtext = colored("StructureMember",
-                          SCHEDULE_COLOUR_MAP["Member"])
+    coloredtext = colored("StructureMember", nodes.StructureMember._colour)
     assert coloredtext+"[name:'area']" in grid_ref.children[0].node_str()
 
 

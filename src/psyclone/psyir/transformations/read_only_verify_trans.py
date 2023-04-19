@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
+# Modified: N. Nobre, STFC Daresbury Lab
 
 
 '''This module contains the base class for verifying read-only access in
@@ -39,10 +40,10 @@
 '''
 
 from __future__ import absolute_import
-from psyclone.psyGen import (BuiltIn, Directive, Kern, OMPParallelDirective,
-                             ACCParallelDirective)
-from psyclone.psyir.nodes import (Literal, Loop, ReadOnlyVerifyNode,
-                                  Reference, Schedule)
+from psyclone.psyGen import BuiltIn, Kern
+from psyclone.psyir.nodes import (Literal, Loop, ReadOnlyVerifyNode, Directive,
+                                  Reference, Schedule, OMPParallelDirective,
+                                  ACCParallelDirective)
 from psyclone.psyir.transformations.psy_data_trans import PSyDataTrans
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
@@ -70,16 +71,33 @@ class ReadOnlyVerifyTrans(PSyDataTrans):
     valid_node_types = (Loop, Kern, BuiltIn, Directive, Literal, Reference)
 
     def __init__(self, node_class=ReadOnlyVerifyNode):
-        super(ReadOnlyVerifyTrans, self).__init__(node_class=node_class)
+        super().__init__(node_class=node_class)
 
+    # -------------------------------------------------------------------------
+    def get_default_options(self):
+        '''Returns a new dictionary with additional options, specific to the
+        transformation, that will be added to the user option. Any values
+        specified by the user will take precedence. For the read-only verify
+        transformation, by default we want VariablesAccessInformation to
+        report array arguments to lbound, ubound and size as read accesses,
+        since these arguments should also not be overwritten.
+
+        :returns: a dictionary with additional options.
+        :rtype: Dict[str, Any]
+        '''
+
+        return {"COLLECT-ARRAY-SHAPE-READS": True}
+
+    # -------------------------------------------------------------------------
     def validate(self, node_list, options=None):
+        # pylint: disable=arguments-renamed
         '''Performs validation checks specific to read-only-based
         transformations.
 
         :param node_list: the list of Node(s) we are checking.
         :type node_list: list of :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.
-        :type options: dict of string:values or NoneType
+        :type options: Optional[Dict[str, Any]]
 
         :raises TransformationError: if transformation is applied to a \
                                      Kernel or a BuiltIn call without its \
@@ -104,20 +122,19 @@ class ReadOnlyVerifyTrans(PSyDataTrans):
             if isinstance(node, Loop) and isinstance(node.parent, Schedule) \
                and isinstance(node.parent.parent, Directive):
                 raise TransformationError(
-                    "Error in {0}: Application to a Loop without its parent "
-                    "Directive is not allowed.".format(str(self.name)))
+                    f"Error in {self.name}: Application to a Loop without its "
+                    f"parent Directive is not allowed.")
 
             # Check that the ReadOnlyVerifyNode is not inserted within a
             # thread parallel region when optimisations are applied.
             if node.ancestor((OMPParallelDirective, ACCParallelDirective)):
                 raise TransformationError(
-                    "Error in {0}: Application to Nodes enclosed within "
-                    "a thread-parallel region is not allowed."
-                    .format(str(self.name)))
+                    f"Error in {self.name}: Application to Nodes enclosed "
+                    f"within a thread-parallel region is not allowed.")
 
         # Performs validation checks specific to PSyData-based
         # transformations.
-        super(ReadOnlyVerifyTrans, self).validate(node_list, options)
+        super().validate(node_list, options)
 
 
 # ============================================================================

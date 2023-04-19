@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2019, Science and Technology Facilities Council
+# Copyright (c) 2018-2022, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,8 +31,10 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: R. W. Ford, STFC Daresbury Laboratory
-# Modified: I. Kavcic, Met Office
+# Author: R. W. Ford, STFC Daresbury Lab
+# Modified by I. Kavcic, Met Office
+# Modified by J. Henrichs, Bureau of Meteorology
+# Modified by S. Siso and N. Nobre, STFC Daresbury Lab
 
 '''File containing a PSyclone transformation script for the Dynamo0.3
 API to apply loop fusion generically. Fusion is attempted for all
@@ -42,7 +44,8 @@ applied via the -s option in the psyclone script.
 
 '''
 from __future__ import absolute_import, print_function
-from psyclone.transformations import DynamoLoopFuseTrans, TransformationError
+from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
+from psyclone.transformations import TransformationError
 
 
 def trans(psy):
@@ -51,8 +54,7 @@ def trans(psy):
 
     '''
     total_fused = 0
-    lf_trans = DynamoLoopFuseTrans()
-    lf_trans.same_space = True
+    lf_trans = LFRicLoopFuseTrans()
 
     # Loop over all of the Invokes in the PSy object
     for invoke in psy.invokes.invoke_list:
@@ -66,7 +68,7 @@ def trans(psy):
             node = schedule.children[idx]
             prev_node = schedule.children[idx-1]
             try:
-                schedule, _ = lf_trans.apply(prev_node, node)
+                lf_trans.apply(prev_node, node, {"same_space": True})
                 local_fused += 1
             except TransformationError:
                 pass
@@ -74,8 +76,7 @@ def trans(psy):
         total_fused += local_fused
         if local_fused > 0:
             print("After fusing ...")
-            schedule.view()
-            invoke.schedule = schedule
+            print(schedule.view())
 
-    print("Fused {0} loops".format(total_fused))
+    print(f"Fused {total_fused} loops")
     return psy

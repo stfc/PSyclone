@@ -42,6 +42,10 @@ that make up PSyclone.
 Module: f2pygen
 ===============
 
+.. warning::
+   The f2pygen functionality has been superseded by the development of
+   the PSyIR and will be removed entirely in a future release.
+
 `f2pygen` provides functionality for generating Fortran code from
 scratch and supports the addition of a use statement to an existing
 parse tree.
@@ -53,8 +57,8 @@ Three different classes are provided to support the creation of
 variable declarations (for intrinsic, character and derived-type
 variables). An example of their use might be:
 
->>> from psyclone.f2pygen import ModuleGen, SubroutineGen, DeclGen, \
-CharDeclGen, TypeDeclGen
+>>> from psyclone.f2pygen import (ModuleGen, SubroutineGen, DeclGen,
+... CharDeclGen, TypeDeclGen)
 >>> module = ModuleGen(name="testmodule")
 >>> sub = SubroutineGen(module, name="testsubroutine")
 >>> module.add(sub)
@@ -96,17 +100,6 @@ Adding code
 .. autofunction:: psyclone.f2pygen.adduse
 
 
-The PSyclone code where the `adduse` function was used has recently
-been migrated from using `fparser1` to using `fparser2`. In
-recognition of this change a new version of `adduse` has been
-developed which adds use statements to an existing `fparser2` parse
-tree. For the timebeing this new version is located in the same file
-it is used - `alg_gen.py` - but will be migrated to `f2pygen` (or
-equivalent) in the future:
-
-.. autofunction:: psyclone.alg_gen.adduse
-
-
 .. _dev_configuration:
 
 Module: configuration
@@ -137,7 +130,7 @@ is specified in either a config file or the command line
 consistency checks on the values it obtains from the configuration file.
 
 Since the PSyclone API to use can be read from the configuration
-file, it is not possible to have API-specifc sub-classes of ``Config``
+file, it is not possible to have API-specific sub-classes of ``Config``
 as we don't know which API is in use before we read the file. However, the
 configuration file can contain API-specific settings. These are placed in
 separate sections, named for the API to which they apply, e.g.::
@@ -150,7 +143,7 @@ configuration file, the ``Config`` constructor then creates a
 dictionary using the list of supported APIs to provide the keys. The
 configuration file is then checked for API-specific sections (again
 using the API names from the default section) and, if any are found,
-an API-specifc sub-class is created using the parsed entries from the
+an API-specific sub-class is created using the parsed entries from the
 corresponding section. The resulting object is stored in the
 dictionary under the appropriate key. The API-specific values may then
 be accessed as, e.g.::
@@ -161,6 +154,67 @@ The API-specific sub-classes exist to provide validation/type-checking and
 encapsulation for API-specific options. They do not sub-class ``Config``
 directly but store a reference back to the ``Config`` object to which they
 belong.
+
+Constants Objects
+-----------------
+Each API provides a specific object that stores required constants.
+Most of these constants are hard-coded in the object, but
+some are taken from a section of the configuration file.
+The constants are provided as class variables, but an instance of
+it needs to be created (at least once) in order to make sure all
+class variables are initialised. It is therefore recommended to
+always use an instance of the corresponding constant class to access
+these constants. The constant objects make sure that this initialisation
+only happens the very first time - creating an instance is therefore
+very cheap.
+
+There three constant objects can be imported as follows:
+
+- ``from psyclone.domain.gocean import GOceanConstants``
+- ``from psyclone.domain.lfric import LFRicConstants``
+- ``from psyclone.domain.nemo import NemoConstants``
+
+These objects can be used in two different ways:
+
+  #) If the API is known, e.g. because the constant is used in an
+     API-specific file, an instance can simply be
+     created and used, e.g.:
+
+       .. code-block:: python
+
+         from psyclone.domain.lfric import LFRicConstants
+
+         const = LFRicConstants()
+
+         if var is in const.VALID_LOOP_BOUNDS_NAMES:
+             ...
+
+     This usage pattern can be seen in many API-specific files.
+
+  #) In some cases a value of an API-specific constant is required
+     in a generic function. In this case the API-specific constant
+     object can be accessed using the config file as follows:
+
+       .. code-block:: python
+
+         from psyclone.configuration import Config
+
+         const = Config.get().api_conf().get_constants()
+
+         if some_variable is in const.VALID_INTRINSIC_TYPES:
+             ...
+
+     This pattern is used in some functions
+     that can be called with different APIs. The following
+     constants are used this way:
+
+     - ``VALID_ARG_TYPE_NAMES``
+     - ``VALID_INTRINSIC_TYPES``
+     - ``VALID_SCALAR_NAMES``
+     - ``VALID_LOOP_TYPES``
+
+     These are the only variables that are defined across all
+     constant objects.
 
 Module: transformations
 =======================
@@ -187,14 +241,6 @@ multiple kernel calls within an OpenMP region) must sub-class the
     :members:
     :private-members:
     :noindex:
-
-Finally, those transformations that act on a Kernel must sub-class the
-``KernelTrans`` class:
-
-.. autoclass:: psyclone.transformations.KernelTrans
-   :members:
-   :private-members:
-   :noindex:
 
 In all cases, the `apply` method of any sub-class *must* ensure that
 the `validate` method of the parent class is called.

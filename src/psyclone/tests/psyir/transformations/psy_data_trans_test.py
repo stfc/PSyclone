@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council
+# Copyright (c) 2020-2022, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,9 +31,8 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author J. Henrichs, Bureau of Meteorology
-# Modifications: R. W. Ford, STFC Daresbury Lab
-#                A. R. Porter, STFC Daresbury Lab
+# Author: J. Henrichs, Bureau of Meteorology
+# Modified: R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 
 ''' Module containing tests for generating PSyData hooks'''
 
@@ -41,9 +40,12 @@ from __future__ import absolute_import
 
 import pytest
 
-from psyclone.psyir.nodes import colored, PSyDataNode, SCHEDULE_COLOUR_MAP
-from psyclone.psyir.transformations import PSyDataTrans, TransformationError
-from psyclone.psyGen import Loop
+from psyclone.configuration import Config
+from psyclone.errors import InternalError
+from psyclone.psyir.nodes import PSyDataNode
+from psyclone.psyir.transformations import (ExtractTrans, PSyDataTrans,
+                                            ReadOnlyVerifyTrans,
+                                            TransformationError)
 from psyclone.tests.utilities import get_invoke
 
 
@@ -57,14 +59,12 @@ def test_psy_data_trans_empty_list():
 
 
 # -----------------------------------------------------------------------------
-def test_psy_data_trans_basic(capsys):
+def test_psy_data_trans_basic():
     '''Check basic functionality: node names, schedule view.
     '''
     _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
                            "gocean1.0", idx=0, dist_mem=False)
     schedule = invoke.schedule
-    # This test expects constant loop bounds
-    schedule._const_loop_bounds = True
 
     data_trans = PSyDataTrans()
     assert "Create a sub-tree of the PSyIR that has a node of type " \
@@ -75,117 +75,63 @@ def test_psy_data_trans_basic(capsys):
 
     assert isinstance(invoke.schedule[0], PSyDataNode)
 
-    schedule.view()
-    out, _ = capsys.readouterr()
-
-    gsched = colored("GOInvokeSchedule", SCHEDULE_COLOUR_MAP["Schedule"])
-    sched = colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"])
-    loop = Loop().coloured_name(True)
-    data = invoke.schedule[0].coloured_name(True)
-
-    # Do one test based on schedule view, to make sure colouring
-    # and indentation is correct
-    expected = (
-        gsched + "[invoke='invoke_0', Constant loop bounds=True]\n"
-        "    0: " + data + "[]\n"
-        "        " + sched + "[]\n"
-        "            0: " + loop + "[type='outer', field_space='go_cv', "
-        "it_space='go_internal_pts']\n")
-    assert expected in out
-
     # Insert a DataTrans call between outer and inner loop.
     # This tests that we find the subroutine node even
     # if it is not the immediate parent.
-    new_sched, _ = data_trans.apply(invoke.schedule[0].psy_data_body[0]
-                                    .loop_body[0])
+    node = invoke.schedule[0].psy_data_body[0].loop_body[0]
+    data_trans.apply(node)
 
-    new_sched_str = str(new_sched)
-    correct = ("""GOInvokeSchedule[invoke='invoke_0', \
-Constant loop bounds=True]:
-PSyDataStart[var=psy_data]
-GOLoop[id:'', variable:'j', loop_type:'outer']
-Literal[value:'2', Scalar<INTEGER, UNDEFINED>]
-Literal[value:'jstop-1', Scalar<INTEGER, UNDEFINED>]
-Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
-Schedule:
-PSyDataStart[var=psy_data_1]
-GOLoop[id:'', variable:'i', loop_type:'inner']
-Literal[value:'2', Scalar<INTEGER, UNDEFINED>]
-Literal[value:'istop', Scalar<INTEGER, UNDEFINED>]
-Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
-Schedule:
-kern call: compute_cv_code
-End Schedule
-End GOLoop
-PSyDataEnd[var=psy_data_1]
-End Schedule
-End GOLoop
-GOLoop[id:'', variable:'j', loop_type:'outer']
-Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
-Literal[value:'jstop+1', Scalar<INTEGER, UNDEFINED>]
-Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
-Schedule:
-GOLoop[id:'', variable:'i', loop_type:'inner']
-Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
-Literal[value:'istop+1', Scalar<INTEGER, UNDEFINED>]
-Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
-Schedule:
-kern call: bc_ssh_code
-End Schedule
-End GOLoop
-End Schedule
-End GOLoop
-PSyDataEnd[var=psy_data]
-End Schedule""")
-
-    assert correct in new_sched_str
+    assert isinstance(invoke.schedule[0].psy_data_body[0].loop_body[0],
+                      PSyDataNode)
+    assert invoke.schedule[0].psy_data_body[0].loop_body[0].children[0].\
+        children[0] is node
 
 
 # -----------------------------------------------------------------------------
-def test_class_definitions():
+def test_class_definitions(fortran_writer):
     '''Tests if the class-prefix can be set and behaves as expected.
     '''
 
-    psy, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
-                             "gocean1.0", idx=0)
+    _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
+                           "gocean1.0", idx=0)
     schedule = invoke.schedule
 
     data_trans = PSyDataTrans()
     data_trans.apply(schedule)
-    code = str(psy.gen)
+    code = fortran_writer(schedule.root)
 
     # By default, no prefix should be used:
-    assert "USE psy_data_mod, ONLY: PSyDataType" in code
-    assert "TYPE(PSyDataType), target, save :: psy_data" in code
+    assert "use psy_data_mod, only : PSyDataType" in code
+    assert "type(PSyDataType), save, target :: psy_data" in code
     assert "CALL psy_data" in code
 
     # This puts the new PSyDataNode with prefix "extract" around the
     # previous PSyDataNode, but the prefix was not used previously.
     data_trans.apply(schedule, {"prefix": "extract"})
-    code = str(psy.gen)
-    assert "USE extract_psy_data_mod, ONLY: extract_PSyDataType" in code
-    assert "TYPE(extract_PSyDataType), target, save :: extract_psy_data" \
-        in code
+    code = fortran_writer(schedule.root)
+    assert "use extract_psy_data_mod, only : extract_PSyDataType" in code
+    assert ("type(extract_PSyDataType), save, target :: "
+            "extract_psy_data" in code)
     assert "CALL extract_psy_data" in code
     # The old call must still be there (e.g. not somehow be changed
     # by setting the prefix)
-    assert "USE psy_data_mod, ONLY: PSyDataType" in code
-    assert "TYPE(PSyDataType), target, save :: psy_data" in code
+    assert "use psy_data_mod, only : PSyDataType" in code
+    assert "type(PSyDataType), save, target :: psy_data" in code
     assert "CALL psy_data" in code
 
     # Now add a third class: "profile", and make sure all previous
     # and new declarations and calls are there:
     data_trans.apply(schedule, {"prefix": "profile"})
-    code = str(psy.gen)
-    assert "USE psy_data_mod, ONLY: PSyDataType" in code
-    assert "USE extract_psy_data_mod, ONLY: extract_PSyDataType" in code
-    assert "USE profile_psy_data_mod, ONLY: profile_PSyDataType" in code
+    code = fortran_writer(schedule.root)
+    assert "use psy_data_mod, only : PSyDataType" in code
+    assert "use extract_psy_data_mod, only : extract_PSyDataType" in code
+    assert "use profile_psy_data_mod, only : profile_PSyDataType" in code
 
-    assert "TYPE(PSyDataType), target, save :: psy_data" in code
-    assert "TYPE(extract_PSyDataType), target, save :: extract_psy_data" \
-        in code
-    assert "TYPE(profile_PSyDataType), target, save :: profile_psy_data" \
-        in code
+    assert "type(PSyDataType), save, target :: psy_data" in code
+    assert ("type(extract_PSyDataType), save, target :: "
+            "extract_psy_data" in code)
+    assert ("type(profile_PSyDataType), save, target :: "
+            "profile_psy_data" in code)
 
     assert "CALL psy_data" in code
     assert "CALL extract_psy_data" in code
@@ -193,6 +139,84 @@ def test_class_definitions():
 
     with pytest.raises(TransformationError) as err:
         data_trans.apply(schedule, {"prefix": "invalid-prefix"})
-    assert "Error in 'prefix' parameter: found 'invalid-prefix', expected " \
+    assert "Error in 'prefix' parameter: found 'invalid-prefix', while " \
         "one of " in str(err.value)
     assert "as defined in /" in str(err.value)
+
+
+# -----------------------------------------------------------------------------
+def test_psy_data_get_unique_region_names():
+    '''Tests the get_unique_region_names function.'''
+    data_trans = PSyDataTrans()
+    region_name = data_trans.\
+        get_unique_region_name([], {"region_name": ("a", "b")})
+    assert region_name == ("a", "b")
+
+    with pytest.raises(InternalError) as err:
+        region_name = data_trans.\
+            get_unique_region_name([], {"region_name": 1})
+    assert "The name must be a tuple containing two non-empty strings." \
+        in str(err.value)
+
+    with pytest.raises(InternalError) as err:
+        region_name = data_trans.\
+            get_unique_region_name([], {"region_name": ("a", "")})
+    assert "The name must be a tuple containing two non-empty strings." \
+        in str(err.value)
+
+    _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
+                           "gocean1.0", idx=0)
+    region_name = data_trans.get_unique_region_name(invoke.schedule, {})
+    assert region_name == ('psy_single_invoke_different_iterates_over',
+                           'invoke_0:r0')
+
+    region_name = data_trans.\
+        get_unique_region_name([invoke.schedule[0]], {})
+    assert region_name == ('psy_single_invoke_different_iterates_over',
+                           'invoke_0:compute_cv_code:r0')
+
+
+# -----------------------------------------------------------------------------
+@pytest.mark.parametrize("transformation",
+                         [ExtractTrans(), ReadOnlyVerifyTrans()])
+def test_trans_with_shape_function(monkeypatch, fortran_reader,
+                                   fortran_writer, transformation):
+    '''Tests that extraction of a region that uses an array-shape Fortran
+    intrinsic like lbound, ubound, or size do include these references.
+
+    '''
+    source = '''program test
+                integer :: ji, jk
+                integer, parameter :: jpi=10, jpk=10
+                real, dimension(jpi,jpi,jpk) :: umask, dummy
+                do jk = 1, ubound(dummy,1)
+                  umask(1,1,jk) = -1.0d0
+                end do
+                end program test'''
+
+    psyir = fortran_reader.psyir_from_source(source)
+    # Child 0 is the program
+    loop = psyir.children[0].children[0]
+
+    # We need to disable distributed_memory for the extraction to work:
+    config = Config.get()
+    monkeypatch.setattr(config, "distributed_memory", False)
+
+    psyir_copy = psyir.copy()
+    transformation.apply(loop)
+    out = fortran_writer(psyir)
+    assert 'PreDeclareVariable("dummy", dummy)' in out
+    assert 'ProvideVariable("dummy", dummy)' in out
+
+    # Now check that the user can overwrite 'COLLECT-ARRAY-SHAPE-READS'
+    # =================================================================
+    # Since the original tree was modified, we now use the copy:
+
+    loop = psyir_copy.children[0].children[0]
+    # Disable array-shape-reads, which means 'dummy' should then not
+    # be in the list of input parameters anymore, and therefore
+    transformation.apply(loop, options={"COLLECT-ARRAY-SHAPE-READS": False})
+    out = fortran_writer(psyir_copy)
+    # No reference to 'dummy' should be in the created code:
+    assert 'PreDeclareVariable("dummy", dummy)' not in out
+    assert 'ProvideVariable("dummy", dummy)' not in out

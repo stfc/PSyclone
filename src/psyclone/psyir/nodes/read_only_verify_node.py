@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council
+# Copyright (c) 2020-2023, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,8 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
+# Modified by: R. W. Ford, STFC Daresbury Lab
+#              S. Siso, STFC Daresbury Lab
 
 '''
 This module provides support for verification that read-only variables are
@@ -40,9 +42,10 @@ be verified may be a single kernel, multiple occurrences of a
 kernel in an invoke, nodes in an invoke or the entire invoke.
 
 There is currently only one class in this module: ReadOnlyVerifyNode.
+
 '''
 
-from __future__ import absolute_import, print_function
+from psyclone.f2pygen import CommentGen
 from psyclone.psyir.nodes.psy_data_node import PSyDataNode
 
 
@@ -51,33 +54,13 @@ class ReadOnlyVerifyNode(PSyDataNode):
     This class can be inserted into a Schedule to mark Nodes for
     read-only-verification. By applying the ReadOnlyVerifyTrans
     transformation, the Nodes marked for extraction become
-    children of (the Schedule of) an ReadOnlyVerifyNode.
-
-    :param ast: reference into the fparser2 parse tree corresponding to \
-                this node.
-    :type ast: sub-class of :py:class:`fparser.two.Fortran2003.Base`
-    :param children: the PSyIR nodes that are children of this node.
-    :type children: list of :py:class:`psyclone.psyir.nodes.Node`
-    :param parent: the parent of this node in the PSyIR tree.
-    :type parent: :py:class:`psyclone.psyir.nodes.Node`
-    :param options: a dictionary with options provided via transformations.
-    :type options: dict of string:values or NoneType
+    children of (the Schedule of) a ReadOnlyVerifyNode.
 
     '''
-    def __init__(self, ast=None, children=None, parent=None, options=None):
-        if options:
-            my_options = options.copy()
-        else:
-            my_options = {}
-
-        # If there is no value passed to the constructor, default
-        # to the "read_only_verify" prefix.
-        my_options["prefix"] = my_options.get("prefix", "read_only_verify")
-        super(ReadOnlyVerifyNode, self).__init__(ast=ast, children=children,
-                                                 parent=parent,
-                                                 options=my_options)
-        self._text_name = "ReadOnlyVerify"
-        self._colour_key = "ReadOnlyVerify"
+    _text_name = "ReadOnlyVerify"
+    _colour = "green"
+    # The default prefix to add to the PSyData module name and PSyDataType
+    _default_prefix = "read_only_verify"
 
     @property
     def read_only_verify_body(self):
@@ -86,25 +69,7 @@ class ReadOnlyVerifyNode(PSyDataNode):
         :rtype: :py:class:`psyclone.psyir.nodes.Schedule`
 
         '''
-        return super(ReadOnlyVerifyNode, self).psy_data_body
-
-    @property
-    def dag_name(self):
-        '''
-        Returns the name to use in a DAG for this Node
-
-        :returns: the dag name of ExtractNode.
-        :rtype: str
-        '''
-        return "read_only_verify_" + str(self.position)
-
-    def update_vars_and_postname(self):
-        '''
-        This function is called after the variables to be verified
-        have been stored in self._input_list and self._output_list.
-        This default function does not do anything for read-only
-        verification.
-        '''
+        return super().psy_data_body
 
     def gen_code(self, parent):
         # pylint: disable=arguments-differ
@@ -116,32 +81,47 @@ class ReadOnlyVerifyNode(PSyDataNode):
 
         :param parent: the parent of this Node in the PSyIR.
         :type parent: :py:class:`psyclone.psyir.nodes.Node`.
+
         '''
+        # Avoid circular dependency
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.tools.dependency_tools import DependencyTools
+        # Determine the variables to write:
+        dep = DependencyTools()
+        input_list = dep.get_input_parameters(self, options=self.options)
 
-        # Determine the variables to validate:
-        from psyclone.core.access_info import VariablesAccessInfo
-        variables_info = VariablesAccessInfo(self)
-        read_only = []
-        for var_name in variables_info:
-            if variables_info[var_name].is_read_only():
-                read_only.append(var_name)
+        options = {'pre_var_list': input_list,
+                   'post_var_list': input_list}
 
-        # Add a callback here so that derived classes can adjust the list
-        # of variables to provide, or the suffix used (which might
-        # depend on the variable name which could create clashes).
-        self.update_vars_and_postname()
-
-        options = {'pre_var_list': read_only,
-                   'post_var_list': read_only}
-
-        from psyclone.f2pygen import CommentGen
         parent.add(CommentGen(parent, ""))
         parent.add(CommentGen(parent, " ReadOnlyVerifyStart"))
         parent.add(CommentGen(parent, ""))
-        super(ReadOnlyVerifyNode, self).gen_code(parent, options)
+        super().gen_code(parent, options)
         parent.add(CommentGen(parent, ""))
         parent.add(CommentGen(parent, " ReadOnlyVerifyEnd"))
         parent.add(CommentGen(parent, ""))
+
+    def lower_to_language_level(self):
+        # pylint: disable=arguments-differ
+        '''
+        Lowers this node (and all children) to language-level PSyIR. The
+        PSyIR tree is modified in-place.
+
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
+
+        '''
+        # Avoid circular dependency
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.tools.dependency_tools import DependencyTools
+        # Determine the variables to write:
+        dep = DependencyTools()
+        input_list = dep.get_input_parameters(self, options=self.options)
+
+        options = {'pre_var_list': input_list,
+                   'post_var_list': input_list}
+
+        return super().lower_to_language_level(options)
 
 
 # ============================================================================

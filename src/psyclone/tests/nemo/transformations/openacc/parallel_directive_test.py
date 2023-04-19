@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2020, Science and Technology Facilities Council.
+# Copyright (c) 2019-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 
 '''Module containing py.test tests for the transformation of the PSy
    representation of NEMO code using the OpenACC parallel directive.
@@ -48,6 +48,7 @@ API = "nemo"
 
 
 SINGLE_LOOP = ("program do_loop\n"
+               "use kind_params_mod, only: wp\n"
                "integer :: ji\n"
                "integer, parameter :: jpj=128\n"
                "real(kind=wp) :: sto_tmp(jpj)\n"
@@ -64,19 +65,27 @@ def test_parallel_single_loop(parser):
     code = parser(reader)
     psy = PSyFactory(API, distributed_memory=False).create(code)
     schedule = psy.invokes.invoke_list[0].schedule
+    data_trans = TransInfo().get_trans_name('ACCDataTrans')
     acc_trans = TransInfo().get_trans_name('ACCParallelTrans')
-    schedule, _ = acc_trans.apply(schedule.children[0:1])
-    code = str(psy.gen)
-    assert ("PROGRAM do_loop\n"
-            "  INTEGER :: ji\n"
-            "  INTEGER, PARAMETER :: jpj = 128\n"
-            "  REAL(KIND = wp) :: sto_tmp(jpj)\n"
-            "  !$ACC PARALLEL\n"
-            "  DO ji = 1, jpj\n"
-            "    sto_tmp(ji) = 1.0D0\n"
-            "  END DO\n"
-            "  !$ACC END PARALLEL\n"
-            "END PROGRAM do_loop" in code)
+    acc_trans.apply(schedule[0:1])
+    data_trans.apply(schedule[0])
+    code = str(psy.gen).lower()
+
+    assert ("program do_loop\n"
+            "  use kind_params_mod, only : wp\n"
+            "  integer, parameter :: jpj = 128\n"
+            "  integer :: ji\n"
+            "  real(kind=wp), dimension(jpj) :: sto_tmp\n"
+            "\n"
+            "  !$acc data copyout(sto_tmp)\n"
+            "  !$acc parallel default(present)\n"
+            "  do ji = 1, jpj, 1\n"
+            "    sto_tmp(ji) = 1.0d0\n"
+            "  enddo\n"
+            "  !$acc end parallel\n"
+            "  !$acc end data\n"
+            "\n"
+            "end program do_loop" in code)
 
 
 def test_parallel_two_loops(parser):
@@ -95,22 +104,29 @@ def test_parallel_two_loops(parser):
     code = parser(reader)
     psy = PSyFactory(API, distributed_memory=False).create(code)
     schedule = psy.invokes.invoke_list[0].schedule
+    data_trans = TransInfo().get_trans_name('ACCDataTrans')
     acc_trans = TransInfo().get_trans_name('ACCParallelTrans')
-    schedule, _ = acc_trans.apply(schedule[0:2])
-    code = str(psy.gen)
-    assert ("PROGRAM do_loop\n"
-            "  INTEGER :: ji\n"
-            "  INTEGER, PARAMETER :: jpi = 11\n"
-            "  REAL :: sto_tmp(jpi), sto_tmp2(jpi)\n"
-            "  !$ACC PARALLEL\n"
-            "  DO ji = 1, jpi\n"
-            "    sto_tmp(ji) = 1.0D0\n"
-            "  END DO\n"
-            "  DO ji = 1, jpi\n"
-            "    sto_tmp2(ji) = 1.0D0\n"
-            "  END DO\n"
-            "  !$ACC END PARALLEL\n"
-            "END PROGRAM do_loop" in code)
+    acc_trans.apply(schedule[0:2])
+    data_trans.apply(schedule[0])
+    code = str(psy.gen).lower()
+    assert ("program do_loop\n"
+            "  integer, parameter :: jpi = 11\n"
+            "  integer :: ji\n"
+            "  real, dimension(jpi) :: sto_tmp\n"
+            "  real, dimension(jpi) :: sto_tmp2\n"
+            "\n"
+            "  !$acc data copyout(sto_tmp,sto_tmp2)\n"
+            "  !$acc parallel default(present)\n"
+            "  do ji = 1, jpi, 1\n"
+            "    sto_tmp(ji) = 1.0d0\n"
+            "  enddo\n"
+            "  do ji = 1, jpi, 1\n"
+            "    sto_tmp2(ji) = 1.0d0\n"
+            "  enddo\n"
+            "  !$acc end parallel\n"
+            "  !$acc end data\n"
+            "\n"
+            "end program do_loop" in code)
 
 
 def test_parallel_if_block(parser):
@@ -133,35 +149,16 @@ def test_parallel_if_block(parser):
     code = parser(reader)
     psy = PSyFactory(API, distributed_memory=False).create(code)
     schedule = psy.invokes.invoke_list[0].schedule
+    data_trans = TransInfo().get_trans_name('ACCDataTrans')
     acc_trans = TransInfo().get_trans_name('ACCParallelTrans')
-    schedule, _ = acc_trans.apply(schedule.children[0:1])
-    code = str(psy.gen)
-    assert ("  !$ACC PARALLEL\n"
-            "  IF (init) THEN\n"
-            "    DO ji = 1, jpi\n" in code)
-    assert ("    END DO\n"
-            "  END IF\n"
-            "  !$ACC END PARALLEL\n" in code)
-
-
-def test_parallel_repeat_update(parser):
-    ''' Check that calling ACCParallelDirective.update() a 2nd time
-    does not alter the fparser2 parse tree. '''
-    from psyclone.psyGen import ACCParallelDirective
-    reader = FortranStringReader(SINGLE_LOOP)
-    code = parser(reader)
-    psy = PSyFactory(API, distributed_memory=False).create(code)
-    schedule = psy.invokes.invoke_list[0].schedule
-    acc_trans = TransInfo().get_trans_name('ACCParallelTrans')
-    schedule, _ = acc_trans.apply(schedule.children[0:1])
-    accdir = schedule.children[0]
-    assert isinstance(accdir, ACCParallelDirective)
-    assert accdir._ast is None
-    # Generate the code in order to trigger the update of the fparser2 tree
-    _ = str(psy.gen)
-    # Store the content of a part of the fparser2 parse tree
-    orig_content = accdir._ast.parent.content[:]
-    # Call update() a second time and then check that nothing has changed
-    accdir.update()
-    for idx, item in enumerate(orig_content):
-        assert item is accdir._ast.parent.content[idx]
+    acc_trans.apply(schedule[0:1])
+    data_trans.apply(schedule[0])
+    code = str(psy.gen).lower()
+    assert ("  !$acc data copyout(sto_tmp,sto_tmp2)\n"
+            "  !$acc parallel default(present)\n"
+            "  if (init) then\n"
+            "    do ji = 1, jpi, 1\n" in code)
+    assert ("    enddo\n"
+            "  end if\n"
+            "  !$acc end parallel\n"
+            "  !$acc end data\n" in code)

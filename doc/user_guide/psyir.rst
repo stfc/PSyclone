@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2019-2021, Science and Technology Facilities Council.
+.. Copyright (c) 2019-2022, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -32,8 +32,16 @@
 .. POSSIBILITY OF SUCH DAMAGE.
 .. -----------------------------------------------------------------------------
 .. Written by A. R. Porter, STFC Daresbury Lab
-.. Modified by R. W. Ford, STFC Daresbury Lab
-      
+.. Modified by R. W. Ford and N. Nobre, STFC Daresbury Lab
+
+.. The following section imports those Python modules that are needed in
+   subsequent doctest snippets.
+.. testsetup::
+
+        from psyclone.psyir.symbols import DataSymbol, ScalarType, ArrayType, \
+	    REAL4_TYPE, REAL8_TYPE, INTEGER_TYPE, BOOLEAN_TYPE
+	from psyclone.psyir.nodes import Reference
+
 .. _psyir-ug:
 
 ==============================================
@@ -64,8 +72,10 @@ to create code.
 
 .. note:: This separation will be removed in the future and eventually
 	  all PSyIR classes will make use of backends with the
-	  expectation that ``gen_code()`` and ``update()`` methods will
-	  be removed.
+	  expectation that ``gen_code()`` and ``update()`` methods
+	  will be removed. Further this separation will be superseded
+	  by a separation between ``language-level PSyIR`` and
+	  ``domain-specific PSyIR``.
 
 PSy-layer nodes
 ---------------
@@ -93,20 +103,22 @@ PSy-layer classes (``Loop`` and ``Schedule``) can also be used as
 Kernel-layer classes. Additionally, the ``Schedule`` class is further
 subclassed into a ``Routine`` and then a kernel-layer
 ``KernelSchedule``.  In addition to ``KernelSchedule``, Kernel-layer
-PSyIR nodes are: ``Loop``, ``IfBlock``, ``CodeBlock``, ``Assignment``,
-``Range``, ``Reference``, ``Operation``, ``Literal``, ``Call``,
+PSyIR nodes are: ``Loop``, ``WhileLoop``, ``IfBlock``, ``CodeBlock``,
+``Assignment``, ``Range``, ``Reference``, ``Operation``, ``Literal``, ``Call``,
 ``Return`` and ``Container``. The ``Reference`` class is further
 subclassed into ``ArrayReference``, ``StructureReference`` and
-``ArrayOfStructuresReference`` and the ``Operation`` class is further
+``ArrayOfStructuresReference``, the ``Operation`` class is further
 subclassed into ``UnaryOperation``, ``BinaryOperation`` and
-``NaryOperation``. Those nodes representing references to structures
-(derived types in Fortran) have a ``Member`` child node representing
-the member of the structure being accessed. The ``Member`` class is
-further subclassed into ``StructureMember`` (representing a member of
-a structure that is itself a structure), ``ArrayMember`` (a member of
-a structure that is an array of primitive types) and
-``ArrayOfStructuresMember`` (a member of a structure this is itself an
-array of structures).
+``NaryOperation`` and the ``Container`` class is further subclassed
+into ``FileContainer`` (representing a file that may contain more than
+one ``Container`` and/or ``Routine``. Those nodes representing
+references to structures (derived types in Fortran) have a ``Member``
+child node representing the member of the structure being
+accessed. The ``Member`` class is further subclassed into
+``StructureMember`` (representing a member of a structure that is
+itself a structure), ``ArrayMember`` (a member of a structure that is
+an array of primitive types) and ``ArrayOfStructuresMember`` (a member
+of a structure this is itself an array of structures).
 
 
 Node Descriptions
@@ -128,18 +140,25 @@ descendants to stdout. If the ``termcolor`` package is installed
 (see :ref:`getting-going`) then colour highlighting is used for this
 output. For instance, part of the Schedule constructed for the second NEMO
 `example <https://github.com/stfc/PSyclone/blob/master/examples/nemo/eg2/
-runme_openmp.py>`_ is rendered as:
+omp_levels_trans.py>`_ is rendered as:
 
 .. image:: schedule_with_indices.png
 
 Note that in this view, only those nodes which are children of
-Schdules have their indices shown. This means that nodes representing
+Schedules have their indices shown. This means that nodes representing
 e.g. loop bounds or the conditional part of ``if`` statements are not
 indexed. For the example shown, the PSyIR node representing the
 ``if(l_hst)`` code would be reached by
 ``schedule.children[6].if_body.children[1]`` or, using the shorthand
 notation (see below), ``schedule[6].if_body[1]`` where ``schedule`` is
 the overall parent Schedule node (omitted from the above image).
+
+One problem with the ``view`` method is that the output can become very
+large for big ASTs and is not readable for users unfamiliar with the PSyIR.
+An alternative to it is the ``debug_string`` method that generates a
+text representation with Fortran-like syntax but on which the high abstraction
+constructs have not yet been lowered to Fortran level and instead they will be
+embedded as `< node >` expressions.
 
 Tree Navigation
 ===============
@@ -164,14 +183,18 @@ To solve this issue some Nodes also provide methods for semantic navigation:
    .. automethod:: psyclone.psyir.nodes.Assignment.rhs()
 - ``IfBlock``:
    .. automethod:: psyclone.psyir.nodes.IfBlock.condition()
-		
    .. automethod:: psyclone.psyir.nodes.IfBlock.if_body()
-
    .. automethod:: psyclone.psyir.nodes.IfBlock.else_body()
+- ``Loop``:
+   .. automethod:: psyclone.psyir.nodes.Loop.loop_body()
+- ``WhileLoop``:
+   .. automethod:: psyclone.psyir.nodes.WhileLoop.condition()
+   .. automethod:: psyclone.psyir.nodes.WhileLoop.loop_body()
 - ``Array`` nodes (e.g. ``ArrayReference``, ``ArrayOfStructuresReference``):
    .. automethod:: psyclone.psyir.nodes.ArrayReference.indices()
-- ``Directive``:
-   .. automethod:: psyclone.psyGen.Directive.dir_body()
+- ``RegionDirective``:
+   .. automethod:: psyclone.psyir.nodes.RegionDirective.dir_body()
+   .. automethod:: psyclone.psyir.nodes.RegionDirective.clauses()
 - Nodes representing accesses of data within a structure (e.g. ``StructureReference``, ``StructureMember``):
    .. automethod:: psyclone.psyir.nodes.StructureReference.member()
 
@@ -185,17 +208,27 @@ information about the exact location.
 
 .. automethod:: psyclone.psyir.nodes.Node.walk
 
+Finally, all nodes also provide the `ancestor` method which may be used to
+recurse back up the tree from a given node in order to find a node of a
+particular type:
+
+.. automethod:: psyclone.psyir.nodes.Node.ancestor
 
 DataTypes
 =========
 
-The PSyIR supports scalar, array, structure, deferred and unknown
-datatypes. These datatypes are used when creating instances of
-DataSymbol and Literal. The 'deferred' and 'unknown' types are both
-used when processing existing code. The former is used when a symbol
-is being imported from some other scope (e.g. via a USE statement in
-Fortran) that hasn't yet been resolved and the latter is used when an
-unsupported form of declaration is encountered.
+The PSyIR supports the following datatypes: ``ScalarType``,
+``ArrayType``, ``StructureType``, ``DeferredType``, ``UnknownType``
+and ``NoType``.  These datatypes are used when creating instances of
+DataSymbol, RoutineSymbol and Literal (although note that ``NoType`` may
+only be used with a RoutineSymbol). ``DeferredType`` and ``UnknownType``
+are both used when processing existing code. The former is used
+when a symbol is being imported from some other scope (e.g. via a USE
+statement in Fortran) that hasn't yet been resolved and the latter is
+used when an unsupported form of declaration is encountered.
+
+More information on each of these various datatypes is given in the
+following subsections.
 
 Scalar DataType
 ---------------
@@ -212,18 +245,15 @@ value specifying the precision in bytes, or a datasymbol (see Section
 by the system so may be different for different architectures. For
 example:
 
-::
+.. doctest::
 
-   > char_type = ScalarType(ScalarType.Intrinsic.CHARACTER,
-   >                        ScalarType.Precision.UNDEFINED)
-   >
-   > int_type = ScalarType(ScalarType.Intrinsic.INTEGER,
-   >                       ScalarType.Precision.SINGLE)
-   >
-   > bool_type = ScalarType(ScalarType.Intrinsic.BOOLEAN, 4)
-   >
-   > symbol = DataSymbol("rdef", int_type, constant_value=4)
-   > scalar_type = ScalarType(ScalarType.Intrinsic.REAL, symbol)
+    >>> char_type = ScalarType(ScalarType.Intrinsic.CHARACTER,
+    ...                        ScalarType.Precision.UNDEFINED)
+    >>> int_type = ScalarType(ScalarType.Intrinsic.INTEGER,
+    ...                       ScalarType.Precision.SINGLE)
+    >>> bool_type = ScalarType(ScalarType.Intrinsic.BOOLEAN, 4)
+    >>> symbol = DataSymbol("rdef", int_type, constant_value=4)
+    >>> scalar_type = ScalarType(ScalarType.Intrinsic.REAL, symbol)
 
 For convenience PSyclone predefines a number of scalar datatypes:
 
@@ -239,7 +269,7 @@ and ``INTEGER_DOUBLE_TYPE``;
 Array DataType
 --------------
 
-An Array datatype itself has another datatype (or TypeSymbol)
+An Array datatype itself has another datatype (or ``DataTypeSymbol``)
 specifying the type of its elements and a shape. The shape can have an
 arbitrary number of dimensions. Each dimension captures what is known
 about its extent. It is necessary to distinguish between four cases:
@@ -249,11 +279,13 @@ about its extent. It is necessary to distinguish between four cases:
 +--------------------------------------------+--------------------------------+
 |Description                                 | Entry in ``shape`` list        |
 +============================================+================================+
-|An array has a static extent known at       | Integer ``Literal``            |
-|compile time.                               |                                |
+|An array has a static extent known at       | ``ArrayType.ArrayBounds``      |
+|compile time.                               | containing integer ``Literal`` |
+|                                            | values                         |
 +--------------------------------------------+--------------------------------+
-|An array has an extent defined by another   | ``Symbol``                     |
-|symbol.                                     |                                |
+|An array has an extent defined by another   | ``ArrayType.ArrayBounds``      |
+|symbol or (constant) PSyIR expression.      | containing ``Reference`` or    |
+|                                            | ``Operation`` nodes            |
 +--------------------------------------------+--------------------------------+
 |An array has a definite extent which is not | ``ArrayType.Extent.ATTRIBUTE`` |
 |known at compile time but can be queried    |                                |
@@ -262,6 +294,10 @@ about its extent. It is necessary to distinguish between four cases:
 |It is not known whether an array has memory | ``ArrayType.Extent.DEFERRED``  |
 |allocated to it in the current scoping unit.|                                |
 +--------------------------------------------+--------------------------------+
+
+where ``ArrayType.ArrayBounds`` is a ``namedtuple`` with ``lower`` and
+``upper`` members holding the lower- and upper-bounds of the extent of a
+given array dimension.
 
 The distinction between the last two cases is that in the former the
 extents are known but are kept internally with the array (for example
@@ -272,17 +308,18 @@ yet.
 
 For example:
 
-.. code-block:: python
+.. doctest::
 
-   array_type = ArrayType(REAL4_TYPE, [5, 10])
+    >>> array_type = ArrayType(REAL4_TYPE, [5, 10])
 
-   n_var = DataSymbol("n", INTEGER_TYPE)
-   array_type = ArrayType(INTEGER_TYPE, [n_var, n_var])
+    >>> n_var = DataSymbol("n", INTEGER_TYPE)
+    >>> array_type = ArrayType(INTEGER_TYPE, [Reference(n_var),
+    ...                                       Reference(n_var)])
 
-   array_type = ArrayType(REAL8_TYPE, [ArrayType.Extent.ATTRIBUTE,
-                                       ArrayType.Extent.ATTRIBUTE])
+    >>> array_type = ArrayType(REAL8_TYPE, [ArrayType.Extent.ATTRIBUTE,
+    ...                                     ArrayType.Extent.ATTRIBUTE])
 
-   array_type = ArrayType(LOGICAL_TYPE, [ArrayType.Extent.DEFERRED])
+    >>> array_type = ArrayType(BOOLEAN_TYPE, [ArrayType.Extent.DEFERRED])
 
 Structure Datatype
 ------------------
@@ -304,7 +341,7 @@ For example:
       ("dx", SCALAR_TYPE, Symbol.Visibility.PUBLIC),
       ("dy", SCALAR_TYPE, Symbol.Visibility.PUBLIC)])
 
-  GRID_TYPE_SYMBOL = TypeSymbol("grid_type", GRID_TYPE)
+  GRID_TYPE_SYMBOL = DataTypeSymbol("grid_type", GRID_TYPE)
 
   # A structure-type containing other structure types
   FIELD_TYPE_DEF = StructureType.create(
@@ -318,9 +355,17 @@ Unknown DataType
 ----------------
 
 If a PSyIR frontend encounters an unsupported declaration then the
-corresponding Symbol is given `UnknownType <https://psyclone-ref.readthedocs.io/en/latest/autogenerated/psyclone.psyir.symbols.html#psyclone.psyir.symbols.UnknownType>`_. The text of the original
-declaration is stored in the type object and is available via the
-``declaration`` property.
+corresponding Symbol is given :ref_guide:`UnknownType psyclone.psyir.symbols.html#psyclone.psyir.symbols.UnknownType`.
+The text of the original declaration is stored in the type object and is
+available via the ``declaration`` property.
+
+
+NoType
+------
+
+``NoType`` represents the empty type, equivalent to ``void`` in C. It
+is currently only used to describe a RoutineSymbol that has no return
+type (such as a Fortran subroutine).
 
 .. _symbol-label:
 
@@ -333,7 +378,7 @@ Symbols (`psyclone.psyir.symbols.Symbol`) specified and used within them.
 
 Symbol Tables can be nested (i.e. a node with an attached symbol table
 can be an ancestor or descendent of a node with an attached symbol
-table). If the same symbol name is used in a hierachy of symbol tables
+table). If the same symbol name is used in a hierarchy of symbol tables
 then the symbol within the symbol table attached to the closest
 ancestor node is in scope. By default, symbol tables are aware of
 other symbol tables and will return information about relevant symbols
@@ -355,11 +400,32 @@ are:
 
 - .. autoclass:: psyclone.psyir.symbols.DataSymbol
 
+- .. autoclass:: psyclone.psyir.symbols.DataTypeSymbol
+
+- .. autoclass:: psyclone.psyir.symbols.IntrinsicSymbol
+
 - .. autoclass:: psyclone.psyir.symbols.RoutineSymbol
 
 See the reference guide for the full API documentation of the
-`SymbolTable <https://psyclone-ref.readthedocs.io/en/latest/autogenerated/psyclone.psyir.symbols.html#psyclone.psyir.symbols.SymbolTable>`_ 
-and the `Symbol types <https://psyclone-ref.readthedocs.io/en/latest/autogenerated/psyclone.psyir.symbols.html#psyclone.psyir.symbols>`_.
+:ref_guide:`SymbolTable psyclone.psyir.symbols.html#psyclone.psyir.symbols.SymbolTable`
+and the :ref_guide:`Symbol types psyclone.psyir.symbols.html#module-psyclone.psyir.symbols`.
+
+Symbol Interfaces
+-----------------
+
+Each symbol has a Symbol Interface with the information about how the
+variable data is provided into the local context. The currently available
+Interfaces are:
+
+
+- .. autoclass:: psyclone.psyir.symbols.LocalInterface
+
+- .. autoclass:: psyclone.psyir.symbols.ImportInterface
+
+- .. autoclass:: psyclone.psyir.symbols.ArgumentInterface
+
+- .. autoclass:: psyclone.psyir.symbols.UnresolvedInterface
+
 
 Creating PSyIR
 ==============
@@ -465,14 +531,12 @@ together. For example:
     assignment = Assignment()
     literal = Literal("0.0", REAL_TYPE)
     reference = Reference(symbol)
-    literal.parent = assignment
-    reference.parent = assignment
     assignment.children = [reference, literal]
     
 However, as connections get more complicated, creating the correct
 connections can become difficult to manage and error prone. Further,
 in some cases children must be collected together within a
-``Schedule`` (e.g. for ``IfBlock`` and for ``Loop``).
+``Schedule`` (e.g. for ``IfBlock``, ``Loop`` and ``WhileLoop``).
 
 To simplify this complexity, each of the Kernel-layer nodes which
 contain other nodes have a static ``create`` method which helps
@@ -519,6 +583,48 @@ More examples of using this approach can be found in the PSyclone
 ``examples/psyir`` directory.
 
 
+Comparing PSyIR nodes
+=====================
+The ``==`` (equality) operator for PSyIR nodes performs a specialised equality check
+to compare the value of each node. This is also useful when comparing entire
+subtrees since the equality operator automatically recurses through the children
+and compares each child with the appropriate equality semantics, e.g.
+
+.. code-block:: python
+
+    # Is the loop upper bound expression exactly the same?
+    if loop1.stop_expr == loop2.stop_expr:
+	    print("Same upper bound!")
+
+The equality operator will handle expressions like ``my_array%my_field(:3)`` with the
+derived type fields and the range components automatically, but it cannot handle
+symbolically equivalent fields, i.e. ``my_array%my_field(:3) != my_array%my_field(:2+1)``.
+
+Annotations and code comments are ignored in the equality comparison since they don't
+alter the semantic meaning of the code. So these two statements compare to True:
+
+.. code-block:: fortran
+    
+    a = a + 1
+    a = a + 1 !Increases a by 1
+
+Sometimes there are cases where one really means to check for the specific instance
+of a node. In this case, Python provides the ``is`` operator, e.g.
+
+.. code-block:: python
+
+    # Is the self instance part of this routine?
+    is_here = any(node is self for node in routine.walk(Node))
+
+Additionally, PSyIR nodes cannot be used as map keys or similar. The easiest way
+to do this is just use the id as the key:
+
+.. code-block:: python
+
+    node_map = {}
+    node_map[id(mynode)] = "element"
+
+
 Modifying the PSyIR
 ===================
 
@@ -534,7 +640,7 @@ The rest of this section introduces examples of the available direct PSyIR
 modification methods.
 
 Renaming symbols
------------------
+----------------
 The symbol table provides the method ``rename_symbol()`` that given a symbol
 and an unused name will rename the symbol. The symbol renaming will affect
 all the references in the PSyIR AST to that symbol. For example, the PSyIR
@@ -562,3 +668,130 @@ which would result in the following Fortran output code:
         real, intent(inout) :: new_variable
         new_variable=0.0
     end subroutine
+
+Specialising symbols
+--------------------
+
+The Symbol class provides the method ``specialise()`` that given a
+subclass of Symbol will change the Symbol instance to the specified
+subclass. If the subclass has any additional properties then these
+would need to be set explicitly.
+
+.. code-block:: python
+
+    symbol = Symbol("name")
+    symbol.specialise(RoutineSymbol)
+    # Symbol is now a RoutineSymbol
+
+This method is useful as it allows the class of a symbol to be changed
+without affecting any references to it.
+
+Replacing PSyIR nodes
+---------------------
+
+In certain cases one might want to replace a node in a PSyIR tree with
+another node. All nodes provide the `replace_with()` method to replace
+the node and its descendants with another given node and its
+descendants.
+
+.. code-block:: python
+
+    node.replace_with(new_node)
+
+
+When the node being replaced is part of a named context (in Calls or
+Operations) the name of the argument is conserved by default. For example
+
+
+.. code-block:: fortran
+
+    call named_subroutine(name1=1)
+
+.. code-block:: python
+
+    call.children[0].replace_with(Literal('2', INTEGER_TYPE))
+
+will become:
+
+.. code-block:: fortran
+
+    call named_subroutine(name1=2)
+
+This behaviour can be changed with the `keep_name_in_context` parameter.
+
+.. code-block:: python
+
+    call.children[0].replace_with(
+        Literal('3', INTEGER_TYPE),
+        keep_name_in_context=False
+    )
+
+will become:
+
+.. code-block:: fortran
+
+    call named_subroutine(3)
+
+
+Detaching PSyIR nodes
+---------------------
+
+Sometimes we just may wish to detach a certain PSyIR subtree in order to remove
+it from the root tree but we don't want to delete it altogether, as it may
+be re-inserted again in another location. To achieve this, all nodes
+provide the detach method:
+
+.. code-block:: python
+
+    tmp = node.detach()
+
+Copying nodes
+-------------
+
+Copying a PSyIR node and its children is often useful in order to avoid
+repeating the creation of similar PSyIR subtrees. The result of the copy
+allows the modification of the original and the copied subtrees independently,
+without altering the other subtree. Note that this is not equivalent to the
+Python ``copy`` or ``deepcopy`` functionality provided in the ``copy`` library.
+This method performs a bespoke copy operation where some components of the
+tree, like children, are recursively copied, while others, like the top-level
+parent reference are not.
+
+
+.. code-block:: python
+
+    new_node = node.copy()
+
+Named arguments
+---------------
+
+The `Call` and three sub-classes of `Operation` node
+(`UnaryOperation`, `BinaryOperation` and `NaryOperation`) all support
+named arguments.
+
+Named arguments can be set or modified via the `create()`,
+`append_named_arg()`, `insert_named_arg()` or `replace_named_arg()`
+methods.
+
+If an argument is inserted directly (via the children list) then it is
+assumed that this is not a named argument. If the top node of an
+argument is replaced by removing and inserting a new node then it is
+assumed that this argument is no longer a named argument. If it is
+replaced with the `replace_with` method, it has a `keep_name_in_context`
+argument to choose the desired behaviour (defaults to True).
+If arguments are re-ordered then the names follow the re-ordering.
+
+The names of named arguments can be accessed via the `argument_names`
+property. This list has an entry for each argument and either contains
+a name or None (if this is not a named argument).
+
+The PSyIR does not constrain which arguments are specified as being
+named and what those names are. It is the developer's responsibility
+to make sure that these names are consistent with any intrinsics that
+will be generated by the back-end. In the future, it is expected that
+the PSyIR will know about the number and type of arguments expected by
+Operation nodes, beyond simply being unary, binary or nary.
+
+One restriction that Fortran has (but the PSyIR does not) is that all
+named arguments should be at the end of the argument list. If this is
+not the case then the Fortran backend writer will raise an exception.

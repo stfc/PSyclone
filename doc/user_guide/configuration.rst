@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2018-2020, Science and Technology Facilities Council
+.. Copyright (c) 2018-2022, Science and Technology Facilities Council
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 .. ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .. POSSIBILITY OF SUCH DAMAGE.
 .. -----------------------------------------------------------------------------
-.. Written by R. W. Ford and A. R. Porter, STFC Daresbury Lab
+.. Written by R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 .. Modified by: J. Henrichs, Bureau of Meteorology,
 ..              I. Kavcic, Met Office
 
@@ -95,7 +95,7 @@ section e.g.:
     REPRODUCIBLE_REDUCTIONS = false
     REPROD_PAD_SIZE = 8
     PSYIR_ROOT_NAME = psyir_tmp
-    VALID_PSY_DATA_PREFIXES = profile extract
+    VALID_PSY_DATA_PREFIXES = profile, extract
 
 and an optional API specific section, for example for the
 ``dynamo0.3`` section:
@@ -103,10 +103,13 @@ and an optional API specific section, for example for the
 
    [dynamo0.3]
    access_mapping = gh_read: read, gh_write: write, gh_readwrite: readwrite,
-                    gh_inc: inc, gh_sum: sum
+                    gh_inc: inc, gh_readinc: readinc, gh_sum: sum
    COMPUTE_ANNEXED_DOFS = false
+   supported_fortran_datatypes = real, integer, logical
    default_kind = real: r_def, integer: i_def, logical: l_def
    RUN_TIME_CHECKS = false
+   NUM_ANY_SPACE = 10
+   NUM_ANY_DISCONTINUOUS_SPACE = 10
 
 or for ``gocean1.0``:
 ::
@@ -138,20 +141,20 @@ Entry                   Description
 ======================= =======================================================
 DEFAULTAPI              The API that PSyclone assumes an Algorithm/Kernel
                         conforms to if no API is specified. Must be one of the
-                        APIs supported by PSyclone (dynamo0.1, dynamo0.3,
-                        gocean0.1, gocean1.0 and nemo). If there is no
+                        APIs supported by PSyclone ("dynamo0.3", "gocean1.0"
+                        and "nemo"). If there is no
                         API specified and there is only one API-specific
                         section in the config file loaded, this API will be
                         used. This value can be overwritten by the command
                         line option '-api'. If there is no API entry in the
                         config file, and '-api' is not specified on the 
-                        command line, dynamo0.3 is used as default.
+                        command line, "dynamo0.3" is used as default.
 DEFAULTSTUBAPI          The API that the kernel-stub generator assumes by
                         default. Must be one of the stub-APIs supported by
-                        PSyclone (dynamo0.3 only at this stage).
+                        PSyclone ("dynamo0.3" only at this stage).
 DISTRIBUTED_MEMORY      Whether or not to generate code for distributed-memory
                         parallelism by default.  Note that this is currently
-                        only supported for the dynamo0.3 API.
+                        only supported for the LFRic (Dynamo 0.3) API.
 REPRODUCIBLE_REDUCTIONS Whether or not to generate code for reproducible OpenMP
                         reductions (see :ref:`openmp-reductions`) by default.
 REPROD_PAD_SIZE         If generating code for reproducible OpenMP reductions,
@@ -184,14 +187,15 @@ access_mapping          This field defines the strings that are used by a
                         pairs, e.g.:
 
                         ``gh_read: read, gh_write: write, gh_readwrite: readwrite,
-                        gh_inc: inc, gh_sum: sum``
+                        gh_inc: inc, gh_readinc: gh_sum: sum``
 
-                        At this stage these 5 types are defined for read, write,
-                        read+write, increment and summation access by PSyclone.
-                        Sum is a form of reduction.
-                        The GOcean APIs do not support increment or sum, so
-                        they only define three mappings for read, write, and 
-                        readwrite.
+                        At this stage these 6 types are defined for
+                        read, write, read+write, increment,
+                        read+increment and summation access by
+                        PSyclone. Sum is a form of reduction. The
+                        GOcean API does not support increment or sum,
+                        so it only defines three mappings for read,
+                        write, and readwrite.
 ======================= =======================================================
 
 
@@ -199,24 +203,34 @@ access_mapping          This field defines the strings that are used by a
 ^^^^^^^^^^^^^^^^^^^^^
 
 This section contains configuration options that are only applicable when
-using the Dynamo 0.3 API.
+using the LFRic (Dynamo 0.3) API.
 
 .. tabularcolumns:: |l|L|
 
-=======================	=======================================================
-Entry             		Description
-=======================	=======================================================
-COMPUTE_ANNEXED_DOFS    Whether or not to perform redundant computation over
-                        annexed dofs in order to reduce the number of halo
-                        exchanges, see :ref:`lfric-annexed_dofs`.
+=========================== ===================================================
+Entry                       Description
+=========================== ===================================================
+COMPUTE_ANNEXED_DOFS        Whether or not to perform redundant computation
+                            over annexed dofs in order to reduce the number of
+                            halo exchanges, see :ref:`lfric-annexed_dofs`.
 
-default_kind            Captures the default kinds (precisions) for the
-                        supported datatypes in LFRic (`real`, `integer` and
-                        `logical`).
+supported_fortran_datatypes Captures the supported Fortran data types of LFRic
+                            arguments, see :ref:`lfric-datatype-kind`.
 
-RUN_TIME_CHECKS         Specifies whether to generate run-time validation
-                        checks, see :ref:`lfric-run-time-checks`.
-======================= =======================================================
+default_kind                Captures the default kinds (precisions) for the
+                            supported Fortran data types in LFRic, see
+                            :ref:`lfric-datatype-kind`.
+
+RUN_TIME_CHECKS             Specifies whether to generate run-time validation
+                            checks, see :ref:`lfric-run-time-checks`.
+
+NUM_ANY_SPACE               Sets the number of ``ANY_SPACE`` function spaces
+                            in LFRic, see :ref:`lfric-num-any-spaces`.
+
+NUM_ANY_DISCONTINUOUS_SPACE Sets the number of ``ANY_DISCONTINUOUS_SPACE``
+                            function spaces in LFRic, see
+                            :ref:`lfric-num-any-spaces`.
+=========================== ===================================================
 
 ``gocean1.0`` Section
 ^^^^^^^^^^^^^^^^^^^^^

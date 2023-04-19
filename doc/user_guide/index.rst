@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
    BSD 3-Clause License
 
-   Copyright (c) 2017-2019, Science and Technology Facilities Council.
+   Copyright (c) 2017-2022, Science and Technology Facilities Council.
    All rights reserved.
 
    Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
    POSSIBILITY OF SUCH DAMAGE.
    -----------------------------------------------------------------------------
    Written by R. W. Ford and A. R. Porter, STFC Daresbury Lab
+   Modified by I. Kavcic, Met Office
 
 .. only:: html
 
@@ -72,6 +73,7 @@ PSyclone User Guide
     psyclone_command
     tutorial
     examples
+    libraries
     system_specific_setup
 
 .. toctree::
@@ -104,7 +106,7 @@ PSyclone User Guide
     :maxdepth: 2
     :caption: Utilities and Conventions
 
-    stub_gen
+    psyclone_kern
     line_length
     fortran_naming_conventions
     api

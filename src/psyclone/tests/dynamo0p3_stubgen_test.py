@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council.
+# Copyright (c) 2017-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -35,21 +35,20 @@
 # Modified I. Kavcic, Met Office
 # Modified J. Henrichs, Bureau of Meteorology
 
-''' This module tests the Dynamo 0.3 kernel-stub generator using pytest. '''
+''' This module tests the LFRic (Dynamo 0.3) kernel-stub generator using
+    pytest. '''
 
-# imports
-from __future__ import absolute_import, print_function
 import os
 import pytest
+
 import fparser
 from fparser import api as fpapi
+
 from psyclone.configuration import Config
-from psyclone.dynamo0p3 import DynKernMetadata, DynKern, LFRicScalarArgs
-from psyclone.domain.lfric import LFRicArgDescriptor
-from psyclone.errors import GenerationError, InternalError
-from psyclone.parse.utils import ParseError
+from psyclone.domain.lfric import LFRicConstants
+from psyclone.dynamo0p3 import DynKernMetadata, DynKern
+from psyclone.errors import GenerationError
 from psyclone.gen_kernel_stub import generate
-from psyclone.f2pygen import ModuleGen
 
 # Constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -61,6 +60,8 @@ TEST_API = "dynamo0.3"
 def setup():
     '''Make sure that all tests here use dynamo0.3 as API.'''
     Config.get().api = "dynamo0.3"
+    yield
+    Config._instance = None
 
 
 def test_kernel_stub_invalid_iteration_space():
@@ -75,37 +76,14 @@ def test_kernel_stub_invalid_iteration_space():
     with pytest.raises(GenerationError) as excinfo:
         _ = kernel.gen_stub
     assert ("supports kernels that operate on one of "
-            "['cells', 'cell_column'] but found 'dof' in kernel "
+            "['cell_column'] but found 'dof' in kernel "
             "'testkern_dofs_code'." in str(excinfo.value))
     kernel._iterates_over = "domain"
     with pytest.raises(GenerationError) as excinfo:
         _ = kernel.gen_stub
     assert ("supports kernels that operate on one of "
-            "['cells', 'cell_column'] but found 'domain' in kernel "
+            "['cell_column'] but found 'domain' in kernel "
             "'testkern_dofs_code'." in str(excinfo.value))
-
-
-def test_lfricscalars_stub_err():
-    ''' Check that LFRicScalarArgs._stub_declarations() raises the
-    expected internal error if it encounters an unrecognised data
-    type of a scalar argument when generating a kernel stub.
-
-    '''
-    ast = fpapi.parse(os.path.join(BASE_PATH,
-                                   "testkern_one_int_scalar_mod.f90"),
-                      ignore_comments=False)
-    metadata = DynKernMetadata(ast)
-    kernel = DynKern()
-    kernel.load_meta(metadata)
-    # Sabotage the scalar argument to make it have an invalid data type
-    arg = kernel.arguments.args[1]
-    arg.descriptor._data_type = "gh_invalid_scalar"
-    with pytest.raises(InternalError) as err:
-        LFRicScalarArgs(kernel)._stub_declarations(ModuleGen(name="my_mod"))
-    assert ("Found an unsupported data type 'gh_invalid_scalar' for the "
-            "scalar argument 'iscalar_2'. Supported types are {0}.".
-            format(LFRicArgDescriptor.VALID_SCALAR_DATA_TYPES)
-            in str(err.value))
 
 
 def test_stub_generate_with_anyw2():
@@ -129,7 +107,7 @@ SIMPLE = (
     "    CONTAINS\n"
     "    SUBROUTINE simple_code(nlayers, field_1_w1, ndf_w1, undf_w1,"
     " map_w1)\n"
-    "      USE constants_mod, ONLY: r_def, i_def\n"
+    "      USE constants_mod\n"
     "      IMPLICIT NONE\n"
     "      INTEGER(KIND=i_def), intent(in) :: nlayers\n"
     "      INTEGER(KIND=i_def), intent(in) :: ndf_w1\n"
@@ -153,68 +131,6 @@ def test_stub_generate_working_noapi():
     we use the default api (which should be dynamo0.3)'''
     result = generate(os.path.join(BASE_PATH, "simple.f90"))
     assert SIMPLE in str(result)
-
-
-SIMPLE_WITH_SCALARS = (
-    "  MODULE simple_with_scalars_mod\n"
-    "    IMPLICIT NONE\n"
-    "    CONTAINS\n"
-    "    SUBROUTINE simple_with_scalars_code(nlayers, rscalar_1, field_2_w1, "
-    "iscalar_3, ndf_w1, undf_w1, map_w1)\n"
-    "      USE constants_mod, ONLY: r_def, i_def\n"
-    "      IMPLICIT NONE\n"
-    "      INTEGER(KIND=i_def), intent(in) :: nlayers\n"
-    "      INTEGER(KIND=i_def), intent(in) :: ndf_w1\n"
-    "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w1) :: map_w1\n"
-    "      INTEGER(KIND=i_def), intent(in) :: undf_w1\n"
-    "      REAL(KIND=r_def), intent(in) :: rscalar_1\n"
-    "      INTEGER(KIND=i_def), intent(in) :: iscalar_3\n"
-    "      REAL(KIND=r_def), intent(inout), dimension(undf_w1) ::"
-    " field_2_w1\n"
-    "    END SUBROUTINE simple_with_scalars_code\n"
-    "  END MODULE simple_with_scalars_mod")
-
-
-def test_stub_generate_with_scalars():
-    ''' check that the stub generate produces the expected output when
-    the kernel has scalar arguments '''
-    result = generate(os.path.join(BASE_PATH, "simple_with_scalars.f90"),
-                      api=TEST_API)
-    assert SIMPLE_WITH_SCALARS in str(result)
-
-
-SCALAR_SUMS = (
-    "  MODULE testkern_multiple_scalar_sums_mod\n"
-    "    IMPLICIT NONE\n"
-    "    CONTAINS\n"
-    "    SUBROUTINE testkern_multiple_scalar_sums_code(nlayers, rscalar_1, "
-    "iscalar_2, field_3_w3, rscalar_4, iscalar_5, ndf_w3, undf_w3, map_w3)\n"
-    "      USE constants_mod, ONLY: r_def, i_def\n"
-    "      IMPLICIT NONE\n"
-    "      INTEGER(KIND=i_def), intent(in) :: nlayers\n"
-    "      REAL(KIND=r_def), intent(inout) :: rscalar_1\n"
-    "      INTEGER(KIND=i_def), intent(inout) :: iscalar_2\n"
-    "      INTEGER(KIND=i_def), intent(in) :: ndf_w3\n"
-    "      INTEGER(KIND=i_def), intent(in) :: undf_w3\n"
-    "      REAL(KIND=r_def), intent(out), dimension(undf_w3) :: field_3_w3\n"
-    "      REAL(KIND=r_def), intent(inout) :: rscalar_4\n"
-    "      INTEGER(KIND=i_def), intent(inout) :: iscalar_5\n"
-    "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w3) :: map_w3\n"
-    "    END SUBROUTINE testkern_multiple_scalar_sums_code\n"
-    "  END MODULE testkern_multiple_scalar_sums_mod")
-
-
-def test_stub_generate_with_scalar_sums():
-    '''check that the stub generator raises an exception when a kernel has
-    a reduction (since these are not permitted for user-supplied kernels)'''
-    with pytest.raises(ParseError) as err:
-        _ = generate(
-            os.path.join(BASE_PATH, "simple_with_reduction.f90"),
-            api=TEST_API)
-    assert (
-        "A user-supplied LFRic kernel must not write/update a scalar "
-        "argument but kernel 'simple_with_reduction_type' has a scalar "
-        "argument with 'gh_sum' access." in str(err.value))
 
 
 # Fields : intent
@@ -248,9 +164,9 @@ def test_load_meta_wrong_type():
     metadata.arg_descriptors[0]._argument_type = "gh_hedge"
     with pytest.raises(GenerationError) as excinfo:
         kernel.load_meta(metadata)
-    assert ("DynKern.load_meta() expected one of {0} but found "
-            "'gh_hedge'".format(LFRicArgDescriptor.VALID_ARG_TYPE_NAMES)
-            in str(excinfo.value))
+    const = LFRicConstants()
+    assert (f"DynKern.load_meta() expected one of {const.VALID_ARG_TYPE_NAMES}"
+            f" but found 'gh_hedge'" in str(excinfo.value))
 
 
 def test_intent():
@@ -266,7 +182,7 @@ def test_intent():
         "    CONTAINS\n"
         "    SUBROUTINE dummy_code(nlayers, field_1_w3, field_2_w1, "
         "field_3_w1, ndf_w3, undf_w3, map_w3, ndf_w1, undf_w1, map_w1)\n"
-        "      USE constants_mod, ONLY: r_def, i_def\n"
+        "      USE constants_mod\n"
         "      IMPLICIT NONE\n"
         "      INTEGER(KIND=i_def), intent(in) :: nlayers\n"
         "      INTEGER(KIND=i_def), intent(in) :: ndf_w1\n"
@@ -274,7 +190,7 @@ def test_intent():
         "      INTEGER(KIND=i_def), intent(in) :: ndf_w3\n"
         "      INTEGER(KIND=i_def), intent(in), dimension(ndf_w3) :: map_w3\n"
         "      INTEGER(KIND=i_def), intent(in) :: undf_w3, undf_w1\n"
-        "      REAL(KIND=r_def), intent(out), dimension(undf_w3) :: "
+        "      REAL(KIND=r_def), intent(inout), dimension(undf_w3) :: "
         "field_1_w3\n"
         "      REAL(KIND=r_def), intent(inout), dimension(undf_w1) :: "
         "field_2_w1\n"
@@ -338,7 +254,7 @@ def test_spaces():
         "ndf_w2v, undf_w2v, map_w2v, ndf_w2htrace, undf_w2htrace, "
         "map_w2htrace, ndf_w2vtrace, undf_w2vtrace, map_w2vtrace, "
         "ndf_wchi, undf_wchi, map_wchi)\n"
-        "      USE constants_mod, ONLY: r_def, i_def\n"
+        "      USE constants_mod\n"
         "      IMPLICIT NONE\n"
         "      INTEGER(KIND=i_def), intent(in) :: nlayers\n"
         "      INTEGER(KIND=i_def), intent(in) :: ndf_w0\n"
@@ -382,21 +298,21 @@ def test_spaces():
         ":: field_2_w1\n"
         "      REAL(KIND=r_def), intent(inout), dimension(undf_w2) "
         ":: field_3_w2\n"
-        "      REAL(KIND=r_def), intent(out), dimension(undf_w2broken) "
+        "      REAL(KIND=r_def), intent(inout), dimension(undf_w2broken) "
         ":: field_4_w2broken\n"
         "      REAL(KIND=r_def), intent(inout), dimension(undf_w2trace) "
         ":: field_5_w2trace\n"
-        "      REAL(KIND=r_def), intent(out), dimension(undf_w3) "
+        "      REAL(KIND=r_def), intent(inout), dimension(undf_w3) "
         ":: field_6_w3\n"
-        "      REAL(KIND=r_def), intent(out), dimension(undf_wtheta) "
+        "      REAL(KIND=r_def), intent(inout), dimension(undf_wtheta) "
         ":: field_7_wtheta\n"
         "      REAL(KIND=r_def), intent(inout), dimension(undf_w2h) "
         ":: field_8_w2h\n"
-        "      REAL(KIND=r_def), intent(out), dimension(undf_w2v) "
+        "      REAL(KIND=r_def), intent(inout), dimension(undf_w2v) "
         ":: field_9_w2v\n"
         "      REAL(KIND=r_def), intent(inout), dimension(undf_w2htrace) "
         ":: field_10_w2htrace\n"
-        "      REAL(KIND=r_def), intent(out), dimension(undf_w2vtrace) "
+        "      REAL(KIND=r_def), intent(inout), dimension(undf_w2vtrace) "
         ":: field_11_w2vtrace\n"
         "      REAL(KIND=r_def), intent(in), dimension(undf_wchi) "
         ":: field_12_wchi\n"
@@ -445,7 +361,7 @@ def test_any_spaces():
         "ndf_adspc1_field_1, undf_adspc1_field_1, map_adspc1_field_1, "
         "ndf_aspc7_field_2, undf_aspc7_field_2, map_aspc7_field_2, "
         "ndf_adspc4_field_3, undf_adspc4_field_3, map_adspc4_field_3)\n"
-        "      USE constants_mod, ONLY: r_def, i_def\n"
+        "      USE constants_mod\n"
         "      IMPLICIT NONE\n"
         "      INTEGER(KIND=i_def), intent(in) :: nlayers\n"
         "      INTEGER(KIND=i_def), intent(in) :: ndf_adspc1_field_1\n"
@@ -501,7 +417,7 @@ def test_vectors():
         "    CONTAINS\n"
         "    SUBROUTINE dummy_code(nlayers, field_1_w0_v1, "
         "field_1_w0_v2, field_1_w0_v3, ndf_w0, undf_w0, map_w0)\n"
-        "      USE constants_mod, ONLY: r_def, i_def\n"
+        "      USE constants_mod\n"
         "      IMPLICIT NONE\n"
         "      INTEGER(KIND=i_def), intent(in) :: nlayers\n"
         "      INTEGER(KIND=i_def), intent(in) :: ndf_w0\n"
@@ -553,7 +469,7 @@ def test_enforce_bc_kernel_stub_gen():
         "    SUBROUTINE enforce_bc_code(nlayers, field_1_aspc1_field_1, "
         "ndf_aspc1_field_1, undf_aspc1_field_1, map_aspc1_field_1, "
         "boundary_dofs_field_1)\n"
-        "      USE constants_mod, ONLY: r_def, i_def\n"
+        "      USE constants_mod\n"
         "      IMPLICIT NONE\n"
         "      INTEGER(KIND=i_def), intent(in) :: nlayers\n"
         "      INTEGER(KIND=i_def), intent(in) :: ndf_aspc1_field_1\n"
@@ -588,7 +504,7 @@ def test_enforce_op_bc_kernel_stub_gen():
         "    SUBROUTINE enforce_operator_bc_code(cell, nlayers, "
         "op_1_ncell_3d, op_1, ndf_aspc1_op_1, ndf_aspc2_op_1, "
         "boundary_dofs_op_1)\n"
-        "      USE constants_mod, ONLY: r_def, i_def\n"
+        "      USE constants_mod\n"
         "      IMPLICIT NONE\n"
         "      INTEGER(KIND=i_def), intent(in) :: nlayers\n"
         "      INTEGER(KIND=i_def), intent(in) :: ndf_aspc1_op_1, "
@@ -722,7 +638,7 @@ def test_sub_name():
         "    CONTAINS\n"
         "    SUBROUTINE dummy_code(nlayers, field_1_w1, "
         "ndf_w1, undf_w1, map_w1)\n"
-        "      USE constants_mod, ONLY: r_def, i_def\n"
+        "      USE constants_mod\n"
         "      IMPLICIT NONE\n"
         "      INTEGER(KIND=i_def), intent(in) :: nlayers\n"
         "      INTEGER(KIND=i_def), intent(in) :: ndf_w1\n"
@@ -733,139 +649,3 @@ def test_sub_name():
         "    END SUBROUTINE dummy_code\n"
         "  END MODULE dummy_mod")
     assert output in str(generated_code)
-
-
-def test_kernel_stub_usage():
-    ''' Check that the kernel-stub generator prints a usage message
-    if no arguments are supplied '''
-    from subprocess import Popen, STDOUT, PIPE
-
-    usage_msg = (
-        "usage: genkernelstub [-h] [-o OUTFILE] [-api API] [-l] filename\n"
-        )
-
-    # We use the Popen constructor here rather than check_output because
-    # the latter is only available in Python 2.7 onwards.
-    out = Popen(['genkernelstub'],
-                stdout=PIPE,
-                stderr=STDOUT).communicate()[0]
-    assert usage_msg in out.decode('utf-8')
-
-
-def test_kernel_stub_gen_cmd_line():
-    ''' Check that we can call the kernel-stub generator from the
-    command line '''
-    from subprocess import Popen, PIPE
-    # We use the Popen constructor here rather than check_output because
-    # the latter is only available in Python 2.7 onwards.
-    out = Popen(["genkernelstub",
-                 os.path.join(BASE_PATH, "simple_with_scalars.f90")],
-                stdout=PIPE).communicate()[0]
-
-    assert SIMPLE_WITH_SCALARS in out.decode('utf-8')
-
-
-def test_stub_stencil_extent():
-    ''' Check that correct stub code is produced when there is a stencil
-    access '''
-    ast = fpapi.parse(os.path.join(BASE_PATH, "testkern_stencil_mod.f90"),
-                      ignore_comments=False)
-    metadata = DynKernMetadata(ast)
-    kernel = DynKern()
-    kernel.load_meta(metadata)
-    generated_code = str(kernel.gen_stub)
-    result1 = (
-        "SUBROUTINE testkern_stencil_code(nlayers, field_1_w1, "
-        "field_2_w2, field_2_stencil_size, field_2_stencil_dofmap, "
-        "field_3_w2, field_4_w3, ndf_w1, undf_w1, map_w1, ndf_w2, "
-        "undf_w2, map_w2, ndf_w3, undf_w3, map_w3)")
-    assert result1 in generated_code
-    result2 = "INTEGER(KIND=i_def), intent(in) :: field_2_stencil_size"
-    assert result2 in generated_code
-    assert (
-        "INTEGER(KIND=i_def), intent(in), "
-        "dimension(ndf_w2,field_2_stencil_size) :: field_2_stencil_dofmap"
-        in generated_code)
-
-
-def test_stub_stencil_direction():
-    '''Check that correct stub code is produced when there is a stencil
-    access which requires a direction argument '''
-    ast = fpapi.parse(os.path.join(BASE_PATH,
-                                   "testkern_stencil_xory1d_mod.f90"),
-                      ignore_comments=False)
-    metadata = DynKernMetadata(ast)
-    kernel = DynKern()
-    kernel.load_meta(metadata)
-    generated_code = str(kernel.gen_stub)
-    result1 = (
-        "    SUBROUTINE testkern_stencil_xory1d_code(nlayers, field_1_w1, "
-        "field_2_w2, field_2_stencil_size, field_2_direction, "
-        "field_2_stencil_dofmap, field_3_w2, field_4_w3, ndf_w1, undf_w1, "
-        "map_w1, ndf_w2, undf_w2, map_w2, ndf_w3, undf_w3, map_w3)")
-    assert result1 in generated_code
-    result2 = (
-        "      INTEGER(KIND=i_def), intent(in) :: field_2_stencil_size\n"
-        "      INTEGER(KIND=i_def), intent(in) :: field_2_direction\n"
-        "      INTEGER(KIND=i_def), intent(in), "
-        "dimension(ndf_w2,field_2_stencil_size) :: field_2_stencil_dofmap")
-    assert result2 in generated_code
-
-
-def test_stub_stencil_vector():
-    '''Check that correct stub code is produced when there is a stencil
-    access which is a vector '''
-    ast = fpapi.parse(os.path.join(BASE_PATH,
-                                   "testkern_stencil_vector_mod.f90"),
-                      ignore_comments=False)
-    metadata = DynKernMetadata(ast)
-    kernel = DynKern()
-    kernel.load_meta(metadata)
-    generated_code = str(kernel.gen_stub)
-    result1 = (
-        "    SUBROUTINE testkern_stencil_vector_code(nlayers, field_1_w0_v1, "
-        "field_1_w0_v2, field_1_w0_v3, field_2_w3_v1, field_2_w3_v2, "
-        "field_2_w3_v3, field_2_w3_v4, field_2_stencil_size, "
-        "field_2_stencil_dofmap, ndf_w0, undf_w0, map_w0, ndf_w3, undf_w3, "
-        "map_w3)")
-    assert result1 in generated_code
-    result2 = (
-        "      INTEGER(KIND=i_def), intent(in) :: field_2_stencil_size\n"
-        "      INTEGER(KIND=i_def), intent(in), "
-        "dimension(ndf_w3,field_2_stencil_size) :: field_2_stencil_dofmap")
-    assert result2 in generated_code
-
-
-def test_stub_stencil_multi():
-    '''Check that correct stub code is produced when there are multiple
-    stencils'''
-    ast = fpapi.parse(os.path.join(BASE_PATH,
-                                   "testkern_stencil_multi_mod.f90"),
-                      ignore_comments=False)
-    metadata = DynKernMetadata(ast)
-    kernel = DynKern()
-    kernel.load_meta(metadata)
-    generated_code = str(kernel.gen_stub)
-    result1 = (
-        "    SUBROUTINE testkern_stencil_multi_code(nlayers, field_1_w1, "
-        "field_2_w2, field_2_stencil_size, field_2_stencil_dofmap, field_3_w2,"
-        " field_3_stencil_size, field_3_direction, field_3_stencil_dofmap, "
-        "field_4_w3, field_4_stencil_size, field_4_stencil_dofmap, ndf_w1, "
-        "undf_w1, map_w1, ndf_w2, undf_w2, map_w2, ndf_w3, undf_w3, map_w3)")
-    assert result1 in generated_code
-    result2 = (
-        "      REAL(KIND=r_def), intent(in), dimension(undf_w2) :: "
-        "field_3_w2\n"
-        "      REAL(KIND=r_def), intent(in), dimension(undf_w3) :: "
-        "field_4_w3\n"
-        "      INTEGER(KIND=i_def), intent(in) :: field_2_stencil_size, "
-        "field_3_stencil_size, field_4_stencil_size\n"
-        "      INTEGER(KIND=i_def), intent(in) :: field_3_direction\n"
-        "      INTEGER(KIND=i_def), intent(in), "
-        "dimension(ndf_w2,field_2_stencil_size) :: field_2_stencil_dofmap\n"
-        "      INTEGER(KIND=i_def), intent(in), "
-        "dimension(ndf_w2,field_3_stencil_size) :: field_3_stencil_dofmap\n"
-        "      INTEGER(KIND=i_def), intent(in), "
-        "dimension(ndf_w3,field_4_stencil_size) :: field_4_stencil_dofmap")
-
-    assert result2 in generated_code

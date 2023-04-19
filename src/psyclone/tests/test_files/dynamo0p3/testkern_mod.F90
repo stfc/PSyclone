@@ -49,8 +49,7 @@ module testkern_mod
              arg_type(gh_field,  gh_real, gh_read, w2), &
              arg_type(gh_field,  gh_real, gh_read, w3)  &
            /)
-     ! TODO #870 change this metadata to operates_on
-     integer :: iterates_over = cells
+     integer :: operates_on = cell_column
    contains
      procedure, nopass :: code => testkern_code
   end type testkern_type

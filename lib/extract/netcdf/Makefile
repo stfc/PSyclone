@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Australian Bureau of Meteorology
+# Modified: I. Kavcic, Met Office
 
 # This Makefile just creates the Fortran base class for all extraction
 # libraries from the jinja template. The compile functionality it offers is
@@ -39,39 +40,49 @@
 # version of the base class (with therefore consistent compiler and
 # jinja settings).
 
+# ----------- Default "make" values, can be overwritten by the user -----------
+# Compiler and compiler flags
 F90 ?= gfortran
-F90FLAGS ?= 
+F90FLAGS ?=
+# Path to the PSyclone wrapper libraries. It defaults to the relative path to
+# the top-level 'lib' directory. Overwrite for a custom location.
+PSYDATA_LIB_DIR ?= ./../..
+# -----------------------------------------------------------------------------
 
 F90FLAGS += $$(nf-config --fflags)
 
 # The extract library is implemented for int, real and
-# double scalars and 2-dimension arrays
-PROCESS_ARGS = -prefix=extract_ -types=int,real,double \
-		       -dims=2
-PROCESS=$$(../../get_python.sh) ../../process.py
+# double scalars and 1- to 4-dimensional arrays
+PROCESS_ARGS = -prefix=extract_ -types=int,long,logical,real,double \
+		       -dims=1,2,3,4
+PROCESS = $$($(PSYDATA_LIB_DIR)/get_python.sh) $(PSYDATA_LIB_DIR)/process.py
 
-default: extract_netcdf_base.o psy_data_base.o
+default: extract_netcdf_base.o psy_data_base.o read_kernel_data_mod.o
+
 process: extract_netcdf_base.f90
 
-.PHONY: default process clean all
+.PHONY: default process all clean allclean
 
 all:
 	$(MAKE) -C dl_esm_inf
 	$(MAKE) -C lfric
-
+	$(MAKE) -C nemo
 
 # The dependencies
 # ----------------
 extract_netcdf_base.o: psy_data_base.o
 
 # Jinja rules for creating the base class, and the
-# netcdf extraction class
+# NetCDF extraction class
 # ------------------------------------------------
-psy_data_base.f90:	../../psy_data_base.jinja Makefile
+psy_data_base.f90:	$(PSYDATA_LIB_DIR)/psy_data_base.jinja Makefile
 	$(PROCESS) $(PROCESS_ARGS) -generic-declare $< > psy_data_base.f90
 
 extract_netcdf_base.f90:	extract_netcdf_base.jinja Makefile
 	$(PROCESS) $(PROCESS_ARGS) -generic-provide $< > extract_netcdf_base.f90
+
+read_kernel_data_mod.f90:	read_kernel_data_mod.jinja Makefile
+	$(PROCESS) $(PROCESS_ARGS) -generic-provide $< > read_kernel_data_mod.f90
 
 # Compilation
 # -----------
@@ -79,4 +90,10 @@ extract_netcdf_base.f90:	extract_netcdf_base.jinja Makefile
 	$(F90) $(F90FLAGS) -c $<
 
 clean:
-	rm -f extract_netcdf_base.f90 psy_data_base.f90 *.o *.mod
+	rm -f extract_netcdf_base.f90 psy_data_base.f90 read_kernel_data_mod.f90
+	rm -f *.o *.mod
+
+allclean:
+	$(MAKE) -C dl_esm_inf allclean
+	$(MAKE) -C lfric allclean
+	$(MAKE) -C nemo allclean

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2020, Science and Technology Facilities Council.
+# Copyright (c) 2019-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Lab
+# Authors: A. R. Porter and N. Nobre, STFC Daresbury Lab
 
 ''' Module containing various utilities to aid in the application of
     OpenACC KERNELS directives to NEMO source. Mainly required to
@@ -133,8 +133,7 @@ def try_kernels_trans(nodes, default_present):
     from psyclone.errors import InternalError
     from psyclone.transformations import TransformationError, ACCKernelsTrans
     try:
-        _, _ = ACCKernelsTrans().apply(nodes,
-                                       {"default_present": default_present})
+        ACCKernelsTrans().apply(nodes, {"default_present": default_present})
     except (TransformationError, InternalError) as err:
-        print("Failed to transform nodes: {0}", nodes)
-        print("Error was: {0}".format(str(err)))
+        print(f"Failed to transform nodes: {nodes}")
+        print(f"Error was: {err}")

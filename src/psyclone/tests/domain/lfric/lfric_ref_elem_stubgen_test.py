@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council.
+# Copyright (c) 2020-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,17 +32,15 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: I. Kavcic, Met Office
+# Modified: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
 '''
 Module containing pytest tests for the reference-element stub generation
-functionality of the Dynamo0.3 API.
+functionality of the LFRic (Dynamo0.3) API.
 '''
 
-from __future__ import absolute_import, print_function
 import os
-import pytest
 from fparser import api as fpapi
-from psyclone.configuration import Config
 from psyclone.dynamo0p3 import DynKernMetadata, DynKern
 
 
@@ -50,13 +48,6 @@ from psyclone.dynamo0p3 import DynKernMetadata, DynKern
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "../..", "test_files", "dynamo0p3")
 TEST_API = "dynamo0.3"
-
-
-@pytest.fixture(scope="module", autouse=True)
-def setup():
-    '''Make sure that all tests here use Dynamo0.3 as API.'''
-    Config.get().api = "dynamo0.3"
-
 
 REF_ELEM_QUAD_MDATA = '''
 module testkern_refelem_quad_mod
@@ -103,7 +94,7 @@ def test_refelem_stub_gen():
         "map_w1, ndf_w2, undf_w2, map_w2, ndf_w3, undf_w3, map_w3, "
         "nfaces_re_h, nfaces_re_v, normals_to_horiz_faces, "
         "normals_to_vert_faces)\n"
-        "      USE constants_mod, ONLY: r_def, i_def\n"
+        "      USE constants_mod\n"
         "      IMPLICIT NONE\n"
         "      INTEGER(KIND=i_def), intent(in) :: nlayers\n"
         "      INTEGER(KIND=i_def), intent(in) :: ndf_w1\n"

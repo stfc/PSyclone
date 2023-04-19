@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,30 +32,33 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author S. Siso, STFC Daresbury Lab
-# Modified: A. R. Porter, STFC Daresbury Lab
+# Modified: A. R. Porter, R. W. Ford and N. Nobre, STFC Daresbury Lab
 # Modified: J. Henrichs, Bureau of Meteorology
+# Modified: A. B. G. Chalk, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' PSyIR nodes package module '''
 
-from psyclone.psyir.nodes.node import colored, Node, SCHEDULE_COLOUR_MAP
+from psyclone.psyir.nodes.array_reference import ArrayReference
+from psyclone.psyir.nodes.array_of_structures_reference import (
+    ArrayOfStructuresReference)
+from psyclone.psyir.nodes.assignment import Assignment
+from psyclone.psyir.nodes.codeblock import CodeBlock
+from psyclone.psyir.nodes.container import Container
+from psyclone.psyir.nodes.node import colored, Node
+from psyclone.psyir.nodes.scoping_node import ScopingNode
 from psyclone.psyir.nodes.schedule import Schedule
 from psyclone.psyir.nodes.return_stmt import Return
-from psyclone.psyir.nodes.assignment import Assignment
 from psyclone.psyir.nodes.array_member import ArrayMember
 from psyclone.psyir.nodes.array_of_structures_member import \
     ArrayOfStructuresMember
 from psyclone.psyir.nodes.operation import Operation, UnaryOperation, \
     BinaryOperation, NaryOperation
 from psyclone.psyir.nodes.literal import Literal
-from psyclone.psyir.nodes.ifblock import IfBlock
+from psyclone.psyir.nodes.if_block import IfBlock
+from psyclone.psyir.nodes.intrinsic_call import IntrinsicCall
 from psyclone.psyir.nodes.reference import Reference
-from psyclone.psyir.nodes.array_reference import ArrayReference
-from psyclone.psyir.nodes.array_of_structures_reference import \
-    ArrayOfStructuresReference
 from psyclone.psyir.nodes.loop import Loop
-from psyclone.psyir.nodes.container import Container
-from psyclone.psyir.nodes.codeblock import CodeBlock
 from psyclone.psyir.nodes.extract_node import ExtractNode
 from psyclone.psyir.nodes.kernel_schedule import KernelSchedule
 from psyclone.psyir.nodes.member import Member
@@ -70,12 +73,31 @@ from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.structure_reference import StructureReference
 from psyclone.psyir.nodes.structure_member import StructureMember
 from psyclone.psyir.nodes.call import Call
+from psyclone.psyir.nodes.file_container import FileContainer
+from psyclone.psyir.nodes.directive import Directive, StandaloneDirective, \
+    RegionDirective
+from psyclone.psyir.nodes.acc_directives import ACCDirective, \
+    ACCLoopDirective, ACCEnterDataDirective, ACCParallelDirective, \
+    ACCKernelsDirective, ACCDataDirective, ACCUpdateDirective, \
+    ACCStandaloneDirective, ACCRegionDirective, ACCRoutineDirective
+from psyclone.psyir.nodes.omp_directives import OMPDirective, OMPDoDirective, \
+    OMPParallelDirective, OMPParallelDoDirective, OMPSingleDirective, \
+    OMPMasterDirective, OMPSerialDirective, OMPTaskloopDirective, \
+    OMPTaskwaitDirective, OMPStandaloneDirective, OMPRegionDirective, \
+    OMPTargetDirective, OMPLoopDirective, OMPDeclareTargetDirective, \
+    OMPTeamsDistributeParallelDoDirective
+from psyclone.psyir.nodes.clause import Clause, OperandClause
+from psyclone.psyir.nodes.omp_clauses import OMPGrainsizeClause, \
+    OMPNogroupClause, OMPNowaitClause, OMPNumTasksClause, OMPPrivateClause, \
+    OMPDefaultClause, OMPReductionClause, OMPScheduleClause, \
+    OMPFirstprivateClause, OMPSharedClause, OMPDependClause
+from psyclone.psyir.nodes.while_loop import WhileLoop
+
 
 # The entities in the __all__ list are made available to import directly from
 # this package e.g. 'from psyclone.psyir.nodes import Literal'
 __all__ = [
         'colored',
-        'SCHEDULE_COLOUR_MAP',
         'ArrayMember',
         'ArrayReference',
         'ArrayOfStructuresMember',
@@ -83,23 +105,21 @@ __all__ = [
         'Assignment',
         'BinaryOperation',
         'Call',
+        'Clause',
         'CodeBlock',
         'Container',
         'DataNode',
-        'ExtractNode',
+        'FileContainer',
         'IfBlock',
-        'KernelSchedule',
+        'IntrinsicCall',
         'Literal',
         'Loop',
         'Member',
-        'NanTestNode',
         'NaryOperation',
         'Node',
+        'OperandClause',
         'Operation',
-        'ProfileNode',
-        'PSyDataNode',
         'Range',
-        'ReadOnlyVerifyNode',
         'Reference',
         'Return',
         'Routine',
@@ -107,4 +127,56 @@ __all__ = [
         'Statement',
         'StructureMember',
         'StructureReference',
-        'UnaryOperation']
+        'UnaryOperation',
+        'ScopingNode',
+        'WhileLoop',
+        # PSyclone-specific nodes
+        'KernelSchedule',
+        # PSyData Nodes
+        'PSyDataNode',
+        'ExtractNode',
+        'ProfileNode',
+        'NanTestNode',
+        'ReadOnlyVerifyNode',
+        # Directive Nodes
+        'Directive',
+        'RegionDirective',
+        'StandaloneDirective',
+        'ACCDirective',
+        'ACCRegionDirective',
+        'ACCStandaloneDirective',
+        'ACCDataDirective',
+        'ACCEnterDataDirective',
+        'ACCParallelDirective',
+        'ACCLoopDirective',
+        'ACCKernelsDirective',
+        'ACCUpdateDirective',
+        'ACCRoutineDirective',
+        'OMPDirective',
+        'OMPRegionDirective',
+        'OMPStandaloneDirective',
+        'OMPParallelDirective',
+        'OMPSerialDirective',
+        'OMPSingleDirective',
+        'OMPMasterDirective',
+        'OMPTaskloopDirective',
+        'OMPDoDirective',
+        'OMPParallelDoDirective',
+        'OMPTaskwaitDirective',
+        'OMPTargetDirective',
+        'OMPLoopDirective',
+        'OMPDeclareTargetDirective',
+        'OMPTeamsDistributeParallelDoDirective',
+        # OMP Clause Nodes
+        'OMPGrainsizeClause',
+        'OMPNogroupClause',
+        'OMPNowaitClause',
+        'OMPNumTasksClause',
+        'OMPPrivateClause',
+        'OMPDefaultClause',
+        'OMPReductionClause',
+        'OMPScheduleClause',
+        'OMPFirstprivateClause',
+        'OMPSharedClause',
+        'OMPDependClause'
+        ]

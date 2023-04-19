@@ -1,9 +1,9 @@
-{# Added this as jinja code so that it is understood that the
+{# Added this as Jinja code so that it is understood that the
    comment does not apply to THIS file. #}
-{{ "! ==================================================" }}
-{{ "! THIS FILE IS CREATED FROM THE JINJA TEMPLATE FILE " }}
-{{ "! DO NOT MODIFY DIRECTLY                            " }}
-{{ "! ==================================================" }}
+{{ "! ================================================== !" }}
+{{ "! THIS FILE IS CREATED FROM THE JINJA TEMPLATE FILE. !" }}
+{{ "! DO NOT MODIFY DIRECTLY!                            !" }}
+{{ "! ================================================== !" }}
 
 {% if ALL_DIMS is not defined %}
    {# Support 1 to 4 dimensional arrays if not specified #}
@@ -27,7 +27,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2020, Science and Technology Facilities Council.
+! Copyright (c) 2020-2021, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -57,12 +57,14 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Authors J. Henrichs, Bureau of Meteorology
+! Author: J. Henrichs, Bureau of Meteorology
+! Modified: I. Kavcic, Met Office
 
 module psy_data_base_mod
+
     use, intrinsic :: iso_fortran_env, only : int64, int32,   &
                                               real32, real64, &
-                                              stderr=>Error_Unit
+                                              stderr => Error_Unit
     implicit none
 
     !> Maximum string length for module- and region-names
@@ -96,21 +98,26 @@ module psy_data_base_mod
         character(MAX_STRING_LENGTH) :: module_name, region_name
 
         contains
-            procedure :: PreStart, PreEndDeclaration, PreEnd
-            procedure :: PostStart, PostEnd, Abort
+
+            procedure :: PreStart
+            procedure :: PreEndDeclaration
+            procedure :: PreEnd
+            procedure :: PostStart
+            procedure :: PostEnd
+            procedure :: Abort
 
             {# Collect the various procedures for the same generic interface -#}
             {# ------------------------------------------------------------- -#}
             {% set all_declares=[] -%}
             {% set all_provides=[] -%}
             {% for name, type, bits in ALL_TYPES %}
-            procedure :: ProvideScalar{{name}}
             procedure :: DeclareScalar{{name}}
+            procedure :: ProvideScalar{{name}}
               {{- all_declares.append("DeclareScalar"~name) or "" -}}
               {{- all_provides.append("ProvideScalar"~name) or "" }}
               {% for dim in ALL_DIMS %}
-            procedure :: ProvideArray{{dim}}d{{name}}
             procedure :: DeclareArray{{dim}}d{{name}}
+            procedure :: ProvideArray{{dim}}d{{name}}
                 {{- all_declares.append("DeclareArray"~dim~"d"~name) or "" -}}
                 {{ all_provides.append("ProvideArray"~dim~"d"~name) or "" }}
               {% endfor %}
@@ -134,15 +141,16 @@ module psy_data_base_mod
             generic, public :: ProvideVariable => &
                 {{all_provides|join(", &\n"+indent) }}
             {% endif %}
+
     end type PSyDataBaseType
 
 contains
 
     ! -------------------------------------------------------------------------
-    !> This subroutine is the first function called when an instrumented region
+    !> @brief This subroutine is the first function called when an instrumented region
     !! is entered. It initialises this object, and stores module and regin
-    !! names. 
-    !! @param[inout] this The instance of the PSyDataBaseType.
+    !! names.
+    !! @param[in,out] this The instance of the PSyDataBaseType.
     !! @param[in] module_name The name of the module of the instrumented
     !!            region.
     !! @param[in] region_name The name of the instrumented region.
@@ -153,7 +161,9 @@ contains
     !!            this region (unused atm).
     subroutine PreStart(this, module_name, region_name, num_pre_vars, &
                         num_post_vars)
+
         implicit none
+
         class(PSyDataBaseType), intent(inout), target :: this
         character(*), intent(in) :: module_name, region_name
         integer, intent(in)      :: num_pre_vars, num_post_vars
@@ -162,13 +172,13 @@ contains
         integer      :: status
 
         call get_environment_variable("PSYDATA_VERBOSE", verbose, status=status)
-        this%verbosity=0
-        if (status==0) then
-            if(verbose=="0") then
+        this%verbosity = 0
+        if (status == 0) then
+            if (verbose == "0") then
                 this%verbosity = 0
-            else if (verbose=="1") then
+            else if (verbose == "1") then
                 this%verbosity = 1
-            else if (verbose=="2") then
+            else if (verbose == "2") then
                 this%verbosity = 2
             else
                 write(stderr,*) "PSyData: invalid setting of PSYDATA_VERBOSE."
@@ -183,95 +193,124 @@ contains
 
         if (.not. is_enabled) return
 
-        if(this%verbosity>0) &
+        if (this%verbosity > 0) &
             write(stderr,*) "PSyData: PreStart ", module_name, " ", region_name
+
     end subroutine PreStart
 
     ! -------------------------------------------------------------------------
-    !> This subroutine is called once all variables are declared. It makes
+    !> @brief This subroutine is called once all variables are declared. It makes
     !! sure that the next variable index is starting at 1 again.
-    !! @param[inout] this The instance of the PSyDataBaseType.
+    !! @param[in,out] this The instance of the PSyDataBaseType.
     subroutine PreEndDeclaration(this)
+
         implicit none
+
         class(PSyDataBaseType), intent(inout), target :: this
+
         this%next_var_index = 1
+
     end subroutine PreEndDeclaration
 
     ! -------------------------------------------------------------------------
-    !> This subroutine is called after the value of all variables has been
+    !> @brief This subroutine is called after the value of all variables has been
     !! provided (and declared). After this call the instrumented region will
     !! be executed. Nothing is done here.
-    !! @param[inout] this The instance of the PSyDataBaseType.
+    !! @param[in,out] this The instance of the PSyDataBaseType.
     subroutine PreEnd(this)
+
         implicit none
+
         class(PSyDataBaseType), intent(inout), target :: this
+
     end subroutine PreEnd
 
     ! -------------------------------------------------------------------------
-    !> This subroutine is called after the instrumented region has been
+    !> @brief This subroutine is called after the instrumented region has been
     !! executed. After this call the value of variables after the instrumented
     !! region will be provided. Nothing is done here.
-    !! @param[inout] this The instance of the PSyDataBaseType.
+    !! @param[in,out] this The instance of the PSyDataBaseType.
     subroutine PostStart(this)
+
         implicit none
+
         class(PSyDataBaseType), intent(inout), target :: this
+
     end subroutine PostStart
 
     ! -------------------------------------------------------------------------
-    !> This subroutine is called after the instrumented region has been
+    !> @brief This subroutine is called after the instrumented region has been
     !! executed and all values of variables after the instrumented
     !! region have been provided. No special functionality required here.
-    !! @param[inout] this The instance of the PSyDataBaseType.
+    !! @param[in,out] this The instance of the PSyDataBaseType.
     subroutine PostEnd(this)
+
         implicit none
+
         class(PSyDataBaseType), intent(inout), target :: this
 
         if (.not. is_enabled) return
 
-        if(this%verbosity>0) &
+        if (this%verbosity > 0) &
             write(stderr, *) "PSyData: PostEnd ", trim(this%module_name), &
                     " ", trim(this%region_name)
+
     end subroutine PostEnd
 
     ! -------------------------------------------------------------------------
-    !> Displays the message and aborts execution. This base implementation
+    !> @brief Displays the message and aborts execution. This base implementation
     !! just uses `stop`.
     !! @param[in] message Error message to be displayed (string).
     subroutine Abort(this, message)
+
         implicit none
+
         class(PSyDataBaseType), intent(inout), target :: this
         character(*) :: message
 
         write(stderr, *) "PSyData Error:", message
         stop "PSyData: Aborting"
+
     end subroutine Abort
 
     ! -------------------------------------------------------------------------
-    !> An optional initialisation subroutine.
+    !> @brief An optional initialisation subroutine.
     subroutine {{PREFIX}}PSyDataInit()
+
       implicit none
+
       return
+
     end subroutine {{PREFIX}}PSyDataInit
 
     ! -------------------------------------------------------------------------
-    !> An optional initialisation subroutine.
+    !> @brief An optional initialisation subroutine.
     subroutine {{PREFIX}}PSyDataShutdown()
+
       implicit none
+
       return
+
     end subroutine {{PREFIX}}PSyDataShutdown
 
     ! -------------------------------------------------------------------------
-    !> Enables PSyData handling (if it is not already enabled).
+    !> @brief Enables PSyData handling (if it is not already enabled).
     subroutine {{PREFIX}}PSyDataStart()
+
       implicit none
+
       is_enabled = .true.
+
     end subroutine {{PREFIX}}PSyDataStart
 
     ! -------------------------------------------------------------------------
-    !> Disables PSyData handling.
+    !> @brief Disables PSyData handling.
     subroutine {{PREFIX}}PSyDataStop()
+
       implicit none
+
       is_enabled = .false.
+
     end subroutine {{PREFIX}}PSyDataStop
 
     ! =========================================================================
@@ -279,14 +318,16 @@ contains
     ! =========================================================================
     {% for name, type, bits in ALL_TYPES %}
     ! -------------------------------------------------------------------------
-    !> This subroutine declares a scalar {{type}} value. This
+    !> @brief This subroutine declares a scalar {{type}} value. This
     !! implementation only increases the next index, and prints
     !! the name of the variable if verbose output is requested.
-    !! @param[inout] this The instance of the PSyDataBaseType.
+    !! @param[in,out] this The instance of the PSyDataBaseType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
     subroutine DeclareScalar{{name}}(this, name, value)
+
         implicit none
+
         class(PSyDataBaseType), intent(inout), target :: this
         character(*), intent(in) :: name
         {{type}}, intent(in) :: value
@@ -295,25 +336,29 @@ contains
 
         if (.not. is_enabled) return
 
-        if (this%verbosity>1) &
+        if (this%verbosity > 1) &
             write(stderr,*) "PSyData: DeclareScalar{{name}}: ", &
-                            trim(this%module_name), " ",                &
+                            trim(this%module_name), " ", &
                             trim(this%region_name), ": ", name
+
     end subroutine DeclareScalar{{name}}
 
     ! -------------------------------------------------------------------------
-    !> This subroutine provides a scalar {{type}} value. This
+    !> @brief This subroutine provides a scalar {{type}} value. This
     !! implementation only increases the next index.
-    !! @param[inout] this The instance of the PSyDataBaseType.
+    !! @param[in,out] this The instance of the PSyDataBaseType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
     subroutine ProvideScalar{{name}}(this, name, value)
+
         implicit none
+
         class(PSyDataBaseType), intent(inout), target :: this
         character(*), intent(in) :: name
         {{type}}, intent(in) :: value
 
         this%next_var_index = this%next_var_index+1
+
     end subroutine ProvideScalar{{name}}
 
     {# Now create the declarations of all array implementations #}
@@ -322,15 +367,17 @@ contains
            We repeat the list [":"] DIM-times, which is then joined #}
         {% set DIMENSION=([":"]*dim)|join(",") %}
     ! ---------------------------------------------------------------------
-    !> This subroutine handles a declaration of a {{dim}}d-array of
+    !> @brief This subroutine handles a declaration of a {{dim}}D array of
     !! {{type}} values. This base implementation only increases
     !! next_var_index and prints the name of the variable if
     !! verbose output is requested.
-    !! @param[inout] this The instance of the PSyDataBaseType.
+    !! @param[in,out] this The instance of the PSyDataBaseType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
     subroutine DeclareArray{{dim}}d{{name}}(this, name, value)
+
         implicit none
+
         class(PSyDataBaseType), intent(inout), target :: this
         character(*), intent(in) :: name
         {{type}}, dimension({{DIMENSION}}), intent(in) :: value
@@ -338,27 +385,32 @@ contains
 
         if (.not. is_enabled) return
 
-        if (this%verbosity>1) &
+        if (this%verbosity > 1) &
             write(stderr,*) "PSyData: DeclareArray{{dim}}d{{name}}: ", &
-                            trim(this%module_name), " ",               &
+                            trim(this%module_name), " ", &
                             trim(this%region_name), ": ", name
+
     end subroutine DeclareArray{{dim}}d{{name}}
 
     ! -------------------------------------------------------------------------
-    !> This subroutine handles a provide call for a {{dim}}d {{type}} array.
+    !> @brief This subroutine handles a provide call for a {{dim}}D {{type}} array.
     !! This base implementation only increases next_var_index.
-    !! @param[inout] this The instance of the PSyDataBaseType.
+    !! @param[in,out] this The instance of the PSyDataBaseType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
     subroutine ProvideArray{{dim}}d{{name}}(this, name, value)
+
         implicit none
+
         class(PSyDataBaseType), intent(inout), target :: this
         character(*), intent(in) :: name
         {{type}}, dimension({{DIMENSION}}), intent(in) :: value
+
         this%next_var_index = this%next_var_index + 1
+
     end subroutine ProvideArray{{dim}}d{{name}}
 
-        {% endfor %}  {# for dim #}
-    {% endfor %}   {# for type in ... #}
+        {% endfor -%}  {# for dim #}
+    {%- endfor -%}  {# for type in ... #}
 
 end module psy_data_base_mod

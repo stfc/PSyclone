@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Laboratory
+# Modified J. Henrichs, Bureau of Meteorology
 
 include ../../common.mk
 
@@ -44,9 +45,8 @@ transform: ${SCRIPTS}
 ${SCRIPTS}:
 	${PSYCLONE} -s ./$@ ../eg3/solver_mod.x90 -oalg /dev/null -opsy /dev/null
 
-compile:
+compile: transform
 	@echo "No compilation supported for lfric/scripts examples"
 
-all: transform compile
-
-
+run: compile
+	@echo "No run targets for lfric/scripts examples"

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2020, Science and Technology Facilities Council.
+# Copyright (c) 2018-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,11 +31,16 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Lab
+# Authors: A. R. Porter and S. Siso, STFC Daresbury Lab
 
 ''' Module providing a transformation script that converts the Schedule of
     the first Invoke to use OpenCL. In order to do this, those kernels that
-    access global data are transformed so as to pass that data by argument. '''
+    access imported data are transformed so as to pass that data by argument.
+'''
+
+from psyclone.transformations import KernelImportsToArguments
+from psyclone.domain.gocean.transformations import GOOpenCLTrans, \
+    GOMoveIterationBoundariesInsideKernelTrans
 
 
 def trans(psy):
@@ -49,23 +54,27 @@ def trans(psy):
     :rtype: :py:class:`psyclone.psyGen.PSy`
 
     '''
-    from psyclone.transformations import OCLTrans, KernelGlobalsToArguments
 
     # Get the Schedule associated with the first Invoke
     invoke = psy.invokes.invoke_list[0]
     sched = invoke.schedule
 
-    # Convert any kernel accesses to global data into arguments
-    ktrans = KernelGlobalsToArguments()
+    # Convert any kernel accesses to imported data into arguments
+    ktrans = KernelImportsToArguments()
     for kern in sched.kernels():
         ktrans.apply(kern)
 
-    # Transform the Schedule
-    cltrans = OCLTrans()
-    cltrans.apply(sched, options={"end_barrier": True})
-
     # Provide kernel-specific OpenCL optimization options
+    move_boundaries_trans = GOMoveIterationBoundariesInsideKernelTrans()
     for kern in sched.kernels():
+        # Move the PSy-layer loop boundaries inside the kernel as a kernel
+        # mask, this allows to iterate through the whole domain
+        move_boundaries_trans.apply(kern)
+        # Specify the OpenCL queue and workgroup size of the kernel
         kern.set_opencl_options({"queue_number": 1, 'local_size': 4})
+
+    # Transform the Schedule
+    cltrans = GOOpenCLTrans()
+    cltrans.apply(sched, options={"end_barrier": True})
 
     return psy

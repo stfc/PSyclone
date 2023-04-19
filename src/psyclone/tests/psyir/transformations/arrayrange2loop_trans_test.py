@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council.
+# Copyright (c) 2020-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -72,7 +72,7 @@ def create_range(array_symbol, dim):
         Reference(array_symbol), int_dim)
     ubound = BinaryOperation.create(
         BinaryOperation.Operator.UBOUND,
-        Reference(array_symbol), int_dim)
+        Reference(array_symbol), int_dim.copy())
     return Range.create(lbound, ubound)
 
 
@@ -265,30 +265,6 @@ def test_transform():
     assert isinstance(ArrayRange2LoopTrans(), Transformation)
 
 
-def test_string_compare():
-    '''Check that the string_compare utility function in
-    ArrayRange2LoopTrans works as expected.
-
-    '''
-    with pytest.raises(TypeError) as info:
-        ArrayRange2LoopTrans.string_compare(None, None)
-    assert (
-        "The first argument to the string_compare method should be a Node "
-        "but found 'NoneType'." in str(info.value))
-
-    with pytest.raises(TypeError) as info:
-        ArrayRange2LoopTrans.string_compare(Node(), None)
-    assert (
-        "The second argument to the string_compare method should be a Node "
-        "but found 'NoneType'." in str(info.value))
-
-    node1 = Literal("1.0", REAL_TYPE)
-    node2 = BinaryOperation.create(BinaryOperation.Operator.MUL, node1, node1)
-    node3 = BinaryOperation.create(BinaryOperation.Operator.MAX, node2, node2)
-    assert ArrayRange2LoopTrans.string_compare(node3, node3) is True
-    assert ArrayRange2LoopTrans.string_compare(node3, node2) is False
-
-
 def test_same_range():
     '''Test that the same_range utility function behaves in the expected
     way.
@@ -349,7 +325,7 @@ def test_same_range():
     array_x_2 = create_array_x(SymbolTable())
     assert ArrayRange2LoopTrans.same_range(array_x, 0, array_x_2, 0) is True
 
-    # steps are different (calls string_compare)
+    # steps are different
     tmp = array_x_2.children[0].step
     array_x_2.children[0].step = Literal("2", INTEGER_TYPE)
     assert ArrayRange2LoopTrans.same_range(array_x, 0, array_x_2, 0) is False
@@ -363,7 +339,7 @@ def test_same_range():
     array_x_2.children[0].stop = Literal("2", INTEGER_TYPE)
     assert ArrayRange2LoopTrans.same_range(array_x, 0, array_x_2, 0) is False
 
-    # neither use upper bound and are different (calls string_compare)
+    # neither use upper bound and are different
     tmp2 = array_x.children[0].stop
     array_x.children[0].stop = Literal("1", INTEGER_TYPE)
     assert ArrayRange2LoopTrans.same_range(array_x, 0, array_x_2, 0) is False
@@ -373,16 +349,21 @@ def test_same_range():
     array_x_2.children[0].stop = tmp1
     array_x.children[0].stop = tmp2
 
-    # one of lower bounds uses lbound, other does not
+    # One of lower bounds uses lbound, other does not but has the same value.
     array_x_2.children[0].start = Literal("1", INTEGER_TYPE)
+    assert ArrayRange2LoopTrans.same_range(array_x, 0, array_x_2, 0) is True
+
+    # One of lower bounds uses lbound, other does not and has a
+    # different start value.
+    array_x_2.children[0].start = Literal("2", INTEGER_TYPE)
     assert ArrayRange2LoopTrans.same_range(array_x, 0, array_x_2, 0) is False
 
-    # neither use lower bound and are different (calls string_compare)
-    array_x.children[0].start = Literal("2", INTEGER_TYPE)
+    # Neither use lower bound and are different.
+    array_x.children[0].start = Literal("3", INTEGER_TYPE)
     assert ArrayRange2LoopTrans.same_range(array_x, 0, array_x_2, 0) is False
 
 
-# The parametrised tests are 1: x(:)=0.0, 2: x(:)=y(n,:), 3:
+# The parameterised tests are 1: x(:)=0.0, 2: x(:)=y(n,:), 3:
 # y(n,:)=x(:), 4: y2(:,:)=z(:,n,:) and 5:
 # y3(n,2:n:2)=x(2:n:2)*z(1,2:n:2)+a(1)
 @pytest.mark.parametrize("lhs_create,rhs_create,expected",
@@ -494,9 +475,9 @@ def test_apply_calls_validate():
     trans = ArrayRange2LoopTrans()
     with pytest.raises(TransformationError) as info:
         trans.apply(None)
-    assert("Error in ArrayRange2LoopTrans transformation. The supplied node "
-           "argument should be a PSyIR Assignment, but found 'NoneType'."
-           in str(info.value))
+    assert ("Error in ArrayRange2LoopTrans transformation. The supplied node "
+            "argument should be a PSyIR Assignment, but found 'NoneType'."
+            in str(info.value))
 
 
 def test_str():
@@ -538,7 +519,7 @@ def test_validate():
 
     array_symbol = DataSymbol("x", ArrayType(INTEGER_TYPE, [10, 10]))
     one = Literal("1", INTEGER_TYPE)
-    array_assignment = ArrayReference.create(array_symbol, [one, one])
+    array_assignment = ArrayReference.create(array_symbol, [one, one.copy()])
     with pytest.raises(TransformationError) as info:
         trans.validate(Assignment.create(array_assignment, DataNode()))
     assert (
@@ -546,9 +527,9 @@ def test_validate():
         "supplied Assignment node should be a PSyIR ArrayReference with at "
         "least one "
         "of its dimensions being a Range, but found None in "
-        "'ArrayReference[name:'x']\\nLiteral[value:'1', "
-        "Scalar<INTEGER, UNDEFINED>]\\nLiteral[value:'1', Scalar<INTEGER, "
-        "UNDEFINED>]\\n'." in str(info.value))
+        "'ArrayReference[name:'x']\nLiteral[value:'1', "
+        "Scalar<INTEGER, UNDEFINED>]\nLiteral[value:'1', Scalar<INTEGER, "
+        "UNDEFINED>]\n'." in str(info.value))
 
     array_x = create_array_x(SymbolTable())
     assignment = Assignment.create(
@@ -562,9 +543,9 @@ def test_validate():
         "The ArrayRange2LoopTrans transformation only supports ranges that "
         "are known to be the same as each other but array access 'x' "
         "dimension 0 and 'x' dimension 0 are either different or can't be "
-        "determined in the assignment 'Assignment[]\\n"
-        "ArrayReference[name:'x']\\nRange[]\\n"
-        "ArrayReference[name:'x']\\nRange[]\\n'."
+        "determined in the assignment 'Assignment[]\n"
+        "ArrayReference[name:'x']\nRange[]\n"
+        "ArrayReference[name:'x']\nRange[]\n'."
         in str(info.value))
 
 
@@ -580,15 +561,17 @@ def test_validate_intrinsic():
     array_y_2 = create_array_y_2d_slice(symbol_table)
     matmul = BinaryOperation.create(BinaryOperation.Operator.MATMUL,
                                     array_y_2, array_x)
-    assignment = Assignment.create(array_x, matmul)
+    reference = ArrayReference.create(
+        symbol_table.lookup("x"), [create_range(symbol_table.lookup("x"), 1)])
+    assignment = Assignment.create(reference, matmul)
 
     trans = ArrayRange2LoopTrans()
     with pytest.raises(TransformationError) as info:
         trans.validate(assignment)
     assert (
         "Error in ArrayRange2LoopTrans transformation. The rhs of the "
-        "supplied Assignment node 'BinaryOperation[operator:'MATMUL']\\n"
-        "ArrayReference[name:'y2']\\nRange[]\\nRange[]\\n\\n"
-        "ArrayReference[name:'x']\\nRange[]\\n' contains the "
+        "supplied Assignment node 'BinaryOperation[operator:'MATMUL']\n"
+        "ArrayReference[name:'y2']\nRange[]\nRange[]\n\n"
+        "ArrayReference[name:'x']\nRange[]\n' contains the "
         "MATMUL operator which can't be performed elementwise." in
         str(info.value))

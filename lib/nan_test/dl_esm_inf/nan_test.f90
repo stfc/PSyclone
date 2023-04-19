@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2020, Science and Technology Facilities Council.
+! Copyright (c) 2020-2021, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,8 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Authors J. Henrichs, Bureau of Meteorology
+! Author J. Henrichs, Bureau of Meteorology
+! Modified I. Kavcic, Met Office
 
 !> This module implements a PSyData-based verification that floating point
 !! input and output parameters are not NAN and not infinite for the
@@ -41,20 +42,24 @@
 !! dl_esm_inf-specific field type.
 
 module nan_test_psy_data_mod
+
     use, intrinsic :: iso_fortran_env, only : int64, int32,   &
                                               real32, real64, &
-                                              stderr=>Error_Unit
+                                              stderr => Error_Unit
 
     use nan_test_base_mod, only : NANTestBaseType, nan_test_PSyDataInit, &
                  nan_test_PSyDataShutdown, is_enabled, &
                  nan_test_PSyDataStart, nan_test_PSyDataStop
+
     implicit none
 
     type, extends(NANTestBaseType), public:: nan_test_PSyDataType
 
     contains
+
         ! The various procedures used from this class
-        procedure :: DeclareField, ProvideField
+        procedure :: DeclareField
+        procedure :: ProvideField
 
         !> The generic interface for declaring a variable. The 'Declare'
         !! functions are actually not used at all, but they must be provided
@@ -70,38 +75,45 @@ module nan_test_psy_data_mod
 
     end type nan_test_PSyDataType
 
-Contains
+contains
 
     ! -------------------------------------------------------------------------
     !> This subroutine declares a field as defined in
     !! dl_esm_inf (r2d_field). It does nothing in the NAN checking library.
-    !! @param[inout] this The instance of the nan_test_PSyDataType.
+    !! @param[in,out] this The instance of the nan_test_PSyDataType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
-    !! @param[inout] this The instance of the nan_test_PSyDataType.
     subroutine DeclareField(this, name, value)
+
         use field_mod, only : r2d_field
+
         implicit none
+
         class(nan_test_PSyDataType), intent(inout), target :: this
         character(*), intent(in) :: name
         type(r2d_field), intent(in) :: value
+
     end subroutine DeclareField
 
     ! -------------------------------------------------------------------------
     !> This subroutine checks that a dl_esm_inf field does not contain
     !! a NAN or infinite floating point value.
-    !! @param[inout] this The instance of the nan_test_PSyDataType.
+    !! @param[in,out] this The instance of the nan_test_PSyDataType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
     subroutine ProvideField(this, name, value)
+
         use field_mod, only : r2d_field
         use nan_test_base_mod, only : NANTestBaseType
+
         implicit none
+
         class(nan_test_PSyDataType), intent(inout), target :: this
         character(*), intent(in) :: name
         type(r2d_field), intent(in) :: value
 
         call this%ProvideArray2dDouble(name, value%data)
+
     end subroutine ProvideField
-    
+
 end module nan_test_psy_data_mod

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,8 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: I. Kavcic, Met Office
+# Modified: J. Henrichs, Bureau of Meteorology
+# Modified: R. W. Ford, STFC Daresbury Lab
 
 '''
 Module containing pytest tests for kernel stub code generation and the related
@@ -44,7 +46,7 @@ import os
 import pytest
 import fparser
 from fparser import api as fpapi
-from psyclone.domain.lfric import LFRicArgDescriptor
+from psyclone.domain.lfric import LFRicConstants
 from psyclone.dynamo0p3 import DynKernMetadata, DynKern, LFRicFields
 from psyclone.f2pygen import ModuleGen, SubroutineGen
 from psyclone.errors import InternalError
@@ -107,10 +109,10 @@ def test_lfricfields_stub_err():
     print(fld_arg.descriptor._data_type)
     with pytest.raises(InternalError) as err:
         LFRicFields(kernel)._stub_declarations(sub_stub)
-    assert ("Found an unsupported data type 'gh_invalid_type' in "
-            "kernel stub declarations for the field argument 'field_2'. "
-            "Supported types are {0}.".
-            format(LFRicArgDescriptor.VALID_FIELD_DATA_TYPES)
+    const = LFRicConstants()
+    assert (f"Found an unsupported data type 'gh_invalid_type' in "
+            f"kernel stub declarations for the field argument 'field_2'. "
+            f"Supported types are {const.VALID_FIELD_DATA_TYPES}."
             in str(err.value))
 
 
@@ -164,7 +166,7 @@ def test_int_field_gen_stub():
         "map_w3, basis_w3_qr_xyoz, diff_basis_w3_qr_xyoz, ndf_w2trace, "
         "undf_w2trace, map_w2trace, np_xy_qr_xyoz, np_z_qr_xyoz, "
         "weights_xy_qr_xyoz, weights_z_qr_xyoz)\n"
-        "      USE constants_mod, ONLY: r_def, i_def\n"
+        "      USE constants_mod\n"
         "      IMPLICIT NONE\n"
         "      INTEGER(KIND=i_def), intent(in) :: nlayers\n"
         "      INTEGER(KIND=i_def), intent(in) :: ndf_w2trace\n"
@@ -177,7 +179,7 @@ def test_int_field_gen_stub():
         "map_wtheta\n"
         "      INTEGER(KIND=i_def), intent(in) :: undf_wtheta, undf_w3, "
         "undf_w2trace\n"
-        "      INTEGER(KIND=i_def), intent(out), dimension(undf_wtheta) :: "
+        "      INTEGER(KIND=i_def), intent(inout), dimension(undf_wtheta) :: "
         "field_1_wtheta\n"
         "      INTEGER(KIND=i_def), intent(in), dimension(undf_w3) :: "
         "field_2_w3_v1\n"
@@ -228,7 +230,7 @@ def test_int_field_all_stencils_gen_stub():
         "field_4_stencil_size, field_4_stencil_dofmap, ndf_w2broken, "
         "undf_w2broken, map_w2broken, ndf_w1, undf_w1, map_w1, "
         "ndf_w0, undf_w0, map_w0, ndf_w2v, undf_w2v, map_w2v)\n"
-        "      USE constants_mod, ONLY: r_def, i_def\n"
+        "      USE constants_mod\n"
         "      IMPLICIT NONE\n"
         "      INTEGER(KIND=i_def), intent(in) :: nlayers\n"
         "      INTEGER(KIND=i_def), intent(in) :: ndf_w0\n"
@@ -292,7 +294,7 @@ def test_real_int_field_gen_stub():
         "map_w2, ndf_wtheta, undf_wtheta, map_wtheta, ndf_w3, undf_w3, "
         "map_w3, basis_w3_qr_xyoz, diff_basis_w3_qr_xyoz, np_xy_qr_xyoz, "
         "np_z_qr_xyoz, weights_xy_qr_xyoz, weights_z_qr_xyoz)\n"
-        "      USE constants_mod, ONLY: r_def, i_def\n"
+        "      USE constants_mod\n"
         "      IMPLICIT NONE\n"
         "      INTEGER(KIND=i_def), intent(in) :: nlayers\n"
         "      INTEGER(KIND=i_def), intent(in) :: ndf_w1\n"
@@ -312,7 +314,7 @@ def test_real_int_field_gen_stub():
         "field_2_w1\n"
         "      REAL(KIND=r_def), intent(in), dimension(undf_w2) :: "
         "field_3_w2\n"
-        "      INTEGER(KIND=i_def), intent(out), dimension(undf_wtheta) :: "
+        "      INTEGER(KIND=i_def), intent(inout), dimension(undf_wtheta) :: "
         "field_4_wtheta\n"
         "      INTEGER(KIND=i_def), intent(in), dimension(undf_w3) :: "
         "field_5_w3\n"

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Science and Technology Facilities Council.
+# Copyright (c) 2019-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,19 +31,25 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford, STFC Daresbury Lab
+# Authors: R. W. Ford, S. Siso and N. Nobre, STFC Daresbury Lab
 
 '''This module provides the TransformationError class.
 '''
 
+from psyclone.errors import PSycloneError, LazyString
 
-class TransformationError(Exception):
+
+class TransformationError(PSycloneError):
     ''' Provides a PSyclone-specific error class for errors found during
         code transformation operations. '''
 
     def __init__(self, value):
-        Exception.__init__(self, value)
-        self.value = "Transformation Error: "+value
+        PSycloneError.__init__(self, value)
+        self.value = LazyString(
+            lambda: f"Transformation Error: {value}")
 
-    def __str__(self):
-        return repr(self.value)
+
+# TODO #1280: This currently causes 'more than one target for cross-reference'
+#             warnings when building the reference guide.
+# For AutoAPI documentation generation
+# __all__ = ["TransformationError"]

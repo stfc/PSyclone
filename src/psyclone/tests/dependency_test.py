@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2021, Science and Technology Facilities Council.
+# Copyright (c) 2019-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -44,12 +44,14 @@ import pytest
 
 from fparser.common.readfortran import FortranStringReader
 from psyclone import nemo
-from psyclone.core.access_info import VariablesAccessInfo
-from psyclone.core.access_type import AccessType
-from psyclone.domain.lfric import KernCallAccArgList
-from psyclone.psyGen import PSyFactory
+from psyclone.core import AccessType, Signature, VariablesAccessInfo
+from psyclone.domain.lfric import KernCallAccArgList, KernStubArgList
+from psyclone.dynamo0p3 import DynKernMetadata, DynKern
+from psyclone.parse.algorithm import parse
+from psyclone.psyGen import CodedKern, PSyFactory
 from psyclone.psyir.nodes import Assignment, IfBlock, Loop
 from psyclone.tests.utilities import get_invoke, get_ast
+from psyclone.transformations import ACCParallelTrans, ACCEnterDataTrans
 
 # Constants
 API = "nemo"
@@ -80,17 +82,17 @@ def test_assignment(parser):
     assert isinstance(scalar_assignment, Assignment)
     var_accesses = VariablesAccessInfo(scalar_assignment)
     # Test some test functions explicitly:
-    assert var_accesses.is_written("a")
-    assert not var_accesses.is_read("a")
-    assert not var_accesses.is_written("b")
-    assert var_accesses.is_read("b")
+    assert var_accesses.is_written(Signature("a"))
+    assert not var_accesses.is_read(Signature("a"))
+    assert not var_accesses.is_written(Signature("b"))
+    assert var_accesses.is_read(Signature("b"))
 
     # Array element assignment: c(i,j) = d(i,j+1)+e+f(x,y)
     array_assignment = schedule.children[1]
     assert isinstance(array_assignment, Assignment)
     var_accesses = VariablesAccessInfo(array_assignment)
-    assert str(var_accesses) == "c: WRITE, d: READ, e: READ, f: READ, "\
-                                "i: READ, j: READ, x: READ, y: READ"
+    assert (str(var_accesses) == "c: WRITE, d: READ, e: READ, f: READ, "
+                                 "i: READ, j: READ, x: READ, y: READ")
     # Increment operation: c(i) = c(i)+1
     increment_access = schedule.children[2]
     assert isinstance(increment_access, Assignment)
@@ -138,11 +140,10 @@ def test_double_variable_lhs(parser):
     indirect_addressing = schedule[0]
     assert isinstance(indirect_addressing, Assignment)
     var_accesses = VariablesAccessInfo()
-    from psyclone.parse.utils import ParseError
-    with pytest.raises(ParseError) as err:
+    with pytest.raises(NotImplementedError) as err:
         indirect_addressing.reference_accesses(var_accesses)
-    assert "The variable 'g' appears more than once on the left-hand side "\
-           "of an assignment." in str(err.value)
+    assert ("The variable 'g' appears more than once on the left-hand side "
+            "of an assignment." in str(err.value))
 
 
 def test_if_statement(parser):
@@ -164,10 +165,10 @@ def test_if_statement(parser):
     if_stmt = schedule.children[0]
     assert isinstance(if_stmt, IfBlock)
     var_accesses = VariablesAccessInfo(if_stmt)
-    assert str(var_accesses) == "a: READ, b: READ, i: READ, p: WRITE, "\
-                                "q: READ+WRITE, r: READ"
+    assert (str(var_accesses) == "a: READ, b: READ, i: READ, p: WRITE, "
+                                 "q: READ+WRITE, r: READ")
     # Test that the two accesses to 'q' indeed show up as
-    q_accesses = var_accesses["q"].all_accesses
+    q_accesses = var_accesses[Signature("q")].all_accesses
     assert len(q_accesses) == 2
     assert q_accesses[0].access_type == AccessType.READ
     assert q_accesses[1].access_type == AccessType.WRITE
@@ -210,8 +211,8 @@ def test_do_loop(parser):
     do_loop = schedule.children[0]
     assert isinstance(do_loop, nemo.NemoLoop)
     var_accesses = VariablesAccessInfo(do_loop)
-    assert str(var_accesses) == "ji: READ+WRITE, jj: READ+WRITE, n: READ, "\
-                                "s: WRITE, t: READ"
+    assert (str(var_accesses) == "ji: READ+WRITE, jj: READ+WRITE, n: READ, "
+                                 "s: WRITE, t: READ")
 
 
 def test_nemo_array_range(parser):
@@ -241,7 +242,7 @@ def test_nemo_array_range(parser):
 def test_goloop():
     ''' Check the handling of non-NEMO do loops.
     TODO #440: Does not work atm, GOLoops also have start/stop as
-    strings, which are even not defined. Only after genCode is called will
+    strings, which are even not defined. Only after gen_code() is called will
     they be defined.
     '''
 
@@ -250,9 +251,9 @@ def test_goloop():
     do_loop = invoke.schedule.children[0]
     assert isinstance(do_loop, Loop)
     var_accesses = VariablesAccessInfo(do_loop)
-    assert str(var_accesses) == ": READ, a_scalar: READ, i: READ+WRITE, "\
-                                "j: READ+WRITE, " "ssh_fld: READ+WRITE, "\
-                                "tmask: READ"
+    assert (str(var_accesses) == ": READ, a_scalar: READ, i: READ+WRITE, "
+                                 "j: READ+WRITE, " "ssh_fld: READ+WRITE, "
+                                 "tmask: READ")
     # TODO #440: atm the return value starts with:  ": READ, cu_fld: WRITE ..."
     # The empty value is caused by not having start, stop, end of the loop
     # defined at this stage.
@@ -275,20 +276,58 @@ def test_goloop_partially():
     assert not do_loop.args[3].is_scalar
 
     var_accesses = VariablesAccessInfo(do_loop)
-    assert "a_scalar: READ, i: READ+WRITE, j: READ+WRITE, "\
-           "ssh_fld: READWRITE, ssh_fld%grid%subdomain%internal%xstop: READ, "\
-           "ssh_fld%grid%tmask: READ" in str(var_accesses)
+    assert ("a_scalar: READ, i: READ+WRITE, j: READ+WRITE, "
+            "ssh_fld: READWRITE, ssh_fld%grid%subdomain%internal%xstop: READ, "
+            "ssh_fld%grid%tmask: READ" in str(var_accesses))
 
 
-def test_dynamo():
-    ''' Test the handling of an LFRic (Dynamo0.3) loop. Note that the variable
+def test_goloop_field_accesses():
+    ''' Check that for a GOcean kernel appropriate field accesses (based
+    on the meta data) are added to the dependency analysis.
+
+    '''
+    _, invoke = get_invoke("large_stencil.f90",
+                           "gocean1.0", name="invoke_large_stencil",
+                           dist_mem=False)
+    do_loop = invoke.schedule.children[0]
+
+    assert isinstance(do_loop, Loop)
+    var_accesses = VariablesAccessInfo(invoke.schedule)
+
+    # cu_fld has a pointwise write access in the first loop:
+    cu_fld = var_accesses[Signature("cu_fld")]
+    assert len(cu_fld.all_accesses) == 1
+    assert cu_fld.all_accesses[0].access_type == AccessType.WRITE
+    assert (cu_fld.all_accesses[0].component_indices.indices_lists
+            == [["i", "j"]])
+
+    # The stencil is defined to be GO_STENCIL(123,110,100)) for
+    # p_fld. Make sure that these 9 accesses are indeed reported:
+    p_fld = var_accesses[Signature("p_fld")]
+    all_indices = [access.component_indices.indices_lists
+                   for access in p_fld.all_accesses]
+
+    for test_index in [["i-1", "j+1"],
+                       ["i", "j+1"], ["i", "j+2"],
+                       ["i+1", "j+1"], ["i+2", "j+2"], ["i+3", "j+3"],
+                       ["i-1", "j"],
+                       ["i", "j"],
+                       ["i-1", "j-1"]]:
+        assert [test_index] in all_indices
+
+    # Since we have 9 different indices found (above), the following
+    # test guarantees that we don't get any invalid accesses reported.
+    assert len(p_fld.all_accesses) == 9
+
+
+def test_lfric():
+    ''' Test the handling of an LFRic loop. Note that the variable
     accesses are reported based on the user's point of view, not the code
     actually created by PSyclone, e.g. it shows a dependency on 'some_field',
     but not on some_field_proxy etc. Also the dependency is at this stage taken
     from the kernel metadata, not the actual kernel usage.
 
     '''
-    from psyclone.parse.algorithm import parse
     _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "test_files", "dynamo0p3",
                                  "1_single_invoke.f90"),
@@ -296,12 +335,55 @@ def test_dynamo():
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(info)
     invoke = psy.invokes.get('invoke_0_testkern_type')
     schedule = invoke.schedule
-
+    # TODO #1010 In the LFRic API, the loop bounds are created at code-
+    # generation time and therefore we cannot look at dependencies until that
+    # is under way. Ultimately this will be replaced by a
+    # `lower_to_language_level` call.
+    # pylint: disable=pointless-statement
+    psy.gen
     var_accesses = VariablesAccessInfo(schedule)
-    assert str(var_accesses) == "a: READ, cell: READ+WRITE, f1: READ+WRITE, "\
-        "f2: READ, m1: READ, m2: READ, map_w1: READ, map_w2: READ, "\
-        "map_w3: READ, ndf_w1: READ, ndf_w2: READ, ndf_w3: READ, "\
-        "nlayers: READ, undf_w1: READ, undf_w2: READ, undf_w3: READ"
+    assert (str(var_accesses) == "a: READ, cell: READ+WRITE, f1: READ+WRITE, "
+            "f2: READ, loop0_start: READ, loop0_stop: READ, m1: READ, "
+            "m2: READ, map_w1: READ, map_w2: READ, "
+            "map_w3: READ, ndf_w1: READ, ndf_w2: READ, ndf_w3: READ, "
+            "nlayers: READ, undf_w1: READ, undf_w2: READ, undf_w3: READ")
+
+
+def test_lfric_kern_cma_args():
+    ''' Test the handling of LFRic kernel arguments.
+
+    '''
+    _, info = parse(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                 "test_files", "dynamo0p3",
+                                 "27.access_tests.f90"),
+                    api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(info)
+    # TODO #1010 In the LFRic API, the loop bounds are created at code-
+    # generation time and therefore we cannot look at dependencies until that
+    # is under way. Ultimately this will be replaced by a
+    # `lower_to_language_level` call.
+    # pylint: disable=pointless-statement
+    psy.gen
+    invoke_read = psy.invokes.get('invoke_read')
+    invoke_write = psy.invokes.get('invoke_write')
+    var_accesses_read = VariablesAccessInfo(invoke_read.schedule)
+    var_accesses_write = VariablesAccessInfo(invoke_write.schedule)
+
+    # Check the parameters that will change access type according to read or
+    # write declaration of the argument:
+    assert (var_accesses_read[Signature("cma_op1_matrix")][0].access_type
+            == AccessType.READ)
+    assert (var_accesses_write[Signature("cma_op1_matrix")][0].access_type
+            == AccessType.WRITE)
+
+    # All other parameters are read-only (e.g. sizes, ... - they will not
+    # be modified, even if the actual data is written):
+    for name in ["nrow", "bandwidth", "alpha", "beta", "gamma_m",
+                 "gamma_p"]:
+        assert (var_accesses_read[Signature(f"cma_op1_{name}")][0].access_type
+                == AccessType.READ)
+        assert (var_accesses_write[Signature(f"cma_op1_{name}")][0].access_type
+                == AccessType.READ)
 
 
 def test_location(parser):
@@ -334,174 +416,79 @@ def test_location(parser):
 
     var_accesses = VariablesAccessInfo(schedule)
     # Test accesses for a:
-    a_accesses = var_accesses["a"].all_accesses
+    a_accesses = var_accesses[Signature("a")].all_accesses
     assert a_accesses[0].location == 0
     assert a_accesses[1].location == 1
     assert a_accesses[2].location == 6
     assert a_accesses[3].location == 12
 
     # b should have the same locations as a:
-    b_accesses = var_accesses["b"].all_accesses
+    b_accesses = var_accesses[Signature("b")].all_accesses
     assert len(a_accesses) == len(b_accesses)
     for (index, access) in enumerate(a_accesses):
         assert b_accesses[index].location == access.location
 
-    q_accesses = var_accesses["q"].all_accesses
+    q_accesses = var_accesses[Signature("q")].all_accesses
     assert q_accesses[0].location == 2
     assert q_accesses[1].location == 4
 
     # Test jj for the loop statement. Note that 'jj' has one read and
     # one write access for the DO statement
-    jj_accesses = var_accesses["jj"].all_accesses
+    jj_accesses = var_accesses[Signature("jj")].all_accesses
     assert jj_accesses[0].location == 7
     assert jj_accesses[1].location == 7
     assert jj_accesses[2].location == 9
     assert jj_accesses[3].location == 9
 
-    ji_accesses = var_accesses["ji"].all_accesses
+    ji_accesses = var_accesses[Signature("ji")].all_accesses
     assert ji_accesses[0].location == 8
     assert ji_accesses[1].location == 8
     assert ji_accesses[2].location == 9
     assert ji_accesses[3].location == 9
 
     # Verify that x=x+1 shows the READ access before the write access
-    x_accesses = var_accesses["x"].all_accesses    # x=x+1
+    x_accesses = var_accesses[Signature("x")].all_accesses    # x=x+1
     assert x_accesses[0].access_type == AccessType.READ
     assert x_accesses[1].access_type == AccessType.WRITE
     assert x_accesses[0].location == x_accesses[1].location
 
 
-@pytest.mark.xfail(reason="#1028 dependency analysis for structures needs "
-                   "to be implemented")
 def test_user_defined_variables(parser):
-    ''' Test reading and writing to user defined variables. This is
-    not supported atm because the dependence analysis for these PSyIR
-    nodes has not yet been implemented (#1028).
-
-    Also TODO #1028: is this a duplicate of test_derived_type in
-    tests/psyir/dependency_tools_test.py?
+    ''' Test reading and writing to user defined variables.
     '''
     reader = FortranStringReader('''program test_prog
                                        use some_mod, only: my_type
                                        type(my_type) :: a, e
-                                       a%b%c(ji, jj) = d
+                                       integer :: ji, jj, d
+                                       a%b(ji)%c(ji, jj) = d
                                        e%f = d
                                     end program test_prog''')
     prog = parser(reader)
     psy = PSyFactory("nemo", distributed_memory=False).create(prog)
     loops = psy.invokes.get("test_prog").schedule
-
+    # TODO #1010 In the LFRic API, the loop bounds are created at code-
+    # generation time and therefore we cannot look at dependencies until that
+    # is under way. Ultimately this will be replaced by a
+    # `lower_to_language_level` call.
+    # pylint: disable=pointless-statement
+    psy.gen
     var_accesses = VariablesAccessInfo(loops)
-    assert var_accesses["a % b % c"].is_written
-    assert var_accesses["e % f"].is_written
-
-
-def test_math_equal(parser):
-    '''Tests the math_equal function of nodes in the PSyIR.'''
-
-    # A dummy program to easily create the PSyIR for the
-    # expressions we need. We just take the RHS of the assignments
-    reader = FortranStringReader('''program test_prog
-                                    integer :: x(2,2), a(2,2), b, c, i, j, k
-                                    x = a                 !  0
-                                    x = a                 !  1
-                                    x = b                 !  2
-                                    x = a+12*b*sin(c)     !  3
-                                    x = 12*b*sin(c)+a     !  4
-                                    x = i+j               !  5
-                                    x = j+i               !  6
-                                    x = i-j               !  7
-                                    x = j-i               !  8
-                                    x = max(1, 2, 3, 4)   !  9
-                                    x = max(1, 2, 3)      ! 10
-                                    x = a(1,2)            ! 11
-                                    x = i+j+k             ! 12
-                                    x = j+i+k             ! 13
-                                    end program test_prog
-                                 ''')
-    prog = parser(reader)
-    psy = PSyFactory("nemo", distributed_memory=False).create(prog)
-    schedule = psy.invokes.get("test_prog").schedule
-
-    # Compare a and a
-    exp0 = schedule[0].rhs
-    exp1 = schedule[1].rhs
-    assert exp0.math_equal(exp1)
-
-    # Different node types: assignment and expression
-    assert not schedule[0].math_equal(exp1)
-
-    # Compare a and b
-    assert not exp1.math_equal(schedule[2].rhs)
-
-    # Compare a+12*b... and 12*b...+a - both commutative and
-    # complex expression
-    assert schedule[3].rhs.math_equal(schedule[4].rhs)
-
-    # Compare i+j and j+i - we do support _simple_ commutative changes:
-    exp5 = schedule[5].rhs
-    exp6 = schedule[6].rhs
-    assert exp5.math_equal(exp6)
-
-    # Compare i-j and j-i
-    exp7 = schedule[7].rhs
-    assert not exp7.math_equal(schedule[8].rhs)
-
-    # Same node type, but different number of children
-    # max(1, 2, 3, 4) and max(1, 2, 3)
-    exp9 = schedule[9].rhs
-    assert not exp9.math_equal(schedule[10].rhs)
-
-    # Compare a and a(1,2), which triggers the recursion in Reference
-    # to be false.
-    assert not exp0.math_equal(schedule[11].rhs)
-
-    # Compare i+j and max(1,2,3,4) to trigger different types
-    # in the recursion in BinaryOperator
-    assert not exp5.math_equal(exp9)
-
-    # Different operator: j+i vs i-j. Do not compare
-    # i+j with i-j, since this will not trigger the
-    # additional tests in commutative law handling
-    assert not exp6.math_equal(exp7)
-
-    # i+j+k and j+i+k are the same - note that i and j are
-    # on the same node, since the expression is stored as
-    # (i+j)+j. See #533 and test_math_equal_limitations
-    exp12 = schedule[12].rhs
-    assert exp12.math_equal(schedule[13].rhs)
-
-
-@pytest.mark.xfail(reason="Limitation when using commutative law - #533")
-def test_math_equal_limitations(parser):
-    '''Shows that the current math_equal implementation can not
-    detect that i+j+k and i+k+j are the same.
-
-    '''
-    # A dummy program to easily create the PSyIR for the
-    # expressions we need. We just take the RHS of the assignments
-    reader = FortranStringReader('''program test_prog
-                                    x = i+j+k
-                                    x = i+k+j
-                                    end program test_prog
-                                 ''')
-    prog = parser(reader)
-    psy = PSyFactory("nemo", distributed_memory=False).create(prog)
-    schedule = psy.invokes.get("test_prog").schedule
-
-    # Compare i+j+k and i+k+j - they should be equal, but due to
-    # TODO #533 it is not detected.
-    exp0 = schedule[0].rhs
-    exp1 = schedule[1].rhs
-    assert exp0.math_equal(exp1)
+    assert var_accesses[Signature(("a", "b", "c"))].is_written
+    assert var_accesses[Signature(("e", "f"))].is_written
 
 
 def test_lfric_ref_element():
     '''Test handling of variables if an LFRic's RefElement is used.
 
     '''
-    _, invoke_info = get_invoke("23.4_ref_elem_all_faces_invoke.f90",
-                                "dynamo0.3", idx=0)
+    psy, invoke_info = get_invoke("23.4_ref_elem_all_faces_invoke.f90",
+                                  "dynamo0.3", idx=0)
+    # TODO #1010 In the LFRic API, the loop bounds are created at code-
+    # generation time and therefore we cannot look at dependencies until that
+    # is under way. Ultimately this will be replaced by a
+    # `lower_to_language_level` call.
+    # pylint: disable=pointless-statement
+    psy.gen
     var_info = str(VariablesAccessInfo(invoke_info.schedule))
     assert "normals_to_faces: READ" in var_info
     assert "out_normals_to_faces: READ" in var_info
@@ -513,8 +500,16 @@ def test_lfric_operator():
     handled correctly.
 
     '''
-    _, invoke_info = get_invoke("6.1_eval_invoke.f90", "dynamo0.3", idx=0)
+    psy, invoke_info = get_invoke("6.1_eval_invoke.f90", "dynamo0.3", idx=0)
+    # TODO #1010 In the LFRic API, the loop bounds are created at code-
+    # generation time and therefore we cannot look at dependencies until that
+    # is under way. Ultimately this will be replaced by a
+    # `lower_to_language_level` call.
+    # pylint: disable=pointless-statement
+    psy.gen
     var_info = str(VariablesAccessInfo(invoke_info.schedule))
+    assert "f0: READ+WRITE" in var_info
+    assert "f1: READ" in var_info
     assert "basis_w0_on_w0: READ" in var_info
     assert "diff_basis_w1_on_w0: READ" in var_info
 
@@ -524,7 +519,13 @@ def test_lfric_cma():
     correctly in the variable usage analysis.
 
     '''
-    _, invoke_info = get_invoke("20.0_cma_assembly.f90", "dynamo0.3", idx=0)
+    psy, invoke_info = get_invoke("20.0_cma_assembly.f90", "dynamo0.3", idx=0)
+    # TODO #1010 In the LFRic API, the loop bounds are created at code-
+    # generation time and therefore we cannot look at dependencies until that
+    # is under way. Ultimately this will be replaced by a
+    # `lower_to_language_level` call.
+    # pylint: disable=pointless-statement
+    psy.gen
     var_info = str(VariablesAccessInfo(invoke_info.schedule))
     assert "ncell_2d: READ" in var_info
     assert "cma_op1_alpha: READ" in var_info
@@ -537,7 +538,7 @@ def test_lfric_cma():
     assert "cma_op1_nrow: READ," in var_info
     assert "cbanded_map_adspc1_lma_op1: READ" in var_info
     assert "cbanded_map_adspc2_lma_op1: READ" in var_info
-    assert "op1_proxy%local_stencil: WRITE" in var_info
+    assert "op1_proxy%local_stencil: READ" in var_info
     assert "op1_proxy%ncell_3d: READ" in var_info
 
 
@@ -546,7 +547,13 @@ def test_lfric_cma2():
     correctly in the variable usage analysis.
 
     '''
-    _, invoke_info = get_invoke("20.1_cma_apply.f90", "dynamo0.3", idx=0)
+    psy, invoke_info = get_invoke("20.1_cma_apply.f90", "dynamo0.3", idx=0)
+    # TODO #1010 In the LFRic API, the loop bounds are created at code-
+    # generation time and therefore we cannot look at dependencies until that
+    # is under way. Ultimately this will be replaced by a
+    # `lower_to_language_level` call.
+    # pylint: disable=pointless-statement
+    psy.gen
     var_info = str(VariablesAccessInfo(invoke_info.schedule))
     assert "cma_indirection_map_aspc1_field_a: READ" in var_info
     assert "cma_indirection_map_aspc2_field_b: READ" in var_info
@@ -556,7 +563,13 @@ def test_lfric_stencils():
     '''Test that stencil parameters are correctly detected.
 
     '''
-    _, invoke_info = get_invoke("14.4_halo_vector.f90", "dynamo0.3", idx=0)
+    psy, invoke_info = get_invoke("14.4_halo_vector.f90", "dynamo0.3", idx=0)
+    # TODO #1010 In the LFRic API, the loop bounds are created at code-
+    # generation time and therefore we cannot look at dependencies until that
+    # is under way. Ultimately this will be replaced by a
+    # `lower_to_language_level` call.
+    # pylint: disable=pointless-statement
+    psy.gen
     var_info = str(VariablesAccessInfo(invoke_info.schedule))
     assert "f2_stencil_size: READ" in var_info
     assert "f2_stencil_dofmap: READ" in var_info
@@ -567,8 +580,14 @@ def test_lfric_various_basis():
     functionality work as expected.
 
     '''
-    _, invoke_info = get_invoke("10.3_operator_different_spaces.f90",
-                                "dynamo0.3", idx=0)
+    psy, invoke_info = get_invoke("10.3_operator_different_spaces.f90",
+                                  "dynamo0.3", idx=0)
+    # TODO #1010 In the LFRic API, the loop bounds are created at code-
+    # generation time and therefore we cannot look at dependencies until that
+    # is under way. Ultimately this will be replaced by a
+    # `lower_to_language_level` call.
+    # pylint: disable=pointless-statement
+    psy.gen
     var_info = str(VariablesAccessInfo(invoke_info.schedule))
     assert "basis_w3_qr: READ" in var_info
     assert "diff_basis_w0_qr: READ" in var_info
@@ -584,8 +603,14 @@ def test_lfric_field_bc_kernel():
     array fix are created correctly.
 
     '''
-    _, invoke_info = get_invoke("12.2_enforce_bc_kernel.f90",
-                                "dynamo0.3", idx=0)
+    psy, invoke_info = get_invoke("12.2_enforce_bc_kernel.f90",
+                                  "dynamo0.3", idx=0)
+    # TODO #1010 In the LFRic API, the loop bounds are created at code-
+    # generation time and therefore we cannot look at dependencies until that
+    # is under way. Ultimately this will be replaced by a
+    # `lower_to_language_level` call.
+    # pylint: disable=pointless-statement
+    psy.gen
     var_info = str(VariablesAccessInfo(invoke_info.schedule))
     assert "boundary_dofs_a: READ" in var_info
 
@@ -595,8 +620,14 @@ def test_lfric_stencil_xory_vector():
     or y with a vector field are created.
 
     '''
-    _, invoke_info = get_invoke("14.4.2_halo_vector_xory.f90",
-                                "dynamo0.3", idx=0)
+    psy, invoke_info = get_invoke("14.4.2_halo_vector_xory.f90",
+                                  "dynamo0.3", idx=0)
+    # TODO #1010 In the LFRic API, the loop bounds are created at code-
+    # generation time and therefore we cannot look at dependencies until that
+    # is under way. Ultimately this will be replaced by a
+    # `lower_to_language_level` call.
+    # pylint: disable=pointless-statement
+    psy.gen
     var_info = str(VariablesAccessInfo(invoke_info.schedule))
     assert "f2_direction: READ" in var_info
 
@@ -606,8 +637,14 @@ def test_lfric_operator_bc_kernel():
     detects the right implicit paramaters.
 
     '''
-    _, invoke_info = get_invoke("12.4_enforce_op_bc_kernel.f90",
-                                "dynamo0.3", idx=0)
+    psy, invoke_info = get_invoke("12.4_enforce_op_bc_kernel.f90",
+                                  "dynamo0.3", idx=0)
+    # TODO #1010 In the LFRic API, the loop bounds are created at code-
+    # generation time and therefore we cannot look at dependencies until that
+    # is under way. Ultimately this will be replaced by a
+    # `lower_to_language_level` call.
+    # pylint: disable=pointless-statement
+    psy.gen
     var_info = str(VariablesAccessInfo(invoke_info.schedule))
     assert "boundary_dofs_op_a: READ" in var_info
 
@@ -617,8 +654,6 @@ def test_lfric_stub_args():
     stencils.
 
     '''
-    from psyclone.dynamo0p3 import DynKernMetadata, DynKern
-    from psyclone.domain.lfric import KernStubArgList
     ast = get_ast("dynamo0.3", "testkern_stencil_multi_mod.f90")
     metadata = DynKernMetadata(ast)
     kernel = DynKern()
@@ -655,8 +690,6 @@ def test_lfric_stub_args2():
     and mesh properties.
 
     '''
-    from psyclone.dynamo0p3 import DynKernMetadata, DynKern
-    from psyclone.domain.lfric import KernStubArgList
     ast = get_ast("dynamo0.3", "testkern_mesh_prop_face_qr_mod.F90")
     metadata = DynKernMetadata(ast)
     kernel = DynKern()
@@ -676,8 +709,6 @@ def test_lfric_stub_args3():
     '''Check variable usage detection for cell position, operator
 
     '''
-    from psyclone.dynamo0p3 import DynKernMetadata, DynKern
-    from psyclone.domain.lfric import KernStubArgList
     ast = get_ast("dynamo0.3",
                   "testkern_any_discontinuous_space_op_1_mod.f90")
     metadata = DynKernMetadata(ast)
@@ -698,8 +729,6 @@ def test_lfric_stub_boundary_dofs():
     '''Check variable usage detection for boundary dofs.
 
     '''
-    from psyclone.dynamo0p3 import DynKernMetadata, DynKern
-    from psyclone.domain.lfric import KernStubArgList
     ast = get_ast("dynamo0.3", "enforce_bc_kernel_mod.f90")
     metadata = DynKernMetadata(ast)
     kernel = DynKern()
@@ -714,8 +743,6 @@ def test_lfric_stub_field_vector():
     '''Check variable usage detection field vectors.
 
     '''
-    from psyclone.dynamo0p3 import DynKernMetadata, DynKern
-    from psyclone.domain.lfric import KernStubArgList
     ast = get_ast("dynamo0.3", "testkern_stencil_vector_mod.f90")
     metadata = DynKernMetadata(ast)
     kernel = DynKern()
@@ -737,8 +764,6 @@ def test_lfric_stub_basis():
     '''Check variable usage detection of basis, diff-basis.
 
     '''
-    from psyclone.dynamo0p3 import DynKernMetadata, DynKern
-    from psyclone.domain.lfric import KernStubArgList
     ast = get_ast("dynamo0.3", "testkern_qr_eval_mod.F90")
     metadata = DynKernMetadata(ast)
     kernel = DynKern()
@@ -760,8 +785,6 @@ def test_lfric_stub_cma_operators():
     mesh_ncell2d, cma_operator
 
     '''
-    from psyclone.dynamo0p3 import DynKernMetadata, DynKern
-    from psyclone.domain.lfric import KernStubArgList
     ast = get_ast("dynamo0.3", "columnwise_op_mul_2scalars_kernel_mod.F90")
     metadata = DynKernMetadata(ast)
     kernel = DynKern()
@@ -786,8 +809,6 @@ def test_lfric_stub_banded_dofmap():
     '''Check variable usage detection for banded dofmaps.
 
     '''
-    from psyclone.dynamo0p3 import DynKernMetadata, DynKern
-    from psyclone.domain.lfric import KernStubArgList
     ast = get_ast("dynamo0.3", "columnwise_op_asm_kernel_mod.F90")
     metadata = DynKernMetadata(ast)
     kernel = DynKern()
@@ -803,8 +824,6 @@ def test_lfric_stub_banded_dofmap():
 def test_lfric_stub_indirection_dofmap():
     '''Check variable usage detection in indirection dofmap.
     '''
-    from psyclone.dynamo0p3 import DynKernMetadata, DynKern
-    from psyclone.domain.lfric import KernStubArgList
     ast = get_ast("dynamo0.3", "columnwise_op_app_kernel_mod.F90")
     metadata = DynKernMetadata(ast)
     kernel = DynKern()
@@ -822,8 +841,6 @@ def test_lfric_stub_boundary_dofmap():
     for operators.
 
     '''
-    from psyclone.dynamo0p3 import DynKernMetadata, DynKern
-    from psyclone.domain.lfric import KernStubArgList
     ast = get_ast("dynamo0.3", "enforce_operator_bc_kernel_mod.F90")
     metadata = DynKernMetadata(ast)
     kernel = DynKern()
@@ -840,15 +857,13 @@ def test_lfric_acc():
     '''
     # Use the OpenACC transforms to enclose the kernels
     # with OpenACC directives.
-    from psyclone.transformations import ACCParallelTrans, ACCEnterDataTrans
-    from psyclone.psyGen import CodedKern
     acc_par_trans = ACCParallelTrans()
     acc_enter_trans = ACCEnterDataTrans()
     _, invoke = get_invoke("1_single_invoke.f90", "dynamo0.3",
                            name="invoke_0_testkern_type", dist_mem=False)
     sched = invoke.schedule
-    _ = acc_par_trans.apply(sched.children)
-    _ = acc_enter_trans.apply(sched)
+    acc_par_trans.apply(sched.children)
+    acc_enter_trans.apply(sched)
 
     # Find the first kernel:
     kern = invoke.schedule.walk(CodedKern)[0]
@@ -875,15 +890,13 @@ def test_lfric_acc_operator():
     '''
     # Use the OpenACC transforms to enclose the kernels
     # with OpenACC directives.
-    from psyclone.transformations import ACCParallelTrans, ACCEnterDataTrans
-    from psyclone.psyGen import CodedKern
     acc_par_trans = ACCParallelTrans()
     acc_enter_trans = ACCEnterDataTrans()
     _, invoke = get_invoke("20.0_cma_assembly.f90", "dynamo0.3",
                            idx=0, dist_mem=False)
     sched = invoke.schedule
-    _ = acc_par_trans.apply(sched.children)
-    _ = acc_enter_trans.apply(sched)
+    acc_par_trans.apply(sched.children)
+    acc_enter_trans.apply(sched)
 
     # Find the first kernel:
     kern = invoke.schedule.walk(CodedKern)[0]
@@ -892,7 +905,8 @@ def test_lfric_acc_operator():
     create_acc_arg_list.generate(var_accesses=var_accesses)
     var_info = str(var_accesses)
     assert "lma_op1_proxy%ncell_3d: READ" in var_info
-    assert "lma_op1_proxy%local_stencil: WRITE" in var_info
+    assert "lma_op1_proxy%local_stencil: READ" in var_info
+    assert "cma_op1_matrix: WRITE" in var_info
 
 
 def test_lfric_stencil():
@@ -901,15 +915,13 @@ def test_lfric_stencil():
 
     '''
     # Use the OpenACC transforms to create the required kernels
-    from psyclone.transformations import ACCParallelTrans, ACCEnterDataTrans
-    from psyclone.psyGen import CodedKern
     acc_par_trans = ACCParallelTrans()
     acc_enter_trans = ACCEnterDataTrans()
     _, invoke = get_invoke("14.4_halo_vector.f90", "dynamo0.3",
                            idx=0, dist_mem=False)
     sched = invoke.schedule
-    _ = acc_par_trans.apply(sched.children)
-    _ = acc_enter_trans.apply(sched)
+    acc_par_trans.apply(sched.children)
+    acc_enter_trans.apply(sched)
 
     # Find the first kernel:
     kern = invoke.schedule.walk(CodedKern)[0]

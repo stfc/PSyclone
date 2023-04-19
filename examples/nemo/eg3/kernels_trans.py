@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2019, Science and Technology Facilities Council.
+# Copyright (c) 2018-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors: R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 
 '''A transformation script that seeks to apply OpenACC DATA and KERNELS
 directives to NEMO style code.  In order to use
@@ -69,6 +69,7 @@ PSyclone. Issue #309 will tackle this limitation.
 from __future__ import print_function
 from psyclone.psyGen import TransInfo
 from kernel_utils import add_kernels
+from psyclone.psyir.nodes import ACCDirective
 
 
 # Get the PSyclone transformations we will use
@@ -82,22 +83,20 @@ def trans(psy):
     :param psy: The PSy layer object to apply transformations to.
     :type psy: :py:class:`psyclone.psyGen.PSy`
     '''
-    from psyclone.psyGen import ACCDirective
 
-    print("Invokes found:\n{0}\n".format(
-        "\n".join([str(name) for name in psy.invokes.names])))
+    print("Invokes found:\n" +
+          "\n".join([str(name) for name in psy.invokes.names]) + "\n")
 
     for invoke in psy.invokes.invoke_list:
 
         sched = invoke.schedule
         if not sched:
-            print("Invoke {0} has no Schedule! Skipping...".
-                  format(invoke.name))
+            print(f"Invoke {invoke.name} has no Schedule! Skipping...")
             continue
-        sched.view()
+        print(sched.view())
 
         add_kernels(sched.children)
-        sched.view()
+        print(sched.view())
 
         directives = sched.walk(ACCDirective)
         if not directives:
@@ -109,8 +108,8 @@ def trans(psy):
         # a data region. In reality we would want to try and make the data
         # regions bigger but this is only an example.
         for directive in directives:
-            sched, _ = ACC_DATA_TRANS.apply([directive])
+            ACC_DATA_TRANS.apply([directive])
 
-        sched.view()
+        print(sched.view())
 
         invoke.schedule = sched

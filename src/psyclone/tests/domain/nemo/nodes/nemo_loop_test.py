@@ -40,8 +40,7 @@ from __future__ import absolute_import
 import pytest
 
 from psyclone.nemo import NemoLoop, NemoKern
-from psyclone.psyir.nodes import Assignment, Loop, Node, Literal, \
-    Reference, Schedule
+from psyclone.psyir.nodes import Assignment, Loop, Literal, Reference, Schedule
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, REAL_TYPE
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.errors import GenerationError
@@ -57,11 +56,8 @@ def test_instance():
     assert isinstance(nemo_loop, Loop)
     assert nemo_loop.parent is None
     assert nemo_loop._variable is None
-    # The order in which loop types are stored can differ from one
-    # version of python to another (as they are extracted from an
-    # unordered dictionary) therefore we compare them as a set.
     assert (nemo_loop._valid_loop_types ==
-            set(('lon', 'lat', 'levels', 'tracers', 'unknown')))
+            ['lat', 'levels', 'lon', 'tracers', 'unknown'])
 
 
 def test_instance_args():
@@ -70,9 +66,7 @@ def test_instance_args():
 
     '''
     variable = DataSymbol("nemo_symbol", INTEGER_TYPE)
-    parent = Node()
-    nemo_loop = NemoLoop(parent=parent, variable=variable)
-    assert nemo_loop.parent is parent
+    nemo_loop = NemoLoop(variable=variable)
     assert nemo_loop._variable is variable
 
 
@@ -132,23 +126,23 @@ def test_create_errors():
     stop = Literal("10", INTEGER_TYPE)
     step = Literal("1", INTEGER_TYPE)
     x_var = DataSymbol("X", REAL_TYPE)
-    children = [Assignment.create(Reference(x_var), Literal("3.0", REAL_TYPE))]
+    children = Assignment.create(Reference(x_var), Literal("3.0", REAL_TYPE))
     with pytest.raises(GenerationError) as info:
-        _ = NemoLoop.create(None, start, stop, step, children)
+        _ = NemoLoop.create(None, start, stop, step, [children.copy()])
     assert ("Generation Error: variable property in Loop class should be a "
             "DataSymbol but found 'NoneType'" in str(info.value))
     with pytest.raises(GenerationError) as info:
-        _ = NemoLoop.create(variable, None, stop, step, children)
+        _ = NemoLoop.create(variable, None, stop, step, [children.copy()])
     assert ("Generation Error: Item 'NoneType' can't be child 0 of 'Loop'. "
             "The valid format is: 'DataNode, DataNode, DataNode, Schedule'."
             in str(info.value))
     with pytest.raises(GenerationError) as info:
-        _ = NemoLoop.create(variable, start, None, step, children)
+        _ = NemoLoop.create(variable, start, None, step, [children.copy()])
     assert ("Generation Error: Item 'NoneType' can't be child 1 of 'Loop'. "
             "The valid format is: 'DataNode, DataNode, DataNode, Schedule'."
             in str(info.value))
     with pytest.raises(GenerationError) as info:
-        _ = NemoLoop.create(variable, start, stop, None, children)
+        _ = NemoLoop.create(variable, start, stop, None, [children.copy()])
     assert ("Generation Error: Item 'NoneType' can't be child 2 of 'Loop'. "
             "The valid format is: 'DataNode, DataNode, DataNode, Schedule'."
             in str(info.value))
@@ -170,12 +164,12 @@ def test_kernel():
     assert not nemo_loop.kernel
 
     schedule = nemo_loop.loop_body
-    loop_content = schedule.children
-    nemo_kern = NemoKern(loop_content, None)
-    nemo_kern.parent = schedule
+    nemo_kern = NemoKern(schedule.pop_all_children())
     schedule.children = [nemo_kern]
     assert nemo_loop.kernel
 
+    children = [Assignment.create(Reference(x_var), Literal("3.0", REAL_TYPE))]
+    nemo_kern = NemoKern(children)
     schedule.children.append(nemo_kern)
     with pytest.raises(NotImplementedError) as info:
         _ = nemo_loop.kernel

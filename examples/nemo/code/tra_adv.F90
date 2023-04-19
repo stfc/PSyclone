@@ -5,8 +5,6 @@
    !! ***                             IS-ENES2 - CMCC/STFC                            ***
    !!=====================================================================================
 PROGRAM tra_adv
-   USE dl_timer, only: timer_init, timer_register, timer_start, timer_stop, &
-       timer_report
    USE iso_c_binding, only: C_INT64_T
    ! The below should be e.g. wp = KIND(1.0d0) but PSyclone does not support
    ! the KIND intrinsic yet: TODO #585.
@@ -25,8 +23,6 @@ PROGRAM tra_adv
    ! not yet support such syntax.
    INTEGER(KIND=C_INT64_T) :: it
    CHARACTER(len=10) :: env
-   !> Timer indexes, one for initialisation, one for the 'time-stepping'
-   INTEGER :: init_timer, step_timer
 
    CALL get_environment_variable("JPI", env)
    READ ( env, '(i10)' ) jpi
@@ -37,15 +33,7 @@ PROGRAM tra_adv
    CALL get_environment_variable("IT", env)
    READ ( env, '(i10)' ) it
 
-   ! Set-up our timers
-
-   CALL timer_init()
-   CALL timer_register(init_timer, label='Initialisation')
-   CALL timer_register(step_timer, label='Time-stepping', num_repeats=it)
-
    ! Initialisation
-
-   call timer_start(init_timer)
 
    ALLOCATE( mydomain (jpi,jpj,jpk))
    ALLOCATE( zwx (jpi,jpj,jpk))
@@ -102,13 +90,9 @@ PROGRAM tra_adv
       rnfmsk_z(jk)=jk/jpk
    END DO
 
-   call timer_stop(init_timer)
-
 !***********************
 !* Start of the symphony
 !***********************
-   call timer_start(step_timer)
-
    DO jt = 1, it
       DO jk = 1, jpk
          DO jj = 1, jpj
@@ -256,8 +240,6 @@ PROGRAM tra_adv
       END DO
    END DO
 
-   call timer_stop(step_timer)
-
    OPEN(unit = 4, file = 'output.dat', form='formatted')
   
    DO jk = 1, jpk-1
@@ -287,7 +269,5 @@ PROGRAM tra_adv
    DEALLOCATE( upsmsk)
    DEALLOCATE( rnfmsk_z)
    DEALLOCATE( tsn)
-
-   CALL timer_report()
 
 END PROGRAM tra_adv

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Science and Technology Facilities Council.
+# Copyright (c) 2019-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,8 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Lab
+# Author: A. R. Porter and S. Siso, STFC Daresbury Lab
+# Modified: R. W. Ford, STFC Daresbury Lab
 
 '''Python script intended to be passed to PSyclone's generate()
 function via the -s option. Transforms the invoke with the addition of
@@ -39,6 +40,7 @@ OpenACC directives and then encloses the whole in a profiling region. '''
 
 from __future__ import print_function
 from acc_transform import trans as acc_trans
+from psyclone.psyir.transformations import ProfileTrans
 
 
 def trans(psy):
@@ -53,7 +55,6 @@ def trans(psy):
     :rtype: :py:class:`psyclone.gocean1p0.GOPSy`
 
     '''
-    from psyclone.psyir.transformations import ProfileTrans
     proftrans = ProfileTrans()
 
     # Use the trans() routine in acc_transform.py to add the OpenACC directives
@@ -63,7 +64,6 @@ def trans(psy):
     schedule = invoke.schedule
 
     # Enclose everything in a profiling region
-    newschedule, _ = proftrans.apply(schedule.children)
-    invoke.schedule = newschedule
-    newschedule.view()
+    proftrans.apply(schedule.children)
+    print(schedule.view())
     return psy

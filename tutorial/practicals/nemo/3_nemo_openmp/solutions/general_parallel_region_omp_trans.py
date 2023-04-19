@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council
+# Copyright (c) 2020-2022, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors: R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 
 '''A simple transformation script for the introduction of OpenMP with PSyclone.
 In order to use it you must first install PSyclone. See README.md in the
@@ -46,7 +46,7 @@ Fortran.
 
 '''
 from psyclone.psyir.nodes import Loop
-from psyclone.psyGen import Directive
+from psyclone.psyir.nodes import Directive
 from psyclone.transformations import OMPParallelLoopTrans, OMPLoopTrans, \
     OMPParallelTrans, TransformationError
 
@@ -74,8 +74,7 @@ def trans(psy):
     loops = [loop for loop in sched.walk(Loop) if loop.loop_type == "levels"]
     idx = 0
     # Loop over each of these loops over levels to see which neighbour each
-    # other in the Schedule and can therefore be put in a single parallel
-    # region.
+    # other in the Schedule and thus can be put in a single parallel region.
     while idx < len(loops):
         child = loops[idx]
         posn = child.parent.children.index(child)
@@ -96,17 +95,17 @@ def trans(psy):
         idx = current
 
         try:
-            sched, _ = OMP_PARALLEL_TRANS.apply(loop_list)
+            OMP_PARALLEL_TRANS.apply(loop_list)
             for loop in loop_list:
-                sched, _ = OMP_LOOP_TRANS.apply(loop)
+                OMP_LOOP_TRANS.apply(loop)
         except TransformationError:
             pass
 
     directives = sched.walk(Directive)
-    print("Added {0} Directives".format(len(directives)))
+    print(f"Added {len(directives)} Directives")
 
     # Display the transformed PSyIR
-    sched.view()
+    print(sched.view())
 
     # Return the modified psy object
     return psy

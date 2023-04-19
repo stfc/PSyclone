@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
    BSD 3-Clause License
 
-   Copyright (c) 2017-2021, Science and Technology Facilities Council.
+   Copyright (c) 2017-2022, Science and Technology Facilities Council.
    All rights reserved.
 
    Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
    ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
    POSSIBILITY OF SUCH DAMAGE.
    -----------------------------------------------------------------------------
-   Written by R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+   Authors: R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 
 
 
@@ -72,11 +72,11 @@ instance as an argument. Note the names are always translated to lower
 case. Therefore, a particular back-end needs to subclass
 `PSyIRVisitor`, provide a `loop_node` method (in this particular example) and
 this method would then be called when the visitor finds an instance of
-`Loop`. For example:
+`Loop`. For example::
 
-::
 
     from __future__ import print_function
+    from psyclone.psyir.visitor import PSyIRVisitor
     class TestVisitor(PSyIRVisitor):
         ''' Example implementation of a back-end visitor. '''
 
@@ -89,11 +89,11 @@ this method would then be called when the visitor finds an instance of
 
 It is up to the sub-class to call any children of the particular
 node. This approach was chosen as it allows the sub-class to control
-when and how to call children. For example:
+when and how to call children. For example::
 
-::
 
     from __future__ import print_function
+    from psyclone.psyir.visitor import PSyIRVisitor
     class TestVisitor(PSyIRVisitor):
         ''' Example implementation of a back-end visitor. '''
 
@@ -149,21 +149,20 @@ One example of the power of this approach makes use of the fact that
 all PSyIR nodes have `Node` as a parent class. Therefore, some base
 functionality can be added there and all nodes that do not have a
 specific method implemented will call this. To see the
-class hierarchy, the following code can be written:
+class hierarchy, the following code can be written::
 
-::
 
-   from __future__ import print_function
+    from __future__ import print_function
     class PrintHierarchy(PSyIRVisitor):
         ''' Example of a visitor that prints the PSyIR node hierarchy. '''
 
         def node_node(self, node):
         ''' This method is called if no specific methods have been
             written. '''
-            print("[ {0} start]".format(type(node).__name__))
+            print(f"[ {type(node).__name__} start]")
             for child in node.children:
                 self._visit(child)
-            print("[ {0} end]".format(type(node).__name__))
+            print(f"[ {type(node).__name__} end]")
 
     print_hierarchy = PrintHierarchy()
     print_hierarchy._visit(psyir_tree)
@@ -172,20 +171,19 @@ In the examples presented up to now, the information from a back-end
 has been printed. However, a back-end will generally not want to use
 print statements. Output from a `PSyIRVisitor` is supported by
 allowing each method call to return a string. Reimplementing the
-previous example using strings would give the following:
+previous example using strings would give the following::
 
-::
    
     from __future__ import print_function class
-    PrintHierarchy(PSyIRVisitor):
+    class PrintHierarchy(PSyIRVisitor):
         ''' Example of a visitor that prints the PSyIR node hierarchy'''
 
         def node_node(self, node):
             ''' This method is called if the visitor finds a loop '''
-            result = "[ {0} start ]".format(type(node).__name__)
+            result = f"[ {type(node).__name__} start ]"
             for child in node.children:
                 result += self._visit(child)
-            result += "[ {0} end ]".format(type(node).__name__)
+            result += f"[ {type(node).__name__} end ]"
             return result
 
     print_hierarchy = PrintHierarchy()
@@ -199,33 +197,29 @@ indentation as a string and the indentation can be increased by
 increasing the value of the `self._depth` variable. The initial depth
 defaults to 0 and the initial indentation defaults to two
 spaces. These defaults can be changed when creating the back-end
-instance. For example:
+instance. For example::
 
-::
 
     print_hierarchy = PrintHierarchy(initial_indent_depth=2,
                                      indent_string="***")
 
 The `PrintHierarchy` example can be modified to support indenting by
-writing the following:
+writing the following::
 
-::
 
     from __future__ import print_function
     class PrintHierarchy(PSyIRVisitor):
-    ''' Example of a visitor that prints the PSyIR node hierarchy
+        ''' Example of a visitor that prints the PSyIR node hierarchy
         with indentation'''
 
         def node_node(self, node):
             ''' This method is called if the visitor finds a loop '''
-            result = "{0}[ {1} start ]\n".format(self._nindent,
-                                                 type(node).__name__)
+            result = f"{self._nindent}[ {type(node).__name__} start ]\n"
         self._depth += 1
         for child in node.children:
             result += self._visit(child)
         self._depth -= 1
-        result += "{0}[ {1} end ]\n".format(self._nindent,
-                                            type(node).__name__)
+        result += f"{self._nindent}[ {type(node).__name__} end ]\n"
         return result
 
     print_hierarchy = PrintHierarchy()
@@ -235,9 +229,8 @@ writing the following:
 As a visitor instance always calls the `_visit` method, an alternative
 (functor) implementation is provided via the `__call__` method in the
 base class. This allows the above example to be called in the
-following simplified way (as if it were a function):
+following simplified way (as if it were a function)::
 
-::
 
     print_hierarchy = PrintHierarchy()
     result = print_hierarchy(psyir_tree)
@@ -246,8 +239,58 @@ following simplified way (as if it were a function):
 The primary reason for providing the above (functor) interface is to
 hide users from the use of the visitor pattern. This is the interface
 to expose to users (which is why `_visit` is used for the visitor
-method, rather than `visit`).
+method, rather than `visit`). An important characteristic of the `__call__`
+method is that it will manage the lowering of DSL-concepts because the
+backends should not provide specific visitors for concepts that do not relate
+directly to the language domain (more information about the lowering step is
+provided in the :ref:`psy_layer_backends` section below). This step is done
+internally without exposing side effects (e.g. modifications to the provided
+tree). This is important because it permits the generation of backend code
+without altering the existing PSyIR tree, thus simplifying debugging and
+development. For instance the walk statement in the following example will
+return the same nodes, regardless of whether or not the print statement
+is commented out::
 
+    print_hierarchy = PrintHierarchy()
+    # print(print_hierarchy(psyir_tree))
+    psyir_tree.walk(APIHaloExchange)
+
+.. note::
+    The property of not having side effects is implemented by making a copy
+    of the whole tree provided as an argument to the visitor functor. An
+    alternative that was explored was modifying the lowering implementation
+    so that it returned a new sub-tree instead of modifying the current one
+    in-place. This turned out to be complicated as the lowering method doesn't
+    have a well defined region where the modification can happen (e.g. a DSL
+    concept could need the addition of imports and new symbols defined in
+    an ancestor symbol table).
+
+
+PSyIR Validation
+================
+
+Although the validity of parent-child relationships is checked during the
+construction of a PSyIR tree (see e.g. :ref:`nodesinfo-label`), there are
+often constraints that can only be checked once the tree is complete i.e.
+at the point that a backend is used to generate code. One such example
+is that an OpenMP `do` directive must appear within an OpenMP `parallel`
+region.
+
+The base PSyVisitor class provides support for this validation by
+calling the `validate_global_constraints()` method of each Node that
+it visits. The `Node` base class contains an empty implementation of
+this method. Therefore, if a subclass of `Node` is subject to certain
+global constraints then it must override this method and implement the
+required checks. If those checks fail then the method should raise a
+`GenerationError`.
+
+Note that, if required, this validation may be disabled by passing
+`check_global_constraints=False` when constructing the PSyIRVisitor
+instance::
+
+    print_hierarchy = PrintHierarchy(check_global_constraints=False)
+
+ 
 Available back-ends
 ===================
 
@@ -281,8 +324,7 @@ The SIR back-end is limited in a number of ways:
   of loops (lat/lon/levels) is currently assumed.
 - Fortran literals such as `0.0d0` are output directly in the
   generated code (but this could also be a frontend issue).
-- the only unary operator currently supported is '-' and the subject
-  of this unary operator must be a literal.
+- the only unary operator currently supported is '-'.
 
 The current implementation also outputs text rather than running Dawn
 directly. This text needs to be pasted into another script in order to
@@ -353,12 +395,7 @@ of Nodes that have a direct translation into target language concepts.
 
 .. image:: 2level_psyir.png
 
-.. note::
- Using the language backends to generate the PSy-layer code is still under
- development and not used by PSyclone by default.
- However, it is triggered manually by some PSyclone examples to inform
- its development, these are:
-
- - gocean/eg8
- - lfric/eg4 (backends target)
-
+.. note:: Using the language backends to generate the PSy-layer code
+ is supported by the Nemo and GOcean APIs. For the GOcean API the
+ algorithm-layer is also generated using the language
+ backends. LFRic support is still under development, see #1010.

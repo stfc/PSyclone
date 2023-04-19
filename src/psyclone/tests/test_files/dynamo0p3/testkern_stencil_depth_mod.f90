@@ -81,10 +81,10 @@ contains
     integer(kind=i_def), intent(in), dimension(ndf_w1,fld2_st_size) :: fld2_st_dofmap
     integer(kind=i_def), intent(in), dimension(ndf_w2,fld3_st_size) :: fld3_st_dofmap
     integer(kind=i_def), intent(in), dimension(ndf_w3,fld4_st_size) :: fld4_st_dofmap
-    real(kind=r_def), intent(out), dimension(undf_w3) :: fld1
-    real(kind=r_def), intent(in), dimension(undf_w1)  :: fld2
-    real(kind=r_def), intent(in), dimension(undf_w2)  :: fld3
-    real(kind=r_def), intent(in), dimension(undf_w3)  :: fld4
+    real(kind=r_def), intent(inout), dimension(undf_w3) :: fld1
+    real(kind=r_def), intent(in), dimension(undf_w1)    :: fld2
+    real(kind=r_def), intent(in), dimension(undf_w2)    :: fld3
+    real(kind=r_def), intent(in), dimension(undf_w3)    :: fld4
 
   end subroutine testkern_stencil_depth_code
 

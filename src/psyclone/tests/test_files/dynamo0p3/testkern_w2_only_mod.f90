@@ -42,13 +42,12 @@ module testkern_w2_only_mod
 
   implicit none
 
-  ! TODO #874 change this metadata to include data type
   type, extends(kernel_type) :: testkern_w2_only_type
-     type(arg_type), dimension(2) :: meta_args = &
-          (/ arg_type(gh_field, gh_inc,  w2),    &
-             arg_type(gh_field, gh_read, w2)     &
+     type(arg_type), dimension(2) :: meta_args =       &
+          (/ arg_type(gh_field, gh_real, gh_inc,  w2), &
+             arg_type(gh_field, gh_real, gh_read, w2)  &
            /)
-     integer :: operates_on = CELL_COLUMN
+     integer :: operates_on = cell_column
    contains
      procedure, nopass :: code => testkern_w2_only_code
   end type testkern_w2_only_type

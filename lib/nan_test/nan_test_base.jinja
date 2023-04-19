@@ -1,9 +1,9 @@
-{# Added this as jinja code so that it is understood that the
+{# Added this as Jinja code so that it is understood that the
    comment does not apply to THIS file. #}
-{{ "! ==================================================" }}
-{{ "! THIS FILE IS CREATED FROM THE JINJA TEMPLATE FILE " }}
-{{ "! DO NOT MODIFY DIRECTLY                            " }}
-{{ "! ==================================================" }}
+{{ "! ================================================== !" }}
+{{ "! THIS FILE IS CREATED FROM THE JINJA TEMPLATE FILE. !" }}
+{{ "! DO NOT MODIFY DIRECTLY!                            !" }}
+{{ "! ================================================== !" }}
 
 {# This jinja template file creates a base class for a not-NAN
    verification library. It produces the required ProvideVariable()
@@ -41,7 +41,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2020, Science and Technology Facilities Council.
+! Copyright (c) 2020-2021, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -71,16 +71,18 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Authors J. Henrichs, Bureau of Meteorology
+! Author J. Henrichs, Bureau of Meteorology
+! Modified I. Kavcic, Met Office
 
 !> This module implements a PSyData-based verification that floating point
 !! input and output parameters are not NAN and not infinite.
-!! 
+!!
 
 module nan_test_base_mod
+
     use, intrinsic :: iso_fortran_env, only : int64, int32,   &
                                               real32, real64, &
-                                              stderr=>Error_Unit
+                                              stderr => Error_Unit
     use psy_data_base_mod, only : PSyDataBaseType, &
         nan_test_PSyDataShutdown, &
         nan_test_PSyDataInit, is_enabled, &
@@ -88,9 +90,10 @@ module nan_test_base_mod
 
     implicit none
 
-    type, extends(PSyDataBaseType), public:: NANTestBaseType
+    type, extends(PSyDataBaseType), public :: NANTestBaseType
 
     contains
+
         ! The various procedures used
 
         {# Collect and declare the various procedures for the same generic interface -#}
@@ -102,7 +105,7 @@ module nan_test_base_mod
           {{- all_provides.append("ProvideScalar"~name) or "" }}
           {% for dim in ALL_DIMS %}
         procedure :: ProvideArray{{dim}}d{{name}}
-            {{ all_provides.append("ProvideArray"~dim~"d"~name) or "" }}
+            {{- all_provides.append("ProvideArray"~dim~"d"~name) or "" }}
           {% endfor %}
         {% endfor %}
 
@@ -115,10 +118,7 @@ module nan_test_base_mod
 
     end type NANTestBaseType
 
-
-
-Contains
-
+contains
 
     ! =========================================================================
     ! Jinja created code.
@@ -130,27 +130,29 @@ Contains
     ! Implementation for all {{type}} types
     ! =========================================================================
     ! -------------------------------------------------------------------------
-    !> This subroutine checks if a floating point value is NAN or infinite
+    !> @brief This subroutine checks if a floating point value is NAN or infinite
     !! using the IEEE_IS_FINIT function (and does nothing for integer types).
-    !! @param[inout] this The instance of the NANTestBaseType.
+    !! @param[in,out] this The instance of the NANTestBaseType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
     subroutine ProvideScalar{{name}}(this, name, value)
+
         use, intrinsic :: ieee_arithmetic
+
         implicit none
 
         class(NANTestBaseType), intent(inout), target :: this
         character(*), intent(in)                      :: name
         {{type}}, intent(in)                          :: value
 
-        {% if name != "Int" %}
+        {% if name not in ["Int", "Logical"] %}
         if (.not. is_enabled) return
 
         if (IEEE_SUPPORT_DATATYPE(value)) then
             if (.not. IEEE_IS_FINITE(value)) then
-                write(stderr, *) "PSyData: Variable ", name," has invalid value"
-                write(stderr, *) value
-                write(stderr, *) trim(this%module_name), trim(this%region_name)
+                write(stderr, '(8G0)') "PSyData: Variable ", name," has invalid value ", &
+                                 value, " in module '", trim(this%module_name), &
+                                 "' region '", trim(this%region_name),"'."
             endif
         endif
         {% else %}
@@ -159,6 +161,7 @@ Contains
         {% endif %}
 
         call this%PSyDataBaseType%ProvideScalar{{name}}(name, value)
+
     end subroutine ProvideScalar{{name}}
 
   {# Now provide the array implementations #}
@@ -168,26 +171,28 @@ Contains
        We repeat the list [":"] DIM-times, which is then joined #}
     {% set DIMENSION=([":"]*dim)|join(",") %}
 
-    {# Create list of variables: "i1,i2,i3,i4" #}
-    {% set vars = "i"~range(1,dim+1)|join(",i") %}
+    {# Create list of variables: "i1, i2, i3, i4" #}
+    {% set vars = "i"~range(1,dim+1)|join(", i") %}
     {% set indent = " "*3*dim %}
 
     ! -------------------------------------------------------------------------
-    !> This method checks if an array contains NAN or infinite IEEE values (it
+    !> @brief This method checks if an array contains NAN or infinite IEEE values (it
     !! does nothing in case that the array is an integer type).
-    !! @param[inout] this The instance of the NANTestBaseType.
+    !! @param[in,out] this The instance of the NANTestBaseType.
     !! @param[in] name The name of the variable (string).
     !! @param[in] value The value of the variable.
     subroutine ProvideArray{{dim}}d{{name}}(this, name, value)
+
         use, intrinsic :: ieee_arithmetic
 
         implicit none
+
         class(NANTestBaseType), intent(inout), target :: this
         character(*), intent(in) :: name
         {{type}}, dimension({{DIMENSION}}), intent(in) :: value
 
         {# IEEE_SUPPORT_DATATYPE does not even compile for int data types #}
-        {% if name != "Int" %}
+        {% if name not in ["Int", "Logical"] %}
         integer :: {{vars}}
 
         if (.not. is_enabled) return
@@ -197,9 +202,11 @@ Contains
             {{ " "*3*(dim-j)}}do i{{j}}=1, size(value, {{j}})
             {% endfor %}
             {{indent}}if (.not. IEEE_IS_FINITE(value({{vars}}))) then
-            {{indent}}    write(stderr, *) "PSyData: Variable ", name," has the invalid value"
-            {{indent}}    write(stderr, *) value({{vars}}), " at index/indices ", {{vars}}
-            {{indent}}    write(stderr, *) trim(this%module_name), trim(this%region_name)
+            {{indent}}    write(stderr, '(5G0,{{dim}}(G0,X),5G0)') "PSyData: Variable ", &
+            {{indent}}                     name," has the invalid value ", &
+            {{indent}}                     value({{vars}}), " at index/indices ", {{vars}}, &
+            {{indent}}                     "in module '", trim(this%module_name), &
+            {{indent}}                     "' region '", trim(this%region_name),"'."
             {{indent}}endif
             {% for j in range(dim, 0, -1) %}
             {{" "*3*(j-1)}}enddo
@@ -211,13 +218,12 @@ Contains
         {% endif %}
 
         call this%PSyDataBaseType%ProvideArray{{dim}}d{{name}}(name, value)
+
     end subroutine ProvideArray{{dim}}d{{name}}
 
-
-  {% endfor %}   {# for dim #}
-{% endfor %}   {# for #}
+  {% endfor -%}   {# for dim #}
+{%- endfor -%}   {# for #}
 
     ! -------------------------------------------------------------------------
-    
-end module nan_test_base_mod
 
+end module nan_test_base_mod

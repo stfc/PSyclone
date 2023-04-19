@@ -19,9 +19,11 @@ def some_function(filename, kernel_path, node=None):
                  line which follows immediately after the corresponding\
                  :param: line. The actual type should only contain the\
                  type, no filler words like 'return type is integer'.\
+                 Type information should be specified according to PEP 483\
+                 (https://peps.python.org/pep-0483/).\
                  Notice the empty line between parameter and return\
                  documentation.
-    :type node: :py:class:`psyclone.psyir.nodes.Node`
+    :type node: Optional[:py:class:`psyclone.psyir.nodes.Node`]
 
     :returns: a new node in the PSyIR. The return type must always be\
               specified in a separate line with an :rtype: entry. An empty\
@@ -36,7 +38,8 @@ def some_function(filename, kernel_path, node=None):
     For example:
 
     >>> from psyclone.generator import generate
-    >>> alg, psy = generate("algspec.f90")
-    >>> alg, psy = generate("algspec.f90", kernel_path="src/kernels")
+    >>> API="gocean1.0"
+    >>> alg, psy = generate(SOURCE_FILE, api=API)
+    >>> alg, psy = generate(SOURCE_FILE, api=API, kernel_paths=[KERNEL_PATH])
 
     '''

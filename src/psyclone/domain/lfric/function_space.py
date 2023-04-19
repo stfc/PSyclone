@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council.
+# Copyright (c) 2017-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+# Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 # Modified I. Kavcic, Met Office
 #          J. Henrichs, Bureau of Meteorology
 
@@ -39,9 +39,10 @@
 '''
 
 from psyclone.errors import InternalError, FieldNotFoundError, GenerationError
+from psyclone.domain.lfric.lfric_constants import LFRicConstants
 
 
-class FunctionSpace(object):
+class FunctionSpace():
     '''
     Manages the name of a function space. If it is an any_space or
     any_discontinuous_space then its name is mangled such that it is unique
@@ -57,81 +58,21 @@ class FunctionSpace(object):
 
     '''
 
-    # ---------- Function spaces (FS) --------------------------------------- #
-    # Discontinuous FS
-    DISCONTINUOUS_FUNCTION_SPACES = ["w3", "wtheta", "w2v", "w2vtrace",
-                                     "w2broken"]
-
-    # Continuous FS
-    # Note, any_w2 is not a space on its own. any_w2 is used as a common term
-    # for any vector "w2*" function space (w2, w2h, w2v, w2broken) but not
-    # w2*trace (spaces of scalar functions). As any_w2 stands for all vector
-    # "w2*" spaces it needs to a) be treated as continuous and b) have vector
-    # basis and scalar differential basis dimensions.
-    # TODO #540: resolve what W2* spaces should be included in ANY_W2 list and
-    # whether ANY_W2 should be in the continuous function space list.
-    ANY_W2_FUNCTION_SPACES = ["w2", "w2h", "w2v", "w2broken"]
-
-    CONTINUOUS_FUNCTION_SPACES = \
-        ["w0", "w1", "w2", "w2trace", "w2h", "w2htrace", "any_w2"]
-
-    # Read-only FS
-    READ_ONLY_FUNCTION_SPACES = ["wchi"]
-
-    # Valid FS names
-    VALID_FUNCTION_SPACES = DISCONTINUOUS_FUNCTION_SPACES + \
-        CONTINUOUS_FUNCTION_SPACES + READ_ONLY_FUNCTION_SPACES
-
-    # Valid any_space metadata (general FS, could be continuous or
-    # discontinuous)
-    VALID_ANY_SPACE_NAMES = ["any_space_{0}".format(x+1) for x in range(10)]
-
-    # Valid any_discontinuous_space metadata (general FS known to be
-    # discontinuous)
-    VALID_ANY_DISCONTINUOUS_SPACE_NAMES = \
-        ["any_discontinuous_space_{0}".format(x+1) for x in range(10)]
-
-    # Valid discontinuous FS names (for optimisation purposes)
-    VALID_DISCONTINUOUS_NAMES = DISCONTINUOUS_FUNCTION_SPACES +\
-        VALID_ANY_DISCONTINUOUS_SPACE_NAMES
-
-    # FS names consist of all valid names
-    VALID_FUNCTION_SPACE_NAMES = VALID_FUNCTION_SPACES + \
-        VALID_ANY_SPACE_NAMES + VALID_ANY_DISCONTINUOUS_SPACE_NAMES
-    # Lists of function spaces that have
-    # a) scalar basis functions;
-    SCALAR_BASIS_SPACE_NAMES = \
-        ["w0", "w2trace", "w2htrace", "w2vtrace", "w3", "wtheta", "wchi"]
-    # b) vector basis functions;
-    VECTOR_BASIS_SPACE_NAMES = ["w1", "w2", "w2h", "w2v", "w2broken", "any_w2"]
-    # c) scalar differential basis functions;
-    SCALAR_DIFF_BASIS_SPACE_NAMES = ["w2", "w2h", "w2v", "w2broken", "any_w2"]
-    # d) vector differential basis functions.
-    VECTOR_DIFF_BASIS_SPACE_NAMES = \
-        ["w0", "w1", "w2trace", "w2htrace", "w2vtrace", "w3", "wtheta", "wchi"]
-
-    # Evaluators: basis and differential basis
-    VALID_EVALUATOR_NAMES = ["gh_basis", "gh_diff_basis"]
-
-    # Meta functions
-    VALID_METAFUNC_NAMES = VALID_EVALUATOR_NAMES
-
     def __init__(self, name, kernel_args):
         self._orig_name = name
         self._kernel_args = kernel_args
         self._mangled_name = None
         self._short_name = None
 
+        const = LFRicConstants()
         # Check whether the function space name is a valid name
-        if self._orig_name not in FunctionSpace.VALID_FUNCTION_SPACE_NAMES:
+        if self._orig_name not in const.VALID_FUNCTION_SPACE_NAMES:
             raise InternalError(
-                "Unrecognised function space '{0}'. The "
-                "supported spaces are {1}."
-                .format(self._orig_name,
-                        FunctionSpace.VALID_FUNCTION_SPACE_NAMES))
+                f"Unrecognised function space '{self._orig_name}'. The "
+                f"supported spaces are {const.VALID_FUNCTION_SPACE_NAMES}.")
 
-        if self._orig_name not in FunctionSpace.VALID_ANY_SPACE_NAMES + \
-                FunctionSpace.VALID_ANY_DISCONTINUOUS_SPACE_NAMES:
+        if self._orig_name not in const.VALID_ANY_SPACE_NAMES + \
+                const.VALID_ANY_DISCONTINUOUS_SPACE_NAMES:
             # We only need to name-mangle any_space and
             # any_discontinuous_space spaces
             self._short_name = self._orig_name
@@ -207,13 +148,13 @@ class FunctionSpace(object):
         '''
         # First check that the the function space is one of any_*_space
         # spaces and then proceed with name-mangling.
-        if self._orig_name not in FunctionSpace.VALID_ANY_SPACE_NAMES + \
-                FunctionSpace.VALID_ANY_DISCONTINUOUS_SPACE_NAMES:
+        const = LFRicConstants()
+        if self._orig_name not in const.VALID_ANY_SPACE_NAMES + \
+                const.VALID_ANY_DISCONTINUOUS_SPACE_NAMES:
             raise InternalError(
-                "_mangle_fs_name: function space '{0}' is not one of "
-                "{1} or {2} spaces.".
-                format(self._orig_name, FunctionSpace.VALID_ANY_SPACE_NAMES,
-                       FunctionSpace.VALID_ANY_DISCONTINUOUS_SPACE_NAMES))
+                f"_mangle_fs_name: function space '{self._orig_name}' is not "
+                f"one of {const.VALID_ANY_SPACE_NAMES} or "
+                f"{const.VALID_ANY_DISCONTINUOUS_SPACE_NAMES} spaces.")
 
         # List kernel arguments
         args = self._kernel_args.args
@@ -226,8 +167,8 @@ class FunctionSpace(object):
                     return mngl_name
         # Raise an error if there are no kernel arguments on this
         # function space
-        raise FieldNotFoundError("No kernel argument found for function space "
-                                 "'{0}'".format(self._orig_name))
+        raise FieldNotFoundError(f"No kernel argument found for function "
+                                 f"space '{self._orig_name}'")
 
     def _shorten_fs_name(self):
         '''
@@ -244,17 +185,16 @@ class FunctionSpace(object):
         '''
         # Create a start for the short name and check whether the function
         # space is one of any_*_space spaces
-        if self._orig_name in FunctionSpace.VALID_ANY_SPACE_NAMES:
+        const = LFRicConstants()
+        if self._orig_name in const.VALID_ANY_SPACE_NAMES:
             start = "a"
-        elif self._orig_name in \
-                FunctionSpace.VALID_ANY_DISCONTINUOUS_SPACE_NAMES:
+        elif self._orig_name in const.VALID_ANY_DISCONTINUOUS_SPACE_NAMES:
             start = "ad"
         else:
             raise InternalError(
-                "_shorten_fs_name: function space '{0}' is not one of "
-                "{1} or {2} spaces.".
-                format(self._orig_name, FunctionSpace.VALID_ANY_SPACE_NAMES,
-                       FunctionSpace.VALID_ANY_DISCONTINUOUS_SPACE_NAMES))
+                f"_shorten_fs_name: function space '{self._orig_name}' is not "
+                f"one of {const.VALID_ANY_SPACE_NAMES} or "
+                f"{const.VALID_ANY_DISCONTINUOUS_SPACE_NAMES} spaces.")
 
         # Split name string to find any_*_space ID and create a short name as
         # "<start>" + "spc" + "ID"
@@ -369,9 +309,10 @@ class FunctionSpace(object):
         if operator_name == "gh_diff_basis":
             return self.get_diff_basis_name(qr_var=qr_var, on_space=on_space)
 
+        const = LFRicConstants()
         raise GenerationError(
-            "Unsupported name '{0}' found. Expected one of {1}".
-            format(operator_name, FunctionSpace.VALID_METAFUNC_NAMES))
+            f"Unsupported name '{operator_name}' found. Expected one of "
+            f"{const.VALID_METAFUNC_NAMES}")
 
     def field_on_space(self, arguments):
         '''Returns the corresponding argument if the supplied list of
@@ -423,16 +364,16 @@ class FunctionSpace(object):
         ''':returns: True if this function space has scalar basis functions.
         :rtype: bool
         '''
-        return self.orig_name.lower() in \
-            FunctionSpace.SCALAR_BASIS_SPACE_NAMES
+        const = LFRicConstants()
+        return self.orig_name.lower() in const.SCALAR_BASIS_SPACE_NAMES
 
     @property
     def has_vector_basis(self):
         ''':returns: True if this function space has vector basis functions.
         :rtype: bool
         '''
-        return self.orig_name.lower() in \
-            FunctionSpace.VECTOR_BASIS_SPACE_NAMES
+        const = LFRicConstants()
+        return self.orig_name.lower() in const.VECTOR_BASIS_SPACE_NAMES
 
     @property
     def has_scalar_diff_basis(self):
@@ -440,8 +381,8 @@ class FunctionSpace(object):
             basis functions.
         :rtype: bool
         '''
-        return self.orig_name.lower() in \
-            FunctionSpace.SCALAR_DIFF_BASIS_SPACE_NAMES
+        const = LFRicConstants()
+        return self.orig_name.lower() in const.SCALAR_DIFF_BASIS_SPACE_NAMES
 
     @property
     def has_vector_diff_basis(self):
@@ -449,5 +390,5 @@ class FunctionSpace(object):
             basis functions.
         :rtype: bool
         '''
-        return self.orig_name.lower() in \
-            FunctionSpace.VECTOR_DIFF_BASIS_SPACE_NAMES
+        const = LFRicConstants()
+        return self.orig_name.lower() in const.VECTOR_DIFF_BASIS_SPACE_NAMES

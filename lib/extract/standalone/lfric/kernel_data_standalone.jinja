@@ -1,0 +1,347 @@
+{# Added this as Jinja code so that it is understood that the
+   comment does not apply to THIS file. #}
+{{ "! ================================================== !" }}
+{{ "! THIS FILE IS CREATED FROM THE JINJA TEMPLATE FILE. !" }}
+{{ "! DO NOT MODIFY DIRECTLY!                            !" }}
+{{ "! ================================================== !" }}
+
+! -----------------------------------------------------------------------------
+! BSD 3-Clause License
+!
+! Copyright (c) 2020-2022, Science and Technology Facilities Council.
+! All rights reserved.
+!
+! Redistribution and use in source and binary forms, with or without
+! modification, are permitted provided that the following conditions are met:
+!
+! * Redistributions of source code must retain the above copyright notice, this
+!   list of conditions and the following disclaimer.
+!
+! * Redistributions in binary form must reproduce the above copyright notice,
+!   this list of conditions and the following disclaimer in the documentation
+!   and/or other materials provided with the distribution.
+!
+! * Neither the name of the copyright holder nor the names of its
+!   contributors may be used to endorse or promote products derived from
+!   this software without specific prior written permission.
+!
+! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+! "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+! LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+! FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+! COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+! INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+! BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+! LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+! CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+! LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+! POSSIBILITY OF SUCH DAMAGE.
+! -----------------------------------------------------------------------------
+! Author J. Henrichs, Bureau of Meteorology
+! Modified I. Kavcic, Met Office
+
+!> This module implements a simple standalone writer using the PSyData
+!! interface. It is specific to the LFRic infrastructure library.
+!! A Fortran code instrumented with corresponding calls
+!! to the PSyData API and linked in with this library will write
+!! the requested input and output parameters to a Fortran binary file.
+!!
+
+{% set ALL_PREC = ["32", "64"] -%}
+
+module extract_psy_data_mod
+
+    use, intrinsic :: iso_fortran_env, only : int64, int32
+    use extract_standalone_base_mod,   only : ExtractStandaloneBaseType
+
+    implicit none
+
+    !> This is the data type that manages the information required
+    !! to write data to a binary file using the PSyData API. A
+    !! static instance of this type is created for each instrumented
+    !! region with PSyclone (and each region will write a separate
+    !! file).
+    type, extends(ExtractStandaloneBaseType), public :: extract_PSyDataType
+
+    contains
+        {% set all_declares=[] -%}
+        {% set all_writes=[] -%}
+        {% for prec in ALL_PREC %}
+        procedure :: DeclareField_r{{prec}}
+        procedure :: WriteField_r{{prec}}
+        procedure :: DeclareFieldVector_r{{prec}}
+        procedure :: WriteFieldVector_r{{prec}}
+          {{- all_declares.append("DeclareField_r{{prec}}") or ""}}
+          {{- all_declares.append("DeclareFieldVector_r{{prec}}") or ""}}
+          {{- all_writes.append("WriteField_r{{prec}}") or ""}}
+          {{- all_writes.append("WriteFieldVector_r{{prec}}") or ""}}
+        {% endfor %}
+
+        ! The various procedures defined here
+        procedure :: DeclareIntField
+        procedure :: WriteIntField
+        procedure :: DeclareIntFieldVector
+        procedure :: WriteIntFieldVector
+
+        !> Declare generic interface for PreDeclareVariable:
+        generic, public :: PreDeclareVariable =>  &
+        {% for prec in ALL_PREC %}
+                           DeclareField_r{{prec}},      &
+                           DeclareFieldVector_r{{prec}},&
+        {% endfor %}
+                           DeclareIntField,       &
+                           DeclareIntFieldVector
+
+        !> The generic interface for providing the value of variables,
+        !! which in case of the kernel extraction writes the data to
+        !! the Fortran file.
+        generic, public :: ProvideVariable =>   &
+        {% for prec in ALL_PREC %}
+                           WriteField_r{{prec}},      &
+                           WriteFieldVector_r{{prec}},&
+        {% endfor %}
+                           WriteIntField,       &
+                           WriteIntFieldVector
+
+    end type extract_PSyDataType
+
+contains
+
+
+    {% for prec in ALL_PREC %}
+
+    ! -------------------------------------------------------------------------
+    !> @brief This subroutine declares an LFRic field with real-valued
+    !! {{prec}}-bit data.
+    !! It calls the PreDeclareVariable function provided by the base class
+    !! (depending on the type of the argument, e.g. it might call
+    !! DeclareArray1DDouble).
+    !! @param[in,out] this The instance of the extract_PSyDataType.
+    !! @param[in] name The name of the variable (string).
+    !! @param[in] value The value of the variable.
+    subroutine DeclareField_r{{prec}}(this, name, value)
+
+        use field_r{{prec}}_mod, only : field_r{{prec}}_type, field_r{{prec}}_proxy_type
+
+        implicit none
+
+        class(extract_PSyDataType), intent(inout), target :: this
+        character(*), intent(in)                          :: name
+        type(field_r{{prec}}_type), intent(in)                  :: value
+
+        type(field_r{{prec}}_proxy_type) :: value_proxy
+
+        value_proxy = value%get_proxy()
+        call this%PreDeclareVariable(name, value_proxy%data)
+
+    end subroutine DeclareField_r{{prec}}
+
+    ! -------------------------------------------------------------------------
+    !> @brief This subroutine writes the values of an LFRic real-valued {{prec}}-bit field.
+    !! to the binary file. It uses the corresponding function
+    !! provided by the base class.
+    !! @param[in,out] this The instance of the extract_PSyDataType.
+    !! @param[in] name The name of the variable (string).
+    !! @param[in] value The value of the variable.
+    subroutine WriteField_r{{prec}}(this, name, value)
+
+        use field_r{{prec}}_mod, only : field_r{{prec}}_type, field_r{{prec}}_proxy_type
+
+        implicit none
+
+        class(extract_PSyDataType), intent(inout), target :: this
+        character(*), intent(in)                          :: name
+        type(field_r{{prec}}_type), intent(in)                  :: value
+
+        type(field_r{{prec}}_proxy_type) :: value_proxy
+
+        value_proxy = value%get_proxy()
+        call this%ProvideVariable(name, value_proxy%data)
+
+    end subroutine WriteField_r{{prec}}
+
+    ! -------------------------------------------------------------------------
+    !> @brief This subroutine declares an LFRic real-valued {{prec}}-bit field vector.
+    !! Each component of the vector is stored as a separate variable, using the
+    !! corresponding array function of the base class.
+    !! @param[in,out] this The instance of the extract_PSyDataType.
+    !! @param[in] name The name of the variable (string).
+    !! @param[in] value The value of the variable.
+    subroutine DeclareFieldVector_r{{prec}}(this, name, value)
+
+        use field_r{{prec}}_mod, only : field_r{{prec}}_type, field_r{{prec}}_proxy_type
+
+        implicit none
+
+        class(extract_PSyDataType), intent(inout), target :: this
+        character(*), intent(in)                          :: name
+        type(field_r{{prec}}_type), dimension(:), intent(in)        :: value
+
+        integer                :: i
+        type(field_r{{prec}}_proxy_type) :: value_proxy
+        character(9)           :: number
+
+        ! Provide each component of the vector as an individual 1D array.
+        ! The base class will re-allocate internal array sizes if required.
+        do i = 1, size(value)
+            value_proxy = value(i)%get_proxy()
+            ! We add a '%' here to avoid a potential name clash if
+            ! the user should have a vector field 'a' (which is now stored
+            ! as a%1, a%2, ...), and a field 'a1'
+            write(number, '("%",i0)') i
+            call this%PreDeclareVariable(name//trim(number), value_proxy%data)
+        enddo
+
+    end subroutine DeclareFieldVector_r{{prec}}
+
+    ! -------------------------------------------------------------------------
+    !> @brief This subroutine writes an LFRic real-valued {{prec}}-bit field vector to
+    !! the binary file. Each component is stored as an individual variable using
+    !! the corresponding array function of the base class.
+    !! @param[in,out] this The instance of the extract_PSyDataType.
+    !! @param[in] name The name of the variable (string).
+    !! @param[in] value The value of the variable.
+    subroutine WriteFieldVector_r{{prec}}(this, name, value)
+
+        use field_r{{prec}}_mod, only : field_r{{prec}}_type, field_r{{prec}}_proxy_type
+
+        implicit none
+
+        class(extract_PSyDataType), intent(inout), target :: this
+        character(*), intent(in)                          :: name
+        type(field_r{{prec}}_type), dimension(:), intent(in)        :: value
+
+        integer                :: i
+        type(field_r{{prec}}_proxy_type) :: value_proxy
+        character(9)           :: number
+
+        ! Provide each dimension of the vector as an individual 1D array.
+        do i = 1, size(value, 1)
+            value_proxy = value(i)%get_proxy()
+            write(number, '("%",i0)') i
+            call this%ProvideVariable(name//trim(number), value_proxy%data)
+        enddo
+
+    end subroutine WriteFieldVector_r{{prec}}
+
+    {% endfor %}
+
+    ! -------------------------------------------------------------------------
+    !> @brief This subroutine declares an LFRic field with integer-valued data.
+    !! It calls the PreDeclareVariable function provided by the base class
+    !! (depending on the type of the argument, e.g. it might call
+    !! DeclareArray1DInt).
+    !! @param[in,out] this The instance of the extract_PSyDataType.
+    !! @param[in] name The name of the variable (string).
+    !! @param[in] value The value of the variable.
+    subroutine DeclareIntField(this, name, value)
+
+        use integer_field_mod, only : integer_field_type, &
+                                      integer_field_proxy_type
+
+        implicit none
+
+        class(extract_PSyDataType), intent(inout), target :: this
+        character(*), intent(in)                          :: name
+        type(integer_field_type), intent(in)              :: value
+
+        type(integer_field_proxy_type) :: value_proxy
+
+        value_proxy = value%get_proxy()
+        call this%PreDeclareVariable(name, value_proxy%data)
+
+    end subroutine DeclareIntField
+
+    ! -------------------------------------------------------------------------
+    !> @brief This subroutine writes the values of an LFRic integer-valued field.
+    !! to the binary file. It uses the corresponding function
+    !! provided by the base class.
+    !! @param[in,out] this The instance of the extract_`.
+    !! @param[in] name The name of the variable (string).
+    !! @param[in] value The value of the variable.
+    subroutine WriteIntField(this, name, value)
+
+        use integer_field_mod, only : integer_field_type, &
+                                      integer_field_proxy_type
+
+        implicit none
+
+        class(extract_PSyDataType), intent(inout), target :: this
+        character(*), intent(in)                          :: name
+        type(integer_field_type), intent(in)              :: value
+
+        type(integer_field_proxy_type) :: value_proxy
+
+        value_proxy = value%get_proxy()
+        call this%ProvideVariable(name, value_proxy%data)
+
+    end subroutine WriteIntField
+
+    ! -------------------------------------------------------------------------
+    !> @brief This subroutine declares an LFRic integer-valued field vector. Each
+    !! component of the vector is stored as a separate variable, using the
+    !! corresponding array function of the base class.
+    !! @param[in,out] this The instance of the extract_PSyDataType.
+    !! @param[in] name The name of the variable (string).
+    !! @param[in] value The value of the variable.
+    subroutine DeclareIntFieldVector(this, name, value)
+
+        use integer_field_mod, only : integer_field_type, &
+                                      integer_field_proxy_type
+
+        implicit none
+
+        class(extract_PSyDataType), intent(inout), target  :: this
+        character(*), intent(in)                           :: name
+        type(integer_field_type), dimension(:), intent(in) :: value
+
+        integer                        :: i
+        type(integer_field_proxy_type) :: value_proxy
+        character(9)                   :: number
+
+        ! Provide each component of the vector as an individual 1D array.
+        ! The base class will re-allocate internal array sizes if required.
+        do i = 1, size(value)
+            value_proxy = value(i)%get_proxy()
+            ! We add a '%' here to avoid a potential name clash if
+            ! the user should have a vector field 'a' (which is now stored
+            ! as a%1, a%2, ...), and a field 'a1'
+            write(number, '("%",i0)') i
+            call this%PreDeclareVariable(name//trim(number), value_proxy%data)
+        enddo
+
+    end subroutine DeclareIntFieldVector
+
+! -------------------------------------------------------------------------
+    !> @brief This subroutine writes an LFRic integer-valued field vector to the
+    !! binary file. Each component is stored as an individual variable
+    !! using the corresponding array function of the base class.
+    !! @param[in,out] this The instance of the extract_PSyDataType.
+    !! @param[in] name The name of the variable (string).
+    !! @param[in] value The value of the variable.
+    subroutine WriteIntFieldVector(this, name, value)
+
+        use integer_field_mod, only : integer_field_type, &
+                                      integer_field_proxy_type
+
+        implicit none
+
+        class(extract_PSyDataType), intent(inout), target  :: this
+        character(*), intent(in)                           :: name
+        type(integer_field_type), dimension(:), intent(in) :: value
+
+        integer                        :: i
+        type(integer_field_proxy_type) :: value_proxy
+        character(9)                   :: number
+
+        ! Provide each dimension of the vector as an individual 1D array.
+        do i = 1, size(value, 1)
+            value_proxy = value(i)%get_proxy()
+            write(number, '("%",i0)') i
+            call this%ProvideVariable(name//trim(number), value_proxy%data)
+        enddo
+
+    end subroutine WriteIntFieldVector
+
+end module extract_psy_data_mod

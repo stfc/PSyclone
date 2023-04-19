@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2020, Science and Technology Facilities Council.
+# Copyright (c) 2017-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -41,7 +41,7 @@
 from __future__ import absolute_import
 import os
 import pytest
-from psyclone.psyir.symbols import SymbolError
+from psyclone.psyir.symbols import SymbolError, Symbol
 from psyclone.psyir.symbols.containersymbol import ContainerSymbol, \
     ContainerSymbolInterface, FortranModuleInterface
 from psyclone.psyir.nodes import Container
@@ -55,13 +55,19 @@ def create_dummy_module(path, filename="dummy_module.f90"):
     purposes'''
 
     source = '''
-    module dummy_module
+    module ignore_me
+    end module ignore_me
+    subroutine ignore_me_too()
+    end subroutine ignore_me_too
+    module Dummy_Module
 
         integer :: a
         real :: b
         real, parameter :: c = 3.14
 
     end module dummy_module
+    program also_ignore_me
+    end program also_ignore_me
     '''
     with open(os.path.join(path, filename), "w") as mfile:
         mfile.write(source)
@@ -74,26 +80,73 @@ def test_containersymbol_initialisation():
     sym = ContainerSymbol("my_mod")
     assert isinstance(sym, ContainerSymbol)
     assert sym.name == "my_mod"
+    assert sym.wildcard_import is False
     # References are not followed/evaluated until explicitly requested
     assert not sym._reference
     # Right now the FortranModuleInterface is assigned by default
     # because it is the only one. This may change in the future
     assert isinstance(sym._interface, FortranModuleInterface)
 
+    # Test wildcard_import argument
+    sym2 = ContainerSymbol("my_mod", wildcard_import=True)
+    assert sym2.wildcard_import is True
+
     with pytest.raises(TypeError) as error:
         sym = ContainerSymbol(None)
     assert "ContainerSymbol 'name' attribute should be of type 'str'" \
         in str(error.value)
+
+    with pytest.raises(TypeError) as error:
+        sym = ContainerSymbol("name", interface="interface")
+    assert ("A ContainerSymbol interface must be of type "
+            "'FortranModuleInterface' but found 'str' for Container 'name'."
+            in str(error.value))
+
+
+def test_containersymbol_specialise_and_process_arguments():
+    ''' Tests that a ContainerSymbol created from a specialisation instead of
+    the constructor deals with the arguments as expected.'''
+    sym1 = Symbol("symbol1")
+    sym1.specialise(ContainerSymbol)
+    assert isinstance(sym1, ContainerSymbol)
+
+    # It has a wildcard_import and it default to False
+    assert sym1.wildcard_import is False
+    # It could use the container import infrastructure (in this case it fails
+    # because it does not exist)
+    with pytest.raises(SymbolError) as error:
+        _ = sym1.container
+    assert "not found" in str(error.value)
+
+    # Now with a wildcard_import argument
+    sym2 = Symbol("symbol1")
+    sym2.specialise(ContainerSymbol, wildcard_import=True)
+    assert isinstance(sym1, ContainerSymbol)
+    assert sym2.wildcard_import is True
+
+
+def test_containersymbol_can_be_copied():
+    '''Test that a ContainerSymbol instance can be copied. '''
+    symbol = ContainerSymbol("my_mod")
+    symbol.wildcard_import = True
+    new_symbol = symbol.copy()
+
+    assert new_symbol is not symbol
+    assert new_symbol.name == "my_mod"
+    assert isinstance(new_symbol._interface, FortranModuleInterface)
+    # Disable false positive no-member pylint error
+    # pylint: disable=no-member
+    assert new_symbol.wildcard_import is True
 
 
 def test_containersymbol_str():
     '''Test that a ContainerSymbol instance can be stringified'''
 
     sym = ContainerSymbol("my_mod")
-    assert str(sym) == "my_mod: <not linked>"
+    assert str(sym) == "my_mod: ContainerSymbol<not linked>"
 
     sym._reference = Container("my_mod")
-    assert str(sym) == "my_mod: <linked>"
+    assert str(sym) == "my_mod: ContainerSymbol<linked>"
 
 
 def test_containersymbol_resolve_external_container(monkeypatch):
@@ -135,7 +188,7 @@ def test_containersymbol_fortranmodule_interface(monkeypatch, tmpdir):
     fminterface = FortranModuleInterface
     path = str(tmpdir)
 
-    # Try with a non-existant module and no include path
+    # Try with a non-existent module and no include path
     monkeypatch.setattr(Config.get(), "_include_paths", [])
     with pytest.raises(SymbolError) as error:
         fminterface.import_container("fake_module")
@@ -143,7 +196,7 @@ def test_containersymbol_fortranmodule_interface(monkeypatch, tmpdir):
             "'fake_module.[f|F]90') not found in any of the include_paths "
             "directories []." in str(error.value))
 
-    # Try with a non-existant module and an existing directory
+    # Try with a non-existent module and an existing directory
     monkeypatch.setattr(Config.get(), '_include_paths', [path])
     with pytest.raises(SymbolError) as error:
         fminterface.import_container("fake_module")
@@ -155,7 +208,7 @@ def test_containersymbol_fortranmodule_interface(monkeypatch, tmpdir):
     create_dummy_module(path)
     container = fminterface.import_container("dummy_module")
     assert isinstance(container, Container)
-    assert container.name == "dummy_module"
+    assert container.name.lower() == "dummy_module"
 
     # Import the wrong module, additionally it tests that the uppercase
     # F90 extension is also being imported as it does not produce a file
@@ -163,9 +216,10 @@ def test_containersymbol_fortranmodule_interface(monkeypatch, tmpdir):
     create_dummy_module(path, "different_name_module.F90")
     with pytest.raises(ValueError) as error:
         container = fminterface.import_container("different_name_module")
-    assert ("Error importing the Fortran module 'different_name_module' into "
-            "a PSyIR container. The imported module has the unexpected name: "
-            "'dummy_module'." in str(error.value))
+    assert ("Error importing the Fortran module 'different_name_module' "
+            "into a PSyIR container. The file with filename "
+            "'different_name_module.F90' does not contain the expected "
+            "module." in str(error.value))
 
 
 def test_containersymbol_wildcard_import():

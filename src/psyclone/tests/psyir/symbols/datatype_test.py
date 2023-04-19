@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,17 +32,19 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford, A. R. Porter, STFC Daresbury Lab
+# Modified: S. Siso, STFC Daresbury Lab
+# Modified: by J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
-''' Perform py.test tests on the psygen.psyir.symbols.datatype module '''
+''' Perform py.test tests on the psyclone.psyir.symbols.datatype module. '''
 
-from __future__ import absolute_import
 import pytest
-from psyclone.psyir.symbols import DataType, DeferredType, ScalarType, \
-    ArrayType, UnknownFortranType, DataSymbol, StructureType, \
-    INTEGER_TYPE, REAL_TYPE, Symbol, TypeSymbol
-from psyclone.psyir.nodes import Literal, BinaryOperation, Reference
 from psyclone.errors import InternalError
+from psyclone.psyir.nodes import Literal, BinaryOperation, Reference, \
+    Container, KernelSchedule
+from psyclone.psyir.symbols import DataType, DeferredType, ScalarType, \
+    ArrayType, UnknownFortranType, DataSymbol, StructureType, NoType, \
+    INTEGER_TYPE, REAL_TYPE, Symbol, DataTypeSymbol, SymbolTable
 
 
 # Abstract DataType class
@@ -52,8 +54,12 @@ def test_datatype():
     # pylint: disable=abstract-class-instantiated
     with pytest.raises(TypeError) as excinfo:
         _ = DataType()
-    assert ("Can't instantiate abstract class DataType with abstract methods "
-            "__str__" in str(excinfo.value))
+    msg = str(excinfo.value)
+    # Have to split this check as Python >= 3.10 spots that 'method'
+    # should be singular.
+    assert ("Can't instantiate abstract class DataType with abstract "
+            "method" in msg)
+    assert " __str__" in msg
 
 
 # DeferredType class
@@ -69,6 +75,32 @@ def test_deferredtype_str():
     assert str(data_type) == "DeferredType"
 
 
+def test_deferredtype_eq():
+    '''Test the equality operator of DeferredType.'''
+    data_type1 = DeferredType()
+    assert data_type1 == DeferredType()
+    assert data_type1 != NoType()
+
+
+# NoType class
+
+def test_notype():
+    ''' Check that the NoType class can be instantiated successfully and
+    that its str method works as expected. '''
+    data_type = NoType()
+    assert isinstance(data_type, NoType)
+    assert str(data_type) == "NoType"
+
+
+def test_notype_eq():
+    '''Test the equality operator of NoType.'''
+    notype1 = NoType()
+    assert notype1 == NoType()
+    assert notype1 != DeferredType()
+    assert notype1 != ScalarType(ScalarType.Intrinsic.INTEGER,
+                                 ScalarType.Precision.SINGLE)
+
+
 # ScalarType class
 
 @pytest.mark.parametrize("precision", [ScalarType.Precision.SINGLE,
@@ -80,13 +112,16 @@ def test_deferredtype_str():
                                        ScalarType.Intrinsic.CHARACTER])
 def test_scalartype_enum_precision(intrinsic, precision):
     '''Test that the ScalarType class can be created successfully for all
-    supported ScalarType intrinsics and all suported enumerated precisions.
+    supported ScalarType intrinsics and all supported enumerated precisions.
+    Also test that two such types are equal.
 
     '''
     scalar_type = ScalarType(intrinsic, precision)
     assert isinstance(scalar_type, ScalarType)
     assert scalar_type.intrinsic == intrinsic
     assert scalar_type.precision == precision
+    scalar_type2 = ScalarType(intrinsic, precision)
+    assert scalar_type == scalar_type2
 
 
 @pytest.mark.parametrize("precision", [1, 8, 16])
@@ -97,12 +132,15 @@ def test_scalartype_enum_precision(intrinsic, precision):
 def test_scalartype_int_precision(intrinsic, precision):
     '''Test that the ScalarType class can be created successfully for all
     supported ScalarType intrinsics and a set of valid integer precisions.
+    Also test that two such types are equal.
 
     '''
     scalar_type = ScalarType(intrinsic, precision)
     assert isinstance(scalar_type, ScalarType)
     assert scalar_type.intrinsic == intrinsic
     assert scalar_type.precision == precision
+    scalar_type2 = ScalarType(intrinsic, precision)
+    assert scalar_type == scalar_type2
 
 
 @pytest.mark.parametrize("intrinsic", [ScalarType.Intrinsic.INTEGER,
@@ -112,7 +150,7 @@ def test_scalartype_int_precision(intrinsic, precision):
 def test_scalartype_datasymbol_precision(intrinsic):
     '''Test that the ScalarType class can be created successfully for all
     supported ScalarType intrinsics and the precision specified by another
-    symbol.
+    symbol.  Also test that two such types are equal.
 
     '''
     # Create an r_def precision symbol with a constant value of 8
@@ -124,6 +162,35 @@ def test_scalartype_datasymbol_precision(intrinsic):
     assert isinstance(scalar_type, ScalarType)
     assert scalar_type.intrinsic == intrinsic
     assert scalar_type.precision is precision_symbol
+    scalar_type2 = ScalarType(intrinsic, precision_symbol)
+    assert scalar_type == scalar_type2
+
+
+def test_scalartype_not_equal():
+    '''
+    Check that ScalarType instances with different precision or intrinsic type
+    are recognised as being different. Also check that an ArrayType is !=
+    to a ScalarType.
+
+    '''
+    intrinsic = ScalarType.Intrinsic.INTEGER
+    data_type = ScalarType(ScalarType.Intrinsic.INTEGER,
+                           ScalarType.Precision.UNDEFINED)
+    precision_symbol = DataSymbol("r_def", data_type, constant_value=8)
+    # Set the precision of our ScalarType to be the precision symbol
+    scalar_type = ScalarType(intrinsic, precision_symbol)
+    # Same precision symbol but different intrinsic type
+    scalar_type2 = ScalarType(ScalarType.Intrinsic.REAL, precision_symbol)
+    assert scalar_type2 != scalar_type
+    # Same intrinsic type but different precision specified as an integer
+    scalar_type3 = ScalarType(intrinsic, 8)
+    assert scalar_type3 != scalar_type
+    # Same intrinsic type but different precision
+    scalar_type4 = ScalarType(intrinsic, ScalarType.Precision.SINGLE)
+    assert scalar_type4 != scalar_type
+    # A ScalarType is not equal to an ArrayType
+    atype = ArrayType(scalar_type4, [10])
+    assert scalar_type4 != atype
 
 
 def test_scalartype_invalid_intrinsic_type():
@@ -174,7 +241,7 @@ def test_scalartype_invalid_precision_datasymbol():
         _ = ScalarType(ScalarType.Intrinsic.REAL, precision_symbol)
     assert ("A DataSymbol representing the precision of another DataSymbol "
             "must be of either 'deferred' or scalar, integer type but got: "
-            "r_def: <Scalar<REAL, 4>, Local>"
+            "r_def: DataSymbol<Scalar<REAL, 4>, Local>"
             in str(excinfo.value))
 
 
@@ -206,26 +273,44 @@ def test_arraytype():
     literal = Literal("20", scalar_type)
     array_type = ArrayType(
         scalar_type, [10, literal, var_plus_1, Reference(data_symbol),
-                      ArrayType.Extent.DEFERRED, ArrayType.Extent.ATTRIBUTE])
+                      ArrayType.Extent.DEFERRED, ArrayType.Extent.ATTRIBUTE,
+                      (0, 10), (-1, var_plus_1.copy()),
+                      (var_plus_1.copy(), var_plus_1.copy())])
     assert isinstance(array_type, ArrayType)
-    assert len(array_type.shape) == 6
-    # Provided as an int but stored as a Literal
+    assert len(array_type.shape) == 9
+    # Provided as an int but stored as a Literal and given an explicit lower
+    # bound of 1.
     shape0 = array_type.shape[0]
-    assert isinstance(shape0, Literal)
-    assert shape0.value == "10"
-    assert shape0.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
-    assert shape0.datatype.precision == ScalarType.Precision.UNDEFINED
+    assert isinstance(shape0, ArrayType.ArrayBounds)
+    assert shape0.lower.value == "1"
+    assert shape0.upper.value == "10"
+    assert shape0.upper.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
+    assert shape0.upper.datatype.precision == ScalarType.Precision.UNDEFINED
+    # TODO #1857: the datatype property might be affected.
+    assert array_type.datatype == scalar_type
     # Provided and stored as a Literal (DataNode)
-    assert array_type.shape[1] is literal
+    assert array_type.shape[1].upper is literal
     # Provided and stored as an Operator (DataNode)
-    assert array_type.shape[2] is var_plus_1
+    assert array_type.shape[2].upper is var_plus_1
     # Provided and stored as a Reference to a DataSymbol
-    assert isinstance(array_type.shape[3], Reference)
-    assert array_type.shape[3].symbol is data_symbol
+    assert isinstance(array_type.shape[3].upper, Reference)
+    assert array_type.shape[3].upper.symbol is data_symbol
     # Provided and stored as a deferred extent
     assert array_type.shape[4] == ArrayType.Extent.DEFERRED
     # Provided as an attribute extent
     assert array_type.shape[5] == ArrayType.Extent.ATTRIBUTE
+    # Provided as integer lower and upper bounds
+    assert isinstance(array_type.shape[6], ArrayType.ArrayBounds)
+    assert array_type.shape[6].lower.value == "0"
+    assert array_type.shape[6].upper.value == "10"
+    # Provided as integer lower and PSyIR upper bound
+    assert isinstance(array_type.shape[7], ArrayType.ArrayBounds)
+    assert array_type.shape[7].lower.value == "-1"
+    assert isinstance(array_type.shape[7].upper, BinaryOperation)
+    # Provided as PSyIR lower and upper bounds
+    assert isinstance(array_type.shape[8], ArrayType.ArrayBounds)
+    assert isinstance(array_type.shape[8].lower, BinaryOperation)
+    assert isinstance(array_type.shape[8].upper, BinaryOperation)
 
 
 def test_arraytype_invalid_datatype():
@@ -236,10 +321,10 @@ def test_arraytype_invalid_datatype():
     with pytest.raises(TypeError) as excinfo:
         _ = ArrayType(None, None)
     assert ("ArrayType expected 'datatype' argument to be of type DataType "
-            "or TypeSymbol but found 'NoneType'." in str(excinfo.value))
+            "or DataTypeSymbol but found 'NoneType'." in str(excinfo.value))
 
 
-def test_arraytype_typesymbol_only():
+def test_arraytype_datatypesymbol_only():
     ''' Test that we currently refuse to make an ArrayType with an intrinsic
     type of StructureType. (This limitation is the subject of #1031.) '''
     with pytest.raises(NotImplementedError) as err:
@@ -247,16 +332,17 @@ def test_arraytype_typesymbol_only():
             [("nx", INTEGER_TYPE, Symbol.Visibility.PUBLIC)]),
                       [5])
     assert ("When creating an array of structures, the type of those "
-            "structures must be supplied as a TypeSymbol but got a "
+            "structures must be supplied as a DataTypeSymbol but got a "
             "StructureType instead." in str(err.value))
 
 
-def test_arraytype_typesymbol():
+def test_arraytype_datatypesymbol():
     ''' Test that we can correctly create an ArrayType when the type of the
-    elements is specified as a TypeSymbol. '''
-    tsym = TypeSymbol("my_type", DeferredType())
+    elements is specified as a DataTypeSymbol. '''
+    tsym = DataTypeSymbol("my_type", DeferredType())
     atype = ArrayType(tsym, [5])
     assert isinstance(atype, ArrayType)
+    assert atype.datatype == tsym
     assert len(atype.shape) == 1
     assert atype.intrinsic is tsym
     assert atype.precision is None
@@ -285,41 +371,28 @@ def test_arraytype_invalid_shape_dimension_1():
     with pytest.raises(TypeError) as excinfo:
         _ = ArrayType(scalar_type, [Reference(symbol)])
     assert (
-        "If a datasymbol is used as a dimension declaration then it should "
-        "be a scalar integer or an unknown type, but 'fred' is a "
-        "'Scalar<REAL, 4>'." in str(excinfo.value))
+        "If a DataSymbol is referenced in a dimension declaration then it "
+        "should be an integer or of UnknownType or DeferredType, but "
+        "'fred' is a 'Scalar<REAL, 4>'." in str(excinfo.value))
 
 
 def test_arraytype_invalid_shape_dimension_2():
     '''Test that the ArrayType class raises an exception when one of the
     dimensions of the shape list argument is not a datasymbol, datanode,
-    integer or ArrayType.Extent type.
+    integer, tuple or ArrayType.Extent type.
 
     '''
     scalar_type = ScalarType(ScalarType.Intrinsic.REAL, 4)
     with pytest.raises(TypeError) as excinfo:
         _ = ArrayType(scalar_type, [None])
     assert ("DataSymbol shape list elements can only be 'int', "
-            "ArrayType.Extent or 'DataNode' but found 'NoneType'."
+            "ArrayType.Extent, 'DataNode' or tuple but found 'NoneType'."
             in str(excinfo.value))
 
 
-@pytest.mark.xfail(reason="issue #948. Support for this check "
-                   "needs to be added")
+@pytest.mark.xfail(reason="issue #1089. Support for this check needs to be"
+                   "implemented")
 def test_arraytype_invalid_shape_dimension_3():
-    '''Test that the ArrayType class raises an exception when one of the
-    dimensions of the shape list argument is a local datasymbol that does
-    not have a constant value (as this will not be initialised).'''
-
-    scalar_type = ScalarType(ScalarType.Intrinsic.INTEGER, 4)
-    data_symbol = DataSymbol("var", scalar_type)
-    with pytest.raises(TypeError) as info:
-        _ = ArrayType(scalar_type, [data_symbol])
-    assert ("If a local datasymbol is used to declare a dimension then it "
-            "should be a constant, but 'var' is not." in str(info.value))
-
-
-def test_arraytype_invalid_shape_dimension_4():
     '''Test that the ArrayType class raises an exception when one of the
     dimensions of the shape list argument is a DataNode that contains
     a local datasymbol that does not have a constant value (as this
@@ -338,17 +411,75 @@ def test_arraytype_invalid_shape_dimension_4():
             "not." in str(info.value))
 
 
+def test_arraytype_invalid_shape_bounds():
+    ''' Check that the ArrayType class raises the expected exception when
+    one of the dimensions of the shape list is a tuple that does not contain
+    either an int or a DataNode or is not a scalar.'''
+    scalar_type = ScalarType(ScalarType.Intrinsic.REAL, 4)
+    with pytest.raises(TypeError) as excinfo:
+        _ = ArrayType(scalar_type, [(1, 4, 1)])
+    assert ("A DataSymbol shape-list element specifying lower and upper bounds"
+            " must be a 2-tuple but '(1, 4, 1)' has 3 entries" in
+            str(excinfo.value))
+    with pytest.raises(TypeError) as excinfo:
+        _ = ArrayType(scalar_type, [(1, None)])
+    assert ("A DataSymbol shape-list element specifying lower and upper bounds"
+            " must be a 2-tuple containing either int or DataNode entries but "
+            "'(1, None)' contains 'NoneType'" in str(excinfo.value))
+    with pytest.raises(TypeError) as excinfo:
+        _ = ArrayType(scalar_type, [(None, 1)])
+    assert ("A DataSymbol shape-list element specifying lower and upper bounds"
+            " must be a 2-tuple containing either int or DataNode entries but "
+            "'(None, 1)' contains 'NoneType'" in str(excinfo.value))
+    with pytest.raises(TypeError) as excinfo:
+        _ = ArrayType(scalar_type, [10, (None, 1)])
+    assert ("A DataSymbol shape-list element specifying lower and upper bounds"
+            " must be a 2-tuple containing either int or DataNode entries but "
+            "'(None, 1)' contains 'NoneType'" in str(excinfo.value))
+    scalar_type = ScalarType(ScalarType.Intrinsic.REAL, 4)
+    symbol = DataSymbol("fred", scalar_type, constant_value=3.0)
+    with pytest.raises(TypeError) as excinfo:
+        _ = ArrayType(scalar_type, [(1, Reference(symbol))])
+    assert (
+        "If a DataSymbol is referenced in a dimension declaration then it "
+        "should be an integer or of UnknownType or DeferredType, but "
+        "'fred' is a 'Scalar<REAL, 4>'." in str(excinfo.value))
+    array_type = ArrayType(INTEGER_TYPE, [10])
+    symbol = DataSymbol("jim", array_type)
+    with pytest.raises(TypeError) as excinfo:
+        _ = ArrayType(scalar_type, [(1, Reference(symbol))])
+    assert ("If a DataSymbol is referenced in a dimension declaration then it "
+            "should be a scalar but 'Reference[name:'jim']' is not." in
+            str(excinfo.value))
+
+
+def test_arraytype_shape_dim_from_parent_scope():
+    ''' Check that the shape checking in the ArrayType class permits the
+    use of a reference to a symbol in a parent scope. '''
+    cont = Container("test_mod")
+    dim_sym = cont.symbol_table.new_symbol("dim1", symbol_type=DataSymbol,
+                                           datatype=INTEGER_TYPE)
+    kernel1 = KernelSchedule.create("mod_1", SymbolTable(), [])
+    cont.addchild(kernel1)
+    asym = kernel1.symbol_table.new_symbol(
+        "array1", symbol_type=DataSymbol,
+        datatype=ArrayType(INTEGER_TYPE, [Reference(dim_sym)]))
+    assert isinstance(asym, DataSymbol)
+
+
 def test_arraytype_str():
     '''Test that the ArrayType class str method works as expected.'''
     scalar_type = ScalarType(ScalarType.Intrinsic.INTEGER,
                              ScalarType.Precision.UNDEFINED)
     data_symbol = DataSymbol("var", scalar_type, constant_value=20)
     data_type = ArrayType(scalar_type, [10, Reference(data_symbol),
+                                        (2, Reference(data_symbol)),
+                                        (Reference(data_symbol), 10),
                                         ArrayType.Extent.DEFERRED,
                                         ArrayType.Extent.ATTRIBUTE])
     assert (str(data_type) == "Array<Scalar<INTEGER, UNDEFINED>,"
-            " shape=[Literal[value:'10', Scalar<INTEGER, UNDEFINED>], "
-            "Reference[name:'var'], 'DEFERRED', 'ATTRIBUTE']>")
+            " shape=[10, Reference[name:'var'], 2:Reference[name:'var'], "
+            "Reference[name:'var']:10, 'DEFERRED', 'ATTRIBUTE']>")
 
 
 def test_arraytype_str_invalid():
@@ -363,8 +494,8 @@ def test_arraytype_str_invalid():
     with pytest.raises(InternalError) as excinfo:
         _ = str(array_type)
     assert ("PSyclone internal error: ArrayType shape list elements can only "
-            "be 'DataNode', or 'ArrayType.Extent', but found 'NoneType'."
-            in str(excinfo.value))
+            "be 'ArrayType.ArrayBounds', or 'ArrayType.Extent', but found "
+            "'NoneType'." in str(excinfo.value))
 
 
 def test_arraytype_immutable():
@@ -379,6 +510,30 @@ def test_arraytype_immutable():
         data_type.shape = []
 
 
+def test_arraytype_eq():
+    '''Test the equality operator for ArrayType.'''
+    scalar_type = ScalarType(ScalarType.Intrinsic.REAL, 4)
+    data_type1 = ArrayType(scalar_type, [10, 10])
+    assert data_type1 == ArrayType(scalar_type, [10, 10])
+    assert data_type1 != scalar_type
+    assert data_type1 == ArrayType(scalar_type, [10,
+                                                 Literal("10", INTEGER_TYPE)])
+    # Same type but different shape.
+    assert data_type1 != ArrayType(scalar_type, [10])
+    assert data_type1 != ArrayType(scalar_type, [10, 10, 5])
+    assert data_type1 != ArrayType(scalar_type, [10, 5])
+    assert data_type1 != ArrayType(scalar_type, [10, 5])
+    sym = DataSymbol("nx", INTEGER_TYPE)
+    assert data_type1 != ArrayType(scalar_type, [10, Reference(sym)])
+    # Same shape but different type.
+    dscalar_type = ScalarType(ScalarType.Intrinsic.REAL, 8)
+    assert data_type1 != ArrayType(dscalar_type, [10, 10])
+    iscalar_type = ScalarType(ScalarType.Intrinsic.INTEGER, 4)
+    assert data_type1 != ArrayType(iscalar_type, [10, 10])
+
+
+# UnknownFortranType tests
+
 def test_unknown_fortran_type():
     ''' Check the constructor and 'declaration' property of the
     UnknownFortranType class. '''
@@ -390,6 +545,34 @@ def test_unknown_fortran_type():
     utype = UnknownFortranType(decl)
     assert str(utype) == "UnknownFortranType('" + decl + "')"
     assert utype.declaration == decl
+
+
+def test_unknown_fortran_type_text():
+    '''
+    Check that the 'type_text' property returns the expected string and
+    that the result is cached.
+    '''
+    decl = "type(some_type) :: var"
+    utype = UnknownFortranType(decl)
+    text = utype.type_text
+    assert text == "TYPE(some_type)"
+    # Calling it a second time should just return the previously cached
+    # result.
+    assert utype.type_text is text
+    # Changing the declaration text should wipe the cache
+    utype.declaration = decl
+    assert utype.type_text is not text
+
+
+def test_unknown_fortran_type_eq():
+    '''Test the equality operator for UnknownFortranType.'''
+    decl = "type(some_type) :: var"
+    utype = UnknownFortranType(decl)
+    assert utype == UnknownFortranType(decl)
+    assert utype != NoType()
+    # Type is the same even if the variable name is different.
+    assert utype == UnknownFortranType("type(some_type) :: var1")
+    assert utype != UnknownFortranType("type(other_type) :: var")
 
 
 # StructureType tests
@@ -409,7 +592,7 @@ def test_structure_type():
     with pytest.raises(TypeError) as err:
         stype.add("hello", "hello", "hello")
     assert ("type of a component of a StructureType must be a 'DataType' "
-            "or 'TypeSymbol' but got 'str'" in str(err.value))
+            "or 'DataTypeSymbol' but got 'str'" in str(err.value))
     with pytest.raises(TypeError) as err:
         stype.add("hello", INTEGER_TYPE, "hello")
     assert ("visibility of a component of a StructureType must be an instance "
@@ -425,8 +608,8 @@ def test_structure_type():
 
 def test_create_structuretype():
     ''' Test the create() method of StructureType. '''
-    # One member will have its type defined by a TypeSymbol
-    tsymbol = TypeSymbol("my_type", DeferredType())
+    # One member will have its type defined by a DataTypeSymbol
+    tsymbol = DataTypeSymbol("my_type", DeferredType())
     stype = StructureType.create([
         ("fred", INTEGER_TYPE, Symbol.Visibility.PUBLIC),
         ("george", REAL_TYPE, Symbol.Visibility.PRIVATE),
@@ -448,3 +631,32 @@ def test_create_structuretype():
     assert ("Each component must be specified using a 3-tuple of (name, "
             "type, visibility) but found a tuple with 2 members: ("
             "'george', " in str(err.value))
+
+
+def test_structuretype_eq():
+    '''Test the equality operator of StructureType.'''
+    stype = StructureType.create([
+        ("nancy", INTEGER_TYPE, Symbol.Visibility.PUBLIC),
+        ("peggy", REAL_TYPE, Symbol.Visibility.PRIVATE)])
+    assert stype == StructureType.create([
+        ("nancy", INTEGER_TYPE, Symbol.Visibility.PUBLIC),
+        ("peggy", REAL_TYPE, Symbol.Visibility.PRIVATE)])
+    # Something that is not a StructureType
+    assert stype != NoType()
+    # Component with a different name.
+    assert stype != StructureType.create([
+        ("nancy", INTEGER_TYPE, Symbol.Visibility.PUBLIC),
+        ("roger", REAL_TYPE, Symbol.Visibility.PRIVATE)])
+    # Component with a different type.
+    assert stype != StructureType.create([
+        ("nancy", INTEGER_TYPE, Symbol.Visibility.PUBLIC),
+        ("peggy", INTEGER_TYPE, Symbol.Visibility.PRIVATE)])
+    # Component with a different visibility.
+    assert stype != StructureType.create([
+        ("nancy", INTEGER_TYPE, Symbol.Visibility.PUBLIC),
+        ("peggy", REAL_TYPE, Symbol.Visibility.PUBLIC)])
+    # Different number of components.
+    assert stype != StructureType.create([
+        ("nancy", INTEGER_TYPE, Symbol.Visibility.PUBLIC),
+        ("peggy", REAL_TYPE, Symbol.Visibility.PRIVATE),
+        ("roger", INTEGER_TYPE, Symbol.Visibility.PUBLIC)])

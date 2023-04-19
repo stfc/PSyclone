@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,8 +32,17 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors: A. R. Porter and S. Siso, STFC Daresbury Laboratory
+# Modified J. Henrichs, Bureau of Meteorology
 
 include ../../common.mk
+
+# The compiler to use may be specified via the F90 environment
+# variable.
+#
+# export F90=nvfortran
+# export F90FLAGS = -Minfo -acc -ta=tesla:cc70
+# export LDFLAGS=""
+# Currently only compatible with F90=nvfortran
 
 # Location of the infrastucture code (which is a submodule of the
 # PSyclone git repo).
@@ -42,13 +51,12 @@ INF_DIR ?= ${SHARED_DIR}/dl_esm_inf/finite_difference
 INF_INC = ${INF_DIR}/src
 INF_LIB = ${INF_DIR}/src/lib_fd.a
 
-GENERATED_FILES += kern_use_var_*.cl kern_use_var_*_mod.f90 psy_gen.f90 \
+GENERATED_FILES += *.cl kern_use_var_*_mod.f90 psy_gen.f90 \
 	alg_gen.f90 *.o *.mod *.exe
 KERNELS=data_mod.o kern_use_var_mod.o
 
 .PHONY: basic opencl openacc others compile-acc
 
-all: transform
 
 transform: basic opencl openacc others
 
@@ -66,13 +74,15 @@ ${INF_LIB}:
 	${MAKE} -C ${INF_DIR} fd_lib
 
 psy_gen.f90 alg_gen.f90: openacc
+alg_gen.o: psy_gen.o
 
 %.o: %.f90
-	# Currently only compatible with F90=pgf90
-	${F90} -Minfo -acc -ta=tesla:cc70 ${LDFLAGS} -I${INF_INC} -c $<
+	${F90} ${F90FLAGS} -I${INF_INC} -c $<
 
-compile-acc: ${INF_LIB} alg_gen.f90 ${KERNELS} psy_gen.o
-	${F90} -acc ${LDFLAGS} -I${INF_INC} alg_gen.f90 psy_gen.o ${INF_LIB} -o alg_openacc.exe
+compile-acc: ${INF_LIB} ${KERNELS} alg_gen.o psy_gen.o
+	${F90} ${F90FLAGS} ${LDFLAGS} -I${INF_INC} \
+		${KERNELS} alg_gen.o psy_gen.o \
+		${INF_LIB} -o alg_openacc.exe
 
 others:
 	# The following currently fail as work is in progress to support transforming
@@ -80,8 +90,11 @@ others:
 	# ${PSYCLONE} -api "gocean1.0" -s ./acc_transform.py alg_kern_call_kern.f90
 	# ${PSYCLONE} -api "gocean1.0" -s ./acc_transform.py alg_kern_nested_use.f90
 
-compile:
-	@echo "No compilation targets for this example"
+compile: transform
+	@echo "No compilation targets for example gocean/eg4"
+
+run: compile
+	@echo "No run targets for example gocean/eg4"
 
 # Override allclean rule to include INF_DIR library
 allclean: clean

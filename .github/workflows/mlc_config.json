@@ -1,0 +1,9 @@
+{
+  "replacementPatterns": [
+    {
+      "pattern": "^https://psyclone.readthedocs.io/en/stable",
+      "replacement": "https://psyclone.readthedocs.io/en/latest"
+    }
+  ],
+  "aliveStatusCodes": [200, 401, 502, 503]
+}

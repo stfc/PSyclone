@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,26 +31,34 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: J. Henrichs, Australian Bureau of Meteorology
+# Author: J. Henrichs, Australian Bureau of Meteorology
+# Modified: I. Kavcic, Met Office
 
 # This Makefile just creates the Fortran base class for all read-only
 # wrappers from the jinja template. The compile functionality it offers is
 # only meant for testing, each library should compile its own version
 # of the base class (with therefore consistent compiler settings).
 
+# ----------- Default "make" values, can be overwritten by the user -----------
+# Compiler and compiler flags
 F90 ?= gfortran
 F90FLAGS ?= 
+# Path to the PSyclone wrapper libraries. It defaults to the relative path to
+# the top-level 'lib' directory. Overwrite for a custom location.
+PSYDATA_LIB_DIR ?= ./..
+# -----------------------------------------------------------------------------
 
 # The read-only verification library is implemented for int, real and
 # double scalars and 2-dimension arrays
 PROCESS_ARGS = -prefix=read_only_verify_ -types=int,real,double \
 		       -dims=2
-PROCESS=$$(../get_python.sh) ../process.py
+PROCESS = $$($(PSYDATA_LIB_DIR)/get_python.sh) $(PSYDATA_LIB_DIR)/process.py
 
 default: read_only_base.o psy_data_base.o
+
 process: read_only_base.f90
 
-.PHONY: default process clean all
+.PHONY: default process all clean allclean
 
 all:
 	$(MAKE) -C dl_esm_inf
@@ -59,7 +67,7 @@ all:
 %.f90:	%.jinja
 	$(PROCESS) $(PROCESS_ARGS) $< > $*.f90
 
-psy_data_base.f90:	../psy_data_base.jinja
+psy_data_base.f90:	$(PSYDATA_LIB_DIR)/psy_data_base.jinja
 	$(PROCESS) $(PROCESS_ARGS) $< > psy_data_base.f90
 
 read_only_base.o: psy_data_base.o
@@ -69,3 +77,7 @@ read_only_base.o: psy_data_base.o
 
 clean:
 	rm -f read_only_base.f90 psy_data_base.f90 *.o *.mod
+
+allclean:
+	$(MAKE) -C dl_esm_inf allclean
+	$(MAKE) -C lfric allclean

@@ -14,7 +14,7 @@ The setting-up part mainly consists of setting up the LFRic object stack
 in the following order: **global 2D mesh** -> **partition** ->
 **local 3D partitioned mesh** -> **function space** -> **field** (see
 e.g. [this full LFRic example](
-../../../../../examples/lfric/full_example/README.md) and individual
+../../../../../examples/lfric/eg17/full_example/README.md) and individual
 tutorials for more details).
 
 Both the driver and the [algorithm layer](#algorithm-layer) can create

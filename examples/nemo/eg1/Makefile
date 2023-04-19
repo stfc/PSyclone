@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,13 +32,19 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Laboratory
+# Modified J. Henrichs, Bureau of Meteorology
+# Modified S. Siso, STFC Daresbury Laboratory
 
 include ../../common.mk
 
 transform:
-	./runme_openmp.py
+	${PSYCLONE} -api nemo -s ./openmp_cpu_levels_trans.py ../code/tra_adv.F90
+	${PSYCLONE} -api nemo -s ./openmp_gpu_levels_trans.py ../code/tra_adv.F90
+	${PSYCLONE} -api nemo -s ../scripts/omp_cpu_trans.py ../code/tra_adv.F90
+	${PSYCLONE} -api nemo -s ../scripts/omp_gpu_trans.py ../code/tra_adv.F90
 
-compile:
+compile: transform
 	@echo "No compilation supported for nemo/eg1"
 
-all: transform compile
+run: compile
+	@echo "No run targets for nemo/eg1"

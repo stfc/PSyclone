@@ -66,7 +66,7 @@ The use of PSyclone and the GOcean 1.0 API implies the use of a
 standard set of data types and associated infrastructure. This is
 provided by version 1.0 of the GOcean Library (GOLib v.1.0).
 Currently this library is distributed separately from PSyclone and is
-available from http://puma.nerc.ac.uk/trac/GOcean.
+available from https://puma.nerc.ac.uk/trac/GOcean.
 
 .. _gocean1.0-grid:
 
@@ -885,7 +885,7 @@ the GOcean 1.0 API. For an overview of transformations in general see
 
 ####
 
-.. autoclass:: psyclone.transformations.GOceanLoopFuseTrans
+.. autoclass:: psyclone.domain.gocean.transformations.GOceanLoopFuseTrans
    :members:
    :noindex:
 
@@ -903,13 +903,14 @@ the GOcean 1.0 API. For an overview of transformations in general see
 
 ####
 
-.. autoclass:: psyclone.transformations.GOConstLoopBoundsTrans
+.. autoclass:: psyclone.domain.gocean.transformations.GOConstLoopBoundsTrans
    :members:
    :noindex:
+
 
 ####
 
-.. autoclass:: psyclone.transformations.GOLoopSwapTrans
-   :members:
-   :noindex:
+.. autoclass:: psyclone.domain.gocean.transformations.GOMoveIterationBoundariesInsideKernelTrans
+    :members:
+    :noindex:
 

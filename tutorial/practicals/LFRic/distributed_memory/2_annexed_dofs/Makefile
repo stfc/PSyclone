@@ -32,12 +32,21 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
 # Author: A. R. Porter and R. W. Ford, STFC Daresbury Lab
+# Modified J. Henrichs, Bureau of Meteorology
 
-.PHONY: test
+include ../../../../common.mk
 
-test:
-	psyclone -s ./schedule.py -oalg /dev/null -opsy /dev/null ../code/helmholtz_solver_alg_mod.x90
+transform:
+	$(PSYCLONE) -s ./schedule.py -oalg /dev/null -opsy /dev/null ../code/helmholtz_solver_alg_mod.x90
 	psyclone -s ./schedule.py -oalg /dev/null -opsy /dev/null ../code/helmholtz_solver_alg_mod.x90 --config psyclone.cfg
+
+compile: transform
+	@echo "No compilation supported for tutorial/lfric/distributed_memory/2_annexed_dofs"
+
+run: compile
+	@echo "No run targets for tutorial/lfric/distributed_memory/2_annexed_dofs"
 
 clean:
 	@echo "Nothing to clean"
+
+allclean: clean

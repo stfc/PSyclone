@@ -1,7 +1,9 @@
 # Introduction #
 
-Welcome to PSyclone. PSyclone is a code generation system that generates
-appropriate code for the PSyKAl code structure developed in the GungHo project.
+Welcome to PSyclone. PSyclone is a code generation and transformation
+system that generates appropriate code for the PSyKAl code structure
+developed in the GungHo project. It is also capable of working with
+existing Fortran code.
 
 Please see [psyclone.pdf](psyclone.pdf) in this directory (or on
 [ReadTheDocs](http://psyclone.readthedocs.io)) for
@@ -13,7 +15,7 @@ please see the [README](doc/README.md) file in the "doc" directory.
 Some of the examples are available as Jupyter notebooks. These may
 be launched using Binder from the links below. (Note that the first time
 this is done, Binder has to construct a Container and install the necessary
-software. This can  take serval minutes. You can track its progress
+software. This can  take several minutes. You can track its progress
 by clicking the 'show' link next to the 'Build logs' heading.)
 
  * [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/stfc/psyclone/master?filepath=examples%2Fnemo%2Feg4%2Fcopy_stencil.ipynb) Uses PSyclone's NEMO API to process some simple Fortran code, display the resulting PSyIR and then re-generate Fortran.
@@ -58,15 +60,15 @@ add the latter location to your PATH.
 
 Path                | Description
 ------------------- | -----------
-bin/                | top-level driver scripts for PSyclone and the Kernel stub generator
+bin/                | Top-level driver scripts for PSyclone and the PSyclone kernel tool
 changelog      	    | Information on changes between releases
-doc/           	    | Documentation source using sphinx
+doc/           	    | Documentation source using Sphinx
 examples/      	    | Simple examples
 psyclone.pdf   	    | Generated documentation
 README.md      	    | This file
 README.gource  	    | Information on how to generate a gource video from the repository
 README.uml     	    | Information on how to create UML class diagrams from the source using pyreverse
-src/psyclone   	    | The python source code
+src/psyclone   	    | The Python source code
 src/psyclone/tests/ | Unit and functional tests using pytest
 tutorial/notebooks  | Tutorial using Jupyter notebooks
 tutorial/practicals | Hands-on exercises using a local installation of PSyclone

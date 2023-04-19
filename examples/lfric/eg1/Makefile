@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,21 +32,22 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Laboratory
+# Modified J. Henrichs, Bureau of Meteorology
 
 include ../../common.mk
 
-.PHONY: vanilla openmp
+.PHONY: transform compile run
 
-transform: vanilla openmp
+# The '-d ../code' argument specifies that PSyclone should search the
+# '../code' directory when looking for user-supplied kernels.
+transform:
+	@echo "Sequential code:"
+	${PSYCLONE} -api dynamo0.3 -d ../code -nodm ./single_invoke.x90
+	@echo "With distributed-memory support:"
+	${PSYCLONE} -api dynamo0.3 -d ../code ./single_invoke.x90
 
-vanilla:
-	${PYTHON} ./runme.py
-
-openmp:
-	${PYTHON} ./runme_openmp.py
-
-compile:
+compile: transform
 	@echo "No compilation supported for lfric/eg1"
 
-all: transform compile
-
+run: compile
+	@echo "No run targets for lfric/eg1"

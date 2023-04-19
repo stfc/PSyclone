@@ -144,9 +144,9 @@ subroutine subgrid_coeffs_code(                                               &
   integer(kind=i_def), intent(in) :: stencil_length
   integer(kind=i_def), intent(in) :: stencil_map(1:ndf_w3,1:stencil_length)
   integer(kind=i_def), intent(in) :: w3_map()
-  real(kind=r_def), intent(out)   :: a0(undf_w3)
-  real(kind=r_def), intent(out)   :: a1(undf_w3)
-  real(kind=r_def), intent(out)   :: a2(undf_w3)
+  real(kind=r_def), intent(inout) :: a0(undf_w3)
+  real(kind=r_def), intent(inout) :: a1(undf_w3)
+  real(kind=r_def), intent(inout) :: a2(undf_w3)
 
   real(kind=r_def)               :: sigma1,sigma2
   real(kind=r_def)               :: coeffs(1:3)

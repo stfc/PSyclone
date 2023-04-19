@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018, Science and Technology Facilities Council
+# Copyright (c) 2018-2022, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: R. W. Ford, STFC Daresbury Laboratory
+# Authors: R. W. Ford and N. Nobre, STFC Daresbury Lab
 
 '''File containing a PSyclone transformation script for the Dynamo0.3
 API to apply redundant computation to halo depth 1 for all loops that
@@ -69,7 +69,7 @@ def trans(psy):
                         break
                 if not reduction:
                     transformed += 1
-                    schedule, _ = rc_trans.apply(loop, {"depth": DEPTH})
+                    rc_trans.apply(loop, {"depth": DEPTH})
 
-    print("Transformed {0} loops".format(transformed))
+    print(f"Transformed {transformed} loops")
     return psy

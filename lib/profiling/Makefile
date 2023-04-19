@@ -32,17 +32,20 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author J. Henrichs, Bureau of Meteorology
-# Modified by A. R. Porter, STFC Daresbury Lab
+# Modified by A. R. Porter, STFC Daresbury Lab,
+#             I. Kavcic, Met Office
 
-F90=gfortran
-FFLAGS=-g
-LDFLAGS=
+# ----------- Default "make" values, can be overwritten by the user -----------
+# Compiler and compiler flags
+F90 ?= gfortran
+F90FLAGS ?= -g
+# -----------------------------------------------------------------------------
 
 # We don't build dl_timer, drhook and nvidia since they require
 # external libraries to be available.
-ALL_LIBS=template simple_timing lfric
+ALL_LIBS = template simple_timing lfric_timer
 
-.PHONY: default all $(ALL_LIBS) clean
+.PHONY: default all $(ALL_LIBS) clean allclean
 
 default: all
 
@@ -53,5 +56,11 @@ $(ALL_LIBS):
 		$(MAKE) -C $@
 
 clean:
-	$(foreach lib, $(ALL_LIBS), $(MAKE) -C $(lib) clean; )
+	$(foreach lib, $(ALL_LIBS), $(MAKE) -C $(lib) allclean; )
 
+allclean: clean
+	# These libs are not cleaned by 'clean' (since they
+	# depend on external libraries)
+	$(MAKE) -C nvidia clean
+	$(MAKE) -C drhook clean
+	$(MAKE) -C dl_timer clean

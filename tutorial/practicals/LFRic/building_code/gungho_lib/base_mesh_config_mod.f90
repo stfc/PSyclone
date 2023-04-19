@@ -94,7 +94,7 @@ contains
   !>
   integer(i_native) function geometry_from_key( key )
 
-    use constants_mod, only: emdi, imdi
+    use constants_mod, only: imdi, unset_key
 
     implicit none
 
@@ -102,7 +102,7 @@ contains
 
     integer(i_native) :: key_index
 
-    if (key == emdi) then
+    if (key == unset_key) then
       write( log_scratch_space, '(A)') &
           'Missing key for geometry enumeration in base_mesh namelist.'
       geometry_from_key = int(imdi,i_native)
@@ -135,7 +135,7 @@ contains
   !>
   character(str_def) function key_from_geometry( value )
 
-    use constants_mod, only: emdi, imdi
+    use constants_mod, only: imdi, unset_key
 
     implicit none
 
@@ -146,7 +146,7 @@ contains
     value_index = 1
     do
       if (geometry_value(value_index) == int(imdi,i_native)) then
-        key_from_geometry = emdi
+        key_from_geometry = unset_key
         return
       else if (geometry_value(value_index) == value) then
         key_from_geometry = geometry_key(value_index)
@@ -171,7 +171,7 @@ contains
   !>
   integer(i_native) function partitioner_from_key( key )
 
-    use constants_mod, only: emdi, imdi
+    use constants_mod, only: unset_key, imdi
 
     implicit none
 
@@ -179,7 +179,7 @@ contains
 
     integer(i_native) :: key_index
 
-    if (key == emdi) then
+    if (key == unset_key) then
       write( log_scratch_space, '(A)') &
           'Missing key for partitioner enumeration in base_mesh namelist.'
       partitioner_from_key = int(imdi,i_native)
@@ -212,7 +212,7 @@ contains
   !>
   character(str_def) function key_from_partitioner( value )
 
-    use constants_mod, only: emdi, imdi
+    use constants_mod, only: unset_key, imdi
 
     implicit none
 
@@ -223,7 +223,7 @@ contains
     value_index = 1
     do
       if (partitioner_value(value_index) == int(imdi,i_native)) then
-        key_from_partitioner = emdi
+        key_from_partitioner = unset_key
         return
       else if (partitioner_value(value_index) == value) then
         key_from_partitioner = partitioner_key(value_index)
@@ -266,7 +266,7 @@ contains
                             dummy_geometry, &
                             dummy_partitioner )
 
-    use constants_mod, only: cmdi, emdi, imdi, PI, rmdi
+    use constants_mod, only: cmdi, unset_key, imdi, PI, rmdi
 
     implicit none
 
@@ -297,8 +297,8 @@ contains
     f_lat_deg = rmdi
     filename = cmdi
     fplane = .false.
-    geometry = emdi
-    partitioner = emdi
+    geometry = unset_key
+    partitioner = unset_key
     prime_mesh_name = cmdi
 
     if (local_rank == 0) then

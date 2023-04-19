@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2018, Science and Technology Facilities Council
+# Copyright (c) 2017-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 
 '''A simple test script showing the introduction of OpenMP with PSyclone.
 In order to use it you must first install PSyclone like so:
@@ -69,42 +69,40 @@ been loop-fused and then parallelised:
 from __future__ import print_function
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory, TransInfo
+from psyclone.psyir.backend.fortran import FortranWriter
 
 API = "gocean1.0"
 _, INVOKEINFO = parse("shallow_alg.f90", api=API)
 PSY = PSyFactory(API, distributed_memory=False).create(INVOKEINFO)
-print(PSY.gen)
+fwriter = FortranWriter()
+print(fwriter(PSY.container))
 
 print(PSY.invokes.names)
 SCHEDULE = PSY.invokes.get('invoke_0').schedule
-SCHEDULE.view()
+print(SCHEDULE.view())
 
 TRANS_INFO = TransInfo()
 print(TRANS_INFO.list)
-FUSE_TRANS = TRANS_INFO.get_trans_name('LoopFuse')
+FUSE_TRANS = TRANS_INFO.get_trans_name('LoopFuseTrans')
 OMP_TRANS = TRANS_INFO.get_trans_name('GOceanOMPParallelLoopTrans')
 
 # invoke0
 # fuse all outer loops
-LF1_SCHEDULE, _ = FUSE_TRANS.apply(SCHEDULE.children[0],
-                                   SCHEDULE.children[1])
-LF2_SCHEDULE, _ = FUSE_TRANS.apply(LF1_SCHEDULE.children[0],
-                                   LF1_SCHEDULE.children[1])
-LF3_SCHEDULE, _ = FUSE_TRANS.apply(LF2_SCHEDULE.children[0],
-                                   LF2_SCHEDULE.children[1])
-LF3_SCHEDULE.view()
+FUSE_TRANS.apply(SCHEDULE.children[0], SCHEDULE.children[1])
+FUSE_TRANS.apply(SCHEDULE.children[0], SCHEDULE.children[1])
+FUSE_TRANS.apply(SCHEDULE.children[0], SCHEDULE.children[1])
+print(SCHEDULE.view())
 
 # fuse all inner loops
-LF4_SCHEDULE, _ = FUSE_TRANS.apply(LF3_SCHEDULE.children[0].loop_body[0],
-                                   LF3_SCHEDULE.children[0].loop_body[1])
-LF5_SCHEDULE, _ = FUSE_TRANS.apply(LF4_SCHEDULE.children[0].loop_body[0],
-                                   LF4_SCHEDULE.children[0].loop_body[1])
-LF6_SCHEDULE, _ = FUSE_TRANS.apply(LF5_SCHEDULE.children[0].loop_body[0],
-                                   LF5_SCHEDULE.children[0].loop_body[1])
-LF6_SCHEDULE.view()
+FUSE_TRANS.apply(SCHEDULE.children[0].loop_body[0],
+                 SCHEDULE.children[0].loop_body[1])
+FUSE_TRANS.apply(SCHEDULE.children[0].loop_body[0],
+                 SCHEDULE.children[0].loop_body[1])
+FUSE_TRANS.apply(SCHEDULE.children[0].loop_body[0],
+                 SCHEDULE.children[0].loop_body[1])
+print(SCHEDULE.view())
 
-OL_SCHEDULE, _ = OMP_TRANS.apply(LF6_SCHEDULE.children[0])
-OL_SCHEDULE.view()
+OMP_TRANS.apply(SCHEDULE.children[0])
+print(SCHEDULE.view())
 
-PSY.invokes.get('invoke_0').schedule = OL_SCHEDULE
-print(PSY.gen)
+print(fwriter(PSY.container))

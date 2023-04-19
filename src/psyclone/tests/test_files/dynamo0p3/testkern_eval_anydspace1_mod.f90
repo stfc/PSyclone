@@ -75,9 +75,9 @@ contains
     integer(kind=i_def), intent(in), dimension(ndf_adspc1) :: map_adspc1
     integer(kind=i_def), intent(in), dimension(ndf_w0)     :: map_w0
     integer(kind=i_def), intent(in), dimension(ndf_w1)     :: map_w1
-    real(kind=r_def), intent(out), dimension(undf_adspc1) :: field1
-    real(kind=r_def), intent(in), dimension(undf_w0)      :: field2
-    real(kind=r_def), intent(in), dimension(undf_w1)      :: field3
+    real(kind=r_def), intent(inout), dimension(undf_adspc1) :: field1
+    real(kind=r_def), intent(in), dimension(undf_w0)        :: field2
+    real(kind=r_def), intent(in), dimension(undf_w1)        :: field3
     real(kind=r_def), intent(in), dimension(1,ndf_w0,ndf_adspc1) :: basis_w0_on_adspc1
     real(kind=r_def), intent(in), dimension(3,ndf_w1,ndf_adspc1) :: diff_basis_w1_on_adspc1
 

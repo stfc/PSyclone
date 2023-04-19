@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council
+# Copyright (c) 2020-2022, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -97,7 +97,7 @@ def trans(psy):
                     if bin_op.operator is BinaryOperation.Operator.MATMUL:
                         matmul2code_trans.apply(bin_op)
                 # Future optimisations will go here.
-                kernel_schedule.view()
+                print(kernel_schedule.view())
                 result = fortran_writer(kernel_schedule)
                 print(result)
                 # Abort after the first matrix vector kernel for the

@@ -53,7 +53,7 @@ def test_kernelschedule_constructor():
     # A KernelSchedule does not represent a program
     assert not ksched.is_program
     # A KernelSchedule does not return anything
-    assert ksched.return_type is None
+    assert ksched.return_symbol is None
     assert ksched.parent is None
     # Now create a KernelSchedule with a parent
     cnode = Container("BigBox")
@@ -81,9 +81,9 @@ def test_kernelschedule_create():
                                    Literal("0.0", REAL_TYPE))
     kschedule = KernelSchedule.create("mod_name", symbol_table, [assignment])
     assert isinstance(kschedule, KernelSchedule)
-    # A KernelSchedule is not a main program and has no return type.
+    # A KernelSchedule is not a main program and has no return value.
     assert not kschedule.is_program
-    assert kschedule.return_type is None
+    assert kschedule.return_symbol is None
     check_links(kschedule, [assignment])
     assert kschedule.symbol_table is symbol_table
     result = FortranWriter().routine_node(kschedule)

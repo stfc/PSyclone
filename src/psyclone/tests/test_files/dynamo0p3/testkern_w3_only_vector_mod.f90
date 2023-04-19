@@ -71,9 +71,9 @@ contains
     integer(kind=i_def), intent(in) :: ndf_w3
     integer(kind=i_def), intent(in) :: undf_w3
     integer(kind=i_def), intent(in), dimension(ndf_w3) :: map_w3
-    real(kind=r_def), intent(out), dimension(undf_w3) :: field1_v1
-    real(kind=r_def), intent(out), dimension(undf_w3) :: field1_v2
-    real(kind=r_def), intent(out), dimension(undf_w3) :: field1_v3
+    real(kind=r_def), intent(inout), dimension(undf_w3) :: field1_v1
+    real(kind=r_def), intent(inout), dimension(undf_w3) :: field1_v2
+    real(kind=r_def), intent(inout), dimension(undf_w3) :: field1_v3
     real(kind=r_def), intent(in), dimension(undf_w3)  :: field2_v1
     real(kind=r_def), intent(in), dimension(undf_w3)  :: field2_v2
     real(kind=r_def), intent(in), dimension(undf_w3)  :: field2_v3

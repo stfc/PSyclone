@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,3 +32,15 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
+# Modified by J. Henrichs, Bureau of Meteorology
+
+'''Module for the NEMO domain.
+'''
+
+from psyclone.domain.nemo.nemo_constants import NemoConstants
+
+# The entities in the __all__ list are made available to import directly from
+# this package e.g.:
+# from psyclone.domain.nemo import NemoConstants
+
+__all__ = ['NemoConstants']

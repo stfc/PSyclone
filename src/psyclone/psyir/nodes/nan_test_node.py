@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council
+# Copyright (c) 2020-2023, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,8 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author J. Henrichs, Bureau of Meteorology
+# Modified by: R. W. Ford, STFC Daresbury Lab
+#              S. Siso, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 '''
@@ -48,40 +50,15 @@ from psyclone.psyir.nodes.psy_data_node import PSyDataNode
 class NanTestNode(PSyDataNode):
     '''
     This class can be inserted into a Schedule to mark Nodes for
-    NAN-checking using the NanTestTrans transformation. By
-    applying the transformation the Nodes marked for checking become
-    children of (the Schedule of) a NanTestNode.
-
-    :param ast: reference into the fparser2 parse tree corresponding to \
-                this node.
-    :type ast: sub-class of :py:class:`fparser.two.Fortran2003.Base`
-    :param children: the PSyIR nodes that are children of this node.
-    :type children: list of :py:class:`psyclone.psyir.nodes.Node`
-    :param parent: the parent of this node in the PSyIR tree.
-    :type parent: :py:class:`psyclone.psyir.nodes.Node`
-    :param options: a dictionary with options provided via transformations.
-    :type options: dictionary of string:values or None
-    :param str options["prefix"]: a prefix to use for the PSyData module name \
-        (``prefix_psy_data_mod``) and the PSyDataType (``prefix_PSyDataType``)\
-        - a "_" will be added automatically. It defaults to "``nan_test_``", \
-        which means the module name used will be ``nan_test_psy_data_mode``, \
-        and the data type ``nan_test_PSyDataType``.
+    NAN-checking using the NanTestTrans transformation. The Nodes
+    marked for checking become children of (the Schedule of) a NanTestNode.
 
     '''
     # Textual description of the node.
     _text_name = "NanTest"
-    _colour_key = "NanTest"
-
-    def __init__(self, ast=None, children=None, parent=None, options=None):
-        if options:
-            my_options = options.copy()
-        else:
-            my_options = {}
-        # If there is no value specified in the constructor, default
-        # to the "nan_test" class.
-        my_options["prefix"] = my_options.get("prefix", "nan_test")
-        super(NanTestNode, self).__init__(ast=ast, children=children,
-                                          parent=parent, options=my_options)
+    _colour = "green"
+    # The default prefix to add to the PSyData module name and PSyDataType
+    _default_prefix = "nan_test"
 
     @property
     def nan_test_body(self):
@@ -90,27 +67,7 @@ class NanTestNode(PSyDataNode):
         :rtype: :py:class:`psyclone.psyir.nodes.Schedule`
 
         '''
-        return super(NanTestNode, self).psy_data_body
-
-    @property
-    def dag_name(self):
-        '''
-        Returns the name to use in a DAG for this Node
-
-        :returns: the dag name of NanTestNode.
-        :rtype: str
-        '''
-        return "nan_test_" + str(self.position)
-
-    def update_vars_and_postname(self):
-        '''
-        This function is called after the variables to be checked
-        have been stored in self._input_list and self._output_list.
-        It can be used to e.g. remove unnecessary variables (e.g. loop
-        counter), or adjust the postfix to assure that no duplicated
-        variable name is created. This default function does not
-        do anything atm.
-        '''
+        return super().psy_data_body
 
     def gen_code(self, parent):
         # pylint: disable=arguments-differ
@@ -130,7 +87,8 @@ class NanTestNode(PSyDataNode):
         from psyclone.psyir.tools.dependency_tools import DependencyTools
         # Determine the variables to check:
         dep = DependencyTools()
-        input_list, output_list = dep.get_in_out_parameters(self)
+        input_list, output_list = \
+            dep.get_in_out_parameters(self, options=self.options)
 
         options = {'pre_var_list': input_list,
                    'post_var_list': output_list}
@@ -138,7 +96,33 @@ class NanTestNode(PSyDataNode):
         parent.add(CommentGen(parent, ""))
         parent.add(CommentGen(parent, " NanTestStart"))
         parent.add(CommentGen(parent, ""))
-        super(NanTestNode, self).gen_code(parent, options)
+        super().gen_code(parent, options)
         parent.add(CommentGen(parent, ""))
         parent.add(CommentGen(parent, " NanTestEnd"))
         parent.add(CommentGen(parent, ""))
+
+    def lower_to_language_level(self):
+        # pylint: disable=arguments-differ
+        '''
+        Lowers this node (and all children) to language-level PSyIR. The
+        PSyIR tree is modified in-place.
+
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
+
+        '''
+        # This cannot be moved to the top, it would cause a circular import
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.tools.dependency_tools import DependencyTools
+        # Determine the variables to check:
+        dep = DependencyTools()
+        input_list, output_list = dep.get_in_out_parameters(self)
+
+        options = {'pre_var_list': input_list,
+                   'post_var_list': output_list}
+
+        return super().lower_to_language_level(options)
+
+
+# For AutoAPI documentation generation
+__all__ = ['NanTestNode']

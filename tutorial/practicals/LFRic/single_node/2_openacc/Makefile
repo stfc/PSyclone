@@ -32,14 +32,23 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
 # Author: A. R. Porter and R. W. Ford, STFC Daresbury Lab
+# Modified J. Henrichs, Bureau of Meteorology
 
-.PHONY: test clean
+include ../../../../common.mk
 
-test:
+transform:
 	# commented out until issue #1015 is addressed
-	# psyclone -s ./acc_parallel.py ../code/helmholtz_solver_alg_mod.x90 -oalg /dev/null -opsy /dev/null
-	# psyclone -s solutions/acc_parallel.py ../code/helmholtz_solver_alg_mod.x90 -oalg /dev/null -opsy /dev/null
+	# $(PSYCLONE) -s ./acc_parallel.py ../code/helmholtz_solver_alg_mod.x90 -oalg /dev/null -opsy /dev/null
+	# $(PSYCLONE) -s solutions/acc_parallel.py ../code/helmholtz_solver_alg_mod.x90 -oalg /dev/null -opsy /dev/null
+
+compile: transform
+	@echo "No compilation supported for tutorial/lfric/single_node/2_openacc"
+
+run: compile
+	@echo "No run targets for tutorial/lfric/single_node/2_openacc"
 
 clean:
 	rm -f apply_variable_hx_kernel_*_mod.f90 enforce_bc_kernel_*_mod.f90 \
               scaled_matrix_vector_kernel_*_mod.f90 psy.f90
+
+allclean: clean

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -38,19 +38,29 @@
 
 from __future__ import absolute_import
 import pytest
-from psyclone.psyir.symbols import RoutineSymbol, Symbol, UnresolvedInterface
+from psyclone.psyir.symbols import RoutineSymbol, Symbol, UnresolvedInterface,\
+    NoType, INTEGER_TYPE, DeferredType, DataTypeSymbol
 
 
 def test_routinesymbol_init():
     '''Test that a RoutineSymbol instance can be created.'''
+    # A RoutineSymbol should be of type NoType by default.
+    jo_sym = RoutineSymbol('jo')
+    assert isinstance(jo_sym, RoutineSymbol)
+    assert isinstance(jo_sym.datatype, NoType)
+    ellie_sym = RoutineSymbol('ellie', INTEGER_TYPE,
+                              visibility=Symbol.Visibility.PRIVATE)
+    assert isinstance(ellie_sym, RoutineSymbol)
+    assert ellie_sym.datatype == INTEGER_TYPE
+    isaac_sym = RoutineSymbol('isaac', DeferredType(),
+                              interface=UnresolvedInterface())
+    assert isinstance(isaac_sym, RoutineSymbol)
+    assert isinstance(isaac_sym.datatype, DeferredType)
 
-    assert isinstance(RoutineSymbol('jo'), RoutineSymbol)
-    assert isinstance(
-        RoutineSymbol('ellie', visibility=Symbol.Visibility.PRIVATE),
-        RoutineSymbol)
-    assert isinstance(
-        RoutineSymbol('isaac', interface=UnresolvedInterface()),
-        RoutineSymbol)
+    tam_type = DataTypeSymbol('tam_type', DeferredType())
+    tam_sym = RoutineSymbol('tam', tam_type)
+    assert isinstance(tam_sym, RoutineSymbol)
+    assert tam_sym.datatype is tam_type
 
 
 def test_routinesymbol_init_error():
@@ -62,9 +72,35 @@ def test_routinesymbol_init_error():
         _ = RoutineSymbol(None)
     assert ("RoutineSymbol 'name' attribute should be of type 'str' but "
             "'NoneType' found." in str(error.value))
+    with pytest.raises(TypeError) as error:
+        _ = RoutineSymbol("isaac", "integer")
+    assert ("datatype of a RoutineSymbol must be specified using either a "
+            "DataType or a DataTypeSymbol but got: 'str'" in str(error.value))
+
+
+def test_routinesymbol_specialise_and_process_arguments():
+    ''' Tests that a RoutineSymbol created from a specialisation instead of
+    the constructor deals with the arguments as expected.'''
+
+    # Try to make a RoutineSymbol without a datatype
+    sym1 = Symbol("symbol1")
+    sym1.specialise(RoutineSymbol)
+    assert isinstance(sym1.datatype, NoType)
+
+    # Include a datatype
+    sym2 = Symbol("symbol2")
+    sym2.specialise(RoutineSymbol, datatype=INTEGER_TYPE)
+    assert sym2.datatype is INTEGER_TYPE
 
 
 def test_routinesymbol_str():
     '''Test that the __str__ method in routinesymbol behaves as expected.'''
     routine_symbol = RoutineSymbol("roo")
-    assert routine_symbol.__str__() == "roo : RoutineSymbol"
+    assert routine_symbol.__str__() == "roo: RoutineSymbol<NoType>"
+    routine_symbol = RoutineSymbol("roo", INTEGER_TYPE)
+    assert (routine_symbol.__str__() ==
+            "roo: RoutineSymbol<Scalar<INTEGER, UNDEFINED>>")
+    type_sym = DataTypeSymbol("some_type", DeferredType())
+    routine_symbol = RoutineSymbol("roo", type_sym)
+    assert (routine_symbol.__str__() ==
+            "roo: RoutineSymbol<some_type: DataTypeSymbol>")

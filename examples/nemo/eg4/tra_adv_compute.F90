@@ -4,15 +4,15 @@ module tra_adv_compute_mod
 
 contains
 
-  subroutine tra_adv_compute(pun, pvn, pwn, umask, vmask, tmask, mydomain, jpi, jpj, jpk)
+  subroutine tra_adv_compute(pun, pvn, pwn, umask, vmask, tmask, mydomain, tsn, jpi, jpj, jpk)
     implicit none
 
-    REAL*8, DIMENSION(:,:,:), intent(in)   :: pun, pvn, pwn, umask, vmask, tmask
+    REAL*8, DIMENSION(:,:,:), intent(in)   :: pun, pvn, pwn, umask, vmask, tmask, tsn
     REAL*8, DIMENSION(:,:,:), intent(inout)   :: mydomain
     INTEGER, INTENT(IN) :: jpi, jpj, jpk
-    ! Not sure what to do with 2D and 1D arrays in the SIR backend
-    !REAL*8, DIMENSION(:,:)     :: ztfreez, rnfmsk, upsmsk
-    !REAL*8, DIMENSION(:)       :: rnfmsk_z
+    REAL*8, DIMENSION(:,:)     :: ztfreez, rnfmsk, upsmsk
+    REAL*8, DIMENSION(:)       :: rnfmsk_z
+    REAL*8, DIMENSION(:,:,:)    :: zice
     
     ! local variables
     REAL*8, DIMENSION(jpi,jpj, jpk)               :: zslpx, zslpy, zwx, zwy, zind
@@ -20,25 +20,23 @@ contains
     REAL*8                                        :: zw, z0w
     INTEGER                                       :: ji, jj, jk
 
-    ! Not sure what to do with 2D and 1D arrays in the SIR backend
-    !DO jk = 1, jpk
-    !   DO jj = 1, jpj
-    !      DO ji = 1, jpi
-    !         IF( tsn(ji,jj,jk) <= ztfreez(ji,jj) + 0.1d0 ) THEN   ;   zice = 1.d0
-    !         ELSE                                                 ;   zice = 0.d0
-    !         ENDIF
-    !         zind(ji,jj,jk) = MAX (   &
-    !            rnfmsk(ji,jj) * rnfmsk_z(jk),      & 
-    !            upsmsk(ji,jj)               ,      &
-    !            zice                               &
-    !            &                  ) * tmask(ji,jj,jk)
-    !         zind(ji,jj,jk) = 1 - zind(ji,jj,jk)
-    !      END DO
-    !   END DO
-    !END DO
+    DO jk = 1, jpk
+       DO jj = 1, jpj
+          DO ji = 1, jpi
+             IF( tsn(ji,jj,jk) <= ztfreez(ji,jj) + 0.1d0 ) THEN   ;   zice = 1.d0
+             ELSE                                                 ;   zice = 0.d0
+             ENDIF
+             zind(ji,jj,jk) = MAX (                &
+                rnfmsk(ji,jj) * rnfmsk_z(jk),      &
+                upsmsk(ji,jj)               ,      &
+                zice                               &
+                &                  ) * tmask(ji,jj,jk)
+             zind(ji,jj,jk) = 1 - zind(ji,jj,jk)
+          END DO
+       END DO
+    END DO
 
-    ! SIR backend can only deal with triply nested loops
-    ! zwx(:,:,jpk) = 0.e0   ;   zwy(:,:,jpk) = 0.e0
+    zwx(:,:,jpk) = 0.e0   ;   zwy(:,:,jpk) = 0.e0
 
     DO jk = 1, jpk-1
        DO jj = 1, jpj-1
@@ -49,8 +47,7 @@ contains
        END DO
     END DO
 
-    ! SIR backend can only deal with triply nested loops
-    ! zslpx(:,:,jpk) = 0.e0   ;   zslpy(:,:,jpk) = 0.e0 
+    zslpx(:,:,jpk) = 0.e0   ;   zslpy(:,:,jpk) = 0.e0
 
     DO jk = 1, jpk-1
        DO jj = 2, jpj
@@ -77,8 +74,7 @@ contains
     END DO
 
     DO jk = 1, jpk-1
-       ! SIR backend only supports perfectly nested triple loops
-       ! zdt  = 1
+       zdt  = 1
        DO jj = 2, jpj-1
           DO ji = 2, jpi-1
              z0u = SIGN( 0.5d0, pun(ji,jj,jk) )
@@ -106,25 +102,20 @@ contains
        DO jj = 2, jpj-1     
           DO ji = 2, jpi-1
              zbtr = 1.
-             ! SIR backend does not like "-"
-             !ztra = - zbtr * ( zwx(ji,jj,jk) - zwx(ji-1,jj  ,jk  )   &
-             !     &               + zwy(ji,jj,jk) - zwy(ji  ,jj-1,jk  ) )
-             ztra = zbtr * ( zwx(ji,jj,jk) - zwx(ji-1,jj  ,jk  )   &
+             ztra = - zbtr * ( zwx(ji,jj,jk) - zwx(ji-1,jj  ,jk  )   &
                   &               + zwy(ji,jj,jk) - zwy(ji  ,jj-1,jk  ) )
              mydomain(ji,jj,jk) = mydomain(ji,jj,jk) + ztra
           END DO
        END DO
     END DO
     
-    ! SIR backend can only deal with triply nested loops
-    ! zwx (:,:, 1 ) = 0.e0    ;    zwx (:,:,jpk) = 0.e0
+    zwx (:,:, 1 ) = 0.e0    ;    zwx (:,:,jpk) = 0.e0
     
     DO jk = 2, jpk-1   
        zwx(:,:,jk) = tmask(:,:,jk) * ( mydomain(:,:,jk-1) - mydomain(:,:,jk) )
     END DO
 
-    ! SIR backend can only deal with triply nested loops
-    ! zslpx(:,:,1) = 0.e0
+    zslpx(:,:,1) = 0.e0
     
     DO jk = 2, jpk-1    
        DO jj = 1, jpj
@@ -145,8 +136,7 @@ contains
        END DO
     END DO
     
-    ! SIR backend can only deal with triply nested loops
-    ! zwx(:,:, 1 ) = pwn(:,:,1) * mydomain(:,:,1)
+    zwx(:,:, 1 ) = pwn(:,:,1) * mydomain(:,:,1)
 
     zdt  = 1
     zbtr = 1.
@@ -169,9 +159,7 @@ contains
     DO jk = 1, jpk-1
        DO jj = 2, jpj-1     
           DO ji = 2, jpi-1
-             ! SIR backend does not like "-"
-             ! ztra = - zbtr * ( zwx(ji,jj,jk) - zwx(ji,jj,jk+1) )
-             ztra = zbtr * ( zwx(ji,jj,jk) - zwx(ji,jj,jk+1) )
+             ztra = -zbtr * ( zwx(ji,jj,jk) - zwx(ji,jj,jk+1) )
              mydomain(ji,jj,jk) = ztra
           END DO
        END DO

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council
+# Copyright (c) 2020-2022, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: R. W. Ford, STFC Daresbury Laboratory
-# Modified: A. R. Porter, STFC Daresbury Laboratory
+# Modified: A. R. Porter and N. Nobre, STFC Daresbury Lab
 
 '''Module providing a transformation from a PSyIR SIGN operator to
 PSyIR code. This could be useful if the SIGN operator is not supported
@@ -112,21 +112,19 @@ class Sign2CodeTrans(Operator2CodeTrans):
         this is not the case.
 
         :param node: a SIGN BinaryOperation node.
-        :type node: :py:class:`psyclone.psyGen.BinaryOperation`
+        :type node: :py:class:`psyclone.psyir.nodes.BinaryOperation`
         :param symbol_table: the symbol table.
         :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
         :param options: a dictionary with options for transformations.
-        :type options: dictionary of string:values or None
+        :type options: Optional[Dict[str, Any]]
 
         '''
         # pylint: disable=too-many-locals
         self.validate(node)
 
-        schedule = node.root
-        symbol_table = schedule.symbol_table
-
-        oper_parent = node.parent
+        symbol_table = node.scope.symbol_table
         assignment = node.ancestor(Assignment)
+
         # Create two temporary variables.  There is an assumption here
         # that the SIGN Operator returns a PSyIR real type. This might
         # not be what is wanted (e.g. the args might PSyIR integers),
@@ -139,15 +137,15 @@ class Sign2CodeTrans(Operator2CodeTrans):
             "tmp_sign", symbol_type=DataSymbol, datatype=REAL_TYPE)
 
         # Replace operator with a temporary (res_var).
-        oper_parent.children[node.position] = Reference(res_var_symbol,
-                                                        parent=oper_parent)
+        node.replace_with(Reference(res_var_symbol))
+
+        # Extract the operand nodes
+        op1, op2 = node.pop_all_children()
 
         # res_var=ABS(A)
         lhs = Reference(res_var_symbol)
-        rhs = UnaryOperation.create(UnaryOperation.Operator.ABS,
-                                    node.children[0])
+        rhs = UnaryOperation.create(UnaryOperation.Operator.ABS, op1)
         new_assignment = Assignment.create(lhs, rhs)
-        new_assignment.parent = assignment.parent
         assignment.parent.children.insert(assignment.position, new_assignment)
 
         # Replace the ABS intrinsic with inline code.
@@ -156,8 +154,7 @@ class Sign2CodeTrans(Operator2CodeTrans):
 
         # tmp_var=B
         lhs = Reference(tmp_var_symbol)
-        new_assignment = Assignment.create(lhs, node.children[1])
-        new_assignment.parent = assignment.parent
+        new_assignment = Assignment.create(lhs, op2)
         assignment.parent.children.insert(assignment.position, new_assignment)
 
         # if_condition: tmp_var<0.0
@@ -176,5 +173,4 @@ class Sign2CodeTrans(Operator2CodeTrans):
 
         # if [if_condition] then [then_body]
         if_stmt = IfBlock.create(if_condition, then_body)
-        if_stmt.parent = assignment.parent
         assignment.parent.children.insert(assignment.position, if_stmt)

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council
+# Copyright (c) 2020-2022, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford and S. Siso, STFC Daresbury Lab
+# Authors: R. W. Ford, S. Siso and N. Nobre, STFC Daresbury Lab
 
 '''Module containing tests for the abs2code transformation.'''
 
@@ -65,11 +65,11 @@ def example_psyir(create_expression):
     '''Utility function that creates a PSyIR tree containing an ABS
     intrinsic operator and returns the operator.
 
-    :param function create_expresssion: function used to create the \
+    :param function create_expression: function used to create the \
         content of the ABS operator.
 
     :returns: PSyIR ABS operator instance.
-    :rtype: :py:class:`psyclone.psyGen.UnaryOperation`
+    :rtype: :py:class:`psyclone.psyir.nodes.UnaryOperation`
 
     '''
     symbol_table = SymbolTable()
@@ -94,37 +94,37 @@ def example_psyir(create_expression):
                               Literal("3.14", REAL_TYPE)), "arg * 3.14")])
 def test_correct(func, output, tmpdir):
     '''Check that a valid example produces the expected output when the
-    argument to ABS is a simple argument and when it is an
-    expresssion.
+    argument to ABS is a simple argument and when it is an expression.
 
     '''
     Config.get().api = "nemo"
     operation = example_psyir(func)
+    root = operation.root
     writer = FortranWriter()
-    result = writer(operation.root)
+    result = writer(root)
     assert (
-        "subroutine abs_example(arg)\n"
-        "  real, intent(inout) :: arg\n"
-        "  real :: psyir_tmp\n\n"
-        "  psyir_tmp = ABS({0})\n\n"
-        "end subroutine abs_example\n".format(output)) in result
+        f"subroutine abs_example(arg)\n"
+        f"  real, intent(inout) :: arg\n"
+        f"  real :: psyir_tmp\n\n"
+        f"  psyir_tmp = ABS({output})\n\n"
+        f"end subroutine abs_example\n") in result
     trans = Abs2CodeTrans()
-    trans.apply(operation, operation.root.symbol_table)
-    result = writer(operation.root)
+    trans.apply(operation, root.symbol_table)
+    result = writer(root)
     assert (
-        "subroutine abs_example(arg)\n"
-        "  real, intent(inout) :: arg\n"
-        "  real :: psyir_tmp\n"
-        "  real :: res_abs\n"
-        "  real :: tmp_abs\n\n"
-        "  tmp_abs = {0}\n"
-        "  if (tmp_abs > 0.0) then\n"
-        "    res_abs = tmp_abs\n"
-        "  else\n"
-        "    res_abs = tmp_abs * -1.0\n"
-        "  end if\n"
-        "  psyir_tmp = res_abs\n\n"
-        "end subroutine abs_example\n".format(output)) in result
+        f"subroutine abs_example(arg)\n"
+        f"  real, intent(inout) :: arg\n"
+        f"  real :: psyir_tmp\n"
+        f"  real :: res_abs\n"
+        f"  real :: tmp_abs\n\n"
+        f"  tmp_abs = {output}\n"
+        f"  if (tmp_abs > 0.0) then\n"
+        f"    res_abs = tmp_abs\n"
+        f"  else\n"
+        f"    res_abs = tmp_abs * -1.0\n"
+        f"  end if\n"
+        f"  psyir_tmp = res_abs\n\n"
+        f"end subroutine abs_example\n") in result
     assert Compile(tmpdir).string_compiles(result)
     # Remove the created config instance
     Config._instance = None
@@ -140,15 +140,16 @@ def test_correct_expr(tmpdir):
         lambda arg: BinaryOperation.create(
             BinaryOperation.Operator.MUL, arg,
             Literal("3.14", REAL_TYPE)))
+    root = operation.root
     assignment = operation.parent
+    operation.detach()
     op1 = BinaryOperation.create(BinaryOperation.Operator.ADD,
                                  Literal("1.0", REAL_TYPE), operation)
     op2 = BinaryOperation.create(BinaryOperation.Operator.ADD,
                                  op1, Literal("2.0", REAL_TYPE))
-    op2.parent = assignment
-    assignment.children[1] = op2
+    assignment.addchild(op2)
     writer = FortranWriter()
-    result = writer(operation.root)
+    result = writer(root)
     assert (
         "subroutine abs_example(arg)\n"
         "  real, intent(inout) :: arg\n"
@@ -156,8 +157,8 @@ def test_correct_expr(tmpdir):
         "  psyir_tmp = 1.0 + ABS(arg * 3.14) + 2.0\n\n"
         "end subroutine abs_example\n") in result
     trans = Abs2CodeTrans()
-    trans.apply(operation, operation.root.symbol_table)
-    result = writer(operation.root)
+    trans.apply(operation, root.symbol_table)
+    result = writer(root)
     assert (
         "subroutine abs_example(arg)\n"
         "  real, intent(inout) :: arg\n"
@@ -187,15 +188,16 @@ def test_correct_2abs(tmpdir):
         lambda arg: BinaryOperation.create(
             BinaryOperation.Operator.MUL, arg,
             Literal("3.14", REAL_TYPE)))
+    root = operation.root
     assignment = operation.parent
     abs_op = UnaryOperation.create(UnaryOperation.Operator.ABS,
                                    Literal("1.0", REAL_TYPE))
+    operation.detach()
     op1 = BinaryOperation.create(BinaryOperation.Operator.ADD,
                                  operation, abs_op)
-    op1.parent = assignment
-    assignment.children[1] = op1
+    assignment.addchild(op1)
     writer = FortranWriter()
-    result = writer(operation.root)
+    result = writer(root)
     assert (
         "subroutine abs_example(arg)\n"
         "  real, intent(inout) :: arg\n"
@@ -203,9 +205,9 @@ def test_correct_2abs(tmpdir):
         "  psyir_tmp = ABS(arg * 3.14) + ABS(1.0)\n\n"
         "end subroutine abs_example\n") in result
     trans = Abs2CodeTrans()
-    trans.apply(operation, operation.root.symbol_table)
-    trans.apply(abs_op, operation.root.symbol_table)
-    result = writer(operation.root)
+    trans.apply(operation, root.symbol_table)
+    trans.apply(abs_op, root.symbol_table)
+    result = writer(root)
     assert (
         "subroutine abs_example(arg)\n"
         "  real, intent(inout) :: arg\n"

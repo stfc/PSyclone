@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Science and Technology Facilities Council
+# Copyright (c) 2019-2022, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author I. Kavcic, Met Office
-# Modified by R. W. Ford, STFC Daresbury
+# Modified by R. W. Ford and S. Siso, STFC Daresbury Lab
 
 
 '''
@@ -103,9 +103,9 @@ def trans(psy):
                 print("\nExtracting Node '[" + str(child.position) +
                       "]' with Kernel call '" + KERNEL_NAME +
                       "' from Invoke '" + invoke.name + "'\n")
-                schedule, _ = etrans.apply(child)
+                etrans.apply(child)
 
     # Take a look at the transformed Schedule
-    schedule.view()
+    print(schedule.view())
 
     return psy

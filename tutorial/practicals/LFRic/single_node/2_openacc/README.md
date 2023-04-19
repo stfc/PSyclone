@@ -122,9 +122,10 @@ Add in the colouring script (the same as we added in the OpenMP
 section of the tutorial)
 
 ```python
+        const = LFRicConstants()
         for loop in schedule.loops():
             if loop.field_space.orig_name \
-               not in FunctionSpace.VALID_DISCONTINUOUS_NAMES \
+               not in const.VALID_DISCONTINUOUS_NAMES \
                and loop.iteration_space == "cell_column":
                 ctrans.apply(loop)
 ```
@@ -154,11 +155,12 @@ In case you're having problems, this is what your script should now look like:
     routine_trans = ACCRoutineTrans()
     ctrans = Dynamo0p3ColourTrans()
     loop_trans = ACCLoopTrans()
+    const = LFRicConstants()
     for invoke in psy.invokes.invoke_list:
         schedule = invoke.schedule
         for loop in schedule.loops():
             if loop.field_space.orig_name \
-               not in FunctionSpace.VALID_DISCONTINUOUS_NAMES \
+               not in const.VALID_DISCONTINUOUS_NAMES \
                and loop.iteration_space == "cell_column":
                 ctrans.apply(loop)
         for loop in schedule.loops():
@@ -167,7 +169,7 @@ In case you're having problems, this is what your script should now look like:
                 loop_trans.apply(loop)
         for kernel in schedule.coded_kernels():
             routine_trans.apply(kernel)
-    schedule.view()
+    print(schedule.view())
     return psy
 ```
 

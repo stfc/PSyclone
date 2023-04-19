@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2020, Science and Technology Facilities Council.
+# Copyright (c) 2017-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+# Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 #        J. Henrichs, Bureau of Meteorology
 # Modified I. Kavcic, Met Office
 
@@ -40,17 +40,14 @@
 '''
 
 import abc
-import six
 
 from psyclone.psyGen import Kern, Transformation
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
-from psyclone.psyir.nodes import Schedule, Node, IfBlock, Loop
-from psyclone.nemo import NemoInvokeSchedule
+from psyclone.psyir.nodes import Schedule, Node
 
 
-@six.add_metaclass(abc.ABCMeta)
-class RegionTrans(Transformation):
+class RegionTrans(Transformation, metaclass=abc.ABCMeta):
     # Avoid pylint warning about abstract functions (apply, name) not
     # overwritten:
     # pylint: disable=abstract-method,arguments-differ
@@ -79,12 +76,14 @@ class RegionTrans(Transformation):
         nodes in the tree).
 
         :param nodes: can be a single node, a schedule or a list of nodes.
-        :type nodes: :py:obj:`psyclone.psyir.nodes.Node` or  \
-            :py:obj:`psyclone.psyir.nodes.Schedule or a list of \
-            :py:obj:`psyclone.psyir.nodes.Node`
+        :type nodes: Union[:py:obj:`psyclone.psyir.nodes.Node`,
+                           :py:obj:`psyclone.psyir.nodes.Schedule`,
+                           List[:py:obj:`psyclone.psyir.nodes.Node`]
+        :param options: a dictionary with options for transformations.
+        :type options: Optional[Dict[str,Any]]
 
         :returns: a list of nodes.
-        :rtype: list of :py:class:`psyclone.psyir.nodes.Node`
+        :rtype: List[:py:class:`psyclone.psyir.nodes.Node`]
 
         :raises TransformationError: if the supplied parameter is neither a \
             single Node, nor a Schedule, nor a list of Nodes.
@@ -104,22 +103,22 @@ class RegionTrans(Transformation):
             return [nodes]
 
         arg_type = str(type(nodes))
-        raise TransformationError("Error in {0}: "
-                                  "Argument must be a single Node in a "
-                                  "Schedule, a Schedule or a list of Nodes "
-                                  "in a Schedule but have been passed an "
-                                  "object of type: {1}".
-                                  format(self.name, arg_type))
+        raise TransformationError(f"Error in {self.name}: "
+                                  f"Argument must be a single Node in a "
+                                  f"Schedule, a Schedule or a list of Nodes "
+                                  f"in a Schedule but have been passed an "
+                                  f"object of type: {arg_type}")
 
     def validate(self, nodes, options=None):
         '''Checks that the nodes in node_list are valid for a region
         transformation.
 
-        :param nodes: list of PSyIR nodes or a single node.
-        :type nodes: subclass of :py:class:`psyclone.psyir.nodes.Node` or \
-                a list of subclasses of :py:class:`psyclone.psyir.nodes.Node`
+        :param nodes: can be a single node, a schedule or a list of nodes.
+        :type nodes: Union[:py:obj:`psyclone.psyir.nodes.Node`,
+                           :py:obj:`psyclone.psyir.nodes.Schedule`,
+                           List[:py:obj:`psyclone.psyir.nodes.Node`]
         :param options: a dictionary with options for transformations.
-        :type options: dictionary of string:values or None
+        :type options: Optional[Dict[str,Any]]
         :param bool options["node-type-check"]: this flag controls if the \
                 type of the nodes enclosed in the region should be tested \
                 to avoid using unsupported nodes inside a region.
@@ -148,22 +147,20 @@ class RegionTrans(Transformation):
             options = {}
         if not isinstance(options, dict):
             raise TransformationError(
-                "Transformation apply method options argument must be a "
-                "dictionary but found '{0}'.".format(type(options).__name__))
+                f"Transformation apply method options argument must be a "
+                f"dictionary but found '{type(options).__name__}'.")
         node_parent = node_list[0].parent
         prev_position = -1
         for child in node_list:
             if child.parent is not node_parent:
                 raise TransformationError(
-                    "Error in {0} transformation: supplied nodes "
-                    "are not children of the same parent."
-                    .format(self.name))
+                    f"Error in {self.name} transformation: supplied nodes "
+                    f"are not children of the same parent.")
             if prev_position >= 0 and prev_position+1 != child.position:
                 raise TransformationError(
-                    "Children are not consecutive children of one parent: "
-                    "child '{0}' has position {1}, but previous child had "
-                    "position {2}."
-                    .format(str(child), child.position, prev_position))
+                    f"Children are not consecutive children of one parent: "
+                    f"child '{child}' has position {child.position}, but "
+                    f"previous child had position {prev_position}.")
             prev_position = child.position
 
         # Check that the proposed region contains only supported node types
@@ -176,9 +173,8 @@ class RegionTrans(Transformation):
                 for item in flat_list:
                     if isinstance(item, self.excluded_node_types):
                         raise TransformationError(
-                            "Nodes of type '{0}' cannot be enclosed by a {1} "
-                            "transformation".format(type(item).__name__,
-                                                    self.name))
+                            f"Nodes of type '{type(item).__name__}' cannot be "
+                            f"enclosed by a {self.name} transformation")
 
         # If we've been passed a list that contains one or more Schedules
         # then something is wrong. e.g. two Schedules that are both children
@@ -204,20 +200,3 @@ class RegionTrans(Transformation):
                 "Cannot apply transformation to the immediate children of a "
                 "Loop/IfBlock unless it is to a single Schedule representing"
                 " the Loop/If/Else body.")
-
-        # The checks below this point only apply to the NEMO API and can be
-        # removed once #435 is done.
-        node = node_list[0]
-        if not isinstance(node.root, NemoInvokeSchedule):
-            return
-
-        if_or_loop = node.ancestor((IfBlock, Loop))
-        if if_or_loop and ("was_single_stmt" in if_or_loop.annotations
-                           or "was_where" in if_or_loop.annotations):
-            # This limitation is because the NEMO API currently relies on
-            # manipulation of the fparser2 parse tree
-            # TODO #435.
-            raise TransformationError(
-                "In the NEMO API a transformation cannot be applied to the "
-                "children of either a single-line if statement or a PSyIR loop"
-                " representing a WHERE construct.")

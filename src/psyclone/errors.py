@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,43 +31,86 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-#         I. Kavcic, Met Office
+# Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
+#         I. Kavcic and A. J. Voysey, Met Office
 #         J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
 ''' This module provides various error classes used in PSyclone'''
 
 
-class GenerationError(Exception):
+class LazyString:
+    '''Utility that defers any computation associated with computing a
+    string until the string is required. This is particularly useful
+    for exceptions, where the string will typically not need to be
+    computed unless the program is about to stop.
+
+    :param function func: a function that computes a string.
+
+    :raises TypeError: if the func argument is not a function.
+
+    '''
+    def __init__(self, func):
+        if not hasattr(func, '__call__'):
+            raise TypeError(
+                f"The func argument for the LazyString class should be a "
+                f"function, but found '{type(func).__name__}'.")
+        self._func = func
+
+    def __str__(self):
+        '''
+        :raises TypeError: if the function stored in self._func does \
+            not return a string.
+        '''
+        result = self._func()
+        if not isinstance(result, str):
+            raise TypeError(
+                f"The function supplied to the LazyString class should return "
+                f"a string, but found '{type(result).__name__}'.")
+        return result
+
+
+class PSycloneError(Exception):
+    ''' Provides a PSyclone specific error class as a generic parent class for
+    all PSyclone exceptions.
+
+    :param str value: the message associated with the error.
+
+    '''
+    def __init__(self, value):
+        Exception.__init__(self, value)
+        self.value = LazyString(lambda: f"PSyclone Error: {value}")
+
+    def __repr__(self):
+        return type(self).__name__ + "()"
+
+    def __str__(self):
+        return str(self.value)
+
+
+class GenerationError(PSycloneError):
     ''' Provides a PSyclone specific error class for errors found during PSy
     code generation.
 
     :param str value: the message associated with the error.
     '''
     def __init__(self, value):
-        Exception.__init__(self, value)
-        self.value = "Generation Error: "+value
-
-    def __str__(self):
-        return str(self.value)
+        PSycloneError.__init__(self, value)
+        self.value = "Generation Error: "+str(value)
 
 
-class FieldNotFoundError(Exception):
+class FieldNotFoundError(PSycloneError):
     ''' Provides a PSyclone-specific error class when a field with the
     requested property/ies is not found.
 
     :param str value: the message associated with the error.
     '''
     def __init__(self, value):
-        Exception.__init__(self, value)
-        self.value = "Field not found error: "+value
-
-    def __str__(self):
-        return str(self.value)
+        PSycloneError.__init__(self, value)
+        self.value = "Field not found error: "+str(value)
 
 
-class InternalError(Exception):
+class InternalError(PSycloneError):
     '''
     PSyclone-specific exception for use when an internal error occurs (i.e.
     something that 'should not happen').
@@ -75,8 +118,10 @@ class InternalError(Exception):
     :param str value: the message associated with the error.
     '''
     def __init__(self, value):
-        Exception.__init__(self, value)
-        self.value = "PSyclone internal error: "+value
+        PSycloneError.__init__(self, value)
+        self.value = "PSyclone internal error: "+str(value)
 
-    def __str__(self):
-        return str(self.value)
+
+# For Sphinx AutoAPI documentation generation
+__all__ = ["LazyString", "PSycloneError", "GenerationError",
+           "FieldNotFoundError", "InternalError"]

@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Laboratory
+# Modified J. Henrichs, Bureau of Meteorology
 
 include ../../common.mk
 
@@ -56,8 +57,8 @@ hybrid:
 reprod:
 	${PSYCLONE} -s ./omp_reprod_script.py alg.x90
 
-compile:
+compile: transform
 	@echo "No compilation supported for lfric/eg6"
 
-all: transform compile
-
+run: compile
+	@echo "No run targets for lfric/eg6"

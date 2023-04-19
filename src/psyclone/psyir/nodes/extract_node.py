@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2020, Science and Technology Facilities Council
+# Copyright (c) 2019-2023, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,8 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author I. Kavcic, Met Office
-# Modified by A. R. Porter and S. Siso, STFC Daresbury Lab
+# Modified A. R. Porter, S. Siso, R. W. Ford and N. Nobre, STFC Daresbury Lab
+# Modified J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
 '''
@@ -48,7 +49,7 @@ wrapping up settings for generating driver for the extracted code, will
 be added in Issue #298.
 '''
 
-from __future__ import absolute_import, print_function
+from psyclone.f2pygen import CommentGen
 from psyclone.psyir.nodes.psy_data_node import PSyDataNode
 
 
@@ -67,40 +68,58 @@ class ExtractNode(PSyDataNode):
     :param parent: the parent of this node in the PSyIR tree.
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
     :param options: a dictionary with options provided via transformations.
-    :type options: dictionary of string:values or None
+    :type options: Optional[Dict[str, Any]]
     :param str options["prefix"]: a prefix to use for the PSyData module name \
         (``prefix_psy_data_mod``) and the PSyDataType
         (``prefix_PSyDataType``) - a "_" will be added automatically. \
         It defaults to "extract", which means the module name used will be \
         ``extract_psy_data_mode``, and the data type ``extract_PSyDataType``.
+    :param str options["post_var_postfix"]: a postfix to be used when \
+        creating names to store values of output variable. A variable 'a' \
+        would store its value as 'a', and its output values as 'a_post' with \
+        the default post_var_postfix of '_post'.
 
     '''
     # Textual description of the node.
     _text_name = "Extract"
-    _colour_key = "Extract"
+    _colour = "green"
+    # The default prefix to add to the PSyData module name and PSyDataType
+    _default_prefix = "extract"
 
     def __init__(self, ast=None, children=None, parent=None, options=None):
-        if options:
-            my_options = options.copy()
-        else:
-            my_options = {}
-        # If there is no value specified by in the constructor, default
-        # to the "extract" class.
-        my_options["prefix"] = my_options.get("prefix", "extract")
-        super(ExtractNode, self).__init__(ast=ast, children=children,
-                                          parent=parent, options=my_options)
+        super().__init__(ast=ast, children=children,
+                         parent=parent, options=options)
 
         # Define a postfix that will be added to variable that are
         # modified to make sure the names can be distinguished between pre-
         # and post-variables (i.e. here input and output). A variable
         # "myvar" will be stored as "myvar" with its input value, and
-        # "myvar_post" with its output value.
-        self._post_name = "_post"
+        # "myvar_post" with its output value. It is the responsibility
+        # of the transformation that inserts this node to make sure this
+        # name is consistent with the name used when creating the driver
+        # (otherwise the driver will not be able to read in the dumped
+        # valued), and also to handle any potential name clashes (e.g. a
+        # variable 'a' exists, which creates 'a_out' for the output variable,
+        # which would clash with a variable 'a_out' used in the program unit).
 
-        # Store the list of input- and output-variables, so that a driver
-        # generator can get the list of variables that are written.
-        self._input_list = []
-        self._output_list = []
+        if options:
+            self._post_name = options.get("post_var_postfix", "_post")
+        else:
+            self._post_name = "_post"
+
+    def __eq__(self, other):
+        '''
+        Checks whether two nodes are equal. Two ExtractNodes are equal if
+        their extract_body members are equal.
+
+        :param object other: the object to check equality to.
+
+        :returns: whether other is equal to self.
+        :rtype: bool
+        '''
+        is_eq = super().__eq__(other)
+        is_eq = is_eq and self.post_name == other.post_name
+        return is_eq
 
     @property
     def extract_body(self):
@@ -109,45 +128,15 @@ class ExtractNode(PSyDataNode):
         :rtype: :py:class:`psyclone.psyir.nodes.Schedule`
 
         '''
-        return super(ExtractNode, self).psy_data_body
+        return super().psy_data_body
 
     @property
-    def dag_name(self):
+    def post_name(self):
         '''
-        Returns the name to use in a DAG for this Node
-
-        :returns: the dag name of ExtractNode.
+        :returns: the _post_name member of this ExtractNode.
         :rtype: str
         '''
-        return "extract_" + str(self.position)
-
-    @property
-    def input_list(self):
-        '''
-        :returns: the list of variables that are inputs to this \
-            extraction region.
-        :rtype: list of str
-        '''
-        return self._input_list
-
-    @property
-    def output_list(self):
-        '''
-        :returns: the list of variables that are outputs of this \
-            extraction region.
-        :rtype: list of str
-        '''
-        return self._output_list
-
-    def update_vars_and_postname(self):
-        '''
-        This function is called after the variables to be extracted
-        have been stored in self._input_list and self._output_list.
-        It can be used to e.g. remove unnecessary variables (e.g. loop
-        counter), or adjust the postfix to assure that no duplicated
-        variable name is created. This default function does not
-        do anything atm.
-        '''
+        return self._post_name
 
     def gen_code(self, parent):
         # pylint: disable=arguments-differ
@@ -159,27 +148,51 @@ class ExtractNode(PSyDataNode):
 
         :param parent: the parent of this Node in the PSyIR.
         :type parent: :py:class:`psyclone.psyir.nodes.Node`.
+
         '''
-
-        # Determine the variables to write:
+        # Avoid circular dependency
+        # pylint: disable=import-outside-toplevel
         from psyclone.psyir.tools.dependency_tools import DependencyTools
+        # Determine the variables to write:
         dep = DependencyTools()
-        self._input_list, self._output_list = dep.get_in_out_parameters(self)
-
-        # Add a callback here so that derived classes can adjust the list
-        # of variables to provide, or the suffix used (which might
-        # depend on the variable name which could create clashes).
-        self.update_vars_and_postname()
-
-        options = {'pre_var_list': self._input_list,
-                   'post_var_list': self._output_list,
+        input_list, output_list = \
+            dep.get_in_out_parameters(self, options=self.options)
+        options = {'pre_var_list': input_list,
+                   'post_var_list': output_list,
                    'post_var_postfix': self._post_name}
 
-        from psyclone.f2pygen import CommentGen
         parent.add(CommentGen(parent, ""))
         parent.add(CommentGen(parent, " ExtractStart"))
         parent.add(CommentGen(parent, ""))
-        super(ExtractNode, self).gen_code(parent, options)
+        super().gen_code(parent, options)
         parent.add(CommentGen(parent, ""))
         parent.add(CommentGen(parent, " ExtractEnd"))
         parent.add(CommentGen(parent, ""))
+
+    def lower_to_language_level(self):
+        # pylint: disable=arguments-differ
+        '''
+        Lowers this node (and all children) to language-level PSyIR. The
+        PSyIR tree is modified in-place.
+
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
+
+        '''
+        # Avoid circular dependency
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.tools.dependency_tools import DependencyTools
+        # Determine the variables to write:
+        dep = DependencyTools()
+        input_list, output_list = \
+            dep.get_in_out_parameters(self, options=self.options)
+
+        options = {'pre_var_list': input_list,
+                   'post_var_list': output_list,
+                   'post_var_postfix': self._post_name}
+
+        return super().lower_to_language_level(options)
+
+
+# For AutoAPI documentation generation
+__all__ = ['ExtractNode']

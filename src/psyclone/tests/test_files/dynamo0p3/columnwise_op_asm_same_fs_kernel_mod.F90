@@ -8,7 +8,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2017-2021, Science and Technology Facilities Council
+! Modifications copyright (c) 2017-2022, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -38,7 +38,7 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 !------------------------------------------------------------------------------
-! Modified I. Kavcic, Met Office
+! Modified: I. Kavcic, Met Office
 
 !> @brief Kernel which assembles a locally assembled matrix (LMA) into a
 !! columnwise assembled matrix (CMA). Takes a read-only field as argument too.
@@ -51,7 +51,7 @@ use argument_mod,            only : arg_type, func_type,                  &
                                     GH_FIELD, GH_REAL, GH_READ, GH_WRITE, &
                                     ANY_SPACE_1, ANY_SPACE_2, CELL_COLUMN
 
-use constants_mod,           only : r_def, i_def
+use constants_mod,           only : r_def, r_solver, i_def
 
 implicit none
 
@@ -91,7 +91,7 @@ contains
   !> @param [in] ncell_3d Total number of cells
   !> @param [in] local_stencil Locally assembled matrix
   !> @param [in] field Field argument of locally assembled matrix
-  !> @param [out] columnwise_matrix Banded matrix to assemble into
+  !> @param [in,out] columnwise_matrix Banded matrix to assemble into
   !> @param [in] nrow Number of rows in the banded matrix
   !> @param [in] bandwidth Bandwidth of the banded matrix
   !> @param [in] alpha Banded matrix parameter \f$\alpha\f$
@@ -134,7 +134,7 @@ contains
     integer(kind=i_def), intent(in) :: nrow, bandwidth, alpha, beta, gamma_m, gamma_p
     integer(kind=i_def), intent(in), dimension(ndf_lma_to) :: map_lma_to
     integer(kind=i_def), intent(in), dimension(ndf_lma_from,nlayers) :: column_banded_dofmap_to
-    real(kind=r_def), intent(out), dimension(bandwidth,nrow,ncell_2d) :: columnwise_matrix
+    real(kind=r_solver), intent(inout), dimension(bandwidth,nrow,ncell_2d) :: columnwise_matrix
     real(kind=r_def), intent(in), dimension(undf_lma_to) :: field
     real(kind=r_def), intent(in), dimension(ndf_lma_to,ndf_lma_from,ncell_3d) :: local_stencil
 

@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2020, Science and Technology Facilities Council.
+.. Copyright (c) 2020-2021, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 .. POSSIBILITY OF SUCH DAMAGE.
 .. -----------------------------------------------------------------------------
 .. Written by R. W. Ford and A. R. Porter, STFC Daresbury Lab
+.. Modified by I. Kavcic, Met Office
 
 .. _tutorial:
 
@@ -44,9 +45,19 @@ launched from a browser using binder:
 
 If PSyclone is installed on your system then you can run the tutorial
 locally. First find the tutorial. If you have installed PSyclone using
-pip then the examples may be found in ``share/psyclone/tutorial/notebooks``
-under your Python installation (e.g. ``~/.local`` for a user-local
-installation). Next copy the tutorial to a local writable space (as
+``pip`` then the examples may be found in ``share/psyclone/tutorial/notebooks``
+under your Python installation (see :ref:`here <getting-going-env-loc>` for
+possible locations). Next, copy the tutorial to a local writable space (as
 the notebooks will be modified as you go through the tutorial) and
 change directory to this tutorial. Lastly, start up the tutorial's
-introduction `jupyter-notebook introduction.ipynb`.
+introduction ``jupyter-notebook introduction.ipynb``.
+
+Another part of the tutorial are `practicals
+<https://github.com/stfc/PSyclone/tree/master/tutorial/practicals>`_
+that provide hands-on introductions to various functionality contained in the
+:ref:`LFRic <dynamo0.3-api>` and :ref:`NEMO <nemo-api>` APIs. The sections
+in the included directories are worked through using PSyclone in a "normal"
+Linux environment.
+
+.. note:: Hands-on practicals are not currently included in a
+          PSyclone installation.

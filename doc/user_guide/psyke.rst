@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2019-2020, Science and Technology Facilities Council
+.. Copyright (c) 2019-2023, Science and Technology Facilities Council
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -33,6 +33,7 @@
 .. -----------------------------------------------------------------------------
 .. Written by I. Kavcic, Met Office
 .. Modified by J. Henrichs, Bureau of Meteorology
+.. Modified by R. W. Ford, STFC Daresbury Lab
 
 .. highlight:: fortran
 
@@ -114,10 +115,10 @@ node then creates the actual code, as in the following LFRic example::
       !
       ! ExtractEnd
 
-The PSyData API relies on generic Fortran interfaces to provide the 
-field-type-specific implementations of the ``ProvideVariable`` for different
-types. This means that a different version of the external PSyData
-library that PSyKE uses must be supplied for each PSyclone API.
+The :ref:`PSyData API <psy_data>` relies on generic Fortran interfaces to
+provide the  field-type-specific implementations of the ``ProvideVariable``
+for different types. This means that a different version of the external
+PSyData library that PSyKE uses must be supplied for each PSyclone API.
 
 .. _psyke-intro-restrictions:
 
@@ -153,10 +154,11 @@ Distributed memory
 ##################
 
 As noted in the :ref:`distributed_memory` section, support for distributed
-memory in PSyclone is currently limited to the Dynamo0.3 API. Since the
-implementation generates calls to LFRic infrastructure (e.g. runtime checks
-for status of field halos), code extraction is not allowed when distributed
-memory is enabled.
+memory in PSyclone is currently limited to the
+:ref:`LFRic (Dynamo0.3) API <dynamo0.3-api>`. Since the implementation
+generates calls to LFRic infrastructure (e.g. runtime checks for status
+of field halos), code extraction is not allowed when distributed memory
+is enabled.
 
 .. _psyke-intro-restrictions-shared:
 
@@ -171,7 +173,7 @@ The ``ExtractTrans`` transformation cannot be applied to:
   without its parent Directive (e.g. ACC or OMP Parallel Directive),
 
 * A Loop over cells in a colour without its parent Loop over colours in
-  the Dynamo0.3 API,
+  the LFRic API,
 
 * An inner Loop without its parent outer Loop in the GOcean1.0 API.
 
@@ -184,7 +186,7 @@ The code extraction is currently enabled by utilising a transformation
 script (see :ref:`sec_transformations_script` section for more details).
 
 For example, the transformation script which extracts the first Kernel call
-in Dynamo0.3 API test example ``15.1.2_builtin_and_normal_kernel_invoke.f90``
+in LFRic API test example ``15.1.2_builtin_and_normal_kernel_invoke.f90``
 would be written as:
 
 .. code-block:: python
@@ -199,8 +201,8 @@ would be written as:
   schedule = invoke.schedule
 
   # Apply extract transformation to the selected Node
-  schedule, _ = etrans.apply(schedule.children[2])
-  schedule.view()
+  etrans.apply(schedule.children[2])
+  print(schedule.view())
 
 and called as:
 
@@ -276,7 +278,7 @@ of Nodes (subject to :ref:`psyke-intro-restrictions-gen` restrictions above):
 .. code-block:: python
 
   # Apply extract transformation to the selected Nodes
-  schedule, _ = etrans.apply(schedule.children[1:3])
+  etrans.apply(schedule.children[1:3])
 
 This modifies the above Schedule as:
 
@@ -298,7 +300,7 @@ This modifies the above Schedule as:
 
 As said above, extraction can be performed on optimised code. For example,
 the following example transformation script first adds ``!$OMP PARALLEL DO``
-directive and then extracts the optimised code in Dynamo0.3 API test
+directive and then extracts the optimised code in LFRic API test
 example ``15.1.2_builtin_and_normal_kernel_invoke.f90``:
 
 .. code-block:: python
@@ -315,25 +317,24 @@ example ``15.1.2_builtin_and_normal_kernel_invoke.f90``:
   schedule = invoke.schedule
 
   # Add OMP PARALLEL DO directives
-  schedule, _ = otrans.apply(schedule.children[1])
-  schedule, _ = otrans.apply(schedule.children[2])
+  otrans.apply(schedule.children[1])
+  otrans.apply(schedule.children[2])
   # Apply extract transformation to the selected Nodes
-  schedule, _ = etrans.apply(schedule.children[1:3])
-  schedule.view()
+  etrans.apply(schedule.children[1:3])
+  print(schedule.view())
 
 The generated code is now:
 
 .. code-block:: fortran
 
       ! ExtractStart
-      CALL extract_psy_data%PreStart("unknown-module", "setval_c", 1, 3)
-      CALL extract_psy_data%PreDeclareVariable("f2", f2)
+      CALL extract_psy_data%PreStart("unknown-module", "setval_c", 0, 4)
       CALL extract_psy_data%PreDeclareVariable("cell_post", cell)
       CALL extract_psy_data%PreDeclareVariable("df_post", df)
+      CALL extract_psy_data%PreDeclareVariable("f2_post", f2)
       CALL extract_psy_data%PreDeclareVariable("f3_post", f3)
       ...
       CALL extract_psy_data%PreEndDeclaration
-      CALL extract_psy_data%ProvideVariable("f2", f2)
       ...
       CALL extract_psy_data%PreEnd
       !
@@ -351,48 +352,72 @@ The generated code is now:
       CALL extract_psy_data%PostStart
       CALL extract_psy_data%ProvideVariable("cell_post", cell)
       CALL extract_psy_data%ProvideVariable("df_post", df)
+      CALL extract_psy_data%ProvideVariable("f2_post", f2)
       CALL extract_psy_data%ProvideVariable("f3_post", f3)
       CALL extract_psy_data%PostEnd
       !
       ! ExtractEnd
 
-.. note::
-
-    At this stage builtins are not fully supported, resulting in ``f2``
-    being incorrectly detected as an input parameter, and not as an
-    output parameter. This issue is tracked in #637.
-
-
 Examples in ``examples/lfric/eg12`` directory demonstrate how to
 apply code extraction by utilising PSyclone transformation scripts
-(see :ref:`examples` section for more information).
+(see :ref:`examples` section for more information). The code
+in ``examples/lfric/eg17/full_example_extract`` can be compiled and
+run, and it will create two kernel data files.
 
-.. _psyke_netcdf:
+.. _extraction_libraries:
 
-NetCDF Extraction Example
--------------------------
-PSyclone comes with an example NetCDF based extraction library in
+Extraction Libraries
+--------------------
+PSyclone comes with two extraction libraries: one is based on NetCDF
+and will create NetCDF files to contain all input- and output-parameters.
+The second one is a stand-alone library which uses only standard Fortran
+IO to write and read kernel data. The binary files produced using this
+library may not be portable between machines and compilers. If you
+require such portability then please use the NetCDF extraction library.
+
+The two extraction :ref:`libraries <libraries>` are in
+`lib/extract/standalone
+<https://github.com/stfc/PSyclone/tree/master/lib/extract/standalone>`_.
+and in
+`lib/extract/netcdf
+<https://github.com/stfc/PSyclone/tree/master/lib/extract/netcdf>`_.
+
+.. _extraction_for_gocean:
+
+Extraction for GOcean
++++++++++++++++++++++
+
+The extraction libraries in 
+`lib/extract/standalone/dl_esm_inf
+<https://github.com/stfc/PSyclone/tree/master/lib/extract/standalone/dl_esm_inf>`_
+and 
 `lib/extract/netcdf/dl_esm_inf
-<https://github.com/stfc/PSyclone/tree/master/lib/extract/netcdf/dl_esm_inf>`_.
-This library implements the full PSyData
-API for use with the GOcean 1.0 dl_esm_inf infrastructure library.
-In order to compile this library, you must have NetCDF installed.
-When running the code, it will create a NetCDF file for the instrumented
+<https://github.com/stfc/PSyclone/tree/master/lib/extract/netcdf/dl_esm_inf>`_
+implement the full PSyData API for use with the
+:ref:`GOcean1.0 <gocean1.0-api>` dl_esm_inf infrastructure library.
+When running the instrumented executable, it will create either a binary or
+a NetCDF file for each instrumented
 code region. It includes all variables that are read before the code
 is executed, and all variables that have been modified. The output
-variables have the postfix ``_post`` attached to the NetCDF names,
+variables have the postfix ``_post`` attached to the names,
 e.g. a variable ``xyz`` that is read and written will be stored
 with the name ``xyz`` containing the input values, and the name
 ``xyz_post`` containing the output values. Arrays have their size
-stored as NetCDF dimensions: again the variable ``xyz`` will have its
+explicitly stored (in case of NetCDF as dimensions): again the
+variable ``xyz`` will have its
 sizes stored as ``xyzdim1``, ``xyzdim2`` for the input values,
 and output arrays use the name ``xyz_postdim1``, ``xyz_postdim2``.
 
+.. note:: The stand-alone library does not store the names of the
+    variables in the output file, but these names will be used
+    as variable names in the created driver.
+
 The output file contains the values of all variables used in the
-subroutine. The ``GOceanExtractTrans`` can automatically create a
-driver program which will read the netcdf file and then call the
-instrumented region. In order to create this driver program, the
-options parameter ``create_driver`` must be set to true:
+subroutine. The ``GOceanExtractTrans`` transformation can automatically
+create a driver program which will read the corresponding output file,
+call the instrumented region, and compare the results. In order to create
+this driver program, the options parameter ``create_driver`` must
+be set to true:
 
 .. code-block:: python
 
@@ -402,4 +427,103 @@ options parameter ``create_driver`` must be set to true:
                    "region_name": ("main", "init")})
 
 This will create a Fortran file called ``driver-main-init.f90``, which
-can then be compiled and executed.
+can then be compiled and executed. This stand-alone program will read
+the output file created during an execution of the actual program, call
+the kernel with all required input parameter, and compare the output
+variables with the original output variables. This can be used to create
+stand-alone test cases to reproduce a bug, or for performance
+optimisation of a stand-alone kernel.
+
+.. warning:: Care has to be taken that the driver matches the version
+    of the code that was used to create the output file, otherwise the
+    driver will likely crash. The stand-alone driver relies on a
+    strict ordering of variable values in the output file and e.g.
+    even renaming one variable can affect this. The NetCDF version
+    stores the variable names and will not be able to find a variable
+    if its name has changed.
+
+Extraction for LFRic
+++++++++++++++++++++
+
+The libraries in 
+`lib/extract/standalone/lfric
+<https://github.com/stfc/PSyclone/tree/master/lib/extract/standalone/lfric>`_
+and
+`lib/extract/netcdf/lfric
+<https://github.com/stfc/PSyclone/tree/master/lib/extract/netcdf/lfric>`_
+implement the full PSyData API for use with the
+:ref:`LFRic <dynamo0.3-api>` infrastructure library. When running the
+code, it will create an output file for each instrumented code region.
+The same logic for naming variables (using ``_post`` for output variables)
+used in :ref:`extraction_for_gocean` is used here.
+
+As in the case of e.g. :ref:`read-only verification
+<psydata_read_verification>`, this library uses the pared-down LFRic
+infrastructure located in a clone of PSyclone repository,
+``<PSYCLONEHOME>/src/psyclone/tests/test_files/dynamo0p3/infrastructure``.
+However, this needs to be changed for any user (for instance with
+PSyclone installation). Please refer to the relevant ``README.md``
+documentation on how to build and link this library.
+
+The output file contains the values of all variables used in the
+subroutine. The ``LFRicExtractTrans`` transformation can automatically
+create a driver program which will read the corresponding output file,
+call the instrumented region, and compare the results. In order to create
+this driver program, the options parameter ``create_driver`` must
+be set to true:
+
+.. code-block:: python
+
+    extract = LFRicExtractTrans()
+    extract.apply(schedule.children,
+                  {"create_driver": True,
+                   "region_name": ("main", "init")})
+
+This will create a Fortran file called ``driver-main-init.f90``, which
+can then be compiled and executed. This stand-alone program will read
+the output file created during an execution of the actual program, call
+the kernel with all required input parameter, and compare the output
+variables with the original output variables. This can be used to create
+stand-alone test cases to reproduce a bug, or for performance
+optimisation of a stand-alone kernel.
+
+.. warning:: Care has to be taken that the driver matches the version
+    of the code that was used to create the output file, otherwise the
+    driver will likely crash. The stand-alone driver relies on a
+    strict ordering of variable values in the output file and e.g.
+    even renaming one variable can affect this. The NetCDF version
+    stores the variable names and will not be able to find a variable
+    if its name has changed.
+
+.. note:: If the kernel, or any function called from an extracted kernel
+    should use a variable from a module directly (as opposed to supplying
+    this as parameter in the kernel call), this variable will not be
+    written to the extract data file, and the driver will also not try to
+    read in the value. As a result, the kernel will not be able to
+    run stand-alone. As a work-around, these values can be added manually
+    to the driver program. Issue #1990 tracks improvement of this situation.
+
+When linking the driver program, it needs to be provided with all
+dependencies required by the driver and the kernel used. If the kernel calls
+many other functions, this can result in a long parameter list for the
+linker. Issue #1991 aims at simplifying this.
+
+
+Extraction for NEMO
+++++++++++++++++++++
+The libraries in
+`lib/extract/standalone/nemo
+<https://github.com/stfc/PSyclone/tree/master/lib/extract/standalone/nemo>`_
+and
+`lib/extract/netcdf/nemo
+<https://github.com/stfc/PSyclone/tree/master/lib/extract/netcdf/nemo>`_
+implement the full PSyData API for use with the
+:ref:`NEMO <nemo-api>` API. When running the
+code, it will create an output file for each instrumented code region.
+The same logic for naming variables used in :ref:`extraction_for_gocean`
+is used here.
+
+.. note::
+
+  Driver creation in NEMO is not yet supported, and is
+  tracked in issue #2058.

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2020, Science and Technology Facilities Council.
+# Copyright (c) 2017-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+# Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 #         I. Kavcic, Met Office
 #         J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
@@ -39,8 +39,10 @@
 ''' This module contains the ContainerSymbol and its interfaces.'''
 
 from __future__ import absolute_import
+from os import listdir, path
 from psyclone.psyir.symbols import Symbol, SymbolError
 from psyclone.psyir.symbols.symbol import SymbolInterface
+from psyclone.configuration import Config
 
 
 class ContainerSymbol(Symbol):
@@ -50,21 +52,71 @@ class ContainerSymbol(Symbol):
     when needed.
 
     :param str name: name of the symbol.
-    :param visibility: the visibility of the symbol.
-    :type scope: :py:class:`psyclone.psyir.symbols.Symbol.Visibility`
+    :param bool wildcard_import: if all public Symbols of the Container are \
+        imported into the current scope. Defaults to False.
+    :param kwargs: additional keyword arguments provided by \
+        :py:class:`psyclone.psyir.symbols.Symbol`.
+    :type kwargs: unwrapped dict.
 
     '''
-    def __init__(self, name, visibility=Symbol.DEFAULT_VISIBILITY):
-        # At the moment we just have one ContainerSymbol interface, so we
-        # always assign this interface to all ContainerSymbols. We will
-        # pass the interface as a parameter when we have more than one.
-        super(ContainerSymbol, self).__init__(
-            name, visibility=visibility, interface=FortranModuleInterface())
+    def __init__(self, name, wildcard_import=False, **kwargs):
+        super(ContainerSymbol, self).__init__(name)
 
         self._reference = None
-        # Whether or not there is a wildcard import of all public symbols
-        # from this container (e.g. an unqualified USE of a module in Fortran).
         self._has_wildcard_import = False
+
+        self._process_arguments(wildcard_import=wildcard_import, **kwargs)
+
+    def _process_arguments(self, **kwargs):
+        ''' Process the arguments for the constructor and the specialise
+        methods. In this case the wildcard_import and a change in default
+        value for the interface.
+
+        :param kwargs: keyword arguments which can be:\n
+            :param bool wildcard_import: if all public Symbols of the \
+                Container are imported into the current scope. Defaults to \
+                False.\n
+            and the arguments in :py:class:`psyclone.psyir.symbols.Symbol`
+        :type kwargs: unwrapped dict.
+
+        :raises TypeError: if it is provided with an interface argument other \
+                then FortranModuleInterface.
+
+        '''
+        if not hasattr(self, '_reference'):
+            self._reference = None
+
+        if "wildcard_import" in kwargs:
+            self.wildcard_import = kwargs.pop("wildcard_import")
+        elif not hasattr(self, '_has_wildcard_import'):
+            self._has_wildcard_import = False
+
+        # TODO #1298: ContainerSymbol currently defaults to
+        # FortranModuleInterface expecting externally defined containers
+        # which can be imported, but this is not always true.
+        if "interface" not in kwargs or kwargs["interface"] is None:
+            kwargs["interface"] = FortranModuleInterface()
+        elif not isinstance(kwargs["interface"], FortranModuleInterface):
+            raise TypeError(f"A ContainerSymbol interface must be of type '"
+                            f"FortranModuleInterface' but found "
+                            f"'{type(kwargs['interface']).__name__}' for "
+                            f"Container '{self.name}'.")
+        super(ContainerSymbol, self)._process_arguments(**kwargs)
+
+    def copy(self):
+        '''Create and return a copy of this object. Any references to the
+        original will not be affected so the copy will not be referred
+        to by any other object.
+
+        :returns: A symbol object with the same properties as this \
+                  symbol object.
+        :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
+
+        '''
+        # Use the generic Symbol copy and add the wildcard import value
+        new_symbol = super(ContainerSymbol, self).copy()
+        new_symbol.wildcard_import = self.wildcard_import
+        return new_symbol
 
     @property
     def container(self):
@@ -79,7 +131,7 @@ class ContainerSymbol(Symbol):
         return self._reference
 
     def __str__(self):
-        string = self._name + ": <"
+        string = self._name + ": ContainerSymbol<"
         if self._reference:
             string += "linked>"
         else:
@@ -108,8 +160,8 @@ class ContainerSymbol(Symbol):
 
         '''
         if not isinstance(value, bool):
-            raise TypeError("wildcard_import must be a bool but got: '{0}'".
-                            format(type(value).__name__))
+            raise TypeError(f"wildcard_import must be a bool but got: "
+                            f"'{type(value).__name__}'")
         self._has_wildcard_import = value
 
 
@@ -146,38 +198,32 @@ class FortranModuleInterface(ContainerSymbolInterface):
 
         :raises SymbolError: the given Fortran module is not found on the \
             import path.
-        '''
-        from os import listdir, path
-        from fparser.two.parser import ParserFactory
-        from fparser.common.readfortran import FortranFileReader
-        from psyclone.configuration import Config
-        from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 
+        '''
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.frontend.fortran import FortranReader
         for directory in Config.get().include_paths:
             for filename in [name+'.f90', name+'.F90']:
                 if filename in listdir(directory):
                     # Parse the module source code
                     abspath = path.join(directory, filename)
-                    reader = FortranFileReader(abspath,
-                                               ignore_comments=True)
-                    f2008_parser = ParserFactory().create(std="f2008")
-                    ast = f2008_parser(reader)
-                    fp2reader = Fparser2Reader()
-
-                    # Generate the PSyIR container
-                    container = fp2reader.generate_container(ast)
-
-                    # Check the imported container is the expected one
-                    if container.name != name:
-                        raise ValueError(
-                            "Error importing the Fortran module '{0}' into a "
-                            "PSyIR container. The imported module has the "
-                            "unexpected name: '{1}'."
-                            "".format(name, container.name))
-
-                    return container
+                    fortran_reader = FortranReader()
+                    file_container = fortran_reader.psyir_from_file(abspath)
+                    # Check the expected container is in this file
+                    for candidate in file_container.children:
+                        if candidate.name.lower() == name.lower():
+                            return candidate
+                    raise ValueError(
+                        f"Error importing the Fortran module '{name}' into a "
+                        f"PSyIR container. The file with filename "
+                        f"'{filename}' does not contain the expected module.")
 
         raise SymbolError(
-            "Module '{0}' (expected to be found in '{0}.[f|F]90') not found in"
-            " any of the include_paths directories {1}."
-            "".format(name, Config.get().include_paths))
+            f"Module '{name}' (expected to be found in '{name}.[f|F]90') not "
+            f"found in any of the include_paths directories "
+            f"{Config.get().include_paths}.")
+
+
+# For Sphinx AutoAPI documentation generation
+__all__ = ['ContainerSymbol', 'ContainerSymbolInterface',
+           'FortranModuleInterface']

@@ -6,7 +6,7 @@
 .. -----------------------------------------------------------------------------
    BSD 3-Clause License
 
-   Copyright (c) 2017-2020, Science and Technology Facilities Council.
+   Copyright (c) 2017-2021, Science and Technology Facilities Council.
    All rights reserved.
 
    Redistribution and use in source and binary forms, with or without
@@ -37,6 +37,8 @@
    POSSIBILITY OF SUCH DAMAGE.
    -----------------------------------------------------------------------------
    Written by R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+              J. Henrichs, Bureau of Meteorology
+
 
 .. toctree::
    :maxdepth: 3
@@ -48,6 +50,8 @@
    parsing
    APIs
    modules
+   dependency
+   sympy
    transformations
    psy_data
    system_specific_setup

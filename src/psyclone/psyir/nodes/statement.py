@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -37,9 +37,14 @@
 ''' This module contains the Statement abstract node implementation.'''
 
 from psyclone.psyir.nodes.node import Node
+from psyclone.psyir.nodes.commentable_mixin import CommentableMixin
 
 
-class Statement(Node):
+class Statement(Node, CommentableMixin):
     '''
     Abstract node representing a general PSyIR Statement.
     '''
+
+
+# For automatic API documentation generation
+__all__ = ["Statement"]

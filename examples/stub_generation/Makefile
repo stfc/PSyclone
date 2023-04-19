@@ -41,4 +41,5 @@ transform:
 compile:
 	@echo "No compilation supported for stub-generation example"
 
-all: transform compile
+run: compile
+	@echo "No run targets for stub-generation example"

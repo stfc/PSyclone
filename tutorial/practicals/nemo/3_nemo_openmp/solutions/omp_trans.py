@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council
+# Copyright (c) 2020-2022, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -70,12 +70,12 @@ def trans(psy):
     for child in sched.children:
         if isinstance(child, Loop) and child.loop_type == "levels":
             try:
-                _ = OMP_TRANS.apply(child)
+                OMP_TRANS.apply(child)
             except TransformationError:
                 pass
 
     # Display the transformed PSyIR
-    sched.view()
+    print(sched.view())
 
     # Return the modified psy object
     return psy

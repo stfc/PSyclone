@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2021, Science and Technology Facilities Council.
+# Copyright (c) 2018-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -35,6 +35,7 @@
 # Modified by R. W. Ford, STFC Daresbury Lab
 # Modified by A. R. Porter, STFC Daresbury Lab
 # Modified by I. Kavcic, Met Office
+# Modified by S. Siso, STFC Daresbury Lab
 
 ''' Module containing tests for generating monitoring hooks'''
 
@@ -43,80 +44,51 @@ from __future__ import absolute_import
 import re
 import pytest
 
+from psyclone.configuration import Config
 from psyclone.generator import GenerationError
 from psyclone.profiler import Profiler
-from psyclone.psyir.nodes import (colored, Node, ProfileNode, Loop, Literal,
-                                  SCHEDULE_COLOUR_MAP, Assignment, Return,
-                                  Reference, KernelSchedule)
+from psyclone.psyir.nodes import (colored, ProfileNode, Loop, Literal,
+                                  Assignment, Return, Reference,
+                                  KernelSchedule, Schedule)
 from psyclone.psyir.symbols import (SymbolTable, REAL_TYPE, DataSymbol)
-from psyclone.errors import InternalError
 from psyclone.psyir.transformations import TransformationError
 from psyclone.psyir.transformations import ProfileTrans
 from psyclone.tests.utilities import get_invoke
 from psyclone.transformations import GOceanOMPLoopTrans, OMPParallelTrans
+from psyclone.gocean1p0 import GOInvokeSchedule
 
 
 # -----------------------------------------------------------------------------
 def teardown_function():
     '''This function is called at the end of any test function. It disables
     any automatic profiling set. This is necessary in case of a test failure
-    to make sure any further tests will not be ran with profiling enabled.
+    to make sure any further tests will not be run with profiling enabled.
     '''
     Profiler.set_options([])
 
 
-def test_malformed_profile_node(monkeypatch):
-    ''' Check that we raise the expected error if a ProfileNode does not have
-    a single Schedule node as its child. '''
-    pnode = ProfileNode()
-    monkeypatch.setattr(pnode, "_children", [])
-    with pytest.raises(InternalError) as err:
-        _ = pnode.profile_body
-    assert "malformed or incomplete. It should have a " in str(err.value)
-    monkeypatch.setattr(pnode, "_children", [Node(), Node()])
-    with pytest.raises(InternalError) as err:
-        _ = pnode.profile_body
-    assert "malformed or incomplete. It should have a " in str(err.value)
-
-
-@pytest.mark.parametrize("value", [["a", "b"], ("a"), ("a", "b", "c"),
-                                   ("a", []), ([], "a")])
-def test_profile_node_invalid_name(value):
-    '''Test that the expected exception is raised when an invalid profile
-    name is provided to a ProfileNode.
-
-    '''
-    with pytest.raises(InternalError) as excinfo:
-        _ = ProfileNode(options={"region_name": value})
-    assert ("Error in PSyDataNode. The name must be a tuple containing "
-            "two non-empty strings." in str(excinfo.value))
-
-
 # -----------------------------------------------------------------------------
-def test_profile_basic(capsys):
+def test_profile_basic():
     '''Check basic functionality: node names, schedule view.
     '''
     Profiler.set_options([Profiler.INVOKES])
     _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
                            "gocean1.0", idx=0, dist_mem=False)
-    # This test expects constant loop bounds
-    invoke.schedule._const_loop_bounds = True
     Profiler.add_profile_nodes(invoke.schedule, Loop)
 
     assert isinstance(invoke.schedule[0], ProfileNode)
 
-    invoke.schedule.view()
-    out, _ = capsys.readouterr()
+    out = invoke.schedule.view()
 
-    gsched = colored("GOInvokeSchedule", SCHEDULE_COLOUR_MAP["Schedule"])
-    sched = colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"])
+    gsched = colored("GOInvokeSchedule", GOInvokeSchedule._colour)
+    sched = colored("Schedule", Schedule._colour)
     loop = Loop().coloured_name(True)
     profile = invoke.schedule[0].coloured_name(True)
 
     # Do one test based on schedule view, to make sure colouring
     # and indentation is correct
     expected = (
-        gsched + "[invoke='invoke_0', Constant loop bounds=True]\n"
+        gsched + "[invoke='invoke_0']\n"
         "    0: " + profile + "[]\n"
         "        " + sched + "[]\n"
         "            0: " + loop + "[type='outer', field_space='go_cv', "
@@ -128,47 +100,13 @@ def test_profile_basic(capsys):
     # Insert a profile call between outer and inner loop.
     # This tests that we find the subroutine node even
     # if it is not the immediate parent.
-    new_sched, _ = prt.apply(invoke.schedule[0].profile_body[0].loop_body[0])
+    node = invoke.schedule[0].psy_data_body[0].loop_body[0]
+    prt.apply(node)
 
-    new_sched_str = str(new_sched)
-    correct = ("""GOInvokeSchedule[invoke='invoke_0', \
-Constant loop bounds=True]:
-ProfileStart[var=profile_psy_data]
-GOLoop[id:'', variable:'j', loop_type:'outer']
-Literal[value:'2', Scalar<INTEGER, UNDEFINED>]
-Literal[value:'jstop-1', Scalar<INTEGER, UNDEFINED>]
-Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
-Schedule:
-ProfileStart[var=profile_psy_data_1]
-GOLoop[id:'', variable:'i', loop_type:'inner']
-Literal[value:'2', Scalar<INTEGER, UNDEFINED>]
-Literal[value:'istop', Scalar<INTEGER, UNDEFINED>]
-Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
-Schedule:
-kern call: compute_cv_code
-End Schedule
-End GOLoop
-ProfileEnd
-End Schedule
-End GOLoop
-GOLoop[id:'', variable:'j', loop_type:'outer']
-Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
-Literal[value:'jstop+1', Scalar<INTEGER, UNDEFINED>]
-Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
-Schedule:
-GOLoop[id:'', variable:'i', loop_type:'inner']
-Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
-Literal[value:'istop+1', Scalar<INTEGER, UNDEFINED>]
-Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
-Schedule:
-kern call: bc_ssh_code
-End Schedule
-End GOLoop
-End Schedule
-End GOLoop
-ProfileEnd
-End Schedule""")
-    assert correct in new_sched_str
+    assert isinstance(invoke.schedule[0].psy_data_body[0].loop_body[0],
+                      ProfileNode)
+    assert invoke.schedule[0].psy_data_body[0].loop_body[0].children[0].\
+        children[0] is node
 
     Profiler.set_options(None)
 
@@ -181,19 +119,6 @@ def test_profile_errors2():
         Profiler.set_options(["invalid"])
     assert ("options must be one of 'invokes', 'kernels'"
             in str(gen_error.value))
-
-
-# -----------------------------------------------------------------------------
-def test_c_code_creation():
-    '''Tests the handling when trying to create C code, which is not supported
-    at this stage.
-    '''
-
-    profile_node = ProfileNode()
-    with pytest.raises(NotImplementedError) as excinfo:
-        profile_node.gen_c_code()
-    assert "Generation of C code is not supported for profiling" \
-        in str(excinfo.value)
 
 
 # -----------------------------------------------------------------------------
@@ -233,7 +158,8 @@ def test_profile_invokes_gocean1p0():
     assert code == code_again
 
     # Test that two kernels in one invoke get instrumented correctly.
-    _, invoke = get_invoke("single_invoke_two_kernels.f90", "gocean1.0", 0)
+    _, invoke = get_invoke("single_invoke_two_kernels.f90", "gocean1.0", 0,
+                           dist_mem=False)
     Profiler.add_profile_nodes(invoke.schedule, Loop)
 
     # Convert the invoke to code, and remove all new lines, to make
@@ -268,7 +194,7 @@ def test_unique_region_names():
 
     Profiler.set_options([Profiler.KERNELS])
     _, invoke = get_invoke("single_invoke_two_identical_kernels.f90",
-                           "gocean1.0", 0)
+                           "gocean1.0", 0, dist_mem=False)
     Profiler.add_profile_nodes(invoke.schedule, Loop)
 
     # Convert the invoke to code, and remove all new lines, to make
@@ -312,7 +238,7 @@ def test_profile_kernels_gocean1p0():
     '''
     Profiler.set_options([Profiler.KERNELS])
     _, invoke = get_invoke("single_invoke_two_kernels.f90", "gocean1.0",
-                           idx=0)
+                           idx=0, dist_mem=False)
     Profiler.add_profile_nodes(invoke.schedule, Loop)
 
     # Convert the invoke to code, and remove all new lines, to make
@@ -366,7 +292,7 @@ def test_profile_named_gocean1p0():
     schedule = invoke.schedule
     profile_trans = ProfileTrans()
     options = {"region_name": (psy.name, invoke.name)}
-    _ = profile_trans.apply(schedule.children, options=options)
+    profile_trans.apply(schedule.children, options=options)
     result = str(invoke.gen())
     assert ("CALL profile_psy_data%PreStart("
             "\"psy_single_invoke_different_iterates_over\", "
@@ -505,22 +431,19 @@ def test_profile_named_dynamo0p3():
     schedule = invoke.schedule
     profile_trans = ProfileTrans()
     options = {"region_name": (psy.name, invoke.name)}
-    _, _ = profile_trans.apply(schedule.children, options=options)
+    profile_trans.apply(schedule.children, options=options)
     result = str(invoke.gen())
     assert ("CALL profile_psy_data%PreStart(\"single_invoke_psy\", "
             "\"invoke_0_testkern_type\", 0, 0)") in result
 
 
 # -----------------------------------------------------------------------------
-def test_transform(capsys):
+def test_transform():
     '''Tests normal behaviour of profile region transformation.'''
 
-    # pylint: disable=too-many-locals
     _, invoke = get_invoke("test27_loop_swap.f90", "gocean1.0",
                            name="invoke_loop1", dist_mem=False)
     schedule = invoke.schedule
-    # This test expects constant loop bounds
-    schedule._const_loop_bounds = True
 
     prt = ProfileTrans()
     assert str(prt) == "Create a sub-tree of the PSyIR that has " \
@@ -528,148 +451,39 @@ def test_transform(capsys):
     assert prt.name == "ProfileTrans"
 
     # Try applying it to a list
-    sched1, _ = prt.apply(schedule.children)
+    previous_first_node = schedule[0]
+    prt.apply(schedule.children)
 
-    correct = ("""GOInvokeSchedule[invoke='invoke_loop1', \
-Constant loop bounds=True]:
-ProfileStart[var=profile_psy_data]
-GOLoop[id:'', variable:'j', loop_type:'outer']
-Literal[value:'2', Scalar<INTEGER, UNDEFINED>]
-Literal[value:'jstop', Scalar<INTEGER, UNDEFINED>]
-Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
-Schedule:
-GOLoop[id:'', variable:'i', loop_type:'inner']
-Literal[value:'2', Scalar<INTEGER, UNDEFINED>]
-Literal[value:'istop', Scalar<INTEGER, UNDEFINED>]
-Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
-Schedule:
-kern call: bc_ssh_code
-End Schedule
-End GOLoop
-End Schedule
-End GOLoop
-GOLoop[id:'', variable:'j', loop_type:'outer']
-Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
-Literal[value:'jstop+1', Scalar<INTEGER, UNDEFINED>]
-Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
-Schedule:
-GOLoop[id:'', variable:'i', loop_type:'inner']
-Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
-Literal[value:'istop', Scalar<INTEGER, UNDEFINED>]
-Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
-Schedule:
-kern call: bc_solid_u_code
-End Schedule
-End GOLoop
-End Schedule
-End GOLoop
-GOLoop[id:'', variable:'j', loop_type:'outer']
-Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
-Literal[value:'jstop', Scalar<INTEGER, UNDEFINED>]
-Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
-Schedule:
-GOLoop[id:'', variable:'i', loop_type:'inner']
-Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
-Literal[value:'istop+1', Scalar<INTEGER, UNDEFINED>]
-Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
-Schedule:
-kern call: bc_solid_v_code
-End Schedule
-End GOLoop
-End Schedule
-End GOLoop
-ProfileEnd
-End Schedule""")
-    assert correct in str(sched1)
+    # It has now a ProfileNode with the previous content inside
+    assert isinstance(schedule[0], ProfileNode)
+    assert isinstance(schedule[0].children[0], Schedule)
+    assert schedule[0].children[0][0] is previous_first_node
 
     # Now only wrap a single node - the middle loop:
-    sched2, _ = prt.apply(schedule[0].profile_body[1])
+    previous_first_node = schedule[0].psy_data_body[1]
+    prt.apply(schedule[0].psy_data_body[1])
 
-    correct = ("""GOInvokeSchedule[invoke='invoke_loop1', \
-Constant loop bounds=True]:
-ProfileStart[var=profile_psy_data]
-GOLoop[id:'', variable:'j', loop_type:'outer']
-Literal[value:'2', Scalar<INTEGER, UNDEFINED>]
-Literal[value:'jstop', Scalar<INTEGER, UNDEFINED>]
-Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
-Schedule:
-GOLoop[id:'', variable:'i', loop_type:'inner']
-Literal[value:'2', Scalar<INTEGER, UNDEFINED>]
-Literal[value:'istop', Scalar<INTEGER, UNDEFINED>]
-Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
-Schedule:
-kern call: bc_ssh_code
-End Schedule
-End GOLoop
-End Schedule
-End GOLoop
-ProfileStart[var=profile_psy_data_1]
-GOLoop[id:'', variable:'j', loop_type:'outer']
-Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
-Literal[value:'jstop+1', Scalar<INTEGER, UNDEFINED>]
-Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
-Schedule:
-GOLoop[id:'', variable:'i', loop_type:'inner']
-Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
-Literal[value:'istop', Scalar<INTEGER, UNDEFINED>]
-Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
-Schedule:
-kern call: bc_solid_u_code
-End Schedule
-End GOLoop
-End Schedule
-End GOLoop
-ProfileEnd
-GOLoop[id:'', variable:'j', loop_type:'outer']
-Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
-Literal[value:'jstop', Scalar<INTEGER, UNDEFINED>]
-Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
-Schedule:
-GOLoop[id:'', variable:'i', loop_type:'inner']
-Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
-Literal[value:'istop+1', Scalar<INTEGER, UNDEFINED>]
-Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
-Schedule:
-kern call: bc_solid_v_code
-End Schedule
-End GOLoop
-End Schedule
-End GOLoop
-ProfileEnd
-End Schedule""")
-    assert correct in str(sched2)
+    assert isinstance(schedule[0].psy_data_body[1], ProfileNode)
+    assert isinstance(schedule[0].psy_data_body[1].children[0], Schedule)
+    assert schedule[0].psy_data_body[1].children[0][0] is previous_first_node
 
     # Check that a sublist created from individual elements
     # can be wrapped
-    sched3, _ = prt.apply([sched2[0].profile_body[0],
-                           sched2[0].profile_body[1]])
-    sched3.view()
-    out, _ = capsys.readouterr()
+    sched = invoke.schedule
+    prt.apply([sched[0].psy_data_body[0], sched[0].psy_data_body[1]])
 
-    gsched = colored("GOInvokeSchedule", SCHEDULE_COLOUR_MAP["Schedule"])
-    prof = colored("Profile", SCHEDULE_COLOUR_MAP["Profile"])
-    sched = colored("Schedule", SCHEDULE_COLOUR_MAP["Schedule"])
-    loop = colored("Loop", SCHEDULE_COLOUR_MAP["Loop"])
-
-    indent = 4*" "
-    correct = (gsched+"[invoke='invoke_loop1', Constant loop bounds=True]\n" +
-               indent + "0: " + prof + "[]\n" +
-               2*indent + sched + "[]\n" +
-               3*indent + "0: " + prof + "[]\n" +
-               4*indent + sched + "[]\n" +
-               5*indent + "0: " + loop + "[type='outer', field_space='go_ct',"
-               " it_space='go_internal_pts']\n")
-    assert correct in out
-    correct2 = (5*indent + "1: " + prof + "[]\n" +
-                6*indent + sched + "[]\n" +
-                7*indent + "0: " + loop + "[type='outer', field_space='go_cu',"
-                " it_space='go_all_pts']\n")
-    assert correct2 in out
+    assert isinstance(schedule[0].psy_data_body[0], ProfileNode)
+    content = schedule[0].psy_data_body[0].children[0].children
+    assert len(content) == 2
+    assert isinstance(content[0], Loop)
+    assert isinstance(content[1], ProfileNode)
 
 
 # -----------------------------------------------------------------------------
-def test_transform_errors(capsys):
-    '''Tests error handling of the profile region transformation.'''
+def test_transform_errors():
+    '''Tests error handling of the profile region transformation. Most of
+    it is already covered in PSyDataTrans, but we need also to verify
+    that the right transformation and node name is used.'''
 
     # This has been imported and tested before, so we can assume
     # here that this all works as expected/
@@ -680,11 +494,10 @@ def test_transform_errors(capsys):
     prt = ProfileTrans()
 
     # Just to be sure: also check that the right order does indeed work!
-    sched1, _ = prt.apply([schedule.children[0],
-                           schedule.children[1],
-                           schedule.children[2]])
-    sched1.view()
-    out, _ = capsys.readouterr()
+    prt.apply([schedule.children[0],
+               schedule.children[1],
+               schedule.children[2]])
+    out = schedule.view()
     # out is unicode, and has no replace function, so convert to string first
     out = str(out).replace("\n", "")
 
@@ -705,19 +518,20 @@ def test_transform_errors(capsys):
     omp_loop = GOceanOMPLoopTrans()
 
     # Parallelise the first loop:
-    sched1, _ = omp_loop.apply(schedule[0])
+    omp_loop.apply(schedule[0])
 
     # Inserting a ProfileTrans inside a omp do loop is syntactically
     # incorrect, the inner part must be a do loop only:
     with pytest.raises(TransformationError) as excinfo:
-        prt.apply(sched1[0].dir_body[0])
+        prt.apply(invoke.schedule[0].dir_body[0])
 
     assert "A PSyData node cannot be inserted between an OpenMP/ACC "\
            "directive and the loop(s) to which it applies!" \
            in str(excinfo.value)
 
+    # Make sure the error message contains ProfileTrans
     with pytest.raises(TransformationError) as excinfo:
-        prt.apply(sched1[0], {"region_name": "xx"})
+        prt.apply(invoke.schedule[0], {"region_name": "xx"})
     assert "Error in ProfileTrans. User-supplied region name must be a " \
         "tuple containing two non-empty strings" in str(excinfo.value)
 
@@ -734,17 +548,17 @@ def test_region():
     schedule = invoke.schedule
     prt = ProfileTrans()
     # Just halo exchanges.
-    _ = prt.apply(schedule[0:4])
+    prt.apply(schedule[0:4])
     # Two loops.
-    _ = prt.apply(schedule[1:3])
+    prt.apply(schedule[1:3])
     result = str(invoke.gen())
     assert ("CALL profile_psy_data%PreStart(\"multi_functions_multi_invokes_"
             "psy\", \"invoke_0:r0\", 0, 0)" in result)
     assert ("CALL profile_psy_data_1%PreStart(\"multi_functions_multi_"
             "invokes_psy\", \"invoke_0:r1\", 0, 0)" in result)
     # Make nested profiles.
-    _ = prt.apply(schedule[1].profile_body[1])
-    _ = prt.apply(schedule)
+    prt.apply(schedule[1].psy_data_body[1])
+    prt.apply(schedule)
     result = str(invoke.gen())
     assert ("CALL profile_psy_data_3%PreStart(\"multi_functions_multi_"
             "invokes_psy\", \"invoke_0:r0\", 0, 0)" in result)
@@ -757,6 +571,50 @@ def test_region():
 
 
 # -----------------------------------------------------------------------------
+def test_multi_prefix_profile(monkeypatch):
+    ''' Tests that the profiling transform works correctly when we use two
+    different profiling tools in the same invoke.
+
+    '''
+    _, invoke = get_invoke("3.1_multi_functions_multi_invokes.f90",
+                           "dynamo0.3", name="invoke_0", dist_mem=True)
+    schedule = invoke.schedule
+    prt = ProfileTrans()
+    config = Config.get()
+    # Monkeypatch the list of recognised PSyData prefixes
+    monkeypatch.setattr(config, "_valid_psy_data_prefixes",
+                        ["profile", "tool1"])
+    # Use the 'tool1' prefix for the region around the halo exchanges.
+    prt.apply(schedule[0:4], options={"prefix": "tool1"})
+    # Use the default prefix for the two loops.
+    prt.apply(schedule[1:3])
+    result = str(invoke.gen())
+
+    assert ("      USE profile_psy_data_mod, ONLY: profile_PSyDataType\n" in
+            result)
+    assert "      USE tool1_psy_data_mod, ONLY: tool1_PSyDataType" in result
+    assert ("      TYPE(profile_PSyDataType), target, save :: "
+            "profile_psy_data\n"
+            "      TYPE(tool1_PSyDataType), target, save :: tool1_psy_data"
+            in result)
+    assert ("      ! Call kernels and communication routines\n"
+            "      !\n"
+            "      CALL tool1_psy_data%PreStart(\"multi_functions_multi_"
+            "invokes_psy\", \"invoke_0:r0\", 0, 0)\n"
+            "      IF (f1_proxy%is_dirty(depth=1)) THEN\n" in result)
+    assert "loop0_stop = mesh%get_last_halo_cell(1)\n" in result
+    assert "loop2_stop = mesh%get_last_halo_cell(1)\n" in result
+    assert ("      CALL tool1_psy_data%PostEnd\n"
+            "      CALL profile_psy_data%PreStart(\"multi_functions_multi_"
+            "invokes_psy\", \"invoke_0:r1\", 0, 0)\n"
+            "      DO cell=loop0_start,loop0_stop\n" in result)
+    assert ("      CALL f1_proxy%set_dirty()\n"
+            "      !\n"
+            "      CALL profile_psy_data%PostEnd\n"
+            "      DO cell=loop2_start,loop2_stop\n" in result)
+
+
+# -----------------------------------------------------------------------------
 def test_omp_transform():
     '''Tests that the profiling transform works correctly with OMP
      parallelisation.'''
@@ -764,25 +622,23 @@ def test_omp_transform():
     _, invoke = get_invoke("test27_loop_swap.f90", "gocean1.0",
                            name="invoke_loop1", dist_mem=False)
     schedule = invoke.schedule
-    # This test expects constant loop bounds
-    schedule._const_loop_bounds = True
 
     prt = ProfileTrans()
     omp_loop = GOceanOMPLoopTrans()
     omp_par = OMPParallelTrans()
 
     # Parallelise the first loop:
-    sched1, _ = omp_loop.apply(schedule[0])
-    sched2, _ = omp_par.apply(sched1[0])
-    sched3, _ = prt.apply(sched2[0])
+    omp_loop.apply(schedule[0])
+    omp_par.apply(schedule[0])
+    prt.apply(schedule[0])
 
     correct = (
         "      CALL profile_psy_data%PreStart(\"psy_test27_loop_swap\", "
         "\"invoke_loop1:bc_ssh_code:r0\", 0, 0)\n"
         "      !$omp parallel default(shared), private(i,j)\n"
         "      !$omp do schedule(static)\n"
-        "      DO j=2,jstop\n"
-        "        DO i=2,istop\n"
+        "      DO j=t%internal%ystart,t%internal%ystop\n"
+        "        DO i=t%internal%xstart,t%internal%xstop\n"
         "          CALL bc_ssh_code(i, j, 1, t%data, t%grid%tmask)\n"
         "        END DO\n"
         "      END DO\n"
@@ -794,7 +650,7 @@ def test_omp_transform():
 
     # Now add another profile node between the omp parallel and omp do
     # directives:
-    sched3, _ = prt.apply(sched3[0].profile_body[0].dir_body[0])
+    prt.apply(schedule[0].psy_data_body[0].dir_body[0])
 
     code = str(invoke.gen())
 
@@ -805,8 +661,8 @@ def test_omp_transform():
       CALL profile_psy_data_1%PreStart("psy_test27_loop_swap", ''' + \
         '''"invoke_loop1:bc_ssh_code:r1", 0, 0)
       !$omp do schedule(static)
-      DO j=2,jstop
-        DO i=2,istop
+      DO j=t%internal%ystart,t%internal%ystop
+        DO i=t%internal%xstart,t%internal%xstop
           CALL bc_ssh_code(i, j, 1, t%data, t%grid%tmask)
         END DO
       END DO
@@ -818,7 +674,7 @@ def test_omp_transform():
     assert correct in code
 
 
-def test_auto_invoke_return_last_stmt(parser):
+def test_auto_invoke_return_last_stmt():
     ''' Check that using the auto-invoke profiling option avoids including
     a return statement within the profiling region if it is the last statement
     in the routine. '''
@@ -840,7 +696,7 @@ def test_auto_invoke_return_last_stmt(parser):
     assert isinstance(kschedule[1], Return)
 
 
-def test_auto_invoke_no_return(parser, capsys):
+def test_auto_invoke_no_return(capsys):
     ''' Check that using the auto-invoke profiling option does not add any
     profiling if the invoke contains a Return anywhere other than as the
     last statement. '''
@@ -850,7 +706,7 @@ def test_auto_invoke_no_return(parser, capsys):
         symbol_type=DataSymbol, datatype=REAL_TYPE)
     zero = Literal("0.0", REAL_TYPE)
     assign1 = Assignment.create(Reference(arg1), zero)
-    assign2 = Assignment.create(Reference(arg1), zero)
+    assign2 = Assignment.create(Reference(arg1), zero.copy())
 
     # Create Schedule with Return at the start.
     kschedule = KernelSchedule.create(
@@ -864,20 +720,37 @@ def test_auto_invoke_no_return(parser, capsys):
 
     # Create Schedule with Return in the middle.
     kschedule = KernelSchedule.create(
-        "work2", symbol_table, [assign1, Return(), assign2])
+        "work1", symbol_table.deep_copy(),
+        [assign1.copy(), Return(), assign2.copy()])
     Profiler.add_profile_nodes(kschedule, Loop)
     # No profiling should have been added
     assert not kschedule.walk(ProfileNode)
     _, err = capsys.readouterr()
-    assert ("Not adding profiling to routine 'work2' because it contains one "
+    assert ("Not adding profiling to routine 'work1' because it contains one "
             "or more Return statements" in err)
 
     # Create Schedule with a Return at the end as well as in the middle.
     kschedule = KernelSchedule.create(
-        "work3", symbol_table, [assign1, Return(), assign2, Return()])
+        "work1", symbol_table.deep_copy(),
+        [assign1.copy(), Return(), assign2.copy(), Return()])
     Profiler.add_profile_nodes(kschedule, Loop)
     # No profiling should have been added
     assert not kschedule.walk(ProfileNode)
     _, err = capsys.readouterr()
-    assert ("Not adding profiling to routine 'work3' because it contains one "
+    assert ("Not adding profiling to routine 'work1' because it contains one "
             "or more Return statements" in err)
+
+
+def test_auto_invoke_empty_schedule(capsys):
+    ''' Check the auto-invoke profiling option rejects an empty Schedule, i.e
+    the routine has no statements. '''
+    Profiler.set_options([Profiler.INVOKES])
+    symbol_table = SymbolTable()
+    # Create Schedule with Return at the start.
+    kschedule = KernelSchedule.create(
+        "work1", symbol_table, [])
+    Profiler.add_profile_nodes(kschedule, Loop)
+    assert not kschedule.walk(ProfileNode)
+    _, err = capsys.readouterr()
+    assert ("Not adding profiling to routine 'work1' because it does not "
+            "contain any statements." in err)

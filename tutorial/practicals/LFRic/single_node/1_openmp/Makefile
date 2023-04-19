@@ -33,14 +33,22 @@
 # ------------------------------------------------------------------------------
 # Author: A. R. Porter and R. W. Ford, STFC Daresbury Lab
 
-.PHONY: test
+include ../../../../common.mk
 
-test:
-	psyclone -oalg /dev/null -opsy /dev/null -s ./omp_script.py ../code/helmholtz_solver_alg_mod.x90
-	psyclone -oalg /dev/null -opsy /dev/null -s ./omp_script.py ../code/helmholtz_solver_alg_mod.x90 --config psyclone.cfg
-	psyclone -oalg /dev/null -opsy /dev/null -s ./omp_script.py helmholtz_solver_alg_mod.x90 -d ../code
-	psyclone -oalg /dev/null -opsy /dev/null -s solutions/omp_script.py ../code/helmholtz_solver_alg_mod.x90
-	psyclone -oalg /dev/null -opsy /dev/null -s solutions/omp_script.py helmholtz_solver_alg_mod.x90 -d ../code
+transform:
+	$(PSYCLONE) -oalg /dev/null -opsy /dev/null -s ./omp_script.py ../code/helmholtz_solver_alg_mod.x90
+	psyclone    -oalg /dev/null -opsy /dev/null -s ./omp_script.py ../code/helmholtz_solver_alg_mod.x90 --config psyclone.cfg
+	$(PSYCLONE) -oalg /dev/null -opsy /dev/null -s ./omp_script.py helmholtz_solver_alg_mod.x90 -d ../code
+	$(PSYCLONE) -oalg /dev/null -opsy /dev/null -s solutions/omp_script.py ../code/helmholtz_solver_alg_mod.x90
+	$(PSYCLONE) -oalg /dev/null -opsy /dev/null -s solutions/omp_script.py helmholtz_solver_alg_mod.x90 -d ../code
+
+compile: transform
+	@echo "No compilation supported for tutorial/lfric/single_node/1_openmp"
+
+run: compile
+	@echo "No run targets for tutorial/lfric/single_node/1_openmp"
 
 clean:
 	rm -f psy.f90
+
+allclean: clean

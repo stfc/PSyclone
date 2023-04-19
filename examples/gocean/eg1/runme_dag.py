@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2018, Science and Technology Facilities Council
+# Copyright (c) 2017-2022, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
-# Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors: R. W. Ford, A. R. Porter and N. Nobre, STFC Daresbury Lab
 
 '''
 A simple script showing the use of PSyclone to generate a Directed
@@ -75,7 +75,7 @@ PSY = PSyFactory(API).create(INVOKEINFO)
 
 # Print the Schedule of the first Invoke
 SCHEDULE = PSY.invokes.get('invoke_0').schedule
-SCHEDULE.view()
+print(SCHEDULE.view())
 print("\n")
 
 # Generate a DAG for it. If graphviz is not available this call just
@@ -84,7 +84,7 @@ DAG_NAME = "invoke_0_dag"
 SCHEDULE.dag(file_name=DAG_NAME, file_format="png")
 DAG_NAME += ".png"
 if os.path.isfile(os.path.join(os.getcwd(), DAG_NAME)):
-    print("Wrote DAG to file: {0}".format(DAG_NAME))
+    print(f"Wrote DAG to file: {DAG_NAME}")
 else:
     print("Failed to generate DAG image. Do you have the graphviz library "
           "and Python\nbindings installed?")

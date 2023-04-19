@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2021, Science and Technology Facilities Council.
+# Copyright (c) 2019-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -38,22 +38,24 @@
 
 ''' Performs py.test tests on the Assignment PSyIR node. '''
 
-from __future__ import absolute_import
 import pytest
-from psyclone.psyir.nodes import Assignment, Reference, Literal, \
-    ArrayReference, Range
-from psyclone.psyir.symbols import DataSymbol, REAL_SINGLE_TYPE, \
-    INTEGER_SINGLE_TYPE, REAL_TYPE, ArrayType, INTEGER_TYPE
 from psyclone.errors import InternalError, GenerationError
+from psyclone.f2pygen import ModuleGen
 from psyclone.psyir.backend.fortran import FortranWriter
+from psyclone.psyir.nodes import Assignment, Reference, Literal, \
+    ArrayReference, Range, BinaryOperation, StructureReference, \
+    ArrayOfStructuresReference, UnaryOperation, IntrinsicCall
+from psyclone.psyir.nodes.node import colored
+from psyclone.psyir.symbols import DataSymbol, REAL_SINGLE_TYPE, Symbol, \
+    INTEGER_SINGLE_TYPE, REAL_TYPE, ArrayType, INTEGER_TYPE, StructureType, \
+    DataTypeSymbol
 from psyclone.tests.utilities import check_links
-from psyclone.psyir.nodes.node import colored, SCHEDULE_COLOUR_MAP
 
 
 def test_assignment_node_str():
     ''' Check the node_str method of the Assignment class.'''
     assignment = Assignment()
-    coloredtext = colored("Assignment", SCHEDULE_COLOUR_MAP["Assignment"])
+    coloredtext = colored("Assignment", Assignment._colour)
     assert coloredtext+"[]" in assignment.node_str()
 
 
@@ -75,7 +77,7 @@ def test_assignment_semantic_navigation():
     assert "' malformed or incomplete. It needs at least 1 child to have " \
         "a lhs." in str(err.value)
 
-    ref = Reference(DataSymbol("a", REAL_SINGLE_TYPE), assignment)
+    ref = Reference(DataSymbol("a", REAL_SINGLE_TYPE), parent=assignment)
     assignment.addchild(ref)
 
     # rhs should fail if second child is not present
@@ -131,30 +133,213 @@ def test_assignment_children_validation():
             " is: 'DataNode, DataNode'.") in str(excinfo.value)
 
 
-def test_is_array_range():
-    '''test that the is_array_range method behaves as expected, returning
-    true if the LHS of the assignment is an array range access and
-    false otherwise.
+def test_is_array_assignment():
+    '''test that the is_array_assignment method behaves as expected,
+    returning true if the LHS of the assignment has an array range
+    access.
 
     '''
     one = Literal("1.0", REAL_TYPE)
     int_one = Literal("1", INTEGER_TYPE)
+    int_ten = Literal("10", INTEGER_TYPE)
+
+    # lhs is an array reference with a range
+    array_type = ArrayType(REAL_TYPE, [10, 10])
+    symbol = DataSymbol("x", array_type)
+    x_range = Range.create(int_one, int_ten.copy(), int_one.copy())
+    array_ref = ArrayReference.create(symbol, [x_range, int_one.copy()])
+    assignment = Assignment.create(array_ref, one.copy())
+    assert assignment.is_array_assignment is True
+
+    # Check when lhs consists of various forms of structure access
+    grid_type = StructureType.create([
+        ("dx", REAL_SINGLE_TYPE, Symbol.Visibility.PUBLIC),
+        ("dy", REAL_SINGLE_TYPE, Symbol.Visibility.PUBLIC)])
+    grid_type_symbol = DataTypeSymbol("grid_type", grid_type)
+    # Create the definition of the 'field_type', contains array of grid_types
+    field_type_def = StructureType.create(
+        [("data", ArrayType(REAL_SINGLE_TYPE, [10]), Symbol.Visibility.PUBLIC),
+         ("sub_meshes", ArrayType(grid_type_symbol, [3]),
+          Symbol.Visibility.PUBLIC)])
+    field_type_symbol = DataTypeSymbol("field_type", field_type_def)
+    field_symbol = DataSymbol("wind", field_type_symbol)
+
+    # Array reference to component of derived type using a range
+    lbound = BinaryOperation.create(
+        BinaryOperation.Operator.LBOUND,
+        StructureReference.create(field_symbol, ["data"]), int_one.copy())
+    ubound = BinaryOperation.create(
+        BinaryOperation.Operator.UBOUND,
+        StructureReference.create(field_symbol, ["data"]), int_one.copy())
+    my_range = Range.create(lbound, ubound)
+
+    data_ref = StructureReference.create(field_symbol, [("data", [my_range])])
+    assign = Assignment.create(data_ref, one.copy())
+    assert assign.is_array_assignment is True
+
+    # Access to slice of 'sub_meshes': wind%sub_meshes(1:3)%dx = 1.0
+    sub_range = Range.create(int_one.copy(), Literal("3", INTEGER_TYPE))
+    dx_ref = StructureReference.create(field_symbol, [("sub_meshes",
+                                                       [sub_range]), "dx"])
+    sub_assign = Assignment.create(dx_ref, one.copy())
+    assert sub_assign.is_array_assignment is True
+
+    # Create an array of these derived types and assign to a slice:
+    # chi(1:10)%data(1) = 1.0
+    field_bundle_symbol = DataSymbol("chi", ArrayType(field_type_symbol, [3]))
+    fld_range = Range.create(int_one.copy(), Literal("10", INTEGER_TYPE))
+    fld_ref = ArrayOfStructuresReference.create(field_bundle_symbol,
+                                                [fld_range],
+                                                [("data", [int_one.copy()])])
+    fld_assign = Assignment.create(fld_ref, one.copy())
+    assert fld_assign.is_array_assignment is True
+
+    # When the slice has two operator ancestors, none of which are a reduction
+    # e.g y(1, INT(ABS(map(:, 1)))) = 1.0
+    int_array_type = ArrayType(INTEGER_SINGLE_TYPE, [10, 10])
+    map_sym = DataSymbol("map", int_array_type)
+    lbound1 = BinaryOperation.create(
+        BinaryOperation.Operator.LBOUND,
+        Reference(map_sym), int_one.copy())
+    ubound1 = BinaryOperation.create(
+        BinaryOperation.Operator.UBOUND,
+        Reference(map_sym), int_one.copy())
+    my_range1 = Range.create(lbound1, ubound1)
+    abs_op = UnaryOperation.create(UnaryOperation.Operator.ABS,
+                                   ArrayReference.create(map_sym,
+                                                         [my_range1,
+                                                          int_one.copy()]))
+    int_op = UnaryOperation.create(UnaryOperation.Operator.INT, abs_op)
+    assignment = Assignment.create(
+        ArrayReference.create(symbol, [int_one.copy(), int_op]),
+        one.copy())
+    assert assignment.is_array_assignment is True
+
+
+def test_array_assignment_with_reduction(monkeypatch):
+    '''Test that we correctly identify an array assignment when it is the
+    result of a reduction from an array that returns an array. Test
+    when we need to look up the PSyIR tree through multiple intrinsics
+    from the array access to find the reduction. We have to
+    monkeypatch SUM in this example to stop it being a reduction as
+    all IntrinsicCalls that are valid within an assignment are
+    currently reductions. When additional intrinsics are added (see
+    issue #1987) this test can be modified and monkeypatch
+    removed. The example is: x(1, MAXVAL(SUM(map(:, :), dim=1))) = 1.0
+
+    '''
+    one = Literal("1.0", REAL_TYPE)
+    int_one = Literal("1", INTEGER_TYPE)
+    int_two = Literal("2", INTEGER_TYPE)
+    int_array_type = ArrayType(INTEGER_SINGLE_TYPE, [10, 10])
+    map_sym = DataSymbol("map", int_array_type)
+    array_type = ArrayType(REAL_TYPE, [10, 10])
+    symbol = DataSymbol("x", array_type)
+    lbound1 = BinaryOperation.create(
+        BinaryOperation.Operator.LBOUND,
+        Reference(map_sym), int_one.copy())
+    ubound1 = BinaryOperation.create(
+        BinaryOperation.Operator.UBOUND,
+        Reference(map_sym), int_one.copy())
+    my_range1 = Range.create(lbound1, ubound1)
+    lbound2 = BinaryOperation.create(
+        BinaryOperation.Operator.LBOUND,
+        Reference(map_sym), int_two.copy())
+    ubound2 = BinaryOperation.create(
+        BinaryOperation.Operator.UBOUND,
+        Reference(map_sym), int_two.copy())
+    my_range2 = Range.create(lbound2, ubound2)
+    bsum_op = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.SUM,
+        [ArrayReference.create(map_sym, [my_range1, my_range2]),
+         ("dim", int_one.copy())])
+    maxval_op = IntrinsicCall.create(IntrinsicCall.Intrinsic.MAXVAL, [bsum_op])
+    assignment = Assignment.create(
+        ArrayReference.create(symbol, [int_one.copy(), maxval_op]),
+        one.copy())
+    monkeypatch.setattr(
+        bsum_op, "_intrinsic", IntrinsicCall.Intrinsic.ALLOCATE)
+    if not assignment.is_array_assignment:
+        # is_array_assignment should return True
+        pytest.xfail(reason="#658 needs typing of PSyIR expressions")
+
+
+def test_is_not_array_assignment():
+    '''Test that is_array_assignment correctly rejects things that aren't
+    an assignment to an array range.
+
+    '''
+    int_one = Literal("1", INTEGER_SINGLE_TYPE)
+    one = Literal("1.0", REAL_TYPE)
     var = DataSymbol("x", REAL_TYPE)
     reference = Reference(var)
 
     # lhs is not an array
     assignment = Assignment.create(reference, one)
-    assert not assignment.is_array_range
+    assert assignment.is_array_assignment is False
 
     # lhs is an array reference but has no range
     array_type = ArrayType(REAL_TYPE, [10, 10])
-    symbol = DataSymbol("x", array_type)
-    array_ref = ArrayReference(symbol, [1, 3])
-    assignment = Assignment.create(array_ref, one)
-    assert not assignment.is_array_range
+    symbol = DataSymbol("y", array_type)
+    array_ref = Reference(symbol)
+    assignment = Assignment.create(array_ref, one.copy())
+    assert assignment.is_array_assignment is False
 
-    # lhs is an array reference with a range
-    my_range = Range.create(int_one, int_one, int_one)
-    array_ref = ArrayReference.create(symbol, [my_range, int_one])
-    assignment = Assignment.create(array_ref, one)
-    assert assignment.is_array_range
+    # lhs is an array reference but the single index value is obtained
+    # using an array range, y(1, SUM(map(:), 1)) = 1.0
+    int_array_type = ArrayType(INTEGER_SINGLE_TYPE, [10])
+    map_sym = DataSymbol("map", int_array_type)
+    start = BinaryOperation.create(BinaryOperation.Operator.LBOUND,
+                                   Reference(map_sym), int_one.copy())
+    stop = BinaryOperation.create(BinaryOperation.Operator.UBOUND,
+                                  Reference(map_sym), int_one.copy())
+    my_range = Range.create(start, stop)
+    sum_op = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.SUM,
+        [ArrayReference.create(map_sym, [my_range]), ("dim", int_one.copy())])
+    assignment = Assignment.create(
+        ArrayReference.create(symbol, [int_one.copy(), sum_op]),
+        one.copy())
+    assert assignment.is_array_assignment is False
+
+    # When the slice has two operator ancestors, one of which is a reduction
+    # e.g y(1, SUM(ABS(map(:)), 1)) = 1.0
+    abs_op = UnaryOperation.create(UnaryOperation.Operator.ABS,
+                                   ArrayReference.create(map_sym,
+                                                         [my_range.copy()]))
+    sum_op2 = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.SUM, [abs_op, ("dim", int_one.copy())])
+    assignment = Assignment.create(
+        ArrayReference.create(symbol, [int_one.copy(), sum_op2]),
+        one.copy())
+    assert assignment.is_array_assignment is False
+
+    # lhs is a scalar member of a structure
+    grid_type = StructureType.create([
+        ("dx", REAL_SINGLE_TYPE, Symbol.Visibility.PUBLIC),
+        ("dy", REAL_SINGLE_TYPE, Symbol.Visibility.PUBLIC)])
+    grid_type_symbol = DataTypeSymbol("grid_type", grid_type)
+    grid_sym = DataSymbol("grid", grid_type_symbol)
+    assignment = Assignment.create(StructureReference.create(grid_sym, ["dx"]),
+                                   one.copy())
+    assert assignment.is_array_assignment is False
+
+
+def test_assignment_gen_code():
+    '''Test that the gen_code method in the Assignment class produces the
+    expected Fortran code.
+
+    TODO #1648: This is just needed for coverage of the gen_code, that in turn
+    is needed because another test (profiling_node tests) uses it. But gen_code
+    is deprecated and this test should be removed when the gen_code is not used
+    in any other test.
+
+    '''
+    lhs = Reference(DataSymbol("tmp", REAL_SINGLE_TYPE))
+    rhs = Literal("0.0", REAL_SINGLE_TYPE)
+    assignment = Assignment.create(lhs, rhs)
+    check_links(assignment, [lhs, rhs])
+    module = ModuleGen("test")
+    assignment.gen_code(module)
+    code = str(module.root)
+    assert "tmp = 0.0\n" in code

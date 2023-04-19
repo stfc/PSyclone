@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2020, Science and Technology Facilities Council
+# Copyright (c) 2019-2022, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author S. Siso, STFC Daresbury Lab.
-# Modified A. R. Porter and R. W. Ford, STFC Daresbury Lab.
+# Modified A. R. Porter, R. W. Ford and N. Nobre, STFC Daresbury Lab.
 
 '''OpenCL PSyIR backend. Extends the C PSyIR back-end to generate
 OpenCL code from PSyIR nodes.
@@ -41,7 +41,8 @@ OpenCL code from PSyIR nodes.
 
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.backend.c import CWriter
-from psyclone.psyir.symbols import ScalarType
+from psyclone.psyir.nodes import Literal
+from psyclone.psyir.symbols import ScalarType, ArrayType
 
 
 class OpenCLWriter(CWriter):
@@ -53,9 +54,8 @@ class OpenCLWriter(CWriter):
     is raised if a visitor method for a PSyIR node has not been \
     implemented, otherwise the visitor silently continues. This is an \
     optional argument which defaults to False.
-    :param indent_string: specifies what to use for indentation. This \
+    :param str indent_string: specifies what to use for indentation. This \
     is an optional argument that defaults to two spaces.
-    :type indent_string: str or NoneType
     :param int initial_indent_depth: specifies how much indentation to \
     start with. This is an optional argument that defaults to 0.
     :param int kernel_local_size: uses the given local_size when generating \
@@ -73,13 +73,13 @@ class OpenCLWriter(CWriter):
 
         if not isinstance(kernels_local_size, int):
             raise TypeError(
-                "kernel_local_size should be an integer but found "
-                "'{0}'.".format(type(kernels_local_size).__name__))
+                f"kernel_local_size should be an integer but found "
+                f"'{type(kernels_local_size).__name__}'.")
 
         if kernels_local_size < 1:
             raise ValueError(
-                "kernel_local_size should be a positive integer but found "
-                "{0}.".format(kernels_local_size))
+                f"kernel_local_size should be a positive integer but found "
+                f"{kernels_local_size}.")
 
         self._kernels_local_size = kernels_local_size
 
@@ -102,8 +102,8 @@ class OpenCLWriter(CWriter):
         if (not isinstance(symbol.datatype, ScalarType) or
                 symbol.datatype.intrinsic != ScalarType.Intrinsic.INTEGER):
             raise VisitorError(
-                "OpenCL work-item identifiers must be scalar integer symbols "
-                "but found {0}.".format(str(symbol)))
+                f"OpenCL work-item identifiers must be scalar integer symbols "
+                f"but found {symbol}.")
 
         code = ""
         code += self._nindent + "int " + symbol.name
@@ -127,9 +127,23 @@ class OpenCLWriter(CWriter):
 
         :returns: The OpenCL declaration of the given of the symbol.
         :rtype: str
+
+        :raises VisitorError: if an array is encountered that does not have \
+                              a lower bound of 1 for all of its dimensions.
         '''
         prefix = ""
         if symbol.shape:
+            for dim in symbol.shape:
+                if not isinstance(dim, ArrayType.ArrayBounds):
+                    continue
+                if (not isinstance(dim.lower, Literal) or
+                        dim.lower.value != "1"):
+                    raise VisitorError(
+                        f"The OpenCL backend only supports arrays with a lower"
+                        f" bound of 1 in each dimension. However, array "
+                        f"'{symbol.name}' has a lower bound of "
+                        f"'{self._visit(dim.lower)}' for dimension "
+                        f"{symbol.shape.index(dim)}")
             prefix += "__global "
         return prefix + super(OpenCLWriter, self).gen_declaration(symbol)
 
@@ -163,10 +177,9 @@ class OpenCLWriter(CWriter):
             # Check there is no clash with other variables
             if symtab and varname in symtab:
                 raise VisitorError(
-                    "Unable to declare the variable '{0}' to store the "
-                    "length of '{1}' because the Symbol Table already "
-                    "contains a symbol with the same name."
-                    "".format(varname, symbol.name))
+                    f"Unable to declare the variable '{varname}' to store the "
+                    f"length of '{symbol.name}' because the Symbol Table "
+                    f"already contains a symbol with the same name.")
 
             code += varname + " = get_global_size("
             code += str(dim - 1) + ");\n"
@@ -209,16 +222,16 @@ class OpenCLWriter(CWriter):
             symbols_txt = ", ".join(
                 ["'" + sym + "'" for sym in unresolved_datasymbols])
             raise VisitorError(
-                "Cannot generate OpenCL because the symbol table contains "
-                "unresolved data entries (i.e. that have no defined Interface)"
-                " which are not used purely to define the precision of other "
-                "symbols: {0}".format(symbols_txt))
+                f"Cannot generate OpenCL because the symbol table contains "
+                f"unresolved data entries (i.e. that have no defined "
+                f"Interface) which are not used purely to define the "
+                f"precision of other symbols: {symbols_txt}")
 
         # Start OpenCL kernel definition
         code = self._nindent
         if self._kernels_local_size != 1:
-            code += "__attribute__((reqd_work_group_size({0}, 1, 1)))\n" \
-                    "".format(self._kernels_local_size)
+            code += f"__attribute__((reqd_work_group_size("\
+                    f"{self._kernels_local_size}, 1, 1)))\n"
         code += "__kernel void " + node.name + "(\n"
         self._depth += 1
         arguments = []

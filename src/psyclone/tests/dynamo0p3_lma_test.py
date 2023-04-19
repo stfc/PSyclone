@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2021 Science and Technology Facilities Council.
+# Copyright (c) 2019-2022 Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,26 +31,30 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors R. W. Ford, A. R. Porter and N. Nobre, STFC Daresbury Lab
 # Modified I. Kavcic, Met Office
 # Modified J. Henrichs, Bureau of Meteorology
 
-''' This module tests the support for LMA operators in the Dynamo 0.3 API
-using pytest. '''
+''' This module tests the support for LMA operators in the LFRic (Dynamo 0.3)
+    API using pytest.
 
-# imports
-from __future__ import absolute_import, print_function
+'''
+
+import copy
 import os
 import pytest
+
 from fparser import api as fpapi
+
 from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
+from psyclone.domain.lfric import LFRicArgDescriptor, LFRicConstants
+from psyclone.dynamo0p3 import (DynFuncDescriptor03, DynKernMetadata,
+                                DynKern, FunctionSpace)
+from psyclone.errors import GenerationError, InternalError
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory
-from psyclone.errors import GenerationError, InternalError
-from psyclone.domain.lfric import LFRicArgDescriptor
-from psyclone.dynamo0p3 import DynKernMetadata, DynKern, FunctionSpace
 from psyclone.tests.lfric_build import LFRicBuild
 
 # constants
@@ -91,6 +95,8 @@ end module testkern_qr
 def setup():
     '''Make sure that all tests here use Dynamo0.3 as API.'''
     Config.get().api = "dynamo0.3"
+    yield
+    Config._instance = None
 
 
 def test_get_op_wrong_name():
@@ -109,12 +115,13 @@ def test_ad_op_type_invalid_data_type():
         "arg_type(gh_operator, gh_clear,    gh_read, w2)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_qr_type"
+    const = LFRicConstants()
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert ("In the LFRic API the 2nd argument of a 'meta_arg' entry should "
-            "be a valid data type (one of ['gh_real', 'gh_integer']), but "
-            "found 'gh_clear' in 'arg_type(gh_operator, gh_clear, gh_read, "
-            "w2)'." in str(excinfo.value))
+    assert (f"In the LFRic API the 2nd argument of a 'meta_arg' entry should "
+            f"be a valid data type (one of {const.VALID_SCALAR_DATA_TYPES}), "
+            f"but found 'gh_clear' in 'arg_type(gh_operator, gh_clear, "
+            f"gh_read, w2)'." in str(excinfo.value))
 
 
 def test_ad_op_type_too_few_args():
@@ -127,10 +134,10 @@ def test_ad_op_type_too_few_args():
     name = "testkern_qr_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert ("'meta_arg' entry must have 5 arguments if its first "
-            "argument is an operator (one of {0})".
-            format(LFRicArgDescriptor.VALID_OPERATOR_NAMES) in
-            str(excinfo.value))
+    const = LFRicConstants()
+    assert (f"'meta_arg' entry must have 5 arguments if its first "
+            f"argument is an operator (one of {const.VALID_OPERATOR_NAMES})"
+            in str(excinfo.value))
 
 
 def test_ad_op_type_too_many_args():
@@ -199,7 +206,7 @@ def test_ad_op_type_init_wrong_argument_type():
     wrong_arg = metadata._inits[1]
     with pytest.raises(InternalError) as excinfo:
         LFRicArgDescriptor(
-            wrong_arg, metadata.iterates_over)._init_operator(wrong_arg)
+            wrong_arg, metadata.iterates_over, 0)._init_operator(wrong_arg)
     assert ("Expected an operator argument but got an argument of type "
             "'gh_field'." in str(excinfo.value))
 
@@ -215,12 +222,12 @@ def test_ad_op_type_init_wrong_data_type():
     op_arg.args[1].name = "gh_integer"
     with pytest.raises(ParseError) as excinfo:
         LFRicArgDescriptor(
-            op_arg, metadata.iterates_over)._init_operator(op_arg)
-    assert ("In the LFRic API the permitted data types for operator "
-            "arguments are one of {0}, but found 'gh_integer' in "
-            "'arg_type(gh_operator, gh_integer, gh_read, w2, w2)'.".
-            format(LFRicArgDescriptor.VALID_OPERATOR_DATA_TYPES) in
-            str(excinfo.value))
+            op_arg, metadata.iterates_over, 0)._init_operator(op_arg)
+    const = LFRicConstants()
+    assert (f"In the LFRic API the allowed data types for operator "
+            f"arguments are one of {const.VALID_OPERATOR_DATA_TYPES}, but "
+            f"found 'gh_integer' in 'arg_type(gh_operator, gh_integer, "
+            f"gh_read, w2, w2)'." in str(excinfo.value))
 
 
 def test_ad_op_type_wrong_access():
@@ -298,9 +305,8 @@ def test_fs_descriptor_wrong_type():
     assert ("'meta_funcs' metadata must consist of an array of structure "
             "constructors, all of type 'func_type'" in str(excinfo.value))
     # Check that the DynFuncDescriptor03 rejects it too
-    from psyclone.dynamo0p3 import DynFuncDescriptor03
 
-    class FakeCls(object):
+    class FakeCls():
         ''' Class that just has a name property (which is not "func_type") '''
         name = "not-func-type"
 
@@ -382,6 +388,81 @@ def test_fsdesc_fs_not_in_argdesc():
         'meta_args' in str(excinfo.value)
 
 
+def test_invoke_uniq_declns_valid_access_op():
+    ''' Tests that all valid access modes for user-defined LMA operator
+    arguments (AccessType.READ, AccessType.WRITE, AccessType.READWRITE)
+    are accepted by Invoke.unique_declarations(). Also tests the
+    correctness of names of arguments and their proxies.
+
+    '''
+    # Test READ
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "4.5.2_multikernel_invokes.f90"),
+        api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    ops_read_args = (psy.invokes.invoke_list[0].unique_declarations(
+        ["gh_operator"], access=AccessType.READ))
+    ops_read = [arg.declaration_name for arg in ops_read_args]
+    ops_proxy_read = [arg.proxy_declaration_name for arg in ops_read_args]
+    assert ops_read == ["op", "op3", "op4", "op5"]
+    assert ops_proxy_read == ["op_proxy", "op3_proxy",
+                              "op4_proxy", "op5_proxy"]
+
+    # Test READWRITE
+    ops_readwritten_args = (psy.invokes.invoke_list[0].unique_declarations(
+        ["gh_operator"], access=AccessType.READWRITE))
+    ops_readwritten = [arg.declaration_name for arg in ops_readwritten_args]
+    ops_proxy_readwritten = [arg.proxy_declaration_name for arg in
+                             ops_readwritten_args]
+    assert ops_readwritten == ["op", "op2"]
+    assert ops_proxy_readwritten == ["op_proxy", "op2_proxy"]
+
+    # Test WRITE
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "11.4_any_discontinuous_space.f90"),
+        api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    ops_written_args = (psy.invokes.invoke_list[0].unique_declarations(
+        ["gh_operator"], access=AccessType.WRITE))
+    ops_written = [arg.declaration_name for arg in ops_written_args]
+    ops_proxy_written = [arg.proxy_declaration_name for arg
+                         in ops_written_args]
+    assert ops_written == ["op4"]
+    assert ops_proxy_written == ["op4_proxy"]
+
+
+def test_operator_arg_lfricconst_properties(monkeypatch):
+    ''' Tests that properties of supported LMA operator arguments
+    ('real'-valued 'operator_type') defined in LFRicConstants are
+    correctly set up in the DynKernelArgument class.
+
+    '''
+    ast = fpapi.parse(CODE, ignore_comments=False)
+    name = "testkern_qr_type"
+    metadata = DynKernMetadata(ast, name=name)
+    kernel = DynKern()
+    kernel.load_meta(metadata)
+
+    op_arg = kernel.arguments.args[3]
+    assert op_arg.module_name == "operator_mod"
+    assert op_arg.data_type == "operator_type"
+    assert op_arg.proxy_data_type == "operator_proxy_type"
+    assert op_arg.intrinsic_type == "real"
+    assert op_arg.precision == "r_def"
+
+    # Monkeypatch to check with an invalid argument type of an
+    # operator argument. The LFRicConstants class needs to be
+    # initialised before the monkeypatch.
+    _ = LFRicConstants()
+    monkeypatch.setattr(LFRicConstants, "VALID_OPERATOR_NAMES",
+                        ["tuxedo"])
+    monkeypatch.setattr(op_arg, "_argument_type", "tuxedo")
+    with pytest.raises(InternalError) as err:
+        op_arg._init_data_type_properties(None, check=False)
+    assert ("Expected 'gh_operator' or 'gh_columnwise_operator' "
+            "argument type but found 'tuxedo'." in str(err.value))
+
+
 def test_operator(tmpdir):
     ''' Tests that an LMA operator is implemented correctly in the PSy
     layer. '''
@@ -418,6 +499,12 @@ def test_operator_different_spaces(tmpdir):
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
+    module_declns = (
+        "    USE constants_mod, ONLY: r_def, i_def\n"
+        "    USE field_mod, ONLY: field_type, field_proxy_type\n"
+        "    USE operator_mod, ONLY: operator_type, operator_proxy_type\n")
+    assert module_declns in generated_code
+
     decl_output = (
         "    SUBROUTINE invoke_0_assemble_weak_derivative_w3_w2_kernel_type"
         "(mapping, coord, qr)\n"
@@ -431,6 +518,7 @@ def test_operator_different_spaces(tmpdir):
         "      TYPE(operator_type), intent(in) :: mapping\n"
         "      TYPE(quadrature_xyoz_type), intent(in) :: qr\n"
         "      INTEGER(KIND=i_def) cell\n"
+        "      INTEGER(KIND=i_def) loop0_start, loop0_stop\n"
         "      REAL(KIND=r_def), allocatable :: diff_basis_w0_qr(:,:,:,:), "
         "basis_w3_qr(:,:,:,:), diff_basis_w2_qr(:,:,:,:)\n"
         "      INTEGER(KIND=i_def) diff_dim_w0, dim_w3, diff_dim_w2\n"
@@ -443,6 +531,7 @@ def test_operator_different_spaces(tmpdir):
         "      TYPE(quadrature_xyoz_proxy_type) qr_proxy\n"
         "      INTEGER(KIND=i_def), pointer :: map_w0(:,:) => null()\n"
         "      INTEGER(KIND=i_def) ndf_w3, ndf_w2, ndf_w0, undf_w0\n"
+        "      INTEGER(KIND=i_def) max_halo_depth_mesh\n"
         "      TYPE(mesh_type), pointer :: mesh => null()\n")
     assert decl_output in generated_code
     output = (
@@ -461,6 +550,7 @@ def test_operator_different_spaces(tmpdir):
         "      ! Create a mesh object\n"
         "      !\n"
         "      mesh => mapping_proxy%fs_from%get_mesh()\n"
+        "      max_halo_depth_mesh = mesh%get_halo_depth()\n"
         "      !\n"
         "      ! Look-up dofmaps for each function space\n"
         "      !\n"
@@ -507,6 +597,11 @@ def test_operator_different_spaces(tmpdir):
         "      CALL qr%compute_function(DIFF_BASIS, mapping_proxy%fs_from, "
         "diff_dim_w2, ndf_w2, diff_basis_w2_qr)\n"
         "      !\n"
+        "      ! Set-up all of the loop bounds\n"
+        "      !\n"
+        "      loop0_start = 1\n"
+        "      loop0_stop = mesh%get_last_halo_cell(1)\n"
+        "      !\n"
         "      ! Call kernels and communication routines\n"
         "      !\n"
         "      IF (coord_proxy(1)%is_dirty(depth=1)) THEN\n"
@@ -521,7 +616,7 @@ def test_operator_different_spaces(tmpdir):
         "        CALL coord_proxy(3)%halo_exchange(depth=1)\n"
         "      END IF\n"
         "      !\n"
-        "      DO cell=1,mesh%get_last_halo_cell(1)\n"
+        "      DO cell=loop0_start,loop0_stop\n"
         "        !\n"
         "        CALL assemble_weak_derivative_w3_w2_kernel_code(cell, "
         "nlayers, mapping_proxy%ncell_3d, mapping_proxy%local_stencil, "
@@ -584,7 +679,7 @@ def test_operator_nofield_different_space(tmpdir):
     assert "ndf_w3 = my_mapping_proxy%fs_from%get_ndf()" in gen
     assert "ndf_w2 = my_mapping_proxy%fs_to%get_ndf()" in gen
     # We compute operators redundantly (out to the L1 halo)
-    assert "DO cell=1,mesh%get_last_halo_cell(1)" in gen
+    assert "loop0_stop = mesh%get_last_halo_cell(1)" in gen
     assert ("(cell, nlayers, my_mapping_proxy%ncell_3d, my_mapping_proxy%"
             "local_stencil, ndf_w2, ndf_w3)" in gen)
 
@@ -602,73 +697,10 @@ def test_operator_nofield_scalar(tmpdir):
     assert "mesh => my_mapping_proxy%fs_from%get_mesh()" in gen
     assert "nlayers = my_mapping_proxy%fs_from%get_nlayers()" in gen
     assert "ndf_w2 = my_mapping_proxy%fs_from%get_ndf()" in gen
-    assert "DO cell=1,mesh%get_last_halo_cell(1)" in gen
+    assert "loop0_stop = mesh%get_last_halo_cell(1)" in gen
     assert ("(cell, nlayers, my_mapping_proxy%ncell_3d, my_mapping_proxy%"
             "local_stencil, b, ndf_w2, basis_w2_qr, np_xy_qr, np_z_qr, "
             "weights_xy_qr, weights_z_qr)" in gen)
-
-
-def test_operator_nofield_scalar_deref(tmpdir, dist_mem):
-    ''' Tests that an operator with no field and a
-    scalar argument is implemented correctly in the PSy layer when both
-    are obtained by dereferencing derived type objects. '''
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH,
-                     "10.6.1_operator_no_field_scalar_deref.f90"),
-        api=TEST_API)
-    psy = PSyFactory(TEST_API,
-                     distributed_memory=dist_mem).create(invoke_info)
-    gen = str(psy.gen)
-
-    assert LFRicBuild(tmpdir).code_compiles(psy)
-
-    if dist_mem:
-        assert "mesh => opbox_my_mapping_proxy%fs_from%get_mesh()" in gen
-    assert "nlayers = opbox_my_mapping_proxy%fs_from%get_nlayers()" in gen
-    assert "ndf_w2 = opbox_my_mapping_proxy%fs_from%get_ndf()" in gen
-    assert ("qr_init_quadrature_symmetrical%compute_function(BASIS, "
-            "opbox_my_mapping_proxy%fs_from, dim_w2, ndf_w2, "
-            "basis_w2_qr_init_quadrature_symmetrical)" in gen)
-    if dist_mem:
-        assert "DO cell=1,mesh%get_last_halo_cell(1)" in gen
-    else:
-        assert (
-            "DO cell=1,opbox_my_mapping_proxy%fs_from%get_ncell()" in gen)
-    assert (
-        "(cell, nlayers, opbox_my_mapping_proxy%ncell_3d, "
-        "opbox_my_mapping_proxy%local_stencil, box_b, ndf_w2, "
-        "basis_w2_qr_init_quadrature_symmetrical, "
-        "np_xy_qr_init_quadrature_symmetrical, "
-        "np_z_qr_init_quadrature_symmetrical, "
-        "weights_xy_qr_init_quadrature_symmetrical, "
-        "weights_z_qr_init_quadrature_symmetrical)" in gen)
-
-
-def test_operator_deref(tmpdir, dist_mem):
-    ''' Tests that we generate correct names for an operator in the PSy
-    layer when obtained by de-referencing a derived type in the Algorithm
-    layer. '''
-    _, invoke_info = parse(os.path.join(BASE_PATH, "10.8_operator_deref.f90"),
-                           api=TEST_API)
-    psy = PSyFactory(TEST_API,
-                     distributed_memory=dist_mem).create(invoke_info)
-    generated_code = str(psy.gen)
-
-    assert LFRicBuild(tmpdir).code_compiles(psy)
-
-    assert (
-        "SUBROUTINE invoke_0_testkern_operator_type(mm_w0_op, coord, a, qr)"
-        in generated_code)
-    assert "TYPE(operator_type), intent(in) :: mm_w0_op" in generated_code
-    assert "TYPE(operator_proxy_type) mm_w0_op_proxy" in generated_code
-    assert "mm_w0_op_proxy = mm_w0_op%get_proxy()" in generated_code
-    assert (
-        "CALL testkern_operator_code(cell, nlayers, "
-        "mm_w0_op_proxy%ncell_3d, mm_w0_op_proxy%local_stencil, "
-        "coord_proxy(1)%data, coord_proxy(2)%data, coord_proxy(3)%data, a, "
-        "ndf_w0, undf_w0, map_w0(:,cell), basis_w0_qr, "
-        "diff_basis_w0_qr, np_xy_qr, np_z_qr, weights_xy_qr, "
-        "weights_z_qr)" in generated_code)
 
 
 def test_operator_no_dofmap_lookup():
@@ -759,7 +791,6 @@ def test_operator_bc_kernel_fld_err(monkeypatch, dist_mem):
 def test_operator_bc_kernel_multi_args_err(dist_mem):
     ''' Test that we reject the recognised operator boundary conditions
     kernel if it has more than one argument '''
-    import copy
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "12.4_enforce_op_bc_kernel.f90"),
                            api=TEST_API)
@@ -865,7 +896,7 @@ def test_operators():
         "op_13, ndf_w0, ndf_w1, ndf_w2, ndf_w2h, ndf_w2v, ndf_w2broken, "
         "ndf_w2trace, ndf_w2htrace, ndf_w2vtrace, ndf_w3, ndf_wtheta, "
         "ndf_aspc1_op_12, ndf_adspc1_op_13)\n"
-        "      USE constants_mod, ONLY: r_def, i_def\n"
+        "      USE constants_mod\n"
         "      IMPLICIT NONE\n"
         "      INTEGER(KIND=i_def), intent(in) :: nlayers\n"
         "      INTEGER(KIND=i_def), intent(in) :: ndf_w0, ndf_w1, ndf_w2, "
@@ -873,7 +904,7 @@ def test_operators():
         "ndf_w2vtrace, ndf_w3, ndf_wtheta, ndf_aspc1_op_12, ndf_adspc1_op_13\n"
         "      INTEGER(KIND=i_def), intent(in) :: cell\n"
         "      INTEGER(KIND=i_def), intent(in) :: op_1_ncell_3d\n"
-        "      REAL(KIND=r_def), intent(out), dimension(ndf_w0,ndf_w0,"
+        "      REAL(KIND=r_def), intent(inout), dimension(ndf_w0,ndf_w0,"
         "op_1_ncell_3d) :: op_1\n"
         "      INTEGER(KIND=i_def), intent(in) :: op_2_ncell_3d\n"
         "      REAL(KIND=r_def), intent(inout), dimension(ndf_w1,ndf_w1,"
@@ -888,7 +919,7 @@ def test_operators():
         "      REAL(KIND=r_def), intent(inout), dimension(ndf_w2v,ndf_w2v,"
         "op_5_ncell_3d) :: op_5\n"
         "      INTEGER(KIND=i_def), intent(in) :: op_6_ncell_3d\n"
-        "      REAL(KIND=r_def), intent(out), dimension(ndf_w2broken,"
+        "      REAL(KIND=r_def), intent(inout), dimension(ndf_w2broken,"
         "ndf_w2broken,op_6_ncell_3d) :: op_6\n"
         "      INTEGER(KIND=i_def), intent(in) :: op_7_ncell_3d\n"
         "      REAL(KIND=r_def), intent(in), dimension(ndf_w2trace,"
@@ -900,11 +931,11 @@ def test_operators():
         "      REAL(KIND=r_def), intent(inout), dimension(ndf_w2vtrace,"
         "ndf_w2vtrace,op_9_ncell_3d) :: op_9\n"
         "      INTEGER(KIND=i_def), intent(in) :: op_10_ncell_3d\n"
-        "      REAL(KIND=r_def), intent(out), dimension(ndf_w3,ndf_w3,"
+        "      REAL(KIND=r_def), intent(inout), dimension(ndf_w3,ndf_w3,"
         "op_10_ncell_3d) :: op_10\n"
         "      INTEGER(KIND=i_def), intent(in) :: op_11_ncell_3d\n"
-        "      REAL(KIND=r_def), intent(out), dimension(ndf_wtheta,ndf_wtheta,"
-        "op_11_ncell_3d) :: op_11\n"
+        "      REAL(KIND=r_def), intent(inout), dimension(ndf_wtheta,"
+        "ndf_wtheta,op_11_ncell_3d) :: op_11\n"
         "      INTEGER(KIND=i_def), intent(in) :: op_12_ncell_3d\n"
         "      REAL(KIND=r_def), intent(in), dimension(ndf_aspc1_op_12,"
         "ndf_aspc1_op_12,op_12_ncell_3d) :: op_12\n"

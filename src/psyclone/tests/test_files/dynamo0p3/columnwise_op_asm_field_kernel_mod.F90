@@ -8,7 +8,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2017-2021, Science and Technology Facilities Council
+! Modifications copyright (c) 2017-2022, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -36,8 +36,8 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
-! Modified I. Kavcic, Met Office
+! Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+! Modified: I. Kavcic, Met Office
 
 module columnwise_op_asm_field_kernel_mod
 
@@ -48,7 +48,7 @@ use argument_mod,            only : arg_type, func_type, GH_FIELD,          &
                                     ANY_SPACE_1, ANY_SPACE_2,               &
                                     CELL_COLUMN
 
-use constants_mod,           only : r_def, i_def
+use constants_mod,           only : r_def, r_solver, i_def
 
 implicit none
 
@@ -104,7 +104,7 @@ contains
     integer(kind=i_def), intent(in), dimension(ndf_aspc2,nlayers) :: cbanded_map_aspc2
     real(kind=r_def), intent(in), dimension(undf_aspc1) :: field1
     real(kind=r_def), intent(in), dimension(ndf_aspc1, ndf_aspc2,ncell_3d) :: op_2
-    real(kind=r_def), intent(out), dimension(cma_op_3_bandwidth, cma_op_3_nrow,ncell_2d) :: cma_op_3
+    real(kind=r_solver), intent(inout), dimension(cma_op_3_bandwidth, cma_op_3_nrow,ncell_2d) :: cma_op_3
 
     write (*,*) "Hello CMA World"
 

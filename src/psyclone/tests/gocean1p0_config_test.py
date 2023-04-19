@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2020, Science and Technology Facilities Council
+# Copyright (c) 2018-2022, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,20 +31,20 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author J. Henrichs, Bureau of Meteorology
-# Modified S. Siso, STFC Daresbury Lab
+# Author: J. Henrichs, Bureau of Meteorology
+# Modified: S. Siso and A. R. Porter, STFC Daresbury Lab
 
 ''' Module containing tests for gocean1.0 specific config files.'''
-
-from __future__ import absolute_import
 
 import os
 import pytest
 
 from psyclone.configuration import Config, ConfigurationError, GOceanConfig
+from psyclone.domain.gocean.transformations import GOConstLoopBoundsTrans
+from psyclone.errors import InternalError
 from psyclone.generator import main
 from psyclone.gocean1p0 import GOLoop
-from psyclone.errors import InternalError
+from psyclone.tests.utilities import get_invoke
 
 
 @pytest.fixture(scope="function", autouse=True)
@@ -181,8 +181,8 @@ def test_invalid_config_files(tmpdir):
         config = Config()
         with pytest.raises(ConfigurationError) as err:
             config.load(str(config_file))
-        assert "Invalid key \"invalid-key\" found in \"{0}\".".\
-            format(str(config_file)) in str(err.value)
+        assert (f"Invalid key 'invalid-key' found in '{config_file}'."
+                in str(err.value))
 
         for i in ["DEFAULTAPI", "DEFAULTSTUBAPI", "DISTRIBUTED_MEMORY",
                   "REPRODUCIBLE_REDUCTIONS"]:
@@ -215,8 +215,8 @@ def test_invalid_config_files(tmpdir):
         config = Config()
         with pytest.raises(ConfigurationError) as err:
             config.load(str(config_file))
-        assert "Invalid property \"a\" found with value \"{0}%b:c:d:e\"" \
-               in str(err.value)
+        assert ("Invalid property 'a' found with value '{0}%b:c:d:e'"
+                in str(err.value))
 
     # Test invalid field properties - not enough fields
     content = _CONFIG_CONTENT + "grid-properties = a:b"
@@ -228,8 +228,7 @@ def test_invalid_config_files(tmpdir):
         config = Config()
         with pytest.raises(ConfigurationError) as err:
             config.load(str(config_file))
-        assert "Invalid property \"a\" found with value \"b\"" \
-               in str(err.value)
+        assert "Invalid property 'a' found with value 'b'" in str(err.value)
 
     # Test missing required values
     content = _CONFIG_CONTENT + "grid-properties = a:b:array:real"
@@ -242,8 +241,8 @@ def test_invalid_config_files(tmpdir):
         with pytest.raises(ConfigurationError) as err:
             config.load(str(config_file))
         # The config file {0} does not contain values for "..."
-        assert "does not contain values for the following, mandatory grid " \
-            "property: \"go_grid_xstop\"" in str(err.value)
+        assert ("does not contain values for the following, mandatory grid "
+                "property: 'go_grid_xstop'" in str(err.value))
 
 
 def test_debug_mode(tmpdir):
@@ -296,7 +295,7 @@ def test_debug_mode(tmpdir):
         api_config = config.api_conf("gocean1.0")
         assert api_config.debug_mode is False
 
-    # Test that if DEBUG_MODE key desn't exist it defaults to False
+    # Test that if DEBUG_MODE key doesn't exist it defaults to False
     content = _CONFIG_CONTENT
     config_file = tmpdir.join("config4")
     with config_file.open(mode="w") as new_cfg:
@@ -350,8 +349,6 @@ def test_properties():
 def test_valid_config_files():
     ''' Test if valid config files lead to the expected new loop boundaries
     '''
-    from psyclone.tests.utilities import get_invoke
-
     config_file = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                "test_files", "gocean1p0",
                                "new_iteration_space.psyclone")
@@ -360,26 +357,30 @@ def test_valid_config_files():
 
     psy, invoke = get_invoke("new_iteration_space.f90", "gocean1.0", idx=0)
     # This test expects constant loop bounds
-    invoke.schedule._const_loop_bounds = True
+    ctrans = GOConstLoopBoundsTrans()
+    ctrans.apply(invoke.schedule)
 
     gen = str(psy.gen)
-    new_loop1 = '''      DO j=1,2
-        DO i=3,4
+    new_loop1 = '''\
+      DO j = 1, 2, 1
+        DO i = 3, 4, 1
           CALL compute_kern1_code(i, j, cu_fld%data, p_fld%data, u_fld%data)
         END DO
       END DO'''
     assert new_loop1 in gen
 
-    new_loop2 = '''      DO j=2,jstop
-        DO i=1,istop+1
+    new_loop2 = '''\
+      DO j = 2, jstop, 1
+        DO i = 1, istop + 1, 1
           CALL compute_kern2_code(i, j, cu_fld%data, p_fld%data, u_fld%data)
         END DO
       END DO'''
     assert new_loop2 in gen
 
     # The third kernel tests {start} and {stop}
-    new_loop3 = '''      DO j=2-2,1
-        DO i=istop,istop+1
+    new_loop3 = '''\
+      DO j = 2 - 2, 1, 1
+        DO i = istop, istop + 1, 1
           CALL compute_kern3_code(i, j, cu_fld%data, p_fld%data, u_fld%data)
         END DO
       END DO'''

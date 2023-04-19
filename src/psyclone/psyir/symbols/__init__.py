@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2020, Science and Technology Facilities Council.
+# Copyright (c) 2017-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -38,49 +38,53 @@
 ''' Symbols package module '''
 
 from psyclone.psyir.symbols.symbol import Symbol, SymbolError, \
-    LocalInterface, GlobalInterface, ArgumentInterface, UnresolvedInterface
+    LocalInterface, ImportInterface, ArgumentInterface, UnresolvedInterface
 from psyclone.psyir.symbols.datasymbol import DataSymbol
 from psyclone.psyir.symbols.containersymbol import ContainerSymbol
+from psyclone.psyir.symbols.data_type_symbol import DataTypeSymbol
+from psyclone.psyir.symbols.intrinsic_symbol import IntrinsicSymbol
 from psyclone.psyir.symbols.routinesymbol import RoutineSymbol
-from psyclone.psyir.symbols.typesymbol import TypeSymbol
-from psyclone.psyir.symbols.symboltable import SymbolTable
+from psyclone.psyir.symbols.symbol_table import SymbolTable
+from psyclone.psyir.symbols.typed_symbol import TypedSymbol
 from psyclone.psyir.symbols.datatypes import DataType, ScalarType, \
     ArrayType, TYPE_MAP_TO_PYTHON, REAL_TYPE, REAL_SINGLE_TYPE, \
     REAL_DOUBLE_TYPE, REAL4_TYPE, REAL8_TYPE, INTEGER_TYPE, \
     INTEGER_SINGLE_TYPE, INTEGER_DOUBLE_TYPE, INTEGER4_TYPE, INTEGER8_TYPE, \
     BOOLEAN_TYPE, CHARACTER_TYPE, DeferredType, UnknownType, \
-    UnknownFortranType, StructureType
+    UnknownFortranType, StructureType, NoType
 
 # The entities in the __all__ list are made available to import directly from
 # this package e.g. 'from psyclone.psyir.symbols import DataSymbol'
-__all__ = ['TYPE_MAP_TO_PYTHON',
-           'Symbol',
-           'SymbolError',
-           'SymbolTable',
+__all__ = ['ArgumentInterface',
+           'ArrayType',
+           'BOOLEAN_TYPE',
+           'CHARACTER_TYPE',
+           'ContainerSymbol',
            'DataSymbol',
            'DataType',
-           'LocalInterface',
-           'GlobalInterface',
-           'ArgumentInterface',
-           'UnknownFortranType',
-           'UnknownType',
-           'UnresolvedInterface',
-           'ContainerSymbol',
-           'ScalarType',
-           'ArrayType',
-           'StructureType',
-           'REAL_TYPE',
-           'REAL_SINGLE_TYPE',
-           'REAL_DOUBLE_TYPE',
-           'REAL4_TYPE',
-           'REAL8_TYPE',
+           'DataTypeSymbol',
+           'DeferredType',
+           'ImportInterface',
            'INTEGER_TYPE',
            'INTEGER_SINGLE_TYPE',
            'INTEGER_DOUBLE_TYPE',
            'INTEGER4_TYPE',
            'INTEGER8_TYPE',
-           'BOOLEAN_TYPE',
-           'CHARACTER_TYPE',
-           'DeferredType',
+           'LocalInterface',
+           'NoType',
+           'REAL_TYPE',
+           'REAL_SINGLE_TYPE',
+           'REAL_DOUBLE_TYPE',
+           'REAL4_TYPE',
+           'REAL8_TYPE',
            'RoutineSymbol',
-           'TypeSymbol']
+           'ScalarType',
+           'StructureType',
+           'Symbol',
+           'SymbolError',
+           'SymbolTable',
+           'TYPE_MAP_TO_PYTHON',
+           'TypedSymbol',
+           'UnknownFortranType',
+           'UnknownType',
+           'UnresolvedInterface']

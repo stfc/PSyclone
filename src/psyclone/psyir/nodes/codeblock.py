@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2020, Science and Technology Facilities Council.
+# Copyright (c) 2017-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -39,6 +39,8 @@
 ''' This module contains the CodeBlock node implementation.'''
 
 from enum import Enum
+from fparser.two import Fortran2003
+from fparser.two.utils import walk
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.datanode import DataNode
 
@@ -56,12 +58,20 @@ class CodeBlock(Statement, DataNode):
     :type structure: :py:class:`psyclone.psyir.nodes.CodeBlock.Structure`
     :param parent: the parent node of this code block in the PSyIR.
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
+    :param annotations: tags that provide additional information about \
+        the node. The node should still be functionally correct when \
+        ignoring these tags.
+    :type annotations: list of str or NoneType
 
     '''
-    # Textual description of the node.
+    #: Textual description of the node.
     _children_valid_format = "<LeafNode>"
     _text_name = "CodeBlock"
-    _colour_key = "CodeBlock"
+    _colour = "red"
+    #: The annotations that are supported by this node.
+    #: psy-data-start - this node has replaced a PSyDataNode during the
+    #: lowering of the PSyIR to language level.
+    valid_annotations = ("psy-data-start")
 
     class Structure(Enum):
         '''
@@ -75,8 +85,8 @@ class CodeBlock(Statement, DataNode):
         # The Code Block comprises one or more Fortran expressions.
         EXPRESSION = 2
 
-    def __init__(self, fp2_nodes, structure, parent=None):
-        super(CodeBlock, self).__init__(parent=parent)
+    def __init__(self, fp2_nodes, structure, parent=None, annotations=None):
+        super(CodeBlock, self).__init__(parent=parent, annotations=annotations)
         # Store a list of the parser objects holding the code associated
         # with this block. We make a copy of the contents of the list because
         # the list itself is a temporary product of the process of converting
@@ -91,6 +101,23 @@ class CodeBlock(Statement, DataNode):
             self.ast_end = None
         # Store the structure of the code block.
         self._structure = structure
+
+    def __eq__(self, other):
+        '''
+        Checks whether two nodes are equal. Two CodeBlock nodes are equal
+        if they are the same type, their ast_nodes lists are equal (which
+        means the same instance) and have the same structure.
+
+        :param object other: the object to check equality to.
+
+        :returns: whether other is equal to self.
+        :rtype: bool
+        '''
+        is_eq = super().__eq__(other)
+        is_eq = is_eq and self.get_ast_nodes == other.get_ast_nodes
+        is_eq = is_eq and self.structure == other.structure
+
+        return is_eq
 
     @property
     def structure(self):
@@ -124,5 +151,13 @@ class CodeBlock(Statement, DataNode):
         return self.coloured_name(colour) + \
             "[" + str(list(map(type, self._fp2_nodes))) + "]"
 
+    def get_symbol_names(self):
+        '''
+        :returns: the list of symbol names used inside the CodeBock.
+        :rtype: list of str
+        '''
+        parse_tree = self.get_ast_nodes
+        return [node.string for node in walk(parse_tree, Fortran2003.Name)]
+
     def __str__(self):
-        return "CodeBlock[{0} nodes]".format(len(self._fp2_nodes))
+        return f"CodeBlock[{len(self._fp2_nodes)} nodes]"

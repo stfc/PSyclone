@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2018, Science and Technology Facilities Council
+! Copyright (c) 2017-2022, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -31,15 +31,15 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author R. Ford and A. R. Porter, STFC Daresbury Lab
-! Modified I. Kavcic Met Office
+! Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+! Modified: I. Kavcic, Met Office
 
 program multi_invoke_cma
 
   ! Description: invoke containing multiple CMA-related kernels
-  use inf,                                only: field_type,    &
-                                                operator_type, &
-                                                columnwise_operator_type
+  use field_mod,                          only: field_type
+  use operator_mod,                       only: operator_type
+  use columnwise_operator_mod,            only: columnwise_operator_type
   use columnwise_op_asm_field_kernel_mod, only: columnwise_op_asm_field_kernel_type
   use columnwise_op_app_kernel_mod,       only: columnwise_op_app_kernel_type
   use columnwise_op_mul_kernel_mod,       only: columnwise_op_mul_kernel_type
@@ -48,7 +48,7 @@ program multi_invoke_cma
 
   type(operator_type) :: lma_op1
   type(columnwise_operator_type) :: cma_op1, cma_opb, cma_opc
-  type(field_type) :: afield
+  type(field_type) :: afield, field_a, field_b
 
   call invoke( columnwise_op_asm_field_kernel_type(afield, lma_op1, cma_op1), &
                columnwise_op_app_kernel_type(field_a, field_b, cma_op1),      &

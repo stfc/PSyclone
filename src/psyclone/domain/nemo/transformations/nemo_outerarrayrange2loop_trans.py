@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council.
+# Copyright (c) 2020-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford, STFC Daresbury Lab
+# Authors: R. W. Ford and N. Nobre, STFC Daresbury Lab
 
 '''Module providing a transformation from an Assignment node
 containing an Array Reference node in its left-hand-side which in turn
@@ -43,18 +43,13 @@ result in a reordering of the array accesses.
 
 '''
 
-from __future__ import absolute_import
-
-import six
-
-from psyclone.psyir.nodes import ArrayReference, ArrayOfStructuresReference, \
-    Assignment
+from psyclone.psyir.nodes import Assignment, Reference, Range
+from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
 from psyclone.psyir.transformations import ArrayRange2LoopTrans
-from psyclone.domain.nemo.transformations import NemoArrayRange2LoopTrans
 from psyclone.domain.nemo.transformations.nemo_arrayrange2loop_trans import \
-    get_outer_index
+    NemoArrayRange2LoopTrans
 
 
 class NemoOuterArrayRange2LoopTrans(ArrayRange2LoopTrans):
@@ -74,7 +69,7 @@ class NemoOuterArrayRange2LoopTrans(ArrayRange2LoopTrans):
             NemoOuterArrayRange2LoopTrans
     >>> from psyclone.transformations import TransformationError
     >>>
-    >>> schedule.view()
+    >>> print(schedule.view())
     >>> trans = NemoOuterArrayRange2LoopTrans()
     >>> for assignment in schedule.walk(Assignment):
     >>>     while True:
@@ -82,7 +77,7 @@ class NemoOuterArrayRange2LoopTrans(ArrayRange2LoopTrans):
     >>>             trans.apply(assignment)
     >>>         except TransformationError:
     >>>             break
-    >>> schedule.view()
+    >>> print(schedule.view())
 
     '''
     def apply(self, node, options=None):
@@ -96,7 +91,7 @@ class NemoOuterArrayRange2LoopTrans(ArrayRange2LoopTrans):
         also placed around the modified assignment statement. If the
         array reference on the left-hand-side of the assignment only
         had one range node as an index (so now has none) then the
-        assigment is also placed within a NemoKern.
+        assignment is also placed within a NemoKern.
 
         The name of the loop index is taken from the PSyclone
         configuration file if a name exists for the particular array
@@ -115,14 +110,14 @@ class NemoOuterArrayRange2LoopTrans(ArrayRange2LoopTrans):
             transformations. No options are used in this \
             transformation. This is an optional argument that defaults \
             to None.
-        :type options: dict of string:values or None
+        :type options: Optional[Dict[str, Any]]
 
         '''
         self.validate(node)
 
-        # get lhs array
-        lhs_array_ref = node.lhs
-        index = get_outer_index(lhs_array_ref)
+        # Get deepest array in LHS (excluding inside Ranges)
+        lhs_array_ref = node.lhs.walk(ArrayMixin, stop_type=Range)[-1]
+        index = lhs_array_ref.get_outer_range_index()
         nemo_arrayrange2loop = NemoArrayRange2LoopTrans()
         nemo_arrayrange2loop.apply(lhs_array_ref.children[index])
 
@@ -150,7 +145,7 @@ class NemoOuterArrayRange2LoopTrans(ArrayRange2LoopTrans):
             transformations. No options are used in this \
             transformation. This is an optional argument that defaults \
             to None.
-        :type options: dict of string:values or None
+        :type options: Optional[Dict[str, Any]]
 
         :raises TransformationError: if the supplied node is not an \
             Assignment node, if the Assignment node does not have an \
@@ -162,29 +157,24 @@ class NemoOuterArrayRange2LoopTrans(ArrayRange2LoopTrans):
         # Am I an assignment node?
         if not isinstance(node, Assignment):
             raise TransformationError(
-                "Error in NemoOuterArrayRange2LoopTrans transformation. The "
-                "supplied node argument should be a PSyIR Assignment, but "
-                "found '{0}'.".format(type(node).__name__))
+                f"Error in NemoOuterArrayRange2LoopTrans transformation. The "
+                f"supplied node argument should be a PSyIR Assignment, but "
+                f"found '{type(node).__name__}'.")
 
         # Is the LHS an array reference?
-        if not isinstance(node.lhs, (ArrayReference,
-                                     ArrayOfStructuresReference)):
+        if not (isinstance(node.lhs, Reference) and node.lhs.walk(ArrayMixin)):
             raise TransformationError(
-                "Error in NemoOuterArrayRange2LoopTrans transformation. The "
-                "supplied assignment node should have either an ArrayReference"
-                " or an ArrayOfStructuresReference node on its lhs but found "
-                "'{0}'.".format(type(node.lhs).__name__))
-        array_reference = node.lhs
+                f"Error in NemoOuterArrayRange2LoopTrans transformation. The "
+                f"LHS of the supplied assignment node should be a Reference "
+                f"that contains an array access somewhere in the expression, "
+                f"but found '{node.lhs}'.")
         # Has the array reference got a range?
-        try:
-            _ = get_outer_index(array_reference)
-        except IndexError as error:
-            message = (
-                "Error in NemoOuterArrayRange2LoopTrans transformation. The "
-                "LHS of the supplied assignment node should be an "
-                "ArrayReference/ArrayOfStructuresReference node containing at "
-                "least one Range node but there are none.")
-            six.raise_from(TransformationError(message), error)
+        if not node.lhs.walk(Range):
+            raise TransformationError(
+                f"Error in NemoOuterArrayRange2LoopTrans transformation. The "
+                f"LHS of the supplied assignment node should be an expression "
+                f"with an array that has a Range node, but found "
+                f"'{node.lhs}'.")
 
 
 # For automatic document generation

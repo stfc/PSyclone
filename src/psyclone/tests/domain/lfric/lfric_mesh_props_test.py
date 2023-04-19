@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council.
+# Copyright (c) 2020-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -39,19 +39,18 @@ Module containing pytest tests for the mesh-property functionality
 of the LFRic (Dynamo0.3) API.
 '''
 
-from __future__ import absolute_import, print_function
 import os
 import pytest
 import fparser
 from fparser import api as fpapi
-from psyclone.configuration import Config
-from psyclone.dynamo0p3 import DynKernMetadata, LFRicMeshProperties
+from psyclone.dynamo0p3 import (DynKernMetadata, LFRicMeshProperties,
+                                MeshProperty)
+from psyclone.errors import InternalError
+from psyclone.f2pygen import ModuleGen
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory, Kern
 from psyclone.tests.lfric_build import LFRicBuild
-from psyclone.errors import InternalError
-from psyclone.f2pygen import ModuleGen
 
 
 # Constants
@@ -82,34 +81,28 @@ end module testkern_mesh_mod
 # Tests for parsing the metadata
 
 
-@pytest.fixture(scope="module", autouse=True)
-def setup():
-    '''Make sure that all tests here use Dynamo0.3 as API.'''
-    Config.get().api = "dynamo0.3"
-
-
 def test_mdata_parse():
     ''' Check that we get the correct list of mesh properties. '''
-    from psyclone.dynamo0p3 import MeshPropertiesMetaData
     fparser.logging.disable(fparser.logging.CRITICAL)
     code = MESH_PROPS_MDATA
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_mesh_type"
     dkm = DynKernMetadata(ast, name=name)
-    assert dkm.mesh.properties == \
-        [MeshPropertiesMetaData.Property.ADJACENT_FACE]
+    assert dkm.mesh.properties == [MeshProperty.ADJACENT_FACE]
 
 
-def test_mdata_invalid_property():
+@pytest.mark.parametrize("property_name", ["not_a_property", "ncell_2d"])
+def test_mdata_invalid_property(property_name):
     ''' Check that we raise the expected error if an unrecognised mesh
-    property is requested. '''
-    code = MESH_PROPS_MDATA.replace("adjacent_face", "not_a_property")
+    property is requested. Also test with a value that *is* a valid mesh
+    property but is not supported in kernel metadata. '''
+    code = MESH_PROPS_MDATA.replace("adjacent_face", property_name)
     ast = fpapi.parse(code, ignore_comments=False)
     name = "testkern_mesh_type"
     with pytest.raises(ParseError) as err:
         DynKernMetadata(ast, name=name)
-    assert ("property: 'not_a_property'. Supported values are: "
-            "['ADJACENT_FACE'" in str(err.value))
+    assert (f"in metadata: '{property_name}'. Supported values are: "
+            f"['ADJACENT_FACE'" in str(err.value))
 
 
 def test_mdata_wrong_arg_count():
@@ -166,7 +159,7 @@ def test_mdata_duplicate_var():
     with pytest.raises(ParseError) as err:
         DynKernMetadata(ast, name=name)
     assert ("Duplicate mesh property found: "
-            "'Property.ADJACENT_FACE'." in str(err.value))
+            "'MeshProperty.ADJACENT_FACE'." in str(err.value))
 
 
 def test_mesh_properties():
@@ -194,6 +187,10 @@ def test_mesh_properties():
         invoke.mesh_properties._invoke_declarations(ModuleGen("test_mod"))
     assert ("Found unsupported mesh property 'not-a-property' when "
             "generating invoke declarations. Only " in str(err.value))
+    with pytest.raises(InternalError) as err:
+        invoke.mesh_properties.initialise(ModuleGen("test_mod"))
+    assert ("Found unsupported mesh property 'not-a-property' when generating"
+            " initialisation code" in str(err.value))
     sched = invoke.schedule
     # Get hold of the Kernel object
     kernel = sched.walk(Kern)[0]
@@ -208,7 +205,7 @@ def test_mesh_properties():
         mesh_props.kern_args()
     assert ("found unsupported mesh property 'not-a-property' when "
             "generating arguments for kernel 'testkern_mesh_prop_code'. "
-            "Only members of the MeshPropertiesMetaData.Property Enum are"
+            "Only members of the MeshProperty Enum are"
             in str(err.value))
     with pytest.raises(InternalError) as err:
         mesh_props._invoke_declarations(ModuleGen("test_mod"))

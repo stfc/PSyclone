@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council
+# Copyright (c) 2020-2022, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors: R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 
 '''A simple transformation script for the introduction of OpenMP with PSyclone.
 In order to use it you must first install PSyclone. See README.md in the
@@ -46,7 +46,7 @@ Fortran.
 
 '''
 from psyclone.psyir.nodes import Loop
-from psyclone.psyGen import Directive
+from psyclone.psyir.nodes import Directive
 from psyclone.transformations import OMPParallelLoopTrans, TransformationError
 
 # Get the transformation we will apply
@@ -72,15 +72,15 @@ def trans(psy):
     for child in loops:
         if child.loop_type == "levels":
             try:
-                sched, _ = OMP_TRANS.apply(child)
+                OMP_TRANS.apply(child)
             except TransformationError:
                 pass
 
     directives = sched.walk(Directive)
-    print("Added {0} Directives".format(len(directives)))
+    print(f"Added {len(directives)} Directives")
 
     # Display the transformed PSyIR
-    sched.view()
+    print(sched.view())
 
     # Return the modified psy object
     return psy

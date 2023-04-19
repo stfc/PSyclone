@@ -8,7 +8,7 @@ create a new Issue and give it the `question` label to mark it for attention.
 
 If this is the first time you have performed PSyclone development work then you will
 probably want to read the [Getting Going](https://psyclone.readthedocs.io/en/stable/getting_going.html)
-section of the User Guide and the [Working with PSyclone from GitHub](https://psyclone.readthedocs.io/en/stable/developers.html#working-with-psyclone-from-github)
+section of the User Guide and the [Working with PSyclone from GitHub](https://psyclone-dev.readthedocs.io/en/stable/working_practises.html)
 section of the Developers' Guide. You may also find the [Reference Guide](https://psyclone-ref.readthedocs.io/en/latest/index.html)
 useful for understanding the overall code structure.
 

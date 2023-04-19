@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2019-2020, Science and Technology Facilities Council.
+.. Copyright (c) 2019-2023, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -36,6 +36,12 @@
 .. highlight:: fortran
 
 .. _psy_data:
+
+.. testsetup::
+
+    # Define SOURCE_FILE to point to an existing gocean 1.0 file.
+    SOURCE_FILE = ("../../src/psyclone/tests/test_files/"
+        "gocean1p0/test11_different_iterates_over_one_invoke.f90")
 
 PSyData API
 ===========
@@ -82,7 +88,7 @@ can be extended by the user to support additional classes::
 
     [DEFAULT]
     ...
-    VALID_PSY_DATA_PREFIXES = profile extract
+    VALID_PSY_DATA_PREFIXES = profile, extract
 
 The class prefixes supported at the moment are:
 
@@ -281,8 +287,10 @@ The library using the PSyData API must provide a user-defined data type
 called ``PREFIX_PSyDataType``. It is up to the application how this variable is
 used. PSyclone will declare the variables to be static, meaning that they
 can be used to accumulate data from call to call. An example of
-the PSyDataType can be found in the NetCDF example extraction code
-(see ``lib/extract/netcdf/dl_esm_inf``, or :ref:`user_guide:psyke_netcdf` for
+the PSyDataType can be found in the example extraction code
+(see ``lib/extract/standalone/dl_esm_inf``,
+``lib/extract/netcdf/dl_esm_inf``, or
+:ref:`user_guide:extraction_libraries` for
 a detailed description), any of the profiling wrapper libraries
 (all contained in ``lib/profiling``) or the read_only wrappers
 (in ``lib/read_only``).
@@ -323,7 +331,7 @@ a detailed description), any of the profiling wrapper libraries
     is written both before and after the region, the transformations will
     add two calls to ``PreDeclareVariable`` (it can be useful to
     provide a variable using a different name before and after,
-    see :ref:`user_guide:psyke_netcdf`). If no variables are to be
+    see :ref:`user_guide:extraction_libraries`). If no variables are to be
     provided to the wrapper library, this call will not be created
     (and there is no need to implement this function in a wrapper
     library).
@@ -336,8 +344,8 @@ a detailed description), any of the profiling wrapper libraries
     
     The same call is used for different arguments, so a generic
     interface is recommended to distinguish between
-    the data types provided. The netcdf kernel writer 
-    (see :ref:`user_guide:psyke_netcdf`) uses the following declaration
+    the data types provided. The kernel extraction writer
+    (see :ref:`user_guide:extraction_libraries`) uses the following declaration
     (with types defined in the dl_esm_inf library)::    
     
         generic, public :: PreDeclareVariable => DeclareScalarInteger, &
@@ -494,7 +502,7 @@ node supports in the option dictionary:
                     name of the region. The names are used
                     e.g. by the ``ProfileNode`` to define
                     a unique region name for a profiled
-                    code region, or by ``GOceanExtractNode``
+                    code region, or by ``ExtractNode``
                     to define the file name for the output
                     data- and driver-files.
     prefix          A prefix to be used for the module name,
@@ -545,7 +553,8 @@ The kernel extraction node ``ExtractNode`` uses the dependency
 module to determine which variables are input- and output-parameters,
 and provides these two lists to the ``gen_code()`` function of its base class,
 a ``PSyDataNode`` node. It also uses the ``post_var_postfix`` option
-as described under ``gen_code()`` above (see also :ref:`user_guide:psyke_netcdf`).
+as described under ``gen_code()`` above (see also
+:ref:`user_guide:extraction_libraries`).
 
 .. _psydata_base_class:
 
@@ -600,10 +609,10 @@ Jinja Support in the Base Class
 +++++++++++++++++++++++++++++++
 Code written for a PSyData library is often very repetitive. For example, an
 implementation of ``PreDeclareVariable`` must be provided for each data type.
-For LFRic that can easily result in over 10 very similar subroutines (3 basic
-types integer, 4- and 8-byte reals; and 4- and 8-byte arrays of one to four
-dimensions). In order to simplify the creation of these subroutines the templating
-language Jinja is being used. Jinja creates code based on an template,
+For LFRic that can easily result in over 10 very similar subroutines (4 basic
+types integer, logical, 4- and 8-byte reals; and 4- and 8-byte arrays of one to
+four dimensions). In order to simplify the creation of these subroutines the
+templating language Jinja is being used. Jinja creates code based on an template,
 which makes it possible to maintain just one template implementation of a subroutine,
 from which the various Fortran-type specific implementation will be generated.
 
@@ -640,6 +649,8 @@ takes the following parameters:
         32-bit integer value
     ``long``:
         64-bit integer value
+    ``logical``:
+        32-bit logical value
 
     Default value is ``real,double,int``.
 
@@ -755,9 +766,10 @@ parameters in ``lib/read_only/read_only_base.jinja``:
        bits when mould is larger than value.) #}
 
     {% if ALL_TYPES is not defined %}
-       {% set ALL_TYPES = [ ("Double", "real(kind=real64)",   64),
-                            ("Real",   "real(kind=real32)",   32),
-                            ("Int",    "integer(kind=int32)", 32) ] %}
+       {% set ALL_TYPES = [ ("Double",  "real(kind=real64)",   64),
+                            ("Real",    "real(kind=real32)",   32),
+                            ("Logical", "logical(kind=4)",     32),
+                            ("Int",     "integer(kind=int32)", 32) ] %}
     {% endif %}
     ...
     {% for name, type, bits in ALL_TYPES %}
@@ -959,15 +971,246 @@ DrHook wrapper).
 Kernel Extraction (PSyKE)
 -------------------------
 The PSyclone Kernel Extraction functionality (see :ref:`user_guide:psyke`)
-also relies on the PSyData API to write kernel input- and output-parameters
-to a file. The domain-specific versions of the extract transformations
-(e.g. ``GOceanExtractTrans``) validate if kernel extraction can be used
-at the specified part of the tree. Then a domain-specific extraction
-node is inserted in the tree (e.g. ``GOceanExtractNode``).
+also relies on the PSyData API to write kernel input- and output-arguments
+to a file.
 
-At code creation time the function ``gen_code`` of the inserted node is
-called. This function determines the lists of variable to write before and
-after the instrumented region. These lists are then passed to ``gen_code``
-of the ``PSyDataNode`` base class, which creates required PSyData API calls.
-The domain-specific library is then responsible for writing the data in the
-required file format. 
+When an extraction transformation is applied, it will determine the input-
+and output-variable for the code region using the dependency analysis
+(see :ref:`variable_accesses`).
+The code created by PSyclone's PSyData transformation will then call the
+PSyData extraction library as follows:
+
+- For each input variable the variable with its original name will
+  be stored in the file before the kernel is called.
+- For each output variable the variable will be stored with in the file
+  with the postfix ``_post`` added after the kernel has been executed.
+
+As example, an input- and output-variable ``my_field`` will therefore have
+two values stored in the file: the input value using the name ``my_field``
+and the output value using ``my_field_post``. If the variable is a member
+of a structure, the key-name of the variable to be written to
+the file will contain the ``%``, e.g.
+``my_field%whole%xstart``. It is therefore important that the output
+format supports special characters (e.g. NetCDF does allow the use of
+``%`` in names).
+
+.. note::
+   If a name clash is detected, e.g. the user has a variable called
+   ``my_field`` and another variable called ``my_field_post``, the
+   output postfix ``_post`` will be changed to make sure unique names
+   are created by appending a number to the postfix, e.g. ``_post0``,
+   ``_post1``. The same postfix will be applied to all variables,
+   not only to variables that have a name clash.
+
+.. note::
+   The stand-alone version of the extraction libraries does not store
+   the actual variable names in the output files, it relies on a strict
+   ordering of the values in the binary output file.
+
+An excerpt of the created code (based on ``examples/gocean/eg5/extract``):
+
+.. code-block:: Fortran
+
+      CALL extract_psy_dataPreStart("main", "update", 11, 5)
+      ...
+      CALL extract_psy_dataPreDeclareVariable("a_fld", a_fld)
+      CALL extract_psy_dataPreDeclareVariable("a_fld_post", a_fld)
+      CALL extract_psy_dataPreEndDeclaration
+      CALL extract_psy_dataProvideVariable("a_fld", a_fld)
+      ...
+      CALL extract_psy_dataPreEnd
+      ! Kernel execution
+      ...
+      CALL extract_psy_dataPostStart
+      CALL extract_psy_dataProvideVariable("a_fld_post", a_fld)
+      ...
+
+The variable ``a_fld`` is declared twice, once with its unmodified
+name representing the input value, and once as ``a_fld_post``, which
+will be used to store the output value. The values are provided once
+before the kernel to allow the PSyData library to capture the input
+values, and once using the name ``a_fld_post`` after the kernel
+execution to store the results.
+
+
+Driver Creation for GOcean
+++++++++++++++++++++++++++
+
+The creation of a stand-alone driver can be requested when applying
+the extraction transformation, e.g.:
+
+.. code-block:: python
+
+    extract = GOceanExtractTrans()
+    extract.apply(schedule.children, {"create_driver": True})
+
+When compiled and executed, this driver will read in the values of
+all input- and output-variables, execute the
+instrumented code region, and then compare the results of the output
+variables (see :ref:`user_guide:extraction_libraries`). This program does
+not depend on any infrastructure library (like 'dl_esm_inf`'), it
+only needs the PSyData ReadKernelData library (i.e.
+``lib/extract/netcdf/read_kernel_data_mod``), plus any libraries
+the wrapper depends on (e.g. NetCDF).
+
+.. note:: The infrastructure is required at compile
+    and link time for now, since the kernel contains metadata. Issue
+    #2049 tracks a solution for this.
+
+The following changes are applied by the ``ExtractionDriverCreator``
+in order to generate stand-alone code for GOcean:
+
+1. The `dl_esm_inf` field type is replaced with 2d Fortran arrays.
+   The structure name used is 'flattened', i.e. each ``%`` is replaced
+   with a ``_`` to make a standard Fortran name, but the final
+   ``%data`` is removed. So ``my_field%data`` becomes ``my_field``.
+2. Any other structure access is converted into a variable with the
+   same intrinsic type and flattened name. E.g. ``my_field%whole%xstart``
+   becomes the variable ``my_field_whole_xstart``.
+3. For each input-only variable one variable (with a potentially
+   flattened name) is created. It calls ``ReadVariable`` from the
+   PSyData ReadKernelData module, which will allocate the variable
+   if it is an array.
+4. For each input+output variable two variables are created and
+   initialised (especially allocated if the variable is an array)
+   with a call to ``ReadVariable``. The output variable will
+   have a postfix appended (``_post`` by default) to distinguish
+   it from the input value. The value of the input array will be
+   provided to the kernel call. At the end, the newly computed
+   values in the variable will be compared with the corresponding
+   ``_post`` variable, which was read from the file.
+5. An output only variable will be declared with the postfix
+   attached, and allocated and initialised in ``ReadData``.
+   Then the variable without postfix will also be declared,
+   and explicitly allocated to have the same shape as the
+   output variable. This variable will be initialised to 0,
+   and then provided to the kernel call. Again, at the end
+   of the call these two variables should have the same value.
+
+Here an example showing some of the driver code created:
+
+.. code-block:: Fortran
+
+    integer :: a_fld_whole_ystart
+
+    real*8, allocatable, dimension(:,:) :: a_fld
+    real*8, allocatable, dimension(:,:) :: a_fld_post
+    real*8, allocatable, dimension(:,:) :: b_fld
+    real*8, allocatable, dimension(:,:) :: b_fld_post
+
+    call extract_psy_data%OpenRead('main', 'update')
+    call extract_psy_data%ReadVariable('a_fld', a_fld)
+    call extract_psy_data%ReadVariable('a_fld_post', a_fld_post)
+    call extract_psy_data%ReadVariable('a_fld%whole%ystart', a_fld_whole_ystart)
+
+    call extract_psy_data%ReadVariable('b_fld_post', b_fld_post)
+    ALLOCATE(b_fld(SIZE(b_fld_post, 1), SIZE(b_fld_post, 2)))
+    b_fld = 0
+
+    do j = a_fld_whole_ystart, a_fld_whole_ystop, 1
+      do i = a_fld_whole_xstart, a_fld_whole_xstop, 1
+          call update_field_code(i, j, a_fld, b_fld, ...)
+      enddo
+    enddo
+
+    if (ALL(a_fld - a_fld_post == 0.0)) then
+      PRINT *, "a_fld correct"
+    else
+      PRINT *, "a_fld incorrect. Values are:"
+      PRINT *, a_fld
+      PRINT *, "a_fld values should be:"
+      PRINT *, a_fld_post
+    end if
+    if (ALL(b_fld - b_fld_post == 0.0)) then
+      PRINT *, "b_fld correct"
+    else
+      PRINT *, "b_fld incorrect. Values are:"
+      PRINT *, b_fld
+      PRINT *, "b_fld values should be:"
+      PRINT *, b_fld_post
+    end if
+
+The variable ``a_fld`` is an input- and output-field,
+so both values for ``a_fld`` and ``a_fld_post`` are read
+in, and after the kernel execution the values are checked
+for correctness.
+The variable ``b_fld`` on the other hand is an output-variable
+only, no input values are stored in the file. The code
+created calls to ``ReadVariable`` for ``b_fld_post``, which
+allocates the variable corresponding to the array size
+information stored in the data file. Then the driver allocates
+an array ``b_fld`` with the same shape as ``b_fld_post``, which
+is initialised to 0. This ``b_fld`` is provided in the kernel call.
+After the kernel call, ``b_fld`` should be equal to
+``b_fld_post``.
+
+Driver Creation for LFRic
++++++++++++++++++++++++++
+
+The creation of a stand-alone driver can be requested when applying
+the extraction transformation, e.g.:
+
+.. code-block:: python
+
+    extract = LFRicExtractTrans()
+    extract.apply(schedule.children, {"create_driver": True})
+
+When compiled and executed, this driver will read in the values of
+all input- and output-variables, execute the
+instrumented code region, and then compare the results of the output
+variables (see :ref:`user_guide:extraction_libraries`). ATM this
+driver will still depend on the LFRic infrastructure library (see issue
+#1991) and needs the PSyData ReadKernelData library (i.e.
+``lib/extract/netcdf/read_kernel_data_mod``), plus any libraries
+the wrapper depends on (e.g. NetCDF).
+
+The driver creation process is explained in the Python sources:
+
+.. autoclass:: psyclone.domain.lfric.LFRicExtractDriverCreator
+    :members:
+
+Here an example showing some of the driver code created:
+
+.. code-block:: Fortran
+
+  integer(kind=i_def), allocatable, dimension(:,:) :: map_w0
+  integer(kind=i_def) :: cell
+  real(kind=r_def), allocatable, dimension(:) :: field1
+  real(kind=r_def), allocatable, dimension(:) :: field1_post
+
+  call extract_psy_data%OpenRead('main', 'update')
+  call extract_psy_data%ReadVariable('field1', field1)
+  call extract_psy_data%ReadVariable('loop0_start', loop0_start)
+  call extract_psy_data%ReadVariable('loop0_stop', loop0_stop)
+  call extract_psy_data%ReadVariable('map_w0', map_w0)
+  call extract_psy_data%ReadVariable('cell_post', cell_post)
+  cell = 0
+  call extract_psy_data%ReadVariable('field1_post', field1_post)
+
+  do cell = loop0_start, loop0_stop, 1
+    call testkern_w0_code(nlayers, field1, ..., map_w0(:,cell))
+  enddo
+  if (cell == cell_post) then
+    PRINT *, "cell correct"
+  else
+    PRINT *, "cell incorrect. Values are:"
+    PRINT *, cell
+    PRINT *, "cell values should be:"
+    PRINT *, cell_post
+  end if
+  if (ALL(field1 - field1_post == 0.0)) then
+    PRINT *, "field1 correct"
+  else
+    PRINT *, "field1 incorrect. Values are:"
+    PRINT *, field1
+    PRINT *, "field1 values should be:"
+    PRINT *, field1_post
+  end if
+
+The variable ``field1`` is an input- and output-variable. The input
+value is stored in ``field``, the expected output value is ``field1_post``.
+After calling the kernel, the results of the kernel call in ``field1`` are
+compared with the expected values in ``field1_post``.
+
+.. note:: For now the created driver still depends on the infrastructure
+    library and any other modules used. Issue #1991 improves this.

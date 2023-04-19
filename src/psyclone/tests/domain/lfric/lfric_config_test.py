@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council
+# Copyright (c) 2020-2022, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author I. Kavcic, Met Office
-# Modified: R. W. Ford, STFC Daresbury Lab
+# Modified: R. W. Ford and N. Nobre, STFC Daresbury Lab
 
 '''
 Module containing tests for LFRic (Dynamo0.3) API configuration handling.
@@ -47,8 +47,8 @@ from psyclone.configuration import Config, ConfigurationError
 from psyclone.core.access_type import AccessType
 
 
+# Constants
 TEST_API = "dynamo0.3"
-
 
 # Valid configuration file content for testing purposes
 _CONFIG_CONTENT = '''\
@@ -62,8 +62,11 @@ REPROD_PAD_SIZE = 8
 access_mapping = gh_read: read, gh_write: write, gh_readwrite: readwrite,
                  gh_inc: inc, gh_sum: sum
 COMPUTE_ANNEXED_DOFS = false
+supported_fortran_datatypes = real, integer, logical
 default_kind = real: r_def, integer: i_def, logical: l_def
 RUN_TIME_CHECKS = false
+NUM_ANY_SPACE = 10
+NUM_ANY_DISCONTINUOUS_SPACE = 10
 '''
 
 
@@ -86,86 +89,152 @@ def clear_config_instance():
     Config._instance = None
 
 
-@pytest.mark.parametrize("option", ["access_mapping", "COMPUTE_ANNEXED_DOFS",
-                                    "default_kind", "RUN_TIME_CHECKS"])
-def test_no_mandatory_option(tmpdir, option):
-    ''' Check that we raise an error if we do not provide mandatory
-    configuration options for LFRic (Dynamo0.3) API '''
+def config(config_file, content):
+    ''' A utility function that creates and populates a temporary
+    PSyclone configuration file for testing purposes.
 
-    content = re.sub(r"^{0} = .*$".format(option), "",
-                     _CONFIG_CONTENT,
-                     flags=re.MULTILINE)
-    config_file = tmpdir.join("config_dyn")
+    :param config_file: local path to the temporary configuration file.
+    :type config: :py:class:`py._path.local.LocalPath`
+    :param str content: the entry for the temporary configuration file.
+
+    :returns: a test Config instance.
+    :rtype: :py:class:`psyclone.configuration.Config`
+
+    '''
+    # Create and populate a temporary config file
     with config_file.open(mode="w") as new_cfg:
         new_cfg.write(content)
         new_cfg.close()
-        config = Config()
-        with pytest.raises(ConfigurationError) as err:
-            config.load(config_file=str(config_file))
+    # Create and populate a test Config object
+    config_obj = Config()
+    config_obj.load(config_file=str(config_file))
+    return config_obj
 
-        assert ("Missing mandatory configuration option in the "
-                "\'[dynamo0.3]\' section " in str(err.value))
-        assert ("Valid options are: '['access_mapping', "
-                "'compute_annexed_dofs', 'default_kind', "
-                "'run_time_checks']" in str(err.value))
+
+@pytest.mark.parametrize(
+    "option", ["access_mapping", "COMPUTE_ANNEXED_DOFS",
+               "supported_fortran_datatypes", "default_kind",
+               "RUN_TIME_CHECKS", "NUM_ANY_SPACE",
+               "NUM_ANY_DISCONTINUOUS_SPACE"])
+def test_no_mandatory_option(tmpdir, option):
+    ''' Check that we raise an error if we do not provide mandatory
+    configuration options for LFRic (Dynamo0.3) API '''
+    config_file = tmpdir.join("config_dyn")
+    content = re.sub(f"^{option} = .*$", "",
+                     _CONFIG_CONTENT, flags=re.MULTILINE)
+
+    with pytest.raises(ConfigurationError) as err:
+        config(config_file, content)
+
+    assert ("Missing mandatory configuration option in the "
+            "\'[dynamo0.3]\' section " in str(err.value))
+    assert ("Valid options are: ['access_mapping', "
+            "'compute_annexed_dofs', 'supported_fortran_datatypes', "
+            "'default_kind', 'run_time_checks', 'num_any_space', "
+            "'num_any_discontinuous_space']." in str(err.value))
 
 
 @pytest.mark.parametrize("option", ["COMPUTE_ANNEXED_DOFS", "RUN_TIME_CHECKS"])
 def test_entry_not_bool(tmpdir, option):
     ''' Check that we raise an error if the value of any options expecting
     a boolean value are not Boolean '''
-    content = re.sub(r"^{0} = .*$".format(option),
-                     "{0} = tree".format(option),
-                     _CONFIG_CONTENT,
-                     flags=re.MULTILINE)
     config_file = tmpdir.join("config_dyn")
-    with config_file.open(mode="w") as new_cfg:
-        new_cfg.write(content)
-        new_cfg.close()
-        config = Config()
-        with pytest.raises(ConfigurationError) as err:
-            config.load(config_file=str(config_file))
+    content = re.sub(f"^{option} = .*$", f"{option} = tree",
+                     _CONFIG_CONTENT, flags=re.MULTILINE)
 
-        assert "error while parsing {0}".format(option) in str(err.value)
-        assert "Not a boolean: tree" in str(err.value)
+    with pytest.raises(ConfigurationError) as err:
+        config(config_file, content)
+
+    assert f"Error while parsing {option}" in str(err.value)
+    assert "Not a boolean: tree" in str(err.value)
+
+
+@pytest.mark.parametrize("option", ["NUM_ANY_SPACE",
+                                    "NUM_ANY_DISCONTINUOUS_SPACE"])
+def test_entry_not_int(tmpdir, option):
+    ''' Check that we raise an error if the value of any options expecting
+    an integer value is not int() with base 10. '''
+    config_file = tmpdir.join("config_dyn")
+    content = re.sub(f"^{option} = .*$", f"{option} = false",
+                     _CONFIG_CONTENT, flags=re.MULTILINE)
+
+    with pytest.raises(ConfigurationError) as err:
+        config(config_file, content)
+
+    assert f"Error while parsing {option}" in str(err.value)
+    assert ("invalid literal for int() with base 10: 'false'"
+            in str(err.value))
 
 
 def test_invalid_default_kind(tmpdir):
-    ''' Check that we raise an error if we supply an invalid datatype or
-    kind (precision) in the configuration file '''
+    ''' Check that we raise an error if we supply an invalid datatype or kind
+    (precision) in the 'default_kind' list in the '[dynamo0.3]' section of
+    the configuration file.
+
+    '''
+    config_file = tmpdir.join("config_dyn")
 
     # Test invalid datatype
     content = re.sub(r"real:", "reality:",
                      _CONFIG_CONTENT,
                      flags=re.MULTILINE)
-    config_file = tmpdir.join("config_dyn")
-    with config_file.open(mode="w") as new_cfg:
-        new_cfg.write(content)
-        new_cfg.close()
-        config = Config()
-        with pytest.raises(ConfigurationError) as err:
-            config.load(config_file=str(config_file))
 
-        assert ("Invalid datatype found in the \'[dynamo0.3]\' section "
-                in str(err.value))
-        assert ("Valid datatypes are: '['real', 'integer', 'logical']'"
-                in str(err.value))
+    with pytest.raises(ConfigurationError) as err:
+        config(config_file, content)
+
+    test_str = str(err.value)
+    assert ("Fortran datatypes in the 'default_kind' mapping in the "
+            "\'[dynamo0.3]\' section " in test_str)
+    assert ("do not match the supported Fortran datatypes [\'real\', "
+            "\'integer\', \'logical\']." in test_str)
 
     # Test invalid kind (precision)
     content = re.sub("integer: i_def,", "integer: ,", _CONFIG_CONTENT)
-    config_file = tmpdir.join("config_dyn")
-    with config_file.open(mode="w") as new_cfg:
-        new_cfg.write(content)
-        new_cfg.close()
-        config = Config()
-        with pytest.raises(ConfigurationError) as err:
-            config.load(config_file=str(config_file))
 
-        assert ("Supplied kind parameters \'[\'l_def\', \'r_def\']\' in "
-                "the \'[dynamo0.3]\' section" in str(err.value))
-        assert ("do not define the default kind for one or more supported "
-                "datatypes \'[\'real\', \'integer\', \'logical\']\'."
-                in str(err.value))
+    with pytest.raises(ConfigurationError) as err:
+        config(config_file, content)
+
+    test_str = str(err.value)
+    assert ("Supplied kind parameters [\'l_def\', \'r_def\'] in "
+            "the \'[dynamo0.3]\' section" in test_str)
+    assert ("do not define the default kind for one or more supported "
+            "datatypes [\'real\', \'integer\', \'logical\']." in test_str)
+
+
+def test_invalid_num_any_anyd_spaces(tmpdir):
+    ''' Check that we raise an error if we supply an invalid number
+    (less than or equal to 0) of ANY_SPACE and ANY_DISCONTINUOUS_SPACE
+    function spaces in the configuration file.
+
+    '''
+    config_file = tmpdir.join("config_dyn")
+
+    # Test invalid NUM_ANY_SPACE
+    content = re.sub(r"NUM_ANY_SPACE = 10", "NUM_ANY_SPACE = 0",
+                     _CONFIG_CONTENT,
+                     flags=re.MULTILINE)
+
+    with pytest.raises(ConfigurationError) as err:
+        config(config_file, content)
+
+    assert ("The supplied number of ANY_SPACE function spaces in "
+            "the \'[dynamo0.3]\' section " in str(err.value))
+    assert ("must be greater than 0 but found 0."
+            in str(err.value))
+
+    # Test invalid NUM_ANY_DISCONTINUOUS_SPACE
+    content = re.sub(r"NUM_ANY_DISCONTINUOUS_SPACE = 10",
+                     "NUM_ANY_DISCONTINUOUS_SPACE = -10",
+                     _CONFIG_CONTENT,
+                     flags=re.MULTILINE)
+
+    with pytest.raises(ConfigurationError) as err:
+        config(config_file, content)
+
+    assert ("The supplied number of ANY_DISCONTINUOUS_SPACE function "
+            "spaces in the \'[dynamo0.3]\' section " in str(err.value))
+    assert ("must be greater than 0 but found -10."
+            in str(err.value))
 
 
 def test_access_mapping():
@@ -208,3 +277,20 @@ def test_run_time_checks():
     '''
     api_config = Config().get().api_conf(TEST_API)
     assert not api_config.run_time_checks
+
+
+def test_num_any_space():
+    ''' Check that we load the expected default ANY_SPACE value (10).
+
+    '''
+    api_config = Config().get().api_conf(TEST_API)
+    assert api_config.num_any_space == 10
+
+
+def test_num_any_discontinuous_space():
+    ''' Check that we load the expected default ANY_DISCONTINUOUS_SPACE
+    value (10).
+
+    '''
+    api_config = Config().get().api_conf(TEST_API)
+    assert api_config.num_any_discontinuous_space == 10

@@ -91,7 +91,7 @@ module setval_field_w3_kernel_mod
     integer(kind=i_def), intent(in) :: undf_w3
     integer(kind=i_def), intent(in), dimension(ndf_w3) :: map_w3
     real(kind=r_def), intent(in) :: rscalar_2
-    real(kind=r_def), intent(out), dimension(undf_w3) :: field_1_w3
+    real(kind=r_def), intent(inout), dimension(undf_w3) :: field_1_w3
 
     ! Internal variables
     integer(kind=i_def) :: k, df

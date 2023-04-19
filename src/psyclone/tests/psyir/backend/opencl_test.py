@@ -114,6 +114,14 @@ def test_oclw_gen_declaration():
     result = oclwriter.gen_declaration(symbol)
     assert result == "__global int * restrict dummy2"
 
+    # Array with a lower bound other than 1
+    array_type = ArrayType(INTEGER_TYPE, [2, ArrayType.ArrayBounds(2, 5)])
+    symbol = DataSymbol("dummy3", array_type)
+    with pytest.raises(VisitorError) as err:
+        oclwriter.gen_declaration(symbol)
+    assert ("a lower bound of 1 in each dimension. However, array 'dummy3' "
+            "has a lower bound of '2' for dimension 1" in str(err.value))
+
 
 def test_oclw_gen_array_length_variables():
     '''Check the OpenCLWriter class gen_array_length_variables method produces

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council.
+# Copyright (c) 2020-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,17 +33,15 @@
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Laboratory
 # Modified: I. Kavcic, Met Office
+# Modified: R. W. Ford, STFC Daresbury Laboratory
 
 '''
 Module containing pytest tests for the mesh-property support in the kernel-stub
 generation functionality with the LFRic (Dynamo0.3) API.
 '''
 
-from __future__ import absolute_import, print_function
 import os
-import pytest
 from fparser import api as fpapi
-from psyclone.configuration import Config
 from psyclone.dynamo0p3 import DynKernMetadata, DynKern
 
 
@@ -53,13 +51,6 @@ BASE_PATH = os.path.join(
         os.path.abspath(__file__)))),
     "test_files", "dynamo0p3")
 TEST_API = "dynamo0.3"
-
-
-@pytest.fixture(scope="module", autouse=True)
-def setup():
-    '''Make sure that all tests here use Dynamo0.3 as API.'''
-    Config.get().api = "dynamo0.3"
-
 
 MESH_PROP_MDATA = '''
 module testkern_mesh_prop_quad_mod
@@ -105,7 +96,7 @@ def test_mesh_prop_stub_gen():
         "    contains\n"
         "    subroutine testkern_mesh_prop_code(nlayers, rscalar_1, "
         "field_2_w1, ndf_w1, undf_w1, map_w1, nfaces_re_h, adjacent_face)\n"
-        "      use constants_mod, only: r_def, i_def\n"
+        "      use constants_mod\n"
         "      implicit none\n"
         "      integer(kind=i_def), intent(in) :: nlayers\n"
         "      integer(kind=i_def), intent(in) :: ndf_w1\n"

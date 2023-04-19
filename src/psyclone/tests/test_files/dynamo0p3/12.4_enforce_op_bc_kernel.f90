@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017, Science and Technology Facilities Council
+! Copyright (c) 2017-2022, Science and Technology Facilities Council
 !
 ! Redistribution and use in source and binary forms, with or without
 ! modification, are permitted provided that the following conditions are met:
@@ -30,7 +30,8 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author A. Porter STFC
+! Author: A. R. Porter, STFC Daresbury Lab
+! Modified: R. W. Ford, STFC Daresbury Lab
 
 program enforce_operator_bc_kernel_example
 
@@ -38,7 +39,10 @@ program enforce_operator_bc_kernel_example
   ! conditions to operators
 
   use enforce_operator_bc_kernel_mod, only : enforce_operator_bc_kernel_type
+  use operator_mod,                   only : operator_type
 
+  type(operator_type) :: op_a
+  
   call invoke(enforce_operator_bc_kernel_type(op_a))
 
 end program enforce_operator_bc_kernel_example

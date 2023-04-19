@@ -1,3 +1,39 @@
+.. -----------------------------------------------------------------------------
+.. BSD 3-Clause License
+..
+.. Copyright (c) 2017-2023, Science and Technology Facilities Council.
+.. All rights reserved.
+..
+.. Redistribution and use in source and binary forms, with or without
+.. modification, are permitted provided that the following conditions are met:
+..
+.. * Redistributions of source code must retain the above copyright notice, this
+..   list of conditions and the following disclaimer.
+..
+.. * Redistributions in binary form must reproduce the above copyright notice,
+..   this list of conditions and the following disclaimer in the documentation
+..   and/or other materials provided with the distribution.
+..
+.. * Neither the name of the copyright holder nor the names of its
+..   contributors may be used to endorse or promote products derived from
+..   this software without specific prior written permission.
+..
+.. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+.. "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+.. LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+.. FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+.. COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.. INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+.. BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.. LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+.. CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.. LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+.. ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.. POSSIBILITY OF SUCH DAMAGE.
+.. -----------------------------------------------------------------------------
+.. Written by R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+.. Modified by I. Kavcic, Met Office
+
 .. _psyclone_command:
 
 The psyclone command
@@ -5,7 +41,7 @@ The psyclone command
 
 The simplest way to run PSyclone is to use the ``psyclone`` command. If
 you installed PSyclone using ``pip`` then this command should be available
-on your PATH (see :ref:`getting_going_env` for more
+on your PATH (see :ref:`getting-going-env` for more
 details). Alternatively it can be found in the ``<PSYCLONEHOME>/bin``
 directory. The command takes an algorithm file as input and outputs
 modified algorithm code and generated PSy code. This section walks
@@ -24,14 +60,13 @@ The optional ``-h`` argument gives a description of the options provided
 by the command:
 
 .. parsed-literal::
-		
-  > psyclone -h
 
+  > psyclone -h
   usage: psyclone [-h] [-oalg OALG] [-opsy OPSY] [-okern OKERN] [-api API]
                   [-s SCRIPT] [-d DIRECTORY] [-I INCLUDE] [-l {off,all,output}]
-		  [-dm] [-nodm] [--kernel-renaming {multiple,single}]
-		  [--profile {invokes,kernels}] [--config CONFIG] [-v]
-		  filename
+                  [-dm] [-nodm] [--kernel-renaming {multiple,single}]
+                  [--profile {invokes,kernels}] [--config CONFIG] [--version]
+                  filename
 
   Run the PSyclone code generator on a particular file
 
@@ -42,31 +77,32 @@ by the command:
     -h, --help            show this help message and exit
     -oalg OALG            filename of transformed algorithm code
     -opsy OPSY            filename of generated PSy code
-    -okern OKERN          directory in which to put transformed kernels
-    -api API              choose a particular api from ['dynamo0.1',
-                          'dynamo0.3', 'gocean0.1', 'gocean1.0', 'nemo'],
-			  default 'dynamo0.3'.
+    -okern OKERN          directory in which to put transformed kernels,
+                          default is the current working directory.
+    -api API              choose a particular api from ['dynamo0.3',
+                          'gocean1.0', 'nemo'], default 'dynamo0.3'.
     -s SCRIPT, --script SCRIPT
                           filename of a PSyclone optimisation script
     -d DIRECTORY, --directory DIRECTORY
-                          path to root of directory structure containing kernel
-                          source code
+                          path to a root directory structure containing kernel
+                          source code. Multiple roots can be specified by using
+                          multiple -d arguments.
     -I INCLUDE, --include INCLUDE
-                          path to Fortran INCLUDE files (nemo API only)
+                          path to Fortran INCLUDE or module files
     -l {off,all,output}, --limit {off,all,output}
                           limit the Fortran line length to 132 characters
-                          (default 'off'). Use 'on' to apply limit to both input
-                          and output Fortran. Use 'output' to apply line-length
-                          limit to output Fortran only.
+                          (default 'off'). Use 'all' to apply limit to both
+                          input and output Fortran. Use 'output' to apply
+                          line-length limit to output Fortran only.
     -dm, --dist_mem       generate distributed memory code
     -nodm, --no_dist_mem  do not generate distributed memory code
-    --kernel-renaming {single,multiple}
+    --kernel-renaming {multiple,single}
                           Naming scheme to use when re-naming transformed
-			  kernels.
+                          kernels
     --profile {invokes,kernels}, -p {invokes,kernels}
                           Add profiling hooks for either 'kernels' or 'invokes'
     --config CONFIG       Config file with PSyclone specific options.
-    -v, --version         Display version information (\ |release|\ )
+    --version, -v         Display version information (\ |release|\ )
 
 Basic Use
 ---------
@@ -78,12 +114,12 @@ algorithm file::
 
 If the algorithm file is invalid for some reason, the command should
 return with an appropriate error. For example, if we use the Python
-``genkernelstub`` script as an algorithm file we get the following::
+``psyclone-kern`` script as an algorithm file we get the following::
 
-    > psyclone <PSYCLONEHOME>/bin/genkernelstub
-    ...
-        1:#!/usr/bin/env python <== no parse pattern found for "#" in 'BeginSource' block.
-    'Parse Error: Fatal error in external fparser tool'
+    > psyclone <PSYCLONEHOME>/bin/psyclone-kern
+    Parse Error: algorithm.py:parse_fp2: Syntax error in file '<PSYCLONEHOME>/bin/psyclone-kern':
+    at line 1
+    >>>#!/usr/bin/env python
 
 If the algorithm file is valid then the modified algorithm code and
 the generated PSy code will be output to the terminal screen.
@@ -104,7 +140,7 @@ If your code uses an API that is different to the default then you can
 specify this as an argument to the ``psyclone`` command.
 ::
 
-    > psyclone -api dynamo0.1 alg.f90
+    > psyclone -api gocean1.0 alg.f90
 
 File output
 -----------
@@ -200,19 +236,23 @@ specified directory:
     > psyclone -d tests/test_files/dynamo0p3 -api dynamo0.3 use.f90 
     [code output]
 
-.. note::
-    The ``-d`` option is limited to a single directory. Therefore a
-    current limitation in PSyclone is that all kernel files
-    required by an algorithm file must exist within a directory
-    hierarchy where their file names are unique.
+.. note:: The ``-d`` option can be repeated to add as many search
+    directories as is required, with the constraint that there must be
+    only one instance of the specified file within (or below) the
+    specified directories.
 
 Transformation script
 ---------------------
 
-By default the ``psyclone`` command will generate 'vanilla' PSy layer
-code. The -s option allows a Python script to be specified which can
-transform the PSy layer. This option is discussed in more detail in
-the :ref:`sec_transformations_script` section.
+By default the ``psyclone`` command will generate 'vanilla'
+Algorithm-layer and PSy-layer code with unmodified kernels for the
+gocean1.0 and lfric (dynamo0.3) APIs. For the nemo API, ``psyclone``
+will not perform any transformations on the input code.
+
+The -s option allows a Python script to be specified which can contain
+PSyclone transformations to transform the code. This option is
+discussed in more detail in the :ref:`sec_transformations_script`
+section.
 
 .. _fort_line_length:
 
@@ -300,27 +340,51 @@ version of that kernel is already present then that will be
 used. Note, if the kernel file on disk does not match with what would
 be generated then PSyclone will raise an exception.
 
-Fortran INCLUDE Files
----------------------
+Fortran INCLUDE Files and Modules
+---------------------------------
 
 For the NEMO API, if the source code to be processed by PSyclone
-contains INCLUDE statements (other than those for libraries such as
-MPI) then the location of any INCLUDE'd files must be supplied to
-PSyclone via the ``-I`` or ``--include`` option. (This is necessary
-because INCLUDE lines are a part of the Fortran language and must
-therefore be parsed - they are not handled by any pre-processing
-step.) Multiple locations may be specified by using multiple ``-I``
-flags, e.g.::
+contains INCLUDE statements then the location of any INCLUDE'd files
+*must* be supplied to PSyclone via the ``-I`` or ``--include``
+option. (This is necessary because INCLUDE lines are a part of the
+Fortran language and must therefore be parsed - they are not handled
+by any pre-processing step.) Multiple locations may be specified by
+using multiple ``-I`` flags, e.g.::
 
     > psyclone api "nemo" -I /some/path -I /some/other/path alg.f90
 
 If no include paths are specified then the directory containing the
 source file currently being parsed is searched by default. If the
-specified include file is not found then ideally the INCLUDE line
-would be left unchanged. However, fparser currently treats any such
-INCLUDE lines as comments which results in them being lost (fparser
-issue #138). The workaround for this is to ensure that the location
-of *all* INCLUDE files is supplied to PSyclone.
+specified INCLUDE file is not found then PSyclone will abort with
+an appropriate error.
 
 Attempting to specify ``-I``/``--include`` for any API other than NEMO
 will be rejected by PSyclone.
+
+Currently, the PSyKAl-based APIs (LFRic and GOcean) will ignore (but
+preserve) INCLUDE statements in algorithm-layer code. However, INCLUDE
+statements in kernels will, in general, cause the kernel parsing to fail
+unless the file(s) referenced in such statements are in the same directory
+as the kernel file. Once kernel parsing has been re-implemented to use
+fparser2 (issue #239) and the PSyclone Internal Representation then the
+behaviour will be the same as for the NEMO API.
+
+Since PSyclone does not attempt to be a full compiler, it does not require
+that the code be available for any Fortran modules referred to by ``use``
+statements. However, certain transformations *do* require that e.g. type
+information be determined for all variables in the code being transformed.
+In this case PSyclone *will* need to be able to find and process any
+referenced modules. To do this it searches in the directories specified
+by the ``-I``/``--include`` flags. (Currently this search assumes that a
+module named e.g. "my_mod" will be in a file named "my_mod.*90" - see issue
+#1895.)
+
+C Pre-processor #include Files
+------------------------------
+
+PSyclone currently only supports Fortran input. As such, if a file to
+be processed contains CPP ``#include`` statements then it must first be
+processed by a suitable pre-processor before being passed to PSyclone.
+PSyclone will abort with an appropriate error if it encounters a
+``#include`` in any code being processed. This is true of all of the
+PSyclone APIs.

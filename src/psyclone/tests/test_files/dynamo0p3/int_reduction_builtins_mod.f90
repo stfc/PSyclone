@@ -35,7 +35,11 @@
 ! Modified I. Kavcic, Met Office
 !
 !> @brief Incorrect meta-data for the LFRic built-in operations.
-module dynamo0p3_builtins_mod
+module lfric_builtins_mod
+
+  use argument_mod
+  use kernel_mod
+
   !> Fake built-in that purports to do a reduction into an integer scalar
   type, public, extends(kernel_type) :: X_innerproduct_Y
      private
@@ -54,4 +58,4 @@ contains
   subroutine X_innerproduct_Y_code()
   end subroutine X_innerproduct_Y_code
   
-end module dynamo0p3_builtins_mod
+end module lfric_builtins_mod

@@ -70,7 +70,7 @@ contains
     integer(kind=i_def), intent(in) :: ndf_w2
     integer(kind=i_def), intent(in) :: box_b
     integer(kind=i_def), intent(in) :: np_xy, np_z
-    real(kind=r_def), intent(out), dimension(ndf_w2,ndf_w2,ncell_3d) :: local_stencil
+    real(kind=r_def), intent(inout), dimension(ndf_w2,ndf_w2,ncell_3d) :: local_stencil
     real(kind=r_def), intent(in), dimension(3,ndf_w2,np_xy,np_z) :: basis_w2
     real(kind=r_def), intent(in), dimension(np_xy) :: weights_xy
     real(kind=r_def), intent(in), dimension(np_z)  :: weights_z

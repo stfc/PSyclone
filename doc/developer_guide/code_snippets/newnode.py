@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council
+# Copyright (c) 2020-2021, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: S. Siso, STFC Daresbury Lab
+# Modified by: R. W. Ford, STFC Daresbury Lab
 
 '''A simple Python script showing how to create new PSyIR nodes and
 provide them with the basic functionality. In order to use it you must
@@ -52,7 +53,7 @@ class MyNode(Statement):
     is valid, and in turn it accepts one and only one DataNode as a children.
     '''
     _text_name = "MyNodeName"
-    _colour_key = "Assignment"
+    _colour = "blue"
     _children_valid_format = "DataNode"
 
     @staticmethod
@@ -78,7 +79,7 @@ def example():
     # assignment = Assignment()
     # assignment.addchild(mynode)
 
-    psyir_schedule.view()
+    print(psyir_schedule.view())
 
 
 if __name__ == "__main__":

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,17 +31,58 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford and S. Siso, STFC Daresbury Lab
+# Authors R. W. Ford, S. Siso and N. Nobre, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' This module contains the RoutineSymbol.'''
 
 from __future__ import absolute_import
-from psyclone.psyir.symbols.symbol import Symbol
+from psyclone.psyir.symbols.datatypes import NoType
+from psyclone.psyir.symbols.typed_symbol import TypedSymbol
 
 
-class RoutineSymbol(Symbol):
-    '''Symbol identifying a callable routine.'''
+class RoutineSymbol(TypedSymbol):
+    '''Symbol identifying a callable routine.
+
+    :param str name: name of the symbol.
+    :param datatype: data type of the symbol. Default to NoType().
+    :type datatype: :py:class:`psyclone.psyir.symbols.DataType`
+    :param kwargs: additional keyword arguments provided by \
+                   :py:class:`psyclone.psyir.symbols.TypedSymbol`
+    :type kwargs: unwrapped dict.
+
+    '''
+    def __init__(self, name, datatype=None, **kwargs):
+        # In general all arguments are processed by the _process_arguments
+        # but in the 'datatype' case it must be done here because it is a
+        # mandatory argument for the super constructor. There is equivalent
+        # logic in the _process_argument for when the RoutineSymbol is
+        # specialised instead of constructed.
+        if datatype is None:
+            datatype = NoType()
+        super(RoutineSymbol, self).__init__(name, datatype)
+        self._process_arguments(**kwargs)
+
+    def _process_arguments(self, **kwargs):
+        ''' Process the arguments for the constructor and the specialise
+        methods. In this case it provides a default NoType datatype is
+        none is found or provided.
+
+        :param kwargs: keyword arguments which can be:\n
+            the arguments in :py:class:`psyclone.psyir.symbols.TypedSymbol`
+        :type kwargs: unwrapped dict.
+
+        '''
+        if "datatype" not in kwargs and \
+           (not hasattr(self, '_datatype') or self.datatype is None):
+            kwargs["datatype"] = NoType()
+        super(RoutineSymbol, self)._process_arguments(**kwargs)
 
     def __str__(self):
-        return "{0} : {1}".format(self.name, type(self).__name__)
+        # This implementation could be moved to TypedSymbol but it is kept
+        # here to enable us to keep TypedSymbol abstract.
+        return f"{self.name}: {type(self).__name__}<{self.datatype}>"
+
+
+# For Sphinx AutoAPI documentation generation
+__all__ = ["RoutineSymbol"]

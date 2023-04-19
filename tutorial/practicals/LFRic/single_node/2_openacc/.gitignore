@@ -1,0 +1,3 @@
+apply_variable_hx_kernel_*_mod.f90
+enforce_bc_kernel_*_mod.f90
+scaled_matrix_vector_kernel_*_mod.f90

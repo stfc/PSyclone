@@ -37,6 +37,7 @@
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Modified by I. Kavcic, Met Office
+! Modified by R. W. Ford, STFC Daresbury Lab
 !
 !-------------------------------------------------------------------------------
 
@@ -503,7 +504,7 @@ contains
 
     ! The scalars
     real(kind=r_def)                   :: h(GCRK+1, GCRK), u(GCRK), g(GCRK+1)
-    real(kind=r_def)                   :: beta, si, ci, nrm, h1, h2, p, q
+    real(kind=r_def)                   :: beta, si, ci, nrm, h1, h2, px, q
     ! Others
     real(kind=r_def)                   :: err, sc_err, init_err
     real(kind=r_def)                   :: const
@@ -582,9 +583,9 @@ contains
         nrm    = sqrt( h(m,m)*h(m,m) + h(m+1,m)*h(m+1,m) )
         si     = h(m+1,m)/nrm
         ci     = h(m,m)/nrm
-        p      = ci*g(m) + si*g(m+1)
+        px     = ci*g(m) + si*g(m+1)
         q      = -si*g(m) + ci*g(m+1)
-        g(m)   = p
+        g(m)   = px
         g(m+1) = q
         do j = m, GCRK
           h1       = ci*h(m,j)   + si*h(m+1,j)

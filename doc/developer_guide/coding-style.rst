@@ -1,5 +1,12 @@
 .. _coding-style:
 
+.. testsetup::
+
+    # Define SOURCE_FILE to point to an existing gocean 1.0 file.
+    SOURCE_FILE = ("../../src/psyclone/tests/test_files/"
+        "gocean1p0/test11_different_iterates_over_one_invoke.f90")
+    KERNEL_PATH="../../src/psyclone/tests/test_files/gocean1p0/"
+
 Coding and Documentation Style
 ******************************
 
@@ -8,7 +15,7 @@ Documentation Style
 When writing documentation, each reference to a PSyclone class or function
 should be set in italics (i.e. enclosed by single backticks) except in headings.
 The first time a class or function is mentioned, use the full Python path, e.g.:
-`psyclone.core.access_info.VariableAccessInfo`. After that just use the
+`psyclone.core.signature.Signature`. After that just use the
 class name (again in italics).
 File names and shell commands should be set in double back-ticks (\`\`).
 
@@ -88,8 +95,9 @@ removing one variable, or refactoring the code to create two functions.
 
 Additional rules that apply:
 
-  #) All setter and getter functions must be declared as property and
-     setter to allow them to be used without parentheses::
+  #) All setter and getter functions (that do not do any significant work)
+     must be declared as property and setter to allow them to be used
+     without parentheses::
 
         @property
         def ast_end(self):
@@ -114,6 +122,19 @@ Additional rules that apply:
   #) Any new line of code must be covered by at least one test case,
      see :ref:`test_suite` and especially :ref:`test_coverage`.
 
+  #) Importing other modules should be done at the top of a file, and
+     the import statements must be sorted alphabetically. If a
+     module cannot be import at the top of a file due to a circular
+     dependency, a comment must be added to the local import statement,
+     and the corresponding pylint warning must be disabled, e.g.::
+
+         def my_function():
+             ...
+             # Avoid circular import
+             # pylint: disable=import-outside-toplevel
+             from psyclone.core.access_type import AccessType
+
+
 Exceptions
 ----------
 
@@ -125,16 +146,14 @@ Where it makes sense to do so, the past tense should be used,
 e.g. "expected a str but got an object of type 'blah'."
 
 In the event that code that is handling an exception then needs to
-raise a new exception, the `raise_from` routine provided by the `six`
-Python 2/3 interoperability package must be used. (This ensures that
-contextual information about the source of the error is
+raise a new exception, the `raise XXX from YYY` form must be used.
+(This ensures that contextual information about the source of the error is
 retained.). For example::
 
-    import six
     try:
         something()
     except KeyError as err:
-        six.raise_from(InternalError("Useful message here"), err)
+        raise InternalError("Useful message here") from err
 
 .. _interface_description:
 
@@ -142,7 +161,8 @@ Interface Description
 #####################
 
 
-The interface to any new or modified routine in PSyclone must be fully documented using Sphinx mark-up. An example of how to do this is shown below:
+The interface to any new or modified routine in PSyclone must be fully
+documented using Sphinx mark-up. An example of how to do this is shown below:
 
     .. literalinclude:: interface_example.py
 
@@ -167,16 +187,15 @@ Some important details:
                                a capital letter, and end with a full stop.
          parameter description Start the parameter description with a lowercase 
                                letter and end with a full stop. The parameter type
-                               declaration must start with a lowercase letter, and
-                               no punctuation at then end. References to other
+                               declaration must follow `PEP 483
+			       <https://peps.python.org/pep-0483/>`_ with no
+			       punctuation at the end. References to other
                                classes within PSyclone should be written as
                                ``:py:class:`psyclone.filename.Class```.
          return value          The description of the return value should start with
                                a lowercase letter, and end with a full stop. The type
-                               can either be a lower case one word entry
-                               (``:py:class:`psyclone.filename.Class```, 'int'
-                               etc), or can also be a full sentence, then starting
-                               with a capital letter and full punctuation.
+                               must follow `PEP 483
+			       <https://peps.python.org/pep-0483/>`_.
          exceptions            These must start with a lower case letter, and end
                                with a full stop.
          ===================== ======================================================

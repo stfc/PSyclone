@@ -11,7 +11,7 @@ PSyclone must be installed (see the top-level [README](../README.md)
 file) before attempting to generate any documentation.
 
 The documentation for PSyclone is created using
-[Sphinx](http://sphinx-doc.org). Documentation can be created in a
+[Sphinx](https://www.sphinx-doc.org). Documentation can be created in a
 number of formats, such as html, latex and pdf. To see the options
 "cd" to either the "user_guide" or "developer_guide" directory and
 type "make" if on a linux system or run the "make.bat" script if on a

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,14 +31,15 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 #------------------------------------------------------------------------------
-# Authors: J. Henrichs, Australian Bureau of Meteorology
+# Author: J. Henrichs, Australian Bureau of Meteorology
+# Modified: I. Kavcic, Met Office
 
 # This Makefile just creates the Fortran base class for the PSyData library
 # from the jinja template psy_data_base.jinja. The compile functionality it
 # offers is only meant for testing, each library should compile its own version
 # of the base class (with therefore consistent compiler settings).
 
-.PHONEY: all
+.PHONY: all
 	
 all:
 	$(MAKE) -C netcdf all

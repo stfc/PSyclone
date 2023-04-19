@@ -31,12 +31,14 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Lab
+# Author: A. R. Porter and N. Nobre, STFC Daresbury Lab
+# Modified by J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
 ''' This module contains the implementation of the StructureMember node.'''
 
 from __future__ import absolute_import
+from psyclone.core import Signature
 from psyclone.psyir.nodes.member import Member
 from psyclone.errors import InternalError
 
@@ -76,7 +78,6 @@ class StructureMember(Member):
         '''
         smem = StructureMember(member_name)
         smem.addchild(inner_member)
-        inner_member.parent = smem
         return smem
 
     def __str__(self):
@@ -113,10 +114,21 @@ class StructureMember(Member):
         '''
         if not isinstance(self.children[0], Member):
             raise InternalError(
-                "{0} malformed or incomplete. The first child "
-                "must be an instance of Member, but found '{1}'".format(
-                    type(self).__name__, type(self.children[0]).__name__))
+                f"{type(self).__name__} malformed or incomplete. The first "
+                f"child must be an instance of Member, but found "
+                f"'{type(self.children[0]).__name__}'")
         return self.children[0]
+
+    def get_signature_and_indices(self):
+        ''':returns: the Signature of this structure member, and \
+            a list of the indices used for each component (empty list \
+            for this component, since the access is not an array - but \
+            other components might have indices).
+        :rtype: tuple(:py:class:`psyclone.core.Signature`, list of \
+            list of indices)
+        '''
+        sub_sig, indices = self.children[0].get_signature_and_indices()
+        return (Signature(self.name, sub_sig), [[]]+indices)
 
 
 # For Sphinx AutoAPI documentation generation

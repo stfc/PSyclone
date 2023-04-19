@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council
+# Copyright (c) 2021-2022, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford and A. R. Porter, STFC Daresbury Laboratory
+# Modified by J. Henrichs, Bureau of Meteorology
 
 '''File containing a PSyclone transformation script for the dynamo0p3
 API to apply colouring and then OpenMP parallelisation to an
@@ -44,7 +45,7 @@ from psyclone.transformations import DynamoOMPParallelLoopTrans, \
     TransformationError, Dynamo0p3ColourTrans, OMPParallelTrans, \
     Dynamo0p3OMPLoopTrans
 from psyclone.psyGen import Loop
-from psyclone.domain.lfric.function_space import FunctionSpace
+from psyclone.domain.lfric import LFRicConstants
 
 
 def trans(psy):
@@ -61,6 +62,7 @@ def trans(psy):
     ctrans = Dynamo0p3ColourTrans()
     ptrans = OMPParallelTrans()
     ltrans = Dynamo0p3OMPLoopTrans()
+    const = LFRicConstants()
 
     for invoke in psy.invokes.invoke_list:
         schedule = invoke.schedule
@@ -68,7 +70,7 @@ def trans(psy):
         # Colour any loops that need colouring
         for loop in schedule.walk(Loop):
             if (loop.field_space.orig_name not in
-                    FunctionSpace.VALID_DISCONTINUOUS_NAMES and
+                    const.VALID_DISCONTINUOUS_NAMES and
                     loop.iteration_space == "cell_column"):
                 ctrans.apply(loop)
 
@@ -85,6 +87,6 @@ def trans(psy):
                 print(str(info.value))
 
         # take a look at what we've done
-        schedule.view()
+        print(schedule.view())
 
         return psy

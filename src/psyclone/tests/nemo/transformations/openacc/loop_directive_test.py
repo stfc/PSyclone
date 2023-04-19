@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2020, Science and Technology Facilities Council.
+# Copyright (c) 2019-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 
 '''Module containing py.test tests for the transformation of the PSy
    representation of NEMO code using the OpenACC loop directive.
@@ -67,7 +67,7 @@ def test_missing_enclosing_region(parser):
     psy = PSyFactory(API, distributed_memory=False).create(code)
     schedule = psy.invokes.invoke_list[0].schedule
     acc_trans = TransInfo().get_trans_name('ACCLoopTrans')
-    schedule, _ = acc_trans.apply(schedule[0])
+    acc_trans.apply(schedule[0])
     with pytest.raises(GenerationError) as err:
         str(psy.gen)
     assert ("ACCLoopDirective must have an ACCParallelDirective or "
@@ -92,29 +92,37 @@ def test_explicit_loop(parser):
     schedule = psy.invokes.invoke_list[0].schedule
     acc_trans = TransInfo().get_trans_name('ACCLoopTrans')
     para_trans = TransInfo().get_trans_name('ACCParallelTrans')
+    data_trans = TransInfo().get_trans_name('ACCDataTrans')
     para_trans.apply(schedule.children)
-    schedule, _ = acc_trans.apply(schedule[0].dir_body[0])
-    schedule, _ = acc_trans.apply(schedule[0].dir_body[1],
-                                  {"independent": False})
-    code = str(psy.gen)
-    assert ("PROGRAM do_loop\n"
-            "  INTEGER :: ji\n"
-            "  INTEGER, PARAMETER :: jpj = 13\n"
-            "  REAL :: sto_tmp(jpj), sto_tmp2(jpj)\n"
-            "  !$ACC PARALLEL\n"
-            "  !$ACC LOOP INDEPENDENT\n"
-            "  DO ji = 1, jpj\n"
-            "    sto_tmp(ji) = 1.0D0\n"
-            "  END DO\n"
-            "  !$ACC LOOP\n"
-            "  DO ji = 1, jpj\n"
-            "    sto_tmp2(ji) = 1.0D0\n"
-            "  END DO\n"
-            "  !$ACC END PARALLEL\n"
-            "END PROGRAM do_loop" in code)
+    acc_trans.apply(schedule[0].dir_body[0])
+    acc_trans.apply(schedule[0].dir_body[1], {"independent": False})
+    data_trans.apply(schedule)
+
+    code = str(psy.gen).lower()
+    assert ("program do_loop\n"
+            "  integer, parameter :: jpj = 13\n"
+            "  integer :: ji\n"
+            "  real, dimension(jpj) :: sto_tmp\n"
+            "  real, dimension(jpj) :: sto_tmp2\n"
+            "\n"
+            "  !$acc data copyout(sto_tmp,sto_tmp2)\n"
+            "  !$acc parallel default(present)\n"
+            "  !$acc loop independent\n"
+            "  do ji = 1, jpj, 1\n"
+            "    sto_tmp(ji) = 1.0d0\n"
+            "  enddo\n"
+            "  !$acc loop\n"
+            "  do ji = 1, jpj, 1\n"
+            "    sto_tmp2(ji) = 1.0d0\n"
+            "  enddo\n"
+            "  !$acc end parallel\n"
+            "  !$acc end data\n"
+            "\n"
+            "end program do_loop" in code)
 
 
 SINGLE_LOOP = ("program do_loop\n"
+               "use kind_params_mod, only: wp\n"
                "integer :: ji\n"
                "integer, parameter :: jpj=12\n"
                "real(kind=wp) :: sto_tmp(jpj)\n"
@@ -124,6 +132,7 @@ SINGLE_LOOP = ("program do_loop\n"
                "end program do_loop\n")
 
 DOUBLE_LOOP = ("program do_loop\n"
+               "use kind_params_mod, only: wp\n"
                "integer :: ji, jj\n"
                "integer, parameter :: jpi=16, jpj=16\n"
                "real(kind=wp) :: sto_tmp(jpi, jpj)\n"
@@ -147,12 +156,13 @@ def test_seq_loop(parser):
     kernels_trans = TransInfo().get_trans_name('ACCKernelsTrans')
     kernels_trans.apply(schedule.children)
     loops = schedule[0].walk(Loop)
-    _ = acc_trans.apply(loops[0], {"sequential": True})
-    code = str(psy.gen)
-    assert ("  REAL(KIND = wp) :: sto_tmp(jpj)\n"
-            "  !$ACC KERNELS\n"
-            "  !$ACC LOOP SEQ\n"
-            "  DO ji = 1, jpj\n" in code)
+    acc_trans.apply(loops[0], {"sequential": True})
+    code = str(psy.gen).lower()
+    assert ("  real(kind=wp), dimension(jpj) :: sto_tmp\n"
+            "\n"
+            "  !$acc kernels\n"
+            "  !$acc loop seq\n"
+            "  do ji = 1, jpj, 1\n" in code)
 
 
 def test_collapse(parser):
@@ -167,13 +177,14 @@ def test_collapse(parser):
     kernels_trans = TransInfo().get_trans_name('ACCKernelsTrans')
     kernels_trans.apply(schedule.children)
     loops = schedule[0].walk(Loop)
-    schedule, _ = acc_trans.apply(loops[0], {"collapse": 2})
-    code = str(psy.gen)
-    assert ("  REAL(KIND = wp) :: sto_tmp(jpi, jpj)\n"
-            "  !$ACC KERNELS\n"
-            "  !$ACC LOOP INDEPENDENT COLLAPSE(2)\n"
-            "  DO jj = 1, jpj\n"
-            "    DO ji = 1, jpi\n" in code)
+    acc_trans.apply(loops[0], {"collapse": 2})
+    code = str(psy.gen).lower()
+    assert ("  real(kind=wp), dimension(jpi,jpj) :: sto_tmp\n"
+            "\n"
+            "  !$acc kernels\n"
+            "  !$acc loop independent collapse(2)\n"
+            "  do jj = 1, jpj, 1\n"
+            "    do ji = 1, jpi, 1\n" in code)
 
 
 def test_collapse_err(parser):
@@ -186,6 +197,6 @@ def test_collapse_err(parser):
     schedule = psy.invokes.invoke_list[0].schedule
     acc_trans = TransInfo().get_trans_name('ACCLoopTrans')
     with pytest.raises(TransformationError) as err:
-        _, _ = acc_trans.apply(schedule.children[0], {"collapse": 3})
+        acc_trans.apply(schedule.children[0], {"collapse": 3})
     assert ("Cannot apply COLLAPSE(3) clause to a loop nest containing "
             "only 2 loops" in str(err.value))

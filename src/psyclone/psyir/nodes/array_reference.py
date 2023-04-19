@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -38,11 +38,15 @@
 
 ''' This module contains the implementation of the ArrayReference node. '''
 
-from __future__ import absolute_import
-from psyclone.psyir.nodes.array_mixin import ArrayMixin
-from psyclone.psyir.nodes.reference import Reference
-from psyclone.psyir.symbols import DataSymbol
 from psyclone.errors import GenerationError
+from psyclone.psyir.nodes.array_mixin import ArrayMixin
+from psyclone.psyir.nodes.literal import Literal
+from psyclone.psyir.nodes.operation import BinaryOperation
+from psyclone.psyir.nodes.ranges import Range
+from psyclone.psyir.nodes.reference import Reference
+from psyclone.psyir.symbols import (DataSymbol, DeferredType, UnknownType,
+                                    DataTypeSymbol, ScalarType, ArrayType,
+                                    INTEGER_TYPE)
 
 
 class ArrayReference(ArrayMixin, Reference):
@@ -58,12 +62,13 @@ class ArrayReference(ArrayMixin, Reference):
     @staticmethod
     def create(symbol, indices):
         '''Create an ArrayReference instance given a symbol and a list of Node
-        array indices.
+        array indices. The special value ":" can be used as an index to
+        create the corresponding PSyIR Range that represents ":".
 
         :param symbol: the symbol that this array is associated with.
         :type symbol: :py:class:`psyclone.psyir.symbols.DataSymbol`
-        :param indices: a list of Nodes describing the array indices.
-        :type indices: list of :py:class:`psyclone.psyir.nodes.Node`
+        :param indices: a list of Nodes or ":" describing the array indices.
+        :type indices: List[Union[:py:class:`psyclone.psyir.nodes.Node`,":"]]
 
         :returns: an ArrayReference instance.
         :rtype: :py:class:`psyclone.psyir.nodes.ArrayReference`
@@ -74,35 +79,63 @@ class ArrayReference(ArrayMixin, Reference):
         '''
         if not isinstance(symbol, DataSymbol):
             raise GenerationError(
-                "symbol argument in create method of ArrayReference class "
-                "should be a DataSymbol but found '{0}'.".format(
-                    type(symbol).__name__))
+                f"symbol argument in create method of ArrayReference class "
+                f"should be a DataSymbol but found '{type(symbol).__name__}'.")
         if not isinstance(indices, list):
             raise GenerationError(
-                "indices argument in create method of ArrayReference class "
-                "should be a list but found '{0}'."
-                "".format(type(indices).__name__))
+                f"indices argument in create method of ArrayReference class "
+                f"should be a list but found '{type(indices).__name__}'.")
         if not symbol.is_array:
-            raise GenerationError(
-                "expecting the symbol to be an array, not a scalar.")
-        if len(symbol.shape) != len(indices):
-            raise GenerationError(
-                "the symbol should have the same number of dimensions as "
-                "indices (provided in the 'indices' argument). "
-                "Expecting '{0}' but found '{1}'.".format(
-                    len(indices), len(symbol.shape)))
+            # Deferred and Unknown types may still be arrays
+            if not isinstance(symbol.datatype, (DeferredType, UnknownType)):
+                raise GenerationError(
+                    f"expecting the symbol '{symbol.name}' to be an array, but"
+                    f" found '{symbol.datatype}'.")
+        if symbol.is_array:
+            if len(symbol.shape) != len(indices):
+                raise GenerationError(
+                    f"the symbol '{symbol.name}' should have the same number "
+                    f"of dimensions as indices (provided in the 'indices' "
+                    f"argument). Expecting '{len(indices)}' but found "
+                    f"'{len(symbol.shape)}'.")
 
         array = ArrayReference(symbol)
-        for child in indices:
-            array.addchild(child)
-            child.parent = array
+        for ind, child in enumerate(indices):
+            if child == ":":
+                lbound = BinaryOperation.create(
+                    BinaryOperation.Operator.LBOUND,
+                    Reference(symbol), Literal(f"{ind+1}", INTEGER_TYPE))
+                ubound = BinaryOperation.create(
+                    BinaryOperation.Operator.UBOUND,
+                    Reference(symbol), Literal(f"{ind+1}", INTEGER_TYPE))
+                my_range = Range.create(lbound, ubound)
+                array.addchild(my_range)
+            else:
+                array.addchild(child)
         return array
 
     def __str__(self):
-        result = super(ArrayReference, self).__str__() + "\n"
+        result = super().__str__() + "\n"
         for entity in self._children:
             result += str(entity) + "\n"
         return result
+
+    @property
+    def datatype(self):
+        '''
+        :returns: the datatype of the accessed array element(s).
+        :rtype: :py:class:`psyclone.psyir.symbols.DataType`
+        '''
+        shape = self._get_effective_shape()
+        if shape:
+            return ArrayType(self.symbol.datatype, shape)
+        if isinstance(self.symbol.datatype.intrinsic, DataTypeSymbol):
+            return self.symbol.datatype.intrinsic
+        # TODO #1857: Really we should just be able to return
+        # self.symbol.datatype here but currently arrays of scalars are
+        # handled in a different way to all other types of array.
+        return ScalarType(self.symbol.datatype.intrinsic,
+                          self.symbol.datatype.precision)
 
 
 # For AutoAPI documentation generation

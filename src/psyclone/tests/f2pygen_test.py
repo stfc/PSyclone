@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2019, Science and Technology Facilities Council
+# Copyright (c) 2017-2022, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors: R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 
 ''' Tests for the f2pygen module of PSyclone '''
 
@@ -39,9 +39,9 @@ from __future__ import absolute_import, print_function
 import pytest
 from psyclone.f2pygen import ModuleGen, CommentGen, SubroutineGen, DoGen, \
     CallGen, AllocateGen, DeallocateGen, IfThenGen, DeclGen, TypeDeclGen,\
-    CharDeclGen, ImplicitNoneGen, UseGen, DirectiveGen, AssignGen
+    CharDeclGen, ImplicitNoneGen, UseGen, DirectiveGen, AssignGen, PSyIRGen
 from psyclone.errors import InternalError
-from psyclone.psyir.nodes import Node
+from psyclone.psyir.nodes import Node, Return
 from psyclone.tests.utilities import Compile, count_lines, line_number
 
 # Fortran we have to add to some of the generated code in order to
@@ -282,7 +282,7 @@ def test_mod_no_implicit_none():
     assert "IMPLICIT NONE" not in str(module.root)
 
 
-def test_failed_module_inline():
+def test_invalid_add_raw_subroutine_argument():
     ''' test that an error is thrown if the wrong type of object
     is passed to the add_raw_subroutine method '''
     module = ModuleGen(name="test")
@@ -1035,7 +1035,7 @@ def test_decl_save(tmpdir):
                         entity_decls=["ufld"]))
     gen = str(module.root).lower()
     for dtype in DeclGen.SUPPORTED_TYPES:
-        assert "{0}, save :: var".format(dtype.lower()) in gen
+        assert f"{dtype.lower()}, save :: var" in gen
     assert "character(len=10), save :: varchar" in gen
     assert "type(field_type), save :: ufld" in gen
     # Check that the generated code compiles (if enabled). We have to
@@ -1059,9 +1059,31 @@ def test_decl_target(tmpdir):
                         entity_decls=["ufld"]))
     gen = str(module.root).lower()
     for dtype in DeclGen.SUPPORTED_TYPES:
-        assert "{0}, target :: var".format(dtype.lower()) in gen
+        assert f"{dtype.lower()}, target :: var" in gen
     assert "character(len=10), target :: varchar" in gen
     assert "type(field_type), target :: ufld" in gen
+    # Check that the generated code compiles (if enabled). We
+    # must manually add a definition for the derived type.
+    parts = gen.split("implicit none")
+    gen = parts[0] + "implicit none\n" + TYPEDECL + parts[1]
+    assert Compile(tmpdir).string_compiles(gen)
+
+
+def test_decl_private(tmpdir):
+    ''' Check that we can declare variables with the 'private' attribute. '''
+    module = ModuleGen(name="testmodule")
+    for idx, dtype in enumerate(DeclGen.SUPPORTED_TYPES):
+        module.add(DeclGen(module, datatype=dtype, private=True,
+                           entity_decls=["var"+str(idx)]))
+    module.add(CharDeclGen(module, private=True, length="10",
+                           entity_decls=["varchar"]))
+    module.add(TypeDeclGen(module, private=True, datatype="field_type",
+                           entity_decls=["ufld"]))
+    gen = str(module.root).lower()
+    for dtype in DeclGen.SUPPORTED_TYPES:
+        assert f"{dtype.lower()}, private :: var" in gen
+    assert "character(len=10), private :: varchar" in gen
+    assert "type(field_type), private :: ufld" in gen
     # Check that the generated code compiles (if enabled). We
     # must manually add a definition for the derived type.
     parts = gen.split("implicit none")
@@ -1166,8 +1188,8 @@ def test_declgen_wrong_type(monkeypatch):
     dgen = DeclGen(sub, datatype="integer", entity_decls=["my_int"])
     with pytest.raises(InternalError) as err:
         dgen._check_initial_values("complex", ["1"])
-    assert ("internal error: unsupported type 'complex' - should be one "
-            "of {0}".format(dgen.SUPPORTED_TYPES) in str(err.value))
+    assert (f"internal error: unsupported type 'complex' - should be one "
+            f"of {dgen.SUPPORTED_TYPES}" in str(err.value))
     # Check that we get an internal error if the supplied type is in the
     # list of those supported but has not actually been implemented.
     # We have to monkeypatch the list of supported types...
@@ -1446,3 +1468,58 @@ def test_basegen_previous_loop_no_loop():
     with pytest.raises(RuntimeError) as err:
         sub.previous_loop()
     assert "no loop found - there is no previous loop" in str(err.value)
+
+
+def test_psyirgen_node():
+    '''Check that the PSyIRGen prints the content of the provided PSyIR
+    node inside the f2pygen node.
+    '''
+    module = ModuleGen(name="testmodule")
+    subroutine = SubroutineGen(module, name="testsubroutine")
+    module.add(subroutine)
+
+    # Now add a PSyIR node inside the f2pygen tree
+    node = Return()
+    subroutine.add(PSyIRGen(subroutine, node))
+
+    generated_code = str(module.root)
+    expected = '''\
+  MODULE testmodule
+    IMPLICIT NONE
+    CONTAINS
+    SUBROUTINE testsubroutine()
+      RETURN
+    END SUBROUTINE testsubroutine
+  END MODULE testmodule'''
+
+    assert generated_code == expected
+
+
+def test_psyirgen_multiple_fparser_nodes():
+    '''Check that the PSyIRGen prints the content of the provided PSyIR
+    node inside the f2pygen node when the PSyIR node maps to more than
+    one fparser nodes.
+    '''
+    module = ModuleGen(name="testmodule")
+    subroutine = SubroutineGen(module, name="testsubroutine")
+    module.add(subroutine)
+
+    # Create single PSyIR node that maps to 2 fparser nodes: a comment
+    # statement and a return statement.
+    node = Return()
+    node.preceding_comment = "Comment statement"
+
+    subroutine.add(PSyIRGen(subroutine, node))
+
+    generated_code = str(module.root)
+    expected = '''\
+  MODULE testmodule
+    IMPLICIT NONE
+    CONTAINS
+    SUBROUTINE testsubroutine()
+      ! Comment statement
+      RETURN
+    END SUBROUTINE testsubroutine
+  END MODULE testmodule'''
+
+    assert generated_code == expected

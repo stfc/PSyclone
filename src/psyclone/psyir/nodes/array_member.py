@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Lab
+# Author: A. R. Porter and N. Nobre, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' This module contains the implementation of the ArrayMember node.'''
@@ -54,7 +54,7 @@ class ArrayMember(ArrayMixin, Member):
     _text_name = "ArrayMember"
 
     @staticmethod
-    def create(member_name, indices, parent=None):
+    def create(member_name, indices):
         '''
         Construct an ArrayMember instance describing an array access to a
         member of a structure.
@@ -72,23 +72,19 @@ class ArrayMember(ArrayMixin, Member):
         :param indices: the array-index expressions.
         :type indices: list of :py:class:`psyclone.psyir.nodes.DataNode` or
             :py:class:`psyclone.psyir.nodes.Range`
-        :param parent: the parent of this node in the PSyIR tree.
-        :type parent: subclass of :py:class:`psyclone.psyir.nodes.Node`
 
         :raises GenerationError: if the supplied `indices` argument is not \
                                  a list.
         '''
         if not isinstance(indices, list):
             raise GenerationError(
-                "indices argument in create method of ArrayMember class "
-                "should be a list but found '{0}'."
-                "".format(type(indices).__name__))
+                f"indices argument in create method of ArrayMember class "
+                f"should be a list but found '{type(indices).__name__}'.")
 
-        obj = ArrayMember(member_name, parent=parent)
+        obj = ArrayMember(member_name)
         # Add any array-index expressions as children
         for child in indices:
             obj.addchild(child)
-            child.parent = obj
         return obj
 
 

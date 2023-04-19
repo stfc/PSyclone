@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Laboratory
+# Modified J. Henrichs, Bureau of Meteorology
 
 include ../../common.mk
 
@@ -45,10 +46,11 @@ serial:
 dm:
 	${PSYCLONE} solver_mod.x90
 
+compile: transform
+	@echo "No compilation supported for lfric/eg4"
+
 backends:
 	${PSYCLONE} -s ./backends_transform.py -nodm solver_mod.x90
 
-compile:
-	@echo "No compilation supported for lfric/eg4"
-
-all: transform compile
+run: compile
+	@echo "No run targets for lfric/eg4"

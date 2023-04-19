@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2020, Science and Technology Facilities Council
+! Copyright (c) 2017-2022, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -47,7 +47,7 @@ program multikernel_invokes_7
 
   implicit none
 
-  type(field_type)           :: a, b, c, d, e(3), f, qr, g
+  type(field_type)           :: a, b, c, d, e(3), f, g, h
   real(r_def)                :: ascalar, rdt
   integer(i_def)             :: istp
   type(quadrature_xyoz_type) :: qr
@@ -64,7 +64,7 @@ program multikernel_invokes_7
                ! f is written, rest are read-only
                testkern_type(ascalar, f, b, c, d) )
 
-  ! => b and h must be intent(out)
+  ! => b and h must be intent(inout)
   ! => g and f must be intent(inout)
   ! => a, c, d and e are intent(in)
 end program multikernel_invokes_7

@@ -1,6 +1,6 @@
 # PSyclone GOCean Examples
 
-**Authors:** A. R. Porter and S. Siso, STFC Daresbury Lab
+**Authors:** A. R. Porter, S. Siso and R. W. Ford, STFC Daresbury Lab
 
 The sub-directories present in the directory containing this README provide
 examples of the use of PSyclone with the GOcean 1.0 API.
@@ -21,7 +21,8 @@ be installed first.
 ## Example 3
 
 Illustrates the use of PSyclone to generate an OpenCL driver layer for
-a four-kernel invoke and an OpenCL version of each of the kernels.
+a four-kernel invoke and matching OpenCL kernels. Some useful optimisations
+for OpenCL are applied to each kernel.
 
 ## Example 4
 
@@ -29,26 +30,30 @@ Examples of the application of kernel transforms to kernels that access
 data and/or routines from other Fortran modules. Note that this is not
 yet fully supported and is the subject of Issue #342.
 
-## Example 5
+## Example 5a
 
 Illustrates the use of the profiling support in PSyclone. The resulting
 code may be compiled and executed.
 
-## Example 6
+## Example 5b
 
 Illustrates the use of the kernel-data extraction support in PSyclone. The
 resulting code may be compiled and executed (requires a netcdf installation).
 
-## Example 7
+## Example 5c
 
 Illustrates the use of the read-only verification in PSyclone. The
 resulting code may be compiled and executed to show warnings printed
 by the read-only verification.
 
-## Example 8
+## Example 6
 
 Informs the development of the code generation of PSy-layer code using the
 PSyIR language backends.
+
+## Example 7
+
+Demonstrates the use of a script that can transform the algorithm layer.
 
 ## Licence
 
@@ -56,7 +61,7 @@ PSyIR language backends.
 
 BSD 3-Clause License
 
-Copyright (c) 2017-2020, Science and Technology Facilities Council.
+Copyright (c) 2017-2022, Science and Technology Facilities Council.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without

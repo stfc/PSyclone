@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Science and Technology Facilities Council
+# Copyright (c) 2019-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,8 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab.
-# Modified J. Henrichs, Bureau of Meteorology
+# Modified: J. Henrichs, Bureau of Meteorology
+#           A. R. Porter, N. Nobre and S. Siso, STFC Daresbury Lab
 
 
 '''Generic PSyIR visitor code that can be specialised by different
@@ -40,10 +41,14 @@ back ends.
 
 '''
 
+import inspect
+
+from psyclone.errors import PSycloneError
 from psyclone.psyir.nodes import Node
+from psyclone.psyir.nodes.commentable_mixin import CommentableMixin
 
 
-class VisitorError(Exception):
+class VisitorError(PSycloneError):
     '''Provides a PSyclone-specific error class for errors related to a
     PSyIR visitor.
 
@@ -51,64 +56,78 @@ class VisitorError(Exception):
 
     '''
     def __init__(self, value):
-        Exception.__init__(self, value)
-        self.value = "Visitor Error: "+value
-
-    def __str__(self):
-        return str(self.value)
+        PSycloneError.__init__(self, value)
+        self.value = "Visitor Error: "+str(value)
 
 
-class PSyIRVisitor(object):
+class PSyIRVisitor():
     '''A generic PSyIR visitor. This is designed to be specialised by
-    a particular back end.
+    a particular back end. By default, global constraints are enforced by
+    calling the `validate_global_constraints()` method of each Node visited.
 
     :param bool skip_nodes: If skip_nodes is False then an exception \
-    is raised if a visitor method for a PSyIR node has not been \
-    implemented, otherwise the visitor silently continues. This is an \
-    optional argument which defaults to False.
-    :param indent_string: Specifies what to use for indentation. This \
-    is an optional argument that defaults to two spaces.
-    :type indent_string: str or NoneType
+        is raised if a visitor method for a PSyIR node has not been \
+        implemented, otherwise the visitor silently continues. This is an \
+        optional argument which defaults to False.
+    :param str indent_string: Specifies what to use for indentation. This \
+        is an optional argument that defaults to two spaces.
     :param int initial_indent_depth: Specifies how much indentation to \
-    start with. This is an optional argument that defaults to 0.
+        start with. This is an optional argument that defaults to 0.
+    :param bool check_global_constraints: whether or not to validate all \
+        global constraints when walking the tree. Defaults to True.
 
-    :raises TypeError: If skip_nodes is not a boolean, indent_string \
-    is not a string, or initial_indent_depth is not an integer.
+    :raises TypeError: if any of the supplied parameters are of the wrong type.
 
     '''
+    # Character(s) to use as a prefix for comments in this backend
+    _COMMENT_PREFIX = None
+
+    # This option will disable the lowering of abstract nodes into language
+    # level nodes, and as a consequence the backend does not need to deep-copy
+    # the tree and is much faster to execute.
+    # Be careful not to modify anything from the input tree when this option
+    # is set to True as the modifications will persist after the Writer!
+    _DISABLE_LOWERING = False
+
     def __init__(self, skip_nodes=False, indent_string="  ",
-                 initial_indent_depth=0):
+                 initial_indent_depth=0, check_global_constraints=True):
 
         if not isinstance(skip_nodes, bool):
             raise TypeError(
-                "skip_nodes should be a boolean but found '{0}'."
-                "".format(type(skip_nodes).__name__))
-        if indent_string is not None and not isinstance(indent_string, str):
+                f"skip_nodes should be a boolean but found "
+                f"'{type(skip_nodes).__name__}'.")
+        if not isinstance(indent_string, str):
             raise TypeError(
-                "indent_string should be a str but found '{0}'."
-                "".format(type(indent_string).__name__))
+                f"indent_string should be a str but found "
+                f"'{type(indent_string).__name__}'.")
         if not isinstance(initial_indent_depth, int):
             raise TypeError(
-                "initial_indent_depth should be an integer but found '{0}'."
-                "".format(type(initial_indent_depth).__name__))
+                f"initial_indent_depth should be an integer but found "
+                f"'{type(initial_indent_depth).__name__}'.")
         if initial_indent_depth < 0:
             raise TypeError(
-                "initial_indent_depth should not be negative, but found '{0}'."
-                "".format(initial_indent_depth))
+                f"initial_indent_depth should not be negative, but found "
+                f"'{initial_indent_depth}'.")
+        if not isinstance(check_global_constraints, bool):
+            raise TypeError(f"check_global_constraints should be a boolean "
+                            f"but found "
+                            f"'{type(check_global_constraints).__name__}'.")
 
         self._skip_nodes = skip_nodes
         self._indent = indent_string
         self._depth = initial_indent_depth
+        #: If validate_nodes is True then each node visited will have any
+        #: global constraints validated.
+        self._validate_nodes = check_global_constraints
 
     def reference_node(self, node):
-        # pylint: disable=no-self-use
         '''This method is called when a Reference instance is found in the
         PSyIR tree.
 
         :param node: a Reference PSyIR node.
         :type node: :py:class:`psyclone.psyir.nodes.Reference`
 
-        :returns: the Fortran code as a string.
+        :returns: the text representation of this reference.
         :rtype: str
 
         :raises VisitorError: if this node has children.
@@ -116,8 +135,7 @@ class PSyIRVisitor(object):
         '''
         if node.children:
             raise VisitorError(
-                "Expecting a Reference with no children but found: {0}"
-                "".format(str(node)))
+                f"Expecting a Reference with no children but found: {node}")
         return node.name
 
     @property
@@ -131,15 +149,54 @@ class PSyIRVisitor(object):
 
     def __call__(self, node):
         '''This method is called when an instance of the class is called
-        directly (like a function). This implementation is known as
-        a functor. It makes sense for this class as there is only one
-        main method - the `visit` method.
+        directly (like a function). It creates a copy of the whole tree of
+        the provided node (in order to return without any side-effects to
+        the original tree), then lower the DSL concepts into language level
+        nodes, and finally recurse down the node using the visitors defined
+        in this Visitor class.
 
         :param node: A PSyIR node.
         :type node: :py:class:`psyclone.psyir.nodes.Node`
 
+        :returns: text representation of the PSyIR tree.
+        :rtype: str
+
+        :raises TypeError: if the provided argument is not a PSyIR Node.
+
         '''
-        return self._visit(node)
+        if not isinstance(node, Node):
+            raise TypeError(
+                f"The PSyIR visitor functor method only accepts a PSyIR Node "
+                f"as argument, but found '{type(node).__name__}'.")
+
+        # If we are not lowering, we can proceed visiting the PSyIR without the
+        # need to make a deep-copy of it.
+        if self._DISABLE_LOWERING:
+            return self._visit(node)
+
+        # The visitor must not alter the provided node but if there are any
+        # DSL concepts then these will need to be lowered in-place and this
+        # operation often modifies the tree. Therefore, we first create a
+        # copy of the full provided tree (as modifications can be above the
+        # provided node - e.g. adding a symbol in the scope)
+        tree_copy = node.root.copy()
+
+        # Get the node in the new tree with equivalent position to the
+        # provided node
+        node_copy = tree_copy.walk(Node)[node.abs_position]
+
+        # Lower the DSL concepts starting from the selected node.
+        # pylint: disable=broad-except
+        try:
+            lowered_node = node_copy.lower_to_language_level()
+        except Exception as err:
+            raise VisitorError(
+                f"Failed to lower '{node}'. Note that some nodes need to "
+                f"be lowered from an ancestor in order to properly apply "
+                f"their in-tree modifications. Original error was '{err}'."
+                ) from err
+
+        return self._visit(lowered_node)
 
     def _visit(self, node):
         '''Implements the PSyIR callbacks. Callbacks are implemented by using
@@ -154,21 +211,28 @@ class PSyIRVisitor(object):
         :param node: A PSyIR node.
         :type node: :py:class:`psyclone.psyir.nodes.Node`
 
+        :returns: text representation of the PSyIR node sub-tree.
+        :rtype: str
+
         :raises VisitorError: if a node is found that does not have \
-        associated call back methods (and skip_nodes is not set).
+            associated call back methods (and skip_nodes is not set).
         :raises AttributeError: if a call back method is found but it \
-        raises an AttributeError.
+            raises an AttributeError.
 
         '''
+        # pylint: disable=too-many-branches
         if not isinstance(node, Node):
             raise VisitorError(
-                "Expected argument to be of type 'Node' but found '{0}'."
-                "".format(type(node).__name__))
+                f"Expected argument to be of type 'Node' but found "
+                f"'{type(node).__name__}'.")
+
+        # Check global constraints for this node (if validation enabled).
+        if self._validate_nodes:
+            node.validate_global_constraints()
 
         # Make a list of the node's ancestor classes (including
         # itself) in method resolution order (mro), apart from the
         # base "object" class.
-        import inspect
         possible_method_names = [curr_class.__name__.lower()+"_node"
                                  for curr_class in inspect.getmro(type(node))]
         possible_method_names.remove("object_node")
@@ -178,21 +242,60 @@ class PSyIRVisitor(object):
         for method_name in possible_method_names:
             try:
                 # pylint: disable=eval-used
-                return eval("self.{0}(node)".format(method_name))
+                node_result = eval(f"self.{method_name}(node)")
+
+                # We can only proceed to add comments if the Visitor
+                # returned a string, otherwise we just return
+                if not isinstance(node_result, str):
+                    return node_result
+
+                result = ""
+
+                # Add preceding comment if available
+                if isinstance(node, CommentableMixin):
+                    if node.preceding_comment and self._COMMENT_PREFIX:
+                        result += (self._nindent + self._COMMENT_PREFIX +
+                                   node.preceding_comment + "\n")
+
+                result += node_result
+
+                # Add inline comment if available
+                if isinstance(node, CommentableMixin):
+                    if node.inline_comment and self._COMMENT_PREFIX:
+                        if result[-1] != "\n":
+                            raise VisitorError(
+                                f"An inline_comment can only be added to a "
+                                f"construct that finishes with a '\\n', "
+                                f"indicating that the line has ended, but"
+                                f" node '{node}' results in '{result}'.")
+                        # Add the comment before the last line break
+                        result = (result[:-1] + "  " + self._COMMENT_PREFIX +
+                                  node.inline_comment + "\n")
+
+                return result
+
             except AttributeError as excinfo:
-                if "attribute '{0}'".format(method_name) in str(excinfo):
+                if f"attribute '{method_name}'" in str(excinfo):
                     # This attribute error is because the method that
                     # was tried does not exist.
                     pass
                 else:
                     # The method does exist but it has raised an
                     # attribute error so re-raise it here.
-                    raise AttributeError(excinfo)
+                    raise AttributeError(excinfo) from excinfo
 
         if self._skip_nodes:
+            # We haven't found a handler for this node but '_skip_nodes' is
+            # set so we ignore it and continue on down to any children.
+            results = []
             for child in node.children:
-                self._visit(child)
-        else:
-            raise VisitorError(
-                "Unsupported node '{0}' found: method names attempted were "
-                "{1}.".format(type(node).__name__, str(possible_method_names)))
+                results.append(self._visit(child))
+            return "".join(results)
+
+        raise VisitorError(
+            f"Unsupported node '{type(node).__name__}' found: method names "
+            f"attempted were {possible_method_names}.")
+
+
+# For AutoAPI documentation generation
+__all__ = ['VisitorError', 'PSyIRVisitor']

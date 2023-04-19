@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
 # Author: I. Kavcic, Met Office
+# Modified J. Henrichs, Bureau of Meteorology
 
 # Compiler settings
 F90 ?= gfortran
@@ -54,7 +55,9 @@ PSYCLONE_RELPATH = ../../../../..
 LFRIC_PATH = $(PSYCLONE_RELPATH)/src/psyclone/tests/test_files/dynamo0p3/infrastructure
 LFRIC_NAME=lfric
 LFRIC_LIB=$(LFRIC_PATH)/lib$(LFRIC_NAME).a
-F90FLAGS += -I$(LFRIC_PATH)
+
+# This will add the required include flags to F90FLAGS
+include $(LFRIC_PATH)/lfric_include_flags.inc
 
 # Object rules
 DRIVER_OBJ = $(filter %.o,$(DRIVER_SRC:.f90=.o))
@@ -65,9 +68,9 @@ EXAMPLE_OBJ = $(DRIVER_OBJ) $(ALGORITHM_OBJ) $(PSY_OBJ)
 # Targets
 .DEFAULT_GOAL := compile
 
-.PHONY: compile test clean
+.PHONY: compile transform clean
 
-compile: test $(EXEC)
+compile: transform $(EXEC)
 
 $(EXEC): $(LFRIC_LIB) $(EXAMPLE_OBJ)
 	$(F90) $(F90FLAGS) $(EXAMPLE_OBJ) -o $(EXEC) -L$(LFRIC_PATH) -l$(LFRIC_NAME)
@@ -91,7 +94,7 @@ $(ALGORITHM_SRC): $(PSY_SRC)
 .precious: $(ALGORITHM_SRC) $(PSY_SRC)
 
 # Test PSyclone target for continuous integration
-test: $(PSY_SRC) $(ALGORITHM_SRC)
+transform: $(PSY_SRC) $(ALGORITHM_SRC)
 
 %_psy.f90: %.x90
 	psyclone $(PSYCLONE_CMD) --config $(PSYCLONE_RELPATH)/config/psyclone.cfg \

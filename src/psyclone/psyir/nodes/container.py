@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2020, Science and Technology Facilities Council.
+# Copyright (c) 2017-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -38,33 +38,50 @@
 
 ''' This module contains the Container node implementation.'''
 
-from psyclone.psyir.nodes.node import Node
-from psyclone.psyir.nodes.kernel_schedule import KernelSchedule
+from psyclone.psyir.nodes.scoping_node import ScopingNode
+from psyclone.psyir.nodes.routine import Routine
+from psyclone.psyir.nodes.codeblock import CodeBlock
 from psyclone.psyir.symbols import SymbolTable
 from psyclone.errors import GenerationError
+from psyclone.psyir.nodes.commentable_mixin import CommentableMixin
 
 
-class Container(Node):
-    '''Node representing a set of KernelSchedule and/or Container nodes,
-    as well as a name and a SymbolTable. This construct can be used to
-    scope symbols of variables, KernelSchedule names and Container
-    names. In Fortran a container would naturally represent a module
-    or a submodule.
+class Container(ScopingNode, CommentableMixin):
+    '''Node representing a set of Routine and/or Container nodes, as well
+    as a name and a SymbolTable. This construct can be used to scope
+    symbols of variables, Routine names and Container names. In
+    Fortran a container would naturally represent a module or a
+    submodule.
 
     :param str name: the name of the container.
     :param parent: optional parent node of this Container in the PSyIR.
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
+    :param symbol_table: initialise the node with a given symbol table.
+    :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable` or \
+            NoneType
 
     '''
     # Textual description of the node.
-    _children_valid_format = "[Container | KernelSchedule | InvokeSchedule]*"
+    _children_valid_format = "[Container | Routine | CodeBlock]*"
     _text_name = "Container"
-    _colour_key = "Container"
+    _colour = "green"
 
-    def __init__(self, name, parent=None):
-        super(Container, self).__init__(parent=parent)
+    def __init__(self, name, **kwargs):
+        super().__init__(**kwargs)
         self._name = name
-        self._symbol_table = SymbolTable(self)
+
+    def __eq__(self, other):
+        '''Checks the equality of this Container with other. Containers are
+        equal if they are the same type, and have the same name.
+
+        :param object other: the object to check equality to.
+
+        :returns: whether other is equal to self.
+        :rtype: bool
+        '''
+        is_eq = super().__eq__(other)
+        is_eq = is_eq and self.name == other.name
+        return is_eq
 
     @staticmethod
     def _validate_child(position, child):
@@ -78,12 +95,10 @@ class Container(Node):
 
         '''
         # pylint: disable=unused-argument
-        # Import InvokeSchedule here to avoid circular dependency
-        from psyclone.psyGen import InvokeSchedule
-        return isinstance(child, (Container, KernelSchedule, InvokeSchedule))
+        return isinstance(child, (Container, Routine, CodeBlock))
 
-    @staticmethod
-    def create(name, symbol_table, children):
+    @classmethod
+    def create(cls, name, symbol_table, children):
         '''Create a Container instance given a name, a symbol table and a
         list of child nodes.
 
@@ -92,12 +107,13 @@ class Container(Node):
             Container.
         :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
         :param children: a list of PSyIR nodes contained in the \
-            Container. These must be Containers or KernelSchedules.
+            Container. These must be Containers or Routines.
         :type children: list of :py:class:`psyclone.psyir.nodes.Container` \
-            or :py:class:`psyclone.psyir.nodes.KernelSchedule`
+            or :py:class:`psyclone.psyir.nodes.Routine`
 
-        :returns: a Container instance.
-        :rtype: :py:class:`psyclone.psyir.nodes.Container`
+        :returns: an instance of `cls`.
+        :rtype: :py:class:`psyclone.psyir.nodes.Container` or subclass
+            thereof
 
         :raises GenerationError: if the arguments to the create method \
             are not of the expected type.
@@ -105,26 +121,20 @@ class Container(Node):
         '''
         if not isinstance(name, str):
             raise GenerationError(
-                "name argument in create method of Container class "
-                "should be a string but found '{0}'."
-                "".format(type(name).__name__))
+                f"name argument in create method of Container class "
+                f"should be a string but found '{type(name).__name__}'.")
         if not isinstance(symbol_table, SymbolTable):
             raise GenerationError(
-                "symbol_table argument in create method of Container class "
-                "should be a SymbolTable but found '{0}'."
-                "".format(type(symbol_table).__name__))
+                f"symbol_table argument in create method of Container class "
+                f"should be a SymbolTable but found "
+                f"'{type(symbol_table).__name__}'.")
         if not isinstance(children, list):
             raise GenerationError(
-                "children argument in create method of Container class "
-                "should be a list but found '{0}'."
-                "".format(type(children).__name__))
+                f"children argument in create method of Container class "
+                f"should be a list but found '{type(children).__name__}'.")
 
-        container = Container(name)
-        container._symbol_table = symbol_table
-        symbol_table._node = container
+        container = cls(name, symbol_table=symbol_table)
         container.children = children
-        for child in children:
-            child.parent = container
         return container
 
     @property
@@ -145,15 +155,6 @@ class Container(Node):
         '''
         self._name = new_name
 
-    @property
-    def symbol_table(self):
-        '''
-        :returns: table containing symbol information for the container.
-        :rtype: :py:class:`psyclone.psyir.symbols.SymbolTable`
-
-        '''
-        return self._symbol_table
-
     def node_str(self, colour=True):
         '''
         Returns the name of this node with appropriate control codes
@@ -164,7 +165,11 @@ class Container(Node):
         :returns: description of this node, possibly coloured.
         :rtype: str
         '''
-        return self.coloured_name(colour) + "[{0}]".format(self.name)
+        return self.coloured_name(colour) + f"[{self.name}]"
 
     def __str__(self):
-        return "Container[{0}]\n".format(self.name)
+        return f"Container[{self.name}]\n"
+
+
+# For AutoAPI documentation generation
+__all__ = ['Container']

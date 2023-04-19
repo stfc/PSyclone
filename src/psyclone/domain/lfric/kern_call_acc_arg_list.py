@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2020, Science and Technology Facilities Council.
+# Copyright (c) 2017-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -66,14 +66,14 @@ class KernCallAccArgList(KernCallArgList):
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
         # First provide the derived-type object
         for idx in range(1, argvect.vector_size+1):
             self.append(argvect.proxy_name + "(" + str(idx) + ")")
         # Then provide the actual fields that are in the derived-type object
-        super(KernCallAccArgList, self).field_vector(argvect, var_accesses)
+        super().field_vector(argvect, var_accesses)
 
     def field(self, arg, var_accesses=None):
         '''Add the field array associated with the argument 'arg' to the
@@ -86,14 +86,14 @@ class KernCallAccArgList(KernCallArgList):
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
         text1 = arg.proxy_name
         self.append(text1)
         # This will add the field%data argument, and add the field
         # to the variable access list.
-        super(KernCallAccArgList, self).field(arg, var_accesses)
+        super().field(arg, var_accesses)
 
     def stencil(self, arg, var_accesses=None):
         '''Add general stencil information associated with the argument 'arg'
@@ -106,13 +106,14 @@ class KernCallAccArgList(KernCallArgList):
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
         # Import here to avoid circular dependency
         # pylint: disable=import-outside-toplevel
         from psyclone.dynamo0p3 import DynStencils
-        var_name = DynStencils.dofmap_name(self._kern.root.symbol_table, arg)
+        var_name = DynStencils.dofmap_symbol(self._kern.root.symbol_table,
+                                             arg).name
         self.append(var_name, var_accesses)
 
     def stencil_2d(self, arg, var_accesses=None):
@@ -127,7 +128,7 @@ class KernCallAccArgList(KernCallArgList):
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
         self.stencil(arg, var_accesses)
@@ -142,14 +143,15 @@ class KernCallAccArgList(KernCallArgList):
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
         # The extent is not specified in the metadata so pass the value in
         # Import here to avoid circular dependency
         # pylint: disable=import-outside-toplevel
         from psyclone.dynamo0p3 import DynStencils
-        name = DynStencils.dofmap_size_name(self._kern.root.symbol_table, arg)
+        name = DynStencils.dofmap_size_symbol(self._kern.root.symbol_table,
+                                              arg).name
         self.append(name, var_accesses)
 
     def stencil_2d_unknown_extent(self, arg, var_accesses=None):
@@ -163,7 +165,7 @@ class KernCallAccArgList(KernCallArgList):
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
         self.stencil_unknown_extent(arg, var_accesses)
@@ -179,7 +181,7 @@ class KernCallAccArgList(KernCallArgList):
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
         # In case of OpenACC we do not want to transfer the same
@@ -187,7 +189,7 @@ class KernCallAccArgList(KernCallArgList):
         if arg.proxy_name_indexed not in self.arglist:
             self.append(arg.proxy_name_indexed, var_accesses)
             # This adds ncell_3d and local_stencil after the derived type:
-            super(KernCallAccArgList, self).operator(arg, var_accesses)
+            super().operator(arg, var_accesses)
 
     def fs_compulsory_field(self, function_space, var_accesses=None):
         '''Add compulsory arguments associated with this function space to
@@ -201,13 +203,29 @@ class KernCallAccArgList(KernCallArgList):
         :param var_accesses: optional VariablesAccessInfo instance to store \
             the information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
+        if self._kern.iterates_over != "cell_column":
+            return
         self.append(function_space.undf_name, var_accesses)
         # The base class only adds one dimension to the list, while OpenACC
-        # needs the whole field, so we cannot call the base class
+        # needs the whole field, so we cannot call the base class.
         self.append(function_space.map_name, var_accesses)
+
+    def scalar(self, scalar_arg, var_accesses=None):
+        '''
+        Override the default implementation as there's no need to specify
+        scalars for an OpenACC data region.
+
+        :param scalar_arg: the kernel argument.
+        :type scalar_arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        :param var_accesses: optional VariablesAccessInfo instance that \
+            stores information about variable accesses.
+        :type var_accesses: \
+            :py:class:`psyclone.core.VariablesAccessInfo`
+
+        '''
 
 
 # ============================================================================

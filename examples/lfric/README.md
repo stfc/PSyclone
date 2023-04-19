@@ -1,52 +1,84 @@
 # PSyclone LFRic Examples
 
-## Examples 1 and 2: Dynamo 0.1 API
-
-The LFRic examples in the eg1 and eg2 directories below the one
-containing this README use the Dynamo 0.1 API. Those in eg3 - eg14 use
-version 0.3 of the Dynamo API. They are primarily provided to
-illustrate the use of the PSyclone code-generation system. No guarantee
-is made as to their functional correctness or usefulness (i.e. the
-calculations that they perform may often be nonsensical - it is the use
-of PSyclone that is being illustrated).
-
 These examples assume that you have PSyclone installed. The easiest
 way to do this is via pip, e.g. `pip install psyclone`. See the user
 manual for more details (`../../psyclone.pdf` or
 http://psyclone.readthedocs.io/en/stable/). After doing this `psyclone`
 should be on your PATH.
 
-PSyclone can be run for the first two examples by entering the directory and
-executing, e.g.
+The first two examples are primarily provided to illustrate the use of
+the PSyclone code-generation system. No guarantee is made as to their
+functional correctness or usefulness (i.e. the calculations that they
+perform may often be nonsensical - it is the use of PSyclone that is
+being illustrated).
+
+## Example 1: Basic Operation
+
+The first example simply illustrates the use of PSyclone to generate
+the necessary sequential PSy-layer code for a single invoke() that
+specifies one Built-in kernel and one user-supplied kernel:
 ```sh
-python ./runme.py
+cd eg1/
+psyclone -nodm -d ../code ./single_invoke.x90
 ```
 
-Examine the ``runme*.py`` scripts themselves for further details.
+(The `-d ../code` argument tells PSyclone where it should search for any
+user-supplied kernels.)
+
+PSyclone will output two lots of Fortran code to `stdout` when run in
+this way: the first is the transformed Algorithm layer (the code from
+`single_invoke.x90`) and the second is the generated PSy-layer code.
+
+The `transform` target in the Makefile will also run this command. It
+also repeats it without the `-nodm` flag so that PSyclone generates
+the necessary code for running with distributed memory.
+
+## Example 2: Applying Transformations
+
+The second example provides an introduction to the use of
+transformations to:
+
+1. display the PSyclone Internal Representation of the PSy-layer code:
+   ```sh
+   cd eg2/
+   psyclone -nodm -d ../code -s ./print_psyir_trans.py ./multi_invoke_mod.x90
+   ```
+
+2. module-inline a user-supplied kernel into the PSy layer:
+   ```sh
+   psyclone -nodm -d ../code -s ./module_inline_trans.py ./multi_invoke_mod.x90
+   ```
+
+3. perform loop fusion:
+   ```sh
+   psyclone -nodm -d ../code -s ./loop_fuse_trans.py ./multi_invoke_mod.x90
+   ```
+
+Please see the individual transformation scripts for more details.
 
 ## Example 3: Distributed and Shared Memory
 
 The third example can be used to demonstrate PSyclone:
 
 1. generating distributed memory parallel code
-```sh
-cd eg3/
-psyclone solver_mod.x90
-# look for %set_dirty and %halo_exchange in the generated code
-```
+   ```sh
+   cd eg3/
+   psyclone solver_mod.x90
+   # look for %set_dirty and %halo_exchange in the generated code
+   ```
 
 2. using a transformation script to perform loop colouring and OpenMP
-parallelisation, either with distributed memory parallel code:
-```sh
-cd eg3/
-psyclone -s ./colouring_and_omp.py solver_mod.x90
-```
+   parallelisation, either with distributed memory parallel code:
+   ```sh
+   cd eg3/
+   psyclone -s ./colouring_and_omp.py solver_mod.x90
+   ```
 
-or without distributed memory parallel code:
-```sh
-cd eg3/
-psyclone -s ./colouring_and_omp.py -nodm solver_mod.x90
-```
+   or without distributed memory parallel code:
+   ```sh
+   cd eg3/
+   psyclone -s ./colouring_and_omp.py -nodm solver_mod.x90
+   ```
 
 This example also demonstrates the use of `Wchi` function space metadata
 for coordinate fields and the use of `integer`-valued fields in LFRic.
@@ -246,33 +278,19 @@ psyclone -s ./kernel_constants.py \
 ## Example 14: OpenACC
 
 This example shows how OpenACC directives can be added to the LFRic
-PSy-layer. This is work in progress so the resultant code is not
-expected to run correctly but it gives a starting point for
-evaluation.
+PSy-layer. It adds OpenACC enter data, parallel and loop directives in the
+presence of halo exchanges. It also transforms the (one) user-supplied
+kernel with the addition of an `ACC routine` directive.
 
-1. Adding OpenACC kernels directives. -nodm is used as an exception is
-raised if Halo Exchange nodes are found within an OpenACC kernels
-region.
 ```sh
 cd eg14/
-psyclone -s ./acc_kernels.py -nodm ../code/gw_mixed_schur_preconditioner_alg_mod.x90
+psyclone -s ./acc_parallel_dm.py main.x90
 ```
 
-2. Adding OpenACC enter data, parallel and loop directives. -nodm is
-used as an exception is raised if Halo Exchange nodes are found within
-an OpenACC parallel region.
-```sh
-cd eg14/
-psyclone -s ./acc_parallel.py -nodm ../code/gw_mixed_schur_preconditioner_alg_mod.x90
-```
-
-3. Adding OpenACC enter data, parallel and loop directives in the
-presence of halo exchanges. This does not currently produce compilable code because
-calls to set_clean()/dirty() end up within parallel regions - TODO #450.
-```sh
-cd eg14/
-psyclone -s ./acc_parallel_dm.py ../code/gw_mixed_schur_preconditioner_alg_mod.x90
-```
+The supplied Makefile defines a `compile` target that will build the
+transformed code. Currently the compilation will fail because the
+generated PSy-layer code does not contain the correct name for the
+transformed kernel module (issue #1724).
 
 ## Example 15: Optimise matvec Kernel for CPU
 
@@ -295,18 +313,85 @@ cd eg16/
 python create.py
 ```
 
-## Example 17: Code Extraction
+## Example 17: Runnable Examples
 
-The subdirectory ``full_example_extract`` contains a runnable example
-of LFRic code that creates a NetCDF file with the input and output
-parameters of a simple kernel. The requirements are listed in the [README.md](
-full_example_extract/README.md) file.
+This subdirectory contains three stand-alone and runnable examples of
+the LFRic code. For more details please refer to the relevant
+[eg17/README.md](./eg17) document.
+
+
+## Example 18: Special Accesses of Continuous Fields - Incrementing After Reading and Writing Before (Potentially) Reading.
+
+This example shows the use of kernel with a ``GH_READINC`` access and
+a kernel with a ``GH_WRITE`` access, both for fields on continuous
+function spaces. ``GH_READINC``
+access indicates that a field is first read within a kernel and then
+subsequently incremented. The field must, therefore, be on a
+continuous function space. The only difference from a PSyclone code
+generation point of view (for vanilla distributed memory code
+generation) is that a ``GH_READINC`` access will produce a halo
+exchange call before the associated kernel whereas a ``GH_INC`` access
+will not. The example demonstrates the generation of such a halo
+exchange, see the ``CALL mass_flux_i_proxy%halo_exchange(depth=1)``
+line in the generated code. if you manually change the metadata to
+``GH_INC`` in this example and ensure that the configuration file has
+``COMPUTE_ANNEXED_DOFS`` set to ``true``, you will see that this halo
+exchange is not generated (although the generated code would then be
+invalid).
+
+``GH_WRITE``, when used for a field on a continuous function space, means
+that the kernel guarantees to write the same value to a given shared entity,
+independent of which cell is currently being updated. This means that
+annexed DoFs on owned cells will be correctly computed without the need to
+iterate into the L1 halo and thus the outer loop limit is always
+``last_edge_cell``, irrespective of whether distributed memory is turned on.
+
+To run:
+
 ```sh
-cd full_example_extraction
-make
-./extract
-ncdump ./main-update.nc | less
+cd eg18/
+psyclone advection_alg_mod.x90
+# Optionally edit 'impose_min_flux_kernel_mod.f90' line 65 to replace
+# 'GH_READINC' with 'GH_INC', change the value of 'COMPUTE_ANNEXED_DOFS' to
+# 'true' in the config file and re-run psyclone.
 ```
+
+## Example 19: Mixed precision
+
+This example shows the use of the LFRic mixed-precision support to
+call a kernel with scalars, fields and operators of different
+precision.
+
+
+## Example 20: Algorithm Generation
+
+Illustration of the use of the ``psyclone-kern`` tool to create an
+algorithm-layer subroutine for calling a given kernel. A makefile is
+provide that also runs ``psyclone`` to create the PSy-layer code from the
+generated algorithm layer and original kernel code. To see the generated
+algorithm layer run:
+
+```sh
+cd eg20/
+psyclone-kern -gen alg ../code/testkern_mod.F90
+```
+
+Compilation is not supported for this example because it requires the full
+functionality of the LFRic infrastructure. However, it is relatively
+straightforward to modify the LFRic 'skeleton' mini-app such that it calls
+the algorithm subroutine generated by this example:
+
+ 1. Copy the algorithm file ``test_alg_mod.x90`` to ``miniapps/skeleton/source/algorithm/``
+ 2. Copy the kernel file ``testkern_mod.F90`` to ``miniapps/skeleton/source/kernel/``
+ 3. Modify the ``run`` subroutine of ``miniapps/skeleton/source/driver/skeleton_driver_mod.f90`` to include the lines:
+
+        use test_alg_mod, only: test_alg
+        ...
+        call test_alg(mesh, chi, panel_id)
+
+ 4. Do ``make build`` in the ``miniapps/skeleton`` directory.
+ 5. Run ``../bin/skeleton ./configuration.nml`` in the ``miniapps/skeleton/example`` directory.
+
 
 ## Code
 

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2019, Science and Technology Facilities Council
+# Copyright (c) 2018-2022, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,8 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
+# Modified J. Henrichs, Bureau of Meteorology
+
 
 '''Stencil tests for PSy-layer code generation that are specific to the
 GOcean 1.0 API.'''
@@ -48,7 +50,7 @@ from psyclone.parse.utils import ParseError
 from psyclone.gocean1p0 import GOStencil
 from psyclone import expression as expr
 
-from psyclone.tests.gocean1p0_build import GOcean1p0Build
+from psyclone.tests.gocean_build import GOceanBuild
 
 API = "gocean1.0"
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -59,6 +61,8 @@ BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 def setup():
     '''Make sure that all tests here use gocean1.0 as API.'''
     Config.get().api = "gocean1.0"
+    yield
+    Config._instance = None
 
 
 # Section 1
@@ -215,8 +219,8 @@ def test_stencil_depth_args():
     for i, j in [(-2, 0), (2, 0), (0, -2), (0, 2)]:
         with pytest.raises(GenerationError) as excinfo:
             stencil.depth(i, j)
-        assert "must be between -1 and 1 but found ({0},{1})".format(i, j) \
-            in str(excinfo.value)
+        assert (f"must be between -1 and 1 but found ({i},{j})"
+                in str(excinfo.value))
 
 # Section 4
 # Test that the GOStencil object captures valid stencil information correctly
@@ -229,17 +233,16 @@ def test_stencil_case_1():
     '''
     stencil = GOStencil()
 
-    stencil_string = "go_StEnCiL(000,011,000)"
+    stencil_string = "go_StEnCiL(234,915,876)"
     parsed_stencil = expr.FORT_EXPRESSION.parseString(stencil_string)[0]
     stencil.load(parsed_stencil, "kernel_stencil")
     assert stencil.has_stencil
+    expected = [8, 7, 6, 9, 1, 5, 2, 3, 4]
+    exp_index = 0
     for idx2 in range(-1, 2):
         for idx1 in range(-1, 2):
-            if idx1 in [0, 1] and idx2 == 0:
-                expected_depth = 1
-            else:
-                expected_depth = 0
-            assert stencil.depth(idx1, idx2) == expected_depth
+            assert stencil.depth(idx1, idx2) == expected[exp_index]
+            exp_index += 1
 
 
 def test_stencil_case_2():
@@ -276,6 +279,14 @@ def test_stencil_information(tmpdir):
         assert pointwise_arg.stencil
         assert not pointwise_arg.stencil.has_stencil
         assert pointwise_arg.stencil.name == "go_pointwise"
+        # Check that a pointwise access patterns returns
+        # a depth of (000, 010, 000)
+        for j in [-1, 0, 1]:
+            for i in [-1, 0, 1]:
+                if i == 0 and j == 0:
+                    assert pointwise_arg.stencil.depth(i, j) == 1
+                else:
+                    assert pointwise_arg.stencil.depth(i, j) == 0
 
     # arg 4 provides grid information so knows nothing about stencils
     grid_arg = kernel.args[3]
@@ -294,4 +305,4 @@ def test_stencil_information(tmpdir):
                 expected_depth = 0
             assert stencil_arg.stencil.depth(idx1, idx2) == expected_depth
 
-    assert GOcean1p0Build(tmpdir).code_compiles(psy)
+    assert GOceanBuild(tmpdir).code_compiles(psy)

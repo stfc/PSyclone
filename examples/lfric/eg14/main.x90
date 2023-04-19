@@ -1,0 +1,99 @@
+! BSD 3-Clause License
+!
+! Modifications copyright (c) 2020-2022, Science and Technology Facilities Council
+! All rights reserved.
+!
+! Redistribution and use in source and binary forms, with or without
+! modification, are permitted provided that the following conditions are met:
+!
+! * Redistributions of source code must retain the above copyright notice, this
+!   list of conditions and the following disclaimer.
+!
+! * Redistributions in binary form must reproduce the above copyright notice,
+!   this list of conditions and the following disclaimer in the documentation
+!   and/or other materials provided with the distribution.
+!
+! * Neither the name of the copyright holder nor the names of its
+!   contributors may be used to endorse or promote products derived from
+!   this software without specific prior written permission.
+!
+! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+! AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+! IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+! DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+! FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+! DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+! SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+! CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+! -----------------------------------------------------------------------------
+! Author: J. Henrichs, Bureau of Meteorology
+
+
+program main
+
+    use global_mesh_base_mod,   only: global_mesh_base_type
+    use mesh_mod,               only: mesh_type, PLANE
+    use partition_mod,          only: partition_type, partitioner_planar, partitioner_interface
+    use extrusion_mod,          only: uniform_extrusion_type
+    use function_space_mod,     only: function_space_type
+    use fs_continuity_mod,      only: W0, W1, W2, W2V, W2H
+    use field_mod,              only: field_type
+    use testkern_w0_kernel_mod, only: testkern_w0_kernel_type
+    use constants_mod,          only: r_def, i_def
+    use log_mod,                only: LOG_LEVEL_ALWAYS
+
+    implicit none
+
+    type(global_mesh_base_type), target        :: global_mesh
+    class(global_mesh_base_type), pointer      :: global_mesh_ptr
+    type(partition_type)                       :: partition
+    type(mesh_type), target                    :: mesh
+    type(uniform_extrusion_type), target       :: extrusion
+    type(uniform_extrusion_type), pointer      :: extrusion_ptr
+    type(function_space_type), target          :: vector_space
+    type(function_space_type), pointer         :: vector_space_ptr
+    procedure (partitioner_interface), pointer :: partitioner_ptr
+    type(field_type)                           :: field1, field2
+    integer(kind=i_def)                        :: lfric_fs = W0   ! W0
+    integer(kind=i_def)                        :: element_order = 1
+    integer(kind=i_def)                        :: ndata_sz
+
+    ! Use the unit-testing constructor:
+    global_mesh = global_mesh_base_type()
+    global_mesh_ptr => global_mesh
+
+    partitioner_ptr => partitioner_planar
+    partition = partition_type(global_mesh_ptr, &
+                               partitioner_ptr, &
+                               1, 1,  &    ! # procs in x and y direction
+                               0,     &    ! max stencil size
+                               0,     &    ! local rank
+                               1)          ! number of proceses
+
+    ! Creating a vertical mesh of height 100 m with 5 layers
+    ! It is important to use 0.0_r_def, otherwise:
+    ! Error: Component ‘atmosphere_bottom’ at (1) is a PRIVATE component of ‘extrusion_type’
+    ! Because it tries to use the Fortran default constructor to assign individual components
+    extrusion = uniform_extrusion_type(0.0_r_def, 100.0_r_def, 5)
+    extrusion_ptr => extrusion
+    mesh = mesh_type(global_mesh_ptr, partition, extrusion_ptr)
+    write (*,*) "Mesh has", mesh%get_nlayers(), "layers."
+    ndata_sz = 1
+    vector_space = function_space_type( mesh,          &
+                                        element_order, &
+                                        lfric_fs,      &
+                                        ndata_sz)
+    vector_space_ptr => vector_space
+    call field1%initialise( vector_space = vector_space_ptr, name="field1" )
+    call field2%initialise( vector_space = vector_space_ptr, name="field2" )
+    call invoke( name = 'Initialise fields',        &
+                 setval_c( field1,     0.0_r_def ), &
+                 setval_c( field2,     1.0_r_def )  &
+                 )
+    call invoke( name = 'testkern_w0', testkern_w0_kernel_type(field1, field2) )
+
+    call field1%log_minmax(LOG_LEVEL_ALWAYS, "minmax of field1")
+
+end program main

@@ -125,7 +125,7 @@ contains
     real(kind=r_def), intent(in),    dimension(undf_wchi)     :: fld5_z
     real(kind=r_def), intent(in),    dimension(undf_wtheta)   :: fld6
     real(kind=r_def), intent(in),    dimension(undf_w2h)      :: fld7
-    real(kind=r_def), intent(out),   dimension(undf_w2broken) :: fld8
+    real(kind=r_def), intent(inout), dimension(undf_w2broken) :: fld8
     real(kind=r_def), intent(in),    dimension(undf_w2v)      :: fld9
     real(kind=r_def), intent(in),    dimension(undf_w2trace)  :: fld10
     real(kind=r_def), intent(in),    dimension(undf_w2htrace) :: fld11

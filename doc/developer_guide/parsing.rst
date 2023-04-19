@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2019, Science and Technology Facilities Council.
+.. Copyright (c) 2019-2022, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -32,17 +32,64 @@
 .. POSSIBILITY OF SUCH DAMAGE.
 .. -----------------------------------------------------------------------------
 .. Written by R. W. Ford and A. R. Porter, STFC Daresbury Lab
+.. Modified by I. Kavcic, Met Office
 
-Parsing Code
-############
+.. testsetup::
 
-The PSyclone `parse` module is responsible for parsing science
-(algorithm and kernel) code and extracting the required information
-for the algorithm translation and PSy generation phases.
+    # Define SOURCE_FILE to point to an existing gocean 1.0 file.
+    SOURCE_FILE = ("../../src/psyclone/tests/test_files/"
+        "gocean1p0/test11_different_iterates_over_one_invoke.f90")
+
+
+Parsing Code (new approach)
+###########################
+
+The new approach to modifying existing code is to first parse it into
+generic PSyIR and then 'raise' it into domain-specific PSyIR which
+encodes any domain-specific concepts. The domain-specific PSyIR can
+then be modified using transformations. Once any code modification is
+complete the domain-specific PSyIR can then be 'lowered' to generic
+PSyIR and PSyclone's back-ends used to output the resultant code.
+
+The GOcean and LFRic APIs support the concept of algorithm, psy and
+kernel layers. Kernel-layer Fortran written by users consists of the
+kernel code itself and metadata describing the kernel code.  PSyclone
+needs this metadata to generate the PSy-layer code. The new approach
+takes the generic PSyIR representation of the kernel metadata (which
+is actually captured as a string within a PSyIR UnknownFortranType as
+the generic PSyIR does not understand its structure) and 'raises' this
+into domain-specific classes (using the RaisePSyIR2LFRicKernelTrans
+and RaisePSyIR2GOceanKernelTrans transformations for the LFRic and
+GOcean API's, respectively). These classes allow the metadata to be
+simply read when generating psy-layer code, but also to be simply
+modified if required (e.g. when generating adjoint code - see the
+:ref:`user guide <psyad_user_guide:introduction>` for more
+details). As with existing code, these domain-specific classes can be
+'lowered' to produce generic PSyIR and PSyclone's back-ends used to
+output the resultant metadata.
+
+This new approach is not yet fully implemented in PSyclone. The
+current status is that it is used in the NEMO API to transform code
+and is used in the GOcean API to modify algorithm code. The GOcean and
+LFRic APIs are also able to raise kernel metadata to domain-specific
+classes, but these classes are not yet used by the the rest of
+PSyclone (see generator.py for the relevant GOcean code).
+
+
+Parsing Code (original approach)
+################################
+
+The original way to parse code is to use the PSyclone `parse` module
+which is responsible for parsing science (algorithm and kernel) code
+and extracting the required information for the algorithm translation
+and PSy generation phases. The original approach is gradually being
+replaced by the use of the PSyIR and its front-ends and back-ends
+(please see the previous section for more details).
 
 The `parse` module contains modules for parsing algorithm
 (`algorithm.py`) and kernel (`kernel.py`) code as well as a utility
-module (`utils.py`) for common functionality.
+module (`utils.py`) for common functionality. This implementation is
+discussed further in the following sections.
 
 Parsing Algorithm Code
 ======================
@@ -64,7 +111,7 @@ examples.
 The `Parser` class is initialised with a number of optional
 arguments. A particular `api` can be specified (this is required so
 the parser knows what sort of code and metadata to expect, how to
-parse it and which `builtins` are supported). The name used to specify
+parse it and which `built-ins` are supported). The name used to specify
 an invoke (defaulting to `invoke`) can be changed, a path to where to
 look for associated kernel files can be provided and a particular
 maximum line length can be specified.
@@ -117,7 +164,7 @@ extracts the kernel name and kernel arguments, then creates either an
 `algorithm.BuiltInCall` instance (via the `create_builtin_kernel_call`
 method) or an `algorithm.KernelCall` instance (via the
 `create_coded_kernel_call` method). `BuiltInCalls` are created if the
-kernel name is the same as one of those specified in the builtin names
+kernel name is the same as one of those specified in the built-in names
 for this particular API (see the variable `_builtin_name_map` which is
 initialised by the `get_builtin_defs` function).
 
@@ -136,6 +183,129 @@ create the appropriate `Arg` instance. Previously we relied on the
           extend if we were to support arithmetic operations in an
           invoke call.
 
+Mixed Precision
+===============
+
+Support for mixed precision kernels has been added to PSyclone. The
+approach being taken is for the user to provide kernels with a generic
+interface and precision-specific implementations. As the PSyclone kernel
+metadata does not specify precision, this does not need to change. The
+actual precision being used will be specified by the scientist in the
+algorithm layer (by declaring variables with appropriate precision).
+
+.. highlight:: fortran
+
+For example::
+
+    module kern_mod
+      type kern_type
+        ! metadata description
+      contains
+	procedure, nopass :: kern_code_32, kern_code_64
+        generic :: kern_code => kern_code_32, kern_code_64
+      end type kern_type
+    contains
+      subroutine kern_code_32(arg)
+        real*4 :: arg
+        print *, "kern_code_32"
+      end subroutine kern_code_32
+      subroutine kern_code_64(arg)
+        real*8 :: arg
+        print *, "kern_code_64"
+      end subroutine kern_code_64
+    end module kern_mod
+
+    program alg
+      use kern_mod, only : kern_type
+      real*4 :: a
+      real*8 :: b
+      call invoke(kern_type(a), kern_type(b))
+    end program alg
+
+In the above example, the first call to kern will call `kern_code_32`
+and the second will call `kern_code_64`. Note, the actual code will
+use types for arguments in the algorithm layer, but for clarity
+precision has been used.
+
+In order to support the above mixed precision kernel implementation,
+the PSy-layer generated by PSyclone must declare data passed into an
+invoke call with the same precision as is declared in algorithm layer,
+i.e. in the above example variable `a` must be declared as `real*4`
+and variable `b` as `real*8`. The only way for PSyclone to determine
+the required precision for a variable is by extracting the information
+from the algorithm layer.
+
+To support the extraction of precision information, the name and
+precision of a variable are stored in a dictionary when the algorithm
+layer is parsed (see `psyclone.parser.algorithm.py`). This allows
+PSyclone to look up the precision of a variable when it is specified
+in an `invoke` call. The reason for implementing support in this way
+is because `fparser2` does not currently support a symbol table,
+therefore there is no link between variables names and their types. In
+the future, the algorithm layer will be translated into PSyIR, which
+does have a symbol table, so this dictionary will no longer be
+required (see issue #753).
+
+All declarations that specify variables or types are stored in the
+dictionary, including those specified within locally defined
+types. Variables may also be single valued or arrays.
+
+.. highlight:: fortran
+
+For example::
+
+    program alg
+      use my_mod, only : my_type
+      real(kind=r_def) :: rscalar
+      type(my_type) :: field(10)
+      type fred
+        integer(kind=i_def) :: iscalar
+      end type fred
+    end program alg
+
+As the current implementation only stores variable names and does not
+know about variable scope there is a restriction that any variables
+within an algorithm code with the same name must have the same
+precision/type. This restriction will be removed when the algorithm
+layer is translated to PSyIR (see issue #753). The current
+implementation could be improved but in practice the lfric code does
+not fall foul of this restriction.
+
+There is also a constraint that invoke arguments cannot be expressions
+(involving variables) or functions as it is then difficult to
+determine the datatype of the argument. However, arbitrary structures
+and arrays are supported, as are literal expressions.
+
+.. highlight:: fortran
+
+For example the following are supported (where `b`, `f`, `g` and `i`
+are arrays, not functions)::
+
+    program alg
+      ! declare vars
+      call invoke(kern(a, b(c), d%e, f(10)%g(4)%h, self%i(j), 1, 1.0*2.0))
+    end program alg
+
+.. highlight:: fortran
+
+But the following are not::
+
+    program alg
+      ! delare vars
+      call invoke(kern(a%b(), c*d, e+1.0))
+    end program alg
+
+The other issue is that, in general, it may not be possible to
+determine the type/precision of a variable from the algorithm layer
+code. In particular, the variable may be included from another module
+via use association. Potential solutions to this problem are 1)
+disallow this in the algorithm layer, 2) use a naming convention for
+the module and/or variable to determine its precision, or 3) search the
+modules for datatype information. At the moment only 1) or 2) will be
+feasible solutions. When we move to using the PSyIR (see issue #753),
+it may be possible to support 3).
+
+	  
 Parsing Kernel Code (Metadata)
 ==============================
 
@@ -143,8 +313,8 @@ An `algorithm.BuiltInCall` instance is created by being passed a
 `kernel.BuiltinKernelType` instance for the particular API via the
 `BuiltInKernelTypeFactory` class which is found in the `parse.kernels`
 module. This class parses the Fortran module file which specifies
-builtin description metadata. Currently `fparser1` is used but we will
-be migrating to `fparser2` in the future. The builtin metadata is
+built-in description metadata. Currently `fparser1` is used but we will
+be migrating to `fparser2` in the future. The built-in metadata is
 specified in the same form as coded kernel metadata so the same logic
 can be used (i.e. the `KernelTypeFactory.create` method is called)
 which is why `BuiltInKernelTypeFactory` subclasses
@@ -160,11 +330,10 @@ earlier). Again, currently `fparser1` is used but we will be migrating
 to `fparser2` in the future.
 
 The `KernelTypeFactory create` method is used for both coded kernels
-and builtin kernels to specify the API-specific class to use. As an
+and built-in kernels to specify the API-specific class to use. As an
 example, in the case of the `dynamo0.3` API, the class is
 `DynKernMetadata` which is found in `psyclone.dynamo0p3`. Once this
 instance has been created (by passing it an `fparser1` parse tree) it can
 return information about the metadata contained therein. Moving from
 `fparser1` to `fparser2` would required changing the parse code logic
 in each of the API-specific classes.
-

@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2018-2020, Science and Technology Facilities Council.
+.. Copyright (c) 2018-2022, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -34,6 +34,7 @@
 .. Written by J. Henrichs, Bureau of Meteorology
 .. Modified by A. R. Porter, STFC Daresbury Lab
 .. Modified by R. W. Ford, STFC Daresbury Lab
+.. Modified by I. Kavcic, Met Office
 
 .. _profiling:
 
@@ -50,9 +51,10 @@ transformation within a transformation script.
 
 
 PSyclone can be used with a variety of existing profiling tools.
-It currently supports dl_timer, Dr Hook, the nvidia GPU profiling toos
-and it comes with a simple
-stand-alone timer library. The PSyData API (:ref:`dev_guide:psy_data`)
+It currently supports dl_timer, Dr Hook, the NVIDIA GPU profiling
+tools and it comes with a simple stand-alone timer library. The
+:ref:`PSyData API <psy_data>` (see also the
+:ref:`Developer Guide <dev_guide:psy_data>`)
 is utilised to implement wrapper libraries that connect the PSyclone
 application to the profiling libraries. Certain adjustments to
 the application's build environment are required:
@@ -73,18 +75,19 @@ the application that incorporates the PSyclone-generated code.
 
 Interface to Third Party Profiling Tools
 ----------------------------------------
-PSyclone comes with wrapper libraries to support usage of
-Dr Hook, dl_timer, NVTX (NVIDIA Tools Extension library),
-and a simple non-thread-safe timing
-library. Support for further profiling libraries will be
-added in the future. To compile the wrapper libraries,
-change into the directory ``lib/profiling`` of PSyclone
-and type ``make`` to compile all wrappers. If only some
-of the wrappers are required, you can either use
+
+PSyclone comes with :ref:`wrapper libraries <libraries>` to support
+usage of Dr Hook, dl_timer, NVTX (NVIDIA Tools Extension library),
+and a simple non-thread-safe timing library. Support for further
+profiling libraries will be added in the future. To compile the
+wrapper libraries, change into the directory ``lib/profiling``
+of PSyclone and type ``make`` to compile all wrappers. If only
+some of the wrappers are required, you can either use
 ``make wrapper-name`` (e.g. ``make drhook``), or change
 into the corresponding directory and use ``make``. The
-corresponding README files contain additional parameters
+corresponding ``README.md`` files contain additional parameters
 that can be set in order to find third party profiling tools.
+
 Below are short descriptions of each of the various wrapper
 libraries that come with PSyclone:
 
@@ -110,15 +113,15 @@ libraries that come with PSyclone:
     (e.g. enabling OpenMP, or linking with MPI).
 
 ``lib/profiling/drhook``
-    This wrapper uses the DrHook library. You need to contact
-    ECMWF to obtain a copy of DrHook.
+    This wrapper uses the Dr Hook library. You need to contact
+    ECMWF to obtain a copy of Dr Hook.
 
 ``lib/profiling/nvidia``
     This is a wrapper library that maps the PSyclone profiling API
     to the NVIDIA Tools Extension library (NVTX). This library is
     available from ``https://developer.nvidia.com/cuda-toolkit``.
 
-``lib/profiling/lfric``
+``lib/profiling/lfric_timer``
     This profile wrapper uses the timer functionality provided by
     LFRic, and it comes in two different versions:
 
@@ -129,13 +132,12 @@ libraries that come with PSyclone:
     - ``libpsy_lfric_timer_standalone.a``
       This library contains the LFRic timer object and its dependencies.
       It can be used standalone (i.e. without LFRic) with any program.
-      A runnable example using a gocean code is included in
-      ``examples/gocean/eg5``.
+      A runnable example using a GOcean code is included in
+      ``examples/gocean/eg5/profile``.
 
     The LFRic timer writes its output to a file called ``timer.txt``
     in the current directory, and will overwrite this file if it
     should already exist.
-
 
 Any user can create similar wrapper libraries for
 other profiling tools by providing a corresponding Fortran
@@ -144,10 +146,10 @@ the developer's guide (:ref:`dev_guide:psy_data`).
 
 Most libraries in ``lib/profiling`` need to be linked in
 with the corresponding 3rd party profiling tool. The
-exception is the template- and simple_timing-library,
+exceptions are the template and simple_timing libraries,
 which are stand alone. The profiling example in
-``examples/gocean/eg5`` can be used with any of the
-wrapper libraries (except nvidia) to see how they work.
+``examples/gocean/eg5/profile`` can be used with any of the
+wrapper libraries (except ``nvidia``) to see how they work.
 
 .. _required_profiling_calls:
 
@@ -168,7 +170,7 @@ location in the application::
    ...
    call profile_PSyDataInit()
 
-The 'appropriate' location might depend on the profiling library used. 
+The "appropriate" location might depend on the profiling library used.
 For example, it might be necessary to invoke this before or after
 a call to ``MPI_Init()``.
 
@@ -191,7 +193,7 @@ used (e.g. before or after a call to ``MPI_Finalize()``).
 
 
 
-Profiling Command Line Options
+Profiling Command-Line Options
 ------------------------------
 PSyclone offers two command line options to automatically instrument
 code with profiling regions. It can create profile regions around
@@ -206,16 +208,17 @@ this invoke subroutine will be included in the profiled region.
 The option ``--profile kernels`` will surround each outer loop
 created by PSyclone with start and end profiling calls.
 
-.. note:: In some APIs (for example dynamo when using distributed
-          memory) additional minor code might get included in a
-          profiled kernel section, for example setDirty() calls
-          (expensive calls like HaloExchange are excluded).
+.. note:: In some APIs (for example :ref:`LFRic <dynamo0.3-api>`
+          when using distributed memory) additional minor code might
+          get included in a profiled kernel section, for example
+          ``setDirty()`` calls (expensive calls like ``HaloExchange``
+          are excluded).
 
 .. note:: If the ``kernels`` option is used in combination with an
-	  optimisation script that introduces OpenACC then profiling
-	  calls are automatically excluded from within OpenACC
-	  regions (since the PSyData wrappers are not compiled for
-	  GPU execution).
+          optimisation script that introduces OpenACC then profiling
+          calls are automatically excluded from within OpenACC
+          regions (since the PSyData wrappers are not compiled for
+          GPU execution).
 
 .. note:: It is still the responsibility of the user to manually
     add the calls to ``profile_PSyDataInit`` and 
@@ -229,7 +232,7 @@ be part of the profiling region, including all loops created by
 PSyclone and all kernel calls (note that for brevity, the nodes
 holding the loop bounds have been omitted for all but the first loop)::
 
-    GOInvokeSchedule[invoke='invoke_1',Constant loop bounds=True]
+    GOInvokeSchedule[invoke='invoke_1']
         0: [Profile]
             Schedule[]
                 0: Loop[type='outer',field_space='go_cu',it_space='go_internal_pts']
@@ -264,7 +267,7 @@ And now the same schedule when instrumenting kernels. In this case
 each loop nest and kernel call will be contained in a separate
 region::
 
-    GOInvokeSchedule[invoke='invoke_1',Constant loop bounds=True]
+    GOInvokeSchedule[invoke='invoke_1']
         0: [Profile]
             Schedule[]
                 0: Loop[type='outer',field_space='go_cu',it_space='go_internal_pts']
@@ -301,7 +304,7 @@ region::
 
 Both options can be specified at the same time::
 
-    GOInvokeSchedule[invoke='invoke_1',Constant loop bounds=True]
+    GOInvokeSchedule[invoke='invoke_1']
         0: [Profile]
             Schedule[]
                 0: [Profile]
@@ -356,11 +359,11 @@ As an example::
 
     p_trans = ProfileTrans()
     schedule = psy.invokes.get('invoke_0').schedule
-    schedule.view()
+    print(schedule.view())
     
     # Enclose some children within a single profile region
-    newschedule, _ = p_trans.apply(schedule.children[1:3])
-    newschedule.view()
+    p_trans.apply(schedule.children[1:3])
+    print(schedule.view())
 
 The profiler transformation also allows the profile name to be set
 explicitly, rather than being automatically created (see
@@ -415,7 +418,7 @@ when adding profiling via a transformation script, see
 The automatic name generation depends on the API according
 to the following rules:
 
-For the `nemo` api,
+For the :ref:`NEMO API <nemo-api>`,
 
 * the `module_name` string is set to the name of the parent
   function/subroutine/program. This name is unique as Fortran requires
@@ -426,7 +429,8 @@ For the `nemo` api,
   function/subroutine/program (based on the profile node's position in
   the PSyIR representation relative to any other profile nodes).
 
-For the `dynamo` and `gocean` api's,
+For the :ref:`LFRic (Dynamo0.3) <dynamo0.3-api>` and
+:ref:`GOcean1.0 <gocean1.0-api>` APIs,
 
 * the `module_name` string is set to the module name of the generated
   PSy-layer. This name should be unique by design (otherwise module
@@ -525,4 +529,3 @@ This is the code created for this example::
         ...
       END SUBROUTINE invoke_0
     END MODULE container
-

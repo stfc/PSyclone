@@ -71,10 +71,10 @@ contains
     integer(kind=i_def), intent(in) :: ncell_3d
     integer(kind=i_def), intent(in) :: iscalar
     integer(kind=i_def), intent(in), dimension(ndf_w3) :: map_w3
-    real(kind=r_def), intent(out), dimension(undf_w3) :: field1_v1
-    real(kind=r_def), intent(out), dimension(undf_w3) :: field1_v2
-    real(kind=r_def), intent(out), dimension(undf_w3) :: field1_v3
-    real(kind=r_def), intent(out), dimension(ndf_w0,ndf_w0,ncell_3d) :: op
+    real(kind=r_def), intent(inout), dimension(undf_w3) :: field1_v1
+    real(kind=r_def), intent(inout), dimension(undf_w3) :: field1_v2
+    real(kind=r_def), intent(inout), dimension(undf_w3) :: field1_v3
+    real(kind=r_def), intent(inout), dimension(ndf_w0,ndf_w0,ncell_3d) :: op
 
   end subroutine testkern_write_op_and_fld_code
 

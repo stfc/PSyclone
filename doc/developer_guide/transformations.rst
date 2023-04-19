@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2019-2020, Science and Technology Facilities Council.
+.. Copyright (c) 2019-2023, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,16 @@
 .. ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .. POSSIBILITY OF SUCH DAMAGE.
 .. -----------------------------------------------------------------------------
-.. Written by R. W. Ford and A. R. Porter, STFC Daresbury Lab
+.. Written by R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
+
+.. testsetup::
+
+    # Define GOCEAN_SOURCE_FILE to point to an existing gocean 1.0 file.
+    GOCEAN_SOURCE_FILE = ("../../src/psyclone/tests/test_files/"
+        "gocean1p0/test11_different_iterates_over_one_invoke.f90")
+    # Define NEMO_SOURCE_FILE to point to an existing nemo file.
+    NEMO_SOURCE_FILE = ("../../examples/nemo/code/tra_adv.F90")
+
 
 Transformations
 ###############
@@ -39,45 +48,84 @@ Transformations
 Kernel Transformations
 ======================
 
-PSyclone is able to perform kernel transformations. Currently it has
-two ways to apply transformations: by directly manipulating the
-language AST or by translating the language AST to PSyIR, applying the
-transformation in the PSyIR and using one of the back-ends to generate
-the resulting code.
-
-For now, both methods only support the fparser2 AST for kernel code.
-This AST is obtained by converting the fparser1 AST (stored
-when the kernel code was originally parsed to process the meta-data)
-back into a Fortran string and then parsing that with fparser2.
-(Note that in future we intend to adopt fparser2 throughout PSyclone so that
-this translation between ASTs will be unnecessary.)
-The `ast` property of the `psyclone.psyGen.Kern` class is responsible
-for performing this translation the first time it is called. It also
-stores the resulting AST in `Kern._fp2_ast` for return by future calls.
-
-See `psyclone.transformations.ACCRoutineTrans` for an example of directly
-manipulating the fparser2 AST.
-
-Alternatively, one can call the `psyclone.psyGen.CodedKern.get_kernel_schedule()`
-to generate the PSyIR representation of the kernel code. 
+PSyclone is able to perform kernel transformations by obtaining the PSyIR
+representation of the kernel with:
 
 .. automethod:: psyclone.psyGen.CodedKern.get_kernel_schedule
-
-The language AST to PSyIR transformation is done using a PSyIR front-end.
-This are found in the `psyclone.psyir.frontend` module. 
-The only currently available front-end is `Fparser2Reader` but this can
-be specialized for by the application APIs (e.g. Nemo has `NemoFparser2Reader`
-sub-class).
-The naming convention used for the PSyIR front-ends is
-<API><languageAST>Reader.
-
-.. autoclass:: psyclone.psyir.frontend.fparser2.Fparser2Reader
-    :members:
 
 The result of `psyclone.psyGen.Kern.get_kernel_schedule` is a
 `psyclone.psyir.nodes.KernelSchedule` which is a specialisation of the
 `Routine` class with the `is_program` and `return_type` properties set to
 `False` and `None`, respectively.
+
+In addition to modifying the kernel PSyIR with the desired transformations,
+the `modified` flag of the `CodedKern` node has to be set. This will let
+PSyclone know which kernel files it may have to rename and rewrite
+during the code generation.
+
+Raising Transformations
+=======================
+
+Whenever the PSyIR is created from existing source code using one of
+the frontends, the result is language-level PSyIR. That is, it
+contains only nodes that can be mapped directly into a language such
+as C or Fortran by one of the PSyIR backends. In order to utilise
+domain-specific knowledge, this language level PSyIR must be 'raised'
+to a domain-specific PSyIR. The resulting PSyIR will then contain
+nodes representing higher-level concepts such as kernels or halo
+exchanges. This raising is performed by means of the transformations
+listed in the sub-sections below.
+
+Raising Transformations for the NEMO API
+----------------------------------------
+
+The top-level raising transformation creates NEMO PSy layer PSyIR:
+
+.. autoclass:: psyclone.domain.nemo.transformations.CreateNemoPSyTrans
+
+This transformation is itself implemented using three separate transformations:
+
+.. autoclass:: psyclone.domain.nemo.transformations.CreateNemoKernelTrans
+.. autoclass:: psyclone.domain.nemo.transformations.CreateNemoLoopTrans
+.. autoclass:: psyclone.domain.nemo.transformations.CreateNemoInvokeScheduleTrans
+
+Raising Transformations for the LFRic API
+-----------------------------------------
+
+.. autoclass:: psyclone.domain.lfric.transformations.LFRicAlgTrans
+
+.. autoclass:: psyclone.domain.lfric.transformations.RaisePSyIR2LFRicAlgTrans
+
+.. autoclass:: psyclone.domain.lfric.transformations.RaisePSyIR2LFRicKernTrans
+
+Algorithm Transformations
+=========================
+
+In order to generate the transformed version of the algorithm with normal
+subroutine calls to PSy-layer routines, PSyclone provides a transformation that
+converts an individual ``AlgorithmInvokeCall`` into a ``Call`` to an
+appropriate subroutine:
+
+.. autoclass:: psyclone.domain.common.transformations.AlgInvoke2PSyCallTrans
+
+Algorithm Transformations for the LFRic API
+-------------------------------------------
+
+Since the LFRic API has the concept of Builtin kernels, there is more work
+to do when transforming an invoke into a call to a PSy layer routine and
+therefore there is a specialised class for this:
+
+.. autoclass:: psyclone.domain.lfric.transformations.LFRicAlgInvoke2PSyCallTrans
+
+Kernel Transformations for the GOCean and LFRic APIs
+----------------------------------------------------
+
+The LFRic RaisePSyIR2LFRicKernTrans and GOcean
+RaisePSyIR2GOceanKernTrans translate generic PSyIR to LFRic-specific
+Kernel PSyIR. At the moment these transformations are limited to
+creating Python classes for LFRic or GOcean kernel metadata,
+respectively. These classes allow easy reading, modification, creation
+and writing back of generic Kernel PSyIR.
 
 OpenACC
 =======
@@ -86,32 +134,59 @@ PSyclone is able to generate code for execution on a GPU through the
 use of OpenACC. Support for generating OpenACC code is implemented via
 :ref:`transformations`. The specification of parallel regions and
 loops is very similar to that in OpenMP and does not require any
-special treatment.  However, a key feature of GPUs is the fact that
+special treatment.  However, a key feature of GPUs is that, typically,
 they have their own, on-board memory which is separate from that of
 the host. Managing (i.e. minimising) data movement between host and
 GPU is then a very important part of obtaining good performance.
 
-Since PSyclone operates at the level of Invokes, it has no information
-about when an application starts and thus no single place in which to
-initiate data transfers to a GPU. (We assume that the host is
-responsible for model I/O and therefore for populating fields with
-initial values.) Fortunately, OpenACC provides support for this kind of
-situation with the ``enter data`` directive. This may be used to
-"define scalars, arrays and subarrays to be allocated in the current
-device memory for the remaining duration of the program"
+Since PSyclone operates at the level of Invokes for the LFRic (Dynamo0.3) and
+GOcean1.0 APIs and of single routines for the NEMO API, it has no information
+about where an application starts and thus no single place in which to initiate
+data transfers to a GPU. (We assume that the host is responsible for model I/O
+and therefore for populating fields with initial values.) Fortunately, OpenACC
+provides support for this kind of situation with the ``enter data`` directive.
+This may be used to "define scalars, arrays and subarrays to be allocated in
+the current device memory for the remaining duration of the program"
 :cite:`openacc_enterdata`. The ``ACCEnterDataTrans`` transformation adds
-an ``enter data`` directive to an Invoke:
+an ``enter data`` directive to an Invoke or a routine:
 
 .. autoclass:: psyclone.transformations.ACCEnterDataTrans
    :noindex:
 
-The resulting generated code will then contain an ``enter data``
-directive.
+The resulting generated code will then contain an ``enter data`` directive. The
+directive is placed in the body of the Invoke or the routine just before the
+first of its statements containing an OpenACC parallel or kernels construct.
+All the data that is accessed on the device, i.e. on at least one of all the
+OpenACC parallel and kernels constructs in the Invoke or the routine, is copied
+to the device's memory. For derived types, if a member is accessed on one of
+these constructs, in addition to that member, its parent is also copied in
+beforehand. This guarantees that, if the member is an allocatable or pointer,
+we levarage the implicit pointer attach behaviour of OpenACC.
 
 Of course, a given field may already be on the device (and have been
-updated) due to a previous Invoke. In this case, the fact that the
-OpenACC run-time does not copy over the now out-dated host version of
-the field is essential for correctness.
+updated) due to a previous Invoke or routine. In this case, the fact that the
+OpenACC runtime does not copy over the now outdated host version of the field
+is essential for correctness.
+
+On the other hand, if a section of the code must be executed on the host, it is
+paramount it accesses an up to date version of the data and that, at the end,
+any written data is returned to the device. To enable this workflow, the NEMO
+API supports the OpenACC ``update`` directive with either the ``self``/``host``
+or the ``device`` clause to update each target before and after a host code
+section in a routine:
+
+.. autoclass:: psyclone.psyir.transformations.ACCUpdateTrans
+   :noindex:
+
+The ``update`` directives will not necessarily be placed immediately next to
+the host code section. In fact, this could lead to poor performance whenever
+those sections happen to be inside a loop statement. Instead, the algorithm
+tries to push the directives up the routine's body as far as legally possible
+as determined by the data dependencies of parallel and kernels constructs in
+the routine and potential dependencies in called routines. In addition,
+whenever the scheme would place an ``update`` directive immediately next to a
+previously placed ``update`` directive with the same target, these are instead
+combined together.
 
 In order to support the incremental porting and/or debugging of an
 application, PSyclone also supports the OpenACC ``data`` directive
@@ -126,14 +201,8 @@ OpenCL
 
 PSyclone is able to generate an OpenCL :cite:`opencl` version of
 PSy-layer code for the GOcean 1.0 API and its associated kernels.
-Such code may then be executed
-on devices such as GPUs and FPGAs (Field-Programmable Gate
-Arrays). Since OpenCL code is very different to that which PSyclone
-normally generates, its creation is handled by ``gen_ocl`` methods
-instead of the normal ``gen_code``. Which of these to use is
-determined by the value of the ``InvokeSchedule.opencl`` flag.  In turn,
-this is set at a user level by the ``transformations.OCLTrans``
-transformation.
+Such code may then be executed on devices such as GPUs and FPGAs
+(Field-Programmable Gate Arrays).
 
 The PSyKAl model of calling kernels for pre-determined iteration
 spaces is a natural fit to OpenCL's concept of an
@@ -146,14 +215,18 @@ generated code is still Fortran and makes use of the FortCL library
 could of course generate the PSy layer in C instead but this would
 require further extension of PSyclone.
 
-Consider the following invoke::
+Consider the following invoke:
+
+.. code-block:: fortran
 
     call invoke( compute_cu(CU_fld, p_fld, u_fld) )
 
 When creating the OpenCL PSy layer for this invoke, PSyclone creates
 three subroutines instead of the usual one. The first, ``psy_init``
 is responsible for ensuring that a valid kernel object is created
-for each kernel called by the invoke, e.g.::
+for each kernel called by the invoke, e.g.:
+
+.. code-block:: fortran
 
     use fortcl, only: ocl_env_init, add_kernels
     ...
@@ -171,7 +244,9 @@ PSYCLONE_KERNELS_FILE environment variable. (A pre-compiled file is
 used instead of run-time kernel compilation in order to support
 execution on FPGAs.)
 
-The second routine created by PSyclone sets the kernel arguments, e.g.::
+The second routine created by PSyclone sets the kernel arguments, e.g.:
+
+.. code-block:: fortran
 
     SUBROUTINE compute_cu_code_set_args(kernel_obj, nx, cu_fld, p_fld, u_fld)
       USE clfortran, ONLY: clSetKernelArg
@@ -189,7 +264,9 @@ The second routine created by PSyclone sets the kernel arguments, e.g.::
 The third routine generated is the ususal psy-layer routine that is
 responsible for calling all of the kernels. However, it must now also
 call ``psy_init``, create buffers on the compute device (if they are
-not already present) and copy data over::
+not already present) and copy data over:
+
+.. code-block:: fortran
 
     SUBROUTINE invoke_compute_cu(...)
       ...
@@ -208,43 +285,44 @@ not already present) and copy data over::
         ! Create buffer on device
         cu_fld%device_ptr = create_rw_buffer(size_in_bytes)
         ierr = clEnqueueWriteBuffer(cmd_queues(1), cu_fld%device_ptr,  &
-                                    CL_TRUE, 0_8, size_in_bytes,       &
-      			            C_LOC(cu_fld%data), 0, C_NULL_PTR, &
-      			            C_LOC(write_event))
+                                CL_TRUE, 0, size_in_bytes,       &
+                                C_LOC(cu_fld%data), 0, C_NULL_PTR, &
+                                C_LOC(write_event))
         cu_fld%data_on_device = .true.
-      END IF 
+      END IF
       ...
+    END SUBROUTINE
 
 Note that we use the ``data_on_device`` member of the field derived
 type (implemented in github.com/stfc/dl_esm_inf) to keep track of
 whether a given field has been copied to the compute device.  Once all
 of this setup is done, the kernel itself is launched by calling
-``clEnqueueNDRangeKernel``::
+``clEnqueueNDRangeKernel``:
+
+.. code-block:: fortran
 
     ierr = clEnqueueNDRangeKernel(cmd_queues(1), kernel_compute_cu_code, &
                                   2, C_NULL_PTR, C_LOC(globalsize),      &
-				  C_NULL_PTR, 0, C_NULL_PTR, C_NULL_PTR)
+                                  C_NULL_PTR, 0, C_NULL_PTR, C_NULL_PTR)
 
 Limitations
 -----------
 
-In OpenCL, all tasks to be performed (whether copying data or kernel
-execution) are associated with a command queue. Tasks submitted to
-different command queues may then be executed concurrently,
-potentially giving greater performance. The OpenCL PSy code currently
-generated by PSyclone makes use of just one command queue but again,
-this could be extended in the future.
-
-The current implementation only supports the conversion of a whole
+The current implementation only supports the conversion of a single whole
 Invoke to use OpenCL. In the future we may refine this functionality
 so that it may be applied to just a subset of kernels within an
-Invoke.
+Invoke and/or to multiple invokes.
 
 Since PSyclone knows nothing about the I/O performed by a model, the
 task of ensuring that the correct data is written out by a model
 (including when doing halo exchanges for distributed memory) is left
 to the dl_esm_inf library since that has the information on whether
-field data is local or on a remote compute device.
+field data is local or on a remote compute device. How the data is sent or
+retrieved from the OpenCL device is provided by the dl_esm_inf
+``read_from_device_*`` and ``write_to_device_*`` function pointers.
+In the current implementation it does a just-when-is-needed synchronous data
+transfer using a single command queue which can bottleneck the OpenCL
+performance if there are many I/O operations.
 
 
 ArrayRange2LoopTrans
@@ -267,17 +345,9 @@ issues:
 3) at the moment, to test whether two loop ranges are the same, we
    first check whether they both access the full bounds of the
    array. If so we assume that they are the same (otherwise the code
-   will not run). If this is not the case then we check whether the
-   string versions of the ranges are the same. This approach supports
-   arbitrarily complex array ranges that are identical but if they
-   differ at all then the ranges are assumed to be different. For
-   example ``range(1:n+1:1)`` and ``range(1:1+n:1)`` are assumed to be
-   different. Some form of symbolic analyis might be useful to address
-   this. A less powerful alternative would be to support checking
-   whether two node hierarchies are the same by checking each level of
-   the hierarchy, with levels that support commutitivity checking each
-   option. This is similar to the approach taken in ``math_equal()`` in
-   the ``Node`` base-class.
+   will not run). If this is not the case, then PSyclone uses :ref:`SymPy`
+   for comparing ranges, which will consider the two ranges
+   ``range(1:n+1:1)`` and ``range(1:1+n:1)`` to be equal.
 
 4) there is a test for non-elementwise operations on the rhs of an
    assignment as it is not possible to turn this into an explicit
@@ -286,3 +356,111 @@ issues:
    directly for a non-elementwise operation. Fixing this issue is the
    subject of #685. For the moment the test just checks for MATMUL as
    that is currently the only non-elementwise operation in the PSyiR.
+
+Inlining
+========
+
+PSyclone supports two different inlining transformations:
+``KernelModuleInlineTrans`` and ``InlineTrans``. The former is relatively
+simple and creates a copy of the Kernel routine within the same Container
+as the routine from which it is called. The latter is far more intrusive
+and replaces a call to a routine with the actual body of that routine.
+This can be complex due to the fact that Fortran allows the bounds of
+arrays within a routine to differ from those at the call site, e.g.:
+
+.. code-block:: fortran
+
+  integer :: my_array(10)
+  ...
+  call my_sub(my_array)
+
+  subroutine my_sub(x)
+    integer, intent(inout), :: x(2:11)
+    ...
+
+As a consequence of this, ensuring that any array index expressions are
+correctly handled when inlining the routine body will often mean that
+full type information is required for every dummy argument. However, there are
+exceptions that arise when the dimensions of an array are not actually
+declared within the subroutine, e.g.:
+
+.. code-block:: fortran
+
+   type(my_type) :: var
+   ...
+   call my_sub(var)
+
+   subroutine my_sub(x)
+     type(my_var), intent(inout) :: x
+     x%data(3:5) = ...
+
+In this case, the definition of the array being accessed is contained
+within `my_var` and is therefore common to both the call site and
+the subroutine. We therefore do not require full type information
+for the dummy argument `x` in order to safely inline the routine.
+However, as soon as the dummy argument is in the form of an array
+then we will require full type information for the corresponding
+argument at both the call site and within the routine, e.g.:
+
+.. code-block:: fortran
+
+   type(my_type) :: var
+   ...
+   call my_sub(var%data)
+
+   subroutine my_sub(x)
+     real, dimension(2:5, 6) :: x
+     x(2, 4) = ...
+
+In this case, the correct index expressions for the inlined code will
+depend on the bounds with which the `data` member of `my_type` is
+declared and therefore this information must be available.
+
+OpenMP Tasking
+==============
+OpenMP tasking is supported in PSyclone, currently by the combination
+of the `OMPTaskloopTrans` and the `OMPTaskwaitTrans`.
+Dependency analysis and handling is done by the `OMPTaskwaitTrans`,
+which uses its own `get_forward_dependence` function to compute them.
+
+get_forward_dependence
+------------------------
+This function searches through the current section of the PSyIR tree for
+the given taskloop's next forward dependency, using the dependency analysis
+tools provided in `psyclone.psyir.tools.dependency_tools`. It searches
+through the tree for all `Loop`, `OMPDoDirective`, `OMPTaskloopDirective`,
+and `OMPTaskwaitDirective`. It then iterates forward through these until it
+finds:
+
+1) A `Loop`, `OMPDoDirective`, or `OMPTaskloopDirective` which contains a 
+   Read-after-Write (RaW) or Write-after-Read (WaR) dependency, in which
+   case that node is returned as the next dependence if it is contained
+   within the same `OMPSerialDirective`. If it is not contained within
+   the same `OMPSerialDirective`, the taskloop's parent
+   `OMPSingleDirective` is returned instead, provided it has no
+   `nowait` clause associated with it.
+
+2) An `OMPTaskloopDirective` within the same `OMPSingleDirective`
+   provided the single region has no `nowait` clause associated with it.
+   If this criteria is satisfied the taskloop directive is returned.
+
+The forward dependency will never be a child node of the provided taskloop,
+and the dependency's `abs_position` will always be great than 
+`taskloop.abs_position`.
+
+The RaW and WaR dependencies are computed by gathering all of the variable
+accesses contained inside the relevant directive's subtrees (other than 
+loop variables which are ignored), and checking for collisions between the lists.
+If those collisions are not both read-only, then we know there must be a RaW or
+WaR dependency.
+
+If no dependency is found, then `None` is returned.
+
+If a taskloop has no `nogroup` clause associated, it will be skipped over
+during the `OMPTaskwaitTransformation.apply` call, as any solvable dependencies
+will be satisfied by the implicit taskgroup.
+
+These structures are the only way to satisfy dependencies between taskloops,
+and any other structures of dependent taskloops will be caught by the
+`OMPTaskwaitTransformation.validate` call, which will raise an Error explaining
+why the dependencies cannot be resolved.

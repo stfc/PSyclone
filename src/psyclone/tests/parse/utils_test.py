@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2020, Science and Technology Facilities Council.
+# Copyright (c) 2019-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors R. W. Ford, A. R. Porter and N. Nobre, STFC Daresbury Lab
 
 '''A module to perform pytest unit tests on the parse/utils.py
 file.
@@ -41,7 +41,6 @@ from __future__ import absolute_import
 import tempfile
 
 import pytest
-import six
 
 from psyclone.parse.utils import check_line_length, parse_fp2, ParseError
 from psyclone.errors import InternalError
@@ -66,9 +65,9 @@ def test_line_length_too_long():
 
     '''
     with tempfile.NamedTemporaryFile(mode='w') as tmp_file:
-        tmp_file.write('''
-            ! A fortran line that is too long... {}
-        '''.format('a' * 100))
+        tmp_file.write(f'''
+            ! A fortran line that is too long... {'a' * 100}
+        ''')
         tmp_file.flush()
         with pytest.raises(ParseError) as excinfo:
             check_line_length(tmp_file.name)
@@ -83,15 +82,12 @@ def test_line_length_unicode():
     Note: This test failed with Python >3,<3.7 before explicit codecs
           were defined in the open(filename, ...) call.
     '''
-    kwargs = dict(encoding='utf8') if six.PY3 else {}
+    kwargs = dict(encoding='utf8')
     with tempfile.NamedTemporaryFile(mode='w', **kwargs) as tmp_file:
-        content = u'''
-            ! A fortran comment with a unicode character "{}"
-        '''.format(u"\u2014")
-        if six.PY3:
-            tmp_file.write(content)
-        else:
-            tmp_file.write(content.encode('utf8'))
+        content = '''
+            ! A fortran comment with a unicode character "\u2014"
+        '''
+        tmp_file.write(content)
         tmp_file.flush()
 
         assert check_line_length(tmp_file.name) is None
@@ -120,9 +116,9 @@ def test_parsefp2_invalid_fortran(tmpdir):
 
     '''
     my_file = str(tmpdir.join("invalid.f90"))
-    ffile = open(my_file, "w")
-    ffile.write("invalid Fortran code")
-    ffile.close()
+    with open(my_file, "w", encoding="utf-8") as ffile:
+        ffile.write("invalid Fortran code")
+        ffile.close()
     with pytest.raises(ParseError) as excinfo:
         _ = parse_fp2(my_file)
     assert "Syntax error in file" in str(excinfo.value)

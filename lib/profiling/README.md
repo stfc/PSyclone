@@ -1,54 +1,40 @@
-# Libraries for use with PSyclone Profiling
+# Libraries for Use with PSyclone Profiling
 
-This directory contains wrapper libraries that can be used with
-PSyclone's profiling interface.
+This directory contains wrapper libraries that can be used with [PSyclone
+profiling API](
+https://psyclone.readthedocs.io/en/stable/profiling.html#profiling). All
+profiling-library interfaces use the the [PSyData API](
+https://psyclone.readthedocs.io/en/stable/psy_data.html). The profiling
+wrappers included in PSyclone are: ``template``,
+``simple_timing``, ``dl_timer``, ``drhook``, ``nvidia`` and
+``lfric_timer``. the overview is given below (for more information please
+refer to the linked individual ``README.md`` documents).
 
-## Compilation
+## Profiling Wrappers
 
-The top level makefile can be used to compile some or all profiling-library
-interfaces:
-
-    make all
-
-will compile all profiling-library interfaces included in
-PSyclone. The command `make TARGET` where `TARGET` is one of
-`template`, `simple_timing`, `drhook`, `lfric`, `nvidia` or `dl_timer` will
-only compile the corresponding library interface. The following
-makefile variables are used and can be overwritten on the command line
-(e.g. `make F90=mpif90`):
-
- Variable   |  Default         | Description
- ---------- | ---------------- | ----------------------------- 
-F90         |  gfortran        | Name of the compiler.
-FFLAGS      |  -g              | Flags to use when compiling.
-
-Using `make clean` will clean all compiled library interfaces. You can
-also compile each library interface by changing into the corresponding
-directory and invoking `make`.
-
-Since any source code instrumented for profiling will now contain `use
-profile_mod` statements, the location of the `profile_mod.mod` file
-must be provided as an include path when compiling the application
-source.
-
-## Wrappers
-
-### `template`
+### [``template``](./template)
 
 This is a very simple example library that just prints the name of the
-subroutines used (e.g. ProfileStart) and name of the module and region.
-It uses the ProfileData variables to make the module and region name
-available in the ProfileEnd call.
+subroutines used (e.g. ``ProfileStart``) and name of the module and region.
+It uses the ``ProfileData`` variables to make the module and region name
+available in the ``ProfileEnd`` call.
 
-### `simple_timing`
+Detailed building and linking instructions are in
+[``template/README.md``](./template/README.md).
+
+### [``simple_timing``](./simple_timing)
 
 This is a simple, stand-alone library that measures the real time of
-a region, and prints a summary at the end. It is NOT thread-safe.
-The ProfileData type is used to store module name and region,
+a region, and prints a summary at the end. It is **NOT thread-safe**.
+The ``ProfileData`` type is used to store module name and region,
 and time accumulators.
+
+Detailed building and linking instructions are in
+[``simple_timing/README.md``](./simple_timing/README.md).
 
 Example output:
 
+```
     ===========================================
      module::region                                         count           sum                     min             average                 max
      psy_inputoutput::eliminate_one_node_islands_code           1     0.128906250             0.128906250             0.128906250             0.128906250    
@@ -59,29 +45,25 @@ Example output:
      psy_time_step_mod::swlat_code                             11      4.87890625             0.437500000             0.443536937             0.445312500    
      psy_time_step_mod::swlat_update_code                      11      1.87500000             0.167968750             0.170454547             0.179687500    
      ===========================================
+```
 
-### `dl_timer`
+### [``dl_timer``](./dl_timer)
 
-This is a wrapper library that maps the PSyclone profiling API
-to the dl_timer API. A copy of dl_timer can be downloaded from
-https://bitbucket.org/apeg/dl_timer
+This is a wrapper library that maps the [PSyclone profiling API](
+https://psyclone.readthedocs.io/en/stable/profiling.html#profiling) to the
+dl_timer API. A copy of dl_timer can be downloaded from
+https://bitbucket.org/apeg/dl_timer.
 
-To compile the PSyclone wrapper library for dl_timer, one of the following
-two Makefile variables must be set:
-
-- DL_TIMER_ROOT This is the path to the apeg-dl_timer directory in which
-  dl_timer was compiled. It defaults to ../../../../apeg-dl_timer, which
-  means if apeg-dl_timer is next to the PSyclone root dir, it will be found
-  by default.
-- DL_TIMER_INCLUDE The path to the dl_timer include directory (or src
-  directory). This defaults to $DL_TIMER_ROOT/src.
-
-The PSyclone dl_timer wrapper library uses the ProfileData type and
+The PSyclone dl_timer wrapper library uses the ``ProfileData`` type and
 dl_timer's timer_register function to store the module/region name and
-the index used by dl_timer. This library is thread-safe.
+the index used by dl_timer. This library is **thread-safe**.
+
+Detailed building and linking instructions are in [``dl_timer/README.md``](
+./dl_timer/README.md).
 
 Example output:
 
+```
     =============================== Timing report ===============================
     Timed using POSIX timer. Units are seconds.
     Reported resolution =  0.1000E-08 (s)
@@ -102,35 +84,21 @@ Example output:
     -----------------------------------------------------------------------------
     * corrected for systematic error
     =============================================================================
+```
 
-### Dr Hook
+### [Dr Hook](./drhook)
 
-This wrapper library interfaces with ECMWF's Dr Hook library. This
+This wrapper library interfaces with the ECMWF Dr Hook library. This
 library appears not to be available as open source on a public
 server. It provides more functionality than just profiling, see the Dr
-Hook documentation for details.  In the version tested (1.0.0) it
-appears that the installation target in the Dr Hook distribution is
-broken, so the following instructions and the default values assume
-that Dr Hook is compiled in a drhook subdirectory called 'build' and
-not installed.
+Hook documentation for details. The version tested here is 1.0.0.
 
-To compile the PSyclone wrapper library for Dr Hook, chose one of the following
-two options to specify the path to the Dr Hook installation:
-
-- DRHOOK_ROOT This is the path to the Dr Hook root directory in which
-  Dr Hook was compiled. It defaults to ../../../../drhook, which
-  means if Dr Hook is compiled next to the PSyclone root dir, it will be
-  found by default. This will set DRHOOK_INCLUDE to .../drhook/include
-  and DRHOOK_MODULES to .../drhook/build/module, so that the .mod files
-  created in the build processes are found.
-- DRHOOK_INCLUDE and DRHOOK_MODULES Setting these environment variables
-  explicitly will allow you to flexibly point to an existing Dr Hook installation.
-  
-It is not known whether a proper Dr Hook installation will install
-include and mod files in a separate directory.
+Detailed building and linking instructions are in [``drhook/README.md``](
+./drhook/README.md).
 
 Example profiling output (some spaces removed to shorten the lines):
 
+```
     No. of instrumented routines called : 9
     Instrumentation started : 20190124 191207
     Instrumentation   ended : 20190124 191319
@@ -152,17 +120,21 @@ Example profiling output (some spaces removed to shorten the lines):
     7   0.28   29.165   0.082    0.082     1    82.32     82.32   eliminate_one_node_islands_mod:eliminate_one_node_islands_code_1@1
     8   0.00   29.165   0.000   29.083    11     0.01   2643.90   swlon_adjust_mod:swlon_adjust_code@1
     9   0.00   29.165   0.000    0.082     1     0.01     82.33   eliminate_one_node_islands_mod:eliminate_one_node_islands_code@1
+```
 
-### NVIDIA
+### [NVIDIA](./nvidia)
 
 This wrapper library uses the NVIDIA Tools Extension (NVTX) to mark-up
 profiling regions so that they appear in the NVIDIA profiling tools
-(nvprof or the visual profiler, nvvp).  This is then very useful for
-identifying regions of an application that are not running on the
-GPU.
+(``nvprof`` or the visual profiler, ``nvvp``).  This is then very useful for
+identifying regions of an application that are not running on the GPU.
 
-Example output (from nvprof):
+Detailed building and linking instructions are in
+[``nvidia/README.md``](./nvidia/README.md).
 
+Example output (from ``nvprof``):
+
+```
     ==1678== NVTX result:
     ==1678==   Thread "<unnamed>" (id = 66653056)
     ==1678==     Domain "<unnamed>"
@@ -175,16 +147,97 @@ Example output (from nvprof):
           API calls:   59.10%  122.02us     34  3.5880us  2.4540us  14.057us  cuMemcpyHtoDAsync
                        34.73%  71.711us     10  7.1710us  4.6830us  25.625us  cuLaunchKernel
                         6.17%  12.729us      3  4.2430us  2.3700us  7.7330us  cuMemsetD32Async
+```
 
-### LFRic Timer
+### [LFRic timer](./lfric_timer)
 
 This wrapper library uses the LFRic timer object. It can not only be
-used with LFRic, but also with any other program - detailed linking instructions
-are in [``./lfric/README.md``](./lfric/README.md). The output is written to the
-file ``timer.txt``, which will be overwritten if it should already exist.
+used with LFRic, but also with any other program - detailed linking
+instructions are in [``lfric_timer/README.md``](./lfric_timer/README.md).
 
-Example output:
+The output is written to the file ``timer.txt``, which will be overwritten if
+it should already exist. For example:
 
+```
     ||=           Routine            =||=   min time(s)     =||=   mean time(s)    =||=   max time(s)     =||=     No. calls     =||=       %time       =||= time per call(s)  =||
     ||            psy_test:invoke_0:r0||                 0.00||                 0.00||                 0.00||                    1||               100.00||                 0.00||
     ||psy_test:invoke_1_update_field:u||                 0.00||                 0.00||                 0.00||                    1||                44.47||                 0.00||
+```
+
+## Compilation
+
+The top level ``Makefile`` can be used to compile the profiling-library
+interfaces included in PSyclone. The command ``make TARGET`` where ``TARGET``
+is one of ``template``, ``simple_timing``, ``dl_timer``, ``drhook``, ``nvidia``
+or ``lfric_timer`` will only compile the corresponding library interface.
+
+**Note** that compilation currently does not include ``dl_timer``, ``drhook``
+and ``nvidia`` profiling-library interfaces since they require external
+libraries to be available. For the same reason, the ``all`` target
+
+```shell
+make all
+```
+
+will only compile ``template``, ``simple_timing`` and ``lfric_timer``
+libraries.
+
+The following ``Makefile`` variables are used and can be overwritten on the
+command line (e.g. ``F90=mpif90 make``):
+
+ Variable   |  Default         | Description
+ ---------- | ---------------- | -----------------------------
+F90         |  gfortran        | Name of the compiler.
+F90FLAGS    |  -g              | Flags to use when compiling.
+
+Using ``make clean`` will clean all compiled library interfaces. Each
+profiling library interface can be compiled individually by changing into
+the corresponding directory and invoking ``make`` with the library-specific
+flags (see the individual ``README.md`` documents for reference).
+
+Since any source code instrumented for profiling will now contain ``use
+profile_mod`` statements, the location of the ``profile_mod.mod`` file
+must be provided as an ``include`` path when compiling the application
+source.
+
+<!--
+## Licence
+
+-------------------------------------------------------------------------------
+
+BSD 3-Clause License
+
+Copyright (c) 2020-2021, Science and Technology Facilities Council.
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+* Redistributions of source code must retain the above copyright notice, this
+  list of conditions and the following disclaimer.
+
+* Redistributions in binary form must reproduce the above copyright notice,
+  this list of conditions and the following disclaimer in the documentation
+  and/or other materials provided with the distribution.
+
+* Neither the name of the copyright holder nor the names of its
+  contributors may be used to endorse or promote products derived from
+  this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGE.
+
+-------------------------------------------------------------------------------
+Authors: J. Henrichs, Bureau of Meteorology,
+         I. Kavcic, Met Office
+-->

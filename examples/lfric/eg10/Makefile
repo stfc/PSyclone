@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,14 +32,34 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Laboratory
+# Modified J. Henrichs, Bureau of Meteorology
 
 include ../../common.mk
+
+# This defaults to the infrastructure library included in PSyclone
+LFRIC_DIR ?= ../../../src/psyclone/tests/test_files/dynamo0p3/infrastructure
+LFRIC_LIB=$(LFRIC_DIR)/liblfric.a
+F90FLAGS += -I$(LFRIC_DIR)
+
+.PHONY: transform compile run kernels
 
 transform:
 	${PSYCLONE} intergrid_3levels.x90
 
-compile:
-	@echo "No compilation supported for lfric/eg10"
+# TODO #1203 compilation of this example is not yet working. The Algorithm
+# (and possibly infrastructure) needs updating.
+#compile: transform $(LFRIC_LIB) kernels psy.o
 
-all: transform compile
+compile: transform
+	@echo "No compilation targets for lfric/eg10"
 
+run: compile
+	@echo "No run targets for lfric/eg10"
+
+$(LFRIC_LIB):
+	$(MAKE) -C $(LFRIC_DIR)
+
+kernels: prolong_kernel_mod.o restrict_kernel_mod.o
+
+%.o: %.[fF]90
+	$(F90) $(F90FLAGS) -c $<

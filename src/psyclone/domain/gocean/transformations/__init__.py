@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Science and Technology Facilities Council.
+# Copyright (c) 2019-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,15 +32,22 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors J. Henrichs, Bureau of Meteorology
+#         S. Siso, STFC Daresbury Lab
+# Modified: R. W. Ford, STFC Daresbury Lab
 
 '''This module contains the transformations for GOcean.
 '''
 
 from psyclone.domain.gocean.transformations.gocean_extract_trans \
     import GOceanExtractTrans
-
-# The entities in the __all__ list are made available to import directly from
-# this package e.g.:
-# from psyclone.domain.gocean.transformations import GOceanExtractTrans
-
-__all__ = ['GOceanExtractTrans']
+from psyclone.domain.gocean.transformations.gocean_opencl_trans \
+    import GOOpenCLTrans
+from psyclone.domain.gocean.transformations. \
+    gocean_move_iteration_boundaries_inside_kernel_trans import \
+    GOMoveIterationBoundariesInsideKernelTrans
+from psyclone.domain.gocean.transformations.gocean_loop_fuse_trans \
+    import GOceanLoopFuseTrans
+from psyclone.domain.gocean.transformations.gocean_const_loop_bounds_trans \
+    import GOConstLoopBoundsTrans
+from psyclone.domain.gocean.transformations.raise_psyir_2_gocean_kern_trans \
+    import RaisePSyIR2GOceanKernTrans

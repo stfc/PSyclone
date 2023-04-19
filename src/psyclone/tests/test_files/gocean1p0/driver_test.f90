@@ -80,6 +80,9 @@ PROGRAM extract_example_with_various_variable_access_patterns
   END DO
   call invoke( compute_kernel(out_fld, in_out_fld, out_fld_post, dx))
   call invoke( compute_kernel(out_fld, out_fld_post, out_fld_post0, dx))
+  call invoke( compute_kernel(out_fld, in_out_fld, in_fld, dx),    &
+               compute_kernel(out_fld, in_out_fld, in_fld, dx),    &
+               compute_kernel(out_fld, in_out_fld, in_fld, dx)      )
 
   !===================================================
 

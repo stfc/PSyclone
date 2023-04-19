@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council
+# Copyright (c) 2020-2022, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -74,7 +74,7 @@ def trans(psy):
     for child in sched.children:
         if isinstance(child, Loop) and child.loop_type == "levels":
             try:
-                _ = OMP_TRANS.apply(child)
+                OMP_TRANS.apply(child)
             except TransformationError:
                 pass
 
@@ -88,17 +88,17 @@ def trans(psy):
     # Put an OMP parallel do around all suitable loops except 6-9
     for child in it_loop_body.children[0:6] + it_loop_body.children[10:]:
         if isinstance(child, Loop) and child.loop_type == "levels":
-            _ = OMP_TRANS.apply(child)
+            OMP_TRANS.apply(child)
 
     # Put an OMP loop around each of loops 6-9
     for child in it_loop_body.children[6:10]:
-        _ = OMP_LOOP_TRANS.apply(child)
+        OMP_LOOP_TRANS.apply(child)
 
     # Enclose loops 6-9 within a single OMP parallel region
-    _ = OMP_PARALLEL_TRANS.apply(it_loop_body.children[6:10])
+    OMP_PARALLEL_TRANS.apply(it_loop_body.children[6:10])
 
     # Display the transformed PSyIR
-    sched.view()
+    print(sched.view())
 
     # Return the modified psy object
     return psy

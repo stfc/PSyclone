@@ -34,13 +34,21 @@
 # ------------------------------------------------------------------------------
 # Author: A. R. Porter and R. W. Ford, STFC Daresbury Lab
 
-.PHONY: test
+include ../../../../common.mk
 
-test:
-	psyclone -s ./schedule.py -oalg /dev/null -opsy /dev/null ../code/helmholtz_solver_alg_mod.x90
+transform:
+	$(PSYCLONE) -s ./schedule.py -oalg /dev/null -opsy /dev/null ../code/helmholtz_solver_alg_mod.x90
 	psyclone -s ./schedule.py -oalg /dev/null -opsy /dev/null ../code/helmholtz_solver_alg_mod.x90 --config psyclone.cfg
-	psyclone -s ./solutions/overlap_generic.py -oalg /dev/null -opsy /dev/null ../code/helmholtz_solver_alg_mod.x90
-	psyclone -s ./solutions/overlap_specific.py -oalg /dev/null -opsy /dev/null ../code/helmholtz_solver_alg_mod.x90
+	$(PSYCLONE) -s ./solutions/overlap_generic.py -oalg /dev/null -opsy /dev/null ../code/helmholtz_solver_alg_mod.x90
+	$(PSYCLONE) -s ./solutions/overlap_specific.py -oalg /dev/null -opsy /dev/null ../code/helmholtz_solver_alg_mod.x90
+
+compile: transform
+	@echo "No compilation supported for tutorial/lfric/distributed_memory/3_overlapping_comms"
+
+run: compile
+	@echo "No run targets for tutorial/lfric/distributed_memory/3_overlapping_comms"
 
 clean:
 	@echo "Nothing to clean"
+
+allclean: clean

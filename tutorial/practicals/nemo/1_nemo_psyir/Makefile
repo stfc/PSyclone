@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,8 +32,23 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
+# Modified J. Henrichs, Bureau of Meteorology
 
-.PHONY: test
+include ../../../common.mk
 
-test:
-	psyclone -api nemo -s ./schedule_view_trans.py -opsy /dev/null tra_adv.F90
+.PHONY: transform
+
+transform:
+	$(PSYCLONE) -api nemo -s ./schedule_view_trans.py -opsy /dev/null tra_adv.F90
+
+compile: transform
+	@echo "No compilation targets for example tutorial/1_nemo_psyir"
+
+run: compile
+	@echo "No run targets for example tutorial/1_nemo_psyir"
+
+clean:
+	rm -f psy.f90 *.o *.mod *~
+
+allclean: clean
+	rm -f *.exe output.dat
