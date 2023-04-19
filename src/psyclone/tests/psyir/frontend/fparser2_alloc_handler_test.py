@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022, Science and Technology Facilities Council.
+# Copyright (c) 2022-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -39,7 +39,7 @@
 
 
 from psyclone.psyir.nodes import (
-    ArrayReference, IntrinsicCall, Literal,
+    ArrayReference, CodeBlock, IfBlock, IntrinsicCall, Literal,
     Range, Reference, StructureReference, UnaryOperation)
 
 
@@ -129,6 +129,25 @@ end program test_alloc
     assert call.children[2].symbol.name == "ierr"
 
 
+def test_alloc_with_errmsg(fortran_reader):
+    '''
+    Check the handling of an allocate with the optional errmsg argument.
+
+    '''
+    code = '''
+program test_alloc
+  character(len=*)   :: oh_dear = "not good"
+  real, allocatable, dimension(:, :) :: var1
+  allocate(var1(5,5), errmsg=oh_dear)
+end program test_alloc
+'''
+    psyir = fortran_reader.psyir_from_source(code)
+    calls = psyir.walk(IntrinsicCall)
+    assert len(calls) == 1
+    assert calls[0].argument_names == [None, "ERRMSG"]
+    assert isinstance(calls[0].children[1], Reference)
+
+
 def test_alloc_member(fortran_reader):
     '''
     Check the handling of allocate with a member of a derived type.
@@ -155,3 +174,22 @@ end program test_alloc
     assert isinstance(call.children[0], StructureReference)
     assert call.argument_names == [None, "MOLD"]
     assert isinstance(call.children[1], StructureReference)
+
+
+def test_alloc_with_typespec(fortran_reader, fortran_writer):
+    '''
+    Test that an allocate statement that contains a type-spec results in a
+    CodeBlock.
+
+    '''
+    code = '''
+subroutine test_alloc(cdnambuff)
+  character(len=:), allocatable :: cdnambuff
+  if (.not. allocated(cdnambuff)) ALLOCATE( CHARACTER(LEN=kleng) :: cdnambuff )
+end subroutine test_alloc
+'''
+    psyir = fortran_reader.psyir_from_source(code)
+    ifblock = psyir.walk(IfBlock)[0]
+    assert isinstance(ifblock.if_body[0], CodeBlock)
+    out = fortran_writer(ifblock).lower()
+    assert "allocate(character(len = kleng)::cdnambuff)" in out
