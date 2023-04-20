@@ -1037,7 +1037,7 @@ output strings).
 
 The logic and declaration of kernel variables is handled separately by
 the ``gen_stub`` method in ``DynKern`` and the ``gen_code`` method in
-``DynInvoke``. In both cases these methods make use of the subclasses
+``LFRicInvoke``. In both cases these methods make use of the subclasses
 of ``DynCollection`` to declare variables.
 
 When using the symbol table in the LFRic PSyIR we naturally capture

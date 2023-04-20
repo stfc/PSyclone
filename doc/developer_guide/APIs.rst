@@ -651,7 +651,7 @@ loops and kernel calls that need to be generated in the PSy layer for
 the particular invoke call. Once the loops and kernel calls have been
 created then (if the ``DISTRIBUTED_MEMORY`` flag is set to ``true``) PSyclone
 adds any required halo exchanges and global sums. This work is all
-performed in the ``DynInvoke`` constructor (``__init__``) method.
+performed in the ``LFRicInvoke`` constructor (``__init__``) method.
 
 In PSyclone we apply a lazy halo exchange approach (as opposed to an
 eager one), adding a halo exchange just before it is required.
