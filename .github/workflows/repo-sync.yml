@@ -21,7 +21,7 @@ jobs:
     - name: Setup SSH passphrase
       env:
         SSH_PASSPHRASE: ${{secrets.KEY_PASSPHRASE}}
-        SSH_PRIVATE_KEY: ${{secrets.SSH_PRIVATE_MIRROR_REPO}}
+        SSH_PRIVATE_KEY: ${{secrets.PRIVATE_MIRROR_REPO}}
       run: |
         ssh-agent -a $SSH_AUTH_SOCK > /dev/null
         echo 'echo $SSH_PASSPHRASE' > ~/.ssh_askpass && chmod +x ~/.ssh_askpass
