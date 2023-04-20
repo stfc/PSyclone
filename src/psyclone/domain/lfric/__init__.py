@@ -61,9 +61,13 @@ from psyclone.domain.lfric.metadata_to_arguments_rules import \
     MetadataToArgumentsRules
 from psyclone.domain.lfric.arg_index_to_metadata_index import \
     ArgIndexToMetadataIndex
+from psyclone.domain.lfric.formal_kernel_args_from_metadata import \
+    FormalKernelArgsFromMetadata
+
 
 __all__ = [
     'ArgOrdering',
+    'FormalKernelArgsFromMetadata',
     'FunctionSpace',
     'KernCallAccArgList',
     'KernCallArgList',

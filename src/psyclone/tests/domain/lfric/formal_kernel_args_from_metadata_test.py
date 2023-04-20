@@ -1,30 +1,113 @@
-''' xxx '''
+# -----------------------------------------------------------------------------
+# BSD 3-Clause License
+#
+# Copyright (c) 2023, Science and Technology Facilities Council.
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# * Redistributions of source code must retain the above copyright notice, this
+#   list of conditions and the following disclaimer.
+#
+# * Redistributions in binary form must reproduce the above copyright notice,
+#   this list of conditions and the following disclaimer in the documentation
+#   and/or other materials provided with the distribution.
+#
+# * Neither the name of the copyright holder nor the names of its
+#   contributors may be used to endorse or promote products derived from
+#   this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+# -----------------------------------------------------------------------------
+# Author: R. W. Ford, STFC Daresbury Lab
+
+'''This module tests the FormalKernelArgsFromMetadata class.'''
+
 import pytest
 
-from psyclone.domain.lfric import LFRicTypes
-from psyclone.domain.lfric.formal_kernel_args_from_metadata import (
-    FormalKernelArgsFromMetadata)
-from psyclone.domain.lfric.kernel import (
-    ScalarArgMetadata, FieldArgMetadata, LFRicKernelMetadata,
-    FieldVectorArgMetadata, OperatorArgMetadata, ColumnwiseOperatorArgMetadata)
+from collections import OrderedDict
 
-from psyclone.psyir.symbols import SymbolTable, DataSymbol
+from psyclone.domain import lfric
+from psyclone.psyir import symbols
 
 
 def call_method(method_name, *args, metadata=None):
-    ''' xxx '''
-    cls = FormalKernelArgsFromMetadata
-    cls._info = SymbolTable()
+    '''Utility function that initialises the FormalKernelArgsFromMetadata
+    class with optional metadata and a symbol table, then calls the
+    class method specified in argument 'method_name' with the the
+    arguments specified in argument *args and returns the class.
+
+    :param str method_name: the name of the method to test.
+    :param metadata: optional metadata required by some methods.
+    :type metadata: Optional[ \
+        :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`]
+
+    :returns: a FormalKernelArgsFromMetadata class after the supplied \
+        class method has been called.
+    :rtype: :py:class:`psyclone.domain.lfric.FormalKernelArgsFromMetadata`
+
+    '''
+    cls = lfric.FormalKernelArgsFromMetadata
+    cls._info = symbols.SymbolTable()
     cls._metadata = metadata
     getattr(cls, method_name)(*args)
     return cls
 
-def check_single_symbol(method_name, datasymbol_name, symbol_name, *args, metadata=None):
-    ''' xxx '''
+def check_single_symbol(
+        method_name, datasymbol_name, symbol_name, *args, metadata=None):
+    '''Utility function that calls the method in argument 'method_name'
+    with the arguments stored in argument '*args' and checks that as a
+    result a symbol with name 'symbol_name' of type 'datasymbol_name'
+    is created. This function tests methods where a single symbol is
+    created.
+
+    :param str method_name: the name of the method to test.
+    :param str datasymbol_name: the name of the expected symbol type \
+        that is created.
+    :param str symbol_name: the expected name of the created symbol.
+    :param metadata: optional metadata required by some methods.
+    :type metadata: Optional[ \
+        :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`]
+
+    :returns: xxx
+
+    '''
     cls = call_method(method_name, *args, metadata=metadata)
-    lfric_class = LFRicTypes(datasymbol_name)
-    assert isinstance(cls._info.lookup(symbol_name), lfric_class)
-    assert len(cls._info.argument_list) == 1
+    lfric_class = lfric.LFRicTypes(datasymbol_name)
+    symbol = cls._info.lookup(symbol_name)
+    assert isinstance(symbol, lfric_class)
+    assert len(cls._info._argument_list) == 1
+    assert cls._info._argument_list[0] is symbol
+    return cls
+
+
+def check_symbols(cls, symbol_dict):
+    ''' xxx '''
+    for symbol_name, lfric_class in symbol_dict.items():
+        assert isinstance(cls._info.lookup(symbol_name), lfric_class)
+
+
+def check_arg_symbols(cls, symbol_dict):
+    ''' xxx '''
+    check_symbols(cls, symbol_dict)
+    assert len(cls._info._argument_list) == len(symbol_dict)
+    for idx, symbol_name in enumerate(symbol_dict.keys()):
+        assert cls._info._argument_list[idx].name == symbol_name
+
+
+# TODO test _initialise
 
 
 def test_cell_position():
@@ -39,98 +122,144 @@ def test_mesh_height():
 
 def test_mesh_ncell2d_no_halos():
     ''' Test _mesh_ncell2d_no_halos method. '''
-    check_single_symbol("_mesh_ncell2d_no_halos", "LFRicIntegerScalarDataSymbol", "ncell_2d_no_halos")
+    check_single_symbol(
+        "_mesh_ncell2d_no_halos", "LFRicIntegerScalarDataSymbol",
+        "ncell_2d_no_halos")
 
 
 def test_mesh_ncell2d():
     ''' Test _mesh_ncell2d method. '''
-    check_single_symbol("_mesh_ncell2d", "LFRicIntegerScalarDataSymbol", "ncell_2d")
+    symbol_name = "ncell_2d"
+    cls = check_single_symbol(
+        "_mesh_ncell2d", "LFRicIntegerScalarDataSymbol", symbol_name)
+    # Check that the symbol remains unchanged if it has already been declared.
+    symbol = cls._info.lookup_with_tag(symbol_name)
+    symbol_id = id(symbol)
+    # Reset the argument list as '_mesh_ncell2d' adds the symbol to
+    # the symbol table and to the argument list whereas if it had
+    # already been declared by another method it will have only been
+    # added to the symbol table.
+    cls._info._argument_list = []
+    cls._mesh_ncell2d()
+    symbol = cls._info.lookup_with_tag(symbol_name)
+    assert symbol_id == id(symbol)
+    assert len(cls._info._argument_list) == 1
+    assert cls._info._argument_list[0] is symbol
 
 
 def test_cell_map():
     ''' Test _cell_map method. '''
     cls = call_method("_cell_map")
-    lfric_class = LFRicTypes("LFRicIntegerScalarDataSymbol")
-    assert isinstance(cls._info.lookup("cell_map"), DataSymbol)
-    assert isinstance(cls._info.lookup("ncell_f_per_c_x"), lfric_class)
-    assert isinstance(cls._info.lookup("ncell_f_per_c_y"), lfric_class)
-    assert isinstance(cls._info.lookup("ncell_f"), lfric_class)
-    assert len(cls._info.argument_list) == 4
+    lfric_class = lfric.LFRicTypes("LFRicIntegerScalarDataSymbol")
+    # Symbols added to the symbol table and to the argument list.
+    check_arg_symbols(cls, OrderedDict(
+        [("cell_map", symbols.DataSymbol), ("ncell_f_per_c_x", lfric_class),
+         ("ncell_f_per_c_y", lfric_class), ("ncell_f", lfric_class)]))
 
 
 def test_scalar():
     ''' Test _scalar method. '''
     # At least one field arg is required for the metadata to be valid
     # even though we only want to test the scalar metadata.
-    field_meta_arg = FieldArgMetadata("GH_REAL", "GH_WRITE", "W3")
-    scalar_meta_arg = ScalarArgMetadata("GH_REAL", "GH_READ")
-    metadata = LFRicKernelMetadata(operates_on="cell_column", meta_args=[field_meta_arg, scalar_meta_arg])
+    field_meta_arg = lfric.kernel.FieldArgMetadata("GH_REAL", "GH_WRITE", "W3")
+    scalar_meta_arg = lfric.kernel.ScalarArgMetadata("GH_REAL", "GH_READ")
+    metadata = lfric.kernel.LFRicKernelMetadata(
+        operates_on="cell_column", meta_args=[field_meta_arg, scalar_meta_arg])
     metadata.validate()
-    check_single_symbol("_scalar", "LFRicRealScalarDataSymbol", "rscalar_2", scalar_meta_arg, metadata=metadata)
+    check_single_symbol(
+        "_scalar", "LFRicRealScalarDataSymbol", "rscalar_2", scalar_meta_arg,
+        metadata=metadata)
 
 
 def test_field():
     ''' Test _field method. '''
-    field_meta_arg = FieldArgMetadata("GH_REAL", "GH_WRITE", "W3")
-    metadata = LFRicKernelMetadata(operates_on="cell_column", meta_args=[field_meta_arg])
+    field_meta_arg = lfric.kernel.FieldArgMetadata("GH_REAL", "GH_WRITE", "W3")
+    metadata = lfric.kernel.LFRicKernelMetadata(
+        operates_on="cell_column", meta_args=[field_meta_arg])
     metadata.validate()
-    check_single_symbol("_field", "RealFieldDataSymbol", "rfield_1", field_meta_arg, metadata=metadata)
+    cls = check_single_symbol(
+        "_field", "RealFieldDataSymbol", "rfield_1", field_meta_arg,
+        metadata=metadata)
+    lfric_class = lfric.LFRicTypes("NumberOfUniqueDofsDataSymbol")
+    # Symbols added to the symbol table but not to the argument list.
+    check_symbols(cls, {"undf_w3": lfric_class})
 
 
 def test_field_vector():
     ''' Test _field_vector method. '''
-    field_meta_arg = FieldVectorArgMetadata("GH_REAL", "GH_WRITE", "W3", "3")
-    metadata = LFRicKernelMetadata(operates_on="cell_column", meta_args=[field_meta_arg])
+    field_meta_arg = lfric.kernel.FieldVectorArgMetadata(
+        "GH_REAL", "GH_WRITE", "W3", "3")
+    metadata = lfric.kernel.LFRicKernelMetadata(
+        operates_on="cell_column", meta_args=[field_meta_arg])
     metadata.validate()
     cls = call_method("_field_vector", field_meta_arg, metadata=metadata)
-    lfric_class = LFRicTypes("RealFieldDataSymbol")
-    assert isinstance(cls._info.lookup("rfield_1_v1"), lfric_class)
-    assert isinstance(cls._info.lookup("rfield_1_v2"), lfric_class)
-    assert isinstance(cls._info.lookup("rfield_1_v3"), lfric_class)
-    assert len(cls._info.argument_list) == 3
+    lfric_class = lfric.LFRicTypes("RealFieldDataSymbol")
+    # Symbols added to the symbol table and to the argument list.
+    check_arg_symbols(cls, OrderedDict(
+        [("rfield_1_v1", lfric_class), ("rfield_1_v2", lfric_class),
+         ("rfield_1_v3", lfric_class)]))
+    lfric_class = lfric.LFRicTypes("NumberOfUniqueDofsDataSymbol")
+    # Symbols added to the symbol table but not to the argument list.
+    check_symbols(cls, {"undf_w3": lfric_class})
 
 
 def test_operator():
     ''' Test _operator method. '''
-    operator_meta_arg = OperatorArgMetadata("GH_REAL", "GH_WRITE", "W3", "W2")
-    metadata = LFRicKernelMetadata(operates_on="cell_column", meta_args=[operator_meta_arg])
+    operator_meta_arg = lfric.kernel.OperatorArgMetadata(
+        "GH_REAL", "GH_WRITE", "W3", "W2")
+    metadata = lfric.kernel.LFRicKernelMetadata(
+        operates_on="cell_column", meta_args=[operator_meta_arg])
     metadata.validate()
     cls = call_method("_operator", operator_meta_arg, metadata=metadata)
-    lfric_class = LFRicTypes("LFRicIntegerScalarDataSymbol")
-    assert isinstance(cls._info.lookup("op_1_ncell_3d"), lfric_class)
-    lfric_class = LFRicTypes("OperatorDataSymbol")
-    assert isinstance(cls._info.lookup("op_1"), lfric_class)
-    assert len(cls._info.argument_list) == 2
+    lfric_int_class = lfric.LFRicTypes("LFRicIntegerScalarDataSymbol")
+    lfric_op_class = lfric.LFRicTypes("OperatorDataSymbol")
+    # Symbols added to the symbol table and to the argument list.
+    check_arg_symbols(cls, OrderedDict(
+        [("op_1_ncell_3d", lfric_int_class), ("op_1", lfric_op_class)]))
+    lfric_dofs_class = lfric.LFRicTypes("NumberOfDofsDataSymbol")
+    # Symbols added to the symbol table but not to the argument list.
+    check_symbols(
+        cls, {"ndf_w3": lfric_dofs_class, "ndf_w2": lfric_dofs_class})
 
 
 def check_common_cma_symbols(fs1, fs2):
     ''' xxx '''
-    operator_meta_arg = ColumnwiseOperatorArgMetadata("GH_REAL", "GH_WRITE", fs1, fs2)
-    metadata = LFRicKernelMetadata(operates_on="cell_column", meta_args=[operator_meta_arg])
+    operator_meta_arg = lfric.kernel.ColumnwiseOperatorArgMetadata("GH_REAL", "GH_WRITE", fs1, fs2)
+    metadata = lfric.kernel.LFRicKernelMetadata(operates_on="cell_column", meta_args=[operator_meta_arg])
     metadata.validate()
     cls = call_method("_cma_operator", operator_meta_arg, metadata=metadata)
-    lfric_class = LFRicTypes("OperatorDataSymbol")
-    assert isinstance(cls._info.lookup("cma_op_1"), lfric_class)
-    lfric_class = LFRicTypes("LFRicIntegerScalarDataSymbol")
-    assert isinstance(cls._info.lookup("nrow_cma_op_1"), lfric_class)
-    assert isinstance(cls._info.lookup("bandwidth_cma_op_1"), lfric_class)
-    assert isinstance(cls._info.lookup("alpha_cma_op_1"), lfric_class)
-    assert isinstance(cls._info.lookup("beta_cma_op_1"), lfric_class)
-    assert isinstance(cls._info.lookup("gamma_m_cma_op_1"), lfric_class)
-    assert isinstance(cls._info.lookup("gamma_p_cma_op_1"), lfric_class)
     return cls
 
 
 def test_cma_operator():
     ''' Test _cma_operator method. '''
-    # to/from function spaces differ
+    # to/from function spaces differ so there is an additional
+    # argument.
     cls = check_common_cma_symbols("W3", "W2")
-    lfric_class = LFRicTypes("LFRicIntegerScalarDataSymbol")
-    assert isinstance(cls._info.lookup("ncol_cma_op_1"), lfric_class)
-    assert len(cls._info.argument_list) == 8
+    lfric_op_class = lfric.LFRicTypes("OperatorDataSymbol")
+    lfric_int_class = lfric.LFRicTypes("LFRicIntegerScalarDataSymbol")
+    check_arg_symbols(cls, OrderedDict(
+        [("cma_op_1", lfric_op_class),
+         ("nrow_cma_op_1", lfric_int_class),
+         ("ncol_cma_op_1", lfric_int_class),
+         ("bandwidth_cma_op_1", lfric_int_class),
+         ("alpha_cma_op_1", lfric_int_class),
+         ("beta_cma_op_1", lfric_int_class),
+         ("gamma_m_cma_op_1", lfric_int_class),
+         ("gamma_p_cma_op_1", lfric_int_class)]))
+    check_symbols(cls, {"ncell_2d": lfric_int_class})
 
-    # to/from function spaces are the same
+    # to/from function spaces are the same so there is no additional
+    # argument.
     cls = check_common_cma_symbols("W3", "W3")
     with pytest.raises(KeyError):
         cls._info.lookup("ncol_cma_op_1")
-    assert len(cls._info.argument_list) == 7
+    check_arg_symbols(cls, OrderedDict(
+        [("cma_op_1", lfric_op_class),
+         ("nrow_cma_op_1", lfric_int_class),
+         ("bandwidth_cma_op_1", lfric_int_class),
+         ("alpha_cma_op_1", lfric_int_class),
+         ("beta_cma_op_1", lfric_int_class),
+         ("gamma_m_cma_op_1", lfric_int_class),
+         ("gamma_p_cma_op_1", lfric_int_class)]))
+    check_symbols(cls, {"ncell_2d": lfric_int_class})
