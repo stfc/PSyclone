@@ -40,5 +40,6 @@ jobs:
       if: ${{ github.repository == 'stfc/PSyclone' }}
       uses: ad-m/github-push-action@master
       with:
+        ssh: true
         branch: ${{ github.ref }}
         repository: arporter/PSyclone-mirror
