@@ -12,6 +12,10 @@ jobs:
       with:
         persist-credentials: false # otherwise, the token used is the GITHUB_TOKEN, instead of your personal token
         fetch-depth: 0 # otherwise, you will fail to push refs to dest repo
+    - name: Give GitHub Actions access to Michael-F-Bryan/my-secret-repo
+      uses: webfactory/ssh-agent@v0.5.4
+      with:
+        ssh-private-key: ${{ secrets.PRIVATE_MIRROR_REPO }}
     - name: Set username
       run: |
         git config --local user.email "${{ secrets.EMAIL }}"
