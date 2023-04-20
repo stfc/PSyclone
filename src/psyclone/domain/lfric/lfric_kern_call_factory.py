@@ -42,7 +42,7 @@
 '''
 
 # Imports
-from psyclone.domain.lfric.lfric_kern import LFRicKern
+from psyclone.domain.lfric import LFRicKern
 
 class LFRicKernCallFactory():
     ''' Create the necessary framework for an LFRic kernel call.
@@ -78,6 +78,8 @@ class LFRicKernCallFactory():
         cloop = DynLoop(parent=parent, loop_type=loop_type)
 
         # The kernel itself
+        # Import here to avoid circular dependency
+        # pylint: disable=import-outside-toplevel
 
         kern = LFRicKern()
         kern.load(call, cloop.loop_body)
