@@ -41,7 +41,7 @@ jobs:
       uses: ad-m/github-push-action@master
       with:
         ssh: true
-	force: true
-	tags: true
+        force: true
+        tags: true
         branch: ${{ github.ref }}
         repository: arporter/PSyclone-mirror
