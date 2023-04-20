@@ -54,6 +54,7 @@ from psyclone.core.access_type import AccessType
 from psyclone.domain.gocean import GOceanConstants
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.domain.nemo import NemoConstants
+from psyclone.parse import ModuleManager
 
 
 # constants
@@ -72,6 +73,7 @@ REPRODUCIBLE_REDUCTIONS = false
 REPROD_PAD_SIZE = 8
 VALID_PSY_DATA_PREFIXES = profile, extract
 OCL_DEVICES_PER_NODE = 1
+IGNORE_MODULES = netcdf, mpi
 [dynamo0.3]
 access_mapping = gh_read: read, gh_write: write, gh_readwrite: readwrite,
                  gh_inc: inc, gh_sum: sum
@@ -726,3 +728,33 @@ def test_config_class_initialised(monkeypatch):
 
     _ = Config().get()
     assert Config.has_config_been_initialised() is True
+
+
+def test_ignore_modules(tmpdir, monkeypatch):
+    '''Test that the config file ignores modules, i.e. adds them to the
+    ModuleManager. '''
+
+    mod_manager = ModuleManager.get()
+    monkeypatch.setattr(mod_manager, "_ignore_modules", set())
+    config_file = tmpdir.join("config")
+    config(config_file, _CONFIG_CONTENT)
+
+    assert mod_manager.ignores() == {'mpi', 'netcdf'}
+
+    # Make sure if works if IGNORE_MODULES is not specified at all by checking
+    # that the module manager list of modules to ignore stays empty.
+    content = re.sub(r"^IGNORE_MODULES.*$",
+                     "",
+                     _CONFIG_CONTENT, flags=re.MULTILINE)
+    monkeypatch.setattr(mod_manager, "_ignore_modules", set())
+    config(config_file, content)
+    assert mod_manager.ignores() == set()
+
+    # Make sure an empty entry works as expected (i.e. it does not get
+    # added as an empty string to the module manager):
+    content = re.sub(r"^IGNORE_MODULES.*$",
+                     "IGNORE_MODULES= ",
+                     _CONFIG_CONTENT, flags=re.MULTILINE)
+    monkeypatch.setattr(mod_manager, "_ignore_modules", set())
+    config(config_file, content)
+    assert mod_manager.ignores() == set()

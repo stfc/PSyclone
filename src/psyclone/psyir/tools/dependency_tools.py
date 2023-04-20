@@ -935,6 +935,7 @@ class DependencyTools():
         :type read_write_info: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
 
         '''
+        # pylint: disable=too-many-branches
         mod_manager = ModuleManager.get()
         done = set()
         # Using a set here means that duplicated listings will automatically
@@ -947,6 +948,8 @@ class DependencyTools():
                 continue
             done.add(info)
             external_type, module_name, signature, access_info = info
+            if module_name in mod_manager.ignores():
+                continue
             if external_type == "routine":
                 if module_name is None:
                     # We don't know where the subroutine comes from.
