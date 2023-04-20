@@ -9,11 +9,8 @@ jobs:
     - run: echo "REPOSITORY_NAME=${{ github.repository }}"
       shell: bash
     - uses: actions/checkout@master
-      with:
-        persist-credentials: false # otherwise, the token used is the GITHUB_TOKEN, instead of your personal token
-        fetch-depth: 0 # otherwise, you will fail to push refs to dest repo
     - name: Give GitHub Actions access to Michael-F-Bryan/my-secret-repo
-      uses: webfactory/ssh-agent@v0.5.4
+      uses: webfactory/ssh-agent@v0.7.0
       with:
         ssh-private-key: ${{ secrets.PRIVATE_MIRROR_REPO }}
     - name: Set username
@@ -24,6 +21,5 @@ jobs:
       if: ${{ github.repository == 'stfc/PSyclone' }}
       uses: ad-m/github-push-action@master
       with:
-        github_token: ${{ secrets.SECRET_TOKEN }}
         branch: ${{ github.ref }}
         repository: arporter/PSyclone-mirror
