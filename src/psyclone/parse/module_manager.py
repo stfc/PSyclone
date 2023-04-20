@@ -79,6 +79,7 @@ class ModuleManager:
         self._remaining_search_paths = OrderedDict()
 
         self._original_search_paths = []
+        self._ignore_modules = set()
 
     # ------------------------------------------------------------------------
     def add_search_path(self, directories, recursive=True):
@@ -143,6 +144,23 @@ class ModuleManager:
                         self._mod_2_filename[module] = mod_info
 
     # ------------------------------------------------------------------------
+    def ignore_module(self, module_name):
+        '''Adds the specified module name to the modules to be ignored.
+
+        :param str module_name: name of the module to ignore.
+
+        '''
+        self._ignore_modules.add(module_name.lower())
+
+    # ------------------------------------------------------------------------
+    def ignores(self):
+        ''':returns: the set of modules to ignore.
+        :rtype: Set[str]
+
+        '''
+        return self._ignore_modules
+
+    # ------------------------------------------------------------------------
     def get_module_info(self, module_name):
         '''This function returns the ModuleInformation for the specified
         module.
@@ -157,6 +175,9 @@ class ModuleManager:
 
         '''
         mod_lower = module_name.lower()
+
+        if mod_lower in self._ignore_modules:
+            return None
 
         # First check if we have already cached this file:
         mod_info = self._mod_2_filename.get(mod_lower, None)
@@ -243,6 +264,9 @@ class ModuleManager:
         while todo:
             # Pick one (random) module to handle:
             module = todo.pop()
+            # Ignore any modules that we were asked to ignore
+            if module in self.ignores():
+                continue
             try:
                 mod_deps = self.get_module_info(module).get_used_modules()
             except FileNotFoundError:
@@ -277,8 +301,7 @@ class ModuleManager:
         return module_dependencies
 
     # -------------------------------------------------------------------------
-    @staticmethod
-    def sort_modules(module_dependencies):
+    def sort_modules(self, module_dependencies):
         '''This function sorts the given dependencies so that all
         dependencies of a module are before any module that
         needs it. Input is a dictionary that contains all modules to
@@ -307,11 +330,14 @@ class ModuleManager:
             # Take a copy so we can modify the original set of dependencies:
             dependencies_copy = dependencies.copy()
             for dep in dependencies_copy:
-                if dep not in todo:
+                if dep in todo:
+                    continue
+                # Print a warning if this module is not supposed to be ignored
+                if dep not in self.ignores():
                     print(f"Module '{module}' contains a dependency to "
                           f"'{dep}', for which we have no dependencies.")
-                    # TODO 2120: allow a choice to abort or ignore.
-                    dependencies.remove(dep)
+                # TODO 2120: allow a choice to abort or ignore.
+                dependencies.remove(dep)
 
         while todo:
             # Find one module that has no dependencies, which is the

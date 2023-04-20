@@ -925,12 +925,12 @@ class LFRicExtractDriverCreator:
         # that have no dependency. This is required for compilation, the
         # compiler must have found any dependent modules before it can
         # compile a module.
-        sorted_modules = ModuleManager.sort_modules(module_dependencies)
+        mod_manager = ModuleManager.get()
+        sorted_modules = mod_manager.sort_modules(module_dependencies)
 
         # Inline all required modules into the driver source file so that
         # it is stand-alone:
         out = []
-        mod_manager = ModuleManager.get()
         for module in sorted_modules:
             # Note that all modules in `sorted_modules` are known to be in
             # the module manager, so we can always get the module info here.

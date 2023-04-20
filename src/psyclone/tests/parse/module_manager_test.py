@@ -260,25 +260,35 @@ def test_mod_manager_get_all_dependencies_recursively(capsys):
 def test_mod_man_sort_modules(capsys):
     '''Tests that sorting of modules works as expected.'''
 
+    mod_man = ModuleManager.get()
     # Empty input:
-    assert ModuleManager.sort_modules({}) == []
+    assert mod_man.sort_modules({}) == []
 
     # A depends on B:
     deps = {"a": {"b"}, "b": set()}
-    assert ModuleManager.sort_modules(deps) == ["b", "a"]
+    assert mod_man.sort_modules(deps) == ["b", "a"]
 
     deps = {"a": {"b", "c"}, "b": set(), "c": {"b"}}
-    assert ModuleManager.sort_modules(deps) == ["b", "c", "a"]
+    assert mod_man.sort_modules(deps) == ["b", "c", "a"]
 
     deps = {"a": {"b", "c"}, "b": set(), "c": {"netcdf", "b"}}
-    deps_sorted = ModuleManager.sort_modules(deps)
+    deps_sorted = mod_man.sort_modules(deps)
     assert deps_sorted == ["b", "c", "a"]
     out, _ = capsys.readouterr()
     assert ("Module 'c' contains a dependency to 'netcdf', for which we "
             "have no dependencies." in out)
 
+    # Ignore the netcdf dependencies:
+    deps = {"a": {"b", "c"}, "b": set(), "c": {"netcdf", "b"}}
+    mod_man.ignore_module("netcdf")
+    deps_sorted = mod_man.sort_modules(deps)
+    assert deps_sorted == ["b", "c", "a"]
+    out, _ = capsys.readouterr()
+    # There should be no output now:
+    assert out == ""
+
     deps = {"a": {"b", "c"}, "b": {"c"}, "c": {"b"}}
-    deps_sorted = ModuleManager.sort_modules(deps)
+    deps_sorted = mod_man.sort_modules(deps)
     out, _ = capsys.readouterr()
     # The dependencies for a can be given in two orders (b,c or c,b),
     # since it is an unsorted set. Only test for the rest of the output
@@ -308,6 +318,7 @@ def test_mod_manager_ignore_modules():
     tmp/d2/d4/f_mod.ignore
 
     '''
+    mod_man_test_setup_directories()
     mod_man = ModuleManager.get()
     mod_man.add_search_path("d1")
     mod_man.add_search_path("d2")
