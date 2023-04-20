@@ -9,10 +9,24 @@ jobs:
     - run: echo "REPOSITORY_NAME=${{ github.repository }}"
       shell: bash
     - uses: actions/checkout@master
-    - name: Give GitHub Actions access to Michael-F-Bryan/my-secret-repo
-      uses: webfactory/ssh-agent@v0.7.0
-      with:
-        ssh-private-key: ${{ secrets.PRIVATE_MIRROR_REPO }}
+	
+    # Start ssh-agent but set it to use the same ssh_auth_sock value.
+    # The agent will be running in all steps after this, so it
+    # should be one of the first.
+    - name: Setup SSH passphrase
+      env:
+        SSH_PASSPHRASE: ${{secrets.KEY_PASSPHRASE}}
+        SSH_PRIVATE_KEY: ${{secrets.SSH_PRIVATE_MIRROR_REPO}}
+      run: |
+        ssh-agent -a $SSH_AUTH_SOCK > /dev/null
+        echo 'echo $SSH_PASSPHRASE' > ~/.ssh_askpass && chmod +x ~/.ssh_askpass
+        echo "$SSH_PRIVATE_KEY" | tr -d '\r' | DISPLAY=None SSH_ASKPASS=~/.ssh_askpass ssh-add - >/dev/null
+
+    # Debug print out the added identities. This will prove SSH_AUTH_SOCK
+    # is persisted across job steps
+    - name: Print ssh-add identities
+      run: ssh-add -l
+
     - name: Set username
       run: |
         git config --local user.email "${{ secrets.EMAIL }}"
