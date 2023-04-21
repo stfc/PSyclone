@@ -34,6 +34,7 @@
 .. Authors: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 ..          A. B. G. Chalk and N. Nobre, STFC Daresbury Lab
 ..          J. Henrichs, Bureau of Meteorology
+..          L. Turner, Met Office
 
 
 The PSyclone Internal Representation (PSyIR)

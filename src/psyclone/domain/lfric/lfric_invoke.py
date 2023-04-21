@@ -36,12 +36,8 @@
 # Modified J. Henrichs, Bureau of Meteorology
 # Modified A. B. G. Chalk and N. Nobre, STFC Daresbury Lab
 
-''' This module implements the PSyclone Dynamo 0.3 API by 1)
-    specialising the required base classes in parser.py (KernelType) and
-    adding a new class (DynFuncDescriptor03) to capture function descriptor
-    metadata and 2) specialising the required base classes in psyGen.py
-    (PSy, Invokes, Invoke, InvokeSchedule, Loop, Kern, Inf, Arguments and
-    Argument). '''
+''' This module implements the LFRic-specific implementation of the Invoke 
+    base class from psyGen.py. '''
 
 # Imports
 from psyclone.configuration import Config
@@ -54,9 +50,10 @@ from psyclone.psyGen import Invoke
 
 
 class LFRicInvoke(Invoke):
-    '''The Dynamo specific invoke class. This passes the Dynamo specific
+    '''
+    The LFRic specific Invoke class. This passes the LRFic specific
     InvokeSchedule class to the base class so it creates the one we
-    require.  Also overrides the gen_code method so that we generate
+    require.  Also overrides the 'gen_code' method so that we generate
     dynamo specific invocation code.
 
     :param alg_invocation: object containing the invoke call information.
@@ -74,7 +71,7 @@ class LFRicInvoke(Invoke):
     # pylint: disable=too-many-instance-attributes
     def __init__(self, alg_invocation, idx, invokes):
         if not alg_invocation and not idx:
-            # This if test is added to support pyreverse.
+            # This 'if' test is added to support pyreverse
             return
         # Import here to avoid circular dependency
         # pylint: disable=import-outside-toplevel
@@ -89,8 +86,8 @@ class LFRicInvoke(Invoke):
         Invoke.__init__(self, alg_invocation, idx, DynInvokeSchedule,
                         invokes, reserved_names=reserved_names_list)
 
-        # The baseclass works out the algorithm code's unique argument
-        # list and stores it in the self._alg_unique_args
+        # The base class works out the algorithm code's unique argument
+        # list and stores it in the 'self._alg_unique_args'
         # list. However, the base class currently ignores any stencil and qr
         # arguments so we need to add them in.
 
@@ -107,7 +104,7 @@ class LFRicInvoke(Invoke):
                                         DynGlobalSum)
         self.scalar_args = LFRicScalarArgs(self)
 
-        # initialise our invoke stencil information
+        # Initialise our Invoke stencil information
         self.stencil = DynStencils(self)
 
         # Initialise our information on the function spaces used by this Invoke
@@ -117,14 +114,14 @@ class LFRicInvoke(Invoke):
         # required by this invoke.
         self.dofmaps = DynDofmaps(self)
 
-        # Initialise information on all of the fields accessed in this Invoke.
+        # Initialise information on all of the fields accessed in this Invoke
         self.fields = LFRicFields(self)
 
-        # Initialise info. on all of the LMA operators used in this Invoke.
+        # Initialise info. on all of the LMA operators used in this Invoke
         self.lma_ops = DynLMAOperators(self)
 
         # Initialise the object holding all information on the column-
-        # -matrix assembly operators required by this invoke.
+        # -matrix assembly operators required by this invoke
         self.cma_ops = DynCMAOperators(self)
 
         # Initialise the object holding all information on the quadrature
@@ -155,33 +152,33 @@ class LFRicInvoke(Invoke):
         self.mesh_properties = LFRicMeshProperties(self)
 
         # Manage the variables used to store the upper and lower limits of
-        # all loops in this Invoke.
+        # all loops in this Invoke
         self.loop_bounds = LFRicLoopBounds(self)
 
-        # Extend arg list with stencil information
+        # Extend argument list with stencil information
         self._alg_unique_args.extend(self.stencil.unique_alg_vars)
 
-        # adding in qr arguments
+        # Adding in qr arguments
         self._alg_unique_qr_args = []
         for call in self.schedule.kernels():
             for rule in call.qr_rules.values():
                 if rule.alg_name not in self._alg_unique_qr_args:
                     self._alg_unique_qr_args.append(rule.alg_name)
         self._alg_unique_args.extend(self._alg_unique_qr_args)
-        # we also need to work out the names to use for the qr
-        # arguments within the psy layer. These are stored in the
-        # _psy_unique_qr_vars list
+        # We also need to work out the names to use for the qr
+        # arguments within the PSy-layer. These are stored in the
+        # '_psy_unique_qr_vars' list
         self._psy_unique_qr_vars = []
         for call in self.schedule.kernels():
             for rule in call.qr_rules.values():
                 if rule.psy_name not in self._psy_unique_qr_vars:
                     self._psy_unique_qr_vars.append(rule.psy_name)
 
-        # lastly, add in halo exchange calls and global sums if
+        # Lastly, add in halo exchange calls and global sums if
         # required. We only need to add halo exchange calls for fields
         # since operators are assembled in place and scalars don't
         # have halos. We only need to add global sum calls for scalars
-        # which have a gh_sum access.
+        # which have a 'gh_sum' access.
         if Config.get().distributed_memory:
             # halo exchange calls
             const = LFRicConstants()
@@ -200,7 +197,10 @@ class LFRicInvoke(Invoke):
         ''' Returns an argument object which is on the requested
         function space. Searches through all Kernel calls in this
         invoke. Currently the first argument object that is found is
-        used. Throws an exception if no argument exists. '''
+        used. Throws an exception if no argument exists. 
+        :param fspace: function space of the argument
+        :type fspace: class 'psyclone.domain.lfric.function_space.FunctionSpace'
+        '''
         for kern_call in self.schedule.kernels():
             try:
                 return kern_call.arguments.get_arg_on_space(fspace)
@@ -211,7 +211,7 @@ class LFRicInvoke(Invoke):
 
     def unique_fss(self):
         ''' Returns the unique function space *objects* over all kernel
-        calls in this invoke. '''
+        calls in this Invoke. '''
         unique_fs = []
         unique_fs_names = []
         for kern_call in self.schedule.kernels():
@@ -228,13 +228,18 @@ class LFRicInvoke(Invoke):
         :returns: whether or not this Invoke consists only of kernels that \
                   operate on DoFs.
         :rtype: bool
+
         '''
         return all(call.iterates_over.lower() == "dof" for call in
                    self.schedule.kernels())
 
     def field_on_space(self, func_space):
         ''' If a field exists on this space for any kernel in this
-        invoke then return that field. Otherwise return None. '''
+        Invoke then return that field. Otherwise return 'None'. 
+        :param func_space: The function space for which to find an argument.
+        :type func_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
+        '''
+        print(type(func_space))
         for kern_call in self.schedule.kernels():
             field = func_space.field_on_space(kern_call.arguments)
             if field:
@@ -243,10 +248,11 @@ class LFRicInvoke(Invoke):
 
     def gen_code(self, parent):
         '''
-        Generates Dynamo specific invocation code (the subroutine
-        called by the associated invoke call in the algorithm
+        Generates LFRic specific invocation code (the subroutine
+        called by the associated Invoke call in the algorithm
         layer). This consists of the PSy invocation subroutine and the
         declaration of its arguments.
+
         :param parent: The parent node in the AST (of the code to be \
                        generated) to which the node describing the PSy \
                        subroutine will be added
@@ -281,8 +287,8 @@ class LFRicInvoke(Invoke):
                 self.schedule.symbol_table.lookup_with_tag(tag).name
             invoke_sub.add(UseGen(invoke_sub, name="omp_lib", only=True,
                                   funcnames=[omp_function_name]))
-            # Note: There is no assigned kind for integer nthreads as this
-            # would imply assigning kind to th_idx and other elements of
+            # Note: There is no assigned kind for 'integer' 'nthreads' as this
+            # would imply assigning 'kind' to 'th_idx' and other elements of
             # the OMPParallelDirective
             invoke_sub.add(DeclGen(invoke_sub, datatype="integer",
                                    entity_decls=[nthreads_name]))

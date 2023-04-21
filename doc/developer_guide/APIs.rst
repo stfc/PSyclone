@@ -32,7 +32,7 @@
 .. POSSIBILITY OF SUCH DAMAGE.
 .. -----------------------------------------------------------------------------
 .. Written by R. W. Ford and A. R. Porter, STFC Daresbury Lab
-.. Modified by I. Kavcic, Met Office
+.. Modified by I. Kavcic and L. Turner, Met Office
 
 Generic Code
 ############
