@@ -110,7 +110,8 @@ class LFRicBuild(Compile):
             # files can be used by all test compilations later.
             LFRicBuild._compilation_path = str(self._tmpdir)
             makefile = os.path.join(self._infrastructure_path, "Makefile")
-            arg_list = [LFRicBuild._make_command, "-f", makefile]
+            arg_list = [LFRicBuild._make_command, f"F90={self._f90}",
+                        f"F90FLAGS={self._f90flags}", "-f", makefile]
             try:
                 with subprocess.Popen(arg_list, stdout=subprocess.PIPE,
                                       stderr=subprocess.STDOUT) as build:
