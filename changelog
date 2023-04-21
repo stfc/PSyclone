@@ -332,7 +332,7 @@
 	undeclared arguments.
 
 	112) PR #2067 towards #1618. Fixes bugs relating to gh_sum for
-        scalars and use of any_space_* spaces in the new metadata
+	scalars and use of any_space_* spaces in the new metadata
 	handling. Also corrects a (tested) docstring so that it sets
 	up a Config object first.
 
@@ -358,6 +358,29 @@
 
 	120) PR #2025 for #1483. Adds driver generation for LFRic kernel
 	extraction (PSyKE).
+
+	121) PR #2048 towards #1772. Implements a new MetadataToArgumentsRules
+	class using the new LFRic metadata functionality.
+
+	122) PR #2085 for #840. Add support for minval, maxval and sum Fortran
+	intrinsics.
+
+	123) PR #2077 for #2075. Specify LFRic built-in metadata descriptions
+	within LFRic built-in classes.
+
+	124) PR #2104 towards #1618. Fix invalid use of subroutine instead of
+	function in an LFRic example algorithm.
+
+	125) PR #2098 towards #2091. Split off and rename DynKernCallFactory
+	to LFRicKernCallFactory.
+
+	126) PR #2103 towards #1618. Support Fortran interfaces whose symbols
+	are already declared.
+
+	127) PR #2099. Update of tutorials.
+
+	128) PR #1937 for #1935. Adds all LFRic TL and adjoint kernels under
+	examples.
 
 release 2.3.1 17th of June 2022
 

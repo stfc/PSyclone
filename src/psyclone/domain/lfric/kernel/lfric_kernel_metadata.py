@@ -78,6 +78,9 @@ from psyclone.errors import InternalError
 from psyclone.parse.utils import ParseError
 from psyclone.psyir.symbols import DataTypeSymbol, UnknownFortranType
 
+# pylint: disable=too-many-lines
+# pylint: disable=too-many-instance-attributes
+
 
 class LFRicKernelMetadata(CommonMetadata):
     '''Contains LFRic kernel metadata. This class supports kernel
@@ -124,6 +127,7 @@ class LFRicKernelMetadata(CommonMetadata):
     # The fparser2 class that captures this metadata.
     fparser2_class = Fortran2003.Derived_Type_Def
 
+    # pylint: disable=too-many-arguments
     def __init__(self, operates_on=None, shapes=None, evaluator_targets=None,
                  meta_args=None, meta_funcs=None, meta_ref_element=None,
                  meta_mesh=None, procedure_name=None, name=None):
@@ -1149,6 +1153,51 @@ class LFRicKernelMetadata(CommonMetadata):
             return []
         return [meta_arg for meta_arg in self.meta_args
                 if type(meta_arg) in my_types]
+
+    def field_meta_args_on_fs(self, arg_types, function_space):
+        '''Utility function to return any field (plus field vector, intergrid
+        or intergrid vector) meta_args in metadata that have the same
+        type as those specified in arg_types and are on the function
+        space specified in function_space.
+
+        :param arg_types: meta_arg classes indicating which meta_arg \
+            arguments to check.
+        :type arg_types: \
+            :py:class:`psyclone.domain.lfric.kernel.CommonMetaArgMetadata` or \
+            List[ \
+            :py:class:`psyclone.domain.lfric.kernel.CommonMetaArgMetadata`]
+        :param str function_space: the specified function space.
+
+        :returns: a list of meta_args.
+        :type arg_types: List[ \
+            :py:class:`psyclone.domain.lfric.kernel.CommonMetaArgMetadata`]
+
+        '''
+        return [arg for arg in self.meta_args_get(arg_types)
+                if arg.function_space == function_space]
+
+    def operator_meta_args_on_fs(self, arg_types, function_space):
+        '''Utility function to return any operator meta_args in metadata that
+        have the same type as those specified in arg_types and their
+        from or to function spaces are the same as the function space
+        specified in function_space.
+
+        :param arg_types: meta_arg classes indicating which meta_arg \
+            arguments to check.
+        :type arg_types: \
+            :py:class:`psyclone.domain.lfric.kernel.CommonMetaArgMetadata` or \
+            List[ \
+            :py:class:`psyclone.domain.lfric.kernel.CommonMetaArgMetadata`]
+        :param str function_space: the specified function space.
+
+        :returns: a list of meta_args.
+        :type arg_types: List[ \
+            :py:class:`psyclone.domain.lfric.kernel.CommonMetaArgMetadata`]
+
+        '''
+        return [arg for arg in self.meta_args_get(arg_types)
+                if function_space in [arg.function_space_to,
+                                      arg.function_space_from]]
 
 
 __all__ = ["LFRicKernelMetadata"]

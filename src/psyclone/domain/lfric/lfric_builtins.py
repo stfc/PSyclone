@@ -47,6 +47,9 @@ import abc
 
 from psyclone.core import AccessType, Signature, VariablesAccessInfo
 from psyclone.domain.lfric import LFRicConstants, LFRicTypes
+from psyclone.domain.lfric.kernel import (
+    LFRicKernelMetadata, FieldArgMetadata, ScalarArgMetadata,
+    FieldVectorArgMetadata)
 from psyclone.errors import InternalError
 from psyclone.f2pygen import AssignGen, PSyIRGen
 from psyclone.parse.utils import ParseError
@@ -54,6 +57,7 @@ from psyclone.psyGen import BuiltIn
 from psyclone.psyir.nodes import (Assignment, BinaryOperation, Call, Reference,
                                   StructureReference)
 from psyclone.psyir.symbols import ArrayType, RoutineSymbol
+from psyclone.utils import a_or_an
 
 # The name of the file containing the meta-data describing the
 # built-in operations for this API
@@ -85,9 +89,9 @@ def get_lowercase_builtin_map(builtin_map_capitalised_dict):
 
 
 class LFRicBuiltInCallFactory():
-    '''
-    Creates the necessary framework for a call to an LFRic built-in,
-    This consists of the operation itself and the loop over unique DoFs.
+    '''Creates the necessary framework for a call to an LFRic built-in,
+    This consists of the operation itself and the loop over unique
+    DoFs.
 
     '''
 
@@ -152,21 +156,65 @@ class LFRicBuiltInCallFactory():
 
 
 class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
-    '''
-    Abstract base class for a node representing a call to an LFRic Built-in.
+    '''Abstract base class for a node representing a call to an LFRic
+    built-in.
+
+    :raises NotImplementedError: if a subclass of this abstract class \
+        does not set the value of '_datatype'.
 
     '''
+    _case_name = None
+    _datatype = None
+
     def __init__(self):
         # Builtins do not accept quadrature
         self.qr_rules = {}
         # Builtins cannot request mesh properties
         self.mesh = None
         self._idx_name = None
+        if not self._datatype:
+            raise NotImplementedError(
+                "An LFRicBuiltIn should be overridden by a subclass that "
+                "sets the value of '_datatype', but '_datatype' is not set.")
         super().__init__()
 
+    @staticmethod
     @abc.abstractmethod
+    def metadata():
+        '''Must be overridden by subclass.'''
+
+    @classmethod
+    def _builtin_metadata(cls, meta_args):
+        '''Utility to take 'meta_args' metadata and return LFRic kernel
+        metadata for a built-in. Assumes the metadata describes a
+        built-in kernel that operates on a DoF and that the naming
+        protocol uses the name of the metadata type and adds '_code'
+        to it for the name of the subroutine.
+
+        :param meta_args: a list of 'meta_args' metadata.
+        :type meta_args: List[subclass of \
+            :py:class:`psyclone.domain.lifric.kernel.CommonArgMetadata`]
+
+        :returns: LFRic kernel metadata for this built-in.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+
+        '''
+        return LFRicKernelMetadata(
+            meta_args=meta_args,
+            operates_on="dof",
+            procedure_name=f"{cls._case_name}_code",
+            name=cls._case_name)
+
     def __str__(self):
-        ''' Must be overridden by sub class. '''
+        metadata = self.metadata()
+        plural = ""
+        # Builtins are currenty limited to fields and scalars but add
+        # in a check for field-vectors as well for future proofing.
+        if len(metadata.meta_args_get([
+                FieldArgMetadata, FieldVectorArgMetadata])) > 1:
+            plural = "s"
+        return (f"Built-in: {self._case_name} ("
+                f"{self._datatype}-valued field{plural})")
 
     def reference_accesses(self, var_accesses):
         '''Get all variable access information from this node. The assigned-to
@@ -191,7 +239,7 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
                                             arg.access, self)
         # Now merge the write access to the end of all other accesses:
         var_accesses.merge(written)
-        # Forward location pointer to next index, since this builtin kernel
+        # Forward location pointer to next index, since this built-in kernel
         # finishes a statement
         var_accesses.next_location()
 
@@ -311,7 +359,7 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
     @property
     def undf_name(self):
         '''
-        Dynamically looks up the name of the undf variable for the
+        Dynamically looks up the name of the 'undf' variable for the
         space that this kernel updates.
 
         :returns: the name of the undf variable.
@@ -345,9 +393,9 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
 
     def gen_code(self, parent):
         '''
-        Generates LFRic API specific PSy code (in the form of f2pygen AST
-        nodes) for a call to this Built-in. This method must be overridden
-        if a sub-class does not yet implement lower_to_language_level().
+        Generates LFRic API specific PSy code (in the form of 'f2pygen' AST
+        nodes) for a call to this built-in. This method must be overridden
+        if a sub-class does not yet implement 'lower_to_language_level()'.
 
         :param parent: Node in f2pygen tree to which to add call.
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
@@ -373,7 +421,7 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
     @property
     def is_intergrid(self):
         '''
-        We don't have any inter-grid Built-ins.
+        We don't have any inter-grid built-ins.
 
         :returns: False
         :rtype: bool
@@ -394,9 +442,9 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
     def get_dof_loop_index_symbol(self):
         '''
         Finds or creates the symbol representing the index in any loops
-        over dofs.
+        over DoFs.
 
-        :returns: symbol representing the dof loop index.
+        :returns: symbol representing the DoF loop index.
         :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol`
 
         '''
@@ -408,10 +456,10 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
 
     def get_indexed_field_argument_references(self):
         '''
-        Creates a dof-indexed StructureReference for each of the field
-        arguments to this Builtin kernel. e.g. if the kernel has a field
+        Creates a DoF-indexed StructureReference for each of the field
+        arguments to this Built-In kernel. e.g. if the kernel has a field
         argument named 'fld1' then this routine will create a
-        StructureReference for 'fld1%data(df)' where 'df' is the dof-loop
+        StructureReference for 'fld1%data(df)' where 'df' is the DoF-loop
         variable.
 
         :returns: a reference to the 'df'th element of each kernel argument \
@@ -431,7 +479,7 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
     def get_scalar_argument_references(self):
         '''
         Finds or creates either a Reference (for a symbol) or PSyIR (for a
-        literal expression) for any scalar arguments to this Builtin kernel.
+        literal expression) for any scalar arguments to this Built-In kernel.
 
         :returns: a Reference or PSyIR expression for each scalar kernel \
             argument.
@@ -456,7 +504,7 @@ class LFRicXKern(LFRicBuiltIn, metaclass=abc.ABCMeta):
 
     def gen_code(self, parent):
         '''Generates LFRic API specific PSy code for a call to the
-        [datatype]_X Built-in.
+        [datatype]_X built-in.
 
         :param parent: Node in f2pygen tree to which to add call.
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
@@ -505,13 +553,34 @@ class LFRicXPlusYKern(LFRicBuiltIn):
     a third, real-valued, field.
 
     '''
+    _case_name = "X_plus_Y"
+    _datatype = "real"
+
+    @classmethod
+    def metadata(cls):
+        '''Returns the kernel metadata describing this built-in. Implemented in
+        a datatype-independent way to allow for re-use.
+
+        :returns: kernel metadata describing this built-in.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+
+        '''
+        gh_datatype = LFRicConstants().MAPPING_INTRINSIC_TYPES[cls._datatype]
+        metadata = cls._builtin_metadata([
+            FieldArgMetadata(gh_datatype, "gh_write", "any_space_1"),
+            FieldArgMetadata(gh_datatype, "gh_read", "any_space_1"),
+            FieldArgMetadata(gh_datatype, "gh_read", "any_space_1")])
+        metadata.validate()
+        return metadata
+
     def __str__(self):
-        return "Built-in: Add real-valued fields"
+        return (f"Built-in: {self._case_name} (add "
+                f"{self._datatype}-valued fields)")
 
     def lower_to_language_level(self):
         '''
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
-        This BuiltIn node is replaced by an Assignment node.
+        This Built-In node is replaced by an Assignment node.
 
         :returns: the lowered version of this node.
         :rtype: :py:class:`psyclone.psyir.node.Node`
@@ -534,8 +603,25 @@ class LFRicIncXPlusYKern(LFRicBuiltIn):
     ''' Add the second, real-valued, field to the first field and return it.
 
     '''
+    _case_name = "inc_X_plus_Y"
+    _datatype = "real"
+
+    @classmethod
+    def metadata(cls):
+        '''Returns the kernel metadata describing this built-in.
+
+        :returns: kernel metadata describing this built-in.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+
+        '''
+        gh_datatype = LFRicConstants().MAPPING_INTRINSIC_TYPES[cls._datatype]
+        return cls._builtin_metadata([
+            FieldArgMetadata(gh_datatype, "gh_readwrite", "any_space_1"),
+            FieldArgMetadata(gh_datatype, "gh_read", "any_space_1")])
+
     def __str__(self):
-        return "Built-in: Increment a real-valued field"
+        return (f"Built-in: {self._case_name} (increment "
+                f"{a_or_an(self._datatype)} {self._datatype}-valued field)")
 
     def lower_to_language_level(self):
         '''
@@ -565,8 +651,22 @@ class LFRicAPlusXKern(LFRicBuiltIn):
     real-valued fields (DoF-wise addition of a scalar value).
 
     '''
-    def __str__(self):
-        return "Built-in: a_plus_X (real-valued fields)"
+    _case_name = "a_plus_X"
+    _datatype = "real"
+
+    @classmethod
+    def metadata(cls):
+        '''Returns the kernel metadata describing this built-in.
+
+        :returns: kernel metadata describing this built-in.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+
+        '''
+        gh_datatype = LFRicConstants().MAPPING_INTRINSIC_TYPES[cls._datatype]
+        return cls._builtin_metadata([
+            FieldArgMetadata(gh_datatype, "gh_write", "any_space_1"),
+            ScalarArgMetadata(gh_datatype, "gh_read"),
+            FieldArgMetadata(gh_datatype, "gh_read", "any_space_1")])
 
     def lower_to_language_level(self):
         '''
@@ -597,8 +697,21 @@ class LFRicIncAPlusXKern(LFRicBuiltIn):
     field (DoF-wise addition of a scalar value).
 
     '''
-    def __str__(self):
-        return "Built-in: inc_a_plus_X (real-valued field)"
+    _case_name = "inc_a_plus_X"
+    _datatype = "real"
+
+    @classmethod
+    def metadata(cls):
+        '''Returns the kernel metadata describing this built-in.
+
+        :returns: kernel metadata describing this built-in.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+
+        '''
+        gh_datatype = LFRicConstants().MAPPING_INTRINSIC_TYPES[cls._datatype]
+        return cls._builtin_metadata([
+            ScalarArgMetadata(gh_datatype, "gh_read"),
+            FieldArgMetadata(gh_datatype, "gh_readwrite", "any_space_1")])
 
     def lower_to_language_level(self):
         '''
@@ -630,8 +743,23 @@ class LFRicAXPlusYKern(LFRicBuiltIn):
     `Y` are real-valued fields.
 
     '''
-    def __str__(self):
-        return "Built-in: aX_plus_Y (real-valued fields)"
+    _case_name = "aX_plus_Y"
+    _datatype = "real"
+
+    @classmethod
+    def metadata(cls):
+        '''Returns the kernel metadata describing this built-in.
+
+        :returns: kernel metadata describing this built-in.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+
+        '''
+        gh_datatype = LFRicConstants().MAPPING_INTRINSIC_TYPES[cls._datatype]
+        return cls._builtin_metadata([
+            FieldArgMetadata(gh_datatype, "gh_write", "any_space_1"),
+            ScalarArgMetadata(gh_datatype, "gh_read"),
+            FieldArgMetadata(gh_datatype, "gh_read", "any_space_1"),
+            FieldArgMetadata(gh_datatype, "gh_read", "any_space_1")])
 
     def lower_to_language_level(self):
         '''
@@ -664,8 +792,22 @@ class LFRicIncAXPlusYKern(LFRicBuiltIn):
     real-valued fields.
 
     '''
-    def __str__(self):
-        return "Built-in: inc_aX_plus_Y (real-valued fields)"
+    _case_name = "inc_aX_plus_Y"
+    _datatype = "real"
+
+    @classmethod
+    def metadata(cls):
+        '''Returns the kernel metadata describing this built-in.
+
+        :returns: kernel metadata describing this built-in.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+
+        '''
+        gh_datatype = LFRicConstants().MAPPING_INTRINSIC_TYPES[cls._datatype]
+        return cls._builtin_metadata([
+            ScalarArgMetadata(gh_datatype, "gh_read"),
+            FieldArgMetadata(gh_datatype, "gh_readwrite", "any_space_1"),
+            FieldArgMetadata(gh_datatype, "gh_read", "any_space_1")])
 
     def lower_to_language_level(self):
         '''
@@ -699,8 +841,22 @@ class LFRicIncXPlusBYKern(LFRicBuiltIn):
     real-valued fields.
 
     '''
-    def __str__(self):
-        return "Built-in: inc_X_plus_bY (real-valued fields)"
+    _case_name = "inc_X_plus_bY"
+    _datatype = "real"
+
+    @classmethod
+    def metadata(cls):
+        '''Returns the kernel metadata describing this built-in.
+
+        :returns: kernel metadata describing this built-in.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+
+        '''
+        gh_datatype = LFRicConstants().MAPPING_INTRINSIC_TYPES[cls._datatype]
+        return cls._builtin_metadata([
+            FieldArgMetadata(gh_datatype, "gh_readwrite", "any_space_1"),
+            ScalarArgMetadata(gh_datatype, "gh_read"),
+            FieldArgMetadata(gh_datatype, "gh_read", "any_space_1")])
 
     def lower_to_language_level(self):
         '''
@@ -734,8 +890,24 @@ class LFRicAXPlusBYKern(LFRicBuiltIn):
     `Y` are real-valued fields.
 
     '''
-    def __str__(self):
-        return "Built-in: aX_plus_bY (real-valued fields)"
+    _case_name = "aX_plus_bY"
+    _datatype = "real"
+
+    @classmethod
+    def metadata(cls):
+        '''Returns the kernel metadata describing this built-in.
+
+        :returns: kernel metadata describing this built-in.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+
+        '''
+        gh_datatype = LFRicConstants().MAPPING_INTRINSIC_TYPES[cls._datatype]
+        return cls._builtin_metadata([
+            FieldArgMetadata(gh_datatype, "gh_write", "any_space_1"),
+            ScalarArgMetadata(gh_datatype, "gh_read"),
+            FieldArgMetadata(gh_datatype, "gh_read", "any_space_1"),
+            ScalarArgMetadata(gh_datatype, "gh_read"),
+            FieldArgMetadata(gh_datatype, "gh_read", "any_space_1")])
 
     def lower_to_language_level(self):
         '''
@@ -771,8 +943,23 @@ class LFRicIncAXPlusBYKern(LFRicBuiltIn):
     are real-valued fields.
 
     '''
-    def __str__(self):
-        return "Built-in: inc_aX_plus_bY (real-valued fields)"
+    _case_name = "inc_aX_plus_bY"
+    _datatype = "real"
+
+    @classmethod
+    def metadata(cls):
+        '''Returns the kernel metadata describing this built-in.
+
+        :returns: kernel metadata describing this built-in.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+
+        '''
+        gh_datatype = LFRicConstants().MAPPING_INTRINSIC_TYPES[cls._datatype]
+        return cls._builtin_metadata([
+            ScalarArgMetadata(gh_datatype, "gh_read"),
+            FieldArgMetadata(gh_datatype, "gh_readwrite", "any_space_1"),
+            ScalarArgMetadata(gh_datatype, "gh_read"),
+            FieldArgMetadata(gh_datatype, "gh_read", "any_space_1")])
 
     def lower_to_language_level(self):
         '''
@@ -809,8 +996,23 @@ class LFRicAXPlusAYKern(LFRicBuiltIn):
     `X` and `Y` are real-valued fields.
 
     '''
-    def __str__(self):
-        return "Built-in: aX_plus_aY (real-valued fields)"
+    _case_name = "aX_plus_aY"
+    _datatype = "real"
+
+    @classmethod
+    def metadata(cls):
+        '''Returns the kernel metadata describing this built-in.
+
+        :returns: kernel metadata describing this built-in.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+
+        '''
+        gh_datatype = LFRicConstants().MAPPING_INTRINSIC_TYPES[cls._datatype]
+        return cls._builtin_metadata([
+            FieldArgMetadata(gh_datatype, "gh_write", "any_space_1"),
+            ScalarArgMetadata(gh_datatype, "gh_read"),
+            FieldArgMetadata(gh_datatype, "gh_read", "any_space_1"),
+            FieldArgMetadata(gh_datatype, "gh_read", "any_space_1")])
 
     def lower_to_language_level(self):
         '''
@@ -848,8 +1050,26 @@ class LFRicXMinusYKern(LFRicBuiltIn):
     result as a third, real-valued, field.
 
     '''
+    _case_name = "X_minus_Y"
+    _datatype = "real"
+
+    @classmethod
+    def metadata(cls):
+        '''Returns the kernel metadata describing this built-in.
+
+        :returns: kernel metadata describing this built-in.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+
+        '''
+        gh_datatype = LFRicConstants().MAPPING_INTRINSIC_TYPES[cls._datatype]
+        return cls._builtin_metadata([
+            FieldArgMetadata(gh_datatype, "gh_write", "any_space_1"),
+            FieldArgMetadata(gh_datatype, "gh_read", "any_space_1"),
+            FieldArgMetadata(gh_datatype, "gh_read", "any_space_1")])
+
     def __str__(self):
-        return "Built-in: Subtract real-valued fields"
+        return (f"Built-in: {self._case_name} (subtract "
+                f"{self._datatype}-valued fields)")
 
     def lower_to_language_level(self):
         '''
@@ -878,8 +1098,25 @@ class LFRicIncXMinusYKern(LFRicBuiltIn):
     and return it.
 
     '''
+    _case_name = "inc_X_minus_Y"
+    _datatype = "real"
+
+    @classmethod
+    def metadata(cls):
+        '''Returns the kernel metadata describing this built-in.
+
+        :returns: kernel metadata describing this built-in.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+
+        '''
+        gh_datatype = LFRicConstants().MAPPING_INTRINSIC_TYPES[cls._datatype]
+        return cls._builtin_metadata([
+            FieldArgMetadata(gh_datatype, "gh_readwrite", "any_space_1"),
+            FieldArgMetadata(gh_datatype, "gh_read", "any_space_1")])
+
     def __str__(self):
-        return "Built-in: Decrement a real-valued field"
+        return (f"Built-in: {self._case_name} (decrement "
+                f"{a_or_an(self._datatype)} {self._datatype}-valued field)")
 
     def lower_to_language_level(self):
         '''
@@ -909,8 +1146,22 @@ class LFRicAMinusXKern(LFRicBuiltIn):
     fields (DoF-wise subtraction of field elements from a scalar value).
 
     '''
-    def __str__(self):
-        return "Built-in: a_minus_X (real-valued fields)"
+    _case_name = "a_minus_X"
+    _datatype = "real"
+
+    @classmethod
+    def metadata(cls):
+        '''Returns the kernel metadata describing this built-in.
+
+        :returns: kernel metadata describing this built-in.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+
+        '''
+        gh_datatype = LFRicConstants().MAPPING_INTRINSIC_TYPES[cls._datatype]
+        return cls._builtin_metadata([
+            FieldArgMetadata(gh_datatype, "gh_write", "any_space_1"),
+            ScalarArgMetadata(gh_datatype, "gh_read"),
+            FieldArgMetadata(gh_datatype, "gh_read", "any_space_1")])
 
     def lower_to_language_level(self):
         '''
@@ -941,8 +1192,21 @@ class LFRicIncAMinusXKern(LFRicBuiltIn):
     field (DoF-wise subtraction of field elements from a scalar value).
 
     '''
-    def __str__(self):
-        return "Built-in: inc_a_minus_X (real-valued field)"
+    _case_name = "inc_a_minus_X"
+    _datatype = "real"
+
+    @classmethod
+    def metadata(cls):
+        '''Returns the kernel metadata describing this built-in.
+
+        :returns: kernel metadata describing this built-in.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+
+        '''
+        gh_datatype = LFRicConstants().MAPPING_INTRINSIC_TYPES[cls._datatype]
+        return cls._builtin_metadata([
+            ScalarArgMetadata(gh_datatype, "gh_read"),
+            FieldArgMetadata(gh_datatype, "gh_readwrite", "any_space_1")])
 
     def lower_to_language_level(self):
         '''
@@ -974,8 +1238,22 @@ class LFRicXMinusAKern(LFRicBuiltIn):
     fields (DoF-wise subtraction of a scalar value from field elements).
 
     '''
-    def __str__(self):
-        return "Built-in: X_minus_a (real-valued fields)"
+    _case_name = "X_minus_a"
+    _datatype = "real"
+
+    @classmethod
+    def metadata(cls):
+        '''Returns the kernel metadata describing this built-in.
+
+        :returns: kernel metadata describing this built-in.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+
+        '''
+        gh_datatype = LFRicConstants().MAPPING_INTRINSIC_TYPES[cls._datatype]
+        return cls._builtin_metadata([
+            FieldArgMetadata(gh_datatype, "gh_write", "any_space_1"),
+            FieldArgMetadata(gh_datatype, "gh_read", "any_space_1"),
+            ScalarArgMetadata(gh_datatype, "gh_read")])
 
     def lower_to_language_level(self):
         '''
@@ -1006,8 +1284,21 @@ class LFRicIncXMinusAKern(LFRicBuiltIn):
     field (DoF-wise subtraction of a scalar value from field elements).
 
     '''
-    def __str__(self):
-        return "Built-in: inc_X_minus_a (real-valued field)"
+    _case_name = "inc_X_minus_a"
+    _datatype = "real"
+
+    @classmethod
+    def metadata(cls):
+        '''Returns the kernel metadata describing this built-in.
+
+        :returns: kernel metadata describing this built-in.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+
+        '''
+        gh_datatype = LFRicConstants().MAPPING_INTRINSIC_TYPES[cls._datatype]
+        return cls._builtin_metadata([
+            FieldArgMetadata(gh_datatype, "gh_readwrite", "any_space_1"),
+            ScalarArgMetadata(gh_datatype, "gh_read")])
 
     def lower_to_language_level(self):
         '''
@@ -1039,8 +1330,23 @@ class LFRicAXMinusYKern(LFRicBuiltIn):
     `Y` are real-valued fields.
 
     '''
-    def __str__(self):
-        return "Built-in: aX_minus_Y (real-valued fields)"
+    _case_name = "aX_minus_Y"
+    _datatype = "real"
+
+    @classmethod
+    def metadata(cls):
+        '''Returns the kernel metadata describing this built-in.
+
+        :returns: kernel metadata describing this built-in.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+
+        '''
+        gh_datatype = LFRicConstants().MAPPING_INTRINSIC_TYPES[cls._datatype]
+        return cls._builtin_metadata([
+            FieldArgMetadata(gh_datatype, "gh_write", "any_space_1"),
+            ScalarArgMetadata(gh_datatype, "gh_read"),
+            FieldArgMetadata(gh_datatype, "gh_read", "any_space_1"),
+            FieldArgMetadata(gh_datatype, "gh_read", "any_space_1")])
 
     def lower_to_language_level(self):
         '''
@@ -1073,8 +1379,23 @@ class LFRicXMinusBYKern(LFRicBuiltIn):
     `Y` are real-valued fields.
 
     '''
-    def __str__(self):
-        return "Built-in: X_minus_bY (real-valued fields)"
+    _case_name = "X_minus_bY"
+    _datatype = "real"
+
+    @classmethod
+    def metadata(cls):
+        '''Returns the kernel metadata describing this built-in.
+
+        :returns: kernel metadata describing this built-in.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+
+        '''
+        gh_datatype = LFRicConstants().MAPPING_INTRINSIC_TYPES[cls._datatype]
+        return cls._builtin_metadata([
+            FieldArgMetadata(gh_datatype, "gh_write", "any_space_1"),
+            FieldArgMetadata(gh_datatype, "gh_read", "any_space_1"),
+            ScalarArgMetadata(gh_datatype, "gh_read"),
+            FieldArgMetadata(gh_datatype, "gh_read", "any_space_1")])
 
     def lower_to_language_level(self):
         '''
@@ -1107,8 +1428,22 @@ class LFRicIncXMinusBYKern(LFRicBuiltIn):
     real-valued fields.
 
     '''
-    def __str__(self):
-        return "Built-in: inc_X_minus_bY (real-valued fields)"
+    _case_name = "inc_X_minus_bY"
+    _datatype = "real"
+
+    @classmethod
+    def metadata(cls):
+        '''Returns the kernel metadata describing this built-in.
+
+        :returns: kernel metadata describing this built-in.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+
+        '''
+        gh_datatype = LFRicConstants().MAPPING_INTRINSIC_TYPES[cls._datatype]
+        return cls._builtin_metadata([
+            FieldArgMetadata(gh_datatype, "gh_readwrite", "any_space_1"),
+            ScalarArgMetadata(gh_datatype, "gh_read"),
+            FieldArgMetadata(gh_datatype, "gh_read", "any_space_1")])
 
     def lower_to_language_level(self):
         '''
@@ -1142,8 +1477,24 @@ class LFRicAXMinusBYKern(LFRicBuiltIn):
     `Y` are real-valued fields.
 
     '''
-    def __str__(self):
-        return "Built-in: aX_minus_bY (real-valued fields)"
+    _case_name = "aX_minus_bY"
+    _datatype = "real"
+
+    @classmethod
+    def metadata(cls):
+        '''Returns the kernel metadata describing this built-in.
+
+        :returns: kernel metadata describing this built-in.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+
+        '''
+        gh_datatype = LFRicConstants().MAPPING_INTRINSIC_TYPES[cls._datatype]
+        return cls._builtin_metadata([
+            FieldArgMetadata(gh_datatype, "gh_write", "any_space_1"),
+            ScalarArgMetadata(gh_datatype, "gh_read"),
+            FieldArgMetadata(gh_datatype, "gh_read", "any_space_1"),
+            ScalarArgMetadata(gh_datatype, "gh_read"),
+            FieldArgMetadata(gh_datatype, "gh_read", "any_space_1")])
 
     def lower_to_language_level(self):
         '''
@@ -1184,8 +1535,26 @@ class LFRicXTimesYKern(LFRicBuiltIn):
     the result returned as a third, real-valued, field.
 
     '''
+    _case_name = "X_times_Y"
+    _datatype = "real"
+
+    @classmethod
+    def metadata(cls):
+        '''Returns the kernel metadata describing this built-in.
+
+        :returns: kernel metadata describing this built-in.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+
+        '''
+        gh_datatype = LFRicConstants().MAPPING_INTRINSIC_TYPES[cls._datatype]
+        return cls._builtin_metadata([
+            FieldArgMetadata(gh_datatype, "gh_write", "any_space_1"),
+            FieldArgMetadata(gh_datatype, "gh_read", "any_space_1"),
+            FieldArgMetadata(gh_datatype, "gh_read", "any_space_1")])
+
     def __str__(self):
-        return "Built-in: Multiply real-valued fields"
+        return (f"Built-in: {self._case_name} (multiply "
+                f"{self._datatype}-valued fields)")
 
     def lower_to_language_level(self):
         '''
@@ -1213,8 +1582,25 @@ class LFRicIncXTimesYKern(LFRicBuiltIn):
     ''' Multiply the first, real-valued, field by the second and return it.
 
     '''
+    _case_name = "inc_X_times_Y"
+    _datatype = "real"
+
+    @classmethod
+    def metadata(cls):
+        '''Returns the kernel metadata describing this built-in.
+
+        :returns: kernel metadata describing this built-in.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+
+        '''
+        gh_datatype = LFRicConstants().MAPPING_INTRINSIC_TYPES[cls._datatype]
+        return cls._builtin_metadata([
+            FieldArgMetadata(gh_datatype, "gh_readwrite", "any_space_1"),
+            FieldArgMetadata(gh_datatype, "gh_read", "any_space_1")])
+
     def __str__(self):
-        return "Built-in: Multiply one real-valued field by another"
+        return (f"Built-in: {self._case_name} (multiply one "
+                f"{self._datatype}-valued field by another)")
 
     def lower_to_language_level(self):
         '''
@@ -1244,8 +1630,22 @@ class LFRicIncAXTimesYKern(LFRicBuiltIn):
     real-valued fields.
 
     '''
-    def __str__(self):
-        return "Built-in: inc_aX_times_Y (real-valued fields)"
+    _case_name = "inc_aX_times_Y"
+    _datatype = "real"
+
+    @classmethod
+    def metadata(cls):
+        '''Returns the kernel metadata describing this built-in.
+
+        :returns: kernel metadata describing this built-in.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+
+        '''
+        gh_datatype = LFRicConstants().MAPPING_INTRINSIC_TYPES[cls._datatype]
+        return cls._builtin_metadata([
+            ScalarArgMetadata(gh_datatype, "gh_read"),
+            FieldArgMetadata(gh_datatype, "gh_readwrite", "any_space_1"),
+            FieldArgMetadata(gh_datatype, "gh_read", "any_space_1")])
 
     def lower_to_language_level(self):
         '''
@@ -1284,8 +1684,26 @@ class LFRicATimesXKern(LFRicBuiltIn):
     return the result as a second, real-valued, field (`Y = a*X`).
 
     '''
+    _case_name = "a_times_X"
+    _datatype = "real"
+
+    @classmethod
+    def metadata(cls):
+        '''Returns the kernel metadata describing this built-in.
+
+        :returns: kernel metadata describing this built-in.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+
+        '''
+        gh_datatype = LFRicConstants().MAPPING_INTRINSIC_TYPES[cls._datatype]
+        return cls._builtin_metadata([
+            FieldArgMetadata(gh_datatype, "gh_write", "any_space_1"),
+            ScalarArgMetadata(gh_datatype, "gh_read"),
+            FieldArgMetadata(gh_datatype, "gh_read", "any_space_1")])
+
     def __str__(self):
-        return "Built-in: Copy a scaled real-valued field"
+        return (f"Built-in: {self._case_name} (copy a scaled "
+                f"{self._datatype}-valued field)")
 
     def lower_to_language_level(self):
         '''
@@ -1315,8 +1733,25 @@ class LFRicIncATimesXKern(LFRicBuiltIn):
     ''' Multiply a real-valued field by a real scalar and return it.
 
     '''
+    _case_name = "inc_a_times_X"
+    _datatype = "real"
+
+    @classmethod
+    def metadata(cls):
+        '''Returns the kernel metadata describing this built-in.
+
+        :returns: kernel metadata describing this built-in.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+
+        '''
+        gh_datatype = LFRicConstants().MAPPING_INTRINSIC_TYPES[cls._datatype]
+        return cls._builtin_metadata([
+            ScalarArgMetadata(gh_datatype, "gh_read"),
+            FieldArgMetadata(gh_datatype, "gh_readwrite", "any_space_1")])
+
     def __str__(self):
-        return "Built-in: Scale a real-valued field"
+        return (f"Built-in: {self._case_name} (scale "
+                f"{a_or_an(self._datatype)} {self._datatype}-valued field)")
 
     def lower_to_language_level(self):
         '''
@@ -1353,8 +1788,26 @@ class LFRicXDividebyYKern(LFRicBuiltIn):
     the result as a third, real-valued, field.
 
     '''
+    _case_name = "X_divideby_Y"
+    _datatype = "real"
+
+    @classmethod
+    def metadata(cls):
+        '''Returns the kernel metadata describing this built-in.
+
+        :returns: kernel metadata describing this built-in.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+
+        '''
+        gh_datatype = LFRicConstants().MAPPING_INTRINSIC_TYPES[cls._datatype]
+        return cls._builtin_metadata([
+            FieldArgMetadata(gh_datatype, "gh_write", "any_space_1"),
+            FieldArgMetadata(gh_datatype, "gh_read", "any_space_1"),
+            FieldArgMetadata(gh_datatype, "gh_read", "any_space_1")])
+
     def __str__(self):
-        return "Built-in: Divide real-valued fields"
+        return (f"Built-in: {self._case_name} (divide "
+                f"{self._datatype}-valued fields)")
 
     def lower_to_language_level(self):
         '''
@@ -1382,8 +1835,25 @@ class LFRicIncXDividebyYKern(LFRicBuiltIn):
     ''' Divide the first, real-valued, field by the second and return it.
 
     '''
+    _case_name = "inc_X_divideby_Y"
+    _datatype = "real"
+
+    @classmethod
+    def metadata(cls):
+        '''Returns the kernel metadata describing this built-in.
+
+        :returns: kernel metadata describing this built-in.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+
+        '''
+        gh_datatype = LFRicConstants().MAPPING_INTRINSIC_TYPES[cls._datatype]
+        return cls._builtin_metadata([
+            FieldArgMetadata(gh_datatype, "gh_readwrite", "any_space_1"),
+            FieldArgMetadata(gh_datatype, "gh_read", "any_space_1")])
+
     def __str__(self):
-        return "Built-in: Divide one real-valued field by another"
+        return (f"Built-in: {self._case_name} (divide one "
+                f"{self._datatype}-valued field by another)")
 
     def lower_to_language_level(self):
         '''
@@ -1413,9 +1883,27 @@ class LFRicXDividebyAKern(LFRicBuiltIn):
     result in another, real-valued, field.
 
     '''
+    _case_name = "X_divideby_a"
+    _datatype = "real"
+
+    @classmethod
+    def metadata(cls):
+        '''Returns the kernel metadata describing this built-in.
+
+        :returns: kernel metadata describing this built-in.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+
+        '''
+        gh_datatype = LFRicConstants().MAPPING_INTRINSIC_TYPES[cls._datatype]
+        return cls._builtin_metadata([
+            FieldArgMetadata(gh_datatype, "gh_write", "any_space_1"),
+            FieldArgMetadata(gh_datatype, "gh_read", "any_space_1"),
+            ScalarArgMetadata(gh_datatype, "gh_read")])
+
     def __str__(self):
-        return ("Built-in: Divide a real-valued field by a real scalar "
-                "(Y = X/a)")
+        return (f"Built-in: {self._case_name} (divide a real-valued field "
+                f"by {a_or_an(self._datatype)} {self._datatype} scalar "
+                "(Y = X/a))")
 
     def lower_to_language_level(self):
         '''
@@ -1445,9 +1933,26 @@ class LFRicIncXDividebyAKern(LFRicBuiltIn):
     ''' Divide a real-valued field by a real scalar and return it.
 
     '''
+    _case_name = "inc_X_divideby_a"
+    _datatype = "real"
+
+    @classmethod
+    def metadata(cls):
+        '''Returns the kernel metadata describing this built-in.
+
+        :returns: kernel metadata describing this built-in.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+
+        '''
+        gh_datatype = LFRicConstants().MAPPING_INTRINSIC_TYPES[cls._datatype]
+        return cls._builtin_metadata([
+            FieldArgMetadata(gh_datatype, "gh_readwrite", "any_space_1"),
+            ScalarArgMetadata(gh_datatype, "gh_read")])
+
     def __str__(self):
-        return ("Built-in: Divide a real-valued field by a real scalar "
-                "(X = X/a)")
+        return (f"Built-in: {self._case_name} (divide a real-valued field "
+                f"by {a_or_an(self._datatype)} {self._datatype} scalar "
+                f"(X = X/a))")
 
     def lower_to_language_level(self):
         '''
@@ -1485,8 +1990,27 @@ class LFRicADividebyXKern(LFRicBuiltIn):
     real-valued, field, `Y` (`Y = a/X`).
 
     '''
+    _case_name = "a_divideby_X"
+    _datatype = "real"
+
+    @classmethod
+    def metadata(cls):
+        '''Returns the kernel metadata describing this built-in.
+
+        :returns: kernel metadata describing this built-in.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+
+        '''
+        gh_datatype = LFRicConstants().MAPPING_INTRINSIC_TYPES[cls._datatype]
+        return cls._builtin_metadata([
+            FieldArgMetadata(gh_datatype, "gh_write", "any_space_1"),
+            ScalarArgMetadata(gh_datatype, "gh_read"),
+            FieldArgMetadata(gh_datatype, "gh_read", "any_space_1")])
+
     def __str__(self):
-        return "Built-in: Inverse scaling of a real-valued field (Y = a/X)"
+        return (f"Built-in: {self._case_name} (inverse scaling of "
+                f"{a_or_an(self._datatype)} {self._datatype}-valued "
+                f"field (Y = a/X))")
 
     def lower_to_language_level(self):
         '''
@@ -1518,8 +2042,26 @@ class LFRicIncADividebyXKern(LFRicBuiltIn):
     field (`X = a/X`).
 
     '''
+    _case_name = "inc_a_divideby_X"
+    _datatype = "real"
+
+    @classmethod
+    def metadata(cls):
+        '''Returns the kernel metadata describing this built-in.
+
+        :returns: kernel metadata describing this built-in.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+
+        '''
+        gh_datatype = LFRicConstants().MAPPING_INTRINSIC_TYPES[cls._datatype]
+        return cls._builtin_metadata([
+            ScalarArgMetadata(gh_datatype, "gh_read"),
+            FieldArgMetadata(gh_datatype, "gh_readwrite", "any_space_1")])
+
     def __str__(self):
-        return "Built-in: Inverse scaling of a real-valued field (X = a/X)"
+        return (f"Built-in: {self._case_name} (inverse scaling of "
+                f"{a_or_an(self._datatype)} {self._datatype}-valued "
+                f"field (X = a/X))")
 
     def lower_to_language_level(self):
         '''
@@ -1555,8 +2097,26 @@ class LFRicIncXPowrealAKern(LFRicBuiltIn):
     ''' Raise a real-valued field to a real power and return it.
 
     '''
+    _case_name = "inc_X_powreal_a"
+    _datatype = "real"
+
+    @classmethod
+    def metadata(cls):
+        '''Returns the kernel metadata describing this built-in.
+
+        :returns: kernel metadata describing this built-in.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+
+        '''
+        gh_datatype = LFRicConstants().MAPPING_INTRINSIC_TYPES[cls._datatype]
+        return cls._builtin_metadata([
+            FieldArgMetadata(gh_datatype, "gh_readwrite", "any_space_1"),
+            ScalarArgMetadata("gh_real", "gh_read")])
+
     def __str__(self):
-        return "Built-in: Raise a real-valued field to a real power"
+        return (f"Built-in: {self._case_name} (raise "
+                f"{a_or_an(self._datatype)} {self._datatype}-valued field "
+                f"to a real power)")
 
     def lower_to_language_level(self):
         '''
@@ -1585,8 +2145,26 @@ class LFRicIncXPowintNKern(LFRicBuiltIn):
     ''' Raise a real-valued field to an integer power and return it.
 
     '''
+    _case_name = "inc_X_powint_n"
+    _datatype = "real"
+
+    @classmethod
+    def metadata(cls):
+        '''Returns the kernel metadata describing this built-in.
+
+        :returns: kernel metadata describing this built-in.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+
+        '''
+        gh_datatype = LFRicConstants().MAPPING_INTRINSIC_TYPES[cls._datatype]
+        return cls._builtin_metadata([
+            FieldArgMetadata(gh_datatype, "gh_readwrite", "any_space_1"),
+            ScalarArgMetadata("gh_integer", "gh_read")])
+
     def __str__(self):
-        return "Built-in: Raise a real-valued field to an integer power"
+        return (f"Built-in: {self._case_name} (raise "
+                f"{a_or_an(self._datatype)} {self._datatype}-valued field "
+                f"to an integer power)")
 
     def lower_to_language_level(self):
         '''
@@ -1620,8 +2198,26 @@ class LFRicSetvalCKern(LFRicBuiltIn):
     ''' Set a real-valued field equal to a real scalar value.
 
     '''
+    _case_name = "setval_c"
+    _datatype = "real"
+
+    @classmethod
+    def metadata(cls):
+        '''Returns the kernel metadata describing this built-in.
+
+        :returns: kernel metadata describing this built-in.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+
+        '''
+        gh_datatype = LFRicConstants().MAPPING_INTRINSIC_TYPES[cls._datatype]
+        return cls._builtin_metadata([
+            FieldArgMetadata(gh_datatype, "gh_write", "any_space_1"),
+            ScalarArgMetadata(gh_datatype, "gh_read")])
+
     def __str__(self):
-        return "Built-in: Set a real-valued field to a real scalar value"
+        return (f"Built-in: {self._case_name} (set {a_or_an(self._datatype)} "
+                f"{self._datatype}-valued field to a {self._datatype} "
+                f"scalar value)")
 
     def lower_to_language_level(self):
         '''
@@ -1649,8 +2245,25 @@ class LFRicSetvalXKern(LFRicBuiltIn):
     ''' Set a real-valued field equal to another, real-valued, field.
 
     '''
+    _case_name = "setval_X"
+    _datatype = "real"
+
+    @classmethod
+    def metadata(cls):
+        '''Returns the kernel metadata describing this built-in.
+
+        :returns: kernel metadata describing this built-in.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+
+        '''
+        gh_datatype = LFRicConstants().MAPPING_INTRINSIC_TYPES[cls._datatype]
+        return cls._builtin_metadata([
+            FieldArgMetadata(gh_datatype, "gh_write", "any_space_1"),
+            FieldArgMetadata(gh_datatype, "gh_read", "any_space_1")])
+
     def __str__(self):
-        return "Built-in: Set a real-valued field equal to another such field"
+        return (f"Built-in: {self._case_name} (set {a_or_an(self._datatype)} "
+                f"{self._datatype}-valued field equal to another such field)")
 
     def lower_to_language_level(self):
         '''
@@ -1676,8 +2289,24 @@ class LFRicSetvalRandomKern(LFRicBuiltIn):
     ''' Fill a real-valued field with pseudo-random numbers.
 
     '''
+    _case_name = "setval_random"
+    _datatype = "real"
+
+    @classmethod
+    def metadata(cls):
+        '''Returns the kernel metadata describing this built-in.
+
+        :returns: kernel metadata describing this built-in.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+
+        '''
+        gh_datatype = LFRicConstants().MAPPING_INTRINSIC_TYPES[cls._datatype]
+        return cls._builtin_metadata([
+            FieldArgMetadata(gh_datatype, "gh_write", "any_space_1")])
+
     def __str__(self):
-        return "Built-in: Fill a real-valued field with pseudo-random numbers"
+        return (f"Built-in: {self._case_name} (fill {a_or_an(self._datatype)} "
+                f"{self._datatype}-valued field with pseudo-random numbers)")
 
     def lower_to_language_level(self):
         '''
@@ -1714,8 +2343,22 @@ class LFRicXInnerproductYKern(LFRicBuiltIn):
     `innprod = SUM( X(:)*Y(:) )`.
 
     '''
-    def __str__(self):
-        return "Built-in: X_innerproduct_Y (real-valued fields)"
+    _case_name = "X_innerproduct_Y"
+    _datatype = "real"
+
+    @classmethod
+    def metadata(cls):
+        '''Returns the kernel metadata describing this built-in.
+
+        :returns: kernel metadata describing this built-in.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+
+        '''
+        gh_datatype = LFRicConstants().MAPPING_INTRINSIC_TYPES[cls._datatype]
+        return cls._builtin_metadata([
+            ScalarArgMetadata(gh_datatype, "gh_sum"),
+            FieldArgMetadata(gh_datatype, "gh_read", "any_space_1"),
+            FieldArgMetadata(gh_datatype, "gh_read", "any_space_1")])
 
     def gen_code(self, parent):
         '''
@@ -1741,8 +2384,21 @@ class LFRicXInnerproductXKern(LFRicBuiltIn):
     `innprod = SUM( X(:)*X(:) )`.
 
     '''
-    def __str__(self):
-        return "Built-in: X_innerproduct_X (real-valued fields)"
+    _case_name = "X_innerproduct_X"
+    _datatype = "real"
+
+    @classmethod
+    def metadata(cls):
+        '''Returns the kernel metadata describing this built-in.
+
+        :returns: kernel metadata describing this built-in.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+
+        '''
+        gh_datatype = LFRicConstants().MAPPING_INTRINSIC_TYPES[cls._datatype]
+        return cls._builtin_metadata([
+            ScalarArgMetadata(gh_datatype, "gh_sum"),
+            FieldArgMetadata(gh_datatype, "gh_read", "any_space_1")])
 
     def gen_code(self, parent):
         '''
@@ -1771,8 +2427,25 @@ class LFRicSumXKern(LFRicBuiltIn):
     ''' Computes the sum of the elements of a real-valued field.
 
     '''
+    _case_name = "sum_X"
+    _datatype = "real"
+
+    @classmethod
+    def metadata(cls):
+        '''Returns the kernel metadata describing this built-in.
+
+        :returns: kernel metadata describing this built-in.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+
+        '''
+        gh_datatype = LFRicConstants().MAPPING_INTRINSIC_TYPES[cls._datatype]
+        return cls._builtin_metadata([
+            ScalarArgMetadata(gh_datatype, "gh_sum"),
+            FieldArgMetadata(gh_datatype, "gh_read", "any_space_1")])
+
     def __str__(self):
-        return "Built-in: Sum a real-valued field"
+        return (f"Built-in: {self._case_name} (sum {a_or_an(self._datatype)} "
+                f"{self._datatype}-valued field)")
 
     def gen_code(self, parent):
         '''
@@ -1801,8 +2474,26 @@ class LFRicSignXKern(LFRicBuiltIn):
     Fortran intrinsic `sign` function, `Y = sign(a, X)`.
 
     '''
+    _case_name = "sign_X"
+    _datatype = "real"
+
+    @classmethod
+    def metadata(cls):
+        '''Returns the kernel metadata describing this built-in.
+
+        :returns: kernel metadata describing this built-in.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+
+        '''
+        gh_datatype = LFRicConstants().MAPPING_INTRINSIC_TYPES[cls._datatype]
+        return cls._builtin_metadata([
+            FieldArgMetadata(gh_datatype, "gh_write", "any_space_1"),
+            ScalarArgMetadata(gh_datatype, "gh_read"),
+            FieldArgMetadata(gh_datatype, "gh_read", "any_space_1")])
+
     def __str__(self):
-        return "Built-in: Sign of a real-valued field"
+        return (f"Built-in: {self._case_name} (sign of "
+                f"{a_or_an(self._datatype)} {self._datatype}-valued field)")
 
     def lower_to_language_level(self):
         '''
@@ -1839,8 +2530,22 @@ class LFRicMaxAXKern(LFRicBuiltIn):
     `Y = max(a, X)`.
 
     '''
-    def __str__(self):
-        return "Built-in: max_aX (real-valued fields)"
+    _case_name = "max_aX"
+    _datatype = "real"
+
+    @classmethod
+    def metadata(cls):
+        '''Returns the kernel metadata describing this built-in.
+
+        :returns: kernel metadata describing this built-in.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+
+        '''
+        gh_datatype = LFRicConstants().MAPPING_INTRINSIC_TYPES[cls._datatype]
+        return cls._builtin_metadata([
+            FieldArgMetadata(gh_datatype, "gh_write", "any_space_1"),
+            ScalarArgMetadata(gh_datatype, "gh_read"),
+            FieldArgMetadata(gh_datatype, "gh_read", "any_space_1")])
 
     def lower_to_language_level(self):
         '''
@@ -1872,8 +2577,21 @@ class LFRicIncMaxAXKern(LFRicBuiltIn):
     `X = max(a, X)`.
 
     '''
-    def __str__(self):
-        return "Built-in: inc_max_aX (real-valued field)"
+    _case_name = "inc_max_aX"
+    _datatype = "real"
+
+    @classmethod
+    def metadata(cls):
+        '''Returns the kernel metadata describing this built-in.
+
+        :returns: kernel metadata describing this built-in.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+
+        '''
+        gh_datatype = LFRicConstants().MAPPING_INTRINSIC_TYPES[cls._datatype]
+        return cls._builtin_metadata([
+            ScalarArgMetadata(gh_datatype, "gh_read"),
+            FieldArgMetadata(gh_datatype, "gh_readwrite", "any_space_1")])
 
     def lower_to_language_level(self):
         '''
@@ -1911,8 +2629,22 @@ class LFRicMinAXKern(LFRicBuiltIn):
     `Y = min(a, X)`.
 
     '''
-    def __str__(self):
-        return "Built-in: min_aX (real-valued fields)"
+    _case_name = "min_aX"
+    _datatype = "real"
+
+    @classmethod
+    def metadata(cls):
+        '''Returns the kernel metadata describing this built-in.
+
+        :returns: kernel metadata describing this built-in.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+
+        '''
+        gh_datatype = LFRicConstants().MAPPING_INTRINSIC_TYPES[cls._datatype]
+        return cls._builtin_metadata([
+            FieldArgMetadata(gh_datatype, "gh_write", "any_space_1"),
+            ScalarArgMetadata(gh_datatype, "gh_read"),
+            FieldArgMetadata(gh_datatype, "gh_read", "any_space_1")])
 
     def lower_to_language_level(self):
         '''
@@ -1944,8 +2676,21 @@ class LFRicIncMinAXKern(LFRicBuiltIn):
     `X = min(a, X)`.
 
     '''
-    def __str__(self):
-        return "Built-in: inc_min_aX (real-valued field)"
+    _case_name = "inc_min_aX"
+    _datatype = "real"
+
+    @classmethod
+    def metadata(cls):
+        '''Returns the kernel metadata describing this built-in.
+
+        :returns: kernel metadata describing this built-in.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+
+        '''
+        gh_datatype = LFRicConstants().MAPPING_INTRINSIC_TYPES[cls._datatype]
+        return cls._builtin_metadata([
+            ScalarArgMetadata(gh_datatype, "gh_read"),
+            FieldArgMetadata(gh_datatype, "gh_readwrite", "any_space_1")])
 
     def lower_to_language_level(self):
         '''
@@ -1984,10 +2729,27 @@ class LFRicIntXKern(LFRicXKern):
     is the real-valued field being converted.
 
     '''
+    # '_datatype' is only required to avoid an exception in '__init__',
+    # it is not required by this class.
+    _datatype = "dummy"
     _field_type = "int"
+    _case_name = "int_X"
+
+    @classmethod
+    def metadata(cls):
+        '''Returns the kernel metadata describing this built-in.
+
+        :returns: kernel metadata describing this built-in.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+
+        '''
+        return cls._builtin_metadata([
+            FieldArgMetadata("gh_integer", "gh_write", "any_space_1"),
+            FieldArgMetadata("gh_real", "gh_read", "any_space_1")])
 
     def __str__(self):
-        return "Built-in: Convert a real-valued to an integer-valued field"
+        return (f"Built-in: {self._case_name} (convert a real-valued to "
+                f"an integer-valued field)")
 
 
 # ******************************************************************* #
@@ -2005,8 +2767,8 @@ class LFRicIntXPlusYKern(LFRicXPlusYKern):
     built-in equivalent `LFRicXPlusYKern`.
 
     '''
-    def __str__(self):
-        return "Built-in: Add integer-valued fields"
+    _case_name = "int_X_plus_Y"
+    _datatype = "integer"
 
 
 class LFRicIntIncXPlusYKern(LFRicIncXPlusYKern):
@@ -2017,8 +2779,8 @@ class LFRicIntIncXPlusYKern(LFRicIncXPlusYKern):
     built-in equivalent `LFRicIncXPlusYKern`.
 
     '''
-    def __str__(self):
-        return "Built-in: Increment an integer-valued field"
+    _case_name = "int_inc_X_plus_Y"
+    _datatype = "integer"
 
 
 class LFRicIntAPlusXKern(LFRicAPlusXKern):
@@ -2029,8 +2791,8 @@ class LFRicIntAPlusXKern(LFRicAPlusXKern):
     built-in equivalent `LFRicAPlusXKern`.
 
     '''
-    def __str__(self):
-        return "Built-in: int_a_plus_X (integer-valued fields)"
+    _case_name = "int_a_plus_X"
+    _datatype = "integer"
 
 
 class LFRicIntIncAPlusXKern(LFRicIncAPlusXKern):
@@ -2041,8 +2803,8 @@ class LFRicIntIncAPlusXKern(LFRicIncAPlusXKern):
     built-in equivalent `LFRicIncAPlusXKern`.
 
     '''
-    def __str__(self):
-        return "Built-in: int_inc_a_plus_X (integer-valued field)"
+    _case_name = "int_inc_a_plus_X"
+    _datatype = "integer"
 
 
 # ------------------------------------------------------------------- #
@@ -2058,8 +2820,8 @@ class LFRicIntXMinusYKern(LFRicXMinusYKern):
     built-in equivalent `LFRicXMinusYKern`.
 
     '''
-    def __str__(self):
-        return "Built-in: Subtract integer-valued fields"
+    _case_name = "int_X_minus_Y"
+    _datatype = "integer"
 
 
 class LFRicIntIncXMinusYKern(LFRicIncXMinusYKern):
@@ -2070,8 +2832,8 @@ class LFRicIntIncXMinusYKern(LFRicIncXMinusYKern):
     built-in equivalent `LFRicIncXMinusYKern`.
 
     '''
-    def __str__(self):
-        return "Built-in: Decrement an integer-valued field"
+    _case_name = "int_inc_X_minus_Y"
+    _datatype = "integer"
 
 
 class LFRicIntAMinusXKern(LFRicAMinusXKern):
@@ -2082,8 +2844,8 @@ class LFRicIntAMinusXKern(LFRicAMinusXKern):
     built-in equivalent `LFRicAMinusXKern`.
 
     '''
-    def __str__(self):
-        return "Built-in: int_a_minus_X (integer-valued fields)"
+    _case_name = "int_a_minus_X"
+    _datatype = "integer"
 
 
 class LFRicIntIncAMinusXKern(LFRicIncAMinusXKern):
@@ -2094,8 +2856,8 @@ class LFRicIntIncAMinusXKern(LFRicIncAMinusXKern):
     built-in equivalent `LFRicIncAMinusXKern`.
 
     '''
-    def __str__(self):
-        return "Built-in: int_inc_a_minus_X (integer-valued field)"
+    _case_name = "int_inc_a_minus_X"
+    _datatype = "integer"
 
 
 class LFRicIntXMinusAKern(LFRicXMinusAKern):
@@ -2106,8 +2868,8 @@ class LFRicIntXMinusAKern(LFRicXMinusAKern):
     built-in equivalent `LFRicXMinusAKern`.
 
     '''
-    def __str__(self):
-        return "Built-in: int_X_minus_a (integer-valued fields)"
+    _case_name = "int_X_minus_a"
+    _datatype = "integer"
 
 
 class LFRicIntIncXMinusAKern(LFRicIncXMinusAKern):
@@ -2117,8 +2879,8 @@ class LFRicIntIncXMinusAKern(LFRicIncXMinusAKern):
     built-in equivalent `LFRicIncXMinusAKern`.
 
     '''
-    def __str__(self):
-        return "Built-in: int_inc_X_minus_a (integer-valued field)"
+    _case_name = "int_inc_X_minus_a"
+    _datatype = "integer"
 
 
 # ------------------------------------------------------------------- #
@@ -2134,8 +2896,8 @@ class LFRicIntXTimesYKern(LFRicXTimesYKern):
     built-in equivalent `LFRicXTimesYKern`.
 
     '''
-    def __str__(self):
-        return "Built-in: Multiply integer-valued fields"
+    _case_name = "int_X_times_Y"
+    _datatype = "integer"
 
 
 class LFRicIntIncXTimesYKern(LFRicIncXTimesYKern):
@@ -2146,8 +2908,8 @@ class LFRicIntIncXTimesYKern(LFRicIncXTimesYKern):
     built-in equivalent `LFRicIncXTimesYKern`.
 
     '''
-    def __str__(self):
-        return "Built-in: Multiply one integer-valued field by another"
+    _case_name = "int_inc_X_times_Y"
+    _datatype = "integer"
 
 
 # ------------------------------------------------------------------- #
@@ -2163,8 +2925,8 @@ class LFRicIntATimesXKern(LFRicATimesXKern):
     built-in equivalent `LFRicATimesXKern`.
 
     '''
-    def __str__(self):
-        return "Built-in: Copy a scaled integer-valued field"
+    _case_name = "int_a_times_X"
+    _datatype = "integer"
 
 
 class LFRicIntIncATimesXKern(LFRicIncATimesXKern):
@@ -2174,8 +2936,8 @@ class LFRicIntIncATimesXKern(LFRicIncATimesXKern):
     built-in equivalent `LFRicIncATimesXKern`.
 
     '''
-    def __str__(self):
-        return "Built-in: Scale an integer-valued field"
+    _case_name = "int_inc_a_times_X"
+    _datatype = "integer"
 
 
 # ------------------------------------------------------------------- #
@@ -2190,9 +2952,8 @@ class LFRicIntSetvalCKern(LFRicSetvalCKern):
     built-in equivalent `LFRicSetvalCKern`.
 
     '''
-    def __str__(self):
-        return ("Built-in: Set an integer-valued field to an integer "
-                "scalar value")
+    _case_name = "int_setval_c"
+    _datatype = "integer"
 
 
 class LFRicIntSetvalXKern(LFRicSetvalXKern):
@@ -2203,9 +2964,8 @@ class LFRicIntSetvalXKern(LFRicSetvalXKern):
     built-in equivalent `LFRicSetvalXKern`.
 
     '''
-    def __str__(self):
-        return ("Built-in: Set an integer-valued field equal to another "
-                "such field")
+    _case_name = "int_setval_X"
+    _datatype = "integer"
 
 
 # ------------------------------------------------------------------- #
@@ -2220,8 +2980,8 @@ class LFRicIntSignXKern(LFRicSignXKern):
     built-in equivalent `LFRicSignXKern`.
 
     '''
-    def __str__(self):
-        return "Built-in: Sign of an integer-valued field"
+    _case_name = "int_sign_X"
+    _datatype = "integer"
 
 
 # ------------------------------------------------------------------- #
@@ -2236,8 +2996,8 @@ class LFRicIntMaxAXKern(LFRicMaxAXKern):
     Inherits the `lower_to_language_level` method from the real-valued
     built-in equivalent `LFRicMaxAXKern`.
     '''
-    def __str__(self):
-        return "Built-in: int_max_aX (integer-valued fields)"
+    _case_name = "int_max_aX"
+    _datatype = "integer"
 
 
 class LFRicIntIncMaxAXKern(LFRicIncMaxAXKern):
@@ -2247,8 +3007,8 @@ class LFRicIntIncMaxAXKern(LFRicIncMaxAXKern):
     Inherits the `lower_to_language_level` method from the real-valued
     built-in equivalent `LFRicIncMaxAXKern`.
     '''
-    def __str__(self):
-        return "Built-in: int_inc_max_aX (integer-valued field)"
+    _case_name = "int_inc_max_aX"
+    _datatype = "integer"
 
 
 # ------------------------------------------------------------------- #
@@ -2264,8 +3024,8 @@ class LFRicIntMinAXKern(LFRicMinAXKern):
     built-in equivalent `LFRicMinAXKern`.
 
     '''
-    def __str__(self):
-        return "Built-in: int_min_aX (integer-valued fields)"
+    _case_name = "int_min_aX"
+    _datatype = "integer"
 
 
 class LFRicIntIncMinAXKern(LFRicIncMinAXKern):
@@ -2276,8 +3036,8 @@ class LFRicIntIncMinAXKern(LFRicIncMinAXKern):
     built-in equivalent `LFRicIncMinAXKern`.
 
     '''
-    def __str__(self):
-        return "Built-in: int_inc_min_aX (integer-valued field)"
+    _case_name = "int_inc_min_aX"
+    _datatype = "integer"
 
 
 # ------------------------------------------------------------------- #
@@ -2292,10 +3052,27 @@ class LFRicRealXKern(LFRicXKern):
     is the integer-valued field being converted.
 
     '''
+    # '_datatype' is only required to avoid an exception in '__init__',
+    # it is not required by this class.
+    _datatype = "dummy"
     _field_type = "real"
+    _case_name = "real_X"
+
+    @classmethod
+    def metadata(cls):
+        '''Returns the kernel metadata describing this built-in.
+
+        :returns: kernel metadata describing this built-in.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+
+        '''
+        return cls._builtin_metadata([
+            FieldArgMetadata("gh_real", "gh_write", "any_space_1"),
+            FieldArgMetadata("gh_integer", "gh_read", "any_space_1")])
 
     def __str__(self):
-        return "Built-in: Convert an integer-valued to a real-valued field"
+        return (f"Built-in: {self._case_name} (convert an integer-valued "
+                f"to a real-valued field)")
 
 
 # The built-in operations that we support for this API. The meta-data
