@@ -137,26 +137,27 @@ def test_mod_manager_directory_reading():
 
     # Add a path to the directory recursively (as default):
     mod_man.add_search_path("d1")
-    assert mod_man._search_paths == ["d1", "d1/d3"]
+    assert list(mod_man._search_paths) == ["d1", "d1/d3"]
     # Make sure adding the same directory twice does not add anything
     # to the search path
     mod_man.add_search_path(["d1"])
-    assert mod_man._search_paths == ["d1", "d1/d3"]
+    assert list(mod_man._search_paths) == ["d1", "d1/d3"]
     mod_man.add_search_path(["d1/d3"])
-    assert mod_man._search_paths == ["d1", "d1/d3"]
+    assert list(mod_man._search_paths) == ["d1", "d1/d3"]
 
     # Add non-recursive:
     mod_man.add_search_path(["d2"], recursive=False)
-    assert mod_man._search_paths == ["d1", "d1/d3", "d2"]
+    assert list(mod_man._search_paths) == ["d1", "d1/d3", "d2"]
     # Added same path again with recursive, which should only
     # add the new subdirectories
     mod_man.add_search_path(["d2"], recursive=True)
-    assert mod_man._search_paths == ["d1", "d1/d3", "d2", "d2/d4"]
+    assert list(mod_man._search_paths) == ["d1", "d1/d3", "d2", "d2/d4"]
 
     # Check error handling:
     with pytest.raises(IOError) as err:
         mod_man.add_search_path("does_not_exist")
-    assert "Directory 'does_not_exist' does not exist" in str(err.value)
+    assert ("Directory 'does_not_exist' does not exist or cannot be read"
+            in str(err.value))
 
 
 # ----------------------------------------------------------------------------
@@ -204,7 +205,7 @@ def test_mod_manager_get_module_info():
     mod_man = ModuleManager.get()
     mod_man.add_search_path("d1")
     mod_man.add_search_path("d2")
-    assert mod_man._search_paths == ["d1", "d1/d3", "d2", "d2/d4"]
+    assert list(mod_man._search_paths) == ["d1", "d1/d3", "d2", "d2/d4"]
 
     # Nothing should be cached yet.
     assert len(mod_man._mod_2_filename) == 0
@@ -212,19 +213,19 @@ def test_mod_manager_get_module_info():
     # First finds a_mod, which will parse the first directory
     mod_info = mod_man.get_module_info("a_mod")
     assert mod_info.filename == "d1/a_mod.f90"
-    assert mod_man._search_paths == ["d1/d3", "d2", "d2/d4"]
+    assert list(mod_man._search_paths) == ["d1/d3", "d2", "d2/d4"]
     assert set(mod_man._mod_2_filename.keys()) == set(["a_mod"])
 
     # This should be cached now, so no more change:
     mod_info_cached = mod_man.get_module_info("a_mod")
     assert mod_info == mod_info_cached
-    assert mod_man._search_paths == ["d1/d3", "d2", "d2/d4"]
+    assert list(mod_man._search_paths) == ["d1/d3", "d2", "d2/d4"]
     assert set(mod_man._mod_2_filename.keys()) == set(["a_mod"])
 
     # Then parse the second file, it should cache two modules (b and c):
     mod_info = mod_man.get_module_info("b_mod")
     assert mod_info.filename == "d1/d3/b_mod.F90"
-    assert mod_man._search_paths == ["d2", "d2/d4"]
+    assert list(mod_man._search_paths) == ["d2", "d2/d4"]
     assert set(mod_man._mod_2_filename.keys()) == set(["a_mod", "b_mod",
                                                       "c_mod"])
 
@@ -232,7 +233,7 @@ def test_mod_manager_get_module_info():
     # the search path:
     mod_info = mod_man.get_module_info("e_mod")
     assert mod_info.filename == "d2/d4/e_mod.F90"
-    assert mod_man._search_paths == []
+    assert list(mod_man._search_paths) == []
     assert set(mod_man._mod_2_filename.keys()) == set(["a_mod", "b_mod",
                                                        "c_mod", "d_mod",
                                                        "e_mod"])
