@@ -880,7 +880,7 @@ class LFRicExtractDriverCreator:
 
         :returns: a dictionary, with the required module names as key, and \
             as value a set of all modules required by the key module.
-        :rtype: Set[str]
+        :rtype: Dict[str, Set[str]]
 
         '''
         all_mods = set()

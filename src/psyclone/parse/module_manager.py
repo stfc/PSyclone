@@ -69,6 +69,7 @@ class ModuleManager:
         if ModuleManager._instance is not None:
             raise InternalError("You need to use 'ModuleManager.get()' "
                                 "to get the singleton instance.")
+        # Cached mapping from module name to filename.
         self._mod_2_filename = {}
         self._search_paths = []
 
@@ -109,9 +110,9 @@ class ModuleManager:
         module names are based on the filename using `get_modules_in_file()`.
         By default it is assumed that `a_mod.f90` contains the module `a_mod`.
 
-        :param str directory: the directory to list all files from
-        '''
+        :param str directory: the directory containing Fortran files to analyse.
 
+        '''
         with os.scandir(directory) as all_entries:
             for entry in all_entries:
                 _, ext = os.path.splitext(entry.name)
@@ -119,6 +120,7 @@ class ModuleManager:
                         ext not in [".F90", ".f90", ".X90", ".x90"]:
                     continue
                 full_path = os.path.join(directory, entry.name)
+                # Obtain the names of all modules defined in this source file.
                 all_modules = self.get_modules_in_file(full_path)
                 for module in all_modules:
                     if module not in self._mod_2_filename:
@@ -141,7 +143,7 @@ class ModuleManager:
         '''
         mod_lower = module_name.lower()
 
-        # First check if we already know about this file:
+        # First check if we have already cached this file:
         mod_info = self._mod_2_filename.get(mod_lower, None)
         if mod_info:
             return mod_info
@@ -165,10 +167,10 @@ class ModuleManager:
     def get_modules_in_file(self, filename):
         # pylint: disable=no-self-use
         '''This function returns the list of modules defined in the specified
-        file. The base implementation uses the coding style: the file
-        `a_mod.f90` implements the module `a_mod`. This function can be
-        implemented in a derived class to actually parse the source file if
-        required.
+        file. The base implementation assumes the use of the LFRic coding
+        style: the file `a_mod.f90` implements the module `a_mod`. This
+        function can be implemented in a derived class to actually parse the
+        source file if required.
 
         :param str filename: the file name for which to find the list \
             of modules it contains.
@@ -179,7 +181,7 @@ class ModuleManager:
         '''
         basename = os.path.basename(filename)
         root, _ = os.path.splitext(basename)
-        if root[-4:].lower() == "_mod":
+        if root.lower().endswith("_mod"):
             return [root]
 
         return []
@@ -191,7 +193,7 @@ class ModuleManager:
         add all modules used by any module listed in ``all_mods``,
         and any modules used by the just added modules etc. In the end,
         it will return a dictionary that for each module lists which
-        module this module depends on. This dictionary will be complete,
+        modules it depends on. This dictionary will be complete,
         i.e. all modules that are required for the original set of modules
         (and that could be found) will be a key in the dictionary. It will
         include the original set of modules as well.
