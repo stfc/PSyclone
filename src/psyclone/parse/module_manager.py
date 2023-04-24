@@ -118,7 +118,7 @@ class ModuleManager:
         module names are based on the filename using `get_modules_in_file()`.
         By default it is assumed that `a_mod.f90` contains the module `a_mod`.
 
-        :param str directory: the directory containing Fortran files \
+        :param str directory: the directory containing Fortran files
             to analyse.
 
         '''
