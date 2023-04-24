@@ -397,11 +397,9 @@ class LFRicExtractDriverCreator:
         # Now add all non-local symbols, which need to be
         # imported from the appropriate module:
         # -----------------------------------------------
-        module_manager = ModuleManager.get()
-
         for module_name, signature in read_write_info.set_of_all_used_vars:
             if not module_name:
-                # Ignore local symbols
+                # Ignore local symbols, which will have been added above
                 continue
             try:
                 container = symbol_table.lookup(module_name)
@@ -409,21 +407,11 @@ class LFRicExtractDriverCreator:
                 container = ContainerSymbol(module_name)
                 symbol_table.add(container)
 
-            # It can't be a structure, since always a whole symbol is imported
-            var_name = str(signature)
-            if var_name not in symbol_table:
-                # We need to get the symbol from the original module,
-                # then create a new symbol with the appropriate tag,
-                # import interface and type:
-                module_manager = ModuleManager.get()
-                mod_info = module_manager.get_module_info(module_name)
-                sym = mod_info.get_symbol(signature[0])
-                new_symbol = symbol_table.\
-                    new_symbol(root_name=sym.name,
-                               tag=f"{signature[0]}@{module_name}",
-                               symbol_type=DataSymbol,
-                               interface=ImportInterface(container),
-                               datatype=sym.datatype)
+            symbol_table.new_symbol(root_name=signature[0],
+                                    tag=f"{signature[0]}@{module_name}",
+                                    symbol_type=DataSymbol,
+                                    interface=ImportInterface(container),
+                                    datatype=DeferredType())
 
     # -------------------------------------------------------------------------
     @staticmethod
@@ -588,11 +576,19 @@ class LFRicExtractDriverCreator:
             sig_str = self._flatten_signature(signature)
             if module_name:
                 mod_info = mod_man.get_module_info(module_name)
-                orig_sym = mod_info.get_symbol(signature[0])
+                try:
+                    orig_sym = mod_info.get_symbol(signature[0])
+                except IndexError:
+                    print(f"Index error finding '{sig_str}' in "
+                          f"'{module_name}''.")
+                except AttributeError:
+                    # We couldn't parse the module
+                    orig_sym = None
             else:
                 orig_sym = original_symbol_table.lookup(signature[0])
-            if orig_sym.is_array and orig_sym.datatype.intrinsic.name in \
-                    self._all_field_types:
+
+            if orig_sym and orig_sym.is_array and \
+                    orig_sym.datatype.intrinsic.name in self._all_field_types:
                 # This is a field vector, so add all individual fields
                 upper = int(orig_sym.datatype.shape[0].upper.value)
                 for i in range(1, upper+1):
