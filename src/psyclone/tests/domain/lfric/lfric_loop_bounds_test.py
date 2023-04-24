@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
-# Modified by L. Turner, Met Office
+# Modified: L. Turner, Met Office
 
 ''' This module contains pytest tests for the LFRicLoopBounds collection
 class. '''

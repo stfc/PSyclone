@@ -248,7 +248,7 @@ class LFRicInvoke(Invoke):
 
     def gen_code(self, parent):
         '''
-        Generates LFRic specific invocation code (the subroutine
+        Generates LFRic-specific invocation code (the subroutine
         called by the associated Invoke call in the algorithm
         layer). This consists of the PSy invocation subroutine and the
         declaration of its arguments.
