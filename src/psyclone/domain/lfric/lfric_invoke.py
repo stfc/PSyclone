@@ -239,7 +239,6 @@ class LFRicInvoke(Invoke):
         :param func_space: The function space for which to find an argument.
         :type func_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
         '''
-        print(type(func_space))
         for kern_call in self.schedule.kernels():
             field = func_space.field_on_space(kern_call.arguments)
             if field:
