@@ -1,7 +1,7 @@
 #------------------------------------------------------------------------------
 # BSD 2-Clause License
 # 
-# Copyright (c) 2022, Science and Technology Facilities Council.
+# Copyright (c) 2022-2023, Science and Technology Facilities Council.
 # All rights reserved.
 # 
 # Redistribution and use in source and binary forms, with or without
@@ -27,6 +27,7 @@
 #------------------------------------------------------------------------------
 # Author: J. Henrichs, Australian Bureau of Meteorology
 # Modified: I. Kavcic, Met Office
+#           A. R. Porter, STFC Daresbury Lab
 
 # This Makefile picks up the compiler to use plus any flags from
 # environment variables. e.g.:
