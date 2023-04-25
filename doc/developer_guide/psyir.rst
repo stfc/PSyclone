@@ -65,7 +65,7 @@ Python class inheritance system and each node has its particular (and
 semantically relevant) navigation and behaviour methods. For instance the
 ``Assignment`` node has ``lhs`` and ``rhs`` properties to navigate to the
 left-hand-side and right-hand-side operators of the Assignment. It also
-means we can indentify a node using its type with
+means we can identify a node using its type with
 ``isinstance(node, Assignment)``.
 Nevertheless, we maintain a **normalised** core of node relationships and
 functionality that allows us to build tree walkers, tree visitors and
@@ -535,7 +535,7 @@ Node. This single class supports the different intrinsics listed in the
 |              |                              | mold | Reference to an array   |
 |              |                              |      | which is used to specify|
 |              |                              |      | the dimensions of the   |
-|              |                              |      | allocated obect.        |
+|              |                              |      | allocated object.       |
 +--------------+------------------------------+------+-------------------------+
 | DEALLOCATE   | One or more References.      | stat | Reference which will    |
 |              |                              |      | hold status.            |

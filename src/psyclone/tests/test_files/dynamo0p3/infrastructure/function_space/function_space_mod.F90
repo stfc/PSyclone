@@ -776,7 +776,7 @@ function get_dim_space(self) result(dim)
 end function get_dim_space
 
 !-----------------------------------------------------------------------------
-! Gets the size of the diferential function space
+! Gets the size of the differential function space
 !-----------------------------------------------------------------------------
 function get_dim_space_diff(self) result(dim)
 

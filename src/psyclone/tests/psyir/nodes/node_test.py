@@ -206,7 +206,7 @@ def test_node_view():
         " Literal[value:'1', Scalar<INTEGER, UNDEFINED>]\n")
     assert result == expected
 
-    # diferent depth
+    # different depth
     result = range_node.view(colour=False, indent="--", depth=1)
     expected = (
         "--Range[]\n"

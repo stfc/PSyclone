@@ -128,7 +128,7 @@ module field_r64_mod
     !> Routine to write a checkpoint netCDF file
     procedure         :: write_checkpoint
 
-    !> Overloaded assigment operator
+    !> Overloaded assignment operator
     procedure         :: field_type_assign
 
     !> Routine to destroy field_type

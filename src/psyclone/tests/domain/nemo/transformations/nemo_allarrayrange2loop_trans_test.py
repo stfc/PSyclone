@@ -85,7 +85,7 @@ def test_transform_apply_mixed_implicit_do():
 
 
 def test_apply_multi_assignments():
-    '''Check that the apply() method can be called for multiple assigments
+    '''Check that the apply() method can be called for multiple assignments
     with and without ranges.
 
     '''
