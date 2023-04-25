@@ -35,6 +35,7 @@
 
 ''' This module contains tests for the lfric_build.py file. '''
 
+import os
 import subprocess
 import pytest
 
@@ -69,14 +70,16 @@ def test_lf_build_get_infrastructure_flags(monkeypatch, tmpdir):
     monkeypatch.setattr(Compile, "TEST_COMPILE", False)
     builder = LFRicBuild(tmpdir)
     flags = builder.get_infrastructure_flags()
+    dir_list = []
     for idx, flag in enumerate(flags):
         if idx % 2 == 0:
             assert flag == '-I'
-
-    # Use `endswith` as the full path will depend on the testing environment.
-    assert flags[1].endswith('configuration')
-    assert flags[3].endswith('function_space')
-    assert flags[-1].endswith('field')
+        else:
+            # Just keep a list of the base directories
+            dir_list.append(os.path.split(flag)[1])
+    assert 'configuration' in dir_list
+    assert 'function_space' in dir_list
+    assert 'field' in dir_list
 
 
 @pytest.mark.usefixtures("enable_compilation")
