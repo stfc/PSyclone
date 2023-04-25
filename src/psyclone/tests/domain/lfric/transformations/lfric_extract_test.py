@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author I. Kavcic, Met Office
-# Modified by A. R. Porter and R, W, Ford, STFC Daresbury Lab
+# Modified by A. R. Porter and R. W. Ford, STFC Daresbury Lab
 # Modified by J. Henrichs, Bureau of Meteorology
 # Modified by L. Turner, Met Office
 # -----------------------------------------------------------------------------
@@ -91,8 +91,8 @@ def test_node_list_error(tmpdir):
     assert ("Error in LFRicExtractTrans: Argument must be "
             "a single Node in a Schedule, a Schedule or a list of Nodes in a "
             "Schedule but have been passed an object of type: "
-            "<class 'psyclone.domain.lfric.lfric_invoke.LFRicInvoke'>") \
-           in str(excinfo.value)
+            "<class 'psyclone.domain.lfric.lfric_invoke.LFRicInvoke'>"
+           in str(excinfo.value) )
 
     # Supply Nodes in incorrect order or duplicate Nodes
     node_list = [invoke0.schedule.children[0],

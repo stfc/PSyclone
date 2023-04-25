@@ -59,13 +59,13 @@ class LFRicInvoke(Invoke):
     :param alg_invocation: object containing the invoke call information.
     :type alg_invocation: :py:class:`psyclone.parse.algorithm.InvokeCall`
     :param int idx: the position of the invoke in the list of invokes \
-        contained in the Algorithm.
+                    contained in the Algorithm.
     :param invokes: the Invokes object containing this LFRicInvoke \
-        object.
+                    object.
     :type invokes: :py:class:`psyclone.dynamo0p3.DynamoInvokes`
 
     :raises GenerationError: if integer reductions are required in the \
-        psy-layer.
+                    psy-layer.
 
     '''
     # pylint: disable=too-many-instance-attributes
@@ -198,6 +198,7 @@ class LFRicInvoke(Invoke):
         function space. Searches through all Kernel calls in this
         invoke. Currently the first argument object that is found is
         used. Throws an exception if no argument exists. 
+
         :param fspace: function space of the argument
         :type fspace: class 'psyclone.domain.lfric.function_space.FunctionSpace'
         '''
@@ -210,8 +211,11 @@ class LFRicInvoke(Invoke):
             f"No argument found on '{fspace.mangled_name}' space")
 
     def unique_fss(self):
-        ''' Returns the unique function space *objects* over all kernel
-        calls in this Invoke. '''
+        '''   
+        :returns: the unique function space *objects* over all kernel
+                  calls in this Invoke.
+        :rtype: list
+        '''
         unique_fs = []
         unique_fs_names = []
         for kern_call in self.schedule.kernels():
