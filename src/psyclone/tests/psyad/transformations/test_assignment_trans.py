@@ -1,6 +1,6 @@
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -273,8 +273,8 @@ def test_single_assign(tmpdir):
         "  integer, parameter :: n = 10\n"
         "  real, dimension(n) :: a\n"
         "  real, dimension(n) :: b\n\n"
-        "  b(:n - 1) = b(:n - 1) + a(2:n)\n"
-        "  a(2:n) = 0.0\n\n")
+        "  b(:n - 1) = b(:n - 1) + a(2:)\n"
+        "  a(2:) = 0.0\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
 
 

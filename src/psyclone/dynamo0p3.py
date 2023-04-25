@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified I. Kavcic and A. Coughtrie, Met Office
+# Modified I. Kavcic, A. Coughtrie and L. Turner, Met Office
 # Modified J. Henrichs, Bureau of Meteorology
 # Modified A. B. G. Chalk and N. Nobre, STFC Daresbury Lab
 
@@ -60,7 +60,8 @@ from psyclone.domain.common.psylayer import PSyLoop
 from psyclone.domain.lfric import (FunctionSpace, KernCallAccArgList,
                                    KernCallArgList, KernStubArgList,
                                    LFRicArgDescriptor, KernelInterface,
-                                   LFRicConstants, LFRicSymbolTable)
+                                   LFRicConstants, LFRicSymbolTable,
+                                   LFRicKernCallFactory)
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 from psyclone.f2pygen import (AllocateGen, AssignGen, CallGen, CommentGen,
                               DeallocateGen, DeclGen, DoGen, IfThenGen,
@@ -5836,7 +5837,7 @@ class DynInvokeSchedule(InvokeSchedule):
     '''
 
     def __init__(self, name, arg, reserved_names=None, parent=None):
-        super().__init__(name, DynKernCallFactory,
+        super().__init__(name, LFRicKernCallFactory,
                          LFRicBuiltInCallFactory, arg, reserved_names,
                          parent=parent, symbol_table=LFRicSymbolTable())
 
@@ -10130,48 +10131,6 @@ class DynKernelArgument(KernelArgument):
             f"'{str(self)}' is not a scalar, field or operator argument")
 
 
-class DynKernCallFactory():
-    ''' Create the necessary framework for a Dynamo kernel call.
-    This consists of a Loop over cells containing a call to the
-    user-supplied kernel routine.
-
-    '''
-    # pylint: disable=too-few-public-methods
-    @staticmethod
-    def create(call, parent=None):
-        '''
-        Create the objects needed for a call to the kernel
-        described in the call object.
-
-        :param call: information on the kernel call as obtained from the \
-                     Algorithm layer.
-        :type call: :py:class:`psyclone.parse.algorithm.KernelCall`
-        :param parent: the parent of this kernel call in the PSyIR.
-        :type parent: :py:class:`psyclone.psyir.nodes.Schedule`
-
-        '''
-        if call.ktype.iterates_over == "domain":
-            # Kernel operates on whole domain so there is no loop.
-            # We still need a loop object though as that is where the logic
-            # for handling halo exchanges is currently implemented.
-            loop_type = "null"
-        else:
-            # Loop over cells, indicated by an empty string.
-            loop_type = ""
-        cloop = DynLoop(parent=parent, loop_type=loop_type)
-
-        # The kernel itself
-        kern = DynKern()
-        kern.load(call, cloop.loop_body)
-
-        # Add the kernel as a child of the loop
-        cloop.loop_body.addchild(kern)
-
-        # Set-up the loop now we have the kernel object
-        cloop.load(kern)
-        return cloop
-
-
 class DynACCEnterDataDirective(ACCEnterDataDirective):
     '''
     Sub-classes ACCEnterDataDirective to provide an API-specific implementation
@@ -10225,5 +10184,4 @@ __all__ = [
     'DynStencil',
     'DynKernelArguments',
     'DynKernelArgument',
-    'DynKernCallFactory',
     'DynACCEnterDataDirective']

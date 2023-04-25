@@ -56,16 +56,17 @@ from psyclone.psyir.frontend.fparser2 import (
     default_integer_type, default_real_type, _first_type_match,
     _get_arg_names)
 from psyclone.psyir.nodes import (
-    Schedule, CodeBlock, Assignment, Return,
-    UnaryOperation, BinaryOperation, NaryOperation, IfBlock, Reference,
-    ArrayReference, Literal, Range, KernelSchedule,
+    Schedule, CodeBlock, Assignment, Return, UnaryOperation, BinaryOperation,
+    IfBlock, Reference, ArrayReference, Literal, Range, KernelSchedule,
     RegionDirective, Routine, StandaloneDirective, StructureReference,
-    ArrayOfStructuresReference)
+    ArrayOfStructuresReference, Call, IntrinsicCall)
 from psyclone.psyir.symbols import (
     DataSymbol, ContainerSymbol, SymbolTable, ArgumentInterface,
     SymbolError, ScalarType, ArrayType, INTEGER_TYPE, REAL_TYPE,
     UnknownFortranType, DeferredType, Symbol, UnresolvedInterface,
     ImportInterface, BOOLEAN_TYPE)
+
+# pylint: disable=too-many-statements
 
 # Tests
 
@@ -356,6 +357,7 @@ def test_get_arg_names(parser):
             "end program test\n")
     reader = FortranStringReader(code)
     ast = parser(reader)
+    # pylint: disable=no-member
     arg_list = walk(ast, Fortran2003.Actual_Arg_Spec_List)[0].children
     args, names = _get_arg_names(arg_list)
     assert len(args) == 3
@@ -1814,245 +1816,6 @@ def test_handling_parenthesis():
     assert isinstance(new_node, BinaryOperation)
 
 
-@pytest.fixture(scope="function", name="symbol_table")
-def make_symbol_table():
-    '''
-    pytest fixture to create and populate a symbol table for the
-    'test_handling_intrinsics' test below.
-
-    '''
-    symbol_table = SymbolTable()
-    symbol_table.new_symbol("x", symbol_type=DataSymbol,
-                            datatype=REAL_TYPE)
-    symbol_table.new_symbol("a", symbol_type=DataSymbol,
-                            datatype=REAL_TYPE)
-    symbol_table.new_symbol("b", symbol_type=DataSymbol,
-                            datatype=REAL_TYPE)
-    symbol_table.new_symbol("c", symbol_type=DataSymbol,
-                            datatype=REAL_TYPE)
-    symbol_table.new_symbol("idx", symbol_type=DataSymbol,
-                            datatype=INTEGER_TYPE)
-    symbol_table.new_symbol("mask", symbol_type=DataSymbol,
-                            datatype=ArrayType(INTEGER_TYPE, [10]))
-    return symbol_table
-
-
-@pytest.mark.parametrize(
-    "code, expected_type, expected_op",
-    [('x = exp(a)', UnaryOperation, UnaryOperation.Operator.EXP),
-     ('x = sin(a)', UnaryOperation, UnaryOperation.Operator.SIN),
-     ('x = asin(a)', UnaryOperation, UnaryOperation.Operator.ASIN),
-     ('idx = ceiling(a)', UnaryOperation, UnaryOperation.Operator.CEIL),
-     ('x = abs(a)', UnaryOperation, UnaryOperation.Operator.ABS),
-     ('x = cos(a)', UnaryOperation, UnaryOperation.Operator.COS),
-     ('x = acos(a)', UnaryOperation, UnaryOperation.Operator.ACOS),
-     ('x = tan(a)', UnaryOperation, UnaryOperation.Operator.TAN),
-     ('x = atan(a)', UnaryOperation, UnaryOperation.Operator.ATAN),
-     ('x = real(a)', UnaryOperation, UnaryOperation.Operator.REAL),
-     ('x = real(a, 8)', BinaryOperation, BinaryOperation.Operator.REAL),
-     ('x = int(a)', UnaryOperation, UnaryOperation.Operator.INT),
-     ('x = int(a, 8)', BinaryOperation, BinaryOperation.Operator.INT),
-     ('x = log(a)', UnaryOperation, UnaryOperation.Operator.LOG),
-     ('x = log10(a)', UnaryOperation, UnaryOperation.Operator.LOG10),
-     ('x = mod(a, b)', BinaryOperation, BinaryOperation.Operator.REM),
-     ('x = matmul(a, b)', BinaryOperation,
-      BinaryOperation.Operator.MATMUL),
-     ('x = max(a, b)', BinaryOperation, BinaryOperation.Operator.MAX),
-     ('x = mAx(a, b, c)', NaryOperation, NaryOperation.Operator.MAX),
-     ('x = min(a, b)', BinaryOperation, BinaryOperation.Operator.MIN),
-     ('x = min(a, b, c)', NaryOperation, NaryOperation.Operator.MIN),
-     ('x = sign(a, b)', BinaryOperation, BinaryOperation.Operator.SIGN),
-     ('x = sqrt(a)', UnaryOperation, UnaryOperation.Operator.SQRT),
-     ('x = sum(a)', UnaryOperation, UnaryOperation.Operator.SUM),
-     ('x = sum(a, idx)', BinaryOperation, BinaryOperation.Operator.SUM),
-     ('x = suM(a, idx, mask)', NaryOperation, NaryOperation.Operator.SUM),
-     # Check that we get a CodeBlock for an unsupported N-ary operation
-     ('x = reshape(a, b, c)', CodeBlock, None)])
-@pytest.mark.usefixtures("f2008_parser")
-def test_handling_intrinsics(code, expected_type, expected_op, symbol_table):
-    ''' Test that fparser2 Intrinsic_Function_Reference nodes are
-    handled appropriately.
-
-    '''
-    processor = Fparser2Reader()
-    fake_parent = Schedule(symbol_table=symbol_table)
-    reader = FortranStringReader(code)
-    fp2node = Execution_Part.match(reader)[0][0]
-    processor.process_nodes(fake_parent, [fp2node])
-    assign = fake_parent.children[0]
-    assert isinstance(assign, Assignment)
-    assert isinstance(assign.rhs, expected_type), \
-        "Fails when parsing '" + code + "'"
-    if expected_type is not CodeBlock:
-        assert assign.rhs._operator == expected_op, \
-            "Fails when parsing '" + code + "'"
-        assert len(assign.rhs.children) == len(assign.rhs.argument_names)
-        for named_arg in assign.rhs.argument_names:
-            assert named_arg is None
-
-
-@pytest.mark.parametrize(
-    "code, expected_type, expected_op, expected_names",
-    [('x = sum(a)', UnaryOperation,
-      UnaryOperation.Operator.SUM, [None]),
-     ('x = sum(array=a)', UnaryOperation,
-      UnaryOperation.Operator.SUM, ["array"]),
-     ('x = sum(a, dim=1)', BinaryOperation,
-      BinaryOperation.Operator.SUM, [None, "dim"]),
-     ('x = sum(array=a, mask=.true.)', BinaryOperation,
-      BinaryOperation.Operator.SUM, ["array", "mask"]),
-     ('x = sum(a, dim=1, mask=.true.)', NaryOperation,
-      NaryOperation.Operator.SUM, [None, "dim", "mask"]),
-     ('x = sum(array=a, mask=.true., dim=1)', NaryOperation,
-      NaryOperation.Operator.SUM, ["array", "mask", "dim"]),
-     ('x = sum(a, 1, mask=.true.)', NaryOperation,
-      NaryOperation.Operator.SUM, [None, None, "mask"])])
-@pytest.mark.usefixtures("f2008_parser")
-def test_handling_intrinsics_named_args(
-        code, expected_type, expected_op, expected_names, symbol_table):
-    '''Test that fparser2 Intrinsic_Function_Reference nodes with named
-    args are handled appropriately.
-
-    '''
-    processor = Fparser2Reader()
-    fake_parent = Schedule(symbol_table=symbol_table)
-    reader = FortranStringReader(code)
-    fp2node = Execution_Part.match(reader)[0][0]
-    processor.process_nodes(fake_parent, [fp2node])
-    assign = fake_parent.children[0]
-    assert isinstance(assign, Assignment)
-    assert isinstance(assign.rhs, expected_type), \
-        "Fails when parsing '" + code + "'"
-    assert assign.rhs._operator == expected_op, \
-        "Fails when parsing '" + code + "'"
-    assert len(assign.rhs.children) == len(assign.rhs._argument_names)
-    for idx, child in enumerate(assign.rhs.children):
-        assert (assign.rhs._argument_names[idx] ==
-                (id(child), expected_names[idx]))
-    assert assign.rhs.argument_names == expected_names
-
-
-@pytest.mark.usefixtures("f2008_parser")
-def test_intrinsic_no_args():
-    ''' Check that an intrinsic with no arguments results in a
-    NotImplementedError. '''
-    processor = Fparser2Reader()
-    fake_parent = Schedule()
-    reader = FortranStringReader("x = SUM(a, b)")
-    fp2node = Execution_Part.match(reader)[0][0].items[2]
-    # Manually remove the arguments
-    fp2node.items = (fp2node.items[0],)
-    with pytest.raises(NotImplementedError) as err:
-        processor._intrinsic_handler(fp2node, fake_parent)
-    assert "SUM" in str(err.value)
-
-
-@pytest.mark.usefixtures("f2008_parser")
-def test_unary_op_handler_error():
-    ''' Check that the unary op handler raises the expected error if the
-    parse tree has an unexpected structure. This is a hard error to
-    provoke since fparser checks that the number of arguments is correct. '''
-    processor = Fparser2Reader()
-    fake_parent = Schedule()
-    reader = FortranStringReader("x = exp(a)")
-    fp2node = Execution_Part.match(reader)[0][0].items[2]
-    # Create an fparser node for a binary operation so that we can steal
-    # its operands
-    reader = FortranStringReader("x = max(a, b)")
-    maxnode = Execution_Part.match(reader)[0][0].items[2]
-    # Break the number of arguments in the fparser node by using those
-    # from the binary operation
-    fp2node.items = (fp2node.items[0], maxnode.items[1])
-    with pytest.raises(InternalError) as err:
-        processor._unary_op_handler(fp2node, fake_parent)
-    assert ("Operation 'EXP(a, b)' has more than one argument and is "
-            "therefore not unary" in str(err.value))
-
-
-@pytest.mark.usefixtures("f2008_parser")
-def test_binary_op_handler_error():
-    ''' Check that the binary op handler raises the expected errors if the
-    parse tree has an unexpected structure. '''
-    processor = Fparser2Reader()
-    fake_parent = Schedule()
-    reader = FortranStringReader("x = SUM(a, b)")
-    fp2node = Execution_Part.match(reader)[0][0].items[2]
-    # Break the number of arguments in the fparser node
-    fp2node.items[1].items = (Name('a'),)
-    with pytest.raises(InternalError) as err:
-        processor._binary_op_handler(fp2node, fake_parent)
-    assert ("Binary operator should have exactly two arguments but found 1 "
-            "for 'SUM(a)'." in str(err.value))
-    # Now break the 'items' tuple of this fparser node
-    fp2node.items = (fp2node.items[0], Name('dummy'))
-    with pytest.raises(InternalError) as err:
-        processor._binary_op_handler(fp2node, fake_parent)
-    assert ("binary intrinsic operation 'SUM(dummy)'. Expected second child "
-            "to be Actual_Arg_Spec_List" in str(err.value))
-
-
-@pytest.mark.usefixtures("f2008_parser")
-def test_nary_op_handler_error():
-    ''' Check that the Nary op handler raises the expected error if the parse
-    tree has an unexpected structure. '''
-    processor = Fparser2Reader()
-    fake_parent = Schedule()
-    reader = FortranStringReader("x = SUM(a, b, mask)")
-    fp2node = Execution_Part.match(reader)[0][0].items[2]
-    # Give the node an incorrect number of arguments for the Nary handler
-    fp2node.items[1].items = (Name('a'),)
-    with pytest.raises(InternalError) as err:
-        processor._nary_op_handler(fp2node, fake_parent)
-    assert ("An N-ary operation must have more than two arguments but found 1 "
-            "for 'SUM(a)'" in str(err.value))
-    # Break the 'items' tuple of this fparser node
-    fp2node.items = (fp2node.items[0], Name('dummy'))
-    with pytest.raises(InternalError) as err:
-        processor._nary_op_handler(fp2node, fake_parent)
-    assert ("Expected second 'item' of N-ary intrinsic 'SUM(dummy)' in fparser"
-            " parse tree to be an Actual_Arg_Spec_List" in str(err.value))
-
-
-@pytest.mark.usefixtures("f2008_parser")
-def test_handling_nested_intrinsic():
-    ''' Check that we correctly handle nested intrinsic functions.
-
-    '''
-    processor = Fparser2Reader()
-    fake_parent = Schedule()
-    # Declare all the symbols needed by the test code.
-    symtab = fake_parent.symbol_table
-    symtab.add(DataSymbol("jk", INTEGER_TYPE))
-    symtab.add(DataSymbol("wp", INTEGER_TYPE))
-    symtab.add(DataSymbol("rcpi", REAL_TYPE))
-    symtab.add(DataSymbol("rLfus", REAL_TYPE))
-    symtab.add(DataSymbol("ze_z", REAL_TYPE))
-    symtab.add(DataSymbol("zbbb", REAL_TYPE))
-    symtab.add(DataSymbol("zccc", REAL_TYPE))
-    symtab.add(DataSymbol("ztmelts", REAL_TYPE))
-    symtab.add(DataSymbol("e1t", UnknownFortranType("blah :: e1t")))
-    symtab.add(DataSymbol("e2t", UnknownFortranType("blah :: e2t")))
-    symtab.add(DataSymbol("zav_tide", UnknownFortranType("blah :: zav_tide")))
-    symtab.add(DataSymbol("tmask_i", UnknownFortranType("blah :: tmask_i")))
-    symtab.add(DataSymbol("wmask", UnknownFortranType("blah :: wmask")))
-    reader = FortranStringReader(
-        "ze_z = SUM( e1t(:,:) * e2t(:,:) * zav_tide(:,:,jk) * "
-        "tmask_i(:,:) ) &\n"
-        "   &  / MAX( 1.e-20, SUM( e1t(:,:) * e2t(:,:) * wmask (:,:,jk) * "
-        "tmask_i(:,:) ) )")
-    fp2node = Execution_Part.match(reader)[0][0]
-    processor.process_nodes(fake_parent, [fp2node])
-    array_refs = fake_parent.walk(Reference)
-    assert "sum" not in [str(ref.name) for ref in array_refs]
-    reader = FortranStringReader(
-        "zccc = SQRT(MAX(zbbb * zbbb - 4._wp * rcpi * rLfus * ztmelts, 0.0))")
-    fp2node = Execution_Part(reader)
-    # Check that the frontend does not produce any CodeBlocks
-    processor.process_nodes(fake_parent, fp2node.content)
-    cblocks = fake_parent.children[1].walk(CodeBlock)
-    assert not cblocks
-
-
 @pytest.mark.usefixtures("disable_declaration_check", "f2008_parser")
 def test_array_section():
     ''' Check that we correctly handle an array section.
@@ -3047,3 +2810,126 @@ def test_named_and_wildcard_use_var(f2008_parser):
     avar2 = schedule.symbol_table.lookup("a_var")
     assert type(avar2) == Symbol
     assert avar2 is not avar1
+
+
+# _process_args tests
+
+def test_intrinsic_names_error(fortran_reader):
+    '''In the _process_args method, check that the expected exception is
+    raised if the intrinsic arguments do not follow the rule that all
+    named arguments follow all positional arguments. Use the sum
+    intrinsic as an example.
+
+    '''
+    code = '''
+subroutine test_intrinsic(var1, var2, dim, mask)
+  real, intent(in) :: var1(:)
+  integer, intent(in) :: dim
+  logical, intent(in) :: mask
+  real, intent(out) :: var2
+  var2 = sum(var1, dim=dim, mask)
+end subroutine test_intrinsic
+'''
+    with pytest.raises(GenerationError) as info:
+        _ = fortran_reader.psyir_from_source(code)
+    assert ("In Fortran, all named arguments should follow all positional "
+            "arguments, but found 'SUM(var1, dim = dim, mask)'."
+            in str(info.value))
+
+
+@pytest.mark.parametrize("args,arg_names", [
+    ("1.0, a, (a+b)*2.0", [None, None, None]),
+    ("1.0, arg2=a, arg3=(a+b)*2.0", [None, "arg2", "arg3"])])
+def test_call_args(f2008_parser, args, arg_names):
+    '''Test that fparser2reader _process_args method transforms the
+    arguments of a Fortran subroutine call with into the equivalent
+    PSyIR arguments. Test with and without named arguments.
+
+    '''
+    test_code = (
+        f"subroutine test()\n"
+        f"use my_mod, only : kernel\n"
+        f"real :: a,b\n"
+        f"  call kernel({args})\n"
+        f"end subroutine")
+    reader = FortranStringReader(test_code)
+    ptree = f2008_parser(reader)
+    # The fparser2 call hierarchy to find Call_Stmt is the following:
+    # Program->Subroutine_SubProgram->Execution_Part->Call_Stmt
+    fparser2_call_node = ptree.children[0].children[2].children[0]
+    processor = Fparser2Reader()
+    psyir = processor.generate_psyir(ptree)
+
+    call_node = psyir.walk(Call)[0]
+    assert isinstance(call_node, Call)
+    assert call_node.ast == fparser2_call_node
+    assert len(call_node._argument_names) == len(call_node.children)
+    for idx, child in enumerate(call_node.children):
+        assert call_node._argument_names[idx] == (id(child), arg_names[idx])
+    assert call_node.argument_names == arg_names
+    assert len(call_node.children) == 3
+    assert isinstance(call_node.children[0], Literal)
+    assert call_node.children[0].value == "1.0"
+    assert isinstance(call_node.children[1], Reference)
+    assert call_node.children[1].name == "a"
+    assert isinstance(call_node.children[2], BinaryOperation)
+
+
+def test_intrinsiccall_args(f2008_parser):
+    '''Test that fparser2reader _process_args method transforms the
+    arguments of a Fortran subroutine call with into the equivalent
+    PSyIR arguments. Test with and without named arguments.
+
+    '''
+    test_code = (
+        "subroutine test(a, d, m, result)\n"
+        "  real, intent(in) :: a(:)\n"
+        "  integer, intent(in) :: d\n"
+        "  logical, intent(in) :: m\n"
+        "  real, intent(out) :: result\n"
+        "  result = minval(a, d, m)\n"
+        "end subroutine")
+    reader = FortranStringReader(test_code)
+    ptree = f2008_parser(reader)
+    processor = Fparser2Reader()
+    psyir = processor.generate_psyir(ptree)
+
+    intrinsic_node = psyir.walk(IntrinsicCall)[0]
+    assert isinstance(intrinsic_node, IntrinsicCall)
+    assert len(intrinsic_node._argument_names) == len(intrinsic_node.children)
+    arg_names = [None, "dim", "mask"]
+    for idx, child in enumerate(intrinsic_node.children):
+        assert intrinsic_node._argument_names[idx] == (
+            id(child), arg_names[idx])
+    assert intrinsic_node.argument_names == arg_names
+    assert len(intrinsic_node.children) == 3
+    assert isinstance(intrinsic_node.children[0], Reference)
+    assert intrinsic_node.children[0].name == "a"
+    assert isinstance(intrinsic_node.children[1], Reference)
+    assert intrinsic_node.children[1].name == "d"
+    assert isinstance(intrinsic_node.children[2], Reference)
+    assert intrinsic_node.children[2].name == "m"
+
+
+def test_call_codeblock_args(fortran_reader):
+    '''Test that we get one CodeBlock for each (unrecognised) argument
+    when _process_args() calls process_nodes(), rather than a single
+    CodeBlock containing all of them.
+
+    '''
+    test_code = (
+        "subroutine test()\n"
+        "  use my_mod, only : kernel\n"
+        "  real :: a, b\n"
+        "  call kernel(a, 'not'//'nice', 'at'//'all', b)\n"
+        "end subroutine")
+    psyir = fortran_reader.psyir_from_source(test_code)
+    call_node = psyir.walk(Call)[0]
+    assert isinstance(call_node, Call)
+    assert len(call_node.children) == 4
+    assert isinstance(call_node.children[0], Reference)
+    assert call_node.children[0].name == "a"
+    assert isinstance(call_node.children[1], CodeBlock)
+    assert isinstance(call_node.children[2], CodeBlock)
+    assert isinstance(call_node.children[3], Reference)
+    assert call_node.children[3].name == "b"
