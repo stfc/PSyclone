@@ -121,7 +121,8 @@ def test_mod_info_get_used_modules():
     assert dep == set(("a_mod", "b_mod"))
 
     dep_cached = mod_c_info.get_used_modules()
-    # The cached copy should be the same list:
+    # Calling the method a second time should return the same
+    # (cached) list object
     assert dep_cached is dep
 
     # Check error conditions:
