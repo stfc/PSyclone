@@ -207,7 +207,8 @@ class ModuleManager:
         If a module cannot be found (e.g. its path was not given to the
         ModuleManager, or it might be a system module for which the sources
         are not available, a message will be printed, and this module will
-        be ignored (i.e. not listed in any dependencies)
+        be ignored (i.e. not listed in any dependencies).
+        # TODO 2120: allow a choice to abort or ignore.
 
         :param Set[str] all_mods: the set of all modules for which to collect
             module dependencies.
@@ -237,6 +238,7 @@ class ModuleManager:
                 if module not in not_found:
                     # We don't have any information about this module,
                     # ignore it.
+                    # TODO 2120: allow a choice to abort or ignore.
                     print(f"Could not find module '{module}'.")
                     not_found.add(module)
                     # Remove this module as dependencies from any other
@@ -297,6 +299,7 @@ class ModuleManager:
                 if dep not in todo:
                     print(f"Module '{module}' contains a dependency to "
                           f"'{dep}', for which we have no dependencies.")
+                    # TODO 2120: allow a choice to abort or ignore.
                     dependencies.remove(dep)
 
         while todo:
@@ -310,6 +313,7 @@ class ModuleManager:
                 # is a circular dependency
                 print(f"Circular dependency - cannot sort "
                       f"module dependencies: {todo}")
+                # TODO 2120: allow a choice to abort or ignore.
                 # In this case pick a module with the least number of
                 # dependencies, the best we can do in this case - and
                 # it's better to provide all modules (even if they cannot)
