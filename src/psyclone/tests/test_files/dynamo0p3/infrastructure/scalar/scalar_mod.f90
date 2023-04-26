@@ -1,7 +1,5 @@
-# 1 "scalar/scalar_mod.F90"
-# 1 "<built-in>"
-# 1 "<command-line>"
-# 1 "scalar/scalar_mod.F90"
+
+
 !-----------------------------------------------------------------------------
 ! (C) Crown copyright 2022 Met Office. All rights reserved.
 ! The file LICENCE, distributed with this code, contains details of the terms
@@ -21,9 +19,9 @@ module scalar_mod
   ! within the model (as it is model information). For now, PSyclone is
   ! expecting to "use" the definitions from scalar_mod, so it is set here
 
-  use scalar_r32_mod, only: scalar_type       => scalar_r32_type
 
 
+  use scalar_r64_mod, only: scalar_type       => scalar_r64_type
 
 
   implicit none

@@ -19,7 +19,8 @@ contains a target 'preprocess' which will process all ``.F90``
 files and create the corresponding ``.f90`` files. Since the Makefile
 relies on time-stamps, you need to provide the ``-B`` flag to ``make``
 in order to enforce pre-processing of all files. The environment
-variable ``FPPFLAGS`` can be used to specify any macros required if
+variable ``CPP`` can be used to define the preprocessor to use, and
+the variable ``FPPFLAGS`` can be used to specify any macros required if
 you want to setup any non-default settings, e.g.:
 
 ```shell

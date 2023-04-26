@@ -1,7 +1,5 @@
-# 1 "field/r_solver_field_mod.F90"
-# 1 "<built-in>"
-# 1 "<command-line>"
-# 1 "field/r_solver_field_mod.F90"
+
+
 !-----------------------------------------------------------------------------
 ! (C) Crown copyright 2020 Met Office. All rights reserved.
 ! The file LICENCE, distributed with this code, contains details of the terms

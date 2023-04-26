@@ -1,7 +1,5 @@
-# 1 "field/r_tran_field_mod.F90"
-# 1 "<built-in>"
-# 1 "<command-line>"
-# 1 "field/r_tran_field_mod.F90"
+
+
 !-----------------------------------------------------------------------------
 ! (C) Crown copyright 2022 Met Office. All rights reserved.
 ! The file LICENCE, distributed with this code, contains details of the terms

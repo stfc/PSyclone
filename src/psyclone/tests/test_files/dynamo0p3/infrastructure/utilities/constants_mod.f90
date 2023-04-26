@@ -1,7 +1,5 @@
-# 1 "utilities/constants_mod.F90"
-# 1 "<built-in>"
-# 1 "<command-line>"
-# 1 "utilities/constants_mod.F90"
+
+
 !-----------------------------------------------------------------------------
 ! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
 ! For further details please refer to the file LICENCE.original which you
@@ -82,14 +80,14 @@ module constants_mod
 
   ! Default real kind for application.
 
-  integer,      parameter :: r_def = real32
-  character(3), parameter :: PRECISION_REAL = '32'
 
 
 
 
 
 
+  integer,      parameter :: r_def = real64
+  character(3), parameter :: PRECISION_REAL = '64'
 
 
   ! Default real kind for r_solver.

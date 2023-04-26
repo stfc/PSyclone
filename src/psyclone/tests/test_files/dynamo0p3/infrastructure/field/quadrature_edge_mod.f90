@@ -1,7 +1,5 @@
-# 1 "field/quadrature_edge_mod.F90"
-# 1 "<built-in>"
-# 1 "<command-line>"
-# 1 "field/quadrature_edge_mod.F90"
+
+
 !-----------------------------------------------------------------------------
 ! (c) Crown copyright 2018-2020 Met Office. All rights reserved.
 ! The file LICENCE, distributed with this code, contains details of the terms

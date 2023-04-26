@@ -1,7 +1,5 @@
-# 1 "field/kernel_mod.F90"
-# 1 "<built-in>"
-# 1 "<command-line>"
-# 1 "field/kernel_mod.F90"
+
+
 !-----------------------------------------------------------------------------
 ! Copyright (c) 2017-2020,  Met Office, on behalf of HMSO and Queen's Printer
 ! For further details please refer to the file LICENCE.original which you

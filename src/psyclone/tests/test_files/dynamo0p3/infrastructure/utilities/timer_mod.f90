@@ -1,7 +1,5 @@
-# 1 "utilities/timer_mod.F90"
-# 1 "<built-in>"
-# 1 "<command-line>"
-# 1 "utilities/timer_mod.F90"
+
+
 !-----------------------------------------------------------------------------
 ! (C) Crown copyright 2017 Met Office. All rights reserved.
 ! For further details please refer to the file LICENCE which you should have

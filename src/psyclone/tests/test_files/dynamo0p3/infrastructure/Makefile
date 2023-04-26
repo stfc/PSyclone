@@ -106,11 +106,13 @@ dirs:
 # ------------
 include $(LFRIC_PATH)/dependency
 
+# Rule for preprocessing:
+# -----------------------
+%.f90: %.F90
+	$(CPP) -P  $(FPPFLAGS) $< > $@
+
 # Compilation rules
 # -----------------
-%.f90: %.F90
-	$(F90) -E $(FPPFLAGS) $< > $@
-
 
 # The following function defines two rules to compile SOMEDIR/*.F90
 # and SOMEDIR/*.f90 into SOMEDIR/*.o. Since LFRic stores the mod and

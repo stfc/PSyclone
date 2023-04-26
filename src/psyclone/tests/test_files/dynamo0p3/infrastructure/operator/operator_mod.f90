@@ -1,7 +1,5 @@
-# 1 "operator/operator_mod.F90"
-# 1 "<built-in>"
-# 1 "<command-line>"
-# 1 "operator/operator_mod.F90"
+
+
 !-----------------------------------------------------------------------------
 ! (C) Crown copyright 2022 Met Office. All rights reserved.
 ! The file LICENCE, distributed with this code, contains details of the terms
@@ -54,11 +52,11 @@ module operator_mod
   ! within the model (as it is model information). For now, PSyclone is
   ! expecting to "use" the definitions from operator_mod, so it is set here
 
-  use operator_r32_mod, only: operator_type       => operator_r32_type, &
-                              operator_proxy_type => operator_r32_proxy_type
 
 
 
+  use operator_r64_mod, only: operator_type       => operator_r64_type, &
+                              operator_proxy_type => operator_r64_proxy_type
 
 
   use r_solver_operator_mod, only: r_solver_operator_type, &
