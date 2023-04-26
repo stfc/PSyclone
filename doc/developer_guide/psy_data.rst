@@ -1281,7 +1281,7 @@ which prints the filenames of all modules used in ``tl_testkern_mod``:
 
 .. testoutput::
 
-    Module: argument_mod argument_mod.F90
-    Module: constants_mod constants_mod.F90
-    Module: fs_continuity_mod fs_continuity_mod.F90
-    Module: kernel_mod kernel_mod.F90
+    Module: argument_mod argument_mod.f90
+    Module: constants_mod constants_mod.f90
+    Module: fs_continuity_mod fs_continuity_mod.f90
+    Module: kernel_mod kernel_mod.f90
