@@ -571,8 +571,18 @@ def test_table_merge():
     assert not table1._symbols
     # Simple merge.
     table2.add(DataSymbol("beeblebrox", INTEGER_TYPE))
+    # 'Own' routine symbol excluded.
+    table2.add(RoutineSymbol("dent"), tag="own_routine_symbol")
+    # Precision symbol should be included.
+    wp_sym = DataSymbol("wp", INTEGER_TYPE, constant_value=8)
+    table2.add(wp_sym)
+    table2.add(DataSymbol("marvin", ScalarType(ScalarType.Intrinsic.REAL,
+                                               wp_sym)))
     table1.merge(table2)
     assert table1.lookup("beeblebrox")
+    assert "dent" not in table1
+    assert "marvin" in table1
+    assert "wp" in table1
     # Different symbols with a name clash. This results in the Symbol in the
     # second table being renamed (as that preserves any references to it).
     table1 = SymbolTable()
@@ -582,14 +592,75 @@ def test_table_merge():
     table1.merge(table2)
     assert len(table1._symbols) == 2
     assert table1.lookup("theclash_1") is table2.lookup("theclash_1")
-    # Arguments.
-    pass
-    # Container symbols.
-    pass
-    # Precision symbols.
-    pass
-    # Own routine symbol.
-    pass
+    # Arguments. By default they are included in a merge.
+    table3 = SymbolTable()
+    arg_sym = DataSymbol("trillian", INTEGER_TYPE,
+                         interface=ArgumentInterface())
+    table3.add(arg_sym)
+    table3.specify_argument_list([arg_sym])
+    table1.merge(table3)
+    assert table1.lookup("trillian") is arg_sym
+    # Check that arguments are ignored if requested.
+    table4 = SymbolTable()
+    arg_sym2 = DataSymbol("arthur", INTEGER_TYPE,
+                          interface=ArgumentInterface())
+    table4.add(arg_sym2)
+    table4.specify_argument_list([arg_sym2])
+    table1.merge(table4, include_arguments=False)
+    assert "arthur" not in table1
+
+
+def test_merge_container_syms():
+    '''Test the merge method works as expected when the tables have
+    ContainerSymbols.
+
+    '''
+    tab1 = SymbolTable()
+    tab2 = SymbolTable()
+    csym1 = ContainerSymbol("slartibartfast")
+    tab2.add(csym1)
+    wpsym = DataSymbol("wp", INTEGER_TYPE, interface=ImportInterface(csym1))
+    tab2.add(wpsym)
+    tab1.merge(tab2)
+    assert "slartibartfast" in tab1
+    assert "wp" in tab1
+    # A second table which also imports wp as well as dp.
+    tab3 = SymbolTable()
+    csym2 = ContainerSymbol("slartibartfast")
+    tab3.add(csym2)
+    wpsym2 = DataSymbol("wp", INTEGER_TYPE, interface=ImportInterface(csym2))
+    tab3.add(wpsym2)
+    dpsym = DataSymbol("dp", INTEGER_TYPE, interface=ImportInterface(csym2))
+    tab3.add(dpsym)
+    tab1.merge(tab3)
+    wp = tab1.lookup("wp")
+    assert wp.interface.container_symbol.name == "slartibartfast"
+    dp = tab1.lookup("dp")
+    assert dp.interface.container_symbol.name == "slartibartfast"
+    # A third table which imports wp from a *different* container.
+    tab4 = SymbolTable()
+    csym3 = ContainerSymbol("magrathea")
+    tab4.add(csym3)
+    wpsym3 = DataSymbol("wp", INTEGER_TYPE, interface=ImportInterface(csym3))
+    tab4.add(wpsym3)
+    with pytest.raises(SymbolError) as err:
+        tab1.merge(tab4)
+    assert ("Cannot merge the SymbolTables: this table has an import of 'wp' "
+            "from Container 'slartibartfast' but the supplied table imports "
+            "it from Container 'magrathea'" in str(err.value))
+
+
+def test_add_symbols_from_table():
+    '''Test for the 'internal' _add_symbols_from_table() method.'''
+    table1 = SymbolTable()
+    table2 = SymbolTable()
+    csym = ContainerSymbol("ford")
+    csym2 = csym.copy()
+    table1.add(csym)
+    table2.add(csym2)
+    table2.add(DataSymbol("prefect", INTEGER_TYPE,
+                          interface=ImportInterface(csym2)))
+    table1._add_symbols_from_table(table2)
 
 
 def test_swap_symbol_properties():

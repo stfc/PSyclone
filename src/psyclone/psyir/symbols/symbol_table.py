@@ -613,7 +613,7 @@ class SymbolTable():
                                 callsite_sym.name, other_table=other_table))
                 isym.interface = ImportInterface(self.lookup(csym.name))
 
-    def _add_symbols(self, other_table, include_arguments=True):
+    def _add_symbols_from_table(self, other_table, include_arguments=True):
         '''
         Takes symbols from the supplied symbol table and adds them to this
         table.
@@ -628,29 +628,29 @@ class SymbolTable():
 
         '''
         if include_arguments:
-            formal_args = []
+            symbols_to_skip = []
         else:
-            formal_args = other_table.argument_list
+            symbols_to_skip = other_table.argument_list
 
         try:
-            sym_to_skip = other_table.lookup_with_tag("own_routine_symbol")
-            if not isinstance(sym_to_skip, RoutineSymbol):
+            # In the case where the 'other_table' belongs to a routine,
+            # we don't want or need the symbol representing that routine.
+            rsym = other_table.lookup_with_tag("own_routine_symbol")
+            if isinstance(rsym, RoutineSymbol):
                 # We only want to skip RoutineSymbols, not DataSymbols (which
                 # we may have if we have a Fortran function).
-                sym_to_skip = None
+                symbols_to_skip.append(rsym)
         except KeyError:
-            sym_to_skip = None
+            pass
 
         for old_sym in other_table.symbols:
 
-            if isinstance(old_sym, ContainerSymbol) or old_sym in formal_args:
-                # We've dealt with Container symbols in _add_container_symbols
-                # and we're excluding those that represent formal arguments.
+            if old_sym in symbols_to_skip:
                 continue
 
-            if old_sym is sym_to_skip:
-                # In the case where the 'other_table' belongs to a routine,
-                # we don't want or need the symbol representing that routine.
+            if isinstance(old_sym, ContainerSymbol):
+                # We've dealt with Container symbols in _add_container_symbols
+                # and we're excluding those that represent formal arguments.
                 continue
 
             try:
@@ -716,7 +716,7 @@ class SymbolTable():
         # Copy each Symbol from the supplied table into this one, excluding
         # ContainerSymbols and, optionally, those that represent formal
         # arguments.
-        self._add_symbols(other_table, include_arguments)
+        self._add_symbols_from_table(other_table, include_arguments)
 
     def swap_symbol_properties(self, symbol1, symbol2):
         '''Swaps the properties of symbol1 and symbol2 apart from the symbol
