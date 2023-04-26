@@ -162,6 +162,28 @@ def test_mod_manager_directory_reading():
 
 # ----------------------------------------------------------------------------
 @pytest.mark.usefixtures("change_into_tmpdir")
+def test_mod_manager_precedence_preprocessed():
+    '''Make sure that a .f90 file is preferred over a .F90 file. Note that
+    on linux systems the file names are returned alphabetically, with
+    .f90 coming after .F90, which means the module manager handling of
+    first seeing a .F90, then the .f90 is properly tested.
+
+    '''
+    mod_man_test_setup_directories()
+
+    # Create tmp/d1/a_mod.F90, lower case already exists:
+    with open(os.path.join("d1", "a_mod.F90"), "w", encoding="utf-8") as f_out:
+        f_out.write("module a_mod\nend module a_mod")
+
+    mod_man = ModuleManager.get()
+    mod_man.add_search_path("d1")
+    mod_info = mod_man.get_module_info("a_mod")
+    # Make sure we get the lower case filename:
+    assert mod_info.filename == "d1/a_mod.f90"
+
+
+# ----------------------------------------------------------------------------
+@pytest.mark.usefixtures("change_into_tmpdir")
 def test_mod_manager_add_files_from_dir():
     '''Tests that directories are read as expected. We use the standard
     directory and file setup (see mod_man_test_setup_directories).

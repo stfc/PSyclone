@@ -126,7 +126,10 @@ class ModuleManager:
                 # Obtain the names of all modules defined in this source file.
                 all_modules = self.get_modules_in_file(full_path)
                 for module in all_modules:
-                    if module not in self._mod_2_filename:
+                    # Pre-processed file should always take precedence
+                    # over non-pre-processed files:
+                    if module not in self._mod_2_filename or \
+                            ext in [".f90", ".x90"]:
                         mod_info = ModuleInfo(module, full_path)
                         self._mod_2_filename[module] = mod_info
 
@@ -168,7 +171,6 @@ class ModuleManager:
 
     # ------------------------------------------------------------------------
     def get_modules_in_file(self, filename):
-        # pylint: disable=no-self-use
         '''This function returns the list of modules defined in the specified
         file. The base implementation assumes the use of the LFRic coding
         style: the file `a_mod.f90` implements the module `a_mod`. This
