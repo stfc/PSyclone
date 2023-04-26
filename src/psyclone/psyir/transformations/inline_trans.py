@@ -158,7 +158,7 @@ class InlineTrans(Transformation):
 
         # Shallow copy the symbols from the routine into the table at the
         # call site.
-        table.extend(routine_table, include_arguments=False)
+        table.merge(routine_table, include_arguments=False)
 
         # When constructing new references to replace references to formal
         # args, we need to know whether any of the actual arguments are array

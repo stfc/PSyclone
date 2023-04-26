@@ -1121,7 +1121,7 @@ class FortranWriter(LanguageWriter):
             whole_routine_scope = type(node.symbol_table)()
 
             for schedule in node.walk(Schedule):
-                whole_routine_scope.extend(schedule.symbol_table)
+                whole_routine_scope.merge(schedule.symbol_table)
 
             # Replace the symbol table
             node.symbol_table.detach()

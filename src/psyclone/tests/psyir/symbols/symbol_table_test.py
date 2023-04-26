@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+# Copyright (c) 2017-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -38,7 +38,6 @@
 
 ''' Perform py.test tests on the psygen.psyir.symbols.symboltable file '''
 
-from __future__ import absolute_import
 import re
 import os
 from collections import OrderedDict
@@ -556,6 +555,41 @@ def test_swap_symbol():
     sym_table.swap(symbol1, symbol3)
     assert sym_table.lookup("var1") is symbol3
     assert symbol1 not in sym_table._symbols
+
+
+def test_table_merge():
+    ''' Test the SymbolTable.merge method. '''
+    table1 = SymbolTable()
+    table2 = SymbolTable()
+    # Argument must be a table.
+    with pytest.raises(TypeError) as err:
+        table1.merge("zaphod")
+    assert ("merge() expects a SymbolTable instance but got 'str'" in
+            str(err.value))
+    # Can merge empty tables.
+    table1.merge(table2)
+    assert not table1._symbols
+    # Simple merge.
+    table2.add(DataSymbol("beeblebrox", INTEGER_TYPE))
+    table1.merge(table2)
+    assert table1.lookup("beeblebrox")
+    # Different symbols with a name clash. This results in the Symbol in the
+    # second table being renamed (as that preserves any references to it).
+    table1 = SymbolTable()
+    table2 = SymbolTable()
+    table1.add(DataSymbol("theclash", INTEGER_TYPE))
+    table2.add(DataSymbol("theclash", INTEGER_TYPE))
+    table1.merge(table2)
+    assert len(table1._symbols) == 2
+    assert table1.lookup("theclash_1") is table2.lookup("theclash_1")
+    # Arguments.
+    pass
+    # Container symbols.
+    pass
+    # Precision symbols.
+    pass
+    # Own routine symbol.
+    pass
 
 
 def test_swap_symbol_properties():

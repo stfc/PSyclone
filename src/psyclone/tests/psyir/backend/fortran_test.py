@@ -45,12 +45,12 @@ from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.backend.fortran import gen_intent, gen_datatype, \
     FortranWriter, precedence, _validate_named_args
 from psyclone.psyir.nodes import (
-    Node, CodeBlock, Container, Literal, UnaryOperation, BinaryOperation,
-    NaryOperation, Reference, Call, KernelSchedule, ArrayReference,
-    ArrayOfStructuresReference, Range, StructureReference, Schedule, Routine,
-    Return, FileContainer, IfBlock, OMPTaskloopDirective, OMPMasterDirective,
-    OMPParallelDirective, Loop, OMPNumTasksClause, OMPDependClause,
-    IntrinsicCall)
+    Assignment, Node, CodeBlock, Container, Literal, UnaryOperation,
+    BinaryOperation, NaryOperation, Reference, Call, KernelSchedule,
+    ArrayReference, ArrayOfStructuresReference, Range, StructureReference,
+    Schedule, Routine, Return, FileContainer, IfBlock, OMPTaskloopDirective,
+    OMPMasterDirective, OMPParallelDirective, Loop, OMPNumTasksClause,
+    OMPDependClause, IntrinsicCall)
 from psyclone.psyir.symbols import DataSymbol, SymbolTable, ContainerSymbol, \
     ImportInterface, ArgumentInterface, UnresolvedInterface, ScalarType, \
     ArrayType, INTEGER_TYPE, REAL_TYPE, CHARACTER_TYPE, BOOLEAN_TYPE, \

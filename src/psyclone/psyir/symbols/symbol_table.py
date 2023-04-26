@@ -672,38 +672,44 @@ class SymbolTable():
                             f"refer to that container at the call site.")
                 else:
                     # A Symbol with the same name already exists so we rename
-                    # the one that we are adding.
+                    # the one that we are adding. (We don't just create a new
+                    # Symbol because we need to preserve any References to it.)
                     new_name = self.next_available_name(
                         old_sym.name, other_table=other_table)
                     other_table.rename_symbol(old_sym, new_name)
                     self.add(old_sym)
 
-    def extend(self, other_table, include_arguments=True):
-        '''
-        Extends this symbol table by moving all of the symbols found in
-        `other_table` into it. Symbol objects in either table may be
-        renamed in the event of clashes.
+    def merge(self, other_table, include_arguments=True):
+        '''Merges all of the symbols found in `other_table` into this
+        table. Symbol objects in *either* table may be renamed in the
+        event of clashes.
 
         If `other_table` belongs to a Routine and contains a symbol with the
-        same name as the
-        Routine (i.e. a function in Fortran) then that symbol is *not*
-        added to this symbol table. Also, if `include_arguments` is False then
-        any Symbols representing formal routine arguments are excluded.
+        same name as the Routine (i.e. a function in Fortran) then that symbol
+        is *not* added to this symbol table. Also, if `include_arguments` is
+        False then any Symbols representing formal routine arguments are
+        excluded.
 
         :param other_table: the symbol table from which to add symbols.
         :type other_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
 
         :raises TypeError: if `other_table` is not a SymbolTable.
-
+        :raises SymbolError: if a Symbol with the same name is imported into \
+            both this and the supplied table but from different Containers.
         '''
         if not isinstance(other_table, SymbolTable):
-            raise TypeError(f"SymbolTable.extend() expects a SymbolTable "
+            raise TypeError(f"SymbolTable.merge() expects a SymbolTable "
                             f"instance but got '{type(other_table).__name__}'")
 
-        clashing_symbols = self.import_clashes(other_table)
-        if clashing_symbols:
-            raise GenerationError
-        
+        clashes = self.import_clashes(other_table)
+        if clashes:
+            raise SymbolError(
+                f"Cannot merge the SymbolTables: this table has an import of "
+                f"'{clashes[0].name}' from Container "
+                f"'{clashes[0].interface.container_symbol.name}' but the "
+                f"supplied table imports it from Container "
+                f"'{clashes[1].interface.container_symbol.name}'.")
+
         # Deal with any Container symbols first.
         self._add_container_symbols(other_table)
 
