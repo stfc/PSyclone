@@ -38,10 +38,12 @@
 
 import pytest
 
+from fparser.two import Fortran2003
+
 from psyclone.parse import ModuleInfo, ModuleInfoError, ModuleManager
-from psyclone.tests.utilities import get_base_path
 from psyclone.tests.parse.module_manager_test import (
     mod_man_test_setup_directories)
+from psyclone.tests.utilities import get_base_path
 
 
 @pytest.fixture(scope='function', autouse=True)
@@ -85,14 +87,16 @@ def test_module_info():
     assert isinstance(mod_info, ModuleInfo)
     assert mod_info._source_code is None
     source_code = mod_info.get_source_code()
-    assert "module a_mod" in source_code[:15]
-    assert "module a_mod" in mod_info._source_code[:15]
+    assert source_code.startswith("module a_mod")
+    # Make sure the source code is cached:
+    assert mod_info._source_code.startswith("module a_mod")
     assert "end module a_mod" in mod_info._source_code
 
     # Now access the parse tree:
     assert mod_info._parse_tree is None
     parse_tree = mod_info.get_parse_tree()
     assert mod_info._parse_tree is parse_tree
+    assert isinstance(mod_info._parse_tree, Fortran2003.Program)
 
 
 # ----------------------------------------------------------------------------
@@ -137,15 +141,17 @@ def test_mod_info_get_used_modules():
     # This module imports the intrinsic module iso_fortran_env,
     # (which should be ignored):
     deps = mod_man.get_module_info("field_r64_mod").get_used_modules()
-    for module in deps:
-        assert module != "iso_fortran_env"
+    assert "iso_fortran_env" not in deps
 
     # This module has a 'use' without 'only'. Make sure that
-    # the list of symbols is always an empty list
-    deps = mod_man.get_module_info("testkern_wtheta_mod").get_used_modules()
+    # the modules are still added to the dependencies, but that no
+    # symbols are added:
+    mod_info = mod_man.get_module_info("testkern_wtheta_mod")
+    deps = mod_info.get_used_modules()
     for module in deps:
         assert module in ["constants_mod", "argument_mod",
                           "fs_continuity_mod", "kernel_mod"]
+        assert mod_info.get_used_symbols_from_modules()[module] == set()
 
 
 # ----------------------------------------------------------------------------

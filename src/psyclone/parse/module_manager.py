@@ -208,8 +208,8 @@ class ModuleManager:
         are not available, a message will be printed, and this module will
         be ignored (i.e. not listed in any dependencies)
 
-        :param Set[str] all_mods: the set of all modules to collect the \
-            modules they use from.
+        :param Set[str] all_mods: the set of all modules for which to collect
+            module dependencies.
 
         :returns: a dictionary with all modules that are required (directly \
             or indirectly) for the modules in ``all_mods``.

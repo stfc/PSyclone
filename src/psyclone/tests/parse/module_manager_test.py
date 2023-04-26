@@ -232,7 +232,7 @@ def test_mod_manager_get_module_info():
     # Nothing should be cached yet.
     assert len(mod_man._mod_2_filename) == 0
 
-    # First finds a_mod, which will parse the first directory
+    # First find a_mod, which will parse the first directory
     mod_info = mod_man.get_module_info("a_mod")
     assert mod_info.filename == "d1/a_mod.f90"
     assert list(mod_man._search_paths) == ["d1/d3", "d2", "d2/d4"]
