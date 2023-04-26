@@ -73,9 +73,10 @@ class ModuleManager:
         # Cached mapping from module name to filename.
         self._mod_2_filename = {}
 
-        # The list of all search paths. It is stored as an ordered dict
-        # to make it easier to avoid duplicating entries.
-        self._search_paths = OrderedDict()
+        # The list of all search paths which have not yet all their files
+        # checked. It is stored as an ordered dict to make it easier to avoid
+        # duplicating entries.
+        self._remaining_search_paths = OrderedDict()
 
     # ------------------------------------------------------------------------
     def add_search_path(self, directories, recursive=True):
@@ -98,12 +99,12 @@ class ModuleManager:
             if not os.access(directory, os.R_OK):
                 raise IOError(f"Directory '{directory}' does not exist or "
                               f"cannot be read.")
-            self._search_paths[directory] = 1
+            self._remaining_search_paths[directory] = 1
             if recursive:
                 for root, dirs, _ in os.walk(directory):
                     for current_dir in dirs:
                         new_dir = os.path.join(root, current_dir)
-                        self._search_paths[new_dir] = 1
+                        self._remaining_search_paths[new_dir] = 1
 
     # ------------------------------------------------------------------------
     def _add_all_files_from_dir(self, directory):
@@ -158,9 +159,9 @@ class ModuleManager:
         # the directories, we search directories one at a time, and
         # add the list of all files in that directory to our cache
         # _mod_2_filename
-        while self._search_paths:
+        while self._remaining_search_paths:
             # Get the first element from the search path list:
-            directory, _ = self._search_paths.popitem(last=False)
+            directory, _ = self._remaining_search_paths.popitem(last=False)
             self._add_all_files_from_dir(directory)
             mod_info = self._mod_2_filename.get(mod_lower, None)
             if mod_info:
