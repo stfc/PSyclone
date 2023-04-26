@@ -74,4 +74,5 @@ __all__ = [
     'LFRicArgDescriptor',
     'LFRicConstants',
     'LFRicExtractDriverCreator',
-    'LFRicSymbolTable']
+    'LFRicSymbolTable',
+    'LFRicInvoke']

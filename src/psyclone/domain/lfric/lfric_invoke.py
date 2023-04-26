@@ -51,7 +51,7 @@ from psyclone.psyGen import Invoke
 
 class LFRicInvoke(Invoke):
     '''
-    The LFRic specific Invoke class. This passes the LRFic specific
+    The LFRic-specific Invoke class. This passes the LFRic-specific
     InvokeSchedule class to the base class so it creates the one we
     require.  Also overrides the 'gen_code' method so that we generate
     dynamo specific invocation code.
