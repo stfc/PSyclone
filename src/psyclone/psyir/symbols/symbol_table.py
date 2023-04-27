@@ -652,12 +652,9 @@ class SymbolTable():
 
         for old_sym in other_table.symbols:
 
-            if old_sym in symbols_to_skip:
-                continue
-
-            if isinstance(old_sym, ContainerSymbol):
-                # We've dealt with Container symbols in _add_container_symbols
-                # and we're excluding those that represent formal arguments.
+            if old_sym in symbols_to_skip or isinstance(old_sym,
+                                                        ContainerSymbol):
+                # We've dealt with Container symbols in _add_container_symbols.
                 continue
 
             try:
@@ -669,14 +666,14 @@ class SymbolTable():
                     # This symbol is imported from a Container so should
                     # already have been updated so as to be imported from the
                     # corresponding container in this table.
-                    callsite_csym = self.lookup(
+                    self_csym = self.lookup(
                         old_sym.interface.container_symbol.name)
-                    if old_sym.interface.container_symbol is not callsite_csym:
+                    if old_sym.interface.container_symbol is not self_csym:
                         # pylint: disable=raise-missing-from
                         raise InternalError(
                             f"Symbol '{old_sym.name}' imported from "
-                            f"'{callsite_csym.name}' has not been updated to "
-                            f"refer to the corresponding container in the "
+                            f"'{self_csym.name}' has not been updated to refer"
+                            f" to the corresponding container in the "
                             f"current table.")
                 else:
                     # A Symbol with the same name already exists so we rename
@@ -722,8 +719,7 @@ class SymbolTable():
         self._add_container_symbols_from_table(other_table)
 
         # Copy each Symbol from the supplied table into this one, excluding
-        # ContainerSymbols and, optionally, those that represent formal
-        # arguments.
+        # ContainerSymbols and, optionally, those that represent formal args.
         self._add_symbols_from_table(other_table, include_arguments)
 
     def swap_symbol_properties(self, symbol1, symbol2):
