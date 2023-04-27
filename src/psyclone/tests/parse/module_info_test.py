@@ -41,8 +41,6 @@ import pytest
 from fparser.two import Fortran2003
 
 from psyclone.parse import ModuleInfo, ModuleInfoError, ModuleManager
-from psyclone.tests.parse.module_manager_test import (
-    mod_man_test_setup_directories)
 from psyclone.tests.utilities import get_base_path
 
 
@@ -66,7 +64,8 @@ def clear_module_manager_instance():
 
 
 # ----------------------------------------------------------------------------
-@pytest.mark.usefixtures("change_into_tmpdir")
+@pytest.mark.usefixtures("change_into_tmpdir",
+                         "mod_man_test_setup_directories")
 def test_module_info():
     '''Tests the module info object.'''
     mod_info = ModuleInfo("a_mod", "file_for_a")
@@ -79,7 +78,6 @@ def test_module_info():
             "code for module 'a_mod'" in str(err.value))
 
     # Try to read the file a_mod.f90, which is contained in the d1 directory
-    mod_man_test_setup_directories()
     mod_man = ModuleManager.get()
     mod_man.add_search_path("d1")
 
@@ -100,7 +98,8 @@ def test_module_info():
 
 
 # ----------------------------------------------------------------------------
-@pytest.mark.usefixtures("change_into_tmpdir")
+@pytest.mark.usefixtures("change_into_tmpdir",
+                         "mod_man_test_setup_directories")
 def test_mod_info_get_used_modules():
     '''Tests that dependencies are reported as expected. We use the standard
     directory and file setup (see mod_man_test_setup_directories).
@@ -112,7 +111,6 @@ def test_mod_info_get_used_modules():
     tmp/d2/d4/f_mod.ignore
     '''
 
-    mod_man_test_setup_directories()
     mod_man = ModuleManager.get()
     mod_man.add_search_path("d1")
     mod_man.add_search_path("d2")
@@ -155,7 +153,8 @@ def test_mod_info_get_used_modules():
 
 
 # ----------------------------------------------------------------------------
-@pytest.mark.usefixtures("change_into_tmpdir")
+@pytest.mark.usefixtures("change_into_tmpdir",
+                         "mod_man_test_setup_directories")
 def test_mod_info_get_used_symbols_from_modules():
     '''Tests that symbols from dependencies are reported as expected. We
     use the standard directory and file setup (see
@@ -168,7 +167,6 @@ def test_mod_info_get_used_symbols_from_modules():
     tmp/d2/d4/f_mod.ignore
     '''
 
-    mod_man_test_setup_directories()
     mod_man = ModuleManager.get()
     mod_man.add_search_path("d1")
     mod_man.add_search_path("d2")

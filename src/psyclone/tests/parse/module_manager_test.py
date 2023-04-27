@@ -90,37 +90,8 @@ def test_mod_manager_get_modules_in_file():
 
 
 # ----------------------------------------------------------------------------
-def mod_man_test_setup_directories():
-    '''Sets up a directory and file structure for several of the following
-    tests. The following structure is created - note that each Fortran file
-    declares a module of the same name as the basename of the file:
-    tmp/d1/a_mod.f90       : no dependencies
-    tmp/d1/d3/b_mod.F90    : no dependencies
-    tmp/d1/d3/c_mod.x90    : depends on a_mod/b_mod
-    tmp/d2/d_mod.X90       : depends on c_mod
-    tmp/d2/d4/e_mod.F90    : depends on netcdf
-    tmp/d2/d4/f_mod.ignore
-    '''
-
-    os.makedirs("d1/d3")
-    os.makedirs("d2/d4")
-    for (name, path, dependencies) in [("a_mod.f90", "d1", []),
-                                       ("b_mod.F90", "d1/d3", []),
-                                       ("c_mod.x90", "d1/d3", ["a_mod",
-                                                               "b_mod"]),
-                                       ("d_mod.X90", "d2", ["c_mod"]),
-                                       ("e_mod.F90", "d2/d4", ["netcdf"]),
-                                       ("f_mod.ignore", "d2/d4", [])]:
-        # Create a list of "use a_mod, only: a_mod_symbol" statements
-        uses = "\n".join(f"use {dep}, only: {dep}_symbol"
-                         for dep in dependencies)
-        base, _ = os.path.splitext(name)
-        with open(os.path.join(path, name), "w", encoding="utf-8") as f_out:
-            f_out.write(f"module {base}\n{uses}\nend module {base}")
-
-
-# ----------------------------------------------------------------------------
-@pytest.mark.usefixtures("change_into_tmpdir")
+@pytest.mark.usefixtures("change_into_tmpdir",
+                         "mod_man_test_setup_directories")
 def test_mod_manager_directory_reading():
     '''Tests that directories are read as expected. We use the standard
     directory and file setup (see mod_man_test_setup_directories).
@@ -132,7 +103,6 @@ def test_mod_manager_directory_reading():
     tmp/d2/d4/f_mod.ignore
     '''
 
-    mod_man_test_setup_directories()
     mod_man = ModuleManager.get()
 
     # Add a path to the directory recursively (as default):
@@ -162,7 +132,8 @@ def test_mod_manager_directory_reading():
 
 
 # ----------------------------------------------------------------------------
-@pytest.mark.usefixtures("change_into_tmpdir")
+@pytest.mark.usefixtures("change_into_tmpdir",
+                         "mod_man_test_setup_directories")
 def test_mod_manager_precedence_preprocessed():
     '''Make sure that a .f90 file is preferred over a .F90 file. Note that
     on linux systems the file names are returned alphabetically, with
@@ -170,8 +141,6 @@ def test_mod_manager_precedence_preprocessed():
     first seeing a .F90, then the .f90 is properly tested.
 
     '''
-    mod_man_test_setup_directories()
-
     # Create tmp/d1/a_mod.F90, lower case already exists:
     with open(os.path.join("d1", "a_mod.F90"), "w", encoding="utf-8") as f_out:
         f_out.write("module a_mod\nend module a_mod")
@@ -184,7 +153,8 @@ def test_mod_manager_precedence_preprocessed():
 
 
 # ----------------------------------------------------------------------------
-@pytest.mark.usefixtures("change_into_tmpdir")
+@pytest.mark.usefixtures("change_into_tmpdir",
+                         "mod_man_test_setup_directories")
 def test_mod_manager_add_files_from_dir():
     '''Tests that directories are read as expected. We use the standard
     directory and file setup (see mod_man_test_setup_directories).
@@ -196,7 +166,6 @@ def test_mod_manager_add_files_from_dir():
     tmp/d2/d4/f_mod.ignore
     '''
 
-    mod_man_test_setup_directories()
     mod_man = ModuleManager.get()
 
     # Now check adding files:
@@ -212,7 +181,8 @@ def test_mod_manager_add_files_from_dir():
 
 
 # ----------------------------------------------------------------------------
-@pytest.mark.usefixtures("change_into_tmpdir")
+@pytest.mark.usefixtures("change_into_tmpdir",
+                         "mod_man_test_setup_directories")
 def test_mod_manager_get_module_info():
     '''Tests that module information is returned as expected. We use the
     standard directory and file setup (see mod_man_test_setup_directories).
@@ -224,7 +194,6 @@ def test_mod_manager_get_module_info():
     tmp/d2/d4/f_mod.ignore
     '''
 
-    mod_man_test_setup_directories()
     mod_man = ModuleManager.get()
     mod_man.add_search_path("d1")
     mod_man.add_search_path("d2")
@@ -269,7 +238,8 @@ def test_mod_manager_get_module_info():
 
 
 # ----------------------------------------------------------------------------
-@pytest.mark.usefixtures("change_into_tmpdir")
+@pytest.mark.usefixtures("change_into_tmpdir",
+                         "mod_man_test_setup_directories")
 def test_mod_manager_get_all_dependencies_recursively(capsys):
     '''Tests that dependencies are correctly collected recursively. We use
     the standard directory and file setup (see mod_man_test_setup_directories)
@@ -279,9 +249,8 @@ def test_mod_manager_get_all_dependencies_recursively(capsys):
     tmp/d2/d_mod.X90       : depends on c_mod
     tmp/d2/d4/e_mod.F90    : depends on netcdf
     tmp/d2/d4/f_mod.ignore
-    '''
 
-    mod_man_test_setup_directories()
+    '''
     mod_man = ModuleManager.get()
     mod_man.add_search_path("d1")
     mod_man.add_search_path("d2")
