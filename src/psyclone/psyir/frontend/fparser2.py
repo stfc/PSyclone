@@ -4232,21 +4232,19 @@ class Fparser2Reader():
 
         self.process_declarations(routine, decl_list, arg_list)
 
+        # Check any prefixes on the routine declaration.
+        prefix = node.children[0].children[0]
+        base_type = None
+        if prefix:
+            for child in prefix.children:
+                if isinstance(child, Fortran2003.Prefix_Spec):
+                    raise NotImplementedError
+                else:
+                    base_type, _ = self._process_type_spec(parent,
+                                                           prefix.children[0])
+
         # If this is a function then work out the return type
         if isinstance(node, Fortran2003.Function_Subprogram):
-            # Check whether the function-stmt has a prefix specifying the
-            # return type.
-            prefix = node.children[0].children[0]
-            if prefix:
-                # If there is anything else in the prefix (PURE, ELEMENTAL or
-                # RECURSIVE) then we will create a CodeBlock for this function.
-                if len(prefix.children) > 1:
-                    raise NotImplementedError()
-                base_type, _ = self._process_type_spec(parent,
-                                                       prefix.children[0])
-            else:
-                base_type = None
-
             # Check whether the function-stmt has a suffix containing
             # 'RETURNS'
             suffix = node.children[0].children[3]

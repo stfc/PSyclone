@@ -339,17 +339,18 @@ def test_function_unsupported_derived_type(fortran_reader):
     assert sym.datatype.declaration.lower() == "type(my_type), pointer :: var1"
 
 
+@pytest.mark.parametrize("routine_type", ["function", "subroutine"])
 @pytest.mark.parametrize("fn_prefix",
                          ["pure real", "real pure", "recursive", "elemental"])
-def test_unsupported_function_prefix(fortran_reader, fn_prefix):
-    ''' Check that we get a CodeBlock if a Fortran function has an unsupported
+def test_unsupported_routine_prefix(fortran_reader, fn_prefix, routine_type):
+    ''' Check that we get a CodeBlock if a Fortran routine has an unsupported
     prefix. '''
     code = (
         f"module a\n"
         f"contains\n"
-        f"  {fn_prefix} function my_func()\n"
+        f"  {fn_prefix} {routine_type} my_func()\n"
         f"    my_func = 1.0\n"
-        f"  end function my_func\n"
+        f"  end {routine_type} my_func\n"
         f"end module\n")
     psyir = fortran_reader.psyir_from_source(code)
     assert isinstance(psyir.children[0].children[0], CodeBlock)
