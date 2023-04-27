@@ -621,7 +621,9 @@ class SymbolTable():
     def _add_symbols_from_table(self, other_table, include_arguments=True):
         '''
         Takes symbols from the supplied symbol table and adds them to this
-        table.
+        table. _add_container_symbols_from_table() must have been called
+        before this method in order to handle any Container Symbols and update
+        those Symbols imported from them.
 
         :param other_table: the symbol table from which to add symbols.
         :type other_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
@@ -635,7 +637,7 @@ class SymbolTable():
         if include_arguments:
             symbols_to_skip = []
         else:
-            symbols_to_skip = other_table.argument_list
+            symbols_to_skip = other_table.argument_list[:]
 
         try:
             # In the case where the 'other_table' belongs to a routine,
