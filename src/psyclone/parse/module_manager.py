@@ -37,6 +37,7 @@
 which module is contained in which file (including full location). '''
 
 
+from collections import OrderedDict
 import copy
 import os
 
@@ -69,8 +70,14 @@ class ModuleManager:
         if ModuleManager._instance is not None:
             raise InternalError("You need to use 'ModuleManager.get()' "
                                 "to get the singleton instance.")
+        # Cached mapping from module name to filename.
         self._mod_2_filename = {}
-        self._search_paths = []
+
+        # The list of all search paths which have not yet all their files
+        # checked. It is stored as an ordered dict to make it easier to avoid
+        # duplicating entries.
+        self._remaining_search_paths = OrderedDict()
+
         self._ignore_modules = set()
 
     # ------------------------------------------------------------------------
@@ -92,16 +99,14 @@ class ModuleManager:
 
         for directory in directories:
             if not os.access(directory, os.R_OK):
-                raise IOError(f"Directory '{directory}' does not exist.")
-            if directory not in self._search_paths:
-                self._search_paths.append(directory)
-            if not recursive:
-                break
-            for root, dirs, _ in os.walk(directory):
-                for current_dir in dirs:
-                    new_dir = os.path.join(root, current_dir)
-                    if new_dir not in self._search_paths:
-                        self._search_paths.append(new_dir)
+                raise IOError(f"Directory '{directory}' does not exist or "
+                              f"cannot be read.")
+            self._remaining_search_paths[directory] = 1
+            if recursive:
+                for root, dirs, _ in os.walk(directory):
+                    for current_dir in dirs:
+                        new_dir = os.path.join(root, current_dir)
+                        self._remaining_search_paths[new_dir] = 1
 
     # ------------------------------------------------------------------------
     def _add_all_files_from_dir(self, directory):
@@ -110,9 +115,10 @@ class ModuleManager:
         module names are based on the filename using `get_modules_in_file()`.
         By default it is assumed that `a_mod.f90` contains the module `a_mod`.
 
-        :param str directory: the directory to list all files from
-        '''
+        :param str directory: the directory containing Fortran files \
+            to analyse.
 
+        '''
         with os.scandir(directory) as all_entries:
             for entry in all_entries:
                 _, ext = os.path.splitext(entry.name)
@@ -120,9 +126,13 @@ class ModuleManager:
                         ext not in [".F90", ".f90", ".X90", ".x90"]:
                     continue
                 full_path = os.path.join(directory, entry.name)
+                # Obtain the names of all modules defined in this source file.
                 all_modules = self.get_modules_in_file(full_path)
                 for module in all_modules:
-                    if module not in self._mod_2_filename:
+                    # Pre-processed file should always take precedence
+                    # over non-pre-processed files:
+                    if module not in self._mod_2_filename or \
+                            ext in [".f90", ".x90"]:
                         mod_info = ModuleInfo(module, full_path)
                         self._mod_2_filename[module] = mod_info
 
@@ -162,7 +172,7 @@ class ModuleManager:
         if mod_lower in self._ignore_modules:
             return None
 
-        # First check if we already know about this file:
+        # First check if we have already cached this file:
         mod_info = self._mod_2_filename.get(mod_lower, None)
         if mod_info:
             return mod_info
@@ -171,9 +181,9 @@ class ModuleManager:
         # the directories, we search directories one at a time, and
         # add the list of all files in that directory to our cache
         # _mod_2_filename
-        while self._search_paths:
+        while self._remaining_search_paths:
             # Get the first element from the search path list:
-            directory = self._search_paths.pop(0)
+            directory, _ = self._remaining_search_paths.popitem(last=False)
             self._add_all_files_from_dir(directory)
             mod_info = self._mod_2_filename.get(mod_lower, None)
             if mod_info:
@@ -184,12 +194,11 @@ class ModuleManager:
 
     # ------------------------------------------------------------------------
     def get_modules_in_file(self, filename):
-        # pylint: disable=no-self-use
         '''This function returns the list of modules defined in the specified
-        file. The base implementation uses the coding style: the file
-        `a_mod.f90` implements the module `a_mod`. This function can be
-        implemented in a derived class to actually parse the source file if
-        required.
+        file. The base implementation assumes the use of the LFRic coding
+        style: the file `a_mod.f90` implements the module `a_mod`. This
+        function can be implemented in a derived class to actually parse the
+        source file if required.
 
         :param str filename: the file name for which to find the list \
             of modules it contains.
@@ -200,7 +209,7 @@ class ModuleManager:
         '''
         basename = os.path.basename(filename)
         root, _ = os.path.splitext(basename)
-        if root[-4:].lower() == "_mod":
+        if root.lower().endswith("_mod"):
             return [root]
 
         return []
@@ -212,7 +221,7 @@ class ModuleManager:
         add all modules used by any module listed in ``all_mods``,
         and any modules used by the just added modules etc. In the end,
         it will return a dictionary that for each module lists which
-        module this module depends on. This dictionary will be complete,
+        modules it depends on. This dictionary will be complete,
         i.e. all modules that are required for the original set of modules
         (and that could be found) will be a key in the dictionary. It will
         include the original set of modules as well.
@@ -220,10 +229,11 @@ class ModuleManager:
         If a module cannot be found (e.g. its path was not given to the
         ModuleManager, or it might be a system module for which the sources
         are not available, a message will be printed, and this module will
-        be ignored (i.e. not listed in any dependencies)
+        be ignored (i.e. not listed in any dependencies).
+        # TODO 2120: allow a choice to abort or ignore.
 
-        :param Set[str] all_mods: the set of all modules to collect the \
-            modules they use from.
+        :param Set[str] all_mods: the set of all modules for which to collect
+            module dependencies.
 
         :returns: a dictionary with all modules that are required (directly \
             or indirectly) for the modules in ``all_mods``.
@@ -253,6 +263,7 @@ class ModuleManager:
                 if module not in not_found:
                     # We don't have any information about this module,
                     # ignore it.
+                    # TODO 2120: allow a choice to abort or ignore.
                     print(f"Could not find module '{module}'.")
                     not_found.add(module)
                     # Remove this module as dependencies from any other
@@ -313,6 +324,7 @@ class ModuleManager:
                     continue
                 # Print a warning if this module is not supposed to be ignored
                 if dep not in self.ignores():
+                    # TODO 2120: allow a choice to abort or ignore.
                     print(f"Module '{module}' contains a dependency to "
                           f"'{dep}', for which we have no dependencies.")
                 dependencies.remove(dep)
@@ -328,6 +340,7 @@ class ModuleManager:
                 # is a circular dependency
                 print(f"Circular dependency - cannot sort "
                       f"module dependencies: {todo}")
+                # TODO 2120: allow a choice to abort or ignore.
                 # In this case pick a module with the least number of
                 # dependencies, the best we can do in this case - and
                 # it's better to provide all modules (even if they cannot)

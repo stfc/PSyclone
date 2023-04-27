@@ -67,7 +67,7 @@ OBJ_NETCDF = mesh/global_mesh_netcdf_mod.o io/ugrid_2d_mod.o     \
 # most compilation tests):
 OBJ := $(filter-out $(OBJ_NETCDF),$(ALL_OBJ))
 
-.PHONY: standalone netcdf dirs get_include_flags
+.PHONY: standalone netcdf dirs get_include_flags preprocess
 
 # Standalone target, no netcdf dependency:
 # ----------------------------------------
@@ -84,6 +84,18 @@ netcdf: liblfric_netcdf.a
 liblfric_netcdf.a: dirs $(OBJ) $(OBJ_NETCDF)
 	$(AR) $(ARFLAGS) $@ $(OBJ) $(OBJ_NETCDF)
 
+# Target for preprocessing the .F90 files, since PSyclone only
+# supports pre-processed files. The environment variable FPPFLAGS
+# can be set to define preprocessor macros, e.g.:
+#    FPPFLAGS="-DRDEF_PRECISION=32" make preprocess
+# Since 'make' uses time stamps, you need to provide the -B flag
+# to make to enforce re-preprocessing of all files.
+# ----------------------------------------------------------------
+FILES_TO_PREPROCESS = $(filter %.F90,$(ALL_SRC))
+ALL_PREPROCESSED = $(patsubst %.F90,%.f90,$(FILES_TO_PREPROCESS))
+
+preprocess: $(ALL_PREPROCESSED)
+
 # Other rules
 dirs:
 	# Create all required build directories. $(DIRS) is defined by the
@@ -93,6 +105,11 @@ dirs:
 # Dependencies
 # ------------
 include $(LFRIC_PATH)/dependency
+
+# Rule for preprocessing:
+# -----------------------
+%.f90: %.F90
+	$(CPP) -P  $(FPPFLAGS) $< > $@
 
 # Compilation rules
 # -----------------

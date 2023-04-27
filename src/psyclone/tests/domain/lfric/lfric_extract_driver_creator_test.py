@@ -62,7 +62,8 @@ def init_module_manager():
     '''
 
     infrastructure_path = get_base_path(API)
-    # Define the path to the read-kernel relative to the infrastructure path:
+    # Define the path to the ReadKernelData module (which contains functions
+    # to read extracted data from a file) relative to the infrastructure path:
     read_mod_path = os.path.join(infrastructure_path, "..", "..", "..", "..",
                                  "..", "lib", "extract", "standalone")
     # Enforce loading of the default ModuleManager
@@ -267,6 +268,7 @@ def test_lfric_driver_simple_test():
                  "call extract_psy_data%ReadVariable('cell_post', cell_post)"]:
         assert line in driver
 
+    # Check that all module dependencies have been inlined:
     for mod in ["read_kernel_data_mod", "constants_mod", "kernel_mod",
                 "argument_mod", "log_mod", "fs_continuity_mod",
                 "testkern_mod"]:

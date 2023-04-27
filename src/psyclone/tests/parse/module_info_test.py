@@ -40,11 +40,11 @@ import os
 
 import pytest
 
+from fparser.two import Fortran2003
+
 from psyclone.parse import ModuleInfo, ModuleInfoError, ModuleManager
 from psyclone.psyir.nodes import FileContainer
 from psyclone.tests.utilities import get_base_path
-from psyclone.tests.parse.module_manager_test import (
-    mod_man_test_setup_directories)
 
 
 @pytest.fixture(scope='function', autouse=True)
@@ -67,7 +67,8 @@ def clear_module_manager_instance():
 
 
 # ----------------------------------------------------------------------------
-@pytest.mark.usefixtures("change_into_tmpdir")
+@pytest.mark.usefixtures("change_into_tmpdir",
+                         "mod_man_test_setup_directories")
 def test_module_info():
     '''Tests the module info object.'''
     mod_info = ModuleInfo("a_mod", "file_for_a")
@@ -80,7 +81,6 @@ def test_module_info():
             "code for module 'a_mod'" in str(err.value))
 
     # Try to read the file a_mod.f90, which is contained in the d1 directory
-    mod_man_test_setup_directories()
     mod_man = ModuleManager.get()
     mod_man.add_search_path("d1")
 
@@ -88,18 +88,21 @@ def test_module_info():
     assert isinstance(mod_info, ModuleInfo)
     assert mod_info._source_code is None
     source_code = mod_info.get_source_code()
-    assert "module a_mod" in source_code[:15]
-    assert "module a_mod" in mod_info._source_code[:15]
+    assert source_code.startswith("module a_mod")
+    # Make sure the source code is cached:
+    assert mod_info._source_code.startswith("module a_mod")
     assert "end module a_mod" in mod_info._source_code
 
     # Now access the parse tree:
     assert mod_info._parse_tree is None
     parse_tree = mod_info.get_parse_tree()
     assert mod_info._parse_tree is parse_tree
+    assert isinstance(mod_info._parse_tree, Fortran2003.Program)
 
 
 # ----------------------------------------------------------------------------
-@pytest.mark.usefixtures("change_into_tmpdir")
+@pytest.mark.usefixtures("change_into_tmpdir",
+                         "mod_man_test_setup_directories")
 def test_mod_info_get_used_modules():
     '''Tests that dependencies are reported as expected. We use the standard
     directory and file setup (see mod_man_test_setup_directories).
@@ -111,7 +114,6 @@ def test_mod_info_get_used_modules():
     tmp/d2/d4/f_mod.ignore
     '''
 
-    mod_man_test_setup_directories()
     mod_man = ModuleManager.get()
     mod_man.add_search_path("d1")
     mod_man.add_search_path("d2")
@@ -124,7 +126,8 @@ def test_mod_info_get_used_modules():
     assert dep == set(("a_mod", "b_mod"))
 
     dep_cached = mod_c_info.get_used_modules()
-    # The cached copy should be the same list:
+    # Calling the method a second time should return the same
+    # (cached) list object
     assert dep_cached is dep
 
     # Check error conditions:
@@ -139,19 +142,22 @@ def test_mod_info_get_used_modules():
     # This module imports the intrinsic module iso_fortran_env,
     # (which should be ignored):
     deps = mod_man.get_module_info("field_r64_mod").get_used_modules()
-    for module in deps:
-        assert module != "iso_fortran_env"
+    assert "iso_fortran_env" not in deps
 
     # This module has a 'use' without 'only'. Make sure that
-    # the list of symbols is always an empty list
-    deps = mod_man.get_module_info("testkern_wtheta_mod").get_used_modules()
+    # the modules are still added to the dependencies, but that no
+    # symbols are added:
+    mod_info = mod_man.get_module_info("testkern_wtheta_mod")
+    deps = mod_info.get_used_modules()
     for module in deps:
         assert module in ["constants_mod", "argument_mod",
                           "fs_continuity_mod", "kernel_mod"]
+        assert mod_info.get_used_symbols_from_modules()[module] == set()
 
 
 # ----------------------------------------------------------------------------
-@pytest.mark.usefixtures("change_into_tmpdir")
+@pytest.mark.usefixtures("change_into_tmpdir",
+                         "mod_man_test_setup_directories")
 def test_mod_info_get_used_symbols_from_modules():
     '''Tests that symbols from dependencies are reported as expected. We
     use the standard directory and file setup (see
@@ -164,7 +170,6 @@ def test_mod_info_get_used_symbols_from_modules():
     tmp/d2/d4/f_mod.ignore
     '''
 
-    mod_man_test_setup_directories()
     mod_man = ModuleManager.get()
     mod_man.add_search_path("d1")
     mod_man.add_search_path("d2")

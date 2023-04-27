@@ -100,9 +100,8 @@ class ModuleInfo:
         # of all modules used by this module. Type: Set[str]
         self._used_modules = None
 
-        # This is a dictionary, with the modules from the list of all used
-        # modules as key, and it stores the set of all symbols imported from
-        # this module: Dict[str, Set(str)]
+        # This is a dictionary containing the sets of symbols imported from
+        # each module, indexed by the module names: Dict[str, Set(str)].
         self._used_symbols_from_module = None
 
         # This dictionary will store the mapping of routine name to
