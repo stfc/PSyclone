@@ -58,11 +58,12 @@ from psyclone.configuration import Config
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.errors import GenerationError
 from psyclone.generator import (
-    generate, main, check_fp2_tree, add_builtins_use)
+    generate, main, check_psyir, add_builtins_use)
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.profiler import Profiler
 from psyclone.psyGen import PSyFactory
+from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.transformations import LoopFuseTrans
 from psyclone.version import __VERSION__
 
@@ -1043,8 +1044,8 @@ def test_utf_char(tmpdir):
     assert os.path.isfile(tmp_file)
 
 
-def test_check_fp2_tree():
-    '''Tests for the check_fp2_tree utility method.'''
+def test_check_psyir():
+    '''Tests for the check_psyir utility method.'''
 
     # multiple program, module etc.
     code = (
@@ -1052,33 +1053,29 @@ def test_check_fp2_tree():
         "end program\n"
         "subroutine test_sub\n"
         "end subroutine\n")
-    parser = ParserFactory().create(std="f2008")
-    reader = FortranStringReader(code)
-    fp2_tree = parser(reader)
+    psyir = FortranReader().psyir_from_source(code)
     filename = "dummy"
     with pytest.raises(GenerationError) as info:
-        check_fp2_tree(fp2_tree, filename)
+        check_psyir(psyir, filename)
     assert ("Expecting LFRic algorithm-layer code within file 'dummy' to be "
             "a single program or module, but found '2' of type "
-            "['Main_Program', 'Subroutine_Subprogram']." in str(info.value))
+            "['Routine', 'Routine']." in str(info.value))
     # not a program or module
     code = (
         "subroutine test_sub\n"
         "end subroutine\n")
-    reader = FortranStringReader(code)
-    fp2_tree = parser(reader)
+    psyir = FortranReader().psyir_from_source(code)
     with pytest.raises(GenerationError) as info:
-        check_fp2_tree(fp2_tree, filename)
+        check_psyir(psyir, filename)
     assert ("Expecting LFRic algorithm-layer code within file 'dummy' to be "
-            "a single program or module, but found 'Subroutine_Subprogram'."
+            "a single program or module, but found 'Routine'."
             in str(info.value))
     # OK
     code = (
         "program test_sub\n"
         "end\n")
-    reader = FortranStringReader(code)
-    fp2_tree = parser(reader)
-    check_fp2_tree(fp2_tree, filename)
+    psyir = FortranReader().psyir_from_source(code)
+    check_psyir(psyir, filename)
 
 
 def test_add_builtins_use():
@@ -1102,6 +1099,21 @@ def test_add_builtins_use():
     fp2_tree = parser(reader)
     add_builtins_use(fp2_tree)
     assert "USE builtins" in str(fp2_tree)
+    # multiple modules/programs
+    code = (
+        "program test_prog\n"
+        "end program\n"
+        "module test_mod1\n"
+        "end module\n"
+        "module test_mod2\n"
+        "end module\n")
+    reader = FortranStringReader(code)
+    fp2_tree = parser(reader)
+    add_builtins_use(fp2_tree)
+    assert str(fp2_tree) == (
+        "PROGRAM test_prog\n  USE builtins\nEND PROGRAM\n"
+        "MODULE test_mod1\n  USE builtins\nEND MODULE\n"
+        "MODULE test_mod2\n  USE builtins\nEND MODULE")
 
 
 def test_no_script_lfric_new(monkeypatch):
@@ -1195,7 +1207,7 @@ def test_no_invokes_lfric_new(monkeypatch):
     monkeypatch.setattr(generator, "LFRIC_TESTING", True)
     # pass a kernel file as it has no invoke's in it.
     with pytest.raises(NoInvokesError) as info:
-        alg, _ = generate(
+        _, _ = generate(
             os.path.join(BASE_PATH, "dynamo0p3", "testkern_mod.F90"),
             api="dynamo0.3")
     assert ("Algorithm file contains no invoke() calls: refusing to generate "

@@ -41,7 +41,7 @@ PSy-layer routine.
 import abc
 
 from psyclone.core import SymbolicMaths
-from psyclone.domain.common.algorithm import AlgorithmInvokeCall
+from psyclone.domain.common.algorithm import AlgorithmInvokeCall, KernelFunctor
 from psyclone.errors import InternalError
 from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import Call, Routine, Literal, Reference, CodeBlock
@@ -147,47 +147,39 @@ class AlgInvoke2PSyCallTrans(Transformation, abc.ABC):
             :py:class:`psyclone.domain.common.algorithm.AlgorithmInvokeCall`
 
         '''
-        # Get a unique set of kernel functor symbols for this invoke
-        # if they are explicitly imported.
-        kernel_functor_symbols = set()
-        for kernel_functor in node.children:
-            if kernel_functor.symbol.is_import:
-                kernel_functor_symbols.add(kernel_functor.symbol)
-        # Remove imported symbols as appropriate
-        for kernel_functor_symbol in kernel_functor_symbols:
-            # Is this kernel_functor used in a different invoke?
-            used_elsewhere = False
-            # Search from where the symbol is declared
-            kf_symbol_table = kernel_functor_symbol.find_symbol_table(node)
-            scope_node = kf_symbol_table.node
-            for invoke in scope_node.walk(AlgorithmInvokeCall):
-                if invoke != node:
-                    for kernel_functor in invoke.children:
-                        if kernel_functor.symbol == kernel_functor_symbol:
-                            used_elsewhere = True
-                            break
-                if used_elsewhere:
-                    break
+        all_functors = node.root.walk(KernelFunctor)
+        local_functor_symbols = set()
+        remote_functor_symbols = set()
+        for functor in all_functors:
+            if not functor.symbol.is_import:
+                continue
+            if functor.parent is node:
+                local_functor_symbols.add(functor.symbol)
+            else:
+                remote_functor_symbols.add(functor.symbol)
+        # Functor symbols in this invoke that are not used elsewhere
+        functor_symbols_to_remove = local_functor_symbols.difference(
+            remote_functor_symbols)
 
-            if not used_elsewhere:
-                # remove the symbol (and, potentially, the container
-                # from which it is imported) from the symbol table.
-                container_symbol = \
-                    kernel_functor_symbol.interface.container_symbol
-                c_symbol_table = container_symbol.find_symbol_table(node)
-                # issue #898 not currently possible to remove a
-                # DataTypeSymbol using the remove method.
-                # pylint: disable=protected-access
-                norm_name = c_symbol_table._normalize(
-                    kernel_functor_symbol.name)
-                c_symbol_table._symbols.pop(norm_name)
-                # pylint: enable=protected-access
-                try:
-                    c_symbol_table.remove(container_symbol)
-                except ValueError:
-                    # container symbol still imports one or more symbols
-                    # so can not be removed.
-                    pass
+        for functor_symbol in functor_symbols_to_remove:
+            # remove the symbol (and, potentially, the container
+            # from which it is imported) from the symbol table.
+            container_symbol = \
+                functor_symbol.interface.container_symbol
+            c_symbol_table = container_symbol.find_symbol_table(node)
+            # issue #898 not currently possible to remove a
+            # DataTypeSymbol using the remove method.
+            # pylint: disable=protected-access
+            norm_name = c_symbol_table._normalize(
+                functor_symbol.name)
+            c_symbol_table._symbols.pop(norm_name)
+            # pylint: enable=protected-access
+            try:
+                c_symbol_table.remove(container_symbol)
+            except ValueError:
+                # container symbol still imports one or more symbols
+                # so can not be removed.
+                pass
 
     def apply(self, node, options=None):
         ''' Apply the transformation to the supplied AlgorithmInvokeCall.

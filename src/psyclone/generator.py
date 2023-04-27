@@ -72,7 +72,7 @@ from psyclone.profiler import Profiler
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyir.nodes import Loop
+from psyclone.psyir.nodes import Loop, Container, Routine
 from psyclone.version import __VERSION__
 
 # Those APIs that do not have a separate Algorithm layer
@@ -272,9 +272,10 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
             # builtins". TODO issue #1618. This symbol needs to be
             # removed when lowering.
             fp2_tree = parse_fp2(filename)
-            check_fp2_tree(fp2_tree, filename)
             add_builtins_use(fp2_tree)
             psyir = reader.psyir_from_source(str(fp2_tree))
+            # Check that there is only one module/program per file.
+            check_psyir(psyir, filename)
         else:
             psyir = reader.psyir_from_file(filename)
 
@@ -541,12 +542,12 @@ def main(args):
         print(f"Generated psy layer code:\n{psy_str}")
 
 
-def check_fp2_tree(fp2_tree, filename):
-    '''Check the supplied fparser2 tree to make sure that it contains a
+def check_psyir(psyir, filename):
+    '''Check the supplied psyir to make sure that it contains a
     single program or module.
 
-    :param fp2_tree: the fparser2 tree to check.
-    :type fp2_tree: py:class:`fparser.two.Program`
+    :param psyir: the psyir to check.
+    :type psyir: py:class:`psyclone.psyir.nodes.FileContainer`
 
     :raises GenerationError: if the algorithm file contains \
         multiple modules or programs.
@@ -554,34 +555,38 @@ def check_fp2_tree(fp2_tree, filename):
         module or a program.
 
     '''
-    if len(fp2_tree.children) != 1:
+    if len(psyir.children) != 1:
         raise GenerationError(
             f"Expecting LFRic algorithm-layer code within file "
             f"'{filename}' to be a single program or module, but "
-            f"found '{len(fp2_tree.children)}' of type "
-            f"{[type(node).__name__ for node in fp2_tree.children]}.")
-    if not isinstance(fp2_tree.children[0],
-                      (Fortran2003.Module, Fortran2003.Main_Program)):
+            f"found '{len(psyir.children)}' of type "
+            f"{[type(node).__name__ for node in psyir.children]}.")
+    if (not isinstance(psyir.children[0], Container) and not
+        (isinstance(psyir.children[0], Routine) and
+         psyir.children[0].is_program)):
         raise GenerationError(
             f"Expecting LFRic algorithm-layer code within file "
             f"'{filename}' to be a single program or module, but "
-            f"found '{type(fp2_tree.children[0]).__name__}'.")
+            f"found '{type(psyir.children[0]).__name__}'.")
 
 
 def add_builtins_use(fp2_tree):
-    '''Modify the fparser2 tree adding a 'use builtins' so that kernel
-    functors and the invoke symbol do not appear to be
-    undeclared.
+    '''Modify the fparser2 tree adding a 'use builtins' so that builtin kernel
+    functors do not appear to be undeclared.
 
     :param fp2_tree: the fparser2 tree to modify.
     :type fp2_tree: py:class:`fparser.two.Program`
 
     '''
-    module = fp2_tree.children[0]
-    # add "use builtins" to the module or program
-    if not isinstance(module.children[1], Fortran2003.Specification_Part):
-        fp2_reader = get_reader("use builtins")
-        module.children.insert(1, Fortran2003.Specification_Part(fp2_reader))
-    else:
-        spec_part = module.children[1]
-        spec_part.children.insert(0, Fortran2003.Use_Stmt("use builtins"))
+    for node in fp2_tree.children:
+        if isinstance(node, (Fortran2003.Module, Fortran2003.Main_Program)):
+            # add "use builtins" to the module or program
+            if not isinstance(
+                    node.children[1], Fortran2003.Specification_Part):
+                fp2_reader = get_reader("use builtins")
+                node.children.insert(
+                    1, Fortran2003.Specification_Part(fp2_reader))
+            else:
+                spec_part = node.children[1]
+                spec_part.children.insert(
+                    0, Fortran2003.Use_Stmt("use builtins"))

@@ -43,7 +43,8 @@ from psyclone.domain.lfric.algorithm import (
     LFRicAlgorithmInvokeCall, LFRicFunctor, LFRicBuiltinFunctorFactory)
 from psyclone.domain.lfric.kernel import (
     LFRicKernelMetadata, FieldArgMetadata, LFRicKernelContainer,
-    MetaFuncsArgMetadata, ScalarArgMetadata)
+    MetaFuncsArgMetadata)
+from psyclone.domain.lfric.lfric_builtins import BUILTIN_MAP
 from psyclone.domain.lfric.transformations import (
     LFRicAlgTrans, LFRicAlgInvoke2PSyCallTrans)
 from psyclone.errors import GenerationError
@@ -175,6 +176,7 @@ def test_lfai2psycall_get_metadata():
     trans._get_metadata(psyir)
 
 
+# pylint: disable=too-many-statements
 def test_lfai2psycall_get_arguments():
     '''Test the get_arguments() method.'''
 
@@ -341,22 +343,16 @@ def test_lfai2psycall_builtin_apply(fortran_reader):
     aic = psyir.walk(LFRicAlgorithmInvokeCall)[0]
     trans = LFRicAlgInvoke2PSyCallTrans()
 
-    # TODO issue #1618 builtin metadata should be picked up within PSyclone
-    metadata1 = LFRicKernelMetadata(
-        operates_on="dof",
-        meta_args=[FieldArgMetadata("gh_real", "gh_write", "any_space_1"),
-                   ScalarArgMetadata("gh_real", "gh_read")],
-        procedure_name="setval_c_code",
-        name="setval_c")
+    setval_c_metadata = BUILTIN_MAP["setval_c"].metadata()
     kernel_psyir1 = LFRicKernelContainer.create(
-        "setval_c_mod", metadata1, SymbolTable(), [])
-    metadata2 = LFRicKernelMetadata(
+        "setval_c_mod", setval_c_metadata, SymbolTable(), [])
+    kern_metadata = LFRicKernelMetadata(
         operates_on="cell_column",
         meta_args=[FieldArgMetadata("gh_real", "gh_write", "w3")],
         procedure_name="kern_code",
         name="kern")
     kernel_psyir2 = LFRicKernelContainer.create(
-        "kern_mod", metadata2, SymbolTable(), [])
+        "kern_mod", kern_metadata, SymbolTable(), [])
 
     trans.apply(aic, options={"kernels": {
         id(aic.children[0]): kernel_psyir1,
@@ -377,10 +373,10 @@ def test_lfai2psycall_multi_invokes(fortran_reader):
     'invoke' call. '''
     code = (
         "subroutine alg1()\n"
-        # TODO #1618 this wildcard import permits us to use the generic
-        # fparser2 frontend to the PSyIR, because otherwise there's no place
-        # for the symbols representing 'invoke' and the Builtin kernels to be
-        # defined.
+        # The builtins_mod wildcard import permits us to use the generic
+        # fparser2 frontend to the PSyIR to read this code. Otherwise
+        # there's no place for the symbols representing the Builtin kernels
+        # to be defined.
         "  use builtins_mod\n"
         "  use constants_mod, only: r_def\n"
         "  use kern_mod, only : kern\n"
@@ -398,31 +394,19 @@ def test_lfai2psycall_multi_invokes(fortran_reader):
     # Apply the transformation to the second invoke.
     trans = LFRicAlgInvoke2PSyCallTrans()
 
-    # TODO issue #1618 builtin metadata should be picked up within PSyclone
-    metadata1 = LFRicKernelMetadata(
-        operates_on="dof",
-        meta_args=[FieldArgMetadata("gh_real", "gh_write", "any_space_1"),
-                   ScalarArgMetadata("gh_real", "gh_read")],
-        procedure_name="setval_c_code",
-        name="setval_c")
+    setval_c_metadata = BUILTIN_MAP["setval_c"].metadata()
     kernel_psyir1 = LFRicKernelContainer.create(
-        "setval_c_mod", metadata1, SymbolTable(), [])
-    metadata2 = LFRicKernelMetadata(
+        "setval_c_mod", setval_c_metadata, SymbolTable(), [])
+    kern_metadata = LFRicKernelMetadata(
         operates_on="cell_column",
         meta_args=[FieldArgMetadata("gh_real", "gh_write", "w3")],
         procedure_name="kern_code",
         name="kern")
     kernel_psyir2 = LFRicKernelContainer.create(
-        "kern_mod", metadata2, SymbolTable(), [])
-    # TODO issue #1618 builtin metadata should be picked up within PSyclone
-    metadata3 = LFRicKernelMetadata(
-        operates_on="dof",
-        meta_args=[FieldArgMetadata("gh_real", "gh_write", "any_space_1"),
-                   FieldArgMetadata("gh_real", "gh_read", "any_space_1")],
-        procedure_name="setval_x_code",
-        name="setval_x")
+        "kern_mod", kern_metadata, SymbolTable(), [])
+    setval_x_metadata = BUILTIN_MAP["setval_x"].metadata()
     kernel_psyir3 = LFRicKernelContainer.create(
-        "setval_x_mod", metadata3, SymbolTable(), [])
+        "setval_x_mod", setval_x_metadata, SymbolTable(), [])
 
     trans.apply(invokes[1], options={"kernels": {
         id(invokes[1].children[0]): kernel_psyir1,
@@ -436,13 +420,10 @@ def test_lfai2psycall_multi_invokes(fortran_reader):
     assert "setval_x" not in routine.symbol_table._symbols
 
     # Apply the transformation to the one remaining invoke.
-    # TODO issue #1618 builtin metadata should be picked up within PSyclone
-    kernel_psyir1.detach()
-    kernel_psyir2.detach()
-
     trans.apply(invokes[0], options={"kernels": {
         id(invokes[0].children[0]): kernel_psyir1,
         id(invokes[0].children[1]): kernel_psyir2}})
 
+    assert not psyir.walk(LFRicAlgorithmInvokeCall)
     assert "invoke" not in routine.symbol_table._symbols
     assert "setval_c" not in routine.symbol_table._symbols
