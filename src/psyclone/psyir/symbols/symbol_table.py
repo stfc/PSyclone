@@ -551,6 +551,10 @@ class SymbolTable():
         Checks the imported symbols in the supplied table against those in
         this table. If a symbol with the same name appears in both tables but
         is imported from different Containers then the two are returned.
+
+        :returns: the first two Symbols found with an import clash, if any.
+        :rtype: Optional[Tuple[:py:class:`psyclone.psyir.symbols.Symbol`, \
+                               :py:class:`psyclone.psyir.symbols.Symbol`]]
         '''
         other_import_names = [sym.name for sym in other_table.imported_symbols]
         for sym in self.imported_symbols:
@@ -558,14 +562,15 @@ class SymbolTable():
                 routine_sym = other_table.lookup(sym.name)
                 if (routine_sym.interface.container_symbol.name !=
                         sym.interface.container_symbol.name):
-                    # TODO raise a GenerationError instead?
                     return sym, routine_sym
         return None
 
-    def _add_container_symbols(self, other_table):
+    def _add_container_symbols_from_table(self, other_table):
         '''
         Takes container symbols from the supplied symbol table and adds them to
         this table. All references to each container symbol are also updated.
+        (This is a preliminary step to adding all symbols from other_table to
+        this table.)
 
         :param table: the symbol table at the call site.
         :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
@@ -575,38 +580,38 @@ class SymbolTable():
         '''
         for csym in other_table.containersymbols:
             if csym.name in self:
-                # We have a clash with another symbol at the call site.
-                other_csym = self.lookup(csym.name)
-                if not isinstance(other_csym, ContainerSymbol):
-                    # The symbol at the call site is not a Container so we
+                # We have a clash with another symbol in this table.
+                self_csym = self.lookup(csym.name)
+                if not isinstance(self_csym, ContainerSymbol):
+                    # The symbol in this table is not a Container so we
                     # can rename it.
                     self.rename_symbol(
-                            other_csym,
+                            self_csym,
                             self.next_available_name(
                                 csym.name, other_table=other_table))
                     # We can then add an import from the Container.
                     self.add(csym)
                 else:
-                    # If there is a wildcard import from this container in the
-                    # routine then we'll need that at the call site.
+                    # If there is a wildcard import from this container then
+                    # we'll need that in this Table too.
                     if csym.wildcard_import:
-                        other_csym.wildcard_import = True
+                        self_csym.wildcard_import = True
             else:
                 self.add(csym)
             # We must update all references to this ContainerSymbol
-            # so that they point to the one in the call site instead.
+            # so that they point to the one in this table instead.
             imported_syms = other_table.symbols_imported_from(csym)
             for isym in imported_syms:
                 if isym.name in self:
                     # We have a potential clash with a symbol imported
-                    # into the routine.
+                    # into the other table.
                     callsite_sym = self.lookup(isym.name)
                     if not callsite_sym.is_import:
-                        # The validate() method has already checked that we
-                        # don't have a clash between symbols of the same name
-                        # imported from different containers.
-                        # We don't support renaming an imported symbol but the
-                        # symbol at the call site can be renamed so we do that.
+                        # The calling merge() method has already checked that
+                        # we don't have a clash between symbols of the same
+                        # name imported from different containers. We don't
+                        # support renaming an imported symbol but the
+                        # symbol in this table can be renamed so we do that.
                         self.rename_symbol(
                             callsite_sym,
                             self.next_available_name(
@@ -669,7 +674,8 @@ class SymbolTable():
                         raise InternalError(
                             f"Symbol '{old_sym.name}' imported from "
                             f"'{callsite_csym.name}' has not been updated to "
-                            f"refer to that container at the call site.")
+                            f"refer to the corresponding container in the "
+                            f"current table.")
                 else:
                     # A Symbol with the same name already exists so we rename
                     # the one that we are adding. (We don't just create a new
@@ -711,7 +717,7 @@ class SymbolTable():
                 f"'{clashes[1].interface.container_symbol.name}'.")
 
         # Deal with any Container symbols first.
-        self._add_container_symbols(other_table)
+        self._add_container_symbols_from_table(other_table)
 
         # Copy each Symbol from the supplied table into this one, excluding
         # ContainerSymbols and, optionally, those that represent formal

@@ -633,10 +633,10 @@ def test_merge_container_syms():
     dpsym = DataSymbol("dp", INTEGER_TYPE, interface=ImportInterface(csym2))
     tab3.add(dpsym)
     tab1.merge(tab3)
-    wp = tab1.lookup("wp")
-    assert wp.interface.container_symbol.name == "slartibartfast"
-    dp = tab1.lookup("dp")
-    assert dp.interface.container_symbol.name == "slartibartfast"
+    wp3 = tab1.lookup("wp")
+    assert wp3.interface.container_symbol.name == "slartibartfast"
+    dp3 = tab1.lookup("dp")
+    assert dp3.interface.container_symbol.name == "slartibartfast"
     # A third table which imports wp from a *different* container.
     tab4 = SymbolTable()
     csym3 = ContainerSymbol("magrathea")
@@ -650,6 +650,56 @@ def test_merge_container_syms():
             "it from Container 'magrathea'" in str(err.value))
 
 
+def test_add_container_symbols_from_table():
+    '''Test that the _add_container_symbols_from_table method copies Container
+    symbols into the current table and updates any import interfaces.'''
+    table1 = SymbolTable()
+    table2 = SymbolTable()
+    csym = ContainerSymbol("ford")
+    # Put a Container symbol named 'arthur' in both tables.
+    csym2 = ContainerSymbol("arthur")
+    csym3 = csym2.copy()
+    # The one in table2 will have a wildcard import.
+    # pylint: disable=no-member
+    csym2.wildcard_import = True
+    table1.add(csym3)
+    aclash = DataSymbol("aclash", INTEGER_TYPE)
+    table1.add(aclash)
+    asym = DataSymbol("prefect", INTEGER_TYPE, interface=ImportInterface(csym))
+    bsym = DataSymbol("dent", INTEGER_TYPE, interface=ImportInterface(csym2))
+    table2.add(csym)
+    table2.add(csym2)
+    table2.add(asym)
+    table2.add(bsym)
+    # Add a ContainerSymbol that will clash with a DataSymbol in the first
+    # table.
+    cclash = ContainerSymbol("aclash")
+    # Add an import of a Symbol that will also clash with a DataSymbol in
+    # the first table. As it is imported, we can't (currently) rename it so
+    # we rename the Symbol in the first table.
+    bclash = DataSymbol("bclash", INTEGER_TYPE,
+                        interface=ImportInterface(cclash))
+    table2.add(cclash)
+    table2.add(bclash)
+    bclash_in_1 = DataSymbol("bclash", INTEGER_TYPE)
+    table1.add(bclash_in_1)
+    table1._add_container_symbols_from_table(table2)
+    assert table1.lookup("ford") is csym
+    # The 'arthur' symbol object should still be the one originally in table1.
+    # However, it should now have a wildcard import.
+    assert table1.lookup("arthur") is csym3
+    assert csym3.wildcard_import
+    # Check that the import interface for a symbol in the second table has been
+    # updated to point to the container in the first table.
+    assert table2.lookup("dent").interface.container_symbol is csym3
+    assert table1.lookup("aclash") is cclash
+    # The original symbols should still be in the table but renamed.
+    assert aclash in table1.symbols
+    assert aclash.name != "aclash"
+    assert bclash_in_1 in table1.symbols
+    assert bclash_in_1.name != "bclash"
+
+
 def test_add_symbols_from_table():
     '''Test for the 'internal' _add_symbols_from_table() method.'''
     table1 = SymbolTable()
@@ -658,9 +708,15 @@ def test_add_symbols_from_table():
     csym2 = csym.copy()
     table1.add(csym)
     table2.add(csym2)
+    table1.add(DataSymbol("prefect", INTEGER_TYPE,
+                          interface=ImportInterface(csym2)))
     table2.add(DataSymbol("prefect", INTEGER_TYPE,
                           interface=ImportInterface(csym2)))
-    table1._add_symbols_from_table(table2)
+    with pytest.raises(InternalError) as err:
+        table1._add_symbols_from_table(table2)
+    assert ("Symbol 'prefect' imported from 'ford' has not been updated to "
+            "refer to the corresponding container in the current table."
+            in str(err.value))
 
 
 def test_swap_symbol_properties():
