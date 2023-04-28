@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2022, Science and Technology Facilities Council
+# Copyright (c) 2019-2023, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -220,7 +220,7 @@ class OpenCLWriter(CWriter):
                                       set(symtab.precision_datasymbols))
         if unresolved_datasymbols:
             symbols_txt = ", ".join(
-                ["'" + sym.name + "'" for sym in unresolved_datasymbols])
+                [f"'{sym.name}'" for sym in unresolved_datasymbols])
             raise VisitorError(
                 f"Cannot generate OpenCL because the symbol table contains "
                 f"unresolved data entries (i.e. that have no defined "

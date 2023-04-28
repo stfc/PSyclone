@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022, Science and Technology Facilities Council.
+# Copyright (c) 2022-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
+# Modified: S. Siso, STFC Daresbury Lab
 
 '''
 This module contains the HoistLocalArraysTrans transformation.
@@ -40,7 +41,6 @@ This module contains the HoistLocalArraysTrans transformation.
 
 from psyclone.psyGen import Transformation
 from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import (Routine, Container, ArrayReference, Range,
                                   FileContainer, IfBlock, UnaryOperation,
                                   CodeBlock, ACCRoutineDirective, Literal,

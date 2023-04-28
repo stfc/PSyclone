@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+# Copyright (c) 2017-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -38,7 +38,6 @@
 
 ''' Perform py.test tests on the psyclone.psyir.symbols.symboltable file '''
 
-from __future__ import absolute_import
 import re
 import os
 from collections import OrderedDict
@@ -1132,11 +1131,20 @@ def test_unresolved_datasymbols():
                       interface=UnresolvedInterface())
     sym_table.add(rdef)
     assert sym_table.unresolved_datasymbols == [rdef]
+
+
+def test_precision_datasymbols():
+    ''' Tests for the precision_datasymbols method. '''
+    sym_table = SymbolTable()
+    # Add a precision symbol
+    rdef = DataSymbol("r_def", INTEGER_TYPE,
+                      interface=UnresolvedInterface())
+    sym_table.add(rdef)
     # Add a symbol that uses r_def for its precision
     scalar_type = ScalarType(ScalarType.Intrinsic.REAL, rdef)
     sym_table.add(DataSymbol("s2", scalar_type))
     # By default we should get this precision symbol
-    assert sym_table.unresolved_datasymbols == [rdef]
+    assert sym_table.precision_datasymbols == [rdef]
 
 
 def test_abstract_properties():
@@ -1722,6 +1730,7 @@ def test_resolve_imports(fortran_reader, tmpdir, monkeypatch):
             integer, save, pointer :: b_2
             integer :: not_used1
             integer :: not_used2
+            integer :: not_used3
         end module b_mod
         ''')
     psyir = fortran_reader.psyir_from_source('''
@@ -1790,6 +1799,16 @@ def test_resolve_imports(fortran_reader, tmpdir, monkeypatch):
     # We still haven't resolved anything inside a_mod or the b_1 symbol
     assert not isinstance(a_1, DataSymbol)
     assert not isinstance(b_1, DataSymbol)
+
+    # Resolve only 'not_used3' from wildcard imports
+    subroutine.symbol_table.resolve_imports(
+            symbol_target=Symbol('not_used3'))
+    not_used3 = subroutine.symbol_table.lookup('not_used3')
+    assert isinstance(not_used3, DataSymbol)
+    assert isinstance(not_used3.interface, ImportInterface)
+    # This still does not resolve the other symbols in the same module
+    assert not isinstance(b_1, DataSymbol)
+    assert not isinstance(b_2, DataSymbol)
 
     # Resolve only b_2 symbol info
     subroutine.symbol_table.resolve_imports(

@@ -97,7 +97,7 @@ def test_symbol_interface_setter_and_is_properties():
     including raising an exception if the input is of the wrong
     type. Also use this to test the is_automatic, is_import and
     is_argument, is_unresolved, is_modulevar, is_static,
-    is_commonblock, is_unknown properties.
+    is_commonblock, is_unknown_interface properties.
 
     '''
     symbol = Symbol('sym1')
@@ -108,7 +108,7 @@ def test_symbol_interface_setter_and_is_properties():
     assert not symbol.is_modulevar
     assert not symbol.is_static
     assert not symbol.is_commonblock
-    assert not symbol.is_unknown
+    assert not symbol.is_unknown_interface
 
     symbol.interface = ImportInterface(ContainerSymbol("my_mod"))
     assert not symbol.is_automatic
@@ -118,7 +118,7 @@ def test_symbol_interface_setter_and_is_properties():
     assert not symbol.is_modulevar
     assert not symbol.is_static
     assert not symbol.is_commonblock
-    assert not symbol.is_unknown
+    assert not symbol.is_unknown_interface
 
     symbol.interface = ArgumentInterface()
     assert not symbol.is_automatic
@@ -128,7 +128,7 @@ def test_symbol_interface_setter_and_is_properties():
     assert not symbol.is_modulevar
     assert not symbol.is_static
     assert not symbol.is_commonblock
-    assert not symbol.is_unknown
+    assert not symbol.is_unknown_interface
 
     symbol.interface = UnresolvedInterface()
     assert not symbol.is_automatic
@@ -138,7 +138,7 @@ def test_symbol_interface_setter_and_is_properties():
     assert not symbol.is_modulevar
     assert not symbol.is_static
     assert not symbol.is_commonblock
-    assert not symbol.is_unknown
+    assert not symbol.is_unknown_interface
 
     symbol.interface = DefaultModuleInterface()
     assert not symbol.is_automatic
@@ -148,7 +148,7 @@ def test_symbol_interface_setter_and_is_properties():
     assert symbol.is_modulevar
     assert not symbol.is_static
     assert not symbol.is_commonblock
-    assert not symbol.is_unknown
+    assert not symbol.is_unknown_interface
 
     symbol.interface = StaticInterface()
     assert not symbol.is_automatic
@@ -158,7 +158,7 @@ def test_symbol_interface_setter_and_is_properties():
     assert not symbol.is_modulevar
     assert symbol.is_static
     assert not symbol.is_commonblock
-    assert not symbol.is_unknown
+    assert not symbol.is_unknown_interface
 
     symbol.interface = CommonBlockInterface()
     assert not symbol.is_automatic
@@ -168,7 +168,7 @@ def test_symbol_interface_setter_and_is_properties():
     assert not symbol.is_modulevar
     assert not symbol.is_static
     assert symbol.is_commonblock
-    assert not symbol.is_unknown
+    assert not symbol.is_unknown_interface
 
     symbol.interface = UnknownInterface()
     assert not symbol.is_automatic
@@ -178,7 +178,7 @@ def test_symbol_interface_setter_and_is_properties():
     assert not symbol.is_modulevar
     assert not symbol.is_static
     assert not symbol.is_commonblock
-    assert symbol.is_unknown
+    assert symbol.is_unknown_interface
 
     with pytest.raises(TypeError) as info:
         symbol.interface = "hello"

@@ -936,7 +936,7 @@ class SymbolTable():
     def symbols(self):
         '''
         :returns: list of symbols.
-        :rtype: list of :py:class:`psyclone.psyir.symbols.Symbol`
+        :rtype: List[:py:class:`psyclone.psyir.symbols.Symbol`]
         '''
         return list(self._symbols.values())
 
@@ -944,7 +944,7 @@ class SymbolTable():
     def datasymbols(self):
         '''
         :returns: list of symbols representing data variables.
-        :rtype: list of :py:class:`psyclone.psyir.symbols.DataSymbol`
+        :rtype: List[:py:class:`psyclone.psyir.symbols.DataSymbol`]
         '''
         return [sym for sym in self._symbols.values() if
                 isinstance(sym, DataSymbol)]
@@ -953,7 +953,7 @@ class SymbolTable():
     def automatic_datasymbols(self):
         '''
         :returns: list of symbols representing automatic variables.
-        :rtype: list of :py:class:`psyclone.psyir.symbols.DataSymbol`
+        :rtype: List[:py:class:`psyclone.psyir.symbols.DataSymbol`]
         '''
         return [sym for sym in self.datasymbols if sym.is_automatic]
 
@@ -961,7 +961,7 @@ class SymbolTable():
     def argument_datasymbols(self):
         '''
         :returns: list of symbols representing arguments.
-        :rtype: list of :py:class:`psyclone.psyir.symbols.DataSymbol`
+        :rtype: List[:py:class:`psyclone.psyir.symbols.DataSymbol`]
         '''
         return [sym for sym in self.datasymbols if sym.is_argument]
 
@@ -970,7 +970,7 @@ class SymbolTable():
         '''
         :returns: list of symbols that have an imported interface (are \
             associated with data that exists outside the current scope).
-        :rtype: list of :py:class:`psyclone.psyir.symbols.Symbol`
+        :rtype: List[:py:class:`psyclone.psyir.symbols.Symbol`]
 
         '''
         return [sym for sym in self.symbols if sym.is_import]
@@ -979,7 +979,7 @@ class SymbolTable():
     def unresolved_datasymbols(self):
         '''
         :returns: list of symbols representing unresolved variables.
-        :rtype: list of :py:class:`psyclone.psyir.symbols.DataSymbol`
+        :rtype: List[:py:class:`psyclone.psyir.symbols.DataSymbol`]
         '''
         return [sym for sym in self.datasymbols if sym.is_unresolved]
 
@@ -988,7 +988,7 @@ class SymbolTable():
         '''
         :returns: list of all symbols used to define the precision of \
                   other symbols within the table.
-        :rtype: list of :py:class:`psyclone.psyir.symbols.DataSymbol`
+        :rtype: List[:py:class:`psyclone.psyir.symbols.DataSymbol`]
 
         '''
         # Accumulate into a set so as to remove any duplicates
@@ -1004,7 +1004,7 @@ class SymbolTable():
     def containersymbols(self):
         '''
         :returns: a list of the ContainerSymbols present in the Symbol Table.
-        :rtype: list of :py:class:`psyclone.psyir.symbols.ContainerSymbol`
+        :rtype: List[:py:class:`psyclone.psyir.symbols.ContainerSymbol`]
         '''
         return [sym for sym in self.symbols if isinstance(sym,
                                                           ContainerSymbol)]
@@ -1013,7 +1013,7 @@ class SymbolTable():
     def datatypesymbols(self):
         '''
         :returns: the DataTypeSymbols present in the Symbol Table.
-        :rtype: list of :py:class:`psyclone.psyir.symbols.DataTypeSymbol`
+        :rtype: List[:py:class:`psyclone.psyir.symbols.DataTypeSymbol`]
         '''
         return [sym for sym in self.symbols if isinstance(sym, DataTypeSymbol)]
 
@@ -1021,7 +1021,7 @@ class SymbolTable():
     def iteration_indices(self):
         '''
         :returns: list of symbols representing kernel iteration indices.
-        :rtype: list of :py:class:`psyclone.psyir.symbols.DataSymbol`
+        :rtype: List[:py:class:`psyclone.psyir.symbols.DataSymbol`]
 
         :raises NotImplementedError: this method is abstract.
         '''
@@ -1033,7 +1033,7 @@ class SymbolTable():
     def data_arguments(self):
         '''
         :returns: list of symbols representing kernel data arguments.
-        :rtype: list of :py:class:`psyclone.psyir.symbols.DataSymbol`
+        :rtype: List[:py:class:`psyclone.psyir.symbols.DataSymbol`]
 
         :raises NotImplementedError: this method is abstract.
         '''

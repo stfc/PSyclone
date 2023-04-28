@@ -796,9 +796,11 @@ def test_process_declarations():
 
 
 @pytest.mark.usefixtures("f2008_parser")
-def test_declarations_with_initialisations(fortran_reader, fortran_writer):
+def test_declarations_with_initialisations(fortran_reader):
     '''Test that Fparser2Reader keeps all the variable initialisation
-    expressions, even thought some may end up in UnknownTypes for now.
+    expressions, even though some may end up in UnknownTypes for now
+    because we don't support variable initialisations that are not
+    parameters.
     '''
 
     psyir = fortran_reader.psyir_from_source(
@@ -1353,7 +1355,7 @@ def test_process_save_attribute_declarations(parser):
                       StaticInterface)
 
     # Test when is part of an UnknownDataType (target attribute in this case)
-    # it becomes and UnknownInterface
+    # it becomes an UnknownInterface
     reader = FortranStringReader("integer, target :: var5")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])

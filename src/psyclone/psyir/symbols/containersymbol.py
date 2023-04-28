@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+# Copyright (c) 2017-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -38,7 +38,6 @@
 
 ''' This module contains the ContainerSymbol and its interfaces.'''
 
-from __future__ import absolute_import
 from os import listdir, path
 from psyclone.psyir.symbols.symbol import Symbol, SymbolError
 from psyclone.psyir.symbols.interfaces import SymbolInterface

@@ -31,7 +31,8 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author J. Henrichs, Bureau of Meteorology
+# Author: J. Henrichs, Bureau of Meteorology
+# Modified: S. Siso, STFC Daresbury Lab
 
 ''' This module tests the driver creation for extracted kernels.'''
 

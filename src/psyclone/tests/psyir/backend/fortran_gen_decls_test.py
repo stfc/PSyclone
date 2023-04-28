@@ -263,9 +263,8 @@ def test_gen_decls_routine_wrong_interface(fortran_writer):
     symbol_table.add(rsym)
     with pytest.raises(VisitorError) as info:
         _ = fortran_writer.gen_decls(symbol_table)
-    assert ("Routine symbol 'arg_sub' is passed as an argument (has an "
-            "ArgumentInterface). This is not supported by the Fortran "
-            "back-end." in str(info.value))
+    assert (" Routine symbol 'arg_sub' has 'Argument(Access.UNKNOWN)'. This "
+            "is not supported by the Fortran back-end." in str(info.value))
 
 
 def test_gen_decls_static_variables(fortran_writer):
@@ -274,7 +273,6 @@ def test_gen_decls_static_variables(fortran_writer):
 
     '''
     symbol_table = SymbolTable()
-    # Add a routine symbol with an unsupported ArgumentInterface
     sym = DataSymbol("v1", datatype=INTEGER_TYPE, interface=StaticInterface())
     symbol_table.add(sym)
     assert "integer, save :: v1" in fortran_writer.gen_decls(symbol_table)

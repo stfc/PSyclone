@@ -674,16 +674,16 @@ def test_fw_gen_vardecl(fortran_writer):
                             ContainerSymbol("my_module")))
     with pytest.raises(VisitorError) as excinfo:
         _ = fortran_writer.gen_vardecl(symbol)
-    assert ("Symbol 'dummy1' has a DeferredType  and we can not generate "
-            "a declaration for  DeferredTypes." in str(excinfo.value))
+    assert ("Symbol 'dummy1' has a DeferredType and we can not generate "
+            "a declaration for DeferredTypes." in str(excinfo.value))
 
     # An unresolved symbol
     symbol = DataSymbol("dummy1", DeferredType(),
                         interface=UnresolvedInterface())
     with pytest.raises(VisitorError) as excinfo:
         _ = fortran_writer.gen_vardecl(symbol)
-    assert ("Symbol 'dummy1' has a DeferredType  and we can not generate a "
-            "declaration for  DeferredTypes." in str(excinfo.value))
+    assert ("Symbol 'dummy1' has a DeferredType and we can not generate a "
+            "declaration for DeferredTypes." in str(excinfo.value))
 
     # An array with a mixture of deferred and explicit extents
     array_type = ArrayType(INTEGER_TYPE, [2, ArrayType.Extent.DEFERRED])

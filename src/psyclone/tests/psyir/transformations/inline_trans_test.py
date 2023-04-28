@@ -43,7 +43,7 @@ import pytest
 from psyclone.configuration import Config
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import Call, IntrinsicCall, Reference, Routine
-from psyclone.psyir.symbols import DataSymbol, DeferredType
+from psyclone.psyir.symbols import DataSymbol, DeferredType, AutomaticInterface
 from psyclone.psyir.transformations import (InlineTrans,
                                             TransformationError)
 from psyclone.tests.utilities import Compile
@@ -1621,9 +1621,9 @@ def test_validate_codeblock(fortran_reader):
             "cannot be inlined" in str(err.value))
 
 
-def test_validate_unknowntype_var(fortran_reader):
+def test_validate_unknowntype_argument(fortran_reader):
     '''
-    Test that validate rejects a subroutine with UnknownType variables.
+    Test that validate rejects a subroutine with arguments of UnknownType.
 
     '''
     code = (
@@ -1646,9 +1646,49 @@ def test_validate_unknowntype_var(fortran_reader):
     inline_trans = InlineTrans()
     with pytest.raises(TransformationError) as err:
         inline_trans.validate(routine)
-    assert ("Routine 'sub' cannot be inlined because it contains a Symbol "
-            "'x' which is of unknown type: 'REAL, POINTER, INTENT(INOUT) :: x'"
+    assert ("Routine 'sub' cannot be inlined because it contains a Symbol 'x' "
+            "which is an Argument of UnknownType: 'REAL, POINTER, "
+            "INTENT(INOUT) :: x'" in str(err.value))
+
+
+def test_validate_unknowninterface(fortran_reader, fortran_writer):
+    '''
+    Test that validate rejects a subroutine with arguments of UnknownType.
+
+    '''
+    code = (
+        "module test_mod\n"
+        "contains\n"
+        "subroutine main\n"
+        "  call sub()\n"
+        "end subroutine main\n"
+        "subroutine sub()\n"
+        "  real, pointer :: x\n"
+        "  x = x + 1.0\n"
+        "end subroutine sub\n"
+        "end module test_mod\n"
+    )
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Call)[0]
+    inline_trans = InlineTrans()
+    with pytest.raises(TransformationError) as err:
+        inline_trans.validate(routine)
+    assert (" Routine 'sub' cannot be inlined because it contains a Symbol "
+            "'x' with an UnknownInterface: 'REAL, POINTER :: x'"
             in str(err.value))
+
+    # But if the interface is known, it has no problem inlining it
+    xvar = psyir.walk(Routine)[1].symbol_table.lookup("x")
+    xvar.interface = AutomaticInterface()
+    inline_trans.apply(routine)
+    assert fortran_writer(psyir.walk(Routine)[0]) == """\
+subroutine main()
+  REAL, POINTER :: x
+
+  x = x + 1.0
+
+end subroutine main
+"""
 
 
 def test_validate_static_var(fortran_reader):

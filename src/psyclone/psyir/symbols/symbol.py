@@ -374,7 +374,7 @@ class Symbol():
         return isinstance(self._interface, UnresolvedInterface)
 
     @property
-    def is_unknown(self):
+    def is_unknown_interface(self):
         '''
         :returns: whether the Symbol has an UnknownInterface.
         :rtype: bool

@@ -47,7 +47,8 @@ from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.symbols import (ContainerSymbol, DataSymbol, ScalarType,
                                     RoutineSymbol, ImportInterface, Symbol,
                                     ArrayType, INTEGER_TYPE, DeferredType,
-                                    UnknownType, StaticInterface)
+                                    UnknownType, StaticInterface,
+                                    UnknownInterface, ArgumentInterface)
 from psyclone.psyir.transformations.reference2arrayrange_trans import (
     Reference2ArrayRangeTrans)
 from psyclone.psyir.transformations.transformation_error import (
@@ -108,8 +109,9 @@ class InlineTrans(Transformation):
 
         * the routine is not in the same file as the call;
         * the routine contains an early Return statement;
-        * the routine contains a variable with UnknownType;
+        * the routine contains a variable with UnknownInterface;
         * the routine contains a variable with StaticInterface;
+        * the routine contains an UnknwonType variable with ArgumentInterface;
         * the routine has a named argument;
         * the shape of any array arguments as declared inside the routine does
           not match the shape of the arrays being passed as arguments;
@@ -705,9 +707,11 @@ class InlineTrans(Transformation):
         :raises TransformationError: if the called routine has a named \
             argument.
         :raises TransformationError: if any of the variables declared within \
-            the called routine are of UnknownType.
+            the called routine are of UnknownInterface.
         :raises TransformationError: if any of the variables declared within \
             the called routine have a StaticInterface.
+        :raises TransformationError: if any of the subroutine arguments is of \
+            UnknownType.
         :raises TransformationError: if a symbol of a given name is imported \
             from different containers at the call site and within the routine.
         :raises TransformationError: if the routine accesses an un-resolved \
@@ -766,16 +770,26 @@ class InlineTrans(Transformation):
         table = node.scope.symbol_table
         routine_table = routine.symbol_table
 
-        # Check that there are no static variables in the routine (because we
-        # don't know whether the routine is called from other places).
-        # TODO #2008 - at the moment we only check for symbols of UnknownType
-        # which is safe but possibly overkill.
         for sym in routine_table.datasymbols:
-            if isinstance(sym.datatype, UnknownType):
+            # We don't inline symbols that have an UnknownType and are
+            # arguments since we don't know if a simple assingment if
+            # enough (e.g. pointers)
+            if isinstance(sym.interface, ArgumentInterface):
+                if isinstance(sym.datatype, UnknownType):
+                    raise TransformationError(
+                        f"Routine '{routine.name}' cannot be inlined because "
+                        f"it contains a Symbol '{sym.name}' which is an "
+                        f"Argument of UnknownType: "
+                        f"'{sym.datatype.declaration}'")
+            # We don't inline symbols that have an UnknownInterface, as we
+            # don't know how they are brought into this scope.
+            if isinstance(sym.interface, UnknownInterface):
                 raise TransformationError(
                     f"Routine '{routine.name}' cannot be inlined because it "
-                    f"contains a Symbol '{sym.name}' which is of unknown type:"
-                    f" '{sym.datatype.declaration}')")
+                    f"contains a Symbol '{sym.name}' with an UnknownInterface:"
+                    f" '{sym.datatype.declaration}'")
+            # Check that there are no static variables in the routine (because
+            # we don't know whether the routine is called from other places).
             if isinstance(sym.interface, StaticInterface):
                 raise TransformationError(
                     f"Routine '{routine.name}' cannot be inlined because it "
