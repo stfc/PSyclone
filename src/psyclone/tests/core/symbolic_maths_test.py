@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -36,8 +36,6 @@
 
 
 ''' Module containing py.test tests for the symbolic maths class.'''
-
-from __future__ import print_function, absolute_import
 
 import pytest
 from sympy import solvers, Symbol
@@ -425,3 +423,19 @@ def test_symbolic_maths_expand_error(fortran_reader):
     psyir = fortran_reader.psyir_from_source(source)
     sym_maths = SymbolicMaths.get()
     sym_maths.expand(psyir.children[0][0].rhs)
+
+
+def test_symbolic_maths_array_and_array_index(fortran_reader):
+    '''Test having an expression that uses a whole array and
+    the same array with an index, e.g. : `a(i) + a`.
+    '''
+    source = (
+        "program test_prog\n"
+        "  use some_mod\n"
+        "  x = a(i)\n"
+        "  y = a\n"
+        "end program test_prog\n")
+    psyir = fortran_reader.psyir_from_source(source)
+    sym_maths = SymbolicMaths.get()
+    assert not sym_maths.equal(psyir.children[0][0].rhs,
+                               psyir.children[0][1].rhs)
