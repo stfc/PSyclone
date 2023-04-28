@@ -77,6 +77,7 @@ class ModuleManager:
         # checked. It is stored as an ordered dict to make it easier to avoid
         # duplicating entries.
         self._remaining_search_paths = OrderedDict()
+        self._original_search_paths = []
 
         self._ignore_modules = set()
 
@@ -102,11 +103,13 @@ class ModuleManager:
                 raise IOError(f"Directory '{directory}' does not exist or "
                               f"cannot be read.")
             self._remaining_search_paths[directory] = 1
+            self._original_search_paths.append(directory)
             if recursive:
                 for root, dirs, _ in os.walk(directory):
                     for current_dir in dirs:
                         new_dir = os.path.join(root, current_dir)
                         self._remaining_search_paths[new_dir] = 1
+                        self._original_search_paths.append(new_dir)
 
     # ------------------------------------------------------------------------
     def _add_all_files_from_dir(self, directory):
@@ -130,7 +133,11 @@ class ModuleManager:
                 all_modules = self.get_modules_in_file(full_path)
                 for module in all_modules:
                     # Pre-processed file should always take precedence
-                    # over non-pre-processed files:
+                    # over non-pre-processed files. So if a module already
+                    # exists in the mapping, only overwrite it if the new
+                    # file is pre-processed (i.e. .f90). This still means that
+                    # if files are not preprocessed (.F90), they will still be
+                    # added (but might cause problems parsing later).
                     if module not in self._mod_2_filename or \
                             ext in [".f90", ".x90"]:
                         mod_info = ModuleInfo(module, full_path)
@@ -190,7 +197,10 @@ class ModuleManager:
                 return mod_info
 
         raise FileNotFoundError(f"Could not find source file for module "
-                                f"'{module_name}'.")
+                                f"'{module_name}' in any of the directories "
+                                f"'{', '.join(self._original_search_paths)}'. "
+                                f"You can add search paths using the '-d' "
+                                f"command line option.")
 
     # ------------------------------------------------------------------------
     def get_modules_in_file(self, filename):

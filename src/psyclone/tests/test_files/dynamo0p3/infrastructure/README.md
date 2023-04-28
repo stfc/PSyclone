@@ -14,7 +14,9 @@ will cause parsing failures or create incorrect parse trees.
 In LFRic, all files will be pre-processed before PSyclone is invoked.
 In order to allow tests to work with this infrastructure library
 without requiring pre-processing, the pre-processed files are added
-in addition to the original files to the repository. The Makefile
+in addition to the original files to the repository. This is only done
+in order to make sure that our tests work in an environment (e.g. github
+actions) where there might be no pre-processor installed. The Makefile
 contains a target 'preprocess' which will process all ``.F90``
 files and create the corresponding ``.f90`` files. Since the Makefile
 relies on time-stamps, you need to provide the ``-B`` flag to ``make``
