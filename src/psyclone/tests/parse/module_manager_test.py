@@ -233,7 +233,9 @@ def test_mod_manager_get_module_info():
 
     with pytest.raises(FileNotFoundError) as err:
         mod_man.get_module_info("does_not_exist")
-    assert ("Could not find source file for module 'does_not_exist'."
+    assert ("Could not find source file for module 'does_not_exist' "
+            "in any of the directories 'd1, d1/d3, d2, d2/d4'. You can "
+            "add search paths using the '-d' command line option."
             in str(err.value))
 
 
