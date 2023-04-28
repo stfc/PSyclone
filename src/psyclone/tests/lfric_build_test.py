@@ -52,13 +52,11 @@ def protect_infrastructure_path_fixture(monkeypatch):
     # LFRicBuild constructor doesn't attempt to trigger it.
     monkeypatch.setattr(LFRicBuild, "_infrastructure_built", True)
     # Pretend that compilation testing is enabled.
-    if not Compile.TEST_COMPILE:
-        monkeypatch.setattr(Compile, "TEST_COMPILE", True)
-    else:
-        # If compilation testing is enabled then the infrastructure lib will
-        # already have been built so we use monkeypatch to ensure its
-        # location is automatically restored at the end of this test.
-        monkeypatch.setattr(LFRicBuild, "_compilation_path", "/no/path")
+    monkeypatch.setattr(Compile, "TEST_COMPILE", True)
+    # If compilation testing is enabled then the infrastructure lib will
+    # already have been built so we use monkeypatch to ensure its
+    # location is automatically restored at the end of this test.
+    monkeypatch.setattr(LFRicBuild, "_compilation_path", "/no/path")
 
 
 def test_lf_build_get_infrastructure_flags(monkeypatch, tmpdir):
@@ -110,7 +108,9 @@ def test_lfric_build_compiler_flags(tmpdir, monkeypatch):
 @pytest.mark.usefixtures("enable_compilation")
 def test_lfric_build_infrastructure(tmpdir, monkeypatch):
     '''
-    Test the _build_infrastructure method when compilation appears to proceed.
+    Test the _build_infrastructure method when compilation appears to proceed
+    (i.e. the Popen.subprocess() command completes without raising an
+    exception). Test with a return status of both 0 (success) and 1 (fail).
 
     '''
     class Build():
@@ -145,8 +145,11 @@ def test_lfric_build_infrastructure(tmpdir, monkeypatch):
     with pytest.raises(CompileError) as err:
         builder._build_infrastructure()
     assert "Compile error: fake_out" in str(err.value)
-    # Repeat but alter the Build class to mock a successful build.
+    # Repeat but alter the Build class to mock a successful build (return
+    # status of 0).
     monkeypatch.setattr(Build, "RETURN_CODE", 0)
     monkeypatch.setattr(LFRicBuild, "_infrastructure_built", False)
     builder._build_infrastructure()
+    # Check that the '_infrastructure_built' flag is set after a successful
+    # build.
     assert LFRicBuild._infrastructure_built is True

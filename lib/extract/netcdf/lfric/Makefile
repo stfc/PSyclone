@@ -27,6 +27,7 @@
 #------------------------------------------------------------------------------
 # Author: J. Henrichs, Australian Bureau of Meteorology
 # Modified: I. Kavcic, Met Office
+#           A. R. Porter, STFC Daresbury Lab
 
 # This Makefile picks up the compiler to use plus any flags from
 # environment variables. e.g.:
@@ -60,7 +61,7 @@ INF_LIB = $(LFRIC_PATH)/lib$(INF_LIB_NAME).a
 # This will add the required include flags to $(LFRIC_INCLUDE_FLAGS)
 include $(LFRIC_PATH)/lfric_include_flags.inc
 
-LFRIC_INCLUDE_FLAGS += $$(nf-config --fflags) -I$(INF_INC)/field
+LFRIC_INCLUDE_FLAGS += $$(nf-config --fflags)
 PSYDATA_LIB_NAME = _extract
 PSYDATA_LIB = lib$(PSYDATA_LIB_NAME).a
 
