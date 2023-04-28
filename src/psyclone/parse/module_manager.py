@@ -132,7 +132,11 @@ class ModuleManager:
                 all_modules = self.get_modules_in_file(full_path)
                 for module in all_modules:
                     # Pre-processed file should always take precedence
-                    # over non-pre-processed files:
+                    # over non-pre-processed files. So if a module already
+                    # exists in the mapping, only overwrite it if the new
+                    # file is pre-processed (i.e. .f90). This still means that
+                    # if files are not preprocessed (.F90), they will still be
+                    # added (but might cause problems parsing later).
                     if module not in self._mod_2_filename or \
                             ext in [".f90", ".x90"]:
                         mod_info = ModuleInfo(module, full_path)
