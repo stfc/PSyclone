@@ -46,7 +46,7 @@ from fparser.two.Fortran2003 import (Function_Subprogram, Interface_Block,
                                      Interface_Stmt, Procedure_Stmt,
                                      Subroutine_Subprogram, Use_Stmt)
 from fparser.two.parser import ParserFactory
-from fparser.two.utils import walk
+from fparser.two.utils import FortranSyntaxError, walk
 
 from psyclone.errors import InternalError, PSycloneError
 from psyclone.psyir.nodes import FileContainer, Routine
@@ -324,7 +324,7 @@ class ModuleInfo:
             try:
                 self._psyir = \
                     self._processor.generate_psyir(self.get_parse_tree())
-            except (KeyError, SymbolError, InternalError):
+            except (KeyError, SymbolError, InternalError, FortranSyntaxError):
                 self._psyir = FileContainer(os.path.basename(self._filename))
             # Now update all RoutineInfo objects:
             for routine in self._psyir.walk(Routine):
