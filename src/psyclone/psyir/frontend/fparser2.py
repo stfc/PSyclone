@@ -97,6 +97,8 @@ INTENT_MAPPING = {"in": ArgumentInterface.Access.READ,
                   "out": ArgumentInterface.Access.WRITE,
                   "inout": ArgumentInterface.Access.READWRITE}
 
+#: Those routine prefix specifications that we support.
+SUPPORTED_ROUTINE_PREFIXES = ["ELEMENTAL", "PURE", "IMPURE"]
 
 # TODO #1987. It may be that this method could be made more general so
 # that it works for more intrinsics, to help minimise the number of
@@ -835,11 +837,27 @@ def _process_routine_symbols(module_ast, symbol_table, visibility_map):
     type_map = {Fortran2003.Subroutine_Subprogram: NoType(),
                 Fortran2003.Function_Subprogram: DeferredType()}
     for routine in routines:
+        # Check any prefixes on the routine declaration.
+        prefix = routine.children[0].children[0]
+        # Fortran routines are impure by default.
+        is_pure = False
+        # By default, Fortran routines are not elemental.
+        is_elemental = False
+        if prefix:
+            for child in prefix.children:
+                if isinstance(child, Fortran2003.Prefix_Spec):
+                    if child.string == "PURE":
+                        is_pure = True
+                    elif child.string == "IMPURE":
+                        is_pure = False
+                    elif child.string == "ELEMENTAL":
+                        is_elemental = True
         name = str(routine.children[0].children[1]).lower()
         vis = visibility_map.get(name, symbol_table.default_visibility)
         # This routine is defined within this scoping unit and therefore has a
         # local interface.
         rsymbol = RoutineSymbol(name, type_map[type(routine)], visibility=vis,
+                                is_pure=is_pure, is_elemental=is_elemental,
                                 interface=LocalInterface())
         symbol_table.add(rsymbol)
 
@@ -4232,19 +4250,24 @@ class Fparser2Reader():
 
         self.process_declarations(routine, decl_list, arg_list)
 
-        # Check any prefixes on the routine declaration.
-        prefix = node.children[0].children[0]
-        base_type = None
-        if prefix:
-            for child in prefix.children:
-                if isinstance(child, Fortran2003.Prefix_Spec):
-                    raise NotImplementedError
-                else:
-                    base_type, _ = self._process_type_spec(parent,
-                                                           prefix.children[0])
-
         # If this is a function then work out the return type
         if isinstance(node, Fortran2003.Function_Subprogram):
+            # Check whether the function-stmt has a prefix specifying the
+            # return type (other prefixes are handled in
+            # _process_routine_symbols()).
+            prefix = node.children[0].children[0]
+            if prefix:
+                for child in prefix.children:
+                    if isinstance(child, Fortran2003.Prefix_Spec):
+                        if child.string not in SUPPORTED_ROUTINE_PREFIXES:
+                            # TODO what about MODULE?
+                            raise NotImplementedError()
+                    else:
+                        base_type, _ = self._process_type_spec(
+                            parent, prefix.children[0])
+            else:
+                base_type = None
+
             # Check whether the function-stmt has a suffix containing
             # 'RETURNS'
             suffix = node.children[0].children[3]

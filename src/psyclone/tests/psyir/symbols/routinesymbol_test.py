@@ -130,7 +130,8 @@ def test_routinesymbol_str():
             "roo: RoutineSymbol<Scalar<INTEGER, UNDEFINED>, pure=unknown, "
             "elemental=unknown>")
     type_sym = DataTypeSymbol("some_type", DeferredType())
-    routine_symbol = RoutineSymbol("roo", type_sym)
+    routine_symbol = RoutineSymbol("roo", type_sym, is_elemental=True,
+                                   is_pure=True)
     assert (routine_symbol.__str__() ==
-            "roo: RoutineSymbol<some_type: DataTypeSymbol, pure=unknown, "
-            "elemental=unknown>")
+            "roo: RoutineSymbol<some_type: DataTypeSymbol, pure=True, "
+            "elemental=True>")
