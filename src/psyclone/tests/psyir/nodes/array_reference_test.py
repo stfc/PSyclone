@@ -205,10 +205,10 @@ def test_array_is_lower_bound():
     expected.
 
     '''
-    one = Literal("1", INTEGER_TYPE)
+    two = Literal("2", INTEGER_TYPE)
     array = ArrayReference.create(DataSymbol("test",
                                              ArrayType(REAL_TYPE, [10])),
-                                  [one])
+                                  [two])
     with pytest.raises(TypeError) as info:
         array.is_lower_bound("hello")
     assert ("The index argument should be an integer but found 'str'."
@@ -217,29 +217,31 @@ def test_array_is_lower_bound():
     # not a range node at index 0
     assert not array.is_lower_bound(0)
 
+    one = Literal("1", INTEGER_TYPE)
     # range node does not have a binary operator for its start value
     array.children[0] = Range.create(one.copy(), one.copy(), one.copy())
-    assert not array.is_lower_bound(0)
+    assert array.is_lower_bound(0)
 
     # range node lbound references a different array
     array2 = ArrayReference.create(DataSymbol("test2",
                                               ArrayType(REAL_TYPE, [10])),
                                    [one.copy()])
     operator = BinaryOperation.create(
-        BinaryOperation.Operator.LBOUND, array2, one.copy())
+        BinaryOperation.Operator.LBOUND, Reference(array2.symbol),
+        one.copy())
     array.children[0] = Range.create(operator, one.copy(), one.copy())
     assert not array.is_lower_bound(0)
 
     # range node lbound references a different index
     operator = BinaryOperation.create(
-        BinaryOperation.Operator.LBOUND, array.copy(),
+        BinaryOperation.Operator.LBOUND, Reference(array.symbol),
         Literal("2", INTEGER_TYPE))
     array.children[0] = Range.create(operator, one.copy(), one.copy())
     assert not array.is_lower_bound(0)
 
     # all is well
     operator = BinaryOperation.create(
-        BinaryOperation.Operator.LBOUND, array.copy(), one.copy())
+        BinaryOperation.Operator.LBOUND, Reference(array.symbol), one.copy())
     array.children[0] = Range.create(operator, one.copy(), one.copy())
     assert array.is_lower_bound(0)
 
@@ -270,20 +272,20 @@ def test_array_is_upper_bound():
                                               ArrayType(REAL_TYPE, [10])),
                                    [one.copy()])
     operator = BinaryOperation.create(
-        BinaryOperation.Operator.UBOUND, array2, one.copy())
+        BinaryOperation.Operator.UBOUND, Reference(array2.symbol), one.copy())
     array.children[0] = Range.create(one.copy(), operator, one.copy())
     assert not array.is_upper_bound(0)
 
     # range node ubound references a different index
     operator = BinaryOperation.create(
-        BinaryOperation.Operator.UBOUND, array.copy(),
+        BinaryOperation.Operator.UBOUND, Reference(array.symbol),
         Literal("2", INTEGER_TYPE))
     array.children[0] = Range.create(one.copy(), operator, one.copy())
     assert not array.is_upper_bound(0)
 
     # all is well
     operator = BinaryOperation.create(
-        BinaryOperation.Operator.UBOUND, array.copy(), one.copy())
+        BinaryOperation.Operator.UBOUND, Reference(array.symbol), one.copy())
     array.children[0] = Range.create(one.copy(), operator, one.copy())
     assert array.is_upper_bound(0)
 

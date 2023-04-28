@@ -250,3 +250,32 @@ specialisations are possible:
     >>> # sym2.specialise(DataSymbol, datatype=INTEGER_TYPE, constant_value=3.14)
     >>> # The following statement is valid and constant_value is set to 3
     >>> sym2.specialise(DataSymbol, datatype=INTEGER_TYPE, constant_value=3)
+
+
+Routine Interfaces
+==================
+
+Fortran supports generic interfaces. The Fortran standard rule `R1203`
+says that: `interface-stmt = INTERFACE [ generic-spec ]` where
+`generic-spec` is either (`R1207`) a `generic-name` or one of
+`OPERATOR`, `ASSIGNMENT` or `dtio-spec` (see
+``https://wg5-fortran.org/N1601-N1650/N1601.pdf``).
+
+At the moment the PSyIR only captures such interfaces if they have a
+`generic-name`. Interfaces which do not have a `generic-name` cause
+the routine containing the interface to be put in a `CodeBlock` (see
+issue #1971 for one case).
+
+If the interface does have a generic name and `generic-name` is not
+already declared as a PSyIR symbol then the interface is captured as a
+`RoutineSymbol` named as `generic-name` with an
+`UnknownFortranType`. The `generic-name` may already be declared as a
+PSyIR symbol if it references a type declaration. In this case the
+interface is still captured as a `RoutineSymbol` with an
+`UnknownFortranType`, but the name of the `RoutineSymbol` is
+`_psyclone_internal_` followed by the `generic-name`, i.e. it is given
+an internal name. This should not clash with any other symbol names as
+names should not start with `_`. In both cases the content of the
+interface is captured as text in the `UnknownFortranType` so the
+`RoutineSymbol` name is not used in the Fortran backend.
+
