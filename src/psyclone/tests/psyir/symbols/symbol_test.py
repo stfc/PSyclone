@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2022, Science and Technology Facilities Council.
+# Copyright (c) 2020-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -46,7 +46,6 @@ is not tested here.
 '''
 
 
-from __future__ import absolute_import
 import pytest
 
 from psyclone.psyir.nodes import Container, Literal, KernelSchedule
@@ -346,7 +345,8 @@ def test_symbol_specialise():
     assert str(asym) == "a: Symbol<Local>"
     asym.specialise(RoutineSymbol)
     assert type(asym) is RoutineSymbol
-    assert str(asym) == "a: RoutineSymbol<NoType>"
+    assert (str(asym) == "a: RoutineSymbol<NoType, pure=unknown, "
+            "elemental=unknown>")
 
 
 @pytest.mark.parametrize("test_class", [Symbol, RoutineSymbol])

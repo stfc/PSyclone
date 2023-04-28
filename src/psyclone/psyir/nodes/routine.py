@@ -53,8 +53,6 @@ class Routine(Schedule, CommentableMixin):
     :param str name: the name of this routine.
     :param bool is_program: whether this Routine represents the entry point \
                             into a program (e.g. Fortran Program or C main()).
-    :param bool is_elemental: whether this Routine is 'elemental'.
-    :param bool is_pure: whether this Routine is 'pure' (has no side effects).
     :param kwargs: additional keyword arguments provided to the super class.
     :type kwargs: unwrapped dict.
 
@@ -65,8 +63,7 @@ class Routine(Schedule, CommentableMixin):
     _children_valid_format = "[Statement]*"
     _text_name = "Routine"
 
-    def __init__(self, name, is_program=False, is_elemental=False,
-                 is_pure=False, **kwargs):
+    def __init__(self, name, is_program=False, **kwargs):
         super().__init__(**kwargs)
 
         self._return_symbol = None
@@ -78,14 +75,6 @@ class Routine(Schedule, CommentableMixin):
             raise TypeError(f"Routine argument 'is_program' must be a bool "
                             f"but got '{type(is_program).__name__}'")
         self._is_program = is_program
-        if not isinstance(is_elemental, bool):
-            raise TypeError(f"Routine argument 'is_elemental' must be a bool "
-                            f"but got '{type(is_elemental).__name__}'")
-        self._elemental = is_elemental
-        if not isinstance(is_pure, bool):
-            raise TypeError(f"Routine argument 'is_pure' must be a bool "
-                            f"but got '{type(is_pure).__name__}'")
-        self._pure = is_pure
 
     def __eq__(self, other):
         '''
@@ -101,15 +90,13 @@ class Routine(Schedule, CommentableMixin):
         is_eq = super().__eq__(other)
         is_eq = is_eq and self.name == other.name
         is_eq = is_eq and self.is_program == other.is_program
-        is_eq = is_eq and self.is_pure == other.is_pure
-        is_eq = is_eq and self.is_elemental == other.is_elemental
         is_eq = is_eq and self.return_symbol == other.return_symbol
 
         return is_eq
 
     @classmethod
     def create(cls, name, symbol_table, children, is_program=False,
-               is_elemental=False, is_pure=False, return_symbol_name=None):
+               return_symbol_name=None):
         '''Create an instance of the supplied class given a name, a symbol
         table and a list of child nodes. This is implemented as a classmethod
         so that it is able to act as a Factory for subclasses - e.g. it
@@ -122,9 +109,6 @@ class Routine(Schedule, CommentableMixin):
         :type children: list of :py:class:`psyclone.psyir.nodes.Node`
         :param bool is_program: whether this Routine represents the entry \
             point into a program (i.e. Fortran Program or C main()).
-        :param bool is_elemental: whether this Routine is 'elemental'.
-        :param bool is_pure: whether this Routine is 'pure' (has no side \
-                             effects).
         :param str return_symbol_name: name of the symbol that holds the \
             return value of this routine (if any). Must be present in the \
             supplied symbol table.
@@ -156,8 +140,7 @@ class Routine(Schedule, CommentableMixin):
                     f"Routine class should be a PSyIR Node but "
                     f"found '{type(child).__name__}'.")
 
-        routine = cls(name, is_program=is_program, is_pure=is_pure,
-                      is_elemental=is_elemental, symbol_table=symbol_table)
+        routine = cls(name, is_program=is_program, symbol_table=symbol_table)
         routine.children = children
         if return_symbol_name:
             routine.return_symbol = routine.symbol_table.lookup(
@@ -258,20 +241,21 @@ class Routine(Schedule, CommentableMixin):
     @property
     def is_pure(self):
         '''
-        :returns: whether this Routine guarantees only to modify the data \
-                  specified with INTENT OUT or INOUT in its specification.
-        :rtype: bool
+        :returns: whether this Routine has no side effects (guarantees only \
+                  to modify the data specified with INTENT OUT or INOUT in \
+                  its specification or None if this is not known.
+        :rtype: bool | NoneType
         '''
-        return self._pure
+        return self.symbol.is_pure
 
     @property
     def is_elemental(self):
         '''
         :returns: whether this Routine is elemental (acts element-by-element \
-                  on supplied array arguments).
-        :rtype: bool
+                  on supplied array arguments) or None if this is not known.
+        :rtype: bool | NoneType
         '''
-        return self._elemental
+        return self.symbol.is_elemental
 
     @property
     def return_symbol(self):
