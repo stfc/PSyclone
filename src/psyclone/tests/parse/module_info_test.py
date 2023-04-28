@@ -36,8 +36,6 @@
 
 '''Module containing tests for the ModuleInfo class.'''
 
-import os
-
 import pytest
 
 from fparser.two import Fortran2003
@@ -208,14 +206,13 @@ def test_mod_info_get_psyir():
 
     # Test that a file that can't be converted to PSyIR returns an
     # empty FileContainer.
-    mod_man.add_search_path(os.path.join(dyn_path, "infrastructure",
-                                         "utilities"),
-                            recursive=False)
-    # The file constants_mod.F90 cannot be converted to PSyIR due
-    # to the usage of preprocessor directives.
-    constants_info = mod_man.get_module_info("constants_mod")
+    mod_man.add_search_path(dyn_path, recursive=False)
+    # The file 'broken_builtins_mod.f90' contains invalid Fortran and
+    # cannot be parsed:
+    constants_info = mod_man.get_module_info("broken_builtins_mod")
     constants_psyir = constants_info.get_psyir()
 
+    # We should still get an empty FileContainer back
     assert isinstance(constants_psyir, FileContainer)
-    assert constants_psyir.name == "constants_mod.F90"
+    assert constants_psyir.name == "broken_builtins_mod.f90"
     assert constants_psyir.children == []
