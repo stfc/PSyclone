@@ -278,4 +278,4 @@ def test_gen_decls_static_variables(fortran_writer):
     assert "integer, save :: v1" in fortran_writer.gen_decls(symbol_table)
     assert "integer, save :: v1" in fortran_writer.gen_vardecl(sym)
     sym.constant_value = 1
-    assert "parameter, save :: v1 = 1" in fortran_writer.gen_vardecl(sym)
+    assert "parameter :: v1 = 1" in fortran_writer.gen_vardecl(sym)

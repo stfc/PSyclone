@@ -1710,6 +1710,8 @@ class Fparser2Reader():
             found.
         :raises SymbolError: if a declaration is found for a symbol that is \
             already present in the symbol table with a defined interface.
+        :raises GenerationError: if a set of incompatible Fortran \
+            attributes are found in a symbol declaration.
 
         '''
         (type_spec, attr_specs, entities) = decl.items
@@ -1720,11 +1722,9 @@ class Fparser2Reader():
         # Parse declaration attributes:
         # 1) If no dimension attribute is provided, it defaults to scalar.
         attribute_shape = []
-        # 2) Provide a provisional interface (DefaultModuleInterface if it is
-        # in a module context, Automatic otherwise). This will be refined later
-        # when the declaration attributes are analysed.
-        interface = DefaultModuleInterface() if isinstance(scope, Container) \
-            else AutomaticInterface()
+        # 2) Record symbol interface
+        interface = None
+        multiple_interfaces = False
         # 3) Record initialized constant values
         has_constant_value = False
         # 4) Whether the declaration has the allocatable attribute
@@ -1736,7 +1736,9 @@ class Fparser2Reader():
             for attr in attr_specs.items:
                 if isinstance(attr, Fortran2003.Attr_Spec):
                     normalized_string = str(attr).lower().replace(' ', '')
-                    if "save" in normalized_string:
+                    if normalized_string == "save":
+                        if interface is not None:
+                            multiple_interfaces = True
                         interface = StaticInterface()
                     elif normalized_string == "parameter":
                         # Flag the existence of a constant value in the RHS
@@ -1752,6 +1754,8 @@ class Fparser2Reader():
                     normalized_string = \
                         intent.string.lower().replace(' ', '')
                     try:
+                        if interface is not None:
+                            multiple_interfaces = True
                         interface = ArgumentInterface(
                             INTENT_MAPPING[normalized_string])
                     except KeyError as info:
@@ -1775,6 +1779,36 @@ class Fparser2Reader():
                     raise NotImplementedError(
                         f"Could not process declaration '{decl}'. Unrecognised"
                         f" attribute type '{type(attr).__name__}'.")
+
+            # There are some combinations of attributes that are not valid
+            # Fortran but fparser does not check, so we need to check for them
+            # here.
+            if isinstance(interface, StaticInterface) and has_constant_value:
+                raise GenerationError(
+                    f"SAVE and PARAMETER attributes are not compatible but "
+                    f"found:\n {decl}")
+            if allocatable and has_constant_value:
+                raise GenerationError(
+                    f"ALLOCATABLE and PARAMETER attributes are not compatible "
+                    f"but found:\n {decl}")
+            if isinstance(interface, ArgumentInterface) and has_constant_value:
+                raise GenerationError(
+                    f"INTENT and PARAMETER attributes are not compatible but"
+                    f" found:\n {decl}")
+            if multiple_interfaces:
+                raise GenerationError(
+                    f"Multiple or duplicated incompatible attributes "
+                    f"found in declaration:\n {decl}")
+
+        # If interface is not explicitly specified, provide a default value
+        if interface is None:
+            if isinstance(scope, Container):
+                interface = DefaultModuleInterface()
+            else:
+                interface = AutomaticInterface()
+                # This might still be redifined as Argument later if it
+                # appears in the argument list, but we don't know at this
+                # point.
 
         # Parse declarations RHS and declare new symbol into the
         # parent symbol table for each entity found.

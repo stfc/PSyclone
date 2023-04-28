@@ -633,8 +633,10 @@ class FortranWriter(LanguageWriter):
 
         if isinstance(symbol, DataSymbol) and symbol.is_constant:
             result += ", parameter"
-
-        if isinstance(symbol, DataSymbol) and symbol.is_static:
+        elif isinstance(symbol, DataSymbol) and symbol.is_static:
+            # This condition is an elif because SAVE and PARAMETER and
+            # incompatible, but we let PARAMETER take precedence because
+            # a parameter is already behaving like a static value
             result += ", save"
 
         if include_visibility:

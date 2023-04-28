@@ -796,6 +796,55 @@ def test_process_declarations():
 
 
 @pytest.mark.usefixtures("f2008_parser")
+def test_process_declarations_errrs():
+    '''Test that process_declarations method of Fparser2Reader
+    raises appropriate errors for fparser2 declarations that are not
+    valid Fortran.
+
+    '''
+    fake_parent = KernelSchedule("dummy_schedule")
+    processor = Fparser2Reader()
+
+    reader = FortranStringReader("integer, parameter, save :: l1 = 1")
+    fparser2spec = Specification_Part(reader).content[0]
+    with pytest.raises(GenerationError) as error:
+        processor.process_declarations(fake_parent, [fparser2spec], [])
+    assert ("SAVE and PARAMETER attributes are not compatible but found:\n "
+            "INTEGER, PARAMETER, SAVE :: l1 = 1" in str(error.value))
+
+    reader = FortranStringReader("integer, parameter, intent(in) :: l1 = 1")
+    fparser2spec = Specification_Part(reader).content[0]
+    with pytest.raises(GenerationError) as error:
+        processor.process_declarations(fake_parent, [fparser2spec], [])
+    assert ("INTENT and PARAMETER attributes are not compatible but found:\n "
+            "INTEGER, PARAMETER, INTENT(IN) :: l1 = 1" in str(error.value))
+
+    reader = FortranStringReader("integer, parameter, allocatable :: l1 = 1")
+    fparser2spec = Specification_Part(reader).content[0]
+    with pytest.raises(GenerationError) as error:
+        processor.process_declarations(fake_parent, [fparser2spec], [])
+    assert ("ALLOCATABLE and PARAMETER attributes are not compatible but found"
+            ":\n INTEGER, PARAMETER, ALLOCATABLE :: l1 = 1"
+            in str(error.value))
+
+    reader = FortranStringReader("integer, intent(inout), save :: l1 = 1")
+    fparser2spec = Specification_Part(reader).content[0]
+    with pytest.raises(GenerationError) as error:
+        processor.process_declarations(fake_parent, [fparser2spec], [])
+    assert ("Multiple or duplicated incompatible attributes found in "
+            "declaration:\n INTEGER, INTENT(INOUT), SAVE :: l1 = 1"
+            in str(error.value))
+
+    reader = FortranStringReader("integer, intent(in), intent(out) :: l1 = 1")
+    fparser2spec = Specification_Part(reader).content[0]
+    with pytest.raises(GenerationError) as error:
+        processor.process_declarations(fake_parent, [fparser2spec], [])
+    assert ("Multiple or duplicated incompatible attributes found in "
+            "declaration:\n INTEGER, INTENT(IN), INTENT(OUT) :: l1 = 1"
+            in str(error.value))
+
+
+@pytest.mark.usefixtures("f2008_parser")
 def test_declarations_with_initialisations(fortran_reader):
     '''Test that Fparser2Reader keeps all the variable initialisation
     expressions, even though some may end up in UnknownTypes for now
@@ -1470,7 +1519,7 @@ def test_process_declarations_stmt_functions():
     assert isinstance(array, ArrayReference)
     assert array.name == "b"
 
-    # Test that if symbol is not an array, it raises GenerationError
+    # Test that if symbol is not an array, it raises InternalError
     fake_parent.symbol_table.lookup('b').datatype = INTEGER_TYPE
     with pytest.raises(InternalError) as error:
         processor.process_declarations(fake_parent, [fparser2spec], [])
