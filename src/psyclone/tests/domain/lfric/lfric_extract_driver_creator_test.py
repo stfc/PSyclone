@@ -64,8 +64,9 @@ def init_module_manager():
     infrastructure_path = get_base_path(API)
     # Define the path to the ReadKernelData module (which contains functions
     # to read extracted data from a file) relative to the infrastructure path:
-    read_mod_path = os.path.join(infrastructure_path, "..", "..", "..", "..",
-                                 "..", "lib", "extract", "standalone")
+    psyclone_root = os.path.dirname(os.path.dirname(os.path.dirname(
+        os.path.dirname(os.path.dirname(infrastructure_path)))))
+    read_mod_path = os.path.join(psyclone_root, "lib", "extract", "standalone")
     # Enforce loading of the default ModuleManager
     ModuleManager._instance = None
 
