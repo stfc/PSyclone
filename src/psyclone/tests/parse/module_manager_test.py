@@ -321,7 +321,8 @@ def test_mod_man_sort_modules(capsys):
 
 
 # ----------------------------------------------------------------------------
-@pytest.mark.usefixtures("change_into_tmpdir")
+@pytest.mark.usefixtures("change_into_tmpdir",
+                         "mod_man_test_setup_directories")
 def test_mod_manager_ignore_modules():
     '''Tests that ignoring modules work. We use the standard
     directory and file setup (see mod_man_test_setup_directories).
@@ -331,9 +332,8 @@ def test_mod_manager_ignore_modules():
     tmp/d2/d_mod.X90
     tmp/d2/d4/e_mod.F90
     tmp/d2/d4/f_mod.ignore
-    '''
 
-    mod_man_test_setup_directories()
+    '''
     mod_man = ModuleManager.get()
     mod_man.add_search_path("d1")
     mod_man.add_search_path("d2")
