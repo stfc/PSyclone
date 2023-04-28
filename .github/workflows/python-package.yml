@@ -115,8 +115,9 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        # Some of the examples use Jupyter
-        pip install jupyter
+        # Some of the examples use Jupyter. We need to keep IPython to
+        # below 8.0 as we still run the test suite with Python 3.7.
+        pip install "ipython>=7.0,<8.0" jupyter
         # If you wish to install the version of fparser pointed to by the
         # submodule instead of the released version (from PyPI) then
         # uncomment the following line:
