@@ -339,9 +339,20 @@ def test_function_unsupported_derived_type(fortran_reader):
     assert sym.datatype.declaration.lower() == "type(my_type), pointer :: var1"
 
 
+def test_elemental_prefix(fortran_reader):
+    '''Check that the frontend correctly handles a routine with the 'elemental'
+    prefix.'''
+    assert 0
+
+
+def test_pure_prefix(fortran_reader):
+    '''Check that the frontend correctly handles a routine with the 'pure'
+    prefix.'''
+    assert 0
+
+
 @pytest.mark.parametrize("routine_type", ["function", "subroutine"])
-@pytest.mark.parametrize("fn_prefix",
-                         ["pure real", "real pure", "recursive", "elemental"])
+@pytest.mark.parametrize("fn_prefix", ["recursive", "module"])
 def test_unsupported_routine_prefix(fortran_reader, fn_prefix, routine_type):
     ''' Check that we get a CodeBlock if a Fortran routine has an unsupported
     prefix. '''

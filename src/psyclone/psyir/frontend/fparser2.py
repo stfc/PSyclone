@@ -4250,25 +4250,22 @@ class Fparser2Reader():
 
         self.process_declarations(routine, decl_list, arg_list)
 
-        # If this is a function then work out the return type
-        if isinstance(node, Fortran2003.Function_Subprogram):
-            # Check whether the function-stmt has a prefix specifying the
-            # return type (other prefixes are handled in
-            # _process_routine_symbols()).
-            prefix = node.children[0].children[0]
-            if prefix:
-                for child in prefix.children:
-                    if isinstance(child, Fortran2003.Prefix_Spec):
-                        if child.string not in SUPPORTED_ROUTINE_PREFIXES:
-                            # TODO what about MODULE?
-                            raise NotImplementedError()
-                    else:
-                        base_type, _ = self._process_type_spec(
-                            parent, prefix.children[0])
-            else:
-                base_type = None
+        # Check whether the function-stmt has a prefix specifying the
+        # return type (other prefixes are handled in
+        # _process_routine_symbols()).
+        base_type = None
+        prefix = node.children[0].children[0]
+        if prefix:
+            for child in prefix.children:
+                if isinstance(child, Fortran2003.Prefix_Spec):
+                    if child.string not in SUPPORTED_ROUTINE_PREFIXES:
+                        raise NotImplementedError()
+                else:
+                    base_type, _ = self._process_type_spec(
+                        parent, prefix.children[0])
 
-            # Check whether the function-stmt has a suffix containing
+        if isinstance(node, Fortran2003.Function_Subprogram):
+            # Check whether this function-stmt has a suffix containing
             # 'RETURNS'
             suffix = node.children[0].children[3]
             if suffix:
