@@ -37,10 +37,9 @@
 # Modified by J. Henrichs, Bureau of Meteorology
 # Modified by N. M. Nobre, STFC Daresbury Lab
 
-# This workflow will install Python dependencies, run tests and lint with a
-# variety of Python versions.
-# For more information see:
-#   https://help.github.com/actions/language-and-framework-guides/using-python-with-github-actions
+# This workflow will use a self-hosted runner to perform the more expensive
+# integrations tests that are not run on GHA systems. At the moment it only
+# runs the test suite with compilation enabled (using gfortran).
 
 name: Compilation tests
 
@@ -74,11 +73,7 @@ jobs:
         # uncomment the following line:
         pip install external/fparser
         pip install .[test]
-    #- name: Run examples
-    #  run: |
-    #    . .runner_venv/bin/activate
-    #    ( make -C examples compile > /dev/null )
     - name: Test with pytest and compilation
       run: |
         . .runner_venv/bin/activate
-        pytest -n auto --f90=gfortran --compile src/psyclone/tests
+        pytest -n 2 --f90=gfortran --compile src/psyclone/tests
