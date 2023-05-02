@@ -392,6 +392,9 @@
 	standalone driver for an extracted kernel. All required modules are
 	now inlined into the driver source file.
 
+	132) PR #2086 for #2013. Adds support for logical scalar arguments
+	in PSyAD test harness generation.
+
 release 2.3.1 17th of June 2022
 
 	1) PR #1747 for #1720. Adds support for If blocks to PSyAD.
