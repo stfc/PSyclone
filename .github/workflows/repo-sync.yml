@@ -1,6 +1,6 @@
 # This workflow pushes any changes to a private mirror that runs the
 # test suite using a self-hosted runner. 
-on: push
+on: workflow_dispatch
 
 env:
   # Use the same ssh-agent socket value across all jobs
