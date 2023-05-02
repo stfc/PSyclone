@@ -368,8 +368,7 @@ linkcheck_anchors = True
 
 # puma is using an old https server and that causes errors in linkcheck.
 # Despite its name 'collab.metoffice.../twiki' requires authenticated access.
-linkcheck_ignore = [r'https://puma.nerc.ac.uk/trac/GOcean',
-                    r'code.metoffice.gov.uk/trac/lfric/attachment/wiki/'
+linkcheck_ignore = [r'code.metoffice.gov.uk/trac/lfric/attachment/wiki/'
                     r'LFRicDocumentationPapers/lfric_documentation.pdf']
 
 
