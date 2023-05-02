@@ -18,7 +18,8 @@ jobs:
     - run: echo "REPOSITORY_NAME=${{ github.repository }}"
       shell: bash
     - uses: actions/checkout@master
-
+      with:
+        fetch-depth: '0'
     # Start ssh-agent but set it to use the same ssh_auth_sock value.
     # The agent will be running in all steps after this, so it
     # should be one of the first.
@@ -43,9 +44,9 @@ jobs:
     - name: Push changes
       if: ${{ github.repository == 'stfc/PSyclone' }}
       uses: ad-m/github-push-action@master
-      #  branch: ${{ github.ref }}
       with:
         ssh: true
         force: true
         tags: false
+        branch: ${{ github.ref }}
         repository: arporter/PSyclone-mirror
