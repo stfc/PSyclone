@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2022, Science and Technology Facilities Council.
+# Copyright (c) 2020-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -67,7 +67,7 @@ OBJ_NETCDF = mesh/global_mesh_netcdf_mod.o io/ugrid_2d_mod.o     \
 # most compilation tests):
 OBJ := $(filter-out $(OBJ_NETCDF),$(ALL_OBJ))
 
-.PHONY: standalone netcdf dirs get_include_flags
+.PHONY: standalone netcdf dirs get_include_flags preprocess
 
 # Standalone target, no netcdf dependency:
 # ----------------------------------------
@@ -78,11 +78,23 @@ liblfric.a: dirs $(OBJ)
 
 # Netcdf target, like standalone but with support for netcdf files:
 # -----------------------------------------------------------------
-netcdf: F90FLAGS += $$(nf-config --fflags)
+netcdf: LFRIC_INCLUDE_FLAGS += $$(nf-config --fflags)
 netcdf: OBJ += $(OBJ_NETCDF)
 netcdf: liblfric_netcdf.a
 liblfric_netcdf.a: dirs $(OBJ) $(OBJ_NETCDF)
 	$(AR) $(ARFLAGS) $@ $(OBJ) $(OBJ_NETCDF)
+
+# Target for preprocessing the .F90 files, since PSyclone only
+# supports pre-processed files. The environment variable FPPFLAGS
+# can be set to define preprocessor macros, e.g.:
+#    FPPFLAGS="-DRDEF_PRECISION=32" make preprocess
+# Since 'make' uses time stamps, you need to provide the -B flag
+# to make to enforce re-preprocessing of all files.
+# ----------------------------------------------------------------
+FILES_TO_PREPROCESS = $(filter %.F90,$(ALL_SRC))
+ALL_PREPROCESSED = $(patsubst %.F90,%.f90,$(FILES_TO_PREPROCESS))
+
+preprocess: $(ALL_PREPROCESSED)
 
 # Other rules
 dirs:
@@ -93,6 +105,11 @@ dirs:
 # Dependencies
 # ------------
 include $(LFRIC_PATH)/dependency
+
+# Rule for preprocessing:
+# -----------------------
+%.f90: %.F90
+	$(CPP) -P  $(FPPFLAGS) $< > $@
 
 # Compilation rules
 # -----------------
@@ -105,14 +122,14 @@ include $(LFRIC_PATH)/dependency
 # be stored. This avoids the hassle of handling compiler specific flags.
 # An example for the rule created:
 # field/%.o: $(INFRASTRUCTURE)/field/%.f90
-#     cd field; $(F90) $(F90FLAGS) -c $< -o $(notdir $@)
+#     cd field; $(F90) $(F90FLAGS) $(LFRIC_INCLUDE_FLAGS) -c $< -o $(notdir $@)
 
 define compile_rule_template =
 $(1)/%.o:	$$(LFRIC_PATH)/$(1)/%.f90 dirs
-	cd $(1); $$(F90) $$(F90FLAGS) -c $$< -o $$(notdir $$@)
+	cd $(1); $$(F90) $$(F90FLAGS) $$(LFRIC_INCLUDE_FLAGS) -c $$< -o $$(notdir $$@)
 
 $(1)/%.o:	$$(LFRIC_PATH)/$(1)/%.F90 dirs
-	cd $(1); $$(F90) $$(F90FLAGS) -c $$< -o $$(notdir $$@)
+	cd $(1); $$(F90) $$(F90FLAGS) $$(LFRIC_INCLUDE_FLAGS) -c $$< -o $$(notdir $$@)
 endef
 
 # Define the required rules for each subdirectory. DIRS is defined
