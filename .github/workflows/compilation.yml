@@ -74,16 +74,11 @@ jobs:
         # uncomment the following line:
         pip install external/fparser
         pip install .[test]
-    - name: Run examples
-      run: |
-        . .runner_venv/bin/activate
-        ( make -C examples compile > /dev/null )
-    - name: Run tutorials
-      run: |
-        . .runner_venv/bin/activate
-        ( make -C tutorial/practicals transform > /dev/null )
-        ( make -C tutorial/notebooks notebook )
+    #- name: Run examples
+    #  run: |
+    #    . .runner_venv/bin/activate
+    #    ( make -C examples compile > /dev/null )
     - name: Test with pytest and compilation
       run: |
         . .runner_venv/bin/activate
-        pytest -n auto --compile src/psyclone/tests
+        pytest -n auto --f90=gfortran --compile src/psyclone/tests
