@@ -51,6 +51,9 @@ ifeq ($(TYPE), netcdf)
 else
 	GENERATED_FILES += main-update.binary main-init.binary
 endif
+GENERATED_FILES += driver-main-init driver-main-init.F90       \
+				   driver-main-update driver-main-update.F90   \
+				   *.o *.mod $(EXEC) main_alg.f90 main_psy.f90
 
 F90 ?= gfortran
 F90FLAGS ?= -Wall -g -ffree-line-length-none
@@ -60,12 +63,12 @@ OBJ = main_psy.o main_alg.o testkern_w0_kernel_mod.o
 ifeq ($(TYPE), netcdf)
 	EXTRACT_DIR ?= $(PSYROOT)/lib/extract/netcdf/lfric
 	LDFLAGS += $$(nf-config --flibs)
+	F90FLAGS += $$(nf-config --fflags)
 else
 	EXTRACT_DIR ?= $(PSYROOT)/lib/extract/standalone/lfric
 endif
 
 EXEC = extract.$(TYPE)
-GENERATED_FILES = *.o *.mod  $(EXEC) main_alg.f90 main_psy.f90
 EXTRACT_NAME ?= _extract
 EXTRACT_LIB = $(EXTRACT_DIR)/lib$(EXTRACT_NAME).a
 READ_KERNEL_DATA_OBJ = $(EXTRACT_DIR)/../read_kernel_data_mod.o
@@ -83,7 +86,7 @@ transform: main_psy.f90 main_alg.f90
 compile: transform $(EXEC)
 
 run: compile
-	./extract
+	./$(EXEC)
 
 $(EXEC): $(LFRIC_LIB) $(EXTRACT_LIB) $(OBJ)
 	$(F90) $(F90FLAGS) $(LFRIC_INCLUDE_FLAGS) $(OBJ) -o $(EXEC) -L$(EXTRACT_DIR) -l$(EXTRACT_NAME) \
@@ -103,18 +106,12 @@ testkern_w0_kernel_mod.o: $(LFRIC_LIB)
 driver-main-update:	LFRIC_INCLUDE_FLAGS += -I $(EXTRACT_DIR)/..
 driver-main-update:	driver-main-update.o $(READ_KERNEL_DATA_OBJ)
 	$(F90) $(F90FLAGS) $(LFRIC_INCLUDE_FLAGS)  driver-main-update.o \
-		testkern_w0_kernel_mod.o                   \
-		$(READ_KERNEL_DATA_OBJ)                    \
-		-L$(LFRIC_PATH) -l$(LFRIC_NAME) $(LDFLAGS) \
-		-o driver-main-update
+		   $(LDFLAGS) -o driver-main-update
 
 driver-main-init:	LFRIC_INCLUDE_FLAGS += -I $(EXTRACT_DIR)/..
 driver-main-init:	driver-main-init.o $(READ_KERNEL_DATA_OBJ)
 	$(F90) $(F90FLAGS) $(LFRIC_INCLUDE_FLAGS)  driver-main-init.o \
-		testkern_w0_kernel_mod.o                   \
-		$(READ_KERNEL_DATA_OBJ)                    \
-		-L$(LFRIC_PATH) -l$(LFRIC_NAME) $(LDFLAGS) \
-		-o driver-main-init
+		   $(LDFLAGS) -o driver-main-init
 
 driver-main-update.o driver-main-init.o:  $(READ_KERNEL_DATA_OBJ)
 
@@ -133,7 +130,9 @@ $(READ_KERNEL_DATA_OBJ):
 	$(MAKE) -C $(EXTRACT_DIR)/..
 
 %_psy.f90:	%.x90
-	${PSYCLONE} -s ./extract_transform.py \
+	${PSYCLONE} -s ./extract_transform.py       \
+	-d . -d $(EXTRACT_DIR) -d $(EXTRACT_DIR)/.. \
+	-d $(LFRIC_PATH)                            \
 	-nodm -opsy $*_psy.f90 -oalg $*_alg.f90 $<
 
 allclean: clean
