@@ -322,6 +322,7 @@ class LFRicConstants():
                                         "r_double": 8,
                                         "r_ncdf": 8,
                                         "r_quad": 16,
+                                        "r_second": 8,
                                         "r_single": 4,
                                         "r_solver": 4,
                                         "r_tran": 8,

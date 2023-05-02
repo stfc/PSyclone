@@ -33,7 +33,7 @@
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford, A. R. Porter and N. Nobre, STFC Daresbury Lab
 # Modified A. J. Voysey, Met Office
-# Modified by J. Henrichs, Bureau of Meteorology
+# Modified J. Henrichs, Bureau of Meteorology
 
 '''
     This module provides the PSyclone 'main' routine which is intended
@@ -65,6 +65,7 @@ from psyclone.domain.lfric.transformations import (
     LFRicAlgTrans, RaisePSyIR2LFRicKernTrans, LFRicAlgInvoke2PSyCallTrans)
 from psyclone.errors import GenerationError, InternalError
 from psyclone.line_length import FortLineLength
+from psyclone.parse import ModuleManager
 from psyclone.parse.algorithm import parse
 from psyclone.parse.kernel import get_kernel_filepath
 from psyclone.parse.utils import ParseError, parse_fp2
@@ -89,6 +90,7 @@ LFRIC_TESTING = False
 
 
 def handle_script(script_name, info, function_name, is_optional=False):
+    # pylint: disable=too-many-locals
     '''Loads and applies the specified script to the given algorithm or
     psy layer. The relevant script function (in 'function_name') is
     called with 'info' as the argument.
@@ -251,6 +253,10 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
         if not os.access(kernel_path, os.R_OK):
             raise IOError(
                 f"Kernel search path '{kernel_path}' not found")
+
+    # TODO #2011: investigate if kernel search path and module manager
+    # can be combined.
+    ModuleManager.get().add_search_path(kernel_paths)
 
     ast, invoke_info = parse(filename, api=api, invoke_name="invoke",
                              kernel_paths=kernel_paths,
