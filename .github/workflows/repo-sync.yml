@@ -48,6 +48,5 @@ jobs:
         ssh: true
         force: true
         tags: false
-        branch: push-to-private
-        # ${{ github.ref }}
+        branch: ${{ github.ref }}
         repository: arporter/PSyclone-mirror
