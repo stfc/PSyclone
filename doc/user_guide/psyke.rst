@@ -517,7 +517,9 @@ recursively search for all files under each path specified on the command
 line.
 
 Therefore, compilation for a created driver, e.g. the one created in
-``examples/lfric/eg17/full_example_extract``, is simple::
+``examples/lfric/eg17/full_example_extract``, is simple:
+
+.. code-block:: bash
 
    $ gfortran -g -O0 driver-main-update.F90 -o driver-main-update
    $ ./driver-main-update
