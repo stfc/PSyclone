@@ -3,7 +3,8 @@
 name: Push to private
 
 on:
-  workflow_dispatch:
+  push:
+  # workflow_dispatch:
 
 env:
   # Use the same ssh-agent socket value across all jobs
