@@ -140,7 +140,7 @@ class AlgInvoke2PSyCallTrans(Transformation, abc.ABC):
         '''Removes any imported kernel functor symbols from the supplied
         AlgorithmInvokeCall if they are not used in another
         AlgorithmInvokeCall. Also removes the associated container
-        symbol if it no longer contains any symbols.
+        symbol if there are now no symbols imported from it.
 
         :param node: an AlgorithmInvokeCall node.
         :type node: \
@@ -152,6 +152,7 @@ class AlgInvoke2PSyCallTrans(Transformation, abc.ABC):
         remote_functor_symbols = set()
         for functor in all_functors:
             if not functor.symbol.is_import:
+                # Builtin KernelFunctors are not imported
                 continue
             if functor.parent is node:
                 local_functor_symbols.add(functor.symbol)
