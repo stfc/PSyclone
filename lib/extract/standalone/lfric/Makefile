@@ -27,6 +27,7 @@
 #------------------------------------------------------------------------------
 # Author: J. Henrichs, Australian Bureau of Meteorology
 # Modified: I. Kavcic, Met Office
+#           A. R. Porter, STFC Daresbury Lab
 
 # This Makefile picks up the compiler to use plus any flags from
 # environment variables. e.g.:
@@ -54,7 +55,7 @@ INF_INC = $(LFRIC_PATH)
 INF_LIB_NAME = lfric
 INF_LIB = $(LFRIC_PATH)/lib$(INF_LIB_NAME).a
 
-# This will add the required include flags to F90FLAGS
+# This will setup the required include flags in $(LFRIC_INCLUDE_FLAGS)
 include $(LFRIC_PATH)/lfric_include_flags.inc
 
 PSYDATA_LIB_NAME = _extract
@@ -90,7 +91,7 @@ extract_standalone_base.f90: $(LIB_TMPLT_DIR)/extract_standalone_base.jinja Make
 	$(PROCESS) $(PROCESS_ARGS) -generic-provide $< > extract_standalone_base.f90
 
 %.o: %.f90
-	$(F90) $(F90FLAGS) -c $<
+	$(F90) $(F90FLAGS) $(LFRIC_INCLUDE_FLAGS) -c $<
 
 clean:
 	rm -f *.o *.mod $(PSYDATA_LIB) psy_data_base.f90 extract_standalone_base.f90

@@ -76,10 +76,10 @@ LFRIC_PATH ?= $(PSYROOT)/src/psyclone/tests/test_files/dynamo0p3/infrastructure
 LFRIC_NAME=lfric
 LFRIC_LIB=$(LFRIC_PATH)/lib$(LFRIC_NAME).a
 
-# This will add the required include flags to F90FLAGS
+# This will setup the required include flags in LFRIC_INCLUDE_FLAGS
 include $(LFRIC_PATH)/lfric_include_flags.inc
 
-F90FLAGS += -I$(EXTRACT_DIR)
+LFRIC_INCLUDE_FLAGS += -I$(EXTRACT_DIR)
 
 transform: main_psy.f90 main_alg.f90
 
@@ -89,7 +89,7 @@ run: compile
 	./$(EXEC)
 
 $(EXEC): $(LFRIC_LIB) $(EXTRACT_LIB) $(OBJ)
-	$(F90) $(F90FLAGS) $(OBJ) -o $(EXEC) -L$(EXTRACT_DIR) -l$(EXTRACT_NAME) \
+	$(F90) $(F90FLAGS) $(LFRIC_INCLUDE_FLAGS) $(OBJ) -o $(EXEC) -L$(EXTRACT_DIR) -l$(EXTRACT_NAME) \
 	      -L$(LFRIC_PATH) -l$(LFRIC_NAME) $(LDFLAGS)
 
 $(LFRIC_LIB):
@@ -103,25 +103,23 @@ main_psy.o:	testkern_w0_kernel_mod.o $(EXTRACT_LIB) $(LFRIC_LIB)
 main_alg.o:	main_psy.o
 testkern_w0_kernel_mod.o: dummy_mod.o $(LFRIC_LIB)
 
-driver-main-update:	F90FLAGS += -I $(EXTRACT_DIR)/..
+driver-main-update:	LFRIC_INCLUDE_FLAGS += -I $(EXTRACT_DIR)/..
 driver-main-update:	driver-main-update.o $(READ_KERNEL_DATA_OBJ)
-	$(F90) $(F90FLAGS)  driver-main-update.o       \
-		-L$(LFRIC_PATH) -l$(LFRIC_NAME) $(LDFLAGS) \
-		-o driver-main-update
+	$(F90) $(F90FLAGS) $(LFRIC_INCLUDE_FLAGS)  driver-main-update.o \
+		$(LDFLAGS) -o driver-main-update
 
-driver-main-init:	F90FLAGS += -I $(EXTRACT_DIR)/..
+driver-main-init:	LFRIC_INCLUDE_FLAGS += -I $(EXTRACT_DIR)/..
 driver-main-init:	driver-main-init.o $(READ_KERNEL_DATA_OBJ)
-	$(F90) $(F90FLAGS)  driver-main-init.o         \
-		-L$(LFRIC_PATH) -l$(LFRIC_NAME) $(LDFLAGS) \
-		-o driver-main-init
+	$(F90) $(F90FLAGS) $(LFRIC_INCLUDE_FLAGS)  driver-main-init.o \
+		$(LDFLAGS) -o driver-main-init
 
 driver-main-update.o driver-main-init.o:  $(READ_KERNEL_DATA_OBJ)
 
 %.o: %.F90
-	$(F90) $(F90FLAGS) -c $<
+	$(F90) $(F90FLAGS) $(LFRIC_INCLUDE_FLAGS) -c $<
 
 %.o: %.f90
-	$(F90) $(F90FLAGS) -c $<
+	$(F90) $(F90FLAGS) $(LFRIC_INCLUDE_FLAGS) -c $<
 
 # Keep the generated psy and alg files
 .precious: main_psy.f90 main_alg.f90
