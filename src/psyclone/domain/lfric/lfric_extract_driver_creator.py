@@ -397,6 +397,7 @@ class LFRicExtractDriverCreator:
         # Now add all non-local symbols, which need to be
         # imported from the appropriate module:
         # -----------------------------------------------
+        mod_man = ModuleManager.get()
         for module_name, signature in read_write_info.set_of_all_used_vars:
             if not module_name:
                 # Ignore local symbols, which will have been added above
@@ -407,11 +408,18 @@ class LFRicExtractDriverCreator:
                 container = ContainerSymbol(module_name)
                 symbol_table.add(container)
 
+            # Now look up the original symbol. While the variable could
+            # be declared Deferred here, we need the type information for
+            # the output variables (VAR_post), which are created later and
+            # which will query the original symbol for its type. And since
+            # they are not imported, they need to be explicitly declared.
+            mod_info = mod_man.get_module_info(module_name)
+            container_symbol = mod_info.get_symbol(signature[0])
             symbol_table.new_symbol(root_name=signature[0],
                                     tag=f"{signature[0]}@{module_name}",
                                     symbol_type=DataSymbol,
                                     interface=ImportInterface(container),
-                                    datatype=DeferredType())
+                                    datatype=container_symbol.datatype)
 
     # -------------------------------------------------------------------------
     @staticmethod
@@ -477,6 +485,8 @@ class LFRicExtractDriverCreator:
                       :py:class:`psyclone.psyir.symbols.Symbol`]
 
         '''
+        # Look up the corresponding non-written variable to get the required
+        # type information for declaring the _POST/output variable:
         symbol_table = program.symbol_table
         if module_name:
             sym = symbol_table.lookup_with_tag(f"{name}@{module_name}")
