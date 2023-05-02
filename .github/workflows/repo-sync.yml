@@ -47,6 +47,6 @@ jobs:
       with:
         ssh: true
         force: true
-        tags: true
+        tags: false
         branch: ${{ github.ref }}
         repository: arporter/PSyclone-mirror
