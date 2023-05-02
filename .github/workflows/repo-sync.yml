@@ -1,5 +1,7 @@
 # This workflow pushes any changes to a private mirror that runs the
 # test suite using a self-hosted runner. 
+name: Push to private
+
 on:
   workflow_dispatch:
 
