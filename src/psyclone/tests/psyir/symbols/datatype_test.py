@@ -385,9 +385,9 @@ def test_arraytype_invalid_shape_dimension_2():
     scalar_type = ScalarType(ScalarType.Intrinsic.REAL, 4)
     with pytest.raises(TypeError) as excinfo:
         _ = ArrayType(scalar_type, [None])
-    assert ("DataSymbol shape list elements can only be 'int', "
-            "ArrayType.Extent, 'DataNode' or tuple but found 'NoneType'."
-            in str(excinfo.value))
+    assert ("DataSymbol shape-list elements can only be 'int', "
+            "ArrayType.Extent, 'DataNode' or a 2-tuple thereof but found "
+            "'NoneType'." in str(excinfo.value))
 
 
 @pytest.mark.xfail(reason="issue #1089. Support for this check needs to be"
@@ -423,22 +423,19 @@ def test_arraytype_invalid_shape_bounds():
             str(excinfo.value))
     with pytest.raises(TypeError) as excinfo:
         _ = ArrayType(scalar_type, [(1, None)])
-    assert ("A DataSymbol shape-list element specifying lower and upper bounds"
-            " must be a 2-tuple containing either int, DataNode or "
-            "ArrayType.Extent entries but "
-            "'(1, None)' contains 'NoneType'" in str(excinfo.value))
+    assert ("DataSymbol shape-list elements can only be 'int', ArrayType."
+            "Extent, 'DataNode' or a 2-tuple thereof but found 'NoneType'." in
+            str(excinfo.value))
     with pytest.raises(TypeError) as excinfo:
         _ = ArrayType(scalar_type, [(None, 1)])
-    assert ("A DataSymbol shape-list element specifying lower and upper bounds"
-            " must be a 2-tuple containing either int, DataNode or "
-            "ArrayType.Extent entries but "
-            "'(None, 1)' contains 'NoneType'" in str(excinfo.value))
+    assert ("DataSymbol shape-list elements can only be 'int', ArrayType."
+            "Extent, 'DataNode' or a 2-tuple thereof but found 'NoneType'" in
+            str(excinfo.value))
     with pytest.raises(TypeError) as excinfo:
         _ = ArrayType(scalar_type, [10, (None, 1)])
-    assert ("A DataSymbol shape-list element specifying lower and upper bounds"
-            " must be a 2-tuple containing either int, DataNode or "
-            "ArrayType.Extent entries but "
-            "'(None, 1)' contains 'NoneType'" in str(excinfo.value))
+    assert ("DataSymbol shape-list elements can only be 'int', ArrayType."
+            "Extent, 'DataNode' or a 2-tuple thereof but found 'NoneType'" in
+            str(excinfo.value))
     scalar_type = ScalarType(ScalarType.Intrinsic.REAL, 4)
     symbol = DataSymbol("fred", scalar_type, constant_value=3.0)
     with pytest.raises(TypeError) as excinfo:
