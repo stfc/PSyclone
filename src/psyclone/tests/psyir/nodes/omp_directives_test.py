@@ -152,10 +152,8 @@ def test_ompparallel_changes_gen_code(monkeypatch):
     assert "private(cell,k)" in code
 
     # Monkeypatch a case with private and firstprivate clauses
-    pclause = OMPPrivateClause(children=[Reference(Symbol("a"))])
-    fpclause = OMPFirstprivateClause(children=[Reference(Symbol("b"))])
-    monkeypatch.setattr(pdir, "_get_private_clauses",
-                        lambda: (pclause, fpclause))
+    monkeypatch.setattr(pdir, "_infer_sharing_attributes",
+                        lambda: ({Symbol("a")}, {Symbol("b")}, None))
 
     code = str(psy.gen).lower()
     assert "private(a)" in code
@@ -198,10 +196,8 @@ def test_omp_paralleldo_changes_gen_code(monkeypatch):
     assert "firstprivate" not in code
 
     # Monkeypatch a case with firstprivate clauses
-    pclause = OMPPrivateClause(children=[Reference(Symbol("a"))])
-    fpclause = OMPFirstprivateClause(children=[Reference(Symbol("b"))])
-    monkeypatch.setattr(pdir, "_get_private_clauses",
-                        lambda: (pclause, fpclause))
+    monkeypatch.setattr(pdir, "_infer_sharing_attributes",
+                        lambda: ({Symbol("a")}, {Symbol("b")}, None))
 
     code = str(psy.gen).lower()
     assert "private(a)" in code
@@ -531,8 +527,10 @@ def test_omp_do_children_err():
             "this Node has a child of type 'Return'" in str(err.value))
 
 
-def test_directive_get_private_lfric():
-    ''' Tests for the _get_private_clauses() method of OMPParallelDirective.
+def test_directive_infer_sharing_attributes_lfric():
+    ''' Tests for the _infer_sharing_attributes() method of
+    OMPParallelDirective.
+
     Note: this test does not apply colouring so the loops must be over
     discontinuous function spaces.
 
@@ -558,25 +556,26 @@ def test_directive_get_private_lfric():
     # replaced by a `lower_to_language_level` call.
     # pylint: disable=pointless-statement
     psy.gen
-    # Now check that _get_private_clause returns what we expect
-    pvars, fpvars = directive._get_private_clauses()
-    assert isinstance(pvars, OMPPrivateClause)
-    assert isinstance(fpvars, OMPFirstprivateClause)
-    assert len(pvars.children) == 1
-    assert len(fpvars.children) == 0
-    assert pvars.children[0].name == 'cell'
+    # Now check that _infer_sharing_attributes returns what we expect
+    pvars, fpvars, sync = directive._infer_sharing_attributes()
+    assert isinstance(pvars, set)
+    assert isinstance(fpvars, set)
+    assert len(pvars) == 1
+    assert len(fpvars) == 0
+    assert len(sync) == 0
+    assert list(pvars)[0].name == 'cell'
 
     directive.children[1] = OMPDefaultClause(
             clause_type=OMPDefaultClause.DefaultClauseTypes.NONE)
     with pytest.raises(GenerationError) as excinfo:
-        _ = directive._get_private_clauses()
+        _ = directive._infer_sharing_attributes()
     assert ("OMPParallelClause cannot correctly generate the private clause "
             "when its default data sharing attribute in its default clause is "
             "not shared." in str(excinfo.value))
 
 
-def test_directive_get_private(fortran_reader):
-    ''' Tests for the _get_private_clauses() method of OpenMP directives.'''
+def test_directive_infer_sharing_attributes(fortran_reader):
+    ''' Tests for the _infer_sharing_attributes() method of OpenMP directives.'''
 
     # Example with private and firstprivate variables on OMPParallelDoDirective
     psyir = fortran_reader.psyir_from_source('''
@@ -596,12 +595,13 @@ def test_directive_get_private(fortran_reader):
     loop = psyir.walk(Loop)[0]
     omplooptrans.apply(loop)
     directive = psyir.walk(OMPParallelDoDirective)[0]
-    pvars, fpvars = directive._get_private_clauses()
-    assert len(pvars.children) == 2
-    assert len(fpvars.children) == 1
-    assert pvars.children[0].name == 'i'
-    assert pvars.children[1].name == 'scalar2'
-    assert fpvars.children[0].name == 'scalar1'
+    pvars, fpvars, sync = directive._infer_sharing_attributes()
+    assert len(pvars) == 2
+    assert len(fpvars) == 1
+    assert len(sync) == 0
+    assert sorted(pvars, key=lambda x: x.name)[0].name == 'i'
+    assert sorted(pvars, key=lambda x: x.name)[1].name == 'scalar2'
+    assert list(fpvars)[0].name == 'scalar1'
 
     # Another example with OMPParallelDirective (not actual worksharing)
     # and scalars set outside the loop (this should be shared by convention)
@@ -620,11 +620,12 @@ def test_directive_get_private(fortran_reader):
     loop = psyir.walk(Routine)[0]
     omplooptrans.apply(loop.children)
     directive = psyir.walk(OMPParallelDirective)[0]
-    pvars, fpvars = directive._get_private_clauses()
-    assert len(pvars.children) == 2
-    assert len(fpvars.children) == 0
-    assert pvars.children[0].name == 'i'
-    assert pvars.children[1].name == 'scalar2'
+    pvars, fpvars, sync = directive._infer_sharing_attributes()
+    assert len(pvars) == 2
+    assert len(fpvars) == 0
+    assert len(sync) == 0
+    assert sorted(pvars, key=lambda x: x.name)[0].name == 'i'
+    assert sorted(pvars, key=lambda x: x.name)[1].name == 'scalar2'
     # scalar 1 is shared because is read-only and scalar3 and scalar4 are
     # shared because they are set outside a loop
 

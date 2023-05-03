@@ -507,8 +507,14 @@ class OMPParallelDirective(OMPRegionDirective):
         # this almost certainly indicates a user error.
         self._encloses_omp_directive()
 
-        # Update/generate the private clause if the code has changed.
-        private_clause, fprivate_clause = self._get_private_clauses()
+        # Generate the private and firstprivate clauses
+        private, fprivate, need_sync = self._infer_sharing_attributes()
+        private_clause = OMPPrivateClause.create(
+                            sorted(private, key=lambda x: x.name))
+        fprivate_clause = OMPFirstprivateClause.create(
+                            sorted(fprivate, key=lambda x: x.name))
+        if need_sync:
+            raise GenerationError("")
 
         reprod_red_call_list = self.reductions(reprod=True)
         if reprod_red_call_list:
@@ -598,7 +604,19 @@ class OMPParallelDirective(OMPRegionDirective):
         self._children = self._children[:2]
         for child in self.children:
             child.lower_to_language_level()
-        private_clause, fprivate_clause = self._get_private_clauses()
+
+        # Create data sharing clauses (order alphabetically to make generation
+        # reproducible)
+        private, fprivate, need_sync = self._infer_sharing_attributes()
+        private_clause = OMPPrivateClause.create(
+                            sorted(private, key=lambda x: x.name))
+        fprivate_clause = OMPFirstprivateClause.create(
+                            sorted(fprivate, key=lambda x: x.name))
+        if need_sync:
+            raise GenerationError(
+                f"OpenMP parallel directive does not support symbols that "
+                f"need synchonisation, but found: {need_syn}")
+
         self.addchild(private_clause)
         self.addchild(fprivate_clause)
         return self
@@ -630,21 +648,41 @@ class OMPParallelDirective(OMPRegionDirective):
         '''
         return "omp end parallel"
 
-    def _get_private_clauses(self):
+    def _infer_sharing_attributes(self):
         '''
-        Returns the OpenMP clauses with the symbols of the variable names that
-        should be marked as PRIVATE and FIRSTPRIVATE in this parallel region.
+        The PSyIR does not specify if each symbol inside an OpenMP region is
+        private, firstprivate, shared or shared but needs synchronisation,
+        each its infered looking at the usage of each symbol inside the
+        parallel region.
 
-        :returns: a PRIVATE and a FIRSTPRIVATE clause containing the \
-                  variables that need to be marked private for this directive.
-        :rtype: Tuple[ \
-            :py:class:`psyclone.psyir.nodes.omp_clauses.OMPPrivateClause`,
-            :py:class:`psyclone.psyir.nodes.omp_clauses.OMPFirstprivateClause`]
+        This method analyses the directive body and automatically classifies
+        each symbol using the following rules:
+        - All arrays are shared.
+        - Scalars that are accessed only once are shared.
+        - Scalars that are read-only or written only once are shared.
+        - Scalars written in multiple iterations of a loop are private, unless:
+          * there is a write-after-read dependency in a loop iteration,
+          in which case it is shared but needs synchronisation;
+          or:
+          * they are read before in the same parallel region (but not same
+          iteration),
+          * they are only conditionally written in some iterations;
+          which in both cases they are firstprivate.
+
+        This method returns the sets of private, firstprivate, and shared but
+        needing synchronisation symbols, all symbols not in these sets are
+        assumed shared. How to synchronise the symbols in the third set is
+        up to the caller of this method.
+
+        :returns: three set of symbols that classify each of the symbols in \
+            the directive body as PRIVATE, FIRSTPRIVATE or SHARED NEEDING \
+            SYNCHRONISATION.
+        :rtype: Tuple[Set(:py:class:`psyclone.psyir.symbols.symbol), \
+                      Set(:py:class:`psyclone.psyir.symbols.symbol), \
+                      Set(:py:class:`psyclone.psyir.symbols.symbol)]
 
         :raises GenerationError: if the DefaultClauseType associated with \
                                  this OMPParallelDirective is not shared.
-        :raises InternalError: if a Kernel has local variable(s) but they \
-                               aren't named.
 
         '''
         if (self.default_clause.clause_type !=
@@ -656,6 +694,7 @@ class OMPParallelDirective(OMPRegionDirective):
 
         private = set()
         fprivate = set()
+        need_sync = set()
 
         # Now determine scalar variables that must be private:
         var_accesses = VariablesAccessInfo()
@@ -725,17 +764,7 @@ class OMPParallelDirective(OMPRegionDirective):
                     # shared, private or firstprivate. We can stop looking.
                     break
 
-        # Convert the sets into a list and sort them, so that we get
-        # reproducible results
-        list_private = list(private)
-        list_private.sort(key=lambda x: x.name)
-        list_fprivate = list(fprivate)
-        list_fprivate.sort(key=lambda x: x.name)
-
-        # Create the OMPPrivateClause and OMPFirstpirvateClause
-        priv_clause = OMPPrivateClause.create(list_private)
-        fpriv_clause = OMPFirstprivateClause.create(list_fprivate)
-        return priv_clause, fpriv_clause
+        return private, fprivate, need_sync
 
     def validate_global_constraints(self):
         '''
@@ -1313,11 +1342,17 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         # pylint: disable=protected-access
         default_str = self.children[1]._clause_string
         # pylint: enable=protected-access
-        private, fprivate = self._get_private_clauses()
+        private, fprivate, need_sync = self._infer_sharing_attributes()
+        private_clause = OMPPrivateClause.create(
+                            sorted(private, key=lambda x: x.name))
+        fprivate_clause = OMPFirstprivateClause.create(
+                            sorted(fprivate, key=lambda x: x.name))
+        if need_sync:
+            raise GenerationError("")
 
-        private_list = [child.symbol.name for child in private.children]
+        private_list = [child.symbol.name for child in private_clause.children]
         private_str = "private(" + ",".join(private_list) + ")"
-        fp_list = [child.symbol.name for child in fprivate.children]
+        fp_list = [child.symbol.name for child in fprivate_clause.children]
         if fp_list:
             fprivate_str = "firstprivate(" + ",".join(fp_list) + ")"
         else:
