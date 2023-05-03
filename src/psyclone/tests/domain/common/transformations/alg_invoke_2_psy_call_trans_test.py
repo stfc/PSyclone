@@ -469,9 +469,9 @@ def test_ai2psycall_add_arg():
     # Invalid argument exception
     with pytest.raises(TypeError) as info:
         AlgInvoke2PSyCallTrans._add_arg(None, [])
-    assert("Expected Algorithm-layer kernel arguments to be a literal, "
-           "reference or code block, but found 'NoneType'."
-           in str(info.value))
+    assert ("Expected Algorithm-layer kernel arguments to be a literal, "
+            "reference or code block, but found 'NoneType'."
+            in str(info.value))
 
     # literal (nothing added)
     args = []

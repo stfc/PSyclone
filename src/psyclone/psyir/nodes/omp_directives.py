@@ -615,7 +615,7 @@ class OMPParallelDirective(OMPRegionDirective):
         if need_sync:
             raise GenerationError(
                 f"OpenMP parallel directive does not support symbols that "
-                f"need synchonisation, but found: {need_syn}")
+                f"need synchonisation, but found: {need_sync}")
 
         self.addchild(private_clause)
         self.addchild(fprivate_clause)

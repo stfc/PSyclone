@@ -575,7 +575,8 @@ def test_directive_infer_sharing_attributes_lfric():
 
 
 def test_directive_infer_sharing_attributes(fortran_reader):
-    ''' Tests for the _infer_sharing_attributes() method of OpenMP directives.'''
+    ''' Tests for the _infer_sharing_attributes() method of OpenMP directives.
+    '''
 
     # Example with private and firstprivate variables on OMPParallelDoDirective
     psyir = fortran_reader.psyir_from_source('''
