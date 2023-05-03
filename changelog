@@ -395,10 +395,6 @@
 	132) PR #2086 for #2013. Adds support for logical scalar arguments
 	in PSyAD test harness generation.
 
-	133) PR #2060 towards #1618. Uses the new kernel metadata parser
-	in a new implementation of the functionality that handles the
-	LFRic Algorithm layer.
-
 release 2.3.1 17th of June 2022
 
 	1) PR #1747 for #1720. Adds support for If blocks to PSyAD.
