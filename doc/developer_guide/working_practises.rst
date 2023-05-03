@@ -561,7 +561,9 @@ It is the work performed by the self-hosted runner that is configured in the
 ``compilation.yml`` file. Currently this is limited to simply running the test
 suite with compilation enabled (using ``gfortran``) but we plan to extend this
 to perform integration tests with whole LFRic and NEMO applications, including
-GPU execution.
+GPU execution. Since the self-hosted runner is only available in the private
+repository, this action is configured such that it only runs if the name
+of the repository is that of the private one.
 
 
 Performance
