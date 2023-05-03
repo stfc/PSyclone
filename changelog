@@ -401,6 +401,8 @@
 
 	134) PR #2123. Updates GOcean project link in UG.
 
+	135) PR #2121 for #2109. Updates PSyclone to fparser 0.1.1 release.
+
 release 2.3.1 17th of June 2022
 
 	1) PR #1747 for #1720. Adds support for If blocks to PSyAD.
