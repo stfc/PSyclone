@@ -910,9 +910,6 @@ kernel-layer datatypes and symbols. For the algorithm layer in both
 GOcean1.0 and LFRic there are specialisations for invokes and kernel
 calls. This is discussed further in the following sections.
 
-
-
-
 The LFRic PSyIR
 ===============
 
@@ -920,12 +917,13 @@ The LFRic PSyIR is a set of subclasses of the PSyIR which captures
 LFRic-specific routines, datatypes and associated symbols. These
 subclasses are work in progress and at the moment are limited to 1) a
 subset of the datatypes passed into LFRic kernels by argument and by
-use association and 2) LFRic calls (InvokeCall and KernCall) in the
-LFRic algorithm-layer. Over time these will be expanded to support a)
-all LFRic kernel datatypes, b) all LFRic PSyIR datatypes, c)
-subroutines (KernRoutine etc), d) derived quantities e.g. iterator
-variables and eventually e) higher level LFRic PSyIR concepts, which
-will not be concerned with symbol tables and datatypes.
+use association and 2) LFRic invoke and kernel calls
+(``LFRicAlgInvokeCall`` and ``LFRicKernelFunctor``) in the LFRic
+algorithm-layer. Over time these will be expanded to support a) all
+LFRic kernel datatypes, b) all LFRic PSyIR datatypes, c) subroutines
+(KernRoutine etc), d) derived quantities e.g. iterator variables and
+eventually e) higher level LFRic PSyIR concepts, which will not be
+concerned with symbol tables and datatypes.
 
 The Kernel-layer subclasses will be used to:
 
