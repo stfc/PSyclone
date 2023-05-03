@@ -1289,6 +1289,8 @@ class Fparser2Reader():
 
             :raises NotImplementedError: if an unsupported form of array \
                                          bound is found.
+            :raises GenerationError: if invalid Fortran is found.
+
             '''
             if isinstance(bound_expr, Fortran2003.Int_Literal_Constant):
                 return Literal(bound_expr.items[0], INTEGER_TYPE)
@@ -1353,9 +1355,10 @@ class Fparser2Reader():
                     upper = ArrayType.Extent.ATTRIBUTE if lower else None
 
                 if upper and not lower:
-                    raise NotImplementedError(
-                        "Found an assumed-shape declaration with only an upper"
-                        " bound ({dimensions}). This is not valid Fortran.")
+                    raise GenerationError(
+                        f"Found an assumed-shape array declaration with only "
+                        f"an upper bound ({dimensions}). This is not valid "
+                        f"Fortran.")
                 if upper:
                     shape.append((lower, upper))
                 else:

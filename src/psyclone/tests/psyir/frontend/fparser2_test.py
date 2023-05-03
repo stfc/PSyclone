@@ -1289,9 +1289,10 @@ def test_process_not_supported_declarations():
     # Break the parse tree
     aspec = walk(fparser2spec, Fortran2003.Assumed_Shape_Spec)[0]
     aspec.items = (None, Fortran2003.Int_Literal_Constant('4', None))
-    processor.process_declarations(fake_parent, [fparser2spec], [])
-    l11sym = fake_parent.symbol_table.lookup("l12")
-    assert isinstance(l11sym.datatype, UnknownFortranType)
+    with pytest.raises(GenerationError) as err:
+        processor.process_declarations(fake_parent, [fparser2spec], [])
+    assert ("assumed-shape array declaration with only an upper bound (: 4). "
+            "This is not valid Fortran" in str(err.value))
 
 
 def test_process_save_attribute_declarations(parser):
