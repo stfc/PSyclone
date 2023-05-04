@@ -42,9 +42,10 @@ import pytest
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import Literal, BinaryOperation, Reference, \
     Container, KernelSchedule
-from psyclone.psyir.symbols import DataType, DeferredType, ScalarType, \
-    ArrayType, UnknownFortranType, DataSymbol, StructureType, NoType, \
-    INTEGER_TYPE, REAL_TYPE, Symbol, DataTypeSymbol, SymbolTable
+from psyclone.psyir.symbols import (
+    ArrayType, DataType, DeferredType, ScalarType, UnknownType,
+    UnknownFortranType, DataSymbol, StructureType, NoType,
+    INTEGER_TYPE, REAL_TYPE, Symbol, DataTypeSymbol, SymbolTable)
 
 
 # Abstract DataType class
@@ -262,6 +263,7 @@ def test_scalartype_immutable():
 
 
 # ArrayType class
+
 def test_arraytype():
     '''Test that the ArrayType class __init__ works as expected. Test the
     different dimension datatypes that are supported.'''
@@ -348,6 +350,16 @@ def test_arraytype_datatypesymbol():
     assert atype.precision is None
 
 
+def test_arraytype_unknowntype():
+    '''Test that we can construct an ArrayType when the type of the elements
+    is an UnknownType.'''
+    utype = UnknownFortranType("integer, pointer :: var")
+    atype = ArrayType(utype, [8])
+    assert isinstance(atype, ArrayType)
+    assert atype.datatype is utype
+    assert atype.precision is None
+
+
 def test_arraytype_invalid_shape():
     '''Test that the ArrayType class raises an exception when the shape
     argument is the wrong type.
@@ -414,7 +426,8 @@ def test_arraytype_invalid_shape_dimension_3():
 def test_arraytype_invalid_shape_bounds():
     ''' Check that the ArrayType class raises the expected exception when
     one of the dimensions of the shape list is a tuple that does not contain
-    either an int or a DataNode or is not a scalar.'''
+    either an int or a DataNode or is not a scalar. Also test when an invalid
+    lower bound is specified.'''
     scalar_type = ScalarType(ScalarType.Intrinsic.REAL, 4)
     with pytest.raises(TypeError) as excinfo:
         _ = ArrayType(scalar_type, [(1, 4, 1)])
@@ -436,6 +449,10 @@ def test_arraytype_invalid_shape_bounds():
     assert ("DataSymbol shape-list elements can only be 'int', ArrayType."
             "Extent, 'DataNode' or a 2-tuple thereof but found 'NoneType'" in
             str(excinfo.value))
+    with pytest.raises(TypeError) as err:
+        _ = ArrayType(scalar_type, [(ArrayType.Extent.ATTRIBUTE, 15)])
+    assert ("If present, the lower bound in an ArrayType 'shape' must "
+            "represent a value but found ArrayType.Extent" in str(err.value))
     scalar_type = ScalarType(ScalarType.Intrinsic.REAL, 4)
     symbol = DataSymbol("fred", scalar_type, constant_value=3.0)
     with pytest.raises(TypeError) as excinfo:
@@ -530,6 +547,23 @@ def test_arraytype_eq():
     assert data_type1 != ArrayType(dscalar_type, [10, 10])
     iscalar_type = ScalarType(ScalarType.Intrinsic.INTEGER, 4)
     assert data_type1 != ArrayType(iscalar_type, [10, 10])
+
+
+# UnknownType tests
+
+def test_unknown_type_declaration_setter():
+    '''Test the declaration setter/getter in UnknownType. We have to subclass
+    UnknownType as it is virtual.'''
+
+    class HardType(UnknownType):
+        '''Concrete sub-class of UnknownType for testing.'''
+        def __str__(self):
+            return "HardType"
+
+    htype = HardType("real var2;")
+    assert htype.declaration == "real var2;"
+    htype.declaration = "real var;"
+    assert htype.declaration == "real var;"
 
 
 # UnknownFortranType tests
