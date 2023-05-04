@@ -556,13 +556,14 @@ class SymbolTable():
         :rtype: Optional[Tuple[:py:class:`psyclone.psyir.symbols.Symbol`, \
                                :py:class:`psyclone.psyir.symbols.Symbol`]]
         '''
-        other_import_names = [sym.name for sym in other_table.imported_symbols]
         for sym in self.imported_symbols:
-            if sym.name in other_import_names:
-                routine_sym = other_table.lookup(sym.name)
-                if (routine_sym.interface.container_symbol.name !=
-                        sym.interface.container_symbol.name):
-                    return sym, routine_sym
+            for other_sym in other_table.imported_symbols:
+                if self._has_same_name(sym, other_sym):
+                    if not self._has_same_name(
+                            other_sym.interface.container_symbol,
+                            sym.interface.container_symbol):
+                        return sym, other_sym
+                    break
         return None
 
     def _add_container_symbols_from_table(self, other_table):

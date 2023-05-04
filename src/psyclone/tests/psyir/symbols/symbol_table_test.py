@@ -557,6 +557,38 @@ def test_swap_symbol():
     assert symbol1 not in sym_table._symbols
 
 
+def test_import_clashes():
+    '''Test the import_clashes method, in particular that it is not case
+    sensitive.'''
+    table1 = SymbolTable()
+    table2 = SymbolTable()
+    csym1 = ContainerSymbol("ford")
+    table1.add(csym1)
+    csym2 = ContainerSymbol("Ford")
+    table2.add(csym2)
+    clash1 = DataSymbol("Prefect", INTEGER_TYPE,
+                        interface=ImportInterface(csym1))
+    table1.add(clash1)
+    clash2 = DataSymbol("prefect", INTEGER_TYPE,
+                        interface=ImportInterface(csym2))
+    table2.add(clash2)
+    # No clash as the containers are the same, just with different
+    # capitalisation.
+    clashes = table1.import_clashes(table2)
+    assert clashes is None
+    # Now create a clash between variables that have different capitalisation.
+    csym3 = ContainerSymbol("arthur")
+    table1.add(csym3)
+    clash3 = DataSymbol("dent", INTEGER_TYPE, interface=ImportInterface(csym3))
+    table1.add(clash3)
+    clash4 = DataSymbol("DENT", INTEGER_TYPE, interface=ImportInterface(csym2))
+    table2.add(clash4)
+    clashes = table1.import_clashes(table2)
+    assert len(clashes) == 2
+    assert clash3 in clashes
+    assert clash4 in clashes
+
+
 def test_table_merge():
     ''' Test the SymbolTable.merge method. '''
     table1 = SymbolTable()
