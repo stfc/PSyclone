@@ -587,7 +587,7 @@ class SymbolTable():
                 self_csym = self.lookup(csym.name)
                 if not isinstance(self_csym, ContainerSymbol):
                     # The symbol in *this* table is not a Container so we
-                    # can rename it.
+                    # may be able to rename it.
                     self.rename_symbol(
                             self_csym,
                             self.next_available_name(
@@ -595,8 +595,10 @@ class SymbolTable():
                     # We can then add an import from the Container.
                     self.add(csym)
                 else:
-                    # If there is a wildcard import from this container then
-                    # we'll need that in this Table too.
+                    # The symbol in *this* table is also a ContainerSymbol so
+                    # must refer to the same Container. If there is a wildcard
+                    # import from this Container then we'll need that in this
+                    # Table too.
                     if csym.wildcard_import:
                         self_csym.wildcard_import = True
             else:
@@ -631,10 +633,10 @@ class SymbolTable():
         :param other_table: the symbol table from which to add symbols.
         :type other_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
         :param bool include_arguments: whether or not to include symbols that \
-                                       are formal routine arguments.
+                                       are routine arguments.
 
         :raises InternalError: if an imported symbol is found that has not \
-            been updated to refer to a Container in this table.
+            already been updated to refer to a Container in this table.
 
         '''
         if include_arguments:
