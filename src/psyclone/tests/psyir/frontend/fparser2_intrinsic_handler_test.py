@@ -172,11 +172,11 @@ def test_canonicalise_minmaxsum():
 
 @pytest.mark.parametrize("arguments", ["a, dim=d, mask=m", "a, d, m"])
 @pytest.mark.parametrize("intrinsic_name", ["MINVAL", "MAXVAL", "SUM"])
-def test_intrinsic_handler_intrinsiccall(
+def test_intrinsic_handler_intrinsiccall_mms(
         fortran_reader, fortran_writer, intrinsic_name, arguments):
     '''Check that the FParser2Reader class _intrinsic_handler method in
-    fparser2.py works as expected for intrinsics that result in an
-    IntrinsicCall (currently minval, maxval and sum). Test with and
+    fparser2.py works as expected for the minval, maxval and sum
+    intrinsics, which result in an IntrinsicCall. Test with and
     without canonicalisation being required to make sure the
     canonicalise_* function is called.
 
@@ -199,6 +199,39 @@ end subroutine
     assert result == f"{intrinsic_name}(a, dim=d, mask=m)"
     routine_symbol = intrinsic_call.routine
 
+    assert isinstance(routine_symbol, RoutineSymbol)
+    assert intrinsic_call.routine.name == intrinsic_name
+    assert isinstance(routine_symbol.interface, LocalInterface)
+    # TODO: issue #2102, intrinsics are not currently added to the
+    # symbol table "assert routine_symbol is \
+    #     intrinsic_call.scope.symbol_table.lookup(intrinsic_name)"
+    assert (str(intrinsic_call)) == f"IntrinsicCall[name='{intrinsic_name}']"
+
+
+@pytest.mark.parametrize("intrinsic_name", ["TINY", "HUGE"])
+def test_intrinsic_handler_intrinsiccall_onearg(
+        fortran_reader, fortran_writer, intrinsic_name):
+    '''Check that the FParser2Reader class _intrinsic_handler method in
+    fparser2.py works as expected for intrinsics that result in an
+    IntrinsicCall and have a single argument (currently tiny and
+    huge).
+
+    _intrinsic_handler needs a symbol table to be set up so it is difficult
+    to use a snippet of code. Therefore use a full Fortran example.
+
+    '''
+    code = f'''subroutine intrinsic_test(a, result)
+  real,    intent(in)  :: a(:)
+  real,    intent(out) ::result
+  result = {intrinsic_name}(a)
+end subroutine
+'''
+    psyir = fortran_reader.psyir_from_source(code)
+    intrinsic_call = psyir.children[0].children[0].children[1]
+    assert isinstance(intrinsic_call, IntrinsicCall)
+    result = fortran_writer(intrinsic_call)
+    assert result == f"{intrinsic_name}(a)"
+    routine_symbol = intrinsic_call.routine
     assert isinstance(routine_symbol, RoutineSymbol)
     assert intrinsic_call.routine.name == intrinsic_name
     assert isinstance(routine_symbol.interface, LocalInterface)

@@ -72,8 +72,8 @@ class IntrinsicCall(Call):
 
     #: The intrinsics that can be represented by this node.
     Intrinsic = Enum('Intrinsic', [
-        'ALLOCATE', 'DEALLOCATE', 'RANDOM_NUMBER', 'MINVAL', 'MAXVAL', "SUM"
-        ])
+        'ALLOCATE', 'DEALLOCATE', 'RANDOM_NUMBER', 'MINVAL', 'MAXVAL', "SUM",
+        "TINY", "HUGE"])
     #: Named tuple for describing the properties of the required arguments to
     #: a particular intrinsic. If there's no limit on the number of arguments
     #: then `max_count` will be None.
@@ -102,6 +102,10 @@ class IntrinsicCall(Call):
     _required_args[Intrinsic.SUM] = ArgDesc(1, 1, DataNode)
     _optional_args[Intrinsic.SUM] = {
         "dim": DataNode, "mask": DataNode}
+    _required_args[Intrinsic.TINY] = ArgDesc(1, 1, Reference)
+    _optional_args[Intrinsic.TINY] = {}
+    _required_args[Intrinsic.HUGE] = ArgDesc(1, 1, Reference)
+    _optional_args[Intrinsic.HUGE] = {}
 
     def __init__(self, routine, **kwargs):
         if not isinstance(routine, Enum) or routine not in self.Intrinsic:
@@ -250,4 +254,5 @@ REDUCTION_INTRINSICS = [
 # Intrinsics that, provided with an input array, apply their operation
 # individually to each of the array elements and return an array with
 # the results.
-ELEMENTAL_INTRINSICS = []
+ELEMENTAL_INTRINSICS = [
+    IntrinsicCall.Intrinsic.TINY, IntrinsicCall.Intrinsic.HUGE]

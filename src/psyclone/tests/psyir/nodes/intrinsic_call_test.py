@@ -76,13 +76,11 @@ def test_intrinsiccall_intrinsic():
 
 
 def test_intrinsiccall_is_elemental():
-    '''Tests the is_elemental() method works as expected. There are
-    currently no elemental intrinsics so we can only test for
-    False.
-
-    '''
+    '''Tests the is_elemental() method works as expected.'''
     intrinsic = IntrinsicCall(IntrinsicCall.Intrinsic.SUM)
     assert not intrinsic.is_elemental()
+    intrinsic = IntrinsicCall(IntrinsicCall.Intrinsic.HUGE)
+    assert intrinsic.is_elemental()
 
 
 def test_intrinsiccall_alloc_create():
@@ -191,6 +189,25 @@ def test_intrinsiccall_minmaxsum_create(intrinsic_call):
             ("mask", Literal("1", INTEGER_TYPE)),
             ("dim", Literal("false", BOOLEAN_TYPE))])
     assert intrinsic.argument_names == [None, "mask", "dim"]
+
+
+@pytest.mark.parametrize("intrinsic_call", [
+    IntrinsicCall.Intrinsic.TINY, IntrinsicCall.Intrinsic.HUGE])
+def test_intrinsiccall_tinyhuge_create(intrinsic_call):
+    '''Tests for the creation of the different argument options for
+    'tiny' and 'huge' IntrinsicCalls.
+
+    '''
+    array = DataSymbol(
+        "my_array", ArrayType(REAL_TYPE, [ArrayType.Extent.DEFERRED]))
+    intrinsic = IntrinsicCall.create(
+        intrinsic_call, [Reference(array)])
+    assert isinstance(intrinsic, IntrinsicCall)
+    assert intrinsic.intrinsic is intrinsic_call
+    assert isinstance(intrinsic.routine, IntrinsicSymbol)
+    intrinsic_name = intrinsic_call.name
+    assert intrinsic.routine.name == intrinsic_name
+    assert intrinsic.children[0].symbol is array
 
 
 def test_intrinsiccall_create_errors():
