@@ -702,6 +702,8 @@ class SymbolTable():
 
         :param other_table: the symbol table from which to add symbols.
         :type other_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+        :param bool include_arguments: whether to include Symbols that \
+            represent routine arguments.
 
         :raises TypeError: if `other_table` is not a SymbolTable.
         :raises SymbolError: if a Symbol with the same name is imported into \
