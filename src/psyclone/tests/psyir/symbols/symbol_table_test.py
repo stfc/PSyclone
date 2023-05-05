@@ -1501,9 +1501,11 @@ def test_deep_copy():
                       interface=ArgumentInterface(
                           ArgumentInterface.Access.READ))
     sym2 = Symbol("symbol2", interface=ImportInterface(mod))
+    sym3 = DataSymbol("symbol3", INTEGER_TYPE)
     symtab.add(mod)
     symtab.add(sym1)
     symtab.add(sym2, tag="tag1")
+    symtab.add(sym3)
     symtab.specify_argument_list([sym1])
 
     # Create a copy and check the contents are the same
@@ -1531,9 +1533,9 @@ def test_deep_copy():
     # Add new symbols and rename symbols in both symbol tables and check
     # they are not added/renamed in the other symbol table
     symtab.add(Symbol("st1"))
-    symtab.rename_symbol(symtab.lookup("symbol1"), "a")
+    symtab.rename_symbol(symtab.lookup("symbol3"), "a")
     symtab2.add(Symbol("st2"))
-    symtab2.rename_symbol(symtab2.lookup("symbol2"), "b")
+    symtab2.rename_symbol(symtab2.lookup("symbol3"), "b")
     assert "st1" in symtab
     assert "st2" in symtab2
     assert "st2" not in symtab
@@ -1544,8 +1546,8 @@ def test_deep_copy():
     assert "b" not in symtab
     assert "symbol1" in symtab2
     assert "symbol2" in symtab
-    assert "symbol1" not in symtab
-    assert "symbol2" not in symtab2
+    assert "symbol3" not in symtab
+    assert "symbol3" not in symtab2
 
 
 def test_get_symbols():
@@ -1869,31 +1871,64 @@ def test_rename_symbol():
         schedule_symbol_table.lookup("symbol1")
     assert "Could not find 'symbol1' in the Symbol Table." in str(err.value)
 
-    # Check argument conditions
+
+def test_rename_symbol_errors():
+    '''Test the various checks performed by the rename_symbol method.'''
+    table = SymbolTable()
+    symbol = DataSymbol("heart", INTEGER_TYPE)
+
     with pytest.raises(TypeError) as err:
-        schedule_symbol_table.rename_symbol("not_a_symbol", "other")
+        table.rename_symbol("not_a_symbol", "other")
     assert ("The symbol argument of rename_symbol() must be a Symbol, but "
             "found: 'str'." in str(err.value))
 
-    with pytest.raises(TypeError) as err:
-        schedule_symbol_table.rename_symbol(symbol, 3)
-    assert ("The name argument of rename_symbol() must be a str, but "
-            "found:" in str(err.value))
-
     with pytest.raises(ValueError) as err:
-        container_symbol_table.rename_symbol(symbol, "somethingelse")
+        table.rename_symbol(symbol, "somethingelse")
     assert ("The symbol argument of rename_symbol() must belong to this "
             "symbol_table instance, but " in str(err.value))
 
+    table.add(symbol)
+    with pytest.raises(TypeError) as err:
+        table.rename_symbol(symbol, 3)
+    assert ("The name argument of rename_symbol() must be a str, but "
+            "found:" in str(err.value))
+
+    # Cannot rename to something that already exists in the table.
+    table.new_symbol("array")
     with pytest.raises(KeyError) as err:
-        schedule_symbol_table.rename_symbol(symbol, "array")
+        table.rename_symbol(symbol, "array")
     assert ("The name argument of rename_symbol() must not already exist in "
             "this symbol_table instance, but 'array' does." in str(err.value))
 
     with pytest.raises(KeyError) as err:
-        schedule_symbol_table.rename_symbol(symbol, "aRRay")
+        table.rename_symbol(symbol, "aRRay")
     assert ("The name argument of rename_symbol() must not already exist in "
             "this symbol_table instance, but 'aRRay' does." in str(err.value))
+
+    # Cannot rename a Container symbol.
+    csym = ContainerSymbol("benjy")
+    table.add(csym)
+    with pytest.raises(SymbolError) as err:
+        table.rename_symbol(csym, "frankie")
+    assert ("Cannot rename symbol 'benjy' because it is a ContainerSymbol." in
+            str(err.value))
+
+    # Cannot rename an imported symbol.
+    isym = DataSymbol("mouse", DeferredType(), interface=ImportInterface(csym))
+    table.add(isym)
+    with pytest.raises(SymbolError) as err:
+        table.rename_symbol(isym, "rodent")
+    assert ("Cannot rename symbol 'mouse' because it is imported (from "
+            "Container 'benjy')" in str(err.value))
+
+    # Cannot rename a routine argument.
+    asym = DataSymbol("frankie", INTEGER_TYPE, interface=ArgumentInterface())
+    table.add(asym)
+    table.specify_argument_list([asym])
+    with pytest.raises(SymbolError) as err:
+        table.rename_symbol(asym, "rodent")
+    assert ("Cannot rename symbol 'frankie' because it is a routine argument "
+            "and as such may be named in a Call." in str(err.value))
 
 
 def test_resolve_imports(fortran_reader, tmpdir, monkeypatch):
@@ -1921,6 +1956,7 @@ def test_resolve_imports(fortran_reader, tmpdir, monkeypatch):
             integer, save, pointer :: b_2
             integer :: not_used1
             integer :: not_used2
+            integer :: not_used3
         end module b_mod
         ''')
     psyir = fortran_reader.psyir_from_source('''
@@ -1998,6 +2034,13 @@ def test_resolve_imports(fortran_reader, tmpdir, monkeypatch):
     assert isinstance(b_2.interface, ImportInterface)
     assert b_2.interface.container_symbol == \
            subroutine.symbol_table.lookup('b_mod')
+    # Repeat but for the case where the specified symbol is not actually
+    # referenced in the current symbol table and is brought in by a wildcard
+    # import.
+    subroutine.symbol_table.resolve_imports(
+        symbol_target=DataSymbol("not_used3", DeferredType()))
+    notused3 = subroutine.symbol_table.lookup("not_used3")
+    assert notused3.datatype == INTEGER_TYPE
     # We still haven't resolved anything about a_mod or other b_mod symbols
     assert not isinstance(a_1, DataSymbol)
     assert not isinstance(b_1, DataSymbol)

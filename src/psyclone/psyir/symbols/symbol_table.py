@@ -552,6 +552,9 @@ class SymbolTable():
         this table. If a symbol with the same name appears in both tables but
         is imported from different Containers then the two are returned.
 
+        :param other_table: the table for which to check for clashes.
+        :type other_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+
         :returns: the first two Symbols found with an import clash, if any.
         :rtype: Optional[Tuple[:py:class:`psyclone.psyir.symbols.Symbol`, \
                                :py:class:`psyclone.psyir.symbols.Symbol`]]
@@ -573,10 +576,9 @@ class SymbolTable():
         (This is a preliminary step to adding all symbols from other_table to
         this table.)
 
-        :param table: the symbol table at the call site.
-        :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
-        :param routine_table: the symbol table of the routine being inlined.
-        :type routine_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+        :param other_table: the symbol table from which to take container \
+                            symbols.
+        :type other_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
 
         '''
         for csym in other_table.containersymbols:
@@ -584,7 +586,7 @@ class SymbolTable():
                 # We have a clash with another symbol in this table.
                 self_csym = self.lookup(csym.name)
                 if not isinstance(self_csym, ContainerSymbol):
-                    # The symbol in this table is not a Container so we
+                    # The symbol in *this* table is not a Container so we
                     # can rename it.
                     self.rename_symbol(
                             self_csym,
@@ -606,17 +608,17 @@ class SymbolTable():
                 if isym.name in self:
                     # We have a potential clash with a symbol imported
                     # into the other table.
-                    callsite_sym = self.lookup(isym.name)
-                    if not callsite_sym.is_import:
+                    other_sym = self.lookup(isym.name)
+                    if not other_sym.is_import:
                         # The calling merge() method has already checked that
                         # we don't have a clash between symbols of the same
                         # name imported from different containers. We don't
                         # support renaming an imported symbol but the
                         # symbol in this table can be renamed so we do that.
                         self.rename_symbol(
-                            callsite_sym,
+                            other_sym,
                             self.next_available_name(
-                                callsite_sym.name, other_table=other_table))
+                                other_sym.name, other_table=other_table))
                 isym.interface = ImportInterface(self.lookup(csym.name))
 
     def _add_symbols_from_table(self, other_table, include_arguments=True):
@@ -1466,6 +1468,8 @@ class SymbolTable():
                             symbol table.
         :raises KeyError: if the given variable name already exists in the \
                           symbol table.
+        :raises SymbolError: if the specified Symbol is a ContainerSymbol, is \
+                             imported or is a formal routine argument.
 
         '''
         if not isinstance(symbol, Symbol):
@@ -1477,6 +1481,21 @@ class SymbolTable():
             raise ValueError(
                 f"The symbol argument of rename_symbol() must belong to this "
                 f"symbol_table instance, but '{symbol}' does not.")
+
+        if isinstance(symbol, ContainerSymbol):
+            raise SymbolError(f"Cannot rename symbol '{symbol.name}' because "
+                              f"it is a ContainerSymbol.")
+
+        if symbol.is_import:
+            raise SymbolError(
+                f"Cannot rename symbol '{symbol.name}' because it is imported "
+                f"(from Container '{symbol.interface.container_symbol.name}')."
+            )
+
+        if symbol.is_argument:
+            raise SymbolError(
+                f"Cannot rename symbol '{symbol.name}' because it is a routine"
+                f" argument and as such may be named in a Call.")
 
         if not isinstance(name, str):
             raise TypeError(
