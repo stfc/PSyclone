@@ -45,7 +45,8 @@ from psyclone.psyir.nodes import (
     Literal, Assignment, StructureMember, StructureReference)
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.symbols import (ArrayType, DataSymbol, DeferredType,
-                                    INTEGER_TYPE, Symbol, UnknownType)
+                                    INTEGER_TYPE, Symbol, SymbolError,
+                                    UnknownType)
 from psyclone.psyir.transformations.reference2arrayrange_trans import (
     Reference2ArrayRangeTrans)
 from psyclone.psyir.transformations.transformation_error import (
@@ -636,13 +637,12 @@ class InlineTrans(Transformation):
 
         # We can't handle a clash between (apparently) different symbols that
         # share a name but are imported from different containers.
-        syms = table.import_clashes(routine_table)
-        if syms:
+        try:
+            table.check_for_clashes(routine_table)
+        except SymbolError as err:
             raise TransformationError(
-                f"Routine '{routine.name}' imports '{syms[1].name}' from "
-                f"Container '{syms[1].interface.container_symbol.name}' but"
-                f" the call site has an import of a symbol with the same name "
-                f"from Container '{syms[0].interface.container_symbol.name}'.")
+                f"One or more symbols from routine '{routine.name}' cannot be "
+                f"added to the table at the call site.") from err
 
         # Check for unresolved symbols or for any accessed from the Container
         # containing the target routine.

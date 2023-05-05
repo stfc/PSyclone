@@ -546,28 +546,59 @@ class SymbolTable():
 
         self._symbols[key] = new_symbol
 
-    def import_clashes(self, other_table):
+    def check_for_clashes(self, other_table):
         '''
-        Checks the imported symbols in the supplied table against those in
-        this table. If a symbol with the same name appears in both tables but
-        is imported from different Containers then the two are returned.
+        Checks the symbols in the supplied table against those in
+        this table. If there is a name clash that cannot be resolved by
+        renaming then a SymbolError is raised.
 
         :param other_table: the table for which to check for clashes.
         :type other_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
 
-        :returns: the first two Symbols found with an import clash, if any.
-        :rtype: Optional[Tuple[:py:class:`psyclone.psyir.symbols.Symbol`, \
-                               :py:class:`psyclone.psyir.symbols.Symbol`]]
+        :raises SymbolError: if there would be an unresolvable name clash \
+            when importing symbols from `other_table` into this table.
+
         '''
-        for sym in self.imported_symbols:
-            for other_sym in other_table.imported_symbols:
-                if self._has_same_name(sym, other_sym):
-                    if not self._has_same_name(
-                            other_sym.interface.container_symbol,
-                            sym.interface.container_symbol):
-                        return sym, other_sym
-                    break
-        return None
+        for other_sym in other_table.symbols:
+            if other_sym.name not in self:
+                continue
+            # We have a name clash.
+            this_sym = self.lookup(other_sym.name)
+            # If they are both ContainerSymbols then that's OK as they refer to
+            # the same Container.
+            if (isinstance(this_sym, ContainerSymbol) and
+                    isinstance(other_sym, ContainerSymbol)):
+                continue
+            if other_sym.is_import and this_sym.is_import:
+                # Both symbols are imported. That's fine as long as they are
+                # imported from the same Container.
+                if not self._has_same_name(
+                        other_sym.interface.container_symbol,
+                        this_sym.interface.container_symbol):
+                    raise SymbolError(
+                        f"This table has an import of '{this_sym.name}' from "
+                        f"Container "
+                        f"'{this_sym.interface.container_symbol.name}' but "
+                        f"the supplied table imports it from Container "
+                        f"'{other_sym.interface.container_symbol.name}'.")
+                continue
+            if other_sym.is_import:
+                # other_sym is imported and thus cannot be renamed. Can we
+                # rename this_sym?
+                self.rename_symbol(this_sym, "", dry_run=True)
+                continue
+            if this_sym.is_import:
+                # this_sym is imported and thus cannot be renamed. Can we
+                # rename other_sym?
+                other_table.rename_symbol(other_sym, "", dry_run=True)
+                continue
+            # Neither of the Symbols that clash are imports so can either of
+            # them be renamed?
+            try:
+                other_table.rename_symbol(other_sym, "", dry_run=True)
+                continue
+            except SymbolError:
+                self.rename_symbol(this_sym, "", dry_run=True)
 
     def _add_container_symbols_from_table(self, other_table):
         '''
@@ -706,21 +737,19 @@ class SymbolTable():
             represent routine arguments.
 
         :raises TypeError: if `other_table` is not a SymbolTable.
-        :raises SymbolError: if a Symbol with the same name is imported into \
-            both this and the supplied table but from different Containers.
+        :raises SymbolError: if name clashes prevent the merge.
+
         '''
         if not isinstance(other_table, SymbolTable):
             raise TypeError(f"SymbolTable.merge() expects a SymbolTable "
                             f"instance but got '{type(other_table).__name__}'")
 
-        clashes = self.import_clashes(other_table)
-        if clashes:
+        try:
+            self.check_for_clashes(other_table)
+        except SymbolError as err:
             raise SymbolError(
-                f"Cannot merge the SymbolTables: this table has an import of "
-                f"'{clashes[0].name}' from Container "
-                f"'{clashes[0].interface.container_symbol.name}' but the "
-                f"supplied table imports it from Container "
-                f"'{clashes[1].interface.container_symbol.name}'.")
+                f"Cannot merge {other_table.view()} with {self.view()} due to "
+                f"unresolvable name clashes.") from err
 
         # Deal with any Container symbols first.
         self._add_container_symbols_from_table(other_table)
@@ -1457,7 +1486,7 @@ class SymbolTable():
                 f"any of the searched containers: "
                 f"{[cont.name for cont in container_symbols]}.")
 
-    def rename_symbol(self, symbol, name):
+    def rename_symbol(self, symbol, name, dry_run=False):
         '''
         Rename the given symbol which should belong to this symbol table
         with the new name provided.
@@ -1465,6 +1494,8 @@ class SymbolTable():
         :param symbol: the symbol to be renamed.
         :type symbol: :py:class:`psyclone.psyir.symbols.Symbol`
         :param str name: the new name.
+        :param bool dry_run: if True then only the validation checks are \
+                             performed.
 
         :raises TypeError: if the symbol is not a Symbol.
         :raises TypeError: if the name is not a str.
@@ -1530,6 +1561,9 @@ class SymbolTable():
                         f"Cannot rename Symbol '{symbol.name}' because it is "
                         f"accessed in a CodeBlock:\n"
                         f"{cblk_txt}")
+
+        if dry_run:
+            return
 
         # Delete current dictionary entry
         del self._symbols[old_name]

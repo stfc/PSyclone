@@ -558,9 +558,9 @@ def test_swap_symbol():
     assert symbol1 not in sym_table._symbols
 
 
-def test_import_clashes():
-    '''Test the import_clashes method, in particular that it is not case
-    sensitive.'''
+def test_check_for_clashes_imports():
+    '''Test the check_for_clashes method for two tables that import the same
+    symbol from different tables.'''
     table1 = SymbolTable()
     table2 = SymbolTable()
     csym1 = ContainerSymbol("ford")
@@ -575,8 +575,7 @@ def test_import_clashes():
     table2.add(clash2)
     # No clash as the containers are the same, just with different
     # capitalisation.
-    clashes = table1.import_clashes(table2)
-    assert clashes is None
+    table1.check_for_clashes(table2)
     # Now create a clash between variables that have different capitalisation.
     csym3 = ContainerSymbol("arthur")
     table1.add(csym3)
@@ -584,10 +583,52 @@ def test_import_clashes():
     table1.add(clash3)
     clash4 = DataSymbol("DENT", INTEGER_TYPE, interface=ImportInterface(csym2))
     table2.add(clash4)
-    clashes = table1.import_clashes(table2)
-    assert len(clashes) == 2
-    assert clash3 in clashes
-    assert clash4 in clashes
+    with pytest.raises(SymbolError) as err:
+        table1.check_for_clashes(table2)
+    assert ("This table has an import of 'dent' from Container 'arthur' but "
+            "the supplied table imports it from Container 'Ford'." in
+            str(err.value))
+
+
+def test_check_for_clashes_cannot_rename():
+    '''Test the check_for_clashes() method works as expected when a name clash
+    cannot be resolved by renaming.'''
+    table1 = SymbolTable()
+    table2 = SymbolTable()
+    csym1 = ContainerSymbol("vogon")
+    table1.add(csym1)
+    table1.add(DataSymbol("slab", INTEGER_TYPE))
+    csym2 = ContainerSymbol("fleet")
+    table2.add(csym2)
+    table2.add(DataSymbol("slab", DeferredType(),
+                          interface=ImportInterface(csym2)))
+    # 'slab' in table1 can be renamed.
+    table1.check_for_clashes(table2)
+    # Add another clash where one symbol is imported and the other cannot
+    # be renamed because it is a routine argument.
+    table1.add(DataSymbol("prostetnic", INTEGER_TYPE,
+                          interface=ArgumentInterface()))
+    table2.add(DataSymbol("prostetnic", DeferredType(),
+                          interface=ImportInterface(csym2)))
+    with pytest.raises(SymbolError) as err:
+        table1.check_for_clashes(table2)
+    assert ("Cannot rename symbol 'prostetnic' because it is a routine "
+            "argument and as such may be named in a Call." in str(err.value))
+    with pytest.raises(SymbolError) as err:
+        table2.check_for_clashes(table1)
+    assert ("Cannot rename symbol 'prostetnic' because it is a routine "
+            "argument and as such may be named in a Call." in str(err.value))
+    # Add a clash between two symbols where neither is a Container or has an
+    # ImportInterface.
+    del table1._symbols["prostetnic"]
+    table1.add(DataSymbol("jeltz", INTEGER_TYPE,
+                          interface=ArgumentInterface()))
+    table2.add(DataSymbol("jeltz", INTEGER_TYPE,
+                          interface=ArgumentInterface()))
+    with pytest.raises(SymbolError) as err:
+        table1.check_for_clashes(table2)
+    assert ("Cannot rename symbol 'jeltz' because it is a routine argument "
+            "and as such may be named in a Call." in str(err.value))
 
 
 def test_table_merge():
@@ -678,9 +719,9 @@ def test_merge_container_syms():
     tab4.add(wpsym3)
     with pytest.raises(SymbolError) as err:
         tab1.merge(tab4)
-    assert ("Cannot merge the SymbolTables: this table has an import of 'wp' "
-            "from Container 'slartibartfast' but the supplied table imports "
-            "it from Container 'magrathea'" in str(err.value))
+    err_txt = str(err.value)
+    assert "Cannot merge Symbol Table:" in err_txt
+    assert "due to unresolvable name clashes." in err_txt
 
 
 def test_add_container_symbols_from_table():

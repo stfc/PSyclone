@@ -1726,9 +1726,8 @@ def test_validate_import_clash(fortran_reader):
     inline_trans = InlineTrans()
     with pytest.raises(TransformationError) as err:
         inline_trans.validate(call)
-    assert ("Routine 'sub' imports 'trouble' from Container 'other_mod' but "
-            "the call site has an import of a symbol with the same name from "
-            "Container 'some_mod'" in str(err.value))
+    assert ("One or more symbols from routine 'sub' cannot be added to the "
+            "table at the call site." in str(err.value))
 
 
 def test_validate_non_local_symbol(fortran_reader):
