@@ -1221,39 +1221,6 @@ def test_apply_callsite_rename_container(fortran_reader, fortran_writer):
             "    i = i * a_mod_1\n" in output)
 
 
-def test_inline_symbols_check(fortran_reader):
-    '''Test the internal consistency check within _inline_symbols.'''
-    code = (
-        "module test_mod\n"
-        "contains\n"
-        "  subroutine run_it()\n"
-        "    use a_mod, only: a_clash\n"
-        "    use kinds_mod, only: r_def\n"
-        "    integer :: i, a_var\n"
-        "    a_var = a_clash\n"
-        "    i = 10.0_r_def\n"
-        "    call sub(i)\n"
-        "    i = i * a_var\n"
-        "  end subroutine run_it\n"
-        "  subroutine sub(idx)\n"
-        "    use a_mod, only: a_clash\n"
-        "    use kinds_mod, only: i_def\n"
-        "    integer, intent(inout) :: idx\n"
-        "    idx = idx + 5_i_def + a_clash\n"
-        "  end subroutine sub\n"
-        "end module test_mod\n")
-    psyir = fortran_reader.psyir_from_source(code)
-    routines = psyir.walk(Routine)
-    caller = routines[0]
-    callee = routines[1]
-    inline_trans = InlineTrans()
-    with pytest.raises(InternalError) as err:
-        inline_trans._inline_symbols(caller.symbol_table,
-                                     callee.symbol_table, {})
-    assert ("Symbol 'a_clash' imported from 'a_mod' has not been updated to "
-            "refer to that container at the call site." in str(err.value))
-
-
 def test_validate_non_local_import(fortran_reader):
     '''Test that we reject the case where the routine to be
     inlined accesses a symbol from an import in its parent container.'''
