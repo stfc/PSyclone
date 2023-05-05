@@ -43,8 +43,9 @@ import os
 from collections import OrderedDict
 import pytest
 from psyclone.configuration import Config
-from psyclone.psyir.nodes import Schedule, Container, KernelSchedule, \
-    Literal, Reference, Assignment, Routine
+from psyclone.psyir.nodes import (
+    CodeBlock, Container, KernelSchedule,
+    Literal, Reference, Assignment, Routine, Schedule)
 from psyclone.psyir.symbols import SymbolTable, DataSymbol, ContainerSymbol, \
     LocalInterface, ImportInterface, ArgumentInterface, UnresolvedInterface, \
     ScalarType, ArrayType, DeferredType, REAL_TYPE, INTEGER_TYPE, Symbol, \
@@ -1840,7 +1841,7 @@ def test_rename_symbol():
     affects all its references. Also check that it fails when the arguments
     are not what the method expects.'''
     # Prepare the symbol table hierarchy for the test
-    schedule_symbol_table, container_symbol_table = create_hierarchy()
+    schedule_symbol_table, _ = create_hierarchy()
     symbol = schedule_symbol_table.lookup("symbol1")
     symbol.constant_value = 3
     symbol2 = schedule_symbol_table.lookup("symbol2")
@@ -1929,6 +1930,39 @@ def test_rename_symbol_errors():
         table.rename_symbol(asym, "rodent")
     assert ("Cannot rename symbol 'frankie' because it is a routine argument "
             "and as such may be named in a Call." in str(err.value))
+
+
+def test_rename_codeblock_error(fortran_reader):
+    '''Test that we refuse to rename a symbol that is referenced within a
+    CodeBlock in the associated code.'''
+    code = '''
+module gold
+  integer :: my_var, other_var
+
+contains
+
+  subroutine heart_of()
+    other_var = 1.0
+    my_var = 1.0
+
+    write(*,*) my_var
+
+  end subroutine heart_of
+
+end module gold'''
+    psyir = fortran_reader.psyir_from_source(code)
+    cont = psyir.children[0]
+    assert len(cont.walk(CodeBlock)) == 1
+    # We can rename 'other_var' because it's not accessed in the CodeBlock
+    table = cont.symbol_table
+    ovar = table.lookup("other_var")
+    table.rename_symbol(ovar, "new_name")
+    assert table.lookup("new_name") is ovar
+    # We can't rename 'my_var' because it is accessed in the CodeBlock
+    with pytest.raises(SymbolError) as err:
+        table.rename_symbol(table.lookup("my_var"), "ship")
+    assert ("Cannot rename Symbol 'my_var' because it is accessed in a "
+            "CodeBlock:\nWRITE(*, *) my_var" in str(err.value))
 
 
 def test_resolve_imports(fortran_reader, tmpdir, monkeypatch):

@@ -1474,6 +1474,8 @@ class SymbolTable():
                           symbol table.
         :raises SymbolError: if the specified Symbol is a ContainerSymbol, is \
                              imported or is a formal routine argument.
+        :raises SymbolError: if the specified Symbol is accessed within a \
+                             CodeBlock in the scope of this table.
 
         '''
         if not isinstance(symbol, Symbol):
@@ -1508,23 +1510,29 @@ class SymbolTable():
                 f"The name argument of rename_symbol() must be a str, but"
                 f" found: '{type(symbol).__name__}'.")
 
-        norm_name = self._normalize(name)
-        if norm_name in self._symbols:
+        if self._normalize(name) in self._symbols:
             raise KeyError(
                 f"The name argument of rename_symbol() must not already exist "
                 f"in this symbol_table instance, but '{name}' does.")
 
+        old_name = self._normalize(symbol.name)
         if self.node:
             # pylint: disable=import-outside-toplevel
             from psyclone.psyir.nodes import CodeBlock
             cblocks = self.node.walk(CodeBlock)
             for cblock in cblocks:
-                sym_names = map(self._normalize, cblock.get_symbol_names())
-                if norm_name in sym_names:
-                    raise SymbolError("ah yes")
+                sym_names = [self._normalize(sname) for sname in
+                             cblock.get_symbol_names()]
+                if old_name in sym_names:
+                    cblk_txt = "\n".join(str(anode) for anode in
+                                         cblock.get_ast_nodes)
+                    raise SymbolError(
+                        f"Cannot rename Symbol '{symbol.name}' because it is "
+                        f"accessed in a CodeBlock:\n"
+                        f"{cblk_txt}")
 
         # Delete current dictionary entry
-        del self._symbols[self._normalize(symbol.name)]
+        del self._symbols[old_name]
 
         # Rename symbol using protected access as the Symbol class should not
         # expose a name attribute setter.
