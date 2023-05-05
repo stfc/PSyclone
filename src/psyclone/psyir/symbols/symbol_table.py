@@ -1501,15 +1501,27 @@ class SymbolTable():
                 f"Cannot rename symbol '{symbol.name}' because it is a routine"
                 f" argument and as such may be named in a Call.")
 
+        # TODO #2043 - add check that Symbol is not in a CommonBlock.
+
         if not isinstance(name, str):
             raise TypeError(
                 f"The name argument of rename_symbol() must be a str, but"
                 f" found: '{type(symbol).__name__}'.")
 
-        if self._normalize(name) in self._symbols:
+        norm_name = self._normalize(name)
+        if norm_name in self._symbols:
             raise KeyError(
                 f"The name argument of rename_symbol() must not already exist "
                 f"in this symbol_table instance, but '{name}' does.")
+
+        if self.node:
+            # pylint: disable=import-outside-toplevel
+            from psyclone.psyir.nodes import CodeBlock
+            cblocks = self.node.walk(CodeBlock)
+            for cblock in cblocks:
+                sym_names = map(self._normalize, cblock.get_symbol_names())
+                if norm_name in sym_names:
+                    raise SymbolError("ah yes")
 
         # Delete current dictionary entry
         del self._symbols[self._normalize(symbol.name)]
