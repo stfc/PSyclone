@@ -64,6 +64,7 @@ from psyclone.domain.lfric.algorithm import LFRicBuiltinFunctor
 from psyclone.domain.lfric.transformations import (
     LFRicAlgTrans, RaisePSyIR2LFRicKernTrans, LFRicAlgInvoke2PSyCallTrans)
 from psyclone.errors import GenerationError, InternalError
+from psyclone.psyir.transformations import TransformationError
 from psyclone.line_length import FortLineLength
 from psyclone.parse import ModuleManager
 from psyclone.parse.algorithm import parse
@@ -514,7 +515,7 @@ def main(args):
             alg = alg_file.read()
         psy = ""
     except (OSError, IOError, ParseError, GenerationError,
-            RuntimeError):
+            RuntimeError, TransformationError):
         _, exc_value, _ = sys.exc_info()
         print(exc_value, file=sys.stderr)
         sys.exit(1)
