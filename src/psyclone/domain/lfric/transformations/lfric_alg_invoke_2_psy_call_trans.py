@@ -254,14 +254,15 @@ class LFRicAlgInvoke2PSyCallTrans(AlgInvoke2PSyCallTrans):
                                         stencil_arg,
                                         stencil_direction_arguments)
                 arg_idx += 1
-            if kernel_metadata.shapes and \
-               [quad for quad in kernel_metadata.shapes
-                    if quad in const.VALID_QUADRATURE_SHAPES]:
-                # There is an additional quadrature argument.
-                if not check_args:
-                    quad_arg = kern_call.children[arg_idx]
-                    self._add_arg(quad_arg, quad_arguments)
-                arg_idx += 1
+            if kernel_metadata.shapes:
+                quad_args = [quad for quad in kernel_metadata.shapes
+                             if quad in const.VALID_QUADRATURE_SHAPES]
+                for quad_arg in quad_args:
+                    # There is an additional quadrature argument.
+                    if not check_args:
+                        quad_arg = kern_call.children[arg_idx]
+                        self._add_arg(quad_arg, quad_arguments)
+                    arg_idx += 1
 
             # Incorrect number of kernel functor arguments
             if check_args and len(kern_call.children) != arg_idx:
