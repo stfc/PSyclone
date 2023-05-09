@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council
+# Copyright (c) 2021-2023, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -340,8 +340,9 @@ def test_arg_error(fortran_reader):
     invoke_trans = RaisePSyIR2AlgTrans()
     with pytest.raises(TransformationError) as info:
         invoke_trans.validate(psyir.children[0][0])
-    assert ("The arguments to this invoke call are expected to be a "
-            "CodeBlock or an ArrayReference, but found 'Literal'."
+    assert ("The arguments to this invoke call are expected to be kernel "
+            "calls which are represented in generic PSyIR as CodeBlocks "
+            "or ArrayReferences, but ''hello'' is of type 'Literal'."
             in str(info.value))
 
 
