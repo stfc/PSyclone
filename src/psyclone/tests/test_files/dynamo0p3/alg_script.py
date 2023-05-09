@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2023, Science and Technology Facilities Council.
+# Copyright (c) 2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,25 +31,37 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors J. Henrichs, Bureau of Meteorology
-#         S. Siso, STFC Daresbury Lab
-# Modified: R. W. Ford, STFC Daresbury Lab
+# Author R. W. Ford STFC Daresbury Lab
 
-'''This module contains the transformations for GOcean.
+'''Null PSyclone transformation script that includes an example of the
+optional 'trans_alg()' function. If included, the 'trans_alg()'
+function allows modification of the algorithm layer.
 '''
 
-from psyclone.domain.gocean.transformations.gocean_extract_trans \
-    import GOceanExtractTrans
-from psyclone.domain.gocean.transformations.gocean_opencl_trans \
-    import GOOpenCLTrans
-from psyclone.domain.gocean.transformations. \
-    gocean_move_iteration_boundaries_inside_kernel_trans import \
-    GOMoveIterationBoundariesInsideKernelTrans
-from psyclone.domain.gocean.transformations.gocean_loop_fuse_trans \
-    import GOceanLoopFuseTrans
-from psyclone.domain.gocean.transformations.gocean_const_loop_bounds_trans \
-    import GOConstLoopBoundsTrans
-from psyclone.domain.gocean.transformations.raise_psyir_2_gocean_kern_trans \
-    import RaisePSyIR2GOceanKernTrans
-from psyclone.domain.gocean.transformations.\
-    gocean_alg_invoke_2_psy_call_trans import GOceanAlgInvoke2PSyCallTrans
+
+def trans_alg(psyir):
+    '''Function to modify the algorithm layer PSyIR. This function is
+    designed to be called by the psyclone script.
+
+    :param psyir: algorithm-layer code represented in PSyIR.
+    :type psyir: :class:py:`psyclone.psyir.nodes.Node`
+
+    :returns: modified algorithm-layer code.
+    :rtype: :class:py:`psyclone.psyir.nodes.Node`
+
+    '''
+    return psyir
+
+
+def trans(psy):
+    '''Function to modify the algorithm layer PSyIR. This function is
+    designed to be called by the psyclone script.
+
+    :param psy: PSyclone's representation of the PSy-layer code.
+    :type psy: :class:py:`psyclone.dynamo0p3.DynamoPSy`
+
+    :returns: modified algorithm-layer code.
+    :rtype: :class:py:`psyclone.dynamo0p3.DynamoPSy`
+
+    '''
+    return psy
