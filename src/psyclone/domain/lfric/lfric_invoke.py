@@ -36,7 +36,7 @@
 # Modified J. Henrichs, Bureau of Meteorology
 # Modified A. B. G. Chalk and N. Nobre, STFC Daresbury Lab
 
-''' This module implements the LFRic-specific implementation of the Invoke 
+''' This module implements the LFRic-specific implementation of the Invoke
     base class from psyGen.py. '''
 
 # Imports
@@ -65,7 +65,7 @@ class LFRicInvoke(Invoke):
     :type invokes: :py:class:`psyclone.dynamo0p3.DynamoInvokes`
 
     :raises GenerationError: if integer reductions are required in the \
-                    psy-layer.
+                    PSy-layer.
 
     '''
     # pylint: disable=too-many-instance-attributes
@@ -111,21 +111,21 @@ class LFRicInvoke(Invoke):
         self.function_spaces = DynFunctionSpaces(self)
 
         # Initialise the object holding all information on the dofmaps
-        # required by this invoke.
+        # required by this Invoke
         self.dofmaps = DynDofmaps(self)
 
         # Initialise information on all of the fields accessed in this Invoke
         self.fields = LFRicFields(self)
 
-        # Initialise info. on all of the LMA operators used in this Invoke
+        # Initialise info on all of the LMA operators used in this Invoke
         self.lma_ops = DynLMAOperators(self)
 
         # Initialise the object holding all information on the column-
-        # -matrix assembly operators required by this invoke
+        # -matrix assembly operators required by this Invoke
         self.cma_ops = DynCMAOperators(self)
 
         # Initialise the object holding all information on the quadrature
-        # and/or evaluators required by this invoke
+        # and/or evaluators required by this Invoke
         self.evaluators = DynBasisFunctions(self)
 
         # Initialise the object holding all information related to meshes
@@ -139,7 +139,7 @@ class LFRicInvoke(Invoke):
         # Information on all proxies required by this Invoke
         self.proxies = DynProxies(self)
 
-        # Run-time checks for this invoke
+        # Run-time checks for this Invoke
         self.run_time_checks = LFRicRunTimeChecks(self)
 
         # Information required by kernels that operate on cell-columns
@@ -167,7 +167,7 @@ class LFRicInvoke(Invoke):
         self._alg_unique_args.extend(self._alg_unique_qr_args)
         # We also need to work out the names to use for the qr
         # arguments within the PSy-layer. These are stored in the
-        # '_psy_unique_qr_vars' list
+        # '_psy_unique_qr_vars' list.
         self._psy_unique_qr_vars = []
         for call in self.schedule.kernels():
             for rule in call.qr_rules.values():
@@ -194,13 +194,16 @@ class LFRicInvoke(Invoke):
                     loop.parent.children.insert(loop.position+1, global_sum)
 
     def arg_for_funcspace(self, fspace):
-        ''' Returns an argument object which is on the requested
+        '''
+        Returns an argument object which is on the requested
         function space. Searches through all Kernel calls in this
-        invoke. Currently the first argument object that is found is
-        used. Throws an exception if no argument exists. 
+        Invoke. Currently the first argument object that is found is
+        used. Throws an exception if no argument exists.
 
-        :param fspace: function space of the argument
-        :type fspace: class 'psyclone.domain.lfric.function_space.FunctionSpace'
+        :param fspace: function space of the argument.
+        :type fspace: class `psyclone.domain.lfric.FunctionSpace`
+        :returns: an argument object which is on the requested function space
+        :raises GenerationError: if the argument object does not exist
         '''
         for kern_call in self.schedule.kernels():
             try:
@@ -211,10 +214,12 @@ class LFRicInvoke(Invoke):
             f"No argument found on '{fspace.mangled_name}' space")
 
     def unique_fss(self):
-        '''   
+        '''
+
         :returns: the unique function space *objects* over all kernel
                   calls in this Invoke.
-        :rtype: list
+        :rtype: list of :py:class:`psyclone.domain.lfric.FunctionSpace`
+
         '''
         unique_fs = []
         unique_fs_names = []
@@ -238,10 +243,13 @@ class LFRicInvoke(Invoke):
                    self.schedule.kernels())
 
     def field_on_space(self, func_space):
-        ''' If a field exists on this space for any kernel in this
-        Invoke then return that field. Otherwise return 'None'. 
-        :param func_space: The function space for which to find an argument.
+        '''
+        If a field exists on this space for any kernel in this
+        Invoke then return that field. Otherwise return 'None'.
+
+        :param func_space: the function space for which to find an argument.
         :type func_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
+        
         '''
         for kern_call in self.schedule.kernels():
             field = func_space.field_on_space(kern_call.arguments)
@@ -258,7 +266,7 @@ class LFRicInvoke(Invoke):
 
         :param parent: The parent node in the AST (of the code to be \
                        generated) to which the node describing the PSy \
-                       subroutine will be added
+                       subroutine will be added.
         :type parent: :py:class:`psyclone.f2pygen.ModuleGen`
 
         '''
@@ -268,7 +276,7 @@ class LFRicInvoke(Invoke):
                                    self.stencil.unique_alg_vars +
                                    self._psy_unique_qr_vars)
 
-        # Declare all quantities required by this PSy routine (invoke)
+        # Declare all quantities required by this PSy routine (Invoke)
         for entities in [self.scalar_args, self.fields, self.lma_ops,
                          self.stencil, self.meshes,
                          self.function_spaces, self.dofmaps, self.cma_ops,
