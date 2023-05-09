@@ -195,21 +195,29 @@ def test_intrinsiccall_minmaxsum_create(intrinsic_call):
 
 @pytest.mark.parametrize("intrinsic_call", [
     IntrinsicCall.Intrinsic.TINY, IntrinsicCall.Intrinsic.HUGE])
-def test_intrinsiccall_tinyhuge_create(intrinsic_call):
+@pytest.mark.parametrize("form", ["array", "literal"])
+def test_intrinsiccall_tinyhuge_create(intrinsic_call, form):
     '''Tests for the creation of the different argument options for
     'tiny' and 'huge' IntrinsicCalls.
 
     '''
-    array = DataSymbol(
-        "my_array", ArrayType(REAL_TYPE, [ArrayType.Extent.DEFERRED]))
+    if form == "array":
+        array = DataSymbol(
+            "my_array", ArrayType(REAL_TYPE, [ArrayType.Extent.DEFERRED]))
+        arg = Reference(array)
+    else:  # "literal"
+        arg = Literal("1.0", REAL_TYPE)
     intrinsic = IntrinsicCall.create(
-        intrinsic_call, [Reference(array)])
+        intrinsic_call, [arg])
     assert isinstance(intrinsic, IntrinsicCall)
     assert intrinsic.intrinsic is intrinsic_call
     assert isinstance(intrinsic.routine, IntrinsicSymbol)
     intrinsic_name = intrinsic_call.name
     assert intrinsic.routine.name == intrinsic_name
-    assert intrinsic.children[0].symbol is array
+    if form == "array":
+        assert intrinsic.children[0].symbol is array
+    else:  # "literal"
+        assert intrinsic.children[0] is arg
 
 
 def test_intrinsiccall_create_errors():

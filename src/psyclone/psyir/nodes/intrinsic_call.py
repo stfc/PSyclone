@@ -42,6 +42,7 @@ from enum import Enum
 
 from psyclone.psyir.nodes.call import Call
 from psyclone.psyir.nodes.datanode import DataNode
+from psyclone.psyir.nodes.literal import Literal
 from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.symbols import IntrinsicSymbol
 
@@ -102,9 +103,9 @@ class IntrinsicCall(Call):
     _required_args[Intrinsic.SUM] = ArgDesc(1, 1, DataNode)
     _optional_args[Intrinsic.SUM] = {
         "dim": DataNode, "mask": DataNode}
-    _required_args[Intrinsic.TINY] = ArgDesc(1, 1, Reference)
+    _required_args[Intrinsic.TINY] = ArgDesc(1, 1, (Reference, Literal))
     _optional_args[Intrinsic.TINY] = {}
-    _required_args[Intrinsic.HUGE] = ArgDesc(1, 1, Reference)
+    _required_args[Intrinsic.HUGE] = ArgDesc(1, 1, (Reference, Literal))
     _optional_args[Intrinsic.HUGE] = {}
 
     def __init__(self, routine, **kwargs):
