@@ -403,6 +403,11 @@
 
 	135) PR #2121 for #2109. Updates PSyclone to fparser 0.1.1 release.
 
+	136) PR #2128 towards #1618. Bug fix in LFRicAlgInvoke2PSyCallTrans
+	for kernels requiring more than 1 quadrature object.
+
+	137) PR #967 towards #2132. Add GH workflows for self-hosted runner.
+
 release 2.3.1 17th of June 2022
 
 	1) PR #1747 for #1720. Adds support for If blocks to PSyAD.
