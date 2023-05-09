@@ -137,13 +137,13 @@ class AlgInvoke2PSyCallTrans(Transformation, abc.ABC):
             if isinstance(arg, Node):
                 string = f"but '{arg.debug_string()}'"
                 if arg.parent and isinstance(arg.parent, KernelFunctor):
-                    string = f"{string} in kernel '{arg.parent.name}'"
+                    string = f"{string} passed to kernel '{arg.parent.name}'"
                 string = f"{string} is of type '{type(arg).__name__}'."
             else:
                 string = f"but found '{type(arg).__name__}'."
             raise TypeError(
                 f"Expected Algorithm-layer kernel arguments to be "
-                f"a literal, reference or code block, {string}.")
+                f"a Literal, Reference or CodeBlock, {string}.")
 
     @staticmethod
     def remove_imported_symbols(node):
