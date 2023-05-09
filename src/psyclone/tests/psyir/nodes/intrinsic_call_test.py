@@ -76,11 +76,13 @@ def test_intrinsiccall_intrinsic():
 
 
 def test_intrinsiccall_is_elemental():
-    '''Tests the is_elemental() method works as expected.'''
+    '''Tests the is_elemental() method works as expected. There are
+    currently no elemental intrinsics so we can only test for
+    False.
+
+    '''
     intrinsic = IntrinsicCall(IntrinsicCall.Intrinsic.SUM)
     assert not intrinsic.is_elemental()
-    intrinsic = IntrinsicCall(IntrinsicCall.Intrinsic.HUGE)
-    assert intrinsic.is_elemental()
 
 
 def test_intrinsiccall_alloc_create():

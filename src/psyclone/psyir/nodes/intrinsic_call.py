@@ -254,5 +254,4 @@ REDUCTION_INTRINSICS = [
 # Intrinsics that, provided with an input array, apply their operation
 # individually to each of the array elements and return an array with
 # the results.
-ELEMENTAL_INTRINSICS = [
-    IntrinsicCall.Intrinsic.TINY, IntrinsicCall.Intrinsic.HUGE]
+ELEMENTAL_INTRINSICS = []
