@@ -414,6 +414,11 @@
 	139) PR #2129 towards #1618. Bug fix for -ve Literal args to kernels
 	in PSyIR handling of LFRic Alg Layer.
 
+	140) PR #2133 for #2126. Add RTD YAML config files to allow the
+	documentation (user guide, developer guide etc) to be managed
+	separately and to allow software environments other than the
+	default to be specified.
+
 release 2.3.1 17th of June 2022
 
 	1) PR #1747 for #1720. Adds support for If blocks to PSyAD.
