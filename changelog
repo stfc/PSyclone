@@ -411,6 +411,9 @@
 	138) PR #2084 for #1801. Improve handling of assume-shape arrays with
 	specified bounds.
 
+	139) PR #2129 towards #1618. Bug fix for -ve Literal args to kernels
+	in LFRic Alg Layer handling.
+
 release 2.3.1 17th of June 2022
 
 	1) PR #1747 for #1720. Adds support for If blocks to PSyAD.
