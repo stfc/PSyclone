@@ -636,29 +636,35 @@ def test_fw_gen_vardecl(fortran_writer):
     assert result == "integer :: dummy1\n"
 
     # Assumed-size array with intent
-    array_type = ArrayType(INTEGER_TYPE, [2, 2, ArrayType.Extent.ATTRIBUTE])
+    array_type = ArrayType(INTEGER_TYPE, [ArrayType.Extent.ATTRIBUTE,
+                                          (2, ArrayType.Extent.ATTRIBUTE),
+                                          ArrayType.Extent.ATTRIBUTE])
     symbol = DataSymbol("dummy2", array_type,
                         interface=ArgumentInterface(
                             ArgumentInterface.Access.READ))
     result = fortran_writer.gen_vardecl(symbol)
-    assert result == "integer, dimension(2,2,:), intent(in) :: dummy2\n"
+    assert result == "integer, dimension(:,2:,:), intent(in) :: dummy2\n"
 
     # Assumed-size array with unknown intent
-    array_type = ArrayType(INTEGER_TYPE, [2, 2, ArrayType.Extent.ATTRIBUTE])
+    array_type = ArrayType(INTEGER_TYPE, [ArrayType.Extent.ATTRIBUTE,
+                                          ArrayType.Extent.ATTRIBUTE,
+                                          ArrayType.Extent.ATTRIBUTE])
     symbol = DataSymbol("dummy2", array_type,
                         interface=ArgumentInterface(
                             ArgumentInterface.Access.UNKNOWN))
     result = fortran_writer.gen_vardecl(symbol)
-    assert result == "integer, dimension(2,2,:) :: dummy2\n"
+    assert result == "integer, dimension(:,:,:) :: dummy2\n"
 
     # Assumed-size array with specified lower bound
     array_type = ArrayType(INTEGER_TYPE,
-                           [2, 2, (-1, ArrayType.Extent.ATTRIBUTE)])
+                           [ArrayType.Extent.ATTRIBUTE,
+                            ArrayType.Extent.ATTRIBUTE,
+                            (-1, ArrayType.Extent.ATTRIBUTE)])
     symbol = DataSymbol("dummy3", array_type,
                         interface=ArgumentInterface(
                             ArgumentInterface.Access.UNKNOWN))
     result = fortran_writer.gen_vardecl(symbol)
-    assert result == "integer, dimension(2,2,-1:) :: dummy3\n"
+    assert result == "integer, dimension(:,:,-1:) :: dummy3\n"
 
     # Allocatable array
     array_type = ArrayType(REAL_TYPE, [ArrayType.Extent.DEFERRED,
@@ -703,14 +709,14 @@ def test_fw_gen_vardecl(fortran_writer):
             "extent of every dimension as 'DEFERRED' but symbol 'dummy1' "
             "has shape: ['2', ':']." in str(excinfo.value))
 
-    # An assumed-size array must have only the extent of its outermost
-    # rank undefined
+    # An assumed-size array must have the extent of every dimension undefined
     array_type = ArrayType(INTEGER_TYPE, [2, ArrayType.Extent.ATTRIBUTE, 2])
     symbol = DataSymbol("dummy1", array_type)
     with pytest.raises(VisitorError) as excinfo:
         _ = fortran_writer.gen_vardecl(symbol)
-    assert ("assumed-size Fortran array must only have its last dimension "
-            "unspecified (as 'ATTRIBUTE') but symbol 'dummy1' has shape: "
+    assert ("assumed-shape Fortran array must have every dimension "
+            "unspecified (either as 'ATTRIBUTE' or with the upper bound as "
+            "'ATTRIBUTE') but symbol 'dummy1' has shape: "
             "['2', ':', '2']." in str(excinfo.value))
     # With two dimensions unspecified, even though one is outermost
     array_type = ArrayType(INTEGER_TYPE, [2, ArrayType.Extent.ATTRIBUTE,
@@ -718,8 +724,9 @@ def test_fw_gen_vardecl(fortran_writer):
     symbol = DataSymbol("dummy1", array_type)
     with pytest.raises(VisitorError) as excinfo:
         _ = fortran_writer.gen_vardecl(symbol)
-    assert ("assumed-size Fortran array must only have its last dimension "
-            "unspecified (as 'ATTRIBUTE') but symbol 'dummy1' has shape: "
+    assert ("assumed-shape Fortran array must have every dimension "
+            "unspecified (either as 'ATTRIBUTE' or with the upper bound as "
+            "'ATTRIBUTE') but symbol 'dummy1' has shape: "
             "['2', ':', ':']." in str(excinfo.value))
 
 

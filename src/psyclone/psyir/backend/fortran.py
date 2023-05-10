@@ -608,15 +608,16 @@ class FortranWriter(LanguageWriter):
             # A 'deferred' array extent means this is an allocatable array
             result += ", allocatable"
         if ArrayType.Extent.ATTRIBUTE in array_shape:
-            if not all(dim == ArrayType.Extent.ATTRIBUTE
-                       for dim in symbol.datatype.shape):
-                # If we have an 'assumed-size' array then only the last
-                # dimension is permitted to have an 'ATTRIBUTE' extent
-                if (array_shape.count(ArrayType.Extent.ATTRIBUTE) != 1 or
-                        array_shape[-1] != ArrayType.Extent.ATTRIBUTE):
+            # If we have an 'assumed-shape' array then every
+            # dimension must have an 'ATTRIBUTE' extent
+            for dim in symbol.datatype.shape:
+                if not (dim == ArrayType.Extent.ATTRIBUTE or
+                        (isinstance(dim, tuple) and
+                         dim[-1] == ArrayType.Extent.ATTRIBUTE)):
                     raise VisitorError(
-                        f"An assumed-size Fortran array must only have its "
-                        f"last dimension unspecified (as 'ATTRIBUTE') but "
+                        f"An assumed-shape Fortran array must have every "
+                        f"dimension unspecified (either as 'ATTRIBUTE' or "
+                        f"with the upper bound as 'ATTRIBUTE') but "
                         f"symbol '{symbol.name}' has shape: "
                         f"{self.gen_indices(array_shape)}.")
         if array_shape:
