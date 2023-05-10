@@ -13,7 +13,7 @@ build:
 
 # Build documentation in the docs/user_guide directory with Sphinx
 sphinx:
-   configuration: doc/psyad/user_guide/conf.py
+   configuration: doc/reference_guide/source/conf.py
 
 # If using Sphinx, optionally build your docs in additional formats such as PDF
 # formats:
