@@ -79,6 +79,6 @@ def test_get_arguments(monkeypatch):
     monkeypatch.setattr(invoke.children[1], "_children", [None])
     with pytest.raises(TypeError) as info:
         _ = trans.get_arguments(invoke)
-    assert ("Expected Algorithm-layer kernel arguments to be a literal, "
-            "reference or code block, but found 'NoneType'."
+    assert ("Expected Algorithm-layer kernel arguments to be a Literal, "
+            "Reference or CodeBlock, but found 'NoneType'."
             in str(info.value))
