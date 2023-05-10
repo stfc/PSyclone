@@ -13,17 +13,16 @@ build:
 
 # Build documentation in the docs/user_guide directory with Sphinx
 sphinx:
-  configuration: doc/reference_guide/source/conf.py
+   configuration: doc/reference_guide/conf.py
 
 # If using Sphinx, optionally build your docs in additional formats such as PDF
 # formats:
 #    - pdf
 
-# The Python requirements required to build your docs. We need to install
-# PSyclone.
+# Optionally declare the Python requirements required to build your docs
 python:
-  install:
-  - method: pip
-      path: .
-      extra_requirements:
-        - doc
+   install:
+     - method: pip
+       path: .
+       extra_requirements:
+         - doc
