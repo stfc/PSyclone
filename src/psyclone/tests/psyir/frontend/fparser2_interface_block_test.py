@@ -38,9 +38,9 @@
 ''' Performs py.test tests on the handling of interface blocks in the fparser2
     PSyIR front-end. '''
 
-from fparser.two import Fortran2003
+import pytest
 
-from psyclone.psyir.nodes import Container, CodeBlock, FileContainer
+from psyclone.psyir.nodes import Container
 from psyclone.psyir.symbols import (
     RoutineSymbol, Symbol, UnknownFortranType, DataTypeSymbol)
 
@@ -115,75 +115,87 @@ def test_named_interface_declared(fortran_reader):
     assert test_symbol.visibility == Symbol.Visibility.PUBLIC
 
 
-def test_generic_interface(fortran_reader):
-    ''' Test that we create a CodeBlock if a module contains an interface block
-        that defines interfaces to external routines. '''
-    dummy_module = '''
-    module dummy_mod
-      interface
-        subroutine ext1 (x, y, z)
-          real, dimension (100, 100) :: x, y, z
-        end subroutine ext1
-        subroutine ext2 (x, z)
-          real x
-          complex (kind = 4) z (2000)
-        end subroutine ext2
-        function ext3 (p, q)
-          logical ext3
-          integer p (1000)
-          logical q (1000)
-        end function ext3
-      end interface
-    end module dummy_mod
-    '''
-    container = fortran_reader.psyir_from_source(dummy_module)
-    assert isinstance(container, FileContainer)
-    assert len(container.children) == 1
-    assert isinstance(container.children[0], CodeBlock)
-    assert isinstance(container.children[0].ast, Fortran2003.Module)
+GENERIC_INTERFACE_CODE = '''
+module dummy_mod
+  interface
+    subroutine ext1(x, y, z)
+      real, dimension(100, 100) :: x, y, z
+    end subroutine ext1
+    subroutine ext2(x, z)
+      real x
+      complex (kind = 4) z(2000)
+    end subroutine ext2
+    function ext3(p, q)
+      logical ext3
+      integer p(1000)
+      logical q(1000)
+    end function ext3
+  end interface
+end module dummy_mod
+'''
+
+OPERATOR_INTERFACE_CODE = '''
+module dummy_mod
+  interface operator ( * )
+    function boolean_and (b1, b2)
+      logical, intent (in) :: b1 (:), b2 (size (b1))
+      logical :: boolean_and (size (b1))
+    end function boolean_and
+  end interface operator ( * )
+end module dummy_mod
+'''
+
+ASSIGNMENT_INTERFACE_CODE = '''
+module dummy_mod
+  interface assignment ( = )
+    subroutine logical_to_numeric (n, b)
+      integer, intent (out) :: n
+      logical, intent (in) :: b
+    end subroutine logical_to_numeric
+    subroutine char_to_string (s, c)
+      use string_module
+      ! contains definition of type string
+      type (string), intent (out) :: s ! a variable-length string
+      character (*), intent (in) :: c
+    end subroutine char_to_string
+  end interface assignment ( = )
+end module dummy_mod
+'''
+
+ABSTRACT_INTERFACE_CODE = '''
+module dummy_mod
+  abstract interface
+    subroutine update_interface(field_name, field_proxy, times, xios_id)
+      import i_def, field_proxy_type
+      character(len=*),        intent(in) :: field_name
+      type(field_proxy_type),  intent(inout) :: field_proxy
+      integer(i_def),          intent(in) :: times(:)
+      character(len=*),        intent(in) :: xios_id
+    end subroutine update_interface
+  end interface
+end module dummy_mod
+'''
 
 
-def test_operator_interface(fortran_reader):
-    ''' Test that we create a CodeBlock if a module contains an interface block
-    that defines an operator. '''
-    dummy_module = '''
-    module dummy_mod
-      interface operator ( * )
-      function boolean_and (b1, b2)
-        logical, intent (in) :: b1 (:), b2 (size (b1))
-        logical :: boolean_and (size (b1))
-      end function boolean_and
-      end interface operator ( * )
-    end module dummy_mod
-    '''
-    container = fortran_reader.psyir_from_source(dummy_module)
-    assert isinstance(container, FileContainer)
-    assert len(container.children) == 1
-    assert isinstance(container.children[0], CodeBlock)
-    assert isinstance(container.children[0].ast, Fortran2003.Module)
-
-
-def test_assignment_interface(fortran_reader):
-    ''' Test that we create a CodeBlock if a module contains an interface block
-    defining an assignment. '''
-    dummy_module = '''
-    module dummy_mod
-      interface assignment ( = )
-        subroutine logical_to_numeric (n, b)
-          integer, intent (out) :: n
-          logical, intent (in) :: b
-        end subroutine logical_to_numeric
-        subroutine char_to_string (s, c)
-          use string_module
-          ! contains definition of type string
-          type (string), intent (out) :: s ! a variable-length string
-          character (*), intent (in) :: c
-        end subroutine char_to_string
-      end interface assignment ( = )
-    end module dummy_mod
-    '''
-    container = fortran_reader.psyir_from_source(dummy_module)
-    assert isinstance(container, FileContainer)
-    assert len(container.children) == 1
-    assert isinstance(container.children[0], CodeBlock)
-    assert isinstance(container.children[0].ast, Fortran2003.Module)
+@pytest.mark.parametrize("code, start, end", [
+    (GENERIC_INTERFACE_CODE, "interface", "end interface"),
+    (OPERATOR_INTERFACE_CODE,
+     "interface operator(*)", "end interface operator(*)"),
+    (ASSIGNMENT_INTERFACE_CODE,
+     "interface assignment(=)", "end interface assignment(=)"),
+    (ABSTRACT_INTERFACE_CODE, "abstract interface", "end interface")])
+def test_unnamed_interface(fortran_reader, code, start, end):
+    ''' Test that the frontend creates a RoutineSymbol of
+    UnknownFortranType for the supplied unnamed interfaces. '''
+    file_container = fortran_reader.psyir_from_source(code)
+    container = file_container.children[0]
+    assert isinstance(container, Container)
+    # interface symbol
+    assert container.symbol_table.lookup("_psyclone_internal_interface")
+    interface_symbol = container.symbol_table.lookup(
+        "_psyclone_internal_interface")
+    assert isinstance(interface_symbol, RoutineSymbol)
+    assert isinstance(interface_symbol.datatype, UnknownFortranType)
+    assert interface_symbol.datatype.declaration.startswith(start)
+    assert interface_symbol.datatype.declaration.endswith(end)
+    assert interface_symbol.visibility == Symbol.Visibility.PUBLIC
