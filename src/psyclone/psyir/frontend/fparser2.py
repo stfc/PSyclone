@@ -1289,7 +1289,8 @@ class Fparser2Reader():
 
             :raises NotImplementedError: if an unsupported form of array \
                                          bound is found.
-            :raises GenerationError: if invalid Fortran is found.
+            :raises GenerationError: invalid Fortran declaration of an \
+                upper bound without an associated lower bound.
 
             '''
             if isinstance(bound_expr, Fortran2003.Int_Literal_Constant):
