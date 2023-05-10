@@ -19,11 +19,10 @@ sphinx:
 # formats:
 #    - pdf
 
-# The Python requirements required to build your docs. We need to install
-# PSyclone.
+# Optionally declare the Python requirements required to build your docs
 python:
    install:
-   - method: pip
+     - method: pip
        path: .
        extra_requirements:
          - doc
