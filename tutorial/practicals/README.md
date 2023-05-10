@@ -2,8 +2,19 @@
 
 Welcome to the PSyclone hands-on practicals. Unlike those parts of the
 tutorial that use Jupyter notebooks, the sections in the directories
-below this one work through using PSyclone in a 'normal' Linux
-environment.
+below this one work through using PSyclone in a 'normal' Linux environment.
+There are two sections to the practicals:
+
+1. Transforming [existing code](nemo/README.md)
+2. Using the [LFRic DSL](LFRic/README.md)
+
+## Prerequisites
+
+These practicals require:
+
+* Some knowledge of how to use the Linux command line;
+* Knowledge of how to build and run Fortran applications;
+* Basic Python programming.
 
 ## Requirements
 

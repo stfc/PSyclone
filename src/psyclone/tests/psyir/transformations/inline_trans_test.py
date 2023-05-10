@@ -342,7 +342,7 @@ def test_apply_struct_arg(fortran_reader, fortran_writer, tmpdir):
             "      var2(i)%region%data(:) = -1.0\n"
             "      var2(i)%region%data = -5.0\n"
             "      var2(i)%region%data(1:2) = 0.0\n"
-            "      var2(:)%region%local%nx = 0\n"
+            "      var2(1:5)%region%local%nx = 0\n"
             "    enddo\n" in output)
     assert Compile(tmpdir).string_compiles(output)
 
@@ -409,7 +409,7 @@ def test_apply_unresolved_struct_arg(fortran_reader, fortran_writer):
             "argument 'mystery' corresponding to an array formal argument "
             "('x') is unknown." in str(err.value))
     output = fortran_writer(psyir)
-    assert ("    varr(:)%region%local%nx = 0\n"
+    assert ("    varr(1:5)%region%local%nx = 0\n"
             "    call sub3(mystery)\n"
             "    mystery%flag = 1\n"
             "    call sub4(mystery)\n" in output)
@@ -459,7 +459,7 @@ def test_apply_struct_slice_arg(fortran_reader, fortran_writer, tmpdir):
     assert "var_list(:)%local%nx = var_list(:)%local%nx + 1" in output
     assert "var_list(:)%data(2) = 0.0" in output
     assert "var_list(:)%local%nx = 4" in output
-    assert "var_list(:1 + 1)%local%nx = -2" in output
+    assert "var_list(1:1 + 1)%local%nx = -2" in output
     assert "cvar(2)%grids(2)%region%data(:) = 0.0" in output
     assert Compile(tmpdir).string_compiles(output)
 
@@ -549,7 +549,7 @@ def test_apply_struct_local_limits_caller_decln(fortran_reader, fortran_writer,
     assert "varat2(3:8)%local%nx = 3\n" in output
     assert "varat2(5 - 1 + 3:6 + 1 - 1 + 3)%local%nx = -2" in output
     assert "varat3(1 - 1 + 5:2 - 1 + 5) = 4.0\n" in output
-    assert "varat3(1 - 1 + 4:2 - 1 + 4) = 4.0\n" in output
+    assert "varat3(:2 - 1 + 4) = 4.0\n" in output
     assert Compile(tmpdir).string_compiles(output)
 
 
@@ -565,18 +565,24 @@ def test_apply_struct_local_limits_routine(fortran_reader, fortran_writer,
         f"{MY_TYPE}"
         f"contains\n"
         f"  subroutine run_it()\n"
+        f"    real zarg(13)\n"
+        f"    real ardvarkarg(4:10)\n"
         f"    type(my_type) :: var_list(10)\n"
         f"    type(my_type), dimension(2:8) :: varat2\n"
-        f"    call sub3(var_list(:), 5, 6)\n"
-        f"    call sub3(varat2(:), 5, 6)\n"
-        f"    call sub3(varat2(3:7), 4, 5)\n"
+        f"    call sub3(var_list(:), 5, 6, zarg)\n"
+        f"    call sub3(varat2(:), 5, 6, ardvarkarg)\n"
+        f"    call sub3(varat2(3:7), 4, 5, zarg(2:))\n"
         f"  end subroutine run_it\n"
-        f"  subroutine sub3(y, start, stop)\n"
+        f"  subroutine sub3(y, start, stop, z)\n"
         f"    type(my_type), dimension(4:6) :: y\n"
+        # TODO #2125 - if 'start' is used for the lower bound instead of a
+        # literal then the inlined code is incorrect.
+        f"    real, dimension(3:) :: z\n"
         f"    integer :: start, stop\n"
         f"    y(:)%data(2) = 2.0\n"
         f"    y(4:5)%local%nx = 4\n"
         f"    y(start:stop+1)%local%nx = -3\n"
+        f"    z(start+1) = 8.0\n"
         f"  end subroutine sub3\n"
         f"end module test_mod\n")
     psyir = fortran_reader.psyir_from_source(code)
@@ -588,12 +594,16 @@ def test_apply_struct_local_limits_routine(fortran_reader, fortran_writer,
     # explicit bounds so these have to be taken into account.
     assert "var_list(4 - 4 + 1:6 - 4 + 1)%data(2) = 2.0" in output
     assert "var_list(4 - 4 + 1:5 - 4 + 1)%local%nx = 4" in output
+    # Element 3 in routine corresponds to element 1 in caller
+    assert "zarg(5 + 1 - 3 + 1) = 8.0" in output
     # Element 4 in routine corresponds to element 1 in caller
     assert "var_list(5 - 4 + 1:6 + 1 - 4 + 1)%local%nx = -3" in output
     # Custom limits  in declarations for both formal and actual.
     # Element 4 in routine corresponds to element 2 in caller.
     assert "varat2(4 - 4 + 2:6 - 4 + 2)%data(2) = 2.0\n" in output
     assert "varat2(4 - 4 + 2:5 - 4 + 2)%local%nx = 4\n" in output
+    # Element 3 in routine corresponds to element 4 in caller.
+    assert "ardvarkarg(5 + 1 - 3 + 4) = 8.0" in output
     # A local access of '1' corresponds to the start of the array which is
     # index '2' at the call site.
     assert "varat2(5 - 4 + 2:6 + 1 - 4 + 2)%local%nx = -3\n" in output

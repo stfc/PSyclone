@@ -651,6 +651,15 @@ def test_fw_gen_vardecl(fortran_writer):
     result = fortran_writer.gen_vardecl(symbol)
     assert result == "integer, dimension(2,2,:) :: dummy2\n"
 
+    # Assumed-size array with specified lower bound
+    array_type = ArrayType(INTEGER_TYPE,
+                           [2, 2, (-1, ArrayType.Extent.ATTRIBUTE)])
+    symbol = DataSymbol("dummy3", array_type,
+                        interface=ArgumentInterface(
+                            ArgumentInterface.Access.UNKNOWN))
+    result = fortran_writer.gen_vardecl(symbol)
+    assert result == "integer, dimension(2,2,-1:) :: dummy3\n"
+
     # Allocatable array
     array_type = ArrayType(REAL_TYPE, [ArrayType.Extent.DEFERRED,
                                        ArrayType.Extent.DEFERRED])
@@ -1635,7 +1644,7 @@ def test_fw_range(fortran_writer):
     array = ArrayReference.create(
         symbol, [range1, range2])
     result = fortran_writer.arrayreference_node(array)
-    assert result == "a(1:,:b + c:3)"
+    assert result == "a(:,:b + c:3)"
 
     array_type = ArrayType(REAL_TYPE, [10, 10, 10])
     symbol = DataSymbol("a", array_type)
@@ -1645,7 +1654,7 @@ def test_fw_range(fortran_writer):
          Range.create(one.copy(), two.copy(), step=three.copy()),
          Range.create(dim3_bound_start, dim3_bound_stop, step=three.copy())])
     result = fortran_writer.arrayreference_node(array)
-    assert result == "a(:,1:2:3,::3)"
+    assert result == "a(:,:2:3,::3)"
 
     # Make a) lbound and ubound come from a different array and b)
     # switch lbound and ubound round. These bounds should then be
@@ -1667,7 +1676,7 @@ def test_fw_range(fortran_writer):
          Range.create(dim3_bound_stop.copy(), dim3_bound_start.copy(),
                       step=three.copy())])
     result = fortran_writer.arrayreference_node(array)
-    assert result == ("a(LBOUND(b, 1):UBOUND(b, 1),1:2:3,"
+    assert result == ("a(LBOUND(b, 1):UBOUND(b, 1),:2:3,"
                       "UBOUND(a, 3):LBOUND(a, 3):3)")
 
 

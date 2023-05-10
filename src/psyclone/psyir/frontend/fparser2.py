@@ -1289,6 +1289,9 @@ class Fparser2Reader():
 
             :raises NotImplementedError: if an unsupported form of array \
                                          bound is found.
+            :raises GenerationError: invalid Fortran declaration of an \
+                upper bound without an associated lower bound.
+
             '''
             if isinstance(bound_expr, Fortran2003.Int_Literal_Constant):
                 return Literal(bound_expr.items[0], INTEGER_TYPE)
@@ -1339,7 +1342,28 @@ class Fparser2Reader():
                                      Fortran2003.Assumed_Size_Spec)):
 
             if isinstance(dim, Fortran2003.Assumed_Shape_Spec):
-                shape.append(None)
+                # Assumed_Shape_Spec has two children holding the lower and
+                # upper bounds. It is valid Fortran (R514) to specify only the
+                # lower bound:
+                # ":" -> Assumed_Shape_Spec(None, None)
+                # "4:" -> Assumed_Shape_Spec(Int_Literal_Constant('4', None),
+                #                            None)
+                lower = (_process_bound(dim.children[0]) if dim.children[0]
+                         else None)
+                if dim.children[1]:
+                    upper = _process_bound(dim.children[1])
+                else:
+                    upper = ArrayType.Extent.ATTRIBUTE if lower else None
+
+                if upper and not lower:
+                    raise GenerationError(
+                        f"Found an assumed-shape array declaration with only "
+                        f"an upper bound ({dimensions}). This is not valid "
+                        f"Fortran.")
+                if upper:
+                    shape.append((lower, upper))
+                else:
+                    shape.append(None)
 
             elif isinstance(dim, Fortran2003.Explicit_Shape_Spec):
                 try:
@@ -2088,9 +2112,21 @@ class Fparser2Reader():
                 # corresponding implementation with that name.)
                 # We store its definition using an UnknownFortranType so that
                 # we can recreate it in the Fortran backend.
-                parent.symbol_table.add(
-                    RoutineSymbol(name, UnknownFortranType(str(node).lower()),
-                                  visibility=vis))
+                try:
+                    parent.symbol_table.add(
+                        RoutineSymbol(
+                            name, UnknownFortranType(str(node).lower()),
+                            visibility=vis))
+                except KeyError:
+                    # This symbol has already been declared. However
+                    # we still want to output the interface so we
+                    # store it in the PSyIR as an UnkownFortranType
+                    # with an internal name.
+                    parent.symbol_table.new_symbol(
+                        root_name=f"_psyclone_internal_{name}",
+                        symbol_type=RoutineSymbol,
+                        datatype=UnknownFortranType(str(node).lower()),
+                        visibility=vis)
 
             elif isinstance(node, Fortran2003.Type_Declaration_Stmt):
                 try:
@@ -2467,7 +2503,7 @@ class Fparser2Reader():
         # An INCLUDE can appear anywhere so we have to allow for the case
         # where we have no enclosing Routine.
         unit = parent.ancestor((Routine, Container), include_self=True)
-        # pylint: disable="unidiomatic-typecheck"
+        # pylint: disable=unidiomatic-typecheck
         if isinstance(unit, Routine):
             if unit.is_program:
                 out_txt = f"program '{unit.name}'. "
@@ -2477,6 +2513,7 @@ class Fparser2Reader():
             out_txt = f"module '{unit.name}'. "
         else:
             out_txt = f"code:\n{str(node.get_root())}\n"
+        # pylint: enable=unidiomatic-typecheck
         filename = node.children[0].string
         if isinstance(node, Fortran2003.Include_Stmt):
             err_msg = (
