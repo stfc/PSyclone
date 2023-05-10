@@ -44,7 +44,8 @@ from psyclone.core import SymbolicMaths
 from psyclone.domain.common.algorithm import AlgorithmInvokeCall, KernelFunctor
 from psyclone.errors import InternalError
 from psyclone.psyGen import Transformation
-from psyclone.psyir.nodes import Call, Routine, Literal, Reference, CodeBlock
+from psyclone.psyir.nodes import (
+    Call, Routine, Literal, Reference, CodeBlock, UnaryOperation, Node)
 from psyclone.psyir.symbols import (ContainerSymbol,
                                     ImportInterface, RoutineSymbol)
 from psyclone.psyir.transformations import TransformationError
@@ -118,7 +119,10 @@ class AlgInvoke2PSyCallTrans(Transformation, abc.ABC):
         '''
         sym_maths = SymbolicMaths.get()
 
-        if isinstance(arg, Literal):
+        if isinstance(arg, Literal) or (
+                isinstance(arg, UnaryOperation) and
+                arg.operator == UnaryOperation.Operator.MINUS and
+                isinstance(arg.children[0], Literal)):
             # Literals are not passed by argument.
             pass
         elif isinstance(arg, Reference):
@@ -130,10 +134,16 @@ class AlgInvoke2PSyCallTrans(Transformation, abc.ABC):
         elif isinstance(arg, CodeBlock):
             arguments.append(arg.copy())
         else:
+            if isinstance(arg, Node):
+                string = f"but '{arg.debug_string()}'"
+                if arg.parent and isinstance(arg.parent, KernelFunctor):
+                    string = f"{string} passed to kernel '{arg.parent.name}'"
+                string = f"{string} is of type '{type(arg).__name__}'."
+            else:
+                string = f"but found '{type(arg).__name__}'."
             raise TypeError(
                 f"Expected Algorithm-layer kernel arguments to be "
-                f"a literal, reference or code block, but "
-                f"found '{type(arg).__name__}'.")
+                f"a Literal, Reference or CodeBlock, {string}.")
 
     @staticmethod
     def remove_imported_symbols(node):
