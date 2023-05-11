@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2022, Science and Technology Facilities Council.
+# Copyright (c) 2020-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -115,12 +115,13 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        # Some of the examples use Jupyter
-        pip install jupyter
+        # Some of the examples use Jupyter. We need to keep IPython to
+        # below 8.0 as we still run the test suite with Python 3.7.
+        pip install "ipython>=7.0,<8.0" jupyter
         # If you wish to install the version of fparser pointed to by the
         # submodule instead of the released version (from PyPI) then
         # uncomment the following line:
-        pip install external/fparser
+        # pip install external/fparser
         pip install .[test]
     - name: Lint with flake8
       run: |
