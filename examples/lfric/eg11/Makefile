@@ -54,7 +54,7 @@ LFRIC_PATH = ../../../src/psyclone/tests/test_files/dynamo0p3/infrastructure
 LFRIC_NAME=lfric
 LFRIC_LIB=$(LFRIC_PATH)/lib$(LFRIC_NAME).a
 
-# This will add the required include flags to F90FLAGS
+# This will create LFRIC_INCLUDE_FLAGS
 include $(LFRIC_PATH)/lfric_include_flags.inc
 
 # This example will not run as no mesh is set up and the data is not
@@ -71,7 +71,7 @@ helmholtz_solver_alg_psy.f90 helmholtz_solver_alg_mod.f90: helmholtz_solver_alg_
 	${PSYCLONE} -s ./async_script.py -opsy helmholtz_solver_alg_psy.f90 -oalg helmholtz_solver_alg_mod.f90 $<
 
 $(EXEC): $(LFRIC_LIB) $(OBJ)
-	$(F90) $(F90FLAGS) $(OBJ) -o $(EXEC) -L$(LFRIC_PATH) -l$(LFRIC_NAME)
+	$(F90) $(F90FLAGS) $(LFRIC_INCLUDE_FLAGS) $(OBJ) -o $(EXEC) -L$(LFRIC_PATH) -l$(LFRIC_NAME)
 
 $(LFRIC_LIB):
 	$(MAKE) -C $(LFRIC_PATH)
@@ -83,10 +83,10 @@ helmholtz_solver_alg_mod.o:	helmholtz_solver_alg_psy.o
 scaled_matrix_vector_kernel_mod.o: $(LFRIC_LIB)
 
 %.o: %.F90
-	$(F90) $(F90FLAGS) -c $<
+	$(F90) $(F90FLAGS) $(LFRIC_INCLUDE_FLAGS) -c $<
 
 %.o: %.f90
-	$(F90) $(F90FLAGS) -c $<
+	$(F90) $(F90FLAGS) $(LFRIC_INCLUDE_FLAGS) -c $<
 
 allclean: clean
 	make -C $(LFRIC_PATH) allclean

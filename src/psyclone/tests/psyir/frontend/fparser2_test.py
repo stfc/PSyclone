@@ -43,9 +43,10 @@ import fparser
 from fparser.common.readfortran import FortranStringReader
 from fparser.common.sourceinfo import FortranFormat
 from fparser.two import Fortran2003
-from fparser.two.Fortran2003 import Assignment_Stmt, Dimension_Attr_Spec, \
-    Execution_Part, Name, Return_Stmt, Specification_Part, \
-    Stmt_Function_Stmt, Subroutine_Subprogram, Type_Declaration_Stmt
+from fparser.two.Fortran2003 import (
+    Assignment_Stmt, Dimension_Attr_Spec, Execution_Part, Name, Return_Stmt,
+    Specification_Part, Stmt_Function_Stmt, Subroutine_Subprogram,
+    Type_Declaration_Stmt)
 from fparser.two.utils import walk
 
 from psyclone.errors import InternalError, GenerationError
@@ -1299,6 +1300,35 @@ def test_process_array_declarations():
     assert reference.symbol is ddim
     assert isinstance(reference.symbol.datatype, DeferredType)
 
+    # Extent given by range
+    reader = FortranStringReader("integer :: var(2:4)")
+    fparser2spec = Fortran2003.Specification_Part(reader).content[0]
+    processor.process_declarations(fake_parent, [fparser2spec], [])
+    symbol = fake_parent.symbol_table.lookup("var")
+    assert len(symbol.shape) == 1
+    assert symbol.datatype.shape[0].lower.value == "2"
+    assert symbol.datatype.shape[0].upper.value == "4"
+
+    reader = FortranStringReader("integer :: var1(2:ddim)")
+    fparser2spec = Fortran2003.Specification_Part(reader).content[0]
+    processor.process_declarations(fake_parent, [fparser2spec], [])
+    symbol = fake_parent.symbol_table.lookup("var1")
+    assert len(symbol.shape) == 1
+    assert isinstance(symbol.datatype.shape[0], ArrayType.ArrayBounds)
+    assert symbol.datatype.shape[0].lower.value == "2"
+    assert symbol.datatype.shape[0].upper.symbol is ddim
+
+    reader = FortranStringReader("integer :: var2(4:)")
+    fparser2spec = Fortran2003.Specification_Part(reader).content[0]
+    processor.process_declarations(fake_parent, [fparser2spec], [])
+    symbol = fake_parent.symbol_table.lookup("var2")
+    assert len(symbol.shape) == 1
+    # Shape should be an ArrayBounds with known lower bound and ATTRIBUTE
+    # upper.
+    assert isinstance(symbol.datatype.shape[0], ArrayType.ArrayBounds)
+    assert symbol.datatype.shape[0].lower.value == "4"
+    assert symbol.datatype.shape[0].upper == ArrayType.Extent.ATTRIBUTE
+
 
 @pytest.mark.usefixtures("f2008_parser")
 def test_process_not_supported_declarations():
@@ -1354,6 +1384,19 @@ def test_process_not_supported_declarations():
     processor.process_declarations(fake_parent, [fparser2spec], [])
     l11sym = fake_parent.symbol_table.lookup("l11")
     assert isinstance(l11sym.datatype, UnknownFortranType)
+
+    # Assumed-size array with specified upper bound. fparser2 does spot that
+    # this is invalid so we have to break the parse tree it produces for
+    # a valid case.
+    reader = FortranStringReader("integer :: l12(:)")
+    fparser2spec = Fortran2003.Specification_Part(reader).content[0]
+    # Break the parse tree
+    aspec = walk(fparser2spec, Fortran2003.Assumed_Shape_Spec)[0]
+    aspec.items = (None, Fortran2003.Int_Literal_Constant('4', None))
+    with pytest.raises(GenerationError) as err:
+        processor.process_declarations(fake_parent, [fparser2spec], [])
+    assert ("assumed-shape array declaration with only an upper bound (: 4). "
+            "This is not valid Fortran" in str(err.value))
 
 
 def test_process_save_attribute_declarations(parser):

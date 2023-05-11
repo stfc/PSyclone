@@ -1288,6 +1288,9 @@ class Fparser2Reader():
 
             :raises NotImplementedError: if an unsupported form of array \
                                          bound is found.
+            :raises GenerationError: invalid Fortran declaration of an \
+                upper bound without an associated lower bound.
+
             '''
             if isinstance(bound_expr, Fortran2003.Int_Literal_Constant):
                 return Literal(bound_expr.items[0], INTEGER_TYPE)
@@ -1338,7 +1341,28 @@ class Fparser2Reader():
                                      Fortran2003.Assumed_Size_Spec)):
 
             if isinstance(dim, Fortran2003.Assumed_Shape_Spec):
-                shape.append(None)
+                # Assumed_Shape_Spec has two children holding the lower and
+                # upper bounds. It is valid Fortran (R514) to specify only the
+                # lower bound:
+                # ":" -> Assumed_Shape_Spec(None, None)
+                # "4:" -> Assumed_Shape_Spec(Int_Literal_Constant('4', None),
+                #                            None)
+                lower = (_process_bound(dim.children[0]) if dim.children[0]
+                         else None)
+                if dim.children[1]:
+                    upper = _process_bound(dim.children[1])
+                else:
+                    upper = ArrayType.Extent.ATTRIBUTE if lower else None
+
+                if upper and not lower:
+                    raise GenerationError(
+                        f"Found an assumed-shape array declaration with only "
+                        f"an upper bound ({dimensions}). This is not valid "
+                        f"Fortran.")
+                if upper:
+                    shape.append((lower, upper))
+                else:
+                    shape.append(None)
 
             elif isinstance(dim, Fortran2003.Explicit_Shape_Spec):
                 try:

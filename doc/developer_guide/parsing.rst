@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2019-2022, Science and Technology Facilities Council.
+.. Copyright (c) 2019-2023, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -52,28 +52,55 @@ complete the domain-specific PSyIR can then be 'lowered' to generic
 PSyIR and PSyclone's back-ends used to output the resultant code.
 
 The GOcean and LFRic APIs support the concept of algorithm, psy and
-kernel layers. Kernel-layer Fortran written by users consists of the
-kernel code itself and metadata describing the kernel code.  PSyclone
-needs this metadata to generate the PSy-layer code. The new approach
-takes the generic PSyIR representation of the kernel metadata (which
-is actually captured as a string within a PSyIR UnknownFortranType as
-the generic PSyIR does not understand its structure) and 'raises' this
-into domain-specific classes (using the RaisePSyIR2LFRicKernelTrans
-and RaisePSyIR2GOceanKernelTrans transformations for the LFRic and
+kernel layers.
+
+Kernel-layer Fortran written by users consists of the kernel code
+itself and metadata describing the kernel code.  PSyclone needs this
+metadata to generate the PSy-layer code. The new approach takes the
+generic PSyIR representation of the kernel metadata (which is actually
+captured as a string within a PSyIR UnknownFortranType as the generic
+PSyIR does not understand its structure) and 'raises' this into
+domain-specific classes (using the ``RaisePSyIR2LFRicKernelTrans`` and
+``RaisePSyIR2GOceanKernelTrans`` transformations for the LFRic and
 GOcean API's, respectively). These classes allow the metadata to be
 simply read when generating psy-layer code, but also to be simply
 modified if required (e.g. when generating adjoint code - see the
 :ref:`user guide <psyad_user_guide:introduction>` for more
 details). As with existing code, these domain-specific classes can be
 'lowered' to produce generic PSyIR and PSyclone's back-ends used to
-output the resultant metadata.
+output the resultant metadata and code.
 
-This new approach is not yet fully implemented in PSyclone. The
-current status is that it is used in the NEMO API to transform code
-and is used in the GOcean API to modify algorithm code. The GOcean and
-LFRic APIs are also able to raise kernel metadata to domain-specific
-classes, but these classes are not yet used by the the rest of
-PSyclone (see generator.py for the relevant GOcean code).
+Algorithm-layer Fortran, also written by users, consists of ``invoke``
+calls containing references to kernels. PSyclone needs the information
+contained in an invoke call to generate the PSy-layer code. Another
+one of PSyclone's roles is to transform the algorithm code and
+specifically the invoke calls within the algorithm code. In order to
+support these requirements in the new approach the algorithm code
+is first parsed into generic PSyIR. The generic PSyIR is then 'raised'
+to either GOcean-specific algorithm code or LFRic-specific algorithm
+code depending on the API (using the ``RaisePSyIR2AlgTrans`` and
+``RaisePSyIR2LFRicAlgTrans`` transformations respectively) making use
+of domain-specific PSyIR classes for the invoke calls
+(``AlgorithmInvokeCall`` and ``LFRicAlgInvokeCall`` respectively) and
+references to kernels (``KernelFunctor`` and ``LFRicKernelFunctor``
+respectively).
+
+The domain-specific algorithm layer PSyIR is then lowered back to generic
+PSyIR and at the same time the invoke calls replaced with calls to the
+generated PSy-layer. This is achieved using the
+``GOceanAlgInvoke2PSyCallTrans`` and ``LFRicAlgInvoke2PSyCallTrans``
+transformations for the GOcean and LFRic APIs respectively, with these
+transformations operating on individual ``AlgorithmInvokeCall`` or
+``LFRicAlgorithmInvokeCall`` nodes rather than the whole of the
+domain-specific algorithm PSyIR.
+
+The new approach described in this section is not yet fully
+implemented in PSyclone. The current status is that it is used in the
+NEMO API to transform code and is used in the GOcean API to modify
+algorithm code. The GOcean and LFRic APIs are also able to raise
+kernel metadata to domain-specific classes, but these classes are not
+yet used by the the rest of PSyclone (see `generator.py` for the
+relevant GOcean code and prototype LFRic code).
 
 
 Parsing Code (original approach)

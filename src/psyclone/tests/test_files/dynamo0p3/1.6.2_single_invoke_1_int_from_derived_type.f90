@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2020, Science and Technology Facilities Council
+! Copyright (c) 2017-2023, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -34,6 +34,7 @@
 ! Author A. R. Porter STFC Daresbury Lab
 !        C.M. Maynard Met Office/University of Reading
 ! Modified I. Kavcic Met Office
+! Modified R. W. Ford, STFC Daresbury Lab
 
 program single_invoke
 
@@ -46,6 +47,7 @@ program single_invoke
   use constants_mod,               only: i_def
   use field_mod,                   only: field_type
   use testkern_one_int_scalar_mod, only: testkern_one_int_scalar_type
+  use my_types,                    only: some_type, some_type2
 
   implicit none
 

@@ -653,6 +653,15 @@ def test_fw_gen_vardecl(fortran_writer):
     result = fortran_writer.gen_vardecl(symbol)
     assert result == "integer, dimension(2,2,:) :: dummy2\n"
 
+    # Assumed-size array with specified lower bound
+    array_type = ArrayType(INTEGER_TYPE,
+                           [2, 2, (-1, ArrayType.Extent.ATTRIBUTE)])
+    symbol = DataSymbol("dummy3", array_type,
+                        interface=ArgumentInterface(
+                            ArgumentInterface.Access.UNKNOWN))
+    result = fortran_writer.gen_vardecl(symbol)
+    assert result == "integer, dimension(2,2,-1:) :: dummy3\n"
+
     # Allocatable array
     array_type = ArrayType(REAL_TYPE, [ArrayType.Extent.DEFERRED,
                                        ArrayType.Extent.DEFERRED])
