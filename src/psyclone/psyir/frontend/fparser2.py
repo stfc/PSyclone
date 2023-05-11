@@ -1783,6 +1783,7 @@ class Fparser2Reader():
             # There are some combinations of attributes that are not valid
             # Fortran but fparser does not check, so we need to check for them
             # here.
+            #TODO fparser/#413 could also fix these issues.
             if isinstance(interface, StaticInterface) and has_constant_value:
                 raise GenerationError(
                     f"SAVE and PARAMETER attributes are not compatible but "

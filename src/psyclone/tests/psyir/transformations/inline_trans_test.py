@@ -605,7 +605,7 @@ def test_apply_struct_local_limits_routine(fortran_reader, fortran_writer,
     assert Compile(tmpdir).string_compiles(output)
 
 
-def test_apply_allocatable_array_arg(fortran_reader, fortran_writer, tmpdir):
+def test_apply_allocatable_array_arg(fortran_reader, fortran_writer):
     '''
     Check that apply() works correctly when a formal argument is given the
     ALLOCATABLE attribute (meaning that the bounds of the formal argument
@@ -1651,9 +1651,10 @@ def test_validate_unknowntype_argument(fortran_reader):
             "INTENT(INOUT) :: x'" in str(err.value))
 
 
-def test_validate_unknowninterface(fortran_reader, fortran_writer):
+def test_validate_unknowninterface(fortran_reader, fortran_writer, tmpdir):
     '''
-    Test that validate rejects a subroutine with arguments of UnknownType.
+    Test that validate rejects a subroutine containing variables with
+    UnknownInterface.
 
     '''
     code = (
@@ -1689,6 +1690,7 @@ subroutine main()
 
 end subroutine main
 """
+    assert Compile(tmpdir).string_compiles(fortran_writer(psyir))
 
 
 def test_validate_static_var(fortran_reader):

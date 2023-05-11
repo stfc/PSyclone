@@ -796,10 +796,12 @@ def test_process_declarations():
 
 
 @pytest.mark.usefixtures("f2008_parser")
-def test_process_declarations_errrs():
+def test_process_declarations_errors():
     '''Test that process_declarations method of Fparser2Reader
     raises appropriate errors for fparser2 declarations that are not
     valid Fortran.
+
+    TODO fparser/#413 could also fix these issues.
 
     '''
     fake_parent = KernelSchedule("dummy_schedule")
@@ -827,20 +829,20 @@ def test_process_declarations_errrs():
             ":\n INTEGER, PARAMETER, ALLOCATABLE :: l1 = 1"
             in str(error.value))
 
-    reader = FortranStringReader("integer, intent(inout), save :: l1 = 1")
+    reader = FortranStringReader("integer, intent(inout), save :: l1")
     fparser2spec = Specification_Part(reader).content[0]
     with pytest.raises(GenerationError) as error:
         processor.process_declarations(fake_parent, [fparser2spec], [])
     assert ("Multiple or duplicated incompatible attributes found in "
-            "declaration:\n INTEGER, INTENT(INOUT), SAVE :: l1 = 1"
+            "declaration:\n INTEGER, INTENT(INOUT), SAVE :: l1"
             in str(error.value))
 
-    reader = FortranStringReader("integer, intent(in), intent(out) :: l1 = 1")
+    reader = FortranStringReader("integer, intent(in), intent(out) :: l1")
     fparser2spec = Specification_Part(reader).content[0]
     with pytest.raises(GenerationError) as error:
         processor.process_declarations(fake_parent, [fparser2spec], [])
     assert ("Multiple or duplicated incompatible attributes found in "
-            "declaration:\n INTEGER, INTENT(IN), INTENT(OUT) :: l1 = 1"
+            "declaration:\n INTEGER, INTENT(IN), INTENT(OUT) :: l1"
             in str(error.value))
 
 

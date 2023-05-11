@@ -634,7 +634,7 @@ class FortranWriter(LanguageWriter):
         if isinstance(symbol, DataSymbol) and symbol.is_constant:
             result += ", parameter"
         elif isinstance(symbol, DataSymbol) and symbol.is_static:
-            # This condition is an elif because SAVE and PARAMETER and
+            # This condition is an elif because SAVE and PARAMETER are
             # incompatible, but we let PARAMETER take precedence because
             # a parameter is already behaving like a static value
             result += ", save"
@@ -907,9 +907,10 @@ class FortranWriter(LanguageWriter):
             same module) or is not a Fortran intrinsic.
         :raises VisitorError: if args_allowed is False and one or more \
             argument declarations exist in symbol_table.
-        :raises VisitorError: if there are any symbols in the supplied table \
-            that do not have an explicit declaration (UnresolvedInterface) \
-            and there are no wildcard imports.
+        :raises VisitorError: if there are any symbols (other than \
+            RoutineSymbols) in the supplied table that do not have an \
+            explicit declaration (UnresolvedInterface) and there are no \
+            wildcard imports.
 
         '''
         # pylint: disable=too-many-branches
@@ -928,15 +929,16 @@ class FortranWriter(LanguageWriter):
             if sym.is_import:
                 all_symbols.remove(sym)
                 continue
-            # All the IntrinsicSymbols (and unless we support all intrinsics,
-            # also the RoutineSymbols with an UresolvedInterface)
+            # All the IntrinsicSymbols and RoutineSymbols with an
+            # UresolvedInterface (Fortran can have Calls which are
+            # only resolved at link time)
             if isinstance(sym, IntrinsicSymbol) or (
                     isinstance(sym, RoutineSymbol) and
                     isinstance(sym.interface, UnresolvedInterface)):
                 all_symbols.remove(sym)
 
         # If the symbol table contain any symbols with an UnresolvedInterface
-        # interface (they are not explicitly decalred), we need to check that
+        # interface (they are not explicitly declared), we need to check that
         # we have at least one wildcard import which could be bringing them
         # into this scope.
         unresolved_symbols = []

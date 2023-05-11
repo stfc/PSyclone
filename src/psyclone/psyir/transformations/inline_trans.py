@@ -111,7 +111,7 @@ class InlineTrans(Transformation):
         * the routine contains an early Return statement;
         * the routine contains a variable with UnknownInterface;
         * the routine contains a variable with StaticInterface;
-        * the routine contains an UnknwonType variable with ArgumentInterface;
+        * the routine contains an UnknownType variable with ArgumentInterface;
         * the routine has a named argument;
         * the shape of any array arguments as declared inside the routine does
           not match the shape of the arrays being passed as arguments;
