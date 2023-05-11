@@ -36,7 +36,6 @@
 '''Module containing tests for the ArrayRange2LoopTrans
 transformation.'''
 
-from __future__ import absolute_import
 
 import pytest
 
@@ -112,12 +111,10 @@ def create_array_x(symbol_table):
     elements in the array dimension using a range node. In Fortran
     array notation this is "x(:)".
 
-    :param symbol_table: the symbol table to which we add the array \
-        symbol.
+    :param symbol_table: the symbol table to which we add the array symbol.
     :type symbol_table: :py:class:`psyclone.psyir.symbol.SymbolTable`
 
-    :returns: an array reference that accesses all elements of the \
-        array "x".
+    :returns: an array reference that accesses all elements of the array "x".
     :rtype: :py:class:`psyclone.psyir.nodes.ArrayReference`
 
     '''
@@ -127,8 +124,8 @@ def create_array_x(symbol_table):
 
 
 def create_array_y(symbol_table):
-    '''Utility routine that creates and returns an array reference to a
-    two-dimensional array "y". The array reference accesses all
+    '''Utility routine that creates and returns an array reference to an
+    assumed-size, two-dimensional array "y". The array reference accesses all
     elements in the 2nd dimension of the array using a range node and
     the n'th element of the 1st dimension. In Fortran array notation
     this is "y(n,:)".
@@ -143,7 +140,10 @@ def create_array_y(symbol_table):
     :rtype: :py:class:`psyclone.psyir.nodes.ArrayReference`
 
     '''
-    array_symbol = DataSymbol("y", ArrayType(REAL_TYPE, [10, 10]))
+    array_symbol = DataSymbol("y",
+                              ArrayType(REAL_TYPE,
+                                        [(10, ArrayType.Extent.ATTRIBUTE),
+                                         10]))
     symbol_table.add(array_symbol)
     return ArrayReference.create(array_symbol,
                                  [Reference(symbol_table.lookup("n")),

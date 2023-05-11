@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2022, Science and Technology Facilities Council.
+# Copyright (c) 2019-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -497,17 +497,23 @@ class ArrayType(DataType):
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.nodes import DataNode, Reference
 
-        def _validate_data_node(dim_node):
+        def _validate_data_node(dim_node, is_lower_bound=False):
             '''
             Checks that the supplied DataNode is valid as part of an
             array-shape specification.
 
-            :param dim_node: the DataNode to check.
-            :type dim_node: :py:class:`psyclone.psyir.nodes.DataNode`
+            :param dim_node: the node to check for validity.
+            :type dim_node: int | :py:class:`psyclone.psyir.nodes.DataNode`
+            :param bool is_lower_bound: whether the supplied node represents \
+                                        the lower bound of an array shape.
 
             :raises TypeError: if the DataNode is not valid in this context.
 
             '''
+            if isinstance(dim_node, int):
+                # An integer value is always valid.
+                return
+
             # When issue #1799 is addressed then check that the
             # datatype returned is an int (or is unknown). For the
             # moment, just check that if the DataNode is a
@@ -532,35 +538,40 @@ class ArrayType(DataType):
                 # TODO #1089 - add check that any References are not to a
                 # local datasymbol that is not constant (as this would have
                 # no value).
+                return
 
+            if isinstance(dim_node, ArrayType.Extent):
+                if is_lower_bound:
+                    raise TypeError(
+                        "If present, the lower bound in an ArrayType 'shape' "
+                        "must represent a value but found ArrayType.Extent")
+                return
+
+            if isinstance(dim_node, DataNode):
+                return
+
+            raise TypeError(
+                f"DataSymbol shape-list elements can only be 'int', "
+                f"ArrayType.Extent, 'DataNode' or a 2-tuple thereof but found "
+                f"'{type(dim_node).__name__}'.")
+
+        # ---------------------------------------------------------------------
         if not isinstance(extents, list):
             raise TypeError(
                 f"ArrayType 'shape' must be of type list but found "
                 f"'{type(extents).__name__}'.")
 
         for dimension in extents:
-            if isinstance(dimension, DataNode):
-                _validate_data_node(dimension)
-            elif isinstance(dimension, tuple):
+            if isinstance(dimension, tuple):
                 if len(dimension) != 2:
                     raise TypeError(
                         f"A DataSymbol shape-list element specifying lower "
                         f"and upper bounds must be a 2-tuple but "
                         f"'{dimension}' has {len(dimension)} entries.")
-                for dim in dimension:
-                    if isinstance(dim, DataNode):
-                        _validate_data_node(dim)
-                    elif not isinstance(dim, int):
-                        raise TypeError(
-                            f"A DataSymbol shape-list element specifying lower"
-                            f" and upper bounds must be a 2-tuple containing "
-                            f"either int or DataNode entries but '{dimension}'"
-                            f" contains '{type(dim).__name__}'")
-            elif not isinstance(dimension, (self.Extent, int)):
-                raise TypeError(
-                    f"DataSymbol shape list elements can only be 'int', "
-                    f"ArrayType.Extent, 'DataNode' or tuple but found "
-                    f"'{type(dimension).__name__}'.")
+                _validate_data_node(dimension[0], is_lower_bound=True)
+                _validate_data_node(dimension[1])
+            else:
+                _validate_data_node(dimension)
 
     def __str__(self):
         '''
