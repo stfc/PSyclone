@@ -203,7 +203,7 @@ class LFRicInvoke(Invoke):
         :param fspace: function space of the argument.
         :type fspace: class `psyclone.domain.lfric.FunctionSpace`
         :returns: an argument object which is on the requested function space
-        :rtype: 
+        :rtype: class `psyclone.dynamo0p3.DynKernelArgument`
         :raises GenerationError: if the argument object does not exist
         '''
         for kern_call in self.schedule.kernels():
