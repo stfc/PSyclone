@@ -728,6 +728,7 @@ class LFRicExtractDriverCreator:
                           if name != "r_quad"]
         for prec_name in all_precisions:
             symbol_table.new_symbol(prec_name,
+                                    tag=f"{prec_name}@{mod_name}",
                                     symbol_type=DataSymbol,
                                     datatype=INTEGER_TYPE,
                                     interface=ImportInterface(constant_mod))
