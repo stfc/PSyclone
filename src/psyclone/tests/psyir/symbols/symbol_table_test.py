@@ -610,14 +610,17 @@ def test_check_for_clashes_cannot_rename():
                           interface=ArgumentInterface()))
     table2.add(DataSymbol("prostetnic", DeferredType(),
                           interface=ImportInterface(csym2)))
-    with pytest.raises(SymbolError) as err:
-        table1.check_for_clashes(table2)
-    assert ("Cannot rename symbol 'prostetnic' because it is a routine "
-            "argument and as such may be named in a Call." in str(err.value))
-    with pytest.raises(SymbolError) as err:
-        table2.check_for_clashes(table1)
-    assert ("Cannot rename symbol 'prostetnic' because it is a routine "
-            "argument and as such may be named in a Call." in str(err.value))
+    for (tab1, tab2) in [(table1, table2), (table2, table1)]:
+        with pytest.raises(SymbolError) as err:
+            tab1.check_for_clashes(tab2)
+        assert ("for symbol 'prostetnic' that cannot be resolved by renaming "
+                "one of the instances because:" in str(err.value))
+        assert ("- PSyclone SymbolTable error: Cannot rename symbol "
+                "'prostetnic' because it is imported (from Container 'fleet')"
+                in str(err.value))
+        assert ("- PSyclone SymbolTable error: Cannot rename symbol "
+                "'prostetnic' because it is a routine argument and as such "
+                "may be named in a Call." in str(err.value))
     # Add a clash between two symbols where neither is a Container or has an
     # ImportInterface.
     del table1._symbols["prostetnic"]

@@ -51,7 +51,6 @@ def test_fw_routine(fortran_reader, fortran_writer, monkeypatch, tmpdir):
     have a value.
 
     '''
-    # Generate fparser2 parse tree from Fortran code.
     code = (
         "module test\n"
         "contains\n"
@@ -196,7 +195,6 @@ def test_fw_routine_program(fortran_reader, fortran_writer, tmpdir):
     is found with is_program set to True i.e. it should be output as a program.
 
     '''
-    # Generate PSyIR from Fortran code via fparser2 ast
     code = (
         "program test\n"
         "  real :: a\n"
@@ -276,7 +274,7 @@ def test_fw_routine_flatten_tables(fortran_reader, fortran_writer, tmpdir):
             "implicit none\n"
             "contains\n"
             "subroutine sub(b)\n"
-            # TODO "  use some_mod, only: joe\n"
+            "  use some_mod, only: joe\n"
             "  real, intent(inout) :: b\n"
             "  real :: the_clash, strummer\n"
             "  integer :: ii\n"
@@ -294,14 +292,21 @@ def test_fw_routine_flatten_tables(fortran_reader, fortran_writer, tmpdir):
     csym = symbols.ContainerSymbol("the_clash")
     ssym = symbols.DataSymbol("strummer", datatype=symbols.DeferredType(),
                               interface=symbols.ImportInterface(csym))
+    # Add a variable to this table that will clash with a Container symbol
+    # in the routine table.
+    jsym = symbols.DataSymbol("joe", symbols.INTEGER_TYPE)
     table.add(csym)
     table.add(ssym)
+    table.add(jsym)
     code = fortran_writer(container)
-    # Check the resulting code has the correct module use statement.
+    # Check the resulting code has the correct module use statements.
     assert ("  subroutine sub(b)\n"
+            "    use some_mod, only : joe\n"
             "    use the_clash, only : strummer\n" in code)
     # While the clashing variables have been renamed.
     assert "real :: the_clash_1" in code
     assert "real :: strummer_1" in code
-
+    assert "integer :: joe_1" in code
+    import pdb; pdb.set_trace()
+    code = "andy"
     Compile(tmpdir).string_compiles(code)

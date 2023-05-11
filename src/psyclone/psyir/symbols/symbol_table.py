@@ -582,23 +582,18 @@ class SymbolTable():
                         f"the supplied table imports it from Container "
                         f"'{other_sym.interface.container_symbol.name}'.")
                 continue
-            if other_sym.is_import:
-                # other_sym is imported and thus cannot be renamed. Can we
-                # rename this_sym?
-                self.rename_symbol(this_sym, "", dry_run=True)
-                continue
-            if this_sym.is_import:
-                # this_sym is imported and thus cannot be renamed. Can we
-                # rename other_sym?
-                other_table.rename_symbol(other_sym, "", dry_run=True)
-                continue
-            # Neither of the Symbols that clash are imports so can either of
-            # them be renamed?
+            # Can either of them be renamed?
             try:
-                other_table.rename_symbol(other_sym, "", dry_run=True)
-                continue
-            except SymbolError:
                 self.rename_symbol(this_sym, "", dry_run=True)
+            except SymbolError as err1:
+                try:
+                    other_table.rename_symbol(other_sym, "", dry_run=True)
+                except SymbolError as err2:
+                    # pylint: disable=raise-missing-from
+                    raise SymbolError(
+                        f"There is a name clash for symbol '{this_sym.name}' "
+                        f"that cannot be resolved by renaming "
+                        f"one of the instances because:\n- {err1}\n- {err2}")
 
     def _add_container_symbols_from_table(self, other_table):
         '''
@@ -1534,7 +1529,7 @@ class SymbolTable():
                 f"Cannot rename symbol '{symbol.name}' because it is a routine"
                 f" argument and as such may be named in a Call.")
 
-        # TODO #2043 - add check that Symbol is not in a CommonBlock.
+        # TODO #2043 - add check that Symbol is not in a Fortran Common Block.
 
         if not isinstance(name, str):
             raise TypeError(
