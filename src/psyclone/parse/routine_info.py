@@ -194,6 +194,8 @@ class RoutineInfo(RoutineInfoBase):
             if hasattr(node, "_symbol_table") and \
                     sym.name in node.symbol_table and node.name != sym.name:
                 existing_sym = node.symbol_table.lookup(sym.name)
+                if existing_sym.is_local:
+                    return None
                 if isinstance(node, Container):
                     # It is a variable from the module in which the
                     # current function is, so it is a non-local access
