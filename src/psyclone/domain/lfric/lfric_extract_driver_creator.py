@@ -41,6 +41,8 @@ reads in extracted data, calls the kernel, and then compares the result with
 the output data contained in the input file.
 '''
 
+import re
+
 from psyclone.core import Signature
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.errors import GenerationError, InternalError
@@ -1014,13 +1016,23 @@ class LFRicExtractDriverCreator:
         sorted_modules = mod_manager.sort_modules(module_dependencies)
 
         # Inline all required modules into the driver source file so that
-        # it is stand-alone:
+        # it is stand-alone. Additionally, we need to remove all private
+        # declarations (since then they default to be public, which is
+        # required in order to potentially initialise an otherwise protected
+        # module variable from the data file. And similarly remove all
+        # 'protected' attributes.
         out = []
+        # An optional comma and spaces, followed by either protected
+        # or private as word:
+        remove_regex = re.compile(r"(, *)?(\b(protected|private)\b)")
+
         for module in sorted_modules:
             # Note that all modules in `sorted_modules` are known to be in
             # the module manager, so we can always get the module info here.
             mod_info = mod_manager.get_module_info(module)
-            out.append(mod_info.get_source_code())
+            # Remove protected and private:
+            source = remove_regex.sub("", mod_info.get_source_code())
+            out.append(source)
 
         out.append(writer(file_container))
 
