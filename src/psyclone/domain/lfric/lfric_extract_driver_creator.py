@@ -414,12 +414,23 @@ class LFRicExtractDriverCreator:
             # which will query the original symbol for its type. And since
             # they are not imported, they need to be explicitly declared.
             mod_info = mod_man.get_module_info(module_name)
-            container_symbol = mod_info.get_symbol(signature[0])
-            symbol_table.new_symbol(root_name=signature[0],
-                                    tag=f"{signature[0]}@{module_name}",
-                                    symbol_type=DataSymbol,
-                                    interface=ImportInterface(container),
-                                    datatype=container_symbol.datatype)
+            try:
+                container_symbol = mod_info.get_symbol(signature[0])
+            except IndexError:
+                # TODO #2120: This typically indicates a problem with parsing
+                # a module: the psyir does not have the full tree structure.
+                # Ignore for now.
+                continue
+
+            if not container_symbol:
+                continue
+            symbol_table.find_or_create_tag(tag=f"{signature[0]}@"
+                                                f"{module_name}",
+                                            root_name=signature[0],
+                                            symbol_type=DataSymbol,
+                                            interface=ImportInterface(
+                                                container),
+                                            datatype=container_symbol.datatype)
 
     # -------------------------------------------------------------------------
     @staticmethod
@@ -591,6 +602,7 @@ class LFRicExtractDriverCreator:
                 except IndexError:
                     print(f"Index error finding '{sig_str}' in "
                           f"'{module_name}''.")
+                    orig_sym = None
                 except AttributeError:
                     # We couldn't parse the module
                     orig_sym = None
