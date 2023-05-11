@@ -611,6 +611,10 @@ class LFRicExtractDriverCreator:
             else:
                 orig_sym = original_symbol_table.lookup(signature[0])
 
+            # If the symbol is a constant, it cannto and does not need
+            # to be read in:
+            if orig_sym and orig_sym.is_constant:
+                continue
             if orig_sym and orig_sym.is_array and \
                     orig_sym.datatype.intrinsic.name in self._all_field_types:
                 # This is a field vector, so add all individual fields
