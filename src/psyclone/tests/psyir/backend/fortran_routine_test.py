@@ -264,7 +264,7 @@ def test_fw_routine_function_no_result(fortran_reader, fortran_writer, tmpdir):
     assert Compile(tmpdir).string_compiles(result)
 
 
-def test_fw_routine_flatten_tables(fortran_reader, fortran_writer, tmpdir):
+def test_fw_routine_flatten_tables(fortran_reader, fortran_writer):
     '''
     Check that module use statements in nested symbol tables are handled
     correctly in the presence of name clashes.
@@ -307,6 +307,4 @@ def test_fw_routine_flatten_tables(fortran_reader, fortran_writer, tmpdir):
     assert "real :: the_clash_1" in code
     assert "real :: strummer_1" in code
     assert "integer :: joe_1" in code
-    import pdb; pdb.set_trace()
-    code = "andy"
-    Compile(tmpdir).string_compiles(code)
+    # We can't test for compilation because of the `use` statements.
