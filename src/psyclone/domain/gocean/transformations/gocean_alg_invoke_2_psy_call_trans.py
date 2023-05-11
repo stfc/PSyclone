@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2023, Science and Technology Facilities Council.
+# Copyright (c) 2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,25 +31,45 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors J. Henrichs, Bureau of Meteorology
-#         S. Siso, STFC Daresbury Lab
-# Modified: R. W. Ford, STFC Daresbury Lab
+# Author: R. W. Ford, STFC Daresbury Lab
 
-'''This module contains the transformations for GOcean.
+'''Transform a PSyclone GOcean algorithm-layer-specific invoke call
+into a call to the corresponding PSy-layer routine.
+
 '''
 
-from psyclone.domain.gocean.transformations.gocean_extract_trans \
-    import GOceanExtractTrans
-from psyclone.domain.gocean.transformations.gocean_opencl_trans \
-    import GOOpenCLTrans
-from psyclone.domain.gocean.transformations. \
-    gocean_move_iteration_boundaries_inside_kernel_trans import \
-    GOMoveIterationBoundariesInsideKernelTrans
-from psyclone.domain.gocean.transformations.gocean_loop_fuse_trans \
-    import GOceanLoopFuseTrans
-from psyclone.domain.gocean.transformations.gocean_const_loop_bounds_trans \
-    import GOConstLoopBoundsTrans
-from psyclone.domain.gocean.transformations.raise_psyir_2_gocean_kern_trans \
-    import RaisePSyIR2GOceanKernTrans
-from psyclone.domain.gocean.transformations.\
-    gocean_alg_invoke_2_psy_call_trans import GOceanAlgInvoke2PSyCallTrans
+from psyclone.domain.common.transformations import AlgInvoke2PSyCallTrans
+
+
+class GOceanAlgInvoke2PSyCallTrans(AlgInvoke2PSyCallTrans):
+    '''Transforms a GOceanAlgorithmInvokeCall into a standard Call to a
+    generated PSy-layer routine.
+
+    This transformation would normally be written as a lowering method
+    on a GOceanAlgorithmInvokeCall. However, we don't always want to
+    lower the code as we want the flexibility to also be able to
+    output algorithm-layer code containing invoke's. We therefore need
+    to selectively apply the lowering, which is naturally written as a
+    transformation.
+
+    '''
+    def get_arguments(self, node, options=None):
+        '''Creates the GOcean processed (lowered) argument list from the
+        argument lists of the kernels within the invoke call and the
+        kernel metadata.
+
+        :param node: a GOcean algorithm invoke call.
+        :type node: :py:class:`psyclone.domain.common.algorithm.psyir.\
+            AlgorithmInvokeCall`
+        :param options: a dictionary with options for transformations.
+        :type options: Optional[Dict[str, Any]]
+
+        :returns: the processed (lowered) argument list.
+        :rtype: List[:py:class:`psyclone.psyir.nodes.Node`]
+
+        '''
+        arguments = []
+        for kern in node.children:
+            for arg in kern.children:
+                self._add_arg(arg, arguments)
+        return arguments

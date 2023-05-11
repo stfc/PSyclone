@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2023, Science and Technology Facilities Council.
+# Copyright (c) 2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,25 +31,33 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors J. Henrichs, Bureau of Meteorology
-#         S. Siso, STFC Daresbury Lab
-# Modified: R. W. Ford, STFC Daresbury Lab
+# Author: A. R. Porter, STFC Daresbury Lab
 
-'''This module contains the transformations for GOcean.
-'''
+# Read the Docs configuration file for the PSyclone Reference Guide.
+# See https://docs.readthedocs.io/en/stable/config-file/v2.html for details.
 
-from psyclone.domain.gocean.transformations.gocean_extract_trans \
-    import GOceanExtractTrans
-from psyclone.domain.gocean.transformations.gocean_opencl_trans \
-    import GOOpenCLTrans
-from psyclone.domain.gocean.transformations. \
-    gocean_move_iteration_boundaries_inside_kernel_trans import \
-    GOMoveIterationBoundariesInsideKernelTrans
-from psyclone.domain.gocean.transformations.gocean_loop_fuse_trans \
-    import GOceanLoopFuseTrans
-from psyclone.domain.gocean.transformations.gocean_const_loop_bounds_trans \
-    import GOConstLoopBoundsTrans
-from psyclone.domain.gocean.transformations.raise_psyir_2_gocean_kern_trans \
-    import RaisePSyIR2GOceanKernTrans
-from psyclone.domain.gocean.transformations.\
-    gocean_alg_invoke_2_psy_call_trans import GOceanAlgInvoke2PSyCallTrans
+# Required
+version: 2
+
+# Set the version of Python and other tools you might need
+build:
+  os: ubuntu-22.04
+  tools:
+    python: "3.11"
+
+# Build documentation in the doc/reference_guide/source directory with Sphinx
+sphinx:
+   configuration: doc/reference_guide/source/conf.py
+
+# If using Sphinx, optionally build your docs in additional formats such as PDF
+# formats:
+#    - pdf
+
+# Optionally declare the Python requirements required to build your docs. We
+# need to install the PSyclone package.
+python:
+   install:
+     - method: pip
+       path: .
+       extra_requirements:
+         - doc
