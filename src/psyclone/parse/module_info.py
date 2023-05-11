@@ -346,5 +346,11 @@ class ModuleInfo:
         '''
         psyir = self.get_psyir()
         # Get the symbol table from the module
-        symbol_table = psyir.children[0].symbol_table
+        try:
+            symbol_table = psyir.children[0].symbol_table
+        except AttributeError:
+            # TODO 2120: we need to handle errors better.
+            print(f"Cannot find symbol table of '{self._filename}' "
+                  f"while looking up '{name}'.")
+            return None
         return symbol_table.lookup(name)
