@@ -43,7 +43,7 @@ import pytest
 from psyclone.domain.lfric import LFRicConstants, LFRicTypes
 from psyclone.errors import InternalError
 from psyclone.psyir.symbols import ContainerSymbol, DataSymbol, \
-    ImportInterface, ScalarType, LocalInterface, ArgumentInterface, \
+    ImportInterface, ScalarType, AutomaticInterface, ArgumentInterface, \
     ArrayType, Symbol
 from psyclone.psyir.nodes import Reference, Literal
 
@@ -122,7 +122,7 @@ def test_generic_scalars(type_name, symbol_name, intrinsic,
     # symbol
     lfric_symbol = symbol("symbol")
     assert lfric_symbol.name == "symbol"
-    assert isinstance(lfric_symbol.interface, LocalInterface)
+    assert isinstance(lfric_symbol.interface, AutomaticInterface)
     assert isinstance(lfric_symbol.datatype, data_type)
     lfric_symbol = symbol(
         "symbol", interface=ArgumentInterface(ArgumentInterface.Access.READ))
@@ -215,7 +215,7 @@ def test_specific_scalar_symbols(symbol_name, generic_symbol_name,
     lfric_symbol = symbol(*args)
     assert isinstance(lfric_symbol, generic_symbol)
     assert lfric_symbol.name == "symbol"
-    assert isinstance(lfric_symbol.interface, LocalInterface)
+    assert isinstance(lfric_symbol.interface, AutomaticInterface)
     for attribute in attribute_map:
         assert getattr(lfric_symbol, attribute) == attribute_map[attribute]
     lfric_symbol = symbol(
@@ -343,7 +343,7 @@ def test_arrays(data_type_name, symbol_name, scalar_type_name,
     lfric_symbol = symbol("symbol", dims, *args)
     assert isinstance(lfric_symbol, DataSymbol)
     assert lfric_symbol.name == "symbol"
-    assert isinstance(lfric_symbol.interface, LocalInterface)
+    assert isinstance(lfric_symbol.interface, AutomaticInterface)
     assert isinstance(lfric_symbol.datatype, data_type)
     lfric_symbol = symbol(
         "symbol", dims, *args,
