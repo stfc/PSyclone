@@ -1,7 +1,7 @@
 #------------------------------------------------------------------------------
 # BSD 2-Clause License
 # 
-# Copyright (c) 2020-2022, Science and Technology Facilities Council.
+# Copyright (c) 2020-2023, Science and Technology Facilities Council.
 # All rights reserved.
 # 
 # Redistribution and use in source and binary forms, with or without
@@ -27,6 +27,7 @@
 #------------------------------------------------------------------------------
 # Author: J. Henrichs, Australian Bureau of Meteorology
 # Modified: I. Kavcic, Met Office
+#           A. R. Porter, STFC Daresbury Lab
 
 # This Makefile picks up the compiler to use plus any flags from
 # environment variables. e.g.:
@@ -57,10 +58,10 @@ INF_INC = $(LFRIC_PATH)
 INF_LIB_NAME = lfric_netcdf
 INF_LIB = $(LFRIC_PATH)/lib$(INF_LIB_NAME).a
 
-# This will add the required include flags to F90FLAGS
+# This will add the required include flags to $(LFRIC_INCLUDE_FLAGS)
 include $(LFRIC_PATH)/lfric_include_flags.inc
 
-F90FLAGS += $$(nf-config --fflags) -I$(INF_INC)/field
+LFRIC_INCLUDE_FLAGS += $$(nf-config --fflags)
 PSYDATA_LIB_NAME = _extract
 PSYDATA_LIB = lib$(PSYDATA_LIB_NAME).a
 
@@ -94,7 +95,7 @@ extract_netcdf_base.f90: $(LIB_TMPLT_DIR)/extract_netcdf_base.jinja Makefile
 	$(PROCESS) $(PROCESS_ARGS) -generic-declare -generic-provide $< > extract_netcdf_base.f90
 
 %.o: %.f90
-	$(F90) $(F90FLAGS) -c $<
+	$(F90) $(F90FLAGS) $(LFRIC_INCLUDE_FLAGS) -c $<
 
 clean:
 	rm -f *.o *.mod $(PSYDATA_LIB) psy_data_base.f90 extract_netcdf_base.f90

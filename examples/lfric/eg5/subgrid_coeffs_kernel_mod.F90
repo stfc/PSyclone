@@ -8,7 +8,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2017-2021, Science and Technology Facilities Council
+! Modifications copyright (c) 2017-2023, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -39,6 +39,7 @@
 ! POSSIBILITY OF SUCH DAMAGE.
 !------------------------------------------------------------------------------
 ! Modified by I. Kavcic, Met Office
+! Modified R. W. Ford, STFC Daresbury Lab
 
 !> @brief Calculates the coefficients, a0,a1,a2, for 1D subgrid
 !>        representation of rho, rho(x) = a0 + a1*x+a2*x**2 with 0<x<1,
@@ -143,7 +144,7 @@ subroutine subgrid_coeffs_code(                                               &
   integer(kind=i_def), intent(in) :: ndf_w3
   integer(kind=i_def), intent(in) :: stencil_length
   integer(kind=i_def), intent(in) :: stencil_map(1:ndf_w3,1:stencil_length)
-  integer(kind=i_def), intent(in) :: w3_map()
+  integer(kind=i_def), intent(in) :: map_w3(ndf_w3)
   real(kind=r_def), intent(inout) :: a0(undf_w3)
   real(kind=r_def), intent(inout) :: a1(undf_w3)
   real(kind=r_def), intent(inout) :: a2(undf_w3)

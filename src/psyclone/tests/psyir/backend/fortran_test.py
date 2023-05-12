@@ -83,6 +83,8 @@ def test_gen_intent():
                         interface=ArgumentInterface(
                             ArgumentInterface.Access.READWRITE))
     assert gen_intent(symbol) == "inout"
+    symbol = DataSymbol("dummy", INTEGER_TYPE)  # Non-argument
+    assert gen_intent(symbol) is None
 
 
 def test_gen_intent_error(monkeypatch):
@@ -651,6 +653,15 @@ def test_fw_gen_vardecl(fortran_writer):
     result = fortran_writer.gen_vardecl(symbol)
     assert result == "integer, dimension(2,2,:) :: dummy2\n"
 
+    # Assumed-size array with specified lower bound
+    array_type = ArrayType(INTEGER_TYPE,
+                           [2, 2, (-1, ArrayType.Extent.ATTRIBUTE)])
+    symbol = DataSymbol("dummy3", array_type,
+                        interface=ArgumentInterface(
+                            ArgumentInterface.Access.UNKNOWN))
+    result = fortran_writer.gen_vardecl(symbol)
+    assert result == "integer, dimension(2,2,-1:) :: dummy3\n"
+
     # Allocatable array
     array_type = ArrayType(REAL_TYPE, [ArrayType.Extent.DEFERRED,
                                        ArrayType.Extent.DEFERRED])
@@ -672,18 +683,16 @@ def test_fw_gen_vardecl(fortran_writer):
                             ContainerSymbol("my_module")))
     with pytest.raises(VisitorError) as excinfo:
         _ = fortran_writer.gen_vardecl(symbol)
-    assert ("gen_vardecl requires the symbol 'dummy1' to have a Local or "
-            "an Argument interface but found a 'ImportInterface' interface."
-            in str(excinfo.value))
+    assert ("Symbol 'dummy1' has a DeferredType and we can not generate "
+            "a declaration for DeferredTypes." in str(excinfo.value))
 
     # An unresolved symbol
     symbol = DataSymbol("dummy1", DeferredType(),
                         interface=UnresolvedInterface())
     with pytest.raises(VisitorError) as excinfo:
         _ = fortran_writer.gen_vardecl(symbol)
-    assert ("gen_vardecl requires the symbol 'dummy1' to have a Local or "
-            "an Argument interface but found a 'UnresolvedInterface' "
-            "interface." in str(excinfo.value))
+    assert ("Symbol 'dummy1' has a DeferredType and we can not generate a "
+            "declaration for DeferredTypes." in str(excinfo.value))
 
     # An array with a mixture of deferred and explicit extents
     array_type = ArrayType(INTEGER_TYPE, [2, ArrayType.Extent.DEFERRED])
