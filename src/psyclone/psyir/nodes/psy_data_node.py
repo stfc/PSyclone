@@ -40,7 +40,6 @@ creation time will create callbacks according to the PSyData API.
 This is the base class for nodes that e.g. create kernel extraction
 or profiling. '''
 
-from __future__ import absolute_import, print_function
 from collections import namedtuple
 
 from fparser.common.readfortran import FortranStringReader
@@ -575,16 +574,16 @@ class PSyDataNode(Statement):
         # values of a variable "A" as "A" in the pre-variable list,
         # and store the modified value of "A" later as "A_post".
         if has_var:
-            for var_name in pre_variable_list:
+            for module_name, var_name in pre_variable_list:
                 self._add_call("PreDeclareVariable", parent,
                                [f"\"{var_name}{pre_suffix}\"", var_name])
-            for var_name in post_variable_list:
+            for module_name, var_name in post_variable_list:
                 self._add_call("PreDeclareVariable", parent,
                                [f"\"{var_name}{post_suffix}\"", var_name])
 
             self._add_call("PreEndDeclaration", parent)
 
-            for var_name in pre_variable_list:
+            for module_name, var_name in pre_variable_list:
                 self._add_call("ProvideVariable", parent,
                                [f"\"{var_name}{pre_suffix}\"", var_name])
 
@@ -596,7 +595,7 @@ class PSyDataNode(Statement):
         if has_var:
             # Only add PostStart() if there is at least one variable.
             self._add_call("PostStart", parent)
-            for var_name in post_variable_list:
+            for module_name, var_name in post_variable_list:
                 self._add_call("ProvideVariable", parent,
                                [f"\"{var_name}{post_suffix}\"", var_name])
 
