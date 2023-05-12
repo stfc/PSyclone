@@ -38,7 +38,6 @@
 ''' This module provides tools that are based on the code
     dependency analysis.'''
 
-from __future__ import absolute_import, print_function
 from enum import IntEnum
 
 import sympy
@@ -842,10 +841,6 @@ class DependencyTools():
             variables_info = VariablesAccessInfo(node_list, options=options)
 
         for signature in variables_info.all_signatures:
-            # Take the first access (index 0) of this variable. Note that
-            # loop variables have a WRITE before a READ access, so they
-            # will be ignored
-            first_access = variables_info[signature][0]
             # If the first access is a write, the variable is not an input
             # parameter and does not need to be saved. Note that loop variables
             # have a WRITE before a READ access, so they will be ignored
