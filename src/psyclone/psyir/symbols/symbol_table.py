@@ -186,8 +186,7 @@ class SymbolTable():
             scope (all symbol tables in ancestor nodes) is searched \
             otherwise ancestors of the scope_limit node are not \
             searched.
-        :type scope_limit: :py:class:`psyclone.psyir.nodes.Node` or \
-            `NoneType`
+        :type scope_limit: Optional[:py:class:`psyclone.psyir.nodes.Node`]
 
         :returns: ordered dictionary of symbols indexed by symbol name.
         :rtype: OrderedDict[str] = :py:class:`psyclone.psyir.symbols.Symbol`
@@ -898,30 +897,6 @@ class SymbolTable():
                         f"Symbol '{symbol}' is not listed as a kernel argument"
                         f" and yet has an ArgumentInterface interface.")
 
-    def get_unresolved_datasymbols(self, ignore_precision=False):
-        '''
-        Create a list of the names of all of the DataSymbols in the table that
-        do not have a resolved interface. If ignore_precision is True then
-        those DataSymbols that are used to define the precision of other
-        DataSymbols are ignored. If no unresolved DataSymbols are found then an
-        empty list is returned.
-
-        :param bool ignore_precision: whether or not to ignore DataSymbols \
-                    that are used to define the precision of other DataSymbols.
-
-        :returns: the names of those DataSymbols with unresolved interfaces.
-        :rtype: list of str
-
-        '''
-        unresolved_symbols = [sym for sym in self.datasymbols
-                              if sym.is_unresolved]
-        if ignore_precision:
-            unresolved_datasymbols = list(set(unresolved_symbols) -
-                                          set(self.precision_datasymbols))
-        else:
-            unresolved_datasymbols = unresolved_symbols
-        return [sym.name for sym in unresolved_datasymbols]
-
     @property
     def symbols_dict(self):
         '''
@@ -961,7 +936,7 @@ class SymbolTable():
     def symbols(self):
         '''
         :returns: list of symbols.
-        :rtype: list of :py:class:`psyclone.psyir.symbols.Symbol`
+        :rtype: List[:py:class:`psyclone.psyir.symbols.Symbol`]
         '''
         return list(self._symbols.values())
 
@@ -969,24 +944,24 @@ class SymbolTable():
     def datasymbols(self):
         '''
         :returns: list of symbols representing data variables.
-        :rtype: list of :py:class:`psyclone.psyir.symbols.DataSymbol`
+        :rtype: List[:py:class:`psyclone.psyir.symbols.DataSymbol`]
         '''
         return [sym for sym in self._symbols.values() if
                 isinstance(sym, DataSymbol)]
 
     @property
-    def local_datasymbols(self):
+    def automatic_datasymbols(self):
         '''
-        :returns: list of symbols representing local variables.
-        :rtype: list of :py:class:`psyclone.psyir.symbols.DataSymbol`
+        :returns: list of symbols representing automatic variables.
+        :rtype: List[:py:class:`psyclone.psyir.symbols.DataSymbol`]
         '''
-        return [sym for sym in self.datasymbols if sym.is_local]
+        return [sym for sym in self.datasymbols if sym.is_automatic]
 
     @property
     def argument_datasymbols(self):
         '''
         :returns: list of symbols representing arguments.
-        :rtype: list of :py:class:`psyclone.psyir.symbols.DataSymbol`
+        :rtype: List[:py:class:`psyclone.psyir.symbols.DataSymbol`]
         '''
         return [sym for sym in self.datasymbols if sym.is_argument]
 
@@ -995,17 +970,25 @@ class SymbolTable():
         '''
         :returns: list of symbols that have an imported interface (are \
             associated with data that exists outside the current scope).
-        :rtype: list of :py:class:`psyclone.psyir.symbols.Symbol`
+        :rtype: List[:py:class:`psyclone.psyir.symbols.Symbol`]
 
         '''
         return [sym for sym in self.symbols if sym.is_import]
+
+    @property
+    def unresolved_datasymbols(self):
+        '''
+        :returns: list of symbols representing unresolved variables.
+        :rtype: List[:py:class:`psyclone.psyir.symbols.DataSymbol`]
+        '''
+        return [sym for sym in self.datasymbols if sym.is_unresolved]
 
     @property
     def precision_datasymbols(self):
         '''
         :returns: list of all symbols used to define the precision of \
                   other symbols within the table.
-        :rtype: list of :py:class:`psyclone.psyir.symbols.DataSymbol`
+        :rtype: List[:py:class:`psyclone.psyir.symbols.DataSymbol`]
 
         '''
         # Accumulate into a set so as to remove any duplicates
@@ -1021,25 +1004,24 @@ class SymbolTable():
     def containersymbols(self):
         '''
         :returns: a list of the ContainerSymbols present in the Symbol Table.
-        :rtype: list of :py:class:`psyclone.psyir.symbols.ContainerSymbol`
+        :rtype: List[:py:class:`psyclone.psyir.symbols.ContainerSymbol`]
         '''
         return [sym for sym in self.symbols if isinstance(sym,
                                                           ContainerSymbol)]
 
     @property
-    def local_datatypesymbols(self):
+    def datatypesymbols(self):
         '''
-        :returns: the local DataTypeSymbols present in the Symbol Table.
-        :rtype: list of :py:class:`psyclone.psyir.symbols.DataTypeSymbol`
+        :returns: the DataTypeSymbols present in the Symbol Table.
+        :rtype: List[:py:class:`psyclone.psyir.symbols.DataTypeSymbol`]
         '''
-        return [sym for sym in self.symbols if
-                (isinstance(sym, DataTypeSymbol) and sym.is_local)]
+        return [sym for sym in self.symbols if isinstance(sym, DataTypeSymbol)]
 
     @property
     def iteration_indices(self):
         '''
         :returns: list of symbols representing kernel iteration indices.
-        :rtype: list of :py:class:`psyclone.psyir.symbols.DataSymbol`
+        :rtype: List[:py:class:`psyclone.psyir.symbols.DataSymbol`]
 
         :raises NotImplementedError: this method is abstract.
         '''
@@ -1051,7 +1033,7 @@ class SymbolTable():
     def data_arguments(self):
         '''
         :returns: list of symbols representing kernel data arguments.
-        :rtype: list of :py:class:`psyclone.psyir.symbols.DataSymbol`
+        :rtype: List[:py:class:`psyclone.psyir.symbols.DataSymbol`]
 
         :raises NotImplementedError: this method is abstract.
         '''
