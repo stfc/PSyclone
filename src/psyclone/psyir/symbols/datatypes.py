@@ -480,10 +480,10 @@ class ArrayType(DataType):
         implemented as a setter because the shape property is immutable.
 
         :param extents: list of extents, one for each array dimension.
-        :type extents: list of \
+        :type extents: List[ \
             :py:class:`psyclone.psyir.symbols.ArrayType.Extent`, int \
-            or subclass of :py:class:`psyclone.psyir.nodes.DataNode` or \
-            2-tuple of int or `DataNode`.
+            | :py:class:`psyclone.psyir.nodes.DataNode` | \
+            Tuple[int | :py:class:`psyclone.psyir.nodes.DataNode]]
 
         :raises TypeError: if extents is not a list.
         :raises TypeError: if one or more of the supplied extents is a \

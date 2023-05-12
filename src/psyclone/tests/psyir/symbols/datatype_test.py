@@ -312,12 +312,6 @@ def test_arraytype():
         scalar_type, [ArrayType.Extent.DEFERRED,
                       ArrayType.Extent.DEFERRED])
     assert array_type.shape[1] == ArrayType.Extent.DEFERRED
-    # Cannot have DEFERRED as lower bound - TODO should in in specific test?
-    with pytest.raises(TypeError) as err:
-        _ = ArrayType(scalar_type, [ArrayType.Extent.DEFERRED,
-                                    (ArrayType.Extent.DEFERRED, 5)])
-    assert ("If present, the lower bound in an ArrayType 'shape' must "
-            "represent a value but found ArrayType.Extent" in str(err.value))
     # Provided as an attribute extent
     array_type = ArrayType(
         scalar_type, [ArrayType.Extent.ATTRIBUTE, ArrayType.Extent.ATTRIBUTE])
@@ -477,6 +471,18 @@ def test_arraytype_invalid_shape_bounds():
     assert ("If a DataSymbol is referenced in a dimension declaration then it "
             "should be a scalar but 'Reference[name:'jim']' is not." in
             str(excinfo.value))
+    # If one dimension is DEFERRED then all must be.
+    with pytest.raises(TypeError) as err:
+        _ = ArrayType(scalar_type, [ArrayType.Extent.DEFERRED, 5])
+    assert ("A declaration of an allocatable array must have the extent of "
+            "every dimension as 'DEFERRED' but found shape: [<Extent.DEFERRED:"
+            " 1>, 5]" in str(err.value))
+    # An assumed-shape array must have ATTRIBUTE in every dimension.
+    with pytest.raises(TypeError) as err:
+        _ = ArrayType(scalar_type, [ArrayType.Extent.ATTRIBUTE, 5])
+    assert ("An assumed-shape array must have every dimension unspecified "
+            "(either as 'ATTRIBUTE' or with the upper bound as 'ATTRIBUTE') "
+            "but found shape: [<Extent.ATTRIBUTE: 2>, 5]" in str(err.value))
 
 
 def test_arraytype_shape_dim_from_parent_scope():
@@ -504,6 +510,9 @@ def test_arraytype_str():
     assert (str(data_type) == "Array<Scalar<INTEGER, UNDEFINED>,"
             " shape=[10, Reference[name:'var'], 2:Reference[name:'var'], "
             "Reference[name:'var']:10]>")
+    data_type = ArrayType(scalar_type, [ArrayType.Extent.DEFERRED])
+    assert (str(data_type) == "Array<Scalar<INTEGER, UNDEFINED>, "
+            "shape=['DEFERRED']>")
 
 
 def test_arraytype_str_invalid():
