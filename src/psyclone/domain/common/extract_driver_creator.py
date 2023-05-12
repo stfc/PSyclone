@@ -366,9 +366,6 @@ class ExtractDriverCreator:
             :py:class:`psyclone.psyir.symbols.Symbol`
 
         '''
-        # pylint: disable=too-many-locals
-        all_sigs = list(read_write_info.set_of_all_used_vars)
-        all_sigs.sort()
         symbol_table = program.scope.symbol_table
         read_var = f"{psy_data.name}%ReadVariable"
 
