@@ -103,7 +103,13 @@ def _get_array_bound(array, index):
     if isinstance(my_dim, ArrayType.ArrayBounds):
         # Use .copy() to ensure we return new nodes.
         lower_bound = my_dim.lower.copy()
-        upper_bound = my_dim.upper.copy()
+        if my_dim.upper == ArrayType.Extent.ATTRIBUTE:
+            # Assumed-shape array.
+            upper_bound = BinaryOperation.create(
+                BinaryOperation.Operator.UBOUND, Reference(array.symbol),
+                Literal(str(index), INTEGER_TYPE))
+        else:
+            upper_bound = my_dim.upper.copy()
     elif my_dim in [ArrayType.Extent.DEFERRED, ArrayType.Extent.ATTRIBUTE]:
         lower_bound = BinaryOperation.create(
             BinaryOperation.Operator.LBOUND, Reference(array.symbol),

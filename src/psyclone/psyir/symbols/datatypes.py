@@ -490,6 +490,8 @@ class ArrayType(DataType):
             DataSymbol that is not a scalar integer or of Unknown/DeferredType.
         :raises TypeError: if one or more of the supplied extents is not an \
             int, ArrayType.Extent or DataNode.
+        :raises TypeError: if the extents contain an invalid combination of \
+            ATTRIBUTE/DEFERRED and known limits.
 
         '''
         # This import must be placed here to avoid circular
@@ -572,6 +574,27 @@ class ArrayType(DataType):
                 _validate_data_node(dimension[1])
             else:
                 _validate_data_node(dimension)
+
+        if ArrayType.Extent.DEFERRED in extents:
+            if not all(dim == ArrayType.Extent.DEFERRED
+                       for dim in extents):
+                raise TypeError(
+                    f"A declaration of an allocatable array must have"
+                    f" the extent of every dimension as 'DEFERRED' but "
+                    f"found shape: {extents}.")
+
+        if ArrayType.Extent.ATTRIBUTE in extents:
+            # If we have an 'assumed-shape' array then *every*
+            # dimension must have an 'ATTRIBUTE' extent
+            for dim in extents:
+                if not (dim == ArrayType.Extent.ATTRIBUTE or
+                        (isinstance(dim, tuple) and
+                         dim[-1] == ArrayType.Extent.ATTRIBUTE)):
+                    raise TypeError(
+                        f"An assumed-shape array must have every "
+                        f"dimension unspecified (either as 'ATTRIBUTE' or "
+                        f"with the upper bound as 'ATTRIBUTE') but found "
+                        f"shape: {extents}.")
 
     def __str__(self):
         '''

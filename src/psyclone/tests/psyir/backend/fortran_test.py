@@ -114,9 +114,12 @@ def test_gen_indices(fortran_writer):
         BinaryOperation.Operator.ADD, Reference(arg), one)
     array_type = ArrayType(
         INTEGER_TYPE, [Reference(arg), 2, (0, 4), literal, arg_plus_1,
-                       (2, arg_plus_1.copy()), ArrayType.Extent.ATTRIBUTE])
+                       (2, arg_plus_1.copy())])
     assert (fortran_writer.gen_indices(array_type.shape) ==
-            ["arg", "2", "0:4", "4", "arg + 1_4", "2:arg + 1_4", ":"])
+            ["arg", "2", "0:4", "4", "arg + 1_4", "2:arg + 1_4"])
+    bray_type = ArrayType(INTEGER_TYPE, [ArrayType.Extent.ATTRIBUTE,
+                                         ArrayType.Extent.ATTRIBUTE])
+    assert fortran_writer.gen_indices(bray_type.shape) == [":", ":"]
 
 
 def test_gen_indices_error(monkeypatch, fortran_writer):
@@ -699,35 +702,6 @@ def test_fw_gen_vardecl(fortran_writer):
     assert ("gen_vardecl requires the symbol 'dummy1' to have a Local or "
             "an Argument interface but found a 'UnresolvedInterface' "
             "interface." in str(excinfo.value))
-
-    # An array with a mixture of deferred and explicit extents
-    array_type = ArrayType(INTEGER_TYPE, [2, ArrayType.Extent.DEFERRED])
-    symbol = DataSymbol("dummy1", array_type)
-    with pytest.raises(VisitorError) as excinfo:
-        _ = fortran_writer.gen_vardecl(symbol)
-    assert ("Fortran declaration of an allocatable array must have the "
-            "extent of every dimension as 'DEFERRED' but symbol 'dummy1' "
-            "has shape: ['2', ':']." in str(excinfo.value))
-
-    # An assumed-size array must have the extent of every dimension undefined
-    array_type = ArrayType(INTEGER_TYPE, [2, ArrayType.Extent.ATTRIBUTE, 2])
-    symbol = DataSymbol("dummy1", array_type)
-    with pytest.raises(VisitorError) as excinfo:
-        _ = fortran_writer.gen_vardecl(symbol)
-    assert ("assumed-shape Fortran array must have every dimension "
-            "unspecified (either as 'ATTRIBUTE' or with the upper bound as "
-            "'ATTRIBUTE') but symbol 'dummy1' has shape: "
-            "['2', ':', '2']." in str(excinfo.value))
-    # With two dimensions unspecified, even though one is outermost
-    array_type = ArrayType(INTEGER_TYPE, [2, ArrayType.Extent.ATTRIBUTE,
-                                          ArrayType.Extent.ATTRIBUTE])
-    symbol = DataSymbol("dummy1", array_type)
-    with pytest.raises(VisitorError) as excinfo:
-        _ = fortran_writer.gen_vardecl(symbol)
-    assert ("assumed-shape Fortran array must have every dimension "
-            "unspecified (either as 'ATTRIBUTE' or with the upper bound as "
-            "'ATTRIBUTE') but symbol 'dummy1' has shape: "
-            "['2', ':', ':']." in str(excinfo.value))
 
 
 def test_fw_gen_vardecl_visibility(fortran_writer):

@@ -275,11 +275,10 @@ def test_arraytype():
     literal = Literal("20", scalar_type)
     array_type = ArrayType(
         scalar_type, [10, literal, var_plus_1, Reference(data_symbol),
-                      ArrayType.Extent.DEFERRED, ArrayType.Extent.ATTRIBUTE,
                       (0, 10), (-1, var_plus_1.copy()),
                       (var_plus_1.copy(), var_plus_1.copy())])
     assert isinstance(array_type, ArrayType)
-    assert len(array_type.shape) == 9
+    assert len(array_type.shape) == 7
     # Provided as an int but stored as a Literal and given an explicit lower
     # bound of 1.
     shape0 = array_type.shape[0]
@@ -297,22 +296,32 @@ def test_arraytype():
     # Provided and stored as a Reference to a DataSymbol
     assert isinstance(array_type.shape[3].upper, Reference)
     assert array_type.shape[3].upper.symbol is data_symbol
-    # Provided and stored as a deferred extent
-    assert array_type.shape[4] == ArrayType.Extent.DEFERRED
-    # Provided as an attribute extent
-    assert array_type.shape[5] == ArrayType.Extent.ATTRIBUTE
-    # Provided as integer lower and upper bounds
-    assert isinstance(array_type.shape[6], ArrayType.ArrayBounds)
-    assert array_type.shape[6].lower.value == "0"
-    assert array_type.shape[6].upper.value == "10"
+    assert isinstance(array_type.shape[4], ArrayType.ArrayBounds)
+    assert array_type.shape[4].lower.value == "0"
+    assert array_type.shape[4].upper.value == "10"
     # Provided as integer lower and PSyIR upper bound
-    assert isinstance(array_type.shape[7], ArrayType.ArrayBounds)
-    assert array_type.shape[7].lower.value == "-1"
-    assert isinstance(array_type.shape[7].upper, BinaryOperation)
+    assert isinstance(array_type.shape[5], ArrayType.ArrayBounds)
+    assert array_type.shape[5].lower.value == "-1"
+    assert isinstance(array_type.shape[5].upper, BinaryOperation)
     # Provided as PSyIR lower and upper bounds
-    assert isinstance(array_type.shape[8], ArrayType.ArrayBounds)
-    assert isinstance(array_type.shape[8].lower, BinaryOperation)
-    assert isinstance(array_type.shape[8].upper, BinaryOperation)
+    assert isinstance(array_type.shape[6], ArrayType.ArrayBounds)
+    assert isinstance(array_type.shape[6].lower, BinaryOperation)
+    assert isinstance(array_type.shape[6].upper, BinaryOperation)
+    # Provided and stored as a deferred extent
+    array_type = ArrayType(
+        scalar_type, [ArrayType.Extent.DEFERRED,
+                      ArrayType.Extent.DEFERRED])
+    assert array_type.shape[1] == ArrayType.Extent.DEFERRED
+    # Cannot have DEFERRED as lower bound - TODO should in in specific test?
+    with pytest.raises(TypeError) as err:
+        _ = ArrayType(scalar_type, [ArrayType.Extent.DEFERRED,
+                                    (ArrayType.Extent.DEFERRED, 5)])
+    assert ("If present, the lower bound in an ArrayType 'shape' must "
+            "represent a value but found ArrayType.Extent" in str(err.value))
+    # Provided as an attribute extent
+    array_type = ArrayType(
+        scalar_type, [ArrayType.Extent.ATTRIBUTE, ArrayType.Extent.ATTRIBUTE])
+    assert array_type.shape[1] == ArrayType.Extent.ATTRIBUTE
 
 
 def test_arraytype_invalid_datatype():
@@ -491,12 +500,10 @@ def test_arraytype_str():
     data_symbol = DataSymbol("var", scalar_type, constant_value=20)
     data_type = ArrayType(scalar_type, [10, Reference(data_symbol),
                                         (2, Reference(data_symbol)),
-                                        (Reference(data_symbol), 10),
-                                        ArrayType.Extent.DEFERRED,
-                                        ArrayType.Extent.ATTRIBUTE])
+                                        (Reference(data_symbol), 10)])
     assert (str(data_type) == "Array<Scalar<INTEGER, UNDEFINED>,"
             " shape=[10, Reference[name:'var'], 2:Reference[name:'var'], "
-            "Reference[name:'var']:10, 'DEFERRED', 'ATTRIBUTE']>")
+            "Reference[name:'var']:10]>")
 
 
 def test_arraytype_str_invalid():

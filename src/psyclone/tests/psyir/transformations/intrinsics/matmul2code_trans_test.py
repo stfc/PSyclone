@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2022, Science and Technology Facilities Council.
+# Copyright (c) 2020-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -167,9 +167,7 @@ def test_get_array_bound():
 
     '''
     scalar_symbol = DataSymbol("n", INTEGER_TYPE, constant_value=20)
-    array_type = ArrayType(REAL_TYPE, [10, Reference(scalar_symbol),
-                                       ArrayType.Extent.DEFERRED,
-                                       ArrayType.Extent.ATTRIBUTE])
+    array_type = ArrayType(REAL_TYPE, [10, Reference(scalar_symbol)])
     array_symbol = DataSymbol("x", array_type)
     reference = Reference(array_symbol)
     # literal value
@@ -230,15 +228,41 @@ def test_get_array_bound():
         assert isinstance(step, Literal)
         assert step.value == "1"
         assert step.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
-    (lower_bound, upper_bound, step) = _get_array_bound(reference, 2)
-    _check_ulbound(lower_bound, upper_bound, step, 2)
-    (lower_bound2, upper_bound2, step2) = _get_array_bound(reference, 2)
+
+    # Allocatable array.
+    array_type = ArrayType(REAL_TYPE, [ArrayType.Extent.DEFERRED,
+                                       ArrayType.Extent.DEFERRED])
+    array_symbol = DataSymbol("x", array_type)
+    reference = Reference(array_symbol)
+
+    (lower_bound, upper_bound, step) = _get_array_bound(reference, 0)
+    _check_ulbound(lower_bound, upper_bound, step, 0)
+    (lower_bound2, upper_bound2, step2) = _get_array_bound(reference, 1)
     assert lower_bound2 is not lower_bound
     assert upper_bound2 is not upper_bound
     assert step2 is not step
-    (lower_bound, upper_bound, step) = _get_array_bound(reference, 3)
-    _check_ulbound(lower_bound, upper_bound, step, 3)
-    (lower_bound2, upper_bound2, step2) = _get_array_bound(reference, 3)
+
+    # Assumed shape array.
+    array_type = ArrayType(REAL_TYPE, [ArrayType.Extent.ATTRIBUTE,
+                                       ArrayType.Extent.ATTRIBUTE])
+    array_symbol = DataSymbol("x", array_type)
+    reference = Reference(array_symbol)
+    (lower_bound, upper_bound, step) = _get_array_bound(reference, 0)
+    _check_ulbound(lower_bound, upper_bound, step, 0)
+    (lower_bound2, upper_bound2, step2) = _get_array_bound(reference, 1)
+    assert lower_bound2 is not lower_bound
+    assert upper_bound2 is not upper_bound
+    assert step2 is not step
+
+    # Assumed-shape array with specified lower bound.
+    array_type = ArrayType(REAL_TYPE, [(3, ArrayType.Extent.ATTRIBUTE),
+                                       ArrayType.Extent.ATTRIBUTE])
+    array_symbol = DataSymbol("x", array_type)
+    reference = Reference(array_symbol)
+    (lower_bound, upper_bound, step) = _get_array_bound(reference, 0)
+    assert isinstance(lower_bound, Literal)
+    assert isinstance(upper_bound, BinaryOperation)
+    (lower_bound2, upper_bound2, step2) = _get_array_bound(reference, 1)
     assert lower_bound2 is not lower_bound
     assert upper_bound2 is not upper_bound
     assert step2 is not step
