@@ -4083,3 +4083,19 @@ def test_omp_serial_validate_task_dependencies_add_taskwait(fortran_reader):
     assert len(taskwaits) == 2
     assert taskwaits[0].position == 1
     assert taskwaits[1].position == 4
+
+def test_omp_serial_check_dependency_valid_pairing_edgecase():
+    '''
+    Tests the edge case where two Reference to the same symbol
+    have different types returns False as expected.
+    '''
+    array_type = ArrayType(INTEGER_SINGLE_TYPE, [128, 128])
+    rval = DataSymbol("rval", array_type)
+    ref1 = Reference(rval)
+    one = Literal("1", INTEGER_SINGLE_TYPE)
+    ref2 = ArrayReference.create(rval, [one.copy(), one.copy()])
+
+    test_dir = OMPSingleDirective()
+
+    val = test_dir._check_dependency_pairing_valid(ref1, ref2, None, None)
+    assert not val

@@ -633,20 +633,13 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
         '''
         # r1_min will contain the minimum computed value for (ref + value)
         # from the list. r1_max will contain the maximum computed value.
-        r1_min = sys.maxsize
-        r1_max = 0
-        values = []
         # Loop through the values in sympy_ref1s, and compute the maximum 
         # and minumum values in that list. These correspond to the maximum and
         # minimum values used for accessing the array relative to the
         # symbol used as a base access.
-        for member in sympy_ref1s:
-            val = int(member)
-            values.append(val)
-            if val < r1_min:
-                r1_min = val
-            if val > r1_max:
-                r1_max = val
+        values = [int(member) for member in sympy_ref1s]
+        r1_min = min(values)
+        r1_max = max(values)
         # Loop over the elements in sympy_ref2s and check that the dependency
         # is valid in OpenMP.
         for member in sympy_ref2s:
@@ -797,9 +790,9 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
         returns False, else it returns true.
 
         :param node1: the first input node to check.
-        :type node1: :py:class:`psyclone.psyir.nodes.Node`
+        :type node1: :py:class:`psyclone.psyir.nodes.Reference`
         :param node2: the second input node to check.
-        :type node2: :py:class:`psyclone.psyir.nodes.Node`
+        :type node2: :py:class:`psyclone.psyir.nodes.Reference`
         :param task1: the OMPTaskDirective node containing node1 as a \
                       dependency
         :type task1: :py:class:`psyclone.psyir.nodes.OMPTaskDirective`
@@ -815,13 +808,18 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
         # then there's no dependence, so its valid.
         if node1.symbol != node2.symbol:
             return True
+        # The typing check handles any edge case where we have node1 and node2
+        # pointing to the same symbol, but one is a specialised reference type
+        # and the other is a base Reference type - this is unlikely to happen
+        # but we check just in case. In this case we have to assume there is
+        # an unhandled dependency
+        if type(node1) != type(node2):
+            return False
         # For structure reference we need to check they access
         # the same member. If they don't, no dependence so valid.
         if isinstance(node1, StructureReference):
             # If either is a StructureReference here they must both be,
             # as they access the same symbol.
-            member = node1
-            member1 = node2
 
             # We can't just do == on the Member child, as that
             # will recurse and check the array indices for any
@@ -849,21 +847,24 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
         else:
             array1 = node1.walk(ArrayMixin)[0]
             array2 = node2.walk(ArrayMixin)[0]
-        valid = True
         for i, index in enumerate(array1.indices):
             if (isinstance(index, Literal) or
                     isinstance(array2.indices[i], Literal)):
-                valid = valid and self._valid_dependence_literals(
+                valid = self._valid_dependence_literals(
                             index, array2.indices[i])
             elif (isinstance(index, Range) or
                   isinstance(array2.indices[i], Range)):
-                valid = valid and self._valid_dependence_ranges(
+                valid = self._valid_dependence_ranges(
                             array1, array2, i)
             else:
                 # The only remaining option is that the indices are
                 # References or BinaryOperations
-                valid = valid and self._valid_dependence_ref_binop(
+                valid = self._valid_dependence_ref_binop(
                             index, array2.indices[i], task1, task2)
+            # If this was not valid then return False, else keep checking
+            # other indices
+            if not valid:
+                return False
 
         return valid
 
@@ -886,7 +887,7 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
         tasks = self.walk(OMPTaskDirective)
         # For now we disallow Tasks and Taskloop directives in the same Serial
         # Region
-        if len(tasks) > 0 and len(self.walk(OMPTaskloopDirective)) > 0:
+        if len(tasks) > 0 and any(self.walk(OMPTaskloopDirective)):
             raise NotImplementedError("OMPTaskDirectives and "
                                       "OMPTaskloopDirectives are not "
                                       "currently supported inside the same "
@@ -906,8 +907,6 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
             task1 = pair[0]
             task2 = pair[1]
 
-            # Keep track of whether the dependencies are satisfiable
-            satisfiable = True
             # Find all References in each tasks' depend clauses
             # Should we cache these instead?
             task1_in = [x for x in task1.input_depend_clause.children
@@ -925,13 +924,13 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
             # Loop through each potential dependency pair and check they
             # will be handled correctly.
             for mem in inout + outin + outout:
+                satisfiable = \
+                    self._check_dependency_pairing_valid(mem[0], mem[1],
+                                                         task1, task2)
                 # As soon as any is not satisfiable, then we don't need to
                 # continue checking.
                 if not satisfiable:
                     break
-                satisfiable = satisfiable and \
-                    self._check_dependency_pairing_valid(mem[0], mem[1],
-                                                         task1, task2)
 
             # If we have an unsatisfiable dependency between two tasks, then we
             # need to have a taskwait between them always. We need to loop up
@@ -972,29 +971,29 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                             max(task1_proxy.abs_position,
                                 task2_proxy.abs_position))
 
+        # If we have no invalid dependencies we can return early
+        if len(unhandled_dependent_nodes) == 0:
+            return
+
         # Need to sort lists by highest_position_nodes value, and then
         # by lowest value if tied.
         # Based upon
         # https://stackoverflow.com/questions/9764298/how-to-sort-two-
         # lists-which-reference-each-other-in-the-exact-same-way
-        if len(unhandled_dependent_nodes) > 0:
-            # sorted_highest_positions and sorted_lowest_positions contain
-            # the abs_positions for the corresponding Nodes in the tuple at
-            # the same index in sorted_dependency_pairs. The
-            # sorted_dependency_pairs list contains each pair of unhandled
-            # dependency nodes that were previously computed, but sorted
-            # according to abs_position in the tree.
-            sorted_highest_positions, sorted_lowest_positions, \
-                    sorted_dependency_pairs = (list(t) for t in
-                                               zip(*sorted(zip(
-                                                   highest_position_nodes,
-                                                   lowest_position_nodes,
-                                                   unhandled_dependent_nodes)
-                                                   )))
-        else:
-            # We have no invalid dependencies so we can return early
-            return
 
+        # sorted_highest_positions and sorted_lowest_positions contain
+        # the abs_positions for the corresponding Nodes in the tuple at
+        # the same index in sorted_dependency_pairs. The
+        # sorted_dependency_pairs list contains each pair of unhandled
+        # dependency nodes that were previously computed, but sorted
+        # according to abs_position in the tree.
+        sorted_highest_positions, sorted_lowest_positions, \
+                sorted_dependency_pairs = (list(t) for t in
+                                           zip(*sorted(zip(
+                                               highest_position_nodes,
+                                               lowest_position_nodes,
+                                               unhandled_dependent_nodes)
+                                               )))
         # The location of any node where need to place an OMPTaskwaitDirective
         # to ensure code correctness. The size of this list should be
         # minimised during construction as we will not add another
@@ -1465,6 +1464,8 @@ class OMPParallelDirective(OMPRegionDirective):
                                aren't named.
 
         '''
+        import pdb
+        pdb.set_trace()
         if (self.default_clause.clause_type !=
                 OMPDefaultClause.DefaultClauseTypes.SHARED):
             raise GenerationError("OMPParallelClause cannot correctly generate"

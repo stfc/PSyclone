@@ -1238,7 +1238,7 @@ def test_omp_task_directive_17(fortran_reader, fortran_writer):
     ''' Test the code generation correctly generates the correct clauses
     when an output variable is just a shared vairable '''
     code = '''
-    subroutine my_subroutine()
+    subroutine my_subroutine(k)
         integer :: i, ii
         integer :: j, jj
         integer :: k
@@ -1266,12 +1266,12 @@ def test_omp_task_directive_17(fortran_reader, fortran_writer):
     parent.addchild(tdir, index=0)
     strans.apply(loops[0])
     ptrans.apply(loops[0].parent.parent)
-    correct = '''subroutine my_subroutine()
+    correct = '''subroutine my_subroutine(k)
+  integer :: k
   integer :: i
   integer :: ii
   integer :: j
   integer :: jj
-  integer :: k
 
   !$omp parallel default(shared), private(i,ii,j,jj)
   !$omp single
