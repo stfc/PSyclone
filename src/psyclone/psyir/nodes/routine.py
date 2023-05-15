@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2022, Science and Technology Facilities Council.
+# Copyright (c) 2020-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -262,7 +262,7 @@ class Routine(Schedule, CommentableMixin):
         if not isinstance(value, DataSymbol):
             raise TypeError(f"Routine return-symbol should be a DataSymbol "
                             f"but found '{type(value).__name__}'.")
-        if value not in self.symbol_table.local_datasymbols:
+        if value not in self.symbol_table.datasymbols:
             raise KeyError(
                 f"For a symbol to be a return-symbol, it must be present in "
                 f"the symbol table of the Routine but '{value.name}' is not.")

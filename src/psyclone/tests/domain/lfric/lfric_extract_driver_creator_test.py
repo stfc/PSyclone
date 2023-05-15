@@ -31,7 +31,8 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author J. Henrichs, Bureau of Meteorology
+# Author: J. Henrichs, Bureau of Meteorology
+# Modified: S. Siso, STFC Daresbury Lab
 
 ''' This module tests the driver creation for extracted kernels.'''
 
@@ -163,6 +164,9 @@ def test_lfric_driver_add_call(fortran_writer):
         driver_creator._add_call(program, "test", [])
     assert ("Routine 'test' is a symbol of type 'Symbol', not a "
             "'RoutineSymbol'" in str(err.value))
+    # Clean up previous invalid test symbol
+    del program.symbol_table._symbols['test']
+    del program.symbol_table._tags['test']
 
     driver_creator._add_call(program, "my_sub", [])
     driver_creator._add_call(program, "my_sub_2", [Literal("1", INTEGER_TYPE)])

@@ -65,7 +65,8 @@ from psyclone.psyir.symbols import (
     DataSymbol, ContainerSymbol, SymbolTable, ArgumentInterface,
     SymbolError, ScalarType, ArrayType, INTEGER_TYPE, REAL_TYPE,
     UnknownFortranType, DeferredType, Symbol, UnresolvedInterface,
-    ImportInterface, BOOLEAN_TYPE)
+    ImportInterface, BOOLEAN_TYPE, StaticInterface, UnknownInterface,
+    AutomaticInterface, DefaultModuleInterface)
 
 # pylint: disable=too-many-statements
 
@@ -708,7 +709,7 @@ def test_process_declarations():
     assert isinstance(l1_var.datatype, ScalarType)
     assert l1_var.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
     assert l1_var.datatype.precision == ScalarType.Precision.UNDEFINED
-    assert l1_var.is_local
+    assert l1_var.is_automatic
 
     reader = FortranStringReader("Real      ::      l2")
     fparser2spec = Specification_Part(reader).content[0]
@@ -718,7 +719,7 @@ def test_process_declarations():
     assert isinstance(l2_var.datatype, ScalarType)
     assert l2_var.datatype.intrinsic == ScalarType.Intrinsic.REAL
     assert l2_var.datatype.precision == ScalarType.Precision.UNDEFINED
-    assert l2_var.is_local
+    assert l2_var.is_automatic
 
     reader = FortranStringReader("LOGICAL      ::      b")
     fparser2spec = Specification_Part(reader).content[0]
@@ -730,7 +731,7 @@ def test_process_declarations():
     assert isinstance(b_var.datatype, ScalarType)
     assert b_var.datatype.intrinsic == ScalarType.Intrinsic.BOOLEAN
     assert b_var.datatype.precision == ScalarType.Precision.UNDEFINED
-    assert b_var.is_local
+    assert b_var.is_automatic
 
     # public/private attribute
     reader = FortranStringReader("real, public :: p2")
@@ -793,6 +794,109 @@ def test_process_declarations():
         processor.process_declarations(fake_parent, [fparser2spec], [])
     assert ("Symbol 'i2' already present in SymbolTable with a defined "
             "interface" in str(error.value))
+
+
+@pytest.mark.usefixtures("f2008_parser")
+def test_process_declarations_errors():
+    '''Test that process_declarations method of Fparser2Reader
+    raises appropriate errors for fparser2 declarations that are not
+    valid Fortran.
+
+    TODO fparser/#413 could also fix these issues.
+
+    '''
+    fake_parent = KernelSchedule("dummy_schedule")
+    processor = Fparser2Reader()
+
+    reader = FortranStringReader("integer, parameter, save :: l1 = 1")
+    fparser2spec = Specification_Part(reader).content[0]
+    with pytest.raises(GenerationError) as error:
+        processor.process_declarations(fake_parent, [fparser2spec], [])
+    assert ("SAVE and PARAMETER attributes are not compatible but found:\n "
+            "INTEGER, PARAMETER, SAVE :: l1 = 1" in str(error.value))
+
+    reader = FortranStringReader("integer, parameter, intent(in) :: l1 = 1")
+    fparser2spec = Specification_Part(reader).content[0]
+    with pytest.raises(GenerationError) as error:
+        processor.process_declarations(fake_parent, [fparser2spec], [])
+    assert ("INTENT and PARAMETER attributes are not compatible but found:\n "
+            "INTEGER, PARAMETER, INTENT(IN) :: l1 = 1" in str(error.value))
+
+    reader = FortranStringReader("integer, parameter, allocatable :: l1 = 1")
+    fparser2spec = Specification_Part(reader).content[0]
+    with pytest.raises(GenerationError) as error:
+        processor.process_declarations(fake_parent, [fparser2spec], [])
+    assert ("ALLOCATABLE and PARAMETER attributes are not compatible but found"
+            ":\n INTEGER, PARAMETER, ALLOCATABLE :: l1 = 1"
+            in str(error.value))
+
+    reader = FortranStringReader("integer, intent(inout), save :: l1")
+    fparser2spec = Specification_Part(reader).content[0]
+    with pytest.raises(GenerationError) as error:
+        processor.process_declarations(fake_parent, [fparser2spec], [])
+    assert ("Multiple or duplicated incompatible attributes found in "
+            "declaration:\n INTEGER, INTENT(INOUT), SAVE :: l1"
+            in str(error.value))
+
+    reader = FortranStringReader("integer, intent(in), intent(out) :: l1")
+    fparser2spec = Specification_Part(reader).content[0]
+    with pytest.raises(GenerationError) as error:
+        processor.process_declarations(fake_parent, [fparser2spec], [])
+    assert ("Multiple or duplicated incompatible attributes found in "
+            "declaration:\n INTEGER, INTENT(IN), INTENT(OUT) :: l1"
+            in str(error.value))
+
+
+@pytest.mark.usefixtures("f2008_parser")
+def test_declarations_with_initialisations(fortran_reader):
+    '''Test that Fparser2Reader keeps all the variable initialisation
+    expressions, even though some may end up in UnknownTypes for now
+    because we don't support variable initialisations that are not
+    parameters.
+    '''
+
+    psyir = fortran_reader.psyir_from_source(
+        """
+        module test
+            integer :: a = 1
+            integer, save :: b = 1
+            integer, parameter :: c = 1
+            contains
+            subroutine mysub()
+                integer :: d = 1
+                integer, save :: e = 1
+                integer, parameter :: f = 1
+            end subroutine mysub
+        end module test
+        """)
+
+    inner_st = psyir.walk(Routine)[0].symbol_table
+    # All initialisation variables are DataSymbols
+    assert isinstance(inner_st.lookup('a'), DataSymbol)
+    assert isinstance(inner_st.lookup('b'), DataSymbol)
+    assert isinstance(inner_st.lookup('c'), DataSymbol)
+    assert isinstance(inner_st.lookup('d'), DataSymbol)
+    assert isinstance(inner_st.lookup('e'), DataSymbol)
+    assert isinstance(inner_st.lookup('f'), DataSymbol)
+
+    # When it is not a parameter they are unknown interface and datatype
+    assert isinstance(inner_st.lookup('a').interface, UnknownInterface)
+    assert isinstance(inner_st.lookup('b').interface, UnknownInterface)
+    assert isinstance(inner_st.lookup('d').interface, UnknownInterface)
+    assert isinstance(inner_st.lookup('e').interface, UnknownInterface)
+    assert isinstance(inner_st.lookup('a').datatype, UnknownFortranType)
+    assert isinstance(inner_st.lookup('b').datatype, UnknownFortranType)
+    assert isinstance(inner_st.lookup('d').datatype, UnknownFortranType)
+    assert isinstance(inner_st.lookup('e').datatype, UnknownFortranType)
+
+    # When it is a parameter the interface, type and constant_value is defined
+    assert isinstance(inner_st.lookup('c').interface, DefaultModuleInterface)
+    assert isinstance(inner_st.lookup('c').datatype, ScalarType)
+    assert isinstance(inner_st.lookup('c').constant_value, Literal)
+    assert isinstance(inner_st.lookup('f').interface, AutomaticInterface)
+    assert isinstance(inner_st.lookup('f').datatype, ScalarType)
+    assert isinstance(inner_st.lookup('f').constant_value, Literal)
+    assert isinstance(inner_st.lookup('f').interface, AutomaticInterface)
 
 
 @pytest.mark.usefixtures("f2008_parser")
@@ -1034,7 +1138,7 @@ def test_process_declarations_precision(precision, type_name, fort_name):
     assert isinstance(l1_var.datatype, ScalarType)
     assert l1_var.datatype.intrinsic == type_name
     assert l1_var.datatype.precision == precision
-    assert l1_var.is_local
+    assert l1_var.is_automatic
 
 
 @pytest.mark.usefixtures("f2008_parser")
@@ -1055,7 +1159,7 @@ def test_process_declarations_double_precision():
     assert isinstance(x_var.datatype, ScalarType)
     assert x_var.datatype.intrinsic == ScalarType.Intrinsic.REAL
     assert x_var.datatype.precision == ScalarType.Precision.DOUBLE
-    assert x_var.is_local
+    assert x_var.is_automatic
 
 
 @pytest.mark.usefixtures("f2008_parser")
@@ -1296,9 +1400,7 @@ def test_process_not_supported_declarations():
 
 
 def test_process_save_attribute_declarations(parser):
-    ''' Test that the SAVE attribute in a declaration is supported when
-    found in the specification part of a module or main_program, otherwise
-    it raises an error.'''
+    ''' Test that the SAVE attribute in a declaration is supported. '''
 
     fake_parent = KernelSchedule("dummy_schedule")
     processor = Fparser2Reader()
@@ -1309,14 +1411,18 @@ def test_process_save_attribute_declarations(parser):
     fparser2spec = Type_Declaration_Stmt(reader)
     processor.process_declarations(fake_parent, [fparser2spec], [])
     assert isinstance(fake_parent.symbol_table.lookup("var1").datatype,
-                      UnknownFortranType)
+                      ScalarType)
+    assert isinstance(fake_parent.symbol_table.lookup("var1").interface,
+                      StaticInterface)
 
     # Test with no context about where the declaration is.
     reader = FortranStringReader("integer, save :: var2")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
     assert isinstance(fake_parent.symbol_table.lookup("var2").datatype,
-                      UnknownFortranType)
+                      ScalarType)
+    assert isinstance(fake_parent.symbol_table.lookup("var2").interface,
+                      StaticInterface)
 
     # Test with a subroutine.
     reader = FortranStringReader(
@@ -1326,7 +1432,9 @@ def test_process_save_attribute_declarations(parser):
     fparser2spec = parser(reader).content[0].content[1]
     processor.process_declarations(fake_parent, fparser2spec.children, [])
     assert isinstance(fake_parent.symbol_table.lookup("var3").datatype,
-                      UnknownFortranType)
+                      ScalarType)
+    assert isinstance(fake_parent.symbol_table.lookup("var3").interface,
+                      StaticInterface)
 
     # Test with a module.
     reader = FortranStringReader(
@@ -1337,6 +1445,18 @@ def test_process_save_attribute_declarations(parser):
     processor.process_declarations(fake_parent, fparser2spec.children, [])
     var4 = fake_parent.symbol_table.lookup("var4")
     assert var4.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
+    assert isinstance(fake_parent.symbol_table.lookup("var4").interface,
+                      StaticInterface)
+
+    # Test when is part of an UnknownDataType (target attribute in this case)
+    # it becomes an UnknownInterface
+    reader = FortranStringReader("integer, target :: var5")
+    fparser2spec = Specification_Part(reader).content[0]
+    processor.process_declarations(fake_parent, [fparser2spec], [])
+    assert isinstance(fake_parent.symbol_table.lookup("var5").datatype,
+                      UnknownFortranType)
+    assert isinstance(fake_parent.symbol_table.lookup("var5").interface,
+                      UnknownInterface)
 
 
 @pytest.mark.usefixtures("f2008_parser")
@@ -1444,7 +1564,7 @@ def test_process_declarations_stmt_functions():
     assert isinstance(array, ArrayReference)
     assert array.name == "b"
 
-    # Test that if symbol is not an array, it raises GenerationError
+    # Test that if symbol is not an array, it raises InternalError
     fake_parent.symbol_table.lookup('b').datatype = INTEGER_TYPE
     with pytest.raises(InternalError) as error:
         processor.process_declarations(fake_parent, [fparser2spec], [])
