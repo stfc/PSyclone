@@ -107,26 +107,33 @@ end program test_alloc
     assert calls[0].children[1].symbol.name == "ierr"
 
 
-def test_alloc_with_mold(fortran_reader):
-    '''Check that an allocate with a mold argument is correctly handled.'''
+def test_alloc_with_mold_or_source(fortran_reader):
+    '''Check that an allocate with a mold or source argument is correctly
+    handled.'''
     code = '''
 program test_alloc
   integer, parameter :: ndof = 8
   integer :: ierr
   integer, parameter :: mask(5,8)
-  real, allocatable, dimension(:, :) :: var1
+  real, allocatable, dimension(:, :) :: var1, var2
   allocate(var1, mold=mask, stat=ierr)
+  var1(:,:) = 3.1459
+  allocate(var2, source=var1)
 end program test_alloc
 '''
     psyir = fortran_reader.psyir_from_source(code)
     calls = psyir.walk(IntrinsicCall)
-    assert len(calls) == 1
+    assert len(calls) == 2
     call = calls[0]
     # The call should have two named arguments.
     assert call.argument_names == [None, "MOLD", "STAT"]
     assert isinstance(call.children[1], Reference)
     assert call.children[1].symbol.name == "mask"
     assert call.children[2].symbol.name == "ierr"
+    call = calls[1]
+    # This one should have a single named argument.
+    assert call.argument_names == [None, "SOURCE"]
+    assert call.children[1].symbol.name == "var1"
 
 
 def test_alloc_with_errmsg(fortran_reader):
@@ -136,15 +143,16 @@ def test_alloc_with_errmsg(fortran_reader):
     '''
     code = '''
 program test_alloc
-  character(len=*)   :: oh_dear = "not good"
+  character(len=20)   :: oh_dear
+  integer :: ierr
   real, allocatable, dimension(:, :) :: var1
-  allocate(var1(5,5), errmsg=oh_dear)
+  allocate(var1(5,5), stat=ierr, errmsg=oh_dear)
 end program test_alloc
 '''
     psyir = fortran_reader.psyir_from_source(code)
     calls = psyir.walk(IntrinsicCall)
     assert len(calls) == 1
-    assert calls[0].argument_names == [None, "ERRMSG"]
+    assert calls[0].argument_names == [None, "STAT", "ERRMSG"]
     assert isinstance(calls[0].children[1], Reference)
 
 
