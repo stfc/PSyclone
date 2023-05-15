@@ -518,8 +518,12 @@ class FortranWriter(LanguageWriter):
                 f"SymbolTable.")
 
         # Construct the list of symbol names for the ONLY clause
-        only_list = [dsym.name for dsym in
-                     symbol_table.symbols_imported_from(symbol)]
+        only_list = []
+        for dsym in symbol_table.symbols_imported_from(symbol):
+            if dsym.interface.orig_name:
+                only_list.append(f"{dsym.name}=>{dsym.interface.orig_name}")
+            else:
+                only_list.append(dsym.name)
 
         # Finally construct the use statements for this Container (module)
         if not only_list and not symbol.wildcard_import:
