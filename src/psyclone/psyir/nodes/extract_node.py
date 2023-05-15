@@ -155,16 +155,6 @@ class ExtractNode(PSyDataNode):
         :type parent: :py:class:`psyclone.psyir.nodes.Node`.
 
         '''
-        # Avoid circular dependency
-        # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.tools.dependency_tools import DependencyTools
-
-        # Determine the variables to write, if they were not provided
-        # in the constructor.
-        if not self._read_write_info:
-            dep = DependencyTools()
-            self._read_write_info = \
-                dep.get_in_out_parameters(self, options=self.options)
         options = {'pre_var_list': self._read_write_info.read_list,
                    'post_var_list': self._read_write_info.write_list,
                    'post_var_postfix': self._post_name}
