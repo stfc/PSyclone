@@ -78,6 +78,10 @@ class ExtractNode(PSyDataNode):
         creating names to store values of output variable. A variable 'a' \
         would store its value as 'a', and its output values as 'a_post' with \
         the default post_var_postfix of '_post'.
+    :param options["read_write_info"]: information about variables that are \
+        read and/or written in the instrumented code.
+    :type options["read_write_info"]:\
+        py:class:`psyclone.psyir.tools.ReadWriteInfo`
 
     '''
     # Textual description of the node.
@@ -108,8 +112,6 @@ class ExtractNode(PSyDataNode):
             self._post_name = options.get("post_var_postfix", "_post")
         else:
             self._post_name = "_post"
-        # Make copies of the parameter lists:
-        self._read_write_info = options.get("read_write_info")
 
         # Keep a copy of the parameter list:
         self._read_write_info = options.get("read_write_info")
@@ -157,16 +159,6 @@ class ExtractNode(PSyDataNode):
         :type parent: :py:class:`psyclone.psyir.nodes.Node`.
 
         '''
-        # Avoid circular dependency
-        # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.tools.dependency_tools import DependencyTools
-
-        # Determine the variables to write, if they were not provided
-        # in the constructor.
-        if not self._read_write_info:
-            dep = DependencyTools()
-            self._read_write_info = \
-                dep.get_in_out_parameters(self, options=self.options)
         options = {'pre_var_list': self._read_write_info.read_list,
                    'post_var_list': self._read_write_info.write_list,
                    'post_var_postfix': self._post_name}
