@@ -932,8 +932,8 @@ def test_apply_repeated_module_use(fortran_reader, fortran_writer):
     for call in psyir.walk(Call):
         inline_trans.apply(call)
     output = fortran_writer(psyir)
-    if "use model_mod_1" in output:
-        pytest.xfail("TODO #2005 - bug in flattening of nested symbol tables")
+    # Check container symbol has not been renamed.
+    assert "use model_mod_1" not in output
     assert ("  subroutine run_it()\n"
             "    use model_mod, only : radius\n"
             "    integer :: i\n" in output)
