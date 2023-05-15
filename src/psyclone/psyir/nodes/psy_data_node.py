@@ -614,12 +614,12 @@ class PSyDataNode(Statement):
 
         :param options: dictionary of the PSyData generation options.
         :type options: dict of str:value or None
-        :param options["pre_var_list"]: a list of variables to be supplied \
-            before the first child.
-        :type options["pre_var_list"]: list of str
-        :param options["post_var_list"]: a list of variables to be supplied \
-            after the last child.
-        :type options["post_var_list"]: list of str
+        :param options["pre_var_list"]: module name and variable name to be \
+            supplied before the first child.
+        :type options["pre_var_list"]: List[Tuple[str, str]]
+        :param options["post_var_list"]: module name and variable name to be \
+            supplied after the last child.
+        :type options["post_var_list"]: List[Tuple[str, str]]
         :param str options["pre_var_postfix"]: an optional postfix that will \
             be added to each variable name in the pre_var_list.
         :param str options["post_var_postfix"]: an optional postfix that will \
