@@ -111,6 +111,9 @@ class ExtractNode(PSyDataNode):
         # Make copies of the parameter lists:
         self._read_write_info = options.get("read_write_info")
 
+        # Keep a copy of the parameter list:
+        self._read_write_info = options.get("read_write_info")
+
     def __eq__(self, other):
         '''
         Checks whether two nodes are equal. Two ExtractNodes are equal if

@@ -33,8 +33,6 @@
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
 
-# pylint: disable=too-many-lines
-
 '''This module provides functionality for the PSyclone kernel extraction
 functionality for LFRic. It contains the class that creates a driver that
 reads in extracted data, calls the kernel, and then compares the result with
@@ -62,8 +60,6 @@ from psyclone.psyir.symbols import (ArrayType, CHARACTER_TYPE,
                                     RoutineSymbol)
 from psyclone.psyir.transformations import ExtractTrans
 
-
-# pylint: disable=too-many-lines
 
 class LFRicExtractDriverCreator:
     '''This class provides the functionality to create a driver that
@@ -238,7 +234,6 @@ class LFRicExtractDriverCreator:
     # -------------------------------------------------------------------------
     def _flatten_reference(self, old_reference, symbol_table,
                            proxy_name_mapping):
-        # pylint: disable=too-many-locals
         '''Replaces ``old_reference``, which is a structure type, with a new
         simple Reference and a flattened name (replacing all % with _). It will
         also remove a '_proxy' in the name, so that the program uses the names
@@ -351,7 +346,6 @@ class LFRicExtractDriverCreator:
 
 
         '''
-        # pylint: disable=too-many-locals
         all_references = sched.walk(Reference)
 
         # First we add all non-structure names to the symbol table. This way
@@ -468,7 +462,7 @@ class LFRicExtractDriverCreator:
     @staticmethod
     def _create_output_var_code(name, program, is_input, read_var,
                                 postfix, index=None, module_name=None):
-        # pylint: disable=too-many-arguments, too-many-locals
+        # pylint: disable=too-many-arguments
         '''
         This function creates all code required for an output variable.
         It creates the '_post' variable which stores the correct result
@@ -565,10 +559,11 @@ class LFRicExtractDriverCreator:
             be added. It also contains the symbol table to be used.
         :type program: :py:class:`psyclone.psyir.nodes.Routine`
         :param psy_data: the PSyData symbol to be used.
+        :type psy_data: :py:class:`psyclone.psyir.symbols.DataSymbol`
         :param read_write_info: information about all input and output \
             parameters.
         :type read_write_info: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
-        :type output_list: List[:py:class:`psyclone.core.Signature`]
+        :type read_write_info: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
         :param str postfix: a postfix that is added to a variable name to \
             create the corresponding variable that stores the output \
             value from the kernel data file.
@@ -582,8 +577,6 @@ class LFRicExtractDriverCreator:
 
         '''
         # pylint: disable=too-many-locals
-        all_sigs = list(read_write_info.set_of_all_used_vars)
-        all_sigs.sort()
         symbol_table = program.scope.symbol_table
         read_var = f"{psy_data.name}%ReadVariable"
         mod_man = ModuleManager.get()

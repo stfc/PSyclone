@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2022, Science and Technology Facilities Council
+# Copyright (c) 2019-2023, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -216,11 +216,11 @@ class OpenCLWriter(CWriter):
         # comes from.  TODO #592 ultimately precision symbols should
         # be included in this check too as we will need to be able to
         # map from them to the equivalent OpenCL type.
-        unresolved_datasymbols = symtab.get_unresolved_datasymbols(
-            ignore_precision=True)
+        unresolved_datasymbols = list(set(symtab.unresolved_datasymbols) -
+                                      set(symtab.precision_datasymbols))
         if unresolved_datasymbols:
             symbols_txt = ", ".join(
-                ["'" + sym + "'" for sym in unresolved_datasymbols])
+                [f"'{sym.name}'" for sym in unresolved_datasymbols])
             raise VisitorError(
                 f"Cannot generate OpenCL because the symbol table contains "
                 f"unresolved data entries (i.e. that have no defined "
@@ -243,7 +243,7 @@ class OpenCLWriter(CWriter):
         code += self._nindent + "){\n"
 
         # Declare local variables.
-        for symbol in symtab.local_datasymbols:
+        for symbol in symtab.automatic_datasymbols:
             code += self.gen_local_variable(symbol)
 
         # Declare array length

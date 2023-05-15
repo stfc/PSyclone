@@ -129,7 +129,7 @@ class AdjointVisitor(PSyIRVisitor):
             # Zero local active variables.
             self._logger.debug("Zero-ing any local active variables")
             for active_variable in self._active_variables:
-                if active_variable.is_local:
+                if active_variable.is_automatic:
                     if not (active_variable.is_scalar or
                             active_variable.is_array):
                         # Issue #1627 structures are not allowed.
