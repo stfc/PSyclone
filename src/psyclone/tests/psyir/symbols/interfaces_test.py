@@ -124,6 +124,11 @@ def test_importinterface():
     assert import_interface.container_symbol is container_symbol
     assert str(import_interface) == "Import(container='my_mod')"
 
+    import_interface = ImportInterface(container_symbol, orig_name="orig_name")
+    assert import_interface.container_symbol is container_symbol
+    assert str(import_interface) == ("Import(container='my_mod', "
+                                     "orig_name='orig_name')")
+
     with pytest.raises(TypeError) as info:
         _ = ImportInterface("hello")
     assert ("ImportInterface container_symbol parameter must be of type "
@@ -131,7 +136,7 @@ def test_importinterface():
 
 
 def test_importinterface_container_symbol_getter_setter():
-    '''Test that the container_symbol getter and setter proprieties
+    '''Test that the container_symbol getter and setter properties
     retrieve and update the expected attribute and perform error checking.
 
     '''
@@ -150,6 +155,11 @@ def test_importinterface_container_symbol_getter_setter():
     import_interface.container_symbol = container_symbol2
     assert import_interface.container_symbol is container_symbol2
 
+    assert import_interface.orig_name is None
+    import_interface = ImportInterface(
+        container_symbol, orig_name="orig_name")
+    assert import_interface.orig_name == "orig_name"
+
 
 def test_importinterface_copy():
     ''' Test the copy() method of ImportInterface. '''
@@ -158,8 +168,13 @@ def test_importinterface_copy():
     new_interface = import_interface.copy()
     assert new_interface is not import_interface
     assert new_interface.container_symbol is csym
+    assert new_interface.orig_name is None
     new_interface.container_symbol = ContainerSymbol("other_mod")
     assert import_interface.container_symbol is csym
+
+    import_interface = ImportInterface(csym, orig_name="orig_name")
+    new_interface = import_interface.copy()
+    assert new_interface.orig_name == "orig_name"
 
 
 def test_argumentinterface_init():

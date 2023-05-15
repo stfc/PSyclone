@@ -110,7 +110,11 @@ class ImportInterface(SymbolInterface):
         from which the symbol is imported.
     :type container_symbol: \
         :py:class:`psyclone.psyir.symbols.ContainerSymbol`
+    :param Optional[str] orig_name: the name of the symbol in the \
+        external container before it is renamed, or None (the default) if \
+        it is not renamed.
 
+    :raises TypeError: if the orig_name argument is an unexpected type.
 
     '''
     def __init__(self, container_symbol, orig_name=None):
