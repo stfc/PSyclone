@@ -36,7 +36,7 @@
 #         J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
-''' Perform py.test tests on the psygen.psyir.symbols.symboltable file '''
+''' Perform py.test tests on the psyclone.psyir.symbols.symboltable file '''
 
 import re
 import os
@@ -47,10 +47,10 @@ from psyclone.psyir.nodes import (
     CodeBlock, Container, KernelSchedule,
     Literal, Reference, Assignment, Routine, Schedule)
 from psyclone.psyir.symbols import SymbolTable, DataSymbol, ContainerSymbol, \
-    LocalInterface, ImportInterface, ArgumentInterface, UnresolvedInterface, \
+    AutomaticInterface, ImportInterface, ArgumentInterface, \
     ScalarType, ArrayType, DeferredType, REAL_TYPE, INTEGER_TYPE, Symbol, \
     SymbolError, RoutineSymbol, NoType, StructureType, DataTypeSymbol, \
-    UnknownFortranType
+    UnknownFortranType, UnresolvedInterface
 from psyclone.errors import InternalError
 
 
@@ -388,7 +388,7 @@ def test_symbols_imported_from():
     my_mod = ContainerSymbol("my_mod")
     sym_table.add(my_mod)
     assert sym_table.symbols_imported_from(my_mod) == []
-    var1 = DataSymbol("var1", REAL_TYPE, interface=LocalInterface())
+    var1 = DataSymbol("var1", REAL_TYPE, interface=AutomaticInterface())
     sym_table.add(var1)
     assert sym_table.symbols_imported_from(my_mod) == []
     var2 = DataSymbol("var2", INTEGER_TYPE,
@@ -477,7 +477,7 @@ def test_remove_containersymbols():
     assert ("Cannot remove ContainerSymbol 'my_mod' since symbols "
             "['var1'] are imported from it" in str(err.value))
     # Change the interface on var1
-    var1.interface = LocalInterface()
+    var1.interface = AutomaticInterface()
     # We should now be able to remove the ContainerSymbol
     sym_table.remove(my_mod)
     with pytest.raises(KeyError) as err:
@@ -866,7 +866,7 @@ def test_swap_symbol_properties():
     assert symbol4.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
     assert symbol4.datatype.precision == ScalarType.Precision.UNDEFINED
     assert not symbol4.shape
-    assert symbol4.is_local
+    assert symbol4.is_automatic
     assert symbol4.constant_value.value == "7"
     assert (symbol4.constant_value.datatype.intrinsic ==
             symbol4.datatype.intrinsic)
@@ -1263,35 +1263,35 @@ def test_symbols():
     assert len(sym_table.symbols) == 3
 
 
-def test_local_datasymbols():
-    '''Test that the local_datasymbols property returns a list with the
+def test_automatic_datasymbols():
+    '''Test that the automatic_datasymbols property returns a list with the
     symbols with local scope.'''
     sym_table = SymbolTable()
-    assert [] == sym_table.local_datasymbols
+    assert [] == sym_table.automatic_datasymbols
 
     sym_table.add(DataSymbol("var1", REAL_TYPE))
     array_type = ArrayType(REAL_TYPE, [ArrayType.Extent.ATTRIBUTE])
     sym_table.add(DataSymbol("var2", array_type))
     sym_table.add(DataSymbol("var3", REAL_TYPE))
 
-    assert len(sym_table.local_datasymbols) == 3
-    assert sym_table.lookup("var1") in sym_table.local_datasymbols
-    assert sym_table.lookup("var2") in sym_table.local_datasymbols
-    assert sym_table.lookup("var3") in sym_table.local_datasymbols
+    assert len(sym_table.automatic_datasymbols) == 3
+    assert sym_table.lookup("var1") in sym_table.automatic_datasymbols
+    assert sym_table.lookup("var2") in sym_table.automatic_datasymbols
+    assert sym_table.lookup("var3") in sym_table.automatic_datasymbols
     sym_v1 = sym_table.lookup("var1")
     sym_v1.interface = ArgumentInterface(ArgumentInterface.Access.READWRITE)
     sym_table.specify_argument_list([sym_v1])
 
-    assert len(sym_table.local_datasymbols) == 2
-    assert sym_table.lookup("var1") not in sym_table.local_datasymbols
-    assert sym_table.lookup("var2") in sym_table.local_datasymbols
-    assert sym_table.lookup("var3") in sym_table.local_datasymbols
+    assert len(sym_table.automatic_datasymbols) == 2
+    assert sym_table.lookup("var1") not in sym_table.automatic_datasymbols
+    assert sym_table.lookup("var2") in sym_table.automatic_datasymbols
+    assert sym_table.lookup("var3") in sym_table.automatic_datasymbols
 
     sym_table.add(DataSymbol("var4", REAL_TYPE,
                              interface=ImportInterface(
                                  ContainerSymbol("my_mod"))))
-    assert len(sym_table.local_datasymbols) == 2
-    assert sym_table.lookup("var4") not in sym_table.local_datasymbols
+    assert len(sym_table.automatic_datasymbols) == 2
+    assert sym_table.lookup("var4") not in sym_table.automatic_datasymbols
 
 
 def test_argument_datasymbols():
@@ -1309,25 +1309,21 @@ def test_argument_datasymbols():
     assert sym_table.argument_datasymbols == [var1, var2]
 
 
-def test_local_datatypesymbols():
-    ''' Test that the local_datatypesymbols property returns a list of the
+def test_datatypesymbols():
+    ''' Test that the datatypesymbols property returns a list of the
     correct symbols. '''
     sym_table = SymbolTable()
-    assert sym_table.local_datatypesymbols == []
+    assert sym_table.datatypesymbols == []
     region_type = StructureType.create([
         ("startx", INTEGER_TYPE, Symbol.Visibility.PUBLIC)])
     region_sym = DataTypeSymbol("region_type", region_type)
     sym_table.add(region_sym)
-    # Add another DataTypeSymbol but have it imported from a Container (so it
-    # is not local).
+    # Add other symbol types
     csym = ContainerSymbol("my_mod")
     sym_table.add(csym)
-    var1 = DataTypeSymbol("other_type", DeferredType(),
-                          interface=ImportInterface(csym))
-    sym_table.add(var1)
-    var2 = DataSymbol("arg_var", region_type, interface=ArgumentInterface())
-    sym_table.specify_argument_list([var2])
-    assert sym_table.local_datatypesymbols == [region_sym]
+    var2 = DataSymbol("arg_var", region_type)
+    # These should not appear as datatypesymbols
+    assert sym_table.datatypesymbols == [region_sym]
 
 
 def test_imported_symbols():
@@ -1363,6 +1359,33 @@ def test_imported_symbols():
     assert len(sym_table.imported_symbols) == 2
 
 
+def test_unresolved_datasymbols():
+    ''' Tests for the unresolved_datasymbols method. '''
+    sym_table = SymbolTable()
+    sym_table.add(DataSymbol("s1", INTEGER_TYPE))
+    # Check that we get an empty list if everything is defined
+    assert sym_table.unresolved_datasymbols == []
+    # Add a symbol with a deferred interface
+    rdef = DataSymbol("r_def", INTEGER_TYPE,
+                      interface=UnresolvedInterface())
+    sym_table.add(rdef)
+    assert sym_table.unresolved_datasymbols == [rdef]
+
+
+def test_precision_datasymbols():
+    ''' Tests for the precision_datasymbols method. '''
+    sym_table = SymbolTable()
+    # Add a precision symbol
+    rdef = DataSymbol("r_def", INTEGER_TYPE,
+                      interface=UnresolvedInterface())
+    sym_table.add(rdef)
+    # Add a symbol that uses r_def for its precision
+    scalar_type = ScalarType(ScalarType.Intrinsic.REAL, rdef)
+    sym_table.add(DataSymbol("s2", scalar_type))
+    # By default we should get this precision symbol
+    assert sym_table.precision_datasymbols == [rdef]
+
+
 def test_abstract_properties():
     '''Test that the SymbolTable abstract properties raise the appropriate
     error.'''
@@ -1377,26 +1400,6 @@ def test_abstract_properties():
         _ = sym_table.iteration_indices
     assert "Abstract property. Which symbols are iteration indices is " \
         "API-specific." in str(error.value)
-
-
-def test_unresolved():
-    ''' Tests for the get_unresolved_datasymbols method. '''
-    sym_table = SymbolTable()
-    sym_table.add(DataSymbol("s1", INTEGER_TYPE))
-    # Check that we get an empty list if everything is defined
-    assert sym_table.get_unresolved_datasymbols() == []
-    # Add a symbol with a deferred interface
-    rdef = DataSymbol("r_def", INTEGER_TYPE,
-                      interface=UnresolvedInterface())
-    sym_table.add(rdef)
-    assert sym_table.get_unresolved_datasymbols() == ["r_def"]
-    # Add a symbol that uses r_def for its precision
-    scalar_type = ScalarType(ScalarType.Intrinsic.REAL, rdef)
-    sym_table.add(DataSymbol("s2", scalar_type))
-    # By default we should get this precision symbol
-    assert sym_table.get_unresolved_datasymbols() == ["r_def"]
-    # But not if we request that precision symbols be ignored
-    assert sym_table.get_unresolved_datasymbols(ignore_precision=True) == []
 
 
 def test_copy_external_import():
@@ -1415,7 +1418,7 @@ def test_copy_external_import():
         symtab.copy_external_import(DataSymbol("var1", REAL_TYPE))
     assert "The imported_var argument of SymbolTable.copy_external_import " \
         "method should have an ImportInterface interface, but found " \
-        "'LocalInterface'." \
+        "'AutomaticInterface'." \
         in str(error.value)
 
     # Copy an imported_var
@@ -1730,8 +1733,8 @@ def test_new_symbol():
     # which will be initialised with default values
     assert sym1.visibility is Symbol.Visibility.PUBLIC
     assert sym2.visibility is Symbol.Visibility.PUBLIC
-    assert isinstance(sym1.interface, LocalInterface)
-    assert isinstance(sym2.interface, LocalInterface)
+    assert isinstance(sym1.interface, AutomaticInterface)
+    assert isinstance(sym2.interface, AutomaticInterface)
     assert isinstance(sym1.datatype, NoType)
     assert sym2.datatype is INTEGER_TYPE
     assert sym2.constant_value is None
@@ -2103,6 +2106,16 @@ def test_resolve_imports(fortran_reader, tmpdir, monkeypatch):
     # We still haven't resolved anything inside a_mod or the b_1 symbol
     assert not isinstance(a_1, DataSymbol)
     assert not isinstance(b_1, DataSymbol)
+
+    # Resolve only 'not_used3' from wildcard imports
+    subroutine.symbol_table.resolve_imports(
+            symbol_target=Symbol('not_used3'))
+    not_used3 = subroutine.symbol_table.lookup('not_used3')
+    assert isinstance(not_used3, DataSymbol)
+    assert isinstance(not_used3.interface, ImportInterface)
+    # This still does not resolve the other symbols in the same module
+    assert not isinstance(b_1, DataSymbol)
+    assert not isinstance(b_2, DataSymbol)
 
     # Resolve only b_2 symbol info
     subroutine.symbol_table.resolve_imports(

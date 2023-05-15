@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 
 '''The implementation of PSyAD : the PSyclone Adjoint
 support. Transforms an LFRic tangent linear kernel to its adjoint.
@@ -279,7 +279,7 @@ def _add_precision_symbol(symbol, table):
     if symbol.name in table:
         return
 
-    if symbol.is_local:
+    if symbol.is_automatic or symbol.is_modulevar:
         table.add(symbol.copy())
     elif symbol.is_import:
         contr_sym = symbol.interface.container_symbol
