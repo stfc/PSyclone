@@ -421,6 +421,7 @@ class LFRicExtractDriverCreator:
     @staticmethod
     def _create_output_var_code(name, program, is_input, read_var,
                                 postfix, index=None):
+        # pylint: disable=too-many-arguments
         '''
         This function creates all code required for an output variable.
         It creates the '_post' variable which stores the correct result
@@ -487,6 +488,7 @@ class LFRicExtractDriverCreator:
     # -------------------------------------------------------------------------
     def _create_read_in_code(self, program, psy_data, original_symbol_table,
                              read_write_info, postfix):
+        # pylint: disable=too-many-arguments
         '''This function creates the code that reads in the NetCDF file
         produced during extraction. For each:
 
@@ -530,7 +532,7 @@ class LFRicExtractDriverCreator:
 
         # First handle variables that are read:
         # -------------------------------------
-        for _, signature in read_write_info.read_list:
+        for signature in read_write_info.signatures_read:
             # Find the right symbol for the variable. Note that all variables
             # in the input and output list have been detected as being used
             # when the variable accesses were analysed. Therefore, these
@@ -563,7 +565,7 @@ class LFRicExtractDriverCreator:
         # file. The content of these two variables should be identical
         # at the end.
         output_symbols = []
-        for _, signature in read_write_info.write_list:
+        for signature in read_write_info.signatures_written:
             # Find the right symbol for the variable. Note that all variables
             # in the input and output list have been detected as being used
             # when the variable accesses were analysed. Therefore, these
