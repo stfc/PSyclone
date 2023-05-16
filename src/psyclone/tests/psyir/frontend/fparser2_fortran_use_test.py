@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2020, Science and Technology Facilities Council.
+# Copyright (c) 2019-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
 # Modified: R. W. Ford, STFC Daresbury Lab
+# Modified: S. Siso, STFC Daresbury Lab
 
 ''' Performs py.test tests on the support for use statements in the fparser2
     PSyIR front-end '''
@@ -45,7 +46,7 @@ from psyclone.psyGen import GenerationError
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import KernelSchedule, Container
 from psyclone.psyir.symbols import ContainerSymbol, SymbolError, Symbol, \
-    DataSymbol, LocalInterface, INTEGER_SINGLE_TYPE
+    DataSymbol, AutomaticInterface, INTEGER_SINGLE_TYPE
 
 
 @pytest.mark.usefixtures("f2008_parser")
@@ -244,7 +245,7 @@ def test_use_local_symbol_error():
     # come before local declarations. Therefore we manually add a symbol
     # to the table first.
     fake_parent.symbol_table.add(DataSymbol("fred", INTEGER_SINGLE_TYPE,
-                                            interface=LocalInterface()))
+                                            interface=AutomaticInterface()))
     processor = Fparser2Reader()
     reader = FortranStringReader("use mod2, only: fred\n")
     fparser2spec = Fortran2003.Specification_Part(reader)

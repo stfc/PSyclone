@@ -382,6 +382,49 @@
 	128) PR #1937 for #1935. Adds all LFRic TL and adjoint kernels under
 	examples.
 
+	129) PR #2112 towards #1618. Splits LFRic eg11 source file into
+	driver and algorithm.
+
+	130) PR #2118 for #2117. Ensure build flags passed to LFRic
+	infrastructure
+
+	131) PR #2026 for #1991. Improves the support for building a
+	standalone driver for an extracted kernel. All required modules are
+	now inlined into the driver source file.
+
+	132) PR #2086 for #2013. Adds support for logical scalar arguments
+	in PSyAD test harness generation.
+
+	133) PR #2060 towards #1618. Adds an optional code path for LFRic
+	Algorithm-layer handling using the new metadata processing
+	functionality.
+
+	134) PR #2123. Updates GOcean project link in UG.
+
+	135) PR #2121 for #2109. Updates PSyclone to fparser 0.1.1 release.
+
+	136) PR #2128 towards #1618. Bug fix in LFRicAlgInvoke2PSyCallTrans
+	for kernels requiring more than 1 quadrature object.
+
+	137) PR #967 towards #2132. Add GH workflows for self-hosted runner.
+
+	138) PR #2084 for #1801. Improve handling of assume-shape arrays with
+	specified bounds.
+
+	139) PR #2129 towards #1618. Bug fix for -ve Literal args to kernels
+	in PSyIR handling of LFRic Alg Layer.
+
+	140) PR #2133 for #2126. Add RTD YAML config files to allow the
+	documentation (user guide, developer guide etc) to be managed
+	separately and to allow software environments other than the
+	default to be specified.
+
+	141) PR #2092 for #2008. Refactors Symbol interfaces and adds support
+	for Static/SAVE variables.
+
+	142) PR #2089 for #2005. Add a SymbolTable merge method and improve symbol
+	renaming capabilities.
+
 release 2.3.1 17th of June 2022
 
 	1) PR #1747 for #1720. Adds support for If blocks to PSyAD.

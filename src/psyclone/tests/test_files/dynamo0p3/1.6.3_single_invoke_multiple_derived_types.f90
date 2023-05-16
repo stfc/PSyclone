@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2022, Science and Technology Facilities Council
+! Copyright (c) 2017-2023, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -42,6 +42,7 @@ program single_invoke
   ! different objects
   use field_mod,                   only: field_type
   use testkern_one_int_scalar_mod, only: testkern_one_int_scalar_type
+  use my_types,                    only: some_type
 
   implicit none
 
