@@ -482,9 +482,10 @@ class ArrayType(DataType):
 
         :param extents: list of extents, one for each array dimension.
         :type extents: List[ \
-            :py:class:`psyclone.psyir.symbols.ArrayType.Extent`, int \
+            :py:class:`psyclone.psyir.symbols.ArrayType.Extent` | int \
             | :py:class:`psyclone.psyir.nodes.DataNode` | \
-            Tuple[int | :py:class:`psyclone.psyir.nodes.DataNode]]
+            Tuple[int | :py:class:`psyclone.psyir.nodes.DataNode | \
+                  :py:class:`psyclone.psyir.symbols.ArrayType.Extent]]
 
         :raises TypeError: if extents is not a list.
         :raises TypeError: if one or more of the supplied extents is a \
