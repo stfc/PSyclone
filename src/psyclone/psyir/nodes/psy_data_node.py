@@ -502,7 +502,6 @@ class PSyDataNode(Statement):
         # Avoid circular dependency
         # pylint: disable=import-outside-toplevel
         from psyclone.psyGen import Kern, InvokeSchedule
-        # TODO: #415 Support different classes of PSyData calls.
         invoke = self.ancestor(InvokeSchedule).invoke
         global_module_name = self._module_name
         if global_module_name is None:
