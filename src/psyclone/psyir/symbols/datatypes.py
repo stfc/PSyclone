@@ -605,9 +605,11 @@ class ArrayType(DataType):
             for the sake of brevity.
         :rtype: str
 
+        :raises InternalError: if the shape of this datatype contains \
+            any elements that aren't ArrayBounds or ArrayType.Extent objects.
+
         '''
         dims = []
-        # The shape getter includes validation.
         for dimension in self.shape:
             if isinstance(dimension, ArrayType.ArrayBounds):
                 dim_text = ""
@@ -628,6 +630,12 @@ class ArrayType(DataType):
                 dims.append(dim_text)
             elif isinstance(dimension, ArrayType.Extent):
                 dims.append(f"'{dimension.name}'")
+            else:
+                raise InternalError(
+                    f"Once constructed, every member of an ArrayType shape-"
+                    f"list should either be an ArrayBounds object or an "
+                    f"instance of ArrayType.Extent but found "
+                    f"'{type(dimension).__name__}'")
 
         return f"Array<{self._datatype}, shape=[{', '.join(dims)}]>"
 

@@ -523,12 +523,12 @@ def test_arraytype_str_invalid():
     scalar_type = ScalarType(ScalarType.Intrinsic.INTEGER, 4)
     array_type = ArrayType(scalar_type, [10])
     # Make one of the array dimensions an unsupported type
-    array_type._shape = [None]
-    with pytest.raises(TypeError) as excinfo:
+    array_type._shape = [Literal("10", INTEGER_TYPE)]
+    with pytest.raises(InternalError) as excinfo:
         _ = str(array_type)
-    assert ("ArrayType shape-list elements can only be 'int', "
-            "ArrayType.Extent, 'DataNode' or a 2-tuple thereof but found "
-            "'NoneType'." in str(excinfo.value))
+    assert ("Once constructed, every member of an ArrayType shape-list should "
+            "either be an ArrayBounds object or an instance of ArrayType."
+            "Extent but found 'Literal'" in str(excinfo.value))
 
 
 def test_arraytype_immutable():
