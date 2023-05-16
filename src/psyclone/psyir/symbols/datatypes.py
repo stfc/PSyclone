@@ -457,7 +457,7 @@ class ArrayType(DataType):
     @property
     def shape(self):
         '''
-        :returns: the shape of the symbol in column-major order \
+        :returns: the (validated) shape of the symbol in column-major order \
             (leftmost index is contiguous in memory) with each entry \
             representing an array dimension.
 
@@ -472,13 +472,8 @@ class ArrayType(DataType):
             (e.g. the array is ALLOCATABLE in Fortran). Otherwise an \
             entry is a DataNode that returns an int.
 
-        :raises InternalError: if this ArrayType has an invalid shape.
-
         '''
-        try:
-            self._validate_shape(self._shape)
-        except TypeError as err:
-            raise InternalError(f"ArrayType has invalid shape: {err}") from err
+        self._validate_shape(self._shape)
         return self._shape
 
     def _validate_shape(self, extents):
@@ -559,7 +554,7 @@ class ArrayType(DataType):
                 return
 
             raise TypeError(
-                f"DataSymbol shape-list elements can only be 'int', "
+                f"ArrayType shape-list elements can only be 'int', "
                 f"ArrayType.Extent, 'DataNode' or a 2-tuple thereof but found "
                 f"'{type(dim_node).__name__}'.")
 
@@ -573,7 +568,7 @@ class ArrayType(DataType):
             if isinstance(dimension, tuple):
                 if len(dimension) != 2:
                     raise TypeError(
-                        f"A DataSymbol shape-list element specifying lower "
+                        f"An ArrayType shape-list element specifying lower "
                         f"and upper bounds must be a 2-tuple but "
                         f"'{dimension}' has {len(dimension)} entries.")
                 _validate_data_node(dimension[0], is_lower_bound=True)

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2022, Science and Technology Facilities Council.
+# Copyright (c) 2020-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -42,7 +42,6 @@ matrix vector multiply. This transformation supports both with the
 restriction that the first matrix must be of at least rank 2.
 
 '''
-from psyclone.errors import InternalError
 from psyclone.psyir.nodes import BinaryOperation, Assignment, Reference, \
     Loop, Literal, ArrayReference, Range
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, REAL_TYPE, \
@@ -99,7 +98,7 @@ def _get_array_bound(array, index):
     # The 'shape' getter performs validation checks.
     try:
         my_dim = array.symbol.shape[index]
-    except InternalError as err:
+    except TypeError as err:
         # Added import here to avoid circular dependencies.
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.transformations import TransformationError

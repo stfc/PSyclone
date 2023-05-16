@@ -40,8 +40,6 @@ by the back-end or if the performance in the inline code is better
 than the intrinsic.
 
 '''
-
-from psyclone.errors import InternalError
 from psyclone.psyir.nodes import (
     BinaryOperation, Assignment, Reference,
     Literal, Loop, ArrayReference, IfBlock, Range, IntrinsicCall)
@@ -243,7 +241,7 @@ class Sum2CodeTrans(Transformation):
 
         try:
             _ = array_ref.symbol.shape
-        except InternalError as err:
+        except TypeError as err:
             raise TransformationError(
                 f"Unexpected shape for array '{array_ref.symbol.name}': "
                 f"{err}") from err

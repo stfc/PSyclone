@@ -400,7 +400,7 @@ def test_arraytype_invalid_shape_dimension_2():
     scalar_type = ScalarType(ScalarType.Intrinsic.REAL, 4)
     with pytest.raises(TypeError) as excinfo:
         _ = ArrayType(scalar_type, [None])
-    assert ("DataSymbol shape-list elements can only be 'int', "
+    assert ("ArrayType shape-list elements can only be 'int', "
             "ArrayType.Extent, 'DataNode' or a 2-tuple thereof but found "
             "'NoneType'." in str(excinfo.value))
 
@@ -434,22 +434,22 @@ def test_arraytype_invalid_shape_bounds():
     scalar_type = ScalarType(ScalarType.Intrinsic.REAL, 4)
     with pytest.raises(TypeError) as excinfo:
         _ = ArrayType(scalar_type, [(1, 4, 1)])
-    assert ("A DataSymbol shape-list element specifying lower and upper bounds"
+    assert ("An ArrayType shape-list element specifying lower and upper bounds"
             " must be a 2-tuple but '(1, 4, 1)' has 3 entries" in
             str(excinfo.value))
     with pytest.raises(TypeError) as excinfo:
         _ = ArrayType(scalar_type, [(1, None)])
-    assert ("DataSymbol shape-list elements can only be 'int', ArrayType."
+    assert ("ArrayType shape-list elements can only be 'int', ArrayType."
             "Extent, 'DataNode' or a 2-tuple thereof but found 'NoneType'." in
             str(excinfo.value))
     with pytest.raises(TypeError) as excinfo:
         _ = ArrayType(scalar_type, [(None, 1)])
-    assert ("DataSymbol shape-list elements can only be 'int', ArrayType."
+    assert ("ArrayType shape-list elements can only be 'int', ArrayType."
             "Extent, 'DataNode' or a 2-tuple thereof but found 'NoneType'" in
             str(excinfo.value))
     with pytest.raises(TypeError) as excinfo:
         _ = ArrayType(scalar_type, [10, (None, 1)])
-    assert ("DataSymbol shape-list elements can only be 'int', ArrayType."
+    assert ("ArrayType shape-list elements can only be 'int', ArrayType."
             "Extent, 'DataNode' or a 2-tuple thereof but found 'NoneType'" in
             str(excinfo.value))
     with pytest.raises(TypeError) as err:
@@ -524,12 +524,11 @@ def test_arraytype_str_invalid():
     array_type = ArrayType(scalar_type, [10])
     # Make one of the array dimensions an unsupported type
     array_type._shape = [None]
-    with pytest.raises(InternalError) as excinfo:
+    with pytest.raises(TypeError) as excinfo:
         _ = str(array_type)
-    assert ("PSyclone internal error: ArrayType has invalid shape: DataSymbol "
-            "shape-list elements can only be 'int', ArrayType.Extent, "
-            "'DataNode' or a 2-tuple thereof but found 'NoneType'."
-            in str(excinfo.value))
+    assert ("ArrayType shape-list elements can only be 'int', "
+            "ArrayType.Extent, 'DataNode' or a 2-tuple thereof but found "
+            "'NoneType'." in str(excinfo.value))
 
 
 def test_arraytype_immutable():
