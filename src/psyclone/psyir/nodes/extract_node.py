@@ -106,8 +106,6 @@ class ExtractNode(PSyDataNode):
         # variable 'a' exists, which creates 'a_out' for the output variable,
         # which would clash with a variable 'a_out' used in the program unit).
 
-        if not options:
-            options = {}
         if options:
             self._post_name = options.get("post_var_postfix", "_post")
         else:

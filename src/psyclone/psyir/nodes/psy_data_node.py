@@ -80,7 +80,7 @@ class PSyDataNode(Statement):
     :type ast: sub-class of :py:class:`fparser.two.Fortran2003.Base`
     :param children: the PSyIR nodes that are children of this node. These \
         will be made children of the child Schedule of this PSyDataNode.
-    :type children: list of :py:class:`psyclone.psyir.nodes.Node`
+    :type children: List[:py:class:`psyclone.psyir.nodes.Node`]
     :param parent: the parent of this node in the PSyIR tree.
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
     :param options: a dictionary with options for transformations.
@@ -90,7 +90,7 @@ class PSyDataNode(Statement):
         (``prefix_PSyDataType``) - a "_" will be added automatically. \
         It defaults to "", which means the module name used will just be \
         ``psy_data_mod``, and the data type ``PSyDataType``.
-    :param (str,str) options["region_name"]: an optional name to \
+    :param Tuple[str,str] options["region_name"]: an optional name to \
         use for this PSyDataNode, provided as a 2-tuple containing a \
         module name followed by a local name. The pair of strings should \
         uniquely identify a region unless aggregate information is required \
@@ -205,6 +205,7 @@ class PSyDataNode(Statement):
 
         :returns: whether other is equal to self.
         :rtype: bool
+
         '''
         is_eq = super().__eq__(other)
         is_eq = is_eq and self.prefix == other.prefix
@@ -271,7 +272,7 @@ class PSyDataNode(Statement):
 
         :param children: the PSyIR nodes that will become children of the \
             new PSyData node.
-        :type children: list of :py:class:`psyclone.psyir.nodes.Node`
+        :type children: List[:py:class:`psyclone.psyir.nodes.Node`]
         :param symbol_table: the associated SymbolTable to which symbols \
             must be added.
         :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
@@ -285,11 +286,11 @@ class PSyDataNode(Statement):
             (``prefix_PSyDataType``) - a "_" will be added automatically. \
             It defaults to "", which means the module name used will just be \
             ``psy_data_mod``, and the data type ``PSyDataType``.
-        :param (str,str) options["region_name"]: an optional name to use for \
-            this PSyDataNode, provided as a 2-tuple containing a module name \
-            followed by a local name. The pair of strings should uniquely \
-             identify a region unless aggregate information is required \
-            (and is supported by the runtime library).
+        :param Tuple[str,str] options["region_name"]: an optional name to use \
+            for this PSyDataNode, provided as a 2-tuple containing a module \
+            name followed by a local name. The pair of strings should \
+            uniquely identify a region unless aggregate information is \
+            required (and is supported by the runtime library).
 
         :raises TypeError: if the supplied children or symbol table are not \
             of the correct type.
@@ -392,7 +393,9 @@ class PSyDataNode(Statement):
     def region_identifier(self):
         ''':returns: the unique region identifier, which is a tuple \
             consisting of the module name and region name.
-        :rtype: 2-tuple (str, str)'''
+        :rtype: Tuple[str, str]
+
+        '''
         return self._region_identifier
 
     # -------------------------------------------------------------------------
@@ -464,7 +467,7 @@ class PSyDataNode(Statement):
         :param parent: parent node into which to insert the calls.
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
         :param arguments: optional arguments for the method call.
-        :type arguments: list of str or None
+        :type arguments: Optional[List[str]]
         '''
         call = CallGen(parent, f"{self._var_name}%{name}", arguments)
         parent.add(call)
@@ -483,13 +486,13 @@ class PSyDataNode(Statement):
         :param parent: the parent of this node in the f2pygen AST.
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
         :param options: a dictionary with options for transformations.
-        :type options: dict of str:value or None
-        :param options["pre_var_list"]: a list of variables to be extracted \
-            before the first child.
-        :type options["pre_var_list"]: list of str
-        :param options["post_var_list"]: a list of variables to be extracted \
-            after the last child.
-        :type options["post_var_list"]: list of str
+        :type options: Optional[Dict[str, Any]]
+        :param options["pre_var_list"]: module name and variable name to be \
+            supplied before the first child.
+        :type options["pre_var_list"]: List[Tuple[str, str]]
+        :param options["post_var_list"]: module name and variable name to be \
+            supplied after the last child.
+        :type options["post_var_list"]: List[Tuple[str, str]]
         :param str options["pre_var_postfix"]: an optional postfix that will \
             be added to each variable name in the pre_var_list.
         :param str options["post_var_postfix"]: an optional postfix that will \
@@ -632,11 +635,11 @@ class PSyDataNode(Statement):
         PSyDataNode.
 
         :param options: dictionary of the PSyData generation options.
-        :type options: dict of str:value or None
-        :param options["pre_var_list"]: module name and variable name to be \
+        :type options: Optional[Dict[str, Any]]
+        :param options["pre_var_list"]: module- and variable-names to be \
             supplied before the first child.
         :type options["pre_var_list"]: List[Tuple[str, str]]
-        :param options["post_var_list"]: module name and variable name to be \
+        :param options["post_var_list"]: module- and variable-names to be \
             supplied after the last child.
         :type options["post_var_list"]: List[Tuple[str, str]]
         :param str options["pre_var_postfix"]: an optional postfix that will \
@@ -659,10 +662,10 @@ class PSyDataNode(Statement):
             :param str typename: the name of the base type.
             :param str methodname: the name of the method to be called.
             :param argument_list: the list of arguments in the method call.
-            :type argument_list: list of str
+            :type argument_list: List[str]
             :param annotations: the list of node annotations to add to the \
                                 generated CodeBlock.
-            :type annotations: list of str
+            :type annotations: List[str]
 
             :returns: a CodeBlock representing the type bound call.
             :rtype: :py:class:`psyclone.psyir.nodes.CodeBlock`
@@ -749,13 +752,13 @@ class PSyDataNode(Statement):
         # values of a variable "A" as "A" in the pre-variable list,
         # and store the modified value of "A" later as "A_post".
         if has_var:
-            for module_name, var_name in pre_variable_list:
+            for _, var_name in pre_variable_list:
                 call = gen_type_bound_call(
                     self._var_name, "PreDeclareVariable",
                     [f"\"{var_name}{pre_suffix}\"", var_name])
                 self.parent.children.insert(self.position, call)
 
-            for module_name, var_name in post_variable_list:
+            for _, var_name in post_variable_list:
                 call = gen_type_bound_call(
                     self._var_name, "PreDeclareVariable",
                     [f"\"{var_name}{post_suffix}\"", var_name])
@@ -764,7 +767,7 @@ class PSyDataNode(Statement):
             call = gen_type_bound_call(self._var_name, "PreEndDeclaration")
             self.parent.children.insert(self.position, call)
 
-            for module_name, var_name in pre_variable_list:
+            for _, var_name in pre_variable_list:
                 call = gen_type_bound_call(
                     self._var_name, "ProvideVariable",
                     [f"\"{var_name}{pre_suffix}\"", var_name])
@@ -782,7 +785,7 @@ class PSyDataNode(Statement):
             # Only add PostStart() if there is at least one variable.
             call = gen_type_bound_call(self._var_name, "PostStart")
             self.parent.children.insert(self.position, call)
-            for module_name, var_name in post_variable_list:
+            for _, var_name in post_variable_list:
                 call = gen_type_bound_call(
                     self._var_name, "ProvideVariable",
                     [f"\"{var_name}{post_suffix}\"", var_name])
