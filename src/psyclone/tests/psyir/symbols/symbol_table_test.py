@@ -43,8 +43,9 @@ import os
 from collections import OrderedDict
 import pytest
 from psyclone.configuration import Config
-from psyclone.psyir.nodes import Schedule, Container, KernelSchedule, \
-    Literal, Reference, Assignment, Routine
+from psyclone.psyir.nodes import (
+    CodeBlock, Container, KernelSchedule,
+    Literal, Reference, Assignment, Routine, Schedule)
 from psyclone.psyir.symbols import SymbolTable, DataSymbol, ContainerSymbol, \
     AutomaticInterface, ImportInterface, ArgumentInterface, \
     ScalarType, ArrayType, DeferredType, REAL_TYPE, INTEGER_TYPE, Symbol, \
@@ -555,6 +556,244 @@ def test_swap_symbol():
     sym_table.swap(symbol1, symbol3)
     assert sym_table.lookup("var1") is symbol3
     assert symbol1 not in sym_table._symbols
+
+
+def test_check_for_clashes_imports():
+    '''Test the check_for_clashes method for two tables that import the same
+    symbol from different tables.'''
+    table1 = SymbolTable()
+    table2 = SymbolTable()
+    csym1 = ContainerSymbol("ford")
+    table1.add(csym1)
+    csym2 = ContainerSymbol("Ford")
+    table2.add(csym2)
+    clash1 = DataSymbol("Prefect", INTEGER_TYPE,
+                        interface=ImportInterface(csym1))
+    table1.add(clash1)
+    clash2 = DataSymbol("prefect", INTEGER_TYPE,
+                        interface=ImportInterface(csym2))
+    table2.add(clash2)
+    # No clash as the containers are the same, just with different
+    # capitalisation.
+    table1.check_for_clashes(table2)
+    # Now create a clash between variables that have different capitalisation.
+    csym3 = ContainerSymbol("arthur")
+    table1.add(csym3)
+    clash3 = DataSymbol("dent", INTEGER_TYPE, interface=ImportInterface(csym3))
+    table1.add(clash3)
+    clash4 = DataSymbol("DENT", INTEGER_TYPE, interface=ImportInterface(csym2))
+    table2.add(clash4)
+    with pytest.raises(SymbolError) as err:
+        table1.check_for_clashes(table2)
+    assert ("This table has an import of 'dent' from Container 'arthur' but "
+            "the supplied table imports it from Container 'Ford'." in
+            str(err.value))
+
+
+def test_check_for_clashes_cannot_rename():
+    '''Test the check_for_clashes() method works as expected when a name clash
+    cannot be resolved by renaming.'''
+    table1 = SymbolTable()
+    table2 = SymbolTable()
+    csym1 = ContainerSymbol("vogon")
+    table1.add(csym1)
+    table1.add(DataSymbol("slab", INTEGER_TYPE))
+    csym2 = ContainerSymbol("fleet")
+    table2.add(csym2)
+    table2.add(DataSymbol("slab", DeferredType(),
+                          interface=ImportInterface(csym2)))
+    # 'slab' in table1 can be renamed.
+    table1.check_for_clashes(table2)
+    # Add another clash where one symbol is imported and the other cannot
+    # be renamed because it is a routine argument.
+    table1.add(DataSymbol("prostetnic", INTEGER_TYPE,
+                          interface=ArgumentInterface()))
+    table2.add(DataSymbol("prostetnic", DeferredType(),
+                          interface=ImportInterface(csym2)))
+    for (tab1, tab2) in [(table1, table2), (table2, table1)]:
+        with pytest.raises(SymbolError) as err:
+            tab1.check_for_clashes(tab2)
+        assert ("for symbol 'prostetnic' that cannot be resolved by renaming "
+                "one of the instances because:" in str(err.value))
+        assert ("- PSyclone SymbolTable error: Cannot rename symbol "
+                "'prostetnic' because it is imported (from Container 'fleet')"
+                in str(err.value))
+        assert ("- PSyclone SymbolTable error: Cannot rename symbol "
+                "'prostetnic' because it is a routine argument and as such "
+                "may be named in a Call." in str(err.value))
+    # Add a clash between two symbols where neither is a Container or has an
+    # ImportInterface.
+    del table1._symbols["prostetnic"]
+    table1.add(DataSymbol("jeltz", INTEGER_TYPE,
+                          interface=ArgumentInterface()))
+    table2.add(DataSymbol("jeltz", INTEGER_TYPE,
+                          interface=ArgumentInterface()))
+    with pytest.raises(SymbolError) as err:
+        table1.check_for_clashes(table2)
+    assert ("Cannot rename symbol 'jeltz' because it is a routine argument "
+            "and as such may be named in a Call." in str(err.value))
+
+
+def test_table_merge():
+    ''' Test the SymbolTable.merge method. '''
+    table1 = SymbolTable()
+    table2 = SymbolTable()
+    # Argument must be a table.
+    with pytest.raises(TypeError) as err:
+        table1.merge("zaphod")
+    assert ("merge() expects a SymbolTable instance but got 'str'" in
+            str(err.value))
+    # Can merge empty tables.
+    table1.merge(table2)
+    assert not table1._symbols
+    # Simple merge.
+    table2.add(DataSymbol("beeblebrox", INTEGER_TYPE))
+    # 'Own' routine symbol excluded.
+    table2.add(RoutineSymbol("dent"), tag="own_routine_symbol")
+    # Precision symbol should be included.
+    wp_sym = DataSymbol("wp", INTEGER_TYPE, constant_value=8)
+    table2.add(wp_sym)
+    table2.add(DataSymbol("marvin", ScalarType(ScalarType.Intrinsic.REAL,
+                                               wp_sym)))
+    table1.merge(table2)
+    assert table1.lookup("beeblebrox")
+    assert "dent" not in table1
+    assert "marvin" in table1
+    assert "wp" in table1
+    # Different symbols with a name clash. This results in the Symbol in the
+    # second table being renamed (as that preserves any references to it).
+    table1 = SymbolTable()
+    table2 = SymbolTable()
+    table1.add(DataSymbol("theclash", INTEGER_TYPE))
+    table2.add(DataSymbol("theclash", INTEGER_TYPE))
+    table1.merge(table2)
+    assert len(table1._symbols) == 2
+    assert table1.lookup("theclash_1") is table2.lookup("theclash_1")
+    # Arguments. By default they are included in a merge.
+    table3 = SymbolTable()
+    arg_sym = DataSymbol("trillian", INTEGER_TYPE,
+                         interface=ArgumentInterface())
+    table3.add(arg_sym)
+    table3.specify_argument_list([arg_sym])
+    table1.merge(table3)
+    assert table1.lookup("trillian") is arg_sym
+    # Check that arguments are ignored if requested.
+    table4 = SymbolTable()
+    arg_sym2 = DataSymbol("arthur", INTEGER_TYPE,
+                          interface=ArgumentInterface())
+    table4.add(arg_sym2)
+    table4.specify_argument_list([arg_sym2])
+    table1.merge(table4, include_arguments=False)
+    assert "arthur" not in table1
+
+
+def test_merge_container_syms():
+    '''Test the merge method works as expected when the tables have
+    ContainerSymbols.
+
+    '''
+    tab1 = SymbolTable()
+    tab2 = SymbolTable()
+    csym1 = ContainerSymbol("slartibartfast")
+    tab2.add(csym1)
+    wpsym = DataSymbol("wp", INTEGER_TYPE, interface=ImportInterface(csym1))
+    tab2.add(wpsym)
+    tab1.merge(tab2)
+    assert "slartibartfast" in tab1
+    assert "wp" in tab1
+    # A second table which also imports wp as well as dp.
+    tab3 = SymbolTable()
+    csym2 = ContainerSymbol("slartibartfast")
+    tab3.add(csym2)
+    wpsym2 = DataSymbol("wp", INTEGER_TYPE, interface=ImportInterface(csym2))
+    tab3.add(wpsym2)
+    dpsym = DataSymbol("dp", INTEGER_TYPE, interface=ImportInterface(csym2))
+    tab3.add(dpsym)
+    tab1.merge(tab3)
+    wp3 = tab1.lookup("wp")
+    assert wp3.interface.container_symbol.name == "slartibartfast"
+    dp3 = tab1.lookup("dp")
+    assert dp3.interface.container_symbol.name == "slartibartfast"
+    # A third table which imports wp from a *different* container.
+    tab4 = SymbolTable()
+    csym3 = ContainerSymbol("magrathea")
+    tab4.add(csym3)
+    wpsym3 = DataSymbol("wp", INTEGER_TYPE, interface=ImportInterface(csym3))
+    tab4.add(wpsym3)
+    with pytest.raises(SymbolError) as err:
+        tab1.merge(tab4)
+    err_txt = str(err.value)
+    assert "Cannot merge Symbol Table:" in err_txt
+    assert "due to unresolvable name clashes." in err_txt
+
+
+def test_add_container_symbols_from_table():
+    '''Test that the _add_container_symbols_from_table method copies Container
+    symbols into the current table and updates any import interfaces.'''
+    table1 = SymbolTable()
+    table2 = SymbolTable()
+    csym = ContainerSymbol("ford")
+    # Put a Container symbol named 'arthur' in both tables.
+    csym2 = ContainerSymbol("arthur")
+    csym3 = csym2.copy()
+    # The one in table2 will have a wildcard import.
+    # pylint: disable=no-member
+    csym2.wildcard_import = True
+    table1.add(csym3)
+    aclash = DataSymbol("aclash", INTEGER_TYPE)
+    table1.add(aclash)
+    asym = DataSymbol("prefect", INTEGER_TYPE, interface=ImportInterface(csym))
+    bsym = DataSymbol("dent", INTEGER_TYPE, interface=ImportInterface(csym2))
+    table2.add(csym)
+    table2.add(csym2)
+    table2.add(asym)
+    table2.add(bsym)
+    # Add a ContainerSymbol that will clash with a DataSymbol in the first
+    # table.
+    cclash = ContainerSymbol("aclash")
+    # Add an import of a Symbol that will also clash with a DataSymbol in
+    # the first table. As it is imported, we can't (currently) rename it so
+    # we rename the Symbol in the first table.
+    bclash = DataSymbol("bclash", INTEGER_TYPE,
+                        interface=ImportInterface(cclash))
+    table2.add(cclash)
+    table2.add(bclash)
+    bclash_in_1 = DataSymbol("bclash", INTEGER_TYPE)
+    table1.add(bclash_in_1)
+    table1._add_container_symbols_from_table(table2)
+    assert table1.lookup("ford") is csym
+    # The 'arthur' symbol object should still be the one originally in table1.
+    # However, it should now have a wildcard import.
+    assert table1.lookup("arthur") is csym3
+    assert csym3.wildcard_import
+    # Check that the import interface for a symbol in the second table has been
+    # updated to point to the container in the first table.
+    assert table2.lookup("dent").interface.container_symbol is csym3
+    assert table1.lookup("aclash") is cclash
+    # The original symbols should still be in the table but renamed.
+    assert aclash in table1.symbols
+    assert aclash.name != "aclash"
+    assert bclash_in_1 in table1.symbols
+    assert bclash_in_1.name != "bclash"
+
+
+def test_add_symbols_from_table():
+    '''Test for the 'internal' _add_symbols_from_table() method.'''
+    table1 = SymbolTable()
+    table2 = SymbolTable()
+    csym = ContainerSymbol("ford")
+    csym2 = csym.copy()
+    table1.add(csym)
+    table2.add(csym2)
+    table1.add(DataSymbol("prefect", INTEGER_TYPE,
+                          interface=ImportInterface(csym2)))
+    table2.add(DataSymbol("prefect", INTEGER_TYPE,
+                          interface=ImportInterface(csym2)))
+    with pytest.raises(InternalError) as err:
+        table1._add_symbols_from_table(table2)
+    assert ("Symbol 'prefect' imported from 'ford' has not been updated to "
+            "refer to the corresponding container in the current table."
+            in str(err.value))
 
 
 def test_swap_symbol_properties():
@@ -1310,9 +1549,11 @@ def test_deep_copy():
                       interface=ArgumentInterface(
                           ArgumentInterface.Access.READ))
     sym2 = Symbol("symbol2", interface=ImportInterface(mod))
+    sym3 = DataSymbol("symbol3", INTEGER_TYPE)
     symtab.add(mod)
     symtab.add(sym1)
     symtab.add(sym2, tag="tag1")
+    symtab.add(sym3)
     symtab.specify_argument_list([sym1])
 
     # Create a copy and check the contents are the same
@@ -1340,9 +1581,9 @@ def test_deep_copy():
     # Add new symbols and rename symbols in both symbol tables and check
     # they are not added/renamed in the other symbol table
     symtab.add(Symbol("st1"))
-    symtab.rename_symbol(symtab.lookup("symbol1"), "a")
+    symtab.rename_symbol(symtab.lookup("symbol3"), "a")
     symtab2.add(Symbol("st2"))
-    symtab2.rename_symbol(symtab2.lookup("symbol2"), "b")
+    symtab2.rename_symbol(symtab2.lookup("symbol3"), "b")
     assert "st1" in symtab
     assert "st2" in symtab2
     assert "st2" not in symtab
@@ -1353,8 +1594,8 @@ def test_deep_copy():
     assert "b" not in symtab
     assert "symbol1" in symtab2
     assert "symbol2" in symtab
-    assert "symbol1" not in symtab
-    assert "symbol2" not in symtab2
+    assert "symbol3" not in symtab
+    assert "symbol3" not in symtab2
 
 
 def test_get_symbols():
@@ -1647,7 +1888,7 @@ def test_rename_symbol():
     affects all its references. Also check that it fails when the arguments
     are not what the method expects.'''
     # Prepare the symbol table hierarchy for the test
-    schedule_symbol_table, container_symbol_table = create_hierarchy()
+    schedule_symbol_table, _ = create_hierarchy()
     symbol = schedule_symbol_table.lookup("symbol1")
     symbol.constant_value = 3
     symbol2 = schedule_symbol_table.lookup("symbol2")
@@ -1678,31 +1919,97 @@ def test_rename_symbol():
         schedule_symbol_table.lookup("symbol1")
     assert "Could not find 'symbol1' in the Symbol Table." in str(err.value)
 
-    # Check argument conditions
+
+def test_rename_symbol_errors():
+    '''Test the various checks performed by the rename_symbol method.'''
+    table = SymbolTable()
+    symbol = DataSymbol("heart", INTEGER_TYPE)
+
     with pytest.raises(TypeError) as err:
-        schedule_symbol_table.rename_symbol("not_a_symbol", "other")
+        table.rename_symbol("not_a_symbol", "other")
     assert ("The symbol argument of rename_symbol() must be a Symbol, but "
             "found: 'str'." in str(err.value))
 
-    with pytest.raises(TypeError) as err:
-        schedule_symbol_table.rename_symbol(symbol, 3)
-    assert ("The name argument of rename_symbol() must be a str, but "
-            "found:" in str(err.value))
-
     with pytest.raises(ValueError) as err:
-        container_symbol_table.rename_symbol(symbol, "somethingelse")
+        table.rename_symbol(symbol, "somethingelse")
     assert ("The symbol argument of rename_symbol() must belong to this "
             "symbol_table instance, but " in str(err.value))
 
+    table.add(symbol)
+    with pytest.raises(TypeError) as err:
+        table.rename_symbol(symbol, 3)
+    assert ("The name argument of rename_symbol() must be a str, but "
+            "found:" in str(err.value))
+
+    # Cannot rename to something that already exists in the table.
+    table.new_symbol("array")
     with pytest.raises(KeyError) as err:
-        schedule_symbol_table.rename_symbol(symbol, "array")
+        table.rename_symbol(symbol, "array")
     assert ("The name argument of rename_symbol() must not already exist in "
             "this symbol_table instance, but 'array' does." in str(err.value))
 
     with pytest.raises(KeyError) as err:
-        schedule_symbol_table.rename_symbol(symbol, "aRRay")
+        table.rename_symbol(symbol, "aRRay")
     assert ("The name argument of rename_symbol() must not already exist in "
             "this symbol_table instance, but 'aRRay' does." in str(err.value))
+
+    # Cannot rename a Container symbol.
+    csym = ContainerSymbol("benjy")
+    table.add(csym)
+    with pytest.raises(SymbolError) as err:
+        table.rename_symbol(csym, "frankie")
+    assert ("Cannot rename symbol 'benjy' because it is a ContainerSymbol." in
+            str(err.value))
+
+    # Cannot rename an imported symbol.
+    isym = DataSymbol("mouse", DeferredType(), interface=ImportInterface(csym))
+    table.add(isym)
+    with pytest.raises(SymbolError) as err:
+        table.rename_symbol(isym, "rodent")
+    assert ("Cannot rename symbol 'mouse' because it is imported (from "
+            "Container 'benjy')" in str(err.value))
+
+    # Cannot rename a routine argument.
+    asym = DataSymbol("frankie", INTEGER_TYPE, interface=ArgumentInterface())
+    table.add(asym)
+    table.specify_argument_list([asym])
+    with pytest.raises(SymbolError) as err:
+        table.rename_symbol(asym, "rodent")
+    assert ("Cannot rename symbol 'frankie' because it is a routine argument "
+            "and as such may be named in a Call." in str(err.value))
+
+
+def test_rename_codeblock_error(fortran_reader):
+    '''Test that we refuse to rename a symbol that is referenced within a
+    CodeBlock in the associated code.'''
+    code = '''
+module gold
+  integer :: my_var, other_var
+
+contains
+
+  subroutine heart_of()
+    other_var = 1.0
+    my_var = 1.0
+
+    write(*,*) my_var
+
+  end subroutine heart_of
+
+end module gold'''
+    psyir = fortran_reader.psyir_from_source(code)
+    cont = psyir.children[0]
+    assert len(cont.walk(CodeBlock)) == 1
+    # We can rename 'other_var' because it's not accessed in the CodeBlock
+    table = cont.symbol_table
+    ovar = table.lookup("other_var")
+    table.rename_symbol(ovar, "new_name")
+    assert table.lookup("new_name") is ovar
+    # We can't rename 'my_var' because it is accessed in the CodeBlock
+    with pytest.raises(SymbolError) as err:
+        table.rename_symbol(table.lookup("my_var"), "ship")
+    assert ("Cannot rename Symbol 'my_var' because it is accessed in a "
+            "CodeBlock:\nWRITE(*, *) my_var" in str(err.value))
 
 
 def test_resolve_imports(fortran_reader, tmpdir, monkeypatch):
@@ -1818,6 +2125,13 @@ def test_resolve_imports(fortran_reader, tmpdir, monkeypatch):
     assert isinstance(b_2.interface, ImportInterface)
     assert b_2.interface.container_symbol == \
            subroutine.symbol_table.lookup('b_mod')
+    # Repeat but for the case where the specified symbol is not actually
+    # referenced in the current symbol table and is brought in by a wildcard
+    # import.
+    subroutine.symbol_table.resolve_imports(
+        symbol_target=DataSymbol("not_used3", DeferredType()))
+    notused3 = subroutine.symbol_table.lookup("not_used3")
+    assert notused3.datatype == INTEGER_TYPE
     # We still haven't resolved anything about a_mod or other b_mod symbols
     assert not isinstance(a_1, DataSymbol)
     assert not isinstance(b_1, DataSymbol)
