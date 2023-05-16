@@ -526,9 +526,10 @@ def test_arraytype_str_invalid():
     array_type._shape = [None]
     with pytest.raises(InternalError) as excinfo:
         _ = str(array_type)
-    assert ("PSyclone internal error: ArrayType shape list elements can only "
-            "be 'ArrayType.ArrayBounds', or 'ArrayType.Extent', but found "
-            "'NoneType'." in str(excinfo.value))
+    assert ("PSyclone internal error: ArrayType has invalid shape: DataSymbol "
+            "shape-list elements can only be 'int', ArrayType.Extent, "
+            "'DataNode' or a 2-tuple thereof but found 'NoneType'."
+            in str(excinfo.value))
 
 
 def test_arraytype_immutable():

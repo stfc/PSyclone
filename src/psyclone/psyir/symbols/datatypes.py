@@ -472,7 +472,13 @@ class ArrayType(DataType):
             (e.g. the array is ALLOCATABLE in Fortran). Otherwise an \
             entry is a DataNode that returns an int.
 
+        :raises InternalError: if this ArrayType has an invalid shape.
+
         '''
+        try:
+            self._validate_shape(self._shape)
+        except TypeError as err:
+            raise InternalError(f"ArrayType has invalid shape: {err}") from err
         return self._shape
 
     def _validate_shape(self, extents):
@@ -603,10 +609,9 @@ class ArrayType(DataType):
             for the sake of brevity.
         :rtype: str
 
-        :raises InternalError: if an unsupported dimensions type is found.
-
         '''
         dims = []
+        # The shape getter includes validation.
         for dimension in self.shape:
             if isinstance(dimension, ArrayType.ArrayBounds):
                 dim_text = ""
@@ -627,11 +632,7 @@ class ArrayType(DataType):
                 dims.append(dim_text)
             elif isinstance(dimension, ArrayType.Extent):
                 dims.append(f"'{dimension.name}'")
-            else:
-                raise InternalError(
-                    f"ArrayType shape list elements can only be 'ArrayType."
-                    f"ArrayBounds', or 'ArrayType.Extent', but found "
-                    f"'{type(dimension).__name__}'.")
+
         return f"Array<{self._datatype}, shape=[{', '.join(dims)}]>"
 
     def __eq__(self, other):

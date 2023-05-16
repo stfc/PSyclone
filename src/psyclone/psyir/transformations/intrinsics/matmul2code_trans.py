@@ -42,6 +42,7 @@ matrix vector multiply. This transformation supports both with the
 restriction that the first matrix must be of at least rank 2.
 
 '''
+from psyclone.errors import InternalError
 from psyclone.psyir.nodes import BinaryOperation, Assignment, Reference, \
     Loop, Literal, ArrayReference, Range
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, REAL_TYPE, \
@@ -91,15 +92,21 @@ def _get_array_bound(array, index):
     :rtype: (Literal, Literal, Literal) or \
         (BinaryOperation, BinaryOperation, Literal)
 
-    :raises TransformationError: if the shape of the array's symbol is \
+   :raises TransformationError: if the shape of the array's symbol is \
         not supported.
 
     '''
-    # Added import here to avoid circular dependencies.
-    # pylint: disable=import-outside-toplevel
-    from psyclone.psyir.transformations import TransformationError
+    # The 'shape' getter performs validation checks.
+    try:
+        my_dim = array.symbol.shape[index]
+    except InternalError as err:
+        # Added import here to avoid circular dependencies.
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.transformations import TransformationError
+        raise TransformationError(
+            f"Unsupported index type found for array '{array.name}': "
+            f"{err}") from err
 
-    my_dim = array.symbol.shape[index]
     if isinstance(my_dim, ArrayType.ArrayBounds):
         # Use .copy() to ensure we return new nodes.
         lower_bound = my_dim.lower.copy()
@@ -110,17 +117,14 @@ def _get_array_bound(array, index):
                 Literal(str(index), INTEGER_TYPE))
         else:
             upper_bound = my_dim.upper.copy()
-    elif my_dim in [ArrayType.Extent.DEFERRED, ArrayType.Extent.ATTRIBUTE]:
+    else:
         lower_bound = BinaryOperation.create(
             BinaryOperation.Operator.LBOUND, Reference(array.symbol),
             Literal(str(index), INTEGER_TYPE))
         upper_bound = BinaryOperation.create(
             BinaryOperation.Operator.UBOUND, Reference(array.symbol),
             Literal(str(index), INTEGER_TYPE))
-    else:
-        raise TransformationError(
-            f"Unsupported index type '{type(my_dim).__name__}' found for "
-            f"dimension {index+1} of array '{array.name}'.")
+
     step = Literal("1", INTEGER_TYPE)
     return (lower_bound, upper_bound, step)
 

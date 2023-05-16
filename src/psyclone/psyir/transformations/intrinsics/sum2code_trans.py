@@ -41,6 +41,7 @@ than the intrinsic.
 
 '''
 
+from psyclone.errors import InternalError
 from psyclone.psyir.nodes import (
     BinaryOperation, Assignment, Reference,
     Literal, Loop, ArrayReference, IfBlock, Range, IntrinsicCall)
@@ -240,13 +241,12 @@ class Sum2CodeTrans(Transformation):
                     f"but found a fixed dimension in "
                     f"'{array_ref.debug_string()}'.")
 
-        for shape in array_ref.symbol.shape:
-            if not (shape in [
-                    ArrayType.Extent.DEFERRED, ArrayType.Extent.ATTRIBUTE]
-                    or isinstance(shape, ArrayType.ArrayBounds)):
-                raise TransformationError(
-                    f"Unexpected shape for array. Expecting one of Deferred, "
-                    f"Attribute or Bounds but found '{shape}'.")
+        try:
+            _ = array_ref.symbol.shape
+        except InternalError as err:
+            raise TransformationError(
+                f"Unexpected shape for array '{array_ref.symbol.name}': "
+                f"{err}") from err
 
         array_intrinsic = array_ref.symbol.datatype.intrinsic
         if array_intrinsic not in [ScalarType.Intrinsic.REAL,

@@ -129,10 +129,8 @@ def test_gen_indices_error(monkeypatch, fortran_writer):
     entry is not supported.
 
     '''
-    array_type = ArrayType(INTEGER_TYPE, [10])
-    monkeypatch.setattr(array_type, "_shape", ["invalid"])
     with pytest.raises(NotImplementedError) as excinfo:
-        _ = fortran_writer.gen_indices(array_type.shape)
+        _ = fortran_writer.gen_indices(["invalid"])
     assert "unsupported gen_indices index 'invalid'" in str(excinfo.value)
 
 
