@@ -885,10 +885,10 @@ class DependencyTools():
 
     # -------------------------------------------------------------------------
     def get_in_out_parameters(self, node_list, options=None):
-        '''Return a 2-tuple of lists that contains all variables that are input
-        parameters (first entry) and output parameters (second entry).
-        This function calls get_input_parameter and get_output_parameter,
-        but avoids the repeated computation of the variable usage.
+        '''Returns a ReadWriteInfo object that contains all variables that are
+        input and output parameters to the specified node list. This function
+        calls `get_input_parameter` and `get_output_parameter`, but avoids the
+        repeated computation of the variable usage.
 
         :param node_list: list of PSyIR nodes to be analysed.
         :type node_list: List[:py:class:`psyclone.psyir.nodes.Node`]
