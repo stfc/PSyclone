@@ -72,6 +72,75 @@ def test_named_common_block():
     assert isinstance(symtab.lookup("b").interface, CommonBlockInterface)
     assert isinstance(symtab.lookup("c").interface, CommonBlockInterface)
 
+    # The same common block can also bring other variables in a separate
+    # statement
+    reader = FortranStringReader('''
+        real :: d, e
+        common /name1/ d, e''')
+    fparser2spec = Specification_Part(reader)
+    processor.process_declarations(routine, fparser2spec.content, [])
+
+    # This is stored in a separate symbol, but the declaration has the right
+    # text
+    commonblock_2 = symtab.lookup("_PSYCLONE_COMMONBLOCK_name1_1")
+    assert commonblock_2.datatype.declaration == "COMMON /name1/ d, e"
+    assert isinstance(symtab.lookup("d").interface, CommonBlockInterface)
+    assert isinstance(symtab.lookup("e").interface, CommonBlockInterface)
+
+
+@pytest.mark.usefixtures("f2008_parser")
+def test_unnamed_commonblock():
+    ''' Test that unnamed common blocks produce NotImplementedError '''
+
+    # Create a dummy test routine
+    routine = Routine("test_routine")
+    symtab = routine.symbol_table
+    processor = Fparser2Reader()
+
+    # And provide an unnamed common block
+    reader = FortranStringReader('''
+        integer :: a, b, c
+        common a, b, c''')
+    fparser2spec = Specification_Part(reader)
+    processor.process_declarations(routine, fparser2spec.content, [])
+
+    # There is an unamed commonblock symbol
+    commonblock = symtab.lookup("_PSYCLONE_COMMONBLOCK_unnamed")
+    assert isinstance(commonblock.datatype, UnknownFortranType)
+    assert commonblock.datatype.declaration == "COMMON // a, b, c"
+
+    # The variables have been updated to a common block interface
+    assert isinstance(symtab.lookup("a").interface, CommonBlockInterface)
+    assert isinstance(symtab.lookup("b").interface, CommonBlockInterface)
+    assert isinstance(symtab.lookup("c").interface, CommonBlockInterface)
+
+
+@pytest.mark.usefixtures("f2008_parser")
+def test_multiple_commonblocks_in_statement():
+    ''' Test that '''
+
+    # Create a dummy test routine
+    routine = Routine("test_routine")
+    symtab = routine.symbol_table
+    processor = Fparser2Reader()
+
+    # And provide an unnamed common block
+    reader = FortranStringReader('''
+        integer :: a, b, c
+        common /name1/ a, b /name2/ c''')
+    fparser2spec = Specification_Part(reader)
+    processor.process_declarations(routine, fparser2spec.content, [])
+
+    # There is an commonblock symbol named as the first one
+    commonblock = symtab.lookup("_PSYCLONE_COMMONBLOCK_name1")
+    assert isinstance(commonblock.datatype, UnknownFortranType)
+    assert commonblock.datatype.declaration == "COMMON /name1/ a, b /name2/ c"
+
+    # The variables have been updated to a common block interface
+    assert isinstance(symtab.lookup("a").interface, CommonBlockInterface)
+    assert isinstance(symtab.lookup("b").interface, CommonBlockInterface)
+    assert isinstance(symtab.lookup("c").interface, CommonBlockInterface)
+
 
 @pytest.mark.usefixtures("f2008_parser")
 def test_named_commonblock_with_posterior_declaration():
@@ -95,21 +164,3 @@ def test_named_commonblock_with_posterior_declaration():
             "previously been declared." in str(err.value))
 
 
-@pytest.mark.usefixtures("f2008_parser")
-def test_unnamed_commonblock():
-    ''' Test that unnamed common blocks produce NotImplementedError '''
-
-    # Create a dummy test routine
-    routine = Routine("test_routine")
-    processor = Fparser2Reader()
-
-    # Test with a single parameter
-    reader = FortranStringReader('''
-        integer :: a, b, c
-        common a, b, c''')
-    fparser2spec = Specification_Part(reader)
-
-    with pytest.raises(NotImplementedError) as err:
-        processor.process_declarations(routine, fparser2spec.content, [])
-    assert ("Unammed Common blocks not supported, but found 'COMMON // a, b, "
-            "c'." in str(err.value))

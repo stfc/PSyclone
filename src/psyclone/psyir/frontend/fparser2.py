@@ -2209,30 +2209,31 @@ class Fparser2Reader():
                     node.children[2].items = tuple(orig_children)
 
             elif isinstance(node, Fortran2003.Common_Stmt):
+
+                # If the first common object has a name, use it
                 if node.children[0][0][0]:
-                    # If its a named Common block, place the declaration
-                    # statement into a UnknownFortranType. The name of the
-                    # codeblock is not in the same namespace as the variable
-                    # symbols names, so we add a psyclone prefix to
-                    # differentiate them.
-                    parent.symbol_table.add(
-                        DataSymbol("_PSYCLONE_COMMONBLOCK_" +
-                                   str(node.children[0][0][0]),
-                                   UnknownFortranType(str(node))))
+                    name = node.children[0][0][0]
                 else:
-                    # If its an unnamed Common Block, the whole subroutine
-                    # is placed in a CodeBlock.
-                    raise NotImplementedError(
-                        f"Unammed Common blocks not supported, but found "
-                        f"'{str(node)}'.")
+                    name = "unnamed"
+
+                # Place the declaration statement into a UnknownFortranType
+                # (for now we just want to reproduce it). The name of the
+                # codeblock is not in the same namespace as the variable
+                # symbols names, so we add a psyclone prefix to
+                # differentiate them.
+                parent.symbol_table.new_symbol(
+                    f"_PSYCLONE_COMMONBLOCK_{name}",
+                    symbol_type=DataSymbol,
+                    datatype=UnknownFortranType(str(node)))
 
                 # Get the names of the symbols accessed with the commonblock,
                 # they are already defined in the symbol table but they must
                 # now have a common-block interface.
                 try:
-                    for symbol_name in node.children[0][0][1].items:
-                        sym = parent.symbol_table.lookup(str(symbol_name))
-                        sym.interface = CommonBlockInterface()
+                    for cb_object in node.children[0]:
+                        for symbol_name in cb_object[1].items:
+                            sym = parent.symbol_table.lookup(str(symbol_name))
+                            sym.interface = CommonBlockInterface()
                 except KeyError as error:
                     raise NotImplementedError(
                         f"The symbol interface of a common block variable "
