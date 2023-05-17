@@ -35,11 +35,12 @@
 
 '''This module tests the FormalKernelArgsFromMetadata class.'''
 
-import pytest
-
 from collections import OrderedDict
 
+import pytest
+
 from psyclone.domain import lfric
+from psyclone.errors import InternalError
 from psyclone.psyir import symbols
 
 
@@ -65,6 +66,7 @@ def call_method(method_name, *args, metadata=None):
     getattr(cls, method_name)(*args)
     return cls
 
+
 def check_single_symbol(
         method_name, datasymbol_name, symbol_name, *args, metadata=None):
     '''Utility function that calls the method in argument 'method_name'
@@ -87,7 +89,10 @@ def check_single_symbol(
     cls = call_method(method_name, *args, metadata=metadata)
     lfric_class = lfric.LFRicTypes(datasymbol_name)
     symbol = cls._info.lookup(symbol_name)
+    # pylint gets confused here
+    # pylint: disable=isinstance-second-argument-not-valid-type
     assert isinstance(symbol, lfric_class)
+    # pylint: enable=isinstance-second-argument-not-valid-type
     assert len(cls._info._argument_list) == 1
     assert cls._info._argument_list[0] is symbol
     return cls
@@ -224,8 +229,10 @@ def test_operator():
 
 def check_common_cma_symbols(fs1, fs2):
     ''' xxx '''
-    operator_meta_arg = lfric.kernel.ColumnwiseOperatorArgMetadata("GH_REAL", "GH_WRITE", fs1, fs2)
-    metadata = lfric.kernel.LFRicKernelMetadata(operates_on="cell_column", meta_args=[operator_meta_arg])
+    operator_meta_arg = lfric.kernel.ColumnwiseOperatorArgMetadata(
+        "GH_REAL", "GH_WRITE", fs1, fs2)
+    metadata = lfric.kernel.LFRicKernelMetadata(
+        operates_on="cell_column", meta_args=[operator_meta_arg])
     metadata.validate()
     cls = call_method("_cma_operator", operator_meta_arg, metadata=metadata)
     return cls
@@ -263,3 +270,91 @@ def test_cma_operator():
          ("gamma_m_cma_op_1", lfric_int_class),
          ("gamma_p_cma_op_1", lfric_int_class)]))
     check_symbols(cls, {"ncell_2d": lfric_int_class})
+
+
+# pylint: disable=too-many-statements
+def test_ref_element_properties(monkeypatch):
+    ''' Test _ref_element_properties method. '''
+    lfric_qr_xy_class = lfric.LFRicTypes("NumberOfQrPointsInXyDataSymbol")
+    lfric_qr_z_class = lfric.LFRicTypes("NumberOfQrPointsInZDataSymbol")
+    lfric_qr_faces_class = lfric.LFRicTypes(
+        "NumberOfQrPointsInFacesDataSymbol")
+
+    # Horizontal
+    meta_ref_element = [
+        lfric.kernel.MetaRefElementArgMetadata("normals_to_horizontal_faces")]
+    cls = call_method("_ref_element_properties", meta_ref_element)
+    check_arg_symbols(cls, OrderedDict([
+        ("nfaces_re_h", lfric_qr_xy_class),
+        ("normals_to_horizontal_faces", symbols.DataSymbol)]))
+    symbol = cls._info.lookup("normals_to_horizontal_faces")
+    assert symbol.is_array
+    assert len(symbol.datatype.shape) == 2
+    assert symbol.datatype.shape[0].upper.value == "3"
+    assert symbol.datatype.shape[1].upper.symbol.name == "nfaces_re_h"
+
+    # Vertical
+    meta_ref_element = [
+        lfric.kernel.MetaRefElementArgMetadata("normals_to_vertical_faces")]
+    cls = call_method("_ref_element_properties", meta_ref_element)
+    check_arg_symbols(cls, OrderedDict([
+        ("nfaces_re_v", lfric_qr_z_class),
+        ("normals_to_vertical_faces", symbols.DataSymbol)]))
+    symbol = cls._info.lookup("normals_to_vertical_faces")
+    assert symbol.is_array
+    assert len(symbol.datatype.shape) == 2
+    assert symbol.datatype.shape[0].upper.value == "3"
+    assert symbol.datatype.shape[1].upper.symbol.name == "nfaces_re_v"
+
+    # General
+    meta_ref_element = [
+        lfric.kernel.MetaRefElementArgMetadata("normals_to_faces")]
+    cls = call_method("_ref_element_properties", meta_ref_element)
+    check_arg_symbols(cls, OrderedDict([
+        ("nfaces_re", lfric_qr_faces_class),
+        ("normals_to_faces", symbols.DataSymbol)]))
+    symbol = cls._info.lookup("normals_to_faces")
+    assert symbol.is_array
+    assert len(symbol.datatype.shape) == 2
+    assert symbol.datatype.shape[0].upper.value == "3"
+    assert symbol.datatype.shape[1].upper.symbol.name == "nfaces_re"
+
+    # All
+    meta_ref_element = [
+        lfric.kernel.MetaRefElementArgMetadata("normals_to_horizontal_faces"),
+        lfric.kernel.MetaRefElementArgMetadata("normals_to_vertical_faces"),
+        lfric.kernel.MetaRefElementArgMetadata("normals_to_faces")]
+    cls = call_method("_ref_element_properties", meta_ref_element)
+    check_arg_symbols(cls, OrderedDict([
+        ("nfaces_re_h", lfric_qr_xy_class),
+        ("nfaces_re_v", lfric_qr_z_class),
+        ("nfaces_re", lfric_qr_faces_class),
+        ("normals_to_horizontal_faces", symbols.DataSymbol),
+        ("normals_to_vertical_faces", symbols.DataSymbol),
+        ("normals_to_faces", symbols.DataSymbol)]))
+    symbol = cls._info.lookup("normals_to_horizontal_faces")
+    assert symbol.is_array
+    assert len(symbol.datatype.shape) == 2
+    assert symbol.datatype.shape[0].upper.value == "3"
+    assert symbol.datatype.shape[1].upper.symbol.name == "nfaces_re_h"
+    symbol = cls._info.lookup("normals_to_vertical_faces")
+    assert symbol.is_array
+    assert len(symbol.datatype.shape) == 2
+    assert symbol.datatype.shape[0].upper.value == "3"
+    assert symbol.datatype.shape[1].upper.symbol.name == "nfaces_re_v"
+    symbol = cls._info.lookup("normals_to_faces")
+    assert symbol.is_array
+    assert len(symbol.datatype.shape) == 2
+    assert symbol.datatype.shape[0].upper.value == "3"
+    assert symbol.datatype.shape[1].upper.symbol.name == "nfaces_re"
+
+    # Exception
+    meta_ref_element = [
+        lfric.kernel.MetaRefElementArgMetadata("normals_to_faces")]
+    monkeypatch.setattr(meta_ref_element[0], "_reference_element", "invalid")
+    with pytest.raises(InternalError) as info:
+        _ = call_method("_ref_element_properties", meta_ref_element)
+    assert ("Unsupported reference element property 'invalid' found."
+            in str(info.value))
+
+# pylint: enable=too-many-statements

@@ -39,6 +39,7 @@ this metadata) within an LFRic PSyIR symbol table.
 
 '''
 from psyclone.domain import lfric
+from psyclone.errors import InternalError
 from psyclone.psyir import nodes, symbols
 
 # TODO: many symbols here are not declared in LFRicTypes
@@ -56,6 +57,8 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
         "gh_inc": symbols.ArgumentInterface.Access.READWRITE,
         "gh_sum": symbols.ArgumentInterface.Access.READWRITE}
 
+    # It is clearer to use 'symbol_table' here rather than 'info'
+    # pylint: disable=arguments-renamed
     @classmethod
     def _initialise(cls, symbol_table):
         '''Initialise any additional state for this class.
@@ -81,7 +84,7 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
         # to just set the value of _info directly and it avoids pylint
         # complaining.
         cls._info = symbol_table
-    
+
     @classmethod
     def _cell_position(cls):
         ''''cell' argument providing the cell position. This is an integer of
@@ -105,7 +108,8 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
         has intent in.
 
         '''
-        cls._add_symbol_name("LFRicIntegerScalarDataSymbol", "ncell_2d_no_halos")
+        cls._add_symbol_name(
+            "LFRicIntegerScalarDataSymbol", "ncell_2d_no_halos")
 
     @classmethod
     def _mesh_ncell2d(cls):
@@ -140,11 +144,15 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
         # Use the array extent symbols to create the cell_map array symbol
         scalar_type = cls._create_datatype("LFRicIntegerScalarDataType")
         array_type = symbols.ArrayType(
-            scalar_type, [nodes.Reference(x_symbol), nodes.Reference(y_symbol)])
-        interface = symbols.ArgumentInterface(symbols.ArgumentInterface.Access.READ)
-        cell_map_symbol = symbols.DataSymbol("cell_map", array_type, interface=interface)
+            scalar_type, [nodes.Reference(x_symbol),
+                          nodes.Reference(y_symbol)])
+        interface = symbols.ArgumentInterface(
+            symbols.ArgumentInterface.Access.READ)
+        cell_map_symbol = symbols.DataSymbol(
+            "cell_map", array_type, interface=interface)
         cls._add_to_symbol_table(cell_map_symbol)
-        # Add the symbols to the symbol table argument list in the required order
+        # Add the symbols to the symbol table argument list in the
+        # required order
         cls._append_to_arg_list(cell_map_symbol)
         cls._append_to_arg_list(x_symbol)
         cls._append_to_arg_list(y_symbol)
@@ -159,9 +167,11 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
             :py:class:`psyclone.domain.lfric.kernel.ScalarArgMetadata`
 
         '''
-        # TODO: This should be a meta_arg function or a mapping, or part of LFRicTypes?
+        # TODO: This should be a meta_arg function or a mapping, or
+        # part of LFRicTypes?
         datatype = meta_arg.datatype[3:]
-        # TODO: The name should come from meta_arg classes, or part of LFRicTypes?
+        # TODO: The name should come from meta_arg classes, or part of
+        # LFRicTypes?
         datatype_char = meta_arg.datatype[3:4]
         meta_arg_index = cls._metadata.meta_args.index(meta_arg)
         cls._add_symbol_name(
@@ -170,7 +180,7 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
             access=cls._access_lookup[meta_arg.access])
 
     @classmethod
-    def _field(self, meta_arg):
+    def _field(cls, meta_arg):
         '''Argument providing an LFRic field.
 
         :param meta_arg: the metadata associated with this field argument.
@@ -180,18 +190,19 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
         '''
         # This symbol is used in other methods so might have already
         # been declared.
-        undf_name = self._undf_name(meta_arg.function_space)
-        undf_symbol = self._get_or_create_symbol(
+        undf_name = cls._undf_name(meta_arg.function_space)
+        undf_symbol = cls._get_or_create_symbol(
             "NumberOfUniqueDofsDataSymbol", undf_name)
 
-        name = self._field_name(meta_arg)
+        name = cls._field_name(meta_arg)
         datatype = meta_arg.datatype[3:]
-        self._add_symbol_name(
-            f"{datatype.capitalize()}FieldDataSymbol", name, dims=[nodes.Reference(undf_symbol)],
-            access=self._access_lookup[meta_arg.access])
+        cls._add_symbol_name(
+            f"{datatype.capitalize()}FieldDataSymbol", name,
+            dims=[nodes.Reference(undf_symbol)],
+            access=cls._access_lookup[meta_arg.access])
 
     @classmethod
-    def _field_vector(self, meta_arg):
+    def _field_vector(cls, meta_arg):
         '''Arguments providing an LFRic field vector.
 
         :param meta_arg: the metadata associated with this field \
@@ -202,21 +213,21 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
         '''
         # This symbol is used in other methods so might have already
         # been declared.
-        undf_name = self._undf_name(meta_arg.function_space)
-        undf_symbol = self._get_or_create_symbol(
+        undf_name = cls._undf_name(meta_arg.function_space)
+        undf_symbol = cls._get_or_create_symbol(
             "NumberOfUniqueDofsDataSymbol", undf_name)
 
-        field_name = self._field_name(meta_arg)
+        field_name = cls._field_name(meta_arg)
         datatype = meta_arg.datatype[3:]
-        access = self._access_lookup[meta_arg.access]
+        access = cls._access_lookup[meta_arg.access]
         for idx in range(int(meta_arg.vector_length)):
             name = f"{field_name}_v{idx+1}"
-            self._add_symbol_name(
+            cls._add_symbol_name(
                 f"{datatype.capitalize()}VectorFieldDataSymbol", name,
                 dims=[nodes.Reference(undf_symbol)], access=access)
 
     @classmethod
-    def _operator(self, meta_arg):
+    def _operator(cls, meta_arg):
         '''Arguments providing an LMA operator. First include an integer
         extent of kind i_def with intent in. The default name of this
         extent is <operator_name>'_ncell_3d'. Next include the
@@ -234,35 +245,37 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
             :py:class:`psyclone.domain.lfric.kernel.OperatorArgMetadata`
 
         '''
-        meta_arg_index = self._metadata.meta_args.index(meta_arg)
+        meta_arg_index = cls._metadata.meta_args.index(meta_arg)
         name = f"op_{meta_arg_index+1}_ncell_3d"
-        op_ncell_3d_symbol = self._create_symbol(
+        op_ncell_3d_symbol = cls._create_symbol(
             "LFRicIntegerScalarDataSymbol", name)
-        self._append_to_arg_list(op_ncell_3d_symbol)
+        cls._append_to_arg_list(op_ncell_3d_symbol)
 
         # This symbol is used in other methods so might have already
         # been declared.
-        ndf_name_to = self._ndf_name(meta_arg.function_space_to)
-        ndf_to_symbol = self._get_or_create_symbol(
+        ndf_name_to = cls._ndf_name(meta_arg.function_space_to)
+        ndf_to_symbol = cls._get_or_create_symbol(
             "NumberOfDofsDataSymbol", ndf_name_to)
 
         # This symbol is used in other methods so might have already
         # been declared.
-        ndf_name_from = self._ndf_name(meta_arg.function_space_from)
-        ndf_from_symbol = self._get_or_create_symbol(
+        ndf_name_from = cls._ndf_name(meta_arg.function_space_from)
+        ndf_from_symbol = cls._get_or_create_symbol(
             "NumberOfDofsDataSymbol", ndf_name_from)
 
-        # TODO: Precision depends on how it is defined in the algorithm layer!!!!
-        operator_name = self._operator_name(meta_arg)
-        access = self._access_lookup[meta_arg.access]
-        self._add_symbol_name(
+        # TODO: Precision depends on how it is defined in the
+        # algorithm layer!!!!
+        operator_name = cls._operator_name(meta_arg)
+        access = cls._access_lookup[meta_arg.access]
+        cls._add_symbol_name(
             "OperatorDataSymbol", operator_name,
-            dims=[nodes.Reference(ndf_to_symbol), nodes.Reference(ndf_from_symbol),
+            dims=[nodes.Reference(ndf_to_symbol),
+                  nodes.Reference(ndf_from_symbol),
                   nodes.Reference(op_ncell_3d_symbol)],
             access=access)
 
     @classmethod
-    def _cma_operator(self, meta_arg):
+    def _cma_operator(cls, meta_arg):
         '''Arguments providing a columnwise operator. First include a real,
         3-dimensional array of kind r_solver with its intent depending
         on its metadata. Its default name is
@@ -295,34 +308,39 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
             ColumnwiseOperatorArgMetadata`
 
         '''
-        operator_name = self._cma_operator_name(meta_arg)
+        operator_name = cls._cma_operator_name(meta_arg)
 
-        bandwidth = self._create_symbol(
+        bandwidth = cls._create_symbol(
             "LFRicIntegerScalarDataSymbol", f"bandwidth_{operator_name}")
-        nrow = self._create_symbol(
+        nrow = cls._create_symbol(
             "LFRicIntegerScalarDataSymbol", f"nrow_{operator_name}")
         # This symbol is used in other methods so might have already
         # been declared.
-        ncell_2d = self._get_or_create_symbol(
+        ncell_2d = cls._get_or_create_symbol(
             "LFRicIntegerScalarDataSymbol", "ncell_2d")
 
-        access = self._access_lookup[meta_arg.access]
+        access = cls._access_lookup[meta_arg.access]
         # TODO: should be r_solver precision
-        self._add_symbol_name(
+        cls._add_symbol_name(
             "OperatorDataSymbol", operator_name,
             dims=[nodes.Reference(bandwidth), nodes.Reference(nrow),
                   nodes.Reference(ncell_2d)], access=access)
-        self._append_to_arg_list(nrow)
+        cls._append_to_arg_list(nrow)
         if meta_arg.function_space_from != meta_arg.function_space_to:
-            self._add_symbol_name("LFRicIntegerScalarDataSymbol", f"ncol_{operator_name}")
-        self._append_to_arg_list(bandwidth)
-        self._add_symbol_name("LFRicIntegerScalarDataSymbol", f"alpha_{operator_name}")
-        self._add_symbol_name("LFRicIntegerScalarDataSymbol", f"beta_{operator_name}")
-        self._add_symbol_name("LFRicIntegerScalarDataSymbol", f"gamma_m_{operator_name}")
-        self._add_symbol_name("LFRicIntegerScalarDataSymbol", f"gamma_p_{operator_name}")
+            cls._add_symbol_name(
+                "LFRicIntegerScalarDataSymbol", f"ncol_{operator_name}")
+        cls._append_to_arg_list(bandwidth)
+        cls._add_symbol_name(
+            "LFRicIntegerScalarDataSymbol", f"alpha_{operator_name}")
+        cls._add_symbol_name(
+            "LFRicIntegerScalarDataSymbol", f"beta_{operator_name}")
+        cls._add_symbol_name(
+            "LFRicIntegerScalarDataSymbol", f"gamma_m_{operator_name}")
+        cls._add_symbol_name(
+            "LFRicIntegerScalarDataSymbol", f"gamma_p_{operator_name}")
 
     @classmethod
-    def _ref_element_properties(self, meta_ref_element):
+    def _ref_element_properties(cls, meta_ref_element):
         '''Arguments required if there are reference element properties
         specified in the metadata.
 
@@ -358,18 +376,54 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
         if [entry for entry in meta_ref_element if entry.reference_element in
                 ["normals_to_horizontal_faces",
                  "outward_normals_to_horizontal_faces"]]:
-            self._add_symbol_name("NumberOfQrPointsInXy", "nfaces_re_h")
+            nfaces_re_h = cls._create_symbol(
+                "NumberOfQrPointsInXyDataSymbol", "nfaces_re_h")
+            cls._append_to_arg_list(nfaces_re_h)
+
         if [entry for entry in meta_ref_element if entry.reference_element in
                 ["normals_to_vertical_faces",
                  "outward_normals_to_vertical_faces"]]:
-            self._add_symbol_name("NumberOfQrPointsInZ", "nfaces_re_v")
+            nfaces_re_v = cls._create_symbol(
+                "NumberOfQrPointsInZDataSymbol", "nfaces_re_v")
+            cls._append_to_arg_list(nfaces_re_v)
+
         if [entry for entry in meta_ref_element if entry.reference_element in
                 ["normals_to_faces",
                  "outward_normals_to_faces"]]:
-            self._add_symbol_name("NumberOfQrPointsInFaces", "nfaces_re")
+            nfaces_re = cls._create_symbol(
+                "NumberOfQrPointsInFacesDataSymbol", "nfaces_re")
+            cls._append_to_arg_list(nfaces_re)
+
+        scalar_type = cls._create_datatype("LFRicIntegerScalarDataType")
+        interface = symbols.ArgumentInterface(
+            symbols.ArgumentInterface.Access.READ)
+
         for ref_element_property in meta_ref_element:
-            self._add_symbol_name(
-                "LFRicIntegerScalar", ref_element_property.reference_element)
+
+            if ref_element_property.reference_element in [
+                    "normals_to_horizontal_faces",
+                    "outward_normals_to_horizontal_faces"]:
+                ref_element_dim = nfaces_re_h
+            elif ref_element_property.reference_element in [
+                    "normals_to_vertical_faces",
+                    "outward_normals_to_vertical_faces"]:
+                ref_element_dim = nfaces_re_v
+            elif ref_element_property.reference_element in [
+                    "normals_to_faces" or "outward_normals_to_faces"]:
+                ref_element_dim = nfaces_re
+            else:
+                raise InternalError(
+                    f"Unsupported reference element property "
+                    f"'{ref_element_property.reference_element}' found.")
+
+            array_type = symbols.ArrayType(
+                scalar_type, [nodes.Literal("3", scalar_type),
+                              nodes.Reference(ref_element_dim)])
+            property_symbol = symbols.DataSymbol(
+                ref_element_property.reference_element, array_type,
+                interface=interface)
+            cls._add_to_symbol_table(property_symbol)
+            cls._append_to_arg_list(property_symbol)
 
     @classmethod
     def _mesh_properties(self, meta_mesh):
@@ -404,8 +458,10 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
                             "outward_normals_to_horizontal_faces"]]:
                     # nfaces_re_h has not already been passed via reference
                     # element logic so add it here.
-                    self._add_symbol_name("NumberOfQrPointsInXy", "nfaces_re_h")
-                    self._add_symbol_name("LFRicIntegerScalar", mesh_property.mesh)
+                    self._add_symbol_name(
+                        "NumberOfQrPointsInXy", "nfaces_re_h")
+                    self._add_symbol_name(
+                        "LFRicIntegerScalar", mesh_property.mesh)
             else:
                 raise InternalError(
                     f"Unexpected mesh property '{mesh_property.mesh}' found. "
@@ -485,7 +541,8 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
             undf_name = self._undf_name(function_space)
             self._add_symbol_name("NumberOfUniqueDofs", undf_name)
             # full dofmap
-            self._add_symbol_name("LFRicIntegerScalar", f"full_map_{function_space_name}")
+            self._add_symbol_name(
+                "LFRicIntegerScalar", f"full_map_{function_space_name}")
         else:  # "gh_coarse"
             # undf + dofmap
             self._fs_compulsory_field(function_space)
@@ -547,13 +604,13 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
 
         '''
         function_space_name = self._function_space_name(function_space)
-        const = LFRicConstants()
+        const = lfric.LFRicConstants()
         if not self._metadata.shapes:
             return
         for shape in self._metadata.shapes:
             if shape in const.VALID_QUADRATURE_SHAPES:
                 self._add_symbol_name(
-                    "LFRicIntegerScalar"
+                    "LFRicIntegerScalar",
                     f"{name}_{function_space_name}_qr_{shape.split('_')[-1]}")
             elif shape in const.VALID_EVALUATOR_SHAPES:
                 if self._metadata.evaluator_targets:
@@ -562,16 +619,18 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
                     # Targets are the function spaces of all modified fields.
                     fields = [field for field in self._metadata.meta_args
                               if type(field) in [
-                                      FieldArgMetadata, FieldVectorArgMetadata,
-                                      InterGridArgMetadata,
-                                      InterGridVectorArgMetadata]
+                                      lfric.kernel.FieldArgMetadata,
+                                      lfric.kernel.FieldVectorArgMetadata,
+                                      lfric.kernel.InterGridArgMetadata,
+                                      lfric.kernel.InterGridVectorArgMetadata]
                               and field.access != "gh_read"]
                     target_function_spaces = []
                     for field in fields:
                         if field.function_space not in target_function_spaces:
                             target_function_spaces.append(field.function_space)
                 for target_function_space in target_function_spaces:
-                    self._add_symbol_name("LFRicIntegerScalar",
+                    self._add_symbol_name(
+                        "LFRicIntegerScalar",
                         f"{name}_{function_space_name}_to_"
                         f"{target_function_space}")
             else:
@@ -635,7 +694,7 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
             metadata is found.
 
         '''
-        const = LFRicConstants()
+        const = lfric.LFRicConstants()
         for quad in shapes:
             quad_name = quad.split('_')[-1]
             if quad == "gh_quadrature_xyoz":
@@ -678,7 +737,7 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
                 f"An enforce_bc_code kernel should have a single "
                 f"argument but found '{len(self._metadata.meta_args)}'.")
         meta_arg = self._metadata.meta_args[0]
-        if not type(meta_arg) == FieldArgMetadata:
+        if not type(meta_arg) == lfric.kernel.FieldArgMetadata:
             raise InternalError(
                 f"An enforce_bc_code kernel should have a single field "
                 f"argument but found '{type(meta_arg).__name__}'.")
@@ -761,7 +820,8 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
 
         '''
         field_name = self._field_name(meta_arg)
-        self._add_symbol_name("LFRicIntegerScalar", f"{field_name}_max_branch_length")
+        self._add_symbol_name(
+            "LFRicIntegerScalar", f"{field_name}_max_branch_length")
 
     @classmethod
     def _stencil_unknown_extent(self, meta_arg):
@@ -778,7 +838,8 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
 
         '''
         field_name = self._field_name(meta_arg)
-        self._add_symbol_name("LFRicIntegerScalar", f"{field_name}_stencil_size")
+        self._add_symbol_name(
+            "LFRicIntegerScalar", f"{field_name}_stencil_size")
 
     @classmethod
     def _stencil_unknown_direction(self, meta_arg):
@@ -813,7 +874,8 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
 
         '''
         field_name = self._field_name(meta_arg)
-        self._add_symbol_name("LFRicIntegerScalar", f"{field_name}_stencil_dofmap")
+        self._add_symbol_name(
+            "LFRicIntegerScalar", f"{field_name}_stencil_dofmap")
 
     @classmethod
     def _stencil(self, meta_arg):
@@ -891,11 +953,11 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
         '''
         function_space_name = self._function_space_name(function_space)
         name = self._cma_operator_name(cma_operator)
-        
+
         print("TO BE DONE")
-        exit(1)        
-        #self._add_symbol_name("",
-        #    f"cma_indirection_map_{function_space_name}_{name}")
+        exit(1)
+        # self._add_symbol_name("",
+        #     f"cma_indirection_map_{function_space_name}_{name}")
 
     @classmethod
     def _create_datatype(self, class_name):
@@ -905,7 +967,8 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
         return symbol
 
     @classmethod
-    def _create_symbol(self, class_name, symbol_name, dims=None, access=symbols.ArgumentInterface.Access.READ):
+    def _create_symbol(self, class_name, symbol_name, dims=None,
+                       access=symbols.ArgumentInterface.Access.READ):
         ''' xxx '''
         required_class = lfric.LFRicTypes(class_name)
         if dims:
@@ -917,14 +980,16 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
         return symbol
 
     @classmethod
-    def _get_or_create_symbol(self, class_name, symbol_name, access=symbols.ArgumentInterface.Access.READ):
+    def _get_or_create_symbol(self, class_name, symbol_name,
+                              access=symbols.ArgumentInterface.Access.READ):
         ''' xxx '''
         try:
             symbol = self._info.lookup_with_tag(symbol_name)
         except KeyError:
-            symbol = self._create_symbol(class_name, symbol_name, access=access)
+            symbol = self._create_symbol(
+                class_name, symbol_name, access=access)
         return symbol
-        
+
     @classmethod
     def _add_to_symbol_table(self, symbol):
         ''' xxx '''
@@ -934,11 +999,12 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
     def _append_to_arg_list(self, symbol):
         ''' xxx '''
         self._info._argument_list.append(symbol)
-        #TODO???
-        #symbol_table.specify_argument_list([arg1])
+        # TODO???
+        # symbol_table.specify_argument_list([arg1])
 
     @classmethod
-    def _add_symbol_name(self, class_name, symbol_name, dims=None, access=symbols.ArgumentInterface.Access.READ):
+    def _add_symbol_name(self, class_name, symbol_name, dims=None,
+                         access=symbols.ArgumentInterface.Access.READ):
         '''Utility function to create an LFRic-PSyIR symbol of type class_name
         and name symbol_name and add it to the symbol table.
 
@@ -946,7 +1012,8 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
         :param str symbol_name: the name of the symbol to be created.
 
         '''
-        symbol = self._create_symbol(class_name, symbol_name, dims=dims, access=access)
+        symbol = self._create_symbol(
+            class_name, symbol_name, dims=dims, access=access)
         self._append_to_arg_list(symbol)
 
     @classmethod
@@ -1026,4 +1093,3 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
         ''' xxx '''
         function_space_name = self._function_space_name(function_space)
         return f"ndf_{function_space_name}"
-
