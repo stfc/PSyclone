@@ -103,20 +103,41 @@ class UnresolvedInterface(SymbolInterface):
 
 
 class ImportInterface(SymbolInterface):
-    '''Describes the interface to a Symbol that is imported from an external
-    PSyIR container.
+    '''Describes the interface to a Symbol that is imported from an
+    external PSyIR container. The symbol can be renamed on import and,
+    if so, its original name in the Container is specified using the
+    optional 'orig_name' argument.
 
     :param container_symbol: symbol representing the external container \
         from which the symbol is imported.
     :type container_symbol: \
         :py:class:`psyclone.psyir.symbols.ContainerSymbol`
+    :param Optional[str] orig_name: the name of the symbol in the \
+        external container before it is renamed, or None (the default) if \
+        it is not renamed.
 
+    :raises TypeError: if the orig_name argument is an unexpected type.
 
     '''
-    def __init__(self, container_symbol):
+    def __init__(self, container_symbol, orig_name=None):
         super().__init__()
+        if not isinstance(orig_name, (str, type(None))):
+            raise TypeError(
+                f"ImportInterface orig_name parameter must be of type "
+                f"str or None, but found '{type(orig_name).__name__}'.")
+        self._orig_name = orig_name
         # Use error-checking setter
         self.container_symbol = container_symbol
+
+    @property
+    def orig_name(self):
+        '''
+        :returns: the symbol's original name if it is renamed on \
+            import, or None otherwise.
+        :rtype: Optional[str]
+
+        '''
+        return self._orig_name
 
     @property
     def container_symbol(self):
@@ -148,14 +169,18 @@ class ImportInterface(SymbolInterface):
         self._container_symbol = value
 
     def __str__(self):
-        return f"Import(container='{self.container_symbol.name}')"
+        orig_name_str = ""
+        if self.orig_name:
+            orig_name_str = f", orig_name='{self.orig_name}'"
+        return (f"Import(container='{self.container_symbol.name}"
+                f"'{orig_name_str})")
 
     def copy(self):
         '''
         :returns: a copy of this object.
         :rtype: :py:class:`psyclone.psyir.symbol.SymbolInterface`
         '''
-        return self.__class__(self.container_symbol)
+        return self.__class__(self.container_symbol, orig_name=self.orig_name)
 
 
 class ArgumentInterface(SymbolInterface):
