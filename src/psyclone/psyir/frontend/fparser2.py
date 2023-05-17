@@ -1562,7 +1562,17 @@ class Fparser2Reader():
                     # will replace a previous import with an empty only-list.
                     pass
                 for name in decl.items[4].items:
-                    sym_name = str(name).lower()
+                    if isinstance(name, Fortran2003.Rename):
+                        # This variable is renamed using Fortran's
+                        # 'new_name=>orig_name' syntax, so capture the
+                        # original name ('orig_name') as well as the new
+                        # name ('sym_name').
+                        sym_name = str(name.children[1]).lower()
+                        orig_name = str(name.children[2]).lower()
+                    else:
+                        # This variable is not renamed.
+                        sym_name = str(name).lower()
+                        orig_name = None
                     sym_visibility = visibility_map.get(
                         sym_name,  parent.symbol_table.default_visibility)
                     if sym_name not in parent.symbol_table:
@@ -1573,7 +1583,8 @@ class Fparser2Reader():
                         # the type of this symbol we create a generic Symbol.
                         parent.symbol_table.add(
                             Symbol(sym_name, visibility=sym_visibility,
-                                   interface=ImportInterface(container)))
+                                   interface=ImportInterface(
+                                       container, orig_name=orig_name)))
                     else:
                         # There's already a symbol with this name
                         existing_symbol = parent.symbol_table.lookup(
