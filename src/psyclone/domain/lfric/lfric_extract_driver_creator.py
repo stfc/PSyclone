@@ -1016,8 +1016,12 @@ class LFRicExtractDriverCreator:
         # it is stand-alone. Additionally, we need to remove all private
         # declarations (since then they default to be public, which is
         # required in order to potentially initialise an otherwise protected
-        # module variable from the data file. And similarly remove all
+        # module variable from the data file). And similarly remove all
         # 'protected' attributes.
+        # TODO #2142: if the LFRic build system pre-processes all files,
+        # we can modify the fparser tree or PSyIR information to do this
+        # without risking an issue if the program contains a symbol named
+        # 'protected' or 'private'.
         out = []
         # An optional comma and spaces, followed by either protected
         # or private as word:
