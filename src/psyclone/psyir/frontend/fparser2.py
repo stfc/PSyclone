@@ -1563,9 +1563,14 @@ class Fparser2Reader():
                     pass
                 for name in decl.items[4].items:
                     if isinstance(name, Fortran2003.Rename):
+                        # This variable is renamed using Fortran's
+                        # 'new_name=>orig_name' syntax, so capture the
+                        # original name ('orig_name') as well as the new
+                        # name ('sym_name').
                         sym_name = str(name.children[1]).lower()
                         orig_name = str(name.children[2]).lower()
                     else:
+                        # This variable is not renamed.
                         sym_name = str(name).lower()
                         orig_name = None
                     sym_visibility = visibility_map.get(
@@ -1813,7 +1818,7 @@ class Fparser2Reader():
             # There are some combinations of attributes that are not valid
             # Fortran but fparser does not check, so we need to check for them
             # here.
-            #TODO fparser/#413 could also fix these issues.
+            # TODO fparser/#413 could also fix these issues.
             if isinstance(interface, StaticInterface) and has_constant_value:
                 raise GenerationError(
                     f"SAVE and PARAMETER attributes are not compatible but "

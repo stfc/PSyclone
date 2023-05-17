@@ -521,8 +521,11 @@ class FortranWriter(LanguageWriter):
         only_list = []
         for dsym in symbol_table.symbols_imported_from(symbol):
             if dsym.interface.orig_name:
+                # This variable is renamed on import. Use Fortran's
+                # 'new_name=>orig_name' syntax to reflect this.
                 only_list.append(f"{dsym.name}=>{dsym.interface.orig_name}")
             else:
+                # This variable is not renamed.
                 only_list.append(dsym.name)
 
         # Finally construct the use statements for this Container (module)
@@ -829,6 +832,7 @@ class FortranWriter(LanguageWriter):
             return result
         return ""
 
+    # pylint: disable=too-many-branches
     def _gen_parameter_decls(self, symbol_table, is_module_scope=False):
         ''' Create the declarations of all parameters present in the supplied
         symbol table. Declarations are ordered so as to satisfy any inter-

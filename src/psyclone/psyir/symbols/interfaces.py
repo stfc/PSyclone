@@ -103,8 +103,10 @@ class UnresolvedInterface(SymbolInterface):
 
 
 class ImportInterface(SymbolInterface):
-    '''Describes the interface to a Symbol that is imported from an external
-    PSyIR container.
+    '''Describes the interface to a Symbol that is imported from an
+    external PSyIR container. The symbol can be renamed on import and,
+    if so, its original name in the Container is specified using the
+    optional 'orig_name' argument.
 
     :param container_symbol: symbol representing the external container \
         from which the symbol is imported.
@@ -130,8 +132,10 @@ class ImportInterface(SymbolInterface):
     @property
     def orig_name(self):
         '''
-        :returns: the symbol's original name if it has been renamed.
+        :returns: the symbol's original name if it is renamed on \
+            import, or None otherwise.
         :rtype: Optional[str]
+
         '''
         return self._orig_name
 
