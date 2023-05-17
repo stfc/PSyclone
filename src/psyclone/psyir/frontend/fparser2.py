@@ -61,7 +61,8 @@ from psyclone.psyir.symbols import (
     DeferredType, ImportInterface, AutomaticInterface, NoType,
     RoutineSymbol, ScalarType, StructureType, Symbol, SymbolError, SymbolTable,
     UnknownFortranType, UnknownType, UnresolvedInterface, INTEGER_TYPE,
-    StaticInterface, DefaultModuleInterface, UnknownInterface)
+    StaticInterface, DefaultModuleInterface, UnknownInterface,
+    CommonBlockInterface)
 
 # fparser dynamically generates classes which confuses pylint membership checks
 # pylint: disable=maybe-no-member
@@ -2206,6 +2207,38 @@ class Fparser2Reader():
                                     f"the symbol table.") from err
                     # Restore the fparser2 parse tree
                     node.children[2].items = tuple(orig_children)
+
+            elif isinstance(node, Fortran2003.Common_Stmt):
+                if node.children[0][0][0]:
+                    # If its a named Common block, place the declaration
+                    # statement into a UnknownFortranType. The name of the
+                    # codeblock is not in the same namespace as the variable
+                    # symbols names, so we add a psyclone prefix to
+                    # differentiate them.
+                    parent.symbol_table.add(
+                        DataSymbol("_PSYCLONE_COMMONBLOCK_" +
+                                   str(node.children[0][0][0]),
+                                   UnknownFortranType(str(node))))
+                else:
+                    # If its an unnamed Common Block, the whole subroutine
+                    # is placed in a CodeBlock.
+                    raise NotImplementedError(
+                        f"Unammed Common blocks not supported, but found "
+                        f"'{str(node)}'.")
+
+                # Get the names of the symbols accessed with the commonblock,
+                # they are already defined in the symbol table but they must
+                # now have a common-block interface.
+                try:
+                    for symbol_name in node.children[0][0][1].items:
+                        sym = parent.symbol_table.lookup(str(symbol_name))
+                        sym.interface = CommonBlockInterface()
+                except KeyError as error:
+                    raise NotImplementedError(
+                        f"The symbol interface of a common block variable "
+                        f"could not be updated because of {error}. Currently "
+                        f"we only support commonblocks of symbols that have "
+                        f"previously been declared.") from error
 
             elif isinstance(node, (Fortran2003.Access_Stmt,
                                    Fortran2003.Derived_Type_Def,
