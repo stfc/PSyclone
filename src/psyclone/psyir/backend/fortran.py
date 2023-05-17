@@ -1168,23 +1168,8 @@ class FortranWriter(LanguageWriter):
             # API-specific table here:
             whole_routine_scope = type(node.symbol_table)()
 
-            itself = node.symbol_table.lookup_with_tag("own_routine_symbol")
             for schedule in node.walk(Schedule):
-                for symbol in schedule.symbol_table.symbols[:]:
-
-                    # We don't need to add the Symbol representing this Routine
-                    # to the top level symbol table because in Fortran it is
-                    # already implicitly declared by the subroutine statement.
-                    if symbol is itself and isinstance(symbol, RoutineSymbol):
-                        continue
-
-                    try:
-                        whole_routine_scope.add(symbol)
-                    except KeyError:
-                        new_name = whole_routine_scope.next_available_name(
-                            symbol.name, other_table=schedule.symbol_table)
-                        schedule.symbol_table.rename_symbol(symbol, new_name)
-                        whole_routine_scope.add(symbol)
+                whole_routine_scope.merge(schedule.symbol_table)
 
             # Replace the symbol table
             node.symbol_table.detach()
