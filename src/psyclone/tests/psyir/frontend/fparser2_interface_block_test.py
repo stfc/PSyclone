@@ -191,7 +191,6 @@ def test_unnamed_interface(fortran_reader, code, start, end):
     container = file_container.children[0]
     assert isinstance(container, Container)
     # interface symbol
-    assert container.symbol_table.lookup("_psyclone_internal_interface")
     interface_symbol = container.symbol_table.lookup(
         "_psyclone_internal_interface")
     assert isinstance(interface_symbol, RoutineSymbol)

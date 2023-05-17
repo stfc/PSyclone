@@ -1807,7 +1807,7 @@ class Fparser2Reader():
             # There are some combinations of attributes that are not valid
             # Fortran but fparser does not check, so we need to check for them
             # here.
-            #TODO fparser/#413 could also fix these issues.
+            # TODO fparser/#413 could also fix these issues.
             if isinstance(interface, StaticInterface) and has_constant_value:
                 raise GenerationError(
                     f"SAVE and PARAMETER attributes are not compatible but "
@@ -2116,11 +2116,16 @@ class Fparser2Reader():
                 # of OPERATOR, ASSIGNMENT or dtio-spec.
                 if not isinstance(node.children[0].children[0],
                                   Fortran2003.Name):
+                    # This interface does not have a name so we store
+                    # it as a RoutineSymbol with an internal name and
+                    # with with the content of the interface being
+                    # kept within an UnknownFortranType. As a result
+                    # the visibility and interface details of the
+                    # RoutineSymbol do not matter.
                     parent.symbol_table.new_symbol(
                         root_name="_psyclone_internal_interface",
                         symbol_type=RoutineSymbol,
                         datatype=UnknownFortranType(str(node).lower()))
-                    # interface=UnknownInterface()???
                 else:
                     # This interface has a name.
                     name = node.children[0].children[0].string.lower()
@@ -2135,15 +2140,21 @@ class Fparser2Reader():
                         parent.symbol_table.add(
                             RoutineSymbol(
                                 name, UnknownFortranType(str(node).lower()),
+                                interface=UnknownInterface(),
                                 visibility=vis))
                     except KeyError:
-                        # This symbol has already been declared. However
-                        # we still want to output the interface so we
-                        # store it in the PSyIR as an UnknownFortranType
-                        # with an internal name.
+                        # This symbol has already been declared. This
+                        # can happen when an interface overloads a
+                        # routine in a type (as the interface name is
+                        # then the name of the type). However we still
+                        # want to capture the interface so we store it
+                        # in the PSyIR as an UnknownFortranType with
+                        # an internal name as we do for unnamed
+                        # interfaces.
                         parent.symbol_table.new_symbol(
                             root_name=f"_psyclone_internal_{name}",
                             symbol_type=RoutineSymbol,
+                            interface=UnknownInterface(),
                             datatype=UnknownFortranType(str(node).lower()),
                             visibility=vis)
 
