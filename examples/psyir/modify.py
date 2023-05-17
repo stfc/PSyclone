@@ -68,7 +68,7 @@ def modify_psyir_tree():
     subroutine = container.children[0]
 
     # Rename one of the subroutine local symbols.
-    tmp_symbol = subroutine.symbol_table.lookup("psyir_tmp")
+    tmp_symbol = subroutine.symbol_table.lookup("psyir_tmp_1")
     subroutine.symbol_table.rename_symbol(tmp_symbol, "new_variable")
 
     # The type of a symbol might be unknown

@@ -44,13 +44,13 @@ from fparser.common.readfortran import FortranStringReader
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.backend.fortran import gen_intent, gen_datatype, \
     FortranWriter, precedence, _validate_named_args
-from psyclone.psyir.nodes import Node, CodeBlock, Container, Literal, \
-    UnaryOperation, BinaryOperation, NaryOperation, Reference, Call, \
-    KernelSchedule, ArrayReference, ArrayOfStructuresReference, Range, \
-    StructureReference, Schedule, Routine, Return, FileContainer, \
-    Assignment, IfBlock, OMPTaskloopDirective, OMPMasterDirective, \
-    OMPParallelDirective, Loop, OMPNumTasksClause, OMPDependClause, \
-    IntrinsicCall
+from psyclone.psyir.nodes import (
+    Assignment, Node, CodeBlock, Container, Literal, UnaryOperation,
+    BinaryOperation, NaryOperation, Reference, Call, KernelSchedule,
+    ArrayReference, ArrayOfStructuresReference, Range, StructureReference,
+    Schedule, Routine, Return, FileContainer, IfBlock, OMPTaskloopDirective,
+    OMPMasterDirective, OMPParallelDirective, Loop, OMPNumTasksClause,
+    OMPDependClause, IntrinsicCall)
 from psyclone.psyir.symbols import DataSymbol, SymbolTable, ContainerSymbol, \
     ImportInterface, ArgumentInterface, UnresolvedInterface, ScalarType, \
     ArrayType, INTEGER_TYPE, REAL_TYPE, CHARACTER_TYPE, BOOLEAN_TYPE, \
@@ -83,6 +83,8 @@ def test_gen_intent():
                         interface=ArgumentInterface(
                             ArgumentInterface.Access.READWRITE))
     assert gen_intent(symbol) == "inout"
+    symbol = DataSymbol("dummy", INTEGER_TYPE)  # Non-argument
+    assert gen_intent(symbol) is None
 
 
 def test_gen_intent_error(monkeypatch):
@@ -681,18 +683,16 @@ def test_fw_gen_vardecl(fortran_writer):
                             ContainerSymbol("my_module")))
     with pytest.raises(VisitorError) as excinfo:
         _ = fortran_writer.gen_vardecl(symbol)
-    assert ("gen_vardecl requires the symbol 'dummy1' to have a Local or "
-            "an Argument interface but found a 'ImportInterface' interface."
-            in str(excinfo.value))
+    assert ("Symbol 'dummy1' has a DeferredType and we can not generate "
+            "a declaration for DeferredTypes." in str(excinfo.value))
 
     # An unresolved symbol
     symbol = DataSymbol("dummy1", DeferredType(),
                         interface=UnresolvedInterface())
     with pytest.raises(VisitorError) as excinfo:
         _ = fortran_writer.gen_vardecl(symbol)
-    assert ("gen_vardecl requires the symbol 'dummy1' to have a Local or "
-            "an Argument interface but found a 'UnresolvedInterface' "
-            "interface." in str(excinfo.value))
+    assert ("Symbol 'dummy1' has a DeferredType and we can not generate a "
+            "declaration for DeferredTypes." in str(excinfo.value))
 
     # An array with a mixture of deferred and explicit extents
     array_type = ArrayType(INTEGER_TYPE, [2, ArrayType.Extent.DEFERRED])
@@ -1033,220 +1033,6 @@ def test_fw_container_4(fortran_writer):
         "  private\n\n"
         "  contains\n\n"
         "end module test\n" in fortran_writer(container))
-
-
-def test_fw_routine(fortran_reader, fortran_writer, monkeypatch, tmpdir):
-    '''Check the FortranWriter class outputs correct code when a routine node
-    is found. Also tests that an exception is raised if routine.name does not
-    have a value.
-
-    '''
-    # Generate fparser2 parse tree from Fortran code.
-    code = (
-        "module test\n"
-        "contains\n"
-        "subroutine tmp(a, b, c)\n"
-        "  use iso_c_binding, only : c_int\n"
-        "  real, intent(out) :: a(:)\n"
-        "  real, intent(in) :: b(:)\n"
-        "  integer, intent(in) :: c\n"
-        "  if(c > 3) then\n"
-        "  a = b/c\n"
-        "  else\n"
-        "  a = b/c\n"
-        "  endif\n"
-        "end subroutine tmp\n"
-        "end module test")
-    psyir = fortran_reader.psyir_from_source(code)
-    schedule = psyir.children[0].children[0]
-    # Generate Fortran from the PSyIR schedule
-    result = fortran_writer(schedule)
-
-    assert (
-        "subroutine tmp(a, b, c)\n"
-        "  use iso_c_binding, only : c_int\n"
-        "  real, dimension(:), intent(out) :: a\n"
-        "  real, dimension(:), intent(in) :: b\n"
-        "  integer, intent(in) :: c\n"
-        "\n"
-        "  if (c > 3) then\n"
-        "    a = b / c\n"
-        "  else\n"
-        "    a = b / c\n"
-        "  end if\n"
-        "\n"
-        "end subroutine tmp\n") in result
-    assert Compile(tmpdir).string_compiles(result)
-
-    # Add distinctly named symbols in the routine sub-scopes
-    sub_scopes = schedule.walk(Schedule)[1:]
-    sub_scopes[0].symbol_table.new_symbol("symbol1", symbol_type=DataSymbol,
-                                          datatype=INTEGER_TYPE)
-    sub_scopes[1].symbol_table.new_symbol("symbol2", symbol_type=DataSymbol,
-                                          datatype=INTEGER_TYPE)
-    # They should be promoted to the routine-scope level
-    result = fortran_writer(schedule)
-    assert (
-        "  integer, intent(in) :: c\n"
-        "  integer :: symbol1\n"
-        "  integer :: symbol2\n") in result
-    assert Compile(tmpdir).string_compiles(result)
-
-    # Add symbols that will result in name clashes to sibling scopes
-    sub_scopes = schedule.walk(Schedule)[1:]
-    sub_scopes[0].symbol_table.new_symbol("symbol2", symbol_type=DataSymbol,
-                                          datatype=INTEGER_TYPE)
-    sub_scopes[1].symbol_table.new_symbol("symbol1", symbol_type=DataSymbol,
-                                          datatype=INTEGER_TYPE)
-    # Since the scopes are siblings they are allowed the same name
-    assert "symbol1" in sub_scopes[0].symbol_table
-    assert "symbol2" in sub_scopes[0].symbol_table
-    assert "symbol1" in sub_scopes[1].symbol_table
-    assert "symbol2" in sub_scopes[1].symbol_table
-    # But the back-end will promote them to routine-scope level with different
-    # names
-    result = fortran_writer(schedule)
-    assert (
-        "  integer, intent(in) :: c\n"
-        "  integer :: symbol1\n"
-        "  integer :: symbol2\n"
-        "  integer :: symbol2_1\n"
-        "  integer :: symbol1_1\n"
-        "\n") in result
-    assert Compile(tmpdir).string_compiles(result)
-
-    monkeypatch.setattr(schedule, "_name", None)
-    with pytest.raises(VisitorError) as excinfo:
-        _ = fortran_writer(schedule)
-    assert "Expected node name to have a value." in str(excinfo.value)
-
-
-def test_fw_routine_nameclash(fortran_writer):
-    ''' Test that any name clashes are handled when merging symbol tables. '''
-    sym1 = DataSymbol("var1", INTEGER_TYPE)
-    sym2 = DataSymbol("var1", INTEGER_TYPE)
-    assign1 = Assignment.create(Reference(sym1), Literal("1", INTEGER_TYPE))
-    assign2 = Assignment.create(Reference(sym2), Literal("2", INTEGER_TYPE))
-    ifblock = IfBlock.create(Literal("true", BOOLEAN_TYPE),
-                             [assign1], [assign2])
-    # Place the symbols for the two variables in the tables associated with
-    # the two branches of the IfBlock. These then represent *different*
-    # variables, despite having the same name.
-    ifblock.if_body.symbol_table.add(sym1)
-    ifblock.else_body.symbol_table.add(sym2)
-    routine = Routine.create("my_sub", SymbolTable(), [ifblock])
-    result = fortran_writer(routine)
-    assert ("  integer :: var1\n"
-            "  integer :: var1_1\n"
-            "\n"
-            "  if (.true.) then\n"
-            "    var1 = 1\n"
-            "  else\n"
-            "    var1_1 = 2\n"
-            "  end if" in result)
-    # Add a symbol to the local scope of the else that will clash with
-    # the name generated with reference to the routine scope.
-    ifblock.else_body.symbol_table.add(DataSymbol("var1_1", INTEGER_TYPE))
-    result = fortran_writer(routine)
-    assert ("  integer :: var1\n"
-            "  integer :: var1_2\n"
-            "  integer :: var1_1\n"
-            "\n"
-            "  if (.true.) then\n"
-            "    var1 = 1\n"
-            "  else\n"
-            "    var1_2 = 2\n"
-            "  end if" in result)
-    # Add a symbol to the routine scope that will clash with the first name
-    # generated with reference to the else scope.
-    routine.symbol_table.add(DataSymbol("var1_2", INTEGER_TYPE))
-    result = fortran_writer(routine)
-    assert ("  integer :: var1_2\n"
-            "  integer :: var1\n"
-            "  integer :: var1_3\n"
-            "  integer :: var1_1\n"
-            "\n"
-            "  if (.true.) then\n"
-            "    var1 = 1\n"
-            "  else\n"
-            "    var1_3 = 2\n"
-            "  end if" in result)
-
-
-def test_fw_routine_program(fortran_reader, fortran_writer, tmpdir):
-    '''Check the FortranWriter class outputs correct code when a routine node
-    is found with is_program set to True i.e. it should be output as a program.
-
-    '''
-    # Generate PSyIR from Fortran code via fparser2 ast
-    code = (
-        "program test\n"
-        "  real :: a\n"
-        "  a = 0.0\n"
-        "end program test")
-    psyir = fortran_reader.psyir_from_source(code)
-
-    # Generate Fortran from PSyIR
-    result = fortran_writer(psyir)
-
-    assert (
-        "program test\n"
-        "  real :: a\n\n"
-        "  a = 0.0\n\n"
-        "end program test\n" in result)
-    assert Compile(tmpdir).string_compiles(result)
-
-
-def test_fw_routine_function(fortran_reader, fortran_writer, tmpdir):
-    ''' Check that the FortranWriter outputs a function when a routine node
-    is found with return_symbol set.
-
-    '''
-    code = ("module test\n"
-            "implicit none\n"
-            "real :: a\n"
-            "contains\n"
-            "function tmp(b) result(val)\n"
-            "  real :: val\n"
-            "  real :: b\n"
-            "  val = a + b\n"
-            "end function tmp\n"
-            "end module test")
-    container = fortran_reader.psyir_from_source(code)
-    # Generate Fortran from PSyIR
-    result = fortran_writer(container)
-    assert (
-        "  contains\n"
-        "  function tmp(b) result(val)\n"
-        "    real :: b\n"
-        "    real :: val\n\n"
-        "    val = a + b\n\n"
-        "  end function tmp\n" in result)
-    assert Compile(tmpdir).string_compiles(result)
-
-
-def test_fw_routine_function_no_result(fortran_reader, fortran_writer, tmpdir):
-    ''' Check that no `result(xxx)` clause is added to the output function
-    definition if the name of the return symbol matches the name of the
-    function but has different capitalisation.
-
-    '''
-    code = ("module test\n"
-            "implicit none\n"
-            "real :: a\n"
-            "contains\n"
-            "function tmp(b)\n"
-            "  real, intent(in) :: b\n"
-            "  real :: TMP\n"
-            "  tmp = a + b\n"
-            "end function tmp\n"
-            "end module test")
-    container = fortran_reader.psyir_from_source(code)
-    # Generate Fortran from PSyIR
-    result = fortran_writer(container)
-    assert "  function tmp(b)\n" in result
-    assert Compile(tmpdir).string_compiles(result)
-
 
 # assignment and binaryoperation (not intrinsics) are already checked
 # within previous tests

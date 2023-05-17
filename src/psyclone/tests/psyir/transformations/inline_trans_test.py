@@ -43,7 +43,7 @@ import pytest
 from psyclone.configuration import Config
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import Call, IntrinsicCall, Reference, Routine
-from psyclone.psyir.symbols import DataSymbol, DeferredType
+from psyclone.psyir.symbols import DataSymbol, DeferredType, AutomaticInterface
 from psyclone.psyir.transformations import (InlineTrans,
                                             TransformationError)
 from psyclone.tests.utilities import Compile
@@ -615,7 +615,7 @@ def test_apply_struct_local_limits_routine(fortran_reader, fortran_writer,
     assert Compile(tmpdir).string_compiles(output)
 
 
-def test_apply_allocatable_array_arg(fortran_reader, fortran_writer, tmpdir):
+def test_apply_allocatable_array_arg(fortran_reader, fortran_writer):
     '''
     Check that apply() works correctly when a formal argument is given the
     ALLOCATABLE attribute (meaning that the bounds of the formal argument
@@ -932,8 +932,8 @@ def test_apply_repeated_module_use(fortran_reader, fortran_writer):
     for call in psyir.walk(Call):
         inline_trans.apply(call)
     output = fortran_writer(psyir)
-    if "use model_mod_1" in output:
-        pytest.xfail("TODO #2005 - bug in flattening of nested symbol tables")
+    # Check container symbol has not been renamed.
+    assert "use model_mod_1" not in output
     assert ("  subroutine run_it()\n"
             "    use model_mod, only : radius\n"
             "    integer :: i\n" in output)
@@ -1229,39 +1229,6 @@ def test_apply_callsite_rename_container(fortran_reader, fortran_writer):
             "    i = 10.0_r_def\n"
             "    i = i + 5_i_def + a_clash\n"
             "    i = i * a_mod_1\n" in output)
-
-
-def test_inline_symbols_check(fortran_reader):
-    '''Test the internal consistency check within _inline_symbols.'''
-    code = (
-        "module test_mod\n"
-        "contains\n"
-        "  subroutine run_it()\n"
-        "    use a_mod, only: a_clash\n"
-        "    use kinds_mod, only: r_def\n"
-        "    integer :: i, a_var\n"
-        "    a_var = a_clash\n"
-        "    i = 10.0_r_def\n"
-        "    call sub(i)\n"
-        "    i = i * a_var\n"
-        "  end subroutine run_it\n"
-        "  subroutine sub(idx)\n"
-        "    use a_mod, only: a_clash\n"
-        "    use kinds_mod, only: i_def\n"
-        "    integer, intent(inout) :: idx\n"
-        "    idx = idx + 5_i_def + a_clash\n"
-        "  end subroutine sub\n"
-        "end module test_mod\n")
-    psyir = fortran_reader.psyir_from_source(code)
-    routines = psyir.walk(Routine)
-    caller = routines[0]
-    callee = routines[1]
-    inline_trans = InlineTrans()
-    with pytest.raises(InternalError) as err:
-        inline_trans._inline_symbols(caller.symbol_table,
-                                     callee.symbol_table, {})
-    assert ("Symbol 'a_clash' imported from 'a_mod' has not been updated to "
-            "refer to that container at the call site." in str(err.value))
 
 
 def test_validate_non_local_import(fortran_reader):
@@ -1631,9 +1598,81 @@ def test_validate_codeblock(fortran_reader):
             "cannot be inlined" in str(err.value))
 
 
-def test_validate_saved_var(fortran_reader):
+def test_validate_unknowntype_argument(fortran_reader):
     '''
-    Test that validate rejects a subroutine with a 'save'd variable.
+    Test that validate rejects a subroutine with arguments of UnknownType.
+
+    '''
+    code = (
+        "module test_mod\n"
+        "contains\n"
+        "subroutine main\n"
+        "  real, target :: var = 0.0\n"
+        "  real, pointer :: ptr => null()\n"
+        "  ptr => var\n"
+        "  call sub(ptr)\n"
+        "end subroutine main\n"
+        "subroutine sub(x)\n"
+        "  real, pointer, intent(inout) :: x\n"
+        "  x = x + 1.0\n"
+        "end subroutine sub\n"
+        "end module test_mod\n"
+    )
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Call)[0]
+    inline_trans = InlineTrans()
+    with pytest.raises(TransformationError) as err:
+        inline_trans.validate(routine)
+    assert ("Routine 'sub' cannot be inlined because it contains a Symbol 'x' "
+            "which is an Argument of UnknownType: 'REAL, POINTER, "
+            "INTENT(INOUT) :: x'" in str(err.value))
+
+
+def test_validate_unknowninterface(fortran_reader, fortran_writer, tmpdir):
+    '''
+    Test that validate rejects a subroutine containing variables with
+    UnknownInterface.
+
+    '''
+    code = (
+        "module test_mod\n"
+        "contains\n"
+        "subroutine main\n"
+        "  call sub()\n"
+        "end subroutine main\n"
+        "subroutine sub()\n"
+        "  real, pointer :: x\n"
+        "  x = x + 1.0\n"
+        "end subroutine sub\n"
+        "end module test_mod\n"
+    )
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Call)[0]
+    inline_trans = InlineTrans()
+    with pytest.raises(TransformationError) as err:
+        inline_trans.validate(routine)
+    assert (" Routine 'sub' cannot be inlined because it contains a Symbol "
+            "'x' with an UnknownInterface: 'REAL, POINTER :: x'"
+            in str(err.value))
+
+    # But if the interface is known, it has no problem inlining it
+    xvar = psyir.walk(Routine)[1].symbol_table.lookup("x")
+    xvar.interface = AutomaticInterface()
+    inline_trans.apply(routine)
+    assert fortran_writer(psyir.walk(Routine)[0]) == """\
+subroutine main()
+  REAL, POINTER :: x
+
+  x = x + 1.0
+
+end subroutine main
+"""
+    assert Compile(tmpdir).string_compiles(fortran_writer(psyir))
+
+
+def test_validate_static_var(fortran_reader):
+    '''
+    Test that validate rejects a subroutine with StaticInterface variables.
 
     '''
     code = (
@@ -1645,7 +1684,7 @@ def test_validate_saved_var(fortran_reader):
         "  end subroutine run_it\n"
         "  subroutine sub(x)\n"
         "    real, intent(inout) :: x\n"
-        "    real, save :: state = 0.0\n"
+        "    real, save :: state\n"
         "    state = state + x\n"
         "    x = 2.0*x + state\n"
         "  end subroutine sub\n"
@@ -1655,9 +1694,8 @@ def test_validate_saved_var(fortran_reader):
     inline_trans = InlineTrans()
     with pytest.raises(TransformationError) as err:
         inline_trans.validate(routine)
-    assert ("Routine 'sub' cannot be inlined because it contains a Symbol "
-            "'state' which is of unknown type: 'REAL, SAVE :: state"
-            in str(err.value))
+    assert ("Routine 'sub' cannot be inlined because it has a static (Fortran "
+            "SAVE) interface for Symbol 'state'." in str(err.value))
 
 
 @pytest.mark.parametrize("code_body", ["idx = idx + 5_i_def",
@@ -1769,9 +1807,8 @@ def test_validate_import_clash(fortran_reader):
     inline_trans = InlineTrans()
     with pytest.raises(TransformationError) as err:
         inline_trans.validate(call)
-    assert ("Routine 'sub' imports 'trouble' from Container 'other_mod' but "
-            "the call site has an import of a symbol with the same name from "
-            "Container 'some_mod'" in str(err.value))
+    assert ("One or more symbols from routine 'sub' cannot be added to the "
+            "table at the call site." in str(err.value))
 
 
 def test_validate_non_local_symbol(fortran_reader):
@@ -1884,34 +1921,6 @@ def test_validate_unresolved_array_dim(fortran_reader):
     assert ("Routine 'sub' cannot be inlined because it accesses variable "
             "'some_size' and this cannot be found in any of the containers "
             "directly imported into its symbol table" in str(err.value))
-
-
-def test_validate_unknown_arg_type(fortran_reader):
-    '''Check that validate rejects a formal argument of UnknownType (since
-    we can't then correctly map any array index expressions into the call
-    site).'''
-    code = (
-        "module test_mod\n"
-        "contains\n"
-        "subroutine main\n"
-        "  real, target :: var = 0.0\n"
-        "  real, pointer :: ptr => null()\n"
-        "  ptr => var\n"
-        "  call sub(ptr)\n"
-        "end subroutine main\n"
-        "subroutine sub(x)\n"
-        "  real, pointer, intent(inout) :: x\n"
-        "  x = x + 1.0\n"
-        "end subroutine sub\n"
-        "end module test_mod\n"
-    )
-    psyir = fortran_reader.psyir_from_source(code)
-    call = psyir.walk(Call)[0]
-    inline_trans = InlineTrans()
-    with pytest.raises(TransformationError) as err:
-        inline_trans.validate(call)
-    assert ("Routine 'sub' cannot be inlined because formal argument 'x' is "
-            "of UnknownType" in str(err.value))
 
 
 def test_validate_array_reshape(fortran_reader):
@@ -2082,7 +2091,7 @@ SUB_IN_MODULE = (
 
 def test_find_routine_local(fortran_reader):
     '''Test that the PSyIR of the Routine is returned when it is local to
-    the associated call.
+    the module associated with the call.
 
     '''
     code = (
@@ -2095,14 +2104,14 @@ def test_find_routine_local(fortran_reader):
     call = psyir.walk(Call)[0]
     inline_trans = InlineTrans()
     result = inline_trans._find_routine(call)
-    assert call.routine.is_local
+    assert call.routine.is_modulevar
     assert isinstance(result, Routine)
     assert result.name == "sub"
 
 
 def test_find_routine_missing_exception(fortran_reader):
     '''Test that the expected exception is raised if the Call's Routine
-    symbol has a local interface but the Routine can't be found in the
+    symbol has a module interface but the Routine can't be found in the
     PSyIR.
 
     '''
@@ -2117,7 +2126,7 @@ def test_find_routine_missing_exception(fortran_reader):
     psyir.children[0].children[1].detach()
     call = psyir.walk(Call)[0]
     inline_trans = InlineTrans()
-    assert call.routine.is_local
+    assert call.routine.is_modulevar
     with pytest.raises(InternalError) as info:
         _ = inline_trans._find_routine(call)
     assert ("Failed to find the source code of the local routine 'sub'."
