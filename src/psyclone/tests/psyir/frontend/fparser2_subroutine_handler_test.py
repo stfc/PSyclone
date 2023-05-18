@@ -339,10 +339,20 @@ def test_function_unsupported_derived_type(fortran_reader):
     assert sym.datatype.declaration.lower() == "type(my_type), pointer :: var1"
 
 
-def test_elemental_prefix(fortran_reader):
+@pytest.mark.parametrize("routine_type", ["function", "subroutine"])
+def test_elemental_prefix(fortran_reader, routine_type):
     '''Check that the frontend correctly handles a routine with the 'elemental'
     prefix.'''
-    assert 0
+    code = (
+        f"module a\n"
+        f"contains\n"
+        f"  elemental {routine_type} my_func()\n"
+        f"    my_func = 1.0\n"
+        f"  end {routine_type} my_func\n"
+        f"end module\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    assert routine.is_elemental is True
 
 
 def test_pure_prefix(fortran_reader):
