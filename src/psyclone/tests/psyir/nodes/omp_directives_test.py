@@ -59,7 +59,7 @@ from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, SymbolTable, \
 from psyclone.errors import InternalError, GenerationError
 from psyclone.transformations import Dynamo0p3OMPLoopTrans, OMPParallelTrans, \
     OMPParallelLoopTrans, DynamoOMPParallelLoopTrans, OMPSingleTrans, \
-    OMPMasterTrans, OMPTaskloopTrans
+    OMPMasterTrans, OMPTaskloopTrans, OMPLoopTrans
 from psyclone.tests.utilities import get_invoke
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
@@ -578,7 +578,34 @@ def test_directive_infer_sharing_attributes(fortran_reader):
     ''' Tests for the _infer_sharing_attributes() method of OpenMP directives.
     '''
 
+    # Example with arrays, read-only and only-writen-once variables, this are
+    # all shared (only the iteration index is private in this parallel region)
+    psyir = fortran_reader.psyir_from_source('''
+        subroutine my_subroutine()
+            integer :: i, scalar1, scalar2
+            real, dimension(10) :: array
+            scalar2 = scalar1
+            do i = 1, 10
+               array(i) = scalar2
+            enddo
+        end subroutine''')
+    omplooptrans = OMPLoopTrans()
+    loop = psyir.walk(Loop)[0]
+    omplooptrans.apply(loop)
+    omptrans = OMPParallelTrans()
+    routine = psyir.walk(Routine)[0]
+    omptrans.apply(routine.children)
+    directive = psyir.walk(OMPParallelDirective)[0]
+    pvars, fpvars, sync = directive._infer_sharing_attributes()
+    assert len(pvars) == 1
+    assert list(pvars)[0].name == 'i'
+    assert len(fpvars) == 0
+    assert len(sync) == 0
+
     # Example with private and firstprivate variables on OMPParallelDoDirective
+    # In this case scalar1 is firstprivate because it has a conditional-write
+    # that it is not guaranteed to happen on each iteration, so the private
+    # variable needs to be initialised with the value it has before the loop.
     psyir = fortran_reader.psyir_from_source('''
         subroutine my_subroutine()
             integer :: i, scalar1, scalar2
@@ -598,14 +625,14 @@ def test_directive_infer_sharing_attributes(fortran_reader):
     directive = psyir.walk(OMPParallelDoDirective)[0]
     pvars, fpvars, sync = directive._infer_sharing_attributes()
     assert len(pvars) == 2
-    assert len(fpvars) == 1
-    assert len(sync) == 0
     assert sorted(pvars, key=lambda x: x.name)[0].name == 'i'
     assert sorted(pvars, key=lambda x: x.name)[1].name == 'scalar2'
+    assert len(fpvars) == 1
     assert list(fpvars)[0].name == 'scalar1'
+    assert len(sync) == 0
 
     # Another example with OMPParallelDirective (not actual worksharing)
-    # and scalars set outside the loop (this should be shared by convention)
+    # and scalars set outside the loop (only-written-once)
     psyir = fortran_reader.psyir_from_source('''
         subroutine my_subroutine()
             integer :: i, scalar1, scalar2, scalar3, scalar4
@@ -617,9 +644,9 @@ def test_directive_infer_sharing_attributes(fortran_reader):
                array(i) = scalar2
             enddo
         end subroutine''')
-    omplooptrans = OMPParallelTrans()
-    loop = psyir.walk(Routine)[0]
-    omplooptrans.apply(loop.children)
+    omptrans = OMPParallelTrans()
+    routine = psyir.walk(Routine)[0]
+    omptrans.apply(routine.children)
     directive = psyir.walk(OMPParallelDirective)[0]
     pvars, fpvars, sync = directive._infer_sharing_attributes()
     assert len(pvars) == 2
@@ -628,8 +655,75 @@ def test_directive_infer_sharing_attributes(fortran_reader):
     assert sorted(pvars, key=lambda x: x.name)[0].name == 'i'
     assert sorted(pvars, key=lambda x: x.name)[1].name == 'scalar2'
     # scalar 1 is shared because is read-only and scalar3 and scalar4 are
-    # shared because they are set outside a loop
+    # shared because they are set outside a loop (only writen once)
 
+    # In this example the scalar2 variable is shared but it needs
+    # synchronisation to avoid race conditions
+    psyir = fortran_reader.psyir_from_source('''
+        subroutine my_subroutine()
+            integer :: i, scalar1, scalar2
+            real, dimension(10) :: array
+            do i = 1, 10
+               scalar2 = scalar2 + scalar1 
+            enddo
+        end subroutine''')
+    omplooptrans = OMPParallelLoopTrans()
+    loop = psyir.walk(Loop)[0]
+    omplooptrans.apply(loop, options={"force": True})
+    directive = psyir.walk(OMPParallelDoDirective)[0]
+    pvars, fpvars, sync = directive._infer_sharing_attributes()
+    assert len(pvars) == 1
+    assert list(pvars)[0].name == 'i'
+    assert len(fpvars) == 0
+    assert len(sync) == 1
+    assert list(sync)[0].name == 'scalar2'
+
+    # In this example the scalar2 variable is shared but it needs
+    # synchronisation to avoid race conditions
+    psyir = fortran_reader.psyir_from_source('''
+        subroutine my_subroutine()
+            integer :: i, scalar1, scalar2, tmp
+            real, dimension(10) :: array
+            do i = 1, 10
+               tmp = scalar2 + scalar1
+               scalar2 = tmp
+            enddo
+        end subroutine''')
+    omplooptrans = OMPParallelLoopTrans()
+    loop = psyir.walk(Loop)[0]
+    omplooptrans.apply(loop, options={"force": True})
+    directive = psyir.walk(OMPParallelDoDirective)[0]
+    pvars, fpvars, sync = directive._infer_sharing_attributes()
+    assert len(pvars) == 2
+    assert sorted(pvars, key=lambda x: x.name)[0].name == 'i'
+    assert sorted(pvars, key=lambda x: x.name)[1].name == 'tmp'
+    assert len(fpvars) == 0
+    assert len(sync) == 1
+    assert list(sync)[0].name == 'scalar2'
+
+    # In this example the scalar2 variable is shared but it needs
+    # synchronisation to avoid race conditions
+    psyir = fortran_reader.psyir_from_source('''
+        subroutine my_subroutine()
+            integer :: i, scalar1, scalar2, tmp
+            real, dimension(10) :: array
+            tmp = 1
+            do i = 1, 10
+               scalar2 = tmp
+               tmp = scalar2 + scalar1
+            enddo
+        end subroutine''')
+    omplooptrans = OMPParallelLoopTrans()
+    loop = psyir.walk(Loop)[0]
+    omplooptrans.apply(loop, options={"force": True})
+    directive = psyir.walk(OMPParallelDoDirective)[0]
+    pvars, fpvars, sync = directive._infer_sharing_attributes()
+    assert len(pvars) == 2
+    assert sorted(pvars, key=lambda x: x.name)[0].name == 'i'
+    assert len(fpvars) == 0
+    assert len(sync) == 1
+    return  # TODO: Needs improving
+    assert list(sync)[0].name == 'scalar2'
 
 def test_directive_lastprivate(fortran_reader, fortran_writer):
     ''' Test to demonstrate remaining issues with the OpenMP data sharing

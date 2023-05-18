@@ -514,7 +514,9 @@ class OMPParallelDirective(OMPRegionDirective):
         fprivate_clause = OMPFirstprivateClause.create(
                             sorted(fprivate, key=lambda x: x.name))
         if need_sync:
-            raise GenerationError("")
+            raise GenerationError(
+                f"OpenMP parallel directive does not support symbols that "
+                f"need synchonisation, but found: {need_sync}")
 
         reprod_red_call_list = self.reductions(reprod=True)
         if reprod_red_call_list:
@@ -597,6 +599,10 @@ class OMPParallelDirective(OMPRegionDirective):
         :returns: the lowered version of this node.
         :rtype: :py:class:`psyclone.psyir.node.Node`
 
+
+        :raises GenerationError: if the OpenMP directive needs some \
+            synchronisation mechanism to create valid code. This are not \
+            implemented yet.
         '''
         # Keep the first two children and compute the rest using the current
         # state of the node/tree (lowering it first in case new symbols are
@@ -652,20 +658,19 @@ class OMPParallelDirective(OMPRegionDirective):
         '''
         The PSyIR does not specify if each symbol inside an OpenMP region is
         private, firstprivate, shared or shared but needs synchronisation,
-        each its infered looking at the usage of each symbol inside the
-        parallel region.
+        the attributes are infered looking at the usage of each symbol inside
+        the parallel region.
 
         This method analyses the directive body and automatically classifies
         each symbol using the following rules:
         - All arrays are shared.
         - Scalars that are accessed only once are shared.
-        - Scalars that are read-only or written only once are shared.
+        - Scalars that are read-only or written outside a loop are shared.
         - Scalars written in multiple iterations of a loop are private, unless:
           * there is a write-after-read dependency in a loop iteration,
           in which case it is shared but needs synchronisation;
-          or:
-          * they are read before in the same parallel region (but not same
-          iteration),
+          * they are read before in the same parallel region (but not inside
+          the same loop), in which case it is firstprivate.
           * they are only conditionally written in some iterations;
           which in both cases they are firstprivate.
 
@@ -710,11 +715,15 @@ class OMPParallelDirective(OMPRegionDirective):
             if len(accesses) == 1:
                 continue
 
-            # We have at least two accesses. We consider private variables the
+            # We have at least two accesses.
+
+            # We consider private variables the
             # ones that are written in every iteration of a loop. If one such
             # scalar is read before it is written, it will be considered
             # firstprivate.
+            # TODO: Needs improving
             has_been_read = False
+            # has_been_read = any(acesses.all_read_accesses())
             for access in accesses:
                 if access.access_type == AccessType.READ:
                     has_been_read = True
@@ -753,12 +762,15 @@ class OMPParallelDirective(OMPRegionDirective):
                             limit=loop_ancestor,
                             include_self=True)
 
-                        # If a previous value might be needed we mark it as
-                        # firstprivate
-                        if has_been_read or conditional_write:
+                        if has_been_read:
+                            need_sync.add(symbol)
+                        elif conditional_write:
                             fprivate.add(symbol)
                         else:
                             private.add(symbol)
+                    else:
+                        # If we find it outside a loop
+                        break
 
                     # Already found the first write and decided if it is
                     # shared, private or firstprivate. We can stop looking.
