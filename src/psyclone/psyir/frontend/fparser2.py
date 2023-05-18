@@ -2129,9 +2129,9 @@ class Fparser2Reader():
                                   Fortran2003.Name):
                     # This interface does not have a name so we store
                     # it as a RoutineSymbol with an internal name and
-                    # with with the content of the interface being
-                    # kept within an UnknownFortranType. As a result
-                    # the visibility and interface details of the
+                    # with the content of the interface being kept
+                    # within an UnknownFortranType. As a result the
+                    # visibility and interface details of the
                     # RoutineSymbol do not matter.
                     parent.symbol_table.new_symbol(
                         root_name="_psyclone_internal_interface",
@@ -2156,12 +2156,12 @@ class Fparser2Reader():
                     except KeyError:
                         # This symbol has already been declared. This
                         # can happen when an interface overloads a
-                        # routine in a type (as the interface name is
-                        # then the name of the type). However we still
-                        # want to capture the interface so we store it
-                        # in the PSyIR as an UnknownFortranType with
-                        # an internal name as we do for unnamed
-                        # interfaces.
+                        # constructor for a type (as the interface
+                        # name is then the name of the type). However
+                        # we still want to capture the interface so we
+                        # store it in the PSyIR as an
+                        # UnknownFortranType with an internal name as
+                        # we do for unnamed interfaces.
                         parent.symbol_table.new_symbol(
                             root_name=f"_psyclone_internal_{name}",
                             symbol_type=RoutineSymbol,

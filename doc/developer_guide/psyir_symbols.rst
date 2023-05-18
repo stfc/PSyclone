@@ -271,12 +271,11 @@ declared as a PSyIR symbol then the interface is captured as a
 already be declared as a PSyIR symbol if it references a type
 declaration or the interface may not have a name. In these two cases
 the interface is still captured as a `RoutineSymbol`, but the root
-name of the `RoutineSymbol` is `_psyclone_internal_` followed by the
-`generic-name`, or `_psyclone_internal_interface` respectively,
-i.e. it is given an internal PSyclone name. The root name should not
-clash with any other symbol names as names should not start with `_`,
-but providing a root name ensures that unique names are used in any
-case.
+name of the `RoutineSymbol` is `_psyclone_internal_<generic-name>`, or
+`_psyclone_internal_interface` respectively, i.e. it is given an
+internal PSyclone name. The root name should not clash with any other
+symbol names as names should not start with `_`, but providing a root
+name ensures that unique names are used in any case.
 
 As interfaces are captured as text in an `UnknownFortranType` the
 `RoutineSymbol` name is not used in the Fortran backend, the text
