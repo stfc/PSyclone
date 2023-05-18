@@ -201,10 +201,10 @@ class LFRicInvoke(Invoke):
         used. Throws an exception if no argument exists.
 
         :param fspace: function space of the argument.
-        :type fspace: class `psyclone.domain.lfric.FunctionSpace`
+        :type fspace: :py:class:`psyclone.domain.lfric.FunctionSpace`
 
         :returns: an argument object which is on the requested function space.
-        :rtype: :py:class: `psyclone.dynamo0p3.DynKernelArgument`
+        :rtype: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
 
         :raises GenerationError: if the argument object does not exist.
 
