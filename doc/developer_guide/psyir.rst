@@ -530,16 +530,29 @@ Node. This single class supports the different intrinsics listed in the
 +--------------+------------------------------+--------------------------------+
 | Name         | Positional arguments         | Optional arguments             |
 +--------------+------------------------------+------+-------------------------+
-| ALLOCATE     | One or more Reference or     | stat | Reference which will    |
-|              | ArrayReferences to which     |      | hold status.            |
-|              | memory will be allocated.    +------+-------------------------+
+| ALLOCATE     | One or more Reference or     | stat | Reference to an integer |
+|              | ArrayReferences to which     |      | variable which will hold|
+|              | memory will be allocated.    |      | return status.          |
+|              |                              +------+-------------------------+
 |              |                              | mold | Reference to an array   |
 |              |                              |      | which is used to specify|
 |              |                              |      | the dimensions of the   |
 |              |                              |      | allocated object.       |
+|              |                              +------+-------------------------+
+|              |                              |source| Reference to an array   |
+|              |                              |      | which is used to specify|
+|              |                              |      | both the dimensions &   |
+|              |                              |      | initial value(s) of the |
+|              |                              |      | allocated object.       |
+|              |                              +------+-------------------------+
+|              |                              |errmsg| Reference to a character|
+|              |                              |      | variable which will     |
+|              |                              |      | contain an error message|
+|              |                              |      | should the operation    |
+|              |                              |      | fail.                   |
 +--------------+------------------------------+------+-------------------------+
 | DEALLOCATE   | One or more References.      | stat | Reference which will    |
-|              |                              |      | hold status.            |
+|              |                              |      | hold return status.     |
 +--------------+------------------------------+------+-------------------------+
 | RANDOM_NUMBER| A single Reference which will|                                |
 |              | be filled with pseudo-random |                                |

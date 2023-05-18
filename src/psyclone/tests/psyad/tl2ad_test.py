@@ -48,7 +48,8 @@ from psyclone.psyad.tl2ad import (
     _create_inner_product, _create_array_inner_product,
     _get_active_variables_datatype, _add_precision_symbol)
 from psyclone.psyir.nodes import (
-    Container, FileContainer, Return, Routine, Assignment, BinaryOperation)
+    Container, FileContainer, Return, Routine, Assignment, BinaryOperation,
+    UnaryOperation, Literal)
 from psyclone.psyir.symbols import (
     DataSymbol, SymbolTable, REAL_DOUBLE_TYPE, INTEGER_TYPE, REAL_TYPE,
     ArrayType, RoutineSymbol, ImportInterface, ScalarType, ContainerSymbol,
@@ -929,14 +930,16 @@ def test_generate_harness_kernel_arg_invalid_shape(fortran_reader):
     kernel = tl_psyir.walk(Routine)[0]
     fld_arg = kernel.symbol_table.argument_list[0]
     # Break one of the bounds in the Range inside the argument shape by making
-    # it into a Return node.
+    # it into a UnaryOperation node.
     fld_arg.datatype._shape[0] = ArrayType.ArrayBounds(
-        lower=Return(), upper=fld_arg.datatype._shape[0].upper)
+        lower=UnaryOperation.create(UnaryOperation.Operator.NINT,
+                                    Literal("1", INTEGER_TYPE)),
+        upper=fld_arg.datatype._shape[0].upper)
     with pytest.raises(NotImplementedError) as err:
         generate_adjoint_test(tl_psyir, ad_psyir, ["field1"])
     assert ("Found argument 'field1' to kernel 'kernel' which has an array "
-            "bound specified by a 'Return' node. Only Literals or References "
-            "are supported" in str(err.value))
+            "bound specified by a 'UnaryOperation' node. Only Literals or "
+            "References are supported" in str(err.value))
     # Break the argument shape.
     fld_arg.datatype._shape = [1] + fld_arg.datatype._shape[1:]
     with pytest.raises(InternalError) as err:

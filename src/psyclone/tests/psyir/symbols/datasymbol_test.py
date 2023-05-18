@@ -38,7 +38,6 @@
 
 ''' Perform py.test tests on the psygen.psyir.symbols.datasymbols file '''
 
-from __future__ import absolute_import
 import pytest
 
 from fparser.common.readfortran import FortranStringReader
@@ -85,7 +84,13 @@ def test_datasymbol_initialisation():
 
     array_type = ArrayType(REAL_SINGLE_TYPE, [3])
     assert isinstance(DataSymbol('a', array_type), DataSymbol)
-    array_type = ArrayType(REAL_SINGLE_TYPE, [3, ArrayType.Extent.ATTRIBUTE])
+    with pytest.raises(TypeError) as err:
+        _ = ArrayType(REAL_SINGLE_TYPE, [3, ArrayType.Extent.ATTRIBUTE])
+    assert ("An assumed-shape array must have every dimension unspecified "
+            "(either as 'ATTRIBUTE' or with the upper bound as 'ATTRIBUTE') "
+            "but found shape: [3, <Extent.ATTRIBUTE: 2>]" in str(err.value))
+    array_type = ArrayType(REAL_SINGLE_TYPE, [ArrayType.Extent.ATTRIBUTE,
+                                              ArrayType.Extent.ATTRIBUTE])
     assert isinstance(DataSymbol('a', array_type), DataSymbol)
     assert isinstance(DataSymbol('a', REAL_SINGLE_TYPE), DataSymbol)
     assert isinstance(DataSymbol('a', REAL8_TYPE), DataSymbol)
@@ -93,8 +98,7 @@ def test_datasymbol_initialisation():
                      interface=UnresolvedInterface())
     array_type = ArrayType(REAL_SINGLE_TYPE, [Reference(dim)])
     assert isinstance(DataSymbol('a', array_type), DataSymbol)
-    array_type = ArrayType(REAL_SINGLE_TYPE,
-                           [3, Reference(dim), ArrayType.Extent.ATTRIBUTE])
+    array_type = ArrayType(REAL_SINGLE_TYPE, [3, Reference(dim), 4])
     assert isinstance(DataSymbol('a', array_type), DataSymbol)
     assert isinstance(
         DataSymbol('a', REAL_SINGLE_TYPE,
@@ -153,10 +157,12 @@ def test_datasymbol_can_be_printed():
     assert "s1: DataSymbol<Scalar<INTEGER, SINGLE>, Unresolved>" in str(sym1)
 
     array_type = ArrayType(REAL_SINGLE_TYPE,
-                           [ArrayType.Extent.ATTRIBUTE, 2, Reference(sym1)])
+                           [ArrayType.Extent.ATTRIBUTE,
+                            ArrayType.Extent.ATTRIBUTE,
+                            ArrayType.Extent.ATTRIBUTE])
     sym2 = DataSymbol("s2", array_type)
     assert ("s2: DataSymbol<Array<Scalar<REAL, SINGLE>, shape=['ATTRIBUTE', "
-            "2, Reference[name:'s1']]>, Automatic>" in str(sym2))
+            "'ATTRIBUTE', 'ATTRIBUTE']>, Automatic>" in str(sym2))
 
     my_mod = ContainerSymbol("my_mod")
     sym3 = DataSymbol("s3", REAL_SINGLE_TYPE,
@@ -294,8 +300,7 @@ def test_datasymbol_scalar_array():
     '''
     sym1 = DataSymbol("s1", INTEGER_SINGLE_TYPE,
                       interface=UnresolvedInterface())
-    array_type = ArrayType(REAL_SINGLE_TYPE,
-                           [ArrayType.Extent.ATTRIBUTE, 2, Reference(sym1)])
+    array_type = ArrayType(REAL_SINGLE_TYPE, [3, 2, Reference(sym1)])
     sym2 = DataSymbol("s2", array_type)
     assert sym1.is_scalar
     assert not sym1.is_array
