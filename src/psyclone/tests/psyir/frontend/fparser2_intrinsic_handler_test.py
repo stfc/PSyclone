@@ -235,7 +235,7 @@ end subroutine
     routine_symbol = intrinsic_call.routine
     assert isinstance(routine_symbol, RoutineSymbol)
     assert intrinsic_call.routine.name == intrinsic_name
-    assert isinstance(routine_symbol.interface, LocalInterface)
+    assert isinstance(routine_symbol.interface, AutomaticInterface)
     # TODO: issue #2102, intrinsics are not currently added to the
     # symbol table "assert routine_symbol is \
     #     intrinsic_call.scope.symbol_table.lookup(intrinsic_name)"
