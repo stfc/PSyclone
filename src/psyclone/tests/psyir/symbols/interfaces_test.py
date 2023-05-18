@@ -135,8 +135,8 @@ def test_importinterface():
             "ContainerSymbol, but found 'str'." in str(info.value))
     with pytest.raises(TypeError) as info:
         _ = ImportInterface(container_symbol, orig_name=[])
-    assert("ImportInterface orig_name parameter must be of type str or None, "
-           "but found 'list'." in str(info.value))
+    assert ("ImportInterface orig_name parameter must be of type str or None, "
+            "but found 'list'." in str(info.value))
 
 
 def test_importinterface_container_symbol_getter_setter():
