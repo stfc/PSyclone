@@ -775,14 +775,16 @@ def test_generate_trans_error(tmpdir, capsys, monkeypatch):
     # the error code should be 1
     assert str(excinfo.value) == "1"
     _, output = capsys.readouterr()
-    expected_output = (
-        "Transformation Error: Error in RaisePSyIR2LFRicAlgTrans "
-        "transformation. The arguments to this invoke call are expected "
-        "to be kernel calls which are represented in generic PSyIR as "
-        "CodeBlocks or ArrayReferences, but 'setval_c(field, value)' is of "
-        "type 'Call'. Has 'setval_c' also been used as a routine name in "
-        "the code?\n")
-    assert output == expected_output
+    # The output is split as the location of the algorithm file varies
+    # due to it being stored in a temporary directory by pytest.
+    expected_output1 = "Generation Error: In algorithm file '"
+    expected_output2 = (
+        "alg.f90':\nTransformation Error: Error in RaisePSyIR2LFRicAlgTrans "
+        "transformation. The invoke call argument 'setval_c' has been used as"
+        " a routine name. This is not allowed.\n")
+    print(output)
+    assert expected_output1 in output
+    assert expected_output2 in output
 
 
 def test_main_unexpected_fatal_error(capsys, monkeypatch):

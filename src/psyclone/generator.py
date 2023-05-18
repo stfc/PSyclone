@@ -64,7 +64,6 @@ from psyclone.domain.lfric.algorithm import LFRicBuiltinFunctor
 from psyclone.domain.lfric.transformations import (
     LFRicAlgTrans, RaisePSyIR2LFRicKernTrans, LFRicAlgInvoke2PSyCallTrans)
 from psyclone.errors import GenerationError, InternalError
-from psyclone.psyir.transformations import TransformationError
 from psyclone.line_length import FortLineLength
 from psyclone.parse import ModuleManager
 from psyclone.parse.algorithm import parse
@@ -75,6 +74,7 @@ from psyclone.psyGen import PSyFactory
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Loop, Container, Routine
+from psyclone.psyir.transformations import TransformationError
 from psyclone.version import __VERSION__
 
 # Those APIs that do not have a separate Algorithm layer
@@ -291,7 +291,11 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
             alg_trans = AlgTrans()
         else:  # api == "dynamo0.3"
             alg_trans = LFRicAlgTrans()
-        alg_trans.apply(psyir)
+        try:
+            alg_trans.apply(psyir)
+        except TransformationError as info:
+            raise GenerationError(
+                f"In algorithm file '{filename}':\n{info.value}") from info
 
         if not psyir.walk(AlgorithmInvokeCall):
             raise NoInvokesError(
@@ -515,7 +519,7 @@ def main(args):
             alg = alg_file.read()
         psy = ""
     except (OSError, IOError, ParseError, GenerationError,
-            RuntimeError, TransformationError):
+            RuntimeError):
         _, exc_value, _ = sys.exc_info()
         print(exc_value, file=sys.stderr)
         sys.exit(1)
