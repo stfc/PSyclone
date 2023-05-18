@@ -187,8 +187,7 @@ def test_array_shape(fortran_reader, monkeypatch):
     trans = Sum2CodeTrans()
     with pytest.raises(TransformationError) as info:
         trans.validate(sum_node)
-    assert ("Unexpected shape for array. Expecting one of Deferred, "
-            "Attribute or Bounds but found 'None'." in str(info.value))
+    assert ("Unexpected shape for array 'array': " in str(info.value))
 
 
 def test_array_type_arg(fortran_reader):

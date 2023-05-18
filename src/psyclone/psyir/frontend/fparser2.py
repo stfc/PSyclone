@@ -2576,8 +2576,17 @@ class Fparser2Reader():
         :returns: PSyIR representation of an allocate.
         :rtype: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
 
+        :raises NotImplementedError: if the allocate has a type specification \
+            (e.g. allocate(character(len=10) :: my_var)).
+
         '''
         call = IntrinsicCall(IntrinsicCall.Intrinsic.ALLOCATE, parent=parent)
+
+        type_spec = node.children[0]
+        if type_spec:
+            raise NotImplementedError(
+                "Allocate statements with type specifications cannot be "
+                "handled in the PSyIR")
 
         alloc_list = node.children[1].children
         # Loop over each 'Allocation' in the 'Allocation_List'

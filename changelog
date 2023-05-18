@@ -428,6 +428,10 @@
 	143) PR #2141 towards #1618. Add support for Symbols imported from
 	Containers with renaming.
 
+	144) PR #2136 for #2134. Fix compilation tests bug with assumed shape arrays.
+
+	145) PR #2115 for #2114. Fortran allocate with type-spec becomes a CodeBlock.
+
 release 2.3.1 17th of June 2022
 
 	1) PR #1747 for #1720. Adds support for If blocks to PSyAD.

@@ -557,8 +557,6 @@ class FortranWriter(LanguageWriter):
         :raises VisitorError: if the symbol is of known type but does not \
             specify a variable declaration (it is not a local declaration or \
             an argument declaration).
-        :raises VisitorError: if the symbol or member is an array with a \
-            shape containing a mixture of DEFERRED and other extents.
         :raises InternalError: if the symbol is a ContainerSymbol or an import.
         :raises InternalError: if the symbol is a RoutineSymbol other than \
             UnknownFortranType.
@@ -611,27 +609,8 @@ class FortranWriter(LanguageWriter):
         result = f"{self._nindent}{datatype}"
 
         if ArrayType.Extent.DEFERRED in array_shape:
-            if not all(dim == ArrayType.Extent.DEFERRED
-                       for dim in array_shape):
-                raise VisitorError(
-                    f"A Fortran declaration of an allocatable array must have"
-                    f" the extent of every dimension as 'DEFERRED' but "
-                    f"symbol '{symbol.name}' has shape: "
-                    f"{self.gen_indices(array_shape)}.")
             # A 'deferred' array extent means this is an allocatable array
             result += ", allocatable"
-        if ArrayType.Extent.ATTRIBUTE in array_shape:
-            if not all(dim == ArrayType.Extent.ATTRIBUTE
-                       for dim in symbol.datatype.shape):
-                # If we have an 'assumed-size' array then only the last
-                # dimension is permitted to have an 'ATTRIBUTE' extent
-                if (array_shape.count(ArrayType.Extent.ATTRIBUTE) != 1 or
-                        array_shape[-1] != ArrayType.Extent.ATTRIBUTE):
-                    raise VisitorError(
-                        f"An assumed-size Fortran array must only have its "
-                        f"last dimension unspecified (as 'ATTRIBUTE') but "
-                        f"symbol '{symbol.name}' has shape: "
-                        f"{self.gen_indices(array_shape)}.")
 
         # Specify Fortran attributes
         if array_shape:
