@@ -44,7 +44,6 @@ from fparser.two import Fortran2003
 from psyclone.psyad.transformations import AssignmentTrans
 from psyclone.psyad.utils import node_is_passive, node_is_active, negate_expr
 from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.psyir.backend.language_writer import LanguageWriter
 from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
 from psyclone.psyir.nodes import (Routine, Schedule, Reference, Node, Literal,
                                   CodeBlock, BinaryOperation, Assignment,
@@ -128,7 +127,7 @@ class AdjointVisitor(PSyIRVisitor):
             # Zero local active variables.
             self._logger.debug("Zero-ing any local active variables")
             for active_variable in self._active_variables:
-                if active_variable.is_local:
+                if active_variable.is_automatic:
                     if not (active_variable.is_scalar or
                             active_variable.is_array):
                         # Issue #1627 structures are not allowed.
