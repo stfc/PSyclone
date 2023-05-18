@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2021, Science and Technology Facilities Council.
+# Copyright (c) 2019-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -37,8 +37,6 @@
 
 '''Performs pytest tests on the psyclone.psyir.backend.c module'''
 
-from __future__ import absolute_import
-
 import pytest
 
 from psyclone.psyir.backend.c import CWriter
@@ -72,7 +70,9 @@ def test_cw_gen_declaration():
     assert result == "bool dummy1"
 
     # Array argument
-    array_type = ArrayType(REAL_TYPE, [2, ArrayType.Extent.ATTRIBUTE, 2])
+    array_type = ArrayType(REAL_TYPE, [ArrayType.Extent.ATTRIBUTE,
+                                       ArrayType.Extent.ATTRIBUTE,
+                                       ArrayType.Extent.ATTRIBUTE])
     symbol = DataSymbol("dummy2", array_type,
                         interface=ArgumentInterface(
                             ArgumentInterface.Access.READ))
@@ -80,7 +80,7 @@ def test_cw_gen_declaration():
     assert result == "double * restrict dummy2"
 
     # Array with unknown access
-    array_type = ArrayType(INTEGER_TYPE, [2, ArrayType.Extent.ATTRIBUTE, 2])
+    array_type = ArrayType(INTEGER_TYPE, [2, 4, 2])
     symbol = DataSymbol("dummy2", array_type,
                         interface=ArgumentInterface(
                             ArgumentInterface.Access.UNKNOWN))
