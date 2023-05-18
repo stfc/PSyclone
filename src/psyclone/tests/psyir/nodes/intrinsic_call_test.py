@@ -43,7 +43,7 @@ from psyclone.psyir.nodes import (
     ArrayReference, Literal, IntrinsicCall, Reference, Schedule)
 from psyclone.psyir.symbols import (
     ArrayType, DataSymbol, INTEGER_TYPE, IntrinsicSymbol, REAL_TYPE,
-    BOOLEAN_TYPE)
+    BOOLEAN_TYPE, CHARACTER_TYPE)
 
 
 def test_intrinsiccall_constructor():
@@ -93,6 +93,8 @@ def test_intrinsiccall_alloc_create():
                                            [ArrayType.Extent.DEFERRED]))
     bsym = DataSymbol("my_array2", ArrayType(INTEGER_TYPE,
                                              [ArrayType.Extent.DEFERRED]))
+    isym = DataSymbol("ierr", INTEGER_TYPE)
+    csym = DataSymbol("msg", CHARACTER_TYPE)
     # Straightforward allocation of an array.
     alloc = IntrinsicCall.create(
         IntrinsicCall.Intrinsic.ALLOCATE,
@@ -106,6 +108,11 @@ def test_intrinsiccall_alloc_create():
         [Reference(sym), ("Mold", Reference(bsym))])
     assert isinstance(alloc, IntrinsicCall)
     assert alloc.argument_names == [None, "Mold"]
+    alloc = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.ALLOCATE,
+        [Reference(sym), ("Source", Reference(bsym)),
+         ("stat", Reference(isym)), ("errmsg", Reference(csym))])
+    assert alloc.argument_names == [None, "Source", "stat", "errmsg"]
 
 
 def test_intrinsiccall_dealloc_create():
@@ -244,7 +251,8 @@ def test_intrinsiccall_create_errors():
         IntrinsicCall.create(IntrinsicCall.Intrinsic.ALLOCATE,
                              [aref, ("yacht", Reference(sym))])
     assert ("The 'ALLOCATE' intrinsic supports the optional arguments "
-            "['mold', 'stat'] but got 'yacht'" in str(err.value))
+            "['errmsg', 'mold', 'source', 'stat'] but got 'yacht'"
+            in str(err.value))
     # Wrong type for the name of an optional argument.
     with pytest.raises(TypeError) as err:
         IntrinsicCall.create(IntrinsicCall.Intrinsic.ALLOCATE,
