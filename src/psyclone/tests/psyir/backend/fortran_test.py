@@ -2040,7 +2040,9 @@ def test_fw_intrinsic_call_node(fortran_writer):
 
     for intrinsic_function in [IntrinsicCall.Intrinsic.MINVAL,
                                IntrinsicCall.Intrinsic.MAXVAL,
-                               IntrinsicCall.Intrinsic.SUM]:
+                               IntrinsicCall.Intrinsic.SUM,
+                               IntrinsicCall.Intrinsic.TINY,
+                               IntrinsicCall.Intrinsic.HUGE]:
         intrinsic_call = IntrinsicCall.create(
             intrinsic_function, [Reference(sym)])
         assignment = Assignment.create(Reference(sym), intrinsic_call)
