@@ -227,8 +227,11 @@ def test_arg_declaration_error(fortran_reader):
     invoke_trans = RaisePSyIR2LFRicAlgTrans()
     with pytest.raises(TransformationError) as info:
         invoke_trans.validate(psyir.children[0][0])
-    assert ("The invoke call argument 'setval_c' has been used as a routine "
-            "name. This is not allowed." in str(info.value))
+    assert ("The arguments to this invoke call are expected to be kernel "
+            "calls which are represented in generic PSyIR as CodeBlocks "
+            "or ArrayReferences, but 'setval_c(field, value)' is of type "
+            "'Call'. Has 'setval_c' also been used as a routine name in "
+            "the code?" in str(info.value))
 
 
 def test_apply_codedkern_arrayref(fortran_reader):
