@@ -470,27 +470,27 @@ def test_ai2psycall_add_arg():
     # Invalid argument exception (not a Node)
     with pytest.raises(TypeError) as info:
         AlgInvoke2PSyCallTrans._add_arg(None, [])
-    assert("Expected Algorithm-layer kernel arguments to be a Literal, "
-           "Reference or CodeBlock, but found 'NoneType'."
-           in str(info.value))
+    assert ("Expected Algorithm-layer kernel arguments to be a Literal, "
+            "Reference or CodeBlock, but found 'NoneType'."
+            in str(info.value))
 
     # Invalid argument exception (Node parent is not a KernelFunctor)
     arg = UnaryOperation.create(
         UnaryOperation.Operator.PLUS, Literal("1.0", REAL_TYPE))
     with pytest.raises(TypeError) as info:
         AlgInvoke2PSyCallTrans._add_arg(arg, [])
-    assert("Expected Algorithm-layer kernel arguments to be a Literal, "
-           "Reference or CodeBlock, but '+1.0' is of type 'UnaryOperation'."
-           in str(info.value))
+    assert ("Expected Algorithm-layer kernel arguments to be a Literal, "
+            "Reference or CodeBlock, but '+1.0' is of type 'UnaryOperation'."
+            in str(info.value))
 
     # Invalid argument exception (Node parent is a KernelFunctor)
     _ = KernelFunctor.create(
         DataTypeSymbol("my_kernel", REAL_TYPE), [arg])
     with pytest.raises(TypeError) as info:
         AlgInvoke2PSyCallTrans._add_arg(arg, [])
-    assert("Expected Algorithm-layer kernel arguments to be a Literal, "
-           "Reference or CodeBlock, but '+1.0' passed to kernel "
-           "'my_kernel' is of type 'UnaryOperation'." in str(info.value))
+    assert ("Expected Algorithm-layer kernel arguments to be a Literal, "
+            "Reference or CodeBlock, but '+1.0' passed to kernel "
+            "'my_kernel' is of type 'UnaryOperation'." in str(info.value))
 
     # literal (nothing added)
     args = []

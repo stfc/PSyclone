@@ -88,7 +88,16 @@ class IntrinsicCall(Call):
     # ArrayReferences but they are a subclass of Reference).
     _required_args[Intrinsic.ALLOCATE] = ArgDesc(1, None, Reference)
     _optional_args[Intrinsic.ALLOCATE] = {
-        "mold": Reference, "stat": Reference}
+        # Argument used to specify the shape of the object being allocated.
+        "mold": Reference,
+        # Argument specifying both shape and initial value(s) for the object
+        # being allocated.
+        "source": Reference,
+        # Integer variable given status value upon exit.
+        "stat": Reference,
+        # Variable in which message is stored upon error. (Requires that 'stat'
+        # also be provided otherwise the program will just abort upon error.)
+        "errmsg": Reference}
     _required_args[Intrinsic.DEALLOCATE] = ArgDesc(1, None, Reference)
     _optional_args[Intrinsic.DEALLOCATE] = {"stat": Reference}
     _required_args[Intrinsic.RANDOM_NUMBER] = ArgDesc(1, 1, Reference)

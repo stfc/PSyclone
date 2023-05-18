@@ -42,8 +42,8 @@ import pytest
 from psyclone.psyir.nodes import Literal, BinaryOperation, Reference, \
     Range, ArrayReference, Assignment, Node, DataNode, KernelSchedule
 from psyclone.psyGen import Transformation
-from psyclone.psyir.symbols import SymbolTable, DataSymbol, ArrayType, \
-    INTEGER_TYPE, REAL_TYPE
+from psyclone.psyir.symbols import (ArgumentInterface, ArrayType, DataSymbol,
+                                    INTEGER_TYPE, REAL_TYPE, SymbolTable)
 from psyclone.psyir.transformations import ArrayRange2LoopTrans, \
     TransformationError
 from psyclone.psyir.backend.fortran import FortranWriter
@@ -140,11 +140,13 @@ def create_array_y(symbol_table):
     :rtype: :py:class:`psyclone.psyir.nodes.ArrayReference`
 
     '''
-    array_symbol = DataSymbol("y",
-                              ArrayType(REAL_TYPE,
-                                        [(10, ArrayType.Extent.ATTRIBUTE),
-                                         10]))
+    array_symbol = DataSymbol(
+        "y", ArrayType(REAL_TYPE,
+                       [ArrayType.Extent.ATTRIBUTE,
+                        (10, ArrayType.Extent.ATTRIBUTE)]),
+        interface=ArgumentInterface())
     symbol_table.add(array_symbol)
+    symbol_table.specify_argument_list([array_symbol])
     return ArrayReference.create(array_symbol,
                                  [Reference(symbol_table.lookup("n")),
                                   create_range(array_symbol, 2)])

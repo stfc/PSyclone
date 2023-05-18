@@ -39,6 +39,8 @@ This module contains the HoistLocalArraysTrans transformation.
 
 '''
 
+import copy
+
 from psyclone.psyGen import Transformation
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (Routine, Container, ArrayReference, Range,
@@ -159,9 +161,9 @@ then
             orig_shape = sym.datatype.shape[:]
             # Modify the *existing* symbol so that any references to it
             # remain valid.
-            # pylint: disable=consider-using-enumerate
-            for idx in range(len(sym.shape)):
-                sym.shape[idx] = ArrayType.Extent.DEFERRED
+            new_type = copy.copy(sym.datatype)
+            new_type._shape = len(orig_shape)*[ArrayType.Extent.DEFERRED]
+            sym.datatype = new_type
             # Ensure that the promoted symbol is private to the container.
             sym.visibility = Symbol.Visibility.PRIVATE
             # We must allow for the situation where there's a clash with a

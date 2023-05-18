@@ -1562,7 +1562,17 @@ class Fparser2Reader():
                     # will replace a previous import with an empty only-list.
                     pass
                 for name in decl.items[4].items:
-                    sym_name = str(name).lower()
+                    if isinstance(name, Fortran2003.Rename):
+                        # This variable is renamed using Fortran's
+                        # 'new_name=>orig_name' syntax, so capture the
+                        # original name ('orig_name') as well as the new
+                        # name ('sym_name').
+                        sym_name = str(name.children[1]).lower()
+                        orig_name = str(name.children[2]).lower()
+                    else:
+                        # This variable is not renamed.
+                        sym_name = str(name).lower()
+                        orig_name = None
                     sym_visibility = visibility_map.get(
                         sym_name,  parent.symbol_table.default_visibility)
                     if sym_name not in parent.symbol_table:
@@ -1573,7 +1583,8 @@ class Fparser2Reader():
                         # the type of this symbol we create a generic Symbol.
                         parent.symbol_table.add(
                             Symbol(sym_name, visibility=sym_visibility,
-                                   interface=ImportInterface(container)))
+                                   interface=ImportInterface(
+                                       container, orig_name=orig_name)))
                     else:
                         # There's already a symbol with this name
                         existing_symbol = parent.symbol_table.lookup(
@@ -1807,7 +1818,7 @@ class Fparser2Reader():
             # There are some combinations of attributes that are not valid
             # Fortran but fparser does not check, so we need to check for them
             # here.
-            #TODO fparser/#413 could also fix these issues.
+            # TODO fparser/#413 could also fix these issues.
             if isinstance(interface, StaticInterface) and has_constant_value:
                 raise GenerationError(
                     f"SAVE and PARAMETER attributes are not compatible but "
@@ -2563,8 +2574,17 @@ class Fparser2Reader():
         :returns: PSyIR representation of an allocate.
         :rtype: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
 
+        :raises NotImplementedError: if the allocate has a type specification \
+            (e.g. allocate(character(len=10) :: my_var)).
+
         '''
         call = IntrinsicCall(IntrinsicCall.Intrinsic.ALLOCATE, parent=parent)
+
+        type_spec = node.children[0]
+        if type_spec:
+            raise NotImplementedError(
+                "Allocate statements with type specifications cannot be "
+                "handled in the PSyIR")
 
         alloc_list = node.children[1].children
         # Loop over each 'Allocation' in the 'Allocation_List'
