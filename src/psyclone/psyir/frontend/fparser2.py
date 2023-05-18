@@ -1019,7 +1019,9 @@ class Fparser2Reader():
         ('random', IntrinsicCall.Intrinsic.RANDOM_NUMBER),
         ('minval', IntrinsicCall.Intrinsic.MINVAL),
         ('maxval', IntrinsicCall.Intrinsic.MAXVAL),
-        ('sum', IntrinsicCall.Intrinsic.SUM)])
+        ('sum', IntrinsicCall.Intrinsic.SUM),
+        ('tiny', IntrinsicCall.Intrinsic.TINY),
+        ('huge', IntrinsicCall.Intrinsic.HUGE)])
 
     def __init__(self):
         # Map of fparser2 node types to handlers (which are class methods)
@@ -3872,10 +3874,14 @@ class Fparser2Reader():
         # First item is the name of the intrinsic
         name = node.items[0].string.upper()
 
-        # Treat minval, maxval and sum as intrinsic calls, as they
-        # have a variable number of arguments, so do not fit well with
-        # the unary, binary, nary separation.
+        # Fortran intrinsics are (or will be) treated as intrinsic calls.
+        if name.lower() in ["tiny", "huge"]:
+            # Intrinsics with no optional arguments
+            call = IntrinsicCall(self.intrinsics[name.lower()], parent=parent)
+            return self._process_args(node, call)
         if name.lower() in ["minval", "maxval", "sum"]:
+            # Intrinsics with optional arguments require a
+            # canonicalise function
             call = IntrinsicCall(self.intrinsics[name.lower()], parent=parent)
             return self._process_args(
                 node, call, canonicalise=_canonicalise_minmaxsum)

@@ -34,6 +34,7 @@
 .. Authors: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 ..          A. B. G. Chalk and N. Nobre, STFC Daresbury Lab
 ..          J. Henrichs, Bureau of Meteorology
+..          L. Turner, Met Office
 
 
 The PSyclone Internal Representation (PSyIR)
@@ -509,22 +510,15 @@ nodes, see the :ref:`named_arguments-label` section for more details.
 IntrinsicCall Nodes
 -------------------
 
-There are certain intrinsic functions that do not lend themselves to
-being represented as `Operation` nodes. For example, Fortran's
-`allocate` statement has various *optional* arguments, one of which
-(`stat`) may be used to store a return value. It's therefore not clear
-what an allocation 'operation' would assign to (an `Operation`
-must be a child of a `Statement` and therefore could not be included
-in a `Schedule` on its own). Similarly, Fortran's `MAXVAL` and
-`MINVAL` intrinsics have optional `dim` and `mask` arguments. In order
-to represent these using `Operation` nodes, we would need one for each
-of the four possible forms of each intrinsic.
-
-Therefore, to support intrinsic 'operations' that have optional
-arguments, the PSyIR has the
-:ref_guide:`IntrinsicCall psyclone.psyir.nodes.html#psyclone.psyir.nodes.IntrinsicCall`
-Node. This single class supports the different intrinsics listed in the
-`IntrinsicCall.Intrinsic` enumeration:
+PSyIR `IntrinsicCall` nodes (see :ref_guide:`IntrinsicCall
+psyclone.psyir.nodes.html#psyclone.psyir.nodes.IntrinsicCall`) capture
+all PSyIR intrinsics that are not expressed as language symbols (`+`,`-`,`*`
+etc). The latter are captured as `Operation` nodes. At the moment some
+intrinsics that should be captured as `IntrinsicCall` nodes are
+captured as `Operation` nodes (for example `sin` and `cos`). These
+will be migrated to being captured as `IntrinsicCall` nodes in the
+near future. Supported `IntrinsicCall` intrinsics are listed in the
+`IntrinsicCall.Intrinsic` enumeration within the class:
 
 +--------------+------------------------------+--------------------------------+
 | Name         | Positional arguments         | Optional arguments             |
@@ -557,7 +551,19 @@ Node. This single class supports the different intrinsics listed in the
 |              | be filled with pseudo-random |                                |
 |              | numbers in the range         |                                |
 |              | [0.0, 1.0].                  |                                |
++--------------+------------------------------+------+-------------------------+
+| SUM, MAXVAL, | A single DataNode.           | dim  | A DataNode specifying   |
+| MINVAL       |                              |      | one of the supplied     |
+|              |                              |      | array's dimensions.     |
+|              |                              +------+-------------------------+
+|              |                              | mask | A DataNode indicating   |
+|              |                              |      | on which elements to    |
+|              |                              |      | apply the function.     |
++--------------+------------------------------+------+-------------------------+
+| HUGE, TINY   | A single Reference or        |                                |
+|              | Literal.                     |                                |
 +--------------+------------------------------+--------------------------------+
+
 
 CodeBlock Node
 --------------
@@ -1048,7 +1054,7 @@ output strings).
 
 The logic and declaration of kernel variables is handled separately by
 the ``gen_stub`` method in ``DynKern`` and the ``gen_code`` method in
-``DynInvoke``. In both cases these methods make use of the subclasses
+``LFRicInvoke``. In both cases these methods make use of the subclasses
 of ``DynCollection`` to declare variables.
 
 When using the symbol table in the LFRic PSyIR we naturally capture

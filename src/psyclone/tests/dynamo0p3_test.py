@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified I. Kavcic and A. Coughtrie, Met Office,
+# Modified I. Kavcic, A. Coughtrie and L. Turner, Met Office,
 #          C. M. Maynard, Met Office/University of Reading,
 #          J. Henrichs, Bureau of Meteorology.
 
@@ -602,8 +602,8 @@ def test_invoke_uniq_declns_valid_access():
     assert fields_proxy_readwritten == ["f1_proxy"]
 
 
-def test_dyninvoke_first_access():
-    ''' Tests that we raise an error if DynInvoke.first_access(name) is
+def test_lfricinvoke_first_access():
+    ''' Tests that we raise an error if LFRicInvoke.first_access(name) is
     called for an argument name that doesn't exist '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.7_single_invoke_3scalar.f90"),
@@ -615,8 +615,8 @@ def test_dyninvoke_first_access():
             in str(excinfo.value))
 
 
-def test_dyninvoke_uniq_declns_intent_inv_argtype():
-    ''' Tests that we raise an error when DynInvoke.unique_declns_by_intent()
+def test_lfricinvoke_uniq_declns_intent_inv_argtype():
+    ''' Tests that we raise an error when LFRicInvoke.unique_declns_by_intent()
     is called with at least one invalid argument type. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.7_single_invoke_3scalar.f90"),
@@ -631,7 +631,7 @@ def test_dyninvoke_uniq_declns_intent_inv_argtype():
             in str(excinfo.value))
 
 
-def test_dyninvoke_uniq_declns_intent_invalid_intrinsic():
+def test_lfricinvoke_uniq_declns_intent_invalid_intrinsic():
     ''' Tests that we raise an error when Invoke.unique_declns_by_intent()
     is called for an invalid intrinsic type. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -648,8 +648,8 @@ def test_dyninvoke_uniq_declns_intent_invalid_intrinsic():
             in str(excinfo.value))
 
 
-def test_dyninvoke_uniq_declns_intent_ops(tmpdir):
-    ''' Tests that DynInvoke.unique_declns_by_intent() returns the correct
+def test_lfricinvoke_uniq_declns_intent_ops(tmpdir):
+    ''' Tests that LFRicInvoke.unique_declns_by_intent() returns the correct
     list of arguments for operator arguments. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "4.4_multikernel_invokes.f90"),
@@ -664,8 +664,8 @@ def test_dyninvoke_uniq_declns_intent_ops(tmpdir):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
-def test_dyninvoke_uniq_declns_intent_cma_ops(tmpdir):
-    ''' Tests that DynInvoke.unique_declns_by_intent() returns the correct
+def test_lfricinvoke_uniq_declns_intent_cma_ops(tmpdir):
+    ''' Tests that LFRicInvoke.unique_declns_by_intent() returns the correct
     list of arguments for columnwise operator arguments. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "20.5_multi_cma_invoke.f90"),
@@ -683,8 +683,8 @@ def test_dyninvoke_uniq_declns_intent_cma_ops(tmpdir):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
-def test_dyninvoke_arg_for_fs():
-    ''' Tests that we raise an error when DynInvoke.arg_for_funcspace() is
+def test_lfricinvoke_arg_for_fs():
+    ''' Tests that we raise an error when LFRicInvoke.arg_for_funcspace() is
     called for an unused space. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.7_single_invoke_3scalar.f90"),
@@ -2316,7 +2316,7 @@ def test_func_descriptor_str():
 
 
 def test_dynkern_arg_for_fs():
-    ''' Test that DynInvoke.arg_for_funcspace() raises an error if
+    ''' Test that LFRicInvoke.arg_for_funcspace() raises an error if
     passed an invalid function space.
 
     '''
@@ -3647,19 +3647,19 @@ def test_haloex_not_required(monkeypatch):
 
 def test_dyncollection_err1():
     ''' Check that the DynCollection constructor raises the expected
-    error if it is not provided with a DynKern or DynInvoke. '''
+    error if it is not provided with a DynKern or LFRicInvoke. '''
     _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                     api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     with pytest.raises(InternalError) as err:
         _ = DynProxies(psy)
-    assert ("DynCollection takes only a DynInvoke or a DynKern but"
+    assert ("DynCollection takes only a LFRicInvoke or a DynKern but"
             in str(err.value))
 
 
 def test_dyncollection_err2(monkeypatch):
     ''' Check that the DynCollection constructor raises the expected
-    error if it is not provided with a DynKern or DynInvoke. '''
+    error if it is not provided with a DynKern or LFRicInvoke. '''
     _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                     api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
@@ -3883,8 +3883,8 @@ def test_dynaccenterdatadirective_dataondevice():
 # Class DynKernelArguments end
 
 
-def test_dyninvoke_runtime(tmpdir, monkeypatch):
-    '''Test that run-time checks are added to the PSy-layer via dyninvoke
+def test_lfricinvoke_runtime(tmpdir, monkeypatch):
+    '''Test that run-time checks are added to the PSy-layer via LFRicInvoke
     in the expected way (correct location and correct code).
 
     '''
