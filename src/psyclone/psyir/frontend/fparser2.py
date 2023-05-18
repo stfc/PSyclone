@@ -844,16 +844,22 @@ def _process_routine_symbols(module_ast, symbol_table, visibility_map):
         is_pure = False
         # By default, Fortran routines are not elemental.
         is_elemental = False
+        name = str(routine.children[0].children[1]).lower()
         if prefix:
             for child in prefix.children:
-                if isinstance(child, Fortran2003.Prefix_Spec):
-                    if child.string == "PURE":
-                        is_pure = True
-                    elif child.string == "IMPURE":
-                        is_pure = False
-                    elif child.string == "ELEMENTAL":
-                        is_elemental = True
-        name = str(routine.children[0].children[1]).lower()
+                prefix_text = child.string
+                if prefix_text not in SUPPORTED_ROUTINE_PREFIXES:
+                    raise NotImplementedError(
+                        f"Routine '{name}' has prefix '{prefix_text}' "
+                        f"which is not supported. (Supported values are: "
+                        f"{SUPPORTED_ROUTINE_PREFIXES}).")
+                if child.string == "PURE":
+                    is_pure = True
+                elif child.string == "IMPURE":
+                    is_pure = False
+                elif child.string == "ELEMENTAL":
+                    is_elemental = True
+
         vis = visibility_map.get(name, symbol_table.default_visibility)
         rsymbol = RoutineSymbol(name, type_map[type(routine)], visibility=vis,
                                 is_pure=is_pure, is_elemental=is_elemental,
