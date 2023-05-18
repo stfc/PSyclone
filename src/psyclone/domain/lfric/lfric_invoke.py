@@ -202,9 +202,12 @@ class LFRicInvoke(Invoke):
 
         :param fspace: function space of the argument.
         :type fspace: class `psyclone.domain.lfric.FunctionSpace`
-        :returns: an argument object which is on the requested function space
-        :rtype: class `psyclone.dynamo0p3.DynKernelArgument`
-        :raises GenerationError: if the argument object does not exist
+
+        :returns: an argument object which is on the requested function space.
+        :rtype: :py:class: `psyclone.dynamo0p3.DynKernelArgument`
+
+        :raises GenerationError: if the argument object does not exist.
+
         '''
         for kern_call in self.schedule.kernels():
             try:
@@ -250,7 +253,7 @@ class LFRicInvoke(Invoke):
 
         :param func_space: the function space for which to find an argument.
         :type func_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
-        
+
         '''
         for kern_call in self.schedule.kernels():
             field = func_space.field_on_space(kern_call.arguments)
@@ -265,7 +268,7 @@ class LFRicInvoke(Invoke):
         layer). This consists of the PSy invocation subroutine and the
         declaration of its arguments.
 
-        :param parent: The parent node in the AST (of the code to be \
+        :param parent: the parent node in the AST (of the code to be \
                        generated) to which the node describing the PSy \
                        subroutine will be added.
         :type parent: :py:class:`psyclone.f2pygen.ModuleGen`
@@ -288,7 +291,7 @@ class LFRicInvoke(Invoke):
                          self.run_time_checks]:
             entities.declarations(invoke_sub)
 
-        # Initialise all quantities required by this PSy routine (invoke)
+        # Initialise all quantities required by this PSy routine (Invoke)
 
         if self.schedule.reductions(reprod=True):
             # We have at least one reproducible reduction so we need
