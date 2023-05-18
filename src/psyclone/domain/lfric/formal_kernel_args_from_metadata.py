@@ -426,7 +426,7 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
             cls._append_to_arg_list(property_symbol)
 
     @classmethod
-    def _mesh_properties(self, meta_mesh):
+    def _mesh_properties(cls, meta_mesh):
         '''All arguments required for mesh properties specified in the kernel
         metadata.
 
@@ -451,24 +451,37 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
         '''
         for mesh_property in meta_mesh:
             if mesh_property.mesh == "adjacent_face":
-                if not self._metadata.meta_ref_element or not \
-                   [entry for entry in self._metadata.meta_ref_element
+                # nfaces_re_h may have been passed via the reference
+                # element logic.
+                nfaces_re_h = cls._get_or_create_symbol(
+                    "NumberOfQrPointsInXyDataSymbol", "nfaces_re_h")
+                if not cls._metadata.meta_ref_element or not \
+                   [entry for entry in cls._metadata.meta_ref_element
                     if entry.reference_element in [
                             "normals_to_horizontal_faces",
                             "outward_normals_to_horizontal_faces"]]:
-                    # nfaces_re_h has not already been passed via reference
-                    # element logic so add it here.
-                    self._add_symbol_name(
-                        "NumberOfQrPointsInXy", "nfaces_re_h")
-                    self._add_symbol_name(
-                        "LFRicIntegerScalar", mesh_property.mesh)
+                    # nfaces_re_h was not been passed via the
+                    # reference element logic so add it the argument
+                    # list.
+                    cls._append_to_arg_list(nfaces_re_h)
+                interface = symbols.ArgumentInterface(
+                    symbols.ArgumentInterface.Access.READ)
+                scalar_type = cls._create_datatype(
+                    "LFRicIntegerScalarDataType")
+                array_type = symbols.ArrayType(
+                    scalar_type, [nodes.Reference(nfaces_re_h)])
+                mesh_symbol = symbols.DataSymbol(
+                    mesh_property.mesh, array_type,
+                    interface=interface)
+                cls._add_to_symbol_table(mesh_symbol)
+                cls._append_to_arg_list(mesh_symbol)
             else:
                 raise InternalError(
                     f"Unexpected mesh property '{mesh_property.mesh}' found. "
                     f"Expected 'adjacent_face'.")
 
     @classmethod
-    def _fs_common(self, function_space):
+    def _fs_common(cls, function_space):
         '''Arguments associated with a function space that are common to
         fields and operators. Add the number of degrees of freedom for
         this function space. This is an integer of kind i_def with
@@ -477,11 +490,11 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
         :param str function_space: the current function space.
 
         '''
-        function_space_name = self._function_space_name(function_space)
-        self._add_symbol_name("NumberOfDofs", f"ndf_{function_space_name}")
+        function_space_name = cls._function_space_name(function_space)
+        cls._add_symbol_name("NumberOfDofs", f"ndf_{function_space_name}")
 
     @classmethod
-    def fs_compulsory_field(self, function_space):
+    def fs_compulsory_field(cls, function_space):
         '''Compulsory arguments for this function space. First include the
         unique number of degrees of freedom for this function
         space. This is a scalar integer of kind i_def with intent in
@@ -494,13 +507,13 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
         :param str function_space: the current function space.
 
         '''
-        function_space_name = self._function_space_name(function_space)
-        undf_name = self._undf_name(function_space)
-        self._add_symbol_name("NumberOfUniqueDofs", undf_name)
-        self._add_symbol_name("DofMap", f"map_{function_space_name}")
+        function_space_name = cls._function_space_name(function_space)
+        undf_name = cls._undf_name(function_space)
+        cls._add_symbol_name("NumberOfUniqueDofs", undf_name)
+        cls._add_symbol_name("DofMap", f"map_{function_space_name}")
 
     @classmethod
-    def fs_intergrid(self, meta_arg):
+    def fs_intergrid(cls, meta_arg):
         '''Function-space related arguments for an intergrid kernel.
 
         For this field include the required dofmap information.
@@ -523,8 +536,8 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
         the coarse field. This is an integer of kind i_def with intent
         in. Its default name is 'undf_'<function_space>. Lastly,
         include the dofmap for the current cell (column) in the coarse
-        mesh. This is an integer array of rank one, kind i_def``and
-        has intent ``in. Its default name is 'map_'<function_space>.
+        mesh. This is an integer array of rank one, kind i_def and
+        has intent in. Its default name is 'map_'<function_space>.
 
         :param meta_arg: the metadata capturing the InterGrid argument \
             required by the kernel.
@@ -533,22 +546,22 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
 
         '''
         function_space = meta_arg.function_space
-        function_space_name = self._function_space_name(function_space)
+        function_space_name = cls._function_space_name(function_space)
         if meta_arg.mesh_arg == "gh_fine":
             # ndf
-            self._fs_common(function_space)
+            cls._fs_common(function_space)
             # undf
-            undf_name = self._undf_name(function_space)
-            self._add_symbol_name("NumberOfUniqueDofs", undf_name)
+            undf_name = cls._undf_name(function_space)
+            cls._add_symbol_name("NumberOfUniqueDofs", undf_name)
             # full dofmap
-            self._add_symbol_name(
+            cls._add_symbol_name(
                 "LFRicIntegerScalar", f"full_map_{function_space_name}")
         else:  # "gh_coarse"
             # undf + dofmap
-            self._fs_compulsory_field(function_space)
+            cls._fs_compulsory_field(function_space)
 
     @classmethod
-    def _basis_or_diff_basis(self, name, function_space):
+    def _basis_or_diff_basis(cls, name, function_space):
         '''Utility function for the basis and diff_basis methods.
 
         For each operation on the function space (name = ["basis",
@@ -603,21 +616,21 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
         raises InternalError: if unexpected shape metadata is found.
 
         '''
-        function_space_name = self._function_space_name(function_space)
+        function_space_name = cls._function_space_name(function_space)
         const = lfric.LFRicConstants()
-        if not self._metadata.shapes:
+        if not cls._metadata.shapes:
             return
-        for shape in self._metadata.shapes:
+        for shape in cls._metadata.shapes:
             if shape in const.VALID_QUADRATURE_SHAPES:
-                self._add_symbol_name(
+                cls._add_symbol_name(
                     "LFRicIntegerScalar",
                     f"{name}_{function_space_name}_qr_{shape.split('_')[-1]}")
             elif shape in const.VALID_EVALUATOR_SHAPES:
-                if self._metadata.evaluator_targets:
-                    target_function_spaces = self._metadata.evaluator_targets
+                if cls._metadata.evaluator_targets:
+                    target_function_spaces = cls._metadata.evaluator_targets
                 else:
                     # Targets are the function spaces of all modified fields.
-                    fields = [field for field in self._metadata.meta_args
+                    fields = [field for field in cls._metadata.meta_args
                               if type(field) in [
                                       lfric.kernel.FieldArgMetadata,
                                       lfric.kernel.FieldVectorArgMetadata,
@@ -629,7 +642,7 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
                         if field.function_space not in target_function_spaces:
                             target_function_spaces.append(field.function_space)
                 for target_function_space in target_function_spaces:
-                    self._add_symbol_name(
+                    cls._add_symbol_name(
                         "LFRicIntegerScalar",
                         f"{name}_{function_space_name}_to_"
                         f"{target_function_space}")
@@ -639,27 +652,27 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
                     f"one of {const.VALID_EVALUATOR_SHAPES}.")
 
     @classmethod
-    def _basis(self, function_space):
+    def _basis(cls, function_space):
         '''Arguments associated with basis functions on the supplied function
         space.
 
         :param str function_space: the current function space.
 
         '''
-        self._basis_or_diff_basis("basis", function_space)
+        cls._basis_or_diff_basis("basis", function_space)
 
     @classmethod
-    def _diff_basis(self, function_space):
+    def _diff_basis(cls, function_space):
         '''Arguments associated with differential basis functions on the
         supplied function space.
 
         :param str function_space: the current function space.
 
         '''
-        self._basis_or_diff_basis("diff_basis", function_space)
+        cls._basis_or_diff_basis("diff_basis", function_space)
 
     @classmethod
-    def _quad_rule(self, shapes):
+    def _quad_rule(cls, shapes):
         '''Quadrature information is required (gh_shape =
         gh_quadrature_*). For each shape in the order specified in the
         gh_shape metadata:
@@ -698,20 +711,20 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
         for quad in shapes:
             quad_name = quad.split('_')[-1]
             if quad == "gh_quadrature_xyoz":
-                self.arg_info.extend([
+                cls.arg_info.extend([
                     f"npxy_{quad_name}", f"np_z_{quad_name}",
                     f"weights_xz_{quad_name}", f"weights_z_{quad_name}"])
-                self._arg_index += 4
+                cls._arg_index += 4
             elif quad == "gh_quadrature_face":
-                self.arg_info.extend([
+                cls.arg_info.extend([
                     f"nfaces_{quad_name}", f"np_xyz_{quad_name}",
                     f"weights_xyz_{quad_name}"])
-                self._arg_index += 3
+                cls._arg_index += 3
             elif quad == "gh_quadrature_edge":
-                self.arg_info.extend([
+                cls.arg_info.extend([
                     f"nedges_{quad_name}", f"np_xyz_{quad_name}",
                     f"weights_xyz_{quad_name}"])
-                self._arg_index += 3
+                cls._arg_index += 3
             else:
                 raise InternalError(
                     f"Unexpected shape metadata. Found '{quad}' but expected "
@@ -719,7 +732,7 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
 
     # pylint: disable=unidiomatic-typecheck
     @classmethod
-    def _field_bcs_kernel(self):
+    def _field_bcs_kernel(cls):
         '''Fix for the field boundary condition kernel. Adds a boundary dofs
         2D integer array with intent in and kind i_def. The size of
         the dimensions are ndf_<function_space>, 2. Its default name
@@ -732,11 +745,11 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
         '''
         # Check that this kernel has a single field argument that is
         # on the any_space_1 function space.
-        if len(self._metadata.meta_args) != 1:
+        if len(cls._metadata.meta_args) != 1:
             raise InternalError(
                 f"An enforce_bc_code kernel should have a single "
-                f"argument but found '{len(self._metadata.meta_args)}'.")
-        meta_arg = self._metadata.meta_args[0]
+                f"argument but found '{len(cls._metadata.meta_args)}'.")
+        meta_arg = cls._metadata.meta_args[0]
         if not type(meta_arg) == lfric.kernel.FieldArgMetadata:
             raise InternalError(
                 f"An enforce_bc_code kernel should have a single field "
@@ -747,14 +760,14 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
                 f"argument on the 'any_space_1' function space, but found "
                 f"'{meta_arg.function_space}'.")
 
-        field_name = self._field_name(meta_arg)
+        field_name = cls._field_name(meta_arg)
         # 2d integer array
         print("TO BE ADDED")
         exit(1)
-        # self._add_symbol_name("xxx", f"boundary_dofs_{field_name}")
+        # cls._add_symbol_name("xxx", f"boundary_dofs_{field_name}")
 
     @classmethod
-    def _operator_bcs_kernel(self):
+    def _operator_bcs_kernel(cls):
         '''Fix for the operator boundary condition kernel. Adds a boundary
         dofs 2D integer array with intent in and kind i_def. The size
         of the dimensions are ndf_<function_space>, 2. Its default
@@ -766,24 +779,24 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
 
         '''
         # Check that this kernel has a single LMA argument.
-        if len(self._metadata.meta_args) != 1:
+        if len(cls._metadata.meta_args) != 1:
             raise InternalError(
                 f"An enforce_operator_bc_code kernel should have a single "
-                f"argument but found '{len(self._metadata.meta_args)}'.")
-        meta_arg = self._metadata.meta_args[0]
+                f"argument but found '{len(cls._metadata.meta_args)}'.")
+        meta_arg = cls._metadata.meta_args[0]
         if not type(meta_arg) == OperatorArgMetadata:
             raise InternalError(
                 f"An enforce_operator_bc_code kernel should have a single "
                 f"lma operator argument but found "
                 f"'{type(meta_arg).__name__}'.")
 
-        lma_operator_name = self._operator_name(meta_arg)
+        lma_operator_name = cls._operator_name(meta_arg)
         print("TO BE ADDED")
         exit(1)
-        # self._add_symbol_name("", f"boundary_dofs_{lma_operator_name}")
+        # cls._add_symbol_name("", f"boundary_dofs_{lma_operator_name}")
 
     @classmethod
-    def _stencil_2d_unknown_extent(self, meta_arg):
+    def _stencil_2d_unknown_extent(cls, meta_arg):
         '''The field entry has a stencil access of type cross2d so add a 1D
         integer array of extent 4 and kind i_def stencil-size argument
         with intent in. The default name is
@@ -797,14 +810,14 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
             :py:class:`psyclone.domain.lfric.kernel.FieldArgMetadata`
 
         '''
-        field_name = self._field_name(meta_arg)
+        field_name = cls._field_name(meta_arg)
         # Array
         print("TO BE DONE")
         exit(1)
-        # self._add_symbol_name(f"{field_name}_stencil_size")
+        # cls._add_symbol_name(f"{field_name}_stencil_size")
 
     @classmethod
-    def _stencil_2d_max_extent(self, meta_arg):
+    def _stencil_2d_max_extent(cls, meta_arg):
         '''The field entry has a stencil access of type cross2d so add an
         integer of kind i_def and intent in for the max branch
         length. The default name is <field_name>"_max_branch_length",
@@ -819,12 +832,12 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
             :py:class:`psyclone.domain.lfric.kernel.FieldArgMetadata`
 
         '''
-        field_name = self._field_name(meta_arg)
-        self._add_symbol_name(
+        field_name = cls._field_name(meta_arg)
+        cls._add_symbol_name(
             "LFRicIntegerScalar", f"{field_name}_max_branch_length")
 
     @classmethod
-    def _stencil_unknown_extent(self, meta_arg):
+    def _stencil_unknown_extent(cls, meta_arg):
         '''The field entry has a stencil access so add an integer stencil-size
         argument with intent in and kind i_def. The default name is
         <field_name>"_stencil_size", where <field_name> is the default
@@ -837,12 +850,12 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
             :py:class:`psyclone.domain.lfric.kernel.FieldArgMetadata`
 
         '''
-        field_name = self._field_name(meta_arg)
-        self._add_symbol_name(
+        field_name = cls._field_name(meta_arg)
+        cls._add_symbol_name(
             "LFRicIntegerScalar", f"{field_name}_stencil_size")
 
     @classmethod
-    def _stencil_unknown_direction(self, meta_arg):
+    def _stencil_unknown_direction(cls, meta_arg):
         '''The field entry stencil access is of type XORY1D so add an
         additional integer direction argument of kind i_def and with
         intent in, with default name <field_name>"_direction", where
@@ -855,11 +868,11 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
             :py:class:`psyclone.domain.lfric.kernel.FieldArgMetadata`
 
         '''
-        field_name = self._field_name(meta_arg)
-        self._add_symbol_name("LFRicIntegerScalar", f"{field_name}_direction")
+        field_name = cls._field_name(meta_arg)
+        cls._add_symbol_name("LFRicIntegerScalar", f"{field_name}_direction")
 
     @classmethod
-    def _stencil_2d(self, meta_arg):
+    def _stencil_2d(cls, meta_arg):
         '''Stencil information that is passed from the Algorithm layer if the
         stencil is 'cross2d'. Add a 3D stencil dofmap array of type
         integer, kind i_def and intent in. The dimensions are
@@ -873,12 +886,12 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
             :py:class:`psyclone.domain.lfric.kernel.FieldArgMetadata`
 
         '''
-        field_name = self._field_name(meta_arg)
-        self._add_symbol_name(
+        field_name = cls._field_name(meta_arg)
+        cls._add_symbol_name(
             "LFRicIntegerScalar", f"{field_name}_stencil_dofmap")
 
     @classmethod
-    def _stencil(self, meta_arg):
+    def _stencil(cls, meta_arg):
         '''Stencil information that is passed from the Algorithm layer if the
         stencil is not 'cross2d'. Add a 2D stencil dofmap array of
         type integer, kind i_def and intent in. The dimensions are
@@ -892,13 +905,13 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
             :py:class:`psyclone.domain.lfric.kernel.FieldArgMetadata`
 
         '''
-        field_name = self._field_name(meta_arg)
+        field_name = cls._field_name(meta_arg)
         print("TO BE DONE")
         exit(1)
-        # self._add_symbol_name(f"{field_name}_stencil_dofmap")
+        # cls._add_symbol_name(f"{field_name}_stencil_dofmap")
 
     @classmethod
-    def _banded_dofmap(self, function_space, cma_operator):
+    def _banded_dofmap(cls, function_space, cma_operator):
         '''Adds a banded dofmap for the provided function space and cma
         operator when there is an assembly cma kernel.
 
@@ -916,14 +929,14 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
             ColumnwiseOperatorArgMetadata`
 
         '''
-        function_space_name = self._function_space_name(function_space)
-        name = self._cma_operator_name(cma_operator)
+        function_space_name = cls._function_space_name(function_space)
+        name = cls._cma_operator_name(cma_operator)
         print("TO BE DONE")
         exit(1)
-        # self._add_symbol_name(f"cbanded_map_{function_space_name}_{name}")
+        # cls._add_symbol_name(f"cbanded_map_{function_space_name}_{name}")
 
     @classmethod
-    def _indirection_dofmap(self, function_space, cma_operator):
+    def _indirection_dofmap(cls, function_space, cma_operator):
         '''Adds an indirection dofmap for the provided function space and cma
         operator when there is an apply cma kernel.
 
@@ -951,23 +964,23 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
             ColumnwiseOperatorArgMetadata`
 
         '''
-        function_space_name = self._function_space_name(function_space)
-        name = self._cma_operator_name(cma_operator)
+        function_space_name = cls._function_space_name(function_space)
+        name = cls._cma_operator_name(cma_operator)
 
         print("TO BE DONE")
         exit(1)
-        # self._add_symbol_name("",
+        # cls._add_symbol_name("",
         #     f"cma_indirection_map_{function_space_name}_{name}")
 
     @classmethod
-    def _create_datatype(self, class_name):
+    def _create_datatype(cls, class_name):
         ''' xxx '''
         required_class = lfric.LFRicTypes(class_name)
         symbol = required_class()
         return symbol
 
     @classmethod
-    def _create_symbol(self, class_name, symbol_name, dims=None,
+    def _create_symbol(cls, class_name, symbol_name, dims=None,
                        access=symbols.ArgumentInterface.Access.READ):
         ''' xxx '''
         required_class = lfric.LFRicTypes(class_name)
@@ -976,34 +989,34 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
         else:
             symbol = required_class(symbol_name)
         symbol.interface = symbols.ArgumentInterface(access)
-        self._add_to_symbol_table(symbol)
+        cls._add_to_symbol_table(symbol)
         return symbol
 
     @classmethod
-    def _get_or_create_symbol(self, class_name, symbol_name,
+    def _get_or_create_symbol(cls, class_name, symbol_name,
                               access=symbols.ArgumentInterface.Access.READ):
         ''' xxx '''
         try:
-            symbol = self._info.lookup_with_tag(symbol_name)
+            symbol = cls._info.lookup_with_tag(symbol_name)
         except KeyError:
-            symbol = self._create_symbol(
+            symbol = cls._create_symbol(
                 class_name, symbol_name, access=access)
         return symbol
 
     @classmethod
-    def _add_to_symbol_table(self, symbol):
+    def _add_to_symbol_table(cls, symbol):
         ''' xxx '''
-        self._info.add(symbol, tag=symbol.name)
+        cls._info.add(symbol, tag=symbol.name)
 
     @classmethod
-    def _append_to_arg_list(self, symbol):
+    def _append_to_arg_list(cls, symbol):
         ''' xxx '''
-        self._info._argument_list.append(symbol)
+        cls._info._argument_list.append(symbol)
         # TODO???
         # symbol_table.specify_argument_list([arg1])
 
     @classmethod
-    def _add_symbol_name(self, class_name, symbol_name, dims=None,
+    def _add_symbol_name(cls, class_name, symbol_name, dims=None,
                          access=symbols.ArgumentInterface.Access.READ):
         '''Utility function to create an LFRic-PSyIR symbol of type class_name
         and name symbol_name and add it to the symbol table.
@@ -1012,12 +1025,12 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
         :param str symbol_name: the name of the symbol to be created.
 
         '''
-        symbol = self._create_symbol(
+        symbol = cls._create_symbol(
             class_name, symbol_name, dims=dims, access=access)
-        self._append_to_arg_list(symbol)
+        cls._append_to_arg_list(symbol)
 
     @classmethod
-    def _field_name(self, meta_arg):
+    def _field_name(cls, meta_arg):
         '''Utility function providing the default field name from its meta_arg
         metadata.
 
@@ -1030,11 +1043,11 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
 
         '''
         datatype = meta_arg.datatype[3:4]
-        meta_arg_index = self._metadata.meta_args.index(meta_arg)
+        meta_arg_index = cls._metadata.meta_args.index(meta_arg)
         return f"{datatype}field_{meta_arg_index+1}"
 
     @classmethod
-    def _operator_name(self, meta_arg):
+    def _operator_name(cls, meta_arg):
         '''Utility function providing the default field name from its meta_arg
         metadata.
 
@@ -1046,11 +1059,11 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
         :rtype: str
 
         '''
-        meta_arg_index = self._metadata.meta_args.index(meta_arg)
+        meta_arg_index = cls._metadata.meta_args.index(meta_arg)
         return f"op_{meta_arg_index+1}"
 
     @classmethod
-    def _cma_operator_name(self, meta_arg):
+    def _cma_operator_name(cls, meta_arg):
         '''Utility function providing the default cma operator name from its
         meta_arg metadata.
 
@@ -1062,11 +1075,11 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
         :rtype: str
 
         '''
-        meta_arg_index = self._metadata.meta_args.index(meta_arg)
+        meta_arg_index = cls._metadata.meta_args.index(meta_arg)
         return f"cma_op_{meta_arg_index+1}"
 
     @classmethod
-    def _function_space_name(self, function_space):
+    def _function_space_name(cls, function_space):
         '''Shortens the function space name if it is any_space_* or
         any_discontinuous_space_*.
 
@@ -1083,13 +1096,13 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
         return function_space
 
     @classmethod
-    def _undf_name(self, function_space):
+    def _undf_name(cls, function_space):
         ''' xxx '''
-        function_space_name = self._function_space_name(function_space)
+        function_space_name = cls._function_space_name(function_space)
         return f"undf_{function_space_name}"
 
     @classmethod
-    def _ndf_name(self, function_space):
+    def _ndf_name(cls, function_space):
         ''' xxx '''
-        function_space_name = self._function_space_name(function_space)
+        function_space_name = cls._function_space_name(function_space)
         return f"ndf_{function_space_name}"

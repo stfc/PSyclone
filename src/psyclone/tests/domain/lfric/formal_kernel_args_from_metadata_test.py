@@ -357,4 +357,44 @@ def test_ref_element_properties(monkeypatch):
     assert ("Unsupported reference element property 'invalid' found."
             in str(info.value))
 
-# pylint: enable=too-many-statements
+
+def test_mesh_properties(monkeypatch):
+    ''' Test _mesh_properties method. '''
+    # nfaces_re_h already passed
+    field_meta_arg = lfric.kernel.FieldArgMetadata("GH_REAL", "GH_WRITE", "W3")
+    meta_ref_element = lfric.kernel.MetaRefElementArgMetadata(
+        "normals_to_horizontal_faces")
+    meta_mesh_arg = lfric.kernel.MetaMeshArgMetadata("adjacent_face")
+    metadata = lfric.kernel.LFRicKernelMetadata(
+        operates_on="cell_column", meta_args=[field_meta_arg],
+        meta_ref_element=[meta_ref_element], meta_mesh=[meta_mesh_arg])
+    metadata.validate()
+    cls = call_method("_mesh_properties", [meta_mesh_arg], metadata=metadata)
+    check_arg_symbols(cls, OrderedDict([
+        ("adjacent_face", symbols.DataSymbol)]))
+    symbol = cls._info.lookup("adjacent_face")
+    assert symbol.is_array
+    assert len(symbol.datatype.shape) == 1
+    assert symbol.datatype.shape[0].upper.symbol.name == "nfaces_re_h"
+
+    # nfaces_re_h not yet passed
+    metadata = lfric.kernel.LFRicKernelMetadata(
+        operates_on="cell_column", meta_args=[field_meta_arg],
+        meta_mesh=[meta_mesh_arg])
+    metadata.validate()
+    cls = call_method("_mesh_properties", [meta_mesh_arg], metadata=metadata)
+    lfric_qr_xy_class = lfric.LFRicTypes("NumberOfQrPointsInXyDataSymbol")
+    check_arg_symbols(cls, OrderedDict([
+        ("nfaces_re_h", lfric_qr_xy_class),
+        ("adjacent_face", symbols.DataSymbol)]))
+    symbol = cls._info.lookup("adjacent_face")
+    assert symbol.is_array
+    assert len(symbol.datatype.shape) == 1
+    assert symbol.datatype.shape[0].upper.symbol.name == "nfaces_re_h"
+
+    # Exception
+    monkeypatch.setattr(meta_mesh_arg, "_mesh", "invalid")
+    with pytest.raises(InternalError) as info:
+        _ = call_method("_mesh_properties", [meta_mesh_arg], metadata=metadata)
+    assert ("Unexpected mesh property 'invalid' found. Expected "
+            "'adjacent_face'." in str(info.value))
