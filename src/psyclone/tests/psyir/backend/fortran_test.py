@@ -575,17 +575,18 @@ def test_fw_gen_use(fortran_writer):
     container_symbol = ContainerSymbol("my_module")
     symbol_table.add(container_symbol)
     symbol = DataSymbol("dummy1", DeferredType(),
-                        interface=ImportInterface(container_symbol))
+                        interface=ImportInterface(
+                            container_symbol, orig_name="orig_name"))
     symbol_table.add(symbol)
     symbol = RoutineSymbol(
         "my_sub", interface=ImportInterface(container_symbol))
     symbol_table.add(symbol)
     result = fortran_writer.gen_use(container_symbol, symbol_table)
-    assert result == "use my_module, only : dummy1, my_sub\n"
+    assert result == "use my_module, only : dummy1=>orig_name, my_sub\n"
 
     container_symbol.wildcard_import = True
     result = fortran_writer.gen_use(container_symbol, symbol_table)
-    assert "use my_module, only : dummy1, my_sub" not in result
+    assert "use my_module, only : dummy1=>orig_name, my_sub" not in result
     assert "use my_module\n" in result
 
     # container2 has no symbols associated with it and has not been marked
