@@ -101,6 +101,7 @@ INTENT_MAPPING = {"in": ArgumentInterface.Access.READ,
 #: Those routine prefix specifications that we support.
 SUPPORTED_ROUTINE_PREFIXES = ["ELEMENTAL", "PURE", "IMPURE"]
 
+
 # TODO #1987. It may be that this method could be made more general so
 # that it works for more intrinsics, to help minimise the number of
 # canonicalise_* functions.
@@ -828,6 +829,9 @@ def _process_routine_symbols(module_ast, symbol_table, visibility_map):
     :param visibility_map: dict of symbol names with explicit visibilities.
     :type visibility_map: dict with symbol names as keys and visibilities as \
                           values
+
+    :raises NotImplementedError: if an unsupported routine prefix is found.
+
     '''
     routines = walk(module_ast, (Fortran2003.Subroutine_Subprogram,
                                  Fortran2003.Function_Subprogram))
@@ -837,6 +841,7 @@ def _process_routine_symbols(module_ast, symbol_table, visibility_map):
     # return_symbol matches the type of the associated RoutineSymbol.
     type_map = {Fortran2003.Subroutine_Subprogram: NoType(),
                 Fortran2003.Function_Subprogram: DeferredType()}
+    import pdb; pdb.set_trace()
     for routine in routines:
         # Check any prefixes on the routine declaration.
         prefix = routine.children[0].children[0]
@@ -4338,8 +4343,7 @@ class Fparser2Reader():
                     if child.string not in SUPPORTED_ROUTINE_PREFIXES:
                         raise NotImplementedError()
                 else:
-                    base_type, _ = self._process_type_spec(
-                        parent, prefix.children[0])
+                    base_type, _ = self._process_type_spec(parent, child)
 
         if isinstance(node, Fortran2003.Function_Subprogram):
             # Check whether this function-stmt has a suffix containing

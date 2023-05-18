@@ -239,25 +239,6 @@ class Routine(Schedule, CommentableMixin):
         return self._is_program
 
     @property
-    def is_pure(self):
-        '''
-        :returns: whether this Routine has no side effects (guarantees only \
-                  to modify the data specified with INTENT OUT or INOUT in \
-                  its specification or None if this is not known.
-        :rtype: bool | NoneType
-        '''
-        return self.symbol.is_pure
-
-    @property
-    def is_elemental(self):
-        '''
-        :returns: whether this Routine is elemental (acts element-by-element \
-                  on supplied array arguments) or None if this is not known.
-        :rtype: bool | NoneType
-        '''
-        return self.symbol.is_elemental
-
-    @property
     def return_symbol(self):
         '''
         :returns: the symbol which will hold the return value of this Routine \
