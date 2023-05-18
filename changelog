@@ -436,9 +436,6 @@
 
 	147) PR #2095 towards #2091. Split off and rename DynInvoke to LFRicInvoke.
 
-	148) PR #2146 for #2145. Skip mybinder CI link checks as they occasionally
-	fail.
-
 release 2.3.1 17th of June 2022
 
 	1) PR #1747 for #1720. Adds support for If blocks to PSyAD.
