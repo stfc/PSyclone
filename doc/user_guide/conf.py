@@ -381,6 +381,6 @@ linkcheck_ignore = [r'^https://mybinder.org/v2/gh/stfc/psyclone',
 # is set earlier and depends on whether the docs are being built as part
 # of a CI run or not.
 intersphinx_mapping = {
-    'http://docs.python.org/': None,
+    'python': ('http://docs.python.org/', None),
     'dev_guide': (dev_guide_base, None),
     'psyad': ('https://psyclone-adjoint.readthedocs.io/en/latest', None)}
