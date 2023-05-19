@@ -47,13 +47,15 @@ from psyclone.core import (AccessType, SymbolicMaths,
                            VariablesAccessInfo)
 from psyclone.errors import InternalError, LazyString
 from psyclone.psyir.nodes import Loop
-from psyclone.parse import ModuleInfoError, ModuleManager
+from psyclone.parse import ModuleManager
 from psyclone.psyGen import BuiltIn, Kern
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.backend.sympy_writer import SymPyWriter
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.tools.read_write_info import ReadWriteInfo
 
+
+# pylint: disable=too-many-lines
 
 class DTCode(IntEnum):
     '''A simple enum to store the various info, warning and error
@@ -884,17 +886,29 @@ class DependencyTools():
                 read_write_info.add_write(signature)
 
     # -------------------------------------------------------------------------
-    def get_in_out_parameters(self, node_list, options=None):
+    def get_in_out_parameters(self, node_list, collect_non_local_symbols=False,
+                              options=None):
         '''Returns a ReadWriteInfo object that contains all variables that are
         input and output parameters to the specified node list. This function
         calls `get_input_parameter` and `get_output_parameter`, but avoids the
-        repeated computation of the variable usage.
+        repeated computation of the variable usage. If
+        `collect_non_local_symbols` is set to True, the code will also include
+        non-local symbols directly or indirectly, i.e. it will follow the call
+        tree as much as possible (e.g. it cannot resolve a procedure pointer,
+        since then it is not known which function is actually called)
+        and collect any other variables that will be read or written when
+        executing the nodes specified in the node list. The corresponding
+        module name for these variables will be included in the ReadWriteInfo
+        result object.
 
         :param node_list: list of PSyIR nodes to be analysed.
         :type node_list: List[:py:class:`psyclone.psyir.nodes.Node`]
         :param options: a dictionary with options for the dependency tools \
             which will also be used when creating the VariablesAccessInfo \
             instance if required.
+        :param bool collect_non_local_symbols: whether non-local symbols \
+            (i.e. symbols used in other modules either directly or \
+            indirectly) should be included in the in/out information.
         :type options: Optional[Dict[str, Any]]
         :param Any options["COLLECT-ARRAY-SHAPE-READS"]: if this option is \
             set to a True value, arrays used as first parameter to the \
@@ -910,6 +924,41 @@ class DependencyTools():
         read_write_info = ReadWriteInfo()
         self.get_input_parameters(read_write_info, node_list, variables_info)
         self.get_output_parameters(read_write_info, node_list, variables_info)
+        if not collect_non_local_symbols:
+            return read_write_info
+
+        # Now collect non-local accesses:
+        # Find all kernels called from the currently processed PSyIR.
+        mod_manager = ModuleManager.get()
+
+        # First collect all non-local symbols from the kernels called. They
+        # are collected in the todo list. This list will initially contain
+        # unknown accesses, since at this stage we cannot always differentiate
+        # between function calls and array accesses. In the resolve step
+        # that is following the corresponding modules will be queried and
+        # the right accesses (functions or variables) will be used.
+        todo = []
+        for node in node_list:
+            for kernel in node.walk(Kern):
+                if isinstance(kernel, BuiltIn):
+                    # Builtins don't have non-local accesses
+                    continue
+
+                # Get the non-local access information from the kernel
+                # by querying the module that contains the kernel:
+                try:
+                    mod_info = mod_manager.get_module_info(kernel.module_name)
+                except FileNotFoundError:
+                    print(f"Could not find module '{kernel.module_name}' - "
+                          f"ignored.")
+                    continue
+                routine_info = mod_info.get_routine_info(kernel.name)
+                non_locals = routine_info.get_non_local_symbols()
+                todo.extend(non_locals)
+
+        # Resolve routine calls and unknown accesses:
+        self._resolve_calls_and_unknowns(todo, read_write_info)
+
         return read_write_info
 
     # -------------------------------------------------------------------------
@@ -938,7 +987,7 @@ class DependencyTools():
         # pylint: disable=too-many-branches
         mod_manager = ModuleManager.get()
         done = set()
-        # Using a set here means that duplicated listings will automatically
+        # Using a set here means that duplicated entries will automatically
         # be filtered out.
         in_vars = set()
         out_vars = set()
@@ -1002,65 +1051,3 @@ class DependencyTools():
             read_write_info.add_read(signature, module_name)
         for module_name, signature in out_vars:
             read_write_info.add_write(signature, module_name)
-
-    # -------------------------------------------------------------------------
-    def get_in_out_parameters_recursive(self, node_list, options=None):
-        '''Return a 2-tuple of lists that contains all variables that are input
-        parameters (first entry) and output parameters (second entry).
-        This function calls get_in_out_parameter for the local accesses. It
-        will the recursively check all imported modules (using the module
-        manager) for any accesses to variables imported from other modules.
-        These accesses will be reported in the format (module)
-
-
-        :param node_list: list of PSyIR nodes to be analysed.
-        :type node_list: List[:py:class:`psyclone.psyir.nodes.Node`]
-        :param options: a dictionary with options for the dependency tools \
-            which will also be used when creating the VariablesAccessInfo \
-            instance if required.
-        :type options: Optional[Dict[str, Any]]
-        :param Any options["COLLECT-ARRAY-SHAPE-READS"]: if this option is \
-            set to a True value, arrays used as first parameter to the \
-            PSyIR operators lbound, ubound, or size will be reported as \
-            'read'. Otherwise, these accesses will be ignored.
-
-        :returns read_write_info: information about all input and output \
-            parameters.
-        :type read_write_info: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
-
-        '''
-        # pylint: disable=too-many-locals, too-many-branches
-        # pylint: disable=too-many-statements
-        read_write_info = self.get_in_out_parameters(node_list,
-                                                     options=options)
-        # Find all kernels called from the currently processed PSyIR.
-        # While this might contain too many calls (e.g. if only one
-        # kernel out of 10 is instrumented), but makes the implementation
-        # much easier, and it is expected that typically everything
-        # gets instrumented anyway.
-        mod_manager = ModuleManager.get()
-
-        # First collect all non-local symbols from the kernels called.
-        todo = []
-        for node in node_list:
-            for kernel in node.walk(Kern):
-                if isinstance(kernel, BuiltIn):
-                    # Builtins don't have non-local accesses
-                    continue
-
-                # Get the non-local access information from the kernel
-                # by querying the module that contains the kernel:
-                try:
-                    mod_info = mod_manager.get_module_info(kernel.module_name)
-                except FileNotFoundError:
-                    print(f"Could not find module '{kernel.module_name}' - "
-                          f"ignored.")
-                    continue
-                routine_info = mod_info.get_routine_info(kernel.name)
-                non_locals = routine_info.get_non_local_symbols()
-                todo.extend(non_locals)
-
-        # Resolve routine calls and unknown accesses:
-        self._resolve_calls_and_unknowns(todo, read_write_info)
-
-        return read_write_info

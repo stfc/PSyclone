@@ -148,7 +148,8 @@ class LFRicExtractTrans(ExtractTrans):
         my_options["region_name"] = region_name
         my_options["prefix"] = my_options.get("prefix", "extract")
         # TODO
-        read_write_info = dep.get_in_out_parameters_recursive(nodes)
+        read_write_info = \
+            dep.get_in_out_parameters(nodes, collect_non_local_symbols=True)
         my_options["read_write_info"] = read_write_info
         # Determine a unique postfix to be used for output variables
         # that avoid any name clashes
