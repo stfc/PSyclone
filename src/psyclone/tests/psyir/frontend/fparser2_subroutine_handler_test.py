@@ -342,9 +342,9 @@ def test_function_unsupported_derived_type(fortran_reader):
 @pytest.mark.parametrize("fn_prefix", ["elemental", "pure", "impure",
                                        "pure elemental"])
 @pytest.mark.parametrize("routine_type", ["function", "subroutine"])
-def test_elemental_prefix(fortran_reader, fn_prefix, routine_type):
-    '''Check that the frontend correctly handles a routine with the 'elemental'
-    prefix.'''
+def test_supported_prefix(fortran_reader, fn_prefix, routine_type):
+    '''Check that the frontend correctly handles a routine with the various
+    prefixes that the PSyIR supports.'''
     code = (
         f"module a\n"
         f"contains\n"

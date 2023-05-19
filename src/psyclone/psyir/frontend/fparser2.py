@@ -827,10 +827,8 @@ def _process_routine_symbols(module_ast, symbol_table, visibility_map):
     :param symbol_table: the SymbolTable to which to add the symbols.
     :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
     :param visibility_map: dict of symbol names with explicit visibilities.
-    :type visibility_map: dict with symbol names as keys and visibilities as \
-                          values
-
-    :raises NotImplementedError: if an unsupported routine prefix is found.
+    :type visibility_map: Dict[str, \
+        :py:class:`psyclone.psyir.symbols.Symbol.Visibility`]
 
     '''
     routines = walk(module_ast, (Fortran2003.Subroutine_Subprogram,

@@ -108,6 +108,15 @@ class RoutineSymbol(TypedSymbol):
     @is_pure.setter
     def is_pure(self, value):
         '''
+        Sets whether or not the Routine represented by this Symbol is \
+        guaranteed not to have side effects (see the corresponding property \
+        description).
+
+        :param value: the new value for the is_pure property.
+        :type value: NoneType | bool
+
+        :raises TypeError: if the type of the supplied value is invalid.
+
         '''
         if value is not None and not isinstance(value, bool):
             raise TypeError(f"is_pure for a {type(self).__name__} must be a "
@@ -127,6 +136,14 @@ class RoutineSymbol(TypedSymbol):
     @is_elemental.setter
     def is_elemental(self, value):
         '''
+        Sets whether or not the Routine represented by this Symbol is
+        elemental.
+
+        :param value: the new value for the is_elemental property.
+        :type value: NoneType | bool
+
+        :raises TypeError: if the type of the supplied value is invalid.
+
         '''
         if value is not None and not isinstance(value, bool):
             raise TypeError(f"is_elemental for a {type(self).__name__} must "
