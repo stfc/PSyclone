@@ -70,6 +70,17 @@ def test_call_init():
     assert call.children == []
 
 
+def test_call_is_elemental():
+    '''Test the is_elemental property of a Call is set correctly and can be
+    queried.'''
+    routine = RoutineSymbol("zaphod", NoType())
+    call = Call(routine)
+    assert call.is_elemental is None
+    routine = RoutineSymbol("beeblebrox", NoType(), is_elemental=True)
+    call = Call(routine)
+    assert call.is_elemental is True
+
+
 def test_call_equality():
     '''Test the __eq__ method of the Call class. '''
     # routine arguments
