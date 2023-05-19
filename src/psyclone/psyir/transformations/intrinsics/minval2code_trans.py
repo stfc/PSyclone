@@ -33,8 +33,8 @@
 # -----------------------------------------------------------------------------
 # Author: R. W. Ford, STFC Daresbury Lab
 
-'''Module providing a transformation from a PSyIR MAXVAL intrinsic to
-PSyIR code. This could be useful if the MAXVAL operator is not
+'''Module providing a transformation from a PSyIR MINVAL intrinsic to
+PSyIR code. This could be useful if the MINVAL operator is not
 supported by the back-end, the required parallelisation approach, or
 if the performance in the inline code is better than the intrinsic.
 
@@ -46,112 +46,112 @@ from psyclone.psyir.transformations.intrinsics.mms_base_trans import (
     MMSBaseTrans)
 
 
-class Maxval2CodeTrans(MMSBaseTrans):
-    '''Provides a transformation from a PSyIR MAXVAL Operator node to
+class Minval2CodeTrans(MMSBaseTrans):
+    '''Provides a transformation from a PSyIR MINVAL Operator node to
     equivalent code in a PSyIR tree. Validity checks are also
     performed.
 
-    If MAXVAL contains a single positional argument which is an array,
-    the maximum value of all of the elements in the array is returned
+    If MINVAL contains a single positional argument which is an array,
+    the minimum value of all of the elements in the array is returned
     in the the scalar R.
 
     .. code-block:: python
 
-        R = MAXVAL(ARRAY)
+        R = MINVAL(ARRAY)
 
     For example, if the array is two dimensional, the equivalent code
     for real data is:
 
     .. code-block:: python
 
-        R = TINY(R)
+        R = HUGE(R)
         DO J=LBOUND(ARRAY,2),UBOUND(ARRAY,2)
           DO I=LBOUND(ARRAY,1),UBOUND(ARRAY,1)
-            IF R < ARRAY(I,J) THEN
+            IF R > ARRAY(I,J) THEN
               R = ARRAY(I,J)
 
-    If the dimension argument is provided then the maximum value is
+    If the dimension argument is provided then the minimum value is
     returned along the row for each entry in that dimension:
 
     .. code-block:: python
 
-        R = MAXVAL(ARRAY, dimension=2)
+        R = MINVAL(ARRAY, dimension=2)
 
     If the array is two dimensional, the equivalent code
     for real data is:
 
     .. code-block:: python
 
-        R(:) = TINY(R)
+        R(:) = HUGE(R)
         DO J=LBOUND(ARRAY,2),UBOUND(ARRAY,2)
           DO I=LBOUND(ARRAY,1),UBOUND(ARRAY,1)
-            IF R(I) < ARRAY(I,J) THEN
+            IF R(I) > ARRAY(I,J) THEN
               R(I) = ARRAY(I,J)
 
     If the mask argument is provided then the mask is used to
-    determine whether the maxval is applied:
+    determine whether the minval is applied:
 
     .. code-block:: python
 
-        R = MAXVAL(ARRAY, mask=MOD(ARRAY, 2.0)==1)
+        R = MINVAL(ARRAY, mask=MOD(ARRAY, 2.0)==1)
 
     If the array is two dimensional, the equivalent code
     for real data is:
 
     .. code-block:: python
 
-        R = TINY(R)
+        R = HUGE(R)
         DO J=LBOUND(ARRAY,2),UBOUND(ARRAY,2)
           DO I=LBOUND(ARRAY,1),UBOUND(ARRAY,1)
             IF MOD(ARRAY(I,J), 2.0)==1 THEN
-              IF R < ARRAY(I,J) THEN
+              IF R > ARRAY(I,J) THEN
                 R = ARRAY(I,J)
 
     For example:
 
     >>> from psyclone.psyir.backend.fortran import FortranWriter
     >>> from psyclone.psyir.frontend.fortran import FortranReader
-    >>> from psyclone.psyir.transformations import Maxval2CodeTrans
-    >>> code = ("subroutine maxval_test(array,n,m)\\n"
+    >>> from psyclone.psyir.transformations import Minval2CodeTrans
+    >>> code = ("subroutine minval_test(array,n,m)\\n"
     ...         "  real :: array(10,10)\\n"
     ...         "  real :: result\\n"
-    ...         "  result = maxval(array)\\n"
+    ...         "  result = minval(array)\\n"
     ...         "end subroutine\\n")
     >>> psyir = FortranReader().psyir_from_source(code)
     >>> sum_node = psyir.children[0].children[0].children[1]
-    >>> Maxval2CodeTrans().apply(sum_node)
+    >>> Minval2CodeTrans().apply(sum_node)
     >>> print(FortranWriter()(psyir))
-    subroutine maxval_test(array, n, m)
+    subroutine minval_test(array, n, m)
       real, dimension(10,10) :: array
       real :: result
-      real :: maxval_var
+      real :: minval_var
       integer :: i_0
       integer :: i_1
     <BLANKLINE>
-      maxval_var = TINY(maxval_var)
+      minval_var = HUGE(minval_var)
       do i_1 = 1, 10, 1
         do i_0 = 1, 10, 1
-          if (maxval_var < array(i_0,i_1)) then
-            maxval_var = array(i_0,i_1)
+          if (minval_var > array(i_0,i_1)) then
+            minval_var = array(i_0,i_1)
           end if
         enddo
       enddo
-      result = maxval_var
+      result = minval_var
     <BLANKLINE>
-    end subroutine maxval_test
+    end subroutine minval_test
     <BLANKLINE>
 
     '''
-    _INTRINSIC_NAME = "MAXVAL"
+    _INTRINSIC_NAME = "MINVAL"
 
     def _loop_body(self, array_reduction, array_iterators, symbol_var,
                    array_ref):
-        '''Provide the body of the nested loop that computes the maximum value
+        '''Provide the body of the nested loop that computes the minimum value
         of an array.
 
         :param bool array_reduction: True if the implementation should \
-            provide a maximum over a particular array dimension and False \
-            if the maximum is for all elements the array.
+            provide a minimum over a particular array dimension and False \
+            if the minimum is for all elements the array.
         :param array_iterators: a list of datasymbols containing the \
             loop iterators ordered from outermost loop symbol to innermost \
             loop symbol.
@@ -160,14 +160,14 @@ class Maxval2CodeTrans(MMSBaseTrans):
         :param symbol_var: the symbol used to store the final result.
         :type symbol_var: :py:class:`psyclone.psyir.symbols.DataSymbol`
         :param array_ref: a reference to the array from which the
-            maximum is being determined.
+            minimum is being determined.
         :type array_ref: :py:class:`psyclone.psyir.nodes.ArrayReference`
 
         :returns: PSyIR for the body of the nested loop.
         :rtype: :py:class:`psyclone.psyir.nodes.IfBlock`
 
         '''
-        # maxval_var() = array(i...)
+        # minval_var() = array(i...)
         if array_reduction:
             array_indices = [Reference(iterator)
                              for iterator in array_iterators]
@@ -177,28 +177,28 @@ class Maxval2CodeTrans(MMSBaseTrans):
         rhs = array_ref
         assignment = Assignment.create(lhs, rhs)
 
-        # maxval_var() < array(i...)
+        # minval_var() > array(i...)
         lhs = lhs.copy()
         rhs = rhs.copy()
         if_condition = BinaryOperation.create(
-            BinaryOperation.Operator.LT, lhs, rhs)
+            BinaryOperation.Operator.GT, lhs, rhs)
 
-        # if maxval_var() < array(i...) then
-        #   maxval_var() = array(i...)
+        # if minval_var() > array(i...) then
+        #   minval_var() = array(i...)
         # end if
         return IfBlock.create(if_condition, [assignment])
 
     def _init_var(self, symbol_var):
-        '''The initial value for the variable that computes the maximum value
+        '''The initial value for the variable that computes the minimum value
         of an array.
 
         :param symbol_var: the symbol used to store the final result.
         :type symbol_var: :py:class:`psyclone.psyir.symbols.DataSymbol`
 
         :returns: PSyIR for the value to initialise the variable that \
-            computes the maximum value.
+            computes the minimum value.
         :rtype: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
 
         '''
         return IntrinsicCall.create(
-            IntrinsicCall.Intrinsic.TINY, [Reference(symbol_var)])
+            IntrinsicCall.Intrinsic.HUGE, [Reference(symbol_var)])

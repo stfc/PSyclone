@@ -185,9 +185,11 @@ def test_array_shape(fortran_reader, monkeypatch):
     monkeypatch.setattr(array_symbol._datatype, "_shape", [None])
 
     trans = Sum2CodeTrans()
-    with pytest.raises(TransformationError) as info:
+    with pytest.raises(TypeError) as info:
         trans.validate(sum_node)
-    assert ("Unexpected shape for array 'array': " in str(info.value))
+    assert ("ArrayType shape-list elements can only be 'int', "
+            "ArrayType.Extent, 'DataNode' or a 2-tuple thereof but found "
+            "'NoneType'." in str(info.value))
 
 
 def test_array_type_arg(fortran_reader):
@@ -359,7 +361,7 @@ def test_apply_dimension_multid(fortran_reader, fortran_writer):
         "  real, dimension(n,p) :: result\n"
         "  real, dimension(n,p) :: sum_var\n"
         "  integer :: i_0\n  integer :: i_1\n  integer :: i_2\n\n"
-        "  sum_var = 0.0\n"
+        "  sum_var(:,:) = 0.0\n"
         "  do i_2 = 1, p, 1\n"
         "    do i_1 = 1, m, 1\n"
         "      do i_0 = 1, n, 1\n"
@@ -367,7 +369,7 @@ def test_apply_dimension_multid(fortran_reader, fortran_writer):
         "      enddo\n"
         "    enddo\n"
         "  enddo\n"
-        "  result(:,:) = value1 + sum_var * value2\n\n"
+        "  result(:,:) = value1 + sum_var(:,:) * value2\n\n"
         "end subroutine sum_test\n")
     psyir = fortran_reader.psyir_from_source(code)
     # FileContainer/Routine/Assignment/BinaryOperation(ADD)/
@@ -403,7 +405,7 @@ def test_apply_dimension_multid_unknown(fortran_reader, fortran_writer):
         "  integer :: i_0\n"
         "  integer :: i_1\n"
         "  integer :: i_2\n\n"
-        "  sum_var = 0.0\n"
+        "  sum_var(:,:) = 0.0\n"
         "  do i_2 = LBOUND(array, 3), UBOUND(array, 3), 1\n"
         "    do i_1 = LBOUND(array, 2), UBOUND(array, 2), 1\n"
         "      do i_0 = LBOUND(array, 1), UBOUND(array, 1), 1\n"
@@ -411,7 +413,7 @@ def test_apply_dimension_multid_unknown(fortran_reader, fortran_writer):
         "      enddo\n"
         "    enddo\n"
         "  enddo\n"
-        "  result(:,:) = value1 + sum_var * value2\n\n"
+        "  result(:,:) = value1 + sum_var(:,:) * value2\n\n"
         "end subroutine sum_test\n")
     psyir = fortran_reader.psyir_from_source(code)
     # FileContainer/Routine/Assignment/BinaryOperation(ADD)/
@@ -448,7 +450,7 @@ def test_apply_dimension_multid_range(fortran_reader, fortran_writer):
         "  real, dimension(n,p) :: result\n"
         "  real, dimension(n,p) :: sum_var\n"
         "  integer :: i_0\n  integer :: i_1\n  integer :: i_2\n\n"
-        "  sum_var = 0.0\n"
+        "  sum_var(:,:) = 0.0\n"
         "  do i_2 = 1, p, 1\n"
         "    do i_1 = m - 1, m, 1\n"
         "      do i_0 = 1, n, 1\n"
@@ -456,7 +458,7 @@ def test_apply_dimension_multid_range(fortran_reader, fortran_writer):
         "      enddo\n"
         "    enddo\n"
         "  enddo\n"
-        "  result(:,:) = value1 + sum_var * value2\n\n"
+        "  result(:,:) = value1 + sum_var(:,:) * value2\n\n"
         "end subroutine sum_test\n")
     psyir = fortran_reader.psyir_from_source(code)
     # FileContainer/Routine/Assignment/BinaryOperation(ADD)/
@@ -528,7 +530,7 @@ def test_mask_dimension():
         "  real, dimension(10) :: sum_var\n"
         "  integer :: i_0\n"
         "  integer :: i_1\n\n"
-        "  sum_var = 0.0\n"
+        "  sum_var(:) = 0.0\n"
         "  do i_1 = 1, 10, 1\n"
         "    do i_0 = 1, 10, 1\n"
         "      if (MOD(array(i_0,i_1), 2.0) == 1) then\n"
@@ -536,7 +538,7 @@ def test_mask_dimension():
         "      end if\n"
         "    enddo\n"
         "  enddo\n"
-        "  result = sum_var\n\n"
+        "  result = sum_var(:)\n\n"
         "end program sum_test")
     reader = FortranReader()
     psyir = reader.psyir_from_source(code)

@@ -40,6 +40,7 @@ by the back-end or if the performance in the inline code is better
 than the intrinsic.
 
 '''
+from abc import ABC, abstractmethod
 
 from psyclone.psyir.nodes import (
     BinaryOperation, Assignment, Reference,
@@ -51,7 +52,7 @@ from psyclone.psyir.transformations.transformation_error import \
     TransformationError
 
 
-class MMSBaseTrans(Transformation):
+class MMSBaseTrans(Transformation, ABC):
     '''Provides a transformation from a PSyIR SUM Operator node to
     equivalent code in a PSyIR tree. Validity checks are also
     performed.
@@ -369,7 +370,10 @@ class MMSBaseTrans(Transformation):
                 array_iterators.append(loop_iterator)
 
         # Initialise the temporary variable.
-        new_assignment = self._init_var(symbol_sum_var, scalar_type, array_ref, loop_bounds, loop_iterators, array_iterators, array_reduction, dimension_literal)
+        # new_assignment = self._init_var(symbol_sum_var, scalar_type, array_ref, loop_bounds, loop_iterators, array_iterators, array_reduction, dimension_literal)
+        rhs = self._init_var(symbol_sum_var)
+        lhs = reference.copy()
+        new_assignment = Assignment.create(lhs, rhs)
         assignment.parent.children.insert(assignment.position, new_assignment)
 
         array_indices = []
@@ -397,34 +401,10 @@ class MMSBaseTrans(Transformation):
 
         assignment.parent.children.insert(assignment.position, statement)
 
-    def _loop_body(self, array_reduction, array_iterators, symbol_sum_var, array_ref):
-        ''' xxx '''
-        if array_reduction:
-            # sum_var(i,...) = sum_var(i,...) + array(i,...)
-            array_indices = [Reference(iterator)
-                             for iterator in array_iterators]
-            lhs = ArrayReference.create(symbol_sum_var, array_indices)
-            array_indices = [Reference(iterator)
-                             for iterator in array_iterators]
-            rhs_child1 = ArrayReference.create(symbol_sum_var, array_indices)
-        else:
-            # sum_var = sum_var + array(i,...)
-            lhs = Reference(symbol_sum_var)
-            rhs_child1 = Reference(symbol_sum_var)
+    @abstractmethod
+    def _loop_body(self, array_reduction, array_iterators, symbol_var, array_ref):
+        pass
 
-        rhs_child2 = array_ref
-        rhs = BinaryOperation.create(BinaryOperation.Operator.ADD, rhs_child1,
-                                     rhs_child2)
-        return Assignment.create(lhs, rhs)
-
-    def _init_var(self, symbol_sum_var, scalar_type, _1, _2, _3, _4, _5, _6):
-        ''' xxx '''
-        # sum_var=0.0 or 0
-        lhs = Reference(symbol_sum_var)
-        if scalar_type.intrinsic == scalar_type.Intrinsic.REAL:
-            rhs = Literal("0.0", scalar_type)
-        elif scalar_type.intrinsic == scalar_type.Intrinsic.INTEGER:
-            rhs = Literal("0", scalar_type)
-        # Note, the validate method guarantees that an else branch is
-        # not required.
-        return Assignment.create(lhs, rhs)
+    @abstractmethod
+    def _init_var(self, symbol_var):
+        pass
