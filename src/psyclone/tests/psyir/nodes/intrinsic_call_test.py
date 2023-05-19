@@ -82,7 +82,7 @@ def test_intrinsiccall_is_elemental():
 
     '''
     intrinsic = IntrinsicCall(IntrinsicCall.Intrinsic.SUM)
-    assert not intrinsic.is_elemental()
+    assert intrinsic.is_elemental is False
 
 
 def test_intrinsiccall_alloc_create():

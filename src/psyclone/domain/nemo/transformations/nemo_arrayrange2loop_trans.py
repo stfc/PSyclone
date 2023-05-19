@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
-# Modified S. Siso and N. Nobre, STFC Daresbury Lab
+# Modified A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 
 '''Module providing a transformation that given an Assignment node to an
 ArrayReference in its left-hand-side which has at least one PSyIR Range
@@ -41,7 +41,6 @@ to the equivalent explicit loop representation using a NemoLoop node.
 
 '''
 
-from __future__ import absolute_import
 from psyclone.domain.nemo.transformations.create_nemo_kernel_trans import \
     CreateNemoKernelTrans
 from psyclone.errors import LazyString, InternalError
@@ -115,8 +114,6 @@ class NemoArrayRange2LoopTrans(Transformation):
         '''
         self.validate(node)
 
-        array_reference = node.parent
-        array_index = node.parent.indices.index(node)
         assignment = node.ancestor(Assignment)
         parent = assignment.parent
         # Ensure we always use the routine-level symbol table
@@ -198,6 +195,8 @@ class NemoArrayRange2LoopTrans(Transformation):
         :raises TransformationError: if the node argument has nested array \
             expressions with Ranges or is an invalid tree with ranges in \
             multiple locations of a structure of arrays.
+        :raises TransformationError: if the node argument contains a \
+            non-elemental Operation or Call.
 
         '''
         # Am I Range node?
@@ -238,23 +237,31 @@ class NemoArrayRange2LoopTrans(Transformation):
                     f" that contain nested Range structures, but found:"
                     f"\n{assignment.debug_string()}"))
 
-        # Does the rhs of the assignment have any operations that are not
+        # Does the rhs of the assignment have any operations/calls that are not
         # elemental?
-        for operation in assignment.rhs.walk(Operation):
+        for cnode in assignment.rhs.walk((Operation, Call)):
             # Allow non elemental UBOUND and LBOUND
-            if operation.operator is BinaryOperation.Operator.LBOUND:
-                continue
-            if operation.operator is BinaryOperation.Operator.UBOUND:
-                continue
-            if not operation.is_elemental():
-                raise TransformationError(
-                    f"Error in NemoArrayRange2LoopTrans transformation. This "
-                    f"transformation does not support non-elemental operations"
-                    f" on the rhs of the associated Assignment node, but found"
-                    f" '{operation.operator.name}'.")
+            if isinstance(cnode, Operation):
+                if cnode.operator is BinaryOperation.Operator.LBOUND:
+                    continue
+                if cnode.operator is BinaryOperation.Operator.UBOUND:
+                    continue
+                name = cnode.operator.name
+                type_txt = "Operation"
+            else:
+                name = cnode.routine.name
+                type_txt = "Call"
+            if not cnode.is_elemental:
+                # pylint: disable=cell-var-from-loop
+                raise TransformationError(LazyString(
+                    lambda: f"Error in NemoArrayRange2LoopTrans "
+                    f"transformation. This transformation does not support non"
+                    f"-elemental {type_txt}s on the rhs of the associated "
+                    f"Assignment node, but found '{name}' in:\n"
+                    f"{assignment.debug_string()}'."))
 
         # Do a single walk to avoid doing a separate one for each type we need
-        nodes_to_check = assignment.walk((CodeBlock, Call, Reference))
+        nodes_to_check = assignment.walk((CodeBlock, Reference))
 
         # Do not allow to transform expressions with CodeBlocks
         if any(isinstance(n, CodeBlock) for n in nodes_to_check):
@@ -262,15 +269,6 @@ class NemoArrayRange2LoopTrans(Transformation):
                 lambda: f"Error in NemoArrayRange2LoopTrans transformation. "
                 f"This transformation does not support array assignments that"
                 f" contain a CodeBlock anywhere in the expression, but found:"
-                f"\n{assignment.debug_string()}"))
-        # Do not allow to transform expressions with function calls (to allow
-        # this we need to differentiate between elemental and not elemental
-        # functions as they have different semantics in array notation)
-        if any(isinstance(n, Call) for n in nodes_to_check):
-            raise TransformationError(LazyString(
-                lambda: f"Error in NemoArrayRange2LoopTrans transformation. "
-                f"This transformation does not support array assignments that"
-                f" contain a Call anywhere in the expression, but found:"
                 f"\n{assignment.debug_string()}"))
 
         references = [n for n in nodes_to_check if isinstance(n, Reference)]
