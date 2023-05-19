@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2022, Science and Technology Facilities Council.
+# Copyright (c) 2020-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -37,7 +37,6 @@
 
 ''' This module contains the pytest tests for the Routine class. '''
 
-from __future__ import absolute_import
 import pytest
 from psyclone.psyir.nodes import Routine, Assignment, Reference, Literal, \
     ScopingNode
@@ -112,8 +111,9 @@ def test_routine_name_setter_preexisting_tag():
     with pytest.raises(KeyError) as err:
         node2 = Routine("bye", symbol_table=symtab.deep_copy())
     assert ("Can't assign bye as the routine name because its symbol table "
-            "contains a symbol (hello: RoutineSymbol<NoType>) already tagged "
-            "as 'own_routine_symbol'." in str(err.value))
+            "contains a symbol (hello: RoutineSymbol<NoType, pure=unknown, "
+            "elemental=unknown>) already tagged as 'own_routine_symbol'."
+            in str(err.value))
 
     # But it is fine if the name is the same
     node2 = Routine("hello", symbol_table=symtab.deep_copy())
@@ -121,8 +121,8 @@ def test_routine_name_setter_preexisting_tag():
     assert node2.symbol_table is not node.symbol_table
     # And successive name changes are also fine
     node2.name = "bye"
-    assert node2.symbol_table.lookup_with_tag("own_routine_symbol").name == \
-        "bye"
+    assert (node2.symbol_table.lookup_with_tag("own_routine_symbol").name ==
+            "bye")
 
 
 def test_routine_return_symbol_setter():

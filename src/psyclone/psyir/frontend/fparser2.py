@@ -841,24 +841,32 @@ def _process_routine_symbols(module_ast, symbol_table, visibility_map):
     # return_symbol matches the type of the associated RoutineSymbol.
     type_map = {Fortran2003.Subroutine_Subprogram: NoType(),
                 Fortran2003.Function_Subprogram: DeferredType()}
-    import pdb; pdb.set_trace()
+
     for routine in routines:
-        # Check any prefixes on the routine declaration.
-        prefix = routine.children[0].children[0]
+
         # Fortran routines are impure by default.
         is_pure = False
         # By default, Fortran routines are not elemental.
         is_elemental = False
+        # Name of the routine.
         name = str(routine.children[0].children[1]).lower()
+        # Type to give the RoutineSymbol.
+        sym_type = type_map[type(routine)]
+        # Visibility of the symbol.
+        vis = visibility_map.get(name, symbol_table.default_visibility)
+
+        # Check any prefixes on the routine declaration.
+        prefix = routine.children[0].children[0]
         if prefix:
             for child in prefix.children:
                 if isinstance(child, Fortran2003.Prefix_Spec):
                     prefix_text = child.string
                     if prefix_text not in SUPPORTED_ROUTINE_PREFIXES:
-                        raise NotImplementedError(
-                            f"Routine '{name}' has prefix '{prefix_text}' "
-                            f"which is not supported. (Supported values are: "
-                            f"{SUPPORTED_ROUTINE_PREFIXES}).")
+                        # An unsupported prefix. We mark that here by giving
+                        # the RoutineSymbol an UnknownFortranType. The routine
+                        # itself will be put into a CodeBlock by
+                        # _subroutine_handler.
+                        sym_type = UnknownFortranType(str(routine.children[0]))
                     if child.string == "PURE":
                         is_pure = True
                     elif child.string == "IMPURE":
@@ -866,8 +874,7 @@ def _process_routine_symbols(module_ast, symbol_table, visibility_map):
                     elif child.string == "ELEMENTAL":
                         is_elemental = True
 
-        vis = visibility_map.get(name, symbol_table.default_visibility)
-        rsymbol = RoutineSymbol(name, type_map[type(routine)], visibility=vis,
+        rsymbol = RoutineSymbol(name, sym_type, visibility=vis,
                                 is_pure=is_pure, is_elemental=is_elemental,
                                 interface=DefaultModuleInterface())
         symbol_table.add(rsymbol)
@@ -4343,7 +4350,16 @@ class Fparser2Reader():
                     if child.string not in SUPPORTED_ROUTINE_PREFIXES:
                         raise NotImplementedError()
                 else:
-                    base_type, _ = self._process_type_spec(parent, child)
+                    try:
+                        base_type, _ = self._process_type_spec(parent, child)
+                    except NotImplementedError as err:
+                        # The type specification is unsupported so change the
+                        # type of the corresponding Symbol to be
+                        # UnknownFortranType.
+                        base_type = UnknownFortranType(str(node.children[0]))
+                        sym = parent.scope.symbol_table.lookup(name)
+                        sym.datatype = base_type
+                        raise err
 
         if isinstance(node, Fortran2003.Function_Subprogram):
             # Check whether this function-stmt has a suffix containing
@@ -4375,7 +4391,9 @@ class Fparser2Reader():
                         # The type of the return value was not specified in the
                         # function prefix either therefore we have no explicit
                         # type information for it.
-                        raise NotImplementedError()
+                        raise NotImplementedError(
+                            f"No explicit type information found for "
+                            f"function '{name}'")
                     # Remove the RoutineSymbol ready to replace it with a
                     # DataSymbol.
                     routine.symbol_table.remove(symbol)

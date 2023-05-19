@@ -339,26 +339,26 @@ def test_function_unsupported_derived_type(fortran_reader):
     assert sym.datatype.declaration.lower() == "type(my_type), pointer :: var1"
 
 
+@pytest.mark.parametrize("fn_prefix", ["elemental", "pure", "impure",
+                                       "pure elemental"])
 @pytest.mark.parametrize("routine_type", ["function", "subroutine"])
-def test_elemental_prefix(fortran_reader, routine_type):
+def test_elemental_prefix(fortran_reader, fn_prefix, routine_type):
     '''Check that the frontend correctly handles a routine with the 'elemental'
     prefix.'''
     code = (
         f"module a\n"
         f"contains\n"
-        f"  elemental {routine_type} my_func()\n"
+        f"  {fn_prefix} {routine_type} my_func()\n"
+        f"    real :: my_func\n"
         f"    my_func = 1.0\n"
         f"  end {routine_type} my_func\n"
         f"end module\n")
     psyir = fortran_reader.psyir_from_source(code)
     routine = psyir.walk(Routine)[0]
-    assert routine.is_elemental is True
-
-
-def test_pure_prefix(fortran_reader):
-    '''Check that the frontend correctly handles a routine with the 'pure'
-    prefix.'''
-    assert 0
+    rsym = routine.parent.scope.symbol_table.lookup("my_func")
+    assert isinstance(rsym, RoutineSymbol)
+    assert rsym.is_elemental is ("elemental" in fn_prefix)
+    assert rsym.is_pure is fn_prefix.startswith("pure")
 
 
 @pytest.mark.parametrize("routine_type", ["function", "subroutine"])
@@ -370,11 +370,20 @@ def test_unsupported_routine_prefix(fortran_reader, fn_prefix, routine_type):
         f"module a\n"
         f"contains\n"
         f"  {fn_prefix} {routine_type} my_func()\n"
+        f"    real :: my_func\n"
         f"    my_func = 1.0\n"
         f"  end {routine_type} my_func\n"
         f"end module\n")
     psyir = fortran_reader.psyir_from_source(code)
     assert isinstance(psyir.children[0].children[0], CodeBlock)
+    # The Symbol for this routine should be of UnknownFortranType.
+    fsym = psyir.children[0].symbol_table.lookup("my_func")
+    assert isinstance(fsym, RoutineSymbol)
+    assert isinstance(fsym.datatype, UnknownFortranType)
+    # fparser is inconsistent in whether or not it puts empty parentheses after
+    # 'my_func' hence we test for 'in' rather than ==.
+    assert (f"{fn_prefix} {routine_type} my_func" in
+            fsym.datatype.declaration.lower())
 
 
 def test_unsupported_char_len_function(fortran_reader):
@@ -390,3 +399,7 @@ def test_unsupported_char_len_function(fortran_reader):
     cblock = psyir.children[0].children[0]
     assert isinstance(cblock, CodeBlock)
     assert "LEN = 2" in str(cblock.get_ast_nodes[0])
+    fsym = psyir.children[0].symbol_table.lookup("my_func")
+    assert isinstance(fsym, RoutineSymbol)
+    assert isinstance(fsym.datatype, UnknownFortranType)
+    assert fsym.datatype.declaration == "CHARACTER(LEN = 2) FUNCTION my_func()"

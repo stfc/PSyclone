@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council
+# Copyright (c) 2021-2023, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -528,7 +528,8 @@ def test_driver_creation_import_modules(fortran_reader):
     assert str(all_symbols["my_module"]) == \
         "my_module: ContainerSymbol<not linked>"
     mod_func = all_symbols["mod_func"]
-    assert str(mod_func) == "mod_func: RoutineSymbol<DeferredType>"
+    assert str(mod_func) == ("mod_func: RoutineSymbol<DeferredType, "
+                             "pure=unknown, elemental=unknown>")
 
 
 # -----------------------------------------------------------------------------
