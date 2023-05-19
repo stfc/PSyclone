@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2022, Science and Technology Facilities Council.
+# Copyright (c) 2020-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -91,30 +91,39 @@ def _get_array_bound(array, index):
     :rtype: (Literal, Literal, Literal) or \
         (BinaryOperation, BinaryOperation, Literal)
 
-    :raises TransformationError: if the shape of the array's symbol is \
+   :raises TransformationError: if the shape of the array's symbol is \
         not supported.
 
     '''
-    # Added import here to avoid circular dependencies.
-    # pylint: disable=import-outside-toplevel
-    from psyclone.psyir.transformations import TransformationError
+    # The 'shape' getter performs validation checks.
+    try:
+        my_dim = array.symbol.shape[index]
+    except TypeError as err:
+        # Added import here to avoid circular dependencies.
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.transformations import TransformationError
+        raise TransformationError(
+            f"Unsupported index type found for array '{array.name}': "
+            f"{err}") from err
 
-    my_dim = array.symbol.shape[index]
     if isinstance(my_dim, ArrayType.ArrayBounds):
         # Use .copy() to ensure we return new nodes.
         lower_bound = my_dim.lower.copy()
-        upper_bound = my_dim.upper.copy()
-    elif my_dim in [ArrayType.Extent.DEFERRED, ArrayType.Extent.ATTRIBUTE]:
+        if my_dim.upper == ArrayType.Extent.ATTRIBUTE:
+            # Assumed-shape array.
+            upper_bound = BinaryOperation.create(
+                BinaryOperation.Operator.UBOUND, Reference(array.symbol),
+                Literal(str(index), INTEGER_TYPE))
+        else:
+            upper_bound = my_dim.upper.copy()
+    else:
         lower_bound = BinaryOperation.create(
             BinaryOperation.Operator.LBOUND, Reference(array.symbol),
             Literal(str(index), INTEGER_TYPE))
         upper_bound = BinaryOperation.create(
             BinaryOperation.Operator.UBOUND, Reference(array.symbol),
             Literal(str(index), INTEGER_TYPE))
-    else:
-        raise TransformationError(
-            f"Unsupported index type '{type(my_dim).__name__}' found for "
-            f"dimension {index+1} of array '{array.name}'.")
+
     step = Literal("1", INTEGER_TYPE)
     return (lower_bound, upper_bound, step)
 

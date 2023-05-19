@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2022, Science and Technology Facilities Council.
+# Copyright (c) 2019-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -457,7 +457,7 @@ class ArrayType(DataType):
     @property
     def shape(self):
         '''
-        :returns: the shape of the symbol in column-major order \
+        :returns: the (validated) shape of the symbol in column-major order \
             (leftmost index is contiguous in memory) with each entry \
             representing an array dimension.
 
@@ -473,6 +473,7 @@ class ArrayType(DataType):
             entry is a DataNode that returns an int.
 
         '''
+        self._validate_shape(self._shape)
         return self._shape
 
     def _validate_shape(self, extents):
@@ -480,16 +481,19 @@ class ArrayType(DataType):
         implemented as a setter because the shape property is immutable.
 
         :param extents: list of extents, one for each array dimension.
-        :type extents: list of \
-            :py:class:`psyclone.psyir.symbols.ArrayType.Extent`, int \
-            or subclass of :py:class:`psyclone.psyir.nodes.DataNode` or \
-            2-tuple of int or `DataNode`.
+        :type extents: List[ \
+            :py:class:`psyclone.psyir.symbols.ArrayType.Extent` | int \
+            | :py:class:`psyclone.psyir.nodes.DataNode` | \
+            Tuple[int | :py:class:`psyclone.psyir.nodes.DataNode | \
+                  :py:class:`psyclone.psyir.symbols.ArrayType.Extent]]
 
         :raises TypeError: if extents is not a list.
         :raises TypeError: if one or more of the supplied extents is a \
             DataSymbol that is not a scalar integer or of Unknown/DeferredType.
         :raises TypeError: if one or more of the supplied extents is not an \
             int, ArrayType.Extent or DataNode.
+        :raises TypeError: if the extents contain an invalid combination of \
+            ATTRIBUTE/DEFERRED and known limits.
 
         '''
         # This import must be placed here to avoid circular
@@ -497,17 +501,23 @@ class ArrayType(DataType):
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.nodes import DataNode, Reference
 
-        def _validate_data_node(dim_node):
+        def _validate_data_node(dim_node, is_lower_bound=False):
             '''
             Checks that the supplied DataNode is valid as part of an
             array-shape specification.
 
-            :param dim_node: the DataNode to check.
-            :type dim_node: :py:class:`psyclone.psyir.nodes.DataNode`
+            :param dim_node: the node to check for validity.
+            :type dim_node: int | :py:class:`psyclone.psyir.nodes.DataNode`
+            :param bool is_lower_bound: whether the supplied node represents \
+                                        the lower bound of an array shape.
 
             :raises TypeError: if the DataNode is not valid in this context.
 
             '''
+            if isinstance(dim_node, int):
+                # An integer value is always valid.
+                return
+
             # When issue #1799 is addressed then check that the
             # datatype returned is an int (or is unknown). For the
             # moment, just check that if the DataNode is a
@@ -532,35 +542,61 @@ class ArrayType(DataType):
                 # TODO #1089 - add check that any References are not to a
                 # local datasymbol that is not constant (as this would have
                 # no value).
+                return
 
+            if isinstance(dim_node, ArrayType.Extent):
+                if is_lower_bound:
+                    raise TypeError(
+                        "If present, the lower bound in an ArrayType 'shape' "
+                        "must represent a value but found ArrayType.Extent")
+                return
+
+            if isinstance(dim_node, DataNode):
+                return
+
+            raise TypeError(
+                f"ArrayType shape-list elements can only be 'int', "
+                f"ArrayType.Extent, 'DataNode' or a 2-tuple thereof but found "
+                f"'{type(dim_node).__name__}'.")
+
+        # ---------------------------------------------------------------------
         if not isinstance(extents, list):
             raise TypeError(
                 f"ArrayType 'shape' must be of type list but found "
                 f"'{type(extents).__name__}'.")
 
         for dimension in extents:
-            if isinstance(dimension, DataNode):
-                _validate_data_node(dimension)
-            elif isinstance(dimension, tuple):
+            if isinstance(dimension, tuple):
                 if len(dimension) != 2:
                     raise TypeError(
-                        f"A DataSymbol shape-list element specifying lower "
+                        f"An ArrayType shape-list element specifying lower "
                         f"and upper bounds must be a 2-tuple but "
                         f"'{dimension}' has {len(dimension)} entries.")
-                for dim in dimension:
-                    if isinstance(dim, DataNode):
-                        _validate_data_node(dim)
-                    elif not isinstance(dim, int):
-                        raise TypeError(
-                            f"A DataSymbol shape-list element specifying lower"
-                            f" and upper bounds must be a 2-tuple containing "
-                            f"either int or DataNode entries but '{dimension}'"
-                            f" contains '{type(dim).__name__}'")
-            elif not isinstance(dimension, (self.Extent, int)):
+                _validate_data_node(dimension[0], is_lower_bound=True)
+                _validate_data_node(dimension[1])
+            else:
+                _validate_data_node(dimension)
+
+        if ArrayType.Extent.DEFERRED in extents:
+            if not all(dim == ArrayType.Extent.DEFERRED
+                       for dim in extents):
                 raise TypeError(
-                    f"DataSymbol shape list elements can only be 'int', "
-                    f"ArrayType.Extent, 'DataNode' or tuple but found "
-                    f"'{type(dimension).__name__}'.")
+                    f"A declaration of an allocatable array must have"
+                    f" the extent of every dimension as 'DEFERRED' but "
+                    f"found shape: {extents}.")
+
+        if ArrayType.Extent.ATTRIBUTE in extents:
+            # If we have an 'assumed-shape' array then *every*
+            # dimension must have an 'ATTRIBUTE' extent
+            for dim in extents:
+                if not (dim == ArrayType.Extent.ATTRIBUTE or
+                        (isinstance(dim, tuple) and
+                         dim[-1] == ArrayType.Extent.ATTRIBUTE)):
+                    raise TypeError(
+                        f"An assumed-shape array must have every "
+                        f"dimension unspecified (either as 'ATTRIBUTE' or "
+                        f"with the upper bound as 'ATTRIBUTE') but found "
+                        f"shape: {extents}.")
 
     def __str__(self):
         '''
@@ -569,7 +605,8 @@ class ArrayType(DataType):
             for the sake of brevity.
         :rtype: str
 
-        :raises InternalError: if an unsupported dimensions type is found.
+        :raises InternalError: if the shape of this datatype contains \
+            any elements that aren't ArrayBounds or ArrayType.Extent objects.
 
         '''
         dims = []
@@ -595,9 +632,11 @@ class ArrayType(DataType):
                 dims.append(f"'{dimension.name}'")
             else:
                 raise InternalError(
-                    f"ArrayType shape list elements can only be 'ArrayType."
-                    f"ArrayBounds', or 'ArrayType.Extent', but found "
-                    f"'{type(dimension).__name__}'.")
+                    f"Once constructed, every member of an ArrayType shape-"
+                    f"list should either be an ArrayBounds object or an "
+                    f"instance of ArrayType.Extent but found "
+                    f"'{type(dimension).__name__}'")
+
         return f"Array<{self._datatype}, shape=[{', '.join(dims)}]>"
 
     def __eq__(self, other):

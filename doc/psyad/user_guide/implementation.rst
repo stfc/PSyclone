@@ -556,14 +556,16 @@ Steps 1, 3, 5 and 6 are described in more detail below.
 Initialisation
 --------------
 
-All arguments to the TL kernel are initialised with pseudo-random numbers
+All real arguments to the TL kernel are initialised with pseudo-random numbers
 in the interval :math:`[0.0,1.0]` using the Fortran `random_number` intrinsic
-function. If the LFRic API is selected then only scalar and field arguments
+function. If the LFRic API is selected then only real scalar and field arguments
 are initialised in this way since arguments such as dof-maps contain
 essential information derived from the model configuration. In addition,
 those arguments flagged by the user (see :ref:`geom_kernel_args`) as
 containing geometric information (i.e. mesh coordinates or panel IDs) are
 passed through to the kernel from the Algorithm layer without modification.
+Integer and logical scalar arguments are currently just set to `1` and `.False`,
+respectively. This limitation is the subject of issue #2087.
 
 Inner Products
 --------------

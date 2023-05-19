@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022, Science and Technology Facilities Council.
+# Copyright (c) 2022-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
+# Modifications: A. R. Porter, STFC Daresbury Laboratory
 
 # This makefiles finds all subdirectories of $(LFRIC_PATH) and adds
 # include directives for each of these paths to F90FLAGS. For example.
@@ -46,7 +47,6 @@
 # DIRS: all subdirectories under $(LFRIC_PATH).
 # LFRIC_INCLUDE_FLAGS: the required include flags to compile using the
 #     LFRic infrastructure files.
-# F90FLAGS: $(LFRIC_INCLUDE_FLAGS) are appended.
 
 # If this file is used to determine the flags of an already compiled
 # version of the infrastructure library, the include path must use
@@ -60,5 +60,4 @@
 BUILD_PATH ?= $(LFRIC_PATH)
 DIRS := $(subst $(LFRIC_PATH),,\
 		    $(shell find $(LFRIC_PATH) -type d -print))
-LFRIC_INCLUDE_FLAGS := $(patsubst %,-I $(BUILD_PATH)/%,$(DIRS))
-F90FLAGS += $(LFRIC_INCLUDE_FLAGS)
+LFRIC_INCLUDE_FLAGS ?= $(patsubst %,-I $(BUILD_PATH)/%,$(DIRS))
