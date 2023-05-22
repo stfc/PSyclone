@@ -114,8 +114,8 @@ class LFRicExtractTrans(ExtractTrans):
         program. Then it will call apply of the base class.
 
         :param nodes: can be a single node or a list of nodes.
-        :type nodes: :py:obj:`psyclone.psyir.nodes.Node` or \
-                     List[:py:obj:`psyclone.psyir.nodes.Node`]
+        :type nodes: :py:class:`psyclone.psyir.nodes.Node` or \
+                     List[:py:class:`psyclone.psyir.nodes.Node`]
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
         :param str options["prefix"]: a prefix to use for the PSyData module \

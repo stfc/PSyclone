@@ -131,8 +131,8 @@ class GOceanExtractTrans(ExtractTrans):
         ExtractNode instance that will be inserted.).
 
         :param nodes: can be a single node or a list of nodes.
-        :type nodes: :py:obj:`psyclone.psyir.nodes.Node` or list of \
-                     :py:obj:`psyclone.psyir.nodes.Node`
+        :type nodes: :py:class:`psyclone.psyir.nodes.Node` or list of \
+                     :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
         :param str options["prefix"]: a prefix to use for the PSyData module \
