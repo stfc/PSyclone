@@ -44,10 +44,10 @@ class ReadWriteInfo:
     signature belongs to a local symbol, otherwise it is the name of
     the module from which it must be imported.
 
-    The information is stores in lists of tuples, the first element being
+    The information is stored in lists of tuples, the first element being
     the module name, the second the signature. When accessing any of these
     two lists, the getter will make sure that the lists are sorted. This
-    will guarantee that for example the kernel extraction and driver creation
+    will guarantee that, for example, the kernel extraction and driver creation
     read the variables in the same order.
     '''
 
@@ -61,7 +61,7 @@ class ReadWriteInfo:
     def read_list(self):
         ''':returns the sorted list of module_name,signature pairs that are \
             read.
-        :type: List[Tuple[str,:py:class:`psyclone.core.Signature`]]
+        :rtype: List[Tuple[str,:py:class:`psyclone.core.Signature`]]
 
         '''
         if not self._sorted:
@@ -86,7 +86,7 @@ class ReadWriteInfo:
     def write_list(self):
         ''':returns the sorted list of module_name,signature pairs that are \
             written.
-        :type: List[Tuple[str,:py:class:`psyclone.core.Signature`]]
+        :rtype: List[Tuple[str,:py:class:`psyclone.core.Signature`]]
 
         '''
         if not self._sorted:
@@ -112,8 +112,9 @@ class ReadWriteInfo:
         '''This property returns a set with all (module_name, Signature)
         tuples. Since it is a set this guarantees that each tuple is only
         listed once.
+
         :returns:  set with all (module_name, Signature) pairs.
-        :rtype: List[Set[str, :py:class:`psyclone.core.Signature`]]
+        :rtype: Set[Tuple[str, :py:class:`psyclone.core.Signature`]]
 
         '''
         return set(self._read_list) | set(self._write_list)
