@@ -2122,43 +2122,54 @@ class Fparser2Reader():
 
             if isinstance(node, Fortran2003.Interface_Block):
 
-                # We only support named interface blocks, and then only
-                # partially. Fortran standard R1203 says that:
-                #    interface-stmt = INTERFACE [ generic-spec ]
+                # Fortran 2003 standard R1203 says that:
+                #    interface-stmt is INTERFACE [ generic-spec ]
+                #                   or ABSTRACT INTERFACE
                 # where generic-spec is either (R1207) a generic-name or one
                 # of OPERATOR, ASSIGNMENT or dtio-spec.
-                if (not isinstance(node.children[0],
-                                   Fortran2003.Interface_Stmt) or
-                    not isinstance(node.children[0].children[0],
-                                   Fortran2003.Name)):
-                    # An unsupported interface definition will result in
-                    # the whole module containing this specification part
-                    # being put into a CodeBlock.
-                    raise NotImplementedError()
-                name = node.children[0].children[0].string.lower()
-                vis = visibility_map.get(
-                    name, parent.symbol_table.default_visibility)
-                # A named interface block corresponds to a RoutineSymbol.
-                # (There will be calls to it although there will be no
-                # corresponding implementation with that name.)
-                # We store its definition using an UnknownFortranType so that
-                # we can recreate it in the Fortran backend.
-                try:
-                    parent.symbol_table.add(
-                        RoutineSymbol(
-                            name, UnknownFortranType(str(node).lower()),
-                            interface=UnknownInterface(),
-                            visibility=vis))
-                except KeyError:
-                    # This symbol has already been declared. However
-                    # we still want to output the interface so we
-                    # store it in the PSyIR as an UnkownFortranType
-                    # with an internal name.
+                if not isinstance(node.children[0].children[0],
+                                  Fortran2003.Name):
+                    # This interface does not have a name so we store
+                    # it as a RoutineSymbol with an internal name and
+                    # with the content of the interface being kept
+                    # within an UnknownFortranType. As a result the
+                    # visibility and interface details of the
+                    # RoutineSymbol do not matter.
                     parent.symbol_table.new_symbol(
-                        root_name=f"_psyclone_internal_{name}",
+                        root_name="_psyclone_internal_interface",
                         symbol_type=RoutineSymbol,
-                        datatype=UnknownFortranType(str(node).lower()),
-                        visibility=vis)
+                        datatype=UnknownFortranType(str(node).lower()))
+                else:
+                    # This interface has a name.
+                    name = node.children[0].children[0].string.lower()
+                    vis = visibility_map.get(
+                        name, parent.symbol_table.default_visibility)
+                    # A named interface block corresponds to a
+                    # RoutineSymbol. (There will be calls to it
+                    # although there will be no corresponding
+                    # implementation with that name.) We store its
+                    # definition using an UnknownFortranType.
+                    try:
+                        parent.symbol_table.add(
+                            RoutineSymbol(
+                                name, UnknownFortranType(str(node).lower()),
+                                interface=UnknownInterface(),
+                                visibility=vis))
+                    except KeyError:
+                        # This symbol has already been declared. This
+                        # can happen when an interface overloads a
+                        # constructor for a type (as the interface
+                        # name is then the name of the type). However
+                        # we still want to capture the interface so we
+                        # store it in the PSyIR as an
+                        # UnknownFortranType with an internal name as
+                        # we do for unnamed interfaces.
+                        parent.symbol_table.new_symbol(
+                            root_name=f"_psyclone_internal_{name}",
+                            symbol_type=RoutineSymbol,
+                            interface=UnknownInterface(),
+                            datatype=UnknownFortranType(str(node).lower()),
+                            visibility=vis)
 
             elif isinstance(node, Fortran2003.Type_Declaration_Stmt):
                 try:
