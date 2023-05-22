@@ -65,8 +65,7 @@ from psyclone.domain.lfric import (FunctionSpace, KernCallAccArgList,
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 from psyclone.f2pygen import (AllocateGen, AssignGen, CallGen, CommentGen,
                               DeallocateGen, DeclGen, DoGen, IfThenGen,
-                              ModuleGen, SubroutineGen, TypeDeclGen, UseGen,
-                              PSyIRGen)
+                              ModuleGen, TypeDeclGen, UseGen, PSyIRGen)
 from psyclone.parse.kernel import KernelType, getkerneldescriptors
 from psyclone.parse.utils import ParseError
 
@@ -5464,8 +5463,8 @@ class DynBoundaryConditions(DynCollection):
 
     :param node: the Invoke or Kernel stub for which we are to handle \
                  any boundary conditions.
-                :py:class:`psyclone.domain.lfric.LFRicKern`
     :type node: :py:class:`psyclone.dynamo0p3.LFRicInvoke` or \
+                :py:class:`psyclone.domain.lfric.LFRicKern`
 
     :raises GenerationError: if a kernel named "enforce_bc_code" is found \
                              but does not have an argument on ANY_SPACE_1.
