@@ -53,117 +53,29 @@ from psyclone.psyir.transformations.transformation_error import \
 
 
 class MMSBaseTrans(Transformation, ABC):
-    '''Provides a transformation from a PSyIR SUM Operator node to
-    equivalent code in a PSyIR tree. Validity checks are also
-    performed.
-
-    If SUM contains a single positional argument which is an array,
-    all element on that array are summed and the result returned in
-    the scalar R.
-
-    .. code-block:: python
-
-        R = SUM(ARRAY)
-
-    For example, if the array is two dimensional, the equivalent code
-    for real data is:
-
-    .. code-block:: python
-
-        R = 0.0
-        DO J=LBOUND(ARRAY,2),UBOUND(ARRAY,2)
-          DO I=LBOUND(ARRAY,1),UBOUND(ARRAY,1)
-            R = R + ARRAY(I,J)
-
-    If the dimension argument is provided then only that dimension is
-    summed:
-
-    .. code-block:: python
-
-        R = SUM(ARRAY, dimension=2)
-
-    If the array is two dimensional, the equivalent code
-    for real data is:
-
-    .. code-block:: python
-
-        R(:) = 0.0
-        DO J=LBOUND(ARRAY,2),UBOUND(ARRAY,2)
-          DO I=LBOUND(ARRAY,1),UBOUND(ARRAY,1)
-            R(I) = R(I) + ARRAY(I,J)
-
-    If the mask argument is provided then the mask is used to
-    determine whether the sum is applied:
-
-    .. code-block:: python
-
-        R = SUM(ARRAY, mask=MOD(ARRAY, 2.0)==1)
-
-    If the array is two dimensional, the equivalent code
-    for real data is:
-
-    .. code-block:: python
-
-        R = 0.0
-        DO J=LBOUND(ARRAY,2),UBOUND(ARRAY,2)
-          DO I=LBOUND(ARRAY,1),UBOUND(ARRAY,1)
-            if (MOD(ARRAY(I,J), 2.0)==1):
-              R = R + ARRAY(I,J)
-
-    For example:
-
-    >>> from psyclone.psyir.backend.fortran import FortranWriter
-    >>> from psyclone.psyir.frontend.fortran import FortranReader
-    >>> from psyclone.psyir.transformations import Sum2CodeTrans
-    >>> code = ("subroutine sum_test(array,n,m)\\n"
-    ...         "  integer :: n, m\\n"
-    ...         "  real :: array(10,10)\\n"
-    ...         "  real :: result\\n"
-    ...         "  result = sum(array)\\n"
-    ...         "end subroutine\\n")
-    >>> psyir = FortranReader().psyir_from_source(code)
-    >>> sum_node = psyir.children[0].children[0].children[1]
-    >>> Sum2CodeTrans().apply(sum_node)
-    >>> print(FortranWriter()(psyir))
-    subroutine sum_test(array, n, m)
-      integer :: n
-      integer :: m
-      real, dimension(10,10) :: array
-      real :: result
-      real :: sum_var
-      integer :: i_0
-      integer :: i_1
-    <BLANKLINE>
-      sum_var = 0.0
-      do i_1 = 1, 10, 1
-        do i_0 = 1, 10, 1
-          sum_var = sum_var + array(i_0,i_1)
-        enddo
-      enddo
-      result = sum_var
-    <BLANKLINE>
-    end subroutine sum_test
-    <BLANKLINE>
+    '''An abstract parent class providing common functionality to the
+    sum2code_trans, minval2code_trans and maxval2_code trans
+    tranformations.
 
     '''
     _INTRINSIC_NAME = None
 
     @staticmethod
     def _get_args(node):
-        '''Utility method that returns the sum arguments, (array reference,
-        dimension and mask).
+        '''Utility method that returns the minval, maxval or sum arguments,
+        (array reference, dimension and mask).
 
-        :param node: a Sum intrinsic.
+        :param node: a minval, maxval or sum intrinsic.
         :type node: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
 
-        returns: a tuple containing the 3 sum arguments.
+        returns: a tuple containing the 3 arguments.
         rtype: Tuple[py:class:`psyclone.psyir.nodes.reference.Reference`, \
                      py:class:`psyclone.psyir.nodes.Literal` | \
                      :py:class:`psyclone.psyir.nodes.Reference`, \
                      Optional[:py:class:`psyclone.psyir.nodes.node`]]
 
         '''
-        # Determine the arguments to sum
+        # Determine the arguments to the intrinsic
         args = [None, None, None]
         arg_names_map = {"array": 0, "dim": 1, "mask": 2}
         for idx, child in enumerate(node.children):
@@ -180,7 +92,8 @@ class MMSBaseTrans(Transformation, ABC):
         return (array_ref, dimension_ref, mask_ref)
 
     def __str__(self):
-        return f"Convert the PSyIR {self._INTRINSIC_NAME} intrinsic to equivalent PSyIR code."
+        return (f"Convert the PSyIR {self._INTRINSIC_NAME} intrinsic "
+                "to equivalent PSyIR code.")
 
     def validate(self, node, options=None):
         '''Check that the input node is valid before applying the

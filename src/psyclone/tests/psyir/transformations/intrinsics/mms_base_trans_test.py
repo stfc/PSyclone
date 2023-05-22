@@ -1,0 +1,314 @@
+# -----------------------------------------------------------------------------
+# BSD 3-Clause License
+#
+# Copyright (c) 2023, Science and Technology Facilities Council.
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# * Redistributions of source code must retain the above copyright notice, this
+#   list of conditions and the following disclaimer.
+#
+# * Redistributions in binary form must reproduce the above copyright notice,
+#   this list of conditions and the following disclaimer in the documentation
+#   and/or other materials provided with the distribution.
+#
+# * Neither the name of the copyright holder nor the names of its
+#   contributors may be used to endorse or promote products derived from
+#   this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+# -----------------------------------------------------------------------------
+# Author: R. W. Ford, STFC Daresbury Laboratory
+
+'''Module containing tests for the mms_base_trans which is an abstract
+parent class for the sum2code_trans, minval2code_trans and
+maxval2code_trans transformations.
+
+'''
+import pytest
+
+#from psyclone.psyir.frontend.fortran import FortranReader
+#from psyclone.psyir.backend.fortran import FortranWriter
+from psyclone.psyir.nodes import IntrinsicCall, Reference, Literal, Assignment
+from psyclone.psyir.symbols import (
+    Symbol, BOOLEAN_TYPE, INTEGER_TYPE, DataSymbol, REAL_TYPE)
+from psyclone.psyir.transformations import TransformationError
+from psyclone.psyir.transformations.intrinsics.mms_base_trans import (
+    MMSBaseTrans)
+
+
+class TestTrans(MMSBaseTrans):
+    '''Utility class to allow the abstract MMSBaseTrans to be tested.'''
+
+    def _loop_body(self, _1, _2, _3, _4):
+        '''Minimal implementation of the abstract _loop_body method.'''
+        node = Assignment.create(Literal("99.0", REAL_TYPE), Literal("33.0", REAL_TYPE))
+        return node
+
+    def _init_var(self, _):
+        '''Minimal implementation of the abstract _init_var method.'''
+        node = Literal("99.0", REAL_TYPE)
+        return node
+
+
+class FakeSumTrans(TestTrans):
+    '''Utility class to allow the abstract MMSBaseTrans to be tested. Acts
+    as if it modifies the SUM intrinsic to help with testing.
+
+    '''
+    _INTRINSIC_NAME = "SUM"
+
+
+def test_init_exception():
+    '''Check that this class can't be created as it is abstract.'''
+    with pytest.raises(TypeError) as info:
+        _ = MMSBaseTrans()
+    assert ("Can't instantiate abstract class MMSBaseTrans with abstract "
+            "methods _init_var, _loop_body" in str(info.value))
+
+
+def test_get_args():
+    '''Check the _get_args static method works as expected.'''
+    # array
+    array_reference = Reference(Symbol("array"))
+    node = IntrinsicCall.create(IntrinsicCall.Intrinsic.SUM, [array_reference])
+    result = MMSBaseTrans._get_args(node)
+    assert result == (array_reference, None, None)
+
+    # array, mask, dim
+    mask_reference = Literal("true", BOOLEAN_TYPE)
+    dim_reference = Literal("1", INTEGER_TYPE)
+    node = IntrinsicCall.create(IntrinsicCall.Intrinsic.SUM, [
+        array_reference.copy(), ("mask", mask_reference),
+        ("dim", dim_reference)])
+    result = MMSBaseTrans._get_args(node)
+    assert result == (array_reference, dim_reference, mask_reference)
+
+
+def test_str():
+    ''' Check that the __str__ method behaves as expected. '''
+    assert str(TestTrans()) == ("Convert the PSyIR None intrinsic to "
+                                "equivalent PSyIR code.")
+    assert str(FakeSumTrans()) == ("Convert the PSyIR SUM intrinsic to "
+                                 "equivalent PSyIR code.")
+
+
+# validate method
+
+def test_validate_node():
+    '''Check that an incorrect node raises the expected exception.'''
+    trans = FakeSumTrans()
+    with pytest.raises(TransformationError) as info:
+        trans.validate(None)
+    assert ("Error in FakeSumTrans transformation. The supplied node "
+            "argument is not an intrinsic, found 'NoneType'."
+            in str(info.value))
+
+    intrinsic = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.MINVAL,
+        [Reference(DataSymbol("array", REAL_TYPE))])
+    with pytest.raises(TransformationError) as info:
+        trans.validate(intrinsic)
+    assert ("The supplied node argument is not a sum intrinsic, found "
+            "'MINVAL'." in str(info.value))
+
+
+def test_structure_error(fortran_reader):
+    '''Test that the transformation raises an exception if the array node
+    is part of a structure, as this is not currently supported.
+
+    '''
+    code = (
+        "subroutine sum_test(n,m)\n"
+        "  integer :: n, m\n"
+        "  type :: array_type\n"
+        "      real :: array(10,10)\n"
+        "  end type\n"
+        "  type(array_type) :: ref\n"
+        "  real :: result\n"
+        "  integer :: dimension\n"
+        "  result = sum(ref%array)\n"
+        "end subroutine\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    sum_node = psyir.children[0].children[0].children[1]
+    trans = FakeSumTrans()
+    with pytest.raises(TransformationError) as info:
+        trans.validate(sum_node)
+    assert ("FakeSumTrans only support arrays for the first argument, but "
+            "found 'StructureReference'." in str(info.value))
+
+
+def test_indexed_array_error(fortran_reader):
+    '''Test that the transformation raises an exception if the array node
+    has a literal index, as this is invalid.
+
+    '''
+    code = (
+        "subroutine sum_test(array,n,m)\n"
+        "  integer :: n, m\n"
+        "  real :: array(10,10)\n"
+        "  real :: result\n"
+        "  integer :: dimension\n"
+        "  result = sum(array(1,1))\n"
+        "end subroutine\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    sum_node = psyir.children[0].children[0].children[1]
+    trans = FakeSumTrans()
+    with pytest.raises(TransformationError) as info:
+        trans.validate(sum_node)
+    assert ("FakeSumTrans only supports arrays with array ranges, but "
+            "found a fixed dimension in 'array(1,1)'." in str(info.value))
+
+
+def test_dimension_arg(fortran_reader):
+    '''Test that the expected exception is raised if the dimension arg is
+    not a literal or a variable.
+
+    '''
+    code = (
+        "subroutine sum_test(array,n,m)\n"
+        "  integer :: n, m\n"
+        "  real :: array(10,10)\n"
+        "  real :: result\n"
+        "  integer :: dimension\n"
+        "  result = sum(array, dim=dimension*2)\n"
+        "end subroutine\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    # FileContainer/Routine/Assignment/UnaryOperation
+    sum_node = psyir.children[0].children[0].children[1]
+    trans = FakeSumTrans()
+    with pytest.raises(TransformationError) as info:
+        trans.validate(sum_node)
+    assert ("Can't find the value of the dimension argument. Expected it to "
+            "be a literal or a reference but found 'dimension * 2' which is "
+            "a 'BinaryOperation'." in str(info.value))
+
+
+def test_array_arg(fortran_reader):
+    '''Test that the expected exception is raised if the array argument is
+    not an array.
+
+    '''
+    code = (
+        "subroutine sum_test(array,n,m)\n"
+        "  integer :: n, m\n"
+        "  real :: array\n"
+        "  real :: result\n"
+        "  result = sum(array)\n"
+        "end subroutine\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    # FileContainer/Routine/Assignment/UnaryOperation
+    sum_node = psyir.children[0].children[0].children[1]
+    trans = FakeSumTrans()
+    with pytest.raises(TransformationError) as info:
+        trans.validate(sum_node)
+    assert "Expected 'array' to be an array." in str(info.value)
+
+
+def test_array_shape(fortran_reader, monkeypatch):
+    '''Tests that the expected exception is raised if the array shape is
+    not a valid value. Requires monkeypatching.
+
+    '''
+    code = (
+        "subroutine sum_test(array,n,m)\n"
+        "  integer :: n, m\n"
+        "  real :: array(1)\n"
+        "  real :: result\n"
+        "  result = sum(array)\n"
+        "end subroutine\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    # FileContainer/Routine/Assignment/UnaryOperation
+    sum_node = psyir.children[0].children[0].children[1]
+
+    # Modify array shape from sum_node to create exception
+    array_ref = sum_node.children[0]
+    array_symbol = array_ref.symbol
+    monkeypatch.setattr(array_symbol._datatype, "_shape", [None])
+
+    trans = FakeSumTrans()
+    with pytest.raises(TypeError) as info:
+        trans.validate(sum_node)
+    assert ("ArrayType shape-list elements can only be 'int', "
+            "ArrayType.Extent, 'DataNode' or a 2-tuple thereof but found "
+            "'NoneType'." in str(info.value))
+
+
+def test_array_type_arg(fortran_reader):
+    '''Test that the expected exception is raised if the array is an
+    unsupported datatype.
+
+    '''
+    code = (
+        "subroutine sum_test(array,n,m)\n"
+        "  integer :: n, m\n"
+        "  logical :: array(10)\n"
+        "  real :: result\n"
+        "  result = sum(array)\n"
+        "end subroutine\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    # FileContainer/Routine/Assignment/UnaryOperation
+    sum_node = psyir.children[0].children[0].children[1]
+    trans = FakeSumTrans()
+    with pytest.raises(TransformationError) as info:
+        trans.validate(sum_node)
+    assert ("Only real and integer types supported for array 'array', "
+            "but found 'BOOLEAN'." in str(info.value))
+
+
+# apply
+
+@pytest.mark.parametrize("idim1,idim2,rdim11,rdim12,rdim21,rdim22",
+                         [("10", "20", "1", "10", "1", "20"),
+                          ("n", "m", "1", "n", "1", "m"),
+                          ("0:n", "2:m", "0", "n", "2", "m"),
+                          (":", ":", "LBOUND(array, 1)", "UBOUND(array, 1)",
+                           "LBOUND(array, 2)", "UBOUND(array, 2)")])
+def test_apply_sum(idim1, idim2, rdim11, rdim12, rdim21, rdim22,
+                   fortran_reader, fortran_writer):
+    '''Test that a sum intrinsic as the only term on the rhs of an
+    assignment with a single array argument gets transformed as
+    expected. Test with known and unknown array sizes.
+
+    '''
+    code = (
+        f"subroutine sum_test(array,n,m)\n"
+        f"  integer :: n, m\n"
+        f"  real :: array({idim1},{idim2})\n"
+        f"  real :: result\n"
+        f"  result = sum(array)\n"
+        f"end subroutine\n")
+    expected = (
+        f"subroutine sum_test(array, n, m)\n"
+        f"  integer :: n\n  integer :: m\n"
+        f"  real, dimension({idim1},{idim2}) :: array\n"
+        f"  real :: result\n  real :: sum_var\n"
+        f"  integer :: i_0\n  integer :: i_1\n\n"
+        f"  sum_var = 99.0\n"
+        f"  do i_1 = {rdim21}, {rdim22}, 1\n"
+        f"    do i_0 = {rdim11}, {rdim12}, 1\n"
+        f"      99.0 = 33.0\n"
+        f"    enddo\n"
+        f"  enddo\n"
+        f"  result = sum_var\n\n"
+        f"end subroutine sum_test\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    # FileContainer/Routine/Assignment/UnaryOperation
+    sum_node = psyir.children[0].children[0].children[1]
+    trans = FakeSumTrans()
+    trans.apply(sum_node)
+    result = fortran_writer(psyir)
+    assert result == expected
