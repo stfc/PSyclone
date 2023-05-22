@@ -149,7 +149,6 @@ class LFRicExtractTrans(ExtractTrans):
         my_options["prefix"] = my_options.get("prefix", "extract")
         # Get the input- and output-parameters of the node list
         read_write_info = dep.get_in_out_parameters(nodes)
-        my_options["read_write_info"] = read_write_info
         # Determine a unique postfix to be used for output variables
         # that avoid any name clashes
         postfix = ExtractTrans.determine_postfix(read_write_info,
@@ -164,5 +163,7 @@ class LFRicExtractTrans(ExtractTrans):
                                               postfix=postfix,
                                               prefix=my_options["prefix"],
                                               region_name=region_name)
-
+        # The PSyData transformation needs to pass this object to
+        # the corresponding PSyData node, so add it to the option arguments.
+        my_options["read_write_info"] = read_write_info
         super().apply(nodes, my_options)
