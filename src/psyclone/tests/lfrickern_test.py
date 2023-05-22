@@ -439,3 +439,14 @@ def test_kern_all_updates_are_writes():
     # Change the GH_INC to be GH_WRITE.
     loop.kernel.args[1]._access = AccessType.WRITE
     assert loop.kernel.all_updates_are_writes
+
+
+def test_kern_local_vars():
+    ''' Check that the LFRicKern.local_vars() method returns the expected
+    names used by the Kernel that vary from one invocation to the next.
+
+    '''
+    kernel = LFRicKern()
+    # Get a scalar argument descriptor and set an invalid data type
+    output = kernel.local_vars()
+    assert output == []
