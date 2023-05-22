@@ -406,7 +406,10 @@ def test_kern_last_cell_all_colours():
 
 
 def test_kern_last_cell_all_colours_intergrid():
-    ''' Test the last_cell_all_colours property for an inter-grid LFRicKern. '''
+    ''' Test the last_cell_all_colours property for an inter-grid
+    LFRicKern.
+
+    '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "22.1_intergrid_restrict.f90"),
                            api=TEST_API)
@@ -447,6 +450,27 @@ def test_kern_local_vars():
 
     '''
     kernel = LFRicKern()
-    # Get a scalar argument descriptor and set an invalid data type
     output = kernel.local_vars()
     assert output == []
+
+
+def test_kern_not_coloured_inc(monkeypatch):
+    ''' Tests that there is no kernel argument with INC access when OpenMP
+    is applied without colouring.
+
+    '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    sched = psy.invokes.invoke_list[0].schedule
+    kern = sched.walk(LFRicKern)[0]
+    # Kernel is not coloured.
+    assert kern.is_coloured() is False
+    # Monkeypatch the Kernel so that it appears to be OpenMP parallel.
+    monkeypatch.setattr(kern, "is_openmp_parallel", lambda: True)
+    assert kern.is_openmp_parallel() is True
+    with pytest.raises(GenerationError) as err:
+        _ = psy.gen
+    assert ("Kernel 'testkern_code' has an argument with INC access and "
+            "therefore must be coloured in order to be parallelised with "
+            "OpenMP.")
