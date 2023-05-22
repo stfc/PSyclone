@@ -439,6 +439,9 @@
 	148) PR #2146 for #2145. Skip CI link checks for mybinder as they
 	occasionally fail.
 
+	149) PR #2135 towards #1618. Adds (limited) PSyIR support for Fortran
+	interfaces without a name.
+
 release 2.3.1 17th of June 2022
 
 	1) PR #1747 for #1720. Adds support for If blocks to PSyAD.
