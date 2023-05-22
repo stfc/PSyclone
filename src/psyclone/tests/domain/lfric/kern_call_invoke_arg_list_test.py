@@ -65,16 +65,16 @@ def test_kcial_generate(lfrickern):
     kcial = KernCallInvokeArgList(lfrickern, table)
     kcial.generate()
     assert len(kcial.fields) == 5
-    assert len(kcial.scalars) == 2
+    assert len(kcial.scalars) == 3
     # Check that we can call it repeatedly.
     kcial.generate()
     assert len(kcial.fields) == 5
     # Check that an unsupported scalar type gives the expected error.
-    lfrickern.arguments.args[0]._intrinsic_type = 'boolean'
+    lfrickern.arguments.args[0]._intrinsic_type = 'wrong'
     kcial = KernCallInvokeArgList(lfrickern, table)
     with pytest.raises(NotImplementedError) as err:
         kcial.generate()
-    assert "Scalar of type 'boolean' not supported" in str(err.value)
+    assert "Scalar of type 'wrong' not supported" in str(err.value)
 
 
 def test_kcial_generate_operator(lfrickern_op):

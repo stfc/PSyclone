@@ -39,7 +39,8 @@
 
 from fparser import api as fpapi
 from psyclone.core import AccessType
-from psyclone.domain.lfric import LFRicConstants
+from psyclone.domain.lfric import LFRicConstants, LFRicTypes
+
 from psyclone.domain.lfric.algorithm.psyir import (
     LFRicAlgorithmInvokeCall, LFRicBuiltinFunctorFactory, LFRicKernelFunctor)
 from psyclone.domain.lfric.algorithm.lfric_alg import LFRicAlg
@@ -47,8 +48,9 @@ from psyclone.errors import InternalError, GenerationError
 from psyclone.psyad.domain.common.adjoint_utils import (create_adjoint_name,
                                                         create_real_comparison,
                                                         find_container)
-from psyclone.psyir.nodes import (Call, Reference, ArrayReference, Assignment,
-                                  Literal, BinaryOperation, Routine)
+from psyclone.psyir.nodes import (
+    IntrinsicCall, Reference, ArrayReference, Assignment,
+    Literal, BinaryOperation, Routine)
 from psyclone.psyir.symbols import (ImportInterface, ContainerSymbol,
                                     ScalarType, ArrayType, RoutineSymbol,
                                     DataTypeSymbol, DataSymbol, DeferredType)
@@ -80,6 +82,9 @@ def _compute_lfric_inner_products(prog, scalars, field_sums, sum_sym):
                                     Literal("0.0", sum_sym.datatype)))
     for scalar in scalars:
         # Compute the product of the pair of scalars: scalar[0]*scalar[1]
+        # (unless they are boolean).
+        if scalar[0].datatype.intrinsic == ScalarType.Intrinsic.BOOLEAN:
+            continue
         prod = BinaryOperation.create(BinaryOperation.Operator.MUL,
                                       Reference(scalar[0]),
                                       Reference(scalar[1]))
@@ -325,6 +330,54 @@ def _init_operators_random(operators, table):
     return kernel_list
 
 
+def _init_scalar_value(scalar_arg, routine, input_symbols):
+    '''
+    Extends the supplied Routine with the necessary statements to initialise
+    the supplied scalar argument. If that argument appears in the
+    `input_symbols` dict then its initial value is also assigned to the Symbol
+    in the dict entry.
+
+    :param scalar_arg: the scalar kernel argument to initialise.
+    :type scalar_arg: :py:class:`psyclone.psyir.symbols.DataSymbol`
+    :param routine: the routine to which to add assignments.
+    :type routine: :py:class:`psyclone.psyir.nodes.Routine`
+    :param input_symbols: dict containing those kernel arguments for which we \
+                          need to keep copies of their input values.
+    :type input_symbols: Dict[str, \
+                              :py:class:`psyclone.psyir.symbols.DataSymbol`]
+
+    :raises InternalError: if the type of the scalar argument is not supported.
+
+    '''
+    if scalar_arg.datatype.intrinsic == ScalarType.Intrinsic.REAL:
+        # TODO #2087 - we use the RANDOM_NUMBER intrinsic but make no attempt
+        # to scale the resulting value.
+        routine.addchild(
+            IntrinsicCall.create(IntrinsicCall.Intrinsic.RANDOM_NUMBER,
+                                 [Reference(scalar_arg)]))
+    elif scalar_arg.datatype.intrinsic == ScalarType.Intrinsic.BOOLEAN:
+        # TODO #2087 - just set the variable to False for the moment.
+        routine.addchild(Assignment.create(
+            Reference(scalar_arg),
+            Literal("false", LFRicTypes("LFRicLogicalScalarDataType")())))
+    elif scalar_arg.datatype.intrinsic == ScalarType.Intrinsic.INTEGER:
+        # TODO #2087 - just set the variable to 1 for the moment.
+        routine.addchild(Assignment.create(
+            Reference(scalar_arg),
+            Literal("1", LFRicTypes("LFRicIntegerScalarDataType")())))
+    else:
+        raise InternalError(
+            f"_init_scalar_value: only scalars of REAL, INTEGER or BOOLEAN "
+            f"type are supported but got symbol '{scalar_arg.name}' of type "
+            f"'{scalar_arg.datatype}'.")
+
+    if scalar_arg.name in input_symbols:
+        # We need to keep a copy of the input value of this argument.
+        input_sym = input_symbols[scalar_arg.name]
+        routine.addchild(Assignment.create(Reference(input_sym),
+                                           Reference(scalar_arg)))
+
+
 def _validate_geom_arg(kern, arg_idx, name, valid_spaces, vec_len):
     '''
     Check that the argument at the supplied index is consistent with the
@@ -532,9 +585,8 @@ def generate_lfric_adjoint_harness(tl_psyir, coord_arg_idx=None,
         kernel_input_arg_list.append(sym)
 
     # Initialise argument values and keep copies.
-    # Scalars - we use the Fortran 'random_number' intrinsic directly.
-    # TODO #1345 - this is Fortran specific.
-    random_num = RoutineSymbol("random_number")
+
+    # Scalars.
     for sym in kern_args.scalars:
         idx = kern_args.arglist.index(sym.name)
         if (kern_args.metadata_index_from_actual_index(idx) in
@@ -542,10 +594,8 @@ def generate_lfric_adjoint_harness(tl_psyir, coord_arg_idx=None,
             # This kernel argument is not modified by the test harness
             # because it contains geometry information.
             continue
-        routine.addchild(Call.create(random_num, [Reference(sym)]))
-        input_sym = table.lookup(sym.name+"_input")
-        routine.addchild(Assignment.create(Reference(input_sym),
-                                           Reference(sym)))
+        _init_scalar_value(sym, routine, input_symbols)
+
     # Fields.
     kernel_list = _init_fields_random(kernel_input_arg_list, input_symbols,
                                       table)
