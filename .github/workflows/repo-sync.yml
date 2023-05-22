@@ -48,6 +48,7 @@ env:
 
 jobs:
   build:
+    if: github.repository == 'stfc/PSyclone'
     runs-on: ubuntu-latest
     environment: integration
     steps:
