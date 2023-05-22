@@ -16,7 +16,7 @@ import sys
 # -- Project information -----------------------------------------------------
 
 project = 'PSyAD'
-copyright = '2021-2022, Rupert Ford and Andrew Porter'
+copyright = '2021-2023, Rupert Ford and Andrew Porter'
 author = 'Rupert Ford and Andrew Porter'
 
 # The full version, including alpha/beta/rc tags
