@@ -48,7 +48,7 @@ on:
 
 jobs:
   run_if_on_mirror:
-    if: ${{ github.repository == 'arporter/PSyclone-mirror' }}
+    if: ${{ github.repository == 'stfc/PSyclone-mirror' }}
     runs-on: self-hosted
     steps:
     - uses: actions/checkout@v3

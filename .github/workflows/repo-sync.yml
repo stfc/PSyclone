@@ -38,6 +38,7 @@
 name: Push to private
 
 on:
+  push
   workflow_dispatch:
 
 env:
@@ -60,8 +61,8 @@ jobs:
     # should be one of the first.
     - name: Setup SSH passphrase
       env:
-        SSH_PASSPHRASE: ${{secrets.KEY_PASSPHRASE}}
-        SSH_PRIVATE_KEY: ${{secrets.PRIVATE_MIRROR_REPO}}
+        SSH_PASSPHRASE: ${{secrets.STFC_PRIVATE_MIRROR_PASSPHRASE}}
+        SSH_PRIVATE_KEY: ${{secrets.STFC_PRIVATE_MIRROR_KEY}}
       run: |
         ssh-agent -a $SSH_AUTH_SOCK > /dev/null
         echo 'echo $SSH_PASSPHRASE' > ~/.ssh_askpass && chmod +x ~/.ssh_askpass
@@ -84,4 +85,4 @@ jobs:
         force: true
         tags: false
         branch: ${{ github.ref }}
-        repository: arporter/PSyclone-mirror
+        repository: stfc/PSyclone-mirror
