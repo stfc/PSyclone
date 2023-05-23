@@ -329,13 +329,25 @@ def test_validate_kernel_code_arg(monkeypatch):
             "dimension(s) according to the LFRic API, but found 1."
             in str(info.value))
 
+    lfric_real_field_symbol4 = LFRicTypes("RealFieldDataSymbol")(
+        "field", dims=[Reference(undf)],
+        fs="w0", interface=read_access)
+    lfric_real_field_symbol3 = LFRicTypes("RealFieldDataSymbol")(
+        "field", dims=[ArrayType.ArrayBounds(2, Reference(undf))],
+         fs="w0", interface=read_access)
+    monkeypatch.setattr(lfric_real_field_symbol4.datatype, "_shape",
+                        ['1', Reference(undf)])
+    kernel._validate_kernel_code_arg(lfric_real_field_symbol4,
+                                     lfric_real_field_symbol3)
+    #assert ("dinosaurs" in str(info.value))
+
     # Lower array bound of 2 rather than 1
     monkeypatch.setattr(lfric_real_field_symbol3.datatype, "_shape",
                         [ArrayType.ArrayBounds(2, Reference(undf))])
     with pytest.raises(GenerationError) as info:
         kernel._validate_kernel_code_arg(lfric_real_field_symbol3,
                                          lfric_real_field_symbol3)
-    assert ("All array arguments to LFRic kernels must have lower bounds of 1 "
+    assert ("zzAll array arguments to LFRic kernels must have lower bounds of 1 "
             "for all dimensions. However, array 'field' has a lower bound of "
             "'2' for dimension 0" in str(info.value))
 

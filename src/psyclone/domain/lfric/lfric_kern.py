@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified I. Kavcic and A. Coughtrie, Met Office
+# Modified I. Kavcic, A. Coughtrie and L. Turner, Met Office
 # Modified J. Henrichs, Bureau of Meteorology
 # Modified A. B. G. Chalk and N. Nobre, STFC Daresbury Lab
 
@@ -700,11 +700,11 @@ class LFRicKern(CodedKern):
                 except FieldNotFoundError:
                     arg = None
                 if arg:
-                    raise GenerationError(f"Kernel {self._name} has an "
+                    raise GenerationError(f"Kernel '{self._name}' has an "
                                           f"argument with INC access and "
                                           f"therefore must be coloured in "
                                           f"order to be parallelised with "
-                                          f"OpenMP")
+                                          f"OpenMP.")
 
         parent.add(CommentGen(parent, ""))
 
@@ -905,8 +905,14 @@ class LFRicKern(CodedKern):
                     f"dimension(s) according to the LFRic API, but "
                     f"found {len(kern_code_arg.shape)}.")
             for dim_idx, kern_code_arg_dim in enumerate(kern_code_arg.shape):
+                print(dim_idx)
+                print(kern_code_arg_dim)
+                print(kern_code_arg.shape)
                 if not isinstance(kern_code_arg_dim, ArrayType.ArrayBounds):
-                    continue
+                    print('sharks')
+                    print(dim_idx)
+                    print(kern_code_arg_dim)
+                    continue #sharks
                 if (not isinstance(kern_code_arg_dim.lower, Literal) or
                         kern_code_arg_dim.lower.value != "1"):
                     raise GenerationError(
