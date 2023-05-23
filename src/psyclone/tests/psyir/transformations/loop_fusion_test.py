@@ -67,9 +67,9 @@ def test_fusetrans_error_incomplete():
     assert ("Error in LoopFuseTrans transformation. The target loop must have "
             "four children but found: []" in str(err.value))
 
-    loop1.addchild(Literal("start", INTEGER_TYPE))
-    loop1.addchild(Literal("stop", INTEGER_TYPE))
-    loop1.addchild(Literal("step", INTEGER_TYPE))
+    loop1.addchild(Literal("1", INTEGER_TYPE))
+    loop1.addchild(Literal("3", INTEGER_TYPE))
+    loop1.addchild(Literal("1", INTEGER_TYPE))
     loop1.addchild(Schedule())
     loop1.loop_body.addchild(Return())
 
@@ -79,9 +79,9 @@ def test_fusetrans_error_incomplete():
     assert ("Error in LoopFuseTrans transformation. The target loop must have "
             "four children but found: []" in str(err.value))
 
-    loop2.addchild(Literal("start", INTEGER_TYPE))
-    loop2.addchild(Literal("stop", INTEGER_TYPE))
-    loop2.addchild(Literal("step", INTEGER_TYPE))
+    loop2.addchild(Literal("1", INTEGER_TYPE))
+    loop2.addchild(Literal("3", INTEGER_TYPE))
+    loop2.addchild(Literal("1", INTEGER_TYPE))
     loop2.addchild(Schedule())
     loop2.loop_body.addchild(Return())
 

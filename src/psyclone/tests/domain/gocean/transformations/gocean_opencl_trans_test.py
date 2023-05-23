@@ -690,7 +690,7 @@ def test_invoke_opencl_kernel_call(kernel_outputdir, monkeypatch, debug_mode):
 
     # Set up globalsize and localsize values
     expected = '''
-      globalsize = (/p_fld%grid%nx, p_fld%grid%ny/)
+      globalsize = (/p_fld % grid % nx, p_fld % grid % ny/)
       localsize = (/64, 1/)'''
 
     if debug_mode:

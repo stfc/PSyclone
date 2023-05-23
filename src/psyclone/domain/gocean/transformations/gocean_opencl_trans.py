@@ -462,16 +462,21 @@ class GOOpenCLTrans(Transformation):
                 .format(garg.name)
             num_y = api_config.grid_properties["go_grid_ny"].fortran\
                 .format(garg.name)
+            freader = FortranReader()
+            rhs = freader.psyir_from_expression(
+                    f"(/{num_x}, {num_y}/)",
+                    node.symbol_table)
             assig = Assignment.create(
                     Reference(global_size),
-                    Literal(f"(/{num_x}, {num_y}/)",
-                            ArrayType(INTEGER_TYPE, [2])))
+                    rhs)
             node.children.insert(outerloop.position, assig)
             local_size_value = kern.opencl_options['local_size']
+            rhs = freader.psyir_from_expression(
+                    f"(/{local_size_value}, 1/)",
+                    node.symbol_table)
             assig = Assignment.create(
                     Reference(local_size),
-                    Literal(f"(/{local_size_value}, 1/)",
-                            ArrayType(INTEGER_TYPE, [2])))
+                    rhs)
             node.children.insert(outerloop.position, assig)
 
             # Check that the global_size is multiple of the local_size
