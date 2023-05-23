@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council.
+# Copyright (c) 2017-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -38,7 +38,6 @@
 
 ''' Perform pytest tests on the psyclone.psyir.symbols.typed_symbol file. '''
 
-from __future__ import absolute_import
 import pytest
 
 from psyclone.psyir.symbols import TypedSymbol, ContainerSymbol, DataSymbol, \
@@ -88,7 +87,7 @@ def test_typed_symbol_initialisation():
 
     array_type = ArrayType(REAL_SINGLE_TYPE, [3])
     assert isinstance(TSymbol('a', array_type), TypedSymbol)
-    array_type = ArrayType(REAL_SINGLE_TYPE, [3, ArrayType.Extent.ATTRIBUTE])
+    array_type = ArrayType(REAL_SINGLE_TYPE, [3, 6])
     assert isinstance(TSymbol('a', array_type), TypedSymbol)
     assert isinstance(TSymbol('a', REAL_SINGLE_TYPE), TypedSymbol)
     assert isinstance(TSymbol('a', REAL8_TYPE), TypedSymbol)
@@ -97,7 +96,8 @@ def test_typed_symbol_initialisation():
     array_type = ArrayType(REAL_SINGLE_TYPE, [Reference(dim)])
     assert isinstance(TSymbol('a', array_type), TypedSymbol)
     array_type = ArrayType(REAL_SINGLE_TYPE,
-                           [3, Reference(dim), ArrayType.Extent.ATTRIBUTE])
+                           [ArrayType.Extent.ATTRIBUTE,
+                            ArrayType.Extent.ATTRIBUTE])
     assert isinstance(TSymbol('a', array_type), TypedSymbol)
     assert isinstance(TSymbol('field', DataTypeSymbol("field_type",
                                                       DeferredType())),
@@ -143,8 +143,7 @@ def test_typed_symbol_scalar_array():
     '''
     sym1 = DataSymbol("s1", INTEGER_SINGLE_TYPE,
                       interface=UnresolvedInterface())
-    array_type = ArrayType(REAL_SINGLE_TYPE,
-                           [ArrayType.Extent.ATTRIBUTE, 2, Reference(sym1)])
+    array_type = ArrayType(REAL_SINGLE_TYPE, [2, Reference(sym1)])
     sym2 = TSymbol("s2", array_type)
     assert sym1.is_scalar
     assert not sym1.is_array

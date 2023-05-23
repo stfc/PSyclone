@@ -57,7 +57,8 @@ def test_use_stmt():
     processor = Fparser2Reader()
     reader = FortranStringReader("use my_mod, only: some_var\n"
                                  "use this_mod\n"
-                                 "use other_mod, only: var1, var2\n")
+                                 "use other_mod, only: var1=>orig_name, "
+                                 "var2\n")
     fparser2spec = Fortran2003.Specification_Part(reader)
     processor.process_declarations(fake_parent, fparser2spec.content, [])
 
@@ -77,8 +78,13 @@ def test_use_stmt():
 
     assert symtab.lookup("some_var").interface.container_symbol \
         == symtab.lookup("my_mod")
+    assert symtab.lookup("some_var").interface.orig_name is None
+    assert symtab.lookup("var1").interface.container_symbol \
+        == symtab.lookup("other_mod")
+    assert symtab.lookup("var1").interface.orig_name == "orig_name"
     assert symtab.lookup("var2").interface.container_symbol \
         == symtab.lookup("other_mod")
+    assert symtab.lookup("var2").interface.orig_name is None
 
 
 @pytest.mark.usefixtures("f2008_parser")

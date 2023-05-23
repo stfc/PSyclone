@@ -518,8 +518,15 @@ class FortranWriter(LanguageWriter):
                 f"SymbolTable.")
 
         # Construct the list of symbol names for the ONLY clause
-        only_list = [dsym.name for dsym in
-                     symbol_table.symbols_imported_from(symbol)]
+        only_list = []
+        for dsym in symbol_table.symbols_imported_from(symbol):
+            if dsym.interface.orig_name:
+                # This variable is renamed on import. Use Fortran's
+                # 'new_name=>orig_name' syntax to reflect this.
+                only_list.append(f"{dsym.name}=>{dsym.interface.orig_name}")
+            else:
+                # This variable is not renamed.
+                only_list.append(dsym.name)
 
         # Finally construct the use statements for this Container (module)
         if not only_list and not symbol.wildcard_import:
@@ -550,8 +557,6 @@ class FortranWriter(LanguageWriter):
         :raises VisitorError: if the symbol is of known type but does not \
             specify a variable declaration (it is not a local declaration or \
             an argument declaration).
-        :raises VisitorError: if the symbol or member is an array with a \
-            shape containing a mixture of DEFERRED and other extents.
         :raises InternalError: if the symbol is a ContainerSymbol or an import.
         :raises InternalError: if the symbol is a RoutineSymbol other than \
             UnknownFortranType.
@@ -604,27 +609,8 @@ class FortranWriter(LanguageWriter):
         result = f"{self._nindent}{datatype}"
 
         if ArrayType.Extent.DEFERRED in array_shape:
-            if not all(dim == ArrayType.Extent.DEFERRED
-                       for dim in array_shape):
-                raise VisitorError(
-                    f"A Fortran declaration of an allocatable array must have"
-                    f" the extent of every dimension as 'DEFERRED' but "
-                    f"symbol '{symbol.name}' has shape: "
-                    f"{self.gen_indices(array_shape)}.")
             # A 'deferred' array extent means this is an allocatable array
             result += ", allocatable"
-        if ArrayType.Extent.ATTRIBUTE in array_shape:
-            if not all(dim == ArrayType.Extent.ATTRIBUTE
-                       for dim in symbol.datatype.shape):
-                # If we have an 'assumed-size' array then only the last
-                # dimension is permitted to have an 'ATTRIBUTE' extent
-                if (array_shape.count(ArrayType.Extent.ATTRIBUTE) != 1 or
-                        array_shape[-1] != ArrayType.Extent.ATTRIBUTE):
-                    raise VisitorError(
-                        f"An assumed-size Fortran array must only have its "
-                        f"last dimension unspecified (as 'ATTRIBUTE') but "
-                        f"symbol '{symbol.name}' has shape: "
-                        f"{self.gen_indices(array_shape)}.")
 
         # Specify Fortran attributes
         if array_shape:
@@ -825,6 +811,7 @@ class FortranWriter(LanguageWriter):
             return result
         return ""
 
+    # pylint: disable=too-many-branches
     def _gen_parameter_decls(self, symbol_table, is_module_scope=False):
         ''' Create the declarations of all parameters present in the supplied
         symbol table. Declarations are ordered so as to satisfy any inter-
@@ -1168,23 +1155,8 @@ class FortranWriter(LanguageWriter):
             # API-specific table here:
             whole_routine_scope = type(node.symbol_table)()
 
-            itself = node.symbol_table.lookup_with_tag("own_routine_symbol")
             for schedule in node.walk(Schedule):
-                for symbol in schedule.symbol_table.symbols[:]:
-
-                    # We don't need to add the Symbol representing this Routine
-                    # to the top level symbol table because in Fortran it is
-                    # already implicitly declared by the subroutine statement.
-                    if symbol is itself and isinstance(symbol, RoutineSymbol):
-                        continue
-
-                    try:
-                        whole_routine_scope.add(symbol)
-                    except KeyError:
-                        new_name = whole_routine_scope.next_available_name(
-                            symbol.name, other_table=schedule.symbol_table)
-                        schedule.symbol_table.rename_symbol(symbol, new_name)
-                        whole_routine_scope.add(symbol)
+                whole_routine_scope.merge(schedule.symbol_table)
 
             # Replace the symbol table
             node.symbol_table.detach()
