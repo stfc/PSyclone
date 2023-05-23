@@ -135,6 +135,19 @@ def test_literal_init_invalid_2(value):
             f"found '{value}'." in str(err.value))
 
 
+@pytest.mark.parametrize("value", ["02", "++2", "12.34", "*2"])
+def test_literal_init_invalid_3(value):
+    '''Test the initialisation of a Literal object with invalid int
+    values raises the expected exception.
+
+    '''
+    with pytest.raises(ValueError) as err:
+        Literal(value, INTEGER_SINGLE_TYPE)
+    assert (f"A scalar integer literal value must conform to the "
+            f"supported format ('([+-]?[1-9][0-9]*|0)') but "
+            f"found '{value}'." in str(err.value))
+
+
 def test_literal_init_empty_value():
     '''Test the initialisation of a Literal object with an empty value
     argument raises the expected exception unless it is of CHARACTER_TYPE.

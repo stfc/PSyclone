@@ -78,6 +78,7 @@ class Literal(DataNode):
     _text_name = "Literal"
     _colour = "yellow"
     _real_value = r'^[+-]?[0-9]+(\.[0-9]*)?([eE][+-]?[0-9]+)?$'
+    _int_value = r'([+-]?[1-9][0-9]*|0)'
 
     def __init__(self, value, datatype, parent=None):
         super(Literal, self).__init__(parent=parent)
@@ -112,6 +113,13 @@ class Literal(DataNode):
                     f"'{value}'.")
             # Ensure we always store any exponent with a lowercase 'e'
             self._value = value.replace("E", "e", 1)
+        elif datatype.intrinsic == ScalarType.Intrinsic.INTEGER:
+            if not re.fullmatch(Literal._int_value, value):
+                raise ValueError(
+                    f"A scalar integer literal value must conform to the "
+                    f"supported format ('{Literal._int_value}') but found "
+                    f"'{value}'.")
+            self._value = value
         else:
             self._value = value
         self._datatype = datatype
