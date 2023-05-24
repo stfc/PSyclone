@@ -59,10 +59,8 @@ class AlgorithmInvokeCall(Call):
         to None.
     :type parent: sub-class of :py:class:`psyclone.psyir.nodes.Node` \
         or NoneType
-    :param name: an optional name, describing the \
+    :param Optional[str] name: an optional name, describing the \
         AlgorithmInvokeCall. Defaults to None.
-
-    :type name: str or NoneType
 
     :raises TypeError: if the index argument is not an integer.
     :raises ValueError: if the index argument is negative.
