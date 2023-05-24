@@ -235,9 +235,12 @@ def test_variable_access_info_read_write():
                                  component_indices=None)
     assert vai[0].node == node
     assert vai[0].location == 2
+    # Test a single read access:
+    assert vai.is_written_first() is False
     vai.add_access_with_location(AccessType.WRITE, 2, Node(),
                                  component_indices=None)
     assert vai.has_read_write() is False
+    # This tests a read-then-write access:
     assert vai.is_written_first() is False
 
     vai.add_access_with_location(AccessType.READWRITE, 2, Node(),

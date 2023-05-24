@@ -114,8 +114,8 @@ class LFRicExtractTrans(ExtractTrans):
         program. Then it will call apply of the base class.
 
         :param nodes: can be a single node or a list of nodes.
-        :type nodes: :py:obj:`psyclone.psyir.nodes.Node` or \
-                     List[:py:obj:`psyclone.psyir.nodes.Node`]
+        :type nodes: :py:class:`psyclone.psyir.nodes.Node` or \
+                     List[:py:class:`psyclone.psyir.nodes.Node`]
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
         :param str options["prefix"]: a prefix to use for the PSyData module \
@@ -147,10 +147,9 @@ class LFRicExtractTrans(ExtractTrans):
         region_name = self.get_unique_region_name(nodes, my_options)
         my_options["region_name"] = region_name
         my_options["prefix"] = my_options.get("prefix", "extract")
-        # TODO
+        # Get the input- and output-parameters of the node list
         read_write_info = \
             dep.get_in_out_parameters(nodes, collect_non_local_symbols=True)
-        my_options["read_write_info"] = read_write_info
         # Determine a unique postfix to be used for output variables
         # that avoid any name clashes
         postfix = ExtractTrans.determine_postfix(read_write_info,
@@ -164,5 +163,7 @@ class LFRicExtractTrans(ExtractTrans):
                                               postfix=postfix,
                                               prefix=my_options["prefix"],
                                               region_name=region_name)
-
+        # The PSyData transformation needs to pass this object to
+        # the corresponding PSyData node, so add it to the option arguments.
+        my_options["read_write_info"] = read_write_info
         super().apply(nodes, my_options)

@@ -45,9 +45,13 @@ import pytest
 from psyclone.core import Signature
 from psyclone.domain.lfric.transformations import LFRicExtractTrans
 from psyclone.errors import InternalError
-from psyclone.psyir.nodes import ExtractNode, Node
+from psyclone.psyir.nodes import ExtractNode, Loop, Node
 from psyclone.psyir.tools import ReadWriteInfo
-from psyclone.psyir.transformations import ExtractTrans
+from psyclone.psyir.transformations import ExtractTrans, TransformationError
+from psyclone.tests.utilities import get_invoke
+from psyclone.transformations import (ACCParallelTrans, ACCEnterDataTrans,
+                                      ACCLoopTrans, DynamoOMPParallelLoopTrans)
+
 
 # --------------------------------------------------------------------------- #
 # ================== Extract Transformation tests =========================== #
@@ -129,3 +133,106 @@ def test_malformed_extract_node(monkeypatch):
     with pytest.raises(InternalError) as err:
         _ = enode.extract_body
     assert "malformed or incomplete. It should have a " in str(err.value)
+
+
+# --------------------------------------------------------------------------- #
+def test_get_default_options():
+    '''Check the default options.'''
+
+    etrans = ExtractTrans()
+    assert etrans.get_default_options() == {"COLLECT-ARRAY-SHAPE-READS": True}
+
+
+# -----------------------------------------------------------------------------
+def test_extract_validate():
+    '''Test that the validate function can successfully finish.'''
+
+    _, invoke = get_invoke("single_invoke_three_kernels.f90",
+                           "gocean1.0", idx=0, dist_mem=False)
+    etrans = ExtractTrans()
+    etrans.apply(invoke.schedule.children[0])
+
+
+# -----------------------------------------------------------------------------
+def test_extract_distributed_memory():
+    '''Test that distributed memory must be disabled.'''
+
+    _, invoke = get_invoke("single_invoke_three_kernels.f90",
+                           "gocean1.0", idx=0, dist_mem=True)
+    etrans = ExtractTrans()
+    with pytest.raises(TransformationError) as excinfo:
+        etrans.validate(invoke.schedule.children[3])
+    assert ("Error in ExtractTrans: Distributed memory is "
+            "not supported.") in str(excinfo.value)
+
+
+# -----------------------------------------------------------------------------
+def test_extract_kern_builtin_no_loop():
+    ''' Test that applying Extract Transformation on a Kernel or Built-in
+    call without its parent Loop raises a TransformationError. '''
+
+    gocetrans = ExtractTrans()
+    _, invoke = get_invoke("single_invoke_three_kernels.f90",
+                           "gocean1.0", idx=0, dist_mem=False)
+    schedule = invoke.schedule
+    # Test Kernel call
+    kernel_call = schedule.children[0].loop_body[0].loop_body[0]
+    with pytest.raises(TransformationError) as excinfo:
+        gocetrans.validate([kernel_call])
+    assert "Error in ExtractTrans: Application to a Kernel or a " \
+           "Built-in call without its parent Loop is not allowed." \
+           in str(excinfo.value)
+
+
+# -----------------------------------------------------------------------------
+def test_extract_loop_no_directive_dynamo0p3():
+    ''' Test that applying Extract Transformation on a Loop without its
+    parent Directive when optimisations are applied in Dynamo0.3 API
+    raises a TransformationError. '''
+    etrans = LFRicExtractTrans()
+
+    # Test a Loop nested within the OMP Parallel DO Directive
+    _, invoke = get_invoke("4.13_multikernel_invokes_w3_anyd.f90",
+                           "dynamo0.3", idx=0, dist_mem=False)
+    schedule = invoke.schedule
+    # Apply DynamoOMPParallelLoopTrans to the second Loop
+    otrans = DynamoOMPParallelLoopTrans()
+    otrans.apply(schedule[1])
+    loop = schedule.children[1].dir_body[0]
+    # Try extracting the Loop inside the OMP Parallel DO region
+    with pytest.raises(TransformationError) as excinfo:
+        etrans.validate([loop])
+    assert "Error in LFRicExtractTrans: Application to a Loop without its " \
+           "parent Directive is not allowed." in str(excinfo.value)
+
+
+# -----------------------------------------------------------------------------
+def test_extract_directive_no_loop():
+    ''' Test that applying Extract Transformation on an orphaned
+    ACCLoopDirective without its ancestor ACCParallelDirective
+    when optimisations are applied raises a TransformationError. '''
+
+    etrans = ExtractTrans()
+    acclpt = ACCLoopTrans()
+    accpara = ACCParallelTrans()
+    accdata = ACCEnterDataTrans()
+
+    _, invoke = get_invoke("single_invoke_three_kernels.f90",
+                           "gocean1.0", idx=0, dist_mem=False)
+    schedule = invoke.schedule
+
+    # Apply the OpenACC Loop transformation to every loop in the Schedule
+    for child in schedule.children:
+        if isinstance(child, Loop):
+            acclpt.apply(child)
+    # Enclose all of these loops within a single ACC Parallel region
+    accpara.apply(schedule.children)
+    # Add a mandatory ACC enter-data directive
+    accdata.apply(schedule)
+
+    orphaned_directive = schedule.children[1].children[0]
+    with pytest.raises(TransformationError) as excinfo:
+        etrans.validate(orphaned_directive)
+    assert "Error in ExtractTrans: Application to Nodes enclosed " \
+           "within a thread-parallel region is not allowed." \
+           in str(excinfo.value)

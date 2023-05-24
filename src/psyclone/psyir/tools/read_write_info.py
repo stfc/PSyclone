@@ -39,15 +39,15 @@ are written, and which ones are read.'''
 
 
 class ReadWriteInfo:
-    '''This class stores signature and module name of variables read or
-    written. The module name is optional, it will default to "" if the
-    signature belongs to a local symbol, otherwise it is the name of
-    the module from which it must be imported.
+    '''This class stores signature and container name of variables read or
+    written. The container name is optional, it will default to "" if the
+    signature belongs to a symbol declared in the local scope, otherwise it
+    is the name of the container from which it must be imported.
 
-    The information is stores in lists of tuples, the first element being
-    the module name, the second the signature. When accessing any of these
+    The information is stored in lists of tuples, the first element being
+    the container name, the second the signature. When accessing any of these
     two lists, the getter will make sure that the lists are sorted. This
-    will guarantee that for example the kernel extraction and driver creation
+    will guarantee that, for example, the kernel extraction and driver creation
     read the variables in the same order.
     '''
 
@@ -59,9 +59,9 @@ class ReadWriteInfo:
     # -------------------------------------------------------------------------
     @property
     def read_list(self):
-        ''':returns the sorted list of module_name,signature pairs that are \
-            read.
-        :type: List[Tuple[str,:py:class:`psyclone.core.Signature`]]
+        ''':returns the sorted list of container_name,signature pairs that \
+            are read.
+        :rtype: List[Tuple[str,:py:class:`psyclone.core.Signature`]]
 
         '''
         if not self._sorted:
@@ -84,9 +84,9 @@ class ReadWriteInfo:
     # -------------------------------------------------------------------------
     @property
     def write_list(self):
-        ''':returns the sorted list of module_name,signature pairs that are \
-            written.
-        :type: List[Tuple[str,:py:class:`psyclone.core.Signature`]]
+        ''':returns the sorted list of container_name,signature pairs that \
+            are written.
+        :rtype: List[Tuple[str,:py:class:`psyclone.core.Signature`]]
 
         '''
         if not self._sorted:
@@ -109,47 +109,50 @@ class ReadWriteInfo:
     # -------------------------------------------------------------------------
     @property
     def set_of_all_used_vars(self):
-        '''This property returns a set with all (module_name, Signature)
+        '''This property returns a set with all (container_name, Signature)
         tuples. Since it is a set this guarantees that each tuple is only
         listed once.
-        :returns:  set with all (module_name, Signature) pairs.
-        :rtype: List[Set[str, :py:class:`psyclone.core.Signature`]]
+
+        :returns:  set with all (container_name, Signature) pairs.
+        :rtype: Set[Tuple[str, :py:class:`psyclone.core.Signature`]]
 
         '''
         return set(self._read_list) | set(self._write_list)
 
     # -------------------------------------------------------------------------
-    def add_read(self, signature, module_name=None):
+    def add_read(self, signature, container_name=None):
         '''This function adds a read access to the specified signature and
-        module name. The module_name is optional and defaults to ""
-        (indicating a local access).
+        container name. The container_name is optional and defaults to "",
+        indicating that this signature is not based on importing a symbol
+        from an external container (i.e. a module in Fortran).
 
         :param signature: the signature of the access.
         :type signature: :py:class:`psyclone.core.Signature`
-        :param module_name: the module name (optional)
-        :type module_name: Optional[str]
+        :param container_name: the container name (optional)
+        :type container_name: Optional[str]
 
         '''
-        if module_name:
-            self._read_list.append((module_name, signature))
+        if container_name:
+            self._read_list.append((container_name, signature))
         else:
             self._read_list.append(("", signature))
         self._sorted = False
 
     # -------------------------------------------------------------------------
-    def add_write(self, signature, module_name=None):
+    def add_write(self, signature, container_name=None):
         '''This function adds a write access to the specified signature and
-        module name. The module_name is optional and defaults to ""
-        (indicating a local access).
+        container name. The container_name is optional and defaults to "",
+        indicating that this signature is not based on importing a symbol
+        from an external container (i.e. a module in Fortran).
 
         :param signature: the signature of the access.
         :type signature: :py:class:`psyclone.core.Signature`
-        :param module_name: the module name (optional)
-        :type module_name: Optional[str]
+        :param container_name: the container name (optional)
+        :type container_name: Optional[str]
 
         '''
-        if module_name:
-            self._write_list.append((module_name, signature))
+        if container_name:
+            self._write_list.append((container_name, signature))
         else:
             self._write_list.append(("", signature))
         self._sorted = False
@@ -157,8 +160,8 @@ class ReadWriteInfo:
     # -------------------------------------------------------------------------
     def is_read(self, signature):
         ''':returns: whether the signature is in the read list (independent \
-            of the module name).
+            of the container name).
         :rtype: bool
 
         '''
-        return any(signature == sig for _, sig in self._read_list)
+        return signature in [sig for _, sig in self._read_list]

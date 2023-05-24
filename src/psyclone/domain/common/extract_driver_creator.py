@@ -352,7 +352,6 @@ class ExtractDriverCreator:
         :param read_write_info: information about all input and output \
             parameters.
         :type read_write_info: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
-        :type output_list: [:py:class:`psyclone.core.Signature`]
         :param str postfix: a postfix that is added to a variable to \
             create the corresponding variable that stores the output \
             value from the kernel data file.
@@ -515,7 +514,7 @@ class ExtractDriverCreator:
         file container which contains the driver.
 
         :param nodes: a list of nodes.
-        :type nodes: list of :py:obj:`psyclone.psyir.nodes.Node`
+        :type nodes: list of :py:class:`psyclone.psyir.nodes.Node`
         :param read_write_info: information about all input and output \
             parameters.
         :type read_write_info: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
@@ -606,7 +605,7 @@ class ExtractDriverCreator:
         (defaults to Fortran).
 
         :param nodes: a list of nodes.
-        :type nodes: List[:py:obj:`psyclone.psyir.nodes.Node`]
+        :type nodes: List[:py:class:`psyclone.psyir.nodes.Node`]
         :param read_write_info: information about all input and output \
             parameters.
         :type read_write_info: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
@@ -646,7 +645,7 @@ class ExtractDriverCreator:
         "driver-"+module_name+"_"+region_name+".f90"
 
         :param nodes: a list of nodes.
-        :type nodes: List[:py:obj:`psyclone.psyir.nodes.Node`]
+        :type nodes: List[:py:class:`psyclone.psyir.nodes.Node`]
         :param read_write_info: information about all input and output \
             parameters.
         :type read_write_info: :py:class:`psyclone.psyir.tools.ReadWriteInfo`

@@ -256,26 +256,28 @@ Routine Interfaces
 ==================
 
 Fortran supports generic interfaces. The Fortran standard rule `R1203`
-says that: `interface-stmt = INTERFACE [ generic-spec ]` where
-`generic-spec` is either (`R1207`) a `generic-name` or one of
-`OPERATOR`, `ASSIGNMENT` or `dtio-spec` (see
+says that: `interface-stmt = INTERFACE [ generic-spec ] or ABSTRACT
+INTERFACE` where `generic-spec` is either (`R1207`) a `generic-name`
+or one of `OPERATOR`, `ASSIGNMENT` or `dtio-spec` (see
 ``https://wg5-fortran.org/N1601-N1650/N1601.pdf``).
 
-At the moment the PSyIR only captures such interfaces if they have a
-`generic-name`. Interfaces which do not have a `generic-name` cause
-the routine containing the interface to be put in a `CodeBlock` (see
-issue #1971 for one case).
+The PSyIR captures all forms of Fortran interface but is not able to
+reason about the content of the interface as the text for this is
+stored as an `UnknownFortranType`.
 
-If the interface does have a generic name and `generic-name` is not
-already declared as a PSyIR symbol then the interface is captured as a
-`RoutineSymbol` named as `generic-name` with an
-`UnknownFortranType`. The `generic-name` may already be declared as a
-PSyIR symbol if it references a type declaration. In this case the
-interface is still captured as a `RoutineSymbol` with an
-`UnknownFortranType`, but the name of the `RoutineSymbol` is
-`_psyclone_internal_` followed by the `generic-name`, i.e. it is given
-an internal name. This should not clash with any other symbol names as
-names should not start with `_`. In both cases the content of the
-interface is captured as text in the `UnknownFortranType` so the
-`RoutineSymbol` name is not used in the Fortran backend.
+If the interface has a generic name and `generic-name` is not already
+declared as a PSyIR symbol then the interface is captured as a
+`RoutineSymbol` named as `generic-name`. The `generic-name` may
+already be declared as a PSyIR symbol if it references a type
+declaration or the interface may not have a name. In these two cases
+the interface is still captured as a `RoutineSymbol`, but the root
+name of the `RoutineSymbol` is `_psyclone_internal_<generic-name>`, or
+`_psyclone_internal_interface` respectively, i.e. it is given an
+internal PSyclone name. The root name should not clash with any other
+symbol names as names should not start with `_`, but providing a root
+name ensures that unique names are used in any case.
+
+As interfaces are captured as text in an `UnknownFortranType` the
+`RoutineSymbol` name is not used in the Fortran backend, the text
+stored in `UnknownFortranType` is simply output.
 

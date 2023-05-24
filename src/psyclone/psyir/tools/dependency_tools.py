@@ -819,9 +819,9 @@ class DependencyTools():
     def get_input_parameters(self, read_write_info, node_list,
                              variables_info=None, options=None):
         '''Adds all variables that are input parameters (i.e. are read before
-        potentially being written) to the read_write_info objects.
+        potentially being written) to the read_write_info object.
 
-        :param read_write_info: this objects stores the information about \
+        :param read_write_info: this object stores the information about \
             all input parameters.
         :type read_write_info: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
         :param node_list: list of PSyIR nodes to be analysed.
@@ -858,7 +858,7 @@ class DependencyTools():
         '''Adds all variables that are output parameters (i.e. are written)
         to the read_write_info object.
 
-        :param read_write_info: this objects stores the information about \
+        :param read_write_info: this object stores the information about \
             output parameters.
         :type read_write_info: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
         :param node_list: list of PSyIR nodes to be analysed.

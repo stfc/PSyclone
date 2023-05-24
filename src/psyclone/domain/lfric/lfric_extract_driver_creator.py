@@ -789,7 +789,7 @@ class LFRicExtractDriverCreator:
         It returns the file container which contains the driver.
 
         :param nodes: a list of nodes.
-        :type nodes: List[:py:obj:`psyclone.psyir.nodes.Node`]
+        :type nodes: List[:py:class:`psyclone.psyir.nodes.Node`]
         :param read_write_info: information about all input and output \
             parameters.
         :type read_write_info: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
@@ -969,7 +969,7 @@ class LFRicExtractDriverCreator:
         dependencies like NetCDF) are required for compilation.
 
         :param nodes: a list of nodes.
-        :type nodes: List[:py:obj:`psyclone.psyir.nodes.Node`]
+        :type nodes: List[:py:class:`psyclone.psyir.nodes.Node`]
         :param read_write_info: information about all input and output \
             parameters.
         :type read_write_info: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
@@ -1050,7 +1050,7 @@ class LFRicExtractDriverCreator:
 
         :param nodes: a list of nodes containing the body of the driver
             routine.
-        :type nodes: List[:py:obj:`psyclone.psyir.nodes.Node`]
+        :type nodes: List[:py:class:`psyclone.psyir.nodes.Node`]
         :param read_write_info: information about all input and output \
             parameters.
         :type read_write_info: :py:class:`psyclone.psyir.tools.ReadWriteInfo`

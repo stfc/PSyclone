@@ -1,4 +1,9 @@
 {
+  "ignorePatterns": [
+    {
+      "pattern": "^https://mybinder.org/v2/gh/stfc/psyclone"
+    }
+  ],
   "replacementPatterns": [
     {
       "pattern": "^https://psyclone.readthedocs.io/en/stable",
