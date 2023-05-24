@@ -36,8 +36,8 @@
 
 ''' This module contains the Call node implementation.'''
 
-import re
 
+from psyclone.configuration import Config
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.symbols import RoutineSymbol
@@ -264,8 +264,7 @@ class Call(Statement, DataNode):
         '''Utility method that checks that the supplied name has a valid
         format.
 
-        :param name: the name to check.
-        :type name: Optional[str]
+        :param Optional[str] name: the name to check.
 
         :raises TypeError: if the name is not a string or None.
         :raises ValueError: if this is not a valid name.
@@ -277,7 +276,8 @@ class Call(Statement, DataNode):
             raise TypeError(
                 f"A name should be a string or None, but found "
                 f"{type(name).__name__}.")
-        if not re.match(r'^[a-zA-Z]\w*$', name):
+        config = Config.get()
+        if not config.valid_name.fullmatch(name):
             raise ValueError(
                 f"Invalid name '{name}' found.")
 

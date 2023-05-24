@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -38,9 +38,9 @@
 '''This module contains PSyclone Algorithm-layer-specific PSyIR classes.
 
 '''
-from __future__ import absolute_import
 import re
 
+from psyclone.configuration import Config
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.nodes import (Call, Reference, DataNode,
                                   Routine, Container, FileContainer)
@@ -81,10 +81,18 @@ class AlgorithmInvokeCall(Call):
             raise ValueError(
                 f"AlgorithmInvokeCall index argument should be a non-negative "
                 f"integer but found {index}.")
-        if name and not isinstance(name, str):
-            raise TypeError(
-                f"AlgorithmInvokeCall name argument should be a str but "
-                f"found '{type(name).__name__}'.")
+        if name:
+            if not isinstance(name, str):
+                raise TypeError(
+                    f"AlgorithmInvokeCall name argument should be a str but "
+                    f"found '{type(name).__name__}'.")
+            config = Config.get()
+            if not config.valid_name.fullmatch(name):
+                raise ValueError(
+                    f"AlgorithmInvokeCall name argument must be a string "
+                    f"containing a valid Fortran name (with "
+                    f"no whitespace) but got '{name}'.")
+
         self._index = index
         # Keep the root names as these will also be needed by the
         # PSy-layer to use as tags to pull out the actual names from

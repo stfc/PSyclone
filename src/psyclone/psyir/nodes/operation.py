@@ -173,6 +173,10 @@ class Operation(DataNode, metaclass=ABCMeta):
         '''Utility method that checks that the supplied name has a valid
         format.
 
+        TODO #1987 - this method can be removed once all intrinsic operations
+        (that can have named arguments) are re-implmented as IntrinsicCall
+        nodes.
+
         :param Optional[str] name: the name to check.
 
         :raises TypeError: if the name is not a string or None.
@@ -186,7 +190,7 @@ class Operation(DataNode, metaclass=ABCMeta):
                 f"A name should be a string or None, but found "
                 f"{type(name).__name__}.")
         config = Config.get()
-        if not config.valid_name.match(name):
+        if not config.valid_name.fullmatch(name):
             raise ValueError(
                 f"Invalid name '{name}' found.")
 

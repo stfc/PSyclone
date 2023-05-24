@@ -40,7 +40,6 @@ PSyclone-conformant Algorithm code.
 
 from collections import OrderedDict
 
-from fparser.two import pattern_tools
 from fparser.two.utils import walk
 # pylint: disable=no-name-in-module
 from fparser.two.Fortran2003 import Main_Program, Module, \
@@ -606,7 +605,8 @@ def get_invoke_label(parse_tree, alg_filename, identifier="name"):
        invoke_label[0] == "'" and invoke_label[-1] == "'":
         invoke_label = invoke_label[1:-1]
 
-    if not pattern_tools.abs_name.match(invoke_label):
+    config = Config.get()
+    if not config.valid_name.fullmatch(invoke_label):
         raise ParseError(
             f"algorithm.py:Parser:get_invoke_label the (optional) name of an "
             f"invoke must be a string containing a valid Fortran name (with "

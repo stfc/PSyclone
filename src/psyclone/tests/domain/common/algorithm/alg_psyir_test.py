@@ -41,7 +41,6 @@ translation of PSyIR to PSyclone Algorithm PSyIR and PSyclone
 Algorithm PSyIR to processed PSyIR.
 
 '''
-from __future__ import absolute_import
 import pytest
 
 from psyclone.domain.common.algorithm import (AlgorithmInvokeCall,
@@ -148,6 +147,12 @@ def test_algorithminvokecall_error():
     assert ("AlgorithmInvokeCall name argument should be a str but "
             "found 'RoutineSymbol'." in str(info.value))
 
+    with pytest.raises(ValueError) as info:
+        AlgorithmInvokeCall(routine, 1, name="not valid")
+    assert ("AlgorithmInvokeCall name argument must be a string containing a "
+            "valid Fortran name (with no whitespace) but got 'not valid'."
+            in str(info.value))
+
 
 def test_aic_create():
     '''Check that the create method behaves as expected.'''
@@ -217,8 +222,8 @@ def test_aic_node_str():
     '''
     routine = RoutineSymbol("hello")
     call = AlgorithmInvokeCall.create(
-        routine, [], 0, name="describing an invoke")
-    assert ("AlgorithmInvokeCall[name=\"describing an invoke\"]"
+        routine, [], 0, name="describing_an_invoke")
+    assert ("AlgorithmInvokeCall[name=\"describing_an_invoke\"]"
             in call.node_str(colour=False))
 
 
