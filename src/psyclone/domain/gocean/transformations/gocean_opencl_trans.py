@@ -50,7 +50,7 @@ from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Routine, Call, Reference, Literal, \
     Assignment, IfBlock, ArrayReference, Schedule, BinaryOperation, \
     StructureReference, FileContainer, CodeBlock
-from psyclone.psyir.symbols import DataSymbol, RoutineSymbol, \
+from psyclone.psyir.symbols import ArrayType, DataSymbol, RoutineSymbol, \
     ContainerSymbol, UnknownFortranType, ArgumentInterface, ImportInterface, \
     INTEGER_TYPE, CHARACTER_TYPE, BOOLEAN_TYPE, ScalarType
 from psyclone.transformations import TransformationError
@@ -462,21 +462,16 @@ class GOOpenCLTrans(Transformation):
                 .format(garg.name)
             num_y = api_config.grid_properties["go_grid_ny"].fortran\
                 .format(garg.name)
-            freader = FortranReader()
-            rhs = freader.psyir_from_expression(
-                    f"(/{num_x}, {num_y}/)",
-                    node.symbol_table)
             assig = Assignment.create(
                     Reference(global_size),
-                    rhs)
+                    Literal(f"(/{num_x}, {num_y}/)",
+                            ArrayType(INTEGER_TYPE, [2])))
             node.children.insert(outerloop.position, assig)
             local_size_value = kern.opencl_options['local_size']
-            rhs = freader.psyir_from_expression(
-                    f"(/{local_size_value}, 1/)",
-                    node.symbol_table)
             assig = Assignment.create(
                     Reference(local_size),
-                    rhs)
+                    Literal(f"(/{local_size_value}, 1/)",
+                            ArrayType(INTEGER_TYPE, [2])))
             node.children.insert(outerloop.position, assig)
 
             # Check that the global_size is multiple of the local_size

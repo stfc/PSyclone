@@ -116,7 +116,8 @@ class Literal(DataNode):
                     f"'{value}'.")
             # Ensure we always store any exponent with a lowercase 'e'
             self._value = value.replace("E", "e", 1)
-        elif datatype.intrinsic == ScalarType.Intrinsic.INTEGER:
+        elif isinstance(datatype, ScalarType) and datatype.intrinsic \
+                == ScalarType.Intrinsic.INTEGER:
             if not re.fullmatch(Literal._int_value, value):
                 raise ValueError(
                     f"A scalar integer literal value must conform to the "
