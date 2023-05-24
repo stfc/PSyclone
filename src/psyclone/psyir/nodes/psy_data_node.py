@@ -486,11 +486,15 @@ class PSyDataNode(Statement):
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
-        :param options["pre_var_list"]: module name and variable name to be \
-            supplied before the first child.
+        :param options["pre_var_list"]: container name and variable name to \
+            be supplied before the first child. The container name is \
+            supported to be able to handle variables that are imported from \
+            a different container (module in Fortran).
         :type options["pre_var_list"]: List[Tuple[str, str]]
-        :param options["post_var_list"]: module name and variable name to be \
-            supplied after the last child.
+        :param options["post_var_list"]: container name and variable name to \
+            be supplied after the last child. The container name is \
+            supported to be able to handle variables that are imported from \
+            a different container (module in Fortran).
         :type options["post_var_list"]: List[Tuple[str, str]]
         :param str options["pre_var_postfix"]: an optional postfix that will \
             be added to each variable name in the pre_var_list.
@@ -617,11 +621,15 @@ class PSyDataNode(Statement):
 
         :param options: dictionary of the PSyData generation options.
         :type options: Optional[Dict[str, Any]]
-        :param options["pre_var_list"]: module- and variable-names to be \
-            supplied before the first child.
+        :param options["pre_var_list"]: container- and variable-names to be \
+            supplied before the first child. The container names are \
+            supported to be able to handle variables that are imported from \
+            a different container (module in Fortran).
         :type options["pre_var_list"]: List[Tuple[str, str]]
-        :param options["post_var_list"]: module- and variable-names to be \
-            supplied after the last child.
+        :param options["post_var_list"]: container- and variable-names to be \
+            supplied after the last child. The container names are \
+            supported to be able to handle variables that are imported from \
+            a different container (module in Fortran).
         :type options["post_var_list"]: List[Tuple[str, str]]
         :param str options["pre_var_postfix"]: an optional postfix that will \
             be added to each variable name in the pre_var_list.

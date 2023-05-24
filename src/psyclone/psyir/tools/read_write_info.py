@@ -41,8 +41,8 @@ are written, and which ones are read.'''
 class ReadWriteInfo:
     '''This class stores signature and container name of variables read or
     written. The container name is optional, it will default to "" if the
-    signature belongs to a local symbol, otherwise it is the name of
-    the container from which it must be imported.
+    signature belongs to a symbol declared in the local scope, otherwise it
+    is the name of the container from which it must be imported.
 
     The information is stored in lists of tuples, the first element being
     the container name, the second the signature. When accessing any of these
@@ -122,8 +122,9 @@ class ReadWriteInfo:
     # -------------------------------------------------------------------------
     def add_read(self, signature, container_name=None):
         '''This function adds a read access to the specified signature and
-        container name. The container_name is optional and defaults to ""
-        (indicating a local access).
+        container name. The container_name is optional and defaults to "",
+        indicating that this signature is not based on importing a symbol
+        from an external container (i.e. a module in Fortran).
 
         :param signature: the signature of the access.
         :type signature: :py:class:`psyclone.core.Signature`
@@ -140,8 +141,9 @@ class ReadWriteInfo:
     # -------------------------------------------------------------------------
     def add_write(self, signature, container_name=None):
         '''This function adds a write access to the specified signature and
-        container name. The container_name is optional and defaults to ""
-        (indicating a local access).
+        container name. The container_name is optional and defaults to "",
+        indicating that this signature is not based on importing a symbol
+        from an external container (i.e. a module in Fortran).
 
         :param signature: the signature of the access.
         :type signature: :py:class:`psyclone.core.Signature`
