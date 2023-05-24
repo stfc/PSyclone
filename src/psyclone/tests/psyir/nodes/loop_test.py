@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2022, Science and Technology Facilities Council.
+# Copyright (c) 2019-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -97,7 +97,6 @@ def test_loop_navigation_properties():
         _ = loop.start_expr
     assert error_str in str(err.value)
 
-    # Integer literals must have integer values now.
     loop.addchild(Literal("0", INTEGER_SINGLE_TYPE))
     loop.addchild(Literal("2", INTEGER_SINGLE_TYPE))
     loop.addchild(Literal("1", INTEGER_SINGLE_TYPE))

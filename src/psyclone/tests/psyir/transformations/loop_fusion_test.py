@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -34,6 +34,7 @@
 # Author: J. Henrichs, Bureau of Meteorology
 # Modified by R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 # Modified by I. Kavcic, Met Office
+# Modified by A. B. G. Chalk, STFC Daresbury Lab
 
 '''This module tests the loop fusion transformation.
 '''
