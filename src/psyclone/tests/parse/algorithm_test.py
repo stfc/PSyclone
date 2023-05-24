@@ -38,7 +38,6 @@
 file. Some tests for this file are in parse_test.py. This file adds
 tests for code that is not covered there.'''
 
-from __future__ import absolute_import
 import os
 
 import pytest
@@ -522,6 +521,16 @@ def test_getinvokelabel_invalid_items(monkeypatch):
     assert (
         "Expected the Fortran argument to have two items but found "
         "'3'.") in str(excinfo.value)
+
+
+def test_getinvokelabel_whitespace():
+    '''Test that an invoke label containing white space is rejected.'''
+    parse_tree = Actual_Arg_Spec("name='my name'")
+    with pytest.raises(ParseError) as err:
+        _ = get_invoke_label(parse_tree, "dummy.f90")
+    assert ("get_invoke_label the (optional) name of an invoke must be a "
+            "string containing a valid Fortran name (with no whitespace) but "
+            "got 'my name' in file dummy.f90" in str(err.value))
 
 # function get_kernel() tests
 

@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2021, Science and Technology Facilities Council
+! Copyright (c) 2021-2023, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -53,7 +53,7 @@ program multikernel_invokes_real_int_field_invalid
   real(r_def)              :: a
 
 
-  call invoke(name = "Integer and real field",            &
+  call invoke(name = "Integer_and_real_field",            &
        testkern_fs_int_field_type(i1, i2, n1, n2, i3, i4, &
                                   n3, n4, i5, i6, n5, n6, &
                                   i7, i8, n7),            &

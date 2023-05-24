@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2020, Science and Technology Facilities Council
+! Copyright (c) 2017-2023, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -47,8 +47,8 @@ program single_invoke
   real(r_def)      :: a
 
   call invoke(                           &
-       name="First name",                &
+       name="First_name",                &
        testkern_type(a, f1, f2, m1, m2), &
-       name="Important invoke")
+       name="Important_invoke")
 
 end program single_invoke

@@ -44,7 +44,7 @@ program multi_functions_multi_invokes
   type(field_type) :: f1, f2, m1, m2
   real(r_def)      :: a, b
 
-  call invoke(name="ja ck(1)",                 &
+  call invoke(name="jack(1)",                 &
               testkern_type(a, f1, f2, m1, m2))
 
 end program multi_functions_multi_invokes
