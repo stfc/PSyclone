@@ -124,7 +124,7 @@ def test_gen_indices(fortran_writer):
     assert fortran_writer.gen_indices(bray_type.shape) == [":", ":"]
 
 
-def test_gen_indices_error(monkeypatch, fortran_writer):
+def test_gen_indices_error(fortran_writer):
     '''Check the _gen_indices method raises an exception if a symbol shape
     entry is not supported.
 
@@ -2153,40 +2153,3 @@ def test_fw_operand_clause(fortran_writer):
     ref_a = Reference(symbol_a)
     op_clause.addchild(ref_a)
     assert "depend(inout: a)" in fortran_writer(op_clause)
-
-
-def test_fw_common_blocks(fortran_reader, fortran_writer):
-    '''Test that declarations with common blocks are maintained in the
-    generated Fortran.
-
-    '''
-    # Generate PSyIR from Fortran code.
-    code = (
-        "module test\n"
-        "  contains\n"
-        "  subroutine sub()\n"
-        "    integer :: a, b, c\n"
-        "    real :: d, e, f\n"
-        "    common /name1/ a, b\n"
-        "    common /name1/ c /name2/ d\n"
-        "    common e, f\n"
-        "  end subroutine sub\n"
-        "end module test\n")
-    psyir = fortran_reader.psyir_from_source(code)
-    routine = psyir.walk(Routine)[0]
-
-    assert routine.symbol_table.lookup("a").is_commonblock  # Sanity check
-
-    code = fortran_writer(routine)
-    assert code == (
-        "subroutine sub()\n"
-        "  integer :: a\n"
-        "  integer :: b\n"
-        "  integer :: c\n"
-        "  real :: d\n"
-        "  real :: e\n"
-        "  real :: f\n"
-        "  COMMON /name1/ a, b\n"
-        "  COMMON /name1/ c /name2/ d\n"
-        "  COMMON // e, f\n\n\n"
-        "end subroutine sub\n")

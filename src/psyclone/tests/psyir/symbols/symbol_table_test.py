@@ -1321,7 +1321,6 @@ def test_datatypesymbols():
     # Add other symbol types
     csym = ContainerSymbol("my_mod")
     sym_table.add(csym)
-    var2 = DataSymbol("arg_var", region_type)
     # These should not appear as datatypesymbols
     assert sym_table.datatypesymbols == [region_sym]
 

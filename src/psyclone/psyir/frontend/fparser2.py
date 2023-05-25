@@ -2219,42 +2219,10 @@ class Fparser2Reader():
                     # Restore the fparser2 parse tree
                     node.children[2].items = tuple(orig_children)
 
-            elif isinstance(node, Fortran2003.Common_Stmt):
-
-                # If the first common object has a name, use it
-                if node.children[0][0][0]:
-                    name = node.children[0][0][0]
-                else:
-                    name = "unnamed"
-
-                # Place the declaration statement into a UnknownFortranType
-                # (for now we just want to reproduce it). The name of the
-                # codeblock is not in the same namespace as the variable
-                # symbols names, so we add a psyclone prefix to
-                # differentiate them.
-                parent.symbol_table.new_symbol(
-                    f"_PSYCLONE_COMMONBLOCK_{name}",
-                    symbol_type=DataSymbol,
-                    datatype=UnknownFortranType(str(node)))
-
-                # Get the names of the symbols accessed with the commonblock,
-                # they are already defined in the symbol table but they must
-                # now have a common-block interface.
-                try:
-                    for cb_object in node.children[0]:
-                        for symbol_name in cb_object[1].items:
-                            sym = parent.symbol_table.lookup(str(symbol_name))
-                            sym.interface = CommonBlockInterface()
-                except KeyError as error:
-                    raise NotImplementedError(
-                        f"The symbol interface of a common block variable "
-                        f"could not be updated because of {error}. Currently "
-                        f"we only support commonblocks of symbols that have "
-                        f"previously been declared.") from error
-
             elif isinstance(node, (Fortran2003.Access_Stmt,
                                    Fortran2003.Derived_Type_Def,
                                    Fortran2003.Stmt_Function_Stmt,
+                                   Fortran2003.Common_Stmt,
                                    Fortran2003.Use_Stmt)):
                 # These node types are handled separately
                 pass
@@ -2300,6 +2268,11 @@ class Fparser2Reader():
                 raise NotImplementedError(
                     f"Error processing declarations: fparser2 node of type "
                     f"'{type(node).__name__}' not supported")
+
+        # We process the nodes again looking for common blocks. We do this
+        # here, after the main declarations loop, because they modify the
+        # interface of existing symbols and can appear in any order.
+        self._process_common_blocks(nodes, parent)
 
         if visibility_map is not None:
             # Check for symbols named in an access statement but not explicitly
@@ -2387,6 +2360,51 @@ class Fparser2Reader():
                 raise NotImplementedError(
                     f"Could not process '{stmtfn}'. Statement Function "
                     f"declarations are not supported.") from err
+
+    @staticmethod
+    def _process_common_blocks(nodes, psyir_parent):
+        ''' Process the fparser2 common block declaration statements. This is
+        done after the other declarations and it will keep the statement
+        as a UnknownFortranType and update the referenced symbols to a
+        CommonBlockInterface.
+
+        :param nodes: fparser2 AST nodes containing declaration statements.
+        :type nodes: list of :py:class:`fparser.two.utils.Base`
+        :param psyir_parent: the PSyIR Node with a symbol table in which to \
+            add the Common Blocks and update the symbols interfaces.
+        :type psyir_parent: :py:class:`psyclone.psyir.nodes.ScopingNode`
+
+        :raises NotImplementedError: if it is unable to find one of the \
+            CommonBlock expression in the symbols table (because it has not \
+            been declared yet or when it is not just the symbol name).
+
+        '''
+        for node in nodes:
+            if isinstance(node, Fortran2003.Common_Stmt):
+                # Place the declaration statement into a UnknownFortranType
+                # (for now we just want to reproduce it). The name of the
+                # commonblock is not in the same namespace as the variable
+                # symbols names (and there may be multiple of them in a
+                # single sttement). So we use an internal symbol name.
+                psyir_parent.symbol_table.new_symbol(
+                    root_name="_PSYCLONE_INTERNAL_COMMONBLOCK",
+                    symbol_type=DataSymbol,
+                    datatype=UnknownFortranType(str(node)))
+
+                # Get the names of the symbols accessed with the commonblock,
+                # they are already defined in the symbol table but they must
+                # now have a common-block interface.
+                try:
+                    # Loop over every COMMON block defined in this Common_Stmt
+                    for cb_object in node.children[0]:
+                        for symbol_name in cb_object[1].items:
+                            sym = psyir_parent.symbol_table.lookup(
+                                        str(symbol_name))
+                            sym.interface = CommonBlockInterface()
+                except KeyError as error:
+                    raise NotImplementedError(
+                        f"The symbol interface of a common block variable "
+                        f"could not be updated because of {error}.") from error
 
     @staticmethod
     def _process_precision(type_spec, psyir_parent):
