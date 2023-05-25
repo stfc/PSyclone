@@ -332,12 +332,28 @@ class Invokes():
         return self.invoke_map.keys()
 
     def get(self, invoke_name):
-        # add a try here for keyerror
-        try:
-            return self.invoke_map[invoke_name]
-        except KeyError:
-            raise RuntimeError(f"Cannot find an invoke named '{invoke_name}' "
-                               f"in {self.names}")
+        '''
+        :param str invoke_name: the name of the Invoke to get (not case \
+                                sensitive).
+
+        :returns: the invoke with the specified name.
+        :rtype: :py:class:`psyclone.psyGen.Invoke`
+
+        :raises RuntimeError: if no Invoke with the supplied name (with or \
+                              without "invoke_" prepended) exists.
+        '''
+        search_names = [invoke_name.lower()]
+        if not search_names[0].startswith("invoke_"):
+            search_names.append("invoke_"+search_names[0])
+        for name in search_names:
+            try:
+                return self.invoke_map[name]
+            except KeyError:
+                pass
+
+        search_list = " or ".join(f"'{name}'" for name in search_names)
+        raise RuntimeError(f"Cannot find an invoke named {search_list} "
+                           f"in {list(self.names)}")
 
     def gen_code(self, parent):
         '''
