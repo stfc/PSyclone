@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council
+# Copyright (c) 2021-2023, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -66,7 +66,7 @@ def check_invoke(call, kern_info, description=None):
     '''
     assert isinstance(call, LFRicAlgorithmInvokeCall)
     if call._name:
-        assert call._name == f"'{description}'"
+        assert call._name == f"{description}"
     else:
         assert call._name is None
     assert len(call.children) == len(kern_info)

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council
+# Copyright (c) 2021-2023, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -142,16 +142,15 @@ def test_algorithminvokecall_error():
     assert ("AlgorithmInvokeCall index argument should be a non-negative "
             "integer but found -1." in str(info.value))
 
-    with pytest.raises(TypeError) as info:
+    with pytest.raises(ValueError) as info:
         AlgorithmInvokeCall(routine, 1, name=routine)
-    assert ("AlgorithmInvokeCall name argument should be a str but "
-            "found 'RoutineSymbol'." in str(info.value))
+    assert ("Error with AlgorithmInvokeCall name argument: A name should be "
+            "a string, but found 'RoutineSymbol'." in str(info.value))
 
     with pytest.raises(ValueError) as info:
         AlgorithmInvokeCall(routine, 1, name="not valid")
-    assert ("AlgorithmInvokeCall name argument must be a string containing a "
-            "valid Fortran name (with no whitespace) but got 'not valid'."
-            in str(info.value))
+    assert ("Error with AlgorithmInvokeCall name argument: Invalid Fortran "
+            "name 'not valid' found." in str(info.value))
 
 
 def test_aic_create():

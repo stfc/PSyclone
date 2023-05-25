@@ -37,11 +37,11 @@
 LFRic kernel-layer-specific PSyIR which uses specialised classes.
 
 '''
-from psyclone.configuration import Config
 from psyclone.domain.lfric.kernel.lfric_kernel_metadata import \
     LFRicKernelMetadata
 from psyclone.domain.lfric.kernel.psyir import LFRicKernelContainer
 from psyclone.psyGen import Transformation
+from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Container, ScopingNode, FileContainer
 from psyclone.psyir.transformations import TransformationError
 
@@ -151,13 +151,14 @@ class RaisePSyIR2LFRicKernTrans(Transformation):
                 f"argument with lookup name 'metadata_name', but found "
                 f"'{names}'.") from info
 
-        config = Config.get()
-        if not config.valid_name.match(metadata_name):
+        try:
+            FortranReader.validate_name(metadata_name)
+        except (TypeError, ValueError) as err:
             raise TransformationError(
                 f"Error in {self.name} transformation. This "
                 f"transformation requires the name of the variable "
                 f"containing the metadata to be set to a "
-                f"valid Fortran name, but found '{metadata_name}'.")
+                f"valid Fortran name, but found '{metadata_name}'.") from err
 
         metadata_symbol, scoping_node = find_symbol(node, metadata_name)
         if not metadata_symbol:

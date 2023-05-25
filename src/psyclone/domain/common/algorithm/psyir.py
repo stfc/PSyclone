@@ -40,8 +40,8 @@
 '''
 import re
 
-from psyclone.configuration import Config
 from psyclone.errors import GenerationError, InternalError
+from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (Call, Reference, DataNode,
                                   Routine, Container, FileContainer)
 from psyclone.psyir.symbols import DataTypeSymbol
@@ -64,6 +64,7 @@ class AlgorithmInvokeCall(Call):
 
     :raises TypeError: if the index argument is not an integer.
     :raises ValueError: if the index argument is negative.
+    :raises ValueError: if an invalid name is supplied.
 
     '''
     _children_valid_format = "[KernelFunctor]*"
@@ -81,17 +82,13 @@ class AlgorithmInvokeCall(Call):
             raise ValueError(
                 f"AlgorithmInvokeCall index argument should be a non-negative "
                 f"integer but found {index}.")
-        if name:
-            if not isinstance(name, str):
-                raise TypeError(
-                    f"AlgorithmInvokeCall name argument should be a str but "
-                    f"found '{type(name).__name__}'.")
-            config = Config.get()
-            if not config.valid_name.fullmatch(name):
-                raise ValueError(
-                    f"AlgorithmInvokeCall name argument must be a string "
-                    f"containing a valid Fortran name (with "
-                    f"no whitespace) but got '{name}'.")
+        try:
+            if name:
+                FortranReader.validate_name(name)
+        except (TypeError, ValueError) as err:
+            raise ValueError(
+                f"Error with AlgorithmInvokeCall name argument: "
+                f"{err}") from err
 
         self._index = index
         # Keep the root names as these will also be needed by the

@@ -41,9 +41,7 @@ sub-classes.'''
 
 from abc import ABCMeta
 from enum import Enum
-import re
 
-from psyclone.configuration import Config
 from psyclone.errors import GenerationError
 from psyclone.psyir.nodes.datanode import DataNode
 
@@ -94,8 +92,9 @@ class Operation(DataNode, metaclass=ABCMeta):
                for an existing argument.
 
         '''
-        self._validate_name(name)
         if name is not None:
+            from psyclone.psyir.frontend.fortran import FortranReader
+            FortranReader.validate_name(name)
             for check_name in self.argument_names:
                 if check_name and check_name.lower() == name.lower():
                     raise ValueError(
@@ -120,8 +119,9 @@ class Operation(DataNode, metaclass=ABCMeta):
            :raises TypeError: if the index argument is the wrong type.
 
         '''
-        self._validate_name(name)
         if name is not None:
+            from psyclone.psyir.frontend.fortran import FortranReader
+            FortranReader.validate_name(name)
             for check_name in self.argument_names:
                 if check_name and check_name.lower() == name.lower():
                     raise ValueError(
@@ -167,32 +167,6 @@ class Operation(DataNode, metaclass=ABCMeta):
                 f" in the existing arguments.")
         self.children[index] = arg
         self._argument_names[index] = (id(arg), existing_name)
-
-    @staticmethod
-    def _validate_name(name):
-        '''Utility method that checks that the supplied name has a valid
-        format.
-
-        TODO #1987 - this method can be removed once all intrinsic operations
-        (that can have named arguments) are re-implmented as IntrinsicCall
-        nodes.
-
-        :param Optional[str] name: the name to check.
-
-        :raises TypeError: if the name is not a string or None.
-        :raises ValueError: if this is not a valid name.
-
-        '''
-        if name is None:
-            return
-        if not isinstance(name, str):
-            raise TypeError(
-                f"A name should be a string or None, but found "
-                f"{type(name).__name__}.")
-        config = Config.get()
-        if not config.valid_name.fullmatch(name):
-            raise ValueError(
-                f"Invalid name '{name}' found.")
 
     def __eq__(self, other):
         '''Checks whether two Operations are equal. Operations are equal

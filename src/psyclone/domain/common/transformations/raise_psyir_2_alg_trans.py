@@ -228,7 +228,7 @@ class RaisePSyIR2AlgTrans(Transformation):
             # pylint: disable=protected-access
             arg_info = []
             if call.argument_names[idx]:
-                call_name = f"'{call_arg.value}'"
+                call_name = f"{call_arg.value}"
             elif isinstance(call_arg, ArrayReference):
                 # kernel misrepresented as ArrayReference
                 args = call_arg.pop_all_children()

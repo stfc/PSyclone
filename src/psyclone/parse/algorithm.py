@@ -59,6 +59,7 @@ from psyclone.parse.kernel import BuiltInKernelTypeFactory, get_kernel_ast, \
     KernelTypeFactory
 from psyclone.parse.utils import check_api, check_line_length, ParseError, \
     parse_fp2
+from psyclone.psyir.frontend.fortran import FortranReader
 
 # pylint: disable=too-many-statements
 # pylint: disable=too-many-branches
@@ -605,12 +606,16 @@ def get_invoke_label(parse_tree, alg_filename, identifier="name"):
        invoke_label[0] == "'" and invoke_label[-1] == "'":
         invoke_label = invoke_label[1:-1]
 
-    config = Config.get()
-    if not config.valid_name.fullmatch(invoke_label):
-        raise ParseError(
-            f"algorithm.py:Parser:get_invoke_label the (optional) name of an "
-            f"invoke must be a string containing a valid Fortran name (with "
-            f"no whitespace) but got '{invoke_label}' in file {alg_filename}")
+    try:
+        if invoke_label:
+            FortranReader.validate_name(invoke_label)
+    except (TypeError, ValueError) as err:
+        raise (
+            ParseError(
+                f"algorithm.py:Parser:get_invoke_label the (optional) name of "
+                f"an invoke must be a string containing a valid Fortran name "
+                f"(with no whitespace) but got '{invoke_label}' in file "
+                f"{alg_filename}")) from err
 
     return invoke_label
 

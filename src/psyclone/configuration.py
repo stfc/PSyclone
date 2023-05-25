@@ -98,11 +98,6 @@ class Config:
     # the loading of the config file, an exception will be raised.
     _HAS_CONFIG_BEEN_INITIALISED = False
 
-    # Static specification of a valid name for use in checking for
-    # variable names etc.
-    #valid_name = re.compile(r'[a-zA-Z_][\w]*')
-    valid_name = re.compile(r'[A-Z][\w$]*', flags=re.I)
-
     # List of supported API by PSyclone
     _supported_api_list = ["dynamo0.3", "gocean1.0", "nemo"]
 

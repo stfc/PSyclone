@@ -49,6 +49,7 @@ from psyclone.configuration import Config
 from psyclone.domain.gocean import GOceanConstants
 from psyclone.errors import InternalError
 from psyclone.parse.utils import ParseError
+from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Container
 from psyclone.psyir.symbols import DataTypeSymbol, UnknownFortranType
 
@@ -453,10 +454,7 @@ class GOceanKernelMetadata():
         :raises ValueError: if the name is not valid.
 
         '''
-        config = Config.get()
-        if not value or not config.valid_name.match(value):
-            raise ValueError(
-                f"Expected name to be a valid value but found '{value}'.")
+        FortranReader.validate_name(value)
         self._name = value
 
     @property
@@ -535,11 +533,12 @@ class GOceanKernelMetadata():
         :param str value: set the procedure name specified in the \
             metadata to the specified value.
         '''
-        config = Config.get()
-        if not value or not config.valid_name.match(value):
+        try:
+            FortranReader.validate_name(value)
+        except (TypeError, ValueError) as err:
             raise ValueError(
                 f"Expected procedure_name to be a valid value but found "
-                f"'{value}'.")
+                f"'{value}'.") from err
         self._procedure_name = value
 
     class GridArg():

@@ -196,6 +196,23 @@ def test_ai2psycall_apply_error(fortran_reader):
             "'kern' is of type 'BinaryOperation'." in str(info.value))
 
 
+def test_ai2psycall_invalid_name(fortran_reader):
+    '''Check that an invalid invoke name is rejected by the transformation.'''
+    code = (
+        "subroutine alg1()\n"
+        "  use kern_mod\n"
+        "  use field_mod, only : field_type\n"
+        "  type(field_type) :: field(10)\n"
+        "  integer :: i\n"
+        "  call invoke(kern(field), name='invalid name')\n"
+        "end subroutine alg1\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    with pytest.raises(ValueError) as err:
+        AlgTrans().apply(psyir)
+    assert ("Error with AlgorithmInvokeCall name argument: Invalid Fortran "
+            "name 'invalid name' found" in str(err.value))
+
+
 def test_ai2psycall_apply_expr(fortran_reader):
     '''Check that the apply() method deals correctly with simple
     associative expressions, i.e. i+1 is the same as 1+i. Use
@@ -281,7 +298,7 @@ def test_aipsycall_apply_multi(fortran_reader):
         "  call invoke(kern1(field1), kern2(field1), kern3(field2(i)), &\n"
         "              kern1(field2(I)), kern2(field2( j )), &\n"
         "              kern3(field2(j+1)), kern1(1.0_r_def), &\n"
-        "              name=\"multi kern invoke\")\n"
+        "              name=\"multi_kern_invoke\")\n"
         "end subroutine alg1\n")
     psyir = fortran_reader.psyir_from_source(code)
     AlgTrans().apply(psyir)

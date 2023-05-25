@@ -54,9 +54,6 @@ from psyclone.domain.lfric.kernel.inter_grid_vector_arg_metadata import \
     InterGridVectorArgMetadata
 from psyclone.domain.lfric.kernel.operator_arg_metadata import \
     OperatorArgMetadata
-
-
-from psyclone.configuration import Config
 from psyclone.domain.lfric.kernel.common_metadata import CommonMetadata
 from psyclone.domain.lfric.kernel.common_meta_arg_metadata import \
     CommonMetaArgMetadata
@@ -76,6 +73,7 @@ from psyclone.domain.lfric.kernel.scalar_arg_metadata import ScalarArgMetadata
 from psyclone.domain.lfric.kernel.shapes_metadata import ShapesMetadata
 from psyclone.errors import InternalError
 from psyclone.parse.utils import ParseError
+from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.symbols import DataTypeSymbol, UnknownFortranType
 
 # pylint: disable=too-many-lines
@@ -1080,15 +1078,14 @@ class LFRicKernelMetadata(CommonMetadata):
         :raises ValueError: if the metadata has an invalid value.
 
         '''
-        if value is None:
-            self._procedure_name = None
-        else:
-            config = Config.get()
-            if not value or not config.valid_name.match(value):
+        if value:
+            try:
+                FortranReader.validate_name(value)
+            except (ValueError, TypeError) as err:
                 raise ValueError(
                     f"Expected procedure_name to be a valid Fortran name but "
-                    f"found '{value}'.")
-            self._procedure_name = value
+                    f"found '{value}'.") from err
+        self._procedure_name = value
 
     @property
     def name(self):
@@ -1109,11 +1106,7 @@ class LFRicKernelMetadata(CommonMetadata):
         :raises ValueError: if the name is not valid.
 
         '''
-        config = Config.get()
-        if not value or not config.valid_name.match(value):
-            raise ValueError(
-                f"Expected name to be a valid Fortran name but found "
-                f"'{value}'.")
+        FortranReader.validate_name(value)
         self._name = value
 
     def meta_args_get(self, types):

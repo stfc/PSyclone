@@ -82,12 +82,12 @@ def test_operation_appendnamedarg():
     # name arg wrong type
     with pytest.raises(TypeError) as info:
         nary_operation.append_named_arg(1, op1)
-    assert ("A name should be a string or None, but found int."
+    assert ("A name should be a string, but found 'int'."
             in str(info.value))
     # name arg invalid
     with pytest.raises(ValueError) as info:
         nary_operation.append_named_arg("_", op2)
-    assert "Invalid name '_' found." in str(info.value)
+    assert "Invalid Fortran name '_' found." in str(info.value)
     # name arg already used
     nary_operation.append_named_arg("name1", op1)
     with pytest.raises(ValueError) as info:
@@ -123,12 +123,12 @@ def test_operation_insertnamedarg():
     # name arg wrong type
     with pytest.raises(TypeError) as info:
         nary_operation.insert_named_arg(1, op1, 0)
-    assert ("A name should be a string or None, but found int."
+    assert ("A name should be a string, but found 'int'."
             in str(info.value))
     # name arg invalid
     with pytest.raises(ValueError) as info:
         nary_operation.append_named_arg(" a", op2)
-    assert "Invalid name ' a' found." in str(info.value)
+    assert "Invalid Fortran name ' a' found." in str(info.value)
     # name arg already used
     nary_operation.insert_named_arg("name1", op1, 0)
     with pytest.raises(ValueError) as info:
@@ -478,7 +478,7 @@ def test_binaryoperation_create_invalid():
     oper = BinaryOperation.Operator.DOT_PRODUCT
     with pytest.raises(ValueError) as info:
         _ = BinaryOperation.create(oper, ref1.copy(), ("_", 2))
-    assert "Invalid name '_' found." in str(info.value)
+    assert "Invalid Fortran name '_' found." in str(info.value)
 
 
 def test_binaryoperation_children_validation():
@@ -640,7 +640,7 @@ def test_unaryoperation_create_invalid3():
     oper = UnaryOperation.Operator.SIN
     with pytest.raises(ValueError) as info:
         _ = UnaryOperation.create(oper, ("1", 2))
-    assert "Invalid name '1' found." in str(info.value)
+    assert "Invalid Fortran name '1' found." in str(info.value)
 
 
 def test_unaryoperation_create_invalid4():
