@@ -45,7 +45,7 @@
 
 # Imports
 import abc
-from psyclone.domain.lfric import LFRicSymbolTable
+from psyclone.domain.lfric import LFRicSymbolTable, LFRicInvoke
 from psyclone.errors import InternalError
 
 
@@ -56,17 +56,17 @@ class LFRicCollection():
 
     :param node: the Kernel or Invoke for which to manage variable \
                  declarations and initialisation.
-    :type node: :py:class:`psyclone.dynamo0p3.DynInvoke` or \
+    :type node: :py:class:`psyclone.domain.lfric.LFRicInvoke` or \
                 :py:class:`psyclone.dynamo0p3.DynKern`
 
-    :raises InternalError: if the supplied node is not a DynInvoke or a \
+    :raises InternalError: if the supplied node is not a LFRicInvoke or a \
                            DynKern.
     '''
     def __init__(self, node):
         # Import here to avoid circular dependency
         # pylint: disable=import-outside-toplevel
-        from psyclone.dynamo0p3 import DynInvoke, DynKern
-        if isinstance(node, DynInvoke):
+        from psyclone.dynamo0p3 import DynKern
+        if isinstance(node, LFRicInvoke):
             # We are handling declarations/initialisations for an Invoke
             self._invoke = node
             self._kernel = None
@@ -83,7 +83,7 @@ class LFRicCollection():
             # We only have a single kernel call in this case
             self._calls = [node]
         else:
-            raise InternalError(f"LFRicCollection takes only a DynInvoke "
+            raise InternalError(f"LFRicCollection takes only a LFRicInvoke "
                                 f"or a DynKern but got: {type(node)}")
 
         # Whether or not the associated Invoke contains only kernels that
