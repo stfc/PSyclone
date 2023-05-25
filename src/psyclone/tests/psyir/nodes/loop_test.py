@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2022, Science and Technology Facilities Council.
+# Copyright (c) 2019-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -97,9 +97,9 @@ def test_loop_navigation_properties():
         _ = loop.start_expr
     assert error_str in str(err.value)
 
-    loop.addchild(Literal("start", INTEGER_SINGLE_TYPE))
-    loop.addchild(Literal("stop", INTEGER_SINGLE_TYPE))
-    loop.addchild(Literal("step", INTEGER_SINGLE_TYPE))
+    loop.addchild(Literal("0", INTEGER_SINGLE_TYPE))
+    loop.addchild(Literal("2", INTEGER_SINGLE_TYPE))
+    loop.addchild(Literal("1", INTEGER_SINGLE_TYPE))
 
     # If it's not fully complete, it still returns an error
     with pytest.raises(InternalError) as err:
@@ -115,32 +115,32 @@ def test_loop_navigation_properties():
         _ = loop.loop_body
     assert error_str in str(err.value)
     with pytest.raises(InternalError) as err:
-        loop.start_expr = Literal("invalid", INTEGER_SINGLE_TYPE)
+        loop.start_expr = Literal("NOT_INITIALISED", INTEGER_SINGLE_TYPE)
     assert error_str in str(err.value)
     with pytest.raises(InternalError) as err:
-        loop.stop_expr = Literal("invalid", INTEGER_SINGLE_TYPE)
+        loop.stop_expr = Literal("NOT_INITIALISED", INTEGER_SINGLE_TYPE)
     assert error_str in str(err.value)
     with pytest.raises(InternalError) as err:
-        loop.step_expr = Literal("invalid", INTEGER_SINGLE_TYPE)
+        loop.step_expr = Literal("NOT_INITIALISED", INTEGER_SINGLE_TYPE)
     assert error_str in str(err.value)
 
     # Check that Getters properties work
     loop.addchild(Schedule(parent=loop))
     loop.loop_body.addchild(Return(parent=loop.loop_body))
 
-    assert loop.start_expr.value == "start"
-    assert loop.stop_expr.value == "stop"
-    assert loop.step_expr.value == "step"
+    assert loop.start_expr.value == "0"
+    assert loop.stop_expr.value == "2"
+    assert loop.step_expr.value == "1"
     assert isinstance(loop.loop_body[0], Return)
 
     # Test Setters
-    loop.start_expr = Literal("newstart", INTEGER_SINGLE_TYPE)
-    loop.stop_expr = Literal("newstop", INTEGER_SINGLE_TYPE)
-    loop.step_expr = Literal("newstep", INTEGER_SINGLE_TYPE)
+    loop.start_expr = Literal("1", INTEGER_SINGLE_TYPE)
+    loop.stop_expr = Literal("3", INTEGER_SINGLE_TYPE)
+    loop.step_expr = Literal("2", INTEGER_SINGLE_TYPE)
 
-    assert loop.start_expr.value == "newstart"
-    assert loop.stop_expr.value == "newstop"
-    assert loop.step_expr.value == "newstep"
+    assert loop.start_expr.value == "1"
+    assert loop.stop_expr.value == "3"
+    assert loop.step_expr.value == "2"
 
 
 def test_loop_gen_code():
