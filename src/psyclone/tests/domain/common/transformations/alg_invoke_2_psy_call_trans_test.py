@@ -207,9 +207,9 @@ def test_ai2psycall_invalid_name(fortran_reader):
         "  call invoke(kern(field), name='invalid name')\n"
         "end subroutine alg1\n")
     psyir = fortran_reader.psyir_from_source(code)
-    with pytest.raises(ValueError) as err:
+    with pytest.raises(TransformationError) as err:
         AlgTrans().apply(psyir)
-    assert ("Error with AlgorithmInvokeCall name argument: Invalid Fortran "
+    assert ("Problem with invoke name: Invalid Fortran "
             "name 'invalid name' found" in str(err.value))
 
 
