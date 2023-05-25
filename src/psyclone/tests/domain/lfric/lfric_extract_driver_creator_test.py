@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2023, Science and Technology Facilities Council.
+# Copyright (c) 2022-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,72 +31,55 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author J. Henrichs, Bureau of Meteorology
+# Author: J. Henrichs, Bureau of Meteorology
+# Modified: S. Siso, STFC Daresbury Lab
 
 ''' This module tests the driver creation for extracted kernels.'''
 
+import os
 import pytest
 
 from psyclone.core import Signature
-from psyclone.domain.lfric import LFRicConstants, LFRicExtractDriverCreator
+from psyclone.domain.lfric import LFRicExtractDriverCreator
 from psyclone.domain.lfric.transformations import LFRicExtractTrans
 from psyclone.errors import GenerationError, InternalError
+from psyclone.parse import ModuleManager
 from psyclone.psyir.nodes import Literal, Routine, Schedule
 from psyclone.psyir.symbols import INTEGER_TYPE
 from psyclone.psyir.tools.dependency_tools import DependencyTools
-from psyclone.tests.utilities import get_invoke
+from psyclone.tests.utilities import Compile, get_base_path, get_invoke
 
 
 API = "dynamo0.3"
 
 
-def test_lfric_driver_constructor():
-    '''Tests the constructor of the LFRic driver creator.'''
+@pytest.fixture(scope='function')
+def init_module_manager():
+    ''' The tests in this module all assume that there is no pre-existing
+    ModuleManager object, so this fixture ensures that the module manager
+    instance is deleted before and after each test function. The latter
+    makes sure that any other test executed next will automatically reload
+    the default ModuleManager file.
+    '''
 
-    driver_creator = LFRicExtractDriverCreator()
-    default_precision = {"i_def": "int32", "r_def": "real64",
-                         "r_second": "real64", "r_solver": "real32",
-                         "r_tran": "real32"}
+    infrastructure_path = get_base_path(API)
+    # Define the path to the ReadKernelData module (which contains functions
+    # to read extracted data from a file) relative to the infrastructure path:
+    psyclone_root = os.path.dirname(os.path.dirname(os.path.dirname(
+        os.path.dirname(os.path.dirname(infrastructure_path)))))
+    read_mod_path = os.path.join(psyclone_root, "lib", "extract", "standalone")
+    # Enforce loading of the default ModuleManager
+    ModuleManager._instance = None
 
-    assert driver_creator._precision == default_precision
+    module_manager = ModuleManager.get()
+    module_manager.add_search_path(infrastructure_path)
+    module_manager.add_search_path(read_mod_path)
 
-    # Check that we can modify the default precisions:
-    new_precision = {"r_solver": "real64", "r_tran": "real64"}
-    driver_creator = LFRicExtractDriverCreator(new_precision)
-    assert (driver_creator._precision ==
-            {"i_def": "int32", "r_def": "real64",
-             "r_second": "real64", "r_solver": "real64",
-             "r_tran": "real64"})
+    # Now execute all tests
+    yield
 
-
-# ----------------------------------------------------------------------------
-def test_lfric_driver_field_mapping():
-    '''Tests that the mapping of fields to precision is as expected.'''
-    mapping = LFRicConstants().DATA_TYPE_MAP
-    correct = {}
-
-    # TODO #2069: use LFRicConstants here
-    for field in ["columnwise_operator",
-                  "field", "integer_field",
-                  "operator", "r_solver_field",
-                  "r_solver_operator", "r_tran_field",
-                  "r_tran_operator"]:
-        correct[mapping[field]["proxy_type"]] = mapping[field]["kind"]
-
-    driver_creator = LFRicExtractDriverCreator()
-    assert driver_creator._map_fields_to_precision == correct
-
-
-# ----------------------------------------------------------------------------
-def test_lfric_driver_constructor_error():
-    '''Tests the error handling of the constructor of the LFRic driver
-    creator.'''
-
-    # Wrong argument type:
-    with pytest.raises(InternalError) as err:
-        _ = LFRicExtractDriverCreator(precision=1)
-    assert ("The precision argument of the LFRic driver creator must be a "
-            "dictionary, but got 'int'." in str(err.value))
+    # Enforce loading of the default ModuleManager
+    ModuleManager._instance = None
 
 
 # ----------------------------------------------------------------------------
@@ -181,6 +164,9 @@ def test_lfric_driver_add_call(fortran_writer):
         driver_creator._add_call(program, "test", [])
     assert ("Routine 'test' is a symbol of type 'Symbol', not a "
             "'RoutineSymbol'" in str(err.value))
+    # Clean up previous invalid test symbol
+    del program.symbol_table._symbols['test']
+    del program.symbol_table._tags['test']
 
     driver_creator._add_call(program, "my_sub", [])
     driver_creator._add_call(program, "my_sub_2", [Literal("1", INTEGER_TYPE)])
@@ -242,7 +228,7 @@ def test_lfric_driver_import_modules_no_import_interface(fortran_reader):
 
 
 # ----------------------------------------------------------------------------
-@pytest.mark.usefixtures("change_into_tmpdir")
+@pytest.mark.usefixtures("change_into_tmpdir", "init_module_manager")
 def test_lfric_driver_simple_test():
     '''Test the full pipeline: Add kernel extraction to a kernel and
     request driver creation. Read in the written driver, and make sure
@@ -258,7 +244,7 @@ def test_lfric_driver_simple_test():
                   options={"create_driver": True,
                            "region_name": ("field", "test")})
 
-    filename = "driver-field-test.f90"
+    filename = "driver-field-test.F90"
     with open(filename, "r", encoding='utf-8') as my_file:
         driver = my_file.read()
 
@@ -287,9 +273,53 @@ def test_lfric_driver_simple_test():
                  "call extract_psy_data%ReadVariable('cell_post', cell_post)"]:
         assert line in driver
 
+    # Check that all module dependencies have been inlined:
+    for mod in ["read_kernel_data_mod", "constants_mod", "kernel_mod",
+                "argument_mod", "log_mod", "fs_continuity_mod",
+                "testkern_mod"]:
+        assert f"module {mod}" in driver
+        assert f"end module {mod}" in driver
+
+    # While the actual code is LFRic, the driver is stand-alone, and as such
+    # does not need any of the infrastructure files
+    build = Compile(".")
+    build.compile_file("driver-field-test.F90")
+
 
 # ----------------------------------------------------------------------------
-@pytest.mark.usefixtures("change_into_tmpdir")
+@pytest.mark.usefixtures("change_into_tmpdir", "init_module_manager")
+def test_lfric_driver_import_precision():
+    '''Test that all required precision symbols are imported from
+    constants_mod'''
+
+    _, invoke = get_invoke("26.6_mixed_precision_solver_vector.f90", API,
+                           dist_mem=False, idx=0)
+
+    extract = LFRicExtractTrans()
+    extract.apply(invoke.schedule.children[0],
+                  options={"create_driver": True,
+                           "region_name": ("field", "test")})
+
+    filename = "driver-field-test.F90"
+    with open(filename, "r", encoding='utf-8') as my_file:
+        driver = my_file.read()
+    assert ("use constants_mod, only : i_def, l_def, r_def, r_double, r_ncdf, "
+            "r_second, r_single, r_solver, r_tran, r_um" in driver)
+
+    for mod in ["read_kernel_data_mod", "constants_mod", "kernel_mod",
+                "argument_mod", "log_mod", "fs_continuity_mod",
+                "testkern_mod"]:
+        assert f"module {mod}" in driver
+        assert f"end module {mod}" in driver
+
+    # While the actual code is LFRic, the driver is stand-alone, and as such
+    # does not need any of the infrastructure files
+    build = Compile(".")
+    build.compile_file("driver-field-test.F90")
+
+
+# ----------------------------------------------------------------------------
+@pytest.mark.usefixtures("change_into_tmpdir", "init_module_manager")
 def test_lfric_driver_field_arrays():
     '''Test handling of array of fields: they are written in one call to
     the extraction library, but the library will write each array member
@@ -309,7 +339,7 @@ def test_lfric_driver_field_arrays():
     out = str(invoke.gen())
     assert "ProvideVariable(\"chi\", chi)" in out
 
-    filename = "driver-field-array.f90"
+    filename = "driver-field-array.F90"
     with open(filename, "r", encoding='utf-8') as my_file:
         driver = my_file.read()
 
@@ -318,9 +348,20 @@ def test_lfric_driver_field_arrays():
     assert "ReadVariable('chi%2', chi_2)" in driver
     assert "ReadVariable('chi%3', chi_3)" in driver
 
+    for mod in ["read_kernel_data_mod", "constants_mod", "kernel_mod",
+                "argument_mod", "log_mod", "fs_continuity_mod",
+                "testkern_coord_w0_2_mod"]:
+        assert f"module {mod}" in driver
+        assert f"end module {mod}" in driver
+
+    # While the actual code is LFRic, the driver is stand-alone, and as such
+    # does not need any of the infrastructure files
+    build = Compile(".")
+    build.compile_file("driver-field-array.F90")
+
 
 # ----------------------------------------------------------------------------
-@pytest.mark.usefixtures("change_into_tmpdir")
+@pytest.mark.usefixtures("change_into_tmpdir", "init_module_manager")
 def test_lfric_driver_operator():
     '''Test handling of operators, including the structure members
     that are implicitly added.'''
@@ -341,7 +382,7 @@ def test_lfric_driver_operator():
             "mm_w3_proxy%ncell_3d)" in out)
     assert "ProvideVariable(\"coord_post\", coord)" in out
 
-    filename = "driver-operator-test.f90"
+    filename = "driver-operator-test.F90"
     with open(filename, "r", encoding='utf-8') as my_file:
         driver = my_file.read()
 
@@ -354,6 +395,17 @@ def test_lfric_driver_operator():
     # And check the field arrays just in case
     for i in range(1, 4):
         assert f"ReadVariable('coord_post%{i}', coord_{i}" in driver
+
+    for mod in ["read_kernel_data_mod", "constants_mod", "kernel_mod",
+                "argument_mod", "log_mod", "fs_continuity_mod",
+                "testkern_operator_read_mod"]:
+        assert f"module {mod}" in driver
+        assert f"end module {mod}" in driver
+
+    # While the actual code is LFRic, the driver is stand-alone, and as such
+    # does not need any of the infrastructure files
+    build = Compile(".")
+    build.compile_file("driver-operator-test.F90")
 
 
 # ----------------------------------------------------------------------------
@@ -403,6 +455,7 @@ def test_lfric_driver_unsupported_builtins(name, filename, capsys):
 
 
 # ----------------------------------------------------------------------------
+@pytest.mark.usefixtures("change_into_tmpdir", "init_module_manager")
 def test_lfric_driver_removing_structure_data():
     '''Check that array accesses correctly remove the `%data`(which would be
     added for builtins using f1_proxy$data(df)). E.g. the following code needs
@@ -431,9 +484,18 @@ def test_lfric_driver_removing_structure_data():
     assert "f2(df) = a + f1(df)" in driver
     assert "if (ALL(f2 - f2_post == 0.0)) then" in driver
 
+    for mod in ["read_kernel_data_mod", "constants_mod"]:
+        assert f"module {mod}" in driver
+        assert f"end module {mod}" in driver
+
+    # While the actual code is LFRic, the driver is stand-alone, and as such
+    # does not need any of the infrastructure files
+    build = Compile(".")
+    build.string_compiles(driver)
+
 
 # ----------------------------------------------------------------------------
-@pytest.mark.usefixtures("change_into_tmpdir")
+@pytest.mark.usefixtures("change_into_tmpdir", "init_module_manager")
 def test_lfric_driver_extract_some_kernels_only():
     '''Test that we can extract only some kernels of an invoke, but still
     get the right loop boundaries (which are dependent on the index
@@ -457,7 +519,7 @@ def test_lfric_driver_extract_some_kernels_only():
     assert "PreDeclareVariable(\"loop2_start\", loop2_start)" in code
     assert "PreDeclareVariable(\"loop2_stop\", loop2_stop)" in code
 
-    filename = "driver-field-test.f90"
+    filename = "driver-field-test.F90"
     with open(filename, "r", encoding='utf-8') as my_file:
         driver = my_file.read()
 
@@ -468,9 +530,19 @@ def test_lfric_driver_extract_some_kernels_only():
     assert "ReadVariable('loop2_start', loop2_start)" in driver
     assert "ReadVariable('loop2_stop', loop2_stop)" in driver
 
+    for mod in ["read_kernel_data_mod", "constants_mod", "kernel_mod",
+                "argument_mod", "testkern_any_space_2_mod"]:
+        assert f"module {mod}" in driver
+        assert f"end module {mod}" in driver
+
+    # While the actual code is LFRic, the driver is stand-alone, and as such
+    # does not need any of the infrastructure files
+    build = Compile(".")
+    build.compile_file("driver-field-test.F90")
+
 
 # ----------------------------------------------------------------------------
-@pytest.mark.usefixtures("change_into_tmpdir")
+@pytest.mark.usefixtures("change_into_tmpdir", "init_module_manager")
 def test_lfric_driver_field_array_write():
     '''Test the handling of arrays of fields which are written.'''
 
@@ -490,7 +562,7 @@ def test_lfric_driver_field_array_write():
     # The variable is not read, so it shouldn't be listed:
     assert "ProvideVariable(\"coord\", coord)" not in code
 
-    filename = "driver-field-test.f90"
+    filename = "driver-field-test.F90"
     with open(filename, "r", encoding='utf-8') as my_file:
         driver = my_file.read()
 
@@ -498,9 +570,20 @@ def test_lfric_driver_field_array_write():
         assert f"ReadVariable('coord_post%{i}', coord_{i}_post)" in driver
         assert f"ALL(coord_{i} - coord_{i}_post == 0.0))" in driver
 
+    for mod in ["read_kernel_data_mod", "constants_mod", "kernel_mod",
+                "argument_mod", "log_mod", "fs_continuity_mod",
+                "testkern_operator_read_mod"]:
+        assert f"module {mod}" in driver
+        assert f"end module {mod}" in driver
+
+    # While the actual code is LFRic, the driver is stand-alone, and as such
+    # does not need any of the infrastructure files
+    build = Compile(".")
+    build.compile_file("driver-field-test.F90")
+
 
 # ----------------------------------------------------------------------------
-@pytest.mark.usefixtures("change_into_tmpdir")
+@pytest.mark.usefixtures("change_into_tmpdir", "init_module_manager")
 def test_lfric_driver_field_array_inc():
     '''Test the handling of arrays of fields which are incremented (i.e.
     read and written).'''
@@ -518,7 +601,7 @@ def test_lfric_driver_field_array_inc():
     assert 'ProvideVariable("chi_post", chi)' in code
     assert 'ProvideVariable("f1_post", f1)' in code
 
-    filename = "driver-field-test.f90"
+    filename = "driver-field-test.F90"
     with open(filename, "r", encoding='utf-8') as my_file:
         driver = my_file.read()
 
@@ -530,3 +613,15 @@ def test_lfric_driver_field_array_inc():
     assert "ReadVariable('chi_post%2', chi_2_post)" in driver
     assert "ReadVariable('chi_post%3', chi_3_post)" in driver
     assert "ReadVariable('f1_post', f1_post)" in driver
+
+    # Check that the required modules are inlined
+    for mod in ["read_kernel_data_mod", "constants_mod", "kernel_mod",
+                "argument_mod", "log_mod", "fs_continuity_mod",
+                "testkern_coord_w0_2_mod"]:
+        assert f"module {mod}" in driver
+        assert f"end module {mod}" in driver
+
+    # While the actual code is LFRic, the driver is stand-alone, and as such
+    # does not need any of the infrastructure files
+    build = Compile(".")
+    build.compile_file("driver-field-test.F90")
