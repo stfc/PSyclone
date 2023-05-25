@@ -172,7 +172,7 @@ def test_parser_invokeinfo_nocode(tmpdir):
     '''
     parser = Parser()
     alg_filename = str(tmpdir.join("empty.f90"))
-    with open(alg_filename, "w") as ffile:
+    with open(alg_filename, "w", encoding="utf-8") as ffile:
         ffile.write("")
     alg_parse_tree = parse_fp2(alg_filename)
     with pytest.raises(ParseError) as info:
@@ -189,7 +189,7 @@ def test_parser_invokeinfo_first(tmpdir):
     '''
     parser = Parser()
     alg_filename = str(tmpdir.join("two_routines.f90"))
-    with open(alg_filename, "w") as ffile:
+    with open(alg_filename, "w", encoding="utf-8") as ffile:
         ffile.write(
             "subroutine first()\n"
             "end subroutine first\n"
@@ -213,7 +213,7 @@ def test_parser_invokeinfo_containers(tmpdir, code, name):
     '''
     parser = Parser()
     alg_filename = str(tmpdir.join("container.f90"))
-    with open(alg_filename, "w") as ffile:
+    with open(alg_filename, "w", encoding="utf-8") as ffile:
         ffile.write(code)
     alg_parse_tree = parse_fp2(alg_filename)
     res = parser.invoke_info(alg_parse_tree)
@@ -492,6 +492,13 @@ def test_parser_caseinsensitive2(monkeypatch):
     assert str(excinfo.value) == "test_parser_caseinsensitive2"
 
 # function get_invoke_label() tests
+
+
+def test_getinvokelabel_lowercase():
+    '''Test that get_invoke_label converts to lowercase.'''
+    parse_tree = Actual_Arg_Spec("name='HeartOfGold'")
+    label = get_invoke_label(parse_tree, "dummy.f90")
+    assert label == "heartofgold"
 
 
 def test_getinvokelabel_invalid_tree():

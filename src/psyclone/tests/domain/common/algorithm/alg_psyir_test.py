@@ -167,10 +167,15 @@ def test_aic_create():
     assert aic._index == index
     assert aic._name is None
 
-    name = "description"
+    name = "desCription"
     aic = AlgorithmInvokeCall.create(
         routine, [kernel_functor.detach()], index, name=name)
-    assert aic._name == name
+    assert aic._name == name.lower()
+
+    with pytest.raises(ValueError) as err:
+        _ = AlgorithmInvokeCall.create(routine, [kernel_functor.detach()],
+                                       index, name="oh deary me")
+    assert "Invalid Fortran name 'oh deary me' found." in str(err.value)
 
     with pytest.raises(GenerationError) as info:
         AlgorithmInvokeCall.create(routine, kernel_functor, index)

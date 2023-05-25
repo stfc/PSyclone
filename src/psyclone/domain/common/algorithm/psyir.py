@@ -114,11 +114,10 @@ class AlgorithmInvokeCall(Call):
         :type arguments: list of :py:class:`psyclone.psyir.nodes.DataNode`
         :param int index: the position of this invoke call relative to \
             other invokes in the algorithm layer.
-        :param name: a string describing the purpose of the invoke or \
-            None if one is not provided. This is used to create the \
-            name of the routine that replaces the invoke. Defaults to \
-            None.
-        :type name: str or NoneType
+        :param Optional[str] name: a string naming/describing the the invoke \
+            or None if one is not provided. This is converted to lower case \
+            and used to create the name of the routine that replaces the \
+            invoke. It must be a valid Fortran name. Defaults to None.
 
         :raises GenerationError: if the arguments argument is not a \
             list.
@@ -133,7 +132,15 @@ class AlgorithmInvokeCall(Call):
                 f"AlgorithmInvokeCall create arguments argument should be a "
                 f"list but found '{type(arguments).__name__}'.")
 
-        call = cls(routine, index, name=name)
+        # Convert name to lowercase if provided.
+        if name:
+            # We have to validate it first as that checks (amongst other
+            # things) that it is a str.
+            FortranReader.validate_name(name)
+            lwr_name = name.lower()
+        else:
+            lwr_name = None
+        call = cls(routine, index, name=lwr_name)
         call.children = arguments
         return call
 

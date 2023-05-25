@@ -562,7 +562,7 @@ def get_invoke_label(parse_tree, alg_filename, identifier="name"):
     :param str identifier: An optional name used to specify a named argument. \
                            Defaults to 'name'.
 
-    :returns: the label as a string.
+    :returns: the label as a lower-cased string.
     :rtype: str
 
     :except InternalError: if the form of the argument is not what was \
@@ -609,6 +609,8 @@ def get_invoke_label(parse_tree, alg_filename, identifier="name"):
     try:
         if invoke_label:
             FortranReader.validate_name(invoke_label)
+            # We store any name as lowercase.
+            invoke_label = invoke_label.lower()
     except (TypeError, ValueError) as err:
         raise (
             ParseError(
