@@ -333,6 +333,10 @@ class Invokes():
 
     def get(self, invoke_name):
         '''
+        Gets the invoke with the supplied name. If the name does not already
+        begin with ``invoke_`` then a new name with this prepended is included
+        in the search if no exact match is found initially.
+
         :param str invoke_name: the name of the Invoke to get (not case \
                                 sensitive).
 
@@ -340,7 +344,7 @@ class Invokes():
         :rtype: :py:class:`psyclone.psyGen.Invoke`
 
         :raises RuntimeError: if no Invoke with the supplied name (with or \
-                              without "invoke_" prepended) exists.
+                              without ``invoke_`` prepended) exists.
         '''
         search_names = [invoke_name.lower()]
         if not search_names[0].startswith("invoke_"):
