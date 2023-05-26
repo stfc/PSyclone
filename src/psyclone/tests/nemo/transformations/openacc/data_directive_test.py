@@ -183,13 +183,13 @@ def test_multi_data():
     gen_code = str(psy.gen)
 
     assert ("  do jk = 1, jpkm1, 1\n"
-            "    !$acc data copyin(ptb, wmask) copyout(zdk1t, zdkt)\n"
+            "    !$acc data copyin(ptb,wmask), copyout(zdk1t,zdkt)\n"
             "    do jj = 1, jpj, 1") in gen_code
 
     assert ("    end if\n"
             "    !$acc end data\n"
-            "    !$acc data copyin(e2_e1u, e2u, e3t_n, e3u_n, pahu, r1_e1e2t, "
-            "umask, uslp, wmask, zdit, zdk1t, zdkt, zftv) copyout(zftu) "
+            "    !$acc data copyin(e2_e1u,e2u,e3t_n,e3u_n,pahu,r1_e1e2t,"
+            "umask,uslp,wmask,zdit,zdk1t,zdkt,zftv), copyout(zftu), "
             "copy(pta)\n"
             "    do jj = 1, jpjm1, 1") in gen_code
 
@@ -247,7 +247,7 @@ END subroutine data_ref
     acc_trans = TransInfo().get_trans_name('ACCDataTrans')
     acc_trans.apply(schedule.children)
     gen_code = str(psy.gen)
-    assert "!$acc data copyin(a) copyout(prof, prof%npind)" in gen_code
+    assert "!$acc data copyin(a), copyout(prof,prof%npind)" in gen_code
 
 
 def test_data_ref_read(parser):
@@ -268,7 +268,7 @@ def test_data_ref_read(parser):
     acc_trans = TransInfo().get_trans_name('ACCDataTrans')
     acc_trans.apply(schedule.children)
     gen_code = str(psy.gen)
-    assert "copyin(fld, fld%data)" in gen_code
+    assert "copyin(fld,fld%data)" in gen_code
 
 
 def test_multi_array_derived_type(fortran_reader, fortran_writer):
@@ -291,7 +291,7 @@ def test_multi_array_derived_type(fortran_reader, fortran_writer):
     acc_trans = TransInfo().get_trans_name('ACCDataTrans')
     acc_trans.apply(schedule.children)
     gen_code = fortran_writer(psyir)
-    assert ("!$acc data copyin(small_holding, small_holding(2)%data) "
+    assert ("!$acc data copyin(small_holding,small_holding(2)%data), "
             "copyout(sto_tmp)" in gen_code)
 
 
@@ -330,7 +330,7 @@ def test_array_section():
     acc_trans = TransInfo().get_trans_name('ACCDataTrans')
     acc_trans.apply(schedule.children)
     gen_code = str(psy.gen).lower()
-    assert "!$acc data copyin(b, c) copyout(a)" in gen_code
+    assert "!$acc data copyin(b,c), copyout(a)" in gen_code
 
 
 def test_kind_parameter(parser):

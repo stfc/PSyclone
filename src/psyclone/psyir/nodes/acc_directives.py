@@ -42,10 +42,11 @@
 nodes.'''
 
 import abc
+from collections import OrderedDict
+
 from psyclone.core import AccessType, VariablesAccessInfo, Signature
 from psyclone.f2pygen import DirectiveGen, CommentGen
 from psyclone.errors import GenerationError, InternalError
-from psyclone.f2pygen import DirectiveGen, CommentGen
 from psyclone.psyir.nodes.acc_clauses import (ACCCopyClause, ACCCopyInClause,
                                               ACCCopyOutClause)
 from psyclone.psyir.nodes.array_of_structures_reference import \
@@ -58,7 +59,7 @@ from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes.schedule import Schedule
 from psyclone.psyir.nodes.psy_data_node import PSyDataNode
-from psyclone.psyir.symbols import DataSymbol, ScalarType
+from psyclone.psyir.symbols import ScalarType
 
 
 class ACCDirective(metaclass=abc.ABCMeta):
