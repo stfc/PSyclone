@@ -37,9 +37,10 @@
 '''Performs pytest tests on PSyIR Fortran Backend for CommonBlocks '''
 
 from psyclone.psyir.nodes import Routine
+from psyclone.tests.utilities import Compile
 
 
-def test_fw_common_blocks(fortran_reader, fortran_writer):
+def test_fw_common_blocks(fortran_reader, fortran_writer, tmpdir):
     '''Test that declarations with common blocks are maintained in the
     generated Fortran.
 
@@ -74,3 +75,4 @@ def test_fw_common_blocks(fortran_reader, fortran_writer):
         "  COMMON /name1/ c /name2/ d\n"
         "  COMMON // e, f\n\n\n"
         "end subroutine sub\n")
+    assert Compile(tmpdir).string_compiles(fortran_writer(psyir))

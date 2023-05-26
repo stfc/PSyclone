@@ -2382,13 +2382,13 @@ class Fparser2Reader():
         CommonBlockInterface.
 
         :param nodes: fparser2 AST nodes containing declaration statements.
-        :type nodes: list of :py:class:`fparser.two.utils.Base`
+        :type nodes: List[:py:class:`fparser.two.utils.Base`]
         :param psyir_parent: the PSyIR Node with a symbol table in which to \
             add the Common Blocks and update the symbols interfaces.
         :type psyir_parent: :py:class:`psyclone.psyir.nodes.ScopingNode`
 
         :raises NotImplementedError: if it is unable to find one of the \
-            CommonBlock expression in the symbols table (because it has not \
+            CommonBlock expressions in the symbol table (because it has not \
             been declared yet or when it is not just the symbol name).
 
         '''
@@ -2398,7 +2398,7 @@ class Fparser2Reader():
                 # (for now we just want to reproduce it). The name of the
                 # commonblock is not in the same namespace as the variable
                 # symbols names (and there may be multiple of them in a
-                # single sttement). So we use an internal symbol name.
+                # single statement). So we use an internal symbol name.
                 psyir_parent.symbol_table.new_symbol(
                     root_name="_PSYCLONE_INTERNAL_COMMONBLOCK",
                     symbol_type=DataSymbol,
