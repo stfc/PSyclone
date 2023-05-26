@@ -48,6 +48,7 @@ on:
 
 jobs:
   run_if_on_mirror:
+    # Only PSyclone-mirror has the necessary self-hosted runner.
     if: ${{ github.repository == 'stfc/PSyclone-mirror' }}
     runs-on: self-hosted
     steps:
