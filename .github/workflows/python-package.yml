@@ -53,7 +53,7 @@ on:
 
 jobs:
   markdown-link-check:
-    if: ${{ github.repository == 'stfc/PSyclone' }}
+    if: ${{ github.repository != 'stfc/PSyclone-mirror' }}
     # Check all markdown files for dead links. See the 'mlc_config.json'
     # file in the project root directory for configuration.
     runs-on: ubuntu-latest
@@ -64,7 +64,7 @@ jobs:
         use-verbose-mode: 'yes'
         config-file: '.github/workflows/mlc_config.json'
   sphinx-link-check:
-    if: ${{ github.repository == 'stfc/PSyclone' }}
+    if: ${{ github.repository != 'stfc/PSyclone-mirror' }}
     # Check all Sphinx documentation for dead links.
     runs-on: ubuntu-latest
     env:
@@ -85,7 +85,7 @@ jobs:
     - run: cd doc/reference_guide; make linkcheck
     - run: cd doc/psyad/user_guide; make linkcheck
   dev-doctest:
-    if: ${{ github.repository == 'stfc/PSyclone' }}
+    if: ${{ github.repository != 'stfc/PSyclone-mirror' }}
     # Check doctests of developer's guide
     runs-on: ubuntu-latest
     steps:
@@ -95,7 +95,7 @@ jobs:
     - run: pip install .[doc]
     - run: cd doc/developer_guide; make doctest
   build:
-    if: ${{ github.repository == 'stfc/PSyclone' }}
+    if: ${{ github.repository != 'stfc/PSyclone-mirror' }}
     runs-on: ubuntu-latest
     strategy:
       matrix:
