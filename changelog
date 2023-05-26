@@ -442,6 +442,12 @@
 	149) PR #2135 towards #1618. Adds (limited) PSyIR support for Fortran
 	interfaces without a name.
 
+	150) PR #2152 for #2149. Adds checks in Literal constructor that
+	supplied string is a valid format.
+
+	151) PR #2143 for #2043. Adds basic PSyIR support for Fortran COMMON
+	blocks.
+
 release 2.3.1 17th of June 2022
 
 	1) PR #1747 for #1720. Adds support for If blocks to PSyAD.
