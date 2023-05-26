@@ -185,6 +185,8 @@ class Call(Statement, DataNode):
 
         '''
         if name is not None:
+            # Avoid circular import.
+            # pylint: disable=import-outside-toplevel
             from psyclone.psyir.frontend.fortran import FortranReader
             FortranReader.validate_name(name)
             for check_name in self.argument_names:
@@ -212,6 +214,8 @@ class Call(Statement, DataNode):
 
         '''
         if name is not None:
+            # Avoid circular import.
+            # pylint: disable=import-outside-toplevel
             from psyclone.psyir.frontend.fortran import FortranReader
             FortranReader.validate_name(name)
             for check_name in self.argument_names:

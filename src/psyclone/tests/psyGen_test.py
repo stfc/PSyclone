@@ -276,7 +276,7 @@ def test_invokes_get():
     inv = psy.invokes.get("important_INVOKE")
     # Stored name has "invoke_" prepended.
     assert inv._name == "invoke_important_invoke"
-    # Not matching name found.
+    # No matching name found.
     with pytest.raises(RuntimeError) as err:
         psy.invokes.get("missing")
     assert ("Cannot find an invoke named 'missing' or 'invoke_missing' in "
