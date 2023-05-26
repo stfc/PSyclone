@@ -31,14 +31,13 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # ----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+# Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 # Modified work Copyright (c) 2017-2019 by J. Henrichs, Bureau of Meteorology
 # Modified I. Kavcic, Met Office
 
 ''' Module containing tests of Transformations when using the
     GOcean 1.0 API '''
 
-from __future__ import absolute_import
 import re
 import inspect
 from importlib import import_module
@@ -48,16 +47,15 @@ from psyclone.domain.gocean.transformations import GOceanLoopFuseTrans
 from psyclone.errors import GenerationError
 from psyclone.gocean1p0 import GOKern
 from psyclone.psyGen import Kern
-from psyclone.psyir.nodes import Loop, Routine
+from psyclone.psyir.nodes import Loop, Routine, ACCEnterDataDirective
 from psyclone.psyir.transformations import LoopFuseTrans, LoopTrans, \
     TransformationError
 from psyclone.transformations import ACCKernelsTrans, ACCRoutineTrans, \
-    OMPParallelTrans, MoveTrans, GOceanOMPParallelLoopTrans, \
-    GOceanOMPLoopTrans, KernelModuleInlineTrans, OMPLoopTrans, \
-    ACCParallelTrans, ACCEnterDataTrans, ACCDataTrans, ACCLoopTrans
+    OMPParallelTrans, GOceanOMPParallelLoopTrans, GOceanOMPLoopTrans, \
+    OMPLoopTrans, ACCParallelTrans, ACCEnterDataTrans, ACCLoopTrans
 from psyclone.domain.gocean.transformations import GOConstLoopBoundsTrans
-from psyclone.tests.gocean1p0_build import GOcean1p0Build
-from psyclone.tests.utilities import count_lines, get_invoke, Compile
+from psyclone.tests.gocean_build import GOceanBuild
+from psyclone.tests.utilities import count_lines, get_invoke
 
 # The version of the PSyclone API that the tests in this file
 # exercise
@@ -68,23 +66,8 @@ API = "gocean1.0"
 def setup():
     '''Make sure that all tests here use gocean1.0 as API.'''
     Config.get().api = "gocean1.0"
-    yield()
+    yield
     Config._instance = None
-
-
-def test_loop_fuse_different_iterates_over():
-    ''' Test that an appropriate error is raised when we attempt to
-    fuse two loops that have differing values of ITERATES_OVER '''
-    _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
-                           API, idx=0, dist_mem=False)
-    schedule = invoke.schedule
-    lftrans = LoopFuseTrans()
-
-    # Attempt to fuse two loops that are iterating over different
-    # things
-    with pytest.raises(TransformationError) as err:
-        lftrans.apply(schedule.children[0], schedule.children[1])
-    assert "Loops do not have the same iteration space" in str(err.value)
 
 
 def test_loop_fuse_error():
@@ -158,7 +141,7 @@ def test_omp_parallel_loop(tmpdir, fortran_writer):
                 "    enddo\n"
                 "    !$omp end parallel do")
     assert expected in gen
-    assert GOcean1p0Build(tmpdir).code_compiles(psy)
+    assert GOceanBuild(tmpdir).code_compiles(psy)
 
 
 def test_omp_region_with_wrong_arg_type():
@@ -219,7 +202,7 @@ def test_omp_region_with_single_loop(tmpdir):
             call_count += 1
 
     assert call_count == 1
-    assert GOcean1p0Build(tmpdir).code_compiles(psy)
+    assert GOceanBuild(tmpdir).code_compiles(psy)
 
 
 def test_omp_region_with_slice(tmpdir):
@@ -249,7 +232,7 @@ def test_omp_region_with_slice(tmpdir):
             call_count += 1
 
     assert call_count == 2
-    assert GOcean1p0Build(tmpdir).code_compiles(psy)
+    assert GOceanBuild(tmpdir).code_compiles(psy)
 
 
 def test_omp_region_with_slice_change_order():
@@ -314,7 +297,7 @@ def test_omp_region_no_slice(tmpdir):
         if ' call ' in line and within_omp_region:
             call_count += 1
     assert call_count == 3
-    assert GOcean1p0Build(tmpdir).code_compiles(psy)
+    assert GOceanBuild(tmpdir).code_compiles(psy)
 
 
 def test_omp_region_no_slice_const_bounds(tmpdir):
@@ -345,7 +328,7 @@ def test_omp_region_no_slice_const_bounds(tmpdir):
         if ' call ' in line and within_omp_region:
             call_count += 1
     assert call_count == 3
-    assert GOcean1p0Build(tmpdir).code_compiles(psy)
+    assert GOceanBuild(tmpdir).code_compiles(psy)
 
 
 def test_omp_region_retains_kernel_order1(tmpdir):
@@ -398,7 +381,7 @@ def test_omp_region_retains_kernel_order1(tmpdir):
 
     # Kernels should be in order {compute_cu, compute_cv, time_smooth}
     assert cu_idx < cv_idx < ts_idx
-    assert GOcean1p0Build(tmpdir).code_compiles(psy)
+    assert GOceanBuild(tmpdir).code_compiles(psy)
 
 
 def test_omp_region_retains_kernel_order2(tmpdir):
@@ -432,7 +415,7 @@ def test_omp_region_retains_kernel_order2(tmpdir):
 
     # Kernels should be in order {compute_cu, compute_cv, time_smooth}
     assert cu_idx < cv_idx < ts_idx
-    assert GOcean1p0Build(tmpdir).code_compiles(psy)
+    assert GOceanBuild(tmpdir).code_compiles(psy)
 
 
 def test_omp_region_retains_kernel_order3(tmpdir):
@@ -471,7 +454,7 @@ def test_omp_region_retains_kernel_order3(tmpdir):
 
     # Kernels should be in order {compute_cu, compute_cv, time_smooth}
     assert cu_idx < cv_idx < ts_idx
-    assert GOcean1p0Build(tmpdir).code_compiles(psy)
+    assert GOceanBuild(tmpdir).code_compiles(psy)
 
 
 def test_omp_region_before_loops_trans(tmpdir):
@@ -511,7 +494,7 @@ def test_omp_region_before_loops_trans(tmpdir):
     assert omp_region_idx != -1
     assert omp_do_idx != -1
     assert omp_do_idx - omp_region_idx == 1
-    assert GOcean1p0Build(tmpdir).code_compiles(psy)
+    assert GOceanBuild(tmpdir).code_compiles(psy)
 
 
 def test_omp_region_after_loops_trans(tmpdir):
@@ -548,7 +531,7 @@ def test_omp_region_after_loops_trans(tmpdir):
     assert omp_region_idx != -1
     assert omp_do_idx != -1
     assert omp_do_idx - omp_region_idx == 1
-    assert GOcean1p0Build(tmpdir).code_compiles(psy)
+    assert GOceanBuild(tmpdir).code_compiles(psy)
 
 
 def test_omp_region_commutes_with_loop_trans(tmpdir):
@@ -596,7 +579,7 @@ def test_omp_region_commutes_with_loop_trans(tmpdir):
     region_before_loop_gen = str(psy.gen)
 
     assert region_before_loop_gen == loop_before_region_gen
-    assert GOcean1p0Build(tmpdir).code_compiles(psy)
+    assert GOceanBuild(tmpdir).code_compiles(psy)
 
 
 def test_omp_region_nodes_not_children_of_same_parent():
@@ -876,7 +859,7 @@ def test_omp_region_with_children_of_different_types(tmpdir):
 
     # Attempt to generate the transformed code
     _ = psy.gen
-    assert GOcean1p0Build(tmpdir).code_compiles(psy)
+    assert GOceanBuild(tmpdir).code_compiles(psy)
 
 
 def test_omp_schedule_default_static(tmpdir):
@@ -900,7 +883,7 @@ def test_omp_schedule_default_static(tmpdir):
     gen = str(psy.gen)
 
     assert '!$omp do schedule(static)' in gen
-    assert GOcean1p0Build(tmpdir).code_compiles(psy)
+    assert GOceanBuild(tmpdir).code_compiles(psy)
 
 
 def test_omp_do_schedule_runtime(tmpdir):
@@ -923,7 +906,7 @@ def test_omp_do_schedule_runtime(tmpdir):
     gen = str(psy.gen)
 
     assert '!$omp do schedule(runtime)' in gen
-    assert GOcean1p0Build(tmpdir).code_compiles(psy)
+    assert GOceanBuild(tmpdir).code_compiles(psy)
 
 
 def test_omp_do_schedule_dynamic(tmpdir):
@@ -946,7 +929,7 @@ def test_omp_do_schedule_dynamic(tmpdir):
     gen = str(psy.gen)
 
     assert '!$omp do schedule(dynamic)' in gen
-    assert GOcean1p0Build(tmpdir).code_compiles(psy)
+    assert GOceanBuild(tmpdir).code_compiles(psy)
 
 
 def test_omp_do_schedule_guided(tmpdir):
@@ -969,7 +952,7 @@ def test_omp_do_schedule_guided(tmpdir):
     gen = str(psy.gen)
 
     assert '!$omp do schedule(guided)' in gen
-    assert GOcean1p0Build(tmpdir).code_compiles(psy)
+    assert GOceanBuild(tmpdir).code_compiles(psy)
 
 
 def test_omp_schedule_guided_with_chunk(tmpdir):
@@ -992,7 +975,7 @@ def test_omp_schedule_guided_with_chunk(tmpdir):
     gen = str(psy.gen)
 
     assert '!$omp do schedule(guided,10)' in gen
-    assert GOcean1p0Build(tmpdir).code_compiles(psy)
+    assert GOceanBuild(tmpdir).code_compiles(psy)
 
 
 def test_module_noinline_default(tmpdir):
@@ -1005,156 +988,7 @@ def test_module_noinline_default(tmpdir):
     # check that the associated use exists (as this is removed when
     # inlining)
     assert 'USE compute_cu_mod, ONLY: compute_cu_code' in gen
-    assert GOcean1p0Build(tmpdir).code_compiles(psy)
-
-
-def test_module_inline(tmpdir):
-    ''' Test that we can succesfully inline a basic kernel subroutine
-    routine into the PSy layer module by directly setting inline to
-    true for the specified kernel. '''
-    psy, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0,
-                             dist_mem=False)
-    schedule = invoke.schedule
-    kern_call = schedule.children[0].loop_body[0].loop_body[0]
-    kern_call.module_inline = True
-    gen = str(psy.gen)
-    # check that the subroutine has been inlined correctly
-    expected = (
-        "    END SUBROUTINE invoke_0\n"
-        "    SUBROUTINE compute_cu_code(i, j, cu, p, u)\n")
-    assert expected in gen
-    # check that the associated use no longer exists
-    assert 'USE compute_cu_mod, ONLY: compute_cu_code' not in gen
-    assert GOcean1p0Build(tmpdir).code_compiles(psy)
-
-
-def test_module_inline_with_transformation(tmpdir):
-    ''' Test that we can succesfully inline a basic kernel subroutine
-    routine into the PSy layer module using a transformation '''
-    psy, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0,
-                             dist_mem=False)
-    schedule = invoke.schedule
-    kern_call = schedule.children[1].loop_body[0].loop_body[0]
-    inline_trans = KernelModuleInlineTrans()
-    inline_trans.apply(kern_call)
-    gen = str(psy.gen)
-    # check that the subroutine has been inlined
-    assert 'SUBROUTINE compute_cv_code(i, j, cv, p, v)' in gen
-    # check that the associated use no longer exists
-    assert 'USE compute_cv_mod, ONLY: compute_cv_code' not in gen
-    assert GOcean1p0Build(tmpdir).code_compiles(psy)
-
-
-def test_module_no_inline_with_transformation(tmpdir):
-    ''' Test that we can switch off the inlining of a kernel routine
-    into the PSy layer module using a transformation. Relies on the
-    test_module_inline() test being successful to be a valid test. '''
-    psy, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0,
-                             dist_mem=False)
-    schedule = invoke.schedule
-    kern_call = schedule.children[0].loop_body[0].loop_body[0]
-    # directly switch on inlining
-    kern_call.module_inline = True
-    inline_trans = KernelModuleInlineTrans()
-    # use a transformation to switch inlining off again
-    inline_trans.apply(kern_call, {"inline": False})
-    gen = str(psy.gen)
-    # check that the subroutine has not been inlined
-    assert 'SUBROUTINE compute_cu_code(i, j, cu, p, u)' not in gen
-    # check that the associated use exists (as this is removed when
-    # inlining)
-    assert 'USE compute_cu_mod, ONLY: compute_cu_code' in gen
-    assert GOcean1p0Build(tmpdir).code_compiles(psy)
-
-
-# we can not test if someone accidentally sets module_inline to True
-# to an object that is not a Kernel as Python allows one to
-# dynamically add new variables to an object. Therefore an error is
-# never thrown. This would be testable if "inline" were a function.
-# def test_inline_error_if_not_kernel():
-
-
-def test_transformation_inline_error_if_not_kernel():
-    ''' Test that the inline transformation fails if the object being
-    passed is not a kernel'''
-    _, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0,
-                           dist_mem=False)
-    schedule = invoke.schedule
-    kern_call = schedule.children[0].loop_body[0]
-    inline_trans = KernelModuleInlineTrans()
-    with pytest.raises(TransformationError):
-        inline_trans.apply(kern_call)
-
-
-def test_module_inline_with_sub_use(tmpdir):
-    ''' Test that we can module inline a kernel subroutine which
-    contains a use statement'''
-    psy, invoke = get_invoke("single_invoke_scalar_int_arg.f90", API, idx=0,
-                             dist_mem=False)
-    schedule = invoke.schedule
-    kern_call = schedule.children[0].loop_body[0].loop_body[0]
-    inline_trans = KernelModuleInlineTrans()
-    inline_trans.apply(kern_call)
-    gen = str(psy.gen)
-    # check that the subroutine has been inlined
-    assert 'SUBROUTINE bc_ssh_code(ji, jj, istep, ssha, tmask)' in gen
-    # check that the use within the subroutine exists
-    assert 'USE grid_mod' in gen
-    # check that the associated psy use does not exist
-    assert 'USE bc_ssh_mod, ONLY: bc_ssh_code' not in gen
-    assert GOcean1p0Build(tmpdir).code_compiles(psy)
-
-
-def test_module_inline_same_kernel(tmpdir):
-    '''Tests that correct results are obtained when an invoke that uses
-    the same kernel subroutine more than once has that kernel
-    inlined'''
-    psy, invoke = get_invoke("test14_module_inline_same_kernel.f90", API,
-                             idx=0)
-    schedule = invoke.schedule
-    kern_call = schedule.coded_kernels()[0]
-    inline_trans = KernelModuleInlineTrans()
-    inline_trans.apply(kern_call)
-    gen = str(psy.gen)
-    # check that the subroutine has been inlined
-    assert 'SUBROUTINE compute_cu_code(' in gen
-    # check that the associated psy "use" does not exist
-    assert 'USE compute_cu_mod, ONLY: compute_cu_code' not in gen
-    # check that the subroutine has only been inlined once
-    count = count_lines(gen, "SUBROUTINE compute_cu_code(")
-    assert count == 1, "Expecting subroutine to be inlined once"
-    assert GOcean1p0Build(tmpdir).code_compiles(psy)
-
-
-def test_module_inline_and_compile(tmpdir):
-    '''ATM incorrect code is produced if a kernel is inlined, that
-    uses variable from the original module. Proper solution would
-    likely be to add a 'use' statement to the inline kernel (which
-    again only works if the module variable is accessible outside
-    of the module)
-    '''
-    Compile.skip_if_compilation_disabled()
-    psy, invoke = get_invoke("test14_module_inline_same_kernel.f90", API,
-                             idx=0, dist_mem=False)
-    schedule = invoke.schedule
-    kern_call = schedule.children[0].loop_body[0].loop_body[0]
-    inline_trans = KernelModuleInlineTrans()
-    inline_trans.apply(kern_call)
-    assert GOcean1p0Build(tmpdir).code_compiles(psy)
-
-
-def test_module_inline_warning_no_change():
-    '''Test of the warning clause in the Kernel transformation when
-    no change is made to the inlining of a Kernel i.e. the inlining
-    request is already what is happening. No warning is currently made
-    as we have not added logging to the code but this test covers the
-    clause '''
-    _, invoke = get_invoke("test14_module_inline_same_kernel.f90", API, idx=0,
-                           dist_mem=False)
-    schedule = invoke.schedule
-    kern_call = schedule.coded_kernels()[0]
-    inline_trans = KernelModuleInlineTrans()
-    inline_trans.apply(kern_call, {"inline": False})
+    assert GOceanBuild(tmpdir).code_compiles(psy)
 
 
 def test_acc_parallel_not_a_loop():
@@ -1175,7 +1009,7 @@ def test_acc_parallel_not_a_loop():
     assert "'int'>" in str(error.value)
 
 
-def test_acc_parallel_trans(tmpdir, fortran_writer):
+def test_acc_parallel_trans(tmpdir):
     ''' Test that we can apply an OpenACC parallel transformation
     to a loop '''
     psy, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0,
@@ -1186,12 +1020,6 @@ def test_acc_parallel_trans(tmpdir, fortran_writer):
     # schedule
     acct = ACCParallelTrans()
     acct.apply(schedule.children[0])
-
-    with pytest.raises(GenerationError) as err:
-        _ = fortran_writer(psy.container)
-    assert ("An ACC parallel region must either be preceded by an ACC enter "
-            "data directive or enclosed within an ACC data region but in "
-            "'invoke_0' this is not the case" in str(err.value))
 
     # Apply the OpenACC EnterData transformation
     accdt = ACCEnterDataTrans()
@@ -1212,7 +1040,36 @@ def test_acc_parallel_trans(tmpdir, fortran_writer):
     assert acc_idx != -1 and acc_end_idx != -1
     assert acc_end_idx > acc_idx
     assert do_idx == (acc_idx + 1)
-    assert GOcean1p0Build(tmpdir).code_compiles(psy)
+    assert GOceanBuild(tmpdir).code_compiles(psy)
+
+
+def test_acc_parallel_trans_dm():
+    ''' Test that the OpenACC parallel transform works correctly when
+    distributed memory is enabled. '''
+    psy, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0,
+                             dist_mem=True)
+    schedule = invoke.schedule
+    acct = ACCParallelTrans()
+    accdt = ACCEnterDataTrans()
+    # Applying the transformation to the whole schedule should fail because
+    # of the HaloExchange nodes.
+    with pytest.raises(TransformationError) as err:
+        acct.apply(schedule.children)
+    assert ("Nodes of type 'GOHaloExchange' cannot be enclosed by a "
+            "ACCParallelTrans transformation" in str(err.value))
+    acct.apply(schedule.children[1:])
+    # Add an enter-data region.
+    accdt.apply(schedule)
+    code = str(psy.gen)
+    # Check that the start of the parallel region is in the right place.
+    assert ("      !$acc parallel default(present)\n"
+            "      DO j = cu_fld%internal%ystart, cu_fld%internal%ystop, 1\n"
+            in code)
+    # Check that the end parallel is generated correctly.
+    assert ("        END DO\n"
+            "      END DO\n"
+            "      !$acc end parallel\n\n"
+            "    END SUBROUTINE invoke_0\n" in code)
 
 
 def test_acc_incorrect_parallel_trans():
@@ -1249,7 +1106,7 @@ def test_acc_data_not_a_schedule():
 
     with pytest.raises(TransformationError) as err:
         acct.apply(schedule.children[0])
-    assert ("Cannot apply an OpenACC enter-data directive to something that "
+    assert ("Cannot apply an OpenACC enter data directive to something that "
             "is not a Schedule" in str(err.value))
 
 
@@ -1293,11 +1150,11 @@ def test_acc_data_copyin(tmpdir):
     code = str(psy.gen)
 
     assert (
-        "      !$acc enter data copyin(p_fld,p_fld%data,cu_fld,cu_fld%data,"
-        "u_fld,u_fld%data,cv_fld,cv_fld%data,v_fld,v_fld%data,unew_fld,"
-        "unew_fld%data,uold_fld,uold_fld%data)\n" in code)
+        "      !$acc enter data copyin(cu_fld,cu_fld%data,cv_fld,cv_fld%data,"
+        "p_fld,p_fld%data,u_fld,u_fld%data,unew_fld,unew_fld%data,"
+        "uold_fld,uold_fld%data,v_fld,v_fld%data)\n" in code)
 
-    assert GOcean1p0Build(tmpdir).code_compiles(psy)
+    assert GOceanBuild(tmpdir).code_compiles(psy)
 
 
 def test_acc_data_grid_copyin(tmpdir):
@@ -1319,20 +1176,19 @@ def test_acc_data_grid_copyin(tmpdir):
     accdt.apply(schedule)
     code = str(psy.gen)
 
-    # TODO grid properties are effectively duplicated in this list (but the
-    # OpenACC deep-copy support should spot this).
-    pcopy = ("!$acc enter data copyin(u_fld,u_fld%data,cu_fld,cu_fld%data,"
-             "u_fld%grid,u_fld%grid%tmask,u_fld%grid%area_t,"
-             "u_fld%grid%area_u,d_fld,d_fld%data,du_fld,du_fld%data,"
-             "d_fld%grid,d_fld%grid%tmask,d_fld%grid%area_t,"
-             "d_fld%grid%area_u)")
+    # TODO GOcean grid properties are duplicated in this set under
+    # different names (the OpenACC deep copy support should spot this).
+    pcopy = ("!$acc enter data copyin(cu_fld,cu_fld%data,d_fld,d_fld%data,"
+             "d_fld%grid,d_fld%grid%area_t,d_fld%grid%area_u,d_fld%grid%tmask,"
+             "du_fld,du_fld%data,u_fld,u_fld%data,u_fld%grid,"
+             "u_fld%grid%area_t,u_fld%grid%area_u,u_fld%grid%tmask)")
     assert pcopy in code
     # Check that we flag that the fields are now on the device
     for obj in ["u_fld", "cu_fld", "du_fld", "d_fld"]:
         assert f"{obj}%data_on_device = .true." in code
     # Check that we have no acc_update_device calls
     assert "CALL acc_update_device" not in code
-    assert GOcean1p0Build(tmpdir).code_compiles(psy)
+    assert GOceanBuild(tmpdir).code_compiles(psy)
 
 
 def test_acc_data_parallel_commute(tmpdir):
@@ -1371,7 +1227,7 @@ def test_acc_data_parallel_commute(tmpdir):
     code2 = str(psy.gen)
 
     assert code1 == code2
-    assert GOcean1p0Build(tmpdir).code_compiles(psy)
+    assert GOceanBuild(tmpdir).code_compiles(psy)
 
 
 def test_accdata_duplicate():
@@ -1428,52 +1284,19 @@ def test_accloop(tmpdir, fortran_writer):
     # Add an enclosing parallel region
     accpara.apply(schedule.children)
 
-    # Code generation should still fail because there's no 'enter data'
-    # directive and we need one for the parallel region to work
-    with pytest.raises(GenerationError) as err:
-        _ = fortran_writer(psy.container)
-    assert ("An ACC parallel region must either be preceded by an ACC enter "
-            "data directive or enclosed within an ACC data region but in "
-            "'invoke_0' this is not the case." in str(err.value))
-
     # Add a data region
     accdata.apply(schedule)
 
     gen = fortran_writer(psy.container)
     assert '''\
-            !$acc parallel default(present)
-            !$acc loop independent
-            do j = cu_fld%internal%ystart, cu_fld%internal%ystop, 1''' in gen
+        !$acc parallel default(present)
+        !$acc loop independent
+        do j = cu_fld%internal%ystart, cu_fld%internal%ystop, 1''' in gen
     assert ("enddo\n"
-            "            !$acc loop independent\n"
-            "            do j = cv_fld%internal%ystart, cv_fld%internal%ystop"
+            "        !$acc loop independent\n"
+            "        do j = cv_fld%internal%ystart, cv_fld%internal%ystop"
             ", 1" in gen)
-    assert GOcean1p0Build(tmpdir).code_compiles(psy)
-
-
-def test_acc_loop_not_within_data_region():
-    ''' Test the check that an OpenACC loop is within a data region works
-    when there is a data region, but not around the loop in question. '''
-    acclpt = ACCLoopTrans()
-    accpara = ACCParallelTrans()
-    accstaticdata = ACCDataTrans()
-
-    psy, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0,
-                             dist_mem=False)
-    schedule = invoke.schedule
-
-    # Apply ACCLoopTrans to just the second loop
-    acclpt.apply(schedule[1])
-    # Add an enclosing parallel region
-    accpara.apply(schedule[1])
-
-    # Add a static data region around the wrong loop
-    accstaticdata.apply(schedule[2])
-    with pytest.raises(GenerationError) as err:
-        _ = psy.gen
-    assert ("An ACC parallel region must either be preceded by an ACC enter "
-            "data directive or enclosed within an ACC data region but in "
-            "'invoke_0' this is not the case." in str(err.value))
+    assert GOceanBuild(tmpdir).code_compiles(psy)
 
 
 def test_acc_enter_directive_infrastructure_setup():
@@ -1569,38 +1392,8 @@ def test_acc_enter_directive_infrastructure_setup_error():
             in str(err.value))
 
 
-def test_acc_loop_before_enter_data():
-    ''' Test that we refuse to generate code if the enter data directive
-    comes after the OpenACC region. '''
-    acclpt = ACCLoopTrans()
-    accpara = ACCParallelTrans()
-    accdata = ACCEnterDataTrans()
-    mvtrans = MoveTrans()
-
-    psy, invoke = get_invoke("single_invoke_three_kernels.f90", API, idx=0,
-                             dist_mem=False)
-    schedule = invoke.schedule
-
-    # Apply ACCLoopTrans to just the second loop
-    acclpt.apply(schedule[1])
-    # Add an enclosing parallel region
-    accpara.apply(schedule[1])
-
-    # Add a data region. By default, the enter data is always added at the
-    # beginning of the Schedule. We must therefore move it in order to trigger
-    # the error.
-    accdata.apply(schedule)
-    mvtrans.apply(schedule[0], schedule[3])
-
-    with pytest.raises(GenerationError) as err:
-        _ = psy.gen
-    assert ("An ACC parallel region must be preceded by an ACC enter-data "
-            "directive but in 'invoke_0' this is not the case." in
-            str(err.value))
-
-
 def test_acc_collapse(tmpdir):
-    ''' Tests for the collapse clause to a loop directive '''
+    ''' Tests for the collapse clause to a loop directive. '''
     acclpt = ACCLoopTrans()
     accpara = ACCParallelTrans()
     accdata = ACCEnterDataTrans()
@@ -1610,25 +1403,7 @@ def test_acc_collapse(tmpdir):
     schedule = invoke.schedule
     child = schedule.children[0]
 
-    # Check that we reject non-integer collapse arguments
-    with pytest.raises(TransformationError) as err:
-        acclpt.apply(child, {"collapse": child})
-    assert ("The 'collapse' argument must be an integer but got an object "
-            "of type" in str(err.value))
-
-    # Check that we reject invalid depths
-    with pytest.raises(TransformationError) as err:
-        acclpt.apply(child, {"collapse": 1})
-    assert ("It only makes sense to collapse 2 or more loops but got a "
-            "value of 1" in str(err.value))
-
-    # Check that we reject attempts to collapse more loops than we have
-    with pytest.raises(TransformationError) as err:
-        acclpt.apply(child, {"collapse": 3})
-    assert ("Cannot apply COLLAPSE(3) clause to a loop nest containing "
-            "only 2 loops" in str(err.value))
-
-    # Finally, do something valid and check that we get the correct
+    # Apply with valid options and check that we get the correct
     # generated code
     acclpt.apply(child, {"collapse": 2})
 
@@ -1642,7 +1417,7 @@ def test_acc_collapse(tmpdir):
             "        DO i = cu_fld%internal%xstart, cu_fld%internal%xstop, 1\n"
             "          CALL compute_cu_code(i, j, cu_fld%data, p_fld%data, "
             "u_fld%data)\n" in gen)
-    assert GOcean1p0Build(tmpdir).code_compiles(psy)
+    assert GOceanBuild(tmpdir).code_compiles(psy)
 
 
 def test_acc_indep(tmpdir):
@@ -1663,7 +1438,7 @@ def test_acc_indep(tmpdir):
     assert "!$acc loop\n      DO j = cu_fld%internal%ystart," in gen
     assert "!$acc loop independent\n      DO j = cv_fld%internal%ystart" in gen
 
-    assert GOcean1p0Build(tmpdir).code_compiles(psy)
+    assert GOceanBuild(tmpdir).code_compiles(psy)
 
 
 def test_acc_loop_seq():
@@ -1792,6 +1567,10 @@ def test_all_go_loop_trans_base_validate(monkeypatch):
     monkeypatch.setattr(LoopTrans, "validate", fake_validate)
 
     for name, cls_type in all_trans_classes:
+        if name in ["RaisePSyIR2GOceanKernTrans"]:
+            # This transformation requires an argument to the
+            # constructor and is not a subclass of LoopTrans so skip.
+            continue
         trans = cls_type()
         if isinstance(trans, LoopTrans):
             with pytest.raises(NotImplementedError) as err:

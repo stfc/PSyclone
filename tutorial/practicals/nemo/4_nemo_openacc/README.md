@@ -1,10 +1,10 @@
-# Using PSyclone to add OpenACC to NEMO - Tutorial 4 #
+# Using PSyclone to add OpenACC directives - Tutorial 4 #
 
 This tutorial follows on from Tutorials 1-3 and assumes that you are
 comfortable with the topics covered there. It constructs an
 optimisation script that adds OpenACC directives to the tracer-advection
 mini-app. When built with a suitable compiler this then enables the
-code to be run on a GPU but this is not required for this tutorial.
+code to be run on a GPU (but this is not required for this tutorial).
 
 You may find it helpful to read the section on
 [OpenACC](https://psyclone.readthedocs.io/en/stable/transformations.html?highlight=accdatatrans#openacc)
@@ -17,7 +17,7 @@ https://www.openacc.org/sites/default/files/inline-files/OpenACC.2.6.final.pdf
 
 ## Prerequisites ##
 
-Are the same as those for the previous NEMO tutorials.
+Are the same as those for the previous code-transformation tutorials.
 
 ## Optional ##
 
@@ -46,8 +46,8 @@ this is achieved by applying the [`ACCKernelsTrans`](https://psyclone-ref.readth
 transformation to suitable regions of the code. The advantage of this
 approach is that it minimises the number of directives that must be
 inserted and makes use of the compiler's own dependency analysis to
-ensure that loops may be safely parallelised. This means that
-for the tracer advection mini-app we could simply enclose each
+ensure that loops may be safely parallelised. This means that,
+for the tracer advection mini-app, we could simply enclose each
 top-level loop (that does not contain a CodeBlock) within a KERNELS
 region:
 
@@ -68,13 +68,13 @@ iteration depends upon the results of the previous one. We would
 therefore be relying upon the OpenACC compiler to "do the right thing"
 and parallelise the loops *within* the iteration loop.
 
-However, the point of a Domain-Specific Language is that it makes use
-of domain-specific knowledge and therefore we can be more prescriptive
+However, since the HPC expert is free to use their domain-specific
+knowledge when applying PSyclone,  we can be more prescriptive
 about how we want the compiler to parallelise the code (in order to
 achieve better computational performance). There are also things that
 cannot be put inside KERNELS regions: these include calls to other
 subroutines and certain types of statement that are known to trigger
-compiler bugs (e.g. `MIN(my_array(:,:,:), dim=2)` causes problems with
+compiler bugs (e.g. `MIN(my_array(:,:,:), dim=2)` caused problems with
 NVIDIA (PGI) < 20.7).
 
 When working with a large code such as NEMO, it is therefore necessary
@@ -111,9 +111,9 @@ various ways in which PSyclone can be used.)
    ```
 
 2. Use the supplied Makefile to run PSyclone and generate the transformed
-   code (just type `make`). If you examine the generated Fortran in `psy.f90`
-   you should see that ACC Kernels Directive nodes have been added to the
-   Schedule, e.g.:
+   code (just type `make tra_adv.exe`). If you examine the generated Fortran
+   in `psy_openacc.f90` you should see that ACC Kernels Directive nodes have
+   been added to the Schedule, e.g.:
    ```fortran
     DO jt = 1, it
       !$ACC KERNELS
@@ -165,7 +165,7 @@ with KERNELS regions in order to perform them on the GPU.
    array range:
    ```python
         # Enclose array assignments (implicit loops)
-        if isinstance(node, Assignment) and node.is_array_range:
+        if isinstance(node, Assignment) and node.is_array_assignment:
             ACC_KERNELS_TRANS.apply(node)
    ```
 
@@ -272,8 +272,7 @@ copied back from the GPU.)
    fixed by tweaking our script so as to enclose the whole loop within
    the region rather than just its body:
    ```python
-    # Finally, enclose all of the children of the 'iteration' loop within
-    # a data region
+    # Finally, enclose the whole 'iteration' loop within a data region
     ACC_DATA_TRANS.apply(tloop)
    ```
    With this change, the generated code should now look like:

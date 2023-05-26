@@ -31,8 +31,8 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Lab
-# Modified: S. Siso, STFC Daresbury Lab
+# Author A. R. Porter, STFC Daresbury Lab
+# Modified: R. W. Ford, S. Siso and N. Nobre, STFC Daresbury Lab
 
 '''
 Module providing a transformation from a generic PSyIR routine into a
@@ -65,10 +65,10 @@ class CreateNemoInvokeScheduleTrans(Transformation):
     >>> loop = psyir.walk(Loop)[0]
     >>> trans = CreateNemoInvokeScheduleTrans()
     >>> trans.apply(psyir.children[0])
-    >>> psyir.view()
+    >>> print(psyir.view(colour=False))
     FileContainer[]
         NemoInvokeSchedule[invoke='sub']
-            0: Loop[type='None', field_space='None', it_space='None']
+            0: Loop[variable='ji']
                 Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
                 Literal[value:'10', Scalar<INTEGER, UNDEFINED>]
                 Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
@@ -79,6 +79,7 @@ class CreateNemoInvokeScheduleTrans(Transformation):
                         BinaryOperation[operator:'MUL']
                             Literal[value:'2.0', Scalar<REAL, UNDEFINED>]
                             Reference[name:'ji']
+    <BLANKLINE>
 
     The root node of this example has been transformed from a Routine into a
     NemoInvokeSchedule.
@@ -105,7 +106,7 @@ class CreateNemoInvokeScheduleTrans(Transformation):
             transformations. No options are used in this \
             transformation. This is an optional argument that defaults \
             to None.
-        :type options: dict of string:values or None
+        :type options: Optional[Dict[str, Any]]
 
         :raises TransformationError: if the supplied node is not a Routine.
 
@@ -115,36 +116,42 @@ class CreateNemoInvokeScheduleTrans(Transformation):
 
         if not isinstance(node, Routine):
             raise TransformationError(
-                "Error in NemoInvokeTrans transformation. The supplied node "
-                "should be a PSyIR Routine but found '{0}'".format(
-                    type(node).__name__))
+                f"Error in NemoInvokeTrans transformation. The supplied node "
+                f"should be a PSyIR Routine but found '{type(node).__name__}'")
 
-    def apply(self, routine, options=None):
+    def apply(self, node, options=None):
         '''
         Takes a generic PSyIR Routine and replaces it with a
         NemoInvokeSchedule (in-place). Note that this may mean replacing
         the top-level node itself and therefore this routine returns the
         root of the modified tree.
 
-        :param routine: the routine node to be transformed.
-        :type routine: :py:class:`psyclone.psyir.nodes.Routine`
+        :param node: the routine node to be transformed.
+        :type node: :py:class:`psyclone.psyir.nodes.Routine`
         :param options: a dictionary with options for \
             transformations. No options are used in this \
             transformation. This is an optional argument that defaults \
             to None.
-        :type options: dict of str:values or None
+        :type options: Optional[Dict[str, Any]]
 
         '''
-        self.validate(routine, options=options)
+        self.validate(node, options=options)
+
+        # If it's a function we need to provide the return_symbol_name to the
+        # create method
+        return_symbol_name = None
+        if node.return_symbol:
+            return_symbol_name = node.return_symbol.name
 
         new_node = NemoInvokeSchedule.create(
-            routine.name, routine.symbol_table, routine.pop_all_children(),
-            is_program=routine.is_program, return_symbol=routine.return_symbol)
+            node.name, node.symbol_table.detach(), node.pop_all_children(),
+            is_program=node.is_program,
+            return_symbol_name=return_symbol_name)
 
         # We need to replace the top node in the (possibly sub-) PSyIR
         # tree that we've been passed.
-        if routine.parent:
-            routine.replace_with(new_node)
+        if node.parent:
+            node.replace_with(new_node)
 
 
 # For AutoAPI documentation generation

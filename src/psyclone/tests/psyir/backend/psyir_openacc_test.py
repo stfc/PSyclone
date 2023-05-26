@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
-# Modified by: S. Siso, STFC Daresbury Lab
+# Modified by: S. Siso and N. Nobre, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 '''Performs pytest tests on the support for OpenACC directives in the
@@ -165,13 +165,13 @@ def test_nemo_acc_kernels(default_present, expected, parser, fortran_writer):
     ktrans.apply(nemo_sched[0], options)
 
     result = fortran_writer(nemo_sched)
-    correct = '''  !$acc kernels{0}
+    correct = f'''  !$acc kernels{expected}
   do i = 1, 20, 2
     a = 2 * i + d(i)
     c(i) = a
     b(i) = b(i) + a + c(i)
   enddo
-  !$acc end kernels'''.format(expected)
+  !$acc end kernels'''
     assert correct in result
 
     cvisitor = CWriter()

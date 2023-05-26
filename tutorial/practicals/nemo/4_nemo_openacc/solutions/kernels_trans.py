@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -82,11 +82,11 @@ def trans(psy):
         if isinstance(node, Loop) and node.loop_type == "levels":
             ACC_KERNELS_TRANS.apply([node])
         # Enclose array assignments (implicit loops)
-        if isinstance(node, Assignment) and node.is_array_range:
+        if isinstance(node, Assignment) and node.is_array_assignment:
             ACC_KERNELS_TRANS.apply([node])
 
     # Finally, enclose the whole of the 'iteration' loop within
     # a data region
     ACC_DATA_TRANS.apply([tloop])
 
-    sched.view()
+    print(sched.view())

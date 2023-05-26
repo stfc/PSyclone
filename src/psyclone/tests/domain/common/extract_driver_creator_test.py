@@ -41,9 +41,8 @@ previously dumped kernel input- and output-data.
 
 # TODO #706: Add compilation support
 
-from __future__ import absolute_import
-
 from collections import namedtuple
+from pathlib import Path
 import os
 import re
 
@@ -74,12 +73,13 @@ def clear_region_name_cache():
     order in which tests are run.
     '''
     PSyDataTrans._used_kernel_names = {}
-    yield()
+    yield
     PSyDataTrans._used_kernel_names = {}
 
 
 # -----------------------------------------------------------------------------
-def test_driver_creation1(tmpdir):
+@pytest.mark.usefixtures("change_into_tmpdir")
+def test_driver_creation1():
     '''Test that driver is created correctly for all variable access
     modes (input, input-output, output). Do not specify a region name,
     so test that the driver (including its filename) use the proper
@@ -87,8 +87,6 @@ def test_driver_creation1(tmpdir):
 
     '''
     # Use tmpdir so that the driver is created in tmp
-    tmpdir.chdir()
-
     etrans = GOceanExtractTrans()
     psy, invoke = get_invoke("driver_test.f90",
                              GOCEAN_API, idx=0, dist_mem=False)
@@ -96,14 +94,14 @@ def test_driver_creation1(tmpdir):
 
     etrans.apply(schedule.children[0], {'create_driver': True})
     # We are only interested in the driver, so ignore results.
-    str(psy.gen)
+    _ = psy.gen
 
-    driver = tmpdir.join("driver-psy_extract_example_with_various_variable_"
-                         "access_patterns-invoke_0_compute_kernel:compute_"
-                         "kernel_code:r0.f90")
-    assert driver.isfile()
+    driver = Path("driver-psy_extract_example_with_various_"
+                  "variable_access_patterns-invoke_0_compute_"
+                  "kernel:compute_kernel_code:r0.f90")
+    assert driver.is_file()
 
-    with driver.open("r") as driver_file:
+    with driver.open("r", encoding="utf-8") as driver_file:
         driver_code = driver_file.read()
 
     # This is an excerpt of the code that should get created.
@@ -112,7 +110,7 @@ def test_driver_creation1(tmpdir):
     # tests if unique variable names are created in the driver: the user
     # program contains a local variable 'dx', which clashes with the grid
     # property dx. The grid property will be renamed to 'dx_1':
-    expected = '''use extract_psy_data_mod, only : extract_PsyDataType
+    expected = '''use read_kernel_data_mod, only : ReadKernelDataType
 
   real*8, allocatable, dimension(:,:) :: out_fld
   real*8, allocatable, dimension(:,:) :: in_out_fld
@@ -122,11 +120,11 @@ def test_driver_creation1(tmpdir):
   real*8, allocatable, dimension(:,:) :: out_fld_post
   real*8 :: in_fld_grid_dx
   real*8, allocatable, dimension(:,:) :: in_out_fld_post
-  type(extract_PsyDataType) :: extract_psy_data
+  type(ReadKernelDataType) :: extract_psy_data
   call extract_psy_data%OpenRead('psy_extract_example_with_various_variable_''' \
   '''access_patterns', 'invoke_0_compute_kernel:compute_kernel_code:r0')
   call extract_psy_data%ReadVariable('out_fld_post', out_fld_post)
-  ALLOCATE(out_fld(SIZE(out_fld_post, 1), SIZE(out_fld_post, 2)))
+  ALLOCATE(out_fld, mold=out_fld_post)
   out_fld = 0
   call extract_psy_data%ReadVariable('in_fld', in_fld)
   call extract_psy_data%ReadVariable('in_out_fld_post', in_out_fld_post)
@@ -161,13 +159,13 @@ def test_driver_creation1(tmpdir):
 
 
 # -----------------------------------------------------------------------------
-def test_driver_creation2(tmpdir):
+@pytest.mark.usefixtures("change_into_tmpdir")
+def test_driver_creation2():
     '''Verify that the region names are used when opening the file, and that
     constant loop boundaries work as expected.
 
     '''
     # Use tmpdir so that the driver is created in tmp
-    tmpdir.chdir()
 
     _, invoke = get_invoke("driver_test.f90", GOCEAN_API,
                            idx=0, dist_mem=False)
@@ -191,7 +189,7 @@ def test_driver_creation2(tmpdir):
     # tests if unique variable names are created in the driver: the user
     # program contains a local variable 'dx', which clashes with the grid
     # property dx. The grid property will be renamed to 'dx_1':
-    expected = '''use extract_psy_data_mod, only : extract_PsyDataType
+    expected = '''use read_kernel_data_mod, only : ReadKernelDataType
 
   integer :: istop
   integer :: jstop
@@ -203,10 +201,10 @@ def test_driver_creation2(tmpdir):
   real*8, allocatable, dimension(:,:) :: out_fld_post
   real*8 :: in_fld_grid_dx
   real*8, allocatable, dimension(:,:) :: in_out_fld_post
-  type(extract_PsyDataType) :: extract_psy_data
+  type(ReadKernelDataType) :: extract_psy_data
   call extract_psy_data%OpenRead('module_name', 'local_name')
   call extract_psy_data%ReadVariable('out_fld_post', out_fld_post)
-  ALLOCATE(out_fld(SIZE(out_fld_post, 1), SIZE(out_fld_post, 2)))
+  ALLOCATE(out_fld, mold=out_fld_post)
   out_fld = 0
   call extract_psy_data%ReadVariable('in_fld', in_fld)
   call extract_psy_data%ReadVariable('in_out_fld_post', in_out_fld_post)
@@ -243,7 +241,8 @@ def test_driver_creation2(tmpdir):
 
 
 # -----------------------------------------------------------------------------
-def test_rename_suffix_if_name_clash(tmpdir):
+@pytest.mark.usefixtures("change_into_tmpdir")
+def test_rename_suffix_if_name_clash():
     '''Test that driver is created correctly if there is a clash
     with the variable names, e.g. an output variable 'a', and
     an input variable 'a_post' - writing the output variable 'a'
@@ -256,7 +255,6 @@ def test_rename_suffix_if_name_clash(tmpdir):
 
     '''
     # Use tmpdir so that the driver is created in tmp
-    tmpdir.chdir()
 
     etrans = GOceanExtractTrans()
     psy, invoke = get_invoke("driver_test.f90",
@@ -286,10 +284,10 @@ def test_rename_suffix_if_name_clash(tmpdir):
     # Now we also need to check that the driver uses the new suffix,
     # i.e. both as key for ReadVariable, as well as for the variable
     # names.
-    driver = tmpdir.join("driver-module_name-local_name.f90")
-    assert driver.isfile()
+    driver = Path("driver-module_name-local_name.f90")
+    assert driver.is_file()
 
-    with driver.open("r") as driver_file:
+    with driver.open("r", encoding="utf-8") as driver_file:
         driver_code = driver_file.read()
 
     expected = """
@@ -301,7 +299,7 @@ def test_rename_suffix_if_name_clash(tmpdir):
   call extract_psy_data%ReadVariable('in_out_fld', in_out_fld)
   call extract_psy_data%ReadVariable('in_out_fld_post0', in_out_fld_post0)
   call extract_psy_data%ReadVariable('out_fld_post0', out_fld_post0)
-  ALLOCATE(out_fld(SIZE(out_fld_post0, 1), SIZE(out_fld_post0, 2)))
+  ALLOCATE(out_fld, mold=out_fld_post0)
   call extract_psy_data%ReadVariable('out_fld_post', out_fld_post)"""
 
     for line in expected.split("\n"):
@@ -310,8 +308,10 @@ def test_rename_suffix_if_name_clash(tmpdir):
     # Now test that more than one variable clash is handled. The third
     # invoke uses:
     # "out_fld" as output field
-    # "out_fld_post" as input field (first clash --> suffix becomes "_post0")
-    # "out_fld_post0" as input+output field (next clash --> suffix = "_post1")
+    # "out_fld_post" as input field (first clash -->
+    # suffix becomes "_post0")
+    # "out_fld_post0" as input+output field (next clash -->
+    # suffix = "_post1")
     psy, invoke = get_invoke("driver_test.f90",
                              GOCEAN_API, idx=2, dist_mem=False)
     schedule = invoke.schedule
@@ -326,16 +326,19 @@ def test_rename_suffix_if_name_clash(tmpdir):
     assert 'PreDeclareVariable("out_fld_post1", out_fld)' in extract_code
     assert 'PreDeclareVariable("out_fld", out_fld)' not in extract_code
 
-    # Check that *out_fld_post* (input/output) is declared correctly. It must
-    # be declared twice: once for the input value using the original variable
-    # name, and once as output using the "_post1" suffix"
-    assert 'PreDeclareVariable("out_fld_post", out_fld_post)' in extract_code
+    # Check that *out_fld_post* (input/output) is declared correctly. It
+    # must be declared twice: once for the input value using the original
+    # variable name, and once as output using the "_post1" suffix.
+    assert ('PreDeclareVariable("out_fld_post", out_fld_post)'
+            in extract_code)
     assert ('PreDeclareVariable("out_fld_post_post1", out_fld_post)'
             in extract_code)
 
     # Check that *out_fld_post0* is declared correctly: as input-only
-    # variable it must be declared once for using the original variable name.
-    assert 'PreDeclareVariable("out_fld_post0", out_fld_post0)' in extract_code
+    # variable it must be declared once for using the original variable
+    # name.
+    assert ('PreDeclareVariable("out_fld_post0", out_fld_post0)'
+            in extract_code)
     assert ('PreDeclareVariable("out_fld_post0_post1", out_fld_post0)'
             not in extract_code)
 
@@ -529,7 +532,8 @@ def test_driver_creation_import_modules(fortran_reader):
 
 
 # -----------------------------------------------------------------------------
-def test_driver_node_verification(tmpdir):
+@pytest.mark.usefixtures("change_into_tmpdir")
+def test_driver_node_verification():
     '''Test that the create() method verifies the node list it receives
     and only accept the valid parameters.
 
@@ -537,7 +541,6 @@ def test_driver_node_verification(tmpdir):
     # Use tmpdir in case that the call below does not raise an
     # exception, which would result in the driver being created
     # in the current directory.
-    tmpdir.chdir()
 
     api = "gocean1.0"
     _, info = parse(os.path.join(get_base_path(api), "driver_test.f90"),

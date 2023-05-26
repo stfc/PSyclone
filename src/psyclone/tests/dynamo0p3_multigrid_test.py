@@ -57,6 +57,7 @@ from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import Node
+from psyclone.psyir.symbols import Symbol
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.transformations import check_intergrid, Dynamo0p3ColourTrans, \
         DynamoOMPParallelLoopTrans, TransformationError
@@ -90,7 +91,7 @@ end module restrict_mod
 def setup():
     '''Make sure that all tests here use dynamo0.3 as API.'''
     Config.get().api = "dynamo0.3"
-    yield()
+    yield
     Config._instance = None
 
 
@@ -138,19 +139,21 @@ def test_all_args_same_mesh_error():
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
     const = LFRicConstants()
-    assert ("Inter-grid kernels in the Dynamo 0.3 API must have at least "
-            "one field argument on each of the mesh types ({0}). However, "
-            "kernel restrict_kernel_type has arguments only on ['gh_fine']".
-            format(const.VALID_MESH_TYPES) in str(excinfo.value))
+    assert (f"Inter-grid kernels in the Dynamo 0.3 API must have at least "
+            f"one field argument on each of the mesh types "
+            f"({const.VALID_MESH_TYPES}). However, "
+            f"kernel restrict_kernel_type has arguments only on ['gh_fine']"
+            in str(excinfo.value))
     # Both on coarse mesh
     code = RESTRICT_MDATA.replace("GH_FINE", "GH_COARSE", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert ("Inter-grid kernels in the Dynamo 0.3 API must have at least "
-            "one field argument on each of the mesh types ({0}). However, "
-            "kernel restrict_kernel_type has arguments only on ['gh_coarse']".
-            format(const.VALID_MESH_TYPES) in str(excinfo.value))
+    assert (f"Inter-grid kernels in the Dynamo 0.3 API must have at least "
+            f"one field argument on each of the mesh types "
+            f"({const.VALID_MESH_TYPES}). However, kernel "
+            f"restrict_kernel_type has arguments only on ['gh_coarse']"
+            in str(excinfo.value))
 
 
 def test_all_fields_have_mesh():
@@ -250,6 +253,31 @@ def test_two_grid_types(monkeypatch):
             "API assumes there are exactly two mesh types but "
             "LFRicConstants.VALID_MESH_TYPES contains 3: "
             "['gh_coarse', 'gh_fine', 'gh_medium']" in str(err.value))
+
+
+def test_dynintergrid():
+    '''Check the setters and getters for colour information in DynIntergrid
+    work as expected. '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "22.0_intergrid_prolong.f90"),
+                           api=API)
+    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    # Get the DynIntergrid object from the tree:
+    dyn_intergrid = list(psy.invokes.invoke_list[0].meshes.
+                         intergrid_kernels.values())[0]
+    # The objects will not get initialised before `gen` is called, so all
+    # values should be None initially:
+    assert dyn_intergrid.colourmap_symbol is None
+    assert dyn_intergrid.last_cell_var_symbol is None
+    assert dyn_intergrid.ncolours_var_symbol is None
+    # Now set some symbols and check that they are correct (note that
+    # there is no individual setter for these attributes).
+    dyn_intergrid.set_colour_info(Symbol("cmap"),
+                                  Symbol("ncolours"),
+                                  Symbol("last_cell"))
+    assert dyn_intergrid.colourmap_symbol.name == "cmap"
+    assert dyn_intergrid.ncolours_var_symbol.name == "ncolours"
+    assert dyn_intergrid.last_cell_var_symbol.name == "last_cell"
 
 
 def test_field_prolong(tmpdir, dist_mem):
@@ -702,13 +730,12 @@ def test_prolong_vector(tmpdir):
             "field2_proxy(3)%data, ndf_w1" in output)
     for idx in [1, 2, 3]:
         assert (
-            "      IF (field2_proxy({0})%is_dirty(depth=1)) THEN\n"
-            "        CALL field2_proxy({0})%halo_exchange(depth=1)\n"
-            "      END IF\n".format(idx) in output)
-        assert ("field1_proxy({0}) = field1({0})%get_proxy()".format(idx) in
-                output)
-        assert "CALL field1_proxy({0})%set_dirty()".format(idx) in output
-        assert "CALL field1_proxy({0})%set_clean(1)".format(idx) in output
+            f"      IF (field2_proxy({idx})%is_dirty(depth=1)) THEN\n"
+            f"        CALL field2_proxy({idx})%halo_exchange(depth=1)\n"
+            f"      END IF\n" in output)
+        assert f"field1_proxy({idx}) = field1({idx})%get_proxy()" in output
+        assert f"CALL field1_proxy({idx})%set_dirty()" in output
+        assert f"CALL field1_proxy({idx})%set_clean(1)" in output
 
 
 def test_no_stub_gen():
@@ -717,8 +744,8 @@ def test_no_stub_gen():
     with pytest.raises(NotImplementedError) as excinfo:
         generate(os.path.join(BASE_PATH, "prolong_test_kernel_mod.f90"),
                  api="dynamo0.3")
-    assert ('prolong_test_kernel_code is an inter-grid kernel and stub '
-            'generation is not yet supported for inter-grid kernels'
+    assert ("'prolong_test_kernel_code' is an inter-grid kernel and stub "
+            "generation is not yet supported for inter-grid kernels"
             in str(excinfo.value))
 
 
@@ -794,7 +821,8 @@ def test_restrict_prolong_chain_anyd(tmpdir):
         "      DO colour=loop2_start,loop2_stop\n"
         "        !$omp parallel do default(shared), private(cell), "
         "schedule(static)\n"
-        "        DO cell=loop3_start,last_cell_all_colours_fld_c(colour,1)\n"
+        "        DO cell=loop3_start,"
+        "last_halo_cell_all_colours_fld_c(colour,1)\n"
         "          !\n"
         "          CALL prolong_test_kernel_code")
     assert expected in output

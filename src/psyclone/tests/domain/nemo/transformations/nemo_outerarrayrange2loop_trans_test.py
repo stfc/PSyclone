@@ -79,8 +79,8 @@ def test_transform_apply_mixed_implicit_do(tmpdir):
     result = writer(schedule)
     expected = (
         "  do jk = 1, jpk, 1\n"
-        "    do jj = 1, jpj, 1\n"
-        "      umask(:,jj,jk) = vmask(:,jj,jk) + 1.0\n"
+        "    do idx = LBOUND(umask, 2), UBOUND(umask, 2), 1\n"
+        "      umask(:,idx,jk) = vmask(:,idx,jk) + 1.0\n"
         "    enddo\n"
         "  enddo")
     assert expected in result
@@ -88,9 +88,9 @@ def test_transform_apply_mixed_implicit_do(tmpdir):
     result = writer(schedule)
     expected = (
         "  do jk = 1, jpk, 1\n"
-        "    do jj = 1, jpj, 1\n"
-        "      do ji = 1, jpi, 1\n"
-        "        umask(ji,jj,jk) = vmask(ji,jj,jk) + 1.0\n"
+        "    do idx = LBOUND(umask, 2), UBOUND(umask, 2), 1\n"
+        "      do idx_1 = LBOUND(umask, 1), UBOUND(umask, 1), 1\n"
+        "        umask(idx_1,idx,jk) = vmask(idx_1,idx,jk) + 1.0\n"
         "      enddo\n"
         "    enddo\n"
         "  enddo")
@@ -118,10 +118,10 @@ def test_apply_with_structures(fortran_reader, fortran_writer):
     assignment = psyir.walk(Assignment)[0]
     trans.apply(assignment)
     result = fortran_writer(assignment)
-    assert "base%field(constant)%array(:,jj,jk) = 1" in result
+    assert "base%field(constant)%array(:,idx,jk) = 1" in result
     trans.apply(assignment)
     result = fortran_writer(assignment)
-    assert "base%field(constant)%array(ji,jj,jk) = 1" in result
+    assert "base%field(constant)%array(idx_1,idx,jk) = 1" in result
 
     # The inner dimension is already set
     psyir = fortran_reader.psyir_from_source('''
@@ -134,10 +134,11 @@ def test_apply_with_structures(fortran_reader, fortran_writer):
     assignment = psyir.walk(Assignment)[0]
     trans.apply(assignment)
     result = fortran_writer(assignment)
-    assert "ptab(jf)%pt2d(jpi,:,jk) = ptab(jf)%pt2d(jpim1,:,jk)" in result
+    assert "ptab(jf)%pt2d(jpi,:,idx) = ptab(jf)%pt2d(jpim1,:,idx)" in result
     trans.apply(assignment)
     result = fortran_writer(assignment)
-    assert "ptab(jf)%pt2d(jpi,jj,jk) = ptab(jf)%pt2d(jpim1,jj,jk)" in result
+    assert ("ptab(jf)%pt2d(jpi,idx_1,idx) = "
+            "ptab(jf)%pt2d(jpim1,idx_1,idx)" in result)
 
 
 def test_apply_calls_validate():
@@ -145,9 +146,9 @@ def test_apply_calls_validate():
     trans = NemoOuterArrayRange2LoopTrans()
     with pytest.raises(TransformationError) as info:
         trans.apply(None)
-    assert("Error in NemoOuterArrayRange2LoopTrans transformation. The "
-           "supplied node argument should be a PSyIR Assignment, but "
-           "found 'NoneType'." in str(info.value))
+    assert ("Error in NemoOuterArrayRange2LoopTrans transformation. The "
+            "supplied node argument should be a PSyIR Assignment, but "
+            "found 'NoneType'." in str(info.value))
 
 
 def test_str():
@@ -177,9 +178,9 @@ def test_validate_assignment():
     trans = NemoOuterArrayRange2LoopTrans()
     with pytest.raises(TransformationError) as info:
         trans.validate(None)
-    assert("Error in NemoOuterArrayRange2LoopTrans transformation. The "
-           "supplied node argument should be a PSyIR Assignment, but "
-           "found 'NoneType'." in str(info.value))
+    assert ("Error in NemoOuterArrayRange2LoopTrans transformation. The "
+            "supplied node argument should be a PSyIR Assignment, but "
+            "found 'NoneType'." in str(info.value))
 
 
 def test_validate_array_reference(parser):
@@ -209,10 +210,10 @@ END subroutine data_ref
     trans = NemoOuterArrayRange2LoopTrans()
     with pytest.raises(TransformationError) as info:
         trans.validate(assignment)
-    assert("Transformation Error: Error in NemoOuterArrayRange2LoopTrans "
-           "transformation. The LHS of the supplied assignment node should be "
-           "a Reference that contains an array access somewhere in the "
-           "expression, but found 'CodeBlock[1 nodes]'." in str(info.value))
+    assert ("Transformation Error: Error in NemoOuterArrayRange2LoopTrans "
+            "transformation. The LHS of the supplied assignment node should be"
+            " a Reference that contains an array access somewhere in the "
+            "expression, but found 'CodeBlock[1 nodes]'." in str(info.value))
 
 
 # lhs array reference has a range
@@ -230,7 +231,7 @@ def test_validate_range():
     trans = NemoOuterArrayRange2LoopTrans()
     with pytest.raises(TransformationError) as info:
         trans.validate(assignment)
-    assert("Error in NemoOuterArrayRange2LoopTrans transformation. "
-           "The LHS of the supplied assignment node should be an expression "
-           "with an array that has a Range node, but found 'ArrayReference"
-           in str(info.value))
+    assert ("Error in NemoOuterArrayRange2LoopTrans transformation. "
+            "The LHS of the supplied assignment node should be an expression "
+            "with an array that has a Range node, but found 'ArrayReference"
+            in str(info.value))

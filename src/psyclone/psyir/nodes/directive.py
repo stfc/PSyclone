@@ -42,9 +42,12 @@
     node implementation.'''
 
 import abc
+from psyclone.configuration import Config
+from psyclone.errors import InternalError
+from psyclone.f2pygen import CommentGen
+from psyclone.psyir.nodes.loop import Loop
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.schedule import Schedule
-from psyclone.errors import InternalError
 
 
 class Directive(Statement, metaclass=abc.ABCMeta):
@@ -90,8 +93,7 @@ class RegionDirective(Directive):
     def __init__(self, ast=None, children=None, parent=None):
         # A Directive always contains a Schedule
         sched = Schedule(children=children, parent=self)
-        super(RegionDirective, self).__init__(ast, children=[sched],
-                                              parent=parent)
+        super().__init__(ast, children=[sched], parent=parent)
 
     @staticmethod
     def _validate_child(position, child):
@@ -132,6 +134,45 @@ class RegionDirective(Directive):
         if len(self.children) > 1:
             return self.children[1:]
         return []
+
+    def gen_post_region_code(self, parent):
+        '''
+        Generates any code that must be executed immediately after the end of
+        the region defined by this directive.
+
+        TODO #1648 this method is only used by the gen_code() code-generation
+        path and should be replaced by functionality in a
+        'lower_to_language_level' method in an LFRic-specific subclass
+        of the appropriate directive.
+
+        :param parent: where to add new f2pygen nodes.
+        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+
+        '''
+        if not Config.get().distributed_memory or self.ancestor(Loop):
+            return
+        # Have to import PSyLoop here to avoid a circular dependence.
+        # pylint: disable=import-outside-toplevel
+        from psyclone.domain.common.psylayer import PSyLoop
+
+        commented = False
+        for loop in self.walk(PSyLoop):
+            if not isinstance(loop.parent, Loop):
+                if not commented and loop.unique_modified_args("gh_field"):
+                    commented = True
+                    parent.add(CommentGen(parent, ""))
+                    parent.add(CommentGen(parent,
+                                          " Set halos dirty/clean for fields "
+                                          "modified in the above loop(s)"))
+                    parent.add(CommentGen(parent, ""))
+                loop.gen_mark_halos_clean_dirty(parent)
+
+        if commented:
+            parent.add(CommentGen(parent, ""))
+            parent.add(CommentGen(parent,
+                                  " End of set dirty/clean section for "
+                                  "above loop(s)"))
+            parent.add(CommentGen(parent, ""))
 
 
 class StandaloneDirective(Directive):

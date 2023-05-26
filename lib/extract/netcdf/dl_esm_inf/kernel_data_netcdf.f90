@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2020-2021, Science and Technology Facilities Council.
+! Copyright (c) 2020-2022, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -74,32 +74,6 @@ module extract_psy_data_mod
 contains
 
     ! -------------------------------------------------------------------------
-    !> Checks if the return value from a NetCDF call indicates an error.
-    !! If so, print the corresponding error message and aborts the program.
-    !! It is typically used as a wrapper around NetCDF calls:
-    !! retval = CheckError(nf90_close(ncid))
-    !! @param[in] retval The return value from a NetCDF operation.
-    !! Returns the return value.
-    function CheckError(retval)
-
-        use netcdf, only : nf90_noerr, nf90_strerror
-
-        implicit none
-
-        integer :: CheckError
-        integer, intent(in) :: retval
-
-        if (retval /= nf90_noerr) then
-            print *,"NetCDF Error:"
-            print *,trim(nf90_strerror(retval))
-            stop
-        endif
-
-        CheckError = retval
-
-    end function CheckError
-
-    ! -------------------------------------------------------------------------
     !> This is a one-time init function. It is not required for the kernel
     !! extraction and is therefore empty.
     subroutine extract_PSyDataInit()
@@ -122,7 +96,6 @@ contains
     !! @param[in] value The value of the variable.
     subroutine DeclareFieldDouble(this, name, value)
 
-        use netcdf
         use field_mod, only : r2d_field
 
         implicit none
@@ -130,8 +103,6 @@ contains
         class(extract_PsyDataType), intent(inout), target :: this
         character(*), intent(in) :: name
         type(r2d_field), intent(in) :: value
-        integer :: x_dimid, y_dimid, retval
-        integer, dimension(2) :: dimids
 
         ! Map to a simple 2d-array:
         call this%DeclareArray2dDouble(name, value%data)
@@ -147,7 +118,6 @@ contains
     !! @param[in] value The value of the variable.
     subroutine WriteFieldDouble(this, name, value)
 
-        use netcdf
         use field_mod, only : r2d_field
 
         implicit none
@@ -155,7 +125,6 @@ contains
         class(extract_PsyDataType), intent(inout), target :: this
         character(*), intent(in) :: name
         type(r2d_field), intent(in) :: value
-        integer :: retval
 
         ! Map the field to a simple 2d-array
         call this%WriteArray2dDouble(name, value%data)

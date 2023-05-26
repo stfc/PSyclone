@@ -32,7 +32,8 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
-# Modified: S. Siso, STFC Daresbury Lab
+# Modified: R. W. Ford, S. Siso and N. Nobre, STFC Daresbury Lab
+
 
 '''Module providing a transformation from a generic PSyIR representation of
    a PSy layer into a NEMO-specific one.
@@ -65,23 +66,23 @@ class CreateNemoPSyTrans(Transformation):
     >>> loop = psyir.walk(Loop)[0]
     >>> trans = CreateNemoPSyTrans()
     >>> trans.apply(psyir)
-    >>> psyir.view()
+    >>> print(psyir.view(colour=False, indent="   "))
     FileContainer[]
-        NemoInvokeSchedule[invoke='sub']
-            0: Loop[type='lon', field_space='None', it_space='None']
-                Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
-                Literal[value:'10', Scalar<INTEGER, UNDEFINED>]
-                Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
-                Schedule[]
-                    0: InlinedKern[]
-                        Schedule[]
-                            0: Assignment[]
-                                ArrayReference[name:'tmp']
-                                    Reference[name:'ji']
-                                BinaryOperation[operator:'MUL']
-                                    Literal[value:'2', Scalar<INTEGER, \
-UNDEFINED>]
-                                    Reference[name:'ji']
+       NemoInvokeSchedule[invoke='sub']
+          0: Loop[type='lon', field_space='None', it_space='None']
+             Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
+             Literal[value:'10', Scalar<INTEGER, UNDEFINED>]
+             Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
+             Schedule[]
+                0: InlinedKern[]
+                   Schedule[]
+                      0: Assignment[]
+                         ArrayReference[name:'tmp']
+                            Reference[name:'ji']
+                         BinaryOperation[operator:'MUL']
+                            Literal[value:'2', Scalar<INTEGER, UNDEFINED>]
+                            Reference[name:'ji']
+    <BLANKLINE>
 
     The result of this transformation is that the root `Routine` has
     been converted into a `NemoInvokeSchedule`, the `Loop` is now a
@@ -110,16 +111,16 @@ UNDEFINED>]
             transformations. No options are used in this \
             transformation. This is an optional argument that defaults \
             to None.
-        :type options: dict of string:values or None
+        :type options: Optional[Dict[str, Any]]
 
         :raises TransformationError: if the supplied node is not a PSyIR node.
 
         '''
         if not isinstance(node, Node):
             raise TransformationError(
-                "Error in CreateNemoPSyTrans transformation. The supplied node"
-                " should be a PSyIR Node but found '{0}'".format(
-                    type(node).__name__))
+                f"Error in CreateNemoPSyTrans transformation. The supplied "
+                f"node should be a PSyIR Node but found "
+                f"'{type(node).__name__}'")
 
         super(CreateNemoPSyTrans, self).validate(node, options=options)
 
@@ -136,7 +137,7 @@ UNDEFINED>]
             transformations. No options are used in this \
             transformation. This is an optional argument that defaults \
             to None.
-        :type options: dict of string:values or None
+        :type options: Optional[Dict[str, Any]]
 
         '''
         self.validate(psyir, options=options)

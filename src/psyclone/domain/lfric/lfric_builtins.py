@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+# Copyright (c) 2017-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -34,7 +34,7 @@
 # Author A. R. Porter, STFC Daresbury Lab
 # Modified by I. Kavcic, Met Office
 # Modified by J. Henrichs, Bureau of Meteorology
-# Modified by R. W. Ford, STFC Daresbury Lab
+# Modified by R. W. Ford, N. Nobre and S. Siso, STFC Daresbury Lab
 
 ''' This module implements the support for 'built-in' operations in the
     PSyclone LFRic (Dynamo 0.3) API. Each supported built-in is implemented
@@ -42,17 +42,22 @@
     The LFRicBuiltInCallFactory creates the Python object required for
     a given built-in call. '''
 
-from __future__ import absolute_import
+# pylint: disable=too-many-lines
 import abc
-from psyclone.core.access_type import AccessType
+
+from psyclone.core import AccessType, Signature, VariablesAccessInfo
+from psyclone.domain.lfric import LFRicConstants, LFRicTypes
+from psyclone.domain.lfric.kernel import (
+    LFRicKernelMetadata, FieldArgMetadata, ScalarArgMetadata,
+    FieldVectorArgMetadata)
 from psyclone.errors import InternalError
-from psyclone.psyGen import BuiltIn
-from psyclone.psyir.symbols import DataSymbol, INTEGER_SINGLE_TYPE
-from psyclone.psyir.nodes import Assignment, Reference, StructureReference, \
-    BinaryOperation
-from psyclone.parse.utils import ParseError
-from psyclone.domain.lfric import LFRicConstants
 from psyclone.f2pygen import AssignGen, PSyIRGen
+from psyclone.parse.utils import ParseError
+from psyclone.psyGen import BuiltIn
+from psyclone.psyir.nodes import (Assignment, BinaryOperation, Call, Reference,
+                                  StructureReference)
+from psyclone.psyir.symbols import ArrayType, RoutineSymbol
+from psyclone.utils import a_or_an
 
 # The name of the file containing the meta-data describing the
 # built-in operations for this API
@@ -83,10 +88,10 @@ def get_lowercase_builtin_map(builtin_map_capitalised_dict):
     return builtin_map_dict
 
 
-class LFRicBuiltInCallFactory(object):
-    '''
-    Creates the necessary framework for a call to an LFRic built-in,
-    This consists of the operation itself and the loop over unique DoFs.
+class LFRicBuiltInCallFactory():
+    '''Creates the necessary framework for a call to an LFRic built-in,
+    This consists of the operation itself and the loop over unique
+    DoFs.
 
     '''
 
@@ -108,25 +113,32 @@ class LFRicBuiltInCallFactory(object):
 
         :raises ParseError: if the name of the function being called is \
                             not a recognised built-in.
+        :raises InternalError: if the built-in does not iterate over DoFs.
 
         '''
         if call.func_name not in BUILTIN_MAP:
             raise ParseError(
-                "Unrecognised built-in call in LFRic API: found '{0}' but "
-                "expected one of {1}.".
-                format(call.func_name, list(BUILTIN_MAP_CAPITALISED.keys())))
+                f"Unrecognised built-in call in LFRic API: found "
+                f"'{call.func_name}' but expected one of "
+                f"{list(BUILTIN_MAP_CAPITALISED.keys())}.")
 
         # Use our dictionary to get the correct Python object for
         # this built-in.
         builtin = BUILTIN_MAP[call.func_name]()
 
-        # Create the loop over DoFs
+        # Create the loop over the appropriate entity.
         # Avoid circular import
         # pylint: disable=import-outside-toplevel
         from psyclone.dynamo0p3 import DynLoop
-        const = LFRicConstants()
-        dofloop = DynLoop(parent=parent,
-                          loop_type=const.BUILTIN_ITERATION_SPACES[0])
+
+        if call.ktype.iterates_over == "dof":
+            loop_type = "dof"
+        else:
+            raise InternalError(
+                f"An LFRic built-in must iterate over DoFs but kernel "
+                f"'{call.func_name}' iterates over "
+                f"'{call.ktype.iterates_over}'")
+        dofloop = DynLoop(parent=parent, loop_type=loop_type)
 
         # Use the call object (created by the parser) to set-up the state
         # of the infrastructure kernel
@@ -144,20 +156,92 @@ class LFRicBuiltInCallFactory(object):
 
 
 class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
-    '''
-    Abstract base class for a node representing a call to an LFRic Built-in.
+    '''Abstract base class for a node representing a call to an LFRic
+    built-in.
+
+    :raises NotImplementedError: if a subclass of this abstract class \
+        does not set the value of '_datatype'.
 
     '''
+    _case_name = None
+    _datatype = None
+
     def __init__(self):
         # Builtins do not accept quadrature
         self.qr_rules = {}
         # Builtins cannot request mesh properties
         self.mesh = None
-        super(LFRicBuiltIn, self).__init__()
+        self._idx_name = None
+        if not self._datatype:
+            raise NotImplementedError(
+                "An LFRicBuiltIn should be overridden by a subclass that "
+                "sets the value of '_datatype', but '_datatype' is not set.")
+        super().__init__()
 
+    @staticmethod
     @abc.abstractmethod
+    def metadata():
+        '''Must be overridden by subclass.'''
+
+    @classmethod
+    def _builtin_metadata(cls, meta_args):
+        '''Utility to take 'meta_args' metadata and return LFRic kernel
+        metadata for a built-in. Assumes the metadata describes a
+        built-in kernel that operates on a DoF and that the naming
+        protocol uses the name of the metadata type and adds '_code'
+        to it for the name of the subroutine.
+
+        :param meta_args: a list of 'meta_args' metadata.
+        :type meta_args: List[subclass of \
+            :py:class:`psyclone.domain.lifric.kernel.CommonArgMetadata`]
+
+        :returns: LFRic kernel metadata for this built-in.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+
+        '''
+        return LFRicKernelMetadata(
+            meta_args=meta_args,
+            operates_on="dof",
+            procedure_name=f"{cls._case_name}_code",
+            name=cls._case_name)
+
     def __str__(self):
-        ''' Must be overridden by sub class. '''
+        metadata = self.metadata()
+        plural = ""
+        # Builtins are currenty limited to fields and scalars but add
+        # in a check for field-vectors as well for future proofing.
+        if len(metadata.meta_args_get([
+                FieldArgMetadata, FieldVectorArgMetadata])) > 1:
+            plural = "s"
+        return (f"Built-in: {self._case_name} ("
+                f"{self._datatype}-valued field{plural})")
+
+    def reference_accesses(self, var_accesses):
+        '''Get all variable access information from this node. The assigned-to
+        variable will be set to 'WRITE'.
+
+        :param var_accesses: VariablesAccessInfo instance that stores the \
+            information about variable accesses.
+        :type var_accesses: \
+            :py:class:`psyclone.core.VariablesAccessInfo`
+
+        '''
+        # Collect all write access in a separate object, so they can be added
+        # after all read access (which must happen before something is written)
+        written = VariablesAccessInfo()
+        for arg in self.args:
+            if arg.form in ["variable", "indexed_variable"]:
+                if arg.access == AccessType.WRITE:
+                    written.add_access(Signature(arg.declaration_name),
+                                       arg.access, self)
+                else:
+                    var_accesses.add_access(Signature(arg.declaration_name),
+                                            arg.access, self)
+        # Now merge the write access to the end of all other accesses:
+        var_accesses.merge(written)
+        # Forward location pointer to next index, since this built-in kernel
+        # finishes a statement
+        var_accesses.next_location()
 
     def load(self, call, parent=None):
         '''
@@ -204,9 +288,9 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
         # Check that our assumption that we're looping over DoFs is valid
         if self.iterates_over not in const.BUILTIN_ITERATION_SPACES:
             raise ParseError(
-                "In the LFRic API built-in calls must operate on "
-                "DoFs but found '{0}' for {1}.".
-                format(self.iterates_over, str(self)))
+                f"In the LFRic API built-in calls must operate on one of "
+                f"{const.BUILTIN_ITERATION_SPACES} but found "
+                f"'{self.iterates_over}' for {self}.")
         # Check write count, field arguments and spaces
         write_count = 0  # Only one argument must be written to
         field_count = 0  # We must have one or more fields as arguments
@@ -217,18 +301,17 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
             # Check valid argument types
             if arg.argument_type not in const.VALID_BUILTIN_ARG_TYPES:
                 raise ParseError(
-                    "In the LFRic API an argument to a built-in kernel "
-                    "must be one of {0} but kernel '{1}' has an argument of "
-                    "type '{2}'.".format(const.VALID_BUILTIN_ARG_TYPES,
-                                         self.name, arg.argument_type))
+                    f"In the LFRic API an argument to a built-in kernel "
+                    f"must be one of {const.VALID_BUILTIN_ARG_TYPES} but "
+                    f"kernel '{self.name}' has an argument of type "
+                    f"'{arg.argument_type}'.")
             # Check valid data types
             if arg.data_type not in const.VALID_BUILTIN_DATA_TYPES:
                 raise ParseError(
-                    "In the LFRic API an argument to a built-in kernel "
-                    "must have one of {0} as a data type but kernel '{1}' "
-                    "has an argument of data type '{2}'.".
-                    format(const.VALID_BUILTIN_DATA_TYPES,
-                           self.name, arg.data_type))
+                    f"In the LFRic API an argument to a built-in kernel "
+                    f"must have one of {const.VALID_BUILTIN_DATA_TYPES} as "
+                    f"a data type but kernel '{self.name}' has an argument "
+                    f"of data type '{arg.data_type}'.")
             # Built-ins update fields DoF by DoF and therefore can have
             # WRITE/READWRITE access
             if arg.access in [AccessType.WRITE, AccessType.SUM,
@@ -240,31 +323,30 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
                 data_types.add(arg.data_type)
 
         if write_count != 1:
-            raise ParseError("A built-in kernel in the LFRic API must "
-                             "have one and only one argument that is written "
-                             "to but found {0} for kernel '{1}'.".
-                             format(write_count, self.name))
+            raise ParseError(f"A built-in kernel in the LFRic API must "
+                             f"have one and only one argument that is "
+                             f"written to but found {write_count} for "
+                             f"kernel '{self.name}'.")
         if field_count == 0:
-            raise ParseError("A built-in kernel in the LFRic API "
-                             "must have at least one field as an argument but "
-                             "kernel '{0}' has none.".format(self.name))
+            raise ParseError(f"A built-in kernel in the LFRic API must have "
+                             f"at least one field as an argument but "
+                             f"kernel '{self.name}' has none.")
         if len(spaces) != 1:
             spaces_str = [str(x) for x in sorted(spaces)]
             raise ParseError(
-                "All field arguments to a built-in in the LFRic API "
-                "must be on the same space. However, found spaces {0} for "
-                "arguments to '{1}'".format(spaces_str, self.name))
+                f"All field arguments to a built-in in the LFRic API "
+                f"must be on the same space. However, found spaces "
+                f"{spaces_str} for arguments to '{self.name}'")
 
         conversion_builtins = ["int_X", "real_X"]
         conversion_builtins_lower = [x.lower() for x in conversion_builtins]
         if len(data_types) != 1 and self.name not in conversion_builtins_lower:
             data_types_str = [str(x) for x in sorted(data_types)]
             raise ParseError(
-                "In the LFRic API only the data type conversion built-ins "
-                "{0} are allowed to have field arguments of different "
-                "data types. However, found different data types "
-                "{1} for field arguments to '{2}'.".
-                format(conversion_builtins, data_types_str, self.name))
+                f"In the LFRic API only the data type conversion built-ins "
+                f"{conversion_builtins} are allowed to have field arguments of"
+                f" different data types. However, found different data types "
+                f"{data_types_str} for field arguments to '{self.name}'.")
 
     def array_ref(self, fld_name):
         '''
@@ -277,7 +359,7 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
     @property
     def undf_name(self):
         '''
-        Dynamically looks up the name of the undf variable for the
+        Dynamically looks up the name of the 'undf' variable for the
         space that this kernel updates.
 
         :returns: the name of the undf variable.
@@ -311,9 +393,9 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
 
     def gen_code(self, parent):
         '''
-        Generates LFRic API specific PSy code (in the form of f2pygen AST
-        nodes) for a call to this Built-in. This method must be overridden
-        if a sub-class does not yet implement lower_to_language_level().
+        Generates LFRic API specific PSy code (in the form of 'f2pygen' AST
+        nodes) for a call to this built-in. This method must be overridden
+        if a sub-class does not yet implement 'lower_to_language_level()'.
 
         :param parent: Node in f2pygen tree to which to add call.
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
@@ -339,7 +421,7 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
     @property
     def is_intergrid(self):
         '''
-        We don't have any inter-grid Built-ins.
+        We don't have any inter-grid built-ins.
 
         :returns: False
         :rtype: bool
@@ -360,26 +442,24 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
     def get_dof_loop_index_symbol(self):
         '''
         Finds or creates the symbol representing the index in any loops
-        over dofs.
+        over DoFs.
 
-        :returns: symbol representing the dof loop index.
+        :returns: symbol representing the DoF loop index.
         :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol`
 
         '''
         table = self.scope.symbol_table
         # The symbol representing the loop index is created in the DynLoop
         # constructor.
-        # TODO #696 - 'df' should have KIND i_def.
-        return table.find_or_create_tag(tag="dof_loop_idx", root_name="df",
-                                        symbol_type=DataSymbol,
-                                        datatype=INTEGER_SINGLE_TYPE)
+        return table.find_or_create_integer_symbol(
+            "df", tag="dof_loop_idx")
 
     def get_indexed_field_argument_references(self):
         '''
-        Creates a dof-indexed StructureReference for each of the field
-        arguments to this Builtin kernel. e.g. if the kernel has a field
+        Creates a DoF-indexed StructureReference for each of the field
+        arguments to this Built-In kernel. e.g. if the kernel has a field
         argument named 'fld1' then this routine will create a
-        StructureReference for 'fld1%data(df)' where 'df' is the dof-loop
+        StructureReference for 'fld1%data(df)' where 'df' is the DoF-loop
         variable.
 
         :returns: a reference to the 'df'th element of each kernel argument \
@@ -389,14 +469,17 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
         '''
         idx_sym = self.get_dof_loop_index_symbol()
 
+        array_1d = ArrayType(LFRicTypes("LFRicRealScalarDataType")(),
+                             [ArrayType.Extent.DEFERRED])
         return [StructureReference.create(
-            arg.psyir_expression().symbol, [("data", [Reference(idx_sym)])])
+            arg.psyir_expression().symbol, [("data", [Reference(idx_sym)])],
+            overwrite_datatype=array_1d)
                 for arg in self._arguments.args if arg.is_field]
 
     def get_scalar_argument_references(self):
         '''
         Finds or creates either a Reference (for a symbol) or PSyIR (for a
-        literal expression) for any scalar arguments to this Builtin kernel.
+        literal expression) for any scalar arguments to this Built-In kernel.
 
         :returns: a Reference or PSyIR expression for each scalar kernel \
             argument.
@@ -421,7 +504,7 @@ class LFRicXKern(LFRicBuiltIn, metaclass=abc.ABCMeta):
 
     def gen_code(self, parent):
         '''Generates LFRic API specific PSy code for a call to the
-        [datatype]_X Built-in.
+        [datatype]_X built-in.
 
         :param parent: Node in f2pygen tree to which to add call.
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
@@ -470,13 +553,37 @@ class LFRicXPlusYKern(LFRicBuiltIn):
     a third, real-valued, field.
 
     '''
+    _case_name = "X_plus_Y"
+    _datatype = "real"
+
+    @classmethod
+    def metadata(cls):
+        '''Returns the kernel metadata describing this built-in. Implemented in
+        a datatype-independent way to allow for re-use.
+
+        :returns: kernel metadata describing this built-in.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+
+        '''
+        gh_datatype = LFRicConstants().MAPPING_INTRINSIC_TYPES[cls._datatype]
+        metadata = cls._builtin_metadata([
+            FieldArgMetadata(gh_datatype, "gh_write", "any_space_1"),
+            FieldArgMetadata(gh_datatype, "gh_read", "any_space_1"),
+            FieldArgMetadata(gh_datatype, "gh_read", "any_space_1")])
+        metadata.validate()
+        return metadata
+
     def __str__(self):
-        return "Built-in: Add real-valued fields"
+        return (f"Built-in: {self._case_name} (add "
+                f"{self._datatype}-valued fields)")
 
     def lower_to_language_level(self):
         '''
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
-        This BuiltIn node is replaced by an Assignment node.
+        This Built-In node is replaced by an Assignment node.
+
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
         # Get indexed references for each of the field (proxy) arguments.
@@ -489,19 +596,40 @@ class LFRicXPlusYKern(LFRicBuiltIn):
         assign = Assignment.create(arg_refs[0], rhs)
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
+        return assign
 
 
 class LFRicIncXPlusYKern(LFRicBuiltIn):
     ''' Add the second, real-valued, field to the first field and return it.
 
     '''
+    _case_name = "inc_X_plus_Y"
+    _datatype = "real"
+
+    @classmethod
+    def metadata(cls):
+        '''Returns the kernel metadata describing this built-in.
+
+        :returns: kernel metadata describing this built-in.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+
+        '''
+        gh_datatype = LFRicConstants().MAPPING_INTRINSIC_TYPES[cls._datatype]
+        return cls._builtin_metadata([
+            FieldArgMetadata(gh_datatype, "gh_readwrite", "any_space_1"),
+            FieldArgMetadata(gh_datatype, "gh_read", "any_space_1")])
+
     def __str__(self):
-        return "Built-in: Increment a real-valued field"
+        return (f"Built-in: {self._case_name} (increment "
+                f"{a_or_an(self._datatype)} {self._datatype}-valued field)")
 
     def lower_to_language_level(self):
         '''
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
+
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
         # Get indexed refs for both of the field (proxy) arguments.
@@ -515,6 +643,7 @@ class LFRicIncXPlusYKern(LFRicBuiltIn):
         assign = Assignment.create(lhs, rhs)
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
+        return assign
 
 
 class LFRicAPlusXKern(LFRicBuiltIn):
@@ -522,13 +651,30 @@ class LFRicAPlusXKern(LFRicBuiltIn):
     real-valued fields (DoF-wise addition of a scalar value).
 
     '''
-    def __str__(self):
-        return "Built-in: a_plus_X (real-valued fields)"
+    _case_name = "a_plus_X"
+    _datatype = "real"
+
+    @classmethod
+    def metadata(cls):
+        '''Returns the kernel metadata describing this built-in.
+
+        :returns: kernel metadata describing this built-in.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+
+        '''
+        gh_datatype = LFRicConstants().MAPPING_INTRINSIC_TYPES[cls._datatype]
+        return cls._builtin_metadata([
+            FieldArgMetadata(gh_datatype, "gh_write", "any_space_1"),
+            ScalarArgMetadata(gh_datatype, "gh_read"),
+            FieldArgMetadata(gh_datatype, "gh_read", "any_space_1")])
 
     def lower_to_language_level(self):
         '''
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
+
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
         # Get indexed references for each of the field (proxy) arguments.
@@ -543,6 +689,7 @@ class LFRicAPlusXKern(LFRicBuiltIn):
         assign = Assignment.create(arg_refs[0], rhs)
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
+        return assign
 
 
 class LFRicIncAPlusXKern(LFRicBuiltIn):
@@ -550,13 +697,29 @@ class LFRicIncAPlusXKern(LFRicBuiltIn):
     field (DoF-wise addition of a scalar value).
 
     '''
-    def __str__(self):
-        return "Built-in: inc_a_plus_X (real-valued field)"
+    _case_name = "inc_a_plus_X"
+    _datatype = "real"
+
+    @classmethod
+    def metadata(cls):
+        '''Returns the kernel metadata describing this built-in.
+
+        :returns: kernel metadata describing this built-in.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+
+        '''
+        gh_datatype = LFRicConstants().MAPPING_INTRINSIC_TYPES[cls._datatype]
+        return cls._builtin_metadata([
+            ScalarArgMetadata(gh_datatype, "gh_read"),
+            FieldArgMetadata(gh_datatype, "gh_readwrite", "any_space_1")])
 
     def lower_to_language_level(self):
         '''
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
+
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
         # Get indexed references for each of the field (proxy) arguments.
@@ -572,6 +735,7 @@ class LFRicIncAPlusXKern(LFRicBuiltIn):
         assign = Assignment.create(lhs, rhs)
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
+        return assign
 
 
 class LFRicAXPlusYKern(LFRicBuiltIn):
@@ -579,13 +743,31 @@ class LFRicAXPlusYKern(LFRicBuiltIn):
     `Y` are real-valued fields.
 
     '''
-    def __str__(self):
-        return "Built-in: aX_plus_Y (real-valued fields)"
+    _case_name = "aX_plus_Y"
+    _datatype = "real"
+
+    @classmethod
+    def metadata(cls):
+        '''Returns the kernel metadata describing this built-in.
+
+        :returns: kernel metadata describing this built-in.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+
+        '''
+        gh_datatype = LFRicConstants().MAPPING_INTRINSIC_TYPES[cls._datatype]
+        return cls._builtin_metadata([
+            FieldArgMetadata(gh_datatype, "gh_write", "any_space_1"),
+            ScalarArgMetadata(gh_datatype, "gh_read"),
+            FieldArgMetadata(gh_datatype, "gh_read", "any_space_1"),
+            FieldArgMetadata(gh_datatype, "gh_read", "any_space_1")])
 
     def lower_to_language_level(self):
         '''
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
+
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
         # Get indexed references for each of the field (proxy) arguments.
@@ -602,6 +784,7 @@ class LFRicAXPlusYKern(LFRicBuiltIn):
         assign = Assignment.create(arg_refs[0], rhs)
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
+        return assign
 
 
 class LFRicIncAXPlusYKern(LFRicBuiltIn):
@@ -609,13 +792,30 @@ class LFRicIncAXPlusYKern(LFRicBuiltIn):
     real-valued fields.
 
     '''
-    def __str__(self):
-        return "Built-in: inc_aX_plus_Y (real-valued fields)"
+    _case_name = "inc_aX_plus_Y"
+    _datatype = "real"
+
+    @classmethod
+    def metadata(cls):
+        '''Returns the kernel metadata describing this built-in.
+
+        :returns: kernel metadata describing this built-in.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+
+        '''
+        gh_datatype = LFRicConstants().MAPPING_INTRINSIC_TYPES[cls._datatype]
+        return cls._builtin_metadata([
+            ScalarArgMetadata(gh_datatype, "gh_read"),
+            FieldArgMetadata(gh_datatype, "gh_readwrite", "any_space_1"),
+            FieldArgMetadata(gh_datatype, "gh_read", "any_space_1")])
 
     def lower_to_language_level(self):
         '''
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
+
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
         # Get indexed references for each of the field (proxy) arguments.
@@ -633,6 +833,7 @@ class LFRicIncAXPlusYKern(LFRicBuiltIn):
         assign = Assignment.create(lhs, rhs)
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
+        return assign
 
 
 class LFRicIncXPlusBYKern(LFRicBuiltIn):
@@ -640,13 +841,30 @@ class LFRicIncXPlusBYKern(LFRicBuiltIn):
     real-valued fields.
 
     '''
-    def __str__(self):
-        return "Built-in: inc_X_plus_bY (real-valued fields)"
+    _case_name = "inc_X_plus_bY"
+    _datatype = "real"
+
+    @classmethod
+    def metadata(cls):
+        '''Returns the kernel metadata describing this built-in.
+
+        :returns: kernel metadata describing this built-in.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+
+        '''
+        gh_datatype = LFRicConstants().MAPPING_INTRINSIC_TYPES[cls._datatype]
+        return cls._builtin_metadata([
+            FieldArgMetadata(gh_datatype, "gh_readwrite", "any_space_1"),
+            ScalarArgMetadata(gh_datatype, "gh_read"),
+            FieldArgMetadata(gh_datatype, "gh_read", "any_space_1")])
 
     def lower_to_language_level(self):
         '''
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
+
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
         # Get indexed references for each of the field (proxy) arguments.
@@ -664,6 +882,7 @@ class LFRicIncXPlusBYKern(LFRicBuiltIn):
         assign = Assignment.create(lhs, rhs)
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
+        return assign
 
 
 class LFRicAXPlusBYKern(LFRicBuiltIn):
@@ -671,13 +890,32 @@ class LFRicAXPlusBYKern(LFRicBuiltIn):
     `Y` are real-valued fields.
 
     '''
-    def __str__(self):
-        return "Built-in: aX_plus_bY (real-valued fields)"
+    _case_name = "aX_plus_bY"
+    _datatype = "real"
+
+    @classmethod
+    def metadata(cls):
+        '''Returns the kernel metadata describing this built-in.
+
+        :returns: kernel metadata describing this built-in.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+
+        '''
+        gh_datatype = LFRicConstants().MAPPING_INTRINSIC_TYPES[cls._datatype]
+        return cls._builtin_metadata([
+            FieldArgMetadata(gh_datatype, "gh_write", "any_space_1"),
+            ScalarArgMetadata(gh_datatype, "gh_read"),
+            FieldArgMetadata(gh_datatype, "gh_read", "any_space_1"),
+            ScalarArgMetadata(gh_datatype, "gh_read"),
+            FieldArgMetadata(gh_datatype, "gh_read", "any_space_1")])
 
     def lower_to_language_level(self):
         '''
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
+
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
         # Get indexed references for each of the field (proxy) arguments.
@@ -697,6 +935,7 @@ class LFRicAXPlusBYKern(LFRicBuiltIn):
         assign = Assignment.create(arg_refs[0], rhs)
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
+        return assign
 
 
 class LFRicIncAXPlusBYKern(LFRicBuiltIn):
@@ -704,13 +943,31 @@ class LFRicIncAXPlusBYKern(LFRicBuiltIn):
     are real-valued fields.
 
     '''
-    def __str__(self):
-        return "Built-in: inc_aX_plus_bY (real-valued fields)"
+    _case_name = "inc_aX_plus_bY"
+    _datatype = "real"
+
+    @classmethod
+    def metadata(cls):
+        '''Returns the kernel metadata describing this built-in.
+
+        :returns: kernel metadata describing this built-in.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+
+        '''
+        gh_datatype = LFRicConstants().MAPPING_INTRINSIC_TYPES[cls._datatype]
+        return cls._builtin_metadata([
+            ScalarArgMetadata(gh_datatype, "gh_read"),
+            FieldArgMetadata(gh_datatype, "gh_readwrite", "any_space_1"),
+            ScalarArgMetadata(gh_datatype, "gh_read"),
+            FieldArgMetadata(gh_datatype, "gh_read", "any_space_1")])
 
     def lower_to_language_level(self):
         '''
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
+
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
         # Get indexed references for each of the field (proxy) arguments.
@@ -731,6 +988,7 @@ class LFRicIncAXPlusBYKern(LFRicBuiltIn):
         assign = Assignment.create(lhs, rhs)
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
+        return assign
 
 
 class LFRicAXPlusAYKern(LFRicBuiltIn):
@@ -738,13 +996,31 @@ class LFRicAXPlusAYKern(LFRicBuiltIn):
     `X` and `Y` are real-valued fields.
 
     '''
-    def __str__(self):
-        return "Built-in: aX_plus_aY (real-valued fields)"
+    _case_name = "aX_plus_aY"
+    _datatype = "real"
+
+    @classmethod
+    def metadata(cls):
+        '''Returns the kernel metadata describing this built-in.
+
+        :returns: kernel metadata describing this built-in.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+
+        '''
+        gh_datatype = LFRicConstants().MAPPING_INTRINSIC_TYPES[cls._datatype]
+        return cls._builtin_metadata([
+            FieldArgMetadata(gh_datatype, "gh_write", "any_space_1"),
+            ScalarArgMetadata(gh_datatype, "gh_read"),
+            FieldArgMetadata(gh_datatype, "gh_read", "any_space_1"),
+            FieldArgMetadata(gh_datatype, "gh_read", "any_space_1")])
 
     def lower_to_language_level(self):
         '''
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
+
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
         # Get indexed references for each of the field (proxy) arguments.
@@ -761,6 +1037,7 @@ class LFRicAXPlusAYKern(LFRicBuiltIn):
         assign = Assignment.create(arg_refs[0], rhs)
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
+        return assign
 
 
 # ------------------------------------------------------------------- #
@@ -773,13 +1050,34 @@ class LFRicXMinusYKern(LFRicBuiltIn):
     result as a third, real-valued, field.
 
     '''
+    _case_name = "X_minus_Y"
+    _datatype = "real"
+
+    @classmethod
+    def metadata(cls):
+        '''Returns the kernel metadata describing this built-in.
+
+        :returns: kernel metadata describing this built-in.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+
+        '''
+        gh_datatype = LFRicConstants().MAPPING_INTRINSIC_TYPES[cls._datatype]
+        return cls._builtin_metadata([
+            FieldArgMetadata(gh_datatype, "gh_write", "any_space_1"),
+            FieldArgMetadata(gh_datatype, "gh_read", "any_space_1"),
+            FieldArgMetadata(gh_datatype, "gh_read", "any_space_1")])
+
     def __str__(self):
-        return "Built-in: Subtract real-valued fields"
+        return (f"Built-in: {self._case_name} (subtract "
+                f"{self._datatype}-valued fields)")
 
     def lower_to_language_level(self):
         '''
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
+
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
         # Get indexed references for each of the field (proxy) arguments.
@@ -792,6 +1090,7 @@ class LFRicXMinusYKern(LFRicBuiltIn):
         assign = Assignment.create(arg_refs[0], rhs)
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
+        return assign
 
 
 class LFRicIncXMinusYKern(LFRicBuiltIn):
@@ -799,13 +1098,33 @@ class LFRicIncXMinusYKern(LFRicBuiltIn):
     and return it.
 
     '''
+    _case_name = "inc_X_minus_Y"
+    _datatype = "real"
+
+    @classmethod
+    def metadata(cls):
+        '''Returns the kernel metadata describing this built-in.
+
+        :returns: kernel metadata describing this built-in.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+
+        '''
+        gh_datatype = LFRicConstants().MAPPING_INTRINSIC_TYPES[cls._datatype]
+        return cls._builtin_metadata([
+            FieldArgMetadata(gh_datatype, "gh_readwrite", "any_space_1"),
+            FieldArgMetadata(gh_datatype, "gh_read", "any_space_1")])
+
     def __str__(self):
-        return "Built-in: Decrement a real-valued field"
+        return (f"Built-in: {self._case_name} (decrement "
+                f"{a_or_an(self._datatype)} {self._datatype}-valued field)")
 
     def lower_to_language_level(self):
         '''
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
+
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
         # Get indexed refs for both of the field (proxy) arguments.
@@ -819,20 +1138,38 @@ class LFRicIncXMinusYKern(LFRicBuiltIn):
         assign = Assignment.create(lhs, rhs)
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
+        return assign
 
 
 class LFRicAMinusXKern(LFRicBuiltIn):
-    ''' `Y = a - X` where `a` is a real scalar and `X` and `Y` are
-    real-valued fields (DoF-wise subtraction of a scalar value).
+    ''' `Y = a - X` where `a` is a real scalar and `X` and `Y` are real-valued
+    fields (DoF-wise subtraction of field elements from a scalar value).
 
     '''
-    def __str__(self):
-        return "Built-in: a_minus_X (real-valued fields)"
+    _case_name = "a_minus_X"
+    _datatype = "real"
+
+    @classmethod
+    def metadata(cls):
+        '''Returns the kernel metadata describing this built-in.
+
+        :returns: kernel metadata describing this built-in.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+
+        '''
+        gh_datatype = LFRicConstants().MAPPING_INTRINSIC_TYPES[cls._datatype]
+        return cls._builtin_metadata([
+            FieldArgMetadata(gh_datatype, "gh_write", "any_space_1"),
+            ScalarArgMetadata(gh_datatype, "gh_read"),
+            FieldArgMetadata(gh_datatype, "gh_read", "any_space_1")])
 
     def lower_to_language_level(self):
         '''
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
+
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
         # Get indexed references for each of the field (proxy) arguments.
@@ -847,20 +1184,37 @@ class LFRicAMinusXKern(LFRicBuiltIn):
         assign = Assignment.create(arg_refs[0], rhs)
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
+        return assign
 
 
 class LFRicIncAMinusXKern(LFRicBuiltIn):
     ''' `X = a - X` where `a` is a real scalar and `X` is a real-valued
-    field (DoF-wise subtraction of a scalar value).
+    field (DoF-wise subtraction of field elements from a scalar value).
 
     '''
-    def __str__(self):
-        return "Built-in: inc_a_minus_X (real-valued field)"
+    _case_name = "inc_a_minus_X"
+    _datatype = "real"
+
+    @classmethod
+    def metadata(cls):
+        '''Returns the kernel metadata describing this built-in.
+
+        :returns: kernel metadata describing this built-in.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+
+        '''
+        gh_datatype = LFRicConstants().MAPPING_INTRINSIC_TYPES[cls._datatype]
+        return cls._builtin_metadata([
+            ScalarArgMetadata(gh_datatype, "gh_read"),
+            FieldArgMetadata(gh_datatype, "gh_readwrite", "any_space_1")])
 
     def lower_to_language_level(self):
         '''
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
+
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
         # Get indexed references for each of the field (proxy) arguments.
@@ -876,6 +1230,99 @@ class LFRicIncAMinusXKern(LFRicBuiltIn):
         assign = Assignment.create(lhs, rhs)
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
+        return assign
+
+
+class LFRicXMinusAKern(LFRicBuiltIn):
+    ''' `Y = X - a` where `a` is a real scalar and `X` and `Y` are real-valued
+    fields (DoF-wise subtraction of a scalar value from field elements).
+
+    '''
+    _case_name = "X_minus_a"
+    _datatype = "real"
+
+    @classmethod
+    def metadata(cls):
+        '''Returns the kernel metadata describing this built-in.
+
+        :returns: kernel metadata describing this built-in.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+
+        '''
+        gh_datatype = LFRicConstants().MAPPING_INTRINSIC_TYPES[cls._datatype]
+        return cls._builtin_metadata([
+            FieldArgMetadata(gh_datatype, "gh_write", "any_space_1"),
+            FieldArgMetadata(gh_datatype, "gh_read", "any_space_1"),
+            ScalarArgMetadata(gh_datatype, "gh_read")])
+
+    def lower_to_language_level(self):
+        '''
+        Lowers this LFRic-specific built-in kernel to language-level PSyIR.
+        This BuiltIn node is replaced by an Assignment node.
+
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
+
+        '''
+        # Get indexed references for each of the field (proxy) arguments.
+        arg_refs = self.get_indexed_field_argument_references()
+        # Get a reference for the kernel scalar argument.
+        scalar_args = self.get_scalar_argument_references()
+
+        # Create the PSyIR for the kernel:
+        #      proxy0%data(df) = proxy1%data(df) - ascalar
+        rhs = BinaryOperation.create(BinaryOperation.Operator.SUB,
+                                     arg_refs[1], scalar_args[0])
+        assign = Assignment.create(arg_refs[0], rhs)
+        # Finally, replace this kernel node with the Assignment
+        self.replace_with(assign)
+        return assign
+
+
+class LFRicIncXMinusAKern(LFRicBuiltIn):
+    ''' `X = X - a` where `a` is a real scalar and `X` is a real-valued
+    field (DoF-wise subtraction of a scalar value from field elements).
+
+    '''
+    _case_name = "inc_X_minus_a"
+    _datatype = "real"
+
+    @classmethod
+    def metadata(cls):
+        '''Returns the kernel metadata describing this built-in.
+
+        :returns: kernel metadata describing this built-in.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+
+        '''
+        gh_datatype = LFRicConstants().MAPPING_INTRINSIC_TYPES[cls._datatype]
+        return cls._builtin_metadata([
+            FieldArgMetadata(gh_datatype, "gh_readwrite", "any_space_1"),
+            ScalarArgMetadata(gh_datatype, "gh_read")])
+
+    def lower_to_language_level(self):
+        '''
+        Lowers this LFRic-specific built-in kernel to language-level PSyIR.
+        This BuiltIn node is replaced by an Assignment node.
+
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
+
+        '''
+        # Get indexed references for each of the field (proxy) arguments.
+        arg_refs = self.get_indexed_field_argument_references()
+        # Get a reference for the kernel scalar argument.
+        scalar_args = self.get_scalar_argument_references()
+
+        # Create the PSyIR for the kernel:
+        #      proxy0%data(df) = proxy0%data(df) - ascalar
+        lhs = arg_refs[0]
+        rhs = BinaryOperation.create(BinaryOperation.Operator.SUB,
+                                     lhs.copy(), scalar_args[0])
+        assign = Assignment.create(lhs, rhs)
+        # Finally, replace this kernel node with the Assignment
+        self.replace_with(assign)
+        return assign
 
 
 class LFRicAXMinusYKern(LFRicBuiltIn):
@@ -883,13 +1330,31 @@ class LFRicAXMinusYKern(LFRicBuiltIn):
     `Y` are real-valued fields.
 
     '''
-    def __str__(self):
-        return "Built-in: aX_minus_Y (real-valued fields)"
+    _case_name = "aX_minus_Y"
+    _datatype = "real"
+
+    @classmethod
+    def metadata(cls):
+        '''Returns the kernel metadata describing this built-in.
+
+        :returns: kernel metadata describing this built-in.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+
+        '''
+        gh_datatype = LFRicConstants().MAPPING_INTRINSIC_TYPES[cls._datatype]
+        return cls._builtin_metadata([
+            FieldArgMetadata(gh_datatype, "gh_write", "any_space_1"),
+            ScalarArgMetadata(gh_datatype, "gh_read"),
+            FieldArgMetadata(gh_datatype, "gh_read", "any_space_1"),
+            FieldArgMetadata(gh_datatype, "gh_read", "any_space_1")])
 
     def lower_to_language_level(self):
         '''
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
+
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
         # Get indexed references for each of the field (proxy) arguments.
@@ -906,6 +1371,7 @@ class LFRicAXMinusYKern(LFRicBuiltIn):
         assign = Assignment.create(arg_refs[0], rhs)
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
+        return assign
 
 
 class LFRicXMinusBYKern(LFRicBuiltIn):
@@ -913,13 +1379,31 @@ class LFRicXMinusBYKern(LFRicBuiltIn):
     `Y` are real-valued fields.
 
     '''
-    def __str__(self):
-        return "Built-in: X_minus_bY (real-valued fields)"
+    _case_name = "X_minus_bY"
+    _datatype = "real"
+
+    @classmethod
+    def metadata(cls):
+        '''Returns the kernel metadata describing this built-in.
+
+        :returns: kernel metadata describing this built-in.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+
+        '''
+        gh_datatype = LFRicConstants().MAPPING_INTRINSIC_TYPES[cls._datatype]
+        return cls._builtin_metadata([
+            FieldArgMetadata(gh_datatype, "gh_write", "any_space_1"),
+            FieldArgMetadata(gh_datatype, "gh_read", "any_space_1"),
+            ScalarArgMetadata(gh_datatype, "gh_read"),
+            FieldArgMetadata(gh_datatype, "gh_read", "any_space_1")])
 
     def lower_to_language_level(self):
         '''
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
+
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
         # Get indexed references for each of the field (proxy) arguments.
@@ -936,6 +1420,7 @@ class LFRicXMinusBYKern(LFRicBuiltIn):
         assign = Assignment.create(arg_refs[0], rhs)
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
+        return assign
 
 
 class LFRicIncXMinusBYKern(LFRicBuiltIn):
@@ -943,13 +1428,30 @@ class LFRicIncXMinusBYKern(LFRicBuiltIn):
     real-valued fields.
 
     '''
-    def __str__(self):
-        return "Built-in: inc_X_minus_bY (real-valued fields)"
+    _case_name = "inc_X_minus_bY"
+    _datatype = "real"
+
+    @classmethod
+    def metadata(cls):
+        '''Returns the kernel metadata describing this built-in.
+
+        :returns: kernel metadata describing this built-in.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+
+        '''
+        gh_datatype = LFRicConstants().MAPPING_INTRINSIC_TYPES[cls._datatype]
+        return cls._builtin_metadata([
+            FieldArgMetadata(gh_datatype, "gh_readwrite", "any_space_1"),
+            ScalarArgMetadata(gh_datatype, "gh_read"),
+            FieldArgMetadata(gh_datatype, "gh_read", "any_space_1")])
 
     def lower_to_language_level(self):
         '''
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
+
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
         # Get indexed references for each of the field (proxy) arguments.
@@ -967,6 +1469,7 @@ class LFRicIncXMinusBYKern(LFRicBuiltIn):
         assign = Assignment.create(lhs, rhs)
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
+        return assign
 
 
 class LFRicAXMinusBYKern(LFRicBuiltIn):
@@ -974,13 +1477,32 @@ class LFRicAXMinusBYKern(LFRicBuiltIn):
     `Y` are real-valued fields.
 
     '''
-    def __str__(self):
-        return "Built-in: aX_minus_bY (real-valued fields)"
+    _case_name = "aX_minus_bY"
+    _datatype = "real"
+
+    @classmethod
+    def metadata(cls):
+        '''Returns the kernel metadata describing this built-in.
+
+        :returns: kernel metadata describing this built-in.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+
+        '''
+        gh_datatype = LFRicConstants().MAPPING_INTRINSIC_TYPES[cls._datatype]
+        return cls._builtin_metadata([
+            FieldArgMetadata(gh_datatype, "gh_write", "any_space_1"),
+            ScalarArgMetadata(gh_datatype, "gh_read"),
+            FieldArgMetadata(gh_datatype, "gh_read", "any_space_1"),
+            ScalarArgMetadata(gh_datatype, "gh_read"),
+            FieldArgMetadata(gh_datatype, "gh_read", "any_space_1")])
 
     def lower_to_language_level(self):
         '''
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
+
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
         # Get indexed references for each of the field (proxy) arguments.
@@ -1000,6 +1522,7 @@ class LFRicAXMinusBYKern(LFRicBuiltIn):
         assign = Assignment.create(arg_refs[0], rhs)
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
+        return assign
 
 
 # ------------------------------------------------------------------- #
@@ -1012,13 +1535,34 @@ class LFRicXTimesYKern(LFRicBuiltIn):
     the result returned as a third, real-valued, field.
 
     '''
+    _case_name = "X_times_Y"
+    _datatype = "real"
+
+    @classmethod
+    def metadata(cls):
+        '''Returns the kernel metadata describing this built-in.
+
+        :returns: kernel metadata describing this built-in.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+
+        '''
+        gh_datatype = LFRicConstants().MAPPING_INTRINSIC_TYPES[cls._datatype]
+        return cls._builtin_metadata([
+            FieldArgMetadata(gh_datatype, "gh_write", "any_space_1"),
+            FieldArgMetadata(gh_datatype, "gh_read", "any_space_1"),
+            FieldArgMetadata(gh_datatype, "gh_read", "any_space_1")])
+
     def __str__(self):
-        return "Built-in: Multiply real-valued fields"
+        return (f"Built-in: {self._case_name} (multiply "
+                f"{self._datatype}-valued fields)")
 
     def lower_to_language_level(self):
         '''
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
+
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
         # Get indexed references for each of the field (proxy) arguments.
@@ -1031,19 +1575,40 @@ class LFRicXTimesYKern(LFRicBuiltIn):
         assign = Assignment.create(arg_refs[0], rhs)
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
+        return assign
 
 
 class LFRicIncXTimesYKern(LFRicBuiltIn):
     ''' Multiply the first, real-valued, field by the second and return it.
 
     '''
+    _case_name = "inc_X_times_Y"
+    _datatype = "real"
+
+    @classmethod
+    def metadata(cls):
+        '''Returns the kernel metadata describing this built-in.
+
+        :returns: kernel metadata describing this built-in.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+
+        '''
+        gh_datatype = LFRicConstants().MAPPING_INTRINSIC_TYPES[cls._datatype]
+        return cls._builtin_metadata([
+            FieldArgMetadata(gh_datatype, "gh_readwrite", "any_space_1"),
+            FieldArgMetadata(gh_datatype, "gh_read", "any_space_1")])
+
     def __str__(self):
-        return "Built-in: Multiply one real-valued field by another"
+        return (f"Built-in: {self._case_name} (multiply one "
+                f"{self._datatype}-valued field by another)")
 
     def lower_to_language_level(self):
         '''
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
+
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
         # Get indexed refs for both of the field (proxy) arguments.
@@ -1057,6 +1622,7 @@ class LFRicIncXTimesYKern(LFRicBuiltIn):
         assign = Assignment.create(lhs, rhs)
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
+        return assign
 
 
 class LFRicIncAXTimesYKern(LFRicBuiltIn):
@@ -1064,13 +1630,30 @@ class LFRicIncAXTimesYKern(LFRicBuiltIn):
     real-valued fields.
 
     '''
-    def __str__(self):
-        return "Built-in: inc_aX_times_Y (real-valued fields)"
+    _case_name = "inc_aX_times_Y"
+    _datatype = "real"
+
+    @classmethod
+    def metadata(cls):
+        '''Returns the kernel metadata describing this built-in.
+
+        :returns: kernel metadata describing this built-in.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+
+        '''
+        gh_datatype = LFRicConstants().MAPPING_INTRINSIC_TYPES[cls._datatype]
+        return cls._builtin_metadata([
+            ScalarArgMetadata(gh_datatype, "gh_read"),
+            FieldArgMetadata(gh_datatype, "gh_readwrite", "any_space_1"),
+            FieldArgMetadata(gh_datatype, "gh_read", "any_space_1")])
 
     def lower_to_language_level(self):
         '''
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
+
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
         # Get indexed references for each of the field (proxy) arguments.
@@ -1088,6 +1671,7 @@ class LFRicIncAXTimesYKern(LFRicBuiltIn):
         assign = Assignment.create(lhs, rhs)
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
+        return assign
 
 
 # ------------------------------------------------------------------- #
@@ -1100,13 +1684,34 @@ class LFRicATimesXKern(LFRicBuiltIn):
     return the result as a second, real-valued, field (`Y = a*X`).
 
     '''
+    _case_name = "a_times_X"
+    _datatype = "real"
+
+    @classmethod
+    def metadata(cls):
+        '''Returns the kernel metadata describing this built-in.
+
+        :returns: kernel metadata describing this built-in.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+
+        '''
+        gh_datatype = LFRicConstants().MAPPING_INTRINSIC_TYPES[cls._datatype]
+        return cls._builtin_metadata([
+            FieldArgMetadata(gh_datatype, "gh_write", "any_space_1"),
+            ScalarArgMetadata(gh_datatype, "gh_read"),
+            FieldArgMetadata(gh_datatype, "gh_read", "any_space_1")])
+
     def __str__(self):
-        return "Built-in: Copy a scaled real-valued field"
+        return (f"Built-in: {self._case_name} (copy a scaled "
+                f"{self._datatype}-valued field)")
 
     def lower_to_language_level(self):
         '''
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
+
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
         # Get indexed references for each of the field (proxy) arguments.
@@ -1121,19 +1726,40 @@ class LFRicATimesXKern(LFRicBuiltIn):
         assign = Assignment.create(arg_refs[0], rhs)
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
+        return assign
 
 
 class LFRicIncATimesXKern(LFRicBuiltIn):
     ''' Multiply a real-valued field by a real scalar and return it.
 
     '''
+    _case_name = "inc_a_times_X"
+    _datatype = "real"
+
+    @classmethod
+    def metadata(cls):
+        '''Returns the kernel metadata describing this built-in.
+
+        :returns: kernel metadata describing this built-in.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+
+        '''
+        gh_datatype = LFRicConstants().MAPPING_INTRINSIC_TYPES[cls._datatype]
+        return cls._builtin_metadata([
+            ScalarArgMetadata(gh_datatype, "gh_read"),
+            FieldArgMetadata(gh_datatype, "gh_readwrite", "any_space_1")])
+
     def __str__(self):
-        return "Built-in: Scale a real-valued field"
+        return (f"Built-in: {self._case_name} (scale "
+                f"{a_or_an(self._datatype)} {self._datatype}-valued field)")
 
     def lower_to_language_level(self):
         '''
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
+
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
         # Get indexed references for each of the field (proxy) arguments.
@@ -1149,6 +1775,7 @@ class LFRicIncATimesXKern(LFRicBuiltIn):
         assign = Assignment.create(lhs, rhs)
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
+        return assign
 
 
 # ------------------------------------------------------------------- #
@@ -1161,13 +1788,34 @@ class LFRicXDividebyYKern(LFRicBuiltIn):
     the result as a third, real-valued, field.
 
     '''
+    _case_name = "X_divideby_Y"
+    _datatype = "real"
+
+    @classmethod
+    def metadata(cls):
+        '''Returns the kernel metadata describing this built-in.
+
+        :returns: kernel metadata describing this built-in.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+
+        '''
+        gh_datatype = LFRicConstants().MAPPING_INTRINSIC_TYPES[cls._datatype]
+        return cls._builtin_metadata([
+            FieldArgMetadata(gh_datatype, "gh_write", "any_space_1"),
+            FieldArgMetadata(gh_datatype, "gh_read", "any_space_1"),
+            FieldArgMetadata(gh_datatype, "gh_read", "any_space_1")])
+
     def __str__(self):
-        return "Built-in: Divide real-valued fields"
+        return (f"Built-in: {self._case_name} (divide "
+                f"{self._datatype}-valued fields)")
 
     def lower_to_language_level(self):
         '''
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
+
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
         # Get indexed references for each of the field (proxy) arguments.
@@ -1180,19 +1828,40 @@ class LFRicXDividebyYKern(LFRicBuiltIn):
         assign = Assignment.create(arg_refs[0], rhs)
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
+        return assign
 
 
 class LFRicIncXDividebyYKern(LFRicBuiltIn):
     ''' Divide the first, real-valued, field by the second and return it.
 
     '''
+    _case_name = "inc_X_divideby_Y"
+    _datatype = "real"
+
+    @classmethod
+    def metadata(cls):
+        '''Returns the kernel metadata describing this built-in.
+
+        :returns: kernel metadata describing this built-in.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+
+        '''
+        gh_datatype = LFRicConstants().MAPPING_INTRINSIC_TYPES[cls._datatype]
+        return cls._builtin_metadata([
+            FieldArgMetadata(gh_datatype, "gh_readwrite", "any_space_1"),
+            FieldArgMetadata(gh_datatype, "gh_read", "any_space_1")])
+
     def __str__(self):
-        return "Built-in: Divide one real-valued field by another"
+        return (f"Built-in: {self._case_name} (divide one "
+                f"{self._datatype}-valued field by another)")
 
     def lower_to_language_level(self):
         '''
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
+
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
         # Get indexed refs for both of the field (proxy) arguments.
@@ -1206,6 +1875,108 @@ class LFRicIncXDividebyYKern(LFRicBuiltIn):
         assign = Assignment.create(lhs, rhs)
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
+        return assign
+
+
+class LFRicXDividebyAKern(LFRicBuiltIn):
+    ''' Divide a real-valued field by a real scalar and return the
+    result in another, real-valued, field.
+
+    '''
+    _case_name = "X_divideby_a"
+    _datatype = "real"
+
+    @classmethod
+    def metadata(cls):
+        '''Returns the kernel metadata describing this built-in.
+
+        :returns: kernel metadata describing this built-in.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+
+        '''
+        gh_datatype = LFRicConstants().MAPPING_INTRINSIC_TYPES[cls._datatype]
+        return cls._builtin_metadata([
+            FieldArgMetadata(gh_datatype, "gh_write", "any_space_1"),
+            FieldArgMetadata(gh_datatype, "gh_read", "any_space_1"),
+            ScalarArgMetadata(gh_datatype, "gh_read")])
+
+    def __str__(self):
+        return (f"Built-in: {self._case_name} (divide a real-valued field "
+                f"by {a_or_an(self._datatype)} {self._datatype} scalar "
+                "(Y = X/a))")
+
+    def lower_to_language_level(self):
+        '''
+        Lowers this LFRic-specific built-in kernel to language-level PSyIR.
+        This BuiltIn node is replaced by an Assignment node.
+
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
+
+        '''
+        # Get indexed references for each of the field (proxy) arguments.
+        arg_refs = self.get_indexed_field_argument_references()
+        # Get a reference for the kernel scalar argument.
+        scalar_args = self.get_scalar_argument_references()
+
+        # Create the PSyIR for the kernel:
+        #      proxy0%data(df) = proxy1%data(df) / ascalar
+        rhs = BinaryOperation.create(BinaryOperation.Operator.DIV,
+                                     arg_refs[1], scalar_args[0])
+        assign = Assignment.create(arg_refs[0], rhs)
+        # Finally, replace this kernel node with the Assignment
+        self.replace_with(assign)
+        return assign
+
+
+class LFRicIncXDividebyAKern(LFRicBuiltIn):
+    ''' Divide a real-valued field by a real scalar and return it.
+
+    '''
+    _case_name = "inc_X_divideby_a"
+    _datatype = "real"
+
+    @classmethod
+    def metadata(cls):
+        '''Returns the kernel metadata describing this built-in.
+
+        :returns: kernel metadata describing this built-in.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+
+        '''
+        gh_datatype = LFRicConstants().MAPPING_INTRINSIC_TYPES[cls._datatype]
+        return cls._builtin_metadata([
+            FieldArgMetadata(gh_datatype, "gh_readwrite", "any_space_1"),
+            ScalarArgMetadata(gh_datatype, "gh_read")])
+
+    def __str__(self):
+        return (f"Built-in: {self._case_name} (divide a real-valued field "
+                f"by {a_or_an(self._datatype)} {self._datatype} scalar "
+                f"(X = X/a))")
+
+    def lower_to_language_level(self):
+        '''
+        Lowers this LFRic-specific built-in kernel to language-level PSyIR.
+        This BuiltIn node is replaced by an Assignment node.
+
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
+
+        '''
+        # Get indexed references for each of the field (proxy) arguments.
+        arg_refs = self.get_indexed_field_argument_references()
+        # Get a reference for the kernel scalar argument.
+        scalar_args = self.get_scalar_argument_references()
+
+        # Create the PSyIR for the kernel:
+        #      proxy0%data(df) = proxy0%data(df) / ascalar
+        lhs = arg_refs[0]
+        rhs = BinaryOperation.create(BinaryOperation.Operator.DIV,
+                                     lhs.copy(), scalar_args[0])
+        assign = Assignment.create(lhs, rhs)
+        # Finally, replace this kernel node with the Assignment
+        self.replace_with(assign)
+        return assign
 
 
 # ------------------------------------------------------------------- #
@@ -1219,13 +1990,35 @@ class LFRicADividebyXKern(LFRicBuiltIn):
     real-valued, field, `Y` (`Y = a/X`).
 
     '''
+    _case_name = "a_divideby_X"
+    _datatype = "real"
+
+    @classmethod
+    def metadata(cls):
+        '''Returns the kernel metadata describing this built-in.
+
+        :returns: kernel metadata describing this built-in.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+
+        '''
+        gh_datatype = LFRicConstants().MAPPING_INTRINSIC_TYPES[cls._datatype]
+        return cls._builtin_metadata([
+            FieldArgMetadata(gh_datatype, "gh_write", "any_space_1"),
+            ScalarArgMetadata(gh_datatype, "gh_read"),
+            FieldArgMetadata(gh_datatype, "gh_read", "any_space_1")])
+
     def __str__(self):
-        return "Built-in: Inverse scaling of a real-valued field (Y = a/X)"
+        return (f"Built-in: {self._case_name} (inverse scaling of "
+                f"{a_or_an(self._datatype)} {self._datatype}-valued "
+                f"field (Y = a/X))")
 
     def lower_to_language_level(self):
         '''
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
+
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
         # Get indexed references for each of the field (proxy) arguments.
@@ -1240,6 +2033,7 @@ class LFRicADividebyXKern(LFRicBuiltIn):
         assign = Assignment.create(arg_refs[0], rhs)
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
+        return assign
 
 
 class LFRicIncADividebyXKern(LFRicBuiltIn):
@@ -1248,13 +2042,34 @@ class LFRicIncADividebyXKern(LFRicBuiltIn):
     field (`X = a/X`).
 
     '''
+    _case_name = "inc_a_divideby_X"
+    _datatype = "real"
+
+    @classmethod
+    def metadata(cls):
+        '''Returns the kernel metadata describing this built-in.
+
+        :returns: kernel metadata describing this built-in.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+
+        '''
+        gh_datatype = LFRicConstants().MAPPING_INTRINSIC_TYPES[cls._datatype]
+        return cls._builtin_metadata([
+            ScalarArgMetadata(gh_datatype, "gh_read"),
+            FieldArgMetadata(gh_datatype, "gh_readwrite", "any_space_1")])
+
     def __str__(self):
-        return "Built-in: Inverse scaling of a real-valued field (X = a/X)"
+        return (f"Built-in: {self._case_name} (inverse scaling of "
+                f"{a_or_an(self._datatype)} {self._datatype}-valued "
+                f"field (X = a/X))")
 
     def lower_to_language_level(self):
         '''
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
+
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
         # Get indexed references for each of the field (proxy) arguments.
@@ -1270,6 +2085,7 @@ class LFRicIncADividebyXKern(LFRicBuiltIn):
         assign = Assignment.create(lhs, rhs)
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
+        return assign
 
 
 # ------------------------------------------------------------------- #
@@ -1281,13 +2097,34 @@ class LFRicIncXPowrealAKern(LFRicBuiltIn):
     ''' Raise a real-valued field to a real power and return it.
 
     '''
+    _case_name = "inc_X_powreal_a"
+    _datatype = "real"
+
+    @classmethod
+    def metadata(cls):
+        '''Returns the kernel metadata describing this built-in.
+
+        :returns: kernel metadata describing this built-in.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+
+        '''
+        gh_datatype = LFRicConstants().MAPPING_INTRINSIC_TYPES[cls._datatype]
+        return cls._builtin_metadata([
+            FieldArgMetadata(gh_datatype, "gh_readwrite", "any_space_1"),
+            ScalarArgMetadata("gh_real", "gh_read")])
+
     def __str__(self):
-        return "Built-in: Raise a real-valued field to a real power"
+        return (f"Built-in: {self._case_name} (raise "
+                f"{a_or_an(self._datatype)} {self._datatype}-valued field "
+                f"to a real power)")
 
     def lower_to_language_level(self):
         '''
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
+
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
         # Get PSyIR for each of the arguments.
@@ -1301,19 +2138,41 @@ class LFRicIncXPowrealAKern(LFRicBuiltIn):
                                      lhs.copy(), scalar_args[0])
         assign = Assignment.create(lhs, rhs)
         self.replace_with(assign)
+        return assign
 
 
 class LFRicIncXPowintNKern(LFRicBuiltIn):
     ''' Raise a real-valued field to an integer power and return it.
 
     '''
+    _case_name = "inc_X_powint_n"
+    _datatype = "real"
+
+    @classmethod
+    def metadata(cls):
+        '''Returns the kernel metadata describing this built-in.
+
+        :returns: kernel metadata describing this built-in.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+
+        '''
+        gh_datatype = LFRicConstants().MAPPING_INTRINSIC_TYPES[cls._datatype]
+        return cls._builtin_metadata([
+            FieldArgMetadata(gh_datatype, "gh_readwrite", "any_space_1"),
+            ScalarArgMetadata("gh_integer", "gh_read")])
+
     def __str__(self):
-        return "Built-in: Raise a real-valued field to an integer power"
+        return (f"Built-in: {self._case_name} (raise "
+                f"{a_or_an(self._datatype)} {self._datatype}-valued field "
+                f"to an integer power)")
 
     def lower_to_language_level(self):
         '''
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
+
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
         # Get PSyIR for each of the arguments.
@@ -1327,6 +2186,7 @@ class LFRicIncXPowintNKern(LFRicBuiltIn):
                                      lhs.copy(), scalar_args[0])
         assign = Assignment.create(lhs, rhs)
         self.replace_with(assign)
+        return assign
 
 
 # ------------------------------------------------------------------- #
@@ -1338,13 +2198,34 @@ class LFRicSetvalCKern(LFRicBuiltIn):
     ''' Set a real-valued field equal to a real scalar value.
 
     '''
+    _case_name = "setval_c"
+    _datatype = "real"
+
+    @classmethod
+    def metadata(cls):
+        '''Returns the kernel metadata describing this built-in.
+
+        :returns: kernel metadata describing this built-in.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+
+        '''
+        gh_datatype = LFRicConstants().MAPPING_INTRINSIC_TYPES[cls._datatype]
+        return cls._builtin_metadata([
+            FieldArgMetadata(gh_datatype, "gh_write", "any_space_1"),
+            ScalarArgMetadata(gh_datatype, "gh_read")])
+
     def __str__(self):
-        return "Built-in: Set a real-valued field to a real scalar value"
+        return (f"Built-in: {self._case_name} (set {a_or_an(self._datatype)} "
+                f"{self._datatype}-valued field to a {self._datatype} "
+                f"scalar value)")
 
     def lower_to_language_level(self):
         '''
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
+
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
         # Get indexed references for each of the field (proxy) arguments.
@@ -1357,19 +2238,40 @@ class LFRicSetvalCKern(LFRicBuiltIn):
         assign = Assignment.create(arg_refs[0], scalar_args[0])
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
+        return assign
 
 
 class LFRicSetvalXKern(LFRicBuiltIn):
     ''' Set a real-valued field equal to another, real-valued, field.
 
     '''
+    _case_name = "setval_X"
+    _datatype = "real"
+
+    @classmethod
+    def metadata(cls):
+        '''Returns the kernel metadata describing this built-in.
+
+        :returns: kernel metadata describing this built-in.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+
+        '''
+        gh_datatype = LFRicConstants().MAPPING_INTRINSIC_TYPES[cls._datatype]
+        return cls._builtin_metadata([
+            FieldArgMetadata(gh_datatype, "gh_write", "any_space_1"),
+            FieldArgMetadata(gh_datatype, "gh_read", "any_space_1")])
+
     def __str__(self):
-        return "Built-in: Set a real-valued field equal to another such field"
+        return (f"Built-in: {self._case_name} (set {a_or_an(self._datatype)} "
+                f"{self._datatype}-valued field equal to another such field)")
 
     def lower_to_language_level(self):
         '''
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
+
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
         # Get indexed refs for both of the field (proxy) arguments.
@@ -1380,7 +2282,56 @@ class LFRicSetvalXKern(LFRicBuiltIn):
         assign = Assignment.create(arg_refs[0], arg_refs[1])
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
+        return assign
 
+
+class LFRicSetvalRandomKern(LFRicBuiltIn):
+    ''' Fill a real-valued field with pseudo-random numbers.
+
+    '''
+    _case_name = "setval_random"
+    _datatype = "real"
+
+    @classmethod
+    def metadata(cls):
+        '''Returns the kernel metadata describing this built-in.
+
+        :returns: kernel metadata describing this built-in.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+
+        '''
+        gh_datatype = LFRicConstants().MAPPING_INTRINSIC_TYPES[cls._datatype]
+        return cls._builtin_metadata([
+            FieldArgMetadata(gh_datatype, "gh_write", "any_space_1")])
+
+    def __str__(self):
+        return (f"Built-in: {self._case_name} (fill {a_or_an(self._datatype)} "
+                f"{self._datatype}-valued field with pseudo-random numbers)")
+
+    def lower_to_language_level(self):
+        '''
+        Lowers this LFRic built-in kernel to language-level PSyIR.
+        This BuiltIn node is replaced by a Call node.
+
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
+
+        '''
+        # Get indexed refs for the field (proxy) argument.
+        arg_refs = self.get_indexed_field_argument_references()
+
+        # Create the PSyIR for the kernel:
+        #      call random_number(proxy0%data(df))
+
+        # TODO #1366 - currently we have to create a Symbol for the intrinsic
+        # but *not* add it to the symbol table (since there's no import for
+        # it). This can be removed once we have proper support for intrinsics
+        # that are not operators.
+        routine = RoutineSymbol("random_number")
+        call = Call.create(routine, arg_refs)
+        # Finally, replace this kernel node with the Assignment
+        self.replace_with(call)
+        return call
 
 # ------------------------------------------------------------------- #
 # ============== Inner product of real fields ======================= #
@@ -1392,8 +2343,22 @@ class LFRicXInnerproductYKern(LFRicBuiltIn):
     `innprod = SUM( X(:)*Y(:) )`.
 
     '''
-    def __str__(self):
-        return "Built-in: X_innerproduct_Y (real-valued fields)"
+    _case_name = "X_innerproduct_Y"
+    _datatype = "real"
+
+    @classmethod
+    def metadata(cls):
+        '''Returns the kernel metadata describing this built-in.
+
+        :returns: kernel metadata describing this built-in.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+
+        '''
+        gh_datatype = LFRicConstants().MAPPING_INTRINSIC_TYPES[cls._datatype]
+        return cls._builtin_metadata([
+            ScalarArgMetadata(gh_datatype, "gh_sum"),
+            FieldArgMetadata(gh_datatype, "gh_read", "any_space_1"),
+            FieldArgMetadata(gh_datatype, "gh_read", "any_space_1")])
 
     def gen_code(self, parent):
         '''
@@ -1419,8 +2384,21 @@ class LFRicXInnerproductXKern(LFRicBuiltIn):
     `innprod = SUM( X(:)*X(:) )`.
 
     '''
-    def __str__(self):
-        return "Built-in: X_innerproduct_X (real-valued fields)"
+    _case_name = "X_innerproduct_X"
+    _datatype = "real"
+
+    @classmethod
+    def metadata(cls):
+        '''Returns the kernel metadata describing this built-in.
+
+        :returns: kernel metadata describing this built-in.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+
+        '''
+        gh_datatype = LFRicConstants().MAPPING_INTRINSIC_TYPES[cls._datatype]
+        return cls._builtin_metadata([
+            ScalarArgMetadata(gh_datatype, "gh_sum"),
+            FieldArgMetadata(gh_datatype, "gh_read", "any_space_1")])
 
     def gen_code(self, parent):
         '''
@@ -1441,7 +2419,7 @@ class LFRicXInnerproductXKern(LFRicBuiltIn):
 
 
 # ------------------------------------------------------------------- #
-# ============== Sum real field elements ============================ #
+# ============== Sum of real field elements ========================= #
 # ------------------------------------------------------------------- #
 
 
@@ -1449,8 +2427,25 @@ class LFRicSumXKern(LFRicBuiltIn):
     ''' Computes the sum of the elements of a real-valued field.
 
     '''
+    _case_name = "sum_X"
+    _datatype = "real"
+
+    @classmethod
+    def metadata(cls):
+        '''Returns the kernel metadata describing this built-in.
+
+        :returns: kernel metadata describing this built-in.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+
+        '''
+        gh_datatype = LFRicConstants().MAPPING_INTRINSIC_TYPES[cls._datatype]
+        return cls._builtin_metadata([
+            ScalarArgMetadata(gh_datatype, "gh_sum"),
+            FieldArgMetadata(gh_datatype, "gh_read", "any_space_1")])
+
     def __str__(self):
-        return "Built-in: Sum a real-valued field"
+        return (f"Built-in: {self._case_name} (sum {a_or_an(self._datatype)} "
+                f"{self._datatype}-valued field)")
 
     def gen_code(self, parent):
         '''
@@ -1479,13 +2474,34 @@ class LFRicSignXKern(LFRicBuiltIn):
     Fortran intrinsic `sign` function, `Y = sign(a, X)`.
 
     '''
+    _case_name = "sign_X"
+    _datatype = "real"
+
+    @classmethod
+    def metadata(cls):
+        '''Returns the kernel metadata describing this built-in.
+
+        :returns: kernel metadata describing this built-in.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+
+        '''
+        gh_datatype = LFRicConstants().MAPPING_INTRINSIC_TYPES[cls._datatype]
+        return cls._builtin_metadata([
+            FieldArgMetadata(gh_datatype, "gh_write", "any_space_1"),
+            ScalarArgMetadata(gh_datatype, "gh_read"),
+            FieldArgMetadata(gh_datatype, "gh_read", "any_space_1")])
+
     def __str__(self):
-        return "Built-in: Sign of a real-valued field"
+        return (f"Built-in: {self._case_name} (sign of "
+                f"{a_or_an(self._datatype)} {self._datatype}-valued field)")
 
     def lower_to_language_level(self):
         '''
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
+
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
 
         '''
         # Get indexed references for each of the field (proxy) arguments.
@@ -1500,6 +2516,206 @@ class LFRicSignXKern(LFRicBuiltIn):
         assign = Assignment.create(arg_refs[0], rhs)
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
+        return assign
+
+
+# ------------------------------------------------------------------- #
+# ============== Maximum of (real scalar, real field elements) ====== #
+# ------------------------------------------------------------------- #
+
+
+class LFRicMaxAXKern(LFRicBuiltIn):
+    ''' Returns the maximum of a real scalar and real-valued field
+    elements. The result is stored as another, real-valued, field:
+    `Y = max(a, X)`.
+
+    '''
+    _case_name = "max_aX"
+    _datatype = "real"
+
+    @classmethod
+    def metadata(cls):
+        '''Returns the kernel metadata describing this built-in.
+
+        :returns: kernel metadata describing this built-in.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+
+        '''
+        gh_datatype = LFRicConstants().MAPPING_INTRINSIC_TYPES[cls._datatype]
+        return cls._builtin_metadata([
+            FieldArgMetadata(gh_datatype, "gh_write", "any_space_1"),
+            ScalarArgMetadata(gh_datatype, "gh_read"),
+            FieldArgMetadata(gh_datatype, "gh_read", "any_space_1")])
+
+    def lower_to_language_level(self):
+        '''
+        Lowers this LFRic-specific built-in kernel to language-level PSyIR.
+        This BuiltIn node is replaced by an Assignment node.
+
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
+
+        '''
+        # Get indexed references for each of the field (proxy) arguments.
+        arg_refs = self.get_indexed_field_argument_references()
+        # Get a reference for the kernel scalar argument.
+        scalar_args = self.get_scalar_argument_references()
+
+        # Create the PSyIR for the kernel:
+        #      proxy0%data(df) = MAX(ascalar, proxy1%data)
+        rhs = BinaryOperation.create(BinaryOperation.Operator.MAX,
+                                     scalar_args[0], arg_refs[1])
+        assign = Assignment.create(arg_refs[0], rhs)
+        # Finally, replace this kernel node with the Assignment
+        self.replace_with(assign)
+        return assign
+
+
+class LFRicIncMaxAXKern(LFRicBuiltIn):
+    ''' Returns the maximum of a real scalar and real-valued field
+    elements. The result is stored in the same, real-valued, field:
+    `X = max(a, X)`.
+
+    '''
+    _case_name = "inc_max_aX"
+    _datatype = "real"
+
+    @classmethod
+    def metadata(cls):
+        '''Returns the kernel metadata describing this built-in.
+
+        :returns: kernel metadata describing this built-in.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+
+        '''
+        gh_datatype = LFRicConstants().MAPPING_INTRINSIC_TYPES[cls._datatype]
+        return cls._builtin_metadata([
+            ScalarArgMetadata(gh_datatype, "gh_read"),
+            FieldArgMetadata(gh_datatype, "gh_readwrite", "any_space_1")])
+
+    def lower_to_language_level(self):
+        '''
+        Lowers this LFRic-specific built-in kernel to language-level PSyIR.
+        This BuiltIn node is replaced by an Assignment node.
+
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
+
+        '''
+        # Get indexed references for each of the field (proxy) arguments.
+        arg_refs = self.get_indexed_field_argument_references()
+        # Get a reference for the kernel scalar argument.
+        scalar_args = self.get_scalar_argument_references()
+
+        # Create the PSyIR for the kernel:
+        #      proxy0%data(df) = MAX(ascalar, proxy0%data)
+        lhs = arg_refs[0]
+        rhs = BinaryOperation.create(BinaryOperation.Operator.MAX,
+                                     scalar_args[0], lhs.copy())
+        assign = Assignment.create(lhs, rhs)
+        # Finally, replace this kernel node with the Assignment
+        self.replace_with(assign)
+        return assign
+
+
+# ------------------------------------------------------------------- #
+# ============== Minimum of (real scalar, real field elements) ====== #
+# ------------------------------------------------------------------- #
+
+
+class LFRicMinAXKern(LFRicBuiltIn):
+    ''' Returns the minimum of a real scalar and real-valued field
+    elements. The result is stored as another, real-valued, field:
+    `Y = min(a, X)`.
+
+    '''
+    _case_name = "min_aX"
+    _datatype = "real"
+
+    @classmethod
+    def metadata(cls):
+        '''Returns the kernel metadata describing this built-in.
+
+        :returns: kernel metadata describing this built-in.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+
+        '''
+        gh_datatype = LFRicConstants().MAPPING_INTRINSIC_TYPES[cls._datatype]
+        return cls._builtin_metadata([
+            FieldArgMetadata(gh_datatype, "gh_write", "any_space_1"),
+            ScalarArgMetadata(gh_datatype, "gh_read"),
+            FieldArgMetadata(gh_datatype, "gh_read", "any_space_1")])
+
+    def lower_to_language_level(self):
+        '''
+        Lowers this LFRic-specific built-in kernel to language-level PSyIR.
+        This BuiltIn node is replaced by an Assignment node.
+
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
+
+        '''
+        # Get indexed references for each of the field (proxy) arguments.
+        arg_refs = self.get_indexed_field_argument_references()
+        # Get a reference for the kernel scalar argument.
+        scalar_args = self.get_scalar_argument_references()
+
+        # Create the PSyIR for the kernel:
+        #      proxy0%data(df) = MIN(ascalar, proxy1%data)
+        rhs = BinaryOperation.create(BinaryOperation.Operator.MIN,
+                                     scalar_args[0], arg_refs[1])
+        assign = Assignment.create(arg_refs[0], rhs)
+        # Finally, replace this kernel node with the Assignment
+        self.replace_with(assign)
+        return assign
+
+
+class LFRicIncMinAXKern(LFRicBuiltIn):
+    ''' Returns the minimum of a real scalar and real-valued field
+    elements. The result is stored in the same, real-valued, field:
+    `X = min(a, X)`.
+
+    '''
+    _case_name = "inc_min_aX"
+    _datatype = "real"
+
+    @classmethod
+    def metadata(cls):
+        '''Returns the kernel metadata describing this built-in.
+
+        :returns: kernel metadata describing this built-in.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+
+        '''
+        gh_datatype = LFRicConstants().MAPPING_INTRINSIC_TYPES[cls._datatype]
+        return cls._builtin_metadata([
+            ScalarArgMetadata(gh_datatype, "gh_read"),
+            FieldArgMetadata(gh_datatype, "gh_readwrite", "any_space_1")])
+
+    def lower_to_language_level(self):
+        '''
+        Lowers this LFRic-specific built-in kernel to language-level PSyIR.
+        This BuiltIn node is replaced by an Assignment node.
+
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
+
+        '''
+        # Get indexed references for each of the field (proxy) arguments.
+        arg_refs = self.get_indexed_field_argument_references()
+        # Get a reference for the kernel scalar argument.
+        scalar_args = self.get_scalar_argument_references()
+
+        # Create the PSyIR for the kernel:
+        #      proxy0%data(df) = MIN(ascalar, proxy0%data)
+        lhs = arg_refs[0]
+        rhs = BinaryOperation.create(BinaryOperation.Operator.MIN,
+                                     scalar_args[0], lhs.copy())
+        assign = Assignment.create(lhs, rhs)
+        # Finally, replace this kernel node with the Assignment
+        self.replace_with(assign)
+        return assign
+
 
 # ------------------------------------------------------------------- #
 # ============== Converting real to integer field elements ========== #
@@ -1513,10 +2729,27 @@ class LFRicIntXKern(LFRicXKern):
     is the real-valued field being converted.
 
     '''
+    # '_datatype' is only required to avoid an exception in '__init__',
+    # it is not required by this class.
+    _datatype = "dummy"
     _field_type = "int"
+    _case_name = "int_X"
+
+    @classmethod
+    def metadata(cls):
+        '''Returns the kernel metadata describing this built-in.
+
+        :returns: kernel metadata describing this built-in.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+
+        '''
+        return cls._builtin_metadata([
+            FieldArgMetadata("gh_integer", "gh_write", "any_space_1"),
+            FieldArgMetadata("gh_real", "gh_read", "any_space_1")])
 
     def __str__(self):
-        return "Built-in: Convert a real-valued to an integer-valued field"
+        return (f"Built-in: {self._case_name} (convert a real-valued to "
+                f"an integer-valued field)")
 
 
 # ******************************************************************* #
@@ -1534,8 +2767,8 @@ class LFRicIntXPlusYKern(LFRicXPlusYKern):
     built-in equivalent `LFRicXPlusYKern`.
 
     '''
-    def __str__(self):
-        return "Built-in: Add integer-valued fields"
+    _case_name = "int_X_plus_Y"
+    _datatype = "integer"
 
 
 class LFRicIntIncXPlusYKern(LFRicIncXPlusYKern):
@@ -1546,8 +2779,8 @@ class LFRicIntIncXPlusYKern(LFRicIncXPlusYKern):
     built-in equivalent `LFRicIncXPlusYKern`.
 
     '''
-    def __str__(self):
-        return "Built-in: Increment an integer-valued field"
+    _case_name = "int_inc_X_plus_Y"
+    _datatype = "integer"
 
 
 class LFRicIntAPlusXKern(LFRicAPlusXKern):
@@ -1558,8 +2791,8 @@ class LFRicIntAPlusXKern(LFRicAPlusXKern):
     built-in equivalent `LFRicAPlusXKern`.
 
     '''
-    def __str__(self):
-        return "Built-in: int_a_plus_X (integer-valued fields)"
+    _case_name = "int_a_plus_X"
+    _datatype = "integer"
 
 
 class LFRicIntIncAPlusXKern(LFRicIncAPlusXKern):
@@ -1570,8 +2803,8 @@ class LFRicIntIncAPlusXKern(LFRicIncAPlusXKern):
     built-in equivalent `LFRicIncAPlusXKern`.
 
     '''
-    def __str__(self):
-        return "Built-in: int_inc_a_plus_X (integer-valued field)"
+    _case_name = "int_inc_a_plus_X"
+    _datatype = "integer"
 
 
 # ------------------------------------------------------------------- #
@@ -1587,8 +2820,8 @@ class LFRicIntXMinusYKern(LFRicXMinusYKern):
     built-in equivalent `LFRicXMinusYKern`.
 
     '''
-    def __str__(self):
-        return "Built-in: Subtract integer-valued fields"
+    _case_name = "int_X_minus_Y"
+    _datatype = "integer"
 
 
 class LFRicIntIncXMinusYKern(LFRicIncXMinusYKern):
@@ -1599,8 +2832,8 @@ class LFRicIntIncXMinusYKern(LFRicIncXMinusYKern):
     built-in equivalent `LFRicIncXMinusYKern`.
 
     '''
-    def __str__(self):
-        return "Built-in: Decrement an integer-valued field"
+    _case_name = "int_inc_X_minus_Y"
+    _datatype = "integer"
 
 
 class LFRicIntAMinusXKern(LFRicAMinusXKern):
@@ -1611,8 +2844,8 @@ class LFRicIntAMinusXKern(LFRicAMinusXKern):
     built-in equivalent `LFRicAMinusXKern`.
 
     '''
-    def __str__(self):
-        return "Built-in: int_a_minus_X (integer-valued fields)"
+    _case_name = "int_a_minus_X"
+    _datatype = "integer"
 
 
 class LFRicIntIncAMinusXKern(LFRicIncAMinusXKern):
@@ -1623,8 +2856,31 @@ class LFRicIntIncAMinusXKern(LFRicIncAMinusXKern):
     built-in equivalent `LFRicIncAMinusXKern`.
 
     '''
-    def __str__(self):
-        return "Built-in: int_inc_a_minus_X (integer-valued field)"
+    _case_name = "int_inc_a_minus_X"
+    _datatype = "integer"
+
+
+class LFRicIntXMinusAKern(LFRicXMinusAKern):
+    ''' Subtract an integer scalar value, `a`, from each element of an
+    integer-valued field, `X`, and return the result as a second,
+    integer-valued, field, `Y`.
+    Inherits the `lower_to_language_level` method from the real-valued
+    built-in equivalent `LFRicXMinusAKern`.
+
+    '''
+    _case_name = "int_X_minus_a"
+    _datatype = "integer"
+
+
+class LFRicIntIncXMinusAKern(LFRicIncXMinusAKern):
+    ''' Subtract an integer scalar value, `a`, from each element of an
+    integer-valued field, `X`, and return the result in the same field.
+    Inherits the `lower_to_language_level` method from the real-valued
+    built-in equivalent `LFRicIncXMinusAKern`.
+
+    '''
+    _case_name = "int_inc_X_minus_a"
+    _datatype = "integer"
 
 
 # ------------------------------------------------------------------- #
@@ -1640,8 +2896,8 @@ class LFRicIntXTimesYKern(LFRicXTimesYKern):
     built-in equivalent `LFRicXTimesYKern`.
 
     '''
-    def __str__(self):
-        return "Built-in: Multiply integer-valued fields"
+    _case_name = "int_X_times_Y"
+    _datatype = "integer"
 
 
 class LFRicIntIncXTimesYKern(LFRicIncXTimesYKern):
@@ -1652,8 +2908,8 @@ class LFRicIntIncXTimesYKern(LFRicIncXTimesYKern):
     built-in equivalent `LFRicIncXTimesYKern`.
 
     '''
-    def __str__(self):
-        return "Built-in: Multiply one integer-valued field by another"
+    _case_name = "int_inc_X_times_Y"
+    _datatype = "integer"
 
 
 # ------------------------------------------------------------------- #
@@ -1669,8 +2925,8 @@ class LFRicIntATimesXKern(LFRicATimesXKern):
     built-in equivalent `LFRicATimesXKern`.
 
     '''
-    def __str__(self):
-        return "Built-in: Copy a scaled integer-valued field"
+    _case_name = "int_a_times_X"
+    _datatype = "integer"
 
 
 class LFRicIntIncATimesXKern(LFRicIncATimesXKern):
@@ -1680,8 +2936,8 @@ class LFRicIntIncATimesXKern(LFRicIncATimesXKern):
     built-in equivalent `LFRicIncATimesXKern`.
 
     '''
-    def __str__(self):
-        return "Built-in: Scale an integer-valued field"
+    _case_name = "int_inc_a_times_X"
+    _datatype = "integer"
 
 
 # ------------------------------------------------------------------- #
@@ -1696,9 +2952,8 @@ class LFRicIntSetvalCKern(LFRicSetvalCKern):
     built-in equivalent `LFRicSetvalCKern`.
 
     '''
-    def __str__(self):
-        return ("Built-in: Set an integer-valued field to an integer "
-                "scalar value")
+    _case_name = "int_setval_c"
+    _datatype = "integer"
 
 
 class LFRicIntSetvalXKern(LFRicSetvalXKern):
@@ -1709,9 +2964,8 @@ class LFRicIntSetvalXKern(LFRicSetvalXKern):
     built-in equivalent `LFRicSetvalXKern`.
 
     '''
-    def __str__(self):
-        return ("Built-in: Set an integer-valued field equal to another "
-                "such field")
+    _case_name = "int_setval_X"
+    _datatype = "integer"
 
 
 # ------------------------------------------------------------------- #
@@ -1726,8 +2980,64 @@ class LFRicIntSignXKern(LFRicSignXKern):
     built-in equivalent `LFRicSignXKern`.
 
     '''
-    def __str__(self):
-        return "Built-in: Sign of an integer-valued field"
+    _case_name = "int_sign_X"
+    _datatype = "integer"
+
+
+# ------------------------------------------------------------------- #
+# ======== Maximum of (integer scalar, integer field elements) ====== #
+# ------------------------------------------------------------------- #
+
+
+class LFRicIntMaxAXKern(LFRicMaxAXKern):
+    ''' Returns the maximum of an integer scalar and integer-valued
+    field elements. The result is stored as another, integer-valued,
+    field: `Y = max(a, X)`.
+    Inherits the `lower_to_language_level` method from the real-valued
+    built-in equivalent `LFRicMaxAXKern`.
+    '''
+    _case_name = "int_max_aX"
+    _datatype = "integer"
+
+
+class LFRicIntIncMaxAXKern(LFRicIncMaxAXKern):
+    ''' Returns the maximum of an integer scalar and integer-valued
+    field elements. The result is stored in the same, integer-valued,
+    field: `X = max(a, X)`.
+    Inherits the `lower_to_language_level` method from the real-valued
+    built-in equivalent `LFRicIncMaxAXKern`.
+    '''
+    _case_name = "int_inc_max_aX"
+    _datatype = "integer"
+
+
+# ------------------------------------------------------------------- #
+# ======== Minimum of (integer scalar, integer field elements) ====== #
+# ------------------------------------------------------------------- #
+
+
+class LFRicIntMinAXKern(LFRicMinAXKern):
+    ''' Returns the minimum of an integer scalar and integer-valued
+    field elements. The result is stored as another, integer-valued,
+    field: `Y = min(a, X)`.
+    Inherits the `lower_to_language_level` method from the real-valued
+    built-in equivalent `LFRicMinAXKern`.
+
+    '''
+    _case_name = "int_min_aX"
+    _datatype = "integer"
+
+
+class LFRicIntIncMinAXKern(LFRicIncMinAXKern):
+    ''' Returns the minimum of an integer scalar and integer-valued
+    field elements. The result is stored in the same, integer-valued,
+    field: `X = min(a, X)`.
+    Inherits the `lower_to_language_level` method from the real-valued
+    built-in equivalent `LFRicIncMinAXKern`.
+
+    '''
+    _case_name = "int_inc_min_aX"
+    _datatype = "integer"
 
 
 # ------------------------------------------------------------------- #
@@ -1742,10 +3052,27 @@ class LFRicRealXKern(LFRicXKern):
     is the integer-valued field being converted.
 
     '''
+    # '_datatype' is only required to avoid an exception in '__init__',
+    # it is not required by this class.
+    _datatype = "dummy"
     _field_type = "real"
+    _case_name = "real_X"
+
+    @classmethod
+    def metadata(cls):
+        '''Returns the kernel metadata describing this built-in.
+
+        :returns: kernel metadata describing this built-in.
+        :rtype: :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+
+        '''
+        return cls._builtin_metadata([
+            FieldArgMetadata("gh_real", "gh_write", "any_space_1"),
+            FieldArgMetadata("gh_integer", "gh_read", "any_space_1")])
 
     def __str__(self):
-        return "Built-in: Convert an integer-valued to a real-valued field"
+        return (f"Built-in: {self._case_name} (convert an integer-valued "
+                f"to a real-valued field)")
 
 
 # The built-in operations that we support for this API. The meta-data
@@ -1770,6 +3097,8 @@ REAL_BUILTIN_MAP_CAPITALISED = {
     "inc_X_minus_Y": LFRicIncXMinusYKern,
     "a_minus_X": LFRicAMinusXKern,
     "inc_a_minus_X": LFRicIncAMinusXKern,
+    "X_minus_a": LFRicXMinusAKern,
+    "inc_X_minus_a": LFRicIncXMinusAKern,
     "aX_minus_Y": LFRicAXMinusYKern,
     "X_minus_bY": LFRicXMinusBYKern,
     "inc_X_minus_bY": LFRicIncXMinusBYKern,
@@ -1784,6 +3113,8 @@ REAL_BUILTIN_MAP_CAPITALISED = {
     # Dividing real fields
     "X_divideby_Y": LFRicXDividebyYKern,
     "inc_X_divideby_Y": LFRicIncXDividebyYKern,
+    "X_divideby_a": LFRicXDividebyAKern,
+    "inc_X_divideby_a": LFRicIncXDividebyAKern,
     # Dividing a real scalar by elements of a real field
     # (inverse scaling of fields)
     "a_divideby_X": LFRicADividebyXKern,
@@ -1795,6 +3126,7 @@ REAL_BUILTIN_MAP_CAPITALISED = {
     # real field's values
     "setval_c": LFRicSetvalCKern,
     "setval_X": LFRicSetvalXKern,
+    "setval_random": LFRicSetvalRandomKern,
     # Inner product of real fields
     "X_innerproduct_Y": LFRicXInnerproductYKern,
     "X_innerproduct_X": LFRicXInnerproductXKern,
@@ -1802,6 +3134,12 @@ REAL_BUILTIN_MAP_CAPITALISED = {
     "sum_X": LFRicSumXKern,
     # Sign of real field elements applied to a scalar value
     "sign_X": LFRicSignXKern,
+    # Maximum of a real scalar value and real field elements
+    "max_aX": LFRicMaxAXKern,
+    "inc_max_aX": LFRicIncMaxAXKern,
+    # Minimum of a real scalar value and real field elements
+    "min_aX": LFRicMinAXKern,
+    "inc_min_aX": LFRicIncMinAXKern,
     # Converting real to integer field elements
     "int_X": LFRicIntXKern}
 
@@ -1817,6 +3155,8 @@ INT_BUILTIN_MAP_CAPITALISED = {
     "int_inc_X_minus_Y": LFRicIntIncXMinusYKern,
     "int_a_minus_X": LFRicIntAMinusXKern,
     "int_inc_a_minus_X": LFRicIntIncAMinusXKern,
+    "int_X_minus_a": LFRicIntXMinusAKern,
+    "int_inc_X_minus_a": LFRicIntIncXMinusAKern,
     # Multiplying (scaled) real fields
     "int_X_times_Y": LFRicIntXTimesYKern,
     "int_inc_X_times_Y": LFRicIntIncXTimesYKern,
@@ -1829,6 +3169,12 @@ INT_BUILTIN_MAP_CAPITALISED = {
     "int_setval_X": LFRicIntSetvalXKern,
     # Sign of integer field elements applied to a scalar value
     "int_sign_X": LFRicIntSignXKern,
+    # Maximum of an integer scalar value and integer field elements
+    "int_max_aX": LFRicIntMaxAXKern,
+    "int_inc_max_aX": LFRicIntIncMaxAXKern,
+    # Minimum of an integer scalar value and integer field elements
+    "int_min_aX": LFRicIntMinAXKern,
+    "int_inc_min_aX": LFRicIntIncMinAXKern,
     # Converting integer to real field elements
     "real_X": LFRicRealXKern}
 
@@ -1859,6 +3205,8 @@ __all__ = ['LFRicBuiltInCallFactory',
            'LFRicIncXMinusYKern',
            'LFRicAMinusXKern',
            'LFRicIncAMinusXKern',
+           'LFRicXMinusAKern',
+           'LFRicIncXMinusAKern',
            'LFRicAXMinusYKern',
            'LFRicXMinusBYKern',
            'LFRicIncXMinusBYKern',
@@ -1870,16 +3218,23 @@ __all__ = ['LFRicBuiltInCallFactory',
            'LFRicIncATimesXKern',
            'LFRicXDividebyYKern',
            'LFRicIncXDividebyYKern',
+           'LFRicXDividebyAKern',
+           'LFRicIncXDividebyAKern',
            'LFRicADividebyXKern',
            'LFRicIncADividebyXKern',
            'LFRicIncXPowrealAKern',
            'LFRicIncXPowintNKern',
            'LFRicSetvalCKern',
            'LFRicSetvalXKern',
+           'LFRicSetvalRandomKern',
            'LFRicXInnerproductYKern',
            'LFRicXInnerproductXKern',
            'LFRicSumXKern',
            'LFRicSignXKern',
+           'LFRicMaxAXKern',
+           'LFRicIncMaxAXKern',
+           'LFRicMinAXKern',
+           'LFRicIncMinAXKern',
            'LFRicIntXKern',
            'LFRicIntXPlusYKern',
            'LFRicIntIncXPlusYKern',
@@ -1889,6 +3244,8 @@ __all__ = ['LFRicBuiltInCallFactory',
            'LFRicIntIncXMinusYKern',
            'LFRicIntAMinusXKern',
            'LFRicIntIncAMinusXKern',
+           'LFRicIntXMinusAKern',
+           'LFRicIntIncXMinusAKern',
            'LFRicIntXTimesYKern',
            'LFRicIntIncXTimesYKern',
            'LFRicIntATimesXKern',
@@ -1896,4 +3253,8 @@ __all__ = ['LFRicBuiltInCallFactory',
            'LFRicIntSetvalCKern',
            'LFRicIntSetvalXKern',
            'LFRicIntSignXKern',
+           'LFRicIntMaxAXKern',
+           'LFRicIntIncMaxAXKern',
+           'LFRicIntMinAXKern',
+           'LFRicIntIncMinAXKern',
            'LFRicRealXKern']

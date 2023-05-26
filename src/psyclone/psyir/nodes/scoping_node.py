@@ -44,15 +44,18 @@ from psyclone.psyir.symbols import SymbolTable
 class ScopingNode(Node):
     ''' Abstract node that has an associated Symbol Table to keep track of
     symbols declared in its scope (symbols that can be accessed by this node
-    and any of its descendants).
+    and any of its descendants). If a pre-existing symbol table is provided,
+    it will be attached to the node (raising an error if the symbol table
+    is already attached to another scope), otherwise a new empty Symbol Table
+    will be created.
 
     :param children: the PSyIR nodes that are children of this node.
-    :type children: list of :py:class:`psyclone.psyir.nodes.Node`
+    :type children: List[:py:class:`psyclone.psyir.nodes.Node`]
     :param parent: the parent node of this node in the PSyIR.
-    :type parent: :py:class:`psyclone.psyir.nodes.Node` or NoneType
-    :param symbol_table: initialise the node with a given symbol table.
-    :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable` or \
-            NoneType
+    :type parent: Optional[:py:class:`psyclone.psyir.nodes.Node`]
+    :param symbol_table: attach the given symbol table to the new node.
+    :type symbol_table: \
+            Optional[:py:class:`psyclone.psyir.symbols.SymbolTable`]
 
     '''
     # Polymorphic parameter to initialize the Symbol Table of the ScopingNode
@@ -61,11 +64,28 @@ class ScopingNode(Node):
     def __init__(self, children=None, parent=None, symbol_table=None):
         super(ScopingNode, self).__init__(self, children=children,
                                           parent=parent)
-        if symbol_table:
-            self._symbol_table = symbol_table
+        self._symbol_table = None
+
+        if symbol_table is not None:
+            # Attach the provided symbol table to this scope
+            symbol_table.attach(self)
         else:
+            # Create a new symbol table attached to this scope
             self._symbol_table = self._symbol_table_class(self)
-        self._symbol_table._node = self
+
+    def __eq__(self, other):
+        '''
+        Checks whether two nodes are equal. Scoping nodes are equal if their
+        symbol tables are equal.
+
+        :param object other: the object to check equality to.
+
+        :returns: whether other is equal to self.
+        :rtype: bool
+        '''
+        is_eq = super().__eq__(other)
+        is_eq = is_eq and self.symbol_table == other.symbol_table
+        return is_eq
 
     def _refine_copy(self, other):
         ''' Refine the object attributes when a shallow copy is not the most

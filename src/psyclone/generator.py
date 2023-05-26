@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+# Copyright (c) 2017-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,9 +31,9 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors: R. W. Ford, A. R. Porter and N. Nobre, STFC Daresbury Lab
 # Modified A. J. Voysey, Met Office
-# Modified work Copyright (c) 2018 by J. Henrichs, Bureau of Meteorology
+# Modified J. Henrichs, Bureau of Meteorology
 
 '''
     This module provides the PSyclone 'main' routine which is intended
@@ -44,36 +44,53 @@
     from within another Python program.
 '''
 
-from __future__ import absolute_import, print_function
-
 import argparse
-import io
 import os
 import sys
 import traceback
 
-import six
+from fparser.api import get_reader
+from fparser.two import Fortran2003
 
 from psyclone import configuration
 from psyclone.alg_gen import Alg, NoInvokesError
 from psyclone.configuration import Config, ConfigurationError
+from psyclone.domain.common.algorithm.psyir import (
+    AlgorithmInvokeCall, KernelFunctor)
 from psyclone.domain.common.transformations import AlgTrans
-from psyclone.errors import GenerationError
+from psyclone.domain.gocean.transformations import (
+    RaisePSyIR2GOceanKernTrans, GOceanAlgInvoke2PSyCallTrans)
+from psyclone.domain.lfric.algorithm import LFRicBuiltinFunctor
+from psyclone.domain.lfric.transformations import (
+    LFRicAlgTrans, RaisePSyIR2LFRicKernTrans, LFRicAlgInvoke2PSyCallTrans)
+from psyclone.errors import GenerationError, InternalError
 from psyclone.line_length import FortLineLength
+from psyclone.parse import ModuleManager
 from psyclone.parse.algorithm import parse
-from psyclone.parse.utils import ParseError
+from psyclone.parse.kernel import get_kernel_filepath
+from psyclone.parse.utils import ParseError, parse_fp2
 from psyclone.profiler import Profiler
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyir.nodes import Loop
+from psyclone.psyir.nodes import Loop, Container, Routine
 from psyclone.version import __VERSION__
 
 # Those APIs that do not have a separate Algorithm layer
 API_WITHOUT_ALGORITHM = ["nemo"]
 
+# TODO issue #1618 remove temporary LFRIC_TESTING flag, associated
+# logic and Alg class plus tests (and ast variable).
+#
+# Temporary flag to allow optional testing of new LFRic metadata
+# implementation (mainly that the PSyIR works with algorithm-layer
+# code) whilst keeping the original implementation as default
+# until it is working.
+LFRIC_TESTING = False
+
 
 def handle_script(script_name, info, function_name, is_optional=False):
+    # pylint: disable=too-many-locals
     '''Loads and applies the specified script to the given algorithm or
     psy layer. The relevant script function (in 'function_name') is
     called with 'info' as the argument.
@@ -81,7 +98,7 @@ def handle_script(script_name, info, function_name, is_optional=False):
     :param str script_name: name of the script to load.
     :param info: PSyclone representation of the algorithm or psy layer \
         to which the script is applied.
-    :type info: :py:class:`psyclone.psyGen.PSy` or \
+    :type info: :py:class:`psyclone.psyGen.PSy` | \
         :py:class:`psyclone.psyir.nodes.Node`
     :param str function_name: the name of the function to call in the \
         script.
@@ -97,35 +114,37 @@ def handle_script(script_name, info, function_name, is_optional=False):
         script function is called.
 
     '''
-    sys_path_appended = False
+    # pylint: disable=too-many-locals
+    sys_path_prepended = False
     try:
-        # a script has been provided
         filepath, filename = os.path.split(script_name)
-        if filepath:
-            # a path to a file has been provided
-            # we need to check the file exists
-            if not os.path.isfile(script_name):
-                raise IOError("script file '{0}' not found".
-                              format(script_name))
-            # it exists so we need to add the path to the python
-            # search path
-            sys_path_appended = True
-            sys.path.append(filepath)
-        filename, fileext = os.path.splitext(filename)
+        module_name, fileext = os.path.splitext(filename)
+        # the file must either be:
+        # a) at the given path or, given no path, in the current directory; or
+        # b) given no path, in the system path
+        if not (os.path.isfile(script_name) or
+                not filepath and any(os.path.isfile(os.path.join(p, filename))
+                                     for p in sys.path)):
+            raise GenerationError(
+                f"generator: script file '{script_name}' not found")
+        # the file must have the .py extension
         if fileext != '.py':
             raise GenerationError(
-                "generator: expected the script file '{0}' to have "
-                "the '.py' extension".format(filename))
+                f"generator: expected the script file '{filename}' to have "
+                f"the '.py' extension")
+        # prepend file path - if none, the empty string equates to the current
+        # working directory - to the system path to guarantee we find the user
+        # provided module instead of a similarly named module that might
+        # already exist elsewhere in the system path
+        sys_path_prepended = True
+        sys.path.insert(0, filepath)
         try:
-            transmod = __import__(filename)
-        except ImportError as error:
+            transmod = __import__(module_name)
+        except Exception as error:
             raise GenerationError(
-                f"generator: attempted to import '{filename}' but script "
-                f"file '{script_name}' has not been found") from error
-        except SyntaxError as error:
-            raise GenerationError(
-                f"generator: attempted to import '{filename}' but script "
-                f"file '{script_name}' is not valid python") from error
+                f"generator: attempted to import specified PSyclone "
+                f"transformation module '{module_name}' but a problem was "
+                f"found: {error}") from error
         if callable(getattr(transmod, function_name, None)):
             try:
                 func_call = getattr(transmod, function_name)
@@ -134,25 +153,20 @@ def handle_script(script_name, info, function_name, is_optional=False):
                 exc_type, exc_value, exc_traceback = sys.exc_info()
                 lines = traceback.format_exception(exc_type, exc_value,
                                                    exc_traceback)
-                e_str = '{\n' +\
-                    ''.join('    ' + line for line in lines[2:]) + '}'
+                e_str = '{\n' + ''.join('    ' + ln for ln in lines[2:]) + '}'
                 # pylint: disable=raise-missing-from
                 raise GenerationError(
-                    "Generator: script file '{0}'\nraised the "
-                    "following exception during execution "
-                    "...\n{1}\nPlease check your script".format(
-                        script_name, e_str))
+                    f"generator: specified PSyclone transformation module "
+                    f"'{module_name}'\nraised the following exception during "
+                    f"execution...\n{e_str}\nplease check your script")
         elif not is_optional:
             raise GenerationError(
-                f"generator: attempted to import '{filename}' but script file "
-                f"'{script_name}' does not contain a '{function_name}' "
-                f"function")
-    except Exception as msg:
-        if sys_path_appended:
-            os.sys.path.pop()
-        raise msg
-    if sys_path_appended:
-        os.sys.path.pop()
+                f"generator: attempted to use specified PSyclone "
+                f"transformation module '{module_name}' but it does not "
+                f"contain a '{function_name}' function")
+    finally:
+        if sys_path_prepended:
+            sys.path.pop(0)
 
 
 def generate(filename, api="", kernel_paths=None, script_name=None,
@@ -160,7 +174,8 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
              distributed_memory=None,
              kern_out_path="",
              kern_naming="multiple"):
-    # pylint: disable=too-many-arguments
+    # pylint: disable=too-many-arguments, too-many-statements
+    # pylint: disable=too-many-branches, too-many-locals
     '''Takes a PSyclone algorithm specification as input and outputs the
     associated generated algorithm and psy codes suitable for
     compiling with the specified kernel(s) and support
@@ -175,7 +190,7 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
         search for the files containing the kernel source (if \
         different from the location of the algorithm specification). \
         Defaults to None.
-    :type kernel_paths: list of str or NoneType
+    :type kernel_paths: Optional[List[str]]
     :param str script_name: a script file that can apply optimisations \
         to the PSy layer (can be a path to a file or a filename that \
         relies on the PYTHONPATH to find the module). Defaults to None.
@@ -192,9 +207,9 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
         kernels. Defaults to "multiple".
     :return: 2-tuple containing the fparser1 AST for the algorithm code and \
         the fparser1 AST or a string (for NEMO) of the psy code.
-    :rtype: (:py:class:`fparser.one.block_statements.BeginSource`, \
-             :py:class:`fparser.one.block_statements.Module`) or \
-            (:py:class:`fparser.one.block_statements.BeginSource`, str)
+    :rtype: Tuple[:py:class:`fparser.one.block_statements.BeginSource`, \
+            :py:class:`fparser.one.block_statements.Module`] | \
+            Tuple[:py:class:`fparser.one.block_statements.BeginSource`, str]
 
     :raises GenerationError: if an invalid API is specified.
     :raises GenerationError: if an invalid kernel-renaming scheme is specified.
@@ -221,55 +236,121 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
     else:
         if api not in Config.get().supported_apis:
             raise GenerationError(
-                "generate: Unsupported API '{0}' specified. Supported "
-                "types are {1}.".format(api, Config.get().supported_apis))
+                f"generate: Unsupported API '{api}' specified. Supported "
+                f"types are {Config.get().supported_apis}.")
 
     # Store Kernel-output options in our Configuration object
     Config.get().kernel_output_dir = kern_out_path
     try:
         Config.get().kernel_naming = kern_naming
     except ValueError as verr:
-        six.raise_from(
-            GenerationError("Invalid kernel-renaming scheme supplied: {0}".
-                            format(str(verr))), verr)
+        raise GenerationError(
+            f"Invalid kernel-renaming scheme supplied: {str(verr)}") from verr
 
     if not os.path.isfile(filename):
-        raise IOError("File '{0}' not found".format(filename))
+        raise IOError(f"File '{filename}' not found")
     for kernel_path in kernel_paths:
         if not os.access(kernel_path, os.R_OK):
             raise IOError(
-                "Kernel search path '{0}' not found".format(kernel_path))
+                f"Kernel search path '{kernel_path}' not found")
+
+    # TODO #2011: investigate if kernel search path and module manager
+    # can be combined.
+    ModuleManager.get().add_search_path(kernel_paths)
 
     ast, invoke_info = parse(filename, api=api, invoke_name="invoke",
                              kernel_paths=kernel_paths,
                              line_length=line_length)
-    if api != "gocean1.0":
+
+    if api in API_WITHOUT_ALGORITHM or \
+       (api == "dynamo0.3" and not LFRIC_TESTING):
         psy = PSyFactory(api, distributed_memory=distributed_memory)\
             .create(invoke_info)
         if script_name is not None:
             handle_script(script_name, psy, "trans")
+        alg_gen = None
 
-    alg_gen = None
-
-    if api == "gocean1.0":
-        # Create language-level PSyIR from the Fortran file
+    elif api == "gocean1.0" or (api == "dynamo0.3" and LFRIC_TESTING):
+        # Create language-level PSyIR from the Algorithm file
         reader = FortranReader()
-        psyir = reader.psyir_from_file(filename)
+        if api == "dynamo0.3":
+            # avoid undeclared builtin errors in PSyIR by adding "use
+            # builtins". TODO issue #1618. This symbol needs to be
+            # removed when lowering.
+            fp2_tree = parse_fp2(filename)
+            add_builtins_use(fp2_tree)
+            psyir = reader.psyir_from_source(str(fp2_tree))
+            # Check that there is only one module/program per file.
+            check_psyir(psyir, filename)
+        else:
+            psyir = reader.psyir_from_file(filename)
 
         # Raise to Algorithm PSyIR
-        alg_trans = AlgTrans()
+        if api == "gocean1.0":
+            alg_trans = AlgTrans()
+        else:  # api == "dynamo0.3"
+            alg_trans = LFRicAlgTrans()
         alg_trans.apply(psyir)
+
+        if not psyir.walk(AlgorithmInvokeCall):
+            raise NoInvokesError(
+                "Algorithm file contains no invoke() calls: refusing to "
+                "generate empty PSy code")
 
         if script_name is not None:
             # Call the optimisation script for algorithm optimisations
             handle_script(script_name, psyir, "trans_alg", is_optional=True)
+
+        # For each kernel called from the algorithm layer
+        kernels = {}
+        for invoke in psyir.walk(AlgorithmInvokeCall):
+            kernels[id(invoke)] = {}
+            for kern in invoke.walk(KernelFunctor):
+                if isinstance(kern, LFRicBuiltinFunctor):
+                    # Skip builtins
+                    continue
+                container_symbol = kern.symbol.interface.container_symbol
+
+                # Find the kernel file containing the container
+                filepath = get_kernel_filepath(
+                    container_symbol.name, kernel_paths, filename)
+
+                try:
+                    # Create language-level PSyIR from the kernel file
+                    kernel_psyir = reader.psyir_from_file(filepath)
+                except InternalError as info:
+                    print(f"In kernel file '{filepath}':\n{str(info.value)}",
+                          file=sys.stderr)
+                    sys.exit(1)
+
+                # Raise to Kernel PSyIR
+                if api == "gocean1.0":
+                    kern_trans = RaisePSyIR2GOceanKernTrans(kern.symbol.name)
+                    kern_trans.apply(kernel_psyir)
+                else:  # api == "dynamo0.3"
+                    kern_trans = RaisePSyIR2LFRicKernTrans()
+                    kern_trans.apply(
+                        kernel_psyir,
+                        options={"metadata_name": kern.symbol.name})
+
+                # kernels[id(invoke)][id(kern)] = kernel_psyir
+                kernels[id(invoke)][id(kern)] = kernel_psyir
+
+        # Transform 'invoke' calls into calls to PSy-layer subroutines
+        if api == "gocean1.0":
+            invoke_trans = GOceanAlgInvoke2PSyCallTrans()
+        else:  # api == "dynamo0.3"
+            invoke_trans = LFRicAlgInvoke2PSyCallTrans()
+        for invoke in psyir.walk(AlgorithmInvokeCall):
+            invoke_trans.apply(
+                invoke, options={"kernels": kernels[id(invoke)]})
 
         # Create Fortran from Algorithm PSyIR
         writer = FortranWriter()
         alg_gen = writer(psyir)
 
         # Create the PSy-layer
-        # TODO: issue #1629 replace invoke_info with alg psyir
+        # TODO: issue #1629 replace invoke_info with alg and kern psyir
         psy = PSyFactory(api, distributed_memory=distributed_memory)\
             .create(invoke_info)
 
@@ -277,7 +358,8 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
             # Call the optimisation script for psy-layer optimisations
             handle_script(script_name, psy, "trans")
 
-    elif api not in API_WITHOUT_ALGORITHM:
+    # TODO issue #1618 remove Alg class and tests from PSyclone
+    if api == "dynamo0.3" and not LFRIC_TESTING:
         alg_gen = Alg(ast, psy).gen
 
     # Add profiling nodes to schedule if automatic profiling has
@@ -293,8 +375,11 @@ def main(args):
     Parses and checks the command line arguments, calls the generate
     function if all is well, catches any errors and outputs the
     results.
-    :param list args: the list of command-line arguments that PSyclone has \
-                      been invoked with.
+
+    :param args: the list of command-line arguments that PSyclone has \
+        been invoked with.
+    :type args: List[str]
+
     '''
     # pylint: disable=too-many-statements,too-many-branches
 
@@ -312,10 +397,9 @@ def main(args):
                         help='directory in which to put transformed kernels, '
                         'default is the current working directory.')
     parser.add_argument('-api',
-                        help='choose a particular api from {0}, '
-                             'default \'{1}\'.'
-                        .format(str(Config.get().supported_apis),
-                                Config.get().default_api))
+                        help=f'choose a particular api from '
+                        f'{str(Config.get().supported_apis)}, '
+                        f'default \'{Config.get().default_api}\'.')
     parser.add_argument('filename', help='algorithm-layer source code')
     parser.add_argument('-s', '--script', help='filename of a PSyclone'
                         ' optimisation script')
@@ -353,13 +437,11 @@ def main(args):
     parser.add_argument("--config", help="Config file with "
                         "PSyclone specific options.")
     parser.add_argument(
-        '-v', '--version', dest='version', action="store_true",
-        help='Display version information ({0})'.format(__VERSION__))
+        '--version', '-v', action='version',
+        version=f'PSyclone version: {__VERSION__}',
+        help=f'Display version information ({__VERSION__})')
 
     args = parser.parse_args(args)
-
-    if args.version:
-        print("PSyclone version: {0}".format(__VERSION__))
 
     if args.profile:
         Profiler.set_options(args.profile)
@@ -368,12 +450,12 @@ def main(args):
     # then check that it is valid
     if args.okern:
         if not os.path.exists(args.okern):
-            print("Specified kernel output directory ({0}) does not exist.".
-                  format(args.okern), file=sys.stderr)
+            print(f"Specified kernel output directory ({args.okern}) does "
+                  f"not exist.", file=sys.stderr)
             sys.exit(1)
         if not os.access(args.okern, os.W_OK):
-            print("Cannot write to specified kernel output directory ({0}).".
-                  format(args.okern), file=sys.stderr)
+            print(f"Cannot write to specified kernel output directory "
+                  f"({args.okern}).", file=sys.stderr)
             sys.exit(1)
         kern_out_path = args.okern
     else:
@@ -391,9 +473,8 @@ def main(args):
         # the default:
         api = Config.get().api
     elif args.api not in Config.get().supported_apis:
-        print("Unsupported API '{0}' specified. Supported APIs are "
-              "{1}.".format(args.api, Config.get().supported_apis),
-              file=sys.stderr)
+        print(f"Unsupported API '{args.api}' specified. Supported APIs are "
+              f"{Config.get().supported_apis}.", file=sys.stderr)
         sys.exit(1)
     else:
         # There is a valid API specified on the command line. Set it
@@ -424,13 +505,13 @@ def main(args):
                             kern_naming=args.kernel_renaming)
     except NoInvokesError:
         _, exc_value, _ = sys.exc_info()
-        print("Warning: {0}".format(exc_value))
+        print(f"Warning: {exc_value}")
         # no invoke calls were found in the algorithm file so we do
         # not need to process it, or generate any psy layer code, so
         # output the original algorithm file and set the psy file to
         # be empty
-        alg_file = open(args.filename)
-        alg = alg_file.read()
+        with open(args.filename, encoding="utf8") as alg_file:
+            alg = alg_file.read()
         psy = ""
     except (OSError, IOError, ParseError, GenerationError,
             RuntimeError):
@@ -452,27 +533,66 @@ def main(args):
         psy_str = str(psy)
         alg_str = str(alg)
     if args.oalg is not None:
-        write_unicode_file(alg_str, args.oalg)
+        with open(args.oalg, mode='w', encoding="utf8") as alg_file:
+            alg_file.write(alg_str)
     else:
-        print("Transformed algorithm code:\n%s" % alg_str)
+        print(f"Transformed algorithm code:\n{alg_str}")
 
     if not psy_str:
         # empty file so do not output anything
         pass
     elif args.opsy is not None:
-        write_unicode_file(psy_str, args.opsy)
+        with open(args.opsy, mode='w', encoding="utf8") as psy_file:
+            psy_file.write(psy_str)
     else:
-        print("Generated psy layer code:\n", psy_str)
+        print(f"Generated psy layer code:\n{psy_str}")
 
 
-def write_unicode_file(contents, filename):
-    '''Wrapper routine that ensures that a string is encoded as unicode before
-    writing to file.
+def check_psyir(psyir, filename):
+    '''Check the supplied psyir to make sure that it contains a
+    single program or module.
 
-    :param str contents: string to write to file.
-    :param str filename: the name of the file to create.
+    :param psyir: the psyir to check.
+    :type psyir: py:class:`psyclone.psyir.nodes.FileContainer`
+
+    :raises GenerationError: if the algorithm file contains \
+        multiple modules or programs.
+    :raises GenerationError: if the algorithm file is not a \
+        module or a program.
 
     '''
-    encoding = {'encoding': 'utf-8'}
-    with io.open(filename, mode='w', **encoding) as file_object:
-        file_object.write(contents)
+    if len(psyir.children) != 1:
+        raise GenerationError(
+            f"Expecting LFRic algorithm-layer code within file "
+            f"'{filename}' to be a single program or module, but "
+            f"found '{len(psyir.children)}' of type "
+            f"{[type(node).__name__ for node in psyir.children]}.")
+    if (not isinstance(psyir.children[0], Container) and not
+        (isinstance(psyir.children[0], Routine) and
+         psyir.children[0].is_program)):
+        raise GenerationError(
+            f"Expecting LFRic algorithm-layer code within file "
+            f"'{filename}' to be a single program or module, but "
+            f"found '{type(psyir.children[0]).__name__}'.")
+
+
+def add_builtins_use(fp2_tree):
+    '''Modify the fparser2 tree adding a 'use builtins' so that builtin kernel
+    functors do not appear to be undeclared.
+
+    :param fp2_tree: the fparser2 tree to modify.
+    :type fp2_tree: py:class:`fparser.two.Program`
+
+    '''
+    for node in fp2_tree.children:
+        if isinstance(node, (Fortran2003.Module, Fortran2003.Main_Program)):
+            # add "use builtins" to the module or program
+            if not isinstance(
+                    node.children[1], Fortran2003.Specification_Part):
+                fp2_reader = get_reader("use builtins")
+                node.children.insert(
+                    1, Fortran2003.Specification_Part(fp2_reader))
+            else:
+                spec_part = node.children[1]
+                spec_part.children.insert(
+                    0, Fortran2003.Use_Stmt("use builtins"))

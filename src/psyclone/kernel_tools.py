@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022, Science and Technology Facilities Council.
+# Copyright (c) 2022-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
+# Modified by J. Henrichs, Bureau of Meteorology
 
 '''
     This module provides the PSyclone kernel-generation 'run' routine
@@ -46,18 +47,18 @@
 
 '''
 
-from __future__ import absolute_import, print_function
-
 import argparse
 import io
 import sys
 import traceback
 
-from psyclone import alg_gen, gen_kernel_stub
+from psyclone import gen_kernel_stub
 from psyclone.configuration import Config, ConfigurationError
+from psyclone.domain.lfric.algorithm import LFRicAlg
 from psyclone.errors import GenerationError, InternalError
 from psyclone.line_length import FortLineLength
 from psyclone.parse.utils import ParseError
+from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.version import __VERSION__
 
 # Dictionary of supported generation modes where values are a brief
@@ -118,13 +119,11 @@ def run(args):
     parser.add_argument("--config", help="config file with "
                         "PSyclone specific options.")
     parser.add_argument(
-        '-v', '--version', dest='version', action="store_true",
-        help=f"display version information ({__VERSION__})")
+        '--version', '-v', action='version',
+        version=f'psyclone-kern version: {__VERSION__}',
+        help=f'display version information ({__VERSION__})')
 
     args = parser.parse_args(args)
-
-    if args.version:
-        print(f"psyclone-kern version: {__VERSION__}", file=sys.stdout)
 
     # If no config file name is specified, args.config is none
     # and config will load the default config file.
@@ -161,8 +160,15 @@ def run(args):
 
     try:
         if args.gen == "alg":
-            # Generate algorithm
-            code = alg_gen.generate(args.filename, api=api)
+            # Generate algorithm code.
+            if api == "dynamo0.3":
+                alg_psyir = LFRicAlg().create_from_kernel("test_alg",
+                                                          args.filename)
+                code = FortranWriter()(alg_psyir)
+            else:
+                print(f"Algorithm generation from kernel metadata is "
+                      f"not yet implemented for API '{api}'", file=sys.stderr)
+                sys.exit(1)
         elif args.gen == "stub":
             # Generate kernel stub
             code = gen_kernel_stub.generate(args.filename, api=api)

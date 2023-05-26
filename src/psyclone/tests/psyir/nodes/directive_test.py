@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -38,15 +38,15 @@
 
 ''' Performs py.test tests on the PSyIR Directive node. '''
 
-from __future__ import absolute_import
 import os
 import pytest
+from psyclone import f2pygen
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
-from psyclone.psyir.nodes import Literal, Schedule, \
-                                 StandaloneDirective, RegionDirective
+from psyclone.psyir.nodes import (Literal, Schedule, Routine, Loop,
+                                  StandaloneDirective, RegionDirective)
 from psyclone.errors import GenerationError
-from psyclone.psyir.symbols import INTEGER_TYPE
+from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 from psyclone.transformations import DynamoOMPParallelLoopTrans
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
@@ -120,6 +120,31 @@ def test_regiondirective_children_validation():
             "format is: 'Schedule'." in str(excinfo.value))
 
 
+@pytest.mark.usefixtures("dist_mem")
+def test_regiondirective_gen_post_region_code():
+    '''Test that the RegionDirective.gen_post_region_code() method does
+    nothing for language-level PSyIR.
+
+    TODO #1648 - this can be removed when the gen_post_region_code() method is
+    removed.'''
+    temporary_module = f2pygen.ModuleGen("test")
+    subroutine = Routine("testsub")
+    directive = RegionDirective()
+    sym = subroutine.symbol_table.new_symbol(
+            "i", symbol_type=DataSymbol, datatype=INTEGER_TYPE)
+    loop = Loop.create(sym,
+                       Literal("1", INTEGER_TYPE),
+                       Literal("10", INTEGER_TYPE),
+                       Literal("1", INTEGER_TYPE),
+                       [])
+    directive.dir_body.addchild(loop)
+    subroutine.addchild(directive)
+    directive.gen_post_region_code(temporary_module)
+    # No nodes should have been added to the tree.
+    assert len(temporary_module.children) == 1
+    assert isinstance(temporary_module.children[0], f2pygen.ImplicitNoneGen)
+
+
 def test_standalonedirective_children_validation():
     '''Test that children cannot be added to StandaloneDirective.'''
     cdir = StandaloneDirective()
@@ -128,5 +153,5 @@ def test_standalonedirective_children_validation():
     # test adding child
     with pytest.raises(GenerationError) as excinfo:
         cdir.addchild(schedule)
-    assert("Item 'Schedule' can't be child 0 of 'StandaloneDirective'. The "
-           "valid format is: 'None'." in str(excinfo.value))
+    assert ("Item 'Schedule' can't be child 0 of 'StandaloneDirective'. The "
+            "valid format is: 'None'." in str(excinfo.value))

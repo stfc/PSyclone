@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2020, Science and Technology Facilities Council.
+# Copyright (c) 2019-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,15 +31,14 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: I. Kavcic, Met Office.
-#          A. R. Porter, STFC Daresbury Laboratory.
+# Authors: I. Kavcic, Met Office
+#          A. R. Porter and N. Nobre, STFC Daresbury Lab
 #          J. Henrichs, Bureau of Meteorology
 
 '''This module contains the base class for extracting extracting a region
 of an Invoke into a stand-alone application."
 '''
 
-from __future__ import absolute_import
 from psyclone.configuration import Config
 from psyclone.psyGen import BuiltIn, Kern, HaloExchange, GlobalSum
 from psyclone.psyir.nodes import (CodeBlock, ExtractNode, Loop, Schedule,
@@ -79,7 +78,22 @@ class ExtractTrans(PSyDataTrans):
     def __init__(self, node_class=ExtractNode):
         # This function is required to provide the appropriate default
         # node class.
-        super(ExtractTrans, self).__init__(node_class=node_class)
+        super().__init__(node_class=node_class)
+
+    # -------------------------------------------------------------------------
+    def get_default_options(self):
+        '''Returns a new dictionary with additional options, specific to the
+        transformation, that will be added to the user option. Any values
+        specified by the user will take precedence. For the extract
+        transformation, by default we want VariablesAccessInformation to
+        report array arguments to lbound, ubound and size as read accesses,
+        so we are certain these arrays will be included in the extraction.
+
+        :returns: a dictionary with additional options.
+        :rtype: Dict[str, Any]
+        '''
+
+        return {"COLLECT-ARRAY-SHAPE-READS": True}
 
     # -------------------------------------------------------------------------
     @staticmethod
@@ -123,14 +137,14 @@ class ExtractTrans(PSyDataTrans):
 
     # -------------------------------------------------------------------------
     def validate(self, node_list, options=None):
-        # pylint: disable=arguments-differ
+        # pylint: disable=arguments-renamed
         '''Performs validation checks specific to extract-based
         transformations.
 
         :param node_list: the list of Node(s) we are checking.
         :type node_list: list of :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.
-        :type options: dictionary of string:values or None
+        :type options: Optional[Dict[str, Any]]
 
         :raises TransformationError: if distributed memory is configured.
         :raises TransformationError: if transformation is applied to a \
@@ -150,11 +164,13 @@ class ExtractTrans(PSyDataTrans):
         # generation of infrastructure calls to set halos dirty or clean.
         # This constraint covers the presence of HaloExchange and
         # GlobalSum classes as they are only generated when distributed
-        # memory is enabled.
-        if Config.get().distributed_memory:
+        # memory is enabled. But in case of the Nemo API, we don't even
+        # support distributed memory, so ignore the setting of distributed
+        # memory in this case:
+        config = Config.get()
+        if config.distributed_memory and config.api != "nemo":
             raise TransformationError(
-                "Error in {0}: Distributed memory is not supported."
-                .format(str(self.name)))
+                f"Error in {self.name}: Distributed memory is not supported.")
 
         # Check constraints not covered by excluded_node_types for
         # individual Nodes in node_list.
@@ -165,9 +181,8 @@ class ExtractTrans(PSyDataTrans):
             if isinstance(node, (Kern, BuiltIn)) and \
                isinstance(node.parent.parent, Loop):
                 raise TransformationError(
-                    "Error in {0}: Application to a Kernel or a Built-in "
-                    "call without its parent Loop is not allowed."
-                    .format(str(self.name)))
+                    f"Error in {self.name}: Application to a Kernel or a "
+                    f"Built-in call without its parent Loop is not allowed.")
 
             # Check that ExtractNode is not inserted between a Loop and its
             # parent Directive when optimisations are applied, as this may
@@ -176,8 +191,8 @@ class ExtractTrans(PSyDataTrans):
             if isinstance(node, Loop) and isinstance(node.parent, Schedule) \
                     and isinstance(node.parent.parent, Directive):
                 raise TransformationError(
-                    "Error in {0}: Application to a Loop without its parent "
-                    "Directive is not allowed.".format(str(self.name)))
+                    f"Error in {self.name}: Application to a Loop without its "
+                    f"parent Directive is not allowed.")
 
             # Check that ExtractNode is not inserted within a thread
             # parallel region when optimisations are applied. For instance,
@@ -186,10 +201,9 @@ class ExtractTrans(PSyDataTrans):
             # Parallel Directive) or within an OMPParallelDoDirective.
             if node.ancestor((OMPParallelDirective, ACCParallelDirective)):
                 raise TransformationError(
-                    "Error in {0}: Application to Nodes enclosed within "
-                    "a thread-parallel region is not allowed."
-                    .format(str(self.name)))
+                    f"Error in {self.name}: Application to Nodes enclosed "
+                    f"within a thread-parallel region is not allowed.")
 
         # Performs validation checks specific to PSyData-based
         # transformations.
-        super(ExtractTrans, self).validate(node_list, options)
+        super().validate(node_list, options)

@@ -1,7 +1,7 @@
 #------------------------------------------------------------------------------
 # BSD 2-Clause License
 # 
-# Copyright (c) 2020-2021, Science and Technology Facilities Council.
+# Copyright (c) 2020-2022, Science and Technology Facilities Council.
 # All rights reserved.
 # 
 # Redistribution and use in source and binary forms, with or without
@@ -56,7 +56,7 @@ INF_LIB_NAME = _fd
 INF_LIB = $(GOCEAN_INF_DIR)/src/lib$(INF_LIB_NAME).a
 
 F90FLAGS += $$(nf-config --fflags) -I$(INF_INC)
-PSYDATA_LIB_NAME = _kernel_data_netcdf
+PSYDATA_LIB_NAME = _extract
 PSYDATA_LIB = lib$(PSYDATA_LIB_NAME).a
 
 PROCESS_ARGS = -prefix=extract_ -types=int,real,double \

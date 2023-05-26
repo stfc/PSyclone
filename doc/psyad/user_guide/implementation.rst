@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2021-2022, Science and Technology Facilities Council.
+.. Copyright (c) 2021-2023, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -83,10 +83,12 @@ As the line-by-line method is used then there are rules that must be
 followed for the different types of statements. This section goes
 through the rules for each supported statement type.
 
+.. _sec_assignment:
+
 Assignment
 ----------
 
-If a tangent-linear assigment statement contains no active variables
+If a tangent-linear assignment statement contains no active variables
 then it is left unchanged when creating the adjoint code.
 
 If a tangent-linear assignment statement contains one or more active
@@ -187,7 +189,7 @@ Rules
 Rather than creating a matrix and transposing it, it can be seen that
 there are some relatively simple rules that can be followed in order
 to create the adjoint of a tangent-linear assignment. This is how the
-PSyAD `AssigmentTrans` transformation is implemented. Let's look
+PSyAD `AssignmentTrans` transformation is implemented. Let's look
 again at the previous example tangent-linear statement:
 
 .. math::
@@ -198,9 +200,9 @@ If each of the terms on the right-hand-side (RHS) of the statement are taken in 
 (i.e. :math:`xA`, then :math:`yB`, then :math:`xC`) there are two cases to consider:
 
 1) the active variable in the RHS term is different to the active
-   variable on the left-hand-side (LHS) of the assigment.
+   variable on the left-hand-side (LHS) of the assignment.
 2) the active variable in the RHS term is the same as the active
-   variable on the LHS of the assigment.
+   variable on the LHS of the assignment.
 
 In case 1, the adjoint is simply the active variable on the RHS being
 updated with the product of its multiplier in the tangent-linear
@@ -376,25 +378,63 @@ active then the loop statement is considered to be active. In this case:
           therefore avoid generating any loop-bound offset code in
           this case.
 
+If Statement
+------------
+
+When an if statement is found in the tangent-linear code, such as the
+following Fortran snippet:
+
+.. code-block:: fortran
+   
+   if (condition) then
+     ! content1
+   else
+     ! content2
+   end if
+
+1) the logical structure of the if is left unchanged, i.e. the
+   :code:`if (condition) then`, optional :code:`else` and :code:`end
+   if`.
+
+2) the sequence of statements within :code:`! content1` in the above
+   example, are processed as described in the Section
+   :ref:`psyir_schedule`.
+
+3) the sequence of statements within :code:`! content2` in the above
+   example, (if it exists, as the else part of an if is optional) are
+   processed as described in the Section :ref:`psyir_schedule`.
+
+The :code:`condition` of the :code:`if` should only contain passive
+variables for this to be a valid tangent-linear code and PSyAD will
+raise an exception if this is not the case.
+
+.. _pre-processing:
+  
+Pre-processing
+++++++++++++++
+
+PSyAD implements an internal pre-processing phase where code
+containing unsupported code structures or constructs is transformed
+into code that can be processed. These structures/constructs are
+detailed below.
+
 Array Notation
 --------------
 
 Array notation in tangent-linear codes is translated into equivalent
-loops before the tangent-linear code is transformed into its
-adjoint. This is performed as the rules that are applied to transform
-a tangent-linear code into its adjoint are not always correct when
-array notation is used.
-
-.. note:: At the moment all array notation is translated into
-	  equivalent loops irrespective of whether the associated
-	  variables are active or not.
+loops in the pre-processing phase before the tangent-linear code is
+transformed into its adjoint. This is performed as the rules that are
+applied to transform a tangent-linear code into its adjoint are not
+always correct when array notation is used. Only array notation that
+contains active variables is translated into equivalent loops.
 
 Intrinsics
 ----------
 
 If an intrinsic function, such as ``matmul`` or ``transpose``, is
 found in a tangent-linear code and it contains active variables then
-it must be transformed to its associated adjoint form.
+it must be transformed such that it is replaced by equivalent Fortran
+code. This is performed in the pre-processing phase.
 
 If an unsupported intrinsic function is found then PSyAD will raise an
 exception.
@@ -410,7 +450,7 @@ used to perform these manipulations. See the
 :ref:`user_guide:available_trans` section of the user guide for more
 information on these transformations.
 
-.. note:: At the moment all ``dot_product`` and ``matmul`` instrinsics
+.. note:: At the moment all ``dot_product`` and ``matmul`` intrinsics
 	  are transformed irrespective of whether their arguments and
 	  return values are (or contain) active variables or not.
 
@@ -422,6 +462,74 @@ information on these transformations.
           variables will be detected automatically by PSyAD, see issue
           #1595.
 
+Associativity
+-------------
+
+As described in the :ref:`sec_assignment` section, PSyAD expects
+tangent-linear code to be written as a sum of products of inactive and
+active variables. Therefore if code such as :math:`a(b+c)` is found
+(where :math:`b` and :math:`c` are active) then it must be transformed
+into a recognised form. This is achieved by expanding all such
+expressions as part of the pre-processing phase. In this example, the
+resulting code is :math:`a*b + a*c` which PSyAD can then take the
+adjoint of.
+
+Naming
+++++++
+
+The generated adjoint code uses modified versions of the
+module and subroutine names that are used in the tangent linear code.
+
+The modifications are as follows: if the original tangent linear name
+is prepended with `tl_` then this is removed; the tangent linear names
+are then prepended with `adj_`.
+
+All adjoint names are also output in lower case, irrespective of the
+case used in the tangent linear names.
+
+For example, the following tangent linear example:
+
+.. code-block:: fortran
+    
+    module tl_example_mod
+    contains
+        subroutine tl_example_code()
+	end subroutine tl_example_code
+    end module tl_example_mod
+
+would become:
+
+.. code-block:: fortran
+    
+    module adj_example_mod
+    contains
+        subroutine adj_example_code()
+	end subroutine adj_example_code
+    end module adj_example_mod
+
+The Met Office have a convention whereby module names and file names
+have `_mod` appended, subroutine names have `_code` appended and
+metadata names have `_type` appended. The approach taken here
+maintains this convention for the generated adjoint names (as long as
+the tangent-linear names were also compliant).
+
+.. note:: At the moment the metadata is not modified by PSyAD (see
+	  issue #1772) so it needs to be changed manually after the
+	  adjoint code has been created.
+
+Multiple Subroutines
+++++++++++++++++++++
+
+The LFRic API supports mixed precision kernels. It does this by
+implementing multiple versions of kernel subroutines with different
+precision and a generic interface. PSyAD supports mixed precision
+kernels by translating all of the kernel subroutines. This approach
+relies on each kernel implementation using the same active variable
+names as PSyAD only supports a single list of names. If this is not
+the case then PSyAD will raise an exception.
+
+.. note:: At the moment PSyAD does not modify the interface names so
+          these must be done manually by the user, see issue #1772.
 
 Test Harness
 ++++++++++++
@@ -448,14 +556,16 @@ Steps 1, 3, 5 and 6 are described in more detail below.
 Initialisation
 --------------
 
-All arguments to the TL kernel are initialised with pseudo-random numbers
+All real arguments to the TL kernel are initialised with pseudo-random numbers
 in the interval :math:`[0.0,1.0]` using the Fortran `random_number` intrinsic
-function.
-
-.. note:: this initialisation will not be correct when a kernel contains
-	  indirection and is passed a mapping array. In such cases the mapping
-	  array will need initialising with meaningful values. This is the
-	  subject of Issue #1496.
+function. If the LFRic API is selected then only real scalar and field arguments
+are initialised in this way since arguments such as dof-maps contain
+essential information derived from the model configuration. In addition,
+those arguments flagged by the user (see :ref:`geom_kernel_args`) as
+containing geometric information (i.e. mesh coordinates or panel IDs) are
+passed through to the kernel from the Algorithm layer without modification.
+Integer and logical scalar arguments are currently just set to `1` and `.False`,
+respectively. This limitation is the subject of issue #2087.
 
 Inner Products
 --------------
@@ -471,6 +581,11 @@ latter will remain constant for both the TL and adjoint kernel calls
 they can be included in the inner-product compuation without affecting the
 correctness test). It is likely that this will require refinement in future,
 e.g. for kernels that have non-numeric arguments.
+
+For the LFRic API, only scalar and field arguments are currently included in
+the inner-product calculation since operators are never active. (The
+test-harness generator will return an error if supplied with a TL kernel that
+writes to an operator.)
 
 Comparing the Inner Products
 ----------------------------
@@ -494,11 +609,12 @@ there is an error and one of the inner products is zero or less than
 `tiny(1.0)`.
 
 By default, the overall test tolerance is set to `1500.0`. This is
-currently set as a constant in the `psyclone.psyad.tl2ad` module but
+currently set as a constant in the
+`psyclone.psyad.domain.common.adjoint_utils` module but
 will eventually be exposed as a configuration option (this is the
 subject of issue #1346).  This value is the one arrived at over time
 by the Met Office in the current adjoint-testing code. In that code,
-the vector of variables can be of order 200M in length (since it
+the vector of variables can be of order 200 million in length (since it
 involves values at all points of the 3D mesh) and therefore there is
 plenty of scope for numerical errors to accumulate. Whether this value
 is appropriate for LFRic kernels is yet to be determined.

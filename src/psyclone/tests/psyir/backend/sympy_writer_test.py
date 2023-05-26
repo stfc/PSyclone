@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,16 +32,18 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
+# Modified: R. W. Ford, STFC Daresbury Lab
+#           A. R. Porter, STFC Daresbury Lab
+#           S. Siso, STFC Daresbury Lab
 
 ''' Module containing py.test tests the SymPy writer.'''
-
-from __future__ import print_function, absolute_import
 
 import pytest
 from sympy import Function, Symbol
 from sympy.parsing.sympy_parser import parse_expr
 
 from psyclone.psyir.backend.sympy_writer import SymPyWriter
+from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.nodes import Literal
 from psyclone.psyir.symbols import BOOLEAN_TYPE, CHARACTER_TYPE
 
@@ -54,6 +56,28 @@ def test_sym_writer_constructor():
     # Also test that not specifying a type map as argument works:
     sympy_writer = SymPyWriter()
     assert sympy_writer._sympy_type_map == {}
+    assert sympy_writer._DISABLE_LOWERING is True
+
+
+def test_sym_writer_lowering_disabled(monkeypatch):
+    '''Test that by default this Writer does not attempt to lower higher
+    abstraction nodes into language level nodes. We also test that with
+    _DISABLE_LOWERING set to False the same situation would produce an error.
+    '''
+    def error(_):
+        ''' Produce an error '''
+        raise NotImplementedError()
+
+    monkeypatch.setattr(Literal, "lower_to_language_level", error)
+    lit = Literal("true", BOOLEAN_TYPE)
+    sympy_writer = SymPyWriter()
+    sympy_writer(lit)  # No error should be raised here
+
+    # Without disabling lowering it would fail with a VisitorError
+    sympy_writer._DISABLE_LOWERING = False
+    with pytest.raises(VisitorError) as err:
+        sympy_writer(lit)
+    assert "Failed to lower 'Literal" in str(err.value)
 
 
 def test_sym_writer_boolean():
@@ -90,12 +114,13 @@ def test_sym_writer_int_constants(fortran_reader, expressions):
     # A dummy program to easily create the PSyIR for the
     # expressions we need. We just take the RHS of the assignments
     source = f'''program test_prog
+                use some_mod
                 integer :: x
                 x = {expressions[0]}
                 end program test_prog '''
     psyir = fortran_reader.psyir_from_source(source)
-    # psyir is a FileContainer, its first children the program, and its
-    # first children the assignment, of which we take the right hand side
+    # psyir is a FileContainer, its first child the program, and its
+    # first child the assignment, of which we take the right hand side
     lit = psyir.children[0].children[0].rhs
 
     type_map = SymPyWriter.create_type_map([])
@@ -133,6 +158,7 @@ def test_sym_writer_real_constants(fortran_reader, expressions):
 @pytest.mark.parametrize("expressions", [("MAX(1,2)", "Max(1, 2)"),
                                          ("MIN(1,2)", "Min(1, 2)"),
                                          ("MOD(1,2)", "Mod(1, 2)"),
+                                         ("EXP(1)", "exp(1)"),
                                          ("LBOUND(1,2)", "LBOUND(1, 2)")
                                          ])
 def test_sym_writer_functions(fortran_reader, expressions):
@@ -156,13 +182,13 @@ def test_sym_writer_functions(fortran_reader, expressions):
     assert sympy_writer(function) == expressions[1]
 
 
-@pytest.mark.parametrize("expressions", [("i", {'i': Symbol('i')}),
-                                         ("f(1)", {'f': Function('f')}),
-                                         ("f(:)", {'f': Function('f')}),
-                                         ("a%b", {'a': Symbol('a')}),
-                                         ("a%b(1)", {'a': Symbol('a')})
-                                         ])
-def test_sympy_writer_create_type_map(expressions, fortran_reader):
+@pytest.mark.parametrize("expr, sym_map", [("i", {'i': Symbol('i')}),
+                                           ("f(1)", {'f': Function('f')}),
+                                           ("f(:)", {'f': Function('f')}),
+                                           ("a%b", {'a': Symbol('a')}),
+                                           ("a%b(1)", {'a': Symbol('a')})
+                                           ])
+def test_sympy_writer_create_type_map(expr, sym_map, fortran_reader):
     '''Tests that the static create_type_map creates a dictionary
     with correctly declared references (and not any member names,
     which will be added later).
@@ -174,13 +200,13 @@ def test_sympy_writer_create_type_map(expressions, fortran_reader):
                 use my_mod
                 type(my_type) :: a, b(10)
                 integer :: i, f(10)
-                x = {expressions[0]}
+                x = {expr}
                 end program test_prog '''
 
     psyir = fortran_reader.psyir_from_source(source)
     expr = psyir.children[0].children[0].rhs
     type_map = SymPyWriter.create_type_map([expr])
-    assert type_map == expressions[1]
+    assert type_map == sym_map
 
 
 @pytest.mark.parametrize("expressions", [("a%x", "a%a_x"),
@@ -215,21 +241,22 @@ def test_sym_writer_rename_members(fortran_reader, expressions):
     assert sympy_writer(expr) == expressions[1]
 
 
-@pytest.mark.parametrize("expressions", [("a%x", {"a": Symbol("a"),
-                                                  "a_x": Symbol("a_x")}),
-                                         ("a%x(i)", {"a": Symbol("a"),
-                                                     "a_x": Function("a_x"),
-                                                     "i": Symbol("i")}),
-                                         ("b(i)%x(i)", {"b": Function("b"),
-                                                        "b_x": Function("b_x"),
-                                                        "i": Symbol("i")}),
-                                         ("b(b_c)%c(i)",
-                                          {"b": Function("b"),
-                                           "b_c": Symbol("b_c"),
-                                           "b_c_1": Function("b_c_1"),
-                                           "i": Symbol("i")}),
-                                         ])
-def test_sym_writer_symbol_types(fortran_reader, expressions):
+@pytest.mark.parametrize("expr, sym_map", [("a%x", {"a": Symbol("a"),
+                                                    "a_x": Symbol("a_x")}),
+                                           ("a%x(i)", {"a": Symbol("a"),
+                                                       "a_x": Function("a_x"),
+                                                       "i": Symbol("i")}),
+                                           ("b(i)%x(i)",
+                                            {"b": Function("b"),
+                                             "b_x": Function("b_x"),
+                                             "i": Symbol("i")}),
+                                           ("b(b_c)%c(i)",
+                                            {"b": Function("b"),
+                                             "b_c": Symbol("b_c"),
+                                             "b_c_1": Function("b_c_1"),
+                                             "i": Symbol("i")}),
+                                           ])
+def test_sym_writer_symbol_types(fortran_reader, expr, sym_map):
     '''Tests that arrays are detected as SymPy functions, and scalars
     as SymPy symbols. The expressions parameter contains as first
     element the expression to parse, and as second element the
@@ -242,7 +269,7 @@ def test_sym_writer_symbol_types(fortran_reader, expressions):
                 use my_mod
                 type(my_type) :: a, b(10)
                 integer :: i, j, x, a_c, b_c, a_b_c, a_b_c_1
-                x = {expressions[0]}
+                x = {expr}
                 end program test_prog '''
 
     psyir = fortran_reader.psyir_from_source(source)
@@ -252,7 +279,38 @@ def test_sym_writer_symbol_types(fortran_reader, expressions):
     # Note that this call can extend the type_map with type information
     # about member names.
     _ = sympy_writer(expr)
-    assert sympy_writer._sympy_type_map == expressions[1]
+    assert sympy_writer._sympy_type_map == sym_map
+
+
+@pytest.mark.parametrize("expr, sym_map", [("i", {'i': Symbol('i')}),
+                                           ("f(1)", {'f': Function('f')}),
+                                           ("a%b", {'a': Symbol('a'),
+                                                    'a_b': Symbol('a_b')}),
+                                           ("a%b(1)",
+                                            {'a': Symbol('a'),
+                                             'a_b': Function('a_b')})
+                                           ])
+def test_sympy_writer_get_symbol_and_map(expr, sym_map, fortran_reader):
+    '''Tests that `get_sympy_expressions_and_symbol_map` function
+    returns the right symbol map.
+    '''
+
+    # A dummy program to easily create the PSyIR for the
+    # expressions we need. We just take the RHS of the assignments
+    source = f'''program test_prog
+                use my_mod
+                type(my_type) :: a, b(10)
+                integer :: i, f(10), x
+                x = {expr}
+                end program test_prog '''
+
+    psyir = fortran_reader.psyir_from_source(source)
+    expr = psyir.children[0].children[0].rhs
+
+    # Ignore the converted expressions here, they are tested elsewhere
+    _, type_map = \
+        SymPyWriter.get_sympy_expressions_and_symbol_map([expr])
+    assert type_map == sym_map
 
 
 def test_sym_writer_convert_to_sympy_expressions(fortran_reader):
@@ -275,5 +333,27 @@ def test_sym_writer_convert_to_sympy_expressions(fortran_reader):
     exp2 = psyir.children[0].children[1].rhs
     sympy_list = SymPyWriter.convert_to_sympy_expressions([exp1, exp2])
 
-    assert sympy_list[0] == parse_expr("a%a_b_1 + a%a_c(1) + i")
+    expr = parse_expr("a%a_b_1 + a%a_c(1) + i")
+    assert sympy_list[0] == expr
     assert sympy_list[1] == parse_expr("a_b + j")
+
+
+def test_sym_writer_parse_errors(fortran_reader):
+    '''Tests that unsupported syntax (e.g. array ranges) raise the
+    expected VisitorError
+
+    '''
+    # A dummy program to easily create the PSyIR for the
+    # expressions we need. We just take the RHS of the assignments
+    source = '''program test_prog
+                real :: x, a(10), b(10)
+                x = a(:) * b(:)
+                end program test_prog '''
+
+    psyir = fortran_reader.psyir_from_source(source)
+    exp1 = psyir.children[0].children[0].rhs
+
+    with pytest.raises(VisitorError) as err:
+        _ = SymPyWriter.convert_to_sympy_expressions([exp1])
+
+    assert "Visitor Error: Invalid SymPy expression" in str(err.value)

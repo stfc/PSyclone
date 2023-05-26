@@ -42,6 +42,9 @@ import os
 import pytest
 
 from fparser.common.readfortran import FortranStringReader
+from fparser.two import Fortran2003
+from fparser.two.utils import walk
+
 from psyclone import alg_gen
 from psyclone.configuration import Config
 from psyclone.generator import generate, GenerationError
@@ -52,7 +55,7 @@ from psyclone.errors import InternalError
 def setup():
     '''Make sure that all tests here use dynamo0.3 as API.'''
     Config.get().api = "dynamo0.3"
-    yield()
+    yield
     Config._instance = None
 
 
@@ -64,9 +67,14 @@ def test_single_function_invoke():
     ''' single kernel specified in an invoke call'''
     alg, _ = generate(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                       api="dynamo0.3")
-    gen = str(alg)
-    assert "USE single_invoke_psy, ONLY: invoke_0_testkern_type" in gen
-    assert "CALL invoke_0_testkern_type(a, f1, f2, m1, m2)" in gen
+    gen = str(alg).lower()
+    # TODO issue #1618 Split test into two as while there are
+    # different implementations we may or may not output a space
+    # before the ':'
+    assert "use single_invoke_psy, only" in gen
+    assert ": invoke_0_testkern_type" in gen
+    assert "call invoke_0_testkern_type(a, f1, f2, m1, m2)" in gen
+    assert "use testkern_mod" not in gen
 
 
 def test_single_function_named_invoke():
@@ -76,9 +84,13 @@ def test_single_function_named_invoke():
                      "test_files", "dynamo0p3",
                      "1.0.1_single_named_invoke.f90"),
         api="dynamo0.3")
-    gen = str(alg)
-    assert "USE single_invoke_psy, ONLY: invoke_important_invoke" in gen
-    assert "CALL invoke_important_invoke(a, f1, f2, m1, m2)" in gen
+    gen = str(alg).lower()
+    # TODO issue #1618 Split test into two as while there are
+    # different implementations we may or may not output a space
+    # before the ':'
+    assert "use single_invoke_psy, only" in gen
+    assert ": invoke_important_invoke" in gen
+    assert "call invoke_important_invoke(a, f1, f2, m1, m2)" in gen
 
 
 def test_invoke_named_invoke():
@@ -89,9 +101,13 @@ def test_invoke_named_invoke():
                      "test_files", "dynamo0p3",
                      "1.0.5_invoke_named_invoke.f90"),
         api="dynamo0.3")
-    gen = str(alg)
-    assert "USE single_invoke_psy, ONLY: invoke_important" in gen
-    assert "CALL invoke_important(a, f1, f2, m1, m2)" in gen
+    gen = str(alg).lower()
+    # TODO issue #1618 Split test into two as while there are
+    # different implementations we may or may not output a space
+    # before the ':'
+    assert "use single_invoke_psy, only" in gen
+    assert ": invoke_important" in gen
+    assert "call invoke_important(a, f1, f2, m1, m2)" in gen
 
 
 def test_multi_kernel_named_invoke():
@@ -102,10 +118,14 @@ def test_multi_kernel_named_invoke():
                      "test_files", "dynamo0p3",
                      "4.9_named_multikernel_invokes.f90"),
         api="dynamo0.3")
-    gen = str(alg)
-    assert "USE multikernel_invokes_7_psy, ONLY: invoke_some_name" in gen
+    gen = str(alg).lower()
+    # TODO issue #1618 Split test into two as while there are
+    # different implementations we may or may not output a space
+    # before the ':'
+    assert "use multikernel_invokes_7_psy, only" in gen
+    assert ": invoke_some_name" in gen
     assert (
-        "CALL invoke_some_name(a, b, istp, rdt, d, e, ascalar, f, c, g, qr)"
+        "call invoke_some_name(a, b, istp, rdt, d, e, ascalar, f, c, g, qr)"
         in gen)
 
 
@@ -118,16 +138,20 @@ def test_multi_position_named_invoke():
                      "test_files", "dynamo0p3",
                      "4.10_multi_position_named_invokes.f90"),
         api="dynamo0.3")
-    gen = str(alg)
+    gen = str(alg).lower()
 
-    assert "USE multikernel_invokes_7_psy, ONLY: invoke_name_first" in gen
-    assert "USE multikernel_invokes_7_psy, ONLY: invoke_name_middle" in gen
-    assert "USE multikernel_invokes_7_psy, ONLY: invoke_name_last" in gen
-    assert ("CALL invoke_name_first(a, b, istp, rdt, d, e, ascalar, f, c, "
+    # TODO issue #1618 Split test into two as while there are
+    # different implementations we may or may not output a space
+    # before the ':' and may have multiple only names.
+    assert "use multikernel_invokes_7_psy, only" in gen
+    assert ": invoke_name_first" in gen
+    assert "invoke_name_middle" in gen
+    assert "invoke_name_last" in gen
+    assert ("call invoke_name_first(a, b, istp, rdt, d, e, ascalar, f, c, "
             "g, qr)") in gen
-    assert ("CALL invoke_name_middle(a, b, istp, rdt, d, e, ascalar, f, c, "
+    assert ("call invoke_name_middle(a, b, istp, rdt, d, e, ascalar, f, c, "
             "g, qr)") in gen
-    assert ("CALL invoke_name_last(a, b, istp, rdt, d, e, ascalar, f, c, "
+    assert ("call invoke_name_last(a, b, istp, rdt, d, e, ascalar, f, c, "
             "g, qr)") in gen
 
 
@@ -137,9 +161,14 @@ def test_single_function_invoke_qr():
     alg, _ = generate(os.path.join(BASE_PATH,
                                    "1.1.0_single_invoke_xyoz_qr.f90"),
                       api="dynamo0.3")
-    gen = str(alg)
-    assert "USE testkern_qr, ONLY: testkern_qr_type" in gen
-    assert ("CALL invoke_0_testkern_qr_type(f1, f2, m1, a, m2, istp, qr)"
+    gen = str(alg).lower()
+    assert "use testkern_qr" not in gen
+    # TODO issue #1618 Split test into two as while there are
+    # different implementations we may or may not output a space
+    # before the ':'
+    assert "use single_invoke_psy, only" in gen
+    assert ": invoke_0_testkern_qr_type" in gen
+    assert ("call invoke_0_testkern_qr_type(f1, f2, m1, a, m2, istp, qr)"
             in gen)
 
 
@@ -147,21 +176,34 @@ def test_multi_function_invoke():
     ''' two functions specified in an invoke call'''
     alg, _ = generate(os.path.join(BASE_PATH, "1.2_multi_invoke.f90"),
                       api="dynamo0.3")
-    gen = str(alg)
-    assert "USE multi_invoke_psy, ONLY: invoke_0" in gen
-    assert "CALL invoke_0(a, f1, f2, m1, m2, f3)" in gen
+    gen = str(alg).lower()
+    # TODO issue #1618 Split test into two as while there are
+    # different implementations we may or may not output a space
+    # before the ':'
+    assert "use multi_invoke_psy, only" in gen
+    assert ": invoke_0" in gen
+    assert "call invoke_0(a, f1, f2, m1, m2, f3)" in gen
 
 
 def test_single_function_multi_invokes():
     ''' three invokes, each containing a single function '''
     alg, _ = generate(os.path.join(BASE_PATH, "3_multi_invokes.f90"),
                       api="dynamo0.3")
-    gen = str(alg)
-    assert "USE testkern_mod, ONLY: testkern_type" in gen
-    assert "USE testkern_qr, ONLY: testkern_qr_type" in gen
-    assert "CALL invoke_0_testkern_type(a, f1, f2, m1, m2)" in gen
-    assert "CALL invoke_2_testkern_type(a, f1, f2, m1, m2)" in gen
-    assert ("CALL invoke_1_testkern_qr_type(f1, f2, m1, a, m2, istp, qr)"
+    gen = str(alg).lower()
+    # Use statements for kernels should have been removed.
+    assert "use testkern_mod" not in gen
+    assert "use testkern_qr" not in gen
+    # TODO issue #1618 Split test into two as while there are
+    # different implementations we may or may not output a space
+    # before the ':' and may have multiple only names
+    # Use statements for PSy-layer routines should have been added.
+    assert "use multi_invokes_psy, only" in gen
+    assert ": invoke_0_testkern_type" in gen
+    assert "invoke_2_testkern_type" in gen
+    assert "invoke_1_testkern_qr_type" in gen
+    assert "call invoke_0_testkern_type(a, f1, f2, m1, m2)" in gen
+    assert "call invoke_2_testkern_type(a, f1, f2, m1, m2)" in gen
+    assert ("call invoke_1_testkern_qr_type(f1, f2, m1, a, m2, istp, qr)"
             in gen)
 
 
@@ -172,15 +214,19 @@ def test_named_multi_invokes():
         os.path.join(BASE_PATH,
                      "3.2_multi_functions_multi_named_invokes.f90"),
         api="dynamo0.3")
-    gen = str(alg)
-    assert "USE testkern_mod, ONLY: testkern_type" in gen
-    assert "USE testkern_qr, ONLY: testkern_qr_type" in gen
-    assert ("USE multi_functions_multi_invokes_psy, ONLY: "
-            "invoke_my_first" in gen)
-    assert ("USE multi_functions_multi_invokes_psy, ONLY: "
-            "invoke_my_second" in gen)
-    assert "CALL invoke_my_first(a, f1, f2," in gen
-    assert "CALL invoke_my_second(f1, f2, m1, a, m2" in gen
+    gen = str(alg).lower()
+    # Use statements for kernels should have been removed.
+    assert "use testkern_mod" not in gen
+    assert "use testkern_qr" not in gen
+    # TODO issue #1618 Split test into two as while there are
+    # different implementations we may or may not output a space
+    # before the ':' and may have multiple only names.
+    # Use statements for PSy-layer routines should have been added.
+    assert "use multi_functions_multi_invokes_psy, only" in gen
+    assert ": invoke_my_first" in gen
+    assert "invoke_my_second" in gen
+    assert "call invoke_my_first(a, f1, f2," in gen
+    assert "call invoke_my_second(f1, f2, m1, a, m2" in gen
 
 
 def test_multi_function_multi_invokes():
@@ -188,11 +234,15 @@ def test_multi_function_multi_invokes():
     alg, _ = generate(
         os.path.join(BASE_PATH, "3.1_multi_functions_multi_invokes.f90"),
         api="dynamo0.3")
-    gen = str(alg)
-    assert "USE multi_functions_multi_invokes_psy, ONLY: invoke_1" in gen
-    assert "USE multi_functions_multi_invokes_psy, ONLY: invoke_0" in gen
-    assert "CALL invoke_0(a, f1, f2, m1, m2, istp, qr)" in gen
-    assert "CALL invoke_1(f1, f2, m1, a, m2, istp, qr)" in gen
+    gen = str(alg).lower()
+    # TODO issue #1618 Split test into two as while there are
+    # different implementations we may or may not output a space
+    # before the ':' and may have multiple only names.
+    assert "use multi_functions_multi_invokes_psy, only" in gen
+    assert ": invoke_0" in gen
+    assert "invoke_1" in gen
+    assert "call invoke_0(a, f1, f2, m1, m2, istp, qr)" in gen
+    assert "call invoke_1(f1, f2, m1, a, m2, istp, qr)" in gen
 
 
 def test_multi_function_invoke_qr():
@@ -200,20 +250,36 @@ def test_multi_function_invoke_qr():
     requires a quadrature rule'''
     alg, _ = generate(os.path.join(
         BASE_PATH, "1.3_multi_invoke_qr.f90"), api="dynamo0.3")
-    gen = str(alg)
-    assert "USE testkern_qr, ONLY: testkern_qr_type" in gen
-    assert "USE testkern_mod, ONLY: testkern_type" in gen
-    assert "CALL invoke_0(f1, f2, m1, a, m2, istp, m3, f3, qr)" in gen
+    gen = str(alg).lower()
+    # Use statements for kernels should have been removed.
+    assert "use testkern_qr" not in gen
+    assert "use testkern_mod" not in gen
+    # TODO issue #1618 Split test into two as while there are
+    # different implementations we may or may not output a space
+    # before the ':'
+    # Use statement for PSy-layer routines should have been added.
+    assert "use multi_invoke_qr_psy, only" in gen
+    assert ": invoke_0" in gen
+    assert "call invoke_0(f1, f2, m1, a, m2, istp, m3, f3, qr)" in gen
 
 
 def test_invoke_argnames():
     ''' invoke call arguments which are arrays '''
     alg, _ = generate(os.path.join(
         BASE_PATH, "5_alg_field_array.f90"), api="dynamo0.3")
-    gen = str(alg)
-    assert "USE single_function_psy, ONLY: invoke_0" in gen
-    assert ("CALL invoke_0(f0(1), f1(1, 1), f1(2, index), b(1), "
+    gen = str(alg).lower()
+    # TODO issue #1618 Split test into two as while there are
+    # different implementations we may or may not output a space
+    # before the ':'
+    assert "use single_function_psy, only" in gen
+    assert ": invoke_0" in gen
+    # TODO issue #1618 different implementations we may or may not
+    # output a space after a ","
+    assert ("call invoke_0(f0(1), f1(1, 1), f1(2, index), b(1), "
             "f1(index, index2(index3)), iflag(2), a(index1), "
+            "iflag(index2(index3)), qr)" in gen or
+            "call invoke_0(f0(1), f1(1,1), f1(2,index), b(1), "
+            "f1(index,index2(index3)), iflag(2), a(index1), "
             "iflag(index2(index3)), qr)" in gen)
 
 
@@ -222,9 +288,13 @@ def test_multiple_qr_per_invoke():
     each requiring quadrature. '''
     alg, _ = generate(os.path.join(
         BASE_PATH, "6_multiple_QR_per_invoke.f90"), api="dynamo0.3")
-    gen = str(alg)
-    assert "USE multi_qr_per_invoke_psy, ONLY: invoke_0" in gen
-    assert ("CALL invoke_0(f1, f2, f3, ascalar, f4, iscalar, f0, qr0, qr1)"
+    gen = str(alg).lower()
+    # TODO issue #1618 Split test into two as while there are
+    # different implementations we may or may not output a space
+    # before the ':'
+    assert "use multi_qr_per_invoke_psy, only" in gen
+    assert ": invoke_0" in gen
+    assert ("call invoke_0(f1, f2, f3, ascalar, f4, iscalar, f0, qr0, qr1)"
             in gen)
 
 
@@ -233,10 +303,18 @@ def test_qr_argnames():
     qr arguments that are array elements. '''
     alg, _ = generate(os.path.join(BASE_PATH, "7_QR_field_array.f90"),
                       api="dynamo0.3")
-    gen = str(alg)
-    assert "USE qr_field_array_psy, ONLY: invoke_0" in gen
-    assert ("CALL invoke_0(f1, f2, f3, ascal, f4, l, f0, qr0(i, j), "
-            "qr0(i, j + 1), qr1(i, k(l)))" in gen)
+    gen = str(alg).lower()
+    # TODO issue #1618 Split test into two as while there are
+    # different implementations we may or may not output a space
+    # before the ':'
+    assert "use qr_field_array_psy, only" in gen
+    assert ": invoke_0" in gen
+    # TODO issue #1618 different implementations we may or may not
+    # output a space after a ","
+    assert ("call invoke_0(f1, f2, f3, ascal, f4, l, f0, qr0(i, j), "
+            "qr0(i, j + 1), qr1(i, k(l)))" in gen or
+            "call invoke_0(f1, f2, f3, ascal, f4, l, f0, qr0(i,j), "
+            "qr0(i,j + 1), qr1(i,k(l)))" in gen)
 
 
 def test_deref_derived_type_args():
@@ -248,10 +326,15 @@ def test_deref_derived_type_args():
                      "test_files", "dynamo0p3",
                      "1.6.2_single_invoke_1_int_from_derived_type.f90"),
         api="dynamo0.3")
-    gen = str(alg)
+    gen = str(alg).lower()
+    # TODO issue #1618 different implementations we may or may not
+    # output a space before and after a "%"
     assert (
-        "CALL invoke_0(f1, my_obj % iflag, f2, m1, m2, my_obj % get_flag(), "
+        "call invoke_0(f1, my_obj % iflag, f2, m1, m2, my_obj % get_flag(), "
         "my_obj % get_flag(switch), my_obj % get_flag(int_wrapper % data))"
+        in gen or
+        "call invoke_0(f1, my_obj%iflag, f2, m1, m2, my_obj % get_flag(), "
+        "my_obj%get_flag(switch), my_obj%get_flag(int_wrapper%data))"
         in gen)
 
 
@@ -263,10 +346,15 @@ def test_multi_deref_derived_type_args():
                      "test_files", "dynamo0p3",
                      "1.6.3_single_invoke_multiple_derived_types.f90"),
         api="dynamo0.3")
-    gen = str(alg)
+    gen = str(alg).lower()
+    # TODO issue #1618 different implementations we may or may not
+    # output a space before and after a "%"
     assert (
-        "CALL invoke_0(f1, obj_a % iflag, f2, m1, m2, obj_b % iflag, "
+        "call invoke_0(f1, obj_a % iflag, f2, m1, m2, obj_b % iflag, "
         "obj_a % obj_b % iflag, obj_b % obj_a % iflag)"
+        in gen or
+        "call invoke_0(f1, obj_a%iflag, f2, m1, m2, obj_b%iflag, "
+        "obj_a%obj_b%iflag, obj_b%obj_a%iflag)"
         in gen)
 
 
@@ -274,8 +362,8 @@ def test_single_stencil():
     ''' test extent value is passed correctly from the algorithm layer '''
     path = os.path.join(BASE_PATH, "19.1_single_stencil.f90")
     alg, _ = generate(path, api="dynamo0.3")
-    output = str(alg)
-    assert ("CALL invoke_0_testkern_stencil_type(f1, f2, f3, f4, "
+    output = str(alg).lower()
+    assert ("call invoke_0_testkern_stencil_type(f1, f2, f3, f4, "
             "f2_extent)" in output)
 
 
@@ -285,8 +373,11 @@ def test_single_stencil_broken():
     path = os.path.join(BASE_PATH, "19.2_single_stencil_broken.f90")
     with pytest.raises(GenerationError) as excinfo:
         _, _ = generate(path, api="dynamo0.3")
+    # TODO issue #1618 different error messages for the different versions.
     assert ("expected '5' arguments in the algorithm layer but found '4'"
-            in str(excinfo.value))
+            in str(excinfo.value) or "The invoke kernel functor "
+            "'testkern_stencil_type' has 4 arguments, but the kernel "
+            "metadata expects there to be 5 arguments." in str(excinfo.value))
 
 
 def test_single_stencil_xory1d():
@@ -294,8 +385,8 @@ def test_single_stencil_xory1d():
     algorithm layer when xory1d is specified'''
     path = os.path.join(BASE_PATH, "19.3_single_stencil_xory1d.f90")
     alg, _ = generate(path, api="dynamo0.3")
-    output = str(alg)
-    assert ("CALL invoke_0_testkern_stencil_xory1d_type(f1, f2, "
+    output = str(alg).lower()
+    assert ("call invoke_0_testkern_stencil_xory1d_type(f1, f2, "
             "f3, f4, f2_extent, f2_direction)") in output
 
 
@@ -303,9 +394,9 @@ def test_single_stencil_literal():
     ''' test extent value is passed correctly from the algorithm layer '''
     path = os.path.join(BASE_PATH, "19.4_single_stencil_literal.f90")
     alg, _ = generate(path, api="dynamo0.3")
-    output = str(alg)
-    assert "CALL invoke_0_testkern_stencil_type(f1, f2, f3, f4)" \
-           in output
+    output = str(alg).lower()
+    assert ("call invoke_0_testkern_stencil_type(f1, f2, f3, f4)"
+            in output)
 
 
 def test_single_stencil_xory1d_literal():
@@ -314,8 +405,8 @@ def test_single_stencil_xory1d_literal():
     path = os.path.join(
         BASE_PATH, "19.5_single_stencil_xory1d_literal.f90")
     alg, _ = generate(path, api="dynamo0.3")
-    output = str(alg)
-    assert ("CALL invoke_0_testkern_stencil_xory1d_type(f1, f2, "
+    output = str(alg).lower()
+    assert ("call invoke_0_testkern_stencil_xory1d_type(f1, f2, "
             "f3, f4)") in output
 
 
@@ -323,8 +414,8 @@ def test_multiple_stencils():
     '''more than one stencil in a kernel'''
     path = os.path.join(BASE_PATH, "19.7_multiple_stencils.f90")
     alg, _ = generate(path, api="dynamo0.3")
-    output = str(alg)
-    assert ("CALL invoke_0_testkern_stencil_multi_type(f1, f2, "
+    output = str(alg).lower()
+    assert ("call invoke_0_testkern_stencil_multi_type(f1, f2, "
             "f3, f4, f2_extent, f3_extent, f3_direction)") in output
 
 
@@ -333,8 +424,8 @@ def test_multiple_stencil_same_name_direction():
     '''
     path = os.path.join(BASE_PATH, "19.9_multiple_stencils_same_name.f90")
     alg, _ = generate(path, api="dynamo0.3")
-    output = str(alg)
-    assert ("CALL invoke_0_testkern_stencil_multi_2_type(f1, f2, "
+    output = str(alg).lower()
+    assert ("call invoke_0_testkern_stencil_multi_2_type(f1, f2, "
             "f3, f4, extent, direction)") in output
 
 
@@ -342,9 +433,13 @@ def test_multiple_kernels_stencils():
     '''more than one kernel with stencils'''
     path = os.path.join(BASE_PATH, "19.10_multiple_kernels_stencils.f90")
     alg, _ = generate(path, api="dynamo0.3")
-    output = str(alg)
-    assert "USE multiple_stencil_psy, ONLY: invoke_0" in output
-    assert ("CALL invoke_0(f1, f2, f3, f4, f2_extent, f3_extent, extent, "
+    output = str(alg).lower()
+    # TODO issue #1618 Split test into two as while there are
+    # different implementations we may or may not output a space
+    # before the ':'
+    assert "use multiple_stencil_psy, only" in output
+    assert ": invoke_0" in output
+    assert ("call invoke_0(f1, f2, f3, f4, f2_extent, f3_extent, extent, "
             "f3_direction, direction)") in output
 
 
@@ -354,8 +449,8 @@ def test_multiple_stencil_same_name_case():
     path = os.path.join(
         BASE_PATH, "19.11_multiple_stencils_mixed_case.f90")
     alg, _ = generate(path, api="dynamo0.3")
-    output = str(alg)
-    assert ("CALL invoke_0_testkern_stencil_multi_2_type(f1, f2, "
+    output = str(alg).lower()
+    assert ("call invoke_0_testkern_stencil_multi_2_type(f1, f2, "
             "f3, f4, extent, direction)") in output
 
 
@@ -373,19 +468,19 @@ def test_multiple_stencil_same_name():
     '''more than one stencil in a kernel with the same name for extent'''
     path = os.path.join(BASE_PATH, "19.8_multiple_stencils_same_name.f90")
     alg, _ = generate(path, api="dynamo0.3")
-    output = str(alg)
-    assert ("CALL invoke_0_testkern_stencil_multi_type(f1, f2, "
+    output = str(alg).lower()
+    assert ("call invoke_0_testkern_stencil_multi_type(f1, f2, "
             "f3, f4, extent, f3_direction)") in output
 
 
-# Sample code for use in subsequent adduse tests.
+# Sample code for use in subsequent _adduse tests.
 CODE = ("program test\n"
         "  integer :: i\n"
         "  i=0\n"
         "end program test\n")
 
 
-# Utility function for parsing code, used in subsequent adduse tests.
+# Utility function for parsing code, used in subsequent _adduse tests.
 def get_parse_tree(code, parser):
     '''Utility function that takes Fortran code as a string and returns an
     fparser2 parse tree of the code. Pass in an instance of the parser
@@ -403,7 +498,60 @@ def get_parse_tree(code, parser):
     reader = FortranStringReader(code)
     return parser(reader)
 
-# Function adduse tests These should be moved in #240.
+
+# Function _rm_kernel_use_stmts tests. These will be removed once the LFRic
+# algorithm layer uses PSyIR (#1618).
+
+
+def test_rm_kernel_use_stmts(parser):
+    '''Tests for the _rm_kernel_use_stmts() method.'''
+    code = ("program test\n"
+            "  use my_kernel_mod, only: my_kernel_type\n"
+            "  use kernel2_mod, only: kernel2_type, something_else\n"
+            "contains\n"
+            "  subroutine my_sub()\n"
+            "    use a_kernel_mod, only: a_kernel_type\n"
+            "  end subroutine my_sub\n"
+            "end program test\n")
+    parse_tree = get_parse_tree(code, parser)
+    # An empty list of kernel names should be fine.
+    alg_gen._rm_kernel_use_stmts([], parse_tree)
+    gen = str(parse_tree).lower()
+    assert "use my_kernel_mod, only: my_kernel_type" in gen
+    assert "use kernel2_mod, only: kernel2_type, something_else" in gen
+    assert "use a_kernel_mod, only: a_kernel_type" in gen
+    # A kernel name that doesn't exist should be fine (because we need to
+    # support builtins).
+    alg_gen._rm_kernel_use_stmts(["my_builtin"], parse_tree)
+    gen = str(parse_tree).lower()
+    assert "use my_kernel_mod, only: my_kernel_type" in gen
+    assert "use kernel2_mod, only: kernel2_type, something_else" in gen
+    # Check that the use associated with a named kernel is removed.
+    alg_gen._rm_kernel_use_stmts(["my_kernel_type"], parse_tree)
+    gen = str(parse_tree).lower()
+    assert "my_kernel_type" not in gen
+    assert "use kernel2_mod, only: kernel2_type, something_else" in gen
+    # Check that a use statement is not removed if it imports symbols other
+    # than the named kernel.
+    alg_gen._rm_kernel_use_stmts(["kernel2_type"], parse_tree)
+    gen = str(parse_tree).lower()
+    assert "use kernel2_mod, only: kernel2_type, something_else" in gen
+    alg_gen._rm_kernel_use_stmts(["kernel2_type", "something_else"],
+                                 parse_tree)
+    # One Specification_Part should have been removed entirely.
+    assert len(walk(parse_tree, Fortran2003.Specification_Part)) == 1
+    gen = str(parse_tree).lower()
+    assert "kernel2_type" not in gen
+    assert "something_else" not in gen
+    # Finally, check for the use in the nested subroutine.
+    assert "use a_kernel_mod, only: a_kernel_type" in gen
+    alg_gen._rm_kernel_use_stmts(["a_kernel_type"], parse_tree)
+    assert not walk(parse_tree, Fortran2003.Specification_Part)
+    gen = str(parse_tree).lower()
+    assert "a_kernel_type" not in gen
+
+# Function adduse tests. These will be removed once the LFRic algorithm
+# layer uses PSyIR (#1618).
 
 
 @pytest.mark.parametrize("location", [None, "lilliput"])
@@ -414,7 +562,7 @@ def test_adduse_invalid_location(location):
     '''
     name = "my_use"
     with pytest.raises(GenerationError) as excinfo:
-        alg_gen.adduse(location, name)
+        alg_gen._adduse(location, name)
     assert ("Location argument must be a sub-class of fparser.two.utils.Base "
             "but got: " in str(excinfo.value))
 
@@ -429,7 +577,7 @@ def test_adduse_only_names1(parser):
     location = parse_tree.content[0].content[0]
     name = "my_use"
 
-    alg_gen.adduse(location, name, only=True, funcnames=["a", "b", "c"])
+    alg_gen._adduse(location, name, only=True, funcnames=["a", "b", "c"])
     assert "PROGRAM test\n  USE my_use, ONLY: a, b, c\n  INTEGER :: i\n" \
         in str(parse_tree)
 
@@ -448,7 +596,7 @@ def test_adduse_only_names2(parser):
     location = parse_tree.content[0].content[0]
     name = "my_use"
 
-    alg_gen.adduse(location, name, only=True, funcnames=["a", "b", "c"])
+    alg_gen._adduse(location, name, only=True, funcnames=["a", "b", "c"])
     assert ("SUBROUTINE test\n  USE my_use, ONLY: a, b, c\n"
             "  INTEGER :: i\n") in str(parse_tree)
 
@@ -467,7 +615,7 @@ def test_adduse_only_names3(parser):
     location = parse_tree.content[0].content[0]
     name = "my_use"
 
-    alg_gen.adduse(location, name, only=True, funcnames=["a", "b", "c"])
+    alg_gen._adduse(location, name, only=True, funcnames=["a", "b", "c"])
     assert ("INTEGER FUNCTION test()\n  USE my_use, ONLY: a, b, c\n"
             "  INTEGER :: i\n") in str(parse_tree)
 
@@ -481,7 +629,7 @@ def test_adduse_only_nonames(parser):
     location = parse_tree.content[0].content[0]
     name = "my_use"
 
-    alg_gen.adduse(location, name, only=True)
+    alg_gen._adduse(location, name, only=True)
     assert "PROGRAM test\n  USE my_use, ONLY:\n  INTEGER :: i\n" \
         in str(parse_tree)
 
@@ -495,7 +643,7 @@ def test_adduse_noonly_names(parser):
     parse_tree = get_parse_tree(CODE, parser)
     location = parse_tree.content[0].content[0]
     name = "my_use"
-    alg_gen.adduse(location, name, funcnames=["a", "b", "c"])
+    alg_gen._adduse(location, name, funcnames=["a", "b", "c"])
     assert ("PROGRAM test\n  USE my_use, ONLY: a, b, c\n"
             "  INTEGER :: i\n") in str(parse_tree)
 
@@ -510,7 +658,7 @@ def test_adduse_onlyfalse_names(parser):
     location = parse_tree.content[0].content[0]
     name = "my_use"
     with pytest.raises(GenerationError) as excinfo:
-        alg_gen.adduse(location, name, only=False, funcnames=["a", "b", "c"])
+        alg_gen._adduse(location, name, only=False, funcnames=["a", "b", "c"])
     assert ("If the 'funcnames' argument is provided and has content, "
             "then the 'only' argument must not be set to "
             "'False'.") in str(excinfo.value)
@@ -526,7 +674,7 @@ def test_adduse_noonly_nonames(parser):
     location = parse_tree.content[0].content[0]
     name = "my_use"
 
-    alg_gen.adduse(location, name)
+    alg_gen._adduse(location, name)
     assert "PROGRAM test\n  USE my_use\n  INTEGER :: i\n" \
         in str(parse_tree)
 
@@ -545,7 +693,7 @@ def test_adduse_noprogparent(parser):
     name = "my_use"
 
     with pytest.raises(GenerationError) as excinfo:
-        alg_gen.adduse(location, name)
+        alg_gen._adduse(location, name)
     assert ("The specified location is invalid as it has no parent in the "
             "parse tree that is a program, module, subroutine or "
             "function.") in str(excinfo.value)
@@ -564,7 +712,7 @@ def test_adduse_unsupportedparent1(parser):
     name = "my_use"
 
     with pytest.raises(NotImplementedError) as excinfo:
-        alg_gen.adduse(location, name)
+        alg_gen._adduse(location, name)
     assert ("Currently support is limited to program, subroutine and "
             "function.") in str(excinfo.value)
 
@@ -584,18 +732,7 @@ def test_adduse_nospec(parser):
     name = "my_use"
 
     with pytest.raises(InternalError) as excinfo:
-        alg_gen.adduse(location, name)
+        alg_gen._adduse(location, name)
     assert ("The second child of the parent code (content[1]) is expected "
             "to be a specification part but found 'End_Program_Stmt"
             "('PROGRAM', Name('test'))'.") in str(excinfo.value)
-
-
-def test_generate_notimplemented():
-    '''
-    Check that calling :py:func:`psyclone.alg_gen.generate` raises the
-    expected error. (This function will be implemented as part of #1555.)
-
-    '''
-    with pytest.raises(NotImplementedError) as err:
-        alg_gen.generate(None, None)
-    assert "not yet implemented - #1555" in str(err.value)

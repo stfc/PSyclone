@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
+# Modified: R. W. Ford, STFC Daresbury Lab
 
 '''Python script intended to be passed to PSyclone via the -s option.
 It adds kernel extraction code to
@@ -43,9 +44,7 @@ At this stage it does not compile (TODO: #644), and the comparison is
 missing (TODO: #647)
 '''
 
-from __future__ import print_function
-
-from psyclone.psyir.transformations import ExtractTrans
+from psyclone.domain.lfric.transformations import LFRicExtractTrans
 
 
 def trans(psy):
@@ -59,25 +58,22 @@ def trans(psy):
     :rtype: :py:class:`psyclone.gocean1p0.GOPSy`
 
     '''
-    extract = ExtractTrans()
+    extract = LFRicExtractTrans()
 
-    # We don't support builtins yet, so the initialisation
-    # cannot be instrumented, TODO #637
-    # invoke = psy.invokes.get("invoke_initialise_fields")
-    # schedule = invoke.schedule
-    # extract.apply(schedule.children,
-    #               {"create_driver": True,
-    #                "region_name": ("main", "init")})
+    # Show that it works on a builtin:
+    invoke = psy.invokes.get("invoke_initialise_fields")
+    schedule = invoke.schedule
+    extract.apply(schedule.children,
+                  {"create_driver": True,
+                   "region_name": ("main", "init")})
 
     invoke = psy.invokes.get("invoke_testkern_w0")
     schedule = invoke.schedule
 
-    # TODO #1392: ATM driver creation in LFRic is broken due to
-    # the changes in driver creation in #1288.
     # Enclose everything in a extract region
     extract.apply(schedule.children,
                   {"create_driver": True,
                    "region_name": ("main", "update")})
 
-    schedule.view()
+    print(schedule.view())
     return psy

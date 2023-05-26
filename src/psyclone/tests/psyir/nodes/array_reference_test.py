@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2022, Science and Technology Facilities Council.
+# Copyright (c) 2019-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -38,15 +38,15 @@
 
 ''' Performs py.test tests of the ArrayReference PSyIR node. '''
 
-from __future__ import absolute_import
 import pytest
+from psyclone.errors import GenerationError, InternalError
+from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes.node import colored
 from psyclone.psyir.nodes import Reference, ArrayReference, Assignment, \
     Literal, BinaryOperation, Range, KernelSchedule
-from psyclone.psyir.symbols import DataSymbol, ArrayType, \
-    REAL_SINGLE_TYPE, INTEGER_SINGLE_TYPE, REAL_TYPE, INTEGER_TYPE
-from psyclone.errors import GenerationError, InternalError
-from psyclone.psyir.backend.fortran import FortranWriter
+from psyclone.psyir.symbols import (
+    ArrayType, DataSymbol, DataTypeSymbol, DeferredType, ScalarType,
+    REAL_SINGLE_TYPE, INTEGER_SINGLE_TYPE, REAL_TYPE, INTEGER_TYPE)
 from psyclone.tests.utilities import check_links
 
 
@@ -65,11 +65,14 @@ def test_array_can_be_printed():
     '''Test that an ArrayReference instance can always be printed (i.e. is
     initialised fully)'''
     kschedule = KernelSchedule("kname")
-    symbol = DataSymbol("aname", INTEGER_SINGLE_TYPE)
+    symbol = DataSymbol("aname", ArrayType(INTEGER_SINGLE_TYPE, [10]))
     kschedule.symbol_table.add(symbol)
     assignment = Assignment()
-    array = ArrayReference(symbol, assignment)
+    array = ArrayReference(symbol, parent=assignment)
     assert "ArrayReference[name:'aname']\n" in str(array)
+    array2 = ArrayReference.create(symbol, [Literal("1", INTEGER_TYPE)])
+    assert ("ArrayReference[name:'aname']\nLiteral[value:'1', "
+            "Scalar<INTEGER, UNDEFINED>]" in str(array2))
 
 
 def test_array_create():
@@ -202,10 +205,10 @@ def test_array_is_lower_bound():
     expected.
 
     '''
-    one = Literal("1", INTEGER_TYPE)
+    two = Literal("2", INTEGER_TYPE)
     array = ArrayReference.create(DataSymbol("test",
                                              ArrayType(REAL_TYPE, [10])),
-                                  [one])
+                                  [two])
     with pytest.raises(TypeError) as info:
         array.is_lower_bound("hello")
     assert ("The index argument should be an integer but found 'str'."
@@ -214,29 +217,31 @@ def test_array_is_lower_bound():
     # not a range node at index 0
     assert not array.is_lower_bound(0)
 
+    one = Literal("1", INTEGER_TYPE)
     # range node does not have a binary operator for its start value
     array.children[0] = Range.create(one.copy(), one.copy(), one.copy())
-    assert not array.is_lower_bound(0)
+    assert array.is_lower_bound(0)
 
     # range node lbound references a different array
     array2 = ArrayReference.create(DataSymbol("test2",
                                               ArrayType(REAL_TYPE, [10])),
                                    [one.copy()])
     operator = BinaryOperation.create(
-        BinaryOperation.Operator.LBOUND, array2, one.copy())
+        BinaryOperation.Operator.LBOUND, Reference(array2.symbol),
+        one.copy())
     array.children[0] = Range.create(operator, one.copy(), one.copy())
     assert not array.is_lower_bound(0)
 
     # range node lbound references a different index
     operator = BinaryOperation.create(
-        BinaryOperation.Operator.LBOUND, array.copy(),
+        BinaryOperation.Operator.LBOUND, Reference(array.symbol),
         Literal("2", INTEGER_TYPE))
     array.children[0] = Range.create(operator, one.copy(), one.copy())
     assert not array.is_lower_bound(0)
 
     # all is well
     operator = BinaryOperation.create(
-        BinaryOperation.Operator.LBOUND, array.copy(), one.copy())
+        BinaryOperation.Operator.LBOUND, Reference(array.symbol), one.copy())
     array.children[0] = Range.create(operator, one.copy(), one.copy())
     assert array.is_lower_bound(0)
 
@@ -267,20 +272,20 @@ def test_array_is_upper_bound():
                                               ArrayType(REAL_TYPE, [10])),
                                    [one.copy()])
     operator = BinaryOperation.create(
-        BinaryOperation.Operator.UBOUND, array2, one.copy())
+        BinaryOperation.Operator.UBOUND, Reference(array2.symbol), one.copy())
     array.children[0] = Range.create(one.copy(), operator, one.copy())
     assert not array.is_upper_bound(0)
 
     # range node ubound references a different index
     operator = BinaryOperation.create(
-        BinaryOperation.Operator.UBOUND, array.copy(),
+        BinaryOperation.Operator.UBOUND, Reference(array.symbol),
         Literal("2", INTEGER_TYPE))
     array.children[0] = Range.create(one.copy(), operator, one.copy())
     assert not array.is_upper_bound(0)
 
     # all is well
     operator = BinaryOperation.create(
-        BinaryOperation.Operator.UBOUND, array.copy(), one.copy())
+        BinaryOperation.Operator.UBOUND, Reference(array.symbol), one.copy())
     array.children[0] = Range.create(one.copy(), operator, one.copy())
     assert array.is_upper_bound(0)
 
@@ -482,3 +487,53 @@ def test_array_same_array():
     # A Reference to the array symbol should also match
     bare_array = Reference(test_sym)
     assert array.is_same_array(bare_array) is True
+
+
+def test_array_datatype(fortran_writer):
+    '''Test the datatype() method for an ArrayReference.'''
+    test_sym = DataSymbol("test", ArrayType(REAL_TYPE, [10]))
+    one = Literal("1", INTEGER_TYPE)
+    two = Literal("2", INTEGER_TYPE)
+    four = Literal("4", INTEGER_TYPE)
+    # Reference to a single element of an array.
+    aref = ArrayReference.create(test_sym, [one])
+    assert aref.datatype == REAL_TYPE
+    # Reference to a 1D sub-array of a 2D array.
+    test_sym2d = DataSymbol("test", ArrayType(REAL_TYPE, [10, 8]))
+    bref = ArrayReference.create(test_sym2d, [two.copy(),
+                                              Range.create(two.copy(),
+                                                           four.copy())])
+    assert isinstance(bref.datatype, ArrayType)
+    assert bref.datatype.intrinsic == ScalarType.Intrinsic.REAL
+    assert len(bref.datatype.shape) == 1
+    # The sub-array will have a lower bound of one.
+    assert bref.datatype.shape[0].lower == one
+    upper = bref.datatype.shape[0].upper
+    assert isinstance(upper, BinaryOperation)
+    # The easiest way to check the expression is to convert it to Fortran
+    code = fortran_writer(upper)
+    assert code == "(4 - 2) / 1 + 1"
+    # Reference to a single element of an array of structures.
+    stype = DataTypeSymbol("grid_type", DeferredType())
+    atype = ArrayType(stype, [10])
+    asym = DataSymbol("aos", atype)
+    aref = ArrayReference.create(asym, [two.copy()])
+    assert aref.datatype is stype
+
+
+def test_array_create_colon(fortran_writer):
+    '''Test that the create method accepts ":" as shortcut to automatically
+    create a Range that represents ":".'''
+    test_sym = DataSymbol("test", ArrayType(REAL_TYPE, [10, 10]))
+    aref = ArrayReference.create(test_sym, [":", ":"])
+    # Check that each dimension is `lbound(...):ubound(...)`
+    for child in aref.indices:
+        assert isinstance(child, Range)
+        assert isinstance(child.children[1], BinaryOperation)
+        assert child.children[0].operator == \
+               BinaryOperation.Operator.LBOUND
+        assert child.children[1].operator == \
+               BinaryOperation.Operator.UBOUND
+
+    code = fortran_writer(aref)
+    assert code == "test(:,:)"

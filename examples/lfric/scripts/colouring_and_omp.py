@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council
+# Copyright (c) 2017-2022, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. Ford, A. R. Porter and S. Siso, STFC Daresbury Laboratory
+# Authors: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 # Modified: I. Kavcic, Met Office
 # Modified by J. Henrichs, Bureau of Meteorology
 
@@ -75,6 +75,6 @@ def trans(psy):
                 else:
                     otrans.apply(child)
 
-        schedule.view()
+        print(schedule.view())
 
     return psy

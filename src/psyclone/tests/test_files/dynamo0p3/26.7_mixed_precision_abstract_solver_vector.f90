@@ -44,8 +44,6 @@ module vector_type
   use field_mod,        only : field_type
   use testkern_mod,     only : testkern_type
 
-contains
-
   type :: some_type
      type(field_vector_type) :: vec_type(10)
    contains

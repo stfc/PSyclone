@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors: R. W. Ford, A. R. Porter, N. Nobre and S. Siso, STFC Daresbury Lab
 
 '''A PSyIR visitor for PSyAD : the PSyclone Adjoint support. Applies
 transformations to tangent-linear PSyIR to return its PSyIR adjoint.
@@ -44,11 +44,10 @@ from fparser.two import Fortran2003
 from psyclone.psyad.transformations import AssignmentTrans
 from psyclone.psyad.utils import node_is_passive, node_is_active, negate_expr
 from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.psyir.backend.language_writer import LanguageWriter
 from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
 from psyclone.psyir.nodes import (Routine, Schedule, Reference, Node, Literal,
                                   CodeBlock, BinaryOperation, Assignment,
-                                  Container)
+                                  IfBlock)
 from psyclone.psyir.symbols import ArgumentInterface
 from psyclone.psyir.tools import DependencyTools
 
@@ -59,28 +58,19 @@ class AdjointVisitor(PSyIRVisitor):
 
     :param active_variable_names: a list of the active variables.
     :type active_variable_names: list of str
-    :param writer: the writer to use when outputting PSyIR in error or \
-        logging messages. Defaults to FortranWriter.
-    :type writer: \
-        :py:class:`psyclone.psyir.backend.language_writer.LanguageWriter`
 
     :raises ValueError: if no active variables are supplied.
 
     '''
-    def __init__(self, active_variable_names, writer=FortranWriter()):
+    def __init__(self, active_variable_names):
         super(AdjointVisitor, self).__init__()
         if not active_variable_names:
             raise ValueError(
                 "There should be at least one active variable supplied to "
                 "an AdjointVisitor.")
-        if not isinstance(writer, LanguageWriter):
-            raise TypeError(
-                "The writer argument should be a subclass of LanguageWriter "
-                "but found '{0}'.".format(type(writer).__name__))
         self._active_variable_names = active_variable_names
         self._active_variables = None
         self._logger = logging.getLogger(__name__)
-        self._writer = writer
 
     def container_node(self, node):
         '''This method is called if the visitor finds a Container node. A copy
@@ -137,7 +127,7 @@ class AdjointVisitor(PSyIRVisitor):
             # Zero local active variables.
             self._logger.debug("Zero-ing any local active variables")
             for active_variable in self._active_variables:
-                if active_variable.is_local:
+                if active_variable.is_automatic:
                     if not (active_variable.is_scalar or
                             active_variable.is_array):
                         # Issue #1627 structures are not allowed.
@@ -277,6 +267,12 @@ class AdjointVisitor(PSyIRVisitor):
             of this node and its descendants.
         :rtype: :py:class:`psyclone.psyir.nodes.Loop`
 
+        :raises VisitorError: if the loop node is visited before a \
+            schedule.
+        :raises VisitorError: if the loop bounds contain any active \
+             variables.
+        :raises VisitorError: if a passive loop is found.
+
         '''
         if self._active_variables is None:
             raise VisitorError(
@@ -301,12 +297,12 @@ class AdjointVisitor(PSyIRVisitor):
                         raise VisitorError(
                             f"The {description} of a loop should not contain "
                             f"active variables, but found '{ref.name}' in "
-                            f"'{self._writer(expr)}'.")
+                            f"'{expr.debug_string()}'.")
 
         if node_is_active(Reference(node.variable), self._active_variables):
             raise VisitorError(
-                "The loop iterator '{0}' should not be an active "
-                "variable.".format(node.variable.name))
+                f"The loop iterator '{node.variable.name}' should not be an "
+                f"active variable.")
 
         if node_is_passive(node, self._active_variables):
             raise VisitorError(
@@ -329,8 +325,8 @@ class AdjointVisitor(PSyIRVisitor):
         # (on the assumption that the step is unitary, which it is in
         # most cases).
         offset = None
-        if not(isinstance(node.step_expr, Literal) and
-               node.step_expr.value.strip() in ["1", "-1"]):
+        if not (isinstance(node.step_expr, Literal) and
+                node.step_expr.value.strip() in ["1", "-1"]):
             # The loop step might not be unitary so compute an offset:
             # stop-start mod step
             fortran_writer = FortranWriter()
@@ -339,7 +335,7 @@ class AdjointVisitor(PSyIRVisitor):
             step_str = fortran_writer(node.step_expr)
             # TODO: use language independent PSyIR, see issue #1345
             ptree = Fortran2003.Intrinsic_Function_Reference(
-                "mod({0}-{1},{2})".format(hi_str, lo_str, step_str))
+                f"mod({hi_str}-{lo_str},{step_str})")
             offset = CodeBlock([ptree], CodeBlock.Structure.EXPRESSION)
 
         # We only need to copy this node and its bounds. Issue #1440
@@ -360,6 +356,60 @@ class AdjointVisitor(PSyIRVisitor):
         # Determine the adjoint of the loop body
         new_node.children[3] = self._visit(node.children[3])
         return new_node
+
+    def ifblock_node(self, node):
+        '''This method is called if the visitor finds an ifblock node. An
+        exception is raised if the condition of the ifblock node
+        contains an active variable as this is not valid
+        tangent-linear code. Otherwise, the ifblock and its condition
+        are returned unchanged and the contents of the "then" and
+        "else" parts of the ifblock are returned after being processed
+        by PSyAD.
+
+        :param node: an IfBlock PSyIR node.
+        :type node: :py:class:`psyclone.psyir.nodes.IfBlock`
+
+        :returns: a new PSyIR tree containing the adjoint equivalent \
+            of this node and its descendants.
+        :rtype: :py:class:`psyclone.psyir.nodes.IfBlock`
+
+        :raises: VisitorError if the condition of the ifblock contains \
+            any active variables.
+        :raises VisitorError: if the ifblock node is visited before a \
+            schedule.
+        :raises VisitorError: if a passive ifblock node is found.
+
+        '''
+        if self._active_variables is None:
+            raise VisitorError(
+                "An ifblock node should not be visited before a schedule, "
+                "as the latter sets up the active variables.")
+
+        if node_is_active(node.condition, self._active_variables):
+            raise VisitorError(
+                f"The if condition '{node.condition.debug_string()}' of an "
+                f"ifblock node should not contain an active variable (one or "
+                f"more of {self._active_variable_names}).")
+
+        if node_is_passive(node, self._active_variables):
+            raise VisitorError(
+                "A passive ifblock node should not be processed by the "
+                "ifblock_node() method within the AdjointVisitor() class, as "
+                "it should have been dealt with by the schedule_node() "
+                "method.")
+
+        self._logger.debug("Transforming active ifblock")
+
+        new_condition = node.condition.copy()
+        new_if_schedule = self._visit(node.if_body)
+        new_if_body = new_if_schedule.pop_all_children()
+
+        new_else_body = None
+        if node.else_body:
+            new_else_schedule = self._visit(node.else_body)
+            new_else_body = new_else_schedule.pop_all_children()
+
+        return IfBlock.create(new_condition, new_if_body, new_else_body)
 
     def _copy_and_process(self, node):
         '''Utility function to return a copy the current node containing the

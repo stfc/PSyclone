@@ -1,7 +1,7 @@
 <!--
 BSD 3-Clause License
 
-Copyright (c) 2021, Science and Technology Facilities Council.
+Copyright (c) 2021-2023, Science and Technology Facilities Council.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@ LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
 ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGE.
 
-Author: R. W. Ford, STFC Daresbury Lab
+Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 -->
 
 # PSyAD Examples
@@ -42,18 +42,25 @@ individual example directories for further details.
 
 ## Example 1
 
-Simple generic tangent linear example which is translated to its
-adjoint form and tested with the harness generation.
+Simple, generic tangent linear example which is translated to its
+adjoint form. A test harness is also generated which may be compiled
+and executed to validate the adjoint.
 
 ## Example 2
 
-An LFRic tangent-linear kernel example which shows how much of this
-code PSyAD can currently translate. The kernel computes the
-tangent-linear of the hydrostatic balance term. It was taken from the
-LFRic repository and has any unsupported code commented out.
+An LFRic example using the kernel that computes the tangent-linear of
+the hydrostatic balance term. A test harness for this kernel can also
+be generated. However, it must be incorporated into an LFRic mini-app
+in order to be compiled and executed.
 
-The harness generation does not currently support this example as it
-assumes all arguments are real arrays which can be filled with random
-real data, whereas LFRic arguments can include integer arrays and
-these integer arrays may act as lookups into other arrays and
-therefore require non-random integer values.
+## lfric
+
+Creates and/or stores adjoint versions of all of the LFRic
+tangent-linear kernels requested by the Met Office. At the current
+time a test harness is not created for these kernels so they are not
+automatically validated. As some of the tangent-linear kernels require
+tweaks before `psyad` is able to translate them, this example stores
+some manually modified tangent-linear kernels as well as the original
+unmodified kernels. Further, as the adjoint kernels automatically
+created by `psyad` require tweaks before they are valid adjoint
+kernels, this example also stores manually modified adjoint kernels.

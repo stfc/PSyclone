@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2019-2022, Science and Technology Facilities Council.
+.. Copyright (c) 2019-2023, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 .. ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .. POSSIBILITY OF SUCH DAMAGE.
 .. -----------------------------------------------------------------------------
-.. Written by R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+.. Authors: R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 
 Working With PSyclone from GitHub
 #################################
@@ -131,31 +131,38 @@ alphabetical order):
 
 .. tabularcolumns:: |l|L|
 
-================ ==============================================================
-Fixture name   	 Description
-================ ==============================================================
-annexed        	 Supplies a test with the various possible values of the LFRic
-                 `annexed_dofs` option.
-dist_mem       	 Supplies a test with the various possible values of the
-                 `distributed-memory` option (only applicable to the LFRic API
-                 currently).
-fortran_reader   Provides a Fortran PSyIR front-end object to convert Fortran
-                 code snippets into PSyIR.
-fortran_writer   Provides a Fortran PSyIR back-end object to convert PSyIR
-                 trees into Fortran code.
-have_graphviz  	 True if the Python bindings to the graphviz package (used when
-                 generating DAG visualisations) are available. Does *not* check
-                 that the underlying graphviz library is installed.
-kernel_outputdir Sets the output directory used by PSyclone for transformed
-                 kernels to be `tmpdir` (a built-in pytest fixture) and then
-                 returns `tmpdir`. Any test that directly or indirectly causes
-                 kernels to be transformed needs to use this fixture in order
-                 to avoid having unwanted files created within the git working
-                 tree.
-parser           Creates an fparser2 parser for the Fortran2008 standard. This
-                 is an expensive operation so this fixture is only run once
-                 per test session.
-================ ==============================================================
+================== ==============================================================
+Fixture name       Description
+================== ==============================================================
+annexed            Supplies a test with the various possible values of the LFRic
+                   `annexed_dofs` option.
+change_into_tmpdir Using this fixture will change the current working directory
+                   of a test to a temporary directory. Which means that any files
+                   created during the test will not pollute the user's working
+                   directory. At the end of the test (even in case of a failure)
+                   the current working directory will be changed back to the
+                   original directory.
+dist_mem           Supplies a test with the various possible values of the
+                   `distributed-memory` option (only applicable to the LFRic and
+                   GOcean APIs currently). Also monkeypatches the global
+                   configuration object with the corresponding setting.
+fortran_reader     Provides a Fortran PSyIR front-end object to convert Fortran
+                   code snippets into PSyIR.
+fortran_writer     Provides a Fortran PSyIR back-end object to convert PSyIR
+                   trees into Fortran code.
+have_graphviz      True if the Python bindings to the graphviz package (used when
+                   generating DAG visualisations) are available. Does *not* check
+                   that the underlying graphviz library is installed.
+kernel_outputdir   Sets the output directory used by PSyclone for transformed
+                   kernels to be `tmpdir` (a built-in pytest fixture) and then
+                   returns `tmpdir`. Any test that directly or indirectly causes
+                   kernels to be transformed needs to use this fixture in order
+                   to avoid having unwanted files created within the git working
+                   tree.
+parser             Creates an fparser2 parser for the Fortran2008 standard. This
+                   is an expensive operation so this fixture is only run once
+                   per test session.
+================== ==============================================================
 
 In addition, there are two fixtures that are automatically run (just
 once) whenever a test session is begun. The first of these,
@@ -269,8 +276,7 @@ these code snippets to be tested. For example::
     for count, indx in enumerate(access_info.component_indices.iterate()):
         psyir_index = access_info.component_indices[indx]
         # fortran writer converts a PSyIR node to Fortran:
-        print("Index-id {0} of 'a(i,j)': {1}"
-              .format(count, fortran_writer(psyir_index)))
+        print(f"Index-id {count} of 'a(i,j)': {fortran_writer(psyir_index)}")
 
   .. testoutput::
 
@@ -338,18 +344,18 @@ file ``transformation.py`` uses::
 
         >>> from psyclone.parse.algorithm import parse
         >>> api = "gocean1.0"
-        >>> ast, invokeInfo = parse(SOURCE_FILE, api=api)
+        >>> ast, invokeInfo = parse(GOCEAN_SOURCE_FILE, api=api)
         ...
         >>> dtrans.apply(schedule)
 
 
-And the variable SOURCE_FILE is defined in the ``testsetup`` section
+And the variable GOCEAN_SOURCE_FILE is defined in the ``testsetup`` section
 of ``transformations.rst``::
 
     .. testsetup::
 
-        # Define SOURCE_FILE to point to an existing gocean 1.0 file.
-        SOURCE_FILE = ("../../src/psyclone/tests/test_files/"
+        # Define GOCEAN_SOURCE_FILE to point to an existing gocean 1.0 file.
+        GOCEAN_SOURCE_FILE = ("../../src/psyclone/tests/test_files/"
             "gocean1p0/test11_different_iterates_over_one_invoke.f90")
 
     ...
@@ -420,13 +426,12 @@ Continuous Integration
 ======================
 
 The PSyclone project uses GitHub Actions
-(https://psyclone.readthedocs.io/en/stable/examples.html#examples)
-for continuous integration. GitHub triggers an action whenever there
-is a push to a pull-request on the repository. The work performed by
-the action is configured in the
-``PSyclone/.github/workflows/python-package.yml`` file.
-
-Currently there are five main checks performed, in order of increasing
+(https://github.com/stfc/PSyclone/actions) for continuous
+integration. The configuration of these actions is stored in YAML
+files in the ``.github/workflows`` directory. The most important
+action is that configured in ``python-package.yml``. This action is
+triggered whenever there is a push to a pull-request on the repository
+and consists of five main checks performed, in order of increasing
 computational cost (so that we 'fail fast'):
 
  1. All links within all MarkDown files are checked. Those links to skip
@@ -442,13 +447,13 @@ computational cost (so that we 'fail fast'):
  4. All links within the Sphinx documentation (rst files) are checked (see
     note below);
 
- 5. All of the examples are tested (for Python versions 3.6, 3.8 and 3.10.0)
+ 5. All of the examples are tested (for Python versions 3.7, 3.8 and 3.11)
     using the ``Makefile`` in the ``examples`` directory. No compilation is
     performed; only the ``transform`` (performs the PSyclone transformations)
     and ``notebook`` (runs the various Jupyter notebooks) targets are used.
     The ``transform`` target is run 2-way parallel (``-j 2``).
 
- 6. The full test suite is run for Python versions 3.6, 3.8 and 3.10.0 but
+ 6. The full test suite is run for Python versions 3.7, 3.8 and 3.11 but
     without the compilation checks. ``pytest`` is passed the ``-n auto`` flag
     so that it will run the tests in parallel on as many cores as are
     available (currently 2 on GHA instances).
@@ -456,7 +461,9 @@ computational cost (so that we 'fail fast'):
 Since we try to be good 'open-source citizens' we do not do any compilation
 testing using GitHub as that would use a lot more compute time. Instead, it
 is the responsibility of the developer and code reviewer to run these checks
-locally (see :ref:`compilation_testing`).
+locally (see :ref:`compilation_testing`). Code reviewers are able to make
+use of the ``compilation`` GitHub Action which will eventually perform
+these checks semi-automatically - see :ref:`integration-testing`.
 
 By default, the GitHub Actions configuration uses ``pip`` to install
 the dependencies required by PSyclone before running the test
@@ -487,7 +494,7 @@ Link checking
 
 The link checking performed for the Sphinx documentation
 uses Sphinx's `linkcheck` functionality. Some URLs are excluded from
-this checking (due to ssl isues with an outdated http server or pages
+this checking (due to ssl issues with an outdated http server or pages
 requiring authentication) and this is configured in the ``conf.py``
 file of each document.  Note also that anchors on GitHub actually have
 "user-content-" prepended but this is not shown in the links displayed
@@ -528,6 +535,36 @@ is set to be that of the latest version of the docs on RTD.
 Since links between the User and Developer Guide use ``intersphinx``,
 these may simply be configured using the ``intersphinx_mapping``
 dictionary within ``conf.py``.
+
+.. _integration-testing:
+
+Compilation and Integration Testing
+-----------------------------------
+
+As mentioned above, running the test suite and/or examples with compilation
+enabled significantly increases the required compute time. However, there
+is a need to test PSyclone with full builds of the LFRic and NEMO
+applications. Therefore, in addition to the principal action described
+above, there are two others which are configured in ``repo-sync.yml``
+and ``compilation.yml``.
+
+The ``repo-sync`` action must be triggered
+manually (on GitHub) and pushes a copy of the current branch to a private
+repository. (This action uses the ``integration`` environment and can
+therefore only be triggered by GitHub users who have ``review`` permissions
+in that environment.) That private repository has a GitHub self-hosted runner
+setup which then enables tests to be run on a machine at the Hartree
+Centre. Access to the private repository is handled using ssh with a key
+saved as a 'secret' in the GitHub PSyclone repository.
+
+It is the work performed by the self-hosted runner that is configured in the
+``compilation.yml`` file. Currently this is limited to simply running the test
+suite with compilation enabled (using ``gfortran``) but we plan to extend this
+to perform integration tests with whole LFRic and NEMO applications, including
+GPU execution. Since the self-hosted runner is only available in the private
+repository, this action is configured such that it only runs if the name
+of the repository is that of the private one.
+
 
 Performance
 ===========

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council
+# Copyright (c) 2020-2022, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: R. W. Ford, STFC Daresbury Lab
+
 '''A PSyclone transformation script that outputs a textual
 representation of the PSyIR representing the PSy-layer for the first
 invoke found in the algorithm layer code.
@@ -40,6 +41,8 @@ This PSyclone transformation script is designed to be passed to
 PSyclone, it is not designed to be run directly from python.
 
 '''
+
+
 def trans(psy):
     '''Output a textual view of the PSyIR representing the PSy-layer for
     the first invoke found in the algorithm layer code.
@@ -54,4 +57,4 @@ def trans(psy):
     # Get the schedule (the PSyIR representation of the PSy-layer)
     schedule = invoke.schedule
     # Take a look at the PSy-layer PSyIR
-    schedule.view()
+    print(schedule.view())

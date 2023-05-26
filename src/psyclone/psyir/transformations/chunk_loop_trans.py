@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors A. B. G. Chalk, STFC Daresbury Lab
-# Modified S. Siso, STFC Daresbury Lab
+# Modified S. Siso and N. Nobre, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 '''This module provides the ChunkLoopTrans, which transforms a Loop into a
@@ -94,7 +94,7 @@ class ChunkLoopTrans(LoopTrans):
         :param node: the loop to validate.
         :type node: :py:class:`psyclone.psyir.nodes.Loop`
         :param options: a dict with options for transformation.
-        :type options: dict of str:values or None
+        :type options: Optional[Dict[str, Any]]
         :param int options["chunksize"]: The size to chunk over for this \
                 transformation. If not specified, the value 32 is used.
 
@@ -217,7 +217,7 @@ class ChunkLoopTrans(LoopTrans):
         :param node: the loop to transform.
         :type node: :py:class:`psyclone.psyir.nodes.Loop`
         :param options: a dict with options for transformations.
-        :type options: dict of str:values or None
+        :type options: Optional[Dict[str, Any]]
         :param int options["chunksize"]: The size to chunk over for this \
                 transformation. If not specified, the value 32 is used.
 
@@ -241,7 +241,7 @@ class ChunkLoopTrans(LoopTrans):
         # so our ancestors cannot use these variables.
 
         # Store the node's parent for replacing later and the start and end
-        # indicies
+        # indices
         start = node.start_expr
         stop = node.stop_expr
 
@@ -281,16 +281,13 @@ class ChunkLoopTrans(LoopTrans):
         start.replace_with(Reference(outer_loop_variable))
         stop.replace_with(Reference(end_inner_loop))
 
-        # Create the outerloop of the same type and loop_type
-        outerloop = Loop(variable=outer_loop_variable,
-                         valid_loop_types=node.valid_loop_types)
+        # Create the outerloop as a bare Loop construct
+        outerloop = Loop(variable=outer_loop_variable)
         outerloop.children = [start, stop,
                               Literal(f"{chunk_size}",
                                       outer_loop_variable.datatype),
                               Schedule(parent=outerloop,
                                        children=[inner_loop_end])]
-        if node.loop_type is not None:
-            outerloop.loop_type = node.loop_type
         # Add the chunked annotation
         outerloop.annotations.append('chunked')
         node.annotations.append('chunked')

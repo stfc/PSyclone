@@ -31,15 +31,14 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors R. W. Ford, A. R. Porter and N. Nobre, STFC Daresbury Lab
 # Modified I. Kavcic, Met Office
 # Modified J. Henrichs, Bureau of Meteorology
 
-''' This module tests the support for LMA operators in the Dynamo 0.3 API
-using pytest. '''
+''' This module tests the support for LMA operators in the LFRic (Dynamo 0.3)
+    API using pytest.
 
-# imports
-from __future__ import absolute_import, print_function
+'''
 
 import copy
 import os
@@ -96,7 +95,7 @@ end module testkern_qr
 def setup():
     '''Make sure that all tests here use Dynamo0.3 as API.'''
     Config.get().api = "dynamo0.3"
-    yield()
+    yield
     Config._instance = None
 
 
@@ -119,10 +118,10 @@ def test_ad_op_type_invalid_data_type():
     const = LFRicConstants()
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert ("In the LFRic API the 2nd argument of a 'meta_arg' entry should "
-            "be a valid data type (one of {0}), but found 'gh_clear' in "
-            "'arg_type(gh_operator, gh_clear, gh_read, w2)'.".
-            format(const.VALID_SCALAR_DATA_TYPES) in str(excinfo.value))
+    assert (f"In the LFRic API the 2nd argument of a 'meta_arg' entry should "
+            f"be a valid data type (one of {const.VALID_SCALAR_DATA_TYPES}), "
+            f"but found 'gh_clear' in 'arg_type(gh_operator, gh_clear, "
+            f"gh_read, w2)'." in str(excinfo.value))
 
 
 def test_ad_op_type_too_few_args():
@@ -136,9 +135,9 @@ def test_ad_op_type_too_few_args():
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
     const = LFRicConstants()
-    assert ("'meta_arg' entry must have 5 arguments if its first "
-            "argument is an operator (one of {0})".
-            format(const.VALID_OPERATOR_NAMES) in str(excinfo.value))
+    assert (f"'meta_arg' entry must have 5 arguments if its first "
+            f"argument is an operator (one of {const.VALID_OPERATOR_NAMES})"
+            in str(excinfo.value))
 
 
 def test_ad_op_type_too_many_args():
@@ -207,7 +206,7 @@ def test_ad_op_type_init_wrong_argument_type():
     wrong_arg = metadata._inits[1]
     with pytest.raises(InternalError) as excinfo:
         LFRicArgDescriptor(
-            wrong_arg, metadata.iterates_over)._init_operator(wrong_arg)
+            wrong_arg, metadata.iterates_over, 0)._init_operator(wrong_arg)
     assert ("Expected an operator argument but got an argument of type "
             "'gh_field'." in str(excinfo.value))
 
@@ -223,13 +222,12 @@ def test_ad_op_type_init_wrong_data_type():
     op_arg.args[1].name = "gh_integer"
     with pytest.raises(ParseError) as excinfo:
         LFRicArgDescriptor(
-            op_arg, metadata.iterates_over)._init_operator(op_arg)
+            op_arg, metadata.iterates_over, 0)._init_operator(op_arg)
     const = LFRicConstants()
-    assert ("In the LFRic API the allowed data types for operator "
-            "arguments are one of {0}, but found 'gh_integer' in "
-            "'arg_type(gh_operator, gh_integer, gh_read, w2, w2)'.".
-            format(const.VALID_OPERATOR_DATA_TYPES) in
-            str(excinfo.value))
+    assert (f"In the LFRic API the allowed data types for operator "
+            f"arguments are one of {const.VALID_OPERATOR_DATA_TYPES}, but "
+            f"found 'gh_integer' in 'arg_type(gh_operator, gh_integer, "
+            f"gh_read, w2, w2)'." in str(excinfo.value))
 
 
 def test_ad_op_type_wrong_access():
@@ -308,7 +306,7 @@ def test_fs_descriptor_wrong_type():
             "constructors, all of type 'func_type'" in str(excinfo.value))
     # Check that the DynFuncDescriptor03 rejects it too
 
-    class FakeCls(object):
+    class FakeCls():
         ''' Class that just has a name property (which is not "func_type") '''
         name = "not-func-type"
 

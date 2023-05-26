@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council
+# Copyright (c) 2020-2022, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: R. W. Ford, STFC Daresbury Lab
+
 '''A PSyclone transformation script that transforms a specific
 synchronous halo exchange into an asynchronous halo exchange and
 moves the halo exchange start part as early as possible in the
@@ -52,6 +53,7 @@ PSyclone, it is not designed to be run directly from python.
 
 '''
 from psyclone.transformations import Dynamo0p3AsyncHaloExchangeTrans, MoveTrans
+
 
 def trans(psy):
     '''Transforms a specific synchronous halo exchange into an
@@ -82,4 +84,4 @@ def trans(psy):
     move_trans.apply(schedule[2], schedule[0])
 
     # Take a look at the modified PSy-layer PSyIR
-    schedule.view()
+    print(schedule.view())

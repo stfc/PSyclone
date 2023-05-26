@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2021, Science and Technology Facilities Council.
+# Copyright (c) 2019-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,12 +32,10 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
-# Modified: A. R. Porter and S. Siso, STFC Daresbury Laboratory
+# Modified: A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 
 '''Contains the PSyData transformation.
 '''
-
-import six
 
 from psyclone.configuration import Config
 from psyclone.errors import InternalError
@@ -65,12 +63,12 @@ class PSyDataTrans(RegionTrans):
     >>>
     >>> schedule = psy.invokes.get('invoke_0').schedule
     >>> # Uncomment the following line to see a text view of the schedule
-    >>> # schedule.view()
+    >>> # print(schedule.view())
     >>>
     >>> # Enclose all children within a single PSyData region
     >>> data_trans.apply(schedule.children)
     >>> # Uncomment the following line to see a text view of the schedule
-    >>> # schedule.view()
+    >>> # print(schedule.view())
     >>> # Or to use custom region name:
     >>> data_trans.apply(schedule.children,
     ...                  {"region_name": ("module","region")})
@@ -91,13 +89,13 @@ class PSyDataTrans(RegionTrans):
     _used_kernel_names = {}
 
     def __init__(self, node_class=PSyDataNode):
-        super(PSyDataTrans, self).__init__()
+        super().__init__()
         self._node_class = node_class
 
     # ------------------------------------------------------------------------
     def __str__(self):
-        return ("Create a sub-tree of the PSyIR that has a node of type "
-                "{0} at its root.").format(self._node_class.__name__)
+        return (f"Create a sub-tree of the PSyIR that has a node of type "
+                f"{self._node_class.__name__} at its root.")
 
     # ------------------------------------------------------------------------
     @property
@@ -113,6 +111,39 @@ class PSyDataTrans(RegionTrans):
 
         return self.__class__.__name__
 
+    # -------------------------------------------------------------------------
+    def get_default_options(self):
+        '''Returns a new dictionary with additional options, specific to the
+        transformation, that will be added to the user option. Any values
+        specified by the user will take precedence.
+
+        :returns: a dictionary with additional options.
+        :rtype: Dict[str, Any]
+        '''
+
+        return {}
+
+    # -------------------------------------------------------------------------
+    def merge_in_default_options(self, options):
+        '''This function returns a new dictionary which contains the default
+        options for this transformation plus al user-specified options.
+        Any user-specified option will take precedence over the default
+        values.
+
+        :param options: a dictionary with options for transformations.
+        :type options: Dict[str, Any]
+        :returns: a new dictionary which merges the default options with \
+            the user-specified options.
+        :rtype: Dict[str:Any]
+
+        '''
+        new_options = self.get_default_options()
+        if options:
+            # Update will overwrite any existing setting with the ones
+            # specified by the user:
+            new_options.update(options)
+        return new_options
+
     # ------------------------------------------------------------------------
     def get_unique_region_name(self, nodes, options):
         '''This function returns the region and module name. If they are
@@ -124,7 +155,7 @@ class PSyDataTrans(RegionTrans):
         :param nodes: a list of nodes.
         :type nodes: list of :py:obj:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.
-        :type options: dictionary of string:values or None
+        :type options: Dict[str, Any]
         :param (str,str) options["region_name"]: an optional name to \
             use for this PSyData area, provided as a 2-tuple containing a \
             location name followed by a local name. The pair of strings \
@@ -134,7 +165,6 @@ class PSyDataTrans(RegionTrans):
         '''
         # We don't use a static method here since it might be useful to
         # overwrite this functions in derived classes
-        # pylint: disable=no-self-use
         name = options.get("region_name", None)
         if name:
             # pylint: disable=too-many-boolean-expressions
@@ -160,14 +190,14 @@ class PSyDataTrans(RegionTrans):
         if len(kerns) == 1:
             # This PSyData region only has one kernel within it,
             # so append the kernel name.
-            region_name += ":{0}".format(kerns[0].name)
+            region_name += f":{kerns[0].name}"
 
         # Add a region index to ensure uniqueness when there are
         # multiple regions in an invoke.
         key = module_name + "|" + region_name
         idx = PSyDataTrans._used_kernel_names.get(key, 0)
         PSyDataTrans._used_kernel_names[key] = idx + 1
-        region_name += ":r{0}".format(idx)
+        region_name += f":r{idx}"
         return (module_name, region_name)
 
     # ------------------------------------------------------------------------
@@ -184,7 +214,7 @@ class PSyDataTrans(RegionTrans):
         :type nodes: (list of) :py:class:`psyclone.psyir.nodes.Loop`
 
         :param options: a dictionary with options for transformations.
-        :type options: dictionary of string:values or None
+        :type options: Optional[Dict[str, Any]]
         :param str options["prefix"]: a prefix to use for the PSyData module \
             name (``PREFIX_psy_data_mod``) and the PSyDataType \
             (``PREFIX_PSYDATATYPE``) - a "_" will be added automatically. \
@@ -224,30 +254,29 @@ class PSyDataTrans(RegionTrans):
             raise TransformationError("A PSyData node cannot be inserted "
                                       "inside an OpenACC region.")
 
-        if options:
-            if "region_name" in options:
-                name = options["region_name"]
-                # pylint: disable=too-many-boolean-expressions
-                if not isinstance(name, tuple) or not len(name) == 2 or \
-                   not name[0] or not isinstance(name[0], str) or \
-                   not name[1] or not isinstance(name[1], str):
-                    raise TransformationError(
-                        "Error in {0}. User-supplied region name must be a "
-                        "tuple containing two non-empty strings."
-                        "".format(self.name))
-                # pylint: enable=too-many-boolean-expressions
-            if "prefix" in options:
-                prefix = options["prefix"]
-                if prefix not in Config.get().valid_psy_data_prefixes:
-                    raise TransformationError(
-                        "Error in 'prefix' parameter: found '{0}', expected "
-                        "one of {1} as defined in {2}"
-                        .format(prefix, Config.get().valid_psy_data_prefixes,
-                                Config.get().filename))
+        my_options = self.merge_in_default_options(options)
+        if "region_name" in my_options:
+            name = my_options["region_name"]
+            # pylint: disable=too-many-boolean-expressions
+            if not isinstance(name, tuple) or not len(name) == 2 or \
+               not name[0] or not isinstance(name[0], str) or \
+               not name[1] or not isinstance(name[1], str):
+                raise TransformationError(
+                    f"Error in {self.name}. User-supplied region name "
+                    f"must be a tuple containing two non-empty strings.")
+            # pylint: enable=too-many-boolean-expressions
+        prefix = my_options.get("prefix", None)
+        if "prefix" in my_options:
+            prefix = my_options.get("prefix", None)
+            if prefix not in Config.get().valid_psy_data_prefixes:
+                raise TransformationError(
+                    f"Error in 'prefix' parameter: found '{prefix}', while"
+                    f" one of {Config.get().valid_psy_data_prefixes} was "
+                    f"expected as defined in {Config.get().filename}")
 
         # We have to create an instance of the node that will be inserted in
         # order to find out what module name it will use.
-        pdata_node = self._node_class(options=options)
+        pdata_node = self._node_class(options=my_options)
         table = node_list[0].scope.symbol_table
         for name in ([sym.name for sym in pdata_node.imported_symbols] +
                      [pdata_node.fortran_module]):
@@ -259,18 +288,18 @@ class PSyDataTrans(RegionTrans):
                 # for any clashes with existing symbols.
                 try:
                     _ = table.lookup(name)
-                    raise six.raise_from(TransformationError(
-                        "Cannot add PSyData calls because there is already a "
-                        "symbol named '{0}' which clashes with one of those "
-                        "used by the PSyclone PSyData API. ".format(name)),
-                        err)
+                    raise TransformationError(
+                        f"Cannot add PSyData calls because there is already a "
+                        f"symbol named '{name}' which clashes with one of "
+                        f"those used by the PSyclone PSyData API. ") from err
                 except KeyError:
                     pass
 
-        super(PSyDataTrans, self).validate(node_list, options)
+        super().validate(node_list, my_options)
 
+    # ------------------------------------------------------------------------
     def apply(self, nodes, options=None):
-        # pylint: disable=arguments-differ
+        # pylint: disable=arguments-renamed
         '''Apply this transformation to a subset of the nodes within a
         schedule - i.e. enclose the specified Nodes in the
         schedule within a single PSyData region.
@@ -279,7 +308,7 @@ class PSyDataTrans(RegionTrans):
         :type nodes: :py:obj:`psyclone.psyir.nodes.Node` or list of \
                      :py:obj:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.
-        :type options: dictionary of string:values or None
+        :type options: Optional[Dict[str, Any]]
         :param str options["prefix"]: a prefix to use for the PSyData module \
             name (``PREFIX_psy_data_mod``) and the PSyDataType \
             (``PREFIX_PSYDATATYPE``) - a "_" will be added automatically. \
@@ -293,13 +322,14 @@ class PSyDataTrans(RegionTrans):
         '''
         node_list = self.get_node_list(nodes)
 
+        # Add any transformation-specific settings that are required:
+        my_options = self.merge_in_default_options(options)
         # Perform validation checks
-        self.validate(node_list, options)
+        self.validate(node_list, my_options)
 
         # Get useful references
         parent = node_list[0].parent
         position = node_list[0].position
-        root = node_list[0].root
 
         # We always use the Routine symbol table
         table = node_list[0].ancestor(Routine).symbol_table
@@ -313,8 +343,9 @@ class PSyDataTrans(RegionTrans):
         # performing kernel extraction).
         for node in node_list:
             node.detach()
+
         psy_data_node = self._node_class.create(
-            node_list, symbol_table=table, options=options)
+            node_list, symbol_table=table, options=my_options)
         parent.addchild(psy_data_node, position)
 
 

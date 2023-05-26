@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2021, Science and Technology Facilities Council.
+# Copyright (c) 2018-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+# Authors: R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 
 '''A transformation script that seeks to apply OpenACC DATA and KERNELS
 directives to NEMO style code.  In order to use
@@ -84,20 +84,19 @@ def trans(psy):
     :type psy: :py:class:`psyclone.psyGen.PSy`
     '''
 
-    print("Invokes found:\n{0}\n".format(
-        "\n".join([str(name) for name in psy.invokes.names])))
+    print("Invokes found:\n" +
+          "\n".join([str(name) for name in psy.invokes.names]) + "\n")
 
     for invoke in psy.invokes.invoke_list:
 
         sched = invoke.schedule
         if not sched:
-            print("Invoke {0} has no Schedule! Skipping...".
-                  format(invoke.name))
+            print(f"Invoke {invoke.name} has no Schedule! Skipping...")
             continue
-        sched.view()
+        print(sched.view())
 
         add_kernels(sched.children)
-        sched.view()
+        print(sched.view())
 
         directives = sched.walk(ACCDirective)
         if not directives:
@@ -111,6 +110,6 @@ def trans(psy):
         for directive in directives:
             ACC_DATA_TRANS.apply([directive])
 
-        sched.view()
+        print(sched.view())
 
         invoke.schedule = sched

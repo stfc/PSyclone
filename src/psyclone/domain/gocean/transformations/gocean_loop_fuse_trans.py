@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+# Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 #        J. Henrichs, Bureau of Meteorology
 # Modified I. Kavcic, Met Office
 
@@ -52,12 +52,12 @@ class GOceanLoopFuseTrans(LoopFuseTrans):
     >>> ast, invokeInfo = parse("shallow_alg.f90")
     >>> psy = PSyFactory("gocean1.0").create(invokeInfo)
     >>> schedule = psy.invokes.get('invoke_0').schedule
-    >>> schedule.view()
+    >>> print(schedule.view())
     >>>
     >>> from psyclone.transformations import GOceanLoopFuseTrans
     >>> ftrans = GOceanLoopFuseTrans()
     >>> ftrans.apply(schedule[0], schedule[1])
-    >>> schedule.view()
+    >>> print(schedule.view())
 
     '''
     def __str__(self):
@@ -75,7 +75,7 @@ class GOceanLoopFuseTrans(LoopFuseTrans):
         :param node2: the second Node representing a GOLoop.
         :type node2: :py:class:`psyclone.gocean1p0.GOLoop`
         :param options: a dictionary with options for transformations.
-        :type options: dictionary of string:values or None
+        :type options: Optional[Dict[str, Any]]
 
         :raises TransformationError: if the supplied loops are over \
                                      different grid-point types.

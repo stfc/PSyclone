@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+# Copyright (c) 2017-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,11 +31,10 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford STFC Daresbury Lab
+# Author: R. W. Ford, STFC Daresbury Lab
 # Modified by J. Henrichs, Bureau of Meteorology
-# Modified by A. R. Porter, STFC Daresbury Lab
+# Modified by A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 # Modified by I. Kavcic, Met Office
-# Modified by S. Siso, STFC Daresbury Lab
 
 
 '''
@@ -44,23 +43,27 @@ the generator.py file. This includes the generate and the main
 functions.
 '''
 
-from __future__ import absolute_import
-import io
 import os
 import re
 import stat
 from sys import modules
 import pytest
-import six
 
+from fparser.common.readfortran import FortranStringReader
+from fparser.two.parser import ParserFactory
+
+from psyclone import generator
+from psyclone.alg_gen import NoInvokesError
 from psyclone.configuration import Config
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.errors import GenerationError
-from psyclone.generator import generate, main, write_unicode_file
+from psyclone.generator import (
+    generate, main, check_psyir, add_builtins_use)
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.profiler import Profiler
 from psyclone.psyGen import PSyFactory
+from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.transformations import LoopFuseTrans
 from psyclone.version import __VERSION__
 
@@ -71,6 +74,8 @@ NEMO_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                               "nemo", "test_files")
 DYN03_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                "test_files", "dynamo0p3")
+GOCEAN_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                "test_files", "gocean1p0")
 
 
 def delete_module(modname):
@@ -100,18 +105,16 @@ def teardown_function():
 
 def test_script_file_not_found():
     '''Checks that handle_script() in generator.py raises the expected
-    exception when a script file is supplied that can't be found in
-    the Python path.  In this case the script path ('./') is
-    supplied. This test uses the generate() function to call
-    handle_script as this is a simple way to create its required
-    arguments.
+    exception when a script file is supplied that does not exist. This test
+    uses the generate() function to call handle_script as this is a simple way
+    to create its required arguments.
 
     '''
-    with pytest.raises(IOError) as error:
-        _, _ = generate(os.path.join(BASE_PATH, "dynamo0p3",
-                                     "1_single_invoke.f90"),
-                        api="dynamo0.3", script_name="./non_existent.py")
-    assert "script file './non_existent.py' not found" in str(error.value)
+    with pytest.raises(GenerationError) as error:
+        _, _ = generate(
+            os.path.join(BASE_PATH, "dynamo0p3", "1_single_invoke.f90"),
+            api="dynamo0.3", script_name="non_existent.py")
+    assert "script file 'non_existent.py' not found" in str(error.value)
 
 
 def test_script_file_no_extension():
@@ -125,45 +128,27 @@ def test_script_file_no_extension():
         _, _ = generate(
             os.path.join(BASE_PATH, "dynamo0p3", "1_single_invoke.f90"),
             api="dynamo0.3",
-            script_name=os.path.join(
-                BASE_PATH, "dynamo0p3", "invalid_script_name"))
+            script_name=os.path.join(BASE_PATH, "dynamo0p3",
+                                     "invalid_script_name"))
     assert ("expected the script file 'invalid_script_name' to have the "
             "'.py' extension" in str(error.value))
 
 
 def test_script_file_wrong_extension():
-    '''Checks that handle_script() in generator.py raises the excepted
-    exception when a script file does not have the '.py'
-    extension. This test uses the generate() function to call
-    handle_script as this is a simple way to create its required
-    arguments.
+    '''Checks that handle_script() in generator.py raises the expected
+    exception when a script file does not have the '.py' extension. This test
+    uses the generate() function to call handle_script as this is a simple way
+    to create its required arguments.
 
     '''
     with pytest.raises(GenerationError) as error:
         _, _ = generate(
             os.path.join(BASE_PATH, "dynamo0p3", "1_single_invoke.f90"),
             api="dynamo0.3",
-            script_name=os.path.join(
-                BASE_PATH, "dynamo0p3", "1_single_invoke.f90"))
-    assert ("expected the script file '1_single_invoke' to have the '.py' "
+            script_name=os.path.join(BASE_PATH, "dynamo0p3",
+                                     "1_single_invoke.f90"))
+    assert ("expected the script file '1_single_invoke.f90' to have the '.py' "
             "extension" in str(error.value))
-
-
-def test_script_file_not_found_relative():
-    '''Checks that handle_script() in generator.py raises the expected
-    exception when a script file is supplied that can't be found in
-    the Python path. In this case the script path is not supplied so
-    must be found via the PYTHONPATH variable. This test uses the
-    generate() function to call handle_script as this is a simple way
-    to create its required arguments.
-
-    '''
-    with pytest.raises(GenerationError) as error:
-        _, _ = generate(os.path.join(BASE_PATH, "dynamo0p3",
-                                     "1_single_invoke.f90"),
-                        api="dynamo0.3", script_name="non_existent.py")
-    assert ("attempted to import 'non_existent' but script file "
-            "'non_existent.py' has not been found" in str(error.value))
 
 
 def test_script_invalid_content():
@@ -173,15 +158,23 @@ def test_script_invalid_content():
     a simple way to create its required arguments.
 
     '''
-    with pytest.raises(GenerationError) as error:
+    with pytest.raises(GenerationError) as error_syntax:
         _, _ = generate(
             os.path.join(BASE_PATH, "dynamo0p3", "1_single_invoke.f90"),
-            api="dynamo0.3",
-            script_name=os.path.join(
-                BASE_PATH, "dynamo0p3", "error.py"))
-    assert "attempted to import 'error' but script file " in str(error.value)
-    assert ("PSyclone/src/psyclone/tests/test_files/dynamo0p3/error.py' is "
-            "not valid python" in str(error.value))
+            api="dynamo0.3", script_name=os.path.join(BASE_PATH, "dynamo0p3",
+                                                      "error_syntax.py"))
+    assert ("attempted to import specified PSyclone transformation module "
+            "'error_syntax' but a problem was found: "
+            in str(error_syntax.value))
+
+    with pytest.raises(GenerationError) as error_import:
+        _, _ = generate(
+            os.path.join(BASE_PATH, "dynamo0p3", "1_single_invoke.f90"),
+            api="dynamo0.3", script_name=os.path.join(BASE_PATH, "dynamo0p3",
+                                                      "error_import.py"))
+    assert ("attempted to import specified PSyclone transformation module "
+            "'error_import' but a problem was found: "
+            in str(error_import.value))
 
 
 def test_script_invalid_content_runtime():
@@ -198,13 +191,13 @@ def test_script_invalid_content_runtime():
             api="dynamo0.3",
             script_name=os.path.join(
                 BASE_PATH, "dynamo0p3", "runtime_error.py"))
-    assert ("raised the following exception during execution ..."
+    assert ("raised the following exception during execution..."
             in str(error.value))
     assert ("line 3, in trans\n"
-            "    psy = b\n"
-            "    NameError: name 'b' is not defined\n"
+            "    psy = b\n" in str(error.value))
+    assert ("    NameError: name 'b' is not defined\n"
             "}\n"
-            "Please check your script" in str(error.value))
+            "please check your script" in str(error.value))
 
 
 def test_script_no_trans():
@@ -221,10 +214,9 @@ def test_script_no_trans():
             api="dynamo0.3",
             script_name=os.path.join(
                 BASE_PATH, "dynamo0p3", "no_trans.py"))
-    assert ("attempted to import 'no_trans' but script file "
+    assert ("attempted to use specified PSyclone transformation module "
+            "'no_trans' but it does not contain a 'trans' function"
             in str(error.value))
-    assert ("PSyclone/src/psyclone/tests/test_files/dynamo0p3/no_trans.py' "
-            "does not contain a 'trans' function" in str(error.value))
 
 
 def test_script_no_trans_alg():
@@ -337,6 +329,31 @@ def test_recurse_correct_kernel_paths():
         os.path.join(BASE_PATH, "dynamo0p3", "1_single_invoke_kern.f90"),
         api="dynamo0.3",
         kernel_paths=[os.path.join(BASE_PATH, "dynamo0p3", "kernels")])
+
+
+def test_kernel_parsing_internalerror(capsys):
+    '''Checks that the expected output is provided if an internal error is
+    caught when parsing a kernel using fparser2.
+
+    '''
+    kern_filename = (os.path.join(
+        GOCEAN_BASE_PATH, "test30_invalid_kernel_declaration.f90"))
+    with pytest.raises(SystemExit):
+        main([kern_filename, "-api", "gocean1.0"])
+    out, err = capsys.readouterr()
+    assert out == ""
+    assert "In kernel file " in str(err)
+    assert (
+        "PSyclone internal error: The argument list ['i', 'j', 'cu', 'p', "
+        "'u'] for routine 'compute_code' does not match the variable "
+        "declarations:\n"
+        "IMPLICIT NONE\n"
+        "INTEGER, INTENT(IN) :: I, J\n"
+        "REAL(KIND = go_wp), INTENT(OUT), DIMENSION(:, :) :: cu\n"
+        "REAL(KIND = go_wp), INTENT(IN), DIMENSION(:, :) :: p\n"
+        "(Note that PSyclone does not support implicit declarations.) Specific"
+        " PSyIR error is \"Could not find 'u' in the Symbol Table.\".\n"
+        in str(err))
 
 
 def test_script_file_too_short():
@@ -492,7 +509,7 @@ def test_api_no_alg():
     alg, psy = generate(os.path.join(NEMO_BASE_PATH, "explicit_do.f90"),
                         api="nemo")
     assert alg is None
-    assert isinstance(psy, six.string_types)
+    assert isinstance(psy, str)
     assert psy.startswith("program")
 
 
@@ -560,18 +577,17 @@ def test_main_version(capsys):
     '''Tests that the version info is printed correctly.'''
 
     # First test if -h includes the right version info:
-    with pytest.raises(SystemExit):
-        main(["-h"])
-    output, _ = capsys.readouterr()
-    assert "Display version information ({0})".format(__VERSION__) in output
+    for arg in ["-h", "--help"]:
+        with pytest.raises(SystemExit):
+            main([arg])
+        output, _ = capsys.readouterr()
+        assert f"Display version information ({__VERSION__})" in output
 
-    # Now test -v, but it needs a filename for argparse to work. Just use
-    # some invalid parameters - "-v" prints its output before that.
-    with pytest.raises(SystemExit) as _:
-        main(["-v", "does-not-exist"])
-    output, _ = capsys.readouterr()
-
-    assert "PSyclone version: {0}".format(__VERSION__) in output
+    for arg in ["-v", "--version"]:
+        with pytest.raises(SystemExit) as _:
+            main([arg])
+        output, _ = capsys.readouterr()
+        assert f"PSyclone version: {__VERSION__}" in output
 
 
 def test_main_profile(capsys):
@@ -645,7 +661,7 @@ def test_main_api():
 
     '''
 
-    # 1) Make sure if no paramenters are given,
+    # 1) Make sure if no parameters are given,
     #   config will give us the default API
 
     # Make sure we get a default config instance
@@ -682,10 +698,14 @@ def test_main_api():
     filename = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
                              "test_files", "dynamo0p3", "1_single_invoke.f90"))
 
+    # Check that specifying a config file also sets the
+    # HAS_CONFIG_BEEN_INITIALISED flag!
+    Config._HAS_CONFIG_BEEN_INITIALISED = False
     # This config file specifies the gocean1.0 api, but
     # command line should take precedence
     main([filename, "--config", config_name, "-api", "dynamo0.3"])
     assert Config.get().api == "dynamo0.3"
+    assert Config.has_config_been_initialised() is True
 
 
 def test_main_directory_arg(capsys):
@@ -815,12 +835,13 @@ def test_main_no_invoke_alg_stdout(capsys):
     main([kern_filename])
     out, _ = capsys.readouterr()
 
-    kern_file = open(kern_filename)
-    kern_str = kern_file.read()
-    expected_output = ("Warning: Algorithm Error: Algorithm file contains no "
-                       "invoke() calls: refusing to generate empty PSy code\n"
-                       "Transformed algorithm code:\n") + kern_str + "\n"
-    assert expected_output == out
+    with open(kern_filename, encoding="utf8") as kern_file:
+        kern_str = kern_file.read()
+        expected_output = (
+            f"Warning: Algorithm Error: Algorithm file contains no "
+            f"invoke() calls: refusing to generate empty PSy code\n"
+            f"Transformed algorithm code:\n{kern_str}\n")
+        assert expected_output == out
 
 
 def test_main_write_psy_file(capsys, tmpdir):
@@ -840,14 +861,12 @@ def test_main_write_psy_file(capsys, tmpdir):
     assert os.path.isfile(psy_filename)
 
     # extract psy file content
-    psy_file = open(psy_filename)
-    psy_str = psy_file.read()
-
-    # check content of generated psy file by comparing it with stdout
-    main([alg_filename])
-    stdout, _ = capsys.readouterr()
-
-    assert psy_str in stdout
+    with open(psy_filename, encoding="utf8") as psy_file:
+        psy_str = psy_file.read()
+        # check content of generated psy file by comparing it with stdout
+        main([alg_filename])
+        stdout, _ = capsys.readouterr()
+        assert psy_str in stdout
 
 
 def test_main_no_invoke_alg_file(capsys, tmpdir):
@@ -869,17 +888,17 @@ def test_main_no_invoke_alg_file(capsys, tmpdir):
     stdout, _ = capsys.readouterr()
 
     # check stdout contains warning
-    kern_file = open(kern_filename)
-    kern_str = kern_file.read()
-    expected_stdout = ("Warning: Algorithm Error: Algorithm file contains "
-                       "no invoke() calls: refusing to generate empty PSy "
-                       "code\n")
-    assert expected_stdout == stdout
+    with open(kern_filename, encoding="utf8") as kern_file:
+        kern_str = kern_file.read()
+        expected_stdout = ("Warning: Algorithm Error: Algorithm file contains "
+                           "no invoke() calls: refusing to generate empty PSy "
+                           "code\n")
+        assert expected_stdout == stdout
 
     # check alg file has same output as input file
-    expected_file = open(alg_filename)
-    expected_alg_str = expected_file.read()
-    assert expected_alg_str == kern_str
+    with open(alg_filename, encoding="utf8") as expected_file:
+        expected_alg_str = expected_file.read()
+        assert expected_alg_str == kern_str
     os.remove(alg_filename)
 
     # check psy file is not created
@@ -918,8 +937,8 @@ def test_main_kern_output_no_write(tmpdir, capsys):
         main([alg_filename, '-okern', str(new_dir)])
     assert str(err.value) == "1"
     _, output = capsys.readouterr()
-    assert ("Cannot write to specified kernel output directory ({0})".
-            format(str(new_dir)) in output)
+    assert (f"Cannot write to specified kernel output directory "
+            f"({str(new_dir)})" in output)
 
 
 def test_main_kern_output_dir(tmpdir):
@@ -981,12 +1000,13 @@ def test_main_include_path(capsys):
     # "some_fake_mpi_handle"
     alg_file = (os.path.join(os.path.dirname(os.path.abspath(__file__)),
                              "nemo", "test_files", "include_stmt.f90"))
-    # First try without specifying where to find the include file. Currently
-    # fparser2 just removes any include statement that it cannot resolve
-    # (https://github.com/stfc/fparser/issues/138).
-    main([alg_file, '-api', 'nemo'])
-    stdout, _ = capsys.readouterr()
-    assert "some_fake_mpi_handle" not in stdout
+    # First try without specifying where to find the include file. This
+    # is not supported and should raise an error.
+    with pytest.raises(SystemExit):
+        main([alg_file, '-api', 'nemo'])
+    _, err = capsys.readouterr()
+    assert ("Found an unresolved Fortran INCLUDE file 'local_mpi.h' while"
+            in err)
     # Now specify two locations to search with only the second containing
     # the necessary header file
     inc_path1 = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -1002,27 +1022,6 @@ def test_main_include_path(capsys):
     assert str(inc_path2) in Config.get().include_paths
 
 
-def test_write_utf_file(tmpdir):
-    '''Unit tests for the write_unicode_file utility routine.'''
-
-    # First for plain ASCII
-    out_file1 = os.path.join(str(tmpdir), "out1.txt")
-    write_unicode_file("This contains only ASCII", out_file1)
-
-    # Second with a character that has no ASCII representation
-    with open(out_file1, "r") as infile:
-        content = infile.read()
-        assert "This contains only ASCII" in content
-    out_file2 = os.path.join(str(tmpdir), "out2.txt")
-    test_str = "This contains UTF: "+chr(1200)
-    encoding = {'encoding': 'utf-8'}
-    write_unicode_file(test_str, out_file2)
-
-    with io.open(out_file2, mode="r", **encoding) as infile:
-        content = infile.read()
-    assert test_str in content
-
-
 def test_utf_char(tmpdir):
     '''Test that the generate method works OK when both the Algorithm and
     Kernel code contain utf-encoded chars.
@@ -1034,8 +1033,7 @@ def test_utf_char(tmpdir):
     # We only check the algorithm layer since we generate the PSy
     # layer from scratch in this API (and thus it contains no
     # non-ASCII characters).
-    encoding = {'encoding': 'utf-8'}
-    with io.open(algfile, "r", **encoding) as afile:
+    with open(algfile, "r", encoding="utf8") as afile:
         alg = afile.read().lower()
         assert "max reachable coeff" in alg
         assert "call invoke_0_kernel_utf" in alg
@@ -1044,3 +1042,173 @@ def test_utf_char(tmpdir):
     tmp_file = os.path.join(str(tmpdir), "test_psy.f90")
     main(["-api", "nemo", "-opsy", tmp_file, test_file])
     assert os.path.isfile(tmp_file)
+
+
+def test_check_psyir():
+    '''Tests for the check_psyir utility method.'''
+
+    # multiple program, module etc.
+    code = (
+        "program test_prog\n"
+        "end program\n"
+        "subroutine test_sub\n"
+        "end subroutine\n")
+    psyir = FortranReader().psyir_from_source(code)
+    filename = "dummy"
+    with pytest.raises(GenerationError) as info:
+        check_psyir(psyir, filename)
+    assert ("Expecting LFRic algorithm-layer code within file 'dummy' to be "
+            "a single program or module, but found '2' of type "
+            "['Routine', 'Routine']." in str(info.value))
+    # not a program or module
+    code = (
+        "subroutine test_sub\n"
+        "end subroutine\n")
+    psyir = FortranReader().psyir_from_source(code)
+    with pytest.raises(GenerationError) as info:
+        check_psyir(psyir, filename)
+    assert ("Expecting LFRic algorithm-layer code within file 'dummy' to be "
+            "a single program or module, but found 'Routine'."
+            in str(info.value))
+    # OK
+    code = (
+        "program test_sub\n"
+        "end\n")
+    psyir = FortranReader().psyir_from_source(code)
+    check_psyir(psyir, filename)
+
+
+def test_add_builtins_use():
+    '''Tests for the add_builtins_use utility method.'''
+
+    # no spec_part
+    code = (
+        "program test_prog\n"
+        "end program\n")
+    parser = ParserFactory().create(std="f2008")
+    reader = FortranStringReader(code)
+    fp2_tree = parser(reader)
+    add_builtins_use(fp2_tree)
+    assert "USE builtins" in str(fp2_tree)
+    # spec_part
+    code = (
+        "program test_prog\n"
+        "  integer :: i\n"
+        "end program\n")
+    reader = FortranStringReader(code)
+    fp2_tree = parser(reader)
+    add_builtins_use(fp2_tree)
+    assert "USE builtins" in str(fp2_tree)
+    # multiple modules/programs
+    code = (
+        "program test_prog\n"
+        "end program\n"
+        "module test_mod1\n"
+        "end module\n"
+        "module test_mod2\n"
+        "end module\n")
+    reader = FortranStringReader(code)
+    fp2_tree = parser(reader)
+    add_builtins_use(fp2_tree)
+    assert str(fp2_tree) == (
+        "PROGRAM test_prog\n  USE builtins\nEND PROGRAM\n"
+        "MODULE test_mod1\n  USE builtins\nEND MODULE\n"
+        "MODULE test_mod2\n  USE builtins\nEND MODULE")
+
+
+def test_no_script_lfric_new(monkeypatch):
+    '''Test that the generate function in generator.py returns
+    successfully if no script is specified for the dynamo0.3 (LFRic)
+    api. This test uses the new PSyIR approach to modify the algorithm
+    layer which is currently in development so is protected by a
+    switch. This switch is turned on in this test by monkeypatching.
+
+    '''
+    monkeypatch.setattr(generator, "LFRIC_TESTING", True)
+    alg, _ = generate(
+        os.path.join(BASE_PATH, "dynamo0p3", "1_single_invoke.f90"),
+        api="dynamo0.3")
+    # new call replaces invoke
+    assert "use single_invoke_psy, only : invoke_0_testkern_type" in alg
+    assert "call invoke_0_testkern_type(a, f1, f2, m1, m2)" in alg
+    # functor symbol is removed
+    assert " testkern_type" not in alg
+    # module symbol is removed
+    assert "testkern_mod" not in alg
+    # TODO issue #1618. The builtins statement should be removed from
+    # the processed source code.
+    assert "use builtins" in alg
+
+
+def test_script_lfric_new(monkeypatch):
+    '''Test that the generate function in generator.py returns
+    successfully if a script (containing both trans_alg() and trans()
+    functions) is specified. This test uses the new PSyIR approach to
+    modify the algorithm layer which is currently in development so is
+    protected by a switch. This switch is turned on in this test by
+    monkeypatching.
+
+    '''
+    monkeypatch.setattr(generator, "LFRIC_TESTING", True)
+    alg, _ = generate(
+        os.path.join(BASE_PATH, "dynamo0p3", "1_single_invoke.f90"),
+        api="dynamo0.3",
+        script_name=os.path.join(BASE_PATH, "dynamo0p3", "alg_script.py"))
+    # new call replaces invoke
+    assert "use single_invoke_psy, only : invoke_0_testkern_type" in alg
+    assert "call invoke_0_testkern_type(a, f1, f2, m1, m2)" in alg
+    # functor symbol is removed
+    assert " testkern_type" not in alg
+    # module symbol is removed
+    assert "testkern_mod" not in alg
+    # TODO issue #1618. The builtins statement should be removed from
+    # the processed source code.
+    assert "use builtins" in alg
+
+
+def test_builtins_lfric_new(monkeypatch):
+    '''Test that the generate function in generator.py returns
+    successfully when the algorithm layer contains a mixture of
+    kernels and builtins. This test uses the new PSyIR approach to
+    modify the algorithm layer which is currently in development so is
+    protected by a switch. This switch is turned on in this test by
+    monkeypatching.
+
+    '''
+    monkeypatch.setattr(generator, "LFRIC_TESTING", True)
+    alg, _ = generate(
+        os.path.join(BASE_PATH, "dynamo0p3",
+                     "15.1.2_builtin_and_normal_kernel_invoke.f90"),
+        api="dynamo0.3")
+    # new call replaces invoke
+    assert "use single_invoke_builtin_then_kernel_psy, only : invoke_0" in alg
+    assert "call invoke_0(f5, f2, f3, f4, scalar, f1)" in alg
+    # functor symbols are removed
+    assert " testkern_type" not in alg
+    assert " testkern_wtheta_type" not in alg
+    assert " testkern_w2_only_type" not in alg
+    # module symbols are removed
+    assert " testkern_mod" not in alg
+    assert " testkern_wtheta_mod" not in alg
+    assert " testkern_w2_only_mod" not in alg
+    # TODO issue #1618. The builtins statement should be removed from
+    # the processed source code.
+    assert "use builtins" in alg
+
+
+def test_no_invokes_lfric_new(monkeypatch):
+    '''Test that the generate function in generator.py raises the expected
+    exception if the algorithm layer contains no invoke() calls. This
+    test uses the new PSyIR approach to modify the algorithm layer
+    which is currently in development so is protected by a
+    switch. This switch is turned on in this test by monkeypatching.
+
+    '''
+    monkeypatch.setattr(generator, "LFRIC_TESTING", True)
+    # pass a kernel file as it has no invoke's in it.
+    with pytest.raises(NoInvokesError) as info:
+        _, _ = generate(
+            os.path.join(BASE_PATH, "dynamo0p3", "testkern_mod.F90"),
+            api="dynamo0.3")
+    assert ("Algorithm file contains no invoke() calls: refusing to generate "
+            "empty PSy code" in str(info.value))

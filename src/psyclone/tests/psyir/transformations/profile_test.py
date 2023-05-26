@@ -68,7 +68,7 @@ def teardown_function():
 
 
 # -----------------------------------------------------------------------------
-def test_profile_basic(capsys):
+def test_profile_basic():
     '''Check basic functionality: node names, schedule view.
     '''
     Profiler.set_options([Profiler.INVOKES])
@@ -78,8 +78,7 @@ def test_profile_basic(capsys):
 
     assert isinstance(invoke.schedule[0], ProfileNode)
 
-    invoke.schedule.view()
-    out, _ = capsys.readouterr()
+    out = invoke.schedule.view()
 
     gsched = colored("GOInvokeSchedule", GOInvokeSchedule._colour)
     sched = colored("Schedule", Schedule._colour)
@@ -481,7 +480,7 @@ def test_transform():
 
 
 # -----------------------------------------------------------------------------
-def test_transform_errors(capsys):
+def test_transform_errors():
     '''Tests error handling of the profile region transformation. Most of
     it is already covered in PSyDataTrans, but we need also to verify
     that the right transformation and node name is used.'''
@@ -498,8 +497,7 @@ def test_transform_errors(capsys):
     prt.apply([schedule.children[0],
                schedule.children[1],
                schedule.children[2]])
-    schedule.view()
-    out, _ = capsys.readouterr()
+    out = schedule.view()
     # out is unicode, and has no replace function, so convert to string first
     out = str(out).replace("\n", "")
 
@@ -722,7 +720,8 @@ def test_auto_invoke_no_return(capsys):
 
     # Create Schedule with Return in the middle.
     kschedule = KernelSchedule.create(
-        "work1", symbol_table, [assign1.copy(), Return(), assign2.copy()])
+        "work1", symbol_table.deep_copy(),
+        [assign1.copy(), Return(), assign2.copy()])
     Profiler.add_profile_nodes(kschedule, Loop)
     # No profiling should have been added
     assert not kschedule.walk(ProfileNode)
@@ -732,8 +731,8 @@ def test_auto_invoke_no_return(capsys):
 
     # Create Schedule with a Return at the end as well as in the middle.
     kschedule = KernelSchedule.create(
-        "work1", symbol_table, [assign1.copy(), Return(), assign2.copy(),
-                                Return()])
+        "work1", symbol_table.deep_copy(),
+        [assign1.copy(), Return(), assign2.copy(), Return()])
     Profiler.add_profile_nodes(kschedule, Loop)
     # No profiling should have been added
     assert not kschedule.walk(ProfileNode)

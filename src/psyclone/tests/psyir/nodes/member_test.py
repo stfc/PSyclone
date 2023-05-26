@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2022, Science and Technology Facilities Council.
+# Copyright (c) 2020-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -37,7 +37,6 @@
 
 ''' This module contains pytest tests for the Member class. '''
 
-from __future__ import absolute_import
 import pytest
 from psyclone.psyir import nodes
 
@@ -47,7 +46,6 @@ def test_member_constructor():
     mem = nodes.Member("fred")
     assert mem.name == "fred"
     assert str(mem) == "Member[name:'fred']"
-    # pylint: disable=use-implicit-booleaness-not-comparison
     assert mem.children == []
 
 
@@ -88,3 +86,13 @@ def test_member_get_signature():
     signature, indices = mem.get_signature_and_indices()
     assert str(signature) == "fred"
     assert indices == [[]]
+
+
+def test_member_equality():
+    ''' Test member equality. '''
+    mem = nodes.Member("m1")
+    mem2 = nodes.Member("m1")
+    mem3 = nodes.Member("notm1")
+
+    assert mem == mem2
+    assert mem != mem3

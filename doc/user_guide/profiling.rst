@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2018-2021, Science and Technology Facilities Council.
+.. Copyright (c) 2018-2022, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -359,11 +359,11 @@ As an example::
 
     p_trans = ProfileTrans()
     schedule = psy.invokes.get('invoke_0').schedule
-    schedule.view()
+    print(schedule.view())
     
     # Enclose some children within a single profile region
     p_trans.apply(schedule.children[1:3])
-    schedule.view()
+    print(schedule.view())
 
 The profiler transformation also allows the profile name to be set
 explicitly, rather than being automatically created (see

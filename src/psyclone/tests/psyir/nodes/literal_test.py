@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2021, Science and Technology Facilities Council.
+# Copyright (c) 2019-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -34,6 +34,7 @@
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 #         I. Kavcic, Met Office
 #         J. Henrichs, Bureau of Meteorology
+# Modified A. B. G. Chalk and N. Nobre, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' Performs py.test tests on the Literal PSyIR node. '''
@@ -129,9 +130,22 @@ def test_literal_init_invalid_2(value):
     '''
     with pytest.raises(ValueError) as err:
         Literal(value, REAL_DOUBLE_TYPE)
-    assert ("A scalar real literal value must conform to the supported "
-            "format ('^[+-]?[0-9]+(\\.[0-9]*)?([eE][+-]?[0-9]+)?$') but "
-            "found '{0}'.".format(value) in str(err.value))
+    assert (f"A scalar real literal value must conform to the supported "
+            f"format ('^[+-]?[0-9]+(\\.[0-9]*)?([eE][+-]?[0-9]+)?$') but "
+            f"found '{value}'." in str(err.value))
+
+
+@pytest.mark.parametrize("value", ["02", "++2", "12.34", "*2", ".3"])
+def test_literal_init_invalid_3(value):
+    '''Test the initialisation of a Literal object with invalid int
+    values raises the expected exception.
+
+    '''
+    with pytest.raises(ValueError) as err:
+        Literal(value, INTEGER_SINGLE_TYPE)
+    assert (f"A scalar integer literal value must conform to the "
+            f"supported format ('(([+-]?[1-9][0-9]*|0)|(NOT_INITIALISED))') "
+            f"but found '{value}'." in str(err.value))
 
 
 def test_literal_init_empty_value():
@@ -227,3 +241,15 @@ def test_literal_can_be_copied():
     literal1._value = "2"
     assert literal1.value == "2"
     assert literal.value == "1"
+
+
+def test_literal_equality():
+    ''' Test the __eq__ method of the Literal node. '''
+    literal = Literal("1", INTEGER_SINGLE_TYPE)
+    literal2 = Literal("1", INTEGER_SINGLE_TYPE)
+    literal3 = Literal("10", INTEGER_SINGLE_TYPE)
+    literal4 = Literal("1", REAL_DOUBLE_TYPE)
+
+    assert literal == literal2
+    assert literal != literal3
+    assert literal != literal4

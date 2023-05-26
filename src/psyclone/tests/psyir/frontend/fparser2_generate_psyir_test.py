@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,14 +31,13 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford, STFC Daresbury Lab
+# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
 '''Module containing pytest tests for the generate_psyir method in the
 class Fparser2Reader. This method translates an fparser2 parse tree to
 PSyIR.
 
 '''
-from __future__ import absolute_import
 import pytest
 
 from fparser.common.readfortran import FortranStringReader
@@ -60,7 +59,6 @@ MODULE_OUT = (
     "module a\n"
     "  implicit none\n"
     "  public\n\n"
-    "  public :: sub1, sub2\n\n"
     "  contains\n"
     "  subroutine sub1(a)\n"
     "    real :: a\n\n\n"
@@ -88,6 +86,14 @@ PROGRAM_OUT = (
     "  real :: a\n\n"
     "  a = 0.0\n\n"
     "end program main\n")
+EMPTY_PROGRAM1_IN = (
+    "program main\n"
+    "end program main\n")
+EMPTY_PROGRAM1_OUT = (
+    "program main\n\n\n"
+    "end program main\n")
+EMPTY_PROGRAM2_IN = ""
+EMPTY_PROGRAM2_OUT = ""
 FUNCTION_IN = (
     "integer function tmp(a)\n"
     "real :: a\n"
@@ -107,6 +113,8 @@ FUNCTION_OUT = (
                          [(MODULE_IN, MODULE_OUT, Container),
                           (SUB_IN, SUB_OUT, Routine),
                           (PROGRAM_IN, PROGRAM_OUT, Routine),
+                          (EMPTY_PROGRAM1_IN, EMPTY_PROGRAM1_OUT, Routine),
+                          (EMPTY_PROGRAM2_IN, EMPTY_PROGRAM2_OUT, None),
                           (FUNCTION_IN, FUNCTION_OUT, Routine)])
 def test_generate_psyir(parser, code, expected, node_class):
     '''Test that generate_psyir generates PSyIR from an fparser2 parse
@@ -119,7 +127,8 @@ def test_generate_psyir(parser, code, expected, node_class):
     psyir = processor.generate_psyir(parse_tree)
     # Check the expected PSyIR nodes are being created
     assert isinstance(psyir, FileContainer)
-    assert isinstance(psyir.children[0], node_class)
+    if node_class:
+        assert isinstance(psyir.children[0], node_class)
     writer = FortranWriter()
     result = writer(psyir)
     assert result == expected

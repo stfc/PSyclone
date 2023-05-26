@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2018-2021, Science and Technology Facilities Council.
+! Copyright (c) 2018-2022, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -30,6 +30,7 @@
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Author: A. R. Porter and S. Siso, STFC Daresbury Lab
+! Modified: R. W. Ford, STFC Daresbury Lab
 
 module inc_field_mod
   use kind_params_mod
@@ -70,7 +71,7 @@ module inc_field_mod
 
 contains
 
-  subroutine inc_field_code(ji, jj, fld1, nx, ny, istp, areat_t)
+  subroutine inc_field_code(ji, jj, fld1, nx, ny, istp, area_t)
     integer, intent(in) :: ji, jj, nx, ny
     real(go_wp), dimension(nx,ny), intent(inout) :: fld1
     real(go_wp), dimension(nx,ny), intent(inout) :: area_t

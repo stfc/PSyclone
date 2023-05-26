@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2021, Science and Technology Facilities Council
+# Copyright (c) 2019-2023, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -49,7 +49,7 @@ C representation of the PSyIR.
 from __future__ import print_function
 from psyclone.psyir.nodes import Reference, Literal, UnaryOperation, \
     BinaryOperation, NaryOperation, Assignment, IfBlock, Loop, \
-    Container, Range, ArrayReference, Call, Routine, FileContainer
+    Container, ArrayReference, Call, Routine, FileContainer
 from psyclone.psyir.symbols import DataSymbol, RoutineSymbol, SymbolTable, \
     ContainerSymbol, ArgumentInterface, ScalarType, ArrayType, \
     ImportInterface, REAL_TYPE, REAL4_TYPE, REAL_DOUBLE_TYPE, INTEGER_TYPE, \
@@ -58,7 +58,7 @@ from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.backend.c import CWriter
 
 
-# pylint: disable=too-many-locals
+# pylint: disable=too-many-locals, too-many-statements
 def create_psyir_tree():
     ''' Create an example PSyIR Tree.
 
@@ -123,13 +123,14 @@ def create_psyir_tree():
     oper = NaryOperation.Operator.MAX
     naryoperation = NaryOperation.create(oper, [tmp1(), tmp2(), one()])
 
-    # Array reference using a range
-    lbound = BinaryOperation.create(BinaryOperation.Operator.LBOUND,
-                                    Reference(array), int_one())
-    ubound = BinaryOperation.create(BinaryOperation.Operator.UBOUND,
-                                    Reference(array), int_one())
-    my_range = Range.create(lbound, ubound)
-    tmparray = ArrayReference.create(array, [my_range])
+    # Operation with named args
+    oper = BinaryOperation.Operator.DOT_PRODUCT
+    binaryoperation_named = BinaryOperation.create(
+        oper, ("vector_a", tmp1()), ("vector_b", tmp2()))
+
+    # The create method supports the usage of ":" instead
+    # of a range from lower bound to upper bound:
+    tmparray = ArrayReference.create(array, [":"])
 
     # Assignments
     assign1 = Assignment.create(tmp1(), zero())
@@ -137,10 +138,12 @@ def create_psyir_tree():
     assign3 = Assignment.create(tmp2(), binaryoperation)
     assign4 = Assignment.create(tmp1(), tmp2())
     assign5 = Assignment.create(tmp1(), naryoperation)
-    assign6 = Assignment.create(tmparray, two())
+    assign6 = Assignment.create(tmp2(), binaryoperation_named)
+    assign7 = Assignment.create(tmparray, two())
 
-    # Call
-    call = Call.create(routine_symbol, [tmp1(), binaryoperation.copy()])
+    # Call with named argument
+    call = Call.create(
+        routine_symbol, [tmp1(), binaryoperation.copy(), ("option", one())])
 
     # If statement
     if_condition = BinaryOperation.create(BinaryOperation.Operator.GT,
@@ -153,7 +156,8 @@ def create_psyir_tree():
 
     # Routine
     routine = Routine.create(
-        "work", symbol_table, [assign1, call, assign2, loop, assign5, assign6])
+        "work", symbol_table,
+        [assign1, call, assign2, loop, assign5, assign6, assign7])
 
     # Container
     container_symbol_table = SymbolTable()

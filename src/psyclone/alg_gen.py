@@ -37,17 +37,13 @@
 exception-handling to translate the original algorithm file into one
 that can be compiled and linked with the generated PSy code.
 
-It also provides the generate() function that, given kernel metadata, will
-create suitable algorithm-layer code which invokes that kernel.
-
 '''
 
-from __future__ import absolute_import
 # fparser contains classes that are generated at run time.
 # pylint: disable=no-name-in-module
-from fparser.two.Fortran2003 import (Main_Program, Module, Use_Stmt,
-                                     Subroutine_Subprogram, Call_Stmt,
-                                     Section_Subscript_List,
+from fparser.two.Fortran2003 import (Main_Program, Module, Use_Stmt, Part_Ref,
+                                     Subroutine_Subprogram, Call_Stmt, Name,
+                                     Section_Subscript_List, Only_List,
                                      Function_Subprogram, Specification_Part)
 # pylint: enable=no-name-in-module
 from fparser.two.utils import Base, walk
@@ -68,7 +64,7 @@ class NoInvokesError(PSycloneError):
 
 
 # pylint: disable=too-few-public-methods
-class Alg(object):
+class Alg:
     '''Generate a modified algorithm code for a single algorithm
     specification. Takes the parse tree of the algorithm specification
     output from the function :func:`psyclone.parse.algorithm.parse`
@@ -107,13 +103,20 @@ class Alg(object):
 
     @property
     def gen(self):
-        '''Return modified algorithm code.
+        '''
+        Modifies and returns the algorithm code. 'invoke' calls are replaced
+        with calls to the corresponding PSy-layer routines and the USE
+        statements for the kernels that were referenced by each 'invoke' are
+        removed.
 
         :returns: the modified algorithm specification as an fparser2 \
                   parse tree.
         :rtype: :py:class:`fparser.two.utils.Base`
 
+        :raises NoInvokesError: if no 'invoke()' calls are found.
+
         '''
+        invoked_kernels = set()
         idx = 0
         # Walk through all statements looking for procedure calls
         for statement in walk(self._ast.content, Call_Stmt):
@@ -121,6 +124,15 @@ class Alg(object):
             call_name = str(statement.items[0])
             if call_name.lower() == self._invoke_name.lower():
                 # The call statement is an invoke
+
+                # Work out which kernels are involved so that we can update the
+                # USE statements later.
+                arg_spec_list = statement.children[1]
+                for child in arg_spec_list.children:
+                    # An invoke() can include a 'name=xxx' argument so we have
+                    # to check that we have a Part_Ref
+                    if isinstance(child, Part_Ref):
+                        invoked_kernels.add(child.children[0].tostr().lower())
 
                 # Get the PSy callee name and argument list and
                 # replace the existing algorithm invoke call with
@@ -134,8 +146,8 @@ class Alg(object):
                 # The PSy-layer generates a subroutine within a module
                 # so we need to add a 'use module_name, only :
                 # subroutine_name' to the algorithm layer.
-                adduse(statement, self._psy.name, only=True,
-                       funcnames=[psy_invoke_info.name])
+                _adduse(statement, self._psy.name, only=True,
+                        funcnames=[psy_invoke_info.name])
                 idx += 1
 
         if idx == 0:
@@ -143,10 +155,74 @@ class Alg(object):
                 "Algorithm file contains no invoke() calls: refusing to "
                 "generate empty PSy code")
 
+        # Remove any un-needed imports of the kernels referenced by the removed
+        # invoke() calls.
+        _rm_kernel_use_stmts(invoked_kernels, self._ast)
+
         return self._ast
 
 
-def adduse(location, name, only=None, funcnames=None):
+def _rm_kernel_use_stmts(kernels, ptree):
+    '''
+    Remove any unneeded imports of the named kernels from the supplied fparser2
+    parse tree.
+
+    :param Set[str] kernels: the names of the kernels that are no longer \
+        invoked.
+    :param ptree: the fparser2 parse tree to update.
+    :type ptree: :py:class:`fparser.two.Fortran2003.Program`
+
+    '''
+    # Setup the various lookup tables that we'll need.
+    # Map from the module name to the associated Use_Stmt in the
+    # parse tree.
+    use_stmt_map = {}
+    # Map from module name to the list of symbols imported from it.
+    use_only_list = {}
+    # Map from symbol name to the name of the module from which it is
+    # imported.
+    sym_to_mod_map = {}
+
+    for use_stmt in walk(ptree, Use_Stmt):
+        mod_name = use_stmt.children[2].tostr().lower()
+        use_stmt_map[mod_name] = use_stmt
+        use_only_list[mod_name] = None
+        only = walk(use_stmt, Only_List)
+        if only:
+            use_only_list[mod_name] = []
+            for child in only[0].children:
+                sym_name = child.tostr().lower()
+                use_only_list[mod_name].append(sym_name)
+                sym_to_mod_map[sym_name] = mod_name
+
+    # Remove the USE statements for the invoked kernels provided that
+    # they're not referenced anywhere (apart from USE statements).
+    all_other_names = set(name.tostr().lower() for name in
+                          walk(ptree.children, Name)
+                          if not isinstance(name.parent, Only_List))
+    # Update the lists of symbols imported from each module
+    for kern in kernels:
+        if kern not in all_other_names and kern in sym_to_mod_map:
+            # Kernel name is not referenced anywhere but is imported from
+            # a module (so is not a Built-In).
+            mod_name = sym_to_mod_map[kern]
+            use_only_list[mod_name].remove(kern)
+
+    # Finally remove those USE statements that used to have symbols
+    # associated with them but now have none.
+    for mod, symbols in use_only_list.items():
+        if symbols == []:
+            this_use = use_stmt_map[mod]
+            spec_part = this_use.parent
+            spec_part.children.remove(this_use)
+            # fparser currently falls over when asked to create Fortran for an
+            # empty Specification_Part (fparser/#359). We therefore remove the
+            # modified Specification_Part entirely if it is now empty.
+            if not spec_part.children:
+                spec_part.parent.children.remove(spec_part)
+
+
+def _adduse(location, name, only=None, funcnames=None):
     '''Add a Fortran 'use' statement to an existing fparser2 parse
     tree. This will be added at the first valid location before the
     current location.
@@ -177,7 +253,7 @@ def adduse(location, name, only=None, funcnames=None):
     # pylint: disable=too-many-branches
     if not isinstance(location, Base):
         raise GenerationError(
-            f"alg_gen.py:adduse: Location argument must be a sub-class of "
+            f"alg_gen.py:_adduse: Location argument must be a sub-class of "
             f"fparser.two.utils.Base but got: {type(location).__name__}.")
 
     if funcnames:
@@ -185,7 +261,7 @@ def adduse(location, name, only=None, funcnames=None):
         if only is False:
             # However, the only clause has been explicitly set to False.
             raise GenerationError(
-                "alg_gen.py:adduse: If the 'funcnames' argument is provided "
+                "alg_gen.py:_adduse: If the 'funcnames' argument is provided "
                 "and has content, then the 'only' argument must not be set "
                 "to 'False'.")
         if only is None:
@@ -228,12 +304,12 @@ def adduse(location, name, only=None, funcnames=None):
         # We currently only support program, subroutine and function
         # as ancestors
         raise NotImplementedError(
-            f"alg_gen.py:adduse: Unsupported parent code found "
+            f"alg_gen.py:_adduse: Unsupported parent code found "
             f"'{type(parent_prog_statement)}'. Currently support is limited "
             f"to program, subroutine and function.")
     if not isinstance(parent_prog_statement.content[1], Specification_Part):
         raise InternalError(
-            f"alg_gen.py:adduse: The second child of the parent code "
+            f"alg_gen.py:_adduse: The second child of the parent code "
             f"(content[1]) is expected to be a specification part but "
             f"found '{repr(parent_prog_statement.content[1])}'.")
 
@@ -243,18 +319,5 @@ def adduse(location, name, only=None, funcnames=None):
     spec_part.content.insert(0, use)
 
 
-def generate(kernel_filename, api):
-    '''
-    Given a kernel filename, creates an algorithm layer that invokes that
-    kernel for the specified PSyclone API.
-
-    # TODO #1555 implement this routine.
-
-    :param str kernel_filename: name of a file containing kernel metadata.
-    :param str api: the PSyclone API that the metadata conforms to.
-
-    :raises NotImplementedError: this routine is just a stub.
-
-    '''
-    raise NotImplementedError("Algorithm generation from kernel metadata is "
-                              "not yet implemented - #1555.")
+# For auto-API documentation generation.
+__all__ = ["NoInvokesError", "Alg"]
