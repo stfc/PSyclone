@@ -46,8 +46,8 @@ from psyclone.psyGen import GenerationError
 from psyclone.psyir.nodes import (colored, Reference, Assignment, Literal,
                                   KernelSchedule)
 from psyclone.psyir.symbols import (ArrayType, DataSymbol, INTEGER_SINGLE_TYPE,
-                                    REAL_SINGLE_TYPE,
-                                    REAL_TYPE, ScalarType)
+                                    REAL_SINGLE_TYPE, REAL_TYPE, ScalarType,
+                                    Symbol, UnresolvedInterface)
 
 
 def test_reference_bad_init():
@@ -133,6 +133,18 @@ def test_reference_is_array():
     '''
     reference = Reference(DataSymbol("test", REAL_TYPE))
     assert reference.is_array is False
+
+    # Test that a standard symbol (which would raise an exception if
+    # `is_array` of the symbol is called), does not raise an exception
+    # and is reported as not being an array:
+    ref = Reference(Symbol("symbol"))
+    assert ref.is_array is False
+
+    # Now add a real array to make sure this works as expected:
+    array_symbol = DataSymbol("symbol", ArrayType(REAL_TYPE, [10]),
+                              interface=UnresolvedInterface())
+    ref = Reference(array_symbol)
+    assert ref.is_array is True
 
 
 def test_reference_datatype():
