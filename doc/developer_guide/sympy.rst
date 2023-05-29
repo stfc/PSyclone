@@ -193,3 +193,15 @@ following, SymPy specific features:
     conversion from PSyIR expressions to SymPy expressions. It is
     strongly recommended to only use this function when this functionality
     is needed.
+
+Handling of Array Expressions
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+As indicates in the previous section, a Fortran array access is converted
+to a SymPy unknown function. In order to support Fortran array expressions,
+for example ``a(i_min:i_max:i_step)``, the SymPy writer will convert
+any Fortran index into three arguments for the corresponding SymPy functions:
+the lower bound, upper bound and step size. For example, the above expressions
+becomes: ``a(i_min, i_max, i_step)``. A simple single index like ``a(i)``
+is converted to ``a(i,i,1)``. If the lower- or upper-bound are unknown,
+the SymPy special value for inifinity (`inf`) is used: ``a(::)`` -->
+``a(-inf, inf, 1)``.
