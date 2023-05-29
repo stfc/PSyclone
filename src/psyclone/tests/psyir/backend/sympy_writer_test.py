@@ -210,13 +210,17 @@ def test_sympy_writer_create_type_map(expr, sym_map, fortran_reader):
 
 
 @pytest.mark.parametrize("expressions", [("a%x", "a%a_x"),
-                                         ("b(i)%x", "b(i)%b_x"),
-                                         ("a%x(i)", "a%a_x(i)"),
-                                         ("b(j)%x(i)", "b(j)%b_x(i)"),
-                                         ("b(i)%c(b_c)", "b(i)%b_c_1(b_c)"),
-                                         ("a_c + a%c(i)", "a_c + a%a_c_1(i)"),
-                                         ("b(b_c)%c(i)", "b(b_c)%b_c_1(i)"),
-                                         ("b(b_c)%c(i)", "b(b_c)%b_c_1(i)"),
+                                         ("b(i)%x", "b(i,i,1)%b_x"),
+                                         ("a%x(i)", "a%a_x(i,i,1)"),
+                                         ("b(j)%x(i)", "b(j,j,1)%b_x(i,i,1)"),
+                                         ("b(i)%c(b_c)",
+                                          "b(i,i,1)%b_c_1(b_c,b_c,1)"),
+                                         ("a_c + a%c(i)",
+                                          "a_c + a%a_c_1(i,i,1)"),
+                                         ("b(b_c)%c(i)",
+                                          "b(b_c,b_c,1)%b_c_1(i,i,1)"),
+                                         ("b(b_c)%c(i)",
+                                          "b(b_c,b_c,1)%b_c_1(i,i,1)"),
                                          ("a_b_c + a_b_c_1 + a%b%c",
                                           "a_b_c + a_b_c_1 + a%a_b%a_b_c_2"),
                                          ])
@@ -333,7 +337,7 @@ def test_sym_writer_convert_to_sympy_expressions(fortran_reader):
     exp2 = psyir.children[0].children[1].rhs
     sympy_list = SymPyWriter.convert_to_sympy_expressions([exp1, exp2])
 
-    expr = parse_expr("a%a_b_1 + a%a_c(1) + i")
+    expr = parse_expr("a%a_b_1 + a%a_c(1,1,1) + i")
     assert sympy_list[0] == expr
     assert sympy_list[1] == parse_expr("a_b + j")
 
@@ -347,7 +351,7 @@ def test_sym_writer_parse_errors(fortran_reader):
     # expressions we need. We just take the RHS of the assignments
     source = '''program test_prog
                 real :: x, a(10), b(10)
-                x = a(:) * b(:)
+                x = a(:) /= b(:)
                 end program test_prog '''
 
     psyir = fortran_reader.psyir_from_source(source)
@@ -357,3 +361,41 @@ def test_sym_writer_parse_errors(fortran_reader):
         _ = SymPyWriter.convert_to_sympy_expressions([exp1])
 
     assert "Visitor Error: Invalid SymPy expression" in str(err.value)
+
+
+@pytest.mark.parametrize("expressions", [("b(i)", "b(i,i,1)"),
+                                         ("b(:)", "b(-inf,inf,1)"),
+                                         ("b(::)", "b(-inf,inf,1)"),
+                                         ("b", "b(-inf,inf,1)"),
+                                         ("c(i,j)", "c(i,i,1,j,j,1)"),
+                                         ("c(::,::)",
+                                          "c(-inf,inf,1,-inf,inf,1)"),
+                                         ("c", "c(-inf,inf,1,-inf,inf,1)"),
+                                         ("b(i)%x", "b(i,i,1)%b_x"),
+                                         ("b(i)%x(j)", "b(i,i,1)%b_x(j,j,1)"),
+                                         ("c(i,j)%x", "c(i,i,1,j,j,1)%c_x"),
+                                         ("c(i,j)%x(j)",
+                                          "c(i,i,1,j,j,1)%c_x(j,j,1)"),
+                                         ("c(i,j)%d%e",
+                                          "c(i,i,1,j,j,1)%c_d%c_d_e"),
+                                         ("c(i,j)%d%f(i)",
+                                          "c(i,i,1,j,j,1)%c_d%c_d_f(i,i,1)"),
+                                         ])
+def test_sym_writer_array_expressions(fortran_reader, expressions):
+    '''Test that array expressions (including ones using user-definedq
+    types) are converted correctly:
+
+    '''
+    # A dummy program to easily create the PSyIR for the
+    # expressions we need. We just take the RHS of the assignments
+    source = f'''program test_prog
+                use my_mod
+                type(my_type) :: a, b(10), c(10, 10)
+                x = {expressions[0]}
+                end program test_prog '''
+
+    psyir = fortran_reader.psyir_from_source(source)
+    expr = psyir.children[0].children[0].rhs
+    type_map = SymPyWriter.create_type_map([expr])
+    sympy_writer = SymPyWriter(type_map)
+    assert sympy_writer(expr) == expressions[1]
