@@ -182,7 +182,12 @@ class Reference(DataNode):
         '''
         :returns: the datatype of this reference.
         :rtype: :py:class:`psyclone.psyir.symbols.DataType`
+
         '''
+        # pylint: disable=unidiomatic-typecheck
+        # We cannot use `isinstance()` here, since type() does not consider
+        # inheritance. If `isinstance()` would be used, the tests do not
+        # succeed anymore.
         if type(self.symbol) is Symbol:
             # We don't even have a DataSymbol
             return DeferredType()
