@@ -395,7 +395,8 @@ def test_symbolic_math_use_reserved_names(fortran_reader, expressions):
     ("(a*b)+c", "a * b + c"),
     ("a*(b+c)", "a * b + a * c"),
     ("a*((b+c)/d)", "a * b / d + a * c / d"),
-    ("a(i)*((b(i,j)+c(j))/d)", "a(i) * b(i,j) / d + a(i) * c(j) / d")])
+    ("a(i)*((b(i,j)+c(j))/d)",
+     "a(i,i,1) * b(i,i,1,j,j,1) / d + a(i,i,1) * c(j,j,1) / d")])
 def test_symbolic_maths_expand(fortran_reader, fortran_writer, expr, expected):
     '''Test the expand method works as expected.'''
     # A dummy program to easily create the PSyIR for the
@@ -412,7 +413,6 @@ def test_symbolic_maths_expand(fortran_reader, fortran_writer, expr, expected):
     assert result == expected
 
 
-@pytest.mark.xfail(reason="issue 1655, array notation is not yet supported")
 def test_symbolic_maths_expand_error(fortran_reader):
     '''Test the expand method with array notation.'''
     source = (
@@ -429,13 +429,19 @@ def test_symbolic_maths_array_and_array_index(fortran_reader):
     '''Test having an expression that uses a whole array and
     the same array with an index, e.g. : `a(i) + a`.
     '''
-    source = (
-        "program test_prog\n"
-        "  use some_mod\n"
-        "  x = a(i)\n"
-        "  y = a\n"
-        "end program test_prog\n")
+    source = '''program test_prog
+          use some_mod
+          real :: x, y, a(10)
+          x = a(i)
+          y = a
+        end program test_prog'''
     psyir = fortran_reader.psyir_from_source(source)
     sym_maths = SymbolicMaths.get()
     assert not sym_maths.equal(psyir.children[0][0].rhs,
                                psyir.children[0][1].rhs)
+
+    assert sym_maths.equal(psyir.children[0][0].rhs,
+                           psyir.children[0][0].rhs)
+
+    assert sym_maths.equal(psyir.children[0][1].rhs,
+                           psyir.children[0][1].rhs)

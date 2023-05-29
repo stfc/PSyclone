@@ -39,16 +39,16 @@
 '''
 
 # pylint: disable=too-many-lines
-from __future__ import absolute_import
 
 from sympy import Function, Symbol
 from sympy.parsing.sympy_parser import parse_expr
 
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.backend.visitor import VisitorError
-from psyclone.psyir.nodes import (BinaryOperation, NaryOperation,
-                                  Reference, UnaryOperation)
-from psyclone.psyir.symbols import ScalarType, SymbolTable
+from psyclone.psyir.nodes import (BinaryOperation, DataNode, Literal,
+                                  NaryOperation, Range, Reference,
+                                  UnaryOperation)
+from psyclone.psyir.symbols import ArrayType, ScalarType, SymbolTable
 
 
 class SymPyWriter(FortranWriter):
@@ -138,6 +138,7 @@ class SymPyWriter(FortranWriter):
             for ref in expr.walk(Reference):
                 name = ref.name
                 if name not in sympy_type_map:
+                    # Test if an array or an array expression is used:
                     if ref.is_array:
                         sympy_type_map[name] = Function(name)
                     else:
@@ -343,3 +344,114 @@ class SymPyWriter(FortranWriter):
             return True
 
         return super().is_intrinsic(operator)
+
+    def reference_node(self, node):
+        '''This method is called when a Reference instance is found in the
+        PSyIR tree.
+
+        :param node: a Reference PSyIR node.
+        :type node: :py:class:`psyclone.psyir.nodes.Reference`
+
+        :returns: the text representation of this reference.
+        :rtype: str
+
+        :raises VisitorError: if this node has children.
+
+        '''
+
+        if not node.is_array:
+            return super().reference_node(node)
+
+        # This must be an array expression without parenthesis:
+        shape = node.symbol.shape
+        result = ["-inf,inf,1"]*len(shape)
+
+        return (f"{node.name}{self.array_parenthesis[0]}"
+                f"{','.join(result)}{self.array_parenthesis[1]}")
+
+    # ------------------------------------------------------------------------
+    def gen_indices(self, indices, var_name=None):
+        '''Given a list of PSyIR nodes representing the dimensions of an
+        array, return a list of strings representing those array dimensions.
+        This is used both for array references and array declarations. Note
+        that 'indices' can also be a shape in case of Fortran.
+
+        :param indices: list of PSyIR nodes.
+        :type indices: list of :py:class:`psyclone.psyir.symbols.Node`
+        :param str var_name: name of the variable for which the dimensions \
+            are created. Not used in the Fortran implementation.
+
+        :returns: the Fortran representation of the dimensions.
+        :rtype: list of str
+
+        :raises NotImplementedError: if the format of the dimension is not \
+            supported.
+
+        '''
+        dims = []
+        for index in indices:
+            if isinstance(index, DataNode):
+                # literal constant, symbol reference, or computed
+                # dimension
+                expression = self._visit(index)
+                dims.extend([expression, expression, "1"])
+            elif isinstance(index, Range):
+                # literal constant, symbol reference, or computed
+                # dimension
+                expression = self._visit(index)
+                dims.append(expression)
+            elif isinstance(index, ArrayType.ArrayBounds):
+                # Lower and upper bounds of an array declaration specified
+                # by literal constant, symbol reference, or computed dimension
+                lower_expression = self._visit(index.lower)
+                upper_expression = self._visit(index.upper)
+                dims.extend([lower_expression, upper_expression, "1"])
+            elif isinstance(index, ArrayType.Extent):
+                # unknown extent
+                dims.append("-inf,inf,1")
+            else:
+                raise NotImplementedError(
+                    f"unsupported gen_indices index '{index}'")
+        return dims
+
+    def range_node(self, node):
+        '''This method is called when a Range instance is found in the PSyIR
+        tree.
+
+        :param node: a Range PSyIR node.
+        :type node: :py:class:`psyclone.psyir.nodes.Range`
+
+        :returns: the Fortran code as a string.
+        :rtype: str
+
+        '''
+        if node.parent and node.parent.is_lower_bound(
+                node.parent.indices.index(node)):
+            # The range starts for the first element in this
+            # dimension. This is the default in Fortran so no need to
+            # output anything.
+            start = "-inf"
+        else:
+            start = self._visit(node.start)
+
+        if node.parent and node.parent.is_upper_bound(
+                node.parent.indices.index(node)):
+            # The range ends with the last element in this
+            # dimension. This is the default in Fortran so no need to
+            # output anything.
+            stop = "inf"
+        else:
+            stop = self._visit(node.stop)
+        result = f"{start},{stop}"
+
+        if isinstance(node.step, Literal) and \
+           node.step.datatype.intrinsic == ScalarType.Intrinsic.INTEGER and \
+           node.step.value == "1":
+            result += ",1"
+            # Step is 1. This is the default in Fortran so no need to
+            # output any text.
+        else:
+            step = self._visit(node.step)
+            result += f",{step}"
+
+        return result
