@@ -366,6 +366,17 @@ def test_sym_writer_parse_errors(fortran_reader):
 @pytest.mark.parametrize("expressions", [("b(i)", "b(i,i,1)"),
                                          ("b(:)", "b(-inf,inf,1)"),
                                          ("b(::)", "b(-inf,inf,1)"),
+                                         ("b(5::)", "b(5,inf,1)"),
+                                         ("b(:5:)", "b(-inf,5,1)"),
+                                         ("b(::5)", "b(-inf,inf,5)"),
+                                         ("b(i::)", "b(i,inf,1)"),
+                                         ("b(:i:)", "b(-inf,i,1)"),
+                                         ("b(::i)", "b(-inf,inf,i)"),
+                                         ("b(i:5:)", "b(i,5,1)"),
+                                         ("b(i:j:)", "b(i,j,1)"),
+                                         ("b(i::j)", "b(i,inf,j)"),
+                                         ("b(:i:j)", "b(-inf,i,j)"),
+                                         ("b(i:j:k)", "b(i,j,k)"),
                                          ("b", "b(-inf,inf,1)"),
                                          ("c(i,j)", "c(i,i,1,j,j,1)"),
                                          ("c(::,::)",
@@ -380,10 +391,17 @@ def test_sym_writer_parse_errors(fortran_reader):
                                           "c(i,i,1,j,j,1)%c_d%c_d_e"),
                                          ("c(i,j)%d%f(i)",
                                           "c(i,i,1,j,j,1)%c_d%c_d_f(i,i,1)"),
+                                         ("c(i::k,j)%d%f(i:j:k)",
+                                          "c(i,inf,k,j,j,1)%c_d%c_d_f(i,j,k)"),
                                          ])
 def test_sym_writer_array_expressions(fortran_reader, expressions):
-    '''Test that array expressions (including ones using user-definedq
-    types) are converted correctly:
+    '''Test that array expressions (including ones using user-defined
+    types) are converted correctly. A Fortran range is converted into
+    three arguments for the SymPy function used: lower bound, upper bound,
+    step. If the bounds are not given, +/- inf(inity) is used. E.g.:
+    `a(:)` --> `a(-inf,inf,1)`. And to keep the number of arguments the
+    same, an array index access like `b(i,j)` is converted to:
+    `b(i,i,1, j,j,1)`.
 
     '''
     # A dummy program to easily create the PSyIR for the
