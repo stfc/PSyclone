@@ -49,7 +49,6 @@ class Clause(Node, metaclass=abc.ABCMeta):
     _colour = "green"
     # The base string for this clause, e.g. nowait or private
     _clause_string = None
-    _colour = "white"
 
     @property
     def clause_string(self):
