@@ -242,7 +242,7 @@ def test_scalartype_invalid_precision_datasymbol():
         _ = ScalarType(ScalarType.Intrinsic.REAL, precision_symbol)
     assert ("A DataSymbol representing the precision of another DataSymbol "
             "must be of either 'deferred' or scalar, integer type but got: "
-            "r_def: DataSymbol<Scalar<REAL, 4>, Local>"
+            "r_def: DataSymbol<Scalar<REAL, 4>, Automatic>"
             in str(excinfo.value))
 
 
@@ -275,11 +275,10 @@ def test_arraytype():
     literal = Literal("20", scalar_type)
     array_type = ArrayType(
         scalar_type, [10, literal, var_plus_1, Reference(data_symbol),
-                      ArrayType.Extent.DEFERRED, ArrayType.Extent.ATTRIBUTE,
                       (0, 10), (-1, var_plus_1.copy()),
                       (var_plus_1.copy(), var_plus_1.copy())])
     assert isinstance(array_type, ArrayType)
-    assert len(array_type.shape) == 9
+    assert len(array_type.shape) == 7
     # Provided as an int but stored as a Literal and given an explicit lower
     # bound of 1.
     shape0 = array_type.shape[0]
@@ -297,22 +296,26 @@ def test_arraytype():
     # Provided and stored as a Reference to a DataSymbol
     assert isinstance(array_type.shape[3].upper, Reference)
     assert array_type.shape[3].upper.symbol is data_symbol
-    # Provided and stored as a deferred extent
-    assert array_type.shape[4] == ArrayType.Extent.DEFERRED
-    # Provided as an attribute extent
-    assert array_type.shape[5] == ArrayType.Extent.ATTRIBUTE
-    # Provided as integer lower and upper bounds
-    assert isinstance(array_type.shape[6], ArrayType.ArrayBounds)
-    assert array_type.shape[6].lower.value == "0"
-    assert array_type.shape[6].upper.value == "10"
+    assert isinstance(array_type.shape[4], ArrayType.ArrayBounds)
+    assert array_type.shape[4].lower.value == "0"
+    assert array_type.shape[4].upper.value == "10"
     # Provided as integer lower and PSyIR upper bound
-    assert isinstance(array_type.shape[7], ArrayType.ArrayBounds)
-    assert array_type.shape[7].lower.value == "-1"
-    assert isinstance(array_type.shape[7].upper, BinaryOperation)
+    assert isinstance(array_type.shape[5], ArrayType.ArrayBounds)
+    assert array_type.shape[5].lower.value == "-1"
+    assert isinstance(array_type.shape[5].upper, BinaryOperation)
     # Provided as PSyIR lower and upper bounds
-    assert isinstance(array_type.shape[8], ArrayType.ArrayBounds)
-    assert isinstance(array_type.shape[8].lower, BinaryOperation)
-    assert isinstance(array_type.shape[8].upper, BinaryOperation)
+    assert isinstance(array_type.shape[6], ArrayType.ArrayBounds)
+    assert isinstance(array_type.shape[6].lower, BinaryOperation)
+    assert isinstance(array_type.shape[6].upper, BinaryOperation)
+    # Provided and stored as a deferred extent
+    array_type = ArrayType(
+        scalar_type, [ArrayType.Extent.DEFERRED,
+                      ArrayType.Extent.DEFERRED])
+    assert array_type.shape[1] == ArrayType.Extent.DEFERRED
+    # Provided as an attribute extent
+    array_type = ArrayType(
+        scalar_type, [ArrayType.Extent.ATTRIBUTE, ArrayType.Extent.ATTRIBUTE])
+    assert array_type.shape[1] == ArrayType.Extent.ATTRIBUTE
 
 
 def test_arraytype_invalid_datatype():
@@ -397,7 +400,7 @@ def test_arraytype_invalid_shape_dimension_2():
     scalar_type = ScalarType(ScalarType.Intrinsic.REAL, 4)
     with pytest.raises(TypeError) as excinfo:
         _ = ArrayType(scalar_type, [None])
-    assert ("DataSymbol shape-list elements can only be 'int', "
+    assert ("ArrayType shape-list elements can only be 'int', "
             "ArrayType.Extent, 'DataNode' or a 2-tuple thereof but found "
             "'NoneType'." in str(excinfo.value))
 
@@ -431,22 +434,22 @@ def test_arraytype_invalid_shape_bounds():
     scalar_type = ScalarType(ScalarType.Intrinsic.REAL, 4)
     with pytest.raises(TypeError) as excinfo:
         _ = ArrayType(scalar_type, [(1, 4, 1)])
-    assert ("A DataSymbol shape-list element specifying lower and upper bounds"
+    assert ("An ArrayType shape-list element specifying lower and upper bounds"
             " must be a 2-tuple but '(1, 4, 1)' has 3 entries" in
             str(excinfo.value))
     with pytest.raises(TypeError) as excinfo:
         _ = ArrayType(scalar_type, [(1, None)])
-    assert ("DataSymbol shape-list elements can only be 'int', ArrayType."
+    assert ("ArrayType shape-list elements can only be 'int', ArrayType."
             "Extent, 'DataNode' or a 2-tuple thereof but found 'NoneType'." in
             str(excinfo.value))
     with pytest.raises(TypeError) as excinfo:
         _ = ArrayType(scalar_type, [(None, 1)])
-    assert ("DataSymbol shape-list elements can only be 'int', ArrayType."
+    assert ("ArrayType shape-list elements can only be 'int', ArrayType."
             "Extent, 'DataNode' or a 2-tuple thereof but found 'NoneType'" in
             str(excinfo.value))
     with pytest.raises(TypeError) as excinfo:
         _ = ArrayType(scalar_type, [10, (None, 1)])
-    assert ("DataSymbol shape-list elements can only be 'int', ArrayType."
+    assert ("ArrayType shape-list elements can only be 'int', ArrayType."
             "Extent, 'DataNode' or a 2-tuple thereof but found 'NoneType'" in
             str(excinfo.value))
     with pytest.raises(TypeError) as err:
@@ -468,6 +471,18 @@ def test_arraytype_invalid_shape_bounds():
     assert ("If a DataSymbol is referenced in a dimension declaration then it "
             "should be a scalar but 'Reference[name:'jim']' is not." in
             str(excinfo.value))
+    # If one dimension is DEFERRED then all must be.
+    with pytest.raises(TypeError) as err:
+        _ = ArrayType(scalar_type, [ArrayType.Extent.DEFERRED, 5])
+    assert ("A declaration of an allocatable array must have the extent of "
+            "every dimension as 'DEFERRED' but found shape: [<Extent.DEFERRED:"
+            " 1>, 5]" in str(err.value))
+    # An assumed-shape array must have ATTRIBUTE in every dimension.
+    with pytest.raises(TypeError) as err:
+        _ = ArrayType(scalar_type, [ArrayType.Extent.ATTRIBUTE, 5])
+    assert ("An assumed-shape array must have every dimension unspecified "
+            "(either as 'ATTRIBUTE' or with the upper bound as 'ATTRIBUTE') "
+            "but found shape: [<Extent.ATTRIBUTE: 2>, 5]" in str(err.value))
 
 
 def test_arraytype_shape_dim_from_parent_scope():
@@ -491,12 +506,13 @@ def test_arraytype_str():
     data_symbol = DataSymbol("var", scalar_type, constant_value=20)
     data_type = ArrayType(scalar_type, [10, Reference(data_symbol),
                                         (2, Reference(data_symbol)),
-                                        (Reference(data_symbol), 10),
-                                        ArrayType.Extent.DEFERRED,
-                                        ArrayType.Extent.ATTRIBUTE])
+                                        (Reference(data_symbol), 10)])
     assert (str(data_type) == "Array<Scalar<INTEGER, UNDEFINED>,"
             " shape=[10, Reference[name:'var'], 2:Reference[name:'var'], "
-            "Reference[name:'var']:10, 'DEFERRED', 'ATTRIBUTE']>")
+            "Reference[name:'var']:10]>")
+    data_type = ArrayType(scalar_type, [ArrayType.Extent.DEFERRED])
+    assert (str(data_type) == "Array<Scalar<INTEGER, UNDEFINED>, "
+            "shape=['DEFERRED']>")
 
 
 def test_arraytype_str_invalid():
@@ -507,12 +523,12 @@ def test_arraytype_str_invalid():
     scalar_type = ScalarType(ScalarType.Intrinsic.INTEGER, 4)
     array_type = ArrayType(scalar_type, [10])
     # Make one of the array dimensions an unsupported type
-    array_type._shape = [None]
+    array_type._shape = [Literal("10", INTEGER_TYPE)]
     with pytest.raises(InternalError) as excinfo:
         _ = str(array_type)
-    assert ("PSyclone internal error: ArrayType shape list elements can only "
-            "be 'ArrayType.ArrayBounds', or 'ArrayType.Extent', but found "
-            "'NoneType'." in str(excinfo.value))
+    assert ("Once constructed, every member of an ArrayType shape-list should "
+            "either be an ArrayBounds object or an instance of ArrayType."
+            "Extent but found 'Literal'" in str(excinfo.value))
 
 
 def test_arraytype_immutable():

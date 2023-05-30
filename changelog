@@ -414,6 +414,42 @@
 	139) PR #2129 towards #1618. Bug fix for -ve Literal args to kernels
 	in PSyIR handling of LFRic Alg Layer.
 
+	140) PR #2133 for #2126. Add RTD YAML config files to allow the
+	documentation (user guide, developer guide etc) to be managed
+	separately and to allow software environments other than the
+	default to be specified.
+
+	141) PR #2092 for #2008. Refactors Symbol interfaces and adds support
+	for Static/SAVE variables.
+
+	142) PR #2089 for #2005. Add a SymbolTable merge method and improve symbol
+	renaming capabilities.
+
+	143) PR #2141 towards #1618. Add support for Symbols imported from
+	Containers with renaming.
+
+	144) PR #2136 for #2134. Fix compilation tests bug with assumed shape arrays.
+
+	145) PR #2115 for #2114. Fortran allocate with type-spec becomes a CodeBlock.
+
+	146) PR #2130 towards #1161. Adds support for HUGE and TINY intrinsics.
+
+	147) PR #2095 towards #2091. Split off and rename DynInvoke to LFRicInvoke.
+
+	148) PR #2146 for #2145. Skip CI link checks for mybinder as they
+	occasionally fail.
+
+	149) PR #2135 towards #1618. Adds (limited) PSyIR support for Fortran
+	interfaces without a name.
+
+	150) PR #2152 for #2149. Adds checks in Literal constructor that
+	supplied string is a valid format.
+
+	151) PR #2143 for #2043. Adds basic PSyIR support for Fortran COMMON
+	blocks.
+
+	152) PR #2150 towards #2132. Improve self-hosted CI workflow.
+
 release 2.3.1 17th of June 2022
 
 	1) PR #1747 for #1720. Adds support for If blocks to PSyAD.

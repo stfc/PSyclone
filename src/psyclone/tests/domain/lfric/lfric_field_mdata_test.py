@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab;
-#         I. Kavcic and A. Coughtrie, Met Office;
+#         I. Kavcic, A. Coughtrie and L. Turner, Met Office;
 #         C. M. Maynard, Met Office/University of Reading;
 #         J. Henrichs, Bureau of Meteorology.
 
@@ -507,8 +507,8 @@ def test_lfricfields_call_err():
             "types are ['real', 'integer', 'logical']." in test_str)
 
 
-def test_dyninvoke_uniq_declns_intent_fields():
-    ''' Tests that DynInvoke.unique_declns_by_intent() returns the correct
+def test_lfricinvoke_uniq_declns_intent_fields():
+    ''' Tests that LFRicInvoke.unique_declns_by_intent() returns the correct
     list of arguments for 'gh_field' argument type. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.7_single_invoke_3scalar.f90"),

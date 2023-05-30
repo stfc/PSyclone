@@ -58,9 +58,11 @@ from psyclone.psyir.nodes.array_of_structures_mixin import \
     ArrayOfStructuresMixin
 from psyclone.psyir.symbols import (
     ArgumentInterface, ArrayType, ContainerSymbol, DataSymbol, DataTypeSymbol,
-    DeferredType, ImportInterface, LocalInterface, NoType,
+    DeferredType, ImportInterface, AutomaticInterface, NoType,
     RoutineSymbol, ScalarType, StructureType, Symbol, SymbolError, SymbolTable,
-    UnknownFortranType, UnknownType, UnresolvedInterface, INTEGER_TYPE)
+    UnknownFortranType, UnknownType, UnresolvedInterface, INTEGER_TYPE,
+    StaticInterface, DefaultModuleInterface, UnknownInterface,
+    CommonBlockInterface)
 
 # fparser dynamically generates classes which confuses pylint membership checks
 # pylint: disable=maybe-no-member
@@ -331,7 +333,7 @@ def _find_or_create_imported_symbol(location, name, scope_limit=None,
     if first_symbol_table:
         # No symbol found but there are one or more Containers from which
         # it may be being brought into scope. Therefore create a generic
-        # Symbol with a deferred interface and add it to the most
+        # Symbol with a UnresolvedInterface and add it to the most
         # local SymbolTable with a wildcard import.
         return first_symbol_table.new_symbol(
                 name, interface=UnresolvedInterface(), **kargs)
@@ -837,10 +839,8 @@ def _process_routine_symbols(module_ast, symbol_table, visibility_map):
     for routine in routines:
         name = str(routine.children[0].children[1]).lower()
         vis = visibility_map.get(name, symbol_table.default_visibility)
-        # This routine is defined within this scoping unit and therefore has a
-        # local interface.
         rsymbol = RoutineSymbol(name, type_map[type(routine)], visibility=vis,
-                                interface=LocalInterface())
+                                interface=DefaultModuleInterface())
         symbol_table.add(rsymbol)
 
 
@@ -1020,7 +1020,9 @@ class Fparser2Reader():
         ('random', IntrinsicCall.Intrinsic.RANDOM_NUMBER),
         ('minval', IntrinsicCall.Intrinsic.MINVAL),
         ('maxval', IntrinsicCall.Intrinsic.MAXVAL),
-        ('sum', IntrinsicCall.Intrinsic.SUM)])
+        ('sum', IntrinsicCall.Intrinsic.SUM),
+        ('tiny', IntrinsicCall.Intrinsic.TINY),
+        ('huge', IntrinsicCall.Intrinsic.HUGE)])
 
     def __init__(self):
         # Map of fparser2 node types to handlers (which are class methods)
@@ -1325,7 +1327,7 @@ class Fparser2Reader():
                         raise NotImplementedError()
                 except KeyError:
                     # We haven't seen this symbol before so create a new
-                    # one with a deferred interface (since we don't
+                    # one with a unresolved interface (since we don't
                     # currently know where it is declared).
                     sym = DataSymbol(dim_name, default_integer_type(),
                                      interface=UnresolvedInterface())
@@ -1498,7 +1500,7 @@ class Fparser2Reader():
         Process all of the USE statements in the fparser2 parse tree
         supplied as a list of nodes. Imported symbols are added to
         the symbol table associated with the supplied parent node with
-        appropriate interfaces.
+        Import interfaces.
 
         :param parent: PSyIR node in which to insert the symbols found.
         :type parent: :py:class:`psyclone.psyir.nodes.KernelSchedule`
@@ -1563,7 +1565,17 @@ class Fparser2Reader():
                     # will replace a previous import with an empty only-list.
                     pass
                 for name in decl.items[4].items:
-                    sym_name = str(name).lower()
+                    if isinstance(name, Fortran2003.Rename):
+                        # This variable is renamed using Fortran's
+                        # 'new_name=>orig_name' syntax, so capture the
+                        # original name ('orig_name') as well as the new
+                        # name ('sym_name').
+                        sym_name = str(name.children[1]).lower()
+                        orig_name = str(name.children[2]).lower()
+                    else:
+                        # This variable is not renamed.
+                        sym_name = str(name).lower()
+                        orig_name = None
                     sym_visibility = visibility_map.get(
                         sym_name,  parent.symbol_table.default_visibility)
                     if sym_name not in parent.symbol_table:
@@ -1574,7 +1586,8 @@ class Fparser2Reader():
                         # the type of this symbol we create a generic Symbol.
                         parent.symbol_table.add(
                             Symbol(sym_name, visibility=sym_visibility,
-                                   interface=ImportInterface(container)))
+                                   interface=ImportInterface(
+                                       container, orig_name=orig_name)))
                     else:
                         # There's already a symbol with this name
                         existing_symbol = parent.symbol_table.lookup(
@@ -1701,14 +1714,14 @@ class Fparser2Reader():
 
         return base_type, precision
 
-    def _process_decln(self, parent, symbol_table, decl, visibility_map=None):
+    def _process_decln(self, scope, symbol_table, decl, visibility_map=None):
         '''
         Process the supplied fparser2 parse tree for a declaration. For each
         entity that is declared, a symbol is added to the supplied symbol
         table.
 
-        :param parent: PSyIR node in which to insert the symbols found.
-        :type parent: :py:class:`psyclone.psyir.nodes.KernelSchedule`
+        :param scope: PSyIR node in which to insert the symbols found.
+        :type scope: :py:class:`psyclone.psyir.nodes.ScopingNode`
         :param symbol_table: the symbol table to which to add new symbols.
         :type symbol_table: py:class:`psyclone.psyir.symbols.SymbolTable`
         :param decl: fparser2 parse tree of declaration to process.
@@ -1718,8 +1731,6 @@ class Fparser2Reader():
         :type visibility_map: dict with str keys and \
             :py:class:`psyclone.psyir.symbols.Symbol.Visibility` values
 
-        :raises NotImplementedError: if the save attribute is encountered on \
-            a declaration that is not within a module.
         :raises NotImplementedError: if an unsupported attribute is found.
         :raises NotImplementedError: if an unsupported intent attribute is \
             found.
@@ -1737,20 +1748,21 @@ class Fparser2Reader():
             found.
         :raises SymbolError: if a declaration is found for a symbol that is \
             already present in the symbol table with a defined interface.
+        :raises GenerationError: if a set of incompatible Fortran \
+            attributes are found in a symbol declaration.
 
         '''
         (type_spec, attr_specs, entities) = decl.items
 
         # Parse the type_spec
-        base_type, _ = self._process_type_spec(parent, type_spec)
+        base_type, _ = self._process_type_spec(scope, type_spec)
 
         # Parse declaration attributes:
         # 1) If no dimension attribute is provided, it defaults to scalar.
         attribute_shape = []
-        # 2) If no intent attribute is provided, it is provisionally
-        # marked as a local variable (when the argument list is parsed,
-        # arguments with no explicit intent are updated appropriately).
-        interface = LocalInterface()
+        # 2) Record symbol interface
+        interface = None
+        multiple_interfaces = False
         # 3) Record initialized constant values
         has_constant_value = False
         # 4) Whether the declaration has the allocatable attribute
@@ -1762,22 +1774,10 @@ class Fparser2Reader():
             for attr in attr_specs.items:
                 if isinstance(attr, Fortran2003.Attr_Spec):
                     normalized_string = str(attr).lower().replace(' ', '')
-                    if "save" in normalized_string:
-                        # Variables declared with SAVE attribute inside a
-                        # module, submodule or main program are implicitly
-                        # SAVE'd (see Fortran specification 8.5.16.4) so it
-                        # is valid to ignore the attribute in these
-                        # situations.
-                        if not (decl.parent and
-                                isinstance(decl.parent.parent,
-                                           (Fortran2003.Module,
-                                            Fortran2003.Main_Program))):
-                            raise NotImplementedError(
-                                f"Could not process {decl.items}. The 'SAVE' "
-                                f"attribute is not yet supported when it is"
-                                f" not part of a module, submodule or main_"
-                                f"program specification part.")
-
+                    if normalized_string == "save":
+                        if interface is not None:
+                            multiple_interfaces = True
+                        interface = StaticInterface()
                     elif normalized_string == "parameter":
                         # Flag the existence of a constant value in the RHS
                         has_constant_value = True
@@ -1792,6 +1792,8 @@ class Fparser2Reader():
                     normalized_string = \
                         intent.string.lower().replace(' ', '')
                     try:
+                        if interface is not None:
+                            multiple_interfaces = True
                         interface = ArgumentInterface(
                             INTENT_MAPPING[normalized_string])
                     except KeyError as info:
@@ -1815,6 +1817,37 @@ class Fparser2Reader():
                     raise NotImplementedError(
                         f"Could not process declaration '{decl}'. Unrecognised"
                         f" attribute type '{type(attr).__name__}'.")
+
+            # There are some combinations of attributes that are not valid
+            # Fortran but fparser does not check, so we need to check for them
+            # here.
+            # TODO fparser/#413 could also fix these issues.
+            if isinstance(interface, StaticInterface) and has_constant_value:
+                raise GenerationError(
+                    f"SAVE and PARAMETER attributes are not compatible but "
+                    f"found:\n {decl}")
+            if allocatable and has_constant_value:
+                raise GenerationError(
+                    f"ALLOCATABLE and PARAMETER attributes are not compatible "
+                    f"but found:\n {decl}")
+            if isinstance(interface, ArgumentInterface) and has_constant_value:
+                raise GenerationError(
+                    f"INTENT and PARAMETER attributes are not compatible but"
+                    f" found:\n {decl}")
+            if multiple_interfaces:
+                raise GenerationError(
+                    f"Multiple or duplicated incompatible attributes "
+                    f"found in declaration:\n {decl}")
+
+        # If interface is not explicitly specified, provide a default value
+        if interface is None:
+            if isinstance(scope, Container):
+                interface = DefaultModuleInterface()
+            else:
+                interface = AutomaticInterface()
+                # This might still be redifined as Argument later if it
+                # appears in the argument list, but we don't know at this
+                # point.
 
         # Parse declarations RHS and declare new symbol into the
         # parent symbol table for each entity found.
@@ -1854,9 +1887,9 @@ class Fparser2Reader():
             if initialisation:
                 if has_constant_value:
                     # If it is a parameter parse its initialization into
-                    # a dummy Assignment (but connected to the parent scope
+                    # a dummy Assignment (but connected to the current scope
                     # since symbols must be resolved)
-                    dummynode = Assignment(parent=parent)
+                    dummynode = Assignment(parent=scope)
                     expr = initialisation.items[1]
                     self.process_nodes(parent=dummynode, nodes=[expr])
                     ct_expr = dummynode.children[0].detach()
@@ -1893,7 +1926,7 @@ class Fparser2Reader():
             # Make sure the declared symbol exists in the SymbolTable
             tag = None
             try:
-                sym = symbol_table.lookup(sym_name, scope_limit=parent)
+                sym = symbol_table.lookup(sym_name, scope_limit=scope)
                 if sym is symbol_table.lookup_with_tag("own_routine_symbol"):
                     # In case it is its own function routine symbol, Fortran
                     # will declare it inside the function as a DataSymbol.
@@ -1927,11 +1960,9 @@ class Fparser2Reader():
 
                 symbol_table.add(sym, tag=tag)
 
-            # The Symbol must have the interface given by the declaration. We
-            # take a copy to ensure that it can be modified without side
-            # effects.
-            # TODO #1444 Can we ensure that an interface is only referenced
-            # by a single symbol?
+            # We use copies of the interface object because we will reuse the
+            # interface for each entity if there are multiple in the same
+            # declaration statement.
             sym.interface = interface.copy()
 
     def _process_derived_type_decln(self, parent, decl, visibility_map):
@@ -2030,6 +2061,7 @@ class Fparser2Reader():
             # Support for this declaration is not fully implemented so
             # set the datatype of the DataTypeSymbol to UnknownFortranType.
             tsymbol.datatype = UnknownFortranType(str(decl))
+            tsymbol.interface = UnknownInterface()
 
     def process_declarations(self, parent, nodes, arg_list,
                              visibility_map=None):
@@ -2091,42 +2123,54 @@ class Fparser2Reader():
 
             if isinstance(node, Fortran2003.Interface_Block):
 
-                # We only support named interface blocks, and then only
-                # partially. Fortran standard R1203 says that:
-                #    interface-stmt = INTERFACE [ generic-spec ]
+                # Fortran 2003 standard R1203 says that:
+                #    interface-stmt is INTERFACE [ generic-spec ]
+                #                   or ABSTRACT INTERFACE
                 # where generic-spec is either (R1207) a generic-name or one
                 # of OPERATOR, ASSIGNMENT or dtio-spec.
-                if (not isinstance(node.children[0],
-                                   Fortran2003.Interface_Stmt) or
-                    not isinstance(node.children[0].children[0],
-                                   Fortran2003.Name)):
-                    # An unsupported interface definition will result in
-                    # the whole module containing this specification part
-                    # being put into a CodeBlock.
-                    raise NotImplementedError()
-                name = node.children[0].children[0].string.lower()
-                vis = visibility_map.get(
-                    name, parent.symbol_table.default_visibility)
-                # A named interface block corresponds to a RoutineSymbol.
-                # (There will be calls to it although there will be no
-                # corresponding implementation with that name.)
-                # We store its definition using an UnknownFortranType so that
-                # we can recreate it in the Fortran backend.
-                try:
-                    parent.symbol_table.add(
-                        RoutineSymbol(
-                            name, UnknownFortranType(str(node).lower()),
-                            visibility=vis))
-                except KeyError:
-                    # This symbol has already been declared. However
-                    # we still want to output the interface so we
-                    # store it in the PSyIR as an UnkownFortranType
-                    # with an internal name.
+                if not isinstance(node.children[0].children[0],
+                                  Fortran2003.Name):
+                    # This interface does not have a name so we store
+                    # it as a RoutineSymbol with an internal name and
+                    # with the content of the interface being kept
+                    # within an UnknownFortranType. As a result the
+                    # visibility and interface details of the
+                    # RoutineSymbol do not matter.
                     parent.symbol_table.new_symbol(
-                        root_name=f"_psyclone_internal_{name}",
+                        root_name="_psyclone_internal_interface",
                         symbol_type=RoutineSymbol,
-                        datatype=UnknownFortranType(str(node).lower()),
-                        visibility=vis)
+                        datatype=UnknownFortranType(str(node).lower()))
+                else:
+                    # This interface has a name.
+                    name = node.children[0].children[0].string.lower()
+                    vis = visibility_map.get(
+                        name, parent.symbol_table.default_visibility)
+                    # A named interface block corresponds to a
+                    # RoutineSymbol. (There will be calls to it
+                    # although there will be no corresponding
+                    # implementation with that name.) We store its
+                    # definition using an UnknownFortranType.
+                    try:
+                        parent.symbol_table.add(
+                            RoutineSymbol(
+                                name, UnknownFortranType(str(node).lower()),
+                                interface=UnknownInterface(),
+                                visibility=vis))
+                    except KeyError:
+                        # This symbol has already been declared. This
+                        # can happen when an interface overloads a
+                        # constructor for a type (as the interface
+                        # name is then the name of the type). However
+                        # we still want to capture the interface so we
+                        # store it in the PSyIR as an
+                        # UnknownFortranType with an internal name as
+                        # we do for unnamed interfaces.
+                        parent.symbol_table.new_symbol(
+                            root_name=f"_psyclone_internal_{name}",
+                            symbol_type=RoutineSymbol,
+                            interface=UnknownInterface(),
+                            datatype=UnknownFortranType(str(node).lower()),
+                            visibility=vis)
 
             elif isinstance(node, Fortran2003.Type_Declaration_Stmt):
                 try:
@@ -2175,6 +2219,7 @@ class Fparser2Reader():
                             parent.symbol_table.add(
                                 DataSymbol(symbol_name,
                                            UnknownFortranType(str(node)),
+                                           interface=UnknownInterface(),
                                            visibility=vis),
                                 tag=tag)
                         except KeyError as err:
@@ -2190,6 +2235,7 @@ class Fparser2Reader():
             elif isinstance(node, (Fortran2003.Access_Stmt,
                                    Fortran2003.Derived_Type_Def,
                                    Fortran2003.Stmt_Function_Stmt,
+                                   Fortran2003.Common_Stmt,
                                    Fortran2003.Use_Stmt)):
                 # These node types are handled separately
                 pass
@@ -2236,6 +2282,11 @@ class Fparser2Reader():
                     f"Error processing declarations: fparser2 node of type "
                     f"'{type(node).__name__}' not supported")
 
+        # We process the nodes again looking for common blocks. We do this
+        # here, after the main declarations loop, because they modify the
+        # interface of existing symbols and can appear in any order.
+        self._process_common_blocks(nodes, parent)
+
         if visibility_map is not None:
             # Check for symbols named in an access statement but not explicitly
             # declared. These must then refer to symbols that have been brought
@@ -2260,7 +2311,7 @@ class Fparser2Reader():
             # Ensure each associated symbol has the correct interface info.
             for arg_name in [x.string.lower() for x in arg_list]:
                 symbol = parent.symbol_table.lookup(arg_name)
-                if symbol.is_local:
+                if not symbol.is_argument:
                     # We didn't previously know that this Symbol was an
                     # argument (as it had no 'intent' qualifier). Mark
                     # that it is an argument by specifying its interface.
@@ -2322,6 +2373,51 @@ class Fparser2Reader():
                 raise NotImplementedError(
                     f"Could not process '{stmtfn}'. Statement Function "
                     f"declarations are not supported.") from err
+
+    @staticmethod
+    def _process_common_blocks(nodes, psyir_parent):
+        ''' Process the fparser2 common block declaration statements. This is
+        done after the other declarations and it will keep the statement
+        as a UnknownFortranType and update the referenced symbols to a
+        CommonBlockInterface.
+
+        :param nodes: fparser2 AST nodes containing declaration statements.
+        :type nodes: List[:py:class:`fparser.two.utils.Base`]
+        :param psyir_parent: the PSyIR Node with a symbol table in which to \
+            add the Common Blocks and update the symbols interfaces.
+        :type psyir_parent: :py:class:`psyclone.psyir.nodes.ScopingNode`
+
+        :raises NotImplementedError: if it is unable to find one of the \
+            CommonBlock expressions in the symbol table (because it has not \
+            been declared yet or when it is not just the symbol name).
+
+        '''
+        for node in nodes:
+            if isinstance(node, Fortran2003.Common_Stmt):
+                # Place the declaration statement into a UnknownFortranType
+                # (for now we just want to reproduce it). The name of the
+                # commonblock is not in the same namespace as the variable
+                # symbols names (and there may be multiple of them in a
+                # single statement). So we use an internal symbol name.
+                psyir_parent.symbol_table.new_symbol(
+                    root_name="_PSYCLONE_INTERNAL_COMMONBLOCK",
+                    symbol_type=DataSymbol,
+                    datatype=UnknownFortranType(str(node)))
+
+                # Get the names of the symbols accessed with the commonblock,
+                # they are already defined in the symbol table but they must
+                # now have a common-block interface.
+                try:
+                    # Loop over every COMMON block defined in this Common_Stmt
+                    for cb_object in node.children[0]:
+                        for symbol_name in cb_object[1].items:
+                            sym = psyir_parent.symbol_table.lookup(
+                                        str(symbol_name))
+                            sym.interface = CommonBlockInterface()
+                except KeyError as error:
+                    raise NotImplementedError(
+                        f"The symbol interface of a common block variable "
+                        f"could not be updated because of {error}.") from error
 
     @staticmethod
     def _process_precision(type_spec, psyir_parent):
@@ -2543,8 +2639,17 @@ class Fparser2Reader():
         :returns: PSyIR representation of an allocate.
         :rtype: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
 
+        :raises NotImplementedError: if the allocate has a type specification \
+            (e.g. allocate(character(len=10) :: my_var)).
+
         '''
         call = IntrinsicCall(IntrinsicCall.Intrinsic.ALLOCATE, parent=parent)
+
+        type_spec = node.children[0]
+        if type_spec:
+            raise NotImplementedError(
+                "Allocate statements with type specifications cannot be "
+                "handled in the PSyIR")
 
         alloc_list = node.children[1].children
         # Loop over each 'Allocation' in the 'Allocation_List'
@@ -3821,10 +3926,14 @@ class Fparser2Reader():
         # First item is the name of the intrinsic
         name = node.items[0].string.upper()
 
-        # Treat minval, maxval and sum as intrinsic calls, as they
-        # have a variable number of arguments, so do not fit well with
-        # the unary, binary, nary separation.
+        # Fortran intrinsics are (or will be) treated as intrinsic calls.
+        if name.lower() in ["tiny", "huge"]:
+            # Intrinsics with no optional arguments
+            call = IntrinsicCall(self.intrinsics[name.lower()], parent=parent)
+            return self._process_args(node, call)
         if name.lower() in ["minval", "maxval", "sum"]:
+            # Intrinsics with optional arguments require a
+            # canonicalise function
             call = IntrinsicCall(self.intrinsics[name.lower()], parent=parent)
             return self._process_args(
                 node, call, canonicalise=_canonicalise_minmaxsum)
