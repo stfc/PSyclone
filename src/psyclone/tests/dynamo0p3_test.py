@@ -1195,7 +1195,7 @@ def test_module_name_convention():
 def test_kernel_datatype_not_found():
     ''' fail if kernel datatype is not found '''
     with pytest.raises(ParseError) as excinfo:
-        generate(os.path.join(BASE_PATH, "testkern_no_datatype.F90"),
+        generate(os.path.join(BASE_PATH, "testkern_no_datatype_mod.f90"),
                  api=TEST_API)
     assert 'Kernel type testkern_type does not exist' in str(excinfo.value)
 

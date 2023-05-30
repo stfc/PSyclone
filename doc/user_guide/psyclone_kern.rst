@@ -450,10 +450,10 @@ supported in the stub generator::
     tests/test_files/dynamo0p3/testkern_dofs_mod.f90
     tests/test_files/dynamo0p3/testkern_invalid_fortran.F90
     tests/test_files/dynamo0p3/testkern_short_name_mod.f90
-    tests/test_files/dynamo0p3/testkern_no_datatype.F90
+    tests/test_files/dynamo0p3/testkern_no_datatype_mod.f90
     tests/test_files/dynamo0p3/testkern_qr.F90
 
-``testkern_invalid_fortran.F90``, ``testkern_no_datatype.F90``,
+``testkern_invalid_fortran.F90``, ``testkern_no_datatype_mod.f90``,
 ``testkern_short_name_mod.f90`` and ``testkern_qr.F90`` are designed to be
 invalid for PSyclone stub generation testing purposes and should produce
 appropriate errors. Two examples are below::
@@ -461,7 +461,7 @@ appropriate errors. Two examples are below::
     > psyclone-kern -gen stub tests/test_files/dynamo0p3/testkern_invalid_fortran.F90
     Error: 'Parse Error: Code appears to be invalid Fortran'
 
-    > psyclone-kern -gen stub tests/test_files/dynamo0p3/testkern_no_datatype.F90
+    > psyclone-kern -gen stub tests/test_files/dynamo0p3/testkern_no_datatype_mod.f90
     Error: 'Parse Error: Kernel type testkern_type does not exist'
 
 ``testkern_dofs_mod.f90`` is an example with an unsupported feature, as the
