@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2019, Science and Technology Facilities Council.
+.. Copyright (c) 2019-2023, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 .. POSSIBILITY OF SUCH DAMAGE.
 .. -----------------------------------------------------------------------------
 .. Written by R. W. Ford and A. R. Porter, STFC Daresbury Lab
+.. Modified by L. Turner, Met Office
 
 Modules
 #######
@@ -262,7 +263,7 @@ related quantities for which variables must be declared and
 (for Invokes) initialised. Each of these groupings is managed by a distinct
 sub-class of the ``LFRicCollection`` abstract class:
 
-.. autoclass:: psyclone.dynamo0p3.LFRicCollection
+.. autoclass:: psyclone.domain.lfric.LFRicCollection
    :members:
    :private-members:
    :noindex:
@@ -280,7 +281,7 @@ provided for ``_stub_declarations.``
 Although instances of (sub-classes of) ``LFRicCollection`` handle all
 declarations and initialisation, there remains the problem of
 constructing the list of arguments for a kernel (or kernel stub). The
-``psyclone.dynamo0p3.ArgOrdering`` base class provides support for
+``psyclone.domain.lfric.ArgOrdering`` base class provides support for
 this:
 
 .. autoclass:: psyclone.domain.lfric.ArgOrdering

@@ -73,6 +73,7 @@ __all__ = [
     'KernelInterface',
     'KernStubArgList',
     'LFRicArgDescriptor',
+    'LFRicCollection'
     'LFRicConstants',
     'LFRicExtractDriverCreator',
     'LFRicInvoke',

@@ -32,16 +32,13 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified I. Kavcic, A. Coughtrie, L. Turner Met Office
+# Modified I. Kavcic, A. Coughtrie and L. Turner, Met Office
 # Modified J. Henrichs, Bureau of Meteorology
 # Modified A. B. G. Chalk and N. Nobre, STFC Daresbury Lab
 
-''' This module implements the PSyclone Dynamo 0.3 API by 1)
-    specialising the required base classes in parser.py (KernelType) and
-    adding a new class (DynFuncDescriptor03) to capture function descriptor
-    metadata and 2) specialising the required base classes in psyGen.py
-    (PSy, Invokes, Invoke, InvokeSchedule, Loop, Kern, Inf, Arguments and
-    Argument). '''
+''' This module implements PSyclone LFRic (Dynamo 0.3) API by specialising the
+    base class for managing the declaration and initialisation of a group of
+    related entities within an Invoke or Kernel stub.'''
 
 # Imports
 import abc
@@ -59,8 +56,9 @@ class LFRicCollection():
     :type node: :py:class:`psyclone.domain.lfric.LFRicInvoke` or \
                 :py:class:`psyclone.dynamo0p3.DynKern`
 
-    :raises InternalError: if the supplied node is not a LFRicInvoke or a \
+    :raises InternalError: if the supplied node is not an LFRicInvoke or a \
                            DynKern.
+
     '''
     def __init__(self, node):
         # Import here to avoid circular dependency
@@ -71,23 +69,23 @@ class LFRicCollection():
             self._invoke = node
             self._kernel = None
             self._symbol_table = self._invoke.schedule.symbol_table
-            # The list of kernel calls we are responsible for
+            # The list of Kernel calls we are responsible for
             self._calls = node.schedule.kernels()
         elif isinstance(node, DynKern):
             # We are handling declarations for a Kernel stub
             self._invoke = None
             self._kernel = node
-            # TODO 719 The symbol table is not connected to other parts of
+            # TODO #719 The symbol table is not connected to other parts of
             # the Stub generation.
             self._symbol_table = LFRicSymbolTable()
-            # We only have a single kernel call in this case
+            # We only have a single Kernel call in this case
             self._calls = [node]
         else:
-            raise InternalError(f"LFRicCollection takes only a LFRicInvoke "
+            raise InternalError(f"LFRicCollection takes only an LFRicInvoke "
                                 f"or a DynKern but got: {type(node)}")
 
-        # Whether or not the associated Invoke contains only kernels that
-        # operate on dofs.
+        # Whether or not the associated Invoke contains only Kernels that
+        # operate on DoFs.
         if self._invoke:
             self._dofs_only = self._invoke.operates_on_dofs_only
         else:
@@ -96,16 +94,17 @@ class LFRicCollection():
     def declarations(self, parent):
         '''
         Insert declarations for all necessary variables into the AST of
-        the generated code. Simply calls either _invoke_declarations() or
-        _stub_declarations() depending on whether we're handling an Invoke
+        the generated code. Simply calls either '_invoke_declarations()' or
+        '_stub_declarations()' depending on whether we're handling an Invoke
         or a Kernel stub.
 
         :param parent: the node in the f2pygen AST representing the routine \
                        in which to insert the declarations.
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
-        :raises InternalError: if neither self._invoke or self._kernel \
+        :raises InternalError: if neither 'self._invoke' nor 'self._kernel' \
                                are set.
+
         '''
         if self._invoke:
             self._invoke_declarations(parent)
@@ -113,7 +112,7 @@ class LFRicCollection():
             self._stub_declarations(parent)
         else:
             raise InternalError("LFRicCollection has neither a Kernel "
-                                "or an Invoke - should be impossible.")
+                                "nor an Invoke - should be impossible.")
 
     def initialise(self, parent):
         '''
@@ -124,6 +123,7 @@ class LFRicCollection():
         :param parent: the node in the f2pygen AST to which to add \
                        initialisation code.
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
         '''
 
     @abc.abstractmethod
@@ -151,5 +151,5 @@ class LFRicCollection():
 
 # ---------- Documentation utils -------------------------------------------- #
 # The list of module members that we wish AutoAPI to generate
-# documentation for. (See https://psyclone-ref.readthedocs.io)
+# documentation for (see https://psyclone-ref.readthedocs.io).
 __all__ = ['LFRicCollection']

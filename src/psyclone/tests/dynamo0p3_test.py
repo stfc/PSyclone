@@ -48,7 +48,7 @@ from fparser import api as fpapi
 from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
 from psyclone.domain.lfric import FunctionSpace, LFRicArgDescriptor, \
-    LFRicConstants, LFRicCollection
+    LFRicConstants
 from psyclone.dynamo0p3 import DynACCEnterDataDirective, \
     DynBoundaryConditions, DynCellIterators, DynGlobalSum, DynKern, \
     DynKernelArguments, DynKernMetadata, DynLoop, DynProxies, \
@@ -3645,7 +3645,6 @@ def test_haloex_not_required(monkeypatch):
         assert haloex.required() == (False, True)
 
 
-
 def test_lfriccollection_err1():
     ''' Check that the LFRicCollection constructor raises the expected
     error if it is not provided with a DynKern or LFRicInvoke. '''
@@ -3654,7 +3653,7 @@ def test_lfriccollection_err1():
     psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     with pytest.raises(InternalError) as err:
         _ = DynProxies(psy)
-    assert ("LFRicCollection takes only a LFRicInvoke or a DynKern but"
+    assert ("LFRicCollection takes only an LFRicInvoke or a DynKern but"
             in str(err.value))
 
 
@@ -3672,7 +3671,7 @@ def test_lfriccollection_err2(monkeypatch):
     monkeypatch.setattr(proxies, "_invoke", None)
     with pytest.raises(InternalError) as err:
         proxies.declarations(ModuleGen(name="testmodule"))
-    assert "LFRicCollection has neither a Kernel or an Invoke" \
+    assert "LFRicCollection has neither a Kernel nor an Invoke" \
         in str(err.value)
 
 
