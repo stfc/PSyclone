@@ -45,7 +45,8 @@ from sympy.parsing.sympy_parser import parse_expr
 from psyclone.psyir.backend.sympy_writer import SymPyWriter
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.nodes import Literal
-from psyclone.psyir.symbols import BOOLEAN_TYPE, CHARACTER_TYPE
+from psyclone.psyir.symbols import (ArrayType, BOOLEAN_TYPE, CHARACTER_TYPE,
+                                    INTEGER_TYPE)
 
 
 def test_sym_writer_constructor():
@@ -417,3 +418,20 @@ def test_sym_writer_array_expressions(fortran_reader, expressions):
     type_map = SymPyWriter.create_type_map([expr])
     sympy_writer = SymPyWriter(type_map)
     assert sympy_writer(expr) == expressions[1]
+
+
+def test_gen_indices():
+    '''This test covers other datatypes that might be passed to `gen_indices`.
+    '''
+
+    sympy_writer = SymPyWriter()
+    # Test using array bounds and DEFERRED:
+    arr_bounds = ArrayType.ArrayBounds(Literal("2", INTEGER_TYPE),
+                                       Literal("5", INTEGER_TYPE))
+    gen_ind = sympy_writer.gen_indices([arr_bounds, ArrayType.Extent.DEFERRED])
+    assert gen_ind == ["2", "5", "1", "-inf", "inf", "1"]
+
+    # Test invalid type:
+    with pytest.raises(NotImplementedError) as err:
+        _ = sympy_writer.gen_indices([None])
+    assert "unsupported gen_indices index 'None'" in str(err.value)
