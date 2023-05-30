@@ -245,7 +245,9 @@ def test_symbolic_math_never_equal(fortran_reader, exp1, exp2, result):
 
 
 def test_symbolic_maths_never_equal_error(fortran_reader):
-    '''Test the expand method with array notation.'''
+    '''Test the never_equal method with an invalid SymPy expression, to make
+    sure it hides any exception. We use an array assignment using (/ ... /),
+    which is not valid in SymPy.'''
     source = (
         "program test_prog\n"
         "  integer :: a(2)\n"
