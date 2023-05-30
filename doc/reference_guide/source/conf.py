@@ -21,7 +21,7 @@ import subprocess
 # -- Project information -----------------------------------------------------
 
 project = 'Reference Guide'
-copyright = ('2019-2022, R. W. Ford, J. Henrichs, I. Kavcic, A. R. Porter, '
+copyright = ('2019-2023, R. W. Ford, J. Henrichs, I. Kavcic, A. R. Porter, '
              ' S. Siso')
 author = 'R. W. Ford, J. Henrichs, I. Kavcic, A. R. Porter, S. Siso'
 
