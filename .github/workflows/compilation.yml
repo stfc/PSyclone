@@ -48,7 +48,8 @@ on:
 
 jobs:
   run_if_on_mirror:
-    if: ${{ github.repository == 'arporter/PSyclone-mirror' }}
+    # Only PSyclone-mirror has the necessary self-hosted runner.
+    if: ${{ github.repository == 'stfc/PSyclone-mirror' }}
     runs-on: self-hosted
     steps:
     - uses: actions/checkout@v3
@@ -65,6 +66,7 @@ jobs:
         commit-filter: '[skip ci]'
     - name: Install dependencies
       run: |
+        module load python/3.11.3
         python -m venv .runner_venv
         . .runner_venv/bin/activate
         python -m pip install --upgrade pip
@@ -75,5 +77,6 @@ jobs:
         pip install .[test]
     - name: Test with pytest and compilation
       run: |
+        module load python/3.11.3
         . .runner_venv/bin/activate
         pytest -n 2 --f90=gfortran --compile src/psyclone/tests
