@@ -31,35 +31,48 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Lab
+# Author: S. Siso, STFC Daresbury Lab
+# -----------------------------------------------------------------------------
 
-# Read the Docs configuration file for the PSyclone Developer Guide.
-# See https://docs.readthedocs.io/en/stable/config-file/v2.html for details.
+'''Performs pytest tests on PSyIR Fortran Backend for CommonBlocks '''
 
-# Required
-version: 2
+from psyclone.psyir.nodes import Routine
+from psyclone.tests.utilities import Compile
 
-# Set the version of Python and other tools you might need
-build:
-  os: ubuntu-22.04
-  tools:
-    python: "3.11"
-  apt_packages:
-    - graphviz
 
-# Build documentation in the doc/developer_guide directory with Sphinx
-sphinx:
-   configuration: doc/developer_guide/conf.py
+def test_fw_common_blocks(fortran_reader, fortran_writer, tmpdir):
+    '''Test that declarations with common blocks are maintained in the
+    generated Fortran.
 
-# If using Sphinx, optionally build your docs in additional formats such as PDF
-# formats:
-#    - pdf
+    '''
+    # Generate PSyIR from Fortran code.
+    code = (
+        "module test\n"
+        "  contains\n"
+        "  subroutine sub()\n"
+        "    integer :: a, b, c\n"
+        "    real :: d, e, f\n"
+        "    common /name1/ a, b\n"
+        "    common /name1/ c /name2/ d\n"
+        "    common e, f\n"
+        "  end subroutine sub\n"
+        "end module test\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
 
-# Optionally declare the Python requirements required to build your docs. We
-# need to install the PSyclone package.
-python:
-   install:
-     - method: pip
-       path: .
-       extra_requirements:
-         - doc
+    assert routine.symbol_table.lookup("a").is_commonblock  # Sanity check
+
+    code = fortran_writer(routine)
+    assert code == (
+        "subroutine sub()\n"
+        "  integer :: a\n"
+        "  integer :: b\n"
+        "  integer :: c\n"
+        "  real :: d\n"
+        "  real :: e\n"
+        "  real :: f\n"
+        "  COMMON /name1/ a, b\n"
+        "  COMMON /name1/ c /name2/ d\n"
+        "  COMMON // e, f\n\n\n"
+        "end subroutine sub\n")
+    assert Compile(tmpdir).string_compiles(fortran_writer(psyir))
