@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+# Copyright (c) 2017-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -55,6 +55,7 @@ from psyclone.gocean1p0 import GOInvokeSchedule
 from psyclone.nemo import NemoInvokeSchedule
 from psyclone.psyGen import Transformation, CodedKern, Kern, InvokeSchedule, \
     BuiltIn
+from psyclone.psyir.backend.debug_writer import DebugWriter
 from psyclone.psyir.nodes import ACCDataDirective, ACCDirective, \
     ACCEnterDataDirective, ACCKernelsDirective, ACCLoopDirective, \
     ACCParallelDirective, ACCRoutineDirective, Assignment, CodeBlock, \
@@ -2677,15 +2678,14 @@ class ACCDataTrans(RegionTrans):
                         if var not in var_accesses.all_signatures:
                             continue
                         # For an access such as my_struct(ii)%my_array(ji)
-                        # then
-                        # if we're inside a loop over ii we'll actually need
-                        # a loop to do the deep copy:
+                        # then if we're inside a loop over it we'll actually
+                        # need a loop to do the deep copy:
                         #   do ii = 1, N
-                        #   !$ acc data copyin(my_struct(ii)%my_array)
+                        #   !$acc data copyin(my_struct(ii)%my_array)
                         #   end do
                         raise TransformationError(
                             f"Data region contains a structure access "
-                            f"'{node.name}' where component '{access.name}' "
+                            f"'{DebugWriter()(sref)}' where component '{access.name}' "
                             f"is an array and is iterated over (variable "
                             f"'{var}'). Deep copying of data for structures "
                             f"is only supported where the deepest "

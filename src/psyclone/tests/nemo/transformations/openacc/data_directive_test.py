@@ -318,7 +318,11 @@ def test_multi_array_derived_type_error(fortran_reader, fortran_writer):
     acc_trans = TransInfo().get_trans_name('ACCDataTrans')
     with pytest.raises(TransformationError) as err:
         acc_trans.apply(schedule.children)
-    assert "hohohoho" in str(err.value)
+    assert ("Data region contains a structure access 'small_holding(3)%"
+            "grid(jf)%data(ji)' where component 'grid' is an array and is "
+            "iterated over (variable 'jf'). Deep copying of data for "
+            "structures is only supported where the deepest component is the "
+            "one being iterated over." in str(err.value))
 
 
 def test_array_section():

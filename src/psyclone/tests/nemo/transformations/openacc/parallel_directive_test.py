@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2022, Science and Technology Facilities Council.
+# Copyright (c) 2019-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -38,7 +38,6 @@
 
 '''
 
-from __future__ import print_function, absolute_import
 from fparser.common.readfortran import FortranStringReader
 from psyclone.psyGen import PSyFactory, TransInfo
 
@@ -115,7 +114,7 @@ def test_parallel_two_loops(parser):
             "  real, dimension(jpi) :: sto_tmp\n"
             "  real, dimension(jpi) :: sto_tmp2\n"
             "\n"
-            "  !$acc data copyout(sto_tmp, sto_tmp2)\n"
+            "  !$acc data copyout(sto_tmp,sto_tmp2)\n"
             "  !$acc parallel default(present)\n"
             "  do ji = 1, jpi, 1\n"
             "    sto_tmp(ji) = 1.0d0\n"
@@ -154,7 +153,7 @@ def test_parallel_if_block(parser):
     acc_trans.apply(schedule[0:1])
     data_trans.apply(schedule[0])
     code = str(psy.gen).lower()
-    assert ("  !$acc data copyout(sto_tmp, sto_tmp2)\n"
+    assert ("  !$acc data copyout(sto_tmp,sto_tmp2)\n"
             "  !$acc parallel default(present)\n"
             "  if (init) then\n"
             "    do ji = 1, jpi, 1\n" in code)

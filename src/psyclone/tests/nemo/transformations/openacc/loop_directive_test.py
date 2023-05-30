@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2022, Science and Technology Facilities Council.
+# Copyright (c) 2019-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -38,7 +38,6 @@
 
 '''
 
-from __future__ import print_function, absolute_import
 import pytest
 from fparser.common.readfortran import FortranStringReader
 from psyclone.psyGen import PSyFactory, TransInfo
@@ -105,7 +104,7 @@ def test_explicit_loop(parser):
             "  real, dimension(jpj) :: sto_tmp\n"
             "  real, dimension(jpj) :: sto_tmp2\n"
             "\n"
-            "  !$acc data copyout(sto_tmp, sto_tmp2)\n"
+            "  !$acc data copyout(sto_tmp,sto_tmp2)\n"
             "  !$acc parallel default(present)\n"
             "  !$acc loop independent\n"
             "  do ji = 1, jpj, 1\n"

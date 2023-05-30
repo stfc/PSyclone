@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -38,7 +38,6 @@
 '''Performs pytest tests on the support for OpenACC directives in the
    psyclone.psyir.backend.fortran and c modules. '''
 
-from __future__ import absolute_import
 import pytest
 from fparser.common.readfortran import FortranStringReader
 from psyclone.psyGen import PSyFactory, TransInfo
@@ -134,8 +133,8 @@ end module test''')
     dtrans = ACCDataTrans()
     dtrans.apply(sched)
     gen = fortran_writer(sched)
-    assert ("  !$acc data copyin(grid, grid%flag) "
-            "copyout(grid, grid%data, grid%weights) "
+    assert ("  !$acc data copyin(grid,grid%flag), "
+            "copyout(grid,grid%data,grid%weights), "
             "copy(b)\n"
             "  do i = 1, 20, 2\n"
             "    b(i) = b(i) + i + grid%flag\n"
