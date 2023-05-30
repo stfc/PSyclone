@@ -122,6 +122,7 @@ def test_symbolic_math_equal(fortran_reader, expressions):
 
 
 @pytest.mark.parametrize("expressions", [("a%b", "a%b"),
+                                         ("c", "c(::,::)"),
                                          ("a%b(i)", "a%b(i)"),
                                          ("a%b(2*i)", "a%b(3*i-i)"),
                                          ("a%b(i-1)%c(j+1)",
@@ -218,7 +219,8 @@ def test_symbolic_math_not_equal_structures(fortran_reader, expressions):
                                                 ("i+j", "j+i+1", True),
                                                 ("i-j", "j-i", False),
                                                 ("max(1, 2)",
-                                                 "max(1, 2, 3)", True)
+                                                 "max(1, 2, 3)", True),
+                                                ("a(:)", "b(:)", False),
                                                 ])
 def test_symbolic_math_never_equal(fortran_reader, exp1, exp2, result):
     '''Test that the sympy based comparison handles complex
@@ -240,27 +242,6 @@ def test_symbolic_math_never_equal(fortran_reader, exp1, exp2, result):
 
     sym_maths = SymbolicMaths.get()
     assert sym_maths.never_equal(schedule[0].rhs, schedule[1].rhs) is result
-
-
-def test_symbolic_math_never_equal_error(fortran_reader):
-    '''Test that the sympy based comparison raises exceptions as expected.
-
-    '''
-    # A dummy program to easily create the PSyIR for the
-    # expressions we need. We just take the RHS of the assignments
-    source = '''program test_prog
-                use some_mod
-                type(my_mod_type) :: a, b
-                a(:) = b(:)
-                end program test_prog
-                '''
-    psyir = fortran_reader.psyir_from_source(source)
-    schedule = psyir.children[0]
-
-    sym_maths = SymbolicMaths.get()
-    # The array ranges will cause an exception in the sympy writer,
-    # which the `never_equal` function hides from the application.
-    assert sym_maths.never_equal(schedule[0].rhs, schedule[0].lhs) is False
 
 
 @pytest.mark.parametrize("exp1, exp2, result", [("i", "2*i+1", set([-1])),
