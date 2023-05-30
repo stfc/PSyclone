@@ -449,12 +449,12 @@ supported in the stub generator::
     tests/test_files/dynamo0p3/testkern_any_discontinuous_space_op_2_mod.f90
     tests/test_files/dynamo0p3/testkern_dofs_mod.f90
     tests/test_files/dynamo0p3/testkern_invalid_fortran.F90
-    tests/test_files/dynamo0p3/testkern_short_name.F90
+    tests/test_files/dynamo0p3/testkern_short_name_mod.f90
     tests/test_files/dynamo0p3/testkern_no_datatype.F90
     tests/test_files/dynamo0p3/testkern_qr.F90
 
 ``testkern_invalid_fortran.F90``, ``testkern_no_datatype.F90``,
-``testkern_short_name.F90`` and ``testkern_qr.F90`` are designed to be
+``testkern_short_name_mod.f90`` and ``testkern_qr.F90`` are designed to be
 invalid for PSyclone stub generation testing purposes and should produce
 appropriate errors. Two examples are below::
 

@@ -1179,7 +1179,7 @@ def test_file_fortran_not_kernel():
 def test_module_name_too_short():
     ''' fail if length of kernel module name is too short '''
     with pytest.raises(ParseError) as excinfo:
-        generate(os.path.join(BASE_PATH, "testkern_short_name.F90"),
+        generate(os.path.join(BASE_PATH, "testkern_short_name_mod.f90"),
                  api=TEST_API)
     assert "too short to have '_mod' as an extension" in str(excinfo.value)
 

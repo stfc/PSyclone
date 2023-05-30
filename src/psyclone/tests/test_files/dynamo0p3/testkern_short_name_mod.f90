@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2021, Science and Technology Facilities Council
+! Copyright (c) 2017-2023, Science and Technology Facilities Council
 !
 ! Redistribution and use in source and binary forms, with or without
 ! modification, are permitted provided that the following conditions are met:
@@ -31,9 +31,9 @@
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Author R. W. Ford, STFC Daresbury Lab
-! Modified I. Kavcic, Met Office
+! Modified I. Kavcic and L. Turner, Met Office
 
-module jo
+module jo_mod
 
   use argument_mod
   use fs_continuity_mod
@@ -59,4 +59,4 @@ contains
   subroutine testkern_code()
   end subroutine testkern_code
 
-end module jo
+end module jo_mod
