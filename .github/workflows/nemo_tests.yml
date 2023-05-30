@@ -43,7 +43,7 @@ on:
 
 jobs:
   run_if_on_mirror:
-    if: ${{ github.repository == 'arporter/PSyclone-mirror' }}
+    if: ${{ github.repository == 'stfc/PSyclone-mirror' }}
     runs-on: self-hosted
     steps:
     - uses: actions/checkout@v3
@@ -74,13 +74,13 @@ jobs:
         module load nvidia-hpcsdk netcdf_fortran
         cd examples/NEMO/scripts
         make -j 4 openmp_gpu
-    - name: NEMO MetOffice OpenMP for GPU Compilation
+    - name: NEMO MetOffice OpenMP for Nvidia GPUs Compilation
       run: |
         . .runner_venv/bin/activate
         module load nvidia-hpcsdk netcdf_fortran
         cd examples/NEMO/scripts
         make -j 4 compile-openmp_gpu
-    - name: NEMO MetOffice OpenMP for GPU Compilation
+    - name: NEMO MetOffice OpenMP for Nvidia GPU Execution
       run: |
         . .runner_venv/bin/activate
         module load nvidia-hpcsdk netcdf_fortran

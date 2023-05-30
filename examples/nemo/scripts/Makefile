@@ -31,7 +31,7 @@ DEL_KEYS ?= "key_iomput key_mpp_mpi key_si3"
 MODEL_DIR ?= /home/aporter/NEMO/orca1_inputs/
 NAMELISTS_DIR ?= ${NEMO_DIR}/
 
-# Example Config for ECMWF - eORCA1_GO8_Z75 - intel compiler
+# Example Config for ECMWF - eORCA1_GO8_Z75 (with MPI and SI3) - intel compiler
 # NEMO_DIR ?= /home/ssiso/ecmwf_nemo/nemo/NEMOGCM_V40/
 # ROOT_SRC ?= /home/ssiso/ecmwf_nemo/nemo/NEMOGCM_V40/cfgs/SPITZ12_serial/BLD/ppsrc/nemo/
 # COMPILER_ARCH ?= linux_intel
