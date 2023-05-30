@@ -347,7 +347,9 @@ class SymPyWriter(FortranWriter):
 
     def reference_node(self, node):
         '''This method is called when a Reference instance is found in the
-        PSyIR tree.
+        PSyIR tree. It handles the case that this normal reference might
+        be an array expression, which in the SymPy writer needs to have
+        indices added explicitly.
 
         :param node: a Reference PSyIR node.
         :type node: :py:class:`psyclone.psyir.nodes.Reference`
@@ -355,10 +357,7 @@ class SymPyWriter(FortranWriter):
         :returns: the text representation of this reference.
         :rtype: str
 
-        :raises VisitorError: if this node has children.
-
         '''
-
         if not node.is_array:
             return super().reference_node(node)
 
@@ -408,7 +407,7 @@ class SymPyWriter(FortranWriter):
                 dims.extend([lower_expression, upper_expression, "1"])
             elif isinstance(index, ArrayType.Extent):
                 # unknown extent
-                dims.append("-inf,inf,1")
+                dims.extend(["-inf", "inf", "1"])
             else:
                 raise NotImplementedError(
                     f"unsupported gen_indices index '{index}'")
