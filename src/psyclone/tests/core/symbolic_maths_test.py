@@ -244,6 +244,19 @@ def test_symbolic_math_never_equal(fortran_reader, exp1, exp2, result):
     assert sym_maths.never_equal(schedule[0].rhs, schedule[1].rhs) is result
 
 
+def test_symbolic_maths_never_equal_error(fortran_reader):
+    '''Test the expand method with array notation.'''
+    source = (
+        "program test_prog\n"
+        "  integer :: a(2)\n"
+        "  a(2) = (/1, 2/)\n"
+        "end program test_prog\n")
+    psyir = fortran_reader.psyir_from_source(source)
+    assignment = psyir.children[0][0]
+    sym_maths = SymbolicMaths.get()
+    sym_maths.never_equal(assignment.lhs, assignment.rhs)
+
+
 @pytest.mark.parametrize("exp1, exp2, result", [("i", "2*i+1", set([-1])),
                                                 # Infinite solutions (i is any
                                                 # integer) are returned as
@@ -392,18 +405,6 @@ def test_symbolic_maths_expand(fortran_reader, fortran_writer, expr, expected):
     sym_maths.expand(psyir.children[0][0].rhs)
     result = fortran_writer(psyir.children[0][0].rhs)
     assert result == expected
-
-
-def test_symbolic_maths_expand_error(fortran_reader):
-    '''Test the expand method with array notation.'''
-    source = (
-        "program test_prog\n"
-        "  use some_mod\n"
-        "  x = a(:)*b(:)\n"
-        "end program test_prog\n")
-    psyir = fortran_reader.psyir_from_source(source)
-    sym_maths = SymbolicMaths.get()
-    sym_maths.expand(psyir.children[0][0].rhs)
 
 
 def test_symbolic_maths_array_and_array_index(fortran_reader):
