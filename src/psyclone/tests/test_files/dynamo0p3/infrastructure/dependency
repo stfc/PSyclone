@@ -7,7 +7,7 @@
 # directory, and it is included by the Makefile to make sure files are
 # compiled in the proper order.
 # TODO #1842: Once PSyclone is updated to use the latest fparser version,
-# this script can be auto-generated as part of the makefile.
+# this script can be auto-generated as part of the Makefile.
 
 
 configuration/domain_size_config_mod.o: utilities/constants_mod.o \
@@ -17,13 +17,13 @@ field/field_parent_mod.o: field/pure_abstract_field_mod.o \
 	function_space/function_space_mod.o mesh/mesh_mod.o utilities/constants_mod.o \
 	utilities/log_mod.o
 field/field_r32_mod.o: field/field_parent_mod.o field/pure_abstract_field_mod.o \
-	function_space/fs_continuity_mod.o function_space/function_space_mod.o \
-	mesh/mesh_mod.o scalar/scalar_r32_mod.o utilities/constants_mod.o \
+	function_space/function_space_mod.o scalar/scalar_r32_mod.o \
+	utilities/constants_mod.o utilities/count_mod.o \
 	utilities/log_mod.o utilities/mpi_mod.o
 field/field_r64_mod.o: field/field_parent_mod.o field/pure_abstract_field_mod.o \
-	function_space/fs_continuity_mod.o function_space/function_space_mod.o \
-	mesh/mesh_mod.o scalar/scalar_r64_mod.o utilities/constants_mod.o \
-	utilities/count_mod.o utilities/log_mod.o utilities/mpi_mod.o
+	function_space/function_space_mod.o scalar/scalar_r64_mod.o \
+	utilities/constants_mod.o utilities/count_mod.o \
+	utilities/log_mod.o utilities/mpi_mod.o
 field/integer_field_mod.o: field/field_parent_mod.o \
 	field/pure_abstract_field_mod.o function_space/function_space_mod.o \
 	mesh/mesh_mod.o utilities/constants_mod.o utilities/count_mod.o \
@@ -56,6 +56,10 @@ field/r_tran_field_mod.o: field/field_mod.o field/field_parent_mod.o \
 	function_space/function_space_mod.o mesh/mesh_mod.o scalar/scalar_mod.o \
 	utilities/constants_mod.o utilities/count_mod.o utilities/log_mod.o \
 	utilities/mpi_mod.o
+field/r_bl_field_mod.o: field/field_r32_mod.o \
+	field/field_r64_mod.o
+field/r_phys_field_mod.o: field/field_r32_mod.o \
+	field/field_r64_mod.o
 field/stencil_2d_dofmap_mod.o: field/master_dofmap_mod.o \
 	field/stencil_dofmap_helper_functions_mod.o mesh/mesh_mod.o \
 	mesh/reference_element_mod.o utilities/constants_mod.o \
