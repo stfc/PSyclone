@@ -543,13 +543,19 @@ def test_unaryoperation_initialization():
     assert uop._operator is UnaryOperation.Operator.MINUS
 
 
-def test_unaryoperation_operator():
+@pytest.mark.parametrize("operator_name", ['MINUS', 'MINUS', 'PLUS', 'SQRT',
+                                           'EXP', 'LOG', 'LOG10', 'NOT',
+                                           'COS', 'SIN', 'TAN', 'ACOS',
+                                           'ASIN', 'ATAN', 'ABS', 'CEIL',
+                                           'FLOOR', 'REAL', 'INT', 'NINT'])
+def test_unaryoperation_operator(operator_name):
     '''Test that the operator property returns the unaryoperator in the
     unaryoperation.
 
     '''
-    unary_operation = UnaryOperation(UnaryOperation.Operator.MINUS)
-    assert unary_operation.operator == UnaryOperation.Operator.MINUS
+    operator = getattr(UnaryOperation.Operator, operator_name)
+    unary_operation = UnaryOperation(operator)
+    assert unary_operation.operator == operator
 
 
 def test_unaryoperation_node_str():

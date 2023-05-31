@@ -963,6 +963,7 @@ class Fparser2Reader():
         ('.not.', UnaryOperation.Operator.NOT),
         ('abs', UnaryOperation.Operator.ABS),
         ('ceiling', UnaryOperation.Operator.CEIL),
+        ('floor', UnaryOperation.Operator.FLOOR),
         ('exp', UnaryOperation.Operator.EXP),
         ('log', UnaryOperation.Operator.LOG),
         ('log10', UnaryOperation.Operator.LOG10),
@@ -4271,7 +4272,7 @@ class Fparser2Reader():
         :returns: the PSyIR call argument with the PSyIR \
             representation of the fparser2 node arguments.
         :rtype: :py:class:`psyclone.psyir.nodes.Call` or \
-                :py:class:`psyclone.psyir.nodes.IntrinsicCall
+                :py:class:`psyclone.psyir.nodes.IntrinsicCall`
 
         :raises GenerationError: if all named arguments do not follow \
             all positional arguments.
