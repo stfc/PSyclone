@@ -217,8 +217,8 @@ class SingleVariableAccessInfo():
                    for access_info in self._accesses)
 
     def is_written_first(self):
-        ''':returns: True if this variable is written in the first access
-            (which indicates that this variable is not an input variable
+        ''':returns: True if this variable is written in the first access \
+            (which indicates that this variable is not an input variable \
             for a kernel).
 
         :rtype: bool

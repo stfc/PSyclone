@@ -164,4 +164,4 @@ class ReadWriteInfo:
         :rtype: bool
 
         '''
-        return signature in [sig for _, sig in self._read_list]
+        return any(signature == sig for _, sig in self._read_list)

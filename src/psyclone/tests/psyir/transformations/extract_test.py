@@ -49,8 +49,8 @@ from psyclone.psyir.nodes import ExtractNode, Loop, Node
 from psyclone.psyir.tools import ReadWriteInfo
 from psyclone.psyir.transformations import ExtractTrans, TransformationError
 from psyclone.tests.utilities import get_invoke
-from psyclone.transformations import (ACCParallelTrans, ACCEnterDataTrans,
-                                      ACCLoopTrans, DynamoOMPParallelLoopTrans)
+from psyclone.transformations import (ACCParallelTrans, ACCLoopTrans,
+                                      DynamoOMPParallelLoopTrans)
 
 
 # --------------------------------------------------------------------------- #
@@ -150,7 +150,7 @@ def test_extract_validate():
     _, invoke = get_invoke("single_invoke_three_kernels.f90",
                            "gocean1.0", idx=0, dist_mem=False)
     etrans = ExtractTrans()
-    etrans.apply(invoke.schedule.children[0])
+    etrans.validate(invoke.schedule.children)
 
 
 # -----------------------------------------------------------------------------
@@ -215,7 +215,6 @@ def test_extract_directive_no_loop():
     etrans = ExtractTrans()
     acclpt = ACCLoopTrans()
     accpara = ACCParallelTrans()
-    accdata = ACCEnterDataTrans()
 
     _, invoke = get_invoke("single_invoke_three_kernels.f90",
                            "gocean1.0", idx=0, dist_mem=False)
@@ -227,10 +226,8 @@ def test_extract_directive_no_loop():
             acclpt.apply(child)
     # Enclose all of these loops within a single ACC Parallel region
     accpara.apply(schedule.children)
-    # Add a mandatory ACC enter-data directive
-    accdata.apply(schedule)
 
-    orphaned_directive = schedule.children[1].children[0]
+    orphaned_directive = schedule.children[0].children[0]
     with pytest.raises(TransformationError) as excinfo:
         etrans.validate(orphaned_directive)
     assert "Error in ExtractTrans: Application to Nodes enclosed " \
