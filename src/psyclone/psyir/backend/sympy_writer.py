@@ -106,6 +106,7 @@ class SymPyWriter(FortranWriter):
                                  (BinaryOperation.Operator.MAX, "Max"),
                                  (NaryOperation.Operator.MIN, "Min"),
                                  (BinaryOperation.Operator.MIN, "Min"),
+                                 (UnaryOperation.Operator.FLOOR, "floor"),
                                  (BinaryOperation.Operator.REM, "Mod"),
                                  # exp is needed for a test case only, in
                                  # general the maths functions can just be

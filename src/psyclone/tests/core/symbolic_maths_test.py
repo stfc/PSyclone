@@ -329,7 +329,9 @@ def test_solve_equal_for_error(monkeypatch):
                                          ("min(1, 3)", "min(1, 2, 3)"),
                                          ("min(1, 2, 3)", "1"),
                                          ("MOD(7,2)", "1"),
-                                         ("MOD(i,j)", "mod(2+i-2, j)")
+                                         ("MOD(i,j)", "mod(2+i-2, j)"),
+                                         ("FLOOR(1.1)", "1"),
+                                         ("FLOOR(-1.1)", "-2")
                                          ])
 def test_symbolic_math_functions_with_constants(fortran_reader, expressions):
     '''Test that recognised functions with constant values as arguments are
