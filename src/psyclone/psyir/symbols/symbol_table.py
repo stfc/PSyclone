@@ -1484,6 +1484,7 @@ class SymbolTable():
                              imported or is a formal routine argument.
         :raises SymbolError: if the specified Symbol is accessed within a \
                              CodeBlock in the scope of this table.
+        :raises SymbolError: if the symbol has a common block interface.
 
         '''
         if not isinstance(symbol, Symbol):
@@ -1511,7 +1512,10 @@ class SymbolTable():
                 f"Cannot rename symbol '{symbol.name}' because it is a routine"
                 f" argument and as such may be named in a Call.")
 
-        # TODO #2043 - add check that Symbol is not in a Fortran Common Block.
+        if symbol.is_commonblock:
+            raise SymbolError(
+                f"Cannot rename symbol '{symbol.name}' because it has a "
+                f"CommonBlock interface.")
 
         if not isinstance(name, str):
             raise TypeError(

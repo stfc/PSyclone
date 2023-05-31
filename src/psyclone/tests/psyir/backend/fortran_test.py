@@ -124,7 +124,7 @@ def test_gen_indices(fortran_writer):
     assert fortran_writer.gen_indices(bray_type.shape) == [":", ":"]
 
 
-def test_gen_indices_error(monkeypatch, fortran_writer):
+def test_gen_indices_error(fortran_writer):
     '''Check the _gen_indices method raises an exception if a symbol shape
     entry is not supported.
 
