@@ -32,7 +32,8 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
-# Modified: S. Siso, STFC Daresbury Lab
+# Modified: S. Siso, STFC Daresbury Lab,
+#           I. Kavcic, Met Office
 
 ''' This module tests the driver creation for extracted kernels.'''
 
@@ -303,8 +304,9 @@ def test_lfric_driver_import_precision():
     filename = "driver-field-test.F90"
     with open(filename, "r", encoding='utf-8') as my_file:
         driver = my_file.read()
-    assert ("use constants_mod, only : i_def, l_def, r_def, r_double, r_ncdf, "
-            "r_second, r_single, r_solver, r_tran, r_um" in driver)
+    assert ("use constants_mod, only : i_def, l_def, r_bl, r_def, "
+            "r_double, r_ncdf, r_phys, r_second, r_single, r_solver, "
+            "r_tran, r_um" in driver)
 
     for mod in ["read_kernel_data_mod", "constants_mod", "kernel_mod",
                 "argument_mod", "log_mod", "fs_continuity_mod",
