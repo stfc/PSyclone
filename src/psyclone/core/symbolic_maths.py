@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -264,7 +264,6 @@ class SymbolicMaths:
         # Avoid circular import
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.backend.sympy_writer import SymPyWriter
-        from psyclone.psyir.frontend.fortran import FortranReader
         from psyclone.psyir.nodes import Reference, Literal
 
         # variables and literals do not require expansion
@@ -274,11 +273,12 @@ class SymbolicMaths:
         sympy_expression = SymPyWriter.convert_to_sympy_expressions([expr])
         # Expand the expression
         result = expand(sympy_expression[0])
+
         # Find the required symbol table in the original PSyIR
         symbol_table = expr.scope.symbol_table
         # Convert the new sympy expression to PSyIR
-        reader = FortranReader()
-        new_expr = reader.psyir_from_expression(str(result), symbol_table)
+        new_expr = SymPyWriter.sympy_to_psyir(result, symbol_table)
+
         # If the expanded result is the same as the original then
         # nothing needs to be done.
         if new_expr == expr:

@@ -394,7 +394,7 @@ def test_symbolic_math_use_reserved_names(fortran_reader, expressions):
     ("a*(b+c)", "a * b + a * c"),
     ("a*((b+c)/d)", "a * b / d + a * c / d"),
     ("a(i)*((b(i,j)+c(j))/d)",
-     "a(i,i,1) * b(i,i,1,j,j,1) / d + a(i,i,1) * c(j,j,1) / d")])
+     "a(i) * b(i,j) / d + a(i) * c(j) / d")])
 def test_symbolic_maths_expand(fortran_reader, fortran_writer, expr, expected):
     '''Test the expand method works as expected.'''
     # A dummy program to easily create the PSyIR for the

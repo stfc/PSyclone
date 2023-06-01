@@ -44,9 +44,10 @@ from sympy import Function, Symbol
 from sympy.parsing.sympy_parser import parse_expr
 
 from psyclone.psyir.backend.fortran import FortranWriter
+from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.backend.visitor import VisitorError
-from psyclone.psyir.nodes import (BinaryOperation, DataNode, Literal,
-                                  NaryOperation, Range, Reference,
+from psyclone.psyir.nodes import (ArrayReference, BinaryOperation, DataNode,
+                                  Literal, NaryOperation, Range, Reference,
                                   UnaryOperation)
 from psyclone.psyir.symbols import ArrayType, ScalarType, SymbolTable
 
@@ -474,3 +475,49 @@ class SymPyWriter(FortranWriter):
             result += f",{step}"
 
         return result
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def sympy_to_psyir(sympy_expr, symbol_table):
+        '''This function converts a SymPy expression back into PSyIR. It first
+        parses the SymPy expression back into PSyIR, and then replaces all
+        array indices back into the corresponding Fortran values (since they
+        were replaced with three parameters to support array expressions), e.g.
+        `a(i,i,1)` will be converted back to `a(i)`, and `a(-inf,5,2)` will
+        become `a(:5:2)`.
+
+        :param sympy_expr: the original SymPy expression.
+        :type sympy_expr: py:class:`sympy.core.basic.Basic`
+        :param symbol_table: the symbol table required for parsing, it \
+            should be the table from which the original SymPy expression \
+            was created from (i.e. contain all the required symbols in the \
+            SymPy expression).
+        :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+
+        :returns: the PSyIR representation of the SymPy expression.
+        :rtype: :py:class:`psyclone.psyir.nodes.Node`
+
+        '''
+        # Convert the new sympy expression to PSyIR
+        reader = FortranReader()
+        new_expr = reader.psyir_from_expression(str(sympy_expr), symbol_table)
+        for array in new_expr.walk(ArrayReference):
+            indices = array.indices
+            i = 0
+            while i < len(array.indices):
+                # Check for an index expression like `i:i:1` or
+                # `2*i+1:2*i+1:1`:
+                if indices[i] == indices[i+1] and \
+                        isinstance(indices[i+2], Literal) and \
+                        indices[i+2].value == "1":
+                    # In this case we can just delete the next two indices
+                    # (which are the children):
+                    del array.indices[i + 2]
+                    del array.indices[i + 1]
+                else:
+                    print("oops", type(indices[i]), type(indices[i+1]),
+                          type(indices[i+2]))
+
+                i += 1
+
+        return new_expr

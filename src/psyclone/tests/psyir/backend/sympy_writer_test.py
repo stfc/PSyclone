@@ -435,3 +435,29 @@ def test_gen_indices():
     with pytest.raises(NotImplementedError) as err:
         _ = sympy_writer.gen_indices([None])
     assert "unsupported gen_indices index 'None'" in str(err.value)
+
+
+@pytest.mark.parametrize("expressions", [("b(i)", "b(i)")])
+def test_sympy_expr_to_psyir(fortran_reader, fortran_writer, expressions):
+    '''Test conversion from a SymPy expression back to PSyIR. Especially check
+    the conversion of indices, e.g. a Fortran `b(i)` becomes a SymPy
+    `b(i,i,1)` (to support array expressions), which then needs to be
+    converted back to `b(i`).
+
+    '''
+    source = f'''program test_prog
+                use my_mod
+                !integer :: i
+                integer :: a, b(10), c(10, 10)
+                x = {expressions[0]}
+                end program test_prog'''
+
+    psyir = fortran_reader.psyir_from_source(source)
+    symbol_table = psyir.children[0].symbol_table
+    psyir_expr = psyir.children[0].children[0].rhs
+    sympy_expr = SymPyWriter.convert_to_sympy_expressions([psyir_expr])[0]
+    assert "b(i, i, 1)" in str(sympy_expr)
+
+    new_psyir = SymPyWriter.sympy_to_psyir(sympy_expr, symbol_table)
+    print("NEW", fortran_writer(new_psyir))
+    assert fortran_writer(new_psyir) == expressions[1]
