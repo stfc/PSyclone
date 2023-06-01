@@ -451,10 +451,10 @@ supported in the stub generator::
     tests/test_files/dynamo0p3/testkern_invalid_fortran_mod.f90
     tests/test_files/dynamo0p3/testkern_short_name_mod.f90
     tests/test_files/dynamo0p3/testkern_no_datatype_mod.f90
-    tests/test_files/dynamo0p3/testkern_qr.F90
+    tests/test_files/dynamo0p3/testkern_qr_mod.F90
 
 ``testkern_invalid_fortran_mod.f90``, ``testkern_no_datatype_mod.f90``,
-``testkern_short_name_mod.f90`` and ``testkern_qr.F90`` are designed to be
+``testkern_short_name_mod.f90`` and ``testkern_qr_mod.F90`` are designed to be
 invalid for PSyclone stub generation testing purposes and should produce
 appropriate errors. Two examples are below::
 
