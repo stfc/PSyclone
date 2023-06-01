@@ -1055,7 +1055,7 @@ output strings).
 The logic and declaration of kernel variables is handled separately by
 the ``gen_stub`` method in ``DynKern`` and the ``gen_code`` method in
 ``LFRicInvoke``. In both cases these methods make use of the subclasses
-of ``DynCollection`` to declare variables.
+of ``LFRicCollection`` to declare variables.
 
 When using the symbol table in the LFRic PSyIR we naturally capture
 arguments and datatypes together. The ``KernelInterface`` class is
@@ -1068,7 +1068,7 @@ clear what the limitations are for ``KernStubArgList``.
 
 Eventually the definition of lfric datatypes should be moved to the
 LFRic PSyIR, but at the moment there is a lot of information defined
-in the ``DynCollection`` subclasses. This will need to be addressed
+in the ``LFRicCollection`` subclasses. This will need to be addressed
 over time.
 
 The GOcean PSyIR
