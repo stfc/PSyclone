@@ -121,7 +121,7 @@ SIMPLE = (
 
 def test_stub_generate_working():
     ''' Check that the stub generate produces the expected output '''
-    result = generate(os.path.join(BASE_PATH, "simple_mod.f90"),
+    result = generate(os.path.join(BASE_PATH, "testkern_simple_mod.f90"),
                       api=TEST_API)
     assert SIMPLE in str(result)
 
@@ -129,7 +129,7 @@ def test_stub_generate_working():
 def test_stub_generate_working_noapi():
     ''' check that the stub generate produces the expected output when
     we use the default api (which should be dynamo0.3)'''
-    result = generate(os.path.join(BASE_PATH, "simple_mod.f90"))
+    result = generate(os.path.join(BASE_PATH, "testkern_simple_mod.f90"))
     assert SIMPLE in str(result)
 
 
