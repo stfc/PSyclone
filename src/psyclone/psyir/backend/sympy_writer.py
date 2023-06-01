@@ -58,6 +58,13 @@ class SymPyWriter(FortranWriter):
     implements special handling for constants (which can have a precision
     attached, e.g. 2_4) and some intrinsic functions (e.g. MAX, which SymPy
     expects to be Max).
+    Array expressions are supported by the writer: it will convert any array
+    expression like `a(i:j:k)` by using three arguments: `a(i, j, k)`.
+    Then simple array accesses like `b(i,j)` are converted to
+    `b(i,i,1,j,j,1)`. Similarly, if `a` is known to be an array, then the
+    writer will use `a(-inf,inf,1)`. This makes sure all SymPy unknown
+    functions that represent an array use the same number of arguments.
+
     It additionally supports accesses to structure types. A full description
     can be found in the manual:
     https://psyclone-dev.readthedocs.io/en/latest/sympy.html#sympy
@@ -116,6 +123,7 @@ class SymPyWriter(FortranWriter):
             self._intrinsic.add(op_str)
             self._op_to_str[operator] = op_str
 
+    # -------------------------------------------------------------------------
     @staticmethod
     def create_type_map(list_of_expressions):
         '''
@@ -147,6 +155,7 @@ class SymPyWriter(FortranWriter):
 
         return sympy_type_map
 
+    # -------------------------------------------------------------------------
     @staticmethod
     def get_sympy_expressions_and_symbol_map(list_of_expressions):
         '''
@@ -195,6 +204,7 @@ class SymPyWriter(FortranWriter):
         except SyntaxError as err:
             raise VisitorError("Invalid SymPy expression") from err
 
+    # -------------------------------------------------------------------------
     @staticmethod
     def convert_to_sympy_expressions(list_of_expressions):
         '''
@@ -220,6 +230,7 @@ class SymPyWriter(FortranWriter):
             get_sympy_expressions_and_symbol_map(list_of_expressions)
         return sympy_expressions
 
+    # -------------------------------------------------------------------------
     def member_node(self, node):
         '''In SymPy an access to a member 'b' of a structure 'a'
         (i.e. a%b in Fortran) is handled as the 'MOD' function
@@ -275,6 +286,7 @@ class SymPyWriter(FortranWriter):
         # it is a member) with the new name from the symbol table:
         return new_name + original_name[len(node.name):]
 
+    # -------------------------------------------------------------------------
     def literal_node(self, node):
         '''This method is called when a Literal instance is found in the PSyIR
         tree. For SymPy we need to handle booleans (which are expected to
@@ -305,6 +317,7 @@ class SymPyWriter(FortranWriter):
         # information can be ignored.
         return node.value
 
+    # -------------------------------------------------------------------------
     def get_operator(self, operator):
         '''Determine the operator that is equivalent to the provided
         PSyIR operator. This implementation checks for certain functions
@@ -329,6 +342,7 @@ class SymPyWriter(FortranWriter):
         except KeyError:
             return super().get_operator(operator)
 
+    # -------------------------------------------------------------------------
     def is_intrinsic(self, operator):
         '''Determine whether the supplied operator is an intrinsic
         function (i.e. needs to be used as `f(a,b)`) or not (i.e. used
@@ -346,6 +360,7 @@ class SymPyWriter(FortranWriter):
 
         return super().is_intrinsic(operator)
 
+    # -------------------------------------------------------------------------
     def reference_node(self, node):
         '''This method is called when a Reference instance is found in the
         PSyIR tree. It handles the case that this normal reference might
@@ -374,7 +389,9 @@ class SymPyWriter(FortranWriter):
         '''Given a list of PSyIR nodes representing the dimensions of an
         array, return a list of strings representing those array dimensions.
         This is used both for array references and array declarations. Note
-        that 'indices' can also be a shape in case of Fortran.
+        that 'indices' can also be a shape in case of Fortran. The
+        implementation here overwrites the one in the base class to convert
+        each array index into a three parameters to support array expressions.
 
         :param indices: list of PSyIR nodes.
         :type indices: list of :py:class:`psyclone.psyir.symbols.Node`
@@ -414,9 +431,11 @@ class SymPyWriter(FortranWriter):
                     f"unsupported gen_indices index '{index}'")
         return dims
 
+    # -------------------------------------------------------------------------
     def range_node(self, node):
         '''This method is called when a Range instance is found in the PSyIR
-        tree.
+        tree. This implementation convers a range into three parameters
+        for the corresponding SymPy function.
 
         :param node: a Range PSyIR node.
         :type node: :py:class:`psyclone.psyir.nodes.Range`
