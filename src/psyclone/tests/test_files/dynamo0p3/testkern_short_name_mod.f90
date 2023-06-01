@@ -33,7 +33,7 @@
 ! Author R. W. Ford, STFC Daresbury Lab
 ! Modified I. Kavcic and L. Turner, Met Office
 
-module jo_mod
+module jo
 
   use argument_mod
   use fs_continuity_mod
@@ -59,4 +59,4 @@ contains
   subroutine testkern_code()
   end subroutine testkern_code
 
-end module jo_mod
+end module jo

@@ -1162,7 +1162,7 @@ def test_stub_file_content_not_fortran():
 def test_stub_file_fortran_invalid():
     ''' fail if the fortran in the kernel is not valid '''
     with pytest.raises(ParseError) as excinfo:
-        generate(os.path.join(BASE_PATH, "testkern_invalid_fortran.F90"),
+        generate(os.path.join(BASE_PATH, "testkern_invalid_fortran_mod.f90"),
                  api=TEST_API)
     assert 'contain <== no parse pattern found' in str(excinfo.value)
 
