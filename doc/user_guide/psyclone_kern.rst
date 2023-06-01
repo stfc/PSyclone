@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2017-2022, Science and Technology Facilities Council
+.. Copyright (c) 2017-2023, Science and Technology Facilities Council
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 .. POSSIBILITY OF SUCH DAMAGE.
 .. -----------------------------------------------------------------------------
 .. Written by R. W. Ford and A. R. Porter, STFC Daresbury Lab
-.. Modified by I. Kavcic, Met Office
+.. Modified by I. Kavcic and L. Turner, Met Office
 
 PSyclone Kernel Tools
 =====================
@@ -197,7 +197,7 @@ directory where ``<PSYCLONEHOME>`` refers to the location where you
 download or clone PSyclone (:ref:`Getting Going <getting-going>`).
 
 In the ``tests/test_files/dynamo0p3`` directory the majority of examples
-start with ``testkern``. Amongst the exceptions are: ``simple.f90``,
+start with ``testkern``. Amongst the exceptions are: ``simple_mod.f90``,
 ``ru_kernel_mod.f90`` and ``matrix_vector_kernel_mod.F90``. The following
 test kernels can be used to generate kernel stub code (running stub
 generation from the ``<PSYCLONEHOME>/src/psyclone`` directory)::
@@ -207,7 +207,7 @@ generation from the ``<PSYCLONEHOME>/src/psyclone`` directory)::
     tests/test_files/dynamo0p3/testkern_operator_mod.f90
     tests/test_files/dynamo0p3/testkern_operator_nofield_mod.f90
     tests/test_files/dynamo0p3/ru_kernel_mod.f90
-    tests/test_files/dynamo0p3/simple.f90
+    tests/test_files/dynamo0p3/simple_mod.f90
 
 .. _stub-generation-example:
 
@@ -215,7 +215,7 @@ Example
 +++++++
 
 A simple, single field example of a kernel that can be used as input for the
-stub generator is found in ``tests/test_files/dynamo0p3/simple.f90`` and
+stub generator is found in ``tests/test_files/dynamo0p3/simple_mod.f90`` and
 is shown below:
 
 .. _simple_metadata:
@@ -260,9 +260,9 @@ is shown below:
           the generator relies on currently requires a dummy kernel subroutine
           to exist.
 
-If we run the kernel stub generator on the ``simple.f90`` example::
+If we run the kernel stub generator on the ``simple_mod.f90`` example::
 
-  > psyclone-kern -gen stub tests/test_files/dynamo0p3/simple.f90
+  > psyclone-kern -gen stub tests/test_files/dynamo0p3/simple_mod.f90
 
 we get the following kernel stub output:
 
@@ -543,7 +543,7 @@ Example
 If we take the same kernel used in the stub-generation
 :ref:`example <stub-generation-example>` then running ::
 
-  > psyclone-kern -gen alg tests/test_files/dynamo0p3/simple.f90
+  > psyclone-kern -gen alg tests/test_files/dynamo0p3/simple_mod.f90
 
 gives the following algorithm layer code:
 
