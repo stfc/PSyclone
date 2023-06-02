@@ -541,8 +541,6 @@ class ACCKernelsDirective(ACCRegionDirective):
     :param bool default_present: whether or not to add the "default(present)" \
                                  clause to the kernels directive.
 
-    :raises NotImplementedError: if default_present is False.
-
     '''
     def __init__(self, children=None, parent=None, default_present=True):
         super().__init__(children=children, parent=parent)
@@ -629,61 +627,19 @@ class ACCDataDirective(ACCRegionDirective):
 
     '''
     def __init__(self, children=None, parent=None):
+        self._under_construction = True
         super().__init__(children=children, parent=parent)
 
         self._parent_loop_vars = []
-        cursor = self.ancestor(Loop)
-        while cursor:
-            self._parent_loop_vars.append(cursor.variable)
-            cursor = cursor.ancestor(Loop)
+        self._under_construction = False
+        self._in_update = False
+        self.update()
 
-        # Identify the inputs and outputs to the region (variables that
-        # are read and written).
-        var_accesses = VariablesAccessInfo(children)
-        table = self.scope.symbol_table
-        readers = set()
-        writers = set()
-        for signature in var_accesses.all_signatures:
-            sym = table.lookup(signature.var_name)
-            accesses = var_accesses[signature]
-            if isinstance(sym.datatype, ScalarType):
-                # We ignore scalars as these are passed by value when OpenACC
-                # kernels are launched.
-                continue
-            if accesses.is_read():
-                readers.add(signature)
-            if accesses.is_written():
-                writers.add(signature)
-        readwrites = readers.intersection(writers)
-        # Are any of the read-writes written before they are read?
-        for signature in list(readwrites)[:]:
-            accesses = var_accesses[signature]
-            if accesses[0].access_type == AccessType.WRITE:
-                # First access is a write so treat as a write
-                writers.add(signature)
-                readers.discard(signature)
-                readwrites.discard(signature)
-        readers_list = sorted(list(readers - readwrites))
-        writers_list = sorted(list(writers - readwrites))
-        readwrites_list = sorted(list(readwrites))
-
-        # We now need to create PSyIR references for all of the signatures
-        # and add them as children of the appropriate clauses.
-        nodes_dict = OrderedDict()
-        for sig in readers_list:
-            self.sig2ref(var_accesses, sig, nodes_dict)
-        if nodes_dict:
-            self.addchild(ACCCopyInClause(children=list(nodes_dict.values())))
-        nodes_dict = OrderedDict()
-        for sig in writers_list:
-            self.sig2ref(var_accesses, sig, nodes_dict)
-        if nodes_dict:
-            self.addchild(ACCCopyOutClause(children=list(nodes_dict.values())))
-        nodes_dict = OrderedDict()
-        for sig in readwrites_list:
-            self.sig2ref(var_accesses, sig, nodes_dict)
-        if nodes_dict:
-            self.addchild(ACCCopyClause(children=list(nodes_dict.values())))
+    def _refine_copy(self, other):
+        ''' '''
+        self._under_construction = True
+        super()._refine_copy(other)
+        self._under_construction = False
 
     @staticmethod
     def sig2ref(var_accesses, sig, refs_dict):
@@ -740,7 +696,6 @@ class ACCDataDirective(ACCRegionDirective):
                     refs_dict[member_sig[:depth+1]] = base_cls.create(
                         *base_args, members)
             return refs_dict
-
 
         if isinstance(node, Kern):
             if sig not in refs_dict:
@@ -878,6 +833,73 @@ class ACCDataDirective(ACCRegionDirective):
 
         '''
         return "acc end data"
+
+    def update(self):
+        '''
+        '''
+        if self._under_construction or self._in_update:
+            return
+        self._in_update = True
+
+        cursor = self.ancestor(Loop)
+        while cursor:
+            self._parent_loop_vars.append(cursor.variable)
+            cursor = cursor.ancestor(Loop)
+
+        # Remove the clauses that we will update.
+        for child in self.children[:]:
+            if isinstance(child,
+                          (ACCCopyInClause, ACCCopyOutClause, ACCCopyClause)):
+                self.children.remove(child)
+
+        # Identify the inputs and outputs to the region (variables that
+        # are read and written).
+        var_accesses = VariablesAccessInfo(self.children)
+        table = self.scope.symbol_table
+        readers = set()
+        writers = set()
+        for signature in var_accesses.all_signatures:
+            sym = table.lookup(signature.var_name)
+            accesses = var_accesses[signature]
+            if isinstance(sym.datatype, ScalarType):
+                # We ignore scalars as these are passed by value when OpenACC
+                # kernels are launched.
+                continue
+            if accesses.is_read():
+                readers.add(signature)
+            if accesses.is_written():
+                writers.add(signature)
+        readwrites = readers.intersection(writers)
+        # Are any of the read-writes written before they are read?
+        for signature in list(readwrites)[:]:
+            accesses = var_accesses[signature]
+            if accesses[0].access_type == AccessType.WRITE:
+                # First access is a write so treat as a write
+                writers.add(signature)
+                readers.discard(signature)
+                readwrites.discard(signature)
+        readers_list = sorted(list(readers - readwrites))
+        writers_list = sorted(list(writers - readwrites))
+        readwrites_list = sorted(list(readwrites))
+
+        # We now need to create PSyIR references for all of the signatures
+        # and add them as children of the appropriate clauses.
+        nodes_dict = OrderedDict()
+        for sig in readers_list:
+            self.sig2ref(var_accesses, sig, nodes_dict)
+        if nodes_dict:
+            self.addchild(ACCCopyInClause(children=list(nodes_dict.values())))
+        nodes_dict = OrderedDict()
+        for sig in writers_list:
+            self.sig2ref(var_accesses, sig, nodes_dict)
+        if nodes_dict:
+            self.addchild(ACCCopyOutClause(children=list(nodes_dict.values())))
+        nodes_dict = OrderedDict()
+        for sig in readwrites_list:
+            self.sig2ref(var_accesses, sig, nodes_dict)
+        if nodes_dict:
+            self.addchild(ACCCopyClause(children=list(nodes_dict.values())))
+        self._in_update = False
 
 
 class ACCUpdateDirective(ACCStandaloneDirective):

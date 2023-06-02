@@ -95,7 +95,7 @@ class ChildrenList(list):
     a callback function that allows the validation of the inserted children.
     Since this is a subclass of the standard list, all operations (e.g. append,
     insert, extend, comparisons, list arithmetic operations) are conserved and
-    making use of the validation.
+    make use of the validation.
 
     :param node: reference to the node where the list belongs.
     :type node: :py:class:`psyclone.psyir.nodes.Node`
@@ -206,6 +206,7 @@ class ChildrenList(list):
         self._check_is_orphan(item)
         super(ChildrenList, self).append(item)
         self._set_parent_link(item)
+        self._node_reference.update()
 
     def __setitem__(self, index, item):
         ''' Extends list __setitem__ method with children node validation.
@@ -220,6 +221,7 @@ class ChildrenList(list):
         self._del_parent_link(self[index])
         super(ChildrenList, self).__setitem__(index, item)
         self._set_parent_link(item)
+        self._node_reference.update()
 
     def insert(self, index, item):
         ''' Extends list insert method with children node validation.
@@ -237,6 +239,7 @@ class ChildrenList(list):
             self._validate_item(position + 1, self[position])
         super(ChildrenList, self).insert(index, item)
         self._set_parent_link(item)
+        self._node_reference.update()
 
     def extend(self, items):
         ''' Extends list extend method with children node validation.
@@ -251,6 +254,7 @@ class ChildrenList(list):
         super(ChildrenList, self).extend(items)
         for item in items:
             self._set_parent_link(item)
+        self._node_reference.update()
 
     # Methods below don't insert elements but have the potential to displace
     # or change the order of the items in-place.
@@ -265,6 +269,7 @@ class ChildrenList(list):
             self._validate_item(position - 1, self[position])
         self._del_parent_link(self[index])
         super(ChildrenList, self).__delitem__(index)
+        self._node_reference.update()
 
     def remove(self, item):
         ''' Extends list remove method with children node validation.
@@ -277,6 +282,7 @@ class ChildrenList(list):
             self._validate_item(position - 1, self[position])
         self._del_parent_link(item)
         super(ChildrenList, self).remove(item)
+        self._node_reference.update()
 
     def pop(self, index=-1):
         ''' Extends list pop method with children node validation.
@@ -293,13 +299,18 @@ class ChildrenList(list):
         for position in range(positiveindex + 1, len(self)):
             self._validate_item(position - 1, self[position])
         self._del_parent_link(self[index])
-        return super(ChildrenList, self).pop(index)
+        obj = super(ChildrenList, self).pop(index)
+        self._node_reference.update()
+        return obj
 
     def reverse(self):
         ''' Extends list reverse method with children node validation. '''
         for index, item in enumerate(self):
             self._validate_item(len(self) - index - 1, item)
         super(ChildrenList, self).reverse()
+        # Reversing the order of e.g. Statements may alter the read/write
+        # properties of any References.
+        self._node_reference.update()
 
 
 class Node():
@@ -340,10 +351,6 @@ class Node():
     _colour = None
 
     def __init__(self, ast=None, children=None, parent=None, annotations=None):
-        self._children = ChildrenList(self, self._validate_child,
-                                      self._children_valid_format)
-        if children:
-            self._children.extend(children)
         if parent and not isinstance(parent, Node):
             raise TypeError(f"The parent of a Node must also be a Node but "
                             f"got '{type(parent).__name__}'")
@@ -353,6 +360,10 @@ class Node():
         # will become False.
         self._has_constructor_parent = parent is not None
         self._parent = parent
+        self._children = ChildrenList(self, self._validate_child,
+                                      self._children_valid_format)
+        if children:
+            self._children.extend(children)
         # Reference into fparser2 AST (if any)
         self._ast = ast
         # Ref. to last fparser2 parse tree node associated with this Node.
@@ -1455,6 +1466,12 @@ class Node():
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.backend.debug_writer import DebugWriter
         return DebugWriter()(self)
+
+    def update(self):
+        '''
+        '''
+        if self.parent:
+            self.parent.update()
 
 
 # For automatic documentation generation

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022, Science and Technology Facilities Council.
+# Copyright (c) 2022-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -44,7 +44,8 @@ from psyclone.psyir.nodes.reference import Reference
 class ACCCopyClause(Clause):
     '''
     OpenACC copy clause. Specifies a list of variables that are to be copied
-    to the device and the start of a region and back again at the end.
+    to the device at the start of the associated region and back to the host
+    at the end.
 
     '''
     _children_valid_format = "Reference"
@@ -55,7 +56,7 @@ class ACCCopyClause(Clause):
     def _validate_child(position, child):
         '''
         Decides whether a given child and position are valid for this node.
-        Any number of children allowed, all of type Reference.
+        Any number of children are allowed, all of type Reference.
 
         :param int position: the position to be validated.
         :param child: a child to be validated.
@@ -71,7 +72,7 @@ class ACCCopyClause(Clause):
 class ACCCopyInClause(Clause):
     '''
     OpenACC copy clause. Specifies a list of variables that are to be copied
-    to the device and the start of a region and back again at the end.
+    to the device at the start of a region.
 
     '''
     _children_valid_format = "Reference"
@@ -82,7 +83,7 @@ class ACCCopyInClause(Clause):
     def _validate_child(position, child):
         '''
         Decides whether a given child and position are valid for this node.
-        Any number of children allowed, all of type Reference.
+        Any number of children are allowed, all of type Reference.
 
         :param int position: the position to be validated.
         :param child: a child to be validated.
@@ -98,7 +99,7 @@ class ACCCopyInClause(Clause):
 class ACCCopyOutClause(Clause):
     '''
     OpenACC copy clause. Specifies a list of variables that are to be copied
-    to the device and the start of a region and back again at the end.
+    from the device to the host at the end of the associated region.
 
     '''
     _children_valid_format = "Reference"
@@ -109,7 +110,7 @@ class ACCCopyOutClause(Clause):
     def _validate_child(position, child):
         '''
         Decides whether a given child and position are valid for this node.
-        Any number of children allowed, all of type Reference.
+        Any number of children are allowed, all of type Reference.
 
         :param int position: the position to be validated.
         :param child: a child to be validated.

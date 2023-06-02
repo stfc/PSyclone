@@ -91,9 +91,12 @@ class RegionDirective(Directive):
     _children_valid_format = "Schedule"
 
     def __init__(self, ast=None, children=None, parent=None):
+        super().__init__(ast, parent=parent)
         # A Directive always contains a Schedule
-        sched = Schedule(children=children, parent=self)
-        super().__init__(ast, children=[sched], parent=parent)
+        sched = Schedule(ast, parent=self)
+        self.addchild(sched)
+        if children:
+            sched.children.extend(children)
 
     @staticmethod
     def _validate_child(position, child):

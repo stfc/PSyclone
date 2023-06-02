@@ -80,8 +80,6 @@ DOUBLE_LOOP = ("program do_loop\n"
 
 
 # ----------------------------------------------------------------------------
-@pytest.mark.xfail(reason="ACCDataDirective clauses are not updated when "
-                   "tree is modified - TODO.")
 def test_acc_data_region(fortran_reader, fortran_writer):
     ''' Test that an ACCDataDirective node generates the expected code. '''
     # Generate PSyIR from Fortran code.
@@ -90,7 +88,7 @@ def test_acc_data_region(fortran_reader, fortran_writer):
     dtrans = ACCDataTrans()
     dtrans.apply(sched)
     result = fortran_writer(sched)
-    assert ("  !$acc data copyin(d) copyout(c) copy(b)\n"
+    assert ("  !$acc data copyin(d), copyout(c), copy(b)\n"
             "  do i = 1, 20, 2\n" in result)
     assert ("  enddo\n"
             "  !$acc end data\n" in result)
@@ -98,7 +96,7 @@ def test_acc_data_region(fortran_reader, fortran_writer):
     # Remove the read from array 'd'
     assigns[0].detach()
     result = fortran_writer(sched)
-    assert ("  !$acc data copyout(c) copy(b)\n"
+    assert ("  !$acc data copyout(c), copy(b)\n"
             "  do i = 1, 20, 2\n" in result)
     # Remove the readwrite of array 'b'
     assigns[2].detach()
