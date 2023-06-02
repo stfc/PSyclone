@@ -838,8 +838,8 @@ def _process_routine_symbols(module_ast, symbol_table, visibility_map):
     # it is at this stage so we give all functions a DeferredType.
     # TODO #1314 extend the frontend to ensure that the type of a Routine's
     # return_symbol matches the type of the associated RoutineSymbol.
-    type_map = {Fortran2003.Subroutine_Subprogram: NoType(),
-                Fortran2003.Function_Subprogram: DeferredType()}
+    type_map = {Fortran2003.Subroutine_Subprogram: NoType,
+                Fortran2003.Function_Subprogram: DeferredType}
 
     for routine in routines:
 
@@ -850,22 +850,14 @@ def _process_routine_symbols(module_ast, symbol_table, visibility_map):
         # Name of the routine.
         name = str(routine.children[0].children[1]).lower()
         # Type to give the RoutineSymbol.
-        sym_type = type_map[type(routine)]
+        sym_type = type_map[type(routine)]()
         # Visibility of the symbol.
         vis = visibility_map.get(name, symbol_table.default_visibility)
-
         # Check any prefixes on the routine declaration.
         prefix = routine.children[0].children[0]
         if prefix:
             for child in prefix.children:
                 if isinstance(child, Fortran2003.Prefix_Spec):
-                    prefix_text = child.string
-                    if prefix_text not in SUPPORTED_ROUTINE_PREFIXES:
-                        # An unsupported prefix. We mark that here by giving
-                        # the RoutineSymbol an UnknownFortranType. The routine
-                        # itself will be put into a CodeBlock by
-                        # _subroutine_handler.
-                        sym_type = UnknownFortranType(str(routine.children[0]))
                     if child.string == "PURE":
                         is_pure = True
                     elif child.string == "IMPURE":
@@ -4411,16 +4403,7 @@ class Fparser2Reader():
                     if child.string not in SUPPORTED_ROUTINE_PREFIXES:
                         raise NotImplementedError()
                 else:
-                    try:
-                        base_type, _ = self._process_type_spec(parent, child)
-                    except NotImplementedError as err:
-                        # The type specification is unsupported so change the
-                        # type of the corresponding Symbol to be
-                        # UnknownFortranType.
-                        base_type = UnknownFortranType(str(node.children[0]))
-                        sym = parent.scope.symbol_table.lookup(name)
-                        sym.datatype = base_type
-                        raise err
+                    base_type, _ = self._process_type_spec(parent, child)
 
         if isinstance(node, Fortran2003.Function_Subprogram):
             # Check whether this function-stmt has a suffix containing
