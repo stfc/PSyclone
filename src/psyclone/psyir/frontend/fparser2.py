@@ -61,7 +61,8 @@ from psyclone.psyir.symbols import (
     DeferredType, ImportInterface, AutomaticInterface, NoType,
     RoutineSymbol, ScalarType, StructureType, Symbol, SymbolError, SymbolTable,
     UnknownFortranType, UnknownType, UnresolvedInterface, INTEGER_TYPE,
-    StaticInterface, DefaultModuleInterface, UnknownInterface)
+    StaticInterface, DefaultModuleInterface, UnknownInterface,
+    CommonBlockInterface)
 
 # fparser dynamically generates classes which confuses pylint membership checks
 # pylint: disable=maybe-no-member
@@ -2157,43 +2158,54 @@ class Fparser2Reader():
 
             if isinstance(node, Fortran2003.Interface_Block):
 
-                # We only support named interface blocks, and then only
-                # partially. Fortran standard R1203 says that:
-                #    interface-stmt = INTERFACE [ generic-spec ]
+                # Fortran 2003 standard R1203 says that:
+                #    interface-stmt is INTERFACE [ generic-spec ]
+                #                   or ABSTRACT INTERFACE
                 # where generic-spec is either (R1207) a generic-name or one
                 # of OPERATOR, ASSIGNMENT or dtio-spec.
-                if (not isinstance(node.children[0],
-                                   Fortran2003.Interface_Stmt) or
-                    not isinstance(node.children[0].children[0],
-                                   Fortran2003.Name)):
-                    # An unsupported interface definition will result in
-                    # the whole module containing this specification part
-                    # being put into a CodeBlock.
-                    raise NotImplementedError()
-                name = node.children[0].children[0].string.lower()
-                vis = visibility_map.get(
-                    name, parent.symbol_table.default_visibility)
-                # A named interface block corresponds to a RoutineSymbol.
-                # (There will be calls to it although there will be no
-                # corresponding implementation with that name.)
-                # We store its definition using an UnknownFortranType so that
-                # we can recreate it in the Fortran backend.
-                try:
-                    parent.symbol_table.add(
-                        RoutineSymbol(
-                            name, UnknownFortranType(str(node).lower()),
-                            interface=UnknownInterface(),
-                            visibility=vis))
-                except KeyError:
-                    # This symbol has already been declared. However
-                    # we still want to output the interface so we
-                    # store it in the PSyIR as an UnkownFortranType
-                    # with an internal name.
+                if not isinstance(node.children[0].children[0],
+                                  Fortran2003.Name):
+                    # This interface does not have a name so we store
+                    # it as a RoutineSymbol with an internal name and
+                    # with the content of the interface being kept
+                    # within an UnknownFortranType. As a result the
+                    # visibility and interface details of the
+                    # RoutineSymbol do not matter.
                     parent.symbol_table.new_symbol(
-                        root_name=f"_psyclone_internal_{name}",
+                        root_name="_psyclone_internal_interface",
                         symbol_type=RoutineSymbol,
-                        datatype=UnknownFortranType(str(node).lower()),
-                        visibility=vis)
+                        datatype=UnknownFortranType(str(node).lower()))
+                else:
+                    # This interface has a name.
+                    name = node.children[0].children[0].string.lower()
+                    vis = visibility_map.get(
+                        name, parent.symbol_table.default_visibility)
+                    # A named interface block corresponds to a
+                    # RoutineSymbol. (There will be calls to it
+                    # although there will be no corresponding
+                    # implementation with that name.) We store its
+                    # definition using an UnknownFortranType.
+                    try:
+                        parent.symbol_table.add(
+                            RoutineSymbol(
+                                name, UnknownFortranType(str(node).lower()),
+                                interface=UnknownInterface(),
+                                visibility=vis))
+                    except KeyError:
+                        # This symbol has already been declared. This
+                        # can happen when an interface overloads a
+                        # constructor for a type (as the interface
+                        # name is then the name of the type). However
+                        # we still want to capture the interface so we
+                        # store it in the PSyIR as an
+                        # UnknownFortranType with an internal name as
+                        # we do for unnamed interfaces.
+                        parent.symbol_table.new_symbol(
+                            root_name=f"_psyclone_internal_{name}",
+                            symbol_type=RoutineSymbol,
+                            interface=UnknownInterface(),
+                            datatype=UnknownFortranType(str(node).lower()),
+                            visibility=vis)
 
             elif isinstance(node, Fortran2003.Type_Declaration_Stmt):
                 try:
@@ -2258,6 +2270,7 @@ class Fparser2Reader():
             elif isinstance(node, (Fortran2003.Access_Stmt,
                                    Fortran2003.Derived_Type_Def,
                                    Fortran2003.Stmt_Function_Stmt,
+                                   Fortran2003.Common_Stmt,
                                    Fortran2003.Use_Stmt)):
                 # These node types are handled separately
                 pass
@@ -2303,6 +2316,11 @@ class Fparser2Reader():
                 raise NotImplementedError(
                     f"Error processing declarations: fparser2 node of type "
                     f"'{type(node).__name__}' not supported")
+
+        # We process the nodes again looking for common blocks. We do this
+        # here, after the main declarations loop, because they modify the
+        # interface of existing symbols and can appear in any order.
+        self._process_common_blocks(nodes, parent)
 
         if visibility_map is not None:
             # Check for symbols named in an access statement but not explicitly
@@ -2390,6 +2408,51 @@ class Fparser2Reader():
                 raise NotImplementedError(
                     f"Could not process '{stmtfn}'. Statement Function "
                     f"declarations are not supported.") from err
+
+    @staticmethod
+    def _process_common_blocks(nodes, psyir_parent):
+        ''' Process the fparser2 common block declaration statements. This is
+        done after the other declarations and it will keep the statement
+        as a UnknownFortranType and update the referenced symbols to a
+        CommonBlockInterface.
+
+        :param nodes: fparser2 AST nodes containing declaration statements.
+        :type nodes: List[:py:class:`fparser.two.utils.Base`]
+        :param psyir_parent: the PSyIR Node with a symbol table in which to \
+            add the Common Blocks and update the symbols interfaces.
+        :type psyir_parent: :py:class:`psyclone.psyir.nodes.ScopingNode`
+
+        :raises NotImplementedError: if it is unable to find one of the \
+            CommonBlock expressions in the symbol table (because it has not \
+            been declared yet or when it is not just the symbol name).
+
+        '''
+        for node in nodes:
+            if isinstance(node, Fortran2003.Common_Stmt):
+                # Place the declaration statement into a UnknownFortranType
+                # (for now we just want to reproduce it). The name of the
+                # commonblock is not in the same namespace as the variable
+                # symbols names (and there may be multiple of them in a
+                # single statement). So we use an internal symbol name.
+                psyir_parent.symbol_table.new_symbol(
+                    root_name="_PSYCLONE_INTERNAL_COMMONBLOCK",
+                    symbol_type=DataSymbol,
+                    datatype=UnknownFortranType(str(node)))
+
+                # Get the names of the symbols accessed with the commonblock,
+                # they are already defined in the symbol table but they must
+                # now have a common-block interface.
+                try:
+                    # Loop over every COMMON block defined in this Common_Stmt
+                    for cb_object in node.children[0]:
+                        for symbol_name in cb_object[1].items:
+                            sym = psyir_parent.symbol_table.lookup(
+                                        str(symbol_name))
+                            sym.interface = CommonBlockInterface()
+                except KeyError as error:
+                    raise NotImplementedError(
+                        f"The symbol interface of a common block variable "
+                        f"could not be updated because of {error}.") from error
 
     @staticmethod
     def _process_precision(type_spec, psyir_parent):

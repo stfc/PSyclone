@@ -89,7 +89,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u"PSyclone Developer Guide"
-copyright = u'2017-2022, STFC Daresbury Laboratory'
+copyright = u'2017-2023, STFC Daresbury Laboratory'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -359,6 +359,6 @@ epub_copyright = copyright
 # URL for this is set earlier and depends on whether the docs are
 # being built as part of a CI run or not.
 intersphinx_mapping = {
-    'http://docs.python.org/': None,
+    'python': ('http://docs.python.org/', None),
     'user_guide': (usr_guide_base, None),
     'psyad_user_guide': (psyad_usr_guide_base, None)}
