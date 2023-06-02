@@ -44,6 +44,8 @@ build:
   os: ubuntu-22.04
   tools:
     python: "3.11"
+  apt_packages:
+    - graphviz
 
 # Build documentation in the doc/reference_guide/source directory with Sphinx
 sphinx:

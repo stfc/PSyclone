@@ -63,6 +63,7 @@ from psyclone.domain.lfric.arg_index_to_metadata_index import \
     ArgIndexToMetadataIndex
 from psyclone.domain.lfric.lfric_kern import LFRicKern
 from psyclone.domain.lfric.lfric_kern_call_factory import LFRicKernCallFactory
+from psyclone.domain.lfric.lfric_collection import LFRicCollection
 
 
 __all__ = [
@@ -73,7 +74,10 @@ __all__ = [
     'KernelInterface',
     'KernStubArgList',
     'LFRicArgDescriptor',
+    'LFRicCollection',
     'LFRicConstants',
     'LFRicExtractDriverCreator',
     'LFRicInvoke',
+    'LFRicKern',
+    'LFRicKernCallFactory',
     'LFRicSymbolTable']
