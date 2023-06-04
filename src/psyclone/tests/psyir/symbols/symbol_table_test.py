@@ -50,7 +50,7 @@ from psyclone.psyir.symbols import SymbolTable, DataSymbol, ContainerSymbol, \
     AutomaticInterface, ImportInterface, ArgumentInterface, \
     ScalarType, ArrayType, DeferredType, REAL_TYPE, INTEGER_TYPE, Symbol, \
     SymbolError, RoutineSymbol, NoType, StructureType, DataTypeSymbol, \
-    UnknownFortranType, UnresolvedInterface
+    UnknownFortranType, UnresolvedInterface, CommonBlockInterface
 from psyclone.errors import InternalError
 
 
@@ -1321,7 +1321,6 @@ def test_datatypesymbols():
     # Add other symbol types
     csym = ContainerSymbol("my_mod")
     sym_table.add(csym)
-    var2 = DataSymbol("arg_var", region_type)
     # These should not appear as datatypesymbols
     assert sym_table.datatypesymbols == [region_sym]
 
@@ -1977,6 +1976,14 @@ def test_rename_symbol_errors():
         table.rename_symbol(asym, "rodent")
     assert ("Cannot rename symbol 'frankie' because it is a routine argument "
             "and as such may be named in a Call." in str(err.value))
+
+    # Cannot rename a common block symbol
+    asym = DataSymbol("a", INTEGER_TYPE, interface=CommonBlockInterface())
+    table.add(asym)
+    with pytest.raises(SymbolError) as err:
+        table.rename_symbol(asym, "b")
+    assert ("Cannot rename symbol 'a' because it has a CommonBlock interface."
+            in str(err.value))
 
 
 def test_rename_codeblock_error(fortran_reader):

@@ -124,7 +124,7 @@ def test_gen_indices(fortran_writer):
     assert fortran_writer.gen_indices(bray_type.shape) == [":", ":"]
 
 
-def test_gen_indices_error(monkeypatch, fortran_writer):
+def test_gen_indices_error(fortran_writer):
     '''Check the _gen_indices method raises an exception if a symbol shape
     entry is not supported.
 
@@ -2040,7 +2040,9 @@ def test_fw_intrinsic_call_node(fortran_writer):
 
     for intrinsic_function in [IntrinsicCall.Intrinsic.MINVAL,
                                IntrinsicCall.Intrinsic.MAXVAL,
-                               IntrinsicCall.Intrinsic.SUM]:
+                               IntrinsicCall.Intrinsic.SUM,
+                               IntrinsicCall.Intrinsic.TINY,
+                               IntrinsicCall.Intrinsic.HUGE]:
         intrinsic_call = IntrinsicCall.create(
             intrinsic_function, [Reference(sym)])
         assignment = Assignment.create(Reference(sym), intrinsic_call)

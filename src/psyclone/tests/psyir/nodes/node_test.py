@@ -853,11 +853,11 @@ def test_scope():
     assert kernel_schedule.scope is kernel_schedule
     assert container.scope is container
 
-    anode = Literal("x", INTEGER_TYPE)
+    anode = Literal("1", INTEGER_TYPE)
     with pytest.raises(SymbolError) as excinfo:
         _ = anode.scope
     assert ("Unable to find the scope of node "
-            "'Literal[value:'x', Scalar<INTEGER, UNDEFINED>]' as "
+            "'Literal[value:'1', Scalar<INTEGER, UNDEFINED>]' as "
             "none of its ancestors are Container or Schedule nodes."
             in str(excinfo.value))
 

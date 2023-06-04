@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+# Copyright (c) 2017-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -34,6 +34,7 @@
 # Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 #         I. Kavcic, Met Office
 #         J. Henrichs, Bureau of Meteorology
+# Modified A. B. G. Chalk, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' This module contains the Literal node implementation.'''
@@ -71,6 +72,8 @@ class Literal(DataNode):
         'true' or 'false'.
     :raises ValueError: if the Literal is a REAL but does not conform to \
         the supported format defined by the `_real_value` property.
+    :raises ValueError: if the Literal is an INTEGER but does not conform \
+        to the supported format defined by the `_int_value` property.
 
     '''
     # Textual description of the node.
@@ -78,9 +81,10 @@ class Literal(DataNode):
     _text_name = "Literal"
     _colour = "yellow"
     _real_value = r'^[+-]?[0-9]+(\.[0-9]*)?([eE][+-]?[0-9]+)?$'
+    _int_value = r'(([+-]?[1-9][0-9]*|0)|(NOT_INITIALISED))'
 
     def __init__(self, value, datatype, parent=None):
-        super(Literal, self).__init__(parent=parent)
+        super().__init__(parent=parent)
 
         # Checks for the datatype
         if not isinstance(datatype, (ScalarType, ArrayType)):
@@ -112,6 +116,14 @@ class Literal(DataNode):
                     f"'{value}'.")
             # Ensure we always store any exponent with a lowercase 'e'
             self._value = value.replace("E", "e", 1)
+        elif isinstance(datatype, ScalarType) and datatype.intrinsic \
+                == ScalarType.Intrinsic.INTEGER:
+            if not re.fullmatch(Literal._int_value, value):
+                raise ValueError(
+                    f"A scalar integer literal value must conform to the "
+                    f"supported format ('{Literal._int_value}') but found "
+                    f"'{value}'.")
+            self._value = value
         else:
             self._value = value
         self._datatype = datatype
