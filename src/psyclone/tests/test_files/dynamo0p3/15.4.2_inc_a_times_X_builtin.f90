@@ -38,15 +38,15 @@ program single_invoke
 
   ! Description: single point-wise operation (scale a field: X = aX)
   ! specified in an invoke call.
-  use constants_mod,    only: r_phys
-  use r_phys_field_mod, only: r_phys_field_type
+  use constants_mod, only: r_def
+  use field_mod,     only: field_type
 
   implicit none
 
-  type(r_phys_field_type) :: f1
-  real(r_phys)            :: a_scalar
+  type(field_type) :: f1
+  real(r_def)      :: a_scalar
 
-  a_scalar = 2.0_r_phys
+  a_scalar = 2.0_r_def
 
   call invoke( inc_a_times_X(a_scalar, f1) )
 
