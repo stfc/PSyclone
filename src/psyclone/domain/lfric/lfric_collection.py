@@ -42,7 +42,8 @@
 
 # Imports
 import abc
-from psyclone.domain.lfric import LFRicSymbolTable, LFRicInvoke
+from psyclone.domain.lfric import [LFRicSymbolTable, LFRicInvoke,
+                                   LFRicKern]
 from psyclone.errors import InternalError
 
 
@@ -54,16 +55,13 @@ class LFRicCollection():
     :param node: the Kernel or Invoke for which to manage variable \
                  declarations and initialisation.
     :type node: :py:class:`psyclone.domain.lfric.LFRicInvoke` or \
-                :py:class:`psyclone.dynamo0p3.DynKern`
+                :py:class:`psyclone.domain.lfric.LFRicKern`
 
-    :raises InternalError: if the supplied node is not an LFRicInvoke or a \
-                           DynKern.
+    :raises InternalError: if the supplied node is not an LFRicInvoke or an \
+                           LFRicKern.
 
     '''
     def __init__(self, node):
-        # Import here to avoid circular dependency
-        # pylint: disable=import-outside-toplevel
-        from psyclone.dynamo0p3 import DynKern
         if isinstance(node, LFRicInvoke):
             # We are handling declarations/initialisations for an Invoke
             self._invoke = node
@@ -71,7 +69,7 @@ class LFRicCollection():
             self._symbol_table = self._invoke.schedule.symbol_table
             # The list of Kernel calls we are responsible for
             self._calls = node.schedule.kernels()
-        elif isinstance(node, DynKern):
+        elif isinstance(node, LFRicKern):
             # We are handling declarations for a Kernel stub
             self._invoke = None
             self._kernel = node
@@ -82,7 +80,7 @@ class LFRicCollection():
             self._calls = [node]
         else:
             raise InternalError(f"LFRicCollection takes only an LFRicInvoke "
-                                f"or a DynKern but got: {type(node)}")
+                                f"or an LFRicKern but got: {type(node)}")
 
         # Whether or not the associated Invoke contains only Kernels that
         # operate on DoFs.
