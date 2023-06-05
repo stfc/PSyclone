@@ -59,7 +59,7 @@ class RoutineSymbol(TypedSymbol):
         # specialised instead of constructed.
         if datatype is None:
             datatype = NoType()
-        super(RoutineSymbol, self).__init__(name, datatype)
+        super().__init__(name, datatype)
         # Whether this Routine is 'elemental'. A value of None indicates that
         # this is unknown.
         self._is_elemental = None
