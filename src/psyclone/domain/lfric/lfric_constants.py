@@ -344,12 +344,6 @@ class LFRicConstants():
                           "proxy_type": None,
                           "intrinsic": "real",
                           "kind": "r_def"},
-            # 'integer'-valued field with data of kind 'i_def'
-            "integer_field": {"module": "integer_field_mod",
-                              "type": "integer_field_type",
-                              "proxy_type": "integer_field_proxy_type",
-                              "intrinsic": "integer",
-                              "kind": "i_def"},
             # 'real'-valued field with data of kind 'r_def'
             "field": {"module": "field_mod",
                       "type": "field_type",
@@ -380,6 +374,12 @@ class LFRicConstants():
                              "proxy_type": "r_phys_field_proxy_type",
                              "intrinsic": "real",
                              "kind": "r_phys"},
+            # 'integer'-valued field with data of kind 'i_def'
+            "integer_field": {"module": "integer_field_mod",
+                              "type": "integer_field_type",
+                              "proxy_type": "integer_field_proxy_type",
+                              "intrinsic": "integer",
+                              "kind": "i_def"},
             # 'real'-valued operator with data of kind 'r_def'
             "operator": {"module": "operator_mod",
                          "type": "operator_type",
