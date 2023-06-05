@@ -436,6 +436,14 @@ def test_kerncallarglist_mixed_precision():
     assert create_arg_list.psyir_arglist[4].datatype.precision.name == "i_def"
     assert create_arg_list.psyir_arglist[5].datatype.precision.name == "r_tran"
 
+    create_arg_list = KernCallArgList(schedule.kernels()[3])
+    create_arg_list.generate()
+    assert create_arg_list.psyir_arglist[1].datatype.precision.name == "r_bl"
+    assert create_arg_list.psyir_arglist[2].datatype.precision.name == "r_bl"
+    assert create_arg_list.psyir_arglist[3].datatype.precision.name == "r_phys"
+    assert create_arg_list.psyir_arglist[4].datatype.precision.name == "r_phys"
+    assert create_arg_list.psyir_arglist[6].datatype.precision.name == "i_def"
+
 
 def test_kerncallarglist_scalar_literal(fortran_writer):
     ''' Check the handling of a scalar literal.
