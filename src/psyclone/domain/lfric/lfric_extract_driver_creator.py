@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
+# Modified: I. Kavcic, Met Office
 
 # pylint: disable=too-many-lines
 
@@ -175,7 +176,8 @@ class LFRicExtractDriverCreator:
     '''
     def __init__(self):
         # TODO #2069: check if this list can be taken from LFRicConstants
-        self._all_field_types = ["field_type", "integer_field_type",
+        self._all_field_types = ["integer_field_type", "field_type",
+                                 "r_bl_field", "r_phys_field",
                                  "r_solver_field_type", "r_tran_field_type"]
 
     # -------------------------------------------------------------------------
@@ -285,7 +287,11 @@ class LFRicExtractDriverCreator:
         else:
             # Create the new signature, e.g. f1_proyx%data --> f1
             field_type = old_reference.symbol.datatype.name
-            if field_type in ["field_proxy_type", "r_solver_field_proxy_type",
+            # TODO #2069: check if this list can be taken from LFRicConstants
+            if field_type in ["integer_field_proxy_type", "field_proxy_type",
+                              "r_bl_field_proxy_type",
+                              "r_phys_field_proxy_type",
+                              "r_solver_field_proxy_type",
                               "r_tran_field_proxy_type"]:
                 # Field proxy are accessed using '%data'. Remove this to
                 # have more familiar names for the user, and also because
