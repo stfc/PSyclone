@@ -1816,7 +1816,9 @@ def test_dynkernelargument_idtp_vector_field():
 
 @pytest.mark.parametrize("filename,kind_name", [
     ("26.6.2_mixed_precision_rsolver_vector.f90", "r_solver"),
-    ("26.6.3_mixed_precision_rtran_vector.f90", "r_tran")])
+    ("26.6.3_mixed_precision_rtran_vector.f90", "r_tran"),
+    ("26.6.4_mixed_precision_rbl_vector.f90", "r_bl"),
+    ("26.6.5_mixed_precision_rphys_vector.f90", "r_phys")])
 def test_dynkernelargument_idtp_vector_field_kind(filename, kind_name):
     '''Test the '_init_data_type_properties' method in the
     DynKernelArgument class for a field that is part of a
