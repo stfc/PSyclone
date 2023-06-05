@@ -45,23 +45,31 @@ program mixed_precision
   use field_mod,             only : field_type
   use r_solver_field_mod,    only : r_solver_field_type
   use r_tran_field_mod,      only : r_tran_field_type
+  use r_bl_field_mod,        only : r_bl_field_type
+  use r_phys_field_mod,      only : r_phys_field_type
   use operator_mod,          only : operator_type
   use r_solver_operator_mod, only : r_solver_operator_type
   use r_tran_operator_mod,   only : r_tran_operator_type
   use mixed_mod,             only : mixed_type
+  use mixed_phys_fields_mod, only : mixed_phys_fields_type
 
   real(r_def)                  :: Scalar_r_def
   real(r_solver)               :: sCalar_r_solver
   real(r_tran)                 :: scAlar_r_tran
+  real(r_bl)                   :: scaLar_r_bl
+  real(r_phys)                 :: scalAr_r_phys
   type(field_type)             :: fieLd_r_def
   type(r_solver_field_type)    :: fielD_r_solver
   type(r_tran_field_type)      :: field_r_tran
+  type(r_bl_field_type)        :: fIeld_r_bl
+  type(r_phys_field_type)      :: fiEld_r_phys
   type(operator_type)          :: operator_r_def
   type(r_solver_operator_type) :: operator_r_solver
   type(r_tran_operator_type)   :: OperatoR_r_tran
 
   call invoke(mixed_type(scalar_r_deF, field_R_def, opeRator_r_def),          &
               mixed_type(scalar_r_solver, field_r_solver, operator_r_solver), &
-              mixed_type(scalar_r_tran, field_r_tran, OperatoR_r_tran))
+              mixed_type(scalar_r_tran, field_r_tran, OperatoR_r_tran),       &
+              mixed_phys_fields_type(scaLar_r_bl, fIeld_r_bl, scalAr_r_phys, fiEld_r_phys))
 
 end program mixed_precision

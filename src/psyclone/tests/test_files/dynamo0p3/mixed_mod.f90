@@ -69,7 +69,7 @@ contains
 
   subroutine mixed_code_32(cell, nlayers, rscalar, field_w3, op_ncell_3d, op,  &
                            ndf_w3, undf_w3, map_w3, ndf_w0)
-    USE constants_mod, ONLY: i_def
+
     IMPLICIT NONE
     INTEGER(KIND=i_def), intent(in) :: nlayers
     INTEGER(KIND=i_def), intent(in) :: ndf_w3
@@ -80,12 +80,14 @@ contains
     INTEGER(KIND=i_def), intent(in) :: cell
     INTEGER(KIND=i_def), intent(in) :: op_ncell_3d
     REAL*4,              intent(in), dimension(ndf_w0,ndf_w0,op_ncell_3d) :: op
+
     print *, "32-bit example called"
+
   end subroutine mixed_code_32
 
   subroutine mixed_code_64(cell, nlayers, rscalar, field_w3, op_ncell_3d, op,  &
                            ndf_w3, undf_w3, map_w3, ndf_w0)
-    USE constants_mod, ONLY: i_def
+
     IMPLICIT NONE
     INTEGER(KIND=i_def), intent(in) :: nlayers
     INTEGER(KIND=i_def), intent(in) :: ndf_w3
@@ -96,7 +98,9 @@ contains
     INTEGER(KIND=i_def), intent(in) :: cell
     INTEGER(KIND=i_def), intent(in) :: op_ncell_3d
     REAL*8,              intent(in), dimension(ndf_w0,ndf_w0,op_ncell_3d) :: op
+
     print *, "64-bit example called"
+
   end subroutine mixed_code_64
 
 end module mixed_mod
