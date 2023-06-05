@@ -178,8 +178,8 @@ def test_get_kernel_schedule_mixed_precision():
                            name="invoke_0", dist_mem=False)
     sched = invoke.schedule
     kernels = sched.walk(DynKern, stop_type=DynKern)
-    # 26.8 contains an invoke of three kernels, one each at the following
-    # precisions.
+    # 26.8 contains an invoke of four kernels, three of them at the
+    # following precisions.
     kernel_precisions = ["r_def", "r_solver", "r_tran"]
     # Get the precision (in bytes) for each of these.
     precisions = [LFRicConstants.PRECISION_MAP[name] for
@@ -190,6 +190,15 @@ def test_get_kernel_schedule_mixed_precision():
         sched = kern.get_kernel_schedule()
         assert isinstance(sched, KernelSchedule)
         assert sched.name == f"mixed_code_{8*precision}"
+    # The fourth kernel in 26.8 contains examples of precisions
+    # used in LFRic science.
+    kernel_precisions = ["r_bl", "r_phys"]
+    # Get the precision (in bytes) for each of these.
+    precisions = [LFRicConstants.PRECISION_MAP[name] for
+                  name in kernel_precisions]
+    sched = kernels[3].get_kernel_schedule()
+    for precision in precisions:
+        assert sched.name == f"mixed_sci_code_{8*precision}"
 
 
 def test_get_kernel_sched_mixed_precision_no_match(monkeypatch):

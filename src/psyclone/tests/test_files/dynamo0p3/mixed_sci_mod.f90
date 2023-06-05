@@ -37,7 +37,7 @@
 ! scientifically-defined precisions of fields and scalar arguments.
 ! In this example 32 and 64 bit implementations are provided.
 
-module mixed_phys_fields_mod
+module mixed_sci_mod
 
   use argument_mod,      only : arg_type,                 &
                                 GH_FIELD, GH_SCALAR,      &
@@ -49,7 +49,7 @@ module mixed_phys_fields_mod
 
   implicit none
 
-  type, extends(kernel_type) :: mixed_phys_fields_type
+  type, extends(kernel_type) :: mixed_sci_type
      type(arg_type), dimension(4) :: meta_args =                &
           (/ arg_type(gh_scalar, gh_real, gh_read),             &
              arg_type(gh_field,  gh_real, gh_inc,       w2),    &
@@ -57,22 +57,22 @@ module mixed_phys_fields_mod
              arg_type(gh_field,  gh_real, gh_readwrite, wtheta) &
           /)
      integer :: operates_on = cell_column
-  end type mixed_phys_fields_type
+  end type mixed_sci_type
 
   private
-  public :: mixed_phys_fields_code
+  public :: mixed_sci_code
 
-  interface mixed_phys_fields_code
-     module procedure mixed_phys_fields_code_32
-     module procedure mixed_phys_fields_code_64
-  end interface mixed_phys_fields_code
+  interface mixed_sci_code
+     module procedure mixed_sci_code_32
+     module procedure mixed_sci_code_64
+  end interface mixed_sci_code
 
 contains
 
-  subroutine mixed_phys_fields_code_32(nlayers, rscalar_1, field_2, &
-                                       rscalar_2, field_wtheta,     &
-                                       ndf_w2, undf_w2, map_w2,     &
-                                       ndf_wtheta, undf_wtheta, map_wtheta
+  subroutine mixed_sci_code_32(nlayers, rscalar_1, field_w2, &
+                               rscalar_2, field_wtheta,      &
+                               ndf_w2, undf_w2, map_w2,      &
+                               ndf_wtheta, undf_wtheta, map_wtheta)
 
     IMPLICIT NONE
 
@@ -88,12 +88,12 @@ contains
 
     print *, "32-bit example called"
 
-  end subroutine mixed_phys_fields_code_32
+  end subroutine mixed_sci_code_32
 
-  subroutine mixed_phys_fields_code_64(nlayers, rscalar_1, field_2, &
-                                       rscalar_2, field_wtheta,     &
-                                       ndf_w2, undf_w2, map_w2,     &
-                                       ndf_wtheta, undf_wtheta, map_wtheta
+  subroutine mixed_sci_code_64(nlayers, rscalar_1, field_w2, &
+                               rscalar_2, field_wtheta,      &
+                               ndf_w2, undf_w2, map_w2,      &
+                               ndf_wtheta, undf_wtheta, map_wtheta)
 
     IMPLICIT NONE
 
@@ -109,6 +109,6 @@ contains
 
     print *, "64-bit example called"
 
-  end subroutine mixed_phys_fields_code_64
+  end subroutine mixed_sci_code_64
 
-end module mixed_phys_fields_mod
+end module mixed_sci_mod
