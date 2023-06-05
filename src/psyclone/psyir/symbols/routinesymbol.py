@@ -91,7 +91,7 @@ class RoutineSymbol(TypedSymbol):
     def __str__(self):
         is_pure = "unknown" if self.is_pure is None else f"{self.is_pure}"
         is_elemental = ("unknown" if self.is_elemental is None
-                        else f"{self.is_pure}")
+                        else f"{self.is_elemental}")
         return (f"{self.name}: {type(self).__name__}<{self.datatype}, "
                 f"pure={is_pure}, elemental={is_elemental}>")
 
@@ -99,8 +99,8 @@ class RoutineSymbol(TypedSymbol):
     def is_pure(self):
         '''
         :returns: whether the routine represented by this Symbol has no side \
-            effects (guarantees only to modify the data specified with INTENT \
-            OUT or INOUT in its specification or None if this is not known.
+            effects (guarantees that the routine always returns the same \
+            result for a given set of inputs).
         :rtype: bool | NoneType
         '''
         return self._is_pure

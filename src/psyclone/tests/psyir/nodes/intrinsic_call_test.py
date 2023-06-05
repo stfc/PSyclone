@@ -85,6 +85,14 @@ def test_intrinsiccall_is_elemental():
     assert intrinsic.is_elemental is False
 
 
+def test_intrinsiccall_is_pure():
+    '''Tests that the is_pure() method works as expected.'''
+    intrinsic = IntrinsicCall(IntrinsicCall.Intrinsic.SUM)
+    assert intrinsic.is_pure is True
+    intrinsic = IntrinsicCall(IntrinsicCall.Intrinsic.ALLOCATE)
+    assert intrinsic.is_pure is False
+
+
 def test_intrinsiccall_alloc_create():
     '''Tests the create() method supports various forms of 'allocate'.
 

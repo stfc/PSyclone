@@ -135,3 +135,8 @@ def test_routinesymbol_str():
     assert (routine_symbol.__str__() ==
             "roo: RoutineSymbol<some_type: DataTypeSymbol, pure=True, "
             "elemental=True>")
+    routine_symbol = RoutineSymbol("eyore", type_sym, is_elemental=False,
+                                   is_pure=True)
+    assert (routine_symbol.__str__() ==
+            "eyore: RoutineSymbol<some_type: DataTypeSymbol, pure=True, "
+            "elemental=False>")

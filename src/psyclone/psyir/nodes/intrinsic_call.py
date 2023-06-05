@@ -129,7 +129,7 @@ class IntrinsicCall(Call):
             IntrinsicSymbol(
                 routine.name,
                 is_elemental=(routine in ELEMENTAL_INTRINSICS),
-                is_pure=True),
+                is_pure=(routine in PURE_INTRINSICS)),
             **kwargs)
         self._intrinsic = routine
 
@@ -261,3 +261,11 @@ REDUCTION_INTRINSICS = [
 # individually to each of the array elements and return an array with
 # the results.
 ELEMENTAL_INTRINSICS = []
+
+# Intrinsics that are 'pure' functions. Given the same input arguments, a pure
+# function will always return the same value.
+PURE_INTRINSICS = [IntrinsicCall.Intrinsic.SUM,
+                   IntrinsicCall.Intrinsic.MINVAL,
+                   IntrinsicCall.Intrinsic.MAXVAL,
+                   IntrinsicCall.Intrinsic.TINY,
+                   IntrinsicCall.Intrinsic.HUGE]

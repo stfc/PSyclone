@@ -314,6 +314,16 @@ class Call(Statement, DataNode):
         return self._routine.is_elemental
 
     @property
+    def is_pure(self):
+        '''
+        :returns: whether the routine being called is pure (guaranteed to \
+            return the same result when provided with the same argument \
+            values).  If this information is not known then it returns None.
+        :rtype: NoneType | bool
+        '''
+        return self._routine.is_pure
+
+    @property
     def argument_names(self):
         '''
         :returns: a list with the name of each argument. If the entry is \
