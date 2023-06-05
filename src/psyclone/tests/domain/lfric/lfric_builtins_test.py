@@ -1030,6 +1030,13 @@ def test_aX_plus_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
+    # Check for the correct 'use' module statements
+    output_mod = (
+        "    USE constants_mod, ONLY: r_bl, i_def\n"
+        "    USE r_bl_field_mod, ONLY: r_bl_field_type, "
+        "r_bl_field_proxy_type\n")
+    assert output_mod in code
+
     if not dist_mem:
         output = (
             "    SUBROUTINE invoke_0(f3, a, f1, f2)\n"
@@ -1123,11 +1130,11 @@ def test_inc_aX_plus_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
     if not dist_mem:
         output = (
             "    SUBROUTINE invoke_0(a, f1, f2)\n"
-            "      REAL(KIND=r_bl), intent(in) :: a\n"
-            "      TYPE(r_bl_field_type), intent(in) :: f1, f2\n"
+            "      REAL(KIND=r_def), intent(in) :: a\n"
+            "      TYPE(field_type), intent(in) :: f1, f2\n"
             "      INTEGER df\n"
             "      INTEGER(KIND=i_def) loop0_start, loop0_stop\n"
-            "      TYPE(r_bl_field_proxy_type) f1_proxy, f2_proxy\n"
+            "      TYPE(field_proxy_type) f1_proxy, f2_proxy\n"
             "      INTEGER(KIND=i_def) undf_aspc1_f1\n"
             "      !\n"
             "      ! Initialise field and/or operator proxies\n"
@@ -2706,11 +2713,11 @@ def test_inc_a_times_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
     if not dist_mem:
         output = (
             "    SUBROUTINE invoke_0(a_scalar, f1)\n"
-            "      REAL(KIND=r_phys), intent(in) :: a_scalar\n"
-            "      TYPE(r_phys_field_type), intent(in) :: f1\n"
+            "      REAL(KIND=r_def), intent(in) :: a_scalar\n"
+            "      TYPE(field_type), intent(in) :: f1\n"
             "      INTEGER df\n"
             "      INTEGER(KIND=i_def) loop0_start, loop0_stop\n"
-            "      TYPE(r_phys_field_proxy_type) f1_proxy\n"
+            "      TYPE(field_proxy_type) f1_proxy\n"
             "      INTEGER(KIND=i_def) undf_aspc1_f1\n"
             "      !\n"
             "      ! Initialise field and/or operator proxies\n"
