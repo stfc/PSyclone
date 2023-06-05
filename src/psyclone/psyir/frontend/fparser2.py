@@ -4364,6 +4364,9 @@ class Fparser2Reader():
         :returns: PSyIR representation of node.
         :rtype: :py:class:`psyclone.psyir.nodes.Routine`
 
+        :raises NotImplementedError: if an unsupported prefix is found or no \
+            explicit type information is available for a Function.
+
         '''
         name = node.children[0].children[1].string
         routine = Routine(name, parent=parent)
@@ -4401,7 +4404,8 @@ class Fparser2Reader():
             for child in prefix.children:
                 if isinstance(child, Fortran2003.Prefix_Spec):
                     if child.string not in SUPPORTED_ROUTINE_PREFIXES:
-                        raise NotImplementedError()
+                        raise NotImplementedError(
+                            f"Routine has unsupported prefix: {child.string}")
                 else:
                     base_type, _ = self._process_type_spec(parent, child)
 

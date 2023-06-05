@@ -240,7 +240,9 @@ class NemoArrayRange2LoopTrans(Transformation):
         # Does the rhs of the assignment have any operations/calls that are not
         # elemental?
         for cnode in assignment.rhs.walk((Operation, Call)):
-            # Allow non elemental UBOUND and LBOUND
+            # Allow non elemental UBOUND and LBOUND.
+            # TODO #2156 - add support for marking routines as being 'inquiry'
+            # to improve this special-casing.
             if isinstance(cnode, Operation):
                 if cnode.operator is BinaryOperation.Operator.LBOUND:
                     continue
