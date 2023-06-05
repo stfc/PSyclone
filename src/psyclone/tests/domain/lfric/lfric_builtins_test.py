@@ -1033,11 +1033,11 @@ def test_aX_plus_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
     if not dist_mem:
         output = (
             "    SUBROUTINE invoke_0(f3, a, f1, f2)\n"
-            "      REAL(KIND=r_def), intent(in) :: a\n"
-            "      TYPE(field_type), intent(in) :: f3, f1, f2\n"
+            "      REAL(KIND=r_bl), intent(in) :: a\n"
+            "      TYPE(r_bl_field_type), intent(in) :: f3, f1, f2\n"
             "      INTEGER df\n"
             "      INTEGER(KIND=i_def) loop0_start, loop0_stop\n"
-            "      TYPE(field_proxy_type) f3_proxy, f1_proxy, f2_proxy\n"
+            "      TYPE(r_bl_field_proxy_type) f3_proxy, f1_proxy, f2_proxy\n"
             "      INTEGER(KIND=i_def) undf_aspc1_f3\n"
             "      !\n"
             "      ! Initialise field and/or operator proxies\n"
@@ -1123,11 +1123,11 @@ def test_inc_aX_plus_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
     if not dist_mem:
         output = (
             "    SUBROUTINE invoke_0(a, f1, f2)\n"
-            "      REAL(KIND=r_def), intent(in) :: a\n"
-            "      TYPE(field_type), intent(in) :: f1, f2\n"
+            "      REAL(KIND=r_bl), intent(in) :: a\n"
+            "      TYPE(r_bl_field_type), intent(in) :: f1, f2\n"
             "      INTEGER df\n"
             "      INTEGER(KIND=i_def) loop0_start, loop0_stop\n"
-            "      TYPE(field_proxy_type) f1_proxy, f2_proxy\n"
+            "      TYPE(r_bl_field_proxy_type) f1_proxy, f2_proxy\n"
             "      INTEGER(KIND=i_def) undf_aspc1_f1\n"
             "      !\n"
             "      ! Initialise field and/or operator proxies\n"

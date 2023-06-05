@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2020, Science and Technology Facilities Council.
+! Copyright (c) 2017-2023, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -31,22 +31,22 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author A. R. Porter STFC Daresbury Lab
-! Modified I. Kavcic Met Office
+! Author: A. R. Porter, STFC Daresbury Lab
+! Modified: I. Kavcic, Met Office
 
 program single_invoke
 
   ! Description: single point-wise operation (Z = aX + Y)
   ! specified in an invoke call.
-  use constants_mod, only: r_def
-  use field_mod,     only: field_type
+  use constants_mod,  only: r_bl
+  use r_bl_field_mod, only: r_bl_field_type
 
   implicit none
 
-  type(field_type) :: f1, f2, f3
-  real(r_def)      :: a
+  type(r_bl_field_type) :: f1, f2, f3
+  real(r_bl)            :: a
 
-  a = 0.5
+  a = 0.5_r_bl
 
   call invoke( aX_plus_Y(f3, a, f1, f2) )
 
