@@ -2611,8 +2611,25 @@ def test_a_times_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
+    # Check for the correct 'use' module statements
+    output_mod = (
+        "    USE constants_mod, ONLY: r_phys, i_def\n"
+        "    USE r_phys_field_mod, ONLY: r_phys_field_type, "
+        "r_phys_field_proxy_type\n")
+    assert output_mod in code
+
     if not dist_mem:
         output = (
+            "    SUBROUTINE invoke_0(f2, a_scalar, f1)\n"
+            "      REAL(KIND=r_phys), intent(in) :: a_scalar\n"
+            "      TYPE(r_phys_field_type), intent(in) :: f2, f1\n"
+            "      INTEGER df\n"
+            "      INTEGER(KIND=i_def) loop0_start, loop0_stop\n"
+            "      TYPE(r_phys_field_proxy_type) f2_proxy, f1_proxy\n"
+            "      INTEGER(KIND=i_def) undf_aspc1_f2\n"
+            "      !\n"
+            "      ! Initialise field and/or operator proxies\n"
+            "      !\n"
             "      f2_proxy = f2%get_proxy()\n"
             "      f1_proxy = f1%get_proxy()\n"
             "      !\n"
@@ -2689,11 +2706,11 @@ def test_inc_a_times_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
     if not dist_mem:
         output = (
             "    SUBROUTINE invoke_0(a_scalar, f1)\n"
-            "      REAL(KIND=r_def), intent(in) :: a_scalar\n"
-            "      TYPE(field_type), intent(in) :: f1\n"
+            "      REAL(KIND=r_phys), intent(in) :: a_scalar\n"
+            "      TYPE(r_phys_field_type), intent(in) :: f1\n"
             "      INTEGER df\n"
             "      INTEGER(KIND=i_def) loop0_start, loop0_stop\n"
-            "      TYPE(field_proxy_type) f1_proxy\n"
+            "      TYPE(r_phys_field_proxy_type) f1_proxy\n"
             "      INTEGER(KIND=i_def) undf_aspc1_f1\n"
             "      !\n"
             "      ! Initialise field and/or operator proxies\n"
