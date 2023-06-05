@@ -905,13 +905,11 @@ class LFRicKern(CodedKern):
                     f"dimension(s) according to the LFRic API, but "
                     f"found {len(kern_code_arg.shape)}.")
             for dim_idx, kern_code_arg_dim in enumerate(kern_code_arg.shape):
-                print(dim_idx)
-                print(kern_code_arg_dim)
-                print(kern_code_arg.shape)
+                #print(dim_idx)
+                #print(type(kern_code_arg_dim))
+                #print(kern_code_arg.shape)
                 if not isinstance(kern_code_arg_dim, ArrayType.ArrayBounds):
-                    print('sharks')
-                    print(dim_idx)
-                    print(kern_code_arg_dim)
+                    #print('sharks')
                     continue #sharks
                 if (not isinstance(kern_code_arg_dim.lower, Literal) or
                         kern_code_arg_dim.lower.value != "1"):
