@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2022, Science and Technology Facilities Council
+# Copyright (c) 2020-2023, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -36,10 +36,9 @@
 
 ''' Module containing tests for generating PSyData hooks'''
 
-from __future__ import absolute_import
-
 import re
 import pytest
+
 from psyclone.errors import InternalError, GenerationError
 from psyclone.f2pygen import ModuleGen
 from psyclone.psyir.nodes import PSyDataNode, Schedule, Return, Routine, \
@@ -349,8 +348,8 @@ def test_psy_data_node_options():
     # 1) Test that the listed variables will appear in the list
     # ---------------------------------------------------------
     mod = ModuleGen(None, "test")
-    data_node.gen_code(mod, options={"pre_var_list": ["a"],
-                                     "post_var_list": ["b"]})
+    data_node.gen_code(mod, options={"pre_var_list": [("", "a")],
+                                     "post_var_list": [("", "b")]})
 
     out = "\n".join([str(i.root) for i in mod.children])
     expected = ['CALL psy_data%PreDeclareVariable("a", a)',
@@ -364,8 +363,8 @@ def test_psy_data_node_options():
     # 2) Test that variables suffixes are added as expected
     # -----------------------------------------------------
     mod = ModuleGen(None, "test")
-    data_node.gen_code(mod, options={"pre_var_list": ["a"],
-                                     "post_var_list": ["b"],
+    data_node.gen_code(mod, options={"pre_var_list": [("", "a")],
+                                     "post_var_list": [("", "b")],
                                      "pre_var_postfix": "_pre",
                                      "post_var_postfix": "_post"})
 
@@ -474,8 +473,8 @@ def test_psy_data_node_lower_to_language_level_with_options():
     data_trans.apply(schedule[0].loop_body)
     data_node = schedule[0].loop_body[0]
 
-    data_node.lower_to_language_level(options={"pre_var_list": ["a"],
-                                               "post_var_list": ["b"]})
+    data_node.lower_to_language_level(options={"pre_var_list": [("", "a")],
+                                               "post_var_list": [("", "b")]})
 
     codeblocks = schedule.walk(CodeBlock)
     expected = ['CALL psy_data % PreStart("invoke_0", "r0", 1, 1)',
@@ -500,8 +499,8 @@ def test_psy_data_node_lower_to_language_level_with_options():
     data_trans.apply(schedule[0].loop_body)
     data_node = schedule[0].loop_body[0]
 
-    data_node.lower_to_language_level(options={"pre_var_list": ["a"],
-                                               "post_var_list": ["b"],
+    data_node.lower_to_language_level(options={"pre_var_list": [("", "a")],
+                                               "post_var_list": [("", "b")],
                                                "pre_var_postfix": "_pre",
                                                "post_var_postfix": "_post"})
 
