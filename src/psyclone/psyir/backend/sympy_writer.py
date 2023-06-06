@@ -46,10 +46,10 @@ from sympy.parsing.sympy_parser import parse_expr
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.backend.visitor import VisitorError
-from psyclone.psyir.nodes import (ArrayReference, BinaryOperation, DataNode,
-                                  Literal, NaryOperation, Range, Reference,
+from psyclone.psyir.nodes import (BinaryOperation, DataNode, Literal,
+                                  NaryOperation, Range, Reference,
                                   UnaryOperation)
-from psyclone.psyir.symbols import ArrayType, ScalarType, SymbolTable
+from psyclone.psyir.symbols import (ArrayType, ScalarType, SymbolTable)
 
 
 class SymPyWriter(FortranWriter):
@@ -143,16 +143,52 @@ class SymPyWriter(FortranWriter):
         :rtype: dictionary of string:Sympy-data-type values
 
         '''
+
         sympy_type_map = {}
         for expr in list_of_expressions:
             for ref in expr.walk(Reference):
                 name = ref.name
-                if name not in sympy_type_map:
-                    # Test if an array or an array expression is used:
-                    if ref.is_array:
-                        sympy_type_map[name] = Function(name)
-                    else:
-                        sympy_type_map[name] = Symbol(name)
+                if name in sympy_type_map:
+                    continue
+                # Test if an array or an array expression is used:
+                if not ref.is_array:
+                    sympy_type_map[name] = Symbol(name)
+                    continue
+
+                # Now a new Fortran array is used. Declare a SymPy
+
+                def print_fortran_array(self, printer):
+                    '''A custom print function to convert a modified
+                    Fortran array access back to standard Fortran. It
+                    converts the three values that each index is converted
+                    to back into the Fortran array notation.'''
+                    # pylint: disable=protected-access
+                    args = [printer._print(i) for i in self.args]
+                    name = self.__class__.__name__
+                    new_args = []
+                    # Analyse each triple of parameters, and add the
+                    # corresponding index into new_argsL
+                    for i in range(0, len(args), 3):
+                        if args[i] == args[i+1] and args[i+2] == "1":
+                            # a(i,i,1) --> a(i)
+                            new_args.append(args[i])
+                        elif args[i] == "-inf" and args[i+1] == "inf" and \
+                                args[i+2] == "1":
+                            # a(-inf, inf, 1) --> a(:)
+                            new_args.append(":")
+                        else:
+                            if args[i+2] == "1":
+                                # a(i,j,1) --> a(i:j)
+                                new_args.append(f"{args[i]}:{args[i+1]}")
+                            else:
+                                # a(i,j,k) --> a(i:j:k)
+                                new_args.append(f"{args[i]}:{args[i+1]}:"
+                                                f"{args[i+2]}")
+                    return f"{name}({','.join(new_args)})"
+
+                sympy_type_map[name] = \
+                    type(name, (Function, ),
+                         {"_sympystr": print_fortran_array})
 
         return sympy_type_map
 
@@ -500,24 +536,6 @@ class SymPyWriter(FortranWriter):
         '''
         # Convert the new sympy expression to PSyIR
         reader = FortranReader()
+
         new_expr = reader.psyir_from_expression(str(sympy_expr), symbol_table)
-        for array in new_expr.walk(ArrayReference):
-            indices = array.indices
-            i = 0
-            while i < len(array.indices):
-                # Check for an index expression like `i:i:1` or
-                # `2*i+1:2*i+1:1`:
-                if indices[i] == indices[i+1] and \
-                        isinstance(indices[i+2], Literal) and \
-                        indices[i+2].value == "1":
-                    # In this case we can just delete the next two indices
-                    # (which are the children):
-                    del array.indices[i + 2]
-                    del array.indices[i + 1]
-                else:
-                    print("oops", type(indices[i]), type(indices[i+1]),
-                          type(indices[i+2]))
-
-                i += 1
-
         return new_expr

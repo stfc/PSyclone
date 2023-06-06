@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022, Science and Technology Facilities Council
+# Copyright (c) 2022-2023, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,19 +32,22 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Modified: J. Henrichs, Bureau of Meteorology
 
 '''Module containing a PSyAD kernel transformation script that applies
-any required tranformations to the tangent linear PSyIR before it is
+any required transformations to the tangent linear PSyIR before it is
 translated to adjoint PSyIR.
 
 '''
 from psyclone.core import SymbolicMaths
 from psyclone.psyad.utils import node_is_active, node_is_passive
-from psyclone.psyir.nodes import BinaryOperation, Assignment, Range, \
-    Reference
-from psyclone.psyir.transformations import DotProduct2CodeTrans, \
-    Matmul2CodeTrans, ArrayRange2LoopTrans, TransformationError, \
-    Reference2ArrayRangeTrans
+from psyclone.psyir.nodes import (BinaryOperation, Assignment, Reference,
+                                  StructureReference)
+from psyclone.psyir.transformations import (DotProduct2CodeTrans,
+                                            Matmul2CodeTrans,
+                                            ArrayRange2LoopTrans,
+                                            TransformationError,
+                                            Reference2ArrayRangeTrans)
 
 
 def preprocess_trans(kernel_psyir, active_variable_names):
@@ -98,7 +101,7 @@ def preprocess_trans(kernel_psyir, active_variable_names):
     # Deal with any associativity issues here as AssignmentTrans
     # is not able to.
     for assignment in kernel_psyir.walk(Assignment):
-        if assignment.walk(Range):
+        if assignment.walk(StructureReference):
             # SymbolicMaths currently does not work if the expression
             # contains Range nodes, see issue #1655.
             associativity(assignment, active_variable_names)
@@ -125,6 +128,7 @@ def associativity(assignment, active_variable_names):
     if node_is_active(assignment.rhs, active_variable_names):
         while True:
             for oper in assignment.rhs.walk(BinaryOperation):
+                # pylint: disable=too-many-boolean-expressions
                 if oper.operator == BinaryOperation.Operator.MUL and \
                        node_is_passive(
                            oper.children[0], active_variable_names) and \
