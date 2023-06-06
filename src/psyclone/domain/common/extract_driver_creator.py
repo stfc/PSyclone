@@ -326,8 +326,7 @@ class ExtractDriverCreator:
 
     # -------------------------------------------------------------------------
     @staticmethod
-    def create_read_in_code(program, psy_data, input_list, output_list,
-                            postfix):
+    def create_read_in_code(program, psy_data, read_write_info, postfix):
         '''This function creates the code that reads in the NetCDF file
         produced during extraction. For each:
 
@@ -350,12 +349,9 @@ class ExtractDriverCreator:
         :type program: :py:class:`psyclone.psyir.nodes.Routine`
         :param psy_data: the PSyData symbol to be used.
         :type psy_data: :py:class:`psyclone.psyir.symbols.DataSymbol`
-        :param input_list: list of all signatures that are input variables \
-            to the instrumented region.
-        :type input_list: list of :py:class:`psyclone.core.Signature`
-        :param output_list: list of all signatures that are output \
-            variables of the instrumented region.
-        :type output_list: list of :py:class:`psyclone.core.Signature`
+        :param read_write_info: information about all input and output \
+            parameters.
+        :type read_write_info: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
         :param str postfix: a postfix that is added to a variable to \
             create the corresponding variable that stores the output \
             value from the kernel data file.
@@ -369,9 +365,6 @@ class ExtractDriverCreator:
             :py:class:`psyclone.psyir.symbols.Symbol`
 
         '''
-        # pylint: disable=too-many-locals
-        all_sigs = list(set(input_list).union(set(output_list)))
-        all_sigs.sort()
         symbol_table = program.scope.symbol_table
         read_var = f"{psy_data.name}%ReadVariable"
 
@@ -385,7 +378,7 @@ class ExtractDriverCreator:
 
         # First handle variables that are read:
         # -------------------------------------
-        for signature in input_list:
+        for signature in read_write_info.signatures_read:
             # Find the right symbol for the variable. Note that all variables
             # in the input and output list have been detected as being used
             # when the variable accesses were analysed. Therefore, these
@@ -399,7 +392,7 @@ class ExtractDriverCreator:
 
         # Then handle all variables that are written (note that some
         # variables might be read and written)
-        for signature in output_list:
+        for signature in read_write_info.signatures_written:
             # Find the right symbol for the variable. Note that all variables
             # in the input and output list have been detected as being used
             # when the variable accesses were analysed. Therefore, these
@@ -407,7 +400,6 @@ class ExtractDriverCreator:
             # in the symbol table (in add_all_kernel_symbols).
             sig_str = str(signature)
             sym = symbol_table.lookup_with_tag(sig_str)
-            is_input = signature in input_list
 
             # The variable is written (and maybe read as well)
             # ------------------------------------------------
@@ -423,7 +415,7 @@ class ExtractDriverCreator:
 
             # Now if a variable is written to, but not read, the variable
             # is not allocated. So we need to allocate it and set it to 0.
-            if not is_input:
+            if not read_write_info.is_read(signature):
                 if isinstance(post_sym.datatype, ArrayType):
                     alloc = IntrinsicCall.create(
                         IntrinsicCall.Intrinsic.ALLOCATE,
@@ -513,8 +505,7 @@ class ExtractDriverCreator:
             program.addchild(if_block.detach())
 
     # -------------------------------------------------------------------------
-    def create(self, nodes, input_list, output_list,
-               prefix, postfix, region_name):
+    def create(self, nodes, read_write_info, prefix, postfix, region_name):
         # pylint: disable=too-many-arguments
         '''This function uses the PSyIR to create a stand-alone driver
         that reads in a previously created file with kernel input and
@@ -523,11 +514,10 @@ class ExtractDriverCreator:
         file container which contains the driver.
 
         :param nodes: a list of nodes.
-        :type nodes: list of :py:obj:`psyclone.psyir.nodes.Node`
-        :param input_list: list of variables that are input parameters.
-        :type input_list: list of :py:class:`psyclone.core.Signature`
-        :param output_list: list of variables that are output parameters.
-        :type output_list: list or :py:class:`psyclone.core.Signature`
+        :type nodes: list of :py:class:`psyclone.psyir.nodes.Node`
+        :param read_write_info: information about all input and output \
+            parameters.
+        :type read_write_info: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
         :param str prefix: the prefix to use for each PSyData symbol, \
             e.g. 'extract' as prefix will create symbols `extract_psydata`.
         :param str postfix: a postfix that is appended to an output variable \
@@ -594,8 +584,7 @@ class ExtractDriverCreator:
                       [module_str, region_str])
 
         output_symbols = self.create_read_in_code(program, psy_data,
-                                                  input_list, output_list,
-                                                  postfix)
+                                                  read_write_info, postfix)
         # Copy over all of the executable part of the extracted region
         all_children = schedule_copy.pop_all_children()
         for child in all_children:
@@ -606,7 +595,7 @@ class ExtractDriverCreator:
         return file_container
 
     # -------------------------------------------------------------------------
-    def get_driver_as_string(self, nodes, input_list, output_list,
+    def get_driver_as_string(self, nodes, read_write_info,
                              prefix, postfix, region_name,
                              writer=FortranWriter()):
         # pylint: disable=too-many-arguments
@@ -616,11 +605,10 @@ class ExtractDriverCreator:
         (defaults to Fortran).
 
         :param nodes: a list of nodes.
-        :type nodes: list of :py:obj:`psyclone.psyir.nodes.Node`
-        :param input_list: list of variables that are input parameters.
-        :type input_list: list of :py:class:`psyclone.core.Signature`
-        :param output_list: list of variables that are output parameters.
-        :type output_list: list or :py:class:`psyclone.core.Signature`
+        :type nodes: List[:py:class:`psyclone.psyir.nodes.Node`]
+        :param read_write_info: information about all input and output \
+            parameters.
+        :type read_write_info: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
         :param str prefix: the prefix to use for each PSyData symbol, \
             e.g. 'extract' as prefix will create symbols `extract_psydata`.
         :param str postfix: a postfix that is appended to an output variable \
@@ -643,13 +631,13 @@ class ExtractDriverCreator:
         :rtype: str
 
         '''
-        file_container = self.create(nodes, input_list, output_list,
+        file_container = self.create(nodes, read_write_info,
                                      prefix, postfix, region_name)
         return writer(file_container)
 
     # -------------------------------------------------------------------------
-    def write_driver(self, nodes, input_list, output_list,
-                     prefix, postfix, region_name, writer=FortranWriter()):
+    def write_driver(self, nodes, read_write_info, prefix, postfix,
+                     region_name, writer=FortranWriter()):
         # pylint: disable=too-many-arguments
         '''This function uses the `get_driver_as_string()` function to get a
         a stand-alone driver, and then writes this source code to a file. The
@@ -657,11 +645,10 @@ class ExtractDriverCreator:
         "driver-"+module_name+"_"+region_name+".f90"
 
         :param nodes: a list of nodes.
-        :type nodes: list of :py:obj:`psyclone.psyir.nodes.Node`
-        :param input_list: list of variables that are input parameters.
-        :type input_list: list of :py:class:`psyclone.core.Signature`
-        :param output_list: list of variables that are output parameters.
-        :type output_list: list or :py:class:`psyclone.core.Signature`
+        :type nodes: List[:py:class:`psyclone.psyir.nodes.Node`]
+        :param read_write_info: information about all input and output \
+            parameters.
+        :type read_write_info: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
         :param str prefix: the prefix to use for each PSyData symbol, \
             e.g. 'extract' as prefix will create symbols `extract_psydata`.
         :param str postfix: a postfix that is appended to an output variable \
@@ -681,9 +668,8 @@ class ExtractDriverCreator:
             :py:class:`psyclone.psyir.backend.language_writer.LanguageWriter`
 
         '''
-        code = self.get_driver_as_string(nodes, input_list, output_list,
-                                         prefix, postfix, region_name,
-                                         writer=writer)
+        code = self.get_driver_as_string(nodes, read_write_info, prefix,
+                                         postfix, region_name, writer=writer)
         module_name, local_name = region_name
         with open(f"driver-{module_name}-{local_name}.f90", "w",
                   encoding='utf-8') as out:
