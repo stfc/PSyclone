@@ -41,7 +41,7 @@
 
 program mixed_precision
 
-  use constants_mod,         only : r_def, r_solver, r_tran
+  use constants_mod,         only : r_def, r_solver, r_tran, r_bl, r_phys
   use field_mod,             only : field_type
   use r_solver_field_mod,    only : r_solver_field_type
   use r_tran_field_mod,      only : r_tran_field_type
@@ -50,8 +50,8 @@ program mixed_precision
   use operator_mod,          only : operator_type
   use r_solver_operator_mod, only : r_solver_operator_type
   use r_tran_operator_mod,   only : r_tran_operator_type
-  use mixed_mod,             only : mixed_type
-  use mixed_sci_mod,         only : mixed_sci_type
+  use mixed_kernel_mod,      only : mixed_kernel_type
+  use mixed_sci_kernel_mod,  only : mixed_sci_kernel_type
 
   real(r_def)                  :: Scalar_r_def
   real(r_solver)               :: sCalar_r_solver
@@ -67,9 +67,9 @@ program mixed_precision
   type(r_solver_operator_type) :: operator_r_solver
   type(r_tran_operator_type)   :: OperatoR_r_tran
 
-  call invoke(mixed_type(scalar_r_deF, field_R_def, opeRator_r_def),          &
-              mixed_type(scalar_r_solver, field_r_solver, operator_r_solver), &
-              mixed_type(scalar_r_tran, field_r_tran, OperatoR_r_tran),       &
-              mixed_sci_type(scaLar_r_bl, fIeld_r_bl, scalAr_r_phys, fiEld_r_phys))
+  call invoke(mixed_kernel_type(scalar_r_deF, field_R_def, opeRator_r_def),          &
+              mixed_kernel_type(scalar_r_solver, field_r_solver, operator_r_solver), &
+              mixed_kernel_type(scalar_r_tran, field_r_tran, OperatoR_r_tran),       &
+              mixed_sci_kernel_type(scaLar_r_bl, fIeld_r_bl, scalAr_r_phys, fiEld_r_phys))
 
 end program mixed_precision
