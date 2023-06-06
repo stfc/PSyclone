@@ -97,7 +97,7 @@ class ExtractTrans(PSyDataTrans):
 
     # -------------------------------------------------------------------------
     @staticmethod
-    def determine_postfix(input_list, output_list, postfix="_post"):
+    def determine_postfix(read_write_info, postfix="_post"):
         '''
         This function prevents any name clashes that can occur when adding
         the postfix to output variable names. For example, if there is an
@@ -109,10 +109,9 @@ class ExtractTrans(PSyDataTrans):
         'post1', ...) until any name clashes are avoided. This works for
         structured and non-structured types.
 
-        :param input_list: list of all input variables.
-        :type input_list: list of :py:class:`psyclone.core.Signature`
-        :param output_list: list of all output variables.
-        :type output_list: list of :py:class:`psyclone.core.Signature`
+        :param read_write_info: information about all input and output \
+            parameters.
+        :type read_write_info: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
         :param str postfix: the postfix to append to each output variable.
 
         :returns: a postfix that can be added to each output variable without
@@ -123,12 +122,12 @@ class ExtractTrans(PSyDataTrans):
         suffix = ""
         # Create the a set of all input and output variables (to avoid
         # checking input+output variables more than once)
-        all_vars = set(input_list) | set(output_list)
+        all_vars = read_write_info.set_of_all_used_vars
         # The signatures in the input/output list need to be converted
         # back to strings to easily append the suffix.
-        all_vars_string = [str(input_var) for input_var in all_vars]
+        all_vars_string = [str(input_var) for _, input_var in all_vars]
         while any(str(out_sig)+postfix+str(suffix) in all_vars_string
-                  for out_sig in output_list):
+                  for out_sig in read_write_info.signatures_written):
             if suffix == "":
                 suffix = 0
             else:

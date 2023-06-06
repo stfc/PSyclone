@@ -132,8 +132,9 @@ class ACCRegionDirective(ACCDirective, RegionDirective, metaclass=abc.ABCMeta):
                     sig_set.add(Signature(arg_str))
             return (sig_set, )
 
-        inp, out = DependencyTools().get_in_out_parameters(self.children)
-        return (set(inp), set(out))
+        rwi = DependencyTools().get_in_out_parameters(self.children)
+        return (set(rwi.signatures_read),
+                set(rwi.signatures_written))
 
 
 class ACCStandaloneDirective(ACCDirective, StandaloneDirective,

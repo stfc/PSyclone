@@ -124,6 +124,7 @@ def test_variable_access_info():
     assert vai.var_name == "var_name"
     assert str(vai) == "var_name:"
     assert vai.is_written() is False
+    assert vai.is_written_first() is False
     assert vai.is_read() is False
 
     assert vai.all_accesses == []
@@ -138,9 +139,12 @@ def test_variable_access_info():
     assert vai.is_read_only()
     assert vai.all_read_accesses == [vai[0]]
     assert vai.all_write_accesses == []
+    assert not vai.is_written()
+    assert not vai.is_written_first()
     vai.change_read_to_write()
     assert not vai.is_read()
     assert vai.is_written()
+    assert vai.is_written_first()
     assert not vai.is_read_only()
     assert vai.all_read_accesses == []
     assert vai.all_write_accesses == [vai[0]]
@@ -222,6 +226,7 @@ def test_variable_access_info_read_write():
 
     vai = SingleVariableAccessInfo(Signature("var_name"))
     assert vai.has_read_write() is False
+    assert vai.is_written_first() is False
 
     # Add a READ and WRITE access at the same location, and make sure it
     # is not reported as READWRITE access
@@ -230,9 +235,13 @@ def test_variable_access_info_read_write():
                                  component_indices=None)
     assert vai[0].node == node
     assert vai[0].location == 2
+    # Test a single read access:
+    assert vai.is_written_first() is False
     vai.add_access_with_location(AccessType.WRITE, 2, Node(),
                                  component_indices=None)
     assert vai.has_read_write() is False
+    # This tests a read-then-write access:
+    assert vai.is_written_first() is False
 
     vai.add_access_with_location(AccessType.READWRITE, 2, Node(),
                                  component_indices=None)

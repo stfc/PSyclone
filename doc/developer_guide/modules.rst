@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2019, Science and Technology Facilities Council.
+.. Copyright (c) 2019-2023, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 .. POSSIBILITY OF SUCH DAMAGE.
 .. -----------------------------------------------------------------------------
 .. Written by R. W. Ford and A. R. Porter, STFC Daresbury Lab
+.. Modified by L. Turner, Met Office
 
 Modules
 #######
@@ -260,16 +261,16 @@ When constructing the Fortran subroutine for either an Invoke or
 Kernel stub (see :ref:`stub-generation`), there are various groups of
 related quantities for which variables must be declared and
 (for Invokes) initialised. Each of these groupings is managed by a distinct
-sub-class of the ``DynCollection`` abstract class:
+sub-class of the ``LFRicCollection`` abstract class:
 
-.. autoclass:: psyclone.dynamo0p3.DynCollection
+.. autoclass:: psyclone.domain.lfric.LFRicCollection
    :members:
    :private-members:
    :noindex:
 
 (A single base class is used for both Invokes and Kernel stubs since it
 allows the code dealing with variable declarations to be shared.)
-A concrete sub-class of ``DynCollection`` must provide an
+A concrete sub-class of ``LFRicCollection`` must provide an
 implementation of the ``_invoke_declarations`` method. If the
 quantities associated with the collection require initialisation
 within the PSy layer then the ``initialise`` method must also be
@@ -277,10 +278,10 @@ implemented. If stub-generation is to be supported for kernels that
 make use of the collection type then an implementation must also be
 provided for ``_stub_declarations.``
 
-Although instances of (sub-classes of) ``DynCollection`` handle all
+Although instances of (sub-classes of) ``LFRicCollection`` handle all
 declarations and initialisation, there remains the problem of
 constructing the list of arguments for a kernel (or kernel stub). The
-``psyclone.dynamo0p3.ArgOrdering`` base class provides support for
+``psyclone.domain.lfric.ArgOrdering`` base class provides support for
 this:
 
 .. autoclass:: psyclone.domain.lfric.ArgOrdering
@@ -293,5 +294,5 @@ argument lists when *calling* kernels (``KernCallArgList``) and when
 *creating* kernel stubs (``KernStubArgList``).  ``KernCallArgList`` is
 only used in ``DynKernelArguments.raw_arg_list()``.
 ``KernStubArgList`` is only used in ``DynKern.gen_stub()``. These
-classes make use of ``DynCollection`` sub-classes in order
+classes make use of ``LFRicCollection`` sub-classes in order
 to ensure that argument naming is consistent.
