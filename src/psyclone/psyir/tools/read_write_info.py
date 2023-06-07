@@ -31,7 +31,8 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author J. Henrichs, Bureau of Meteorology
+# Authors: J. Henrichs, Bureau of Meteorology
+#          A. R. Porter, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' This module provides the class to store information about which variables
@@ -100,11 +101,26 @@ class ReadWriteInfo:
     def signatures_written(self):
         '''Convenience function to return only the signatures written.
 
-        :returns the list of all signatures written.
+        :returns: the list of all signatures written.
         :rtype: List[:py:class:`psyclone.core.Signature`]
 
         '''
         return [sig for _, sig in self.write_list]
+
+    # -------------------------------------------------------------------------
+    @property
+    def signatures_readwrite(self):
+        '''Convenience function to return only those signatures that have
+        read-write access (i.e. read before write).
+
+        :returns: the sorted list of all signatures with read-write access.
+        :rtype: List[:py:class:`psyclone.core.Signature`]
+
+        '''
+        readers = set(sig for _, sig in self._read_list)
+        writers = set(sig for _, sig in self._write_list)
+        readwrites = readers.intersection(writers)
+        return sorted(list(readwrites))
 
     # -------------------------------------------------------------------------
     @property

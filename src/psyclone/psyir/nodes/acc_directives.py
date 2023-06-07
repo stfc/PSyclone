@@ -643,19 +643,23 @@ class ACCDataDirective(ACCRegionDirective):
         self._under_construction = False
 
     @staticmethod
-    def sig2ref(var_accesses, sig, refs_dict):
+    def sig2ref(var_accesses, table, sig, refs_dict):
         '''
-        Update the supplied dict of accesses with those required by the
-        supplied signature.
+        Examines the supplied Signature and creates the References required
+        in order to access it. These are added to the supplied dictionary.
 
-        :param var_accesses:
+        :param var_accesses: object holding information on the accesses
+            relating to the supplied signature.
         :type var_accesses: :py:class:`psyclone.core.VariablesAccessInfo`
-        :param sig: 
+        :param table: the most local symbol table.
+        :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+        :param sig: the Signature to process for accesses.
         :type sig: :py:class:`psyclone.core.Signature`
         :param OrderedDict refs_dict: the dict of accesses to update.
 
-        :raises NotImplementedError: if a non-leaf structure component is \
-                                     iterated over, e.g. a(i)%b.
+        :raises NotImplementedError: if a non-leaf structure component is
+            iterated over, e.g. a(i)%b.
+
         '''
         from psyclone.core.signature import Signature
         from psyclone.psyir.nodes.structure_reference import StructureReference
@@ -665,6 +669,9 @@ class ACCDataDirective(ACCRegionDirective):
         from psyclone.psyGen import Kern
 
         node = var_accesses[sig].all_accesses[0].node
+        sym = table.lookup(sig.var_name)
+        if isinstance(sym.datatype, ScalarType):
+            return
 
         if isinstance(node, StructureReference):
 
@@ -704,6 +711,7 @@ class ACCDataDirective(ACCRegionDirective):
                     str(sig)))
 
         # TODO lookup array bounds here.
+        # if isinstance(node, ArrayReference): xxxxx
         if sig not in refs_dict:
             refs_dict[sig] = Reference(node.symbol)
 
@@ -728,104 +736,12 @@ class ACCDataDirective(ACCRegionDirective):
                                   ACCCopyOutClause))
 
     def begin_string(self):
-        '''Returns the beginning statement of this directive, i.e.
-        "acc data". The backend is responsible for adding the
-        correct directive beginning (e.g. "!$").
-
-        :returns: the opening statement of this directive.
+        '''
+        :returns: the beginning of the opening statement of this directive.
         :rtype: str
 
-        TODO #1396 - remove this whole method in favour of having the
-        visitor backend generate the code.
-
         '''
-        def _create_access_list(signatures, var_accesses):
-            '''
-            Constructs a list of variables for inclusion in a data-access
-            clause.
-
-            :param signatures: the list of Signatures for which to create \
-                entries in the list.
-            :type signatures: List[:py:class:`psyclone.core.Signature`]
-            :param var_accesses: object holding details on all variable \
-                accesses in the region to which the data-access clause applies.
-            :type var_accesses: :py:class:`psyclone.core.VariablesAccessInfo`
-
-            :returns: list of variable accesses.
-            :rtype: List[str]
-
-            '''
-            access_list = []
-            for sig in signatures:
-                if sig.is_structure:
-                    # We have to do a 'deep copy' of any structure access. This
-                    # means that if we have an access `a%b%c(i)` then we need
-                    # to copy `a`, `a%b` and then `a%b%c`.
-                    # Look up a PSyIR node that corresponds to this access.
-                    current = var_accesses[sig].all_accesses[0].node
-                    part_list = [current.name]
-                    if current.name not in access_list:
-                        access_list.append(current.name)
-                    while hasattr(current, "member"):
-                        current = current.member
-                        # Currently this is hardwired to generate Fortran (i.e.
-                        # we use '%' when accessing a component of a struct).
-                        # TODO #1386 a new StructureReference needs to be
-                        # created for 'current' and then given to an
-                        # appropriate backend.
-                        ref_string = "%".join(part_list[:]+[current.name])
-                        if ref_string not in access_list:
-                            access_list.append(ref_string)
-                else:
-                    ref_string = str(sig)
-                    if ref_string not in access_list:
-                        access_list.append(ref_string)
-            return access_list
-
-        result = "acc data"
-        return result
-        # TODO delete the rest!
-
-        # Identify the inputs and outputs to the region (variables that
-        # are read and written).
-        var_accesses = VariablesAccessInfo(self)
-        table = self.scope.symbol_table
-        readers = set()
-        writers = set()
-        for signature in var_accesses.all_signatures:
-            sym = table.lookup(signature.var_name)
-            accesses = var_accesses[signature]
-            if isinstance(sym.datatype, ScalarType):
-                # We ignore scalars as these are passed by value when OpenACC
-                # kernels are launched.
-                continue
-            if accesses.is_read():
-                readers.add(signature)
-            if accesses.is_written():
-                writers.add(signature)
-        readwrites = readers.intersection(writers)
-        # Are any of the read-writes written before they are read?
-        for signature in list(readwrites)[:]:
-            accesses = var_accesses[signature]
-            if accesses[0].access_type == AccessType.WRITE:
-                # First access is a write so treat as a write
-                writers.add(signature)
-                readers.discard(signature)
-                readwrites.discard(signature)
-        readers_list = sorted(readers - readwrites)
-        writers_list = sorted(writers - readwrites)
-        readwrites_list = sorted(readwrites)
-        if readers_list:
-            result += f""" copyin({",".join(
-                _create_access_list(readers_list, var_accesses))})"""
-        if writers_list:
-            result += f""" copyout({",".join(
-                _create_access_list(writers_list, var_accesses))})"""
-        if readwrites_list:
-            result += f""" copy({",".join(
-                _create_access_list(readwrites_list, var_accesses))})"""
-
-        return result
+        return "acc data"
 
     def end_string(self):
         '''
@@ -837,6 +753,7 @@ class ACCDataDirective(ACCRegionDirective):
 
     def update(self):
         '''
+        Called whenever there is a change in the PSyIR tree below this node.
         '''
         if self._under_construction or self._in_update:
             return
@@ -855,49 +772,33 @@ class ACCDataDirective(ACCRegionDirective):
 
         # Identify the inputs and outputs to the region (variables that
         # are read and written).
-        var_accesses = VariablesAccessInfo(self.children)
+        from psyclone.psyir.tools import DependencyTools
+        dtools = DependencyTools()
         table = self.scope.symbol_table
-        readers = set()
-        writers = set()
-        for signature in var_accesses.all_signatures:
-            sym = table.lookup(signature.var_name)
-            accesses = var_accesses[signature]
-            if isinstance(sym.datatype, ScalarType):
-                # We ignore scalars as these are passed by value when OpenACC
-                # kernels are launched.
-                continue
-            if accesses.is_read():
-                readers.add(signature)
-            if accesses.is_written():
-                writers.add(signature)
-        readwrites = readers.intersection(writers)
-        # Are any of the read-writes written before they are read?
-        for signature in list(readwrites)[:]:
-            accesses = var_accesses[signature]
-            if accesses[0].access_type == AccessType.WRITE:
-                # First access is a write so treat as a write
-                writers.add(signature)
-                readers.discard(signature)
-                readwrites.discard(signature)
-        readers_list = sorted(list(readers - readwrites))
-        writers_list = sorted(list(writers - readwrites))
-        readwrites_list = sorted(list(readwrites))
+        in_outs = dtools.get_in_out_parameters(self.children)
+        var_accesses = dtools.variable_access_info
+        readers = in_outs.signatures_read
+        writers = in_outs.signatures_written
+        readwrites_list = in_outs.signatures_readwrite
+        readwrites = set(readwrites_list)
+        readers_list = sorted(list(set(readers) - readwrites))
+        writers_list = sorted(list(set(writers) - readwrites))
 
         # We now need to create PSyIR references for all of the signatures
         # and add them as children of the appropriate clauses.
         nodes_dict = OrderedDict()
         for sig in readers_list:
-            self.sig2ref(var_accesses, sig, nodes_dict)
+            self.sig2ref(var_accesses, table, sig, nodes_dict)
         if nodes_dict:
             self.addchild(ACCCopyInClause(children=list(nodes_dict.values())))
         nodes_dict = OrderedDict()
         for sig in writers_list:
-            self.sig2ref(var_accesses, sig, nodes_dict)
+            self.sig2ref(var_accesses, table, sig, nodes_dict)
         if nodes_dict:
             self.addchild(ACCCopyOutClause(children=list(nodes_dict.values())))
         nodes_dict = OrderedDict()
         for sig in readwrites_list:
-            self.sig2ref(var_accesses, sig, nodes_dict)
+            self.sig2ref(var_accesses, table, sig, nodes_dict)
         if nodes_dict:
             self.addchild(ACCCopyClause(children=list(nodes_dict.values())))
         self._in_update = False
