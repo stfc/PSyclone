@@ -54,7 +54,6 @@ from psyclone.psyir.nodes.array_of_structures_reference import \
 from psyclone.psyir.nodes.codeblock import CodeBlock
 from psyclone.psyir.nodes.directive import StandaloneDirective, \
     RegionDirective
-from psyclone.psyir.nodes.loop import Loop
 from psyclone.psyir.nodes.psy_data_node import PSyDataNode
 from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.nodes.routine import Routine
@@ -629,19 +628,25 @@ class ACCDataDirective(ACCRegionDirective):
 
     '''
     def __init__(self, children=None, parent=None):
-        self._under_construction = True
+        self._disable_tree_update = True
         super().__init__(children=children, parent=parent)
 
-        self._parent_loop_vars = []
-        self._under_construction = False
-        self._in_update = False
-        self.update()
+        self._disable_tree_update = False
+        self.tree_update()
 
     def _refine_copy(self, other):
-        ''' '''
-        self._under_construction = True
+        '''
+        Overrides the base implementation to ensure that tree-updating is
+        disabled during this operation (since it is a copy we know we
+        don't need to change the tree structure).
+
+        :param other: the object we are copying from.
+        :type other: :py:class:`psyclone.psyir.node.Node`
+
+        '''
+        self._disable_tree_update = True
         super()._refine_copy(other)
-        self._under_construction = False
+        self._disable_tree_update = False
 
     @staticmethod
     def sig2ref(var_accesses, table, sig, refs_dict):
@@ -704,7 +709,7 @@ class ACCDataDirective(ACCRegionDirective):
                     members = list(zip(member_sig[1:depth+1], new_lists))
                     refs_dict[member_sig[:depth+1]] = base_cls.create(
                         *base_args, members)
-            return refs_dict
+            return
 
         if isinstance(node, Kern):
             if sig not in refs_dict:
@@ -731,6 +736,17 @@ class ACCDataDirective(ACCRegionDirective):
     @staticmethod
     def _validate_child(position, child):
         '''
+        Check that the supplied node is a valid child of this node at the
+        specified position.
+
+        :param int position: the proposed position of this child in the list
+            of children.
+        :param child: the proposed child node.
+        :type child: :py:class:`psyclone.psyir.nodes.Node`
+
+        :returns: whether or not the proposed child and position are valid.
+        :rtype: bool
+
         '''
         if position == 0:
             return isinstance(child, Schedule)
@@ -741,7 +757,6 @@ class ACCDataDirective(ACCRegionDirective):
         '''
         :returns: the beginning of the opening statement of this directive.
         :rtype: str
-
         '''
         return "acc data"
 
@@ -753,18 +768,17 @@ class ACCDataDirective(ACCRegionDirective):
         '''
         return "acc end data"
 
-    def update(self):
+    def tree_update(self):
         '''
         Called whenever there is a change in the PSyIR tree below this node.
-        '''
-        if self._under_construction or self._in_update:
-            return
-        self._in_update = True
+        This may mean that the various copy[in/out] clauses need updating if
+        the contents of the data region have changed.
 
-        cursor = self.ancestor(Loop)
-        while cursor:
-            self._parent_loop_vars.append(cursor.variable)
-            cursor = cursor.ancestor(Loop)
+        '''
+        # Ensure that this method does not get called recursively.
+        if self._disable_tree_update:
+            return
+        self._disable_tree_update = True
 
         # Remove the clauses that we will update.
         for child in self.children[:]:
@@ -774,6 +788,7 @@ class ACCDataDirective(ACCRegionDirective):
 
         # Identify the inputs and outputs to the region (variables that
         # are read and written).
+        # pylint: disable=import-outside-toplevel
         from psyclone.psyir.tools import DependencyTools
         dtools = DependencyTools()
         table = self.scope.symbol_table
@@ -803,7 +818,11 @@ class ACCDataDirective(ACCRegionDirective):
             self.sig2ref(var_accesses, table, sig, nodes_dict)
         if nodes_dict:
             self.addchild(ACCCopyClause(children=list(nodes_dict.values())))
-        self._in_update = False
+
+        # Mark that we've left this method.
+        self._disable_tree_update = False
+        # Propagate any changes on up the tree.
+        super().tree_update()
 
 
 class ACCUpdateDirective(ACCStandaloneDirective):

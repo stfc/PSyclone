@@ -95,7 +95,10 @@ class ChildrenList(list):
     a callback function that allows the validation of the inserted children.
     Since this is a subclass of the standard list, all operations (e.g. append,
     insert, extend, comparisons, list arithmetic operations) are conserved and
-    make use of the validation.
+    make use of the validation. They also trigger an update of all ancestor
+    nodes so that action can be taken in order to keep the tree consistent when
+    necessary (e.g. to update the data-movement clauses on an OpenACC data
+    region).
 
     :param node: reference to the node where the list belongs.
     :type node: :py:class:`psyclone.psyir.nodes.Node`
@@ -106,7 +109,7 @@ class ChildrenList(list):
 
     '''
     def __init__(self, node, validation_function, validation_text):
-        super(ChildrenList, self).__init__()
+        super().__init__()
         self._node_reference = node
         self._validation_function = validation_function
         self._validation_text = validation_text
@@ -204,9 +207,9 @@ class ChildrenList(list):
         '''
         self._validate_item(len(self), item)
         self._check_is_orphan(item)
-        super(ChildrenList, self).append(item)
+        super().append(item)
         self._set_parent_link(item)
-        self._node_reference.update()
+        self._node_reference.tree_update()
 
     def __setitem__(self, index, item):
         ''' Extends list __setitem__ method with children node validation.
@@ -219,9 +222,9 @@ class ChildrenList(list):
         self._validate_item(index, item)
         self._check_is_orphan(item)
         self._del_parent_link(self[index])
-        super(ChildrenList, self).__setitem__(index, item)
+        super().__setitem__(index, item)
         self._set_parent_link(item)
-        self._node_reference.update()
+        self._node_reference.tree_update()
 
     def insert(self, index, item):
         ''' Extends list insert method with children node validation.
@@ -237,9 +240,9 @@ class ChildrenList(list):
         # Check that all displaced items will still in valid positions
         for position in range(positiveindex, len(self)):
             self._validate_item(position + 1, self[position])
-        super(ChildrenList, self).insert(index, item)
+        super().insert(index, item)
         self._set_parent_link(item)
-        self._node_reference.update()
+        self._node_reference.tree_update()
 
     def extend(self, items):
         ''' Extends list extend method with children node validation.
@@ -251,10 +254,10 @@ class ChildrenList(list):
         for index, item in enumerate(items):
             self._validate_item(len(self) + index, item)
             self._check_is_orphan(item)
-        super(ChildrenList, self).extend(items)
+        super().extend(items)
         for item in items:
             self._set_parent_link(item)
-        self._node_reference.update()
+        self._node_reference.tree_update()
 
     # Methods below don't insert elements but have the potential to displace
     # or change the order of the items in-place.
@@ -268,8 +271,8 @@ class ChildrenList(list):
         for position in range(positiveindex + 1, len(self)):
             self._validate_item(position - 1, self[position])
         self._del_parent_link(self[index])
-        super(ChildrenList, self).__delitem__(index)
-        self._node_reference.update()
+        super().__delitem__(index)
+        self._node_reference.tree_update()
 
     def remove(self, item):
         ''' Extends list remove method with children node validation.
@@ -281,8 +284,8 @@ class ChildrenList(list):
         for position in range(self.index(item) + 1, len(self)):
             self._validate_item(position - 1, self[position])
         self._del_parent_link(item)
-        super(ChildrenList, self).remove(item)
-        self._node_reference.update()
+        super().remove(item)
+        self._node_reference.tree_update()
 
     def pop(self, index=-1):
         ''' Extends list pop method with children node validation.
@@ -299,18 +302,18 @@ class ChildrenList(list):
         for position in range(positiveindex + 1, len(self)):
             self._validate_item(position - 1, self[position])
         self._del_parent_link(self[index])
-        obj = super(ChildrenList, self).pop(index)
-        self._node_reference.update()
+        obj = super().pop(index)
+        self._node_reference.tree_update()
         return obj
 
     def reverse(self):
         ''' Extends list reverse method with children node validation. '''
         for index, item in enumerate(self):
             self._validate_item(len(self) - index - 1, item)
-        super(ChildrenList, self).reverse()
+        super().reverse()
         # Reversing the order of e.g. Statements may alter the read/write
         # properties of any References.
-        self._node_reference.update()
+        self._node_reference.tree_update()
 
 
 class Node():
@@ -1467,11 +1470,19 @@ class Node():
         from psyclone.psyir.backend.debug_writer import DebugWriter
         return DebugWriter()(self)
 
-    def update(self):
+    def tree_update(self):
         '''
+        Called when any of the nodes below this one in the tree are
+        changed.
+
+        This default implementation simply propagates the notification up
+        the tree by calling the corresponding method on its parent.
+
         '''
-        if self.parent:
-            self.parent.update()
+        # If we're in the middle of constructing a Node then it's
+        # possible that it doesn't yet even have the _parent attribute.
+        if hasattr(self, "_parent") and self._parent:
+            self._parent.tree_update()
 
 
 # For automatic documentation generation
