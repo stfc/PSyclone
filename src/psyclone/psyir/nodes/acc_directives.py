@@ -44,7 +44,7 @@ nodes.'''
 import abc
 from collections import OrderedDict
 
-from psyclone.core import AccessType, VariablesAccessInfo, Signature
+from psyclone.core import Signature
 from psyclone.f2pygen import DirectiveGen, CommentGen
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.nodes.acc_clauses import (ACCCopyClause, ACCCopyInClause,
@@ -55,10 +55,11 @@ from psyclone.psyir.nodes.codeblock import CodeBlock
 from psyclone.psyir.nodes.directive import StandaloneDirective, \
     RegionDirective
 from psyclone.psyir.nodes.loop import Loop
+from psyclone.psyir.nodes.psy_data_node import PSyDataNode
 from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes.schedule import Schedule
-from psyclone.psyir.nodes.psy_data_node import PSyDataNode
+from psyclone.psyir.nodes.structure_reference import StructureReference
 from psyclone.psyir.symbols import ScalarType
 
 
@@ -661,8 +662,6 @@ class ACCDataDirective(ACCRegionDirective):
             iterated over, e.g. a(i)%b.
 
         '''
-        from psyclone.core.signature import Signature
-        from psyclone.psyir.nodes.structure_reference import StructureReference
         # Having this import at the top level causes a circular dependency due
         # to psyGen importing FortranWriter at the top level.
         # pylint: disable=import-outside-toplevel
@@ -671,6 +670,8 @@ class ACCDataDirective(ACCRegionDirective):
         node = var_accesses[sig].all_accesses[0].node
         sym = table.lookup(sig.var_name)
         if isinstance(sym.datatype, ScalarType):
+            # We ignore scalars as these are copied by value when launching
+            # kernels.
             return
 
         if isinstance(node, StructureReference):
@@ -710,8 +711,9 @@ class ACCDataDirective(ACCRegionDirective):
                 refs_dict[sig] = Reference(node.scope.symbol_table.lookup(
                     str(sig)))
 
-        # TODO lookup array bounds here.
-        # if isinstance(node, ArrayReference): xxxxx
+        # TODO #1396 - in languages such as C++ it will be necessary to
+        # supply the extent of an array that is being accessed. For now we
+        # only supply a Reference (which is sufficient in Fortran).
         if sig not in refs_dict:
             refs_dict[sig] = Reference(node.symbol)
 

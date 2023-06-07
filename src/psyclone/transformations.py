@@ -47,6 +47,7 @@ import abc
 
 from psyclone import psyGen
 from psyclone.configuration import Config
+from psyclone.core import Signature, VariablesAccessInfo
 from psyclone.domain.lfric import KernCallArgList, LFRicConstants
 from psyclone.dynamo0p3 import DynHaloExchangeEnd, DynHaloExchangeStart, \
     DynInvokeSchedule, DynKern
@@ -64,6 +65,9 @@ from psyclone.psyir.nodes import ACCDataDirective, ACCDirective, \
     OMPParallelDirective, OMPParallelDoDirective, OMPSerialDirective, \
     OMPSingleDirective, OMPTaskloopDirective, PSyDataNode, Reference, \
     Return, Routine, Schedule
+from psyclone.psyir.nodes.array_mixin import ArrayMixin
+from psyclone.psyir.nodes.structure_member import StructureMember
+from psyclone.psyir.nodes.structure_reference import StructureReference
 from psyclone.psyir.symbols import ArgumentInterface, DataSymbol, \
     DeferredType, INTEGER_TYPE, ScalarType, Symbol, SymbolError
 from psyclone.psyir.transformations.loop_trans import LoopTrans
@@ -2623,15 +2627,18 @@ class ACCDataTrans(RegionTrans):
         of nodes.
 
         :param nodes: the proposed node(s) to enclose in a data region.
-        :type nodes: (list of) subclasses of \
-                     :py:class:`psyclone.psyir.nodes.Node`
+        :type nodes: List[:py:class:`psyclone.psyir.nodes.Node`] |
+            :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
 
-        :raises TransformationError: if the Schedule to which the nodes \
-                                belong already has an 'enter data' directive.
-        :raises TransformationError: if any of the nodes are themselves \
-                                     data directives.
+        :raises TransformationError: if the Schedule to which the nodes
+            belong already has an 'enter data' directive.
+        :raises TransformationError: if any of the nodes are themselves
+            data directives.
+        :raises TransformationError: if an array of structures needs to be
+            deep copied (this is not currently supported).
+
         '''
         # Ensure we are always working with a list of nodes, even if only
         # one was supplied via the `nodes` argument.
@@ -2647,13 +2654,8 @@ class ACCDataTrans(RegionTrans):
             raise TransformationError(
                 "Cannot add an OpenACC data region to a schedule that "
                 "already contains an 'enter data' directive.")
-        from psyclone.psyir.nodes.array_mixin import ArrayMixin
-        from psyclone.psyir.nodes.structure_member import StructureMember
-        from psyclone.core.signature import Signature
-        from psyclone.core import VariablesAccessInfo
         # Check that we don't have any accesses to arrays of derived types
         # that we can't yet deep copy.
-        from psyclone.psyir.nodes import StructureReference
         for node in node_list:
             for sref in node.walk(StructureReference):
 
@@ -2685,10 +2687,10 @@ class ACCDataTrans(RegionTrans):
                         #   end do
                         raise TransformationError(
                             f"Data region contains a structure access "
-                            f"'{DebugWriter()(sref)}' where component '{access.name}' "
-                            f"is an array and is iterated over (variable "
-                            f"'{var}'). Deep copying of data for structures "
-                            f"is only supported where the deepest "
+                            f"'{DebugWriter()(sref)}' where component "
+                            f"'{access.name}' is an array and is iterated over"
+                            f" (variable '{var}'). Deep copying of data for "
+                            f"structures is only supported where the deepest "
                             f"component is the one being iterated over.")
 
 
