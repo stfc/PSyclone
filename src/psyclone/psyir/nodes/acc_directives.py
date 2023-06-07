@@ -649,7 +649,7 @@ class ACCDataDirective(ACCRegionDirective):
         self._disable_tree_update = False
 
     @staticmethod
-    def sig2ref(var_accesses, table, sig, refs_dict):
+    def _sig2refs(var_accesses, table, sig, refs_dict):
         '''
         Examines the supplied Signature and creates the References required
         in order to access it. These are added to the supplied dictionary.
@@ -680,14 +680,19 @@ class ACCDataDirective(ACCRegionDirective):
             return
 
         if isinstance(node, StructureReference):
+            # We have to do a 'deep copy' of any structure access. This
+            # means that if we have an access `a%b%c(i)` then we need to
+            # copy `a`, `a%b` and then `a%b%c`.
 
-            member_sig, index_lists = node.get_signature_and_indices()
+            # A Signature does not contain indexing information so we must
+            # lookup a PSyIR node that corresponds to this access.
+            _, index_lists = node.get_signature_and_indices()
 
             if Signature(node.symbol.name) not in refs_dict:
                 refs_dict[Signature(node.symbol.name)] = Reference(node.symbol)
 
-            for depth in range(1, len(member_sig)):
-                if member_sig[:depth+1] not in refs_dict:
+            for depth in range(1, len(sig)):
+                if sig[:depth+1] not in refs_dict:
                     if node.is_array:
                         base_cls = ArrayOfStructuresReference
                         # Copy the indices so as not to modify the original
@@ -706,15 +711,10 @@ class ACCDataDirective(ACCRegionDirective):
                     for idx_list in index_lists[1:depth]:
                         new_lists.append([idx.copy() for idx in idx_list])
                     new_lists.append([])
-                    members = list(zip(member_sig[1:depth+1], new_lists))
-                    refs_dict[member_sig[:depth+1]] = base_cls.create(
+                    members = list(zip(sig[1:depth+1], new_lists))
+                    refs_dict[sig[:depth+1]] = base_cls.create(
                         *base_args, members)
             return
-
-        if isinstance(node, Kern):
-            if sig not in refs_dict:
-                refs_dict[sig] = Reference(node.scope.symbol_table.lookup(
-                    str(sig)))
 
         # TODO #1396 - in languages such as C++ it will be necessary to
         # supply the extent of an array that is being accessed. For now we
@@ -805,17 +805,17 @@ class ACCDataDirective(ACCRegionDirective):
         # and add them as children of the appropriate clauses.
         nodes_dict = OrderedDict()
         for sig in readers_list:
-            self.sig2ref(var_accesses, table, sig, nodes_dict)
+            self._sig2refs(var_accesses, table, sig, nodes_dict)
         if nodes_dict:
             self.addchild(ACCCopyInClause(children=list(nodes_dict.values())))
         nodes_dict = OrderedDict()
         for sig in writers_list:
-            self.sig2ref(var_accesses, table, sig, nodes_dict)
+            self._sig2refs(var_accesses, table, sig, nodes_dict)
         if nodes_dict:
             self.addchild(ACCCopyOutClause(children=list(nodes_dict.values())))
         nodes_dict = OrderedDict()
         for sig in readwrites_list:
-            self.sig2ref(var_accesses, table, sig, nodes_dict)
+            self._sig2refs(var_accesses, table, sig, nodes_dict)
         if nodes_dict:
             self.addchild(ACCCopyClause(children=list(nodes_dict.values())))
 
