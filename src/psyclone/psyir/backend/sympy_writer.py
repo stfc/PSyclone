@@ -83,7 +83,7 @@ class SymPyWriter(FortranWriter):
     # is set to True as the modifications will persist after the Writer!
     _DISABLE_LOWERING = True
 
-    def __init__(self, list_of_expressions=None):
+    def __init__(self):
         super().__init__()
 
         # The symbol table is used to create unique names for structure
@@ -93,17 +93,6 @@ class SymPyWriter(FortranWriter):
         self._symbol_table = SymbolTable()
 
         self._sympy_type_map = {}
-        if list_of_expressions:
-            self._create_type_map(list_of_expressions)
-
-        # First add all references. This way we can be sure that the writer
-        # will never rename a reference. The `type_map` dictionary keeps track
-        # of which names are arrays (--> must be declared as a SymPy function)
-        # or non-array (--> must be declared as a SymPy symbol).
-        for symbol_name in self._sympy_type_map:
-            self._symbol_table.find_or_create_tag(tag=symbol_name,
-                                                  root_name=symbol_name)
-
         self._intrinsic = set()
         self._op_to_str = {}
 
@@ -122,6 +111,45 @@ class SymPyWriter(FortranWriter):
                                  ]:
             self._intrinsic.add(op_str)
             self._op_to_str[operator] = op_str
+
+    # -------------------------------------------------------------------------
+    def __new__(cls, *expressions):
+        '''This new function allows the SymPy writer to be used in two
+        different ways: if only the SymPy expression of the PSyIR expressions
+        are required, it can be called as:
+        `sympy_expressions = SymPyWriter(exp1, exp2, ...)`
+        But if additional information is needed (e.g. SymPy type map, or to
+        convert a SymPy expression back to PSyIR), an instance of the
+        SymPyWriter must be kept, e.g.:
+            writer = SymPyWriter()
+            sympy_expressions = writer([exp1, exp2, ...])
+            writer.type_map
+
+        :param expressions: a (potentially empty) tuple of PSyIR nodes
+            to be converted to SymPy expressions.
+        :type expressions: Tuple[:py:class:`psyclone.psyir.nodes.Node`]
+
+        :returns: either an instance of SymPyWriter, if no parameter is
+            specified, or a list of SymPy expressions.
+        :rtype: Union[:py:class:`psyclone.psyir.backend.SymPyWriter`,
+                      List[:py:class:`sympy.core.basic.Basic`]
+
+        '''
+        if expressions:
+            writer = SymPyWriter()
+            return writer(expressions)
+
+        instance = super().__new__(cls)
+        return instance
+
+    # -------------------------------------------------------------------------
+    def __getitem__(self, k):
+        '''This function is only here to trick pylint into thinking that
+        the object returned from __new__ is subscribtable, meaning that code
+        like:
+        ``out = SymPyWriter(exp1, exp2); out[1]`` does not trigger
+        a pylint warning about unsubscriptable-object.
+        '''
 
     # -------------------------------------------------------------------------
     def _create_type_map(self, list_of_expressions):
@@ -144,8 +172,10 @@ class SymPyWriter(FortranWriter):
         for expr in list_of_expressions:
             for ref in expr.walk(Reference):
                 name = ref.name
-                if name in self._sympy_type_map:
+                if name in self._symbol_table:
                     continue
+                self._symbol_table.find_or_create(name)
+
                 # Test if an array or an array expression is used:
                 if not ref.is_array:
                     self._sympy_type_map[name] = Symbol(name)
@@ -190,10 +220,42 @@ class SymPyWriter(FortranWriter):
     @property
     def type_map(self):
         ''':returns: the mapping of names to SymPy objects.
-        rtype: Dict[str,  :py:class:`sympy.core.symbol.Symbol`]
+        rtype: Dict[str, :py:class:`sympy.core.symbol.Symbol`]
 
         '''
         return self._sympy_type_map
+
+    # -------------------------------------------------------------------------
+    def _to_str(self, list_of_expressions):
+        '''Converts PSyIR expressions to strings. It will replace Fortran-
+        specific expressions with code that can be parsed by SymPy. The
+        argument can either be a single element (in which case a single string
+        is returned) or a list/tuple, in which case a list is returned.
+
+        :param list_of_expressions: the list of expressions which are to be \
+            converted into SymPy-parsable strings.
+        :type list_of_expressions: Union[:py:class:`psyclone.psyir.nodes.Node`,
+        List[:py:class:`psyclone.psyir.nodes.Node`]]
+
+        :returns: the converted strings(s).
+        :rtype: Union[str, List[str]]
+
+        '''
+        is_list = isinstance(list_of_expressions, (tuple, list))
+        if not is_list:
+            list_of_expressions = [list_of_expressions]
+        # Create the writer for both expressions:
+        self._create_type_map(list_of_expressions)
+
+        expression_str_list = []
+        for expr in list_of_expressions:
+            expression_str_list.append(super().__call__(expr))
+
+        # If the argument was a single expression, only return a single
+        # expression, otherwise return a list
+        if not is_list:
+            return expression_str_list[0]
+        return expression_str_list
 
     # -------------------------------------------------------------------------
     def __call__(self, list_of_expressions):
@@ -221,60 +283,24 @@ class SymPyWriter(FortranWriter):
         :raises VisitorError: if an invalid SymPy expression is found.
 
         '''
-
-        is_list = isinstance(list_of_expressions, list)
+        is_list = isinstance(list_of_expressions, (tuple, list))
         if not is_list:
             list_of_expressions = [list_of_expressions]
+        expression_str_list = self._to_str(list_of_expressions)
 
-        # Create the writer for both expressions:
-        self._create_type_map(list_of_expressions)
+        result = []
+        for expr in expression_str_list:
+            try:
+                result.append(parse_expr(expr, self.type_map))
+            except SyntaxError as err:
+                raise VisitorError(f"Invalid SymPy expression: '{expr}'.") \
+                    from err
 
-        expression_str_list = []
-        for expr in list_of_expressions:
-            # Convert each expression. Note that this call might add
-            # additional entries to type_map if it finds member names
-            # that clash with a symbol (e.g. a%b --> it will try to
-            # create a SymPy symbol `a_b`, but if `a_b` clashes with an
-            # existing symbol, `a_b_1`, ... will be used instead).
-            expression_str_list.append(super().__call__(expr))
-
-        try:
-            if is_list:
-                return expression_str_list
-            # We had no list initially, so only convert the one and only
-            # list member
-            return expression_str_list[0]
-        except SyntaxError as err:
-            raise VisitorError("Invalid SymPy expression") from err
-
-    # -------------------------------------------------------------------------
-    @staticmethod
-    def convert_to_sympy_expressions(list_of_expressions):
-        '''
-        This function takes a list of PSyIR expressions, and converts
-        them all into Sympy expressions using the SymPy parser.
-        It takes care of all Fortran specific conversion required (e.g.
-        constants with kind specification, ...), including the renaming of
-        member accesses, as described in
-        https://psyclone-dev.readthedocs.io/en/latest/sympy.html#sympy
-
-        :param list_of_expressions: the list of expressions which are to be \
-            converted into SymPy-parsable strings.
-        :type list_of_expressions: list of \
-            :py:class:`psyclone.psyir.nodes.Node`
-
-        :returns: the converted PSyIR expressions.
-        :rtype: list of SymPy expressions
-
-        '''
-        # Use existing functionality
-        writer = SymPyWriter(list_of_expressions)
-        expression_str_list = writer(list_of_expressions)
-        try:
-            return [parse_expr(expr, writer.type_map)
-                    for expr in expression_str_list]
-        except SyntaxError as err:
-            raise VisitorError("Invalid SymPy expression") from err
+        if is_list:
+            return result
+        # We had no list initially, so only convert the one and only
+        # list member
+        return result[0]
 
     # -------------------------------------------------------------------------
     def member_node(self, node):

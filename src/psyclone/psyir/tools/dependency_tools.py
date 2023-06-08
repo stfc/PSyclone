@@ -379,11 +379,9 @@ class DependencyTools():
 
         '''
         # pylint: disable=too-many-return-statements
-        sympy_writer = SymPyWriter([index_read, index_written])
+        sympy_writer = SymPyWriter()
         try:
-            sympy_expressions = \
-                sympy_writer.convert_to_sympy_expressions([index_read,
-                                                          index_written])
+            sympy_expressions = sympy_writer([index_read, index_written])
         except VisitorError:
             return None
         symbol_map = sympy_writer.type_map

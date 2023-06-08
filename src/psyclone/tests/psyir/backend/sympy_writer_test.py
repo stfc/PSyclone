@@ -83,15 +83,15 @@ def test_sym_writer_boolean():
     '''
     sympy_writer = SymPyWriter()
     lit = Literal("true", BOOLEAN_TYPE)
-    assert sympy_writer(lit) == "True"
+    assert sympy_writer._to_str(lit) == "True"
     lit = Literal("false", BOOLEAN_TYPE)
-    assert sympy_writer(lit) == "False"
+    assert sympy_writer._to_str(lit) == "False"
 
 
 def test_sym_writer_character():
     '''Test that characters are rejected.
     '''
-    sympy_writer = SymPyWriter({})
+    sympy_writer = SymPyWriter()
     lit = Literal("bla", CHARACTER_TYPE)
 
     with pytest.raises(TypeError) as err:
@@ -122,7 +122,7 @@ def test_sym_writer_int_constants(fortran_reader, expressions):
     lit = psyir.children[0].children[0].rhs
 
     sympy_writer = SymPyWriter()
-    assert sympy_writer(lit) == expressions[1]
+    assert sympy_writer._to_str(lit) == expressions[1]
 
 
 @pytest.mark.parametrize("expressions", [("3.1415926535897932384626",
@@ -147,8 +147,7 @@ def test_sym_writer_real_constants(fortran_reader, expressions):
 
     psyir = fortran_reader.psyir_from_source(source)
     lit = psyir.children[0].children[0].rhs
-    sympy_writer = SymPyWriter([])
-    assert sympy_writer(lit) == expressions[1]
+    assert SymPyWriter()._to_str(lit) == expressions[1]
 
 
 @pytest.mark.parametrize("expressions", [("MAX(1,2)", "Max(1, 2)"),
@@ -173,15 +172,16 @@ def test_sym_writer_functions(fortran_reader, expressions):
 
     psyir = fortran_reader.psyir_from_source(source)
     function = psyir.children[0].children[0].rhs
-    sympy_writer = SymPyWriter([])
-    assert sympy_writer(function) == expressions[1]
+    assert SymPyWriter()._to_str(function) == expressions[1]
 
 
 @pytest.mark.parametrize("expr, sym_map", [("i", {'i': Symbol('i')}),
                                            ("f(1)", {'f': Function('f')}),
                                            ("f(:)", {'f': Function('f')}),
-                                           ("a%b", {'a': Symbol('a')}),
-                                           ("a%b(1)", {'a': Symbol('a')})
+                                           ("a%b", {'a': Symbol('a'),
+                                                    'a_b': Symbol('a_b')}),
+                                           ("a%b(1)", {'a': Symbol('a'),
+                                                       'a_b': Function('a_b')})
                                            ])
 def test_sympy_writer_create_type_map(expr, sym_map, fortran_reader):
     '''Tests that the static create_type_map creates a dictionary
@@ -200,8 +200,9 @@ def test_sympy_writer_create_type_map(expr, sym_map, fortran_reader):
 
     psyir = fortran_reader.psyir_from_source(source)
     expr = psyir.children[0].children[0].rhs
-    sympy_writer = SymPyWriter([expr])
-    assert sym_map.keys() == sympy_writer._sympy_type_map.keys()
+    sympy_writer = SymPyWriter()
+    _ = sympy_writer(expr)
+    assert sympy_writer._sympy_type_map.keys() == sym_map.keys()
 
 
 @pytest.mark.parametrize("expressions", [("a%x", "a%a_x"),
@@ -235,8 +236,7 @@ def test_sym_writer_rename_members(fortran_reader, expressions):
 
     psyir = fortran_reader.psyir_from_source(source)
     expr = psyir.children[0].children[0].rhs
-    sympy_writer = SymPyWriter([expr])
-    assert sympy_writer(expr) == expressions[1]
+    assert SymPyWriter()._to_str(expr) == expressions[1]
 
 
 @pytest.mark.parametrize("expr, sym_map", [("a%x", {"a": Symbol("a"),
@@ -272,11 +272,11 @@ def test_sym_writer_symbol_types(fortran_reader, expr, sym_map):
 
     psyir = fortran_reader.psyir_from_source(source)
     expr = psyir.children[0].children[0].rhs
-    sympy_writer = SymPyWriter([expr])
+    sympy_writer = SymPyWriter()
     # Note that this call can extend the type_map with type information
     # about member names.
     _ = sympy_writer(expr)
-    assert sympy_writer._sympy_type_map.keys() == sym_map.keys()
+    assert sympy_writer.type_map.keys() == sym_map.keys()
 
 
 @pytest.mark.parametrize("expr, sym_map", [("i", {'i': Symbol('i')}),
@@ -304,9 +304,10 @@ def test_sympy_writer_get_symbol_and_map(expr, sym_map, fortran_reader):
     psyir = fortran_reader.psyir_from_source(source)
     expr = psyir.children[0].children[0].rhs
 
+    writer = SymPyWriter()
     # Ignore the converted expressions here, they are tested elsewhere
-    # writer = SymPyWriter([expr])
-    # TODO JH  assert writer._sympy_type_map.keys() == sym_map.keys()
+    _ = writer([expr])
+    assert writer._sympy_type_map.keys() == sym_map.keys()
 
 
 def test_sym_writer_convert_to_sympy_expressions(fortran_reader):
@@ -327,7 +328,7 @@ def test_sym_writer_convert_to_sympy_expressions(fortran_reader):
     psyir = fortran_reader.psyir_from_source(source)
     exp1 = psyir.children[0].children[0].rhs
     exp2 = psyir.children[0].children[1].rhs
-    sympy_list = SymPyWriter.convert_to_sympy_expressions([exp1, exp2])
+    sympy_list = SymPyWriter(exp1, exp2)
 
     expr = parse_expr("a%a_b_1 + a%a_c(1,1,1) + i")
     assert sympy_list[0] == expr
@@ -350,7 +351,7 @@ def test_sym_writer_parse_errors(fortran_reader):
     exp1 = psyir.children[0].children[0].rhs
 
     with pytest.raises(VisitorError) as err:
-        _ = SymPyWriter.convert_to_sympy_expressions([exp1])
+        _ = SymPyWriter(exp1)
 
     assert "Visitor Error: Invalid SymPy expression" in str(err.value)
 
@@ -406,8 +407,9 @@ def test_sym_writer_array_expressions(fortran_reader, expressions):
 
     psyir = fortran_reader.psyir_from_source(source)
     expr = psyir.children[0].children[0].rhs
-    sympy_writer = SymPyWriter([expr])
-    assert sympy_writer([expr]) == [expressions[1]]
+    sympy_writer = SymPyWriter()
+    out = sympy_writer._to_str([expr])
+    assert out[0] == expressions[1]
 
 
 def test_gen_indices():
@@ -429,6 +431,8 @@ def test_gen_indices():
 
 @pytest.mark.parametrize("expressions", [("b(i)", "b(i)"),
                                          ("c(i,j)", "c(i,j)"),
+                                         ("b(2:3:4)", "b(2:3:4)"),
+                                         ("b(2:3:1)", "b(2:3)"),
                                          ("b", "b(:)")])
 def test_sympy_expr_to_psyir(fortran_reader, fortran_writer, expressions):
     '''Test conversion from a SymPy expression back to PSyIR. Especially check
@@ -448,7 +452,7 @@ def test_sympy_expr_to_psyir(fortran_reader, fortran_writer, expressions):
     psyir = fortran_reader.psyir_from_source(source)
     symbol_table = psyir.children[0].symbol_table
     psyir_expr = psyir.children[0].children[0].rhs
-    sympy_expr = SymPyWriter.convert_to_sympy_expressions([psyir_expr])[0]
     sympy_writer = SymPyWriter()
+    sympy_expr = sympy_writer(psyir_expr)
     new_psyir = sympy_writer.sympy_to_psyir(sympy_expr, symbol_table)
     assert fortran_writer(new_psyir) == expressions[1]

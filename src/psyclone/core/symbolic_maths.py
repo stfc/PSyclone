@@ -174,8 +174,7 @@ class SymbolicMaths:
 
         # Use the SymPyWriter to convert the two expressions to
         # SymPy expressions:
-        sympy_expressions = SymPyWriter.convert_to_sympy_expressions([exp1,
-                                                                     exp2])
+        sympy_expressions = SymPyWriter(exp1, exp2)
         # If an expression is a range node, then the corresponding SymPy
         # expression will be a tuple:
         if isinstance(sympy_expressions[0], tuple) and \
@@ -292,7 +291,7 @@ class SymbolicMaths:
             return
         # Convert the PSyIR expression to a sympy expression
         sympy_writer = SymPyWriter()
-        sympy_expression = sympy_writer.convert_to_sympy_expressions([expr])
+        sympy_expression = sympy_writer([expr])
         # Expand the expression
         result = expand(sympy_expression[0])
 

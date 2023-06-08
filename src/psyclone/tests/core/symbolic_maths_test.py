@@ -300,10 +300,8 @@ def test_symbolic_math_solve(fortran_reader, exp1, exp2, result):
     schedule = psyir.children[0]
 
     sym_maths = SymbolicMaths.get()
-    writer = SymPyWriter([schedule[0].rhs, schedule[1].rhs])
-    sympy_expressions = \
-        SymPyWriter.convert_to_sympy_expressions([schedule[0].rhs,
-                                                 schedule[1].rhs])
+    writer = SymPyWriter()
+    sympy_expressions = writer([schedule[0].rhs, schedule[1].rhs])
     symbol_map = writer.type_map
     # Get the symbol used for 'i', so we can solve for 'i'
     i = symbol_map["i"]
