@@ -4362,7 +4362,6 @@ def test_mixed_precision_args(tmpdir):
         "scalar_r_solver, field_r_solver, operator_r_solver, scalar_r_tran, "
         "field_r_tran, operator_r_tran, scalar_r_bl, field_r_bl, "
         "scalar_r_phys, field_r_phys)\n"
-        "      USE mixed_sci_kernel_mod, ONLY: mixed_sci_code\n"
         "      USE mixed_kernel_mod, ONLY: mixed_code\n"
         "      USE mesh_mod, ONLY: mesh_type\n"
         "      REAL(KIND=r_def), intent(in) :: scalar_r_def\n"
@@ -4379,6 +4378,7 @@ def test_mixed_precision_args(tmpdir):
         "      TYPE(r_solver_operator_type), intent(in) :: operator_r_solver\n"
         "      TYPE(r_tran_operator_type), intent(in) :: operator_r_tran\n"
         "      INTEGER(KIND=i_def) cell\n"
+        "      INTEGER(KIND=i_def) loop4_start, loop4_stop\n"
         "      INTEGER(KIND=i_def) loop3_start, loop3_stop\n"
         "      INTEGER(KIND=i_def) loop2_start, loop2_stop\n"
         "      INTEGER(KIND=i_def) loop1_start, loop1_stop\n"
@@ -4392,10 +4392,8 @@ def test_mixed_precision_args(tmpdir):
         "      TYPE(r_tran_field_proxy_type) field_r_tran_proxy\n"
         "      TYPE(r_solver_field_proxy_type) field_r_solver_proxy\n"
         "      TYPE(field_proxy_type) field_r_def_proxy\n"
-        "      INTEGER(KIND=i_def), pointer :: map_w2(:,:) => null(), "
-        "map_w3(:,:) => null(), map_wtheta(:,:) => null()\n"
-        "      INTEGER(KIND=i_def) ndf_w3, undf_w3, ndf_w0, ndf_w2, "
-        "undf_w2, ndf_wtheta, undf_wtheta\n"
+        "      INTEGER(KIND=i_def), pointer :: map_w3(:,:) => null()\n"
+        "      INTEGER(KIND=i_def) ndf_w3, undf_w3, ndf_w0\n"
         "      INTEGER(KIND=i_def) max_halo_depth_mesh\n"
         "      TYPE(mesh_type), pointer :: mesh => null()\n")
     assert expected in generated_code

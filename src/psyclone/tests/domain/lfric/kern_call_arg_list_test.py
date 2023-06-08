@@ -396,9 +396,9 @@ def test_kerncallarglist_bcs_operator(fortran_writer):
 
 
 def test_kerncallarglist_mixed_precision():
-    ''' Check the handling of mixed precision. This kernel has three invokes:
-    The first using 'r_def', the second 'r_solver', the third 'r_tran' and
-    the fourth 'r_bl' and 'r_phys'.
+    ''' Check the handling of mixed precision. This kernel has five invokes:
+    The first using 'r_def', the second 'r_solver', the third 'r_tran', the
+    fourth 'r_bl' and the fifth 'r_phys'.
     '''
 
     psy, _ = get_invoke("26.8_mixed_precision_args.f90", TEST_API,
@@ -439,11 +439,15 @@ def test_kerncallarglist_mixed_precision():
 
     create_arg_list = KernCallArgList(schedule.kernels()[3])
     create_arg_list.generate()
-    assert create_arg_list.psyir_arglist[1].datatype.precision.name == "r_bl"
     assert create_arg_list.psyir_arglist[2].datatype.precision.name == "r_bl"
+    assert create_arg_list.psyir_arglist[3].datatype.precision.name == "r_bl"
+    assert create_arg_list.psyir_arglist[5].datatype.precision.name == "r_tran"
+
+    create_arg_list = KernCallArgList(schedule.kernels()[4])
+    create_arg_list.generate()
+    assert create_arg_list.psyir_arglist[2].datatype.precision.name == "r_phys"
     assert create_arg_list.psyir_arglist[3].datatype.precision.name == "r_phys"
-    assert create_arg_list.psyir_arglist[4].datatype.precision.name == "r_phys"
-    assert create_arg_list.psyir_arglist[6].datatype.precision.name == "i_def"
+    assert create_arg_list.psyir_arglist[5].datatype.precision.name == "r_def"
 
 
 def test_kerncallarglist_scalar_literal(fortran_writer):
