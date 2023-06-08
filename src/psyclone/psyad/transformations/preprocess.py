@@ -103,7 +103,7 @@ def preprocess_trans(kernel_psyir, active_variable_names):
     for assignment in kernel_psyir.walk(Assignment):
         if assignment.walk(StructureReference):
             # SymbolicMaths currently does not work if the expression
-            # contains Range nodes, see issue #1655.
+            # contains user-defined types, see issue #2166.
             associativity(assignment, active_variable_names)
         else:
             sym_maths = SymbolicMaths.get()
