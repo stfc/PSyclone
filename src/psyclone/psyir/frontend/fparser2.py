@@ -63,6 +63,7 @@ from psyclone.psyir.symbols import (
     UnknownFortranType, UnknownType, UnresolvedInterface, INTEGER_TYPE,
     StaticInterface, DefaultModuleInterface, UnknownInterface,
     CommonBlockInterface)
+from psyclone.psyir.tools import SubstitutionTool
 
 # fparser dynamically generates classes which confuses pylint membership checks
 # pylint: disable=maybe-no-member
@@ -1063,6 +1064,7 @@ class Fparser2Reader():
             Fortran2003.Main_Program: self._main_program_handler,
             Fortran2003.Program: self._program_handler,
         }
+        self._sub_tool = SubstitutionTool()
 
     @staticmethod
     def nodes_to_code_block(parent, fp2_nodes):
@@ -2761,12 +2763,12 @@ class Fparser2Reader():
         # that we skip the ASSOCIATE and END ASSOCIATE nodes.
         self.process_nodes(parent=parent, nodes=node.children[1:-1])
 
-        from psyclone.psyir.transformations import InlineTrans
-        trans = InlineTrans()
+        # Examine all the references in the block and replace those that
+        # involve associate names.
         for child in parent.children[child_index:]:
             all_refs = child.walk(Reference)
             for ref in all_refs[:]:
-                trans._replace_formal_arg(ref, associate_map)
+                self._sub_tool.replace_reference(ref, associate_map)
 
         # Remove the Symbols corresponding to the associate names.
         for sym in associate_symbols:
