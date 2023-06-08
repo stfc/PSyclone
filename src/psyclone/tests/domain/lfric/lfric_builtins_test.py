@@ -1030,7 +1030,8 @@ def test_aX_plus_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
-    # Check for the correct 'use' module statements
+    # Check for the correct 'use' module statements as a non-default
+    # precision, 'r_bl', is used for real-valued fields and scalars.
     output_mod = (
         "    USE constants_mod, ONLY: r_bl, i_def\n"
         "    USE r_bl_field_mod, ONLY: r_bl_field_type, "
@@ -2595,7 +2596,7 @@ def test_a_times_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
     '''Test that 1) the '__str__' method of 'LFRicATimesXKern' returns the
     expected string and 2) we generate correct code for the built-in
     operation 'Y = a*X' where 'a' is a real scalar and 'X' and 'Y' are
-    real-valued fields.  Test with and without annexed DoFs being
+    real-valued fields. Test with and without annexed DoFs being
     computed as this affects the generated code. 3) Also test the
     'lower_to_language_level()' and 'metadata()' methods.
 
@@ -2618,7 +2619,8 @@ def test_a_times_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
-    # Check for the correct 'use' module statements
+    # Check for the correct 'use' module statements as a non-default
+    # precision, 'r_phys', is used for real-valued fields and scalars.
     output_mod = (
         "    USE constants_mod, ONLY: r_phys, i_def\n"
         "    USE r_phys_field_mod, ONLY: r_phys_field_type, "

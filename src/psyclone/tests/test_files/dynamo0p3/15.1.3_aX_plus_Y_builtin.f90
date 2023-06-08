@@ -36,8 +36,9 @@
 
 program single_invoke
 
-  ! Description: single point-wise operation (Z = aX + Y)
-  ! specified in an invoke call.
+  ! Description: single point-wise operation (Z = aX + Y) on real-valued
+  ! fields and a real scalar of precision 'r_bl' specified in an invoke
+  ! call (the default precision is 'r_def').
   use constants_mod,  only: r_bl
   use r_bl_field_mod, only: r_bl_field_type
 

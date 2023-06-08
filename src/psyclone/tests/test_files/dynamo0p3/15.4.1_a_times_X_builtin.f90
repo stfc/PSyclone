@@ -36,8 +36,9 @@
 
 program single_invoke
 
-  ! Description: single point-wise operation (scale a field: Y = aX)
-  ! specified in an invoke call.
+  ! Description: single point-wise operation (scale a field: Y = aX) on
+  ! real-valued fields and a real scalar of precision 'r_phys' specified
+  ! in an invoke call (the default precision is 'r_def').
   use constants_mod,    only: r_phys
   use r_phys_field_mod, only: r_phys_field_type
 
