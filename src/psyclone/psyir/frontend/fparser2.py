@@ -964,6 +964,7 @@ class Fparser2Reader():
         ('abs', UnaryOperation.Operator.ABS),
         ('ceiling', UnaryOperation.Operator.CEIL),
         ('floor', UnaryOperation.Operator.FLOOR),
+        ('transpose', UnaryOperation.Operator.TRANSPOSE),
         ('exp', UnaryOperation.Operator.EXP),
         ('log', UnaryOperation.Operator.LOG),
         ('log10', UnaryOperation.Operator.LOG10),

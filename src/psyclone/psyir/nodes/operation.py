@@ -320,7 +320,7 @@ class UnaryOperation(Operation):
         # Trigonometric Operators
         'COS', 'SIN', 'TAN', 'ACOS', 'ASIN', 'ATAN',
         # Other Maths Operators
-        'ABS', 'CEIL', 'FLOOR',
+        'ABS', 'CEIL', 'FLOOR', 'TRANSPOSE',
         # Casting Operators
         'REAL', 'INT', 'NINT'
         ])
