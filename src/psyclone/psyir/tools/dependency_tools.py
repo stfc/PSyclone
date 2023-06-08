@@ -47,8 +47,6 @@ from psyclone.core import (AccessType, SymbolicMaths,
                            VariablesAccessInfo)
 from psyclone.errors import InternalError, LazyString
 from psyclone.psyir.nodes import Loop
-from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.psyir.backend.sympy_writer import SymPyWriter
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.tools.read_write_info import ReadWriteInfo
 
@@ -163,6 +161,7 @@ class DependencyTools():
         else:
             self._loop_types_to_parallelise = []
         if not language_writer:
+            from psyclone.psyir.backend.fortran import FortranWriter
             self._language_writer = FortranWriter()
         else:
             self._language_writer = language_writer
@@ -381,6 +380,8 @@ class DependencyTools():
         # pylint: disable=too-many-return-statements
         sym_maths = SymbolicMaths.get()
         try:
+            # TODO does this import affect performance?
+            from psyclone.psyir.backend.sympy_writer import SymPyWriter
             sympy_expressions, symbol_map = SymPyWriter.\
                 get_sympy_expressions_and_symbol_map([index_read,
                                                      index_written])
