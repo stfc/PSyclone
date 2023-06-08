@@ -397,7 +397,8 @@ def test_kerncallarglist_bcs_operator(fortran_writer):
 
 def test_kerncallarglist_mixed_precision():
     ''' Check the handling of mixed precision. This kernel has three invokes:
-    The first using r_def, the second r_solver, the third r_tran.
+    The first using 'r_def', the second 'r_solver', the third 'r_tran' and
+    the fourth 'r_bl' and 'r_phys'.
     '''
 
     psy, _ = get_invoke("26.8_mixed_precision_args.f90", TEST_API,

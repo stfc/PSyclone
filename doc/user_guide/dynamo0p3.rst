@@ -579,7 +579,7 @@ different from the :ref:`field vector <lfric-field-vector>` implementation
 of field bundles in the PSyclone LFRic API interface.
 
 The LFRic abstract vector type has precision-specific implementations.
-If PSyclone finds such specifically declared field vector argument in the
+If PSyclone finds such a specifically declared field vector argument in the
 algorithm layer, e.g. ``r_solver_field_vector_type``, it will assume that
 the actual field being referenced is of the same datatype and precision
 (see :ref:`above <lfric-mixed-precision-fields>` for details).
