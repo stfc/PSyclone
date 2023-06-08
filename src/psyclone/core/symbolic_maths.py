@@ -291,9 +291,9 @@ class SymbolicMaths:
             return
         # Convert the PSyIR expression to a sympy expression
         sympy_writer = SymPyWriter()
-        sympy_expression = sympy_writer([expr])
+        sympy_expression = sympy_writer(expr)
         # Expand the expression
-        result = expand(sympy_expression[0])
+        result = expand(sympy_expression)
 
         # Find the required symbol table in the original PSyIR
         symbol_table = expr.scope.symbol_table
