@@ -70,11 +70,6 @@ class SymPyWriter(FortranWriter):
     can be found in the manual:
     https://psyclone-dev.readthedocs.io/en/latest/sympy.html#sympy
 
-    :param type_map: Optional initial mapping that contains the SymPy data \
-        type of each reference in the expressions. This is the result of the \
-        static function \
-        :py:meth:`psyclone.core.sympy_writer.create_type_map`.
-    :type type_map: dict of str:Sympy-data-type values
     '''
     # This option will disable the lowering of abstract nodes into language
     # level nodes, and as a consequence the backend does not need to deep-copy
@@ -143,9 +138,9 @@ class SymPyWriter(FortranWriter):
         return instance
 
     # -------------------------------------------------------------------------
-    def __getitem__(self, k):
+    def __getitem__(self, _):
         '''This function is only here to trick pylint into thinking that
-        the object returned from __new__ is subscribtable, meaning that code
+        the object returned from `__new__` is subscriptable, meaning that code
         like:
         ``out = SymPyWriter(exp1, exp2); out[1]`` does not trigger
         a pylint warning about unsubscriptable-object.
@@ -155,18 +150,17 @@ class SymPyWriter(FortranWriter):
     def _create_type_map(self, list_of_expressions):
         '''
         This function creates a dictionary mapping each Reference in any
-        of the expressions to either a Sympy Function (if the reference
+        of the expressions to either a SymPy Function (if the reference
         is an array reference) or a Symbol (if the reference is not an
-        array reference).
+        array reference). It defines a new SymPy function for each array,
+        which has a special write method implemented that automatically
+        converts array indices back by combining each three arguments into
+        one expression (which can be an array expression like `1:9:2`).
 
-        :param list_of_expressions: the list of expressions from which all \
-            references are taken and added to the a symbol table to avoid \
+        :param list_of_expressions: the list of expressions from which all
+            references are taken and added to the a symbol table to avoid
             renaming any symbols (so that only member names will be renamed).
-        :type list_of_expressions: list of \
-            :py:class:`psyclone.psyir.nodes.Node`
-        :returns: the dictionary mapping each reference name to a Sympy \
-            data type (Function of Symbol).
-        :rtype: dictionary of string:Sympy-data-type values
+        :type list_of_expressions: List[:py:class:`psyclone.psyir.nodes.Node`]
 
         '''
         for expr in list_of_expressions:
@@ -182,12 +176,17 @@ class SymPyWriter(FortranWriter):
                     continue
 
                 # Now a new Fortran array is used. Declare a SymPy
-
+                # -------------------------------------------------------------
                 def print_fortran_array(self, printer):
                     '''A custom print function to convert a modified
                     Fortran array access back to standard Fortran. It
                     converts the three values that each index is converted
-                    to back into the Fortran array notation.'''
+                    to back into the Fortran array notation.
+
+                    :param printer: the SymPy writer base class.
+                    :type printer: :py:class:`sympy.printing.str.StrPrinter`
+
+                    '''
                     # pylint: disable=protected-access
                     args = [printer._print(i) for i in self.args]
                     name = self.__class__.__name__
