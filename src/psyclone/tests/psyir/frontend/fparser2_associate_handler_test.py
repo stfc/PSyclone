@@ -38,23 +38,22 @@
     fparser2 PSyIR front-end. '''
 
 
-from psyclone.psyir.nodes import Assignment, Routine
+from psyclone.psyir.nodes import Assignment, CodeBlock, Routine
 
 
 def test_basic_associate(fortran_reader, fortran_writer):
     '''Check that a basic associate block is correctly handled by the
     frontend.'''
     code = '''
-program test_alloc
+program test_assoc
   use grid_mod, only: grid
-  integer, parameter :: ndof = 8
-  real, dimension(ndof) :: var1
+  real, dimension(10) :: var1
   var1(:) = 10.0
   associate(easy => var1(3), hard => grid%data)
   easy = 5.0
   hard(:) = 0.0
   end associate
-end program test_alloc
+end program test_assoc
 '''
     psyir = fortran_reader.psyir_from_source(code)
     routine = psyir.walk(Routine)[0]
@@ -67,3 +66,34 @@ end program test_alloc
     assert ("  var1(:) = 10.0\n"
             "  var1(3) = 5.0\n"
             "  grid%data(:) = 0.0\n" in output)
+
+
+def test_associate_dependency(fortran_reader):
+    '''Check that we get a CodeBlock if our substitution of expressions
+    inside the associate construct would change the semantics of the code.'''
+    code = '''
+program test_assoc
+  use grid_mod, only: grid
+  real, dimension(10) :: var1
+  integer :: i
+  var1(:) = 10.0
+  i = 1
+  associate(hard => grid%data(i))
+  ! We write to 'i' here. However, in Fortran that would make no difference
+  ! to the fact that 'hard' is equivalent to 'grid%data(1)'. Therefore, we
+  ! cannot substitute 'hard' with 'grid%data(i)'.
+  i = 2
+  hard = 0.0
+  end associate
+  var1(:) = 5.0
+  associate(tricky => grid%data(1:grid%nx))
+  grid%nx = 5
+  tricky = -1.0
+  end associate
+end program test_assoc
+'''
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    assert len(routine.children) == 5
+    assert isinstance(routine.children[2], CodeBlock)
+    assert isinstance(routine.children[4], CodeBlock)

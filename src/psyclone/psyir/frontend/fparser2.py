@@ -63,7 +63,7 @@ from psyclone.psyir.symbols import (
     UnknownFortranType, UnknownType, UnresolvedInterface, INTEGER_TYPE,
     StaticInterface, DefaultModuleInterface, UnknownInterface,
     CommonBlockInterface)
-from psyclone.psyir.tools import SubstitutionTool
+from psyclone.psyir.tools.read_write_info import ReadWriteInfo
 
 # fparser dynamically generates classes which confuses pylint membership checks
 # pylint: disable=maybe-no-member
@@ -1064,7 +1064,10 @@ class Fparser2Reader():
             Fortran2003.Main_Program: self._main_program_handler,
             Fortran2003.Program: self._program_handler,
         }
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.tools import SubstitutionTool, DependencyTools
         self._sub_tool = SubstitutionTool()
+        self._dttools = DependencyTools()
 
     @staticmethod
     def nodes_to_code_block(parent, fp2_nodes):
@@ -2738,41 +2741,71 @@ class Fparser2Reader():
         :returns: PSyIR of ASSOCIATE block.
         :rtype: :py:class:`psyclone.psyir.nodes.Node`
 
+        :raises NotImplementedError: if the associate block writes to
+            variables that are read in the associate statment since that
+            prevents substitution of the expressions.
+
         '''
-        child_index = len(parent.children)
-        table = parent.scope.symbol_table
+        fake_sched = Schedule(parent=parent)
+        table = fake_sched.symbol_table
         # Get the Associate-List
         assoc_list = walk(node.children[0], Fortran2003.Association)
-        fake = Assignment(parent=parent)
+
         # Construct a mapping from associate-name to the corresponding
         # expression.
         associate_map = {}
         associate_symbols = []
+        assigns = []
         for assoc in assoc_list:
             name = assoc.children[0].string
             # Add the associate-name as a Symbol to the local table so that
             # the code inside the construct can be processed as usual.
-            # TODO we could really do with a new table just for the scoping
-            # region defined by the Associate Construct. However, ScopingNode
-            # is abstract and I suspect we can't have a Schedule as a child of
-            # a Schedule?
-            associate_symbols.append(table.new_symbol(name, tag=name))
-            self.process_nodes(parent=fake, nodes=[assoc.children[2]])
-            associate_map[name] = fake.children[0].detach()
+            associate_symbols.append(table.new_symbol(name))
+            # Create a fake Assignment node in order to construct the PSyIR of
+            # the expression to substitute.
+            assigns.append(Assignment(parent=fake_sched))
+            assigns[-1].addchild(Reference(associate_symbols[-1]))
+            self.process_nodes(parent=assigns[-1], nodes=[assoc.children[2]])
+            associate_map[name] = assigns[-1].rhs
+
+        # In an ASSOCIATE construct, the values associated with the associate
+        # names are computed on entry to the construct and are *not* updated.
+        # Since we are substituting the associate names with the corresponding
+        # expression we must check that none of the References read by that
+        # expression are written to within the construct (otherwise we will
+        # be changing the semantics).
+        rw_info = ReadWriteInfo()
+        self._dttools.get_input_parameters(rw_info, node_list=assigns)
+        assoc_inputs = set(rw_info.signatures_read)
+
         # Now proceed to process the body of the Construct as usual, ensuring
         # that we skip the ASSOCIATE and END ASSOCIATE nodes.
-        self.process_nodes(parent=parent, nodes=node.children[1:-1])
+        self.process_nodes(parent=fake_sched, nodes=node.children[1:-1])
+
+        # Analyse the body of the Construct to check that there are no writes
+        # to variables that are read in the associate expressions.
+        rw_info2 = ReadWriteInfo()
+        self._dttools.get_output_parameters(rw_info2,
+                                            node_list=fake_sched.children)
+        block_writes = set(rw_info2.signatures_written)
+        intersect = assoc_inputs.intersection(block_writes)
+        if intersect:
+            raise NotImplementedError(
+                f"Cannot substitute expressions in ASSOCIATE block as it "
+                f"writes to variables that are read in the ASSOCIATE "
+                f"statement: {intersect}")
 
         # Examine all the references in the block and replace those that
         # involve associate names.
-        for child in parent.children[child_index:]:
+        for child in fake_sched.children:
             all_refs = child.walk(Reference)
             for ref in all_refs[:]:
                 self._sub_tool.replace_reference(ref, associate_map)
 
-        # Remove the Symbols corresponding to the associate names.
-        for sym in associate_symbols:
-            table.remove(sym)
+        for node in fake_sched.pop_all_children():
+            parent.addchild(node)
+
+        del fake_sched
 
     def _create_loop(self, parent, variable):
         '''
