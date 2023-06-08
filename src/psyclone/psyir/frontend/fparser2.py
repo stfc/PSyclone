@@ -2766,7 +2766,7 @@ class Fparser2Reader():
         for child in parent.children[child_index:]:
             all_refs = child.walk(Reference)
             for ref in all_refs[:]:
-                trans._replace_formal_arg(ref, None, [], associate_map)
+                trans._replace_formal_arg(ref, associate_map)
 
         # Remove the Symbols corresponding to the associate names.
         for sym in associate_symbols:

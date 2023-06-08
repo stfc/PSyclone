@@ -181,9 +181,9 @@ class InlineTrans(Transformation):
         formal_args = routine_table.argument_list
         for arg in formal_args:
             subst_map[arg.name] = node.children[formal_args.index(arg)]
-        #import pdb; pdb.set_trace()
+
         for ref in refs[:]:
-            self._replace_formal_arg(ref, node, formal_args, subst_map)
+            self._replace_formal_arg(ref, subst_map)
 
         # Copy the nodes from the Routine into the call site.
         if isinstance(new_stmts[-1], Return):
@@ -214,7 +214,7 @@ class InlineTrans(Transformation):
                 idx += 1
                 parent.addchild(child, idx)
 
-    def _replace_formal_arg(self, ref, call_node, formal_args, subst_map):
+    def _replace_formal_arg(self, ref, subst_map):
         '''
         Recursively combines any References to formal arguments in the supplied
         PSyIR expression with the corresponding Reference (actual argument)
@@ -224,13 +224,9 @@ class InlineTrans(Transformation):
 
         :param ref: the expression to update.
         :type ref: :py:class:`psyclone.psyir.nodes.Node`
-        :param call_node: the call site.
-        :type call_node: :py:class:`psyclone.psyir.nodes.Call`
-        :param formal_args: the formal arguments of the called routine.
-        :type formal_args: List[:py:class:`psyclone.psyir.symbols.DataSymbol`]
-        :param subst_map: mapping from things to replace to expressions to
+        :param subst_map: mapping from names to replace to expressions to
             replace them with.
-        :type subst_map: TODO
+        :type subst_map: Dict[str, :py:class:`psyclone.psyir.nodes.Node`]
 
         :returns: the replacement reference.
         :rtype: :py:class:`psyclone.psyir.nodes.Reference`
@@ -239,7 +235,7 @@ class InlineTrans(Transformation):
         if not isinstance(ref, Reference):
             # Recurse down in case this is e.g. an Operation or Range.
             for child in ref.children[:]:
-                self._replace_formal_arg(child, call_node, formal_args, subst_map)
+                self._replace_formal_arg(child, subst_map)
             return ref
 
         if ref.symbol.name not in subst_map:
@@ -247,7 +243,7 @@ class InlineTrans(Transformation):
             return ref
 
         # Lookup the actual argument that corresponds to this formal argument.
-        actual_arg = subst_map[ref.symbol.name] #call_node.children[formal_args.index(ref.symbol)]
+        actual_arg = subst_map[ref.symbol.name]
 
         # If the local reference is a simple Reference then we can just
         # replace it with a copy of the actual argument, e.g.
@@ -283,8 +279,7 @@ class InlineTrans(Transformation):
 
         # Neither the actual or local references are simple, i.e. they
         # include array accesses and/or structure accesses.
-        new_ref = self._replace_formal_struc_arg(actual_arg, ref, call_node,
-                                                 formal_args, subst_map)
+        new_ref = self._replace_formal_struc_arg(actual_arg, ref, subst_map)
         # If the local reference we are replacing has a parent then we must
         # ensure the parent's child list is updated. (It may not have a parent
         # if we are in the process of constructing a brand new reference.)
@@ -292,8 +287,8 @@ class InlineTrans(Transformation):
             ref.replace_with(new_ref)
         return new_ref
 
-    def _create_inlined_idx(self, call_node, formal_args,
-                            local_idx, decln_start, actual_start, subst_map):
+    def _create_inlined_idx(self, local_idx, decln_start, actual_start,
+                            subst_map):
         '''
         Utility that creates the PSyIR for an inlined array-index access
         expression. This is not trivial since a formal argument may be
@@ -311,10 +306,6 @@ class InlineTrans(Transformation):
             inlined_idx = local_idx - local_decln_start + 1 + actual_start - 1
                         = local_idx - local_decln_start + actual_start
 
-        :param call_node: the Call that we are inlining.
-        :type call_node: :py:class:`psyclone.psyir.nodes.Call`
-        :param formal_args: the formal arguments of the routine being called.
-        :type formal_args: List[:py:class:`psyclone.psyir.symbols.DataSymbol`]
         :param local_idx: a local array-index expression (i.e. appearing \
             within the routine being inlined).
         :type local_idx: :py:class:`psyclone.psyir.nodes.Node`
@@ -324,36 +315,36 @@ class InlineTrans(Transformation):
         :param actual_start: the lower bound of the corresponding array \
             dimension, as defined at the call site.
         :type actual_start: :py:class:`psyclone.psyir.nodes.Node`
+        :param subst_map: mapping from names to replace to expressions to
+            replace them with.
+        :type subst_map: Dict[str, :py:class:`psyclone.psyir.nodes.Node`]
 
         :returns: PSyIR for the corresponding inlined array index.
         :rtype: :py:class:`psyclone.psyir.nodes.Node`
 
         '''
         if isinstance(local_idx, Range):
-            lower = self._create_inlined_idx(call_node, formal_args,
-                                             local_idx.start, decln_start,
+            lower = self._create_inlined_idx(local_idx.start, decln_start,
                                              actual_start, subst_map)
-            upper = self._create_inlined_idx(call_node, formal_args,
-                                             local_idx.stop, decln_start,
+            upper = self._create_inlined_idx(local_idx.stop, decln_start,
                                              actual_start, subst_map)
-            step = self._replace_formal_arg(local_idx.step, call_node,
-                                            formal_args, subst_map)
+            step = self._replace_formal_arg(local_idx.step, subst_map)
             return Range.create(lower.copy(), upper.copy(), step.copy())
 
-        uidx = self._replace_formal_arg(local_idx, call_node, formal_args, subst_map)
+        uidx = self._replace_formal_arg(local_idx, subst_map)
         if decln_start == actual_start:
             # If the starting indices in the actual and formal arguments are
             # the same then we don't need to shift the index.
             return uidx
 
-        ustart = self._replace_formal_arg(decln_start, call_node, formal_args, subst_map)
+        ustart = self._replace_formal_arg(decln_start, subst_map)
         start_sub = BinaryOperation.create(BinaryOperation.Operator.SUB,
                                            uidx.copy(), ustart.copy())
         return BinaryOperation.create(BinaryOperation.Operator.ADD,
                                       start_sub, actual_start.copy())
 
     def _update_actual_indices(self, actual_arg, local_ref,
-                               call_node, formal_args, subst_map):
+                               subst_map):
         '''
         Create a new list of indices for the supplied actual argument
         (ArrayMixin) by replacing any Ranges with the appropriate expressions
@@ -363,10 +354,9 @@ class InlineTrans(Transformation):
         :param actual_arg: (part of) the actual argument to the routine.
         :type actual_arg: :py:class:`psyclone.psyir.nodes.ArrayMixin`
         :param local_ref: the corresponding Reference in the called routine.
-        :param call_node: the call site.
-        :type call_node: :py:class:`psyclone.psyir.nodes.Call`
-        :param formal_args: the formal arguments of the called routine.
-        :type formal_args: List[:py:class:`psyclone.psyir.symbols.DataSymbol`]
+        :param subst_map: mapping from names to replace to expressions to
+            replace them with.
+        :type subst_map: Dict[str, :py:class:`psyclone.psyir.nodes.Node`]
 
         :returns: new indices for the actual argument.
         :rtype: List[:py:class:`psyclone.psyir.nodes.Node`]
@@ -382,8 +372,6 @@ class InlineTrans(Transformation):
             local_decln_shape = []
 
         new_indices = [idx.copy() for idx in actual_arg.indices]
-        #if not isinstance(call_node, Call):
-        #    return new_indices
 
         local_idx_posn = 0
         for pos, idx in enumerate(new_indices[:]):
@@ -427,20 +415,17 @@ class InlineTrans(Transformation):
                     new = Range.create(local_shape.lower.copy(),
                                        local_shape.upper.copy())
                     new_indices[pos] = self._create_inlined_idx(
-                        call_node, formal_args,
                         new, local_decln_start, actual_start, subst_map)
             else:
                 # Otherwise, the local index expression replaces the Range.
                 new_indices[pos] = self._create_inlined_idx(
-                    call_node, formal_args,
                     local_indices[local_idx_posn],
                     local_decln_start, actual_start, subst_map)
             # Each Range corresponds to one dimension of the formal argument.
             local_idx_posn += 1
         return new_indices
 
-    def _replace_formal_struc_arg(self, actual_arg, ref, call_node,
-                                  formal_args, subst_map):
+    def _replace_formal_struc_arg(self, actual_arg, ref, subst_map):
         '''
         Called by _replace_formal_arg() whenever a formal or actual argument
         involves an array or structure access that can't be handled with a
@@ -473,10 +458,9 @@ class InlineTrans(Transformation):
         :type actual_arg: :py:class:`psyclone.psyir.nodes.Reference`
         :param ref: the corresponding reference to a formal argument.
         :type ref: :py:class:`psyclone.psyir.nodes.Reference`
-        :param call_node: the call site.
-        :type call_node: :py:class:`psyclone.psyir.nodes.Call`
-        :param formal_args: the formal arguments of the called routine.
-        :type formal_args: List[:py:class:`psyclone.psyir.symbols.DataSymbol`]
+        :param subst_map: mapping from names to replace to expressions to
+            replace them with.
+        :type subst_map: Dict[str, :py:class:`psyclone.psyir.nodes.Node`]
 
         :returns: the replacement reference.
         :rtype: :py:class:`psyclone.psyir.nodes.Reference`
@@ -504,7 +488,7 @@ class InlineTrans(Transformation):
         while True:
             if isinstance(cursor, ArrayMixin):
                 new_indices = self._update_actual_indices(
-                    cursor, ref, call_node, formal_args, subst_map)
+                    cursor, ref, subst_map)
                 members.append((cursor.name, new_indices))
             else:
                 members.append(cursor.name)
@@ -521,7 +505,7 @@ class InlineTrans(Transformation):
             for idx in local_indices:
                 new_indices.append(
                     self._replace_formal_arg(
-                        idx.copy(), call_node, formal_args, subst_map))
+                        idx.copy(), subst_map))
             # Replace the last entry in the `members` list with a new array
             # access.
             members[-1] = (cursor.name, new_indices)
@@ -540,7 +524,7 @@ class InlineTrans(Transformation):
                     # formal arguments.
                     new_indices.append(
                         self._replace_formal_arg(
-                            idx.copy(), call_node, formal_args, subst_map))
+                            idx.copy(), subst_map))
                 members.append((cursor.name, new_indices))
             else:
                 members.append(cursor.name)
