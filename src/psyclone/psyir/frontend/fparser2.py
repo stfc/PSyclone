@@ -1029,6 +1029,7 @@ class Fparser2Reader():
         self.handlers = {
             Fortran2003.Allocate_Stmt: self._allocate_handler,
             Fortran2003.Allocate_Shape_Spec: self._allocate_shape_spec_handler,
+            Fortran2003.Associate_Construct: self._associate_construct_handler,
             Fortran2003.Assignment_Stmt: self._assignment_handler,
             Fortran2003.Data_Ref: self._data_ref_handler,
             Fortran2003.Deallocate_Stmt: self._deallocate_handler,
@@ -2724,6 +2725,52 @@ class Fparser2Reader():
         my_range.addchild(Literal("1", integer_type))
 
         return my_range
+
+    def _associate_construct_handler(self, node, parent):
+        '''
+        :param node: node in fparser2 AST.
+        :type node: :py:class:`fparser.two.Fortran2003.Associate_Construct`
+        :param parent: parent node of the PSyIR node we are constructing.
+        :type parent: :py:class:`psyclone.psyir.nodes.Schedule`
+
+        :returns: PSyIR of ASSOCIATE block.
+        :rtype: :py:class:`psyclone.psyir.nodes.Node`
+
+        '''
+        child_index = len(parent.children)
+        table = parent.scope.symbol_table
+        # Get the Associate-List
+        assoc_list = walk(node.children[0], Fortran2003.Association)
+        fake = Assignment(parent=parent)
+        # Construct a mapping from associate-name to the corresponding
+        # expression.
+        associate_map = {}
+        associate_symbols = []
+        for assoc in assoc_list:
+            name = assoc.children[0].string
+            # Add the associate-name as a Symbol to the local table so that
+            # the code inside the construct can be processed as usual.
+            # TODO we could really do with a new table just for the scoping
+            # region defined by the Associate Construct. However, ScopingNode
+            # is abstract and I suspect we can't have a Schedule as a child of
+            # a Schedule?
+            associate_symbols.append(table.new_symbol(name, tag=name))
+            self.process_nodes(parent=fake, nodes=[assoc.children[2]])
+            associate_map[name] = fake.children[0].detach()
+        # Now proceed to process the body of the Construct as usual, ensuring
+        # that we skip the ASSOCIATE and END ASSOCIATE nodes.
+        self.process_nodes(parent=parent, nodes=node.children[1:-1])
+
+        from psyclone.psyir.transformations import InlineTrans
+        trans = InlineTrans()
+        for child in parent.children[child_index:]:
+            all_refs = child.walk(Reference)
+            for ref in all_refs[:]:
+                trans._replace_formal_arg(ref, None, [], associate_map)
+
+        # Remove the Symbols corresponding to the associate names.
+        for sym in associate_symbols:
+            table.remove(sym)
 
     def _create_loop(self, parent, variable):
         '''

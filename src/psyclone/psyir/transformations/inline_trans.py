@@ -177,9 +177,13 @@ class InlineTrans(Transformation):
 
         # Replace any references to formal arguments with copies of the
         # actual arguments.
+        subst_map = {}
         formal_args = routine_table.argument_list
+        for arg in formal_args:
+            subst_map[arg.name] = node.children[formal_args.index(arg)]
+        #import pdb; pdb.set_trace()
         for ref in refs[:]:
-            self._replace_formal_arg(ref, node, formal_args)
+            self._replace_formal_arg(ref, node, formal_args, subst_map)
 
         # Copy the nodes from the Routine into the call site.
         if isinstance(new_stmts[-1], Return):
@@ -210,7 +214,7 @@ class InlineTrans(Transformation):
                 idx += 1
                 parent.addchild(child, idx)
 
-    def _replace_formal_arg(self, ref, call_node, formal_args):
+    def _replace_formal_arg(self, ref, call_node, formal_args, subst_map):
         '''
         Recursively combines any References to formal arguments in the supplied
         PSyIR expression with the corresponding Reference (actual argument)
@@ -224,6 +228,9 @@ class InlineTrans(Transformation):
         :type call_node: :py:class:`psyclone.psyir.nodes.Call`
         :param formal_args: the formal arguments of the called routine.
         :type formal_args: List[:py:class:`psyclone.psyir.symbols.DataSymbol`]
+        :param subst_map: mapping from things to replace to expressions to
+            replace them with.
+        :type subst_map: TODO
 
         :returns: the replacement reference.
         :rtype: :py:class:`psyclone.psyir.nodes.Reference`
@@ -232,15 +239,15 @@ class InlineTrans(Transformation):
         if not isinstance(ref, Reference):
             # Recurse down in case this is e.g. an Operation or Range.
             for child in ref.children[:]:
-                self._replace_formal_arg(child, call_node, formal_args)
+                self._replace_formal_arg(child, call_node, formal_args, subst_map)
             return ref
 
-        if ref.symbol not in formal_args:
+        if ref.symbol.name not in subst_map:
             # The supplied reference is not to a formal argument.
             return ref
 
         # Lookup the actual argument that corresponds to this formal argument.
-        actual_arg = call_node.children[formal_args.index(ref.symbol)]
+        actual_arg = subst_map[ref.symbol.name] #call_node.children[formal_args.index(ref.symbol)]
 
         # If the local reference is a simple Reference then we can just
         # replace it with a copy of the actual argument, e.g.
@@ -277,7 +284,7 @@ class InlineTrans(Transformation):
         # Neither the actual or local references are simple, i.e. they
         # include array accesses and/or structure accesses.
         new_ref = self._replace_formal_struc_arg(actual_arg, ref, call_node,
-                                                 formal_args)
+                                                 formal_args, subst_map)
         # If the local reference we are replacing has a parent then we must
         # ensure the parent's child list is updated. (It may not have a parent
         # if we are in the process of constructing a brand new reference.)
@@ -286,7 +293,7 @@ class InlineTrans(Transformation):
         return new_ref
 
     def _create_inlined_idx(self, call_node, formal_args,
-                            local_idx, decln_start, actual_start):
+                            local_idx, decln_start, actual_start, subst_map):
         '''
         Utility that creates the PSyIR for an inlined array-index access
         expression. This is not trivial since a formal argument may be
@@ -325,28 +332,28 @@ class InlineTrans(Transformation):
         if isinstance(local_idx, Range):
             lower = self._create_inlined_idx(call_node, formal_args,
                                              local_idx.start, decln_start,
-                                             actual_start)
+                                             actual_start, subst_map)
             upper = self._create_inlined_idx(call_node, formal_args,
                                              local_idx.stop, decln_start,
-                                             actual_start)
+                                             actual_start, subst_map)
             step = self._replace_formal_arg(local_idx.step, call_node,
-                                            formal_args)
+                                            formal_args, subst_map)
             return Range.create(lower.copy(), upper.copy(), step.copy())
 
-        uidx = self._replace_formal_arg(local_idx, call_node, formal_args)
+        uidx = self._replace_formal_arg(local_idx, call_node, formal_args, subst_map)
         if decln_start == actual_start:
             # If the starting indices in the actual and formal arguments are
             # the same then we don't need to shift the index.
             return uidx
 
-        ustart = self._replace_formal_arg(decln_start, call_node, formal_args)
+        ustart = self._replace_formal_arg(decln_start, call_node, formal_args, subst_map)
         start_sub = BinaryOperation.create(BinaryOperation.Operator.SUB,
                                            uidx.copy(), ustart.copy())
         return BinaryOperation.create(BinaryOperation.Operator.ADD,
                                       start_sub, actual_start.copy())
 
     def _update_actual_indices(self, actual_arg, local_ref,
-                               call_node, formal_args):
+                               call_node, formal_args, subst_map):
         '''
         Create a new list of indices for the supplied actual argument
         (ArrayMixin) by replacing any Ranges with the appropriate expressions
@@ -375,6 +382,9 @@ class InlineTrans(Transformation):
             local_decln_shape = []
 
         new_indices = [idx.copy() for idx in actual_arg.indices]
+        #if not isinstance(call_node, Call):
+        #    return new_indices
+
         local_idx_posn = 0
         for pos, idx in enumerate(new_indices[:]):
 
@@ -418,19 +428,19 @@ class InlineTrans(Transformation):
                                        local_shape.upper.copy())
                     new_indices[pos] = self._create_inlined_idx(
                         call_node, formal_args,
-                        new, local_decln_start, actual_start)
+                        new, local_decln_start, actual_start, subst_map)
             else:
                 # Otherwise, the local index expression replaces the Range.
                 new_indices[pos] = self._create_inlined_idx(
                     call_node, formal_args,
                     local_indices[local_idx_posn],
-                    local_decln_start, actual_start)
+                    local_decln_start, actual_start, subst_map)
             # Each Range corresponds to one dimension of the formal argument.
             local_idx_posn += 1
         return new_indices
 
     def _replace_formal_struc_arg(self, actual_arg, ref, call_node,
-                                  formal_args):
+                                  formal_args, subst_map):
         '''
         Called by _replace_formal_arg() whenever a formal or actual argument
         involves an array or structure access that can't be handled with a
@@ -494,7 +504,7 @@ class InlineTrans(Transformation):
         while True:
             if isinstance(cursor, ArrayMixin):
                 new_indices = self._update_actual_indices(
-                    cursor, ref, call_node, formal_args)
+                    cursor, ref, call_node, formal_args, subst_map)
                 members.append((cursor.name, new_indices))
             else:
                 members.append(cursor.name)
@@ -511,7 +521,7 @@ class InlineTrans(Transformation):
             for idx in local_indices:
                 new_indices.append(
                     self._replace_formal_arg(
-                        idx.copy(), call_node, formal_args))
+                        idx.copy(), call_node, formal_args, subst_map))
             # Replace the last entry in the `members` list with a new array
             # access.
             members[-1] = (cursor.name, new_indices)
@@ -530,7 +540,7 @@ class InlineTrans(Transformation):
                     # formal arguments.
                     new_indices.append(
                         self._replace_formal_arg(
-                            idx.copy(), call_node, formal_args))
+                            idx.copy(), call_node, formal_args, subst_map))
                 members.append((cursor.name, new_indices))
             else:
                 members.append(cursor.name)
