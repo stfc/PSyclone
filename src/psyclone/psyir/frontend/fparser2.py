@@ -2741,6 +2741,8 @@ class Fparser2Reader():
         :returns: PSyIR of ASSOCIATE block.
         :rtype: :py:class:`psyclone.psyir.nodes.Node`
 
+        :raises NotImplementedError: if any of the statements inside the
+            associate construct result in a CodeBlock.
         :raises NotImplementedError: if the associate block writes to
             variables that are read in the associate statment since that
             prevents substitution of the expressions.
@@ -2794,6 +2796,14 @@ class Fparser2Reader():
                 f"Cannot substitute expressions in ASSOCIATE block as it "
                 f"writes to variables that are read in the ASSOCIATE "
                 f"statement: {intersect}")
+
+        # If the body of the Construct contains a CodeBlock then we cannot
+        # safely handle it and must put the whole Construct into a CodeBlock.
+        cblocks = fake_sched.walk(CodeBlock)
+        if cblocks:
+            raise NotImplementedError(
+                f"Cannot handle an ASSOCIATE block because it contains one or "
+                f"more CodeBlocks: {cblocks[0].get_ast_nodes[0]}")
 
         # Examine all the references in the block and replace those that
         # involve associate names.

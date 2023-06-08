@@ -38,6 +38,7 @@
     fparser2 PSyIR front-end. '''
 
 
+from fparser.two import Fortran2003
 from psyclone.psyir.nodes import Assignment, CodeBlock, Routine
 
 
@@ -97,3 +98,26 @@ end program test_assoc
     assert len(routine.children) == 5
     assert isinstance(routine.children[2], CodeBlock)
     assert isinstance(routine.children[4], CodeBlock)
+
+
+def test_associate_cblock(fortran_reader):
+    '''Test that a CodeBlock within an associate construct results in the
+    whole construct being put in a CodeBlock.'''
+    code = '''
+program test_assoc
+  use grid_mod, only: grid
+  real, dimension(10) :: var1
+  integer :: i
+  var1(:) = 10.0
+  associate(easy => grid)
+  easy%data = 0.0
+  write(*,*) easy%data
+  end associate
+end program test_assoc
+'''
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    assert len(routine.children) == 2
+    assert isinstance(routine.children[-1], CodeBlock)
+    assert isinstance(routine.children[-1].get_ast_nodes[0],
+                      Fortran2003.Associate_Construct)
