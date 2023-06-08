@@ -32,8 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
 # Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
-# Modified: J. Henrichs, Bureau of Meteorology,
-#           I. Kavcic, Met Office
+# Modified by J. Henrichs, Bureau of Meteorology
 
 include ../../common.mk
 
@@ -43,7 +42,7 @@ F90 ?= gfortran
 F90FLAGS ?= -Wall -g -fcheck=bound
 
 
-OBJ = alg.o mixed_precision_psy.o mixed_kernel_mod.o mixed_sci_kernel_mod.o
+OBJ = alg.o mixed_precision_psy.o mixed_kernel_mod.o
 
 EXEC = will_not_run.exe
 LFRIC_PATH = ../../../src/psyclone/tests/test_files/dynamo0p3/infrastructure
@@ -65,7 +64,7 @@ transform:
 
 alg.f90 mixed_precision_psy.f90: transform
 alg.o: mixed_precision_psy.o
-mixed_precision_psy.o: mixed_kernel_mod.o mixed_sci_kernel_mod.o
+mixed_precision_psy.o: mixed_kernel_mod.o
 
 run: compile
 	@echo "No run targets for lfric/eg19"
