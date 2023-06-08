@@ -300,9 +300,11 @@ def test_symbolic_math_solve(fortran_reader, exp1, exp2, result):
     schedule = psyir.children[0]
 
     sym_maths = SymbolicMaths.get()
-    sympy_expressions, symbol_map = SymPyWriter.\
-        get_sympy_expressions_and_symbol_map([schedule[0].rhs,
-                                              schedule[1].rhs])
+    writer = SymPyWriter([schedule[0].rhs, schedule[1].rhs])
+    sympy_expressions = \
+        SymPyWriter.convert_to_sympy_expressions([schedule[0].rhs,
+                                                 schedule[1].rhs])
+    symbol_map = writer.type_map
     # Get the symbol used for 'i', so we can solve for 'i'
     i = symbol_map["i"]
     solution = sym_maths.solve_equal_for(sympy_expressions[0],
@@ -383,6 +385,45 @@ def test_symbolic_math_use_reserved_names(fortran_reader, expressions):
     schedule = psyir.children[0]
     sym_maths = SymbolicMaths.get()
     assert sym_maths.equal(schedule[0].rhs, schedule[1].rhs) is True
+
+
+@pytest.mark.parametrize("expressions", [("field(:)", "field(::)", True),
+                                         ("field(1:2:3)",
+                                          "field(1:2:3)", True),
+                                         ("field(1:2:1)",
+                                          "field(1:2)", True),
+                                         ("field(1:2:3)",
+                                          "field(2:2:3)", False),
+                                         ("field(1:2:3)",
+                                          "field(1:3:3)", False),
+                                         ("field(1:2:3)",
+                                          "field(1:2:4)", False),
+                                         ])
+def test_symbolic_math_use_range(fortran_reader, expressions):
+    '''Test that ranges are handled correctly. A `Range` is converted
+    to a SymPy three-tuple (start, stop, step), which means all components
+    need to be handled individually
+
+    '''
+    # A dummy program to easily create the PSyIR for the
+    # expressions we need. We just take the RHS of the assignments
+    source = f'''program test_prog
+                 use some_mod
+                 integer :: field(10), i
+                 type(my_mod_type) :: a, b
+                 x = {expressions[0]}
+                 x = {expressions[1]}
+                 end program test_prog
+             '''
+    psyir = fortran_reader.psyir_from_source(source)
+    schedule = psyir.children[0]
+    sym_maths = SymbolicMaths.get()
+    # The child of the ArrayReference is the Range
+    assert sym_maths.equal(schedule[0].rhs.children[0],
+                           schedule[1].rhs.children[0]) is expressions[2]
+    assert (sym_maths.never_equal(schedule[0].rhs.children[0],
+                                  schedule[1].rhs.children[0]) is not
+            expressions[2])
 
 
 @pytest.mark.parametrize("expr,expected", [

@@ -99,7 +99,10 @@ class SymbolicMaths:
         if exp1 is None or exp2 is None:
             return exp1 == exp2
 
-        return SymbolicMaths._subtract(exp1, exp2) == 0
+        diff = SymbolicMaths._subtract(exp1, exp2)
+        if isinstance(diff, list):
+            return all(i == 0 for i in diff)
+        return diff == 0
 
     # -------------------------------------------------------------------------
     @staticmethod
@@ -126,14 +129,19 @@ class SymbolicMaths:
             result = SymbolicMaths._subtract(exp1, exp2)
         except VisitorError:
             return False
+        # In case of a range, subtract will return a list of tuple. To
+        # simplify the following tests, convert a non-list into a one
+        # element list:
+        if not isinstance(result, list):
+            result = [result]
 
-        # If the result is 0, they are always the same:
-        if isinstance(result, core.numbers.Zero):
+        # If the result(s) are all 0, the expressions are always the same:
+        if all(isinstance(i, core.numbers.Zero) for i in result):
             return False
 
         # If the result is an integer value, the result is independent
         # of any variable, and never equal
-        if isinstance(result, core.numbers.Integer):
+        if any(isinstance(i, core.numbers.Integer) for i in result):
             return result != 0
 
         # Otherwise the result depends on one or more variables (e.g.
@@ -144,7 +152,10 @@ class SymbolicMaths:
     @staticmethod
     def _subtract(exp1, exp2):
         '''Subtracts two PSyIR expressions and returns the simplified result
-        of this operation.
+        of this operation. An expression might result in multiple SymPy
+        expressions - for example, a `Range` node becomes a 3-tuple (start,
+        stop, step). In this case, each of the components will be handled
+        individually, and a tuple will be returned.
 
         :param exp1: the first expression to be compared.
         :type exp1: Optional[:py:class:`psyclone.psyir.nodes.Node`]
@@ -153,7 +164,8 @@ class SymbolicMaths:
 
         :returns: the sympy expression resulting from subtracting exp2 \
             from exp1.
-        :rtype: :py:class:`sympy.core.basic.Basic`
+        :rtype: Union[:py:class:`sympy.core.basic.Basic`,
+                      List[:py:class:`sympy.core.basic.Basic`]]
 
         '''
         # Avoid circular import
@@ -163,7 +175,16 @@ class SymbolicMaths:
         # Use the SymPyWriter to convert the two expressions to
         # SymPy expressions:
         sympy_expressions = SymPyWriter.convert_to_sympy_expressions([exp1,
-                                                                      exp2])
+                                                                     exp2])
+        # If an expression is a range node, then the corresponding SymPy
+        # expression will be a tuple:
+        if isinstance(sympy_expressions[0], tuple) and \
+                isinstance(sympy_expressions[1], tuple):
+            result = []
+            for i, j in zip(sympy_expressions[0], sympy_expressions[1]):
+                result.append(simplify(i - j))
+            return result
+
         # Simplify triggers a set of SymPy algorithms to simplify
         # the expression.
         return simplify(sympy_expressions[0] - sympy_expressions[1])
@@ -270,14 +291,15 @@ class SymbolicMaths:
         if isinstance(expr, (Reference, Literal)):
             return
         # Convert the PSyIR expression to a sympy expression
-        sympy_expression = SymPyWriter.convert_to_sympy_expressions([expr])
+        sympy_writer = SymPyWriter()
+        sympy_expression = sympy_writer.convert_to_sympy_expressions([expr])
         # Expand the expression
         result = expand(sympy_expression[0])
 
         # Find the required symbol table in the original PSyIR
         symbol_table = expr.scope.symbol_table
         # Convert the new sympy expression to PSyIR
-        new_expr = SymPyWriter.sympy_to_psyir(result, symbol_table)
+        new_expr = sympy_writer.sympy_to_psyir(result, symbol_table)
 
         # If the expanded result is the same as the original then
         # nothing needs to be done.

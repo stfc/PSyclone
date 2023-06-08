@@ -83,7 +83,7 @@ class SymPyWriter(FortranWriter):
     # is set to True as the modifications will persist after the Writer!
     _DISABLE_LOWERING = True
 
-    def __init__(self, type_map=None):
+    def __init__(self, list_of_expressions=None):
         super().__init__()
 
         # The symbol table is used to create unique names for structure
@@ -92,15 +92,14 @@ class SymPyWriter(FortranWriter):
         # references in the expression).
         self._symbol_table = SymbolTable()
 
+        self._sympy_type_map = {}
+        if list_of_expressions:
+            self._create_type_map(list_of_expressions)
+
         # First add all references. This way we can be sure that the writer
         # will never rename a reference. The `type_map` dictionary keeps track
         # of which names are arrays (--> must be declared as a SymPy function)
         # or non-array (--> must be declared as a SymPy symbol).
-        if type_map is None:
-            self._sympy_type_map = {}
-        else:
-            self._sympy_type_map = type_map
-
         for symbol_name in self._sympy_type_map:
             self._symbol_table.find_or_create_tag(tag=symbol_name,
                                                   root_name=symbol_name)
@@ -125,8 +124,7 @@ class SymPyWriter(FortranWriter):
             self._op_to_str[operator] = op_str
 
     # -------------------------------------------------------------------------
-    @staticmethod
-    def create_type_map(list_of_expressions):
+    def _create_type_map(self, list_of_expressions):
         '''
         This function creates a dictionary mapping each Reference in any
         of the expressions to either a Sympy Function (if the reference
@@ -143,16 +141,14 @@ class SymPyWriter(FortranWriter):
         :rtype: dictionary of string:Sympy-data-type values
 
         '''
-
-        sympy_type_map = {}
         for expr in list_of_expressions:
             for ref in expr.walk(Reference):
                 name = ref.name
-                if name in sympy_type_map:
+                if name in self._sympy_type_map:
                     continue
                 # Test if an array or an array expression is used:
                 if not ref.is_array:
-                    sympy_type_map[name] = Symbol(name)
+                    self._sympy_type_map[name] = Symbol(name)
                     continue
 
                 # Now a new Fortran array is used. Declare a SymPy
@@ -186,15 +182,21 @@ class SymPyWriter(FortranWriter):
                                                 f"{args[i+2]}")
                     return f"{name}({','.join(new_args)})"
 
-                sympy_type_map[name] = \
+                self._sympy_type_map[name] = \
                     type(name, (Function, ),
                          {"_sympystr": print_fortran_array})
 
-        return sympy_type_map
+    # -------------------------------------------------------------------------
+    @property
+    def type_map(self):
+        ''':returns: the mapping of names to SymPy objects.
+        rtype: Dict[str,  :py:class:`sympy.core.symbol.Symbol`]
+
+        '''
+        return self._sympy_type_map
 
     # -------------------------------------------------------------------------
-    @staticmethod
-    def get_sympy_expressions_and_symbol_map(list_of_expressions):
+    def __call__(self, list_of_expressions):
         '''
         This function takes a list of PSyIR expressions, and converts
         them all into Sympy expressions using the SymPy parser.
@@ -219,12 +221,14 @@ class SymPyWriter(FortranWriter):
         :raises VisitorError: if an invalid SymPy expression is found.
 
         '''
-        # Create the type_map that will include all symbols used in both
-        # expressions.
-        type_map = SymPyWriter.create_type_map(list_of_expressions)
 
-        # Create a SymPy writer that uses this type_map
-        writer = SymPyWriter(type_map)
+        is_list = isinstance(list_of_expressions, list)
+        if not is_list:
+            list_of_expressions = [list_of_expressions]
+
+        # Create the writer for both expressions:
+        self._create_type_map(list_of_expressions)
+
         expression_str_list = []
         for expr in list_of_expressions:
             # Convert each expression. Note that this call might add
@@ -232,12 +236,14 @@ class SymPyWriter(FortranWriter):
             # that clash with a symbol (e.g. a%b --> it will try to
             # create a SymPy symbol `a_b`, but if `a_b` clashes with an
             # existing symbol, `a_b_1`, ... will be used instead).
-            expression_str_list.append(writer(expr))
+            expression_str_list.append(super().__call__(expr))
 
         try:
-            return ([parse_expr(expr, type_map)
-                     for expr in expression_str_list],
-                    type_map)
+            if is_list:
+                return expression_str_list
+            # We had no list initially, so only convert the one and only
+            # list member
+            return expression_str_list[0]
         except SyntaxError as err:
             raise VisitorError("Invalid SymPy expression") from err
 
@@ -261,11 +267,14 @@ class SymPyWriter(FortranWriter):
         :rtype: list of SymPy expressions
 
         '''
-
-        # Use existing functionality, and ignore the returned symbol map
-        sympy_expressions, _ = SymPyWriter.\
-            get_sympy_expressions_and_symbol_map(list_of_expressions)
-        return sympy_expressions
+        # Use existing functionality
+        writer = SymPyWriter(list_of_expressions)
+        expression_str_list = writer(list_of_expressions)
+        try:
+            return [parse_expr(expr, writer.type_map)
+                    for expr in expression_str_list]
+        except SyntaxError as err:
+            raise VisitorError("Invalid SymPy expression") from err
 
     # -------------------------------------------------------------------------
     def member_node(self, node):
@@ -513,8 +522,7 @@ class SymPyWriter(FortranWriter):
         return result
 
     # -------------------------------------------------------------------------
-    @staticmethod
-    def sympy_to_psyir(sympy_expr, symbol_table):
+    def sympy_to_psyir(self, sympy_expr, symbol_table):
         '''This function converts a SymPy expression back into PSyIR. It first
         parses the SymPy expression back into PSyIR, and then replaces all
         array indices back into the corresponding Fortran values (since they
@@ -536,6 +544,5 @@ class SymPyWriter(FortranWriter):
         '''
         # Convert the new sympy expression to PSyIR
         reader = FortranReader()
-
         new_expr = reader.psyir_from_expression(str(sympy_expr), symbol_table)
         return new_expr

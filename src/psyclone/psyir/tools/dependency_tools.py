@@ -379,13 +379,14 @@ class DependencyTools():
 
         '''
         # pylint: disable=too-many-return-statements
-        sym_maths = SymbolicMaths.get()
+        sympy_writer = SymPyWriter([index_read, index_written])
         try:
-            sympy_expressions, symbol_map = SymPyWriter.\
-                get_sympy_expressions_and_symbol_map([index_read,
-                                                     index_written])
+            sympy_expressions = \
+                sympy_writer.convert_to_sympy_expressions([index_read,
+                                                          index_written])
         except VisitorError:
             return None
+        symbol_map = sympy_writer.type_map
         # If the subscripts do not even depend on the specified variable,
         # any dependency distance is possible (e.g. `do i ... a(j)=a(j)+1`)
         if var_name not in symbol_map:
@@ -406,6 +407,7 @@ class DependencyTools():
         sympy_expressions[1] = sympy_expressions[1].subs({var: (var+d_var)})
 
         # Now solve for `d_var` to identify the distance
+        sym_maths = SymbolicMaths.get()
         solutions = sym_maths.solve_equal_for(sympy_expressions[0],
                                               sympy_expressions[1],
                                               d_var)
