@@ -2748,33 +2748,43 @@ class Fparser2Reader():
             prevents substitution of the expressions.
 
         '''
+        # Create a Schedule to act as a temporary parent while we process
+        # the construct. This allows us to cleanly abort if we encounter
+        # something that we can't handle. It also provides a local SymbolTable
+        # in which we can put temporary Symbols for the associate names.
         fake_sched = Schedule(parent=parent)
         table = fake_sched.symbol_table
+
         # Get the Associate-List
         assoc_list = walk(node.children[0], Fortran2003.Association)
 
         # Construct a mapping from associate-name to the corresponding
-        # expression.
+        # PSyIR expression.
         associate_map = {}
+        # The temporary Symbols we create, one for each associate name.
         associate_symbols = []
+        # To ensure correct processing, we treat each Association as an
+        # assignment: associate-name = <PSyIR expression>. This also enables
+        # straightforward analysis of the expressions to determine which
+        # Symbols are read.
         assigns = []
         for assoc in assoc_list:
             name = assoc.children[0].string
             # Add the associate-name as a Symbol to the local table so that
             # the code inside the construct can be processed as usual.
             associate_symbols.append(table.new_symbol(name))
-            # Create a fake Assignment node in order to construct the PSyIR of
-            # the expression to substitute.
+            # Create an Assignment node for this Association.
             assigns.append(Assignment(parent=fake_sched))
             assigns[-1].addchild(Reference(associate_symbols[-1]))
             self.process_nodes(parent=assigns[-1], nodes=[assoc.children[2]])
+            # Add the name and PSyIR expression to the map.
             associate_map[name] = assigns[-1].rhs
 
         # In an ASSOCIATE construct, the values associated with the associate
         # names are computed on entry to the construct and are *not* updated.
         # Since we are substituting the associate names with the corresponding
         # expression we must check that none of the References read by that
-        # expression are written to within the construct (otherwise we will
+        # expression are written to within the construct (otherwise we may
         # be changing the semantics).
         rw_info = ReadWriteInfo()
         self._dttools.get_input_parameters(rw_info, node_list=assigns)
@@ -2786,6 +2796,8 @@ class Fparser2Reader():
 
         # Analyse the body of the Construct to check that there are no writes
         # to variables that are read in the associate expressions.
+        # TODO #2165 - this could be improved by checking whether the writes
+        # occur before or after the reads.
         rw_info2 = ReadWriteInfo()
         self._dttools.get_output_parameters(rw_info2,
                                             node_list=fake_sched.children)
@@ -2812,10 +2824,9 @@ class Fparser2Reader():
             for ref in all_refs[:]:
                 self._sub_tool.replace_reference(ref, associate_map)
 
-        for node in fake_sched.pop_all_children():
-            parent.addchild(node)
-
-        del fake_sched
+        # Move all the new nodes from our fake schedule and add them to
+        # the actual parent node.
+        parent.children.extend(fake_sched.pop_all_children())
 
     def _create_loop(self, parent, variable):
         '''

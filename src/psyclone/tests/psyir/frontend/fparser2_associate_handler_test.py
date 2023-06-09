@@ -40,14 +40,19 @@
 
 from fparser.two import Fortran2003
 from psyclone.psyir.nodes import Assignment, CodeBlock, Routine
+from psyclone.tests.utilities import Compile
 
 
-def test_basic_associate(fortran_reader, fortran_writer):
+def test_basic_associate(fortran_reader, fortran_writer, tmpdir):
     '''Check that a basic associate block is correctly handled by the
     frontend.'''
     code = '''
 program test_assoc
-  use grid_mod, only: grid
+  type :: grid_type
+    integer :: nx
+    real, dimension(10) :: data
+  end type
+  type(grid_type) :: grid
   real, dimension(10) :: var1
   var1(:) = 10.0
   associate(easy => var1(3), hard => grid%data)
@@ -67,6 +72,7 @@ end program test_assoc
     assert ("  var1(:) = 10.0\n"
             "  var1(3) = 5.0\n"
             "  grid%data(:) = 0.0\n" in output)
+    assert Compile(tmpdir).string_compiles(output)
 
 
 def test_associate_dependency(fortran_reader):
