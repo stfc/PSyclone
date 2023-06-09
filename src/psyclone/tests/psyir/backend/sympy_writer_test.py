@@ -273,8 +273,6 @@ def test_sym_writer_symbol_types(fortran_reader, expr, sym_map):
     psyir = fortran_reader.psyir_from_source(source)
     expr = psyir.children[0].children[0].rhs
     sympy_writer = SymPyWriter()
-    # Note that this call can extend the type_map with type information
-    # about member names.
     _ = sympy_writer(expr)
     assert sympy_writer.type_map.keys() == sym_map.keys()
 
@@ -353,28 +351,36 @@ def test_sym_writer_parse_errors(fortran_reader):
     with pytest.raises(VisitorError) as err:
         _ = SymPyWriter(exp1)
 
-    assert "Visitor Error: Invalid SymPy expression" in str(err.value)
+    assert ("Visitor Error: Invalid SymPy expression: "
+            "'a(sympy_lower,sympy_upper,1) /= b(sympy_lower,sympy_upper,1)'"
+            in str(err.value))
 
 
 @pytest.mark.parametrize("expressions", [("b(i)", "b(i,i,1)"),
-                                         ("b(:)", "b(-inf,inf,1)"),
-                                         ("b(::)", "b(-inf,inf,1)"),
-                                         ("b(5::)", "b(5,inf,1)"),
-                                         ("b(:5:)", "b(-inf,5,1)"),
-                                         ("b(::5)", "b(-inf,inf,5)"),
-                                         ("b(i::)", "b(i,inf,1)"),
-                                         ("b(:i:)", "b(-inf,i,1)"),
-                                         ("b(::i)", "b(-inf,inf,i)"),
+                                         ("b(:)",
+                                          "b(sympy_lower,sympy_upper,1)"),
+                                         ("b(::)",
+                                          "b(sympy_lower,sympy_upper,1)"),
+                                         ("b(5::)", "b(5,sympy_upper,1)"),
+                                         ("b(:5:)", "b(sympy_lower,5,1)"),
+                                         ("b(::5)",
+                                          "b(sympy_lower,sympy_upper,5)"),
+                                         ("b(i::)", "b(i,sympy_upper,1)"),
+                                         ("b(:i:)", "b(sympy_lower,i,1)"),
+                                         ("b(::i)",
+                                          "b(sympy_lower,sympy_upper,i)"),
                                          ("b(i:5:)", "b(i,5,1)"),
                                          ("b(i:j:)", "b(i,j,1)"),
-                                         ("b(i::j)", "b(i,inf,j)"),
-                                         ("b(:i:j)", "b(-inf,i,j)"),
+                                         ("b(i::j)", "b(i,sympy_upper,j)"),
+                                         ("b(:i:j)", "b(sympy_lower,i,j)"),
                                          ("b(i:j:k)", "b(i,j,k)"),
-                                         ("b", "b(-inf,inf,1)"),
+                                         ("b", "b(sympy_lower,sympy_upper,1)"),
                                          ("c(i,j)", "c(i,i,1,j,j,1)"),
                                          ("c(::,::)",
-                                          "c(-inf,inf,1,-inf,inf,1)"),
-                                         ("c", "c(-inf,inf,1,-inf,inf,1)"),
+                                          "c(sympy_lower,sympy_upper,1,"
+                                          "sympy_lower,sympy_upper,1)"),
+                                         ("c", "c(sympy_lower,sympy_upper,1,"
+                                               "sympy_lower,sympy_upper,1)"),
                                          ("b(i)%x", "b(i,i,1)%b_x"),
                                          ("b(i)%x(j)", "b(i,i,1)%b_x(j,j,1)"),
                                          ("c(i,j)%x", "c(i,i,1,j,j,1)%c_x"),
@@ -385,15 +391,16 @@ def test_sym_writer_parse_errors(fortran_reader):
                                          ("c(i,j)%d%f(i)",
                                           "c(i,i,1,j,j,1)%c_d%c_d_f(i,i,1)"),
                                          ("c(i::k,j)%d%f(i:j:k)",
-                                          "c(i,inf,k,j,j,1)%c_d%c_d_f(i,j,k)"),
+                                          "c(i,sympy_upper,k,j,j,1)%c_d%"
+                                          "c_d_f(i,j,k)"),
                                          ])
 def test_sym_writer_array_expressions(fortran_reader, expressions):
     '''Test that array expressions (including ones using user-defined
     types) are converted correctly. A Fortran range is converted into
     three arguments for the SymPy function used: lower bound, upper bound,
-    step. If the bounds are not given, +/- inf(inity) is used. E.g.:
-    `a(:)` --> `a(-inf,inf,1)`. And to keep the number of arguments the
-    same, an array index access like `b(i,j)` is converted to:
+    step. If the bounds are not given, +/- sympy_upper(inity) is used. E.g.:
+    `a(:)` --> `a(sympy_lower,sympy_upper,1)`. And to keep the number of
+    arguments the same, an array index access like `b(i,j)` is converted to:
     `b(i,i,1, j,j,1)`.
 
     '''
@@ -402,6 +409,44 @@ def test_sym_writer_array_expressions(fortran_reader, expressions):
     source = f'''program test_prog
                 use my_mod
                 type(my_type) :: a, b(10), c(10, 10)
+                x = {expressions[0]}
+                end program test_prog '''
+
+    psyir = fortran_reader.psyir_from_source(source)
+    expr = psyir.children[0].children[0].rhs
+    sympy_writer = SymPyWriter()
+    out = sympy_writer._to_str([expr])
+    assert out[0] == expressions[1]
+
+
+@pytest.mark.parametrize("expressions", [("sympy_upper(:)",
+                                          "sympy_upper(sympy_lower,"
+                                          "sympy_upper_1,1)"),
+                                         ("sympy_lower(:)",
+                                          "sympy_lower(sympy_lower_1,"
+                                          "sympy_upper,1)"),
+                                         # The +sympy_upper at the end is
+                                         # an array expression, so it gets
+                                         # indices added!
+                                         ("sympy_lower(:)+sympy_upper",
+                                          "sympy_lower(sympy_lower_1,"
+                                          "sympy_upper_1,1) + sympy_upper"
+                                          "(sympy_lower_1,sympy_upper_1,1)"),
+                                         ])
+def test_sym_writer_array_bounds(fortran_reader, expressions):
+    '''Test that array expressions (including ones using user-defined
+    types) are converted correctly. A Fortran range is converted into
+    three arguments for the SymPy function used: lower bound, upper bound,
+    step. If the bounds are not given, +/- sympy_upper(inity) is used. E.g.:
+    `a(:)` --> `a(sympy_lower,sympy_upper,1)`. And to keep the number of
+    arguments the same, an array index access like `b(i,j)` is converted to:
+    `b(i,i,1, j,j,1)`.
+
+    '''
+    # A dummy program to easily create the PSyIR for the
+    # expressions we need. We just take the RHS of the assignments
+    source = f'''program test_prog
+                integer :: sympy_upper(10), sympy_lower(10), x
                 x = {expressions[0]}
                 end program test_prog '''
 
@@ -421,7 +466,7 @@ def test_gen_indices():
     arr_bounds = ArrayType.ArrayBounds(Literal("2", INTEGER_TYPE),
                                        Literal("5", INTEGER_TYPE))
     gen_ind = sympy_writer.gen_indices([arr_bounds, ArrayType.Extent.DEFERRED])
-    assert gen_ind == ["2", "5", "1", "-inf", "inf", "1"]
+    assert gen_ind == ["2", "5", "1", "sympy_lower", "sympy_upper", "1"]
 
     # Test invalid type:
     with pytest.raises(NotImplementedError) as err:
