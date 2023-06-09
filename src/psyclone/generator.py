@@ -86,7 +86,7 @@ API_WITHOUT_ALGORITHM = ["nemo"]
 # implementation (mainly that the PSyIR works with algorithm-layer
 # code) whilst keeping the original implementation as default
 # until it is working.
-LFRIC_TESTING = False
+LFRIC_TESTING = True
 
 
 def handle_script(script_name, info, function_name, is_optional=False):
@@ -279,31 +279,31 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
             # removed when lowering.
             fp2_tree = parse_fp2(filename)
             add_builtins_use(fp2_tree)
-            psyir = reader.psyir_from_source(str(fp2_tree))
+            alg_psyir = reader.psyir_from_source(str(fp2_tree))
             # Check that there is only one module/program per file.
-            check_psyir(psyir, filename)
+            check_psyir(alg_psyir, filename)
         else:
-            psyir = reader.psyir_from_file(filename)
+            alg_psyir = reader.psyir_from_file(filename)
 
         # Raise to Algorithm PSyIR
         if api == "gocean1.0":
             alg_trans = AlgTrans()
         else:  # api == "dynamo0.3"
             alg_trans = LFRicAlgTrans()
-        alg_trans.apply(psyir)
+        alg_trans.apply(alg_psyir)
 
-        if not psyir.walk(AlgorithmInvokeCall):
+        if not alg_psyir.walk(AlgorithmInvokeCall):
             raise NoInvokesError(
                 "Algorithm file contains no invoke() calls: refusing to "
                 "generate empty PSy code")
 
         if script_name is not None:
             # Call the optimisation script for algorithm optimisations
-            handle_script(script_name, psyir, "trans_alg", is_optional=True)
+            handle_script(script_name, alg_psyir, "trans_alg", is_optional=True)
 
         # For each kernel called from the algorithm layer
         kernels = {}
-        for invoke in psyir.walk(AlgorithmInvokeCall):
+        for invoke in alg_psyir.walk(AlgorithmInvokeCall):
             kernels[id(invoke)] = {}
             for kern in invoke.walk(KernelFunctor):
                 if isinstance(kern, LFRicBuiltinFunctor):
@@ -336,23 +336,39 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
                 # kernels[id(invoke)][id(kern)] = kernel_psyir
                 kernels[id(invoke)][id(kern)] = kernel_psyir
 
+        # This mocks and populates the metadata classes produced by
+        # the old approach and is the least intrusive way to use the
+        # new metadata to generate the PSy-layer.
+        if api == "dynamo0.3":
+            invoke_info = create_invoke_info(alg_psyir, kernels, invoke_info)
+
+        # This is a radical rewrite solution and where we would want
+        # to end up imho
+        # if api == "dynamo0.3":
+        #     psy_psyir = psy_gen(alg_psyir, kernels)
+        #    print(psy_psyir.view())
+
         # Transform 'invoke' calls into calls to PSy-layer subroutines
         if api == "gocean1.0":
             invoke_trans = GOceanAlgInvoke2PSyCallTrans()
         else:  # api == "dynamo0.3"
             invoke_trans = LFRicAlgInvoke2PSyCallTrans()
-        for invoke in psyir.walk(AlgorithmInvokeCall):
+        for invoke in alg_psyir.walk(AlgorithmInvokeCall):
             invoke_trans.apply(
                 invoke, options={"kernels": kernels[id(invoke)]})
 
         # Create Fortran from Algorithm PSyIR
         writer = FortranWriter()
-        alg_gen = writer(psyir)
+        alg_gen = writer(alg_psyir)
 
         # Create the PSy-layer
         # TODO: issue #1629 replace invoke_info with alg and kern psyir
         psy = PSyFactory(api, distributed_memory=distributed_memory)\
             .create(invoke_info)
+
+        #for invoke in psy.invokes.invoke_list:
+        #    print(invoke.schedule.view())
+        #exit(1)
 
         if script_name is not None:
             # Call the optimisation script for psy-layer optimisations
@@ -369,6 +385,274 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
 
     return alg_gen, psy.gen
 
+
+class FileInfo():
+    def __init__(self, calls, name):
+        self.calls = calls # list of InvokeCall
+        self.name = name # str OK
+
+class InvokeCall():
+    def __init__(self, kcalls, name):
+        self.kcalls = kcalls # list of [KernelCall or BuiltInCall]
+        self.name = name # None
+
+class KernelCall():
+    def __init__(self, args, ktype, module_name):
+        self.type = "kernelCall"
+        self.args = args # list Arg
+        self.ktype = ktype # DynKernMetadata
+        self.module_name = module_name # str OK
+
+class Arg():
+    def __init__(self, form, text, varname, literal, datatype):
+        self.form_options = ['literal', 'variable', 'indexed_variable', 'collection']
+        self.form = form # str "variable"
+        self.text = text # str OK
+        self.varname = varname # str OK
+        self._literal = literal # bool
+        # _datatype is accessed directly in dynamo0p3.py" line 9186
+        self._datatype = datatype
+        # self.datatype = datatype
+    def is_literal(self):
+        return self._literal
+
+class BuiltInCall():
+    def __init__(self, func_name, args, ktype):
+        self.type = "BuiltInCall" # str "BuiltInCall"
+        self.module_name = None
+        self.func_name = func_name # str OK
+        self.args = args # list Arg
+        self.ktype = ktype # DynKernMetadata
+
+def create_invoke_info(alg_psyir, kernels, orig_invoke_info):
+    ''' xxx '''
+    # TODO class DynKernMetadata - new class or new reader in existing class?
+
+    from psyclone.psyir.nodes import Reference, Literal, ArrayReference, StructureReference
+    from psyclone.psyir.symbols import DataSymbol, Symbol, DataTypeSymbol, ArrayType, UnknownFortranType, ScalarType
+
+    calls = []
+    for idx1, invoke in enumerate(alg_psyir.walk(AlgorithmInvokeCall)):
+        kcalls = []
+        for idx2, kernel in enumerate(invoke.children):
+            args = []
+            for idx3, arg in enumerate(kernel.children):
+                orig_arg = orig_invoke_info.calls[idx1].kcalls[idx2].args[idx3]
+                args.append(create_arg_info(arg, orig_arg=orig_arg))
+            ktype = orig_invoke_info.calls[idx1].kcalls[idx2].ktype
+            if isinstance(kernel, LFRicBuiltinFunctor): # builtin
+                #print(f"builtin: {kernel.name}")
+                kcalls.append(BuiltInCall(kernel.name, args, ktype))
+            else: # LFRicKernelFunctor
+                #print(f"kernel: {kernel.name}")
+                module_name = kernel.symbol.interface.container_symbol.name
+                kcalls.append(KernelCall(args, ktype, module_name))
+            # kernel_metadata = kernels[kernel]
+        calls.append(InvokeCall(kcalls, None))
+    # TODO Assumes file container with single child as container
+    module_name = alg_psyir.children[0].name
+    return(FileInfo(calls, module_name))
+
+def create_arg_info(arg, orig_arg=None):
+    ''' xxx '''
+
+    from psyclone.psyir.nodes import Reference, Literal, ArrayReference, StructureReference
+    from psyclone.psyir.symbols import DataSymbol, Symbol, DataTypeSymbol, ArrayType, UnknownFortranType, ScalarType
+
+    if orig_arg:
+        orig_form = orig_arg.form
+        orig_text = orig_arg.text
+        orig_varname = orig_arg.varname
+        orig_literal = orig_arg.is_literal()
+        orig_datatype = orig_arg._datatype
+
+    if isinstance(arg, Literal):
+        form = arg.datatype.intrinsic.name.lower()
+        precision = arg.datatype.precision.name.lower()
+        if precision == "undefined":
+            precision = None
+        datatype = (form, precision)
+        text = arg.value.lower()
+        if precision:
+            text = f"{text}_{precision}"
+        varname = None
+
+        if orig_arg and (orig_form != "literal" or orig_text != text or orig_varname != varname or orig_literal != True or orig_datatype != datatype):
+            print ("NEW AND OLD DO NOT MATCH")
+            print(orig_form, "literal")
+            print(orig_text, text)
+            print(orig_varname, varname)
+            print(orig_literal, True)
+            print(orig_datatype, datatype)
+            exit(1)
+        arg_class = Arg("literal", text, varname, True, datatype)
+    elif type(arg) == Reference:
+        name = arg.symbol.name
+        #print(f"> {name}")
+        #print(f"> {type(arg.symbol)}")
+        unknown_fortran_type = False
+        if type(arg.symbol) == Symbol:
+            datatype = None
+        elif type(arg.symbol) == DataSymbol:
+            #print(type(arg.symbol.datatype))
+            if arg.symbol.is_scalar:
+                form = arg.symbol.datatype.intrinsic.name.lower()
+                precision = arg.symbol.datatype.precision.name.lower()
+                datatype = (form, precision)
+            elif isinstance(arg.symbol.datatype, DataTypeSymbol):
+                # derived type
+                if arg.symbol.datatype.name in ["operator_type", "field_type", "quadrature_xyoz_type"]:
+                    datatype = (arg.symbol.datatype.name, None)
+                else:
+                    print(f"unsupported derived type {arg.symbol.datatype.name}")
+                    exit(1)
+            elif isinstance(arg.symbol.datatype, ArrayType):
+                # array
+                if isinstance(arg.symbol.datatype.datatype, DataTypeSymbol):
+                    # derived type
+                    if arg.symbol.datatype.datatype.name in ["operator_type", "field_type"]:
+                        datatype = (arg.symbol.datatype.datatype.name, None)
+                    else:
+                        print(f"unsupported derived type {arg.symbol.datatype.datatype.name}")
+                        exit(1)
+                else:
+                    print("array with unsupported datatype")
+                    print(arg.symbol.datatype.intrinsic)
+                    print(arg.symbol.datatype.datatype)
+                    exit(1)
+            elif isinstance(arg.symbol.datatype, UnknownFortranType):
+                # we have no information for this
+                print("decl ", arg.symbol.datatype.declaration)
+                print("text", arg.symbol.datatype.type_text)
+                unknown_fortran_type = True
+                datatype = None
+            else:
+                print(dir(arg.symbol.datatype))
+                print(type(arg.symbol.datatype))
+                print(f"Unsupported symbol {arg.name} in {kernel.name}")
+                exit(1)
+
+        else:
+            print(f"Expecting a Symbol or a DataSymbol but found '{type(arg.symbol)}'.")
+            print(f"var is {arg.name} in {kernel.name}")
+            exit(1)
+        if orig_arg and (orig_form != "variable" or orig_text != name or orig_varname != name or orig_literal != False or orig_datatype != datatype) and not unknown_fortran_type:
+            print ("NEW AND OLD DO NOT MATCH 2")
+            print(orig_form, "variable")
+            print(orig_text, name)
+            print(orig_varname, name)
+            print(orig_literal, False)
+            print(orig_datatype, datatype)
+            exit(1)
+        arg_class = Arg("variable", name, name, False, datatype)
+    elif isinstance(arg, ArrayReference):
+        unknown_fortran_type = False
+        if isinstance(arg.symbol, DataSymbol):
+            if isinstance(arg.symbol.datatype, ArrayType):
+                # array
+                if isinstance(arg.symbol.datatype.datatype, DataTypeSymbol):
+                    # derived type
+                    if arg.symbol.datatype.datatype.name in ["operator_type", "field_type", "quadrature_xyoz_type"]:
+                        datatype = (arg.symbol.datatype.datatype.name, None)
+                    else:
+                        print(f"unsupported derived type {arg.symbol.datatype.datatype.name}")
+                        exit(1)
+                elif isinstance(arg.symbol.datatype.datatype, ScalarType):
+                    form = arg.symbol.datatype.intrinsic.name.lower()
+                    precision = arg.symbol.datatype.precision.name.lower()
+                    datatype = (form, precision)
+                else:
+                    print("array with unsupported datatype")
+                    print(type(arg.symbol.datatype.datatype))
+                    print(arg.symbol.datatype.intrinsic)
+                    print(arg.symbol.datatype.datatype)
+                    exit(1)
+            elif isinstance(arg.symbol.datatype, DataTypeSymbol):
+                if arg.symbol.datatype.name in ["operator_type", "field_type", "quadrature_xyoz_type"]:
+                    datatype = (arg.symbol.datatype.name, None)
+                else:
+                    print(f"unsupported derived type {arg.symbol.datatype.datatype.name}")
+                    exit(1)
+            elif isinstance(arg.symbol.datatype, UnknownFortranType):
+                # we have no information for this
+                print("decl ", arg.symbol.datatype.declaration)
+                print("text", arg.symbol.datatype.type_text)
+                unknown_fortran_type = True
+                datatype = None
+            else:
+                print(f"unsupported datatype {type(arg.symbol.datatype)} "
+                      f"for {arg.symbol.name}. Only ArrayType and UnknownFortranType are currently implemented.")
+                exit(1)
+            varname = arg.symbol.name
+            text = arg.debug_string()
+        else:
+            print(f"ArrayReference: Expecting a DataSymbol but found '{type(arg.symbol)}'.")
+            print(f"var is {arg.name} with access {arg.debug_string()} in {kernel.name}")
+            exit(1)
+        if orig_arg and (orig_form != "indexed_variable" or orig_text.replace(" ", "") != text.replace(" ", "") or orig_varname != varname or orig_literal != False or orig_datatype != datatype) and not unknown_fortran_type:
+            print ("NEW AND OLD DO NOT MATCH 3")
+            print(orig_form, "indexed_variable")
+            print(orig_text, text)
+            print(orig_varname, varname)
+            print(orig_literal, False)
+            print(orig_datatype, datatype)
+            exit(1)
+        arg_class = Arg("indexed_variable", text, varname, False, datatype)
+    elif isinstance(arg, StructureReference):
+        text = arg.debug_string()
+        varname = text.replace("%", "_")
+        varname = varname.split("(")[0]
+        if isinstance(arg.symbol.datatype, DataTypeSymbol):
+            # derived type
+            # TODO #XXX For some reason we just return the type
+            # of the Structure reference here.
+            datatype = (arg.symbol.datatype.name, None)
+        else:
+            print(f"StructureReference symbol.datatype is not DataTypeSymbol. Found {type(arg.symbol.datatype)}")
+            exit(1)
+        if orig_arg and (orig_form != "collection" or orig_text.replace(" ", "") != text.replace(" ", "") or orig_varname != varname or orig_literal != False or orig_datatype != datatype):
+            print ("NEW AND OLD DO NOT MATCH 4")
+            print(orig_form, "collection")
+            print(orig_text, text)
+            print(orig_varname, varname)
+            print(orig_literal, False)
+            print(orig_datatype, datatype)
+            exit(1)
+        arg_class = Arg("collection", text, varname, False, datatype)
+    else:
+        print(f"Arg type {type(arg)} not implemented")
+        exit(1)
+    return arg_class
+                
+def psy_gen(alg_psyir, kernels):
+    ''' xxx '''
+    from psyclone.psyir.nodes import FileContainer, Container, Routine, Call, Literal
+    from psyclone.psyir.symbols import RoutineSymbol, SymbolTable, DataSymbol, INTEGER_TYPE
+    # specialise FileContainer, Container
+    # Call => Builtin, CodedKern
+    # Routine => LFRicInvoke?
+    # Loop => DynLoop
+    # routine arguments
+    # call arguments
+    # loop bounds
+    # consistent container and routine names with alg layer
+    modules = []
+    for invoke in alg_psyir.walk(AlgorithmInvokeCall):
+        invoke.create_psylayer_symbol_root_names()
+        routine_tag = invoke.psylayer_routine_root_name
+        container_tag = invoke.psylayer_container_root_name
+        loops = []
+        for kernel in invoke.children:
+            arguments = []
+            routine_symbol = RoutineSymbol(kernel.name)
+            call = Call.create(routine_symbol, arguments)
+            iterator = DataSymbol("i", INTEGER_TYPE)
+            one = Literal("1", INTEGER_TYPE)
+            loops.append(Loop.create(iterator, one, one.copy(), one.copy(), [call]))
+        routine = Routine.create(routine_tag, SymbolTable(), loops)
+        modules.append(Container.create(container_tag, SymbolTable(), [routine]))
+    file_container = FileContainer.create("file", SymbolTable(), modules)
+    return file_container
 
 def main(args):
     '''

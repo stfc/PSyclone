@@ -54,12 +54,12 @@ program single_invoke
   type(field_type) :: f1, f2, m1, m2
   type(some_type)  :: my_obj 
   type(some_type2) :: int_wrapper
-  integer(i_def)   :: switch = 4
+  integer(i_def)   :: switch = 4, switch2 = 6
 
   call invoke(                                                                         &
        testkern_one_int_scalar_type(f1, my_obj%iflag, f2, m1, m2),                     &
-       testkern_one_int_scalar_type(f1, my_obj%get_flag(), f2, m1, m2),                &
-       testkern_one_int_scalar_type(f1, my_obj%get_flag(switch), f2, m1, m2),          &
+       testkern_one_int_scalar_type(f1, my_obj%get_flag(switch), f2, m1, m2),                &
+       testkern_one_int_scalar_type(f1, my_obj%get_flag(switch2), f2, m1, m2),          &
        testkern_one_int_scalar_type(f1, my_obj%get_flag(int_wrapper%data), f2, m1, m2) &
           )
 

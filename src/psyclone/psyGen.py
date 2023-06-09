@@ -705,10 +705,12 @@ class InvokeSchedule(Routine):
         if alg_calls is None:
             alg_calls = []
         for call in alg_calls:
-            if isinstance(call, BuiltInCall):
+            if call.type == "BuiltInCall":
                 self.addchild(BuiltInFactory.create(call, parent=self))
-            else:
+            elif call.type == "kernelCall":
                 self.addchild(KernFactory.create(call, parent=self))
+            else:
+                raise Exception("complete me")
 
     @property
     def symbol_table(self):

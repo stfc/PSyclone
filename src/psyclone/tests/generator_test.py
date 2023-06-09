@@ -420,6 +420,7 @@ def test_script_attr_error():
                         script_name=os.path.join(BASE_PATH,
                                                  "dynamo0p3",
                                                  "error_trans.py"))
+    print(excinfo.value)
     assert 'object has no attribute' in str(excinfo.value)
 
 
@@ -1212,3 +1213,43 @@ def test_no_invokes_lfric_new(monkeypatch):
             api="dynamo0.3")
     assert ("Algorithm file contains no invoke() calls: refusing to generate "
             "empty PSy code" in str(info.value))
+
+
+# create_arg_info class tests
+
+from psyclone.psyir.nodes import Literal, Reference
+from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, ScalarType, UnknownFortranType
+from psyclone.generator import create_arg_info
+
+def test_createarginfo_literal_precision():
+    '''Test that the create_arg_info class works correctly when a literal
+    has a specified precison.
+
+    '''
+    real_kind = DataSymbol("RKIND", INTEGER_TYPE, constant_value=8)
+    scalar_type = ScalarType(ScalarType.Intrinsic.REAL, real_kind)
+    psyir_arg = Literal("1.0", scalar_type)
+    arg_info = create_arg_info(psyir_arg)
+    assert(arg_info.form == "literal")
+    assert(arg_info.text == "1.0_rkind")
+    assert(not arg_info.varname)
+    assert(arg_info.is_literal())
+    assert(arg_info._datatype == ("real", "rkind"))
+
+
+def test_createarginfo_unknownfortrantype():
+    '''Test that the create_arg_info class works correctly when there is
+    an UnknownFortranType.
+
+    '''
+    code = "integer :: extent=1"
+    real_kind = DataSymbol("RKIND", INTEGER_TYPE, constant_value=8)
+    scalar_type = ScalarType(ScalarType.Intrinsic.REAL, real_kind)
+    psyir_arg = Reference(DataSymbol("extent", UnknownFortranType("integer(kind=i_def)::extent=1")))
+    arg_info = create_arg_info(psyir_arg)
+    assert(arg_info.form == "variable")
+    assert(arg_info.text == "extent")
+    assert(arg_info.varname == "extent")
+    assert(not arg_info.is_literal())
+    if arg_info._datatype != ("integer", "i_def"):
+        pytest.xfail("issue #2151. datatype information is required when there is an UnknownFortranType")

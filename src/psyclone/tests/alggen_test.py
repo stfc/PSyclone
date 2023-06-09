@@ -330,11 +330,11 @@ def test_deref_derived_type_args():
     # TODO issue #1618 different implementations we may or may not
     # output a space before and after a "%"
     assert (
-        "call invoke_0(f1, my_obj % iflag, f2, m1, m2, my_obj % get_flag(), "
-        "my_obj % get_flag(switch), my_obj % get_flag(int_wrapper % data))"
+        "call invoke_0(f1, my_obj % iflag, f2, m1, m2, my_obj % get_flag(switch), "
+        "my_obj % get_flag(switch2), my_obj % get_flag(int_wrapper % data))"
         in gen or
-        "call invoke_0(f1, my_obj%iflag, f2, m1, m2, my_obj % get_flag(), "
-        "my_obj%get_flag(switch), my_obj%get_flag(int_wrapper%data))"
+        "call invoke_0(f1, my_obj%iflag, f2, m1, m2, my_obj%get_flag(switch), "
+        "my_obj%get_flag(switch2), my_obj%get_flag(int_wrapper%data))"
         in gen)
 
 

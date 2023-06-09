@@ -334,8 +334,12 @@ def test_same_name_invalid_array():
         _, _ = generate(
             os.path.join(BASE_PATH, "1.11_single_invoke_same_name_array.f90"),
             api="dynamo0.3")
+    # Issue #1618 Array indices may or may not contain space depending
+    # on #the implementation.
+    print(str(excinfo.value))
     assert ("Argument 'f1(1, n)' is passed into kernel 'testkern_code' code "
-            "more than once") in str(excinfo.value)
+            "more than once" or "Argument 'f1(1,n)' is passed into kernel "
+            "'testkern_code' code more than once" in str(excinfo.value))
 
 
 def test_derived_type_deref_naming(tmpdir):
