@@ -380,7 +380,9 @@ class DependencyTools():
         # pylint: disable=too-many-return-statements
         sym_maths = SymbolicMaths.get()
         try:
-            # TODO does this import affect performance?
+            # This import is here to avoid circular dependencies between
+            # this module and the psyir backends.
+            # pylint: disable=import-outside-toplevel
             from psyclone.psyir.backend.sympy_writer import SymPyWriter
             sympy_expressions, symbol_map = SymPyWriter.\
                 get_sympy_expressions_and_symbol_map([index_read,
