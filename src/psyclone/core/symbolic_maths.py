@@ -72,7 +72,7 @@ class SymbolicMaths:
         singleton SymbolicMaths instance.
 
         :returns: the instance of the symbolic maths class.
-        :rtype: :py:class:`psyclone.core.SymbolicMaths.`
+        :rtype: :py:class:`psyclone.core.SymbolicMaths`
 
         '''
         if SymbolicMaths._instance is None:
@@ -86,9 +86,9 @@ class SymbolicMaths:
         '''Test if the two PSyIR expressions are symbolically equivalent.
 
         :param exp1: the first expression to be compared.
-        :type exp1: Optional[:py:class:`psyclone.psyir.nodes.Node`]
+        :type exp1: :py:class:`psyclone.psyir.nodes.Node`
         :param exp2: the first expression to be compared.
-        :type exp2: Optional[:py:class:`psyclone.psyir.nodes.Node`]
+        :type exp2: :py:class:`psyclone.psyir.nodes.Node`
 
         :returns: whether the two expressions are mathematically \
             identical.
@@ -100,6 +100,7 @@ class SymbolicMaths:
             return exp1 == exp2
 
         diff = SymbolicMaths._subtract(exp1, exp2)
+        # Add support for ranges, in which case all values must be equal
         if isinstance(diff, list):
             return all(i == 0 for i in diff)
         return diff == 0
@@ -113,9 +114,9 @@ class SymbolicMaths:
         different.
 
         :param exp1: the first expression to be compared.
-        :type exp1: py:class:`psyclone.psyir.nodes.Node`
+        :type exp1: :py:class:`psyclone.psyir.nodes.Node`
         :param exp2: the first expression to be compared.
-        :type exp2: py:class:`psyclone.psyir.nodes.Node`
+        :type exp2: :py:class:`psyclone.psyir.nodes.Node`
 
         :returns: whether or not the expressions are never equal.
         :rtype: bool
@@ -278,7 +279,7 @@ class SymbolicMaths:
         nodes, see issue #1655.
 
         :param expr: the expression to be expanded.
-        :type expr: py:class:`psyclone.psyir.nodes.Node`
+        :type expr: :py:class:`psyclone.psyir.nodes.Node`
 
         '''
         # Avoid circular import

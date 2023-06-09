@@ -57,16 +57,16 @@ class SymPyWriter(FortranWriter):
     representation of the PSyIR tree that can be understood by SymPy. Most
     Fortran expressions work as expected without modification. This class
     implements special handling for constants (which can have a precision
-    attached, e.g. 2_4) and some intrinsic functions (e.g. `MAX`, which SymPy
-    expects to be `Max`). Array accesses are converted into functions (while
+    attached, e.g. 2_4) and some intrinsic functions (e.g. ``MAX``, which SymPy
+    expects to be ``Max``). Array accesses are converted into functions (while
     SymPy supports indexed expression, they cannot be used as expected when
-    solving, SymPy does not solve component-wise - `M[x]-M[1]` would not
-    result in `x=1`, while it does for SymPy unknown functions).
+    solving, SymPy does not solve component-wise - ``M[x]-M[1]`` would not
+    result in ``x=1``, while it does for SymPy unknown functions).
     Array expressions are supported by the writer: it will convert any array
-    expression like `a(i:j:k)` by using three arguments: `a(i, j, k)`.
-    Then simple array accesses like `b(i,j)` are converted to
-    `b(i,i,1,j,j,1)`. Similarly, if `a` is known to be an array, then the
-    writer will use `a(sympy_lower,sympy_upper,1)`. This makes sure all SymPy
+    expression like ``a(i:j:k)`` by using three arguments: ``a(i, j, k)``.
+    Then simple array accesses like ``b(i,j)`` are converted to
+    ``b(i,i,1,j,j,1)``. Similarly, if ``a`` is known to be an array, then the
+    writer will use ``a(sympy_lower,sympy_upper,1)``. This makes sure all SymPy
     unknown functions that represent an array use the same number of
     arguments.
 
@@ -104,8 +104,8 @@ class SymPyWriter(FortranWriter):
         self._symbol_table = None
 
         # The writer will use special names in array expressions to indicate
-        # the lower and upper bound (e.g. `a(::)` becomes
-        # `a(sympy_lower, sympy_upper, 1)`). The symbol table will be used
+        # the lower and upper bound (e.g. ``a(::)`` becomes
+        # ``a(sympy_lower, sympy_upper, 1)``). The symbol table will be used
         # to resolve a potential name clash with a user variable.
         self._lower_bound = "sympy_lower"
         self._upper_bound = "sympy_upper"
@@ -137,7 +137,7 @@ class SymPyWriter(FortranWriter):
         '''This function allows the SymPy writer to be used in two
         different ways: if only the SymPy expression of the PSyIR expressions
         are required, it can be called as:
-        `sympy_expressions = SymPyWriter(exp1, exp2, ...)`
+        ``sympy_expressions = SymPyWriter(exp1, exp2, ...)``
         But if additional information is needed (e.g. the SymPy type map, or
         to convert a SymPy expression back to PSyIR), an instance of the
         SymPyWriter must be kept, e.g.:
@@ -167,8 +167,8 @@ class SymPyWriter(FortranWriter):
     # -------------------------------------------------------------------------
     def __getitem__(self, _):
         '''This function is only here to trick pylint into thinking that
-        the object returned from `__new__` is subscriptable, meaning that code
-        like:
+        the object returned from ``__new__`` is subscriptable, meaning that
+        code like:
         ``out = SymPyWriter(exp1, exp2); out[1]`` does not trigger
         a pylint warning about unsubscriptable-object.
         '''
@@ -181,7 +181,7 @@ class SymPyWriter(FortranWriter):
         array reference). It defines a new SymPy function for each array,
         which has a special write method implemented that automatically
         converts array indices back by combining each three arguments into
-        one expression (i. e. `a(1,9,2)` would become `a(1:9:2)`).
+        one expression (i. e. ``a(1,9,2)`` would become ``a(1:9:2)``).
 
         A new symbol table is created any time this function is called, so
         it is important to provide all expressions at once for the symbol
@@ -378,21 +378,21 @@ class SymPyWriter(FortranWriter):
 
     # -------------------------------------------------------------------------
     def member_node(self, node):
-        '''In SymPy an access to a member 'b' of a structure 'a'
-        (i.e. a%b in Fortran) is handled as the 'MOD' function
-        `MOD(a, b)`. We must therefore make sure that a member
-        access is unique (e.g. `b` could already be a scalar variable).
-        This is done by creating a new name, which replaces the `%`
-        with an `_`. So `a%b` becomes `MOD(a, a_b)`. This makes it easier
+        '''In SymPy an access to a member ``b`` of a structure ``a``
+        (i.e. ``a%b`` in Fortran) is handled as the ``MOD`` function
+        ``MOD(a, b)``. We must therefore make sure that a member
+        access is unique (e.g. ``b`` could already be a scalar variable).
+        This is done by creating a new name, which replaces the ``%``
+        with an ``_``. So ``a%b`` becomes ``MOD(a, a_b)``. This makes it easier
         to see where the function names come from.
         Additionally, we still need to avoid a name clash, e.g. there
-        could already be a variable `a_b`. This is done by using a symbol
-        table, which was prefilled with all references (`a` in the example
-        above) in the constructor. We use the string containing the '%' as
+        could already be a variable ``a_b``. This is done by using a symbol
+        table, which was prefilled with all references (``a`` in the example
+        above) in the constructor. We use the string containing the ``%`` as
         a unique tag and get a new, unique symbol from the symbol table
-        based on the new name using `_`. For example, the access to member
-        `b` in `a(i)%b` would result in a new symbol with tag `a%b` and a
-        name like `a_b`, `a_b_1`, ...
+        based on the new name using ``_``. For example, the access to member
+        ``b`` in ``a(i)%b`` would result in a new symbol with tag ``a%b`` and a
+        name like ``a_b`, `a_b_1``, ...
 
         :param node: a Member PSyIR node.
         :type node: :py:class:`psyclone.psyir.nodes.Member`
@@ -512,7 +512,7 @@ class SymPyWriter(FortranWriter):
         PSyIR tree. It handles the case that this normal reference might
         be an array expression, which in the SymPy writer needs to have
         indices added explicitly: it basically converts the array expression
-        `a` to `a(sympy_lower, sympy_upper, 1)`.
+        ``a`` to ``a(sympy_lower, sympy_upper, 1)``.
 
         :param node: a Reference PSyIR node.
         :type node: :py:class:`psyclone.psyir.nodes.Reference`
@@ -542,12 +542,12 @@ class SymPyWriter(FortranWriter):
         each array index into a three parameters to support array expressions.
 
         :param indices: list of PSyIR nodes.
-        :type indices: list of :py:class:`psyclone.psyir.symbols.Node`
+        :type indices: List[:py:class:`psyclone.psyir.symbols.Node`]
         :param str var_name: name of the variable for which the dimensions \
             are created. Not used in the Fortran implementation.
 
         :returns: the Fortran representation of the dimensions.
-        :rtype: list of str
+        :rtype: List[str]
 
         :raises NotImplementedError: if the format of the dimension is not \
             supported.
@@ -631,8 +631,8 @@ class SymPyWriter(FortranWriter):
         parses the SymPy expression back into PSyIR, and then replaces all
         array indices back into the corresponding Fortran values (since they
         were replaced with three parameters to support array expressions), e.g.
-        `a(i,i,1)` will be converted back to `a(i)`, and `a(-inf,5,2)` will
-        become `a(:5:2)`.
+        ``a(i,i,1)`` will be converted back to ``a(i)``, and ``a(-inf,5,2)``
+        will become ``a(:5:2)``.
 
         :param sympy_expr: the original SymPy expression.
         :type sympy_expr: py:class:`sympy.core.basic.Basic`
