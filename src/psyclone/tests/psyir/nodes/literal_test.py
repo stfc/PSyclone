@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2022, Science and Technology Facilities Council.
+# Copyright (c) 2019-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -133,6 +133,19 @@ def test_literal_init_invalid_2(value):
     assert (f"A scalar real literal value must conform to the supported "
             f"format ('^[+-]?[0-9]+(\\.[0-9]*)?([eE][+-]?[0-9]+)?$') but "
             f"found '{value}'." in str(err.value))
+
+
+@pytest.mark.parametrize("value", ["02", "++2", "12.34", "*2", ".3"])
+def test_literal_init_invalid_3(value):
+    '''Test the initialisation of a Literal object with invalid int
+    values raises the expected exception.
+
+    '''
+    with pytest.raises(ValueError) as err:
+        Literal(value, INTEGER_SINGLE_TYPE)
+    assert (f"A scalar integer literal value must conform to the "
+            f"supported format ('(([+-]?[1-9][0-9]*|0)|(NOT_INITIALISED))') "
+            f"but found '{value}'." in str(err.value))
 
 
 def test_literal_init_empty_value():
