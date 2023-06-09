@@ -2809,13 +2809,19 @@ class Fparser2Reader():
                 f"writes to variables that are read in the ASSOCIATE "
                 f"statement: {intersect}")
 
-        # If the body of the Construct contains a CodeBlock then we cannot
-        # safely handle it and must put the whole Construct into a CodeBlock.
+        # If the body of the Construct contains a CodeBlock that accesses one
+        # of the associate names then we cannot safely handle it and must put
+        # the whole Construct into a CodeBlock.
         cblocks = fake_sched.walk(CodeBlock)
         if cblocks:
-            raise NotImplementedError(
-                f"Cannot handle an ASSOCIATE block because it contains one or "
-                f"more CodeBlocks: {cblocks[0].get_ast_nodes[0]}")
+            for cblock in cblocks:
+                if any(sname in associate_map for sname
+                       in cblock.get_symbol_names()):
+                    raise NotImplementedError(
+                        f"Cannot handle an ASSOCIATE block because it contains"
+                        f" a CodeBlock (beginning with "
+                        f"{cblock.get_ast_nodes[0]}) that references one of "
+                        f"the associate names: {cblock.get_symbol_names()}")
 
         # Examine all the references in the block and replace those that
         # involve associate names.

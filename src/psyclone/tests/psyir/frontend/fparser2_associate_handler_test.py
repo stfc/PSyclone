@@ -108,7 +108,8 @@ end program test_assoc
 
 def test_associate_cblock(fortran_reader):
     '''Test that a CodeBlock within an associate construct results in the
-    whole construct being put in a CodeBlock.'''
+    whole construct being put in a CodeBlock (unless the CodeBlock does
+    not access any associate names).'''
     code = '''
 program test_assoc
   use grid_mod, only: grid
@@ -117,13 +118,25 @@ program test_assoc
   var1(:) = 10.0
   associate(easy => grid)
   easy%data = 0.0
+  ! This write will result in a CodeBlock that does access an associate
+  ! name ('easy').
   write(*,*) easy%data
+  end associate
+  i = 5
+  ! A second associate construct that also will contain a CodeBlock (because of
+  ! the WRITE) but is fine because the CodeBlock does not access any
+  ! associate names.
+  associate(trivial => grid)
+  trivial%data(1:3) = -1.0
+  write (*,*) i
   end associate
 end program test_assoc
 '''
     psyir = fortran_reader.psyir_from_source(code)
     routine = psyir.walk(Routine)[0]
-    assert len(routine.children) == 2
-    assert isinstance(routine.children[-1], CodeBlock)
-    assert isinstance(routine.children[-1].get_ast_nodes[0],
+    assert len(routine.children) == 5
+    assert isinstance(routine.children[1], CodeBlock)
+    assert isinstance(routine.children[1].get_ast_nodes[0],
                       Fortran2003.Associate_Construct)
+    assert isinstance(routine.children[3], Assignment)
+    assert isinstance(routine.children[4], CodeBlock)
