@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2017-2022, Science and Technology Facilities Council
+.. Copyright (c) 2017-2023, Science and Technology Facilities Council
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -282,6 +282,12 @@ can be found in the API-specific sections).
 
 ####
 
+.. autoclass:: psyclone.psyir.transformations.Maxval2CodeTrans
+      :members: apply
+      :noindex:
+
+####
+
 .. autoclass:: psyclone.psyir.transformations.Min2CodeTrans
       :members: apply
       :noindex:
@@ -290,6 +296,12 @@ can be found in the API-specific sections).
              PSyIR Real scalar data and does not check that this is
              not the case. Once issue #658 is on master then this
              limitation can be fixed.
+
+####
+
+.. autoclass:: psyclone.psyir.transformations.Minval2CodeTrans
+      :members: apply
+      :noindex:
 
 ####
 
