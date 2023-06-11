@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2022, Science and Technology Facilities Council.
+# Copyright (c) 2019-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -70,6 +70,8 @@ from psyclone.psyir.transformations.intrinsics.maxval2code_trans import \
     Maxval2CodeTrans
 from psyclone.psyir.transformations.intrinsics.min2code_trans import \
     Min2CodeTrans
+from psyclone.psyir.transformations.intrinsics.minval2code_trans import \
+    Minval2CodeTrans
 from psyclone.psyir.transformations.intrinsics.sign2code_trans import \
     Sign2CodeTrans
 from psyclone.psyir.transformations.intrinsics.sum2code_trans import \

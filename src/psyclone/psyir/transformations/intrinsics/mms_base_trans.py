@@ -34,10 +34,8 @@
 # Author: R. W. Ford, STFC Daresbury Lab
 # Modified: S. Siso, STFC Daresbury Lab
 
-'''Module providing a transformation from a PSyIR SUM intrinsic to
-PSyIR code. This could be useful if the SUM operator is not supported
-by the back-end or if the performance in the inline code is better
-than the intrinsic.
+'''Module providing common functionality to transformation from a
+PSyIR SUM, MINVAL or MAXVAL intrinsic to PSyIR code.
 
 '''
 from abc import ABC, abstractmethod
@@ -99,15 +97,15 @@ class MMSBaseTrans(Transformation, ABC):
         '''Check that the input node is valid before applying the
         transformation.
 
-        :param node: a Sum intrinsic.
+        :param node: a Sum, Minval or Maxval intrinsic.
         :type node: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
         :param options: options for the transformation.
         :type options: Optional[Dict[str, Any]]
 
         :raises TransformationError: if the supplied node is not an \
             intrinsic.
-        :raises TransformationError: if the supplied node is not a sum \
-            intrinsic.
+        :raises TransformationError: if the supplied node is not a sum, \
+            minval, or maxval intrinsic.
         :raises TransformationError: if a valid value for the \
             dimension argument can't be determined.
         :raises TransformationError: if the array argument is not an array.
@@ -126,8 +124,8 @@ class MMSBaseTrans(Transformation, ABC):
         if node.routine.name.upper() != self._INTRINSIC_NAME:
             raise TransformationError(
                 f"Error in {self.name} transformation. The supplied node "
-                f"argument is not a {self._INTRINSIC_NAME.lower()} intrinsic, found "
-                f"'{node.routine.name}'.")
+                f"argument is not a {self._INTRINSIC_NAME.lower()} "
+                f"intrinsic, found '{node.routine.name}'.")
 
         array_ref, dim_ref, _ = self._get_args(node)
         if dim_ref and not isinstance(dim_ref, (Literal, Reference)):
@@ -175,11 +173,12 @@ class MMSBaseTrans(Transformation, ABC):
     # pylint: disable=too-many-branches
     # pylint: disable=too-many-statements
     def apply(self, node, options=None):
-        '''Apply the SUM intrinsic conversion transformation to the specified
-        node. This node must be a SUM Operation which is converted to
-        equivalent inline code.
+        '''Apply the SUM, MINVAL or MAXVAL intrinsic conversion transformation
+        to the specified node. This node must be one of these
+        intrinsic operations which is converted to equivalent inline
+        code.
 
-        :param node: a Sum intrinsic.
+        :param node: a Sum, Minval or Maxval intrinsic.
         :type node: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
         :param options: options for the transformation.
         :type options: Optional[Dict[str, Any]]
@@ -259,17 +258,18 @@ class MMSBaseTrans(Transformation, ABC):
 
         array_ref = node.children[0].detach()
 
-        # Create temporary sum variable (sum_var)
-        symbol_sum_var = symbol_table.new_symbol(
-            f"{self._INTRINSIC_NAME.lower()}_var", symbol_type=DataSymbol, datatype=datatype)
-        # Replace operation with a temporary variable (sum_var).
+        # Create temporary variable based on the name of the intrinsic.
+        var_symbol = symbol_table.new_symbol(
+            f"{self._INTRINSIC_NAME.lower()}_var", symbol_type=DataSymbol,
+            datatype=datatype)
+        # Replace operation with a temporary variable.
         if array_reduction:
             array_indices = []
             for idx in range(ndims-1):
                 array_indices.append(":")
-            reference = ArrayReference.create(symbol_sum_var, array_indices)
+            reference = ArrayReference.create(var_symbol, array_indices)
         else:
-            reference = Reference(symbol_sum_var)
+            reference = Reference(var_symbol)
         node.replace_with(reference)
 
         # Create the loop iterators
@@ -283,8 +283,7 @@ class MMSBaseTrans(Transformation, ABC):
                 array_iterators.append(loop_iterator)
 
         # Initialise the temporary variable.
-        # new_assignment = self._init_var(symbol_sum_var, scalar_type, array_ref, loop_bounds, loop_iterators, array_iterators, array_reduction, dimension_literal)
-        rhs = self._init_var(symbol_sum_var)
+        rhs = self._init_var(var_symbol)
         lhs = reference.copy()
         new_assignment = Assignment.create(lhs, rhs)
         assignment.parent.children.insert(assignment.position, new_assignment)
@@ -295,7 +294,7 @@ class MMSBaseTrans(Transformation, ABC):
         array_ref = ArrayReference.create(array_ref.symbol, array_indices)
 
         statement = self._loop_body(
-            array_reduction, array_iterators, symbol_sum_var, array_ref)
+            array_reduction, array_iterators, var_symbol, array_ref)
 
         if mask_ref:
             # A mask argument has been provided
@@ -309,15 +308,19 @@ class MMSBaseTrans(Transformation, ABC):
 
         for idx in range(ndims):
             statement = Loop.create(
-                loop_iterators[idx].copy(), loop_bounds[idx][0].copy(), loop_bounds[idx][1].copy(),
-                Literal("1", INTEGER_TYPE), [statement])
+                loop_iterators[idx].copy(), loop_bounds[idx][0].copy(),
+                loop_bounds[idx][1].copy(), Literal("1", INTEGER_TYPE),
+                [statement])
 
         assignment.parent.children.insert(assignment.position, statement)
 
     @abstractmethod
-    def _loop_body(self, array_reduction, array_iterators, symbol_var, array_ref):
-        pass
+    def _loop_body(
+            self, array_reduction, array_iterators, var_symbol, array_ref):
+        '''The intrinsic-specific content of the created loop body.'''
 
     @abstractmethod
-    def _init_var(self, symbol_var):
-        pass
+    def _init_var(self, var_symbol):
+        '''The intrinsic-specific initial value for the temporary variable.
+
+        '''

@@ -36,8 +36,8 @@
 
 '''Module providing a transformation from a PSyIR SUM intrinsic to
 PSyIR code. This could be useful if the SUM operator is not supported
-by the back-end or if the performance in the inline code is better
-than the intrinsic.
+by the back-end, the required parallelisation approach, or if the
+performance in the inline code is better than the intrinsic.
 
 '''
 from psyclone.psyir.nodes import (
@@ -143,7 +143,7 @@ class Sum2CodeTrans(MMSBaseTrans):
     '''
     _INTRINSIC_NAME = "SUM"
 
-    def _loop_body(self, array_reduction, array_iterators, symbol_var,
+    def _loop_body(self, array_reduction, array_iterators, var_symbol,
                    array_ref):
         '''Provide the body of the nested loop that computes the sum of an
         array.
@@ -156,8 +156,8 @@ class Sum2CodeTrans(MMSBaseTrans):
             loop symbol.
         :type array_iterators: \
             List[:py:class:`psyclone.psyir.symbols.DataSymbol`]
-        :param symbol_var: the symbol used to store the final result.
-        :type symbol_var: :py:class:`psyclone.psyir.symbols.DataSymbol`
+        :param var_symbol: the symbol used to store the final result.
+        :type var_symbol: :py:class:`psyclone.psyir.symbols.DataSymbol`
         :param array_ref: a reference to the array from which the
             sum is being determined.
         :type array_ref: :py:class:`psyclone.psyir.nodes.ArrayReference`
@@ -170,34 +170,34 @@ class Sum2CodeTrans(MMSBaseTrans):
             # sum_var(i,...) = sum_var(i,...) + array(i,...)
             array_indices = [Reference(iterator)
                              for iterator in array_iterators]
-            lhs = ArrayReference.create(symbol_var, array_indices)
+            lhs = ArrayReference.create(var_symbol, array_indices)
             array_indices = [Reference(iterator)
                              for iterator in array_iterators]
-            rhs_child1 = ArrayReference.create(symbol_var, array_indices)
+            rhs_child1 = ArrayReference.create(var_symbol, array_indices)
         else:
             # sum_var = sum_var + array(i,...)
-            lhs = Reference(symbol_var)
-            rhs_child1 = Reference(symbol_var)
+            lhs = Reference(var_symbol)
+            rhs_child1 = Reference(var_symbol)
 
         rhs_child2 = array_ref
         rhs = BinaryOperation.create(BinaryOperation.Operator.ADD, rhs_child1,
                                      rhs_child2)
         return Assignment.create(lhs, rhs)
 
-    def _init_var(self, symbol_var):
+    def _init_var(self, var_symbol):
         '''The initial value for the variable that computes the sum
         of an array.
 
-        :param symbol_var: the symbol used to store the final result.
-        :type symbol_var: :py:class:`psyclone.psyir.symbols.DataSymbol`
+        :param var_symbol: the symbol used to store the final result.
+        :type var_symbol: :py:class:`psyclone.psyir.symbols.DataSymbol`
 
         :returns: PSyIR for the value to initialise the variable that \
             computes the sum.
         :rtype: :py:class:`psyclone.psyir.nodes.Literal`
 
         '''
-        intrinsic = symbol_var.datatype.intrinsic
-        precision = symbol_var.datatype.precision
+        intrinsic = var_symbol.datatype.intrinsic
+        precision = var_symbol.datatype.precision
         scalar_type = ScalarType(intrinsic, precision)
         if intrinsic == ScalarType.Intrinsic.REAL:
             value_str = "0.0"

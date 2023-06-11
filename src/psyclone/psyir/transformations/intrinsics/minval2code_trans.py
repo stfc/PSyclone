@@ -144,7 +144,7 @@ class Minval2CodeTrans(MMSBaseTrans):
     '''
     _INTRINSIC_NAME = "MINVAL"
 
-    def _loop_body(self, array_reduction, array_iterators, symbol_var,
+    def _loop_body(self, array_reduction, array_iterators, var_symbol,
                    array_ref):
         '''Provide the body of the nested loop that computes the minimum value
         of an array.
@@ -157,8 +157,8 @@ class Minval2CodeTrans(MMSBaseTrans):
             loop symbol.
         :type array_iterators: \
             List[:py:class:`psyclone.psyir.symbols.DataSymbol`]
-        :param symbol_var: the symbol used to store the final result.
-        :type symbol_var: :py:class:`psyclone.psyir.symbols.DataSymbol`
+        :param var_symbol: the symbol used to store the final result.
+        :type var_symbol: :py:class:`psyclone.psyir.symbols.DataSymbol`
         :param array_ref: a reference to the array from which the
             minimum is being determined.
         :type array_ref: :py:class:`psyclone.psyir.nodes.ArrayReference`
@@ -171,9 +171,9 @@ class Minval2CodeTrans(MMSBaseTrans):
         if array_reduction:
             array_indices = [Reference(iterator)
                              for iterator in array_iterators]
-            lhs = ArrayReference.create(symbol_var, array_indices)
+            lhs = ArrayReference.create(var_symbol, array_indices)
         else:
-            lhs = Reference(symbol_var)
+            lhs = Reference(var_symbol)
         rhs = array_ref
         assignment = Assignment.create(lhs, rhs)
 
@@ -188,12 +188,12 @@ class Minval2CodeTrans(MMSBaseTrans):
         # end if
         return IfBlock.create(if_condition, [assignment])
 
-    def _init_var(self, symbol_var):
+    def _init_var(self, var_symbol):
         '''The initial value for the variable that computes the minimum value
         of an array.
 
-        :param symbol_var: the symbol used to store the final result.
-        :type symbol_var: :py:class:`psyclone.psyir.symbols.DataSymbol`
+        :param var_symbol: the symbol used to store the final result.
+        :type var_symbol: :py:class:`psyclone.psyir.symbols.DataSymbol`
 
         :returns: PSyIR for the value to initialise the variable that \
             computes the minimum value.
@@ -201,4 +201,4 @@ class Minval2CodeTrans(MMSBaseTrans):
 
         '''
         return IntrinsicCall.create(
-            IntrinsicCall.Intrinsic.HUGE, [Reference(symbol_var)])
+            IntrinsicCall.Intrinsic.HUGE, [Reference(var_symbol)])
