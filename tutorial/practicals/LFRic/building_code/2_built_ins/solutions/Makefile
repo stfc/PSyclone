@@ -74,6 +74,9 @@ EXAMPLE_OBJ = $(DRIVER_OBJ) $(ALGORITHM_OBJ) $(PSY_OBJ)
 
 .PHONY: transform compile run clean allclean
 
+# Test PSyclone target for continuous integration
+transform: $(PSY_SRC) $(ALGORITHM_SRC)
+
 compile: transform $(EXEC)
 
 run: compile
@@ -101,9 +104,6 @@ $(ALGORITHM_SRC): $(PSY_SRC)
 
 # Keep the generated Alg and PSy files
 .precious: $(ALGORITHM_SRC) $(PSY_SRC)
-
-# Test PSyclone target for continuous integration
-transform: $(PSY_SRC) $(ALGORITHM_SRC)
 
 %_psy.f90: %.x90
 	psyclone $(PSYCLONE_CMD) --config $(PSYCLONE_RELPATH)/config/psyclone.cfg \
