@@ -1,14 +1,14 @@
+
+
 !-----------------------------------------------------------------------------
-! (C) Crown copyright 2022 Met Office. All rights reserved.
+! (C) Crown copyright 2023 Met Office. All rights reserved.
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
-! LICENCE is available from the Met Office Science Repository Service:
-! https://code.metoffice.gov.uk/trac/lfric/browser/LFRic/trunk/LICENCE
-!-------------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2023, Science and Technology Facilities Council
+! Modifications copyright (c) 2023, Science and Technology Facilities
+! Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -38,29 +38,34 @@
 ! -----------------------------------------------------------------------------
 ! Modified by: I. Kavcic, Met Office
 !
-!> @brief A module providing r_tran_operator-related classes.
+!> @brief A module providing r_phys field related classes.
 !>
-!> @details Implements the locally assembled operator (i.e. the stencil is
-!!          assembled in each cell of the 3D grid).
+!> @details This is a version of a field object that can hold r_phys data
+!> values. It contains both a representation of an r_phys field which provides
+!> no access to the underlying data (to be used in the algorithm layer) and an
+!> accessor class (to be used in the Psy layer) are provided.
 
-module r_tran_operator_mod
 
-  ! Eventually the precision of the operator will be set in a module held
+module r_phys_field_mod
+
+  ! Eventually the precision of the field data will be set in a module held
   ! within the model (as it is model information). For now, PSyclone is
-  ! expecting to "use" the definitions from operator_mod, so it is set here
-#if (R_TRAN_PRECISION == 32)
-  use operator_r32_mod, only: r_tran_operator_type => operator_r32_type, &
-                              r_tran_operator_proxy_type => operator_r32_proxy_type
-#else
-  use operator_r64_mod, only: r_tran_operator_type => operator_r64_type, &
-                              r_tran_operator_proxy_type => operator_r64_proxy_type
-#endif
+  ! expecting to "use" the definitions from field_mod, so it is set here
+
+
+
+
+
+  use field_r64_mod, only: r_phys_field_type         => field_r64_type, &
+                           r_phys_field_proxy_type   => field_r64_proxy_type, &
+                           r_phys_field_pointer_type => field_r64_pointer_type
+
 
   implicit none
-! Removing the following "private" statement is a workaround for a bug that
-! appeared in Intel v19. Every item in the module has an explicit access set,
-! so not setting the default has no effect. See ticket #3326 for details
-!  private
-  public :: r_tran_operator_type, r_tran_operator_proxy_type
+  private
 
-end module r_tran_operator_mod
+  public :: r_phys_field_type, &
+            r_phys_field_proxy_type, &
+            r_phys_field_pointer_type
+
+end module r_phys_field_mod
