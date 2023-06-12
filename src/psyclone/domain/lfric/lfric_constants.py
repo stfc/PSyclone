@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
-# Modified: I. Kavcic, Met Office
+# Modified: I. Kavcic and L, Turner, Met Office
 #           A. R. Porter, STFC Daresbury Laboratory
 #           R. W. Ford, STFC Daresbury Laboratory
 
@@ -78,12 +78,14 @@ class LFRicConstants():
 
         # Supported LFRic API argument types (scalars, fields, operators)
         LFRicConstants.VALID_SCALAR_NAMES = ["gh_scalar"]
+        LFRicConstants.VALID_ARRAY_NAMES = ["gh_array"]
         LFRicConstants.VALID_FIELD_NAMES = ["gh_field"]
         LFRicConstants.VALID_OPERATOR_NAMES = ["gh_operator",
                                                "gh_columnwise_operator"]
         LFRicConstants.VALID_ARG_TYPE_NAMES = \
             LFRicConstants.VALID_FIELD_NAMES + \
             LFRicConstants.VALID_OPERATOR_NAMES + \
+            LFRicConstants.VALID_ARRAY_NAMES + \
             LFRicConstants.VALID_SCALAR_NAMES
 
         # Supported API argument data types ('gh_real', 'gh_integer'
@@ -91,6 +93,8 @@ class LFRicConstants():
         LFRicConstants.VALID_ARG_DATA_TYPES = \
             ["gh_real", "gh_integer", "gh_logical"]
         LFRicConstants.VALID_SCALAR_DATA_TYPES = \
+            LFRicConstants.VALID_ARG_DATA_TYPES
+        LFRicConstants.VALID_ARRAY_DATA_TYPES = \
             LFRicConstants.VALID_ARG_DATA_TYPES
         LFRicConstants.VALID_FIELD_DATA_TYPES = ["gh_real", "gh_integer"]
         LFRicConstants.VALID_OPERATOR_DATA_TYPES = ["gh_real"]
@@ -100,6 +104,7 @@ class LFRicConstants():
         # Supported access types
         # gh_sum for scalars is restricted to iterates_over == 'dof'
         LFRicConstants.VALID_SCALAR_ACCESS_TYPES = ["gh_read", "gh_sum"]
+        LFRicConstants.VALID_ARRAY_ACCESS_TYPES = ["gh_read"]
         LFRicConstants.VALID_FIELD_ACCESS_TYPES = [
             "gh_read", "gh_write", "gh_readwrite", "gh_inc", "gh_readinc"]
         LFRicConstants.VALID_OPERATOR_ACCESS_TYPES = [
