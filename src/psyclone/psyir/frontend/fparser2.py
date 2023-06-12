@@ -42,7 +42,7 @@
 from collections import OrderedDict
 import os
 
-from fparser.two import C99Preprocessor, Fortran2003, utils
+from fparser.two import C99Preprocessor, Fortran2003, Fortran2008, utils
 from fparser.two.utils import walk, BlockBase, StmtBase
 
 from psyclone.configuration import Config
@@ -2177,6 +2177,36 @@ class Fparser2Reader():
                     self._process_decln(parent, parent.symbol_table, node,
                                         visibility_map)
                 except NotImplementedError:
+                    # PSyIR has failed to process the declaration. Try
+                    # to strip out known issues with processing to try
+                    # to capture what we can within an UnknownFortranType.
+                    node_string = str(node)
+                    # 1: remove any initialisation
+                    entity_decl_nodes = walk([node], Fortran2003.Entity_Decl)
+                    for entity_decl_node in entity_decl_nodes:
+                        if isinstance(entity_decl_node.children[3], Fortran2003.Initialization):
+                            entity_decl_node.items = (
+                                entity_decl_node.items[0], entity_decl_node.items[1],
+                                entity_decl_node.items[2], None)
+                    # 2: Remove any unsupported attributes
+                    UNSUPPORTED_ATTRIBUTE_NAMES = ["pointer", "target"]
+                    attr_spec_list = node.children[1]
+                    if attr_spec_list:
+                        entry_list = []
+                        for attr_spec in attr_spec_list.children:
+                            if str(attr_spec).lower() not in UNSUPPORTED_ATTRIBUTE_NAMES:
+                                entry_list.append(attr_spec)
+                        if not entry_list:
+                            node.items = (node.items[0], None, node.items[2])
+                        else:
+                            node.items[1].items = tuple(entry_list)
+                    # Try to parse again.
+                    tmp_symbol_table = SymbolTable()
+                    try:
+                        self._process_decln(parent, tmp_symbol_table, node,
+                                            visibility_map)
+                    except NotImplementedError:
+                        pass
                     # Found an unsupported variable declaration. Create a
                     # DataSymbol with UnknownType for each entity being
                     # declared. Currently this means that any symbols that come
@@ -2216,12 +2246,22 @@ class Fparser2Reader():
                         # possible that some may have already been processed
                         # successfully and thus be in the symbol table.
                         try:
+                            # See if it was possible to obtain additional
+                            # datatype information.
+                            try:
+                                datatype = tmp_symbol_table.lookup(
+                                    symbol_name).datatype
+                            except KeyError:
+                                datatype = None
                             parent.symbol_table.add(
-                                DataSymbol(symbol_name,
-                                           UnknownFortranType(str(node)),
-                                           interface=UnknownInterface(),
-                                           visibility=vis),
+                                DataSymbol(
+                                    symbol_name, UnknownFortranType(
+                                        node_string,
+                                        partial_datatype=datatype),
+                                    interface=UnknownInterface(),
+                                    visibility=vis),
                                 tag=tag)
+
                         except KeyError as err:
                             if len(orig_children) == 1:
                                 raise SymbolError(

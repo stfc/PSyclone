@@ -593,7 +593,8 @@ def test_unknown_fortran_type():
             "string but got an argument of type 'int'" in str(err.value))
     decl = "type(some_type) :: var"
     utype = UnknownFortranType(decl)
-    assert str(utype) == "UnknownFortranType('" + decl + "')"
+    assert str(utype) == (f"UnknownFortranType('{decl}', "
+                          f"partial_datatype='None')")
     assert utype.declaration == decl
 
 

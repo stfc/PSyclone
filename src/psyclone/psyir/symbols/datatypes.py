@@ -142,14 +142,15 @@ class UnknownFortranType(UnknownType):
     :param str declaration_txt: string containing the original variable \
                                 declaration.
     '''
-    def __init__(self, declaration_txt):
+    def __init__(self, declaration_txt, partial_datatype=None):
         super().__init__(declaration_txt)
         # This will hold the Fortran type specification (as opposed to
         # the whole declaration).
         self._type_text = ""
+        self._partial_datatype = partial_datatype
 
     def __str__(self):
-        return f"UnknownFortranType('{self._declaration}')"
+        return f"UnknownFortranType('{self._declaration}', partial_datatype='{self._partial_datatype}')"
 
     @property
     def declaration(self):
