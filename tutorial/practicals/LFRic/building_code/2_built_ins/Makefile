@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2022, Science and Technology Facilities Council.
+# Copyright (c) 2020-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -48,7 +48,7 @@ PSY_SRC = $(ALGORITHM_SRC:.f90=_psy.f90)
 PSYCLONE_CMD = -nodm -l all
 
 # Executable
-EXEC = builtins
+EXEC = ./builtins
 
 # LFRic infrastructure library
 PSYCLONE_RELPATH = ../../../../..
@@ -56,7 +56,7 @@ LFRIC_PATH = $(PSYCLONE_RELPATH)/src/psyclone/tests/test_files/dynamo0p3/infrast
 LFRIC_NAME=lfric
 LFRIC_LIB=$(LFRIC_PATH)/lib$(LFRIC_NAME).a
 
-# This will add the required include flags to F90FLAGS
+# This will add the required include flags to LFRIC_INCLUDE_FLAGS
 include $(LFRIC_PATH)/lfric_include_flags.inc
 
 # Object rules
@@ -68,25 +68,30 @@ EXAMPLE_OBJ = $(DRIVER_OBJ) $(ALGORITHM_OBJ) $(PSY_OBJ)
 # Targets
 .DEFAULT_GOAL := compile
 
-.PHONY: compile transform clean
+.PHONY: transform compile run clean allclean
 
 compile: transform $(EXEC)
 
+run: compile
+	$(EXEC)
+
 $(EXEC): $(LFRIC_LIB) $(EXAMPLE_OBJ)
-	$(F90) $(F90FLAGS) $(EXAMPLE_OBJ) -o $(EXEC) -L$(LFRIC_PATH) -l$(LFRIC_NAME)
+	$(F90) $(F90FLAGS) $(LFRIC_INCLUDE_FLAGS) $(EXAMPLE_OBJ) \
+	-o $(EXEC) -L$(LFRIC_PATH) -l$(LFRIC_NAME)
 
 $(LFRIC_LIB):
 	$(MAKE) -C $(LFRIC_PATH)
 
 # Dependencies
-$(DRIVER_OBJ): $(ALGORITHM_OBJ) $(PSY_OBJ)
-$(ALGORITHM_OBJ): $(PSY_OBJ)
+$(DRIVER_OBJ): $(ALGORITHM_OBJ) $(PSY_OBJ) $(LFRIC_LIB)
+$(ALGORITHM_OBJ): $(PSY_OBJ) $(LFRIC_LIB)
+$(PSY_OBJ): $(LFRIC_LIB)
 
 %.o %.mod: %.F90
-	$(F90) $(F90FLAGS) -c $<
+	$(F90) $(F90FLAGS) $(LFRIC_INCLUDE_FLAGS) -c $<
 
 %.o %.mod: %.f90
-	$(F90) $(F90FLAGS) -c $<
+	$(F90) $(F90FLAGS) $(LFRIC_INCLUDE_FLAGS) -c $<
 
 $(ALGORITHM_SRC): $(PSY_SRC)
 
@@ -102,4 +107,6 @@ transform: $(PSY_SRC) $(ALGORITHM_SRC)
 
 clean:
 	rm -f *.o *.mod $(EXEC) $(ALGORITHM_SRC) $(PSY_SRC)
+
+allclean: clean
 	make -C $(LFRIC_PATH) clean
