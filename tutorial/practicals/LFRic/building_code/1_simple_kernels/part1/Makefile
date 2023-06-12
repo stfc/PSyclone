@@ -109,7 +109,7 @@ $(ALGORITHM_SRC): $(PSY_SRC)
 	-opsy $*_psy.f90 -oalg $*.f90 $<
 
 clean:
-	$(MAKE) -C $(LFRIC_PATH) clean
+	rm -f *.o *.mod $(EXEC) $(ALGORITHM_SRC) $(PSY_SRC)
 
 allclean: clean
 	$(MAKE) -C $(LFRIC_PATH) allclean
