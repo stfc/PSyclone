@@ -140,3 +140,24 @@ end program test_assoc
                       Fortran2003.Associate_Construct)
     assert isinstance(routine.children[3], Assignment)
     assert isinstance(routine.children[4], CodeBlock)
+
+
+def test_associate_call(fortran_reader):
+    '''Test that a call to an impure routine results in the whole associate
+    construct being put in a CodeBlock.'''
+    code = '''
+program test_assoc
+  use grid_mod, only: grid, some_sub
+  real, dimension(10) :: var1
+  integer :: i
+  var1(:) = 10.0
+  associate(easy => grid)
+  call some_sub()
+  easy%data(:) = 0.0
+  end associate
+  i = 5
+end program test_assoc
+'''
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    assert isinstance(routine.children[1], CodeBlock)

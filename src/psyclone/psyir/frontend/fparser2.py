@@ -2733,6 +2733,24 @@ class Fparser2Reader():
 
     def _associate_construct_handler(self, node, parent):
         '''
+        Attempts to handle the supplied associate construct by substituting
+        the associate names with the corresponding expressions. There are
+        limitations to this approach:
+
+         * Since (in Fortran) the values of the expressions are captured on
+           *entry* to the construct, we cannot substitute the expressions if
+           any of their inputs are modified within the construct.
+         * Similarly, if there are any Calls to impure routines within the
+           construct then we cannot guarantee that they don't modify inputs
+           to the expressions.
+         * If any associate names appear within a CodeBlock then we cannot
+           perform the substitution.
+
+        The alternative is to do what Fortran does and evaluate the expressions
+        at the beginning of the construct and store the results. However, that
+        requires that we be able to determine the type of the result of the
+        expression (in order to declare a variable in which to store it.)
+
         :param node: node in fparser2 AST.
         :type node: :py:class:`fparser.two.Fortran2003.Associate_Construct`
         :param parent: parent node of the PSyIR node we are constructing.
@@ -2743,6 +2761,8 @@ class Fparser2Reader():
 
         :raises NotImplementedError: if any of the statements inside the
             associate construct result in a CodeBlock.
+        :raises NotImplementedError: if any Calls to impure routines are found
+            within the construct.
         :raises NotImplementedError: if the associate block writes to
             variables that are read in the associate statment since that
             prevents substitution of the expressions.
@@ -2809,19 +2829,25 @@ class Fparser2Reader():
                 f"writes to variables that are read in the ASSOCIATE "
                 f"statement: {intersect}")
 
-        # If the body of the Construct contains a CodeBlock that accesses one
-        # of the associate names then we cannot safely handle it and must put
-        # the whole Construct into a CodeBlock.
-        cblocks = fake_sched.walk(CodeBlock)
-        if cblocks:
-            for cblock in cblocks:
+        # If the body of the Construct contains a call to an impure routine or
+        # a CodeBlock that accesses one of the associate names then we cannot
+        # safely handle it and must put the whole Construct into a CodeBlock.
+        cblocks_or_calls = fake_sched.walk((CodeBlock, Call))
+        if cblocks_or_calls:
+            for cnode in cblocks_or_calls:
+                if isinstance(cnode, Call):
+                    # TODO #2165 - requires #2119 in order to check purity. We
+                    # could permit calls to pure functions.
+                    raise NotImplementedError(
+                        f"Cannot handle ASSOCIATE block containing a Call: "
+                        f"{cnode.debug_string}")
                 if any(sname in associate_map for sname
-                       in cblock.get_symbol_names()):
+                       in cnode.get_symbol_names()):
                     raise NotImplementedError(
                         f"Cannot handle an ASSOCIATE block because it contains"
                         f" a CodeBlock (beginning with "
-                        f"{cblock.get_ast_nodes[0]}) that references one of "
-                        f"the associate names: {cblock.get_symbol_names()}")
+                        f"{cnode.get_ast_nodes[0]}) that references one of "
+                        f"the associate names: {cnode.get_symbol_names()}")
 
         # Examine all the references in the block and replace those that
         # involve associate names.
