@@ -50,9 +50,9 @@ from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Routine, Call, Reference, Literal, \
     Assignment, IfBlock, ArrayReference, Schedule, BinaryOperation, \
     StructureReference, FileContainer, CodeBlock
-from psyclone.psyir.symbols import DataSymbol, RoutineSymbol, \
+from psyclone.psyir.symbols import ArrayType, DataSymbol, RoutineSymbol, \
     ContainerSymbol, UnknownFortranType, ArgumentInterface, ImportInterface, \
-    INTEGER_TYPE, CHARACTER_TYPE, ArrayType, BOOLEAN_TYPE, ScalarType
+    INTEGER_TYPE, CHARACTER_TYPE, BOOLEAN_TYPE, ScalarType
 from psyclone.transformations import TransformationError
 
 

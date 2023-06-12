@@ -88,8 +88,8 @@ class UnknownInterface(SymbolInterface):
 
 
 class CommonBlockInterface(SymbolInterface):
-    ''' All the CommonBlock symbols with the same name reference the same data
-    that is available during the whole execution of the program. '''
+    ''' A symbol declared in the local scope but acts as a global that
+    can be accessed by any scope referencing the same CommonBlock name.'''
 
     def __str__(self):
         return "CommonBlock"
