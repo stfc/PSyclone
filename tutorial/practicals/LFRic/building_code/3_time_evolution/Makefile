@@ -50,7 +50,7 @@ KERNEL_SRC = $(wildcard *_kernel_mod.f90)
 PSYCLONE_CMD = -nodm -l all
 
 # Executable
-EXEC = time_evolution
+EXEC = ./time_evolution
 
 # LFRic infrastructure library
 PSYCLONE_RELPATH = ../../../../..
