@@ -316,7 +316,7 @@ class LFRicArgDescriptor(Descriptor):
             raise ParseError(
                 f"In the LFRic API the 1st argument of a 'meta_arg' entry may "
                 f"be a field vector with format 'NRANKS*n' where n is an "
-                f"integer >= 1. However, found n = {vectsize} in '{arg_type}'.")
+                f"integer >= 1. However, found n = {arraysize} in '{arg_type}'.")
         # ... and set the array size if all checks pass
         self._array_size = arraysize
 
