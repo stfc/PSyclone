@@ -346,7 +346,6 @@ def test_arg_error(fortran_reader, arg):
                 "call argument 'alg' has been used as a routine name. This "
                 "is not allowed." in str(info.value))
     else:
-        print(info.value)
         assert (
             f"The arguments to this invoke call are expected to be kernel "
             f"calls which are represented in generic PSyIR as CodeBlocks "

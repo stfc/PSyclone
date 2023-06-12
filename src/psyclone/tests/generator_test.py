@@ -782,7 +782,6 @@ def test_generate_trans_error(tmpdir, capsys, monkeypatch):
         "alg.f90':\nTransformation Error: Error in RaisePSyIR2LFRicAlgTrans "
         "transformation. The invoke call argument 'setval_c' has been used as"
         " a routine name. This is not allowed.\n")
-    print(output)
     assert expected_output1 in output
     assert expected_output2 in output
 

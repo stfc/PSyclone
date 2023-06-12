@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2017-2021, Science and Technology Facilities Council
+.. Copyright (c) 2017-2023, Science and Technology Facilities Council
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -56,6 +56,13 @@ chooses.
           being passed to any Built-ins. The parser obtains this information
           from an API-specific file that contains the metadata for all
           Built-in operations supported for that API.
+
+.. note:: When a particular Built-in is used, the name of this
+          Built-in should not be used for anything else within the
+          same scope. For example, it is not valid to make use of a
+          Built-in called ``setval_c`` and for its parent subroutine
+          to also be called ``setval_c``. In this case PSyclone will
+          raise an exception.
 
 Example
 -------
