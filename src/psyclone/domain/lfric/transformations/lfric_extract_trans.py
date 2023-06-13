@@ -114,8 +114,8 @@ class LFRicExtractTrans(ExtractTrans):
         program. Then it will call apply of the base class.
 
         :param nodes: can be a single node or a list of nodes.
-        :type nodes: :py:obj:`psyclone.psyir.nodes.Node` or \
-                     List[:py:obj:`psyclone.psyir.nodes.Node`]
+        :type nodes: :py:class:`psyclone.psyir.nodes.Node` or \
+                     List[:py:class:`psyclone.psyir.nodes.Node`]
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
         :param str options["prefix"]: a prefix to use for the PSyData module \
@@ -147,11 +147,11 @@ class LFRicExtractTrans(ExtractTrans):
         region_name = self.get_unique_region_name(nodes, my_options)
         my_options["region_name"] = region_name
         my_options["prefix"] = my_options.get("prefix", "extract")
-        input_list, output_list = dep.get_in_out_parameters(nodes)
+        # Get the input- and output-parameters of the node list
+        read_write_info = dep.get_in_out_parameters(nodes)
         # Determine a unique postfix to be used for output variables
         # that avoid any name clashes
-        postfix = ExtractTrans.determine_postfix(input_list,
-                                                 output_list,
+        postfix = ExtractTrans.determine_postfix(read_write_info,
                                                  postfix="_post")
         my_options["post_var_postfix"] = postfix
 
@@ -159,10 +159,11 @@ class LFRicExtractTrans(ExtractTrans):
             # We need to create the driver before inserting the ExtractNode
             # (since some of the visitors used in driver creation do not
             # handle an ExtractNode in the tree)
-            self._driver_creator.write_driver(nodes,
-                                              input_list, output_list,
+            self._driver_creator.write_driver(nodes, read_write_info,
                                               postfix=postfix,
                                               prefix=my_options["prefix"],
                                               region_name=region_name)
-
+        # The PSyData transformation needs to pass this object to
+        # the corresponding PSyData node, so add it to the option arguments.
+        my_options["read_write_info"] = read_write_info
         super().apply(nodes, my_options)
