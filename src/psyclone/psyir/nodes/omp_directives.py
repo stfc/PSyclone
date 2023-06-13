@@ -668,11 +668,11 @@ class OMPParallelDirective(OMPRegionDirective):
         - Scalars that are read-only or written outside a loop are shared.
         - Scalars written in multiple iterations of a loop are private, unless:
           * there is a write-after-read dependency in a loop iteration,
-          in which case it is shared but needs synchronisation;
+          in this case they are shared but need synchronisation;
           * they are read before in the same parallel region (but not inside
-          the same loop), in which case it is firstprivate.
+          the same loop iteration), in this case they are firstprivate.
           * they are only conditionally written in some iterations;
-          which in both cases they are firstprivate.
+          in this case they are firstprivate.
 
         This method returns the sets of private, firstprivate, and shared but
         needing synchronisation symbols, all symbols not in these sets are
@@ -715,15 +715,11 @@ class OMPParallelDirective(OMPRegionDirective):
             if len(accesses) == 1:
                 continue
 
-            # We have at least two accesses.
-
-            # We consider private variables the
-            # ones that are written in every iteration of a loop. If one such
-            # scalar is read before it is written, it will be considered
-            # firstprivate.
-            # TODO: Needs improving
+            # We consider potential private variables the ones that are written
+            # in every iteration of a loop.
+            # If one such scalar is read before it is written, it will be
+            # considered firstprivate.
             has_been_read = False
-            # has_been_read = any(acesses.all_read_accesses())
             for access in accesses:
                 if access.access_type == AccessType.READ:
                     has_been_read = True
