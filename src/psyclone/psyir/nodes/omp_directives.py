@@ -515,8 +515,9 @@ class OMPParallelDirective(OMPRegionDirective):
                             sorted(fprivate, key=lambda x: x.name))
         if need_sync:
             raise GenerationError(
-                f"OpenMP parallel directive does not support symbols that "
-                f"need synchonisation, but found: {need_sync}")
+                f"OMPParallelDirective.gen_code() does not support symbols "
+                f"that need synchronisation, but found: "
+                f"{[x.name for x in need_sync]}")
 
         reprod_red_call_list = self.reductions(reprod=True)
         if reprod_red_call_list:
@@ -620,8 +621,9 @@ class OMPParallelDirective(OMPRegionDirective):
                             sorted(fprivate, key=lambda x: x.name))
         if need_sync:
             raise GenerationError(
-                f"OpenMP parallel directive does not support symbols that "
-                f"need synchonisation, but found: {need_sync}")
+                f"Lowering {type(self).__name__} does not support symbols that "
+                f"need synchronisation, but found: "
+                f"{[x.name for x in need_sync]}")
 
         self.addchild(private_clause)
         self.addchild(fprivate_clause)
@@ -1356,7 +1358,10 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         fprivate_clause = OMPFirstprivateClause.create(
                             sorted(fprivate, key=lambda x: x.name))
         if need_sync:
-            raise GenerationError("")
+            raise GenerationError(
+                f"OMPParallelDoDirective.gen_code() does not support symbols "
+                f"that need synchronisation, but found: "
+                f"{[x.name for x in need_sync]}")
 
         private_list = [child.symbol.name for child in private_clause.children]
         private_str = "private(" + ",".join(private_list) + ")"

@@ -69,9 +69,10 @@ GOCEAN_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                 "gocean1p0")
 
 
-def test_ompparallel_changes_begin_string(fortran_reader):
-    ''' Check that when the code inside an OMP Parallel region changes, the
-    parallel clause changes appropriately. '''
+def test_ompparallel_lowering(fortran_reader, monkeypatch):
+    ''' Check that lowering an OMP Parallel region leaves it with the
+    appropriate begin_string and clauses for the backend to generate
+    the right code'''
     code = '''
     subroutine my_subroutine()
         integer, dimension(320) :: A
@@ -101,7 +102,8 @@ def test_ompparallel_changes_begin_string(fortran_reader):
     assert isinstance(pdir.children[3], OMPFirstprivateClause)
     priv_clause = pdir.children[2]
 
-    # Make acopy of the loop
+    # If the code inside the region changes after lowering, the next lowering
+    # will update the clauses appropriately
     new_loop = pdir.children[0].children[0].children[0].children[0].copy()
     # Change the loop variable to j
     jvar = DataSymbol("j", INTEGER_SINGLE_TYPE)
@@ -112,10 +114,32 @@ def test_ompparallel_changes_begin_string(fortran_reader):
     pdir.lower_to_language_level()
     assert pdir.children[2] is not priv_clause
 
+    # Monkeypatch a case with private and firstprivate clauses
+    monkeypatch.setattr(pdir, "_infer_sharing_attributes",
+                        lambda: ({Symbol("a")}, {Symbol("b")}, None))
 
-def test_ompparallel_changes_gen_code(monkeypatch):
-    ''' Check that when the code inside an OMP Parallel region changes, the
-    private clause changes appropriately. '''
+    pdir.lower_to_language_level()
+    assert isinstance(pdir.children[2], OMPPrivateClause)
+    assert len(pdir.children[2].children) == 1
+    assert pdir.children[2].children[0].name == 'a'
+    assert isinstance(pdir.children[3], OMPFirstprivateClause)
+    assert len(pdir.children[3].children) == 1
+    assert pdir.children[3].children[0].name == 'b'
+
+    # Monkeypatch a case with shared variables that need synchronisation
+    monkeypatch.setattr(pdir, "_infer_sharing_attributes",
+                        lambda: ({}, {}, {Symbol("a")}))
+    with pytest.raises(GenerationError) as err:
+        pdir.lower_to_language_level()
+    assert ("Lowering OMPParallelDirective does not support symbols that "
+            "need synchronisation, but found: ['a']" in str(err.value))
+
+
+def test_ompparallel_gen_code_clauses(monkeypatch):
+    ''' Check that the OMP Parallel region clauses are generated
+    appropriately. '''
+
+    # Check with an LFRic kernel, the cell variable must be private
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke_w3.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
@@ -136,7 +160,8 @@ def test_ompparallel_changes_gen_code(monkeypatch):
     assert len(pdir.children) == 4
     assert "private(cell)" in code
 
-    # Make acopy of the loop
+    # Check that making a change (add private k variable) after the first
+    # time psy.gen is called recomputes the clauses attributes
     new_loop = pdir.children[0].children[0].children[0].children[0].copy()
     routine = pdir.ancestor(Routine)
     routine.symbol_table.add(DataSymbol("k", INTEGER_SINGLE_TYPE))
@@ -159,11 +184,20 @@ def test_ompparallel_changes_gen_code(monkeypatch):
     assert "private(a)" in code
     assert "firstprivate(b)" in code
 
+    # Monkeypatch a case with shared variables that need synchronisation
+    monkeypatch.setattr(pdir, "_infer_sharing_attributes",
+                        lambda: ({}, {}, {Symbol("a")}))
+    with pytest.raises(GenerationError) as err:
+        code = str(psy.gen).lower()
+    assert ("OMPParallelDirective.gen_code() does not support symbols that "
+            "need synchronisation, but found: ['a']" in str(err.value))
 
-def test_omp_paralleldo_changes_gen_code(monkeypatch):
-    ''' Check that when the code inside an OMP Parallel Do region changes, the
-    private clause changes appropriately. Also check that changing the schedule
-    is correctly picked up.'''
+
+def test_omp_paralleldo_clauses_gen_code(monkeypatch):
+    ''' Check that the OMP ParallelDo clauses are generated
+    appropriately. '''
+
+    # Check with an LFRic kernel, the cell variable must be private
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke_w3.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
@@ -180,7 +214,8 @@ def test_omp_paralleldo_changes_gen_code(monkeypatch):
     assert "schedule(auto)" in code
     assert "firstprivate" not in code
 
-    # Modify the loop
+    # Check that making a change (add private k variable) after the first
+    # time psy.gen is called recomputes the clauses attributes
     routine = pdir.ancestor(Routine)
     routine.symbol_table.add(DataSymbol("k", INTEGER_SINGLE_TYPE))
     # Change the loop variable to k
@@ -203,10 +238,19 @@ def test_omp_paralleldo_changes_gen_code(monkeypatch):
     assert "private(a)" in code
     assert "firstprivate(b)" in code
 
+    # Monkeypatch a case with shared variables that need synchronisation
+    monkeypatch.setattr(pdir, "_infer_sharing_attributes",
+                        lambda: ({}, {}, {Symbol("a")}))
+    with pytest.raises(GenerationError) as err:
+        code = str(psy.gen).lower()
+    assert ("OMPParallelDoDirective.gen_code() does not support symbols that "
+            "need synchronisation, but found: ['a']" in str(err.value))
 
-def test_omp_parallel_do_changes_begin_str(fortran_reader):
-    ''' Check that when the code inside an OMP Parallel Do region changes, the
-    private clause changes appropriately. '''
+
+def test_omp_parallel_do_lowering(fortran_reader, monkeypatch):
+    ''' Check that lowering an OMP Parallel Do leaves it with the
+    appropriate begin_string and clauses for the backend to generate
+    the right code'''
     code = '''
     subroutine my_subroutine()
         integer, dimension(321, 10) :: A
@@ -236,7 +280,8 @@ def test_omp_parallel_do_changes_begin_str(fortran_reader):
     fpriv_clause = pdir.children[3]
     sched_clause = pdir.children[4]
 
-    # Make acopy of the loop
+    # If the code inside the region changes after lowering, the next lowering
+    # will update the clauses appropriately
     routine = pdir.ancestor(Routine)
     routine.symbol_table.add(DataSymbol("k", INTEGER_SINGLE_TYPE))
     # Change the loop variable to j
@@ -253,6 +298,26 @@ def test_omp_parallel_do_changes_begin_str(fortran_reader):
     assert pdir.children[3] is not fpriv_clause
     assert pdir.children[4] is not sched_clause
     assert isinstance(pdir.children[4], OMPScheduleClause)
+
+    # Monkeypatch a case with private and firstprivate clauses
+    monkeypatch.setattr(pdir, "_infer_sharing_attributes",
+                        lambda: ({Symbol("a")}, {Symbol("b")}, None))
+
+    pdir.lower_to_language_level()
+    assert isinstance(pdir.children[2], OMPPrivateClause)
+    assert len(pdir.children[2].children) == 1
+    assert pdir.children[2].children[0].name == 'a'
+    assert isinstance(pdir.children[3], OMPFirstprivateClause)
+    assert len(pdir.children[3].children) == 1
+    assert pdir.children[3].children[0].name == 'b'
+
+    # Monkeypatch a case with shared variables that need synchronisation
+    monkeypatch.setattr(pdir, "_infer_sharing_attributes",
+                        lambda: ({}, {}, {Symbol("a")}))
+    with pytest.raises(GenerationError) as err:
+        pdir.lower_to_language_level()
+    assert ("Lowering OMPParallelDoDirective does not support symbols that "
+            "need synchronisation, but found: ['a']" in str(err.value))
 
 
 def test_omp_teams_distribute_parallel_do_strings(
