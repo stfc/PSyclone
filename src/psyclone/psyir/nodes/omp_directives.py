@@ -722,9 +722,11 @@ class OMPParallelDirective(OMPRegionDirective):
             # If one such scalar is read before it is written, it will be
             # considered firstprivate.
             has_been_read = False
+            last_read_position = 0
             for access in accesses:
                 if access.access_type == AccessType.READ:
                     has_been_read = True
+                    last_read_position = access.node.abs_position
 
                 if access.access_type == AccessType.WRITE:
                     # Check if the write access is inside a loop. If the write
@@ -761,7 +763,13 @@ class OMPParallelDirective(OMPRegionDirective):
                             include_self=True)
 
                         if has_been_read:
-                            need_sync.add(symbol)
+                            loop_pos = loop_ancestor.loop_body.abs_position
+                            if last_read_position > loop_pos:
+                                # It is read in the same loop_body, so it is
+                                # a race condition
+                                need_sync.add(symbol)
+                            else:
+                                fprivate.add(symbol)
                         elif conditional_write:
                             fprivate.add(symbol)
                         else:
