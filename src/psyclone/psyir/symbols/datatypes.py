@@ -147,10 +147,28 @@ class UnknownFortranType(UnknownType):
         # This will hold the Fortran type specification (as opposed to
         # the whole declaration).
         self._type_text = ""
+        if not isinstance(
+                partial_datatype, (type(None), DataType, DataTypeSymbol)):
+            raise TypeError(
+                f"partial_datatype argument in UnknownFortranType "
+                f"initialisation should be a DataType, DataTypeSymbol, or "
+                f"NoneType, but found '{type(partial_datatype).__name__}'.")
+        # This holds a subset of the type in a datatype if it is
+        # possible to determine enough information to create one.
         self._partial_datatype = partial_datatype
 
     def __str__(self):
-        return f"UnknownFortranType('{self._declaration}', partial_datatype='{self._partial_datatype}')"
+        return (f"UnknownFortranType('{self._declaration}', "
+                f"partial_datatype='{self._partial_datatype}')")
+
+    @property
+    def partial_datatype(self):
+        '''
+        :returns: partial datatype information if it can be determined, \
+            else None.
+        :rtype: Optional[:py:class:`psyclone.symbols.DataType`]
+        '''
+        return self._partial_datatype
 
     @property
     def declaration(self):

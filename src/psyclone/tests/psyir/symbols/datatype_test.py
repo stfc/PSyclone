@@ -593,9 +593,37 @@ def test_unknown_fortran_type():
             "string but got an argument of type 'int'" in str(err.value))
     decl = "type(some_type) :: var"
     utype = UnknownFortranType(decl)
+    assert utype._type_text == ""
+    assert utype._partial_datatype is None
     assert str(utype) == (f"UnknownFortranType('{decl}', "
                           f"partial_datatype='None')")
     assert utype.declaration == decl
+
+
+def test_unknown_fortran_type_optional_arg():
+    '''Check the optional 'partial_datatype' argument of the
+    UnknownFortranType class works as expected. Also check the getter
+    method and the string methods work as expected when
+    partial_datatype information is supplied.
+
+    '''
+    decl = "type(some_type) :: var"
+    with pytest.raises(TypeError) as err:
+        _ = UnknownFortranType(decl, partial_datatype="invalid")
+    assert ("partial_datatype argument in UnknownFortranType initialisation "
+            "should be a DataType, DataTypeSymbol, or NoneType, but found "
+            "'str'." in str(err.value))
+    utype = UnknownFortranType(decl, partial_datatype=None)
+    assert utype._partial_datatype is None
+    assert utype.partial_datatype is None
+
+    utype = UnknownFortranType(
+        decl, partial_datatype=DataTypeSymbol("some_type", DeferredType()))
+    assert isinstance(utype._partial_datatype, DataTypeSymbol)
+    assert isinstance(utype.partial_datatype, DataTypeSymbol)
+    assert utype.partial_datatype.name == "some_type"
+    assert str(utype) == (f"UnknownFortranType('{decl}', "
+                          f"partial_datatype='some_type: DataTypeSymbol')")
 
 
 def test_unknown_fortran_type_text():
