@@ -1816,7 +1816,9 @@ def test_dynkernelargument_idtp_vector_field():
 
 @pytest.mark.parametrize("filename,kind_name", [
     ("26.6.2_mixed_precision_rsolver_vector.f90", "r_solver"),
-    ("26.6.3_mixed_precision_rtran_vector.f90", "r_tran")])
+    ("26.6.3_mixed_precision_rtran_vector.f90", "r_tran"),
+    ("26.6.4_mixed_precision_rbl_vector.f90", "r_bl"),
+    ("26.6.5_mixed_precision_rphys_vector.f90", "r_phys")])
 def test_dynkernelargument_idtp_vector_field_kind(filename, kind_name):
     '''Test the '_init_data_type_properties' method in the
     DynKernelArgument class for a field that is part of a
@@ -4336,13 +4338,19 @@ def test_mixed_precision_args(tmpdir):
         api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
+
     expected = (
-        "    USE constants_mod, ONLY: r_tran, r_solver, r_def, i_def\n"
+        "    USE constants_mod, ONLY: r_tran, r_solver, r_phys, r_def, "
+        "r_bl, i_def\n"
         "    USE field_mod, ONLY: field_type, field_proxy_type\n"
         "    USE r_solver_field_mod, ONLY: r_solver_field_type, "
         "r_solver_field_proxy_type\n"
         "    USE r_tran_field_mod, ONLY: r_tran_field_type, "
         "r_tran_field_proxy_type\n"
+        "    USE r_bl_field_mod, ONLY: r_bl_field_type, "
+        "r_bl_field_proxy_type\n"
+        "    USE r_phys_field_mod, ONLY: r_phys_field_type, "
+        "r_phys_field_proxy_type\n"
         "    USE operator_mod, ONLY: operator_type, operator_proxy_type\n"
         "    USE r_solver_operator_mod, ONLY: r_solver_operator_type, "
         "r_solver_operator_proxy_type\n"
@@ -4352,19 +4360,26 @@ def test_mixed_precision_args(tmpdir):
         "    CONTAINS\n"
         "    SUBROUTINE invoke_0(scalar_r_def, field_r_def, operator_r_def, "
         "scalar_r_solver, field_r_solver, operator_r_solver, scalar_r_tran, "
-        "field_r_tran, operator_r_tran)\n"
-        "      USE mixed_mod, ONLY: mixed_code\n"
+        "field_r_tran, operator_r_tran, scalar_r_bl, field_r_bl, "
+        "scalar_r_phys, field_r_phys)\n"
+        "      USE mixed_kernel_mod, ONLY: mixed_code\n"
         "      USE mesh_mod, ONLY: mesh_type\n"
         "      REAL(KIND=r_def), intent(in) :: scalar_r_def\n"
         "      REAL(KIND=r_solver), intent(in) :: scalar_r_solver\n"
         "      REAL(KIND=r_tran), intent(in) :: scalar_r_tran\n"
+        "      REAL(KIND=r_bl), intent(in) :: scalar_r_bl\n"
+        "      REAL(KIND=r_phys), intent(in) :: scalar_r_phys\n"
         "      TYPE(field_type), intent(in) :: field_r_def\n"
         "      TYPE(r_solver_field_type), intent(in) :: field_r_solver\n"
         "      TYPE(r_tran_field_type), intent(in) :: field_r_tran\n"
+        "      TYPE(r_bl_field_type), intent(in) :: field_r_bl\n"
+        "      TYPE(r_phys_field_type), intent(in) :: field_r_phys\n"
         "      TYPE(operator_type), intent(in) :: operator_r_def\n"
         "      TYPE(r_solver_operator_type), intent(in) :: operator_r_solver\n"
         "      TYPE(r_tran_operator_type), intent(in) :: operator_r_tran\n"
         "      INTEGER(KIND=i_def) cell\n"
+        "      INTEGER(KIND=i_def) loop4_start, loop4_stop\n"
+        "      INTEGER(KIND=i_def) loop3_start, loop3_stop\n"
         "      INTEGER(KIND=i_def) loop2_start, loop2_stop\n"
         "      INTEGER(KIND=i_def) loop1_start, loop1_stop\n"
         "      INTEGER(KIND=i_def) loop0_start, loop0_stop\n"
@@ -4372,6 +4387,8 @@ def test_mixed_precision_args(tmpdir):
         "      TYPE(r_tran_operator_proxy_type) operator_r_tran_proxy\n"
         "      TYPE(r_solver_operator_proxy_type) operator_r_solver_proxy\n"
         "      TYPE(operator_proxy_type) operator_r_def_proxy\n"
+        "      TYPE(r_phys_field_proxy_type) field_r_phys_proxy\n"
+        "      TYPE(r_bl_field_proxy_type) field_r_bl_proxy\n"
         "      TYPE(r_tran_field_proxy_type) field_r_tran_proxy\n"
         "      TYPE(r_solver_field_proxy_type) field_r_solver_proxy\n"
         "      TYPE(field_proxy_type) field_r_def_proxy\n"

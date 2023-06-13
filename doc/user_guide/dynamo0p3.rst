@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2017-2022, Science and Technology Facilities Council
+.. Copyright (c) 2017-2023, Science and Technology Facilities Council
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -411,6 +411,10 @@ associated kernel metadata description and their precision:
 +==========================+=================================+===========+
 | REAL(R_DEF)              | GH_SCALAR, GH_REAL              | R_DEF     |
 +--------------------------+---------------------------------+-----------+
+| REAL(R_BL)               | GH_SCALAR, GH_REAL              | R_BL      |
++--------------------------+---------------------------------+-----------+
+| REAL(R_PHYS)             | GH_SCALAR, GH_REAL              | R_PHYS    |
++--------------------------+---------------------------------+-----------+
 | REAL(R_SOLVER)           | GH_SCALAR, GH_REAL              | R_SOLVER  |
 +--------------------------+---------------------------------+-----------+
 | REAL(R_TRAN)             | GH_SCALAR, GH_REAL              | R_TRAN    |
@@ -420,6 +424,10 @@ associated kernel metadata description and their precision:
 | LOGICAL(L_DEF)           | GH_SCALAR, GH_LOGICAL           | L_DEF     |
 +--------------------------+---------------------------------+-----------+
 | FIELD_TYPE               | GH_FIELD, GH_REAL               | R_DEF     |
++--------------------------+---------------------------------+-----------+
+| R_BL_FIELD_TYPE          | GH_FIELD, GH_REAL               | R_BL      |
++--------------------------+---------------------------------+-----------+
+| R_PHYS_FIELD_TYPE        | GH_FIELD, GH_REAL               | R_PHYS    |
 +--------------------------+---------------------------------+-----------+
 | R_SOLVER_FIELD_TYPE      | GH_FIELD, GH_REAL               | R_SOLVER  |
 +--------------------------+---------------------------------+-----------+
@@ -530,6 +538,8 @@ layer. The rules for whether PSyclone requires information for
 particular LFRic datatypes and what it does with or without this
 information are given below:
 
+.. _lfric-mixed-precision-fields:
+
 Fields
 ++++++
 
@@ -537,21 +547,61 @@ PSyclone must be able to determine the datatype of a field from the
 algorithm layer declarations. If it is not able to do this, PSyclone
 will abort with a message that indicates the problem.
 
-Supported field types are ``field_type`` (which contains ``real``-valued
-data with precision ``r_def``), ``r_solver_field_type`` (which contains
-``real``-valued data with precision ``r_solver``), ``r_tran_field_type``
-(which contains ``real``-valued data with precision ``r_tran``) and
-``integer_field_type`` (which contains ``integer``-valued data with
-precision ``i_def``).
+Supported field types, their Fortran datatype and precisions are
+outlined in the table below:
+
+.. tabularcolumns:: |l|l|l|
+
++-------------------------+------------------+--------------+
+| Field Type              | Fortran Datatype | Precision    |
++=========================+==================+==============+
+| ``field_type``          | ``real``         | ``r_def``    |
++-------------------------+------------------+--------------+
+| ``r_bl_field_type``     | ``real``         | ``r_bl``     |
++-------------------------+------------------+--------------+
+| ``r_phys_field_type``   | ``real``         | ``r_phys``   |
++-------------------------+------------------+--------------+
+| ``r_solver_field_type`` | ``real``         | ``r_solver`` |
++-------------------------+------------------+--------------+
+| ``r_tran_field_type``   | ``real``         | ``r_tran``   |
++-------------------------+------------------+--------------+
+| ``integer_field_type``  | ``integer``      | ``i_def``    |
++-------------------------+------------------+--------------+
+
+.. _lfric-mixed-precision-field-vectors:
 
 Field Vectors
 +++++++++++++
 
-If PSyclone finds an argument that is declared as a
-``field_vector_type``, ``r_solver_field_vector_type`` or
-``r_tran_field_vector_type`` it will assume that the actual field
-being referenced is of type ``field_type``, ``r_solver_field_type``,
-or ``r_tran_field_type`` respectively.
+In addition to fields, LFRic supports an abstract vector type for fields,
+used in the LFRic solver API. Please note that these structures are
+different from the :ref:`field vector <lfric-field-vector>` implementation
+of field bundles in the PSyclone LFRic API interface.
+
+The LFRic abstract vector type has precision-specific implementations.
+If PSyclone finds such a specifically declared field vector argument in the
+algorithm layer, e.g. ``r_solver_field_vector_type``, it will assume that
+the actual field being referenced is of the same datatype and precision
+(see :ref:`above <lfric-mixed-precision-fields>` for details).
+The correspondence between the available field types and their vector
+implementations is given in the table below (note that only
+``real``-valued fields have abstract vector implementations for now):
+
+.. tabularcolumns:: |l|l|
+
++-------------------------+--------------------------------+
+| Field Type              | Field Vector Type              |
++=========================+================================+
+| ``field_type``          | ``field_vector_type``          |
++-------------------------+--------------------------------+
+| ``r_bl_field_type``     | ``r_bl_field_vector_type``     |
++-------------------------+--------------------------------+
+| ``r_phys_field_type``   | ``r_phys_field_vector_type``   |
++-------------------------+--------------------------------+
+| ``r_solver_field_type`` | ``r_solver_field_vector_type`` |
++-------------------------+--------------------------------+
+| ``r_tran_field_type``   | ``r_tran_field_vector_type``   |
++-------------------------+--------------------------------+
 
 If PSyclone finds an argument that is declared as an
 ``abstract_field_type`` then it will not know the actual type of the
@@ -586,6 +636,8 @@ with the argument and passed into the routine::
     end select
     ! ...
 
+.. _lfric-mixed-precision-scalars:
+
 Scalars
 +++++++
 
@@ -605,11 +657,24 @@ no declaration information is found then default precision values are
 used, as specified in the PSyclone config file (``r_def`` for ``real``,
 ``i_def`` for ``integer`` and ``l_def`` for ``logical``).
 
-Supported precisions for scalars are ``r_def``, ``r_solver`` and
-``r_tran`` for ``real``-valued data, ``i_def`` for ``integer``-valued
-data and ``l_def`` for ``logical``-valued data. If an unsupported
-scalar precision is found then PSyclone will abort with a message that
-indicates the problem.
+Supported precisions for scalars are outlined in the table below. If
+an unsupported scalar precision is found then PSyclone will abort with
+a message that indicates the problem.
+
+.. tabularcolumns:: |l|l|
+
++------------------+----------------------------------+
+| Fortran Datatype | Supported Precision              |
++==================+==================================+
+| ``real``         | ``r_def``, ``r_bl``, ``r_phys``, |
+|                  | ``r_solver``, ``r_tran``         |
++------------------+----------------------------------+
+| ``integer``      | ``i_def``                        |
++------------------+----------------------------------+
+| ``logical``      | ``l_def``                        |
++------------------+----------------------------------+
+
+.. _lfric-mixed-precision-lma-operators:
 
 LMA Operators
 +++++++++++++
@@ -618,11 +683,22 @@ PSyclone must be able to determine the datatype of an LMA operator.
 If it is not able to do this, PSyclone will abort with a message that
 indicates the problem.
 
-Supported LMA Operator types are ``operator_type`` (which contains
-``real``-valued data with precision ``r_def``), ``r_solver_operator_type``
-(which contains ``real``-valued data with precision ``r_solver``) and
-``r_tran_operator_type`` (which contains ``real``-valued data with
-precision ``r_tran``).
+Supported LMA operator types, their Fortran datatype and precisions are
+outlined in the table below:
+
+.. tabularcolumns:: |l|l|l|
+
++----------------------------+------------------+--------------+
+| Operator Type              | Fortran Datatype | Precision    |
++============================+==================+==============+
+| ``operator_type``          | ``real``         | ``r_def``    |
++----------------------------+------------------+--------------+
+| ``r_solver_operator_type`` | ``real``         | ``r_solver`` |
++----------------------------+------------------+--------------+
+| ``r_tran_operator_type``   | ``real``         | ``r_tran``   |
++----------------------------+------------------+--------------+
+
+.. _lfric-mixed-precision-cma-operators:
 
 Column-wise Operators
 +++++++++++++++++++++
@@ -635,6 +711,8 @@ simply add this datatype in the PSy-layer. However, if the datatype
 information is found in the algorithm layer and it is not of the
 expected type then PSyclone will abort with a message that indicates
 the problem.
+
+.. _lfric-mixed-precision-consistency:
 
 Consistency
 +++++++++++
@@ -2617,12 +2695,11 @@ As described :ref:`above <lfric-built-ins-dtype-access>`, Built-ins that
 operate on ``real``-valued fields mandate ``GH_REAL`` as the kernel
 metadata for fields and scalars.
 
-The precision of fields and scalars, however, is determined by the algorithm
-layer via precision variables as described in the :ref:`Mixed Precision
-<lfric-mixed-precision>` section. Fields can be of ``field_type`` with
-``r_def`` precision, ``r_solver_field_type`` with ``r_solver`` precision
-and ``r_tran_field_type`` with ``r_tran`` precision. ``real`` scalars
-can have ``r_def``, ``r_solver`` and ``r_tran`` precision.
+The precision of fields and scalars, however, is determined by the
+algorithm layer via precision variables as described in the :ref:`Mixed
+Precision <lfric-mixed-precision>` section (see subsections on
+:ref:`fields <lfric-mixed-precision-fields>` and
+:ref:`scalars <lfric-mixed-precision-scalars>`).
 
 For instance, field and scalar declarations for the ``aX_plus_Y``
 Built-in that operates on ``r_solver_field_type`` and uses ``r_solver``
