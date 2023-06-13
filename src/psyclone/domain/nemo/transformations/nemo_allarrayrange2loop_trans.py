@@ -102,6 +102,11 @@ class NemoAllArrayRange2LoopTrans(Transformation):
             transformations. No options are used in this \
             transformation. This is an optional argument that defaults \
             to None.
+        :param bool options["verbose"]: whether to print out the reason \
+                why the inner transformation was not applied. This is \
+                useful because the transfomation is successful at the
+                first TransformationError, but the reason gets lost because \
+                the error is not propagated.
         :type options: Optional[Dict[str, Any]]
 
         '''
@@ -112,12 +117,15 @@ class NemoAllArrayRange2LoopTrans(Transformation):
             while True:
                 trans.apply(node)
         except TransformationError as err:
-            errmsg = str(err)
-            if "assignment node should be an expression with an array " \
-               "that has a Range node" not in errmsg and \
-               "be a Reference that contains an array access somewhere" \
-               not in errmsg:
-                print(errmsg)
+            if options and options.get("verbose", False):
+                errmsg = str(err)
+                # Skip the errors that are obious and are generated for any
+                # statement that is not an array expression
+                if "assignment node should be an expression with an array " \
+                   "that has a Range node" not in errmsg and \
+                   "be a Reference that contains an array access somewhere" \
+                   not in errmsg:
+                    print(errmsg)
 
     def __str__(self):
         return ("Convert all array ranges in a PSyIR assignment into "

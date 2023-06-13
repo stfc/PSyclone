@@ -573,7 +573,7 @@ def test_scalar_parallelise(declaration, variable, fortran_reader):
                  end program test'''
     psyir = fortran_reader.psyir_from_source(source)
     loops = psyir.children[0].children
-    dep_tools = DependencyTools(language_writer=FortranWriter())
+    dep_tools = DependencyTools()
 
     jj_symbol = psyir.children[0].scope.symbol_table.lookup("jj")
 

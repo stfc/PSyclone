@@ -371,7 +371,7 @@ class FortranWriter(LanguageWriter):
         # also uses this Fortran backend.
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.tools import DependencyTools
-        self._dep_tools = DependencyTools(language_writer=self)
+        self._dep_tools = DependencyTools()
 
     @staticmethod
     def _reverse_map(reverse_dict, op_map):

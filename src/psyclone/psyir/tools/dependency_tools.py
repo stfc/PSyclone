@@ -136,17 +136,11 @@ class DependencyTools():
         specified in the PSyclone config file. This can be used to\
         exclude for example 1-dimensional loops.
     :type loop_types_to_parallelise: Optional[List[str]]
-    :param language_writer: a backend visitor to convert PSyIR expressions \
-        to a representation in the selected language. This is used for \
-        creating error and warning messages.
-    :type language_writer: \
-        Optional[:py:class:`psyclone.psyir.backend.visitor.PSyIRVisitor`]
 
     :raises TypeError: if an invalid loop type is specified.
 
     '''
-    def __init__(self, loop_types_to_parallelise=None,
-                 language_writer=None):
+    def __init__(self, loop_types_to_parallelise=None):
         if loop_types_to_parallelise:
             # Verify that all loop types specified are valid:
             config = Config.get()
@@ -162,10 +156,6 @@ class DependencyTools():
             self._loop_types_to_parallelise = loop_types_to_parallelise[:]
         else:
             self._loop_types_to_parallelise = []
-        if not language_writer:
-            self._language_writer = FortranWriter()
-        else:
-            self._language_writer = language_writer
         self._clear_messages()
 
     # -------------------------------------------------------------------------
