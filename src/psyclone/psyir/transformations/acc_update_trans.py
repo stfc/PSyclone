@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter and N. Nobre, STFC Daresbury Lab
 # Modified: R. W. Ford, STFC Daresbury Lab
+# Modified: J. Henrichs, Bureau of Meteorology
 
 '''
 This module provides the ACCUpdateTrans transformation that, on programs that
@@ -224,6 +225,7 @@ class ACCUpdateTrans(Transformation):
     # pylint: disable=too-many-locals
     # pylint: disable=too-many-branches
     def _add_update_directives(self, node_list):
+        # pylint: disable=too-many-locals, too-many-branches
         '''
         Adds the required OpenACC update directives before and after the nodes
         in the supplied list.
@@ -238,8 +240,9 @@ class ACCUpdateTrans(Transformation):
 
         # TODO #1872: the lack of precise array access descriptions might
         # unnecessarily increase the data transfer volume.
-        inputs, outputs = DependencyTools().get_in_out_parameters(node_list)
-        inputs, outputs = set(inputs), set(outputs)
+        read_write_info = DependencyTools().get_in_out_parameters(node_list)
+        inputs = set(read_write_info.signatures_read)
+        outputs = set(read_write_info.signatures_written)
 
         # TODO #1872: as a workaround for the lack of precise array access
         # descriptions, we currently overapproximate dependencies by adding any

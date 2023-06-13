@@ -10,7 +10,7 @@
 !-----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2017-2022, Science and Technology Facilities
+! Modifications copyright (c) 2017-2023, Science and Technology Facilities
 ! Council
 ! All rights reserved.
 !
@@ -59,9 +59,10 @@ module constants_mod
             i_timestep, i_um, i_ncdf,                                    &
             l_def, l_native,                                             &
             r_def, r_double, r_ncdf, r_native, r_second, r_single, r_um, &
-            r_solver, r_tran,                                            &
+            r_solver, r_tran, r_bl, r_phys,                              &
             CMDI, UNSET_KEY, EMDI, IMDI, RMDI,                           &
             real_type, r_solver_real_type, r_tran_real_type,             &
+            r_bl_real_type, r_phys_real_type,                            &
             integer_type, logical_type,                                  &
             EPS, tiny_eps,                                               &
             str_def, str_long, str_max_filename, str_short,              &
@@ -69,7 +70,8 @@ module constants_mod
             LARGE_REAL_NEGATIVE, LARGE_REAL_POSITIVE,                    &
             xios_max_int, PI, degrees_to_radians, radians_to_degrees,    &
             cache_block, PRECISION_REAL, PRECISION_R_SOLVER,             &
-            PRECISION_R_TRAN
+            PRECISION_R_TRAN, EPS_R_TRAN,                                &
+            PRECISION_R_BL, PRECISION_R_PHYS
 
   ! Define default application-defined kinds for all intrinsic data types
 
@@ -114,9 +116,29 @@ module constants_mod
   character(3), parameter :: PRECISION_R_TRAN = '64'
 
 
+  ! Default real kind for r_bl.
+
+
+
+
+  integer,      parameter :: r_bl = real64
+  character(3), parameter :: PRECISION_R_BL = '64'
+
+
+  ! Default real kind for r_phys.
+
+
+
+
+  integer,      parameter :: r_phys = real64
+  character(3), parameter :: PRECISION_R_PHYS = '64'
+
+
   integer, parameter :: real_type          = 1 !< A parameter used to indicate a real data typa
   integer, parameter :: r_solver_real_type = 1 !< A parameter used to indicate a r_solver data type
   integer, parameter :: r_tran_real_type   = 1 !< A parameter used to indicate a r_tran data type
+  integer, parameter :: r_bl_real_type     = 1 !< A parameter used to indicate a r_bl data type
+  integer, parameter :: r_phys_real_type   = 1 !< A parameter used to indicate a r_phys data type
   integer, parameter :: integer_type       = 2 !< A parameter used to indicate an integer data type
   integer, parameter :: logical_type       = 3 !< A parameter used to indicate a logical data type
 
@@ -195,9 +217,13 @@ module constants_mod
 
   !> @name Numerical constants
   !> @{
-  real(kind=r_def), parameter :: EPS = 3.0e-15_r_def      !< Relative precision: if (abs(x-y) > EPS) then assume x==y.
-  real(kind=r_def), parameter :: tiny_eps = 1.0e-30_r_def !< Similar to EPS but lot smaller, which can be used where
-  !<                             x/y < EPS but (x-y) is not considered to be zero like many chemistry tracers.
+  real(kind=r_def), parameter  :: EPS = 3.0e-15_r_def
+  !<                              Relative precision: if (abs(x-y) < EPS) then assume x==y.
+  real(kind=r_tran), parameter :: EPS_R_TRAN = 3.0e-15_r_def
+  !<                              Relative precision: if (abs(x-y) < EPS_R_TRAN) then assume x==y.
+  real(kind=r_tran), parameter :: tiny_eps = 1.0e-30_r_tran
+  !<                              Similar to EPS but lot smaller, which can be used where
+  !<                              x/y < EPS but (x-y) is not considered to be zero like many chemistry tracers.
   !> @}
 
   !> @name Mathematical constants

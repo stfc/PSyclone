@@ -38,7 +38,6 @@
 ''' This module provides tools that are based on the code
     dependency analysis.'''
 
-from __future__ import absolute_import, print_function
 from enum import IntEnum
 
 import sympy
@@ -51,6 +50,7 @@ from psyclone.psyir.nodes import Loop
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.backend.sympy_writer import SymPyWriter
 from psyclone.psyir.backend.visitor import VisitorError
+from psyclone.psyir.tools.read_write_info import ReadWriteInfo
 
 
 class DTCode(IntEnum):
@@ -812,11 +812,14 @@ class DependencyTools():
         return result
 
     # -------------------------------------------------------------------------
-    def get_input_parameters(self, node_list, variables_info=None,
-                             options=None):
-        '''Return all variables that are input parameters, i.e. are
-        read (before potentially being written).
+    def get_input_parameters(self, read_write_info, node_list,
+                             variables_info=None, options=None):
+        '''Adds all variables that are input parameters (i.e. are read before
+        potentially being written) to the read_write_info object.
 
+        :param read_write_info: this object stores the information about \
+            all input parameters.
+        :type read_write_info: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
         :param node_list: list of PSyIR nodes to be analysed.
         :type node_list: List[:py:class:`psyclone.psyir.nodes.Node`]
         :param variables_info: optional variable usage information, \
@@ -832,33 +835,28 @@ class DependencyTools():
             PSyIR operators lbound, ubound, or size will be reported as \
             'read'. Otherwise, these accesses will be ignored.
 
-        :returns: a list of all variable signatures that are read.
-        :rtype: List[:py:class:`psyclone.core.Signature`]
-
         '''
         # Collect the information about all variables used:
         if not variables_info:
             variables_info = VariablesAccessInfo(node_list, options=options)
 
-        input_list = []
         for signature in variables_info.all_signatures:
-            # Take the first access (index 0) of this variable. Note that
-            # loop variables have a WRITE before a READ access, so they
-            # will be ignored
-            first_access = variables_info[signature][0]
             # If the first access is a write, the variable is not an input
-            # parameter and does not need to be saved.
-            if first_access.access_type != AccessType.WRITE:
-                input_list.append(signature)
-
-        return input_list
+            # parameter and does not need to be saved. Note that loop variables
+            # have a WRITE before a READ access, so they will be ignored
+            # automatically.
+            if not variables_info[signature].is_written_first():
+                read_write_info.add_read(signature)
 
     # -------------------------------------------------------------------------
-    def get_output_parameters(self, node_list, variables_info=None,
-                              options=None):
-        '''Return all variables that are output parameters, i.e. are
-        written.
+    def get_output_parameters(self, read_write_info, node_list,
+                              variables_info=None, options=None):
+        '''Adds all variables that are output parameters (i.e. are written)
+        to the read_write_info object.
 
+        :param read_write_info: this object stores the information about \
+            output parameters.
+        :type read_write_info: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
         :param node_list: list of PSyIR nodes to be analysed.
         :type node_list: List[:py:class:`psyclone.psyir.nodes.Node`]
         :param variables_info: optional variable usage information, \
@@ -874,23 +872,21 @@ class DependencyTools():
             PSyIR operators lbound, ubound, or size will be reported as \
             'read'. Otherwise, these accesses will be ignored.
 
-        :returns: a list of all variable signatures that are written.
-        :rtype: List[:py:class:`psyclone.core.Signature`]
-
         '''
         # Collect the information about all variables used:
         if not variables_info:
             variables_info = VariablesAccessInfo(node_list, options=options)
 
-        return [signature for signature in variables_info.all_signatures
-                if variables_info.is_written(signature)]
+        for signature in variables_info.all_signatures:
+            if variables_info.is_written(signature):
+                read_write_info.add_write(signature)
 
     # -------------------------------------------------------------------------
     def get_in_out_parameters(self, node_list, options=None):
-        '''Return a 2-tuple of lists that contains all variables that are input
-        parameters (first entry) and output parameters (second entry).
-        This function calls get_input_parameter and get_output_parameter,
-        but avoids the repeated computation of the variable usage.
+        '''Returns a ReadWriteInfo object that contains all variables that are
+        input and output parameters to the specified node list. This function
+        calls `get_input_parameter` and `get_output_parameter`, but avoids the
+        repeated computation of the variable usage.
 
         :param node_list: list of PSyIR nodes to be analysed.
         :type node_list: List[:py:class:`psyclone.psyir.nodes.Node`]
@@ -903,12 +899,13 @@ class DependencyTools():
             PSyIR operators lbound, ubound, or size will be reported as \
             'read'. Otherwise, these accesses will be ignored.
 
-        :returns: a 2-tuple of two lists, the first one containing \
-            the input parameters, the second the output parameters.
-        :rtype: Tuple[List[:py:class:`psyclone.core.Signature`],
-                      List[:py:class:`psyclone.core.Signature`]]
+        :returns: a ReadWriteInfo object with the information about input- \
+            and output parameters.
+        :rtype: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
 
         '''
         variables_info = VariablesAccessInfo(node_list, options=options)
-        return (self.get_input_parameters(node_list, variables_info),
-                self.get_output_parameters(node_list, variables_info))
+        read_write_info = ReadWriteInfo()
+        self.get_input_parameters(read_write_info, node_list, variables_info)
+        self.get_output_parameters(read_write_info, node_list, variables_info)
+        return read_write_info
