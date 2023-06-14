@@ -1,5 +1,5 @@
 # Makefile to Generate PSyclone versions of NEMO, Compile, and Run them.
-# It supports the targets: serial, openmp-cpu, openmp-gpu, openacc-kernels, openacc-loops
+# It supports the targets: serial (only compile), openmp-cpu, openmp-gpu, openacc-kernels
 # - To generate the psycloned versions use: `make <target>` 
 # - To compile that version use: `make compile-<target>`
 # - To run that version use: `make run-<target>`
@@ -49,11 +49,11 @@ OUTPUT_FOLDERS := $(addprefix psycloned-, ${TARGETS})
 .PHONY: clean
 
 # Generate PSycloned folders
-
 $(OUTPUT_FOLDERS):
 	@echo "Creating folder $@"
 	mkdir $@
 
+# PSyclone targets (process all the f90 files in ${ROOT_SRC})
 $(TARGETS): % : $(addprefix psycloned-%/, $(notdir $(SRC_FILES)))
 	@echo "Finished generating $@"
 
@@ -67,16 +67,13 @@ psycloned-openmp_gpu/%.f90: ${ROOT_SRC}%.f90 psycloned-openmp_gpu
 psycloned-openacc_kernels/%.f90: ${ROOT_SRC}%.f90 psycloned-openacc_kernels
 	${PSYCLONE_NEMO_DIR}/process_nemo.py -s ${PSYCLONE_NEMO_DIR}/kernels_trans.py -I ${ROOT_SRC} -o psycloned-openacc_kernels $<
 
-psycloned-openacc_loops/%.f90: ${ROOT_SRC}%.f90 psycloned-openacc_loops
-	${PSYCLONE_NEMO_DIR}/process_nemo.py -s ${PSYCLONE_NEMO_DIR}/acc_explicit_loops_trans.py -I ${ROOT_SRC} -o psycloned-openacc_loops $<
-
-# Compile NEMO
 
 # Get the number of Makefile parallel jobs to pass it to the makenemo
 MAKE_PID := $(shell echo $$PPID)
 JOBS := $(shell ps T | sed -n 's/.*$(MAKE_PID).*$(MAKE).* \(-j\|--jobs=\) *\([0-9][0-9]*\).*/\2/p')
 JOBS := $(if ${JOBS}, ${JOBS}, 4)  # If none were given, default to 4
 
+# Compile NEMO
 compile-%:
 	@test -s psycloned-$(lastword $(subst -, ,$@)) || { \
 		echo "The psycloned-$(lastword $(subst -, ,$@)) folder does not exist!"; \
@@ -87,11 +84,11 @@ compile-%:
 		-e ${PWD}/psycloned-$(lastword $(subst -, ,$@)) -m ${COMPILER_ARCH} -j ${JOBS} \
 		add_key ${ADD_KEYS} del_key ${DEL_KEYS}
 
+# The compile-serial is a special case
 compile-serial:
 	cd $(NEMO_DIR) ; \
 	./makenemo -n ${TEST_CASE}_serial -r ${TEST_CASE} \
 		-m ${COMPILER_ARCH} -j ${JOBS} add_key ${ADD_KEYS} del_key ${DEL_KEYS}
-
 
 # Run NEMO
 run-%:
@@ -101,7 +98,6 @@ run-%:
 	 cd ${NEMO_DIR}/cfgs/${TEST_CASE}_$(lastword $(subst -, ,$@))/EXP00; cat timing.output; cat run.stat
 
 # Run NEMO with NVPROF
-
 nvprof-%:
 	cd cfgs/${TEST_CASE}_$(lastword $(subst -, ,$@))/EXP00; nsys profile ./nemo
 
