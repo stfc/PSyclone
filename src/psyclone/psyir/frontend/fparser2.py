@@ -42,7 +42,7 @@
 from collections import OrderedDict
 import os
 
-from fparser.two import C99Preprocessor, Fortran2003, Fortran2008, utils
+from fparser.two import C99Preprocessor, Fortran2003, utils
 from fparser.two.utils import walk, BlockBase, StmtBase
 
 from psyclone.configuration import Config
@@ -2063,6 +2063,65 @@ class Fparser2Reader():
             tsymbol.datatype = UnknownFortranType(str(decl))
             tsymbol.interface = UnknownInterface()
 
+    def _get_partial_datatype(self, node, parent, visibility_map):
+        '''Try to obtain partial datatype information from node by removing
+        any unsupported properties in the declaration.
+
+        :param node: fparser2 node containing the declaration statement.
+        :type node: :py:class:`fparser.two.utils.Base`
+        :param parent: PSyIR node in which to insert the symbols found.
+        :type parent: :py:class:`psyclone.psyir.nodes.Node`
+        :param visibility_map: mapping of symbol names to explicit
+            visibilities.
+        :type visibility_map: dict with str keys and values of type
+            :py:class:`psyclone.psyir.symbols.Symbol.Visibility`
+
+        :returns: a symbol table with symbols containing partial
+            datatype information for the declaration statement in the
+            cases where it is possible to extract this information.
+        :rtype: :py:class:`psyclone.psyir.symbols.SymbolTable`
+
+        '''
+        # 1: Remove any initialisation
+        entity_decl_list = node.children[2]
+        entity_decl = entity_decl_list.children[0]
+        orig_entity_decl_children = list(entity_decl.children[:])
+        if isinstance(entity_decl.children[3], Fortran2003.Initialization):
+            entity_decl.items = (
+                entity_decl.items[0], entity_decl.items[1],
+                entity_decl.items[2], None)
+        # 2: Remove any unsupported attributes
+        unsupported_attribute_names = ["pointer", "target"]
+        attr_spec_list = node.children[1]
+        orig_node_children = list(node.children[:])
+        orig_attr_spec_list_children = (list(node.children[1].children[:])
+                                        if attr_spec_list else None)
+        if attr_spec_list:
+            entry_list = []
+            for attr_spec in attr_spec_list.children:
+                if str(attr_spec).lower() not in unsupported_attribute_names:
+                    entry_list.append(attr_spec)
+            if not entry_list:
+                node.items = (node.items[0], None, node.items[2])
+            else:
+                node.items[1].items = tuple(entry_list)
+
+        # Try to parse the modified node.
+        symbol_table = SymbolTable()
+        try:
+            self._process_decln(parent, symbol_table, node,
+                                visibility_map)
+        except NotImplementedError:
+            pass
+
+        # Restore the fparser2 parse tree
+        node.items = tuple(orig_node_children)
+        if node.children[1]:
+            node.children[1].items = tuple(orig_attr_spec_list_children)
+        node.children[2].children[0].items = tuple(orig_entity_decl_children)
+
+        return symbol_table
+
     def process_declarations(self, parent, nodes, arg_list,
                              visibility_map=None):
         '''
@@ -2079,7 +2138,7 @@ class Fparser2Reader():
         :type nodes: list of :py:class:`fparser.two.utils.Base`
         :param arg_list: fparser2 AST node containing the argument list.
         :type arg_list: :py:class:`fparser.Fortran2003.Dummy_Arg_List`
-        :param visibility_map: mapping of symbol names to explicit
+        :param visibility_map: mapping of symbol names to explicit \
                         visibilities.
         :type visibility_map: dict with str keys and values of type \
                         :py:class:`psyclone.psyir.symbols.Symbol.Visibility`
@@ -2212,42 +2271,11 @@ class Fparser2Reader():
                         except KeyError:
                             pass
 
-                        # Try to obtain additional datatype information
-                        # 1: temporarily remove any initialisation
-                        entity_decl_list = node.children[2]
-                        entity_decl = entity_decl_list.children[0]
-                        orig_entity_decl_children = list(entity_decl.children[:])
-                        if isinstance(entity_decl.children[3], Fortran2003.Initialization):
-                            entity_decl.items = (
-                                entity_decl.items[0], entity_decl.items[1],
-                                entity_decl.items[2], None)
-                        # 2: Remove any unsupported attributes
-                        UNSUPPORTED_ATTRIBUTE_NAMES = ["pointer", "target"]
-                        attr_spec_list = node.children[1]
-                        orig_node_children = list(node.children[:])
-                        orig_attr_spec_list_children = list(node.children[1].children[:]) if attr_spec_list else None
-                        if attr_spec_list:
-                            entry_list = []
-                            for attr_spec in attr_spec_list.children:
-                                if str(attr_spec).lower() not in UNSUPPORTED_ATTRIBUTE_NAMES:
-                                    entry_list.append(attr_spec)
-                            if not entry_list:
-                                node.items = (node.items[0], None, node.items[2])
-                            else:
-                                node.items[1].items = tuple(entry_list)
-                        # Try to parse again.
-                        tmp_symbol_table = SymbolTable()
-                        try:
-                            self._process_decln(parent, tmp_symbol_table, node,
-                                                visibility_map)
-                        except NotImplementedError:
-                            pass
-
-                        # Restore the fparser2 parse tree
-                        node.items = tuple(orig_node_children)
-                        if node.children[1]:
-                            node.children[1].items = tuple(orig_attr_spec_list_children)
-                        node.children[2].children[0].items = tuple(orig_entity_decl_children)
+                        # Try to extract partial datatype information. If
+                        # successful, a symbol will be added to the symbol
+                        # table (tmp_symbol_table).
+                        tmp_symbol_table = self._get_partial_datatype(
+                            node, parent, visibility_map)
 
                         # If a declaration declares multiple entities, it's
                         # possible that some may have already been processed
