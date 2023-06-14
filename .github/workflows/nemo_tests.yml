@@ -68,7 +68,9 @@ jobs:
         # uncomment the following line:
         pip install external/fparser
         pip install .[test]
-    - name: NEMO MetOffice OpenMP for GPU PSycloning 
+
+    # PSyclone, compile and run MetOffice NEMO with OpenMP for GPUs
+    - name: NEMO MetOffice OpenMP for GPU PSycloning
       run: |
         . .runner_venv/bin/activate
         module load nvidia-hpcsdk netcdf_fortran
@@ -85,4 +87,53 @@ jobs:
         . .runner_venv/bin/activate
         module load nvidia-hpcsdk netcdf_fortran
         cd examples/NEMO/scripts
+        export NV_ACC_POOL_THRESHOLD=75
         make run-openmp_gpu
+
+    # PSyclone, compile and run ECMWF NEMO with OpenMP for CPUs
+    - name: NEMO ECMWF OpenMP for CPU PSycloning
+      run: |
+        . .runner_venv/bin/activate
+        cd examples/NEMO/scripts
+        export NEMO_DIR=/home/ssiso/ecmwf_nemo/nemo/NEMOGCM_V40/
+        export ROOT_SRC=/home/ssiso/ecmwf_nemo/nemo/NEMOGCM_V40/cfgs/SPITZ12_serial/BLD/ppsrc/nemo/
+        export COMPILER_ARCH=linux_intel
+        export ADD_KEYS="IEEE_IS_NAN=ieee_is_nan key_nosignedzero"
+        export DEL_KEYS="key_iomput"
+        export MODEL_DIR=/archive/ssiso/ecmwf_eORCA1_GO8/
+        export NAMELISTS_DIR=/home/ssiso/ecmwf_nemo/nemo/testscripts_V40/output/openmp_outer_V40_eORCA1_GO8_Z75_20170906_cray_dp_1x1/
+        make -j 4 openmp_cpu
+    - name: NEMO ECMWF OpenMP for CPUs Intel Compilation
+      run: |
+        . .runner_venv/bin/activate
+        cd examples/NEMO/scripts
+        module load intel/oneapi compiler mpi
+        export LD_LIBRARY_PATH=/home/ssiso/ecmwf_nemo/ESiWACE2/scripts/dev/netcdf-c-4.9.0/lib/:$LD_LIBRARY_PATH
+        export LD_LIBRARY_PATH=home/ssiso/ecmwf_nemo/ESiWACE2/scripts/dev/netcdf-fortran-4.5.4/lib:$LD_LIBRARY_PATH
+        export LD_LIBRARY_PATH=/home/ssiso/ecmwf_nemo/ESiWACE2/scripts/dev/hdf5-1.12.2/lib/:$LD_LIBRARY_PATH:$LD_LIBRARY_PATH
+        export NEMO_DIR=/home/ssiso/ecmwf_nemo/nemo/NEMOGCM_V40/
+        export ROOT_SRC=/home/ssiso/ecmwf_nemo/nemo/NEMOGCM_V40/cfgs/SPITZ12_serial/BLD/ppsrc/nemo/
+        export COMPILER_ARCH=linux_intel
+        export ADD_KEYS="IEEE_IS_NAN=ieee_is_nan key_nosignedzero"
+        export DEL_KEYS="key_iomput"
+        export MODEL_DIR=/archive/ssiso/ecmwf_eORCA1_GO8/
+        export NAMELISTS_DIR=/home/ssiso/ecmwf_nemo/nemo/testscripts_V40/output/openmp_outer_V40_eORCA1_GO8_Z75_20170906_cray_dp_1x1/
+        make -j 4 compile-openmp_cpu
+    - name: NEMO MetOffice OpenMP for Nvidia GPU Execution
+      run: |
+        . .runner_venv/bin/activate
+        module load nvidia-hpcsdk netcdf_fortran
+        cd examples/NEMO/scripts
+        module load intel/oneapi compiler mpi
+        export LD_LIBRARY_PATH=/home/ssiso/ecmwf_nemo/ESiWACE2/scripts/dev/netcdf-c-4.9.0/lib/:$LD_LIBRARY_PATH
+        export LD_LIBRARY_PATH=home/ssiso/ecmwf_nemo/ESiWACE2/scripts/dev/netcdf-fortran-4.5.4/lib:$LD_LIBRARY_PATH
+        export LD_LIBRARY_PATH=/home/ssiso/ecmwf_nemo/ESiWACE2/scripts/dev/hdf5-1.12.2/lib/:$LD_LIBRARY_PATH:$LD_LIBRARY_PATH
+        export NEMO_DIR=/home/ssiso/ecmwf_nemo/nemo/NEMOGCM_V40/
+        export ROOT_SRC=/home/ssiso/ecmwf_nemo/nemo/NEMOGCM_V40/cfgs/SPITZ12_serial/BLD/ppsrc/nemo/
+        export COMPILER_ARCH=linux_intel
+        export ADD_KEYS="IEEE_IS_NAN=ieee_is_nan key_nosignedzero"
+        export DEL_KEYS="key_iomput"
+        export MODEL_DIR=/archive/ssiso/ecmwf_eORCA1_GO8/
+        export NAMELISTS_DIR=/home/ssiso/ecmwf_nemo/nemo/testscripts_V40/output/openmp_outer_V40_eORCA1_GO8_Z75_20170906_cray_dp_1x1/
+        export OMP_NUM_THREADS=4
+        make run-openmp_cpu
