@@ -71,16 +71,16 @@ class SymPyWriter(FortranWriter):
     arguments.
 
     The simple use case of converting a (list of) PSyIR expressions to SymPy
-    expressions is as follows:
+    expressions is as follows::
 
-        symp_expr_list = SymPyWriter(exp1, exp2, ....)
+        symp_expr_list = SymPyWriter(exp1, exp2, ...)
 
     If additional functionality is required (access to the type map or
     to convert a potentially modified SymPy expression back to PSyIR), an
-    instance of SymPy writer must be created:
+    instance of SymPy writer must be created::
 
         writer = SymPyWriter()
-        symp_expr_list = writer([exp1, exp2, ....])
+        symp_expr_list = writer([exp1, exp2, ...])
 
     It additionally supports accesses to structure types. A full description
     can be found in the manual:
@@ -136,11 +136,14 @@ class SymPyWriter(FortranWriter):
     def __new__(cls, *expressions):
         '''This function allows the SymPy writer to be used in two
         different ways: if only the SymPy expression of the PSyIR expressions
-        are required, it can be called as:
-        ``sympy_expressions = SymPyWriter(exp1, exp2, ...)``
+        are required, it can be called as::
+
+            sympy_expressions = SymPyWriter(exp1, exp2, ...)
+
         But if additional information is needed (e.g. the SymPy type map, or
         to convert a SymPy expression back to PSyIR), an instance of the
-        SymPyWriter must be kept, e.g.:
+        SymPyWriter must be kept, e.g.::
+
             writer = SymPyWriter()
             sympy_expressions = writer([exp1, exp2, ...])
             writer.type_map
@@ -294,7 +297,7 @@ class SymPyWriter(FortranWriter):
     @property
     def type_map(self):
         ''':returns: the mapping of names to SymPy symbols or functions.
-        rtype: Dict[str, :py:class:`sympy.core.symbol.Symbol`]
+        :rtype: Dict[str, :py:class:`sympy.core.symbol.Symbol`]
 
         '''
         return self._sympy_type_map
@@ -309,7 +312,7 @@ class SymPyWriter(FortranWriter):
         :param list_of_expressions: the list of expressions which are to be \
             converted into SymPy-parsable strings.
         :type list_of_expressions: Union[:py:class:`psyclone.psyir.nodes.Node`,
-        List[:py:class:`psyclone.psyir.nodes.Node`]]
+            List[:py:class:`psyclone.psyir.nodes.Node`]]
 
         :returns: the converted strings(s).
         :rtype: Union[str, List[str]]
@@ -635,7 +638,7 @@ class SymPyWriter(FortranWriter):
         will become ``a(:5:2)``.
 
         :param sympy_expr: the original SymPy expression.
-        :type sympy_expr: py:class:`sympy.core.basic.Basic`
+        :type sympy_expr: :py:class:`sympy.core.basic.Basic`
         :param symbol_table: the symbol table required for parsing, it \
             should be the table from which the original SymPy expression \
             was created from (i.e. contain all the required symbols in the \
