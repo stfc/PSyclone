@@ -202,6 +202,10 @@ class LFRicArgDescriptor(Descriptor):
             # Validate scalar arguments
             self._init_scalar(arg_type)
 
+        elif self._argument_type in const.VALID_ARRAY_NAMES:
+            # Validate array arguments
+            self._init_array(arg_type)
+
         else:
             # We should never get to here if the checks are tight enough
             raise InternalError(
@@ -682,23 +686,32 @@ class LFRicArgDescriptor(Descriptor):
         # Check whether something other than a scalar is passed in
         if self._argument_type not in const.VALID_ARRAY_NAMES:
             raise InternalError(
-                f"Expected a scalar argument but got an argument of type "
+                f"Expected an array argument but got an argument of type "
                 f"'{arg_type.args[0]}'.")
 
-        # There must be 4 argument descriptors to describe a scalar array.
-        nargs_array = 4
-        if self._nargs != nargs_array:
+        # There must be at least 4 arguments
+        nargs_array_min = 4
+        if self._nargs < nargs_array_min:
             raise ParseError(
-                f"In the LFRic API each 'meta_arg' entry must have "
-                f"{nargs_array} arguments if its first argument is "
-                f"'gh_array', but found {self._nargs} in '{arg_type}'.")
+                "In the LFRic API each 'meta_arg' entry must have at least "
+                f"{nargs_array_min} arguments if its first argument is of "
+                f"{const.VALID_ARRAY_NAMES} type, but found {self._nargs} in "
+                f"'{arg_type}'.")
+        # There must be at most 5 arguments
+        nargs_array_max = 5
+        if self._nargs > nargs_array_max:
+            raise ParseError(
+                f"In the LFRic API each 'meta_arg' entry must have at most "
+                f"{nargs_array_max} arguments if its first argument is of "
+                f"{const.VALID_ARRAY_NAMES} type, but found {self._nargs} in "
+                f"'{arg_type}'.")
 
         # Check whether an invalid data type for a scalar argument is passed
         # in. Valid data types for scalars are valid data types in LFRic API.
         if self._data_type not in const.VALID_ARRAY_DATA_TYPES:
             raise InternalError(
                 f"Expected one of {const.VALID_ARRAY_DATA_TYPES} as the "
-                f"scalar data type but got '{self._data_type}'.")
+                f"array data type but got '{self._data_type}'.")
 
         # Test allowed accesses for arrays (read_only)
         array_accesses = [AccessType.READ]
@@ -720,7 +733,17 @@ class LFRicArgDescriptor(Descriptor):
                 f"'{self._access_type.api_specific_name()}' is only valid "
                 f"with a real scalar argument, but a scalar argument with "
                 f"'{self._data_type}' data type was found in '{arg_type}'.")
-
+        # The 4th argument must be a valid function-space name
+        prop_ind = 3
+        if arg_type.args[prop_ind].name not in \
+           const.VALID_FUNCTION_SPACE_NAMES:
+            raise ParseError(
+                f"In the LFRic API argument {prop_ind+1} of a 'meta_arg' "
+                f"array entry must be a valid function-space name (one of "
+                f"{const.VALID_FUNCTION_SPACE_NAMES}) if its first argument "
+                f"is of {const.VALID_ARRAY_NAMES} type, but found "
+                f"'{arg_type.args[prop_ind].name}' in '{arg_type}'.")
+        self._function_space1 = arg_type.args[prop_ind].name
         # Arrays don't have vector size
         self._vector_size = 0
 
@@ -792,6 +815,8 @@ class LFRicArgDescriptor(Descriptor):
             return self._function_space1
         if self._argument_type in const.VALID_OPERATOR_NAMES:
             return self._function_space2
+        if self._argument_type in const.VALID_ARRAY_NAMES:
+            return self._function_space1
         if self._argument_type in const.VALID_SCALAR_NAMES:
             return None
         raise InternalError(f"Expected a valid argument type but got "
@@ -817,6 +842,8 @@ class LFRicArgDescriptor(Descriptor):
         if self._argument_type in const.VALID_OPERATOR_NAMES:
             # Return to before from to maintain expected ordering
             return [self.function_space_to, self.function_space_from]
+        if self._argument_type in const.VALID_ARRAY_NAMES:
+            return [self.function_space]
         if self._argument_type in const.VALID_SCALAR_NAMES:
             return []
         raise InternalError(f"Expected a valid argument type but got "
@@ -871,6 +898,9 @@ class LFRicArgDescriptor(Descriptor):
                 f"'{self._access_type.api_specific_name()}'"
                 + os.linesep)
         if self._argument_type in const.VALID_FIELD_NAMES:
+            res += (f"  function_space[3]='{self._function_space1}'"
+                    + os.linesep)
+        elif self._argument_type in const.VALID_ARRAY_NAMES:
             res += (f"  function_space[3]='{self._function_space1}'"
                     + os.linesep)
         elif self._argument_type in const.VALID_OPERATOR_NAMES:
