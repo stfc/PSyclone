@@ -32,7 +32,8 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
-# Modified: S. Siso, STFC Daresbury Lab
+# Modified: S. Siso, STFC Daresbury Lab,
+#           I. Kavcic, Met Office
 
 ''' This module tests the driver creation for extracted kernels.'''
 
@@ -46,7 +47,7 @@ from psyclone.errors import GenerationError, InternalError
 from psyclone.parse import ModuleManager
 from psyclone.psyir.nodes import Literal, Routine, Schedule
 from psyclone.psyir.symbols import INTEGER_TYPE
-from psyclone.psyir.tools.dependency_tools import DependencyTools
+from psyclone.psyir.tools import DependencyTools, ReadWriteInfo
 from psyclone.tests.utilities import Compile, get_base_path, get_invoke
 
 
@@ -303,8 +304,9 @@ def test_lfric_driver_import_precision():
     filename = "driver-field-test.F90"
     with open(filename, "r", encoding='utf-8') as my_file:
         driver = my_file.read()
-    assert ("use constants_mod, only : i_def, l_def, r_def, r_double, r_ncdf, "
-            "r_second, r_single, r_solver, r_tran, r_um" in driver)
+    assert ("use constants_mod, only : i_def, l_def, r_bl, r_def, "
+            "r_double, r_ncdf, r_phys, r_second, r_single, r_solver, "
+            "r_tran, r_um" in driver)
 
     for mod in ["read_kernel_data_mod", "constants_mod", "kernel_mod",
                 "argument_mod", "log_mod", "fs_continuity_mod",
@@ -426,21 +428,22 @@ def test_lfric_driver_unsupported_builtins(name, filename, capsys):
     _, invoke = get_invoke(filename, API, dist_mem=False, idx=0)
 
     driver_creator = LFRicExtractDriverCreator()
+    read_write_info = ReadWriteInfo()
 
     # The create method should raise an exception
     # -------------------------------------------
     with pytest.raises(NotImplementedError) as err:
         # The parameters do not really matter
-        driver_creator.create(invoke.schedule, [], [], "extract", "_post",
-                              region_name=("region", "name"))
+        driver_creator.create(invoke.schedule, read_write_info, "extract",
+                              "_post", region_name=("region", "name"))
     assert f"LFRic builtin '{name}' is not supported" in str(err.value)
 
     # The get_driver_as_string method returns
     # an empty string, but prints an error message
     # --------------------------------------------
-    code = driver_creator.get_driver_as_string(invoke.schedule, [], [],
-                                               "extract", "_post",
-                                               ("region", "name"))
+    code = driver_creator.get_driver_as_string(invoke.schedule,
+                                               read_write_info, "extract",
+                                               "_post", ("region", "name"))
     assert code == ""
     out, _ = capsys.readouterr()
     assert (f"Cannot create driver for 'region-name' because:\nLFRic builtin "
@@ -448,7 +451,7 @@ def test_lfric_driver_unsupported_builtins(name, filename, capsys):
 
     # write_driver prints an error message, and does not return an error
     # ------------------------------------------------------------------
-    driver_creator.write_driver(invoke.schedule, [], [],
+    driver_creator.write_driver(invoke.schedule, read_write_info,
                                 "extract", "_post", ("region", "name"))
     assert (f"Cannot create driver for 'region-name' because:\nLFRic builtin "
             f"'{name}' is not supported" in out)
@@ -470,13 +473,12 @@ def test_lfric_driver_removing_structure_data():
     _, invoke = get_invoke("15.1.8_a_plus_X_builtin_array_of_fields.f90",
                            API, dist_mem=False, idx=0)
     dep = DependencyTools()
-    input_list, output_list = dep.get_in_out_parameters(invoke.schedule)
+    read_write_info = dep.get_in_out_parameters(invoke.schedule)
     driver_creator = LFRicExtractDriverCreator()
 
     driver = driver_creator.\
-        get_driver_as_string(invoke.schedule, input_list, output_list,
-                             "extract", "_post",
-                             region_name=("region", "name"))
+        get_driver_as_string(invoke.schedule, read_write_info, "extract",
+                             "_post", region_name=("region", "name"))
 
     assert "call extract_psy_data%ReadVariable('f1', f1)" in driver
     assert "call extract_psy_data%ReadVariable('f2_post', f2_post)" in driver

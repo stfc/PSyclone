@@ -193,13 +193,13 @@ class UnknownFortranType(UnknownType):
         # pylint:disable=import-outside-toplevel
         from fparser.common.readfortran import FortranStringReader
         from fparser.common.sourceinfo import FortranFormat
-        from fparser.two import Fortran2008
+        from fparser.two import Fortran2003
         from fparser.two.parser import ParserFactory
         string_reader = FortranStringReader(self._declaration)
         # Set reader to free format.
         string_reader.set_format(FortranFormat(True, False))
         ParserFactory().create(std="f2008")
-        ptree = Fortran2008.Declaration_Construct(
+        ptree = Fortran2003.Declaration_Construct(
             string_reader)
         self._type_text = str(ptree.children[0])
 
