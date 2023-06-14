@@ -110,7 +110,7 @@ def test_routine_name_setter_preexisting_tag():
     # having a differently named 'own_routine_symbol' tag in the symbol table
     with pytest.raises(KeyError) as err:
         node2 = Routine("bye", symbol_table=symtab.deep_copy())
-    assert ("Can't assign bye as the routine name because its symbol table "
+    assert ("Can't assign 'bye' as the routine name because its symbol table "
             "contains a symbol (hello: RoutineSymbol<NoType, pure=unknown, "
             "elemental=unknown>) already tagged as 'own_routine_symbol'."
             in str(err.value))

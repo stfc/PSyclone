@@ -102,6 +102,8 @@ def test_routinesymbol_specialise_and_process_arguments():
     # Try to make a RoutineSymbol without a datatype
     sym1 = Symbol("symbol1")
     sym1.specialise(RoutineSymbol)
+    # pylint gets confused because it doesn't know about specialise()
+    # pylint: disable=no-member
     assert isinstance(sym1.datatype, NoType)
 
     # Include a datatype
@@ -123,20 +125,20 @@ def test_routinesymbol_specialise_and_process_arguments():
 def test_routinesymbol_str():
     '''Test that the __str__ method in routinesymbol behaves as expected.'''
     routine_symbol = RoutineSymbol("roo")
-    assert (routine_symbol.__str__() == "roo: RoutineSymbol<NoType, "
+    assert (str(routine_symbol) == "roo: RoutineSymbol<NoType, "
             "pure=unknown, elemental=unknown>")
     routine_symbol = RoutineSymbol("roo", INTEGER_TYPE)
-    assert (routine_symbol.__str__() ==
+    assert (str(routine_symbol) ==
             "roo: RoutineSymbol<Scalar<INTEGER, UNDEFINED>, pure=unknown, "
             "elemental=unknown>")
     type_sym = DataTypeSymbol("some_type", DeferredType())
     routine_symbol = RoutineSymbol("roo", type_sym, is_elemental=True,
                                    is_pure=True)
-    assert (routine_symbol.__str__() ==
+    assert (str(routine_symbol) ==
             "roo: RoutineSymbol<some_type: DataTypeSymbol, pure=True, "
             "elemental=True>")
     routine_symbol = RoutineSymbol("eyore", type_sym, is_elemental=False,
                                    is_pure=True)
-    assert (routine_symbol.__str__() ==
+    assert (str(routine_symbol) ==
             "eyore: RoutineSymbol<some_type: DataTypeSymbol, pure=True, "
             "elemental=False>")

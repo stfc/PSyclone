@@ -207,7 +207,7 @@ class Routine(Schedule, CommentableMixin):
                     return  # The preexisting symbol already matches
                 # Otherwise raise an exception
                 raise KeyError(
-                    f"Can't assign {new_name} as the routine name because "
+                    f"Can't assign '{new_name}' as the routine name because "
                     f"its symbol table contains a symbol ({existing_symbol}) "
                     f"already tagged as 'own_routine_symbol'.")
 
