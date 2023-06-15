@@ -102,7 +102,7 @@ class LFRicArgDescriptor(Descriptor):
         self._function_spaces = []
         # Set vector size to 1 (scalars set it to 0 in their validation)
         self._vector_size = 1
-        self._array_size = 1
+        self._array_nranks = 1
         # Initialise other internal arguments
         self._access_type = None
         self._function_space1 = None
@@ -275,7 +275,7 @@ class LFRicArgDescriptor(Descriptor):
                 f"{const.VALID_FIELD_NAMES} argument types but found "
                 f"'{arg_type.args[0]}'.")
 
-    def _validate_array_size(self, separator, arg_type):
+    def _validate_array_nranks(self, arg_type):
         '''
         Validates descriptors for scalar array arguments and populates
         vector properties accordingly.
@@ -295,23 +295,33 @@ class LFRicArgDescriptor(Descriptor):
                             argument that is not an array.
 
         '''
-        # Check that the operator is correct
-        if separator != "*":
+        print(arg_type.args[3].toks[0])
+        if arg_type.args[3].toks[0].name != "NRANKS".lower():
             raise ParseError(
-                f"In the LFRic API the 1st argument of a 'meta_arg' "
+                f"In the LFRic API the 4th argument of a 'meta_arg' "
+                f"entry may give the number of ranks in an array but "
+                f"if so it must use 'NRANKS' as the keyword in the format "
+                f"'NRANKS*n', but found '{arg_type.args[3].toks[0]}' as the "
+                f"keyword in '{arg_type}'.")
+
+        # Check that the operator is correct
+        if arg_type.args[3].toks[1] != "*":
+            raise ParseError(
+                f"In the LFRic API the 4th argument of a 'meta_arg' "
                 f"entry may be an array but if so must use '*' as "
                 f"the separator in the format 'NRANKS*n', but found "
-                f"'{separator}' in '{arg_type}'.")
+                f"'{arg_type.args[3].toks[1]}' in '{arg_type}'.")
+        print(arg_type.args[3])
 
         # Now try to find the array size for a scalar array and return
         # an error if it is not an integer number...
         try:
-            arraysize = int(arg_type.args[0].toks[2])
+            arraysize = int(arg_type.args[3].toks[2])
         except TypeError as err:
             raise ParseError(
                 f"In the LFRic API, the array notation must be in the "
                 f"format 'NRANKS*n' where 'n' is an integer, but the following "
-                f"'{arg_type.args[0].toks[2]}' was found in "
+                f"'{arg_type.args[3].toks[2]}' was found in "
                 f"'{arg_type}'.") from err
 
         # ... or it is less than 1 (1 is the default for all fields)...
@@ -322,14 +332,14 @@ class LFRicArgDescriptor(Descriptor):
                 f"be a field vector with format 'NRANKS*n' where n is an "
                 f"integer >= 1. However, found n = {arraysize} in '{arg_type}'.")
         # ... and set the array size if all checks pass
-        self._array_size = arraysize
+        self._array_nranks = arraysize
 
         # Check that no other arguments than fields use array notation
         if self._argument_type not in \
-           const.VALID_FIELD_NAMES and self._array_size:
+           const.VALID_ARRAY_NAMES and self._array_nranks:
             raise ParseError(
                 f"In the LFRic API, array notation is only supported for "
-                f"{const.VALID_FIELD_NAMES} argument types but found "
+                f"{const.VALID_ARRAY_NAMES} argument types but found "
                 f"'{arg_type.args[0]}'.")
 
     def _init_field(self, arg_type, operates_on):
@@ -663,7 +673,7 @@ class LFRicArgDescriptor(Descriptor):
 
         # Scalars don't have vector size or array size
         self._vector_size = 0
-        self._array_size = 0
+        self._array_nranks = 0
 
     def _init_array(self, arg_type):
         '''
@@ -689,25 +699,17 @@ class LFRicArgDescriptor(Descriptor):
                 f"Expected an array argument but got an argument of type "
                 f"'{arg_type.args[0]}'.")
 
-        # There must be at least 4 arguments
-        nargs_array_min = 4
-        if self._nargs < nargs_array_min:
+        # There must be 4 arguments
+        nargs_array = 4
+        if self._nargs != nargs_array:
             raise ParseError(
-                "In the LFRic API each 'meta_arg' entry must have at least "
-                f"{nargs_array_min} arguments if its first argument is of "
-                f"{const.VALID_ARRAY_NAMES} type, but found {self._nargs} in "
-                f"'{arg_type}'.")
-        # There must be at most 5 arguments
-        nargs_array_max = 5
-        if self._nargs > nargs_array_max:
-            raise ParseError(
-                f"In the LFRic API each 'meta_arg' entry must have at most "
-                f"{nargs_array_max} arguments if its first argument is of "
+                "In the LFRic API each 'meta_arg' entry must have "
+                f"{nargs_array} arguments if its first argument is of "
                 f"{const.VALID_ARRAY_NAMES} type, but found {self._nargs} in "
                 f"'{arg_type}'.")
 
-        # Check whether an invalid data type for a scalar argument is passed
-        # in. Valid data types for scalars are valid data types in LFRic API.
+        # Check whether an invalid data type for an array argument is passed
+        # in. Valid data types for arrays are valid data types in LFRic API.
         if self._data_type not in const.VALID_ARRAY_DATA_TYPES:
             raise InternalError(
                 f"Expected one of {const.VALID_ARRAY_DATA_TYPES} as the "
@@ -725,25 +727,9 @@ class LFRicArgDescriptor(Descriptor):
                 f"In the LFRic API array arguments must have read-only "
                 f"('gh_read') access but found '{api_specific_name}' "
                 f"in '{arg_type}'.")
-        # Reduction access is currently only valid for real scalar arguments
-        if self._data_type != "gh_real" and self._access_type in \
-           AccessType.get_valid_reduction_modes():
-            raise ParseError(
-                f"In the LFRic API a reduction access "
-                f"'{self._access_type.api_specific_name()}' is only valid "
-                f"with a real scalar argument, but a scalar argument with "
-                f"'{self._data_type}' data type was found in '{arg_type}'.")
-        # The 4th argument must be a valid function-space name
-        prop_ind = 3
-        if arg_type.args[prop_ind].name not in \
-           const.VALID_FUNCTION_SPACE_NAMES:
-            raise ParseError(
-                f"In the LFRic API argument {prop_ind+1} of a 'meta_arg' "
-                f"array entry must be a valid function-space name (one of "
-                f"{const.VALID_FUNCTION_SPACE_NAMES}) if its first argument "
-                f"is of {const.VALID_ARRAY_NAMES} type, but found "
-                f"'{arg_type.args[prop_ind].name}' in '{arg_type}'.")
-        self._function_space1 = arg_type.args[prop_ind].name
+
+        self._validate_array_nranks(arg_type)
+
         # Arrays don't have vector size
         self._vector_size = 0
 
@@ -863,7 +849,7 @@ class LFRicArgDescriptor(Descriptor):
         return self._vector_size
 
     @property
-    def array_size(self):
+    def array_nranks(self):
         '''
         Returns the array size of the argument. This will be 1 if ``*n``
         has not been specified for all argument types except scalars
@@ -873,7 +859,7 @@ class LFRicArgDescriptor(Descriptor):
         :rtype: int
 
         '''
-        return self._array_size
+        return self._array_nranks
 
     def __str__(self):
         '''
@@ -901,7 +887,7 @@ class LFRicArgDescriptor(Descriptor):
             res += (f"  function_space[3]='{self._function_space1}'"
                     + os.linesep)
         elif self._argument_type in const.VALID_ARRAY_NAMES:
-            res += (f"  function_space[3]='{self._function_space1}'"
+            res += (f"  array_nranks[3]='{self._array_nranks}'"
                     + os.linesep)
         elif self._argument_type in const.VALID_OPERATOR_NAMES:
             res += (f"  function_space_to[3]='{self._function_space1}'"

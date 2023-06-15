@@ -45,9 +45,9 @@ import os
 import pytest
 import fparser
 from fparser import api as fpapi
-from psyclone.domain.lfric import LFRicArgDescriptor
+from psyclone.domain.lfric import LFRicArrayArgs, LFRicArgDescriptor
 from psyclone.dynamo0p3 import (DynKern, DynKernMetadata,
-                                LFRicScalarArgs, LFRicConstants)
+                                LFRicConstants)
 from psyclone.errors import InternalError, GenerationError
 from psyclone.f2pygen import ModuleGen
 from psyclone.parse.algorithm import parse
@@ -99,7 +99,7 @@ def test_ad_array_init_wrong_argument_type():
             "'gh_operator'." in str(excinfo.value))
 
 
-def test_ad_array_type_too_few_args():
+def test_ad_array_type_wrong_num_of_args():
     ''' Tests that an error is raised when the array argument descriptor
     metadata for an array has fewer than 3 args. '''
     fparser.logging.disable(fparser.logging.CRITICAL)
@@ -110,23 +110,8 @@ def test_ad_array_type_too_few_args():
     name = "testkern_array_type"
     with pytest.raises(ParseError) as excinfo:
         _ = DynKernMetadata(ast, name=name)
-    assert ("each 'meta_arg' entry must have at least 4 arguments if its "
-            "first argument is of ['gh_array'] type" in str(excinfo.value))
-
-
-def test_ad_array_type_too_many_args():
-    ''' Tests that an error is raised when the field argument descriptor
-    metadata has more than 4 args. '''
-    fparser.logging.disable(fparser.logging.CRITICAL)
-    code = ARRAY_CODE.replace(
-        "arg_type(gh_array,   gh_real,    gh_read, NRANKS*1)",
-        "arg_type(gh_array,  gh_real,    gh_read,   w1, w1, w2)", 1)
-    ast = fpapi.parse(code, ignore_comments=False)
-    name = "testkern_array_type"
-    with pytest.raises(ParseError) as excinfo:
-        _ = DynKernMetadata(ast, name=name)
-    assert ("each 'meta_arg' entry must have at most 5 arguments if its "
-            "first argument is of ['gh_array'] type" in str(excinfo.value))
+    assert ("each 'meta_arg' entry must have 4 arguments if its first "
+            "argument is of ['gh_array'] type" in str(excinfo.value))
 
 
 def test_ad_array_invalid_data_type():
@@ -272,10 +257,9 @@ def test_no_vector_array():
         assert (f"vector notation is only supported for ['gh_field'] argument "
                 f"types but found 'gh_array * 3'" in str(excinfo.value))
 
-# here be dragons (ignore test below)
 
 @pytest.mark.parametrize("array_ind, array_type, array_ranks", [
-    (0, "gh_real", "nranks*1"), (1, "gh_integer", "nranks*2"), (2, "gh_logical", "nranks*4")])
+    (0, "gh_real", 1), (1, "gh_integer", 2), (2, "gh_logical", 4)])
 def test_arg_descriptor_array(array_ind, array_type, array_ranks):
     ''' Test that the LFRicArgDescriptor argument representation works
     as expected for all three types of valid array argument:
@@ -294,23 +278,24 @@ def test_arg_descriptor_array(array_ind, array_type, array_ranks):
         f"  argument_type[0]='gh_array'\n"
         f"  data_type[1]='{array_type}'\n"
         f"  access_descriptor[2]='gh_read'\n"
-        f"  function_space[3]='{array_ranks}'")
+        f"  array_nranks[3]='{array_ranks}'")
+    print({array_ranks})
+    print(result)
     assert expected_output in result
 
     # Check LFRicArgDescriptor argument properties
     assert array_descriptor.argument_type == "gh_array"
     assert array_descriptor.data_type == array_type
-    assert array_descriptor.function_space == array_ranks
-    assert array_descriptor.function_spaces == [{array_ranks}]
+    assert array_descriptor._array_nranks == array_ranks
+    assert array_descriptor.function_spaces == [None]
     assert str(array_descriptor.access) == "READ"
     assert array_descriptor.mesh is None
     assert array_descriptor.stencil is None
-    assert array_descriptor.vector_size == 0
 
 # here be dragons (below) (LFRicScalarArgs)
 
 def test_lfricarrays_call_err1():
-    ''' Check that the LFRicScalarArgs constructor raises the expected
+    ''' Check that the LFRicArrayArgs constructor raises the expected
     internal error if it encounters an unrecognised intrinsic type of
     scalar when generating a kernel call.
 
@@ -326,7 +311,7 @@ def test_lfricarrays_call_err1():
     array_arg = kernel.arguments.args[0]
     array_arg._intrinsic_type = "double-type"
     with pytest.raises(InternalError) as err:
-        LFRicScalarArgs(invoke)._invoke_declarations(ModuleGen(name="my_mod"))
+        LFRicArrayArgs(invoke)._invoke_declarations(ModuleGen(name="my_mod"))
     assert ("Found unsupported intrinsic types for the scalar arguments "
             "['a'] to Invoke 'invoke_0_testkern_three_scalars_type'. "
             "Supported types are ['real', 'integer', 'logical']."
