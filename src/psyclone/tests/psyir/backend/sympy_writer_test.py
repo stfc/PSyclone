@@ -44,7 +44,7 @@ from sympy.parsing.sympy_parser import parse_expr
 
 from psyclone.psyir.backend.sympy_writer import SymPyWriter
 from psyclone.psyir.backend.visitor import VisitorError
-from psyclone.psyir.nodes import Literal
+from psyclone.psyir.nodes import BinaryOperation, Literal
 from psyclone.psyir.symbols import (ArrayType, BOOLEAN_TYPE, CHARACTER_TYPE,
                                     INTEGER_TYPE)
 
@@ -205,20 +205,20 @@ def test_sympy_writer_create_type_map(expr, sym_map, fortran_reader):
     assert sympy_writer._sympy_type_map.keys() == sym_map.keys()
 
 
-@pytest.mark.parametrize("expressions", [("a%x", "a%a_x"),
-                                         ("b(i)%x", "b(i,i,1)%b_x"),
-                                         ("a%x(i)", "a%a_x(i,i,1)"),
-                                         ("b(j)%x(i)", "b(j,j,1)%b_x(i,i,1)"),
+@pytest.mark.parametrize("expressions", [("a%x", "a_x"),
+                                         ("b(i)%x", "b_x(i,i,1)"),
+                                         ("a%x(i)", "a_x(i,i,1)"),
+                                         ("b(j)%x(i)", "b_x(j,j,1,i,i,1)"),
                                          ("b(i)%c(b_c)",
-                                          "b(i,i,1)%b_c_1(b_c,b_c,1)"),
+                                          "b_c_1(i,i,1,b_c,b_c,1)"),
                                          ("a_c + a%c(i)",
-                                          "a_c + a%a_c_1(i,i,1)"),
+                                          "a_c + a_c_1(i,i,1)"),
                                          ("b(b_c)%c(i)",
-                                          "b(b_c,b_c,1)%b_c_1(i,i,1)"),
+                                          "b_c_1(b_c,b_c,1,i,i,1)"),
                                          ("b(b_c)%c(i)",
-                                          "b(b_c,b_c,1)%b_c_1(i,i,1)"),
+                                          "b_c_1(b_c,b_c,1,i,i,1)"),
                                          ("a_b_c + a_b_c_1 + a%b%c",
-                                          "a_b_c + a_b_c_1 + a%a_b%a_b_c_2"),
+                                          "a_b_c + a_b_c_1 + a_b_c_2"),
                                          ])
 def test_sym_writer_rename_members(fortran_reader, expressions):
     '''Test that members are converted and get a unique name that
@@ -328,7 +328,7 @@ def test_sym_writer_convert_to_sympy_expressions(fortran_reader):
     exp2 = psyir.children[0].children[1].rhs
     sympy_list = SymPyWriter(exp1, exp2)
 
-    expr = parse_expr("a%a_b_1 + a%a_c(1,1,1) + i")
+    expr = parse_expr("a_b_1 + a_c(1,1,1) + i")
     assert sympy_list[0] == expr
     assert sympy_list[1] == parse_expr("a_b + j")
 
@@ -381,18 +381,18 @@ def test_sym_writer_parse_errors(fortran_reader):
                                           "sympy_lower,sympy_upper,1)"),
                                          ("c", "c(sympy_lower,sympy_upper,1,"
                                                "sympy_lower,sympy_upper,1)"),
-                                         ("b(i)%x", "b(i,i,1)%b_x"),
-                                         ("b(i)%x(j)", "b(i,i,1)%b_x(j,j,1)"),
-                                         ("c(i,j)%x", "c(i,i,1,j,j,1)%c_x"),
+                                         ("b(i)%x", "b_x(i,i,1)"),
+                                         ("b(i)%x(j)", "b_x(i,i,1,j,j,1)"),
+                                         ("c(i,j)%x", "c_x(i,i,1,j,j,1)"),
                                          ("c(i,j)%x(j)",
-                                          "c(i,i,1,j,j,1)%c_x(j,j,1)"),
+                                          "c_x(i,i,1,j,j,1,j,j,1)"),
                                          ("c(i,j)%d%e",
-                                          "c(i,i,1,j,j,1)%c_d%c_d_e"),
+                                          "c_d_e(i,i,1,j,j,1)"),
                                          ("c(i,j)%d%f(i)",
-                                          "c(i,i,1,j,j,1)%c_d%c_d_f(i,i,1)"),
+                                          "c_d_f(i,i,1,j,j,1,i,i,1)"),
                                          ("c(i::k,j)%d%f(i:j:k)",
-                                          "c(i,sympy_upper,k,j,j,1)%c_d%"
-                                          "c_d_f(i,j,k)"),
+                                          "c_d_f(i,sympy_upper,k,j,j,1,"
+                                          "i,j,k)"),
                                          ])
 def test_sym_writer_array_expressions(fortran_reader, expressions):
     '''Test that array expressions (including ones using user-defined
@@ -501,3 +501,64 @@ def test_sympy_expr_to_psyir(fortran_reader, fortran_writer, expressions):
     sympy_expr = sympy_writer(psyir_expr)
     new_psyir = sympy_writer.sympy_to_psyir(sympy_expr, symbol_table)
     assert fortran_writer(new_psyir) == expressions[1]
+
+
+@pytest.mark.parametrize("expressions", [("a%b", "a_b", "a_b", (0, 0)),
+                                         # Handle name clash:
+                                         ("a%c + a_c", "a_c_1 + a_c",
+                                          "a_c_1", (0, 0)),
+                                         ("a%b(i)", "a_b(i,i,1)",
+                                          "a_b", (0, 1)),
+                                         ("b(i)%b", "b_b(i,i,1)",
+                                          "b_b", (1, 0)),
+                                         ("b(:)%b(i)+b(1)%c",
+                                          "b_b(sympy_lower,sympy_upper,1,"
+                                          "i,i,1) + b_c(1,1,1)",
+                                          "b_b", (1, 1)),
+                                         ("b(i)%b(j)", "b_b(i,i,1,j,j,1)",
+                                          "b_b", (1, 1)),
+                                         ("a%b(i)%c", "a_b_c(i,i,1)",
+                                          "a_b_c", (0, 1, 0)),
+                                         ("a%b%c(i)", "a_b_c(i,i,1)",
+                                          "a_b_c", (0, 0, 1))
+                                         ])
+def test_sympy_writer_user_types(fortran_reader, expressions):
+    '''Test handling of user-defined types, e.g. conversion of
+    ``a(i)%b(j)`` to ``a_b(i,i,1,j,j,1)``. The SymPyWriter keeps track
+    of which member has how many indices, and handling of name clashes
+    when creating the 'flattened' names. The four members of
+    ``expression`` are:
+    1. the expression to convert
+    2. the expected output of the conversion to string
+    3. The new 'unique' name to be created
+    4. A tuple of indices indicating which member had how many indices
+
+    '''
+    source = f'''program test_prog
+                use my_mod
+                type(my_mod_type) :: a, b(1)
+                x = {expressions[0]}
+                end program test_prog'''
+
+    psyir = fortran_reader.psyir_from_source(source)
+    sympy_writer = SymPyWriter()
+    psyir_expr = psyir.children[0].children[0].rhs
+    out = sympy_writer._to_str([psyir_expr])
+    # Make sure we get the expected string as output:
+    assert out[0] == expressions[1]
+
+    # Test that the internally cached information which is required later
+    # to convert SymPy back to PSyIR is correct:
+    if isinstance(psyir_expr, BinaryOperation):
+        # Some examples contain a%b + c --> take the first argument to
+        # get the signature in this case:
+        psyir_expr = psyir_expr.children[0]
+
+    # Get the signature for a simplified test:
+    sig, _ = psyir_expr.get_signature_and_indices()
+
+    # Look up the information about the unique name from the
+    # SymPyWriter internal dictionary.
+    info_tuple = sympy_writer._unique_name_2_access_info[expressions[2]]
+
+    assert info_tuple == (sig, expressions[3])

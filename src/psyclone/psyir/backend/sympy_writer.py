@@ -113,6 +113,7 @@ class SymPyWriter(FortranWriter):
         self._sympy_type_map = {}
         self._intrinsic = set()
         self._op_to_str = {}
+        self._unique_name_2_access_info = {}
 
         # Create the mapping of special operators/functions to the
         # name SymPy expects.
@@ -380,60 +381,39 @@ class SymPyWriter(FortranWriter):
         return result[0]
 
     # -------------------------------------------------------------------------
-    def member_node(self, node):
-        '''In SymPy an access to a member ``b`` of a structure ``a``
-        (i.e. ``a%b`` in Fortran) is handled as the ``MOD`` function
-        ``MOD(a, b)``. We must therefore make sure that a member
-        access is unique (e.g. ``b`` could already be a scalar variable).
-        This is done by creating a new name, which replaces the ``%``
-        with an ``_``. So ``a%b`` becomes ``MOD(a, a_b)``. This makes it easier
-        to see where the function names come from.
-        Additionally, we still need to avoid a name clash, e.g. there
-        could already be a variable ``a_b``. This is done by using a symbol
-        table, which was prefilled with all references (``a`` in the example
-        above) in the constructor. We use the string containing the ``%`` as
-        a unique tag and get a new, unique symbol from the symbol table
-        based on the new name using ``_``. For example, the access to member
-        ``b`` in ``a(i)%b`` would result in a new symbol with tag ``a%b`` and a
-        name like ``a_b`, `a_b_1``, ...
+    def structurereference_node(self, node):
+        return self.arrayofstructuresreference_node(node)
 
-        :param node: a Member PSyIR node.
-        :type node: :py:class:`psyclone.psyir.nodes.Member`
+    # -------------------------------------------------------------------------
+    def arrayofstructuresreference_node(self, node):
 
-        :returns: the SymPy representation of this member access.
-        :rtype: str
+        sig, indices = node.get_signature_and_indices()
 
-        '''
-        # We need to find the parent reference in order to make a new
-        # name (a%b%c --> a_b_c). Collect the names of members and the
-        # symbol in a list.
-        parent = node
-        name_list = [node.name]
-        while not isinstance(parent, Reference):
-            parent = parent.parent
-            name_list.append(parent.name)
-        name_list.reverse()
+        out = []
+        num_dims = []
+        all_dims = []
+        is_array = False
+        for i, name in enumerate(sig):
+            num_dims.append(len(indices[i]))
+            for index in indices[i]:
+                all_dims.append(index)
+                is_array = True
+            out.append(name)
+        flat_name = "_".join(out)
 
-        # The root name uses _, the tag uses % (which are guaranteed
-        # to be unique, the root_name might clash with a user defined
-        # variable otherwise).
-        root_name = "_".join(name_list)
-        sig_name = "%".join(name_list)
-        new_sym = self._symbol_table.find_or_create_tag(tag=sig_name,
-                                                        root_name=root_name)
-        new_name = new_sym.name
-        if new_name not in self._sympy_type_map:
-            if node.is_array:
-                self._sympy_type_map[new_name] = Function(new_name)
-            else:
-                self._sympy_type_map[new_name] = Symbol(new_name)
+        try:
+            unique_name = self._symbol_table.lookup_with_tag(str(sig)).name
+        except KeyError:
+            unique_name = self._symbol_table.new_symbol(flat_name,
+                                                        tag=str(sig)).name
+        self._unique_name_2_access_info[unique_name] = (sig, tuple(num_dims))
+        if is_array:
+            indices_str = self.gen_indices(all_dims)
+            self._sympy_type_map[unique_name] = Function(unique_name)
+            return f"{unique_name}({','.join(indices_str)})"
 
-        # Now get the original string that this node produces:
-        original_name = super().member_node(node)
-
-        # And replace the `node.name` (which must be at the beginning since
-        # it is a member) with the new name from the symbol table:
-        return new_name + original_name[len(node.name):]
+        self._sympy_type_map[unique_name] = Symbol(unique_name)
+        return unique_name
 
     # -------------------------------------------------------------------------
     def literal_node(self, node):
