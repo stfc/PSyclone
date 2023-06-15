@@ -80,3 +80,8 @@ jobs:
         module load python/3.11.3
         . .runner_venv/bin/activate
         pytest -n 2 --f90=gfortran --compile src/psyclone/tests
+    - name: Examples with compilation
+      run: |
+        module load python/3.11.3 nvidia-hpcsdk netcdf_fortran
+	. .runner_venv/bin/activate
+	F90=nvfortran F90FLAGS="-acc=gpu -Minfo=all" make -C examples compile
