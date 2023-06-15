@@ -465,6 +465,8 @@
 	157) PR #2131 towards #1618. Improves the error handling when we find
 	a Routine with the same name as an LFRic Builtin.
 
+	158) PR #2147 for #2119. Add elemental and pure routine attributes.
+
 release 2.3.1 17th of June 2022
 
 	1) PR #1747 for #1720. Adds support for If blocks to PSyAD.
