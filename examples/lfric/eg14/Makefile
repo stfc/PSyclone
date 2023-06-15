@@ -36,10 +36,10 @@
 
 # The compiler to use may be specified via the F90 and F90FLAGS
 # environment variables. To use the NVIDIA compiler and enable
-# openacc compilation with managed memory, use:
+# openacc compilation, use:
 #
 # export F90=nvfortran
-# export F90FLAGS="-acc=gpu -Minfo=all -gpu=managed"
+# export F90FLAGS="-acc=gpu -Minfo=all"
 
 PSYROOT=../../..
 
