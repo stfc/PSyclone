@@ -150,6 +150,11 @@ class LFRicConstants():
         LFRicConstants.VALID_FIELD_INTRINSIC_TYPES = ["real", "integer",
                                                       "logical"]
 
+        # Valid intrinsic types for array kernel argument data
+        # ('real', 'integer', and 'logical').
+        LFRicConstants.VALID_ARRAY_INTRINSIC_TYPES = ["real", "integer",
+                                                      "logical"]
+
         # ---------- Mapping from metadata data_type to Fortran intrinsic type
         LFRicConstants.MAPPING_DATA_TYPES = \
             OrderedDict(zip(LFRicConstants.VALID_ARG_DATA_TYPES,

@@ -279,8 +279,6 @@ def test_arg_descriptor_array(array_ind, array_type, array_ranks):
         f"  data_type[1]='{array_type}'\n"
         f"  access_descriptor[2]='gh_read'\n"
         f"  array_nranks[3]='{array_ranks}'")
-    print({array_ranks})
-    print(result)
     assert expected_output in result
 
     # Check LFRicArgDescriptor argument properties
@@ -292,7 +290,7 @@ def test_arg_descriptor_array(array_ind, array_type, array_ranks):
     assert array_descriptor.mesh is None
     assert array_descriptor.stencil is None
 
-# here be dragons (below) (LFRicScalarArgs)
+# here be dragons (below) (LFRicArrayArgs)
 
 def test_lfricarrays_call_err1():
     ''' Check that the LFRicArrayArgs constructor raises the expected
@@ -307,20 +305,20 @@ def test_lfricarrays_call_err1():
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     kernel = invoke.schedule.coded_kernels()[0]
-    # Sabotage the scalar argument to make it have an invalid intrinsic type
+    # Sabotage the array argument to make it have an invalid intrinsic type
     array_arg = kernel.arguments.args[0]
-    array_arg._intrinsic_type = "double-type"
+    array_arg._intrinsic_type = "triple-type"
     with pytest.raises(InternalError) as err:
         LFRicArrayArgs(invoke)._invoke_declarations(ModuleGen(name="my_mod"))
-    assert ("Found unsupported intrinsic types for the scalar arguments "
-            "['a'] to Invoke 'invoke_0_testkern_three_scalars_type'. "
-            "Supported types are ['real', 'integer', 'logical']."
-            in str(err.value))
+    test_str = str(err.value)
+    assert ("Found unsupported intrinsic types for the array arguments ['a'] "
+            "to Invoke 'invoke_0_testkern_three_arrays_type'. Supported "
+            "types are ['real', 'integer', 'logical']." in test_str)
 
-# here be dragons (below) (LFRicScalarArgs)
+# here be dragons (below) (LFRicArrayArgs)
 
-def test_lfricscalars_call_err2():
-    '''Check that LFRicScalarArgs _create_declarations method raises the
+def test_lfricarrays_call_err2():
+    '''Check that LFRicArrayArgs _create_declarations method raises the
     expected internal errors for real, integer and logical scalars if
     neither invoke nor kernel is set.
 
@@ -331,45 +329,45 @@ def test_lfricscalars_call_err2():
         api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
-    scalar_args = LFRicScalarArgs(invoke)
+    array_args = LFRicArrayArgs(invoke)
     node = ModuleGen("prog")
     # Set up information that _create_declarations requires. Note,
     # this method also calls _create_declarations.
-    scalar_args._invoke_declarations(node)
+    array_args._invoke_declarations(node)
 
     # Sabotage code so that a call to _create declarations raises the
     # required exceptions.
-    scalar_args._invoke = None
+    array_args._invoke = None
 
     # The first exception comes from real scalars.
     with pytest.raises(InternalError) as error:
-        scalar_args._create_declarations(node)
+        array_args._create_declarations(node)
     assert ("Expected the declaration of real scalar kernel arguments to be "
             "for either an invoke or a kernel stub, but it is neither."
             in str(error.value))
 
     # Remove real scalars so we get the exception for integer scalars.
     for intent in FORTRAN_INTENT_NAMES:
-        scalar_args._real_scalars[intent] = None
+        array_args._real_arrays[intent] = None
     with pytest.raises(InternalError) as error:
-        scalar_args._create_declarations(node)
+        array_args._create_declarations(node)
     assert ("Expected the declaration of integer scalar kernel arguments to "
             "be for either an invoke or a kernel stub, but it is neither."
             in str(error.value))
 
     # Remove integer scalars so we get the exception for logical scalars.
     for intent in FORTRAN_INTENT_NAMES:
-        scalar_args._integer_scalars[intent] = None
+        array_args._integer_arrays[intent] = None
     with pytest.raises(InternalError) as error:
-        scalar_args._create_declarations(node)
+        array_args._create_declarations(node)
     assert ("Expected the declaration of logical scalar kernel arguments to "
             "be for either an invoke or a kernel stub, but it is neither."
             in str(error.value))
 
-# here be dragons (below) (LFRicScalarArgs)
+# here be dragons (below) (LFRicArrayArgs)
 
-def test_lfricscalarargs_mp():
-    '''Check that the precision of a new scalar integer datatype is
+def test_lfricarrayargs_mp():
+    '''Check that the precision of a new array integer datatype is
     declared in the psy-layer.
 
     '''
