@@ -530,7 +530,7 @@ def test_sympy_writer_user_types(fortran_reader, expressions):
     ``expression`` are:
     1. the expression to convert
     2. the expected output of the conversion to string
-    3. The new 'unique' name to be created
+    3. The new 'unique' name to be created for the first user-defined type
     4. A tuple of indices indicating which member had how many indices
 
     '''
@@ -551,7 +551,7 @@ def test_sympy_writer_user_types(fortran_reader, expressions):
     # to convert SymPy back to PSyIR is correct:
     if isinstance(psyir_expr, BinaryOperation):
         # Some examples contain a%b + c --> take the first argument to
-        # get the signature in this case:
+        # get the required signature in this case:
         psyir_expr = psyir_expr.children[0]
 
     # Get the signature for a simplified test:
