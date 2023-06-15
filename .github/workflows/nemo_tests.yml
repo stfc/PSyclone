@@ -88,7 +88,13 @@ jobs:
         module load nvidia-hpcsdk netcdf_fortran
         cd examples/NEMO/scripts
         export NV_ACC_POOL_THRESHOLD=75
-        make run-openmp_gpu
+        make run-openmp_gpu | tee output.txt
+        # Check the output is as expected for the first 6 digits
+        tail -n 1 output.txt | grep -q " it :      10"
+        tail -n 1 output.txt | grep -q "|ssh|_max:  0.259483"
+        tail -n 1 output.txt | grep -q "|U|_max:  0.458515"
+        tail -n 1 output.txt | grep -q "S_min:  0.482686"
+        tail -n 1 output.txt | grep -q "S_max:  0.407622"
 
     # PSyclone, compile and run ECMWF NEMO with OpenMP for CPUs
     - name: NEMO ECMWF OpenMP for CPU PSycloning
@@ -136,4 +142,10 @@ jobs:
         export MODEL_DIR=/archive/ssiso/ecmwf_eORCA1_GO8/
         export NAMELISTS_DIR=/home/ssiso/ecmwf_nemo/nemo/testscripts_V40/output/openmp_outer_V40_eORCA1_GO8_Z75_20170906_cray_dp_1x1/
         export OMP_NUM_THREADS=4
-        make run-openmp_cpu
+        make run-openmp_cpu | tee output.txt
+        # Check the output is as expected for the first 6 digits
+        tail -n 1 output.txt | grep -q " it :      10"
+        tail -n 1 output.txt | grep -q "|ssh|_max:  0.199714"
+        tail -n 1 output.txt | grep -q "|U|_max:  0.148409"
+        tail -n 1 output.txt | grep -q "S_min:  0.108530"
+        tail -n 1 output.txt | grep -q "S_max:  0.404045"
