@@ -95,6 +95,7 @@ jobs:
         tail -n 1 output.txt | grep -q "|U|_max:  0.458515"
         tail -n 1 output.txt | grep -q "S_min:  0.482686"
         tail -n 1 output.txt | grep -q "S_max:  0.407622"
+        grep -A 1 "Elapsed Time" output.txt
 
     # PSyclone, compile and run ECMWF NEMO with OpenMP for CPUs
     - name: NEMO ECMWF OpenMP for CPU PSycloning
@@ -149,3 +150,4 @@ jobs:
         tail -n 1 output.txt | grep -q "|U|_max:  0.148409"
         tail -n 1 output.txt | grep -q "S_min:  0.108530"
         tail -n 1 output.txt | grep -q "S_max:  0.404045"
+        grep -A 1 "Elapsed Time" output.txt
