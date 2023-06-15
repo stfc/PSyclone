@@ -108,8 +108,7 @@ class UnknownType(DataType, metaclass=abc.ABCMeta):
                 f"UnknownType constructor expects the original variable "
                 f"declaration as a string but got an argument of type "
                 f"'{type(declaration_txt).__name__}'")
-        self._declaration = None
-        self.declaration = declaration_txt
+        self._declaration = declaration_txt[:]
 
     @abc.abstractmethod
     def __str__(self):
@@ -124,23 +123,18 @@ class UnknownType(DataType, metaclass=abc.ABCMeta):
         '''
         return self._declaration
 
-    @declaration.setter
-    def declaration(self, value):
-        '''
-        Sets the original declaration that this instance represents.
-
-        :param str value: the original declaration.
-
-        '''
-        self._declaration = value[:]
-
 
 class UnknownFortranType(UnknownType):
-    '''
-    Indicates that a Fortran declaration is not supported by the PSyIR.
+    '''Indicates that a Fortran declaration is not supported by the PSyIR.
 
-    :param str declaration_txt: string containing the original variable \
-                                declaration.
+    :param str declaration_txt: string containing the original variable
+        declaration.
+    :param partial_datatype: a subset of the unknown type if the
+        subset can form a valid PSyIR datatype.
+    :type partial_datatype: Optional[
+        :py:class:`psyclone.psyir.symbols.DataType` or
+        :py:class:`psyclone.psyir.symbols.DataTypeSymbol`]
+
     '''
     def __init__(self, declaration_txt, partial_datatype=None):
         super().__init__(declaration_txt)
@@ -169,26 +163,6 @@ class UnknownFortranType(UnknownType):
         :rtype: Optional[:py:class:`psyclone.symbols.DataType`]
         '''
         return self._partial_datatype
-
-    @property
-    def declaration(self):
-        '''
-        This useless routine is required so that we can override the associated
-        setter method below.
-        '''
-        return super().declaration
-
-    @declaration.setter
-    def declaration(self, value):
-        '''
-        Sets the original declaration that this instance represents and
-        removes any cached type text.
-
-        :param str value: the original declaration.
-
-        '''
-        self._declaration = value[:]
-        self._type_text = ""
 
     @property
     def type_text(self):

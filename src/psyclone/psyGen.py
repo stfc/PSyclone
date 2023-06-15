@@ -1741,9 +1741,13 @@ class CodedKern(Kern):
         container_table = container.symbol_table
         for sym in container_table.datatypesymbols:
             if isinstance(sym.datatype, UnknownFortranType):
-                orig_declaration = sym.datatype.declaration
-                sym.datatype.declaration = orig_declaration.replace(
+                new_declaration = sym.datatype.declaration.replace(
                     orig_kern_name, new_kern_name)
+                # pylint: disable=protected-access
+                sym._datatype = UnknownFortranType(
+                    new_declaration,
+                    partial_datatype=sym.datatype.partial_datatype)
+                # pylint: enable=protected-access
 
     @property
     def modified(self):

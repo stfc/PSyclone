@@ -43,9 +43,9 @@ from psyclone.errors import InternalError
 from psyclone.psyir.nodes import Literal, BinaryOperation, Reference, \
     Container, KernelSchedule
 from psyclone.psyir.symbols import (
-    ArrayType, DataType, DeferredType, ScalarType, UnknownType,
-    UnknownFortranType, DataSymbol, StructureType, NoType,
-    INTEGER_TYPE, REAL_TYPE, Symbol, DataTypeSymbol, SymbolTable)
+    ArrayType, DataType, DeferredType, ScalarType, UnknownFortranType,
+    DataSymbol, StructureType, NoType, INTEGER_TYPE, REAL_TYPE, Symbol,
+    DataTypeSymbol, SymbolTable)
 
 
 # Abstract DataType class
@@ -565,23 +565,6 @@ def test_arraytype_eq():
     assert data_type1 != ArrayType(iscalar_type, [10, 10])
 
 
-# UnknownType tests
-
-def test_unknown_type_declaration_setter():
-    '''Test the declaration setter/getter in UnknownType. We have to subclass
-    UnknownType as it is virtual.'''
-
-    class HardType(UnknownType):
-        '''Concrete sub-class of UnknownType for testing.'''
-        def __str__(self):
-            return "HardType"
-
-    htype = HardType("real var2;")
-    assert htype.declaration == "real var2;"
-    htype.declaration = "real var;"
-    assert htype.declaration == "real var;"
-
-
 # UnknownFortranType tests
 
 def test_unknown_fortran_type():
@@ -597,7 +580,7 @@ def test_unknown_fortran_type():
     assert utype._partial_datatype is None
     assert str(utype) == (f"UnknownFortranType('{decl}', "
                           f"partial_datatype='None')")
-    assert utype.declaration == decl
+    assert utype._declaration == decl
 
 
 def test_unknown_fortran_type_optional_arg():
@@ -638,9 +621,6 @@ def test_unknown_fortran_type_text():
     # Calling it a second time should just return the previously cached
     # result.
     assert utype.type_text is text
-    # Changing the declaration text should wipe the cache
-    utype.declaration = decl
-    assert utype.type_text is not text
 
 
 def test_unknown_fortran_type_eq():
