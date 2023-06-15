@@ -125,7 +125,12 @@ class IntrinsicCall(Call):
                 f"'{type(routine).__name__}'.")
 
         # A Call expects a symbol, so give it an intrinsic symbol.
-        super().__init__(IntrinsicSymbol(routine.name), **kwargs)
+        super().__init__(
+            IntrinsicSymbol(
+                routine.name,
+                is_elemental=(routine in ELEMENTAL_INTRINSICS),
+                is_pure=(routine in PURE_INTRINSICS)),
+            **kwargs)
         self._intrinsic = routine
 
     @property
@@ -137,15 +142,6 @@ class IntrinsicCall(Call):
 
         '''
         return self._intrinsic
-
-    def is_elemental(self):
-        '''
-        :returns: whether this intrinsic is elemental (provided with an input \
-            array it will apply the operation individually to each of the \
-            array elements and return an array with the results).
-        :rtype: bool
-        '''
-        return self.intrinsic in ELEMENTAL_INTRINSICS
 
     @classmethod
     def create(cls, routine, arguments):
@@ -265,3 +261,11 @@ REDUCTION_INTRINSICS = [
 # individually to each of the array elements and return an array with
 # the results.
 ELEMENTAL_INTRINSICS = []
+
+# Intrinsics that are 'pure' functions. Given the same input arguments, a pure
+# function will always return the same value.
+PURE_INTRINSICS = [IntrinsicCall.Intrinsic.SUM,
+                   IntrinsicCall.Intrinsic.MINVAL,
+                   IntrinsicCall.Intrinsic.MAXVAL,
+                   IntrinsicCall.Intrinsic.TINY,
+                   IntrinsicCall.Intrinsic.HUGE]
