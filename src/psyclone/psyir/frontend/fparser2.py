@@ -2092,10 +2092,13 @@ class Fparser2Reader():
 
     def _get_partial_datatype(self, node, parent, visibility_map):
         '''Try to obtain partial datatype information from node by removing
-        any unsupported properties in the declaration.
+        any unsupported properties in the declaration. This method
+        assumes that the provided declaration statement only declares
+        a single variable.
 
         :param node: fparser2 node containing the declaration statement.
-        :type node: :py:class:`fparser.two.utils.Base`
+        :type node: :py:class:`fparser.two.Fortran2008.Type_Declaration_Stmt`
+            or :py:class:`fparser.two.Fortran2003.Type_Declaration_Stmt`
         :param parent: PSyIR node in which to insert the symbols found.
         :type parent: :py:class:`psyclone.psyir.nodes.Node`
         :param visibility_map: mapping of symbol names to explicit
@@ -2103,10 +2106,12 @@ class Fparser2Reader():
         :type visibility_map: dict with str keys and values of type
             :py:class:`psyclone.psyir.symbols.Symbol.Visibility`
 
-        :returns: a symbol table with symbols containing partial
-            datatype information for the declaration statement in the
-            cases where it is possible to extract this information.
-        :rtype: :py:class:`psyclone.psyir.symbols.SymbolTable`
+        :returns: a PSyIR datatype, or datatype symbol, containing
+            partial datatype information for the declaration statement
+            in the cases where it is possible to extract this
+            information and None otherwise.
+        :rtype: Optional[:py:class:`psyclone.psyir.symbols.DataType` or
+            :py:class:`psyclone.psyir.symbols.DataTypeSymbol`]
 
         '''
         # 1: Remove any initialisation
@@ -2138,8 +2143,11 @@ class Fparser2Reader():
         try:
             self._process_decln(parent, symbol_table, node,
                                 visibility_map)
+            symbol_name = node.children[2].children[0].children[0].string
+            symbol_name = symbol_name.lower()
+            datatype = symbol_table.lookup(symbol_name).datatype
         except NotImplementedError:
-            pass
+            datatype = None
 
         # Restore the fparser2 parse tree
         node.items = tuple(orig_node_children)
@@ -2147,7 +2155,7 @@ class Fparser2Reader():
             node.children[1].items = tuple(orig_attr_spec_list_children)
         node.children[2].children[0].items = tuple(orig_entity_decl_children)
 
-        return symbol_table
+        return datatype
 
     def process_declarations(self, parent, nodes, arg_list,
                              visibility_map=None):
@@ -2298,23 +2306,14 @@ class Fparser2Reader():
                         except KeyError:
                             pass
 
-                        # Try to extract partial datatype information. If
-                        # successful, a symbol will be added to the symbol
-                        # table (tmp_symbol_table).
-                        tmp_symbol_table = self._get_partial_datatype(
+                        # Try to extract partial datatype information.
+                        datatype = self._get_partial_datatype(
                             node, parent, visibility_map)
 
                         # If a declaration declares multiple entities, it's
                         # possible that some may have already been processed
                         # successfully and thus be in the symbol table.
                         try:
-                            # See if it was possible to obtain additional
-                            # datatype information.
-                            try:
-                                datatype = tmp_symbol_table.lookup(
-                                    symbol_name).datatype
-                            except KeyError:
-                                datatype = None
                             parent.symbol_table.add(
                                 DataSymbol(
                                     symbol_name, UnknownFortranType(
