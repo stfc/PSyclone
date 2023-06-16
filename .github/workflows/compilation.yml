@@ -38,8 +38,10 @@
 # Modified by N. M. Nobre, STFC Daresbury Lab
 
 # This workflow will use a self-hosted runner to perform the more expensive
-# integrations tests that are not run on GHA systems. At the moment it only
-# runs the test suite with compilation enabled (using gfortran).
+# compilation tests that are not run on GHA systems. At the moment it:
+#
+#  * Runs the test suite with compilation with gfortran and nvfortran;
+#  * Builds the examples with gfortran and nvfortran.
 
 name: Compilation tests
 
@@ -79,12 +81,17 @@ jobs:
       run: |
         module load python/3.11.3
         . .runner_venv/bin/activate
-        pytest -n 2 --f90=gfortran --compile src/psyclone/tests
-        module load nvidia-hpcsdk netcdf_fortran
-        pytest -n 2 --f90=nvfortran --compile src/psyclone/tests
+        pytest -n 2 --f90=gfortran --compile --compileopencl src/psyclone/tests
+        module load nvidia-hpcsdk/23.5 netcdf_fortran
+        # We have to tell nvfortran where to find the OpenCL library.
+        pytest -n 2 --f90=nvfortran --f90-flags="-L/apps/packages/compilers/nvidia-hpcsdk/Linux_x86_64/23.5/cuda/12.1/targets/x86_64-linux/lib" --compile --compileopencl src/psyclone/tests
         module rm netcdf_fortran nvidia-hpcsdk
     - name: Examples with compilation
       run: |
         module load python/3.11.3
         . .runner_venv/bin/activate
         F90=gfortran F90FLAGS="" make -C examples compile
+        make -C examples allclean
+        module load nvidia-hpcsdk/23.5 netcdf_fortran
+        # We have to tell nvfortran where to find the OpenCL library.
+        F90=nvfortran F90FLAGS="-L/apps/packages/compilers/nvidia-hpcsdk/Linux_x86_64/23.5/cuda/12.1/targets/x86_64-linux/lib" make -C examples compile
