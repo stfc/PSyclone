@@ -74,19 +74,19 @@ jobs:
       run: |
         . .runner_venv/bin/activate
         module load nvidia-hpcsdk netcdf_fortran
-        cd examples/NEMO/scripts
+        cd examples/nemo/scripts
         make -j 4 openmp_gpu
     - name: NEMO MetOffice OpenMP for Nvidia GPUs Compilation
       run: |
         . .runner_venv/bin/activate
         module load nvidia-hpcsdk netcdf_fortran
-        cd examples/NEMO/scripts
+        cd examples/nemo/scripts
         make -j 4 compile-openmp_gpu
     - name: NEMO MetOffice OpenMP for Nvidia GPU Execution
       run: |
         . .runner_venv/bin/activate
         module load nvidia-hpcsdk netcdf_fortran
-        cd examples/NEMO/scripts
+        cd examples/nemo/scripts
         export NV_ACC_POOL_THRESHOLD=75
         make run-openmp_gpu | tee output.txt
         # Check the output is as expected for the first 6 digits
@@ -101,7 +101,7 @@ jobs:
     - name: NEMO ECMWF OpenMP for CPU PSycloning
       run: |
         . .runner_venv/bin/activate
-        cd examples/NEMO/scripts
+        cd examples/nemo/scripts
         export NEMO_DIR=/home/ssiso/ecmwf_nemo/nemo/NEMOGCM_V40/
         export ROOT_SRC=/home/ssiso/ecmwf_nemo/nemo/NEMOGCM_V40/cfgs/SPITZ12_serial/BLD/ppsrc/nemo/
         export COMPILER_ARCH=linux_intel
@@ -113,7 +113,7 @@ jobs:
     - name: NEMO ECMWF OpenMP for CPUs Compilation - Intel Compiler
       run: |
         . .runner_venv/bin/activate
-        cd examples/NEMO/scripts
+        cd examples/nemo/scripts
         module load intel/oneapi compiler mpi
         export LD_LIBRARY_PATH=/home/ssiso/ecmwf_nemo/ESiWACE2/scripts/dev/netcdf-c-4.9.0/lib/:$LD_LIBRARY_PATH
         export LD_LIBRARY_PATH=home/ssiso/ecmwf_nemo/ESiWACE2/scripts/dev/netcdf-fortran-4.5.4/lib:$LD_LIBRARY_PATH
@@ -129,7 +129,7 @@ jobs:
     - name: NEMO ECMWF OpenMP for CPU Execution - Intel compiler
       run: |
         . .runner_venv/bin/activate
-        cd examples/NEMO/scripts
+        cd examples/nemo/scripts
         module load intel/oneapi compiler mpi
         export LD_LIBRARY_PATH=/home/ssiso/ecmwf_nemo/ESiWACE2/scripts/dev/netcdf-c-4.9.0/lib:$LD_LIBRARY_PATH
         export LD_LIBRARY_PATH=/home/ssiso/ecmwf_nemo/ESiWACE2/scripts/dev/netcdf-fortran-4.5.4/lib:$LD_LIBRARY_PATH
