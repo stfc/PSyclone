@@ -494,7 +494,16 @@ class OMPParallelDirective(OMPRegionDirective):
 
     def gen_code(self, parent):
         '''Generate the fortran OMP Parallel Directive and any associated
-        code'''
+        code.
+
+        :param parent: the node in the generated AST to which to add content.
+        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+
+        :raises GenerationError: if the OpenMP directive needs some
+            synchronisation mechanism to create valid code. These are not
+            implemented yet.
+
+        '''
         # pylint: disable=import-outside-toplevel
         from psyclone.psyGen import zero_reduction_variables
 
@@ -600,9 +609,8 @@ class OMPParallelDirective(OMPRegionDirective):
         :returns: the lowered version of this node.
         :rtype: :py:class:`psyclone.psyir.node.Node`
 
-
-        :raises GenerationError: if the OpenMP directive needs some \
-            synchronisation mechanism to create valid code. This are not \
+        :raises GenerationError: if the OpenMP directive needs some
+            synchronisation mechanism to create valid code. These are not
             implemented yet.
         '''
         # Keep the first two children and compute the rest using the current
@@ -621,8 +629,8 @@ class OMPParallelDirective(OMPRegionDirective):
                             sorted(fprivate, key=lambda x: x.name))
         if need_sync:
             raise GenerationError(
-                f"Lowering {type(self).__name__} does not support symbols that "
-                f"need synchronisation, but found: "
+                f"Lowering {type(self).__name__} does not support symbols that"
+                f" need synchronisation, but found: "
                 f"{[x.name for x in need_sync]}")
 
         self.addchild(private_clause)
@@ -699,11 +707,24 @@ class OMPParallelDirective(OMPRegionDirective):
                                   "data sharing attribute in its default "
                                   "clause is not shared.")
 
+        # TODO #598: Improve the handling of scalar variables, there are
+        # remaining issues when we have accesses after the parallel region
+        # of variables that we currently declare as private. This should be
+        # lastprivate.
+        # e.g:
+        # !$omp parallel do <- will set private(ji, my_index)
+        # do ji = 1, jpk
+        #   my_index = ji+1
+        #   array(my_index) = 2
+        # enddo
+        # #end do
+        # call func(my_index) <- my_index does not have a value
+
         private = set()
         fprivate = set()
         need_sync = set()
 
-        # Now determine scalar variables that must be private:
+        # Determine variables that must be private, firstprivate or need_sync
         var_accesses = VariablesAccessInfo()
         self.reference_accesses(var_accesses)
         for signature in var_accesses.all_signatures:
@@ -717,10 +738,18 @@ class OMPParallelDirective(OMPRegionDirective):
             if len(accesses) == 1:
                 continue
 
-            # We consider potential private variables the ones that are written
+            # If we only have writes, it must be need_sync:
+            # do ji = 1, jpk
+            #   if ji=3:
+            #      found = .true.
+            # Or lastprivate in order to maintain the serial semantics
+            # do ji = 1, jpk
+            #   found = ji
+
+            # We consider private variables as being the ones that are written
             # in every iteration of a loop.
-            # If one such scalar is read before it is written, it will be
-            # considered firstprivate.
+            # If one such scalar is potentially read before it is written, it
+            # will be considered firstprivate.
             has_been_read = False
             last_read_position = 0
             for access in accesses:
@@ -729,57 +758,52 @@ class OMPParallelDirective(OMPRegionDirective):
                     last_read_position = access.node.abs_position
 
                 if access.access_type == AccessType.WRITE:
-                    # Check if the write access is inside a loop. If the write
-                    # is outside of a loop, it is an assignment to a shared
-                    # variable. Example where jpk is likely used outside of the
-                    # parallel section later, so it must be declared as shared
-                    # in order keep its value:
+
+                    # Check if the write access is outside a loop. In this case
+                    # it will be marked as shared. This is done because it is
+                    # likely to be re-used later. e.g:
                     # !$omp parallel
                     # jpk = 100
                     # !omp do
                     # do ji = 1, jpk
-
-                    # TODO #598: Improve the handling of scalar variables,
-                    # there are remaining issues with references after the
-                    # parallel region of variables that we currently declare
-                    # as private.
-
-                    # Check if it is inside a loop
                     loop_ancestor = access.node.ancestor(
                         (Loop, WhileLoop),
                         limit=self,
                         include_self=True)
+                    if not loop_ancestor:
+                        # If we find it at least once outside a loop we keep it
+                        # as shared
+                        break
 
-                    if loop_ancestor:
-                        # The assignment to the variable is inside a loop, so
-                        # declare it to be private
-                        name = str(signature).lower()
-                        symbol = access.node.scope.symbol_table.lookup(name)
+                    # Otherwise, the assignment to this variable is inside a
+                    # loop (and it will be repeated for each iteration), so
+                    # we declare it as private or need_synch
+                    name = str(signature).lower()
+                    symbol = access.node.scope.symbol_table.lookup(name)
 
-                        # Is the write conditional?
-                        conditional_write = access.node.ancestor(
-                            IfBlock,
-                            limit=loop_ancestor,
-                            include_self=True)
-
-                        if has_been_read:
-                            loop_pos = loop_ancestor.loop_body.abs_position
-                            if last_read_position > loop_pos:
-                                # It is read in the same loop_body, so it is
-                                # a race condition
-                                need_sync.add(symbol)
-                            else:
-                                fprivate.add(symbol)
-                        elif conditional_write:
+                    # If it has been read before we have to check if ...
+                    if has_been_read:
+                        loop_pos = loop_ancestor.loop_body.abs_position
+                        if last_read_position < loop_pos:
+                            # .. it was before the loop, so it is fprivate
                             fprivate.add(symbol)
                         else:
-                            private.add(symbol)
-                    else:
-                        # If we find it outside a loop
+                            # or inside the loop, in which case it needs sync
+                            need_sync.add(symbol)
+                        break
+
+                    # If the write is not guaranteed, we make it firstprivate
+                    conditional_write = access.node.ancestor(
+                        IfBlock,
+                        limit=loop_ancestor,
+                        include_self=True)
+                    if conditional_write:
+                        fprivate.add(symbol)
                         break
 
                     # Already found the first write and decided if it is
                     # shared, private or firstprivate. We can stop looking.
+                    private.add(symbol)
                     break
 
         return private, fprivate, need_sync
