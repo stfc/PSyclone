@@ -326,9 +326,10 @@ def test_sym_writer_convert_to_sympy_expressions(fortran_reader):
     psyir = fortran_reader.psyir_from_source(source)
     exp1 = psyir.children[0].children[0].rhs
     exp2 = psyir.children[0].children[1].rhs
-    sympy_list = SymPyWriter(exp1, exp2)
+    sympy_writer = SymPyWriter()
+    sympy_list = sympy_writer([exp1, exp2])
 
-    expr = parse_expr("a_b_1 + a_c(1,1,1) + i")
+    expr = parse_expr("a_b_1 + a_c(1,1,1) + i", sympy_writer.type_map)
     assert sympy_list[0] == expr
     assert sympy_list[1] == parse_expr("a_b + j")
 
