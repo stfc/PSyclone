@@ -379,7 +379,7 @@ def test_lfricarrayargs_mp():
     code = str(psy.gen)
     assert "USE constants_mod, ONLY: roo_def, i_def" in code
 
-# here be sea monsters (below) (working point)
+#here be dragons - I'm not sure what is supposed to result from inout/out/in
 
 def test_lfricinvoke_uniq_declns_intent_array():
     ''' Tests that LFRicInvoke.unique_declns_by_intent() returns the correct
@@ -410,6 +410,7 @@ def test_lfricinvoke_uniq_declns_intent_array():
     assert logical_args['out'] == []
     assert logical_args['in'] == []
 
+# here be sea monsters (below) (working point)
 
 def test_array_invoke_uniq_declns_valid_intrinsic():
     ''' Tests that all valid intrinsic types for user-defined scalar
@@ -423,20 +424,20 @@ def test_array_invoke_uniq_declns_valid_intrinsic():
     psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
 
-    # Test 'real' scalars
+    # Test 'real' arrays
     const = LFRicConstants()
     arrays_real_args = invoke.unique_declarations(
         const.VALID_ARRAY_NAMES, intrinsic_type="real")
     arrays_real = [arg.declaration_name for arg in arrays_real_args]
     assert arrays_real == ["a"]
 
-    # Test 'integer' scalars
+    # Test 'integer' arrays
     arrays_integer_args = invoke.unique_declarations(
         const.VALID_ARRAY_NAMES, intrinsic_type="integer")
     arrays_integer = [arg.declaration_name for arg in arrays_integer_args]
     assert arrays_integer == ["istep"]
 
-    # Test 'logical' scalars
+    # Test 'logical' arrays
     arrays_logical_args = invoke.unique_declarations(
         const.VALID_ARRAY_NAMES, intrinsic_type="logical")
     arrays_logical = [arg.declaration_name for arg in arrays_logical_args]
