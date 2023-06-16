@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+# Copyright (c) 2017-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author R. W. Ford and A. R. Porter, STFC Daresbury Lab
-# Modified I. Kavcic, Met Office
+# Modified I. Kavcic and L. Turner Met Office
 # Modified by J. Henrichs, Bureau of Meteorology
 
 ''' Module containing py.test tests for functionality related to
@@ -710,7 +710,7 @@ def test_dynkern_setup(monkeypatch):
     monkeypatch.setattr(kern, "_eval_shapes", value=["gh_wrong_shape"])
     # Rather than try and mock-up a DynKernMetadata object, it's easier
     # to make one properly by parsing the kernel code.
-    ast = fpapi.parse(os.path.join(BASE_PATH, "testkern_qr.F90"),
+    ast = fpapi.parse(os.path.join(BASE_PATH, "testkern_qr_mod.F90"),
                       ignore_comments=False)
     name = "testkern_qr_type"
     dkm = DynKernMetadata(ast, name=name)
