@@ -84,8 +84,6 @@ EXCLUDED_FILES = [
     "sbccpl.f90",
     # TODO #1902: Excluded to avoid HoistLocalArraysTrans bug
     "mpp_ini.f90",
-    # TODO #2175
-    "ldfdyn.f90", "ldftra.f90", "daymod.f90"
     ]
 
 
