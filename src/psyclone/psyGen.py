@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
-# Modified by I. Kavcic, Met Office
+# Modified by I. Kavcic and L. Turner, Met Office
 # Modified by C.M. Maynard, Met Office / University of Reading
 # Modified by J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
@@ -54,7 +54,8 @@ from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.backend.visitor import PSyIRVisitor
 from psyclone.psyir.nodes import (Node, Schedule, Loop, Statement, Container,
                                   Routine, Call, OMPDoDirective)
-from psyclone.psyir.symbols import (DataSymbol, RoutineSymbol, Symbol,
+from psyclone.psyir.symbols import (ArrayType, DataSymbol, RoutineSymbol,
+                                    Symbol, ContainerSymbol, ImportInterface,
                                     ContainerSymbol, ImportInterface,
                                     ArgumentInterface, DeferredType)
 from psyclone.psyir.symbols.datatypes import UnknownFortranType
@@ -203,7 +204,7 @@ class PSyFactory():
         :type invoke_info: :py:class:`psyclone.parse.algorithm.FileInfo` or \
                            :py:class:`fparser.two.Fortran2003.Program`
 
-        :returns: an instance of the API-specifc sub-class of PSy.
+        :returns: an instance of the API-specific sub-class of PSy.
         :rtype: subclass of :py:class:`psyclone.psyGen.PSy`
 
         :raises InternalError: if this factory is found to have an \
@@ -444,7 +445,7 @@ class Invoke():
             dofs = kern_call.arguments.dofs
             for dof in dofs:
                 if dof not in self._dofs:
-                    # Only keep the first occurence for the moment. We will
+                    # Only keep the first occurrence for the moment. We will
                     # need to change this logic at some point as we need to
                     # cope with writes determining the dofs that are used.
                     self._dofs[dof] = [kern_call, dofs[dof][0]]
@@ -673,7 +674,8 @@ class InvokeSchedule(Routine):
 
     :param str name: name of the Invoke.
     :param type KernFactory: class instance of the factory to use when \
-     creating Kernels. e.g. :py:class:`psyclone.dynamo0p3.DynKernCallFactory`.
+     creating Kernels. e.g. \
+     :py:class:`psyclone.domain.lfric.LFRicKernCallFactory`.
     :param type BuiltInFactory: class instance of the factory to use when \
      creating built-ins. e.g. \
      :py:class:`psyclone.domain.lfric.lfric_builtins.LFRicBuiltInCallFactory`.
@@ -1720,7 +1722,7 @@ class CodedKern(Kern, Call):
         # manually fix the name of the procedure within the text that stores
         # the kernel metadata.
         container_table = container.symbol_table
-        for sym in container_table.local_datatypesymbols:
+        for sym in container_table.datatypesymbols:
             if isinstance(sym.datatype, UnknownFortranType):
                 orig_declaration = sym.datatype.declaration
                 sym.datatype.declaration = orig_declaration.replace(
@@ -2141,9 +2143,17 @@ class Argument():
                 argument_access = ArgumentInterface.Access.READWRITE
 
                 # Find the tag or create a new symbol with expected attributes
+                data_type = self.infer_datatype()
+                # In case of LFRic field vector, declare it as array.
+                # This is a fix for #1930, but we might want a better
+                # solution to avoid LFRic-specific code here.
+                # pylint: disable=no-member
+                if hasattr(self, 'vector_size') and self.vector_size > 1:
+                    data_type = ArrayType(data_type, [self.vector_size])
+
                 new_argument = symtab.find_or_create_tag(
                     tag, root_name=self._orig_name, symbol_type=DataSymbol,
-                    datatype=self.infer_datatype(),
+                    datatype=data_type,
                     interface=ArgumentInterface(argument_access))
                 self._name = new_argument.name
 

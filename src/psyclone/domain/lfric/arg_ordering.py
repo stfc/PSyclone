@@ -886,7 +886,9 @@ class ArgOrdering:
         # Note that the necessary ndf values will already have been added
         # to the argument list as they are mandatory for every function
         # space that appears in the meta-data.
-        sym = self.append_integer_reference(function_space.cbanded_map_name)
+        sym = self.append_array_reference(
+            function_space.cbanded_map_name, indices=[":", ":"],
+            intrinsic_type=ScalarType.Intrinsic.INTEGER)
         self.append(sym.name, var_accesses)
 
     def indirection_dofmap(self, function_space, operator=None,

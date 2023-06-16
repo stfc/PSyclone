@@ -48,13 +48,13 @@ from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
     TYPE_MAP_FROM_FORTRAN
 from psyclone.psyir.nodes import BinaryOperation, Call, CodeBlock, DataNode, \
-    Literal, Operation, Range, Routine, Schedule, UnaryOperation, IntrinsicCall
+    IntrinsicCall, Literal, Operation, Range, Routine, Schedule, UnaryOperation
 from psyclone.psyir.symbols import (
     ArgumentInterface, ArrayType, ContainerSymbol, DataSymbol, DataTypeSymbol,
-    DeferredType, RoutineSymbol, ScalarType, Symbol, SymbolTable,
-    UnknownFortranType, UnknownType, UnresolvedInterface, ImportInterface)
+    DeferredType, RoutineSymbol, ScalarType, Symbol, IntrinsicSymbol,
+    SymbolTable, UnknownFortranType, UnknownType, UnresolvedInterface)
 
-# The list of Fortran instrinsic functions that we know about (and can
+# The list of Fortran intrinsic functions that we know about (and can
 # therefore distinguish from array accesses). These are taken from
 # fparser.
 FORTRAN_INTRINSICS = Fortran2003.Intrinsic_Name.function_names
@@ -91,8 +91,7 @@ def gen_intent(symbol):
         except KeyError as excinfo:
             raise VisitorError(
                     f"Unsupported access '{excinfo}' found.") from excinfo
-    else:
-        return None  # non-Arguments do not have intent
+    return None  # non-Arguments do not have intent
 
 
 def gen_datatype(datatype, name):
@@ -207,7 +206,7 @@ def precedence(fortran_operator):
 
     '''
     # The index of the fortran_precedence list indicates relative
-    # precedence. Strings within sub-lists have the same precendence
+    # precedence. Strings within sub-lists have the same precedence
     # apart from the following two caveats. 1) unary + and - have
     # a higher precedence than binary + and -, e.g. -(a-b) !=
     # -a-b and 2) floating point operations are not actually
@@ -460,7 +459,12 @@ class FortranWriter(LanguageWriter):
                 # Lower and upper bounds of an array declaration specified
                 # by literal constant, symbol reference, or computed dimension
                 lower_expression = self._visit(index.lower)
-                upper_expression = self._visit(index.upper)
+                if isinstance(index.upper, ArrayType.Extent):
+                    # We have an assumed-shape array (R514) where only the
+                    # lower bound is specified.
+                    upper_expression = ""
+                else:
+                    upper_expression = self._visit(index.upper)
                 if lower_expression == "1":
                     # Lower bound of 1 is the default in Fortran
                     dims.append(upper_expression)
@@ -514,8 +518,15 @@ class FortranWriter(LanguageWriter):
                 f"SymbolTable.")
 
         # Construct the list of symbol names for the ONLY clause
-        only_list = [dsym.name for dsym in
-                     symbol_table.symbols_imported_from(symbol)]
+        only_list = []
+        for dsym in symbol_table.symbols_imported_from(symbol):
+            if dsym.interface.orig_name:
+                # This variable is renamed on import. Use Fortran's
+                # 'new_name=>orig_name' syntax to reflect this.
+                only_list.append(f"{dsym.name}=>{dsym.interface.orig_name}")
+            else:
+                # This variable is not renamed.
+                only_list.append(dsym.name)
 
         # Finally construct the use statements for this Container (module)
         if not only_list and not symbol.wildcard_import:
@@ -540,40 +551,45 @@ class FortranWriter(LanguageWriter):
         :returns: the Fortran variable declaration as a string.
         :rtype: str
 
-        :raises VisitorError: if the symbol is of UnknownFortranType and \
-            is not local.
+        :raises VisitorError: if the symbol is of DeferredType.
+        :raises VisitorError: if the symbol is of UnknownType other than \
+            UnknownFortranType.
         :raises VisitorError: if the symbol is of known type but does not \
             specify a variable declaration (it is not a local declaration or \
             an argument declaration).
-        :raises VisitorError: if the symbol or member is an array with a \
-            shape containing a mixture of DEFERRED and other extents.
+        :raises InternalError: if the symbol is a ContainerSymbol or an import.
+        :raises InternalError: if the symbol is a RoutineSymbol other than \
+            UnknownFortranType.
         :raises InternalError: if visibility is to be included but is not \
             either PUBLIC or PRIVATE.
 
         '''
         # pylint: disable=too-many-branches
-        # Whether we're dealing with a Symbol or a member of a derived type
-        is_symbol = isinstance(symbol, (DataSymbol, RoutineSymbol))
+        if isinstance(symbol.datatype, DeferredType):
+            raise VisitorError(f"Symbol '{symbol.name}' has a DeferredType "
+                               f"and we can not generate a declaration for "
+                               f"DeferredTypes.")
+        if isinstance(symbol, ContainerSymbol) or \
+                isinstance(symbol, Symbol) and symbol.is_import:
+            raise InternalError(f"Symbol '{symbol.name}' is brought into scope"
+                                f" from a Fortran USE statement and should be "
+                                f"generated by 'gen_use' instead of "
+                                f"'gen_vardecl'.")
+        if isinstance(symbol, RoutineSymbol) and not \
+                isinstance(symbol.datatype, UnknownFortranType):
+            raise InternalError(f"Symbol '{symbol.name}' is a RoutineSymbol "
+                                f"which is not imported nor an interface "
+                                f"(UnknownFortranType). This is already "
+                                f"implicitly declared by the routine itself "
+                                f"and should not be provided to 'gen_vardecl'."
+                                )
+
         # Whether we're dealing with an array declaration and, if so, the
         # shape of that array.
         if isinstance(symbol.datatype, ArrayType):
             array_shape = symbol.datatype.shape
         else:
             array_shape = []
-
-        if is_symbol:
-            if isinstance(symbol.datatype, UnknownFortranType):
-                if isinstance(symbol, RoutineSymbol) and not symbol.is_local:
-                    raise VisitorError(
-                        f"{type(symbol).__name__} '{symbol.name}' is of "
-                        f"UnknownFortranType but has interface "
-                        f"'{symbol.interface}' instead of LocalInterface. This"
-                        f" is not supported by the Fortran back-end.")
-            elif not (symbol.is_local or symbol.is_argument):
-                raise VisitorError(
-                    f"gen_vardecl requires the symbol '{symbol.name}' to have "
-                    f"a Local or an Argument interface but found a "
-                    f"'{type(symbol.interface).__name__}' interface.")
 
         if isinstance(symbol.datatype, UnknownType):
             if isinstance(symbol.datatype, UnknownFortranType):
@@ -593,38 +609,26 @@ class FortranWriter(LanguageWriter):
         result = f"{self._nindent}{datatype}"
 
         if ArrayType.Extent.DEFERRED in array_shape:
-            if not all(dim == ArrayType.Extent.DEFERRED
-                       for dim in array_shape):
-                raise VisitorError(
-                    f"A Fortran declaration of an allocatable array must have"
-                    f" the extent of every dimension as 'DEFERRED' but "
-                    f"symbol '{symbol.name}' has shape: "
-                    f"{self.gen_indices(array_shape)}.")
             # A 'deferred' array extent means this is an allocatable array
             result += ", allocatable"
-        if ArrayType.Extent.ATTRIBUTE in array_shape:
-            if not all(dim == ArrayType.Extent.ATTRIBUTE
-                       for dim in symbol.datatype.shape):
-                # If we have an 'assumed-size' array then only the last
-                # dimension is permitted to have an 'ATTRIBUTE' extent
-                if (array_shape.count(ArrayType.Extent.ATTRIBUTE) != 1 or
-                        array_shape[-1] != ArrayType.Extent.ATTRIBUTE):
-                    raise VisitorError(
-                        f"An assumed-size Fortran array must only have its "
-                        f"last dimension unspecified (as 'ATTRIBUTE') but "
-                        f"symbol '{symbol.name}' has shape: "
-                        f"{self.gen_indices(array_shape)}.")
+
+        # Specify Fortran attributes
         if array_shape:
             dims = self.gen_indices(array_shape)
             result += ", dimension(" + ",".join(dims) + ")"
-        if is_symbol:
-            # A member of a derived type cannot have the 'intent' or
-            # 'parameter' attribute.
+
+        if isinstance(symbol, DataSymbol) and symbol.is_argument:
             intent = gen_intent(symbol)
             if intent:
                 result += f", intent({intent})"
-            if symbol.is_constant:
-                result += ", parameter"
+
+        if isinstance(symbol, DataSymbol) and symbol.is_constant:
+            result += ", parameter"
+        elif isinstance(symbol, DataSymbol) and symbol.is_static:
+            # This condition is an elif because SAVE and PARAMETER are
+            # incompatible, but we let PARAMETER take precedence because
+            # a parameter is already behaving like a static value
+            result += ", save"
 
         if include_visibility:
             if symbol.visibility == Symbol.Visibility.PRIVATE:
@@ -636,11 +640,14 @@ class FortranWriter(LanguageWriter):
                     f"A Symbol must be either public or private but symbol "
                     f"'{symbol.name}' has visibility '{symbol.visibility}'")
 
+        # Specify name
         result += f" :: {symbol.name}"
-        if is_symbol and symbol.is_constant:
+
+        # Specify initialization expression
+        if isinstance(symbol, DataSymbol) and symbol.is_constant:
             result += " = " + self._visit(symbol.constant_value)
-        result += "\n"
-        return result
+
+        return result + "\n"
 
     def gen_typedecl(self, symbol, include_visibility=True):
         '''
@@ -769,8 +776,7 @@ class FortranWriter(LanguageWriter):
         private_symbols = []
         for symbol in symbol_table.symbols:
             if (isinstance(symbol, RoutineSymbol) or
-                    isinstance(symbol.interface, (UnresolvedInterface,
-                                                  ImportInterface))):
+                    symbol.is_unresolved or symbol.is_import):
 
                 # Skip the symbol representing the routine where these
                 # declarations belong
@@ -805,6 +811,7 @@ class FortranWriter(LanguageWriter):
             return result
         return ""
 
+    # pylint: disable=too-many-branches
     def _gen_parameter_decls(self, symbol_table, is_module_scope=False):
         ''' Create the declarations of all parameters present in the supplied
         symbol table. Declarations are ordered so as to satisfy any inter-
@@ -823,30 +830,38 @@ class FortranWriter(LanguageWriter):
 
         '''
         declarations = ""
-        local_constants = [sym for sym in symbol_table.local_datasymbols if
-                           sym.is_constant]
-        if not local_constants:
-            return declarations
+        local_constants = []
+        for sym in symbol_table.datasymbols:
+            if sym.is_import or sym.is_unresolved:
+                continue  # Skip, these don't need declarations
+            if sym.is_constant:
+                local_constants.append(sym)
 
         # There may be dependencies between these constants so setup a dict
         # listing the required inputs for each one.
         decln_inputs = {}
+        # Avoid circular dependency
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.tools.read_write_info import ReadWriteInfo
         for symbol in local_constants:
             decln_inputs[symbol.name] = set()
-            input_sigs = self._dep_tools.get_input_parameters(
-                symbol.constant_value)
+            read_write_info = ReadWriteInfo()
+            self._dep_tools.get_input_parameters(read_write_info,
+                                                 symbol.constant_value)
             # The dependence analysis tools do not include symbols used to
             # define precision so check for those here.
             for lit in symbol.constant_value.walk(Literal):
                 if isinstance(lit.datatype.precision, DataSymbol):
-                    input_sigs.append(Signature(lit.datatype.precision.name))
+                    read_write_info.add_read(
+                        Signature(lit.datatype.precision.name))
             # If the precision of the Symbol being declared is itself defined
             # by a Symbol then include that as an 'input'.
             if isinstance(symbol.datatype.precision, DataSymbol):
-                input_sigs.append(Signature(symbol.datatype.precision.name))
+                read_write_info.add_read(
+                    Signature(symbol.datatype.precision.name))
             # Remove any 'inputs' that are not local since these do not affect
             # the ordering of local declarations.
-            for sig in input_sigs:
+            for sig in read_write_info.signatures_read:
                 if symbol_table.lookup(sig.var_name) in local_constants:
                     decln_inputs[symbol.name].add(sig)
         # We now iterate over the declarations, declaring those that have their
@@ -876,93 +891,119 @@ class FortranWriter(LanguageWriter):
         SymbolTable.
 
         :param symbol_table: the SymbolTable instance.
-        :type symbol: :py:class:`psyclone.psyir.symbols.SymbolTable`
+        :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
         :param bool is_module_scope: whether or not the declarations are in \
                                      a module scoping unit. Default is False.
 
         :returns: the Fortran declarations for the table.
         :rtype: str
 
-        :raises VisitorError: if one of the symbols is a RoutineSymbol \
-            which does not have an ImportInterface or LocalInterface (and is \
-            not a Fortran intrinsic) as this is not supported by this backend.
+        :raises VisitorError: if one of the symbols is a RoutineSymbol which \
+            does not have an ImportInterface or UnresolvedInterface ( \
+            representing named and unqualified imports respectively) or \
+            ModuleDefaultInterface (representing routines declared in the \
+            same module) or is not a Fortran intrinsic.
         :raises VisitorError: if args_allowed is False and one or more \
             argument declarations exist in symbol_table.
-        :raises VisitorError: if there are any symbols in the supplied table \
-            that do not have an explicit declaration and there are no \
+        :raises VisitorError: if there are any symbols (other than \
+            RoutineSymbols) in the supplied table that do not have an \
+            explicit declaration (UnresolvedInterface) and there are no \
             wildcard imports.
 
         '''
         # pylint: disable=too-many-branches
         declarations = ""
-        # Keep a record of whether we've already checked for any wildcard
-        # imports to save doing so repeatedly
-        wildcard_imports_checked = False
-        has_wildcard_import = False
 
-        routine_symbols = [symbol for symbol in symbol_table.symbols
-                           if isinstance(symbol, RoutineSymbol)]
-        for sym in routine_symbols:
-            if isinstance(sym.interface, ArgumentInterface):
-                raise VisitorError(
-                    f"Routine symbol '{sym.name}' is passed as an argument "
-                    f"(has an ArgumentInterface). This is not supported by "
-                    f"the Fortran back-end.")
-            # Interfaces to module procedures are captured by the frontend as
-            # RoutineSymbols of UnknownFortranType. These must therefore be
-            # declared.
-            if isinstance(sym.datatype, UnknownType):
-                declarations += self.gen_vardecl(
-                    sym, include_visibility=is_module_scope)
+        # Get all symbols local to this symbol table
+        all_symbols = symbol_table.symbols
 
-        # Does the symbol table contain any symbols with a deferred
-        # interface (i.e. we don't know how they are brought into scope)
-        unresolved_datasymbols = symbol_table.get_unresolved_datasymbols()
+        # Before processing the declarations we remove:
+        for sym in all_symbols[:]:
+            # Everything that is a container or imported (because it should
+            # already be done by the gen_use() method before)
+            if isinstance(sym, ContainerSymbol):
+                all_symbols.remove(sym)
+                continue
+            if sym.is_import:
+                all_symbols.remove(sym)
+                continue
+            # All the IntrinsicSymbols and RoutineSymbols with an
+            # UresolvedInterface (Fortran can have Calls which are
+            # only resolved at link time)
+            if isinstance(sym, IntrinsicSymbol) or (
+                    isinstance(sym, RoutineSymbol) and
+                    isinstance(sym.interface, UnresolvedInterface)):
+                all_symbols.remove(sym)
 
-        if unresolved_datasymbols:
-            # We do have unresolved symbols. Is there at least one wildcard
-            # import which could be bringing them into scope?
-            if not wildcard_imports_checked:
-                has_wildcard_import = symbol_table.has_wildcard_imports()
-                wildcard_imports_checked = True
-            if not has_wildcard_import:
-                symbols_txt = ", ".join(
-                    ["'" + sym + "'" for sym in unresolved_datasymbols])
-                raise VisitorError(
-                    f"The following symbols are not explicitly declared or "
-                    f"imported from a module and there are no wildcard "
-                    f"imports which could be bringing them into scope: "
-                    f"{symbols_txt}")
+        # If the symbol table contain any symbols with an UnresolvedInterface
+        # interface (they are not explicitly declared), we need to check that
+        # we have at least one wildcard import which could be bringing them
+        # into this scope.
+        unresolved_symbols = []
+        for sym in all_symbols[:]:
+            if isinstance(sym.interface, UnresolvedInterface):
+                unresolved_symbols.append(sym)
+                all_symbols.remove(sym)
+        if unresolved_symbols and not symbol_table.has_wildcard_imports():
+            symbols_txt = ", ".join(
+                ["'" + sym.name + "'" for sym in unresolved_symbols])
+            raise VisitorError(
+                f"The following symbols are not explicitly declared or "
+                f"imported from a module and there are no wildcard "
+                f"imports which could be bringing them into scope: "
+                f"{symbols_txt}")
 
-        # Fortran requires use statements to be specified before
-        # variable declarations. As a convention, this method also
-        # declares any argument variables before local variables.
+        # As a convention, we will declare the variables in the following
+        # order:
 
-        # 1: Local constants.
+        # 1: Routines (Interfaces)
+        for sym in all_symbols[:]:
+            if isinstance(sym, RoutineSymbol):
+                # Interfaces to module procedures are captured by the frontend
+                # as RoutineSymbols of UnknownFortranType. These must therefore
+                # be declared.
+                if isinstance(sym.datatype, UnknownType):
+                    declarations += self.gen_vardecl(
+                        sym, include_visibility=is_module_scope)
+                elif sym.is_modulevar or sym.is_automatic:
+                    pass
+                else:
+                    raise VisitorError(
+                        f"Routine symbol '{sym.name}' has '{sym.interface}'. "
+                        f"This is not supported by the Fortran back-end.")
+                all_symbols.remove(sym)
+
+        # 2: Constants.
         declarations += self._gen_parameter_decls(symbol_table,
                                                   is_module_scope)
+        for sym in all_symbols[:]:
+            if isinstance(sym, DataSymbol) and sym.is_constant:
+                all_symbols.remove(sym)
 
-        # 2: Argument variable declarations
+        # 3: Argument variable declarations
         if symbol_table.argument_datasymbols and is_module_scope:
             raise VisitorError(
                 f"Arguments are not allowed in this context but this symbol "
                 f"table contains argument(s): "
                 f"'{[sym.name for sym in symbol_table.argument_datasymbols]}'."
                 )
+        # We use symbol_table.argument_datasymbols because it has the
+        # symbol order that we need
         for symbol in symbol_table.argument_datasymbols:
             declarations += self.gen_vardecl(
                 symbol, include_visibility=is_module_scope)
+            all_symbols.remove(symbol)
 
-        # 3: Derived-type declarations. These must come before any declarations
-        #    of symbols of these types.
-        for symbol in symbol_table.local_datatypesymbols:
-            declarations += self.gen_typedecl(
-                symbol, include_visibility=is_module_scope)
+        # 4: Derived-type declarations. These must come before any declarations
+        # of symbols of these types.
+        for symbol in all_symbols[:]:
+            if isinstance(symbol, DataTypeSymbol):
+                declarations += self.gen_typedecl(
+                    symbol, include_visibility=is_module_scope)
+                all_symbols.remove(symbol)
 
-        # 4: Local variable declarations.
-        local_vars = [sym for sym in symbol_table.local_datasymbols if not
-                      sym.is_constant]
-        for symbol in local_vars:
+        # 5: The rest of the symbols
+        for symbol in all_symbols:
             declarations += self.gen_vardecl(
                 symbol, include_visibility=is_module_scope)
 
@@ -1120,23 +1161,8 @@ class FortranWriter(LanguageWriter):
             # API-specific table here:
             whole_routine_scope = type(node.symbol_table)()
 
-            itself = node.symbol_table.lookup_with_tag("own_routine_symbol")
             for schedule in node.walk(Schedule):
-                for symbol in schedule.symbol_table.symbols[:]:
-
-                    # We don't need to add the Symbol representing this Routine
-                    # to the top level symbol table because in Fortran it is
-                    # already implicitly declared by the subroutine statement.
-                    if symbol is itself and isinstance(symbol, RoutineSymbol):
-                        continue
-
-                    try:
-                        whole_routine_scope.add(symbol)
-                    except KeyError:
-                        new_name = whole_routine_scope.next_available_name(
-                            symbol.name, other_table=schedule.symbol_table)
-                        schedule.symbol_table.rename_symbol(symbol, new_name)
-                        whole_routine_scope.add(symbol)
+                whole_routine_scope.merge(schedule.symbol_table)
 
             # Replace the symbol table
             node.symbol_table.detach()
@@ -1395,6 +1421,31 @@ class FortranWriter(LanguageWriter):
                 f"{self._nindent}if ({condition}) then\n"
                 f"{if_body}"
                 f"{self._nindent}end if\n")
+        return result
+
+    def whileloop_node(self, node):
+        '''This method is called when a WhileLoop instance is found in the
+        PSyIR tree.
+
+        :param node: a WhileLoop PSyIR node.
+        :type node: :py:class:`psyclone.psyir.nodes.WhileLoop`
+
+        :returns: the Fortran code.
+        :rtype: str
+
+        '''
+        condition = self._visit(node.condition)
+
+        self._depth += 1
+        body = ""
+        for child in node.loop_body:
+            body += self._visit(child)
+        self._depth -= 1
+
+        result = (
+            f"{self._nindent}do while ({condition})\n"
+            f"{body}"
+            f"{self._nindent}end do\n")
         return result
 
     def loop_node(self, node):

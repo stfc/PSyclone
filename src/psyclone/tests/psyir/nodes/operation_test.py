@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2022, Science and Technology Facilities Council.
+# Copyright (c) 2019-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -63,7 +63,7 @@ def test_operation_named_arg_str():
     '''
     lhs = Reference(DataSymbol("tmp1", REAL_SINGLE_TYPE))
     rhs = Reference(DataSymbol("tmp2", REAL_SINGLE_TYPE))
-    oper = BinaryOperation.Operator.SUM
+    oper = BinaryOperation.Operator.DOT_PRODUCT
     binaryoperation = BinaryOperation.create(oper, lhs, ("named_arg", rhs))
     assert "named_arg=Reference[name:'tmp2']" in str(binaryoperation)
 
@@ -75,7 +75,7 @@ def test_operation_appendnamedarg():
     NaryOperation node to perform the tests.
 
     '''
-    nary_operation = NaryOperation(NaryOperation.Operator.SUM)
+    nary_operation = NaryOperation(NaryOperation.Operator.MAX)
     op1 = Literal("1", INTEGER_SINGLE_TYPE)
     op2 = Literal("2", INTEGER_SINGLE_TYPE)
     op3 = Literal("3", INTEGER_SINGLE_TYPE)
@@ -102,7 +102,7 @@ def test_operation_appendnamedarg():
     assert nary_operation.argument_names == ["name1", "name2", None]
     # too many args
     binary_operation = BinaryOperation.create(
-        BinaryOperation.Operator.SUM, op1.copy(), op2.copy())
+        BinaryOperation.Operator.DOT_PRODUCT, op1.copy(), op2.copy())
     with pytest.raises(GenerationError) as info:
         binary_operation.append_named_arg(None, op3.copy())
     assert ("Item 'Literal' can't be child 2 of 'BinaryOperation'. The valid "
@@ -116,7 +116,7 @@ def test_operation_insertnamedarg():
     NaryOperation node to perform the tests.
 
     '''
-    nary_operation = NaryOperation(NaryOperation.Operator.SUM)
+    nary_operation = NaryOperation(NaryOperation.Operator.MAX)
     op1 = Literal("1", INTEGER_SINGLE_TYPE)
     op2 = Literal("2", INTEGER_SINGLE_TYPE)
     op3 = Literal("3", INTEGER_SINGLE_TYPE)
@@ -152,7 +152,7 @@ def test_operation_insertnamedarg():
     assert nary_operation.argument_names == [None, "name2", "name1"]
     # invalid index value
     binary_operation = BinaryOperation.create(
-        BinaryOperation.Operator.SUM, op1.copy(), op2.copy())
+        BinaryOperation.Operator.DOT_PRODUCT, op1.copy(), op2.copy())
     with pytest.raises(GenerationError) as info:
         binary_operation.insert_named_arg("name2", op2.copy(), 2)
     assert ("Item 'Literal' can't be child 2 of 'BinaryOperation'. The valid "
@@ -166,7 +166,7 @@ def test_operation_replacenamedarg():
     BinaryOperation node to perform the tests.
 
     '''
-    binary_operation = BinaryOperation(BinaryOperation.Operator.SUM)
+    binary_operation = BinaryOperation(BinaryOperation.Operator.DOT_PRODUCT)
     op1 = Literal("1", INTEGER_SINGLE_TYPE)
     op2 = Literal("2", INTEGER_SINGLE_TYPE)
     op3 = Literal("3", INTEGER_SINGLE_TYPE)
@@ -204,7 +204,7 @@ def test_operation_argumentnames_after_removearg():
     the tests.
 
     '''
-    binary_operation = BinaryOperation(BinaryOperation.Operator.SUM)
+    binary_operation = BinaryOperation(BinaryOperation.Operator.DOT_PRODUCT)
     op1 = Literal("1", INTEGER_SINGLE_TYPE)
     op2 = Literal("1", INTEGER_SINGLE_TYPE)
     binary_operation.append_named_arg("name1", op1)
@@ -251,7 +251,7 @@ def test_operation_argumentnames_after_replacearg():
     node to perform the tests.
 
     '''
-    binary_operation = BinaryOperation(BinaryOperation.Operator.SUM)
+    binary_operation = BinaryOperation(BinaryOperation.Operator.DOT_PRODUCT)
     op1 = Literal("1", INTEGER_SINGLE_TYPE)
     op2 = Literal("1", INTEGER_SINGLE_TYPE)
     op3 = Literal("1", INTEGER_SINGLE_TYPE)
@@ -275,7 +275,7 @@ def test_operation_argumentnames_after_reorderearg():
     the tests.
 
     '''
-    binary_operation = BinaryOperation(BinaryOperation.Operator.SUM)
+    binary_operation = BinaryOperation(BinaryOperation.Operator.DOT_PRODUCT)
     op1 = Literal("1", INTEGER_SINGLE_TYPE)
     op2 = Literal("1", INTEGER_SINGLE_TYPE)
     binary_operation.append_named_arg("name1", op1)
@@ -304,7 +304,7 @@ def test_operation_reconcile_add():
     op2 = Literal("1", INTEGER_SINGLE_TYPE)
     op3 = Literal("1", INTEGER_SINGLE_TYPE)
     oper = NaryOperation.create(
-        NaryOperation.Operator.SUM, [("name1", op1), ("name2", op2)])
+        NaryOperation.Operator.MAX, [("name1", op1), ("name2", op2)])
     # consistent
     assert len(oper._argument_names) == 2
     assert oper._argument_names[0] == (id(oper.children[0]), "name1")
@@ -330,7 +330,7 @@ def test_operation_reconcile_reorder():
     op1 = Literal("1", INTEGER_SINGLE_TYPE)
     op2 = Literal("2", INTEGER_SINGLE_TYPE)
     oper = BinaryOperation.create(
-        BinaryOperation.Operator.SUM, ("name1", op1), ("name2", op2))
+        BinaryOperation.Operator.DOT_PRODUCT, ("name1", op1), ("name2", op2))
     # consistent
     assert len(oper._argument_names) == 2
     assert oper._argument_names[0] == (id(oper.children[0]), "name1")
@@ -418,16 +418,16 @@ def test_binaryoperation_named_create():
     '''
     lhs = Reference(DataSymbol("tmp1", REAL_SINGLE_TYPE))
     rhs = Reference(DataSymbol("tmp2", REAL_SINGLE_TYPE))
-    oper = BinaryOperation.Operator.SUM
+    oper = BinaryOperation.Operator.DOT_PRODUCT
     binaryoperation = BinaryOperation.create(oper, lhs, ("dim", rhs))
     check_links(binaryoperation, [lhs, rhs])
     result = FortranWriter().binaryoperation_node(binaryoperation)
-    assert result == "SUM(tmp1, dim=tmp2)"
+    assert result == "DOT_PRODUCT(tmp1, dim=tmp2)"
     binaryoperation = BinaryOperation.create(
         oper, ("dummy", lhs.detach()), ("dim", rhs.detach()))
     check_links(binaryoperation, [lhs, rhs])
     result = FortranWriter().binaryoperation_node(binaryoperation)
-    assert result == "SUM(dummy=tmp1, dim=tmp2)"
+    assert result == "DOT_PRODUCT(dummy=tmp1, dim=tmp2)"
 
 
 def test_binaryoperation_create_invalid():
@@ -459,7 +459,7 @@ def test_binaryoperation_create_invalid():
             "format is: 'DataNode, DataNode'.") in str(excinfo.value)
 
     # rhs is an invalid tuple (too many elements)
-    oper = BinaryOperation.Operator.SUM
+    oper = BinaryOperation.Operator.DOT_PRODUCT
     with pytest.raises(GenerationError) as excinfo:
         _ = BinaryOperation.create(oper, ref1, (1, 2, 3))
     assert ("If the rhs argument in create method of BinaryOperation class "
@@ -467,7 +467,7 @@ def test_binaryoperation_create_invalid():
             in str(excinfo.value))
 
     # rhs is an invalid tuple (1st element not str)
-    oper = BinaryOperation.Operator.SUM
+    oper = BinaryOperation.Operator.DOT_PRODUCT
     with pytest.raises(GenerationError) as excinfo:
         _ = BinaryOperation.create(oper, ref1, (1, 2))
     assert ("If the rhs argument in create method of BinaryOperation class "
@@ -475,7 +475,7 @@ def test_binaryoperation_create_invalid():
             "int." in str(excinfo.value))
 
     # rhs has an invalid name (1st element invalid value)
-    oper = BinaryOperation.Operator.SUM
+    oper = BinaryOperation.Operator.DOT_PRODUCT
     with pytest.raises(ValueError) as info:
         _ = BinaryOperation.create(oper, ref1.copy(), ("_", 2))
     assert "Invalid name '_' found." in str(info.value)
@@ -512,10 +512,9 @@ def test_binaryoperation_is_elemental():
     elemental in each BinaryOperation.
 
     '''
-    # SUM, MATMUL, SIZE, LBOUND, UBOUND and DOT_PRODUCT are not
+    # MATMUL, SIZE, LBOUND, UBOUND and DOT_PRODUCT are not
     # elemental
     not_elemental = [
-        BinaryOperation.Operator.SUM,
         BinaryOperation.Operator.SIZE,
         BinaryOperation.Operator.MATMUL,
         BinaryOperation.Operator.LBOUND,
@@ -526,9 +525,9 @@ def test_binaryoperation_is_elemental():
     for binary_operator in BinaryOperation.Operator:
         operation = BinaryOperation(binary_operator)
         if binary_operator in not_elemental:
-            assert not operation.is_elemental()
+            assert operation.is_elemental is False
         else:
-            assert operation.is_elemental()
+            assert operation.is_elemental is True
 
 
 # Test UnaryOperation class
@@ -689,17 +688,10 @@ def test_unaryoperation_is_elemental():
     elemental in each UnaryOperation.
 
     '''
-    # SUM is not elemental
-    not_elemental = [
-        UnaryOperation.Operator.SUM,
-    ]
-
+    # All unary operators are elemental
     for unary_operator in UnaryOperation.Operator:
         operation = UnaryOperation(unary_operator)
-        if unary_operator in not_elemental:
-            assert not operation.is_elemental()
-        else:
-            assert operation.is_elemental()
+        assert operation.is_elemental is True
 
 
 # Test NaryOperation class
@@ -775,7 +767,7 @@ def test_naryoperation_create_invalid():
             "be a PSyIR NaryOperation Operator but found 'str'."
             in str(excinfo.value))
 
-    oper = NaryOperation.Operator.SUM
+    oper = NaryOperation.Operator.MAX
 
     # children not a list
     with pytest.raises(GenerationError) as excinfo:
@@ -829,17 +821,10 @@ def test_naryoperation_is_elemental():
     elemental in each NaryOperation.
 
     '''
-    # SUM is not elemental
-    not_elemental = [
-        NaryOperation.Operator.SUM,
-    ]
-
+    # All nary operations are elemental
     for nary_operator in NaryOperation.Operator:
         operation = NaryOperation(nary_operator)
-        if nary_operator in not_elemental:
-            assert not operation.is_elemental()
-        else:
-            assert operation.is_elemental()
+        assert operation.is_elemental is True
 
 
 def test_operations_can_be_copied():
@@ -883,7 +868,7 @@ def test_copy():
     op1 = Literal("1", INTEGER_SINGLE_TYPE)
     op2 = Literal("2", INTEGER_SINGLE_TYPE)
     oper = BinaryOperation.create(
-        BinaryOperation.Operator.SUM, ("name1", op1), ("name2", op2))
+        BinaryOperation.Operator.DOT_PRODUCT, ("name1", op1), ("name2", op2))
     # consistent operation
     oper_copy = oper.copy()
     assert oper._argument_names[0] == (id(oper.children[0]), "name1")

@@ -21,7 +21,7 @@ import subprocess
 # -- Project information -----------------------------------------------------
 
 project = 'Reference Guide'
-copyright = ('2019-2022, R. W. Ford, J. Henrichs, I. Kavcic, A. R. Porter, '
+copyright = ('2019-2023, R. W. Ford, J. Henrichs, I. Kavcic, A. R. Porter, '
              ' S. Siso')
 author = 'R. W. Ford, J. Henrichs, I. Kavcic, A. R. Porter, S. Siso'
 
@@ -193,5 +193,5 @@ epub_exclude_files = ['search.html']
 # Generate the Doxygen documentation
 subprocess.call('cd ..; doxygen doxygen.config', shell=True)
 # If we want to completely replace the Sphinx-generated documentation
-# with that constructed by Doxgen then we uncomment the line below.
-# html_extra_path = ['doxgygen/html/']
+# with that constructed by Doxygen then we uncomment the line below.
+# html_extra_path = ['doxygen/html/']

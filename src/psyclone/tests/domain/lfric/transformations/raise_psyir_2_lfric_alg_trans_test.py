@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council
+# Copyright (c) 2021-2023, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -206,6 +206,29 @@ def test_codeblock_invalid(monkeypatch, fortran_reader):
         lfric_invoke_trans.validate(subroutine[0])
     assert ("Expecting an algorithm invoke codeblock to contain a "
             "Structure-Constructor, but found 'NoneType'." in str(info.value))
+
+
+def test_arg_declaration_error(fortran_reader):
+    '''Test that the validate method raises an exception if the argument
+    to the invoke is a builtin whose name has already been used as a
+    subroutine name.
+
+    '''
+    code = (
+        "subroutine setval_c()\n"
+        "  use builtins\n"
+        "  use constants_mod, only: r_def\n"
+        "  use field_mod, only : field_type\n"
+        "  type(field_type) :: field\n"
+        "  real(kind=r_def) :: value\n"
+        "  call invoke(setval_c(field, value))\n"
+        "end subroutine setval_c\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    invoke_trans = RaisePSyIR2LFRicAlgTrans()
+    with pytest.raises(TransformationError) as info:
+        invoke_trans.validate(psyir.children[0][0])
+    assert ("The invoke call argument 'setval_c' has been used as a routine "
+            "name. This is not allowed." in str(info.value))
 
 
 def test_apply_codedkern_arrayref(fortran_reader):

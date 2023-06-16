@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2019-2022, Science and Technology Facilities Council.
+.. Copyright (c) 2019-2023, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 .. POSSIBILITY OF SUCH DAMAGE.
 .. -----------------------------------------------------------------------------
 .. Written by A. R. Porter, STFC Daresbury Lab
-.. Modified by R. W. Ford, STFC Daresbury Lab
+.. Modified by R. W. Ford, N. Nobre and S. Siso, STFC Daresbury Lab
 
 .. The following section imports those Python modules that are needed in
    subsequent doctest snippets.
@@ -73,7 +73,7 @@ to create code.
 .. note:: This separation will be removed in the future and eventually
 	  all PSyIR classes will make use of backends with the
 	  expectation that ``gen_code()`` and ``update()`` methods
-	  will be removed. Further this separation will be superceded
+	  will be removed. Further this separation will be superseded
 	  by a separation between ``language-level PSyIR`` and
 	  ``domain-specific PSyIR``.
 
@@ -103,8 +103,8 @@ PSy-layer classes (``Loop`` and ``Schedule``) can also be used as
 Kernel-layer classes. Additionally, the ``Schedule`` class is further
 subclassed into a ``Routine`` and then a kernel-layer
 ``KernelSchedule``.  In addition to ``KernelSchedule``, Kernel-layer
-PSyIR nodes are: ``Loop``, ``IfBlock``, ``CodeBlock``, ``Assignment``,
-``Range``, ``Reference``, ``Operation``, ``Literal``, ``Call``,
+PSyIR nodes are: ``Loop``, ``WhileLoop``, ``IfBlock``, ``CodeBlock``,
+``Assignment``, ``Range``, ``Reference``, ``Operation``, ``Literal``, ``Call``,
 ``Return`` and ``Container``. The ``Reference`` class is further
 subclassed into ``ArrayReference``, ``StructureReference`` and
 ``ArrayOfStructuresReference``, the ``Operation`` class is further
@@ -183,10 +183,13 @@ To solve this issue some Nodes also provide methods for semantic navigation:
    .. automethod:: psyclone.psyir.nodes.Assignment.rhs()
 - ``IfBlock``:
    .. automethod:: psyclone.psyir.nodes.IfBlock.condition()
-		
    .. automethod:: psyclone.psyir.nodes.IfBlock.if_body()
-
    .. automethod:: psyclone.psyir.nodes.IfBlock.else_body()
+- ``Loop``:
+   .. automethod:: psyclone.psyir.nodes.Loop.loop_body()
+- ``WhileLoop``:
+   .. automethod:: psyclone.psyir.nodes.WhileLoop.condition()
+   .. automethod:: psyclone.psyir.nodes.WhileLoop.loop_body()
 - ``Array`` nodes (e.g. ``ArrayReference``, ``ArrayOfStructuresReference``):
    .. automethod:: psyclone.psyir.nodes.ArrayReference.indices()
 - ``RegionDirective``:
@@ -375,7 +378,7 @@ Symbols (`psyclone.psyir.symbols.Symbol`) specified and used within them.
 
 Symbol Tables can be nested (i.e. a node with an attached symbol table
 can be an ancestor or descendent of a node with an attached symbol
-table). If the same symbol name is used in a hierachy of symbol tables
+table). If the same symbol name is used in a hierarchy of symbol tables
 then the symbol within the symbol table attached to the closest
 ancestor node is in scope. By default, symbol tables are aware of
 other symbol tables and will return information about relevant symbols
@@ -415,13 +418,21 @@ variable data is provided into the local context. The currently available
 Interfaces are:
 
 
-- .. autoclass:: psyclone.psyir.symbols.LocalInterface
+- .. autoclass:: psyclone.psyir.symbols.AutomaticInterface
+
+- .. autoclass:: psyclone.psyir.symbols.DefaultModuleInterface
 
 - .. autoclass:: psyclone.psyir.symbols.ImportInterface
 
 - .. autoclass:: psyclone.psyir.symbols.ArgumentInterface
 
+- .. autoclass:: psyclone.psyir.symbols.StaticInterface
+
+- .. autoclass:: psyclone.psyir.symbols.CommonBlockInterface
+
 - .. autoclass:: psyclone.psyir.symbols.UnresolvedInterface
+
+- .. autoclass:: psyclone.psyir.symbols.UnknownInterface
 
 
 Creating PSyIR
@@ -533,7 +544,7 @@ together. For example:
 However, as connections get more complicated, creating the correct
 connections can become difficult to manage and error prone. Further,
 in some cases children must be collected together within a
-``Schedule`` (e.g. for ``IfBlock`` and for ``Loop``).
+``Schedule`` (e.g. for ``IfBlock``, ``Loop`` and ``WhileLoop``).
 
 To simplify this complexity, each of the Kernel-layer nodes which
 contain other nodes have a static ``create`` method which helps

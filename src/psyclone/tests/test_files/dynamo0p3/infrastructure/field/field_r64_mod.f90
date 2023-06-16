@@ -3,6 +3,40 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
+! BSD 3-Clause License
+!
+! Modifications copyright (c) 2022-2023, Science and Technology Facilities
+! Council
+! All rights reserved.
+!
+! Redistribution and use in source and binary forms, with or without
+! modification, are permitted provided that the following conditions are met:
+!
+! * Redistributions of source code must retain the above copyright notice, this
+!   list of conditions and the following disclaimer.
+!
+! * Redistributions in binary form must reproduce the above copyright notice,
+!   this list of conditions and the following disclaimer in the documentation
+!   and/or other materials provided with the distribution.
+!
+! * Neither the name of the copyright holder nor the names of its
+!   contributors may be used to endorse or promote products derived from
+!   this software without specific prior written permission.
+!
+! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+! AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+! IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+! DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+! FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+! DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+! SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+! CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+! -----------------------------------------------------------------------------
+!
+! Modified by: I. Kavcic, Met Office,
+!              J. Henrichs, Bureau of Meteorology
 !
 !> @brief A module providing 64-bit real field related classes.
 !>
@@ -22,7 +56,6 @@ module field_r64_mod
                                 write_interface, read_interface, &
                                 checkpoint_write_interface, &
                                 checkpoint_read_interface
-  use fs_continuity_mod,  only: WCHI
   use function_space_mod, only: function_space_type
 
   use log_mod,            only: log_event, &
@@ -30,7 +63,6 @@ module field_r64_mod
                                 log_level, &
                                 LOG_LEVEL_INFO, &
                                 LOG_LEVEL_ERROR
-  use mesh_mod,           only: mesh_type
   use scalar_r64_mod,     only: scalar_r64_type
 
   use pure_abstract_field_mod, &
@@ -71,7 +103,7 @@ module field_r64_mod
     procedure, public :: initialise => field_initialiser
 
     ! Routine to return a deep copy of a field including all its data
-    procedure, public :: copy_field
+    procedure, public :: copy_field_serial
 
     ! Routine to return a deep, but empty copy of a field
     procedure, public :: copy_field_properties
@@ -128,7 +160,7 @@ module field_r64_mod
     !> Routine to write a checkpoint netCDF file
     procedure         :: write_checkpoint
 
-    !> Overloaded assigment operator
+    !> Overloaded assignment operator
     procedure         :: field_type_assign
 
     !> Routine to destroy field_type
@@ -176,8 +208,6 @@ module field_r64_mod
 
     !> Allocatable array of type real64 which holds the values of the field
     real(kind=real64), public, pointer :: data( : ) => null()
-    !> Unique identifier used to identify a halo exchange, so the start of an
-    !> asynchronous halo exchange can be matched with the end
 
   contains
 
@@ -349,7 +379,7 @@ contains
   !>
   !> @param[out] dest   field object into which the copy will be made
   !> @param[in]  name   An optional argument that provides an identifying name
-  subroutine copy_field(self, dest, name)
+  subroutine copy_field_serial(self, dest, name)
 
     implicit none
     class(field_r64_type), target, intent(in)  :: self
@@ -357,7 +387,7 @@ contains
     character(*), optional, intent(in)     :: name
 
     if ( .not. allocated(self%data) ) then
-      call log_event( 'Error: copy_field: Copied field must have field data', &
+      call log_event( 'Error: copy_field_serial: Copied field must have field data', &
            LOG_LEVEL_ERROR )
     end if
 
@@ -370,7 +400,7 @@ contains
     dest%data(:) = self%data(:)
     call self%copy_field_parent(dest)
 
-  end subroutine copy_field
+  end subroutine copy_field_serial
 
   !> Create a new empty field that inherits the properties of the source field.
   !>
@@ -416,7 +446,7 @@ contains
 
     write(log_scratch_space,'(A,A)')&
               '"field2=field1" syntax no longer supported. '// &
-              'Use "call field1%copy_field(field2)". Field: ', &
+              'Use "setval_X(field2, field1)". Field: ', &
               source%get_name()
     call log_event(log_scratch_space,LOG_LEVEL_ERROR )
 
@@ -911,6 +941,7 @@ contains
 
     class( field_r64_proxy_type ), target, intent(inout) :: self
     integer(i_def), intent(in) :: depth
+
   end subroutine halo_exchange
 
   !! Start an asynchronous halo exchange operation on the field
@@ -921,6 +952,7 @@ contains
 
     class( field_r64_proxy_type ), target, intent(inout) :: self
     integer(i_def), intent(in) :: depth
+
   end subroutine halo_exchange_start
 
   !! Wait for an asynchronous halo exchange to complete
@@ -932,6 +964,7 @@ contains
 
     class( field_r64_proxy_type ), target, intent(inout) :: self
     integer(i_def), intent(in) :: depth
+
   end subroutine halo_exchange_finish
 
   !! Start performing a global sum operation on the field

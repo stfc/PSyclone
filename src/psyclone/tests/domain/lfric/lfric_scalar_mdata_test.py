@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+# Copyright (c) 2017-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab;
-#         I. Kavcic and A. Coughtrie, Met Office;
+#         I. Kavcic, A. Coughtrie and L. Turner, Met Office;
 #         C. M. Maynard, Met Office/University of Reading;
 #         J. Henrichs, Bureau of Meteorology.
 
@@ -393,8 +393,8 @@ def test_lfricscalarargs_mp():
     assert "USE constants_mod, ONLY: roo_def, i_def" in code
 
 
-def test_dyninvoke_uniq_declns_intent_scalar():
-    ''' Tests that DynInvoke.unique_declns_by_intent() returns the correct
+def test_lfricinvoke_uniq_declns_intent_scalar():
+    ''' Tests that LFRicInvoke.unique_declns_by_intent() returns the correct
     list of arguments for 'gh_scalar' argument type. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.7_single_invoke_3scalar.f90"),

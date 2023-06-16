@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2022, Science and Technology Facilities Council.
+# Copyright (c) 2019-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,15 +32,14 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author I. Kavcic, Met Office
-# Modified by A. R. Porter and R, W, Ford, STFC Daresbury Lab
+# Modified by A. R. Porter and R. W. Ford, STFC Daresbury Lab
 # Modified by J. Henrichs, Bureau of Meteorology
+# Modified by L. Turner, Met Office
 # -----------------------------------------------------------------------------
 
 ''' Module containing tests for PSyclone LFRicExtractTrans
 transformations and ExtractNode.
 '''
-
-from __future__ import absolute_import
 
 import pytest
 
@@ -48,7 +47,7 @@ from psyclone.configuration import Config
 from psyclone.domain.lfric.transformations import LFRicExtractTrans
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.psyir.nodes import colored, ExtractNode, Loop
-from psyclone.psyir.transformations import TransformationError
+from psyclone.psyir.transformations import PSyDataTrans, TransformationError
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.utilities import get_invoke
 from psyclone.transformations import (Dynamo0p3ColourTrans,
@@ -56,6 +55,18 @@ from psyclone.transformations import (Dynamo0p3ColourTrans,
 
 # API names
 DYNAMO_API = "dynamo0.3"
+
+
+@pytest.fixture(scope="function", autouse=True)
+def clear_region_name_cache():
+    '''All PSyData nodes keep a list of used region names as class variables
+    to avoid name clashes. This needs to be cleared, otherwise the indices
+    used when creating unique region identifier will change depending on the
+    order in which tests are run.
+    '''
+    PSyDataTrans._used_kernel_names = {}
+    yield
+    PSyDataTrans._used_kernel_names = {}
 
 # --------------------------------------------------------------------------- #
 # ================== Extract Transformation tests =========================== #
@@ -80,7 +91,8 @@ def test_node_list_error(tmpdir):
     assert ("Error in LFRicExtractTrans: Argument must be "
             "a single Node in a Schedule, a Schedule or a list of Nodes in a "
             "Schedule but have been passed an object of type: "
-            "<class 'psyclone.dynamo0p3.DynInvoke'>") in str(excinfo.value)
+            "<class 'psyclone.domain.lfric.lfric_invoke.LFRicInvoke'>"
+            in str(excinfo.value))
 
     # Supply Nodes in incorrect order or duplicate Nodes
     node_list = [invoke0.schedule.children[0],

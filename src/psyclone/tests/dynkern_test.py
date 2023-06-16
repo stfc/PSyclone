@@ -178,9 +178,9 @@ def test_get_kernel_schedule_mixed_precision():
                            name="invoke_0", dist_mem=False)
     sched = invoke.schedule
     kernels = sched.walk(DynKern, stop_type=DynKern)
-    # 26.8 contains an invoke of three kernels, one each at the following
+    # 26.8 contains an invoke of five kernels, one each at the following
     # precisions.
-    kernel_precisions = ["r_def", "r_solver", "r_tran"]
+    kernel_precisions = ["r_def", "r_solver", "r_tran", "r_bl", "r_phys"]
     # Get the precision (in bytes) for each of these.
     precisions = [LFRicConstants.PRECISION_MAP[name] for
                   name in kernel_precisions]
@@ -349,10 +349,11 @@ def test_validate_kernel_code_arg(monkeypatch):
         "For dimension 1 in array argument 'field' to kernel 'dummy' the "
         "following error was found: An argument to an LFRic kernel must have a"
         " precision defined by either a recognised LFRic type parameter (one "
-        "of ['i_def', 'l_def', 'r_def', 'r_double', 'r_ncdf', 'r_quad', "
-        "'r_single', 'r_solver', 'r_tran', 'r_um']) or an integer number of "
-        "bytes but argument 'generic_int_scalar' to kernel 'dummy' has "
-        "precision Precision.UNDEFINED" in str(info.value))
+        "of ['i_def', 'l_def', 'r_bl', 'r_def', 'r_double', 'r_ncdf', "
+        "'r_phys', 'r_quad', 'r_second', 'r_single', 'r_solver', 'r_tran', "
+        "'r_um']) or an integer number of bytes but argument "
+        "'generic_int_scalar' to kernel 'dummy' has precision "
+        "Precision.UNDEFINED" in str(info.value))
 
     # monkeypatch lfric_real_scalar_symbol to return that it is not a
     # scalar in order to force the required exception. We do this by

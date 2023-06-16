@@ -57,9 +57,10 @@ class Loop(Statement):
     fourth one is always a PSyIR Schedule node containing the statements inside
     the loop body.
 
-    (Note: currently this loop only represents the equivalent to Fortran do
-    loops. This means the loop is bounded by start/stop/step expressions
-    evaluated before the loop starts.)
+    (Note: Loop only represents the equivalent to Fortran counted do loops.
+    This means the loop is bounded by start/stop/step expressions evaluated
+    before the loop starts. See WhileLoop for while loops, including the
+    Fortran do while and do loop with no condition.)
 
     :param variable: optional reference to the loop iterator \
         variable. Defaults to None.

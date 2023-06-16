@@ -34,7 +34,7 @@
 # Author: A. R. Porter, STFC Daresbury Lab
 # Modified by: R. W. Ford, STFC Daresbury Lab
 
-''' pytest tests for the LFRic-specifc algorithm-generation functionality. '''
+''' pytest tests for the LFRic-specific algorithm-generation functionality. '''
 
 import os
 import pytest

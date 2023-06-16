@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2018-2022, Science and Technology Facilities Council.
+.. Copyright (c) 2018-2023, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -73,7 +73,7 @@ target checks the various Jupyter notebooks using ``nbconvert``.
           ``examples`` directory but still wish to use ``make`` then you
           will also have to set the ``PSYCLONE_CONFIG`` environment variable
           to the full path to the PSyclone configuration file, e.g.
-          ``$ PSYCLONE_CONFIG=/some/path/psyclone.cfg make``.
+          ``PSYCLONE_CONFIG=/some/path/psyclone.cfg make``.
 
 .. _examples-compilation:
 
@@ -498,7 +498,7 @@ The generated code has two problems:
     is not yet implemented.
  2. Although the user-supplied kernel is transformed so as to have the
     necessary ``!$acc routine`` directive, the associated (but unnecessary)
-    ``use`` statement in the transformed Algorithym layer still uses the
+    ``use`` statement in the transformed Algorithm layer still uses the
     name of the original, untransformed kernel (issue #1724).
 
 Since no colouring is required in this case, the generated Alg layer
@@ -574,23 +574,34 @@ Example 17.3: Kernel Data Extraction
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The example in the subdirectory ``full_example_extract`` shows the
-use of :ref:`kernel extraction <psyke>`. It requires the
-installation of a NetCDF development environment (see
-`here
+use of :ref:`kernel extraction <psyke>`. The code can be compiled with
+``make compile``, and the binary executed with either ``make run`` or
+``./extract.standalone``. By default, it will be using
+a stand-alone extraction library (see :ref:`extraction_libraries`).
+If you want to use the NetCDF version, set the environment variable
+``TYPE`` to be ``netcdf``:
+
+.. code-block:: bash
+
+    TYPE=netcdf make compile
+
+This requires the installation of a NetCDF development environment
+(see `here
 <https://github.com/stfc/PSyclone/tree/master/tutorial/practicals#user-content-netcdf-library-lfric-examples>`_
-for installing NetCDF).
-The code can be compiled with ``make compile``, and
-the binary executed with either ``make run`` or ``./extract``
-Running the compiled binary will create one NetCDF file ``main-update.nc``
-containing the input and output parameters for the ``testkern_w0``
-kernel call. For example:
+for installing NetCDF). The binary will be called ``extract.netcdf``,
+and the output files will have the ``.nc`` extension.
+
+Running the compiled binary will create two Fortran binary files or
+two NetCDF files if the NetCDF library was used. They contain
+the input and output parameters for the two invokes in this example:
 
 .. code-block:: bash
 
     cd full_example_extraction
-    make compile
-    ./extract
+    TYPE=netcdf make compile
+    ./extract.netcdf
     ncdump ./main-update.nc | less
+
 
 Example 18: Special Accesses of Continuous Fields - Incrementing After Reading and Writing Before (Potentially) Reading
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -612,6 +623,15 @@ is being updated. As :ref:`described <dev_guide:iterators_continuous>`
 in the Developer Guide, this means that annexed DoFs are computed
 correctly without the need to iterate into the L1 halo and thus can
 remove the need for halo exchanges on those fields that are read.
+
+Example 19: Mixed Precision
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+This example shows the use of the LFRic :ref:`mixed-precision support
+<lfric-mixed-precision>` to call a kernel with :ref:`scalars
+<lfric-mixed-precision-scalars>`, :ref:`fields <lfric-mixed-precision-fields>`
+and :ref:`operators <lfric-mixed-precision-lma-operators>` of different
+precision.
 
 .. _lfric_alg_gen_example:
 
@@ -665,6 +685,17 @@ optimised cuda, or gridtools code. Thus various simple Fortran
 examples and the computational part of the tracer-advection benchmark
 can be transformed to optimised cuda and/or gridtools code by using
 PSyclone and then DAWN.
+
+Example 5: Kernel Data Extraction
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+This example shows the use of kernel data extraction in PSyclone for
+the NEMO API. It instruments each kernel in the NEMO tracer-advection
+benchmark with the PSyData-based kernel extraction code. Detailed
+compilation instructions are in the ``README.md`` file, including how
+to switch from using the stand-alone extraction library to the NetCDF-based
+one (see :ref:`extraction_libraries` for details).
+
 
 Scripts
 ^^^^^^^

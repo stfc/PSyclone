@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified I. Kavcic and A. Coughtrie, Met Office
+# Modified I. Kavcic, A. Coughtrie and L. Turner, Met Office
 # Modified J. Henrichs, Bureau of Meteorology
 # Modified A. B. G. Chalk and N. Nobre, STFC Daresbury Lab
 
@@ -44,7 +44,6 @@
     Argument). '''
 
 # Imports
-import abc
 import os
 from enum import Enum
 from collections import OrderedDict, namedtuple, Counter
@@ -60,7 +59,9 @@ from psyclone.domain.common.psylayer import PSyLoop
 from psyclone.domain.lfric import (FunctionSpace, KernCallAccArgList,
                                    KernCallArgList, KernStubArgList,
                                    LFRicArgDescriptor, KernelInterface,
-                                   LFRicConstants, LFRicSymbolTable)
+                                   LFRicCollection, LFRicConstants,
+                                   LFRicSymbolTable, LFRicInvoke,
+                                   LFRicKernCallFactory)
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 from psyclone.f2pygen import (AllocateGen, AssignGen, CallGen, CommentGen,
                               DeallocateGen, DeclGen, DoGen, IfThenGen,
@@ -69,16 +70,16 @@ from psyclone.f2pygen import (AllocateGen, AssignGen, CallGen, CommentGen,
 from psyclone.parse.algorithm import Arg, KernelCall
 from psyclone.parse.kernel import KernelType, getkerneldescriptors
 from psyclone.parse.utils import ParseError
-from psyclone.psyGen import (PSy, Invokes, Invoke, InvokeSchedule,
-                             Arguments, KernelArgument, HaloExchange,
-                             GlobalSum, FORTRAN_INTENT_NAMES, DataAccess,
-                             CodedKern)
+from psyclone.psyGen import (PSy, Invokes, InvokeSchedule, Arguments,
+                             KernelArgument, HaloExchange, GlobalSum,
+                             FORTRAN_INTENT_NAMES, DataAccess, CodedKern)
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import (Loop, Literal, Schedule, Reference,
                                   ArrayReference, ACCEnterDataDirective,
                                   ACCRegionDirective, OMPRegionDirective,
-                                  ScopingNode, KernelSchedule)
+                                  Routine, ScopingNode, StructureReference,
+                                  KernelSchedule)
 from psyclone.psyir.symbols import (INTEGER_TYPE, DataSymbol, ScalarType,
                                     DeferredType, DataTypeSymbol,
                                     ContainerSymbol, ImportInterface,
@@ -1102,7 +1103,7 @@ class DynamoPSy(PSy):
 
         # Include required constants and infrastructure modules. The sets of
         # required LFRic data structures and their proxies are updated in
-        # the relevant field and operator subclasses of DynCollection.
+        # the relevant field and operator subclasses of LFRicCollection.
         # Here we sort the inputs in reverse order to have "_type" before
         # "_proxy_type" and "operator_" before "columnwise_operator_".
         # We also iterate through the dictionary in reverse order so the
@@ -1133,114 +1134,17 @@ class DynamoInvokes(Invokes):
 
     '''
     def __init__(self, alg_calls, psy):
-        self._0_to_n = DynInvoke(None, None, None)  # for pyreverse
-        Invokes.__init__(self, alg_calls, DynInvoke, psy)
+        self._0_to_n = LFRicInvoke(None, None, None)  # for pyreverse
+        Invokes.__init__(self, alg_calls, LFRicInvoke, psy)
 
 
-class DynCollection():
-    '''
-    Base class for managing the declaration and initialisation of a
-    group of related entities within an Invoke or Kernel stub
-
-    :param node: the Kernel or Invoke for which to manage variable \
-                 declarations and initialisation.
-    :type node: :py:class:`psyclone.dynamo0p3.DynInvoke` or \
-                :py:class:`psyclone.dynamo0p3.DynKern`
-
-    :raises InternalError: if the supplied node is not a DynInvoke or a \
-                           DynKern.
-    '''
-    def __init__(self, node):
-        if isinstance(node, DynInvoke):
-            # We are handling declarations/initialisations for an Invoke
-            self._invoke = node
-            self._kernel = None
-            self._symbol_table = self._invoke.schedule.symbol_table
-            # The list of kernel calls we are responsible for
-            self._calls = node.schedule.kernels()
-        elif isinstance(node, DynKern):
-            # We are handling declarations for a Kernel stub
-            self._invoke = None
-            self._kernel = node
-            # TODO 719 The symbol table is not connected to other parts of
-            # the Stub generation.
-            self._symbol_table = LFRicSymbolTable()
-            # We only have a single kernel call in this case
-            self._calls = [node]
-        else:
-            raise InternalError(f"DynCollection takes only a DynInvoke "
-                                f"or a DynKern but got: {type(node)}")
-
-        # Whether or not the associated Invoke contains only kernels that
-        # operate on dofs.
-        if self._invoke:
-            self._dofs_only = self._invoke.operates_on_dofs_only
-        else:
-            self._dofs_only = False
-
-    def declarations(self, parent):
-        '''
-        Insert declarations for all necessary variables into the AST of
-        the generated code. Simply calls either _invoke_declarations() or
-        _stub_declarations() depending on whether we're handling an Invoke
-        or a Kernel stub.
-
-        :param parent: the node in the f2pygen AST representing the routine \
-                       in which to insert the declarations.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
-
-        :raises InternalError: if neither self._invoke or self._kernel \
-                               are set.
-        '''
-        if self._invoke:
-            self._invoke_declarations(parent)
-        elif self._kernel:
-            self._stub_declarations(parent)
-        else:
-            raise InternalError("DynCollection has neither a Kernel "
-                                "or an Invoke - should be impossible.")
-
-    def initialise(self, parent):
-        '''
-        Add code to initialise the entities being managed by this class.
-        We do nothing by default - it is up to the sub-class to override
-        this method if initialisation is required.
-
-        :param parent: the node in the f2pygen AST to which to add \
-                       initialisation code.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
-        '''
-
-    @abc.abstractmethod
-    def _invoke_declarations(self, parent):
-        '''
-        Add all necessary declarations for an Invoke.
-
-        :param parent: node in the f2pygen AST representing the Invoke to \
-                       which to add declarations.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
-
-        '''
-
-    def _stub_declarations(self, parent):
-        '''
-        Add all necessary declarations for a Kernel stub. Not abstract because
-        not all entities need representing within a Kernel.
-
-        :param parent: node in the f2pygen AST representing the Kernel stub \
-                       to which to add declarations.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
-
-        '''
-
-
-class DynStencils(DynCollection):
+class DynStencils(LFRicCollection):
     '''
     Stencil information and code generation associated with a PSy-layer
     routine or Kernel stub.
 
     :param node: the Invoke or Kernel stub for which to provide stencil info.
-    :type node: :py:class:`psyclone.dynamo0p3.DynInvoke` or \
+    :type node: :py:class:`psyclone.dynamo0p3.LFRicInvoke` or \
                 :py:class:`psyclone.dynamo0p3.DynKern`
 
     :raises GenerationError: if a literal has been supplied for a stencil \
@@ -1826,7 +1730,7 @@ class DynStencils(DynCollection):
                     entity_decls=[self.dofmap_symbol(symtab, arg).name]))
 
 
-class LFRicMeshProperties(DynCollection):
+class LFRicMeshProperties(LFRicCollection):
     '''
     Holds all information on the the mesh properties required by either an
     invoke or a kernel stub. Note that the creation of a suitable mesh
@@ -1836,7 +1740,7 @@ class LFRicMeshProperties(DynCollection):
 
     :param node: kernel or invoke for which to manage mesh properties.
     :type node: :py:class:`psyclone.dynamo0p3.DynKern` or \
-                :py:class:`psyclone.dynamo0p3.DynInvoke`
+                :py:class:`psyclone.dynamo0p3.LFRicInvoke`
 
     '''
     def __init__(self, node):
@@ -2152,7 +2056,7 @@ class LFRicMeshProperties(DynCollection):
             parent.add(AssignGen(parent, lhs=lhs, rhs=rhs))
 
 
-class DynReferenceElement(DynCollection):
+class DynReferenceElement(LFRicCollection):
     '''
     Holds all information on the properties of the Reference Element
     required by an Invoke or a Kernel stub.
@@ -2160,7 +2064,7 @@ class DynReferenceElement(DynCollection):
     :param node: Kernel or Invoke for which to manage Reference-Element \
                  properties.
     :type node: :py:class:`psyclone.dynamo0p3.DynKern` or \
-                :py:class:`psyclone.dynamo0p3.DynInvoke`
+                :py:class:`psyclone.dynamo0p3.LFRicInvoke`
 
     :raises InternalError: if an unsupported reference-element property \
                            is encountered.
@@ -2511,14 +2415,14 @@ class DynReferenceElement(DynCollection):
                     f"faces({self._face_out_normals_symbol.name})"))
 
 
-class DynDofmaps(DynCollection):
+class DynDofmaps(LFRicCollection):
     '''
     Holds all information on the dofmaps (including column-banded and
     indirection) required by an invoke.
 
     :param node: Kernel or Invoke for which to manage dofmaps.
     :type node: :py:class:`psyclone.dynamo0p3.DynKern` or \
-                :py:class:`psyclone.dynamo0p3.DynInvoke`
+                :py:class:`psyclone.dynamo0p3.LFRicInvoke`
 
     '''
     def __init__(self, node):
@@ -2748,7 +2652,7 @@ class DynDofmaps(DynCollection):
                                entity_decls=[dmap]))
 
 
-class DynFunctionSpaces(DynCollection):
+class DynFunctionSpaces(LFRicCollection):
     '''
     Handles the declaration and initialisation of all function-space-related
     quantities required by an Invoke.
@@ -2869,7 +2773,7 @@ class DynFunctionSpaces(DynCollection):
                                          "%get_undf()"))
 
 
-class LFRicFields(DynCollection):
+class LFRicFields(LFRicCollection):
     '''
     Manages the declarations for all field arguments required by an Invoke
     or Kernel stub.
@@ -3002,7 +2906,7 @@ class LFRicFields(DynCollection):
                                           fld.function_space.mangled_name]))
 
 
-class LFRicRunTimeChecks(DynCollection):
+class LFRicRunTimeChecks(LFRicCollection):
     '''Handle declarations and code generation for run-time checks. This
     is not used in the stub generator.
 
@@ -3043,7 +2947,7 @@ class LFRicRunTimeChecks(DynCollection):
             parent, " Check field function space and kernel metadata "
             "function spaces are compatible"))
 
-        # When issue #753 is addressed (with isue #79 helping further)
+        # When issue #753 is addressed (with issue #79 helping further)
         # we may know some or all field function spaces statically. If
         # so, we should remove these from the fields to check at run
         # time (as they will have already been checked at code
@@ -3118,7 +3022,7 @@ class LFRicRunTimeChecks(DynCollection):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         '''
-        # When issue #753 is addressed (with isue #79 helping further)
+        # When issue #753 is addressed (with issue #79 helping further)
         # we may know some or all field function spaces statically. If
         # so, we should remove these from the fields to check at run
         # time (as they will have already been checked at code
@@ -3181,10 +3085,10 @@ class LFRicRunTimeChecks(DynCollection):
         # extending function space checks to operators.
 
 
-class DynProxies(DynCollection):
+class DynProxies(LFRicCollection):
     '''
     Handles all proxy-related declarations and initialisation. Unlike other
-    sub-classes of DynCollection, we do not have to handle Kernel-stub
+    sub-classes of LFRicCollection, we do not have to handle Kernel-stub
     generation since Kernels know nothing about proxies.
 
     '''
@@ -3298,14 +3202,14 @@ class DynProxies(DynCollection):
                                      rhs=arg.name+"%get_proxy()"))
 
 
-class DynCellIterators(DynCollection):
+class DynCellIterators(LFRicCollection):
     '''
     Handles all entities required by kernels that operate on cell-columns.
 
     :param kern_or_invoke: the Kernel or Invoke for which to manage cell \
                            iterators.
     :type kern_or_invoke: :py:class:`psyclone.dynamo0p3.DynKern` or \
-                          :py:class:`psyclone.dynamo0p3.DynInvoke`
+                          :py:class:`psyclone.dynamo0p3.LFRicInvoke`
 
     : raises GenerationError: if an Invoke has no field or operator arguments.
 
@@ -3382,7 +3286,7 @@ class DynCellIterators(DynCollection):
                 self._first_var.ref_name() + "%get_nlayers()"))
 
 
-class LFRicLoopBounds(DynCollection):
+class LFRicLoopBounds(LFRicCollection):
     '''
     Handles all variables required for specifying loop limits within a
     PSy-layer routine.
@@ -3445,7 +3349,7 @@ class LFRicLoopBounds(DynCollection):
                                entity_decls=entities))
 
 
-class LFRicScalarArgs(DynCollection):
+class LFRicScalarArgs(LFRicCollection):
     '''
     Handles the declarations of scalar kernel arguments appearing in either
     an Invoke or a Kernel stub.
@@ -3453,7 +3357,7 @@ class LFRicScalarArgs(DynCollection):
     :param node: the Invoke or Kernel stub for which to manage the scalar \
                  arguments.
     :type node: :py:class:`psyclone.dynamo0p3.DynKern` or \
-                :py:class:`psyclone.dynamo0p3.DynInvoke`
+                :py:class:`psyclone.dynamo0p3.LFRicInvoke`
 
     '''
     def __init__(self, node):
@@ -3669,7 +3573,7 @@ class LFRicScalarArgs(DynCollection):
                         "kernel stub, but it is neither.")
 
 
-class DynLMAOperators(DynCollection):
+class DynLMAOperators(LFRicCollection):
     '''
     Handles all entities associated with Local-Matrix-Assembly Operators.
     '''
@@ -3740,7 +3644,7 @@ class DynLMAOperators(DynCollection):
              add(op_datatype))
 
 
-class DynCMAOperators(DynCollection):
+class DynCMAOperators(LFRicCollection):
     '''
     Holds all information on the Column-Matrix-Assembly operators
     required by an Invoke or Kernel stub.
@@ -3966,7 +3870,7 @@ class DynMeshes():
 
     :param invoke: the Invoke for which to extract information on all \
                    required inter-grid operations.
-    :type invoke: :py:class:`psyclone.dynamo0p3.DynInvoke`
+    :type invoke: :py:class:`psyclone.dynamo0p3.LFRicInvoke`
     :param unique_psy_vars: list of arguments to the PSy-layer routine.
     :type unique_psy_vars: list of \
                       :py:class:`psyclone.dynamo0p3.DynKernelArgument` objects.
@@ -4552,7 +4456,7 @@ class DynInterGrid():
         return self._last_cell_var_symbol
 
 
-class DynBasisFunctions(DynCollection):
+class DynBasisFunctions(LFRicCollection):
     ''' Holds all information on the basis and differential basis
     functions required by an invoke or kernel call. This covers both those
     required for quadrature and for evaluators.
@@ -5457,14 +5361,14 @@ class DynBasisFunctions(DynCollection):
             parent.add(DeallocateGen(parent, sorted(func_space_var_names)))
 
 
-class DynBoundaryConditions(DynCollection):
+class DynBoundaryConditions(LFRicCollection):
     '''
     Manages declarations and initialisation of quantities required by
     kernels that need boundary condition information.
 
     :param node: the Invoke or Kernel stub for which we are to handle \
                  any boundary conditions.
-    :type node: :py:class:`psyclone.dynamo0p3.DynInvoke` or \
+    :type node: :py:class:`psyclone.dynamo0p3.LFRicInvoke` or \
                 :py:class:`psyclone.dynamo0p3.DynKern`
 
     :raises GenerationError: if a kernel named "enforce_bc_code" is found \
@@ -5560,264 +5464,6 @@ class DynBoundaryConditions(DynCollection):
                               "get_boundary_dofs()"])))
 
 
-class DynInvoke(Invoke):
-    '''The Dynamo specific invoke class. This passes the Dynamo specific
-    InvokeSchedule class to the base class so it creates the one we
-    require.  Also overrides the gen_code method so that we generate
-    dynamo specific invocation code.
-
-    :param alg_invocation: object containing the invoke call information.
-    :type alg_invocation: :py:class:`psyclone.parse.algorithm.InvokeCall`
-    :param int idx: the position of the invoke in the list of invokes \
-        contained in the Algorithm.
-    :param invokes: the Invokes object containing this DynInvoke \
-        object.
-    :type invokes: :py:class:`psyclone.dynamo0p3.DynamoInvokes`
-
-    :raises GenerationError: if integer reductions are required in the \
-        psy-layer.
-
-    '''
-    # pylint: disable=too-many-instance-attributes
-    def __init__(self, alg_invocation, idx, invokes):
-        if not alg_invocation and not idx:
-            # This if test is added to support pyreverse.
-            return
-        self._schedule = DynInvokeSchedule('name', None)  # for pyreverse
-        reserved_names_list = []
-        const = LFRicConstants()
-        reserved_names_list.extend(const.STENCIL_MAPPING.values())
-        reserved_names_list.extend(const.VALID_STENCIL_DIRECTIONS)
-        reserved_names_list.extend(["omp_get_thread_num",
-                                    "omp_get_max_threads"])
-        Invoke.__init__(self, alg_invocation, idx, DynInvokeSchedule,
-                        invokes, reserved_names=reserved_names_list)
-
-        # The baseclass works out the algorithm code's unique argument
-        # list and stores it in the self._alg_unique_args
-        # list. However, the base class currently ignores any stencil and qr
-        # arguments so we need to add them in.
-
-        self.scalar_args = LFRicScalarArgs(self)
-
-        # initialise our invoke stencil information
-        self.stencil = DynStencils(self)
-
-        # Initialise our information on the function spaces used by this Invoke
-        self.function_spaces = DynFunctionSpaces(self)
-
-        # Initialise the object holding all information on the dofmaps
-        # required by this invoke.
-        self.dofmaps = DynDofmaps(self)
-
-        # Initialise information on all of the fields accessed in this Invoke.
-        self.fields = LFRicFields(self)
-
-        # Initialise info. on all of the LMA operators used in this Invoke.
-        self.lma_ops = DynLMAOperators(self)
-
-        # Initialise the object holding all information on the column-
-        # -matrix assembly operators required by this invoke.
-        self.cma_ops = DynCMAOperators(self)
-
-        # Initialise the object holding all information on the quadrature
-        # and/or evaluators required by this invoke
-        self.evaluators = DynBasisFunctions(self)
-
-        # Initialise the object holding all information related to meshes
-        # and inter-grid operations
-        self.meshes = DynMeshes(self, self.psy_unique_vars)
-
-        # Initialise the object holding information on any boundary-condition
-        # kernel calls
-        self.boundary_conditions = DynBoundaryConditions(self)
-
-        # Information on all proxies required by this Invoke
-        self.proxies = DynProxies(self)
-
-        # Run-time checks for this invoke
-        self.run_time_checks = LFRicRunTimeChecks(self)
-
-        # Information required by kernels that operate on cell-columns
-        self.cell_iterators = DynCellIterators(self)
-
-        # Information on the required properties of the reference element
-        self.reference_element_properties = DynReferenceElement(self)
-
-        # Properties of the mesh
-        self.mesh_properties = LFRicMeshProperties(self)
-
-        # Manage the variables used to store the upper and lower limits of
-        # all loops in this Invoke.
-        self.loop_bounds = LFRicLoopBounds(self)
-
-        # Extend arg list with stencil information
-        self._alg_unique_args.extend(self.stencil.unique_alg_vars)
-
-        # adding in qr arguments
-        self._alg_unique_qr_args = []
-        for call in self.schedule.kernels():
-            for rule in call.qr_rules.values():
-                if rule.alg_name not in self._alg_unique_qr_args:
-                    self._alg_unique_qr_args.append(rule.alg_name)
-        self._alg_unique_args.extend(self._alg_unique_qr_args)
-        # we also need to work out the names to use for the qr
-        # arguments within the psy layer. These are stored in the
-        # _psy_unique_qr_vars list
-        self._psy_unique_qr_vars = []
-        for call in self.schedule.kernels():
-            for rule in call.qr_rules.values():
-                if rule.psy_name not in self._psy_unique_qr_vars:
-                    self._psy_unique_qr_vars.append(rule.psy_name)
-
-        # lastly, add in halo exchange calls and global sums if
-        # required. We only need to add halo exchange calls for fields
-        # since operators are assembled in place and scalars don't
-        # have halos. We only need to add global sum calls for scalars
-        # which have a gh_sum access.
-        if Config.get().distributed_memory:
-            # halo exchange calls
-            const = LFRicConstants()
-            for loop in self.schedule.loops():
-                loop.create_halo_exchanges()
-            # global sum calls
-            for loop in self.schedule.loops():
-                for scalar in loop.args_filter(
-                        arg_types=const.VALID_SCALAR_NAMES,
-                        arg_accesses=AccessType.get_valid_reduction_modes(),
-                        unique=True):
-                    global_sum = DynGlobalSum(scalar, parent=loop.parent)
-                    loop.parent.children.insert(loop.position+1, global_sum)
-
-    def arg_for_funcspace(self, fspace):
-        ''' Returns an argument object which is on the requested
-        function space. Searches through all Kernel calls in this
-        invoke. Currently the first argument object that is found is
-        used. Throws an exception if no argument exists. '''
-        for kern_call in self.schedule.kernels():
-            try:
-                return kern_call.arguments.get_arg_on_space(fspace)
-            except FieldNotFoundError:
-                pass
-        raise GenerationError(
-            f"No argument found on '{fspace.mangled_name}' space")
-
-    def unique_fss(self):
-        ''' Returns the unique function space *objects* over all kernel
-        calls in this invoke. '''
-        unique_fs = []
-        unique_fs_names = []
-        for kern_call in self.schedule.kernels():
-            kern_fss = kern_call.arguments.unique_fss
-            for fspace in kern_fss:
-                if fspace.mangled_name not in unique_fs_names:
-                    unique_fs.append(fspace)
-                    unique_fs_names.append(fspace.mangled_name)
-        return unique_fs
-
-    @property
-    def operates_on_dofs_only(self):
-        '''
-        :returns: whether or not this Invoke consists only of kernels that \
-                  operate on DoFs.
-        :rtype: bool
-        '''
-        return all(call.iterates_over.lower() == "dof" for call in
-                   self.schedule.kernels())
-
-    def field_on_space(self, func_space):
-        ''' If a field exists on this space for any kernel in this
-        invoke then return that field. Otherwise return None. '''
-        for kern_call in self.schedule.kernels():
-            field = func_space.field_on_space(kern_call.arguments)
-            if field:
-                return field
-        return None
-
-    def gen_code(self, parent):
-        '''
-        Generates Dynamo specific invocation code (the subroutine
-        called by the associated invoke call in the algorithm
-        layer). This consists of the PSy invocation subroutine and the
-        declaration of its arguments.
-        :param parent: The parent node in the AST (of the code to be \
-                       generated) to which the node describing the PSy \
-                       subroutine will be added
-        :type parent: :py:class:`psyclone.f2pygen.ModuleGen`
-
-        '''
-        # Create the subroutine
-        invoke_sub = SubroutineGen(parent, name=self.name,
-                                   args=self.psy_unique_var_names +
-                                   self.stencil.unique_alg_vars +
-                                   self._psy_unique_qr_vars)
-
-        # Declare all quantities required by this PSy routine (invoke)
-        for entities in [self.scalar_args, self.fields, self.lma_ops,
-                         self.stencil, self.meshes,
-                         self.function_spaces, self.dofmaps, self.cma_ops,
-                         self.boundary_conditions, self.evaluators,
-                         self.proxies, self.cell_iterators,
-                         self.reference_element_properties,
-                         self.mesh_properties, self.loop_bounds,
-                         self.run_time_checks]:
-            entities.declarations(invoke_sub)
-
-        # Initialise all quantities required by this PSy routine (invoke)
-
-        if self.schedule.reductions(reprod=True):
-            # We have at least one reproducible reduction so we need
-            # to know the number of OpenMP threads
-            omp_function_name = "omp_get_max_threads"
-            tag = "omp_num_threads"
-            nthreads_name = \
-                self.schedule.symbol_table.lookup_with_tag(tag).name
-            invoke_sub.add(UseGen(invoke_sub, name="omp_lib", only=True,
-                                  funcnames=[omp_function_name]))
-            # Note: There is no assigned kind for integer nthreads as this
-            # would imply assigning kind to th_idx and other elements of
-            # the OMPParallelDirective
-            invoke_sub.add(DeclGen(invoke_sub, datatype="integer",
-                                   entity_decls=[nthreads_name]))
-            invoke_sub.add(CommentGen(invoke_sub, ""))
-            invoke_sub.add(CommentGen(
-                invoke_sub, " Determine the number of OpenMP threads"))
-            invoke_sub.add(CommentGen(invoke_sub, ""))
-            invoke_sub.add(AssignGen(invoke_sub, lhs=nthreads_name,
-                                     rhs=omp_function_name+"()"))
-
-        for entities in [self.proxies, self.run_time_checks,
-                         self.cell_iterators, self.meshes,
-                         self.stencil, self.dofmaps,
-                         self.cma_ops, self.boundary_conditions,
-                         self.function_spaces, self.evaluators,
-                         self.reference_element_properties,
-                         self.mesh_properties, self.loop_bounds]:
-            entities.initialise(invoke_sub)
-
-        # Now that everything is initialised and checked, we can call
-        # our kernels
-
-        invoke_sub.add(CommentGen(invoke_sub, ""))
-        if Config.get().distributed_memory:
-            invoke_sub.add(CommentGen(invoke_sub, " Call kernels and "
-                                      "communication routines"))
-        else:
-            invoke_sub.add(CommentGen(invoke_sub, " Call our kernels"))
-        invoke_sub.add(CommentGen(invoke_sub, ""))
-
-        # Add content from the schedule
-        self.schedule.gen_code(invoke_sub)
-
-        # Deallocate any basis arrays
-        self.evaluators.deallocate(invoke_sub)
-
-        invoke_sub.add(CommentGen(invoke_sub, ""))
-
-        # finally, add me to my parent
-        parent.add(invoke_sub)
-
-
 class DynInvokeSchedule(InvokeSchedule):
     ''' The Dynamo specific InvokeSchedule sub-class. This passes the Dynamo-
     specific factories for creating kernel and infrastructure calls
@@ -5835,7 +5481,7 @@ class DynInvokeSchedule(InvokeSchedule):
     '''
 
     def __init__(self, name, arg, reserved_names=None, parent=None):
-        super().__init__(name, DynKernCallFactory,
+        super().__init__(name, LFRicKernCallFactory,
                          LFRicBuiltInCallFactory, arg, reserved_names,
                          parent=parent, symbol_table=LFRicSymbolTable())
 
@@ -6056,7 +5702,7 @@ class DynHaloExchange(HaloExchange):
 
         '''
         # get information about stencil accesses from all read fields
-        # dependendent on this halo exchange
+        # dependent on this halo exchange
         halo_info_list = self._compute_halo_read_info()
 
         trial_stencil = halo_info_list[0].stencil_type
@@ -6078,7 +5724,7 @@ class DynHaloExchange(HaloExchange):
 
         '''
         # get information about reading from the halo from all read fields
-        # dependendent on this halo exchange
+        # dependent on this halo exchange
         depth_info_list = self._compute_halo_read_depth_info()
 
         # if there is only one entry in the list we can just return
@@ -6087,7 +5733,7 @@ class DynHaloExchange(HaloExchange):
             return str(depth_info_list[0])
         # the depth information can't be reduced to a single
         # expression, therefore we need to determine the maximum
-        # of all expresssions
+        # of all expressions
         depth_str_list = [str(depth_info) for depth_info in
                           depth_info_list]
         return "max("+",".join(depth_str_list)+")"
@@ -6363,7 +6009,7 @@ class DynHaloExchange(HaloExchange):
 
         # The only other case where we know that a halo exchange is
         # required (or not) is where we read the halo to a known
-        # literal depth. As the read inforation is aggregated, a known
+        # literal depth. As the read information is aggregated, a known
         # literal depth will mean that there is only one
         # required_clean_info entry
         if len(required_clean_info) == 1:
@@ -7736,7 +7382,7 @@ class DynLoop(PSyLoop):
         :rtype: :py:class:`psyclone.psyir.Node`
 
         '''
-        inv_sched = self.ancestor(InvokeSchedule)
+        inv_sched = self.ancestor(Routine)
         sym_table = inv_sched.symbol_table
         loops = inv_sched.loops()
         posn = None
@@ -7757,7 +7403,7 @@ class DynLoop(PSyLoop):
         :rtype: :py:class:`psyclone.psyir.Node`
 
         '''
-        inv_sched = self.ancestor(InvokeSchedule)
+        inv_sched = self.ancestor(Routine)
         sym_table = inv_sched.symbol_table
 
         if self._loop_type == "colour":
@@ -8281,6 +7927,7 @@ class DynKern(CodedKern):
                 colourmap_symbol.name
         else:
             cmap = self.scope.symbol_table.lookup_with_tag("cmap").name
+
         return cmap
 
     @property
@@ -9548,7 +9195,7 @@ class DynKernelArgument(KernelArgument):
             expected_precision = const.DATA_TYPE_MAP["reduction"]["kind"]
             # If the algorithm information is not being ignored
             # then check that the expected precision and the
-            # precision defined in the algorithn layer are
+            # precision defined in the algorithm layer are
             # the same.
             if check and alg_precision and \
                alg_precision != expected_precision:
@@ -9573,7 +9220,7 @@ class DynKernelArgument(KernelArgument):
                 self._precision = alg_precision
             else:
                 # Use default precision for this datatype if the
-                # algorithm precision is either not avaiable or is
+                # algorithm precision is either not available or is
                 # being ignored.
                 self._precision = const.SCALAR_PRECISION_MAP[
                     self.intrinsic_type]
@@ -9616,6 +9263,10 @@ class DynKernelArgument(KernelArgument):
                 argtype = "field"
             elif alg_datatype == "field_type":
                 argtype = "field"
+            elif alg_datatype == "r_bl_field_type":
+                argtype = "r_bl_field"
+            elif alg_datatype == "r_phys_field_type":
+                argtype = "r_phys_field"
             elif alg_datatype == "r_solver_field_type":
                 argtype = "r_solver_field"
             elif alg_datatype == "r_tran_field_type":
@@ -9852,7 +9503,7 @@ class DynKernelArgument(KernelArgument):
                 sym = symbol_table.new_symbol(
                     self.proxy_name, symbol_type=DataSymbol,
                     datatype=self.infer_datatype(proxy=True))
-            return Reference(sym)
+            return StructureReference.create(sym, ["data"])
 
         raise NotImplementedError(
             f"Unsupported kernel argument type: '{self.name}' is of type "
@@ -10136,50 +9787,6 @@ class DynKernelArgument(KernelArgument):
             f"'{str(self)}' is not a scalar, field or operator argument")
 
 
-class DynKernCallFactory():
-    ''' Create the necessary framework for a Dynamo kernel call.
-    This consists of a Loop over cells containing a call to the
-    user-supplied kernel routine.
-
-    '''
-    # pylint: disable=too-few-public-methods
-    @staticmethod
-    def create(call, parent):
-        '''
-        Create the objects needed for a call to the kernel
-        described in the call object.
-
-        :param call: information on the kernel call as obtained from the \
-                     Algorithm layer.
-        :type call: :py:class:`psyclone.parse.algorithm.KernelCall`
-        :param parent: the parent of this kernel call in the PSyIR.
-        :type parent: :py:class:`psyclone.psyir.nodes.Schedule`
-
-        '''
-        if parent is None:
-            raise NotImplementedError
-        if call.ktype.iterates_over == "domain":
-            # Kernel operates on whole domain so there is no loop.
-            # We still need a loop object though as that is where the logic
-            # for handling halo exchanges is currently implemented.
-            loop_type = "null"
-        else:
-            # Loop over cells, indicated by an empty string.
-            loop_type = ""
-        cloop = DynLoop(parent=parent, loop_type=loop_type)
-
-        # The kernel itself
-        kern = DynKern(parent)
-        kern.load(call, cloop.loop_body)
-
-        # Add the kernel as a child of the loop
-        cloop.loop_body.addchild(kern)
-
-        # Set-up the loop now we have the kernel object
-        cloop.load(kern)
-        return cloop
-
-
 class DynACCEnterDataDirective(ACCEnterDataDirective):
     '''
     Sub-classes ACCEnterDataDirective to provide an API-specific implementation
@@ -10203,7 +9810,6 @@ __all__ = [
     'DynKernMetadata',
     'DynamoPSy',
     'DynamoInvokes',
-    'DynCollection',
     'DynStencils',
     'DynDofmaps',
     'DynFunctionSpaces',
@@ -10217,7 +9823,6 @@ __all__ = [
     'DynInterGrid',
     'DynBasisFunctions',
     'DynBoundaryConditions',
-    'DynInvoke',
     'DynInvokeSchedule',
     'DynGlobalSum',
     'DynHaloExchange',
@@ -10233,5 +9838,4 @@ __all__ = [
     'DynStencil',
     'DynKernelArguments',
     'DynKernelArgument',
-    'DynKernCallFactory',
     'DynACCEnterDataDirective']

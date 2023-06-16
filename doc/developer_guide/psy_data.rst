@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2019-2022, Science and Technology Facilities Council.
+.. Copyright (c) 2019-2023, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -38,6 +38,9 @@
 .. _psy_data:
 
 .. testsetup::
+
+    import os
+    from psyclone.parse import ModuleManager
 
     # Define SOURCE_FILE to point to an existing gocean 1.0 file.
     SOURCE_FILE = ("../../src/psyclone/tests/test_files/"
@@ -1032,10 +1035,9 @@ before the kernel to allow the PSyData library to capture the input
 values, and once using the name ``a_fld_post`` after the kernel
 execution to store the results.
 
-.. note::
-    The following section on driver creation applies at this stage
-    only to GOcean. Support for driver creation for LFRic is
-    tracked in issue #1392.
+
+Driver Creation for GOcean
+++++++++++++++++++++++++++
 
 The creation of a stand-alone driver can be requested when applying
 the extraction transformation, e.g.:
@@ -1050,14 +1052,13 @@ all input- and output-variables, execute the
 instrumented code region, and then compare the results of the output
 variables (see :ref:`user_guide:extraction_libraries`). This program does
 not depend on any infrastructure library (like 'dl_esm_inf`'), it
-only needs the PSyData ReadKernelData library (ie.
+only needs the PSyData ReadKernelData library (i.e.
 ``lib/extract/netcdf/read_kernel_data_mod``), plus any libraries
 the wrapper depends on (e.g. NetCDF).
 
-.. note:: Due to issue #1757 the infrastructure is required at compile
-    and linke time for now, since the kernel contains metadata. If
-    the metadata is manually removed from the kernel, the infrastructure
-    is not required anymore.
+.. note:: The infrastructure is required at compile
+    and link time for now, since the kernel contains metadata. Issue
+    #2049 tracks a solution for this.
 
 The following changes are applied by the ``ExtractionDriverCreator``
 in order to generate stand-alone code for GOcean:
@@ -1145,3 +1146,142 @@ an array ``b_fld`` with the same shape as ``b_fld_post``, which
 is initialised to 0. This ``b_fld`` is provided in the kernel call.
 After the kernel call, ``b_fld`` should be equal to
 ``b_fld_post``.
+
+Driver Creation for LFRic
++++++++++++++++++++++++++
+
+The creation of a stand-alone driver can be requested when applying
+the extraction transformation, e.g.:
+
+.. code-block:: python
+
+    extract = LFRicExtractTrans()
+    extract.apply(schedule.children, {"create_driver": True})
+
+When compiled and executed, this driver will read in the values of
+all input- and output-variables, execute the
+instrumented code region, and then compare the results of the output
+variables (see :ref:`user_guide:extraction_libraries`). ATM this
+driver will still depend on the LFRic infrastructure library (see issue
+#1991) and needs the PSyData ReadKernelData library (i.e.
+``lib/extract/netcdf/read_kernel_data_mod``), plus any libraries
+the wrapper depends on (e.g. NetCDF).
+
+The driver creation process is explained in the Python sources:
+
+.. autoclass:: psyclone.domain.lfric.LFRicExtractDriverCreator
+    :members:
+
+Here an example showing some of the driver code created:
+
+.. code-block:: Fortran
+
+  integer(kind=i_def), allocatable, dimension(:,:) :: map_w0
+  integer(kind=i_def) :: cell
+  real(kind=r_def), allocatable, dimension(:) :: field1
+  real(kind=r_def), allocatable, dimension(:) :: field1_post
+
+  call extract_psy_data%OpenRead('main', 'update')
+  call extract_psy_data%ReadVariable('field1', field1)
+  call extract_psy_data%ReadVariable('loop0_start', loop0_start)
+  call extract_psy_data%ReadVariable('loop0_stop', loop0_stop)
+  call extract_psy_data%ReadVariable('map_w0', map_w0)
+  call extract_psy_data%ReadVariable('cell_post', cell_post)
+  cell = 0
+  call extract_psy_data%ReadVariable('field1_post', field1_post)
+
+  do cell = loop0_start, loop0_stop, 1
+    call testkern_w0_code(nlayers, field1, ..., map_w0(:,cell))
+  enddo
+  if (cell == cell_post) then
+    PRINT *, "cell correct"
+  else
+    PRINT *, "cell incorrect. Values are:"
+    PRINT *, cell
+    PRINT *, "cell values should be:"
+    PRINT *, cell_post
+  end if
+  if (ALL(field1 - field1_post == 0.0)) then
+    PRINT *, "field1 correct"
+  else
+    PRINT *, "field1 incorrect. Values are:"
+    PRINT *, field1
+    PRINT *, "field1 values should be:"
+    PRINT *, field1_post
+  end if
+
+The variable ``field1`` is an input- and output-variable. The input
+value is stored in ``field``, the expected output value is ``field1_post``.
+After calling the kernel, the results of the kernel call in ``field1`` are
+compared with the expected values in ``field1_post``.
+
+.. note:: For now the created driver still depends on the infrastructure
+    library and any other modules used. Issue #1991 improves this.
+
+Module Manager
+++++++++++++++
+The LFRic driver creation utilises a ``ModuleManager`` to find
+and inline all modules required by the driver.
+
+
+.. autoclass:: psyclone.parse.ModuleManager
+    :members:
+
+Any PSyclone command line option ``-d`` (see :ref:`psyclone_command`)
+will be added to the ``ModuleManager`` as recursive search paths. The
+``ModuleManager`` is a singleton and it can be queried for information about
+any module. It internally uses caching to avoid repeatedly searching
+directories, and it will only access search paths as required. For example,
+if the first search path will be sufficient to find all modules during the
+lifetime of the module manager, no other search path will ever be accessed.
+The caching also implies that the ModuleManager will not detect if new files
+should be created during its lifetime.
+
+The ``ModuleManager`` also provides a static function that will sort
+a list of module dependencies, so that compiling the modules in this order
+(or adding them in this order to a file) will allow compilation, i.e. any
+module will only depend on previously defined modules.
+
+
+The ``ModuleManager`` will return a ``ModuleInfo`` object to make information
+about a module available:
+
+.. autoclass:: psyclone.parse.ModuleInfo
+    :members:
+
+Similar to the ``ModuleManager``, a ``ModuleInfo`` object will heavily rely on
+caching to avoid repeatedly reading a source file or parsing it. The side
+effect is that changes to a source file during the lifetime of the
+``ModuleManager`` will not be reflected in its information.
+
+At this stage, the ``ModuleInfo`` can be used to get the original source
+code of a module as string and to query a module about modules and symbols
+it depends on. It uses the fparser parse tree to detect this information (which
+means it can handle files that are not supported by PSyIR, e.g. files with
+preprocessor directives).
+
+An example usage of the ``ModuleManager`` and ``ModuleInfo`` objects,
+which prints the filenames of all modules used in ``tl_testkern_mod``:
+
+.. testcode ::
+
+    mod_manager = ModuleManager.get()
+    # Add the path to the PSyclone LFRic example codes:
+    mod_manager.add_search_path("../../src/psyclone/tests/test_files/"
+                                "dynamo0p3")
+
+    testkern_info = mod_manager.get_module_info("tl_testkern_mod")
+
+    used_mods = testkern_info.get_used_modules()
+    # Sort the modules so we get a reproducible output ordering
+    used_mods_list = sorted(list(used_mods))
+    for module_name in used_mods_list:
+        mod_info = mod_manager.get_module_info(module_name)
+        print("Module:", module_name, os.path.basename(mod_info.filename))
+
+.. testoutput::
+
+    Module: argument_mod argument_mod.f90
+    Module: constants_mod constants_mod.f90
+    Module: fs_continuity_mod fs_continuity_mod.f90
+    Module: kernel_mod kernel_mod.f90

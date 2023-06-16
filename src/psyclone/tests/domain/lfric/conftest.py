@@ -60,14 +60,15 @@ def dynkern_fixture():
     mdata_code = '''
 module testkern_field_mod
   type, extends(kernel_type) :: testkern_field_type
-     type(arg_type), meta_args(7) =                               &
+     type(arg_type), meta_args(8) =                               &
           (/ arg_type(gh_scalar, gh_real,    gh_read),            &
              arg_type(gh_field,  gh_real,    gh_readinc, w0),     &
              arg_type(gh_field,  gh_real,    gh_inc,     w1),     &
              arg_type(gh_field*3,gh_integer, gh_read,    w2),     &
              arg_type(gh_field,  gh_integer, gh_write,   wtheta), &
              arg_type(gh_field,  gh_integer, gh_read,    w3),     &
-             arg_type(gh_scalar, gh_integer, gh_read)             &
+             arg_type(gh_scalar, gh_integer, gh_read),            &
+             arg_type(gh_scalar, gh_logical, gh_read)             &
            /)
      type(func_type), dimension(2) :: meta_funcs =  &
           (/ func_type(w1, gh_basis),               &

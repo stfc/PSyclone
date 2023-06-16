@@ -31,8 +31,10 @@
 .. ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .. POSSIBILITY OF SUCH DAMAGE.
 .. -----------------------------------------------------------------------------
-.. Written by R. W. Ford, A. R. Porter, S. Siso and A. B. G. Chalk STFC Daresbury Lab
-..            J. Henrichs, Bureau of Meteorology
+.. Authors: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+..          A. B. G. Chalk and N. Nobre, STFC Daresbury Lab
+..          J. Henrichs, Bureau of Meteorology
+..          L. Turner, Met Office
 
 
 The PSyclone Internal Representation (PSyIR)
@@ -64,7 +66,7 @@ Python class inheritance system and each node has its particular (and
 semantically relevant) navigation and behaviour methods. For instance the
 ``Assignment`` node has ``lhs`` and ``rhs`` properties to navigate to the
 left-hand-side and right-hand-side operators of the Assignment. It also
-means we can indentify a node using its type with
+means we can identify a node using its type with
 ``isinstance(node, Assignment)``.
 Nevertheless, we maintain a **normalised** core of node relationships and
 functionality that allows us to build tree walkers, tree visitors and
@@ -358,20 +360,20 @@ with `return_type` set to `None` and `is_program` set to `False`.
 Control-Flow Nodes
 ------------------
 
-The PSyIR has three control flow nodes: `IfBlock`, `Loop` and
+The PSyIR has four control flow nodes: `IfBlock`, `Loop`, `WhileLoop` and
 `Call`. These nodes represent the canonical structure with which
-conditional branching constructs, iteration constructs and accessing
+conditional branching constructs, iteration constructs and accesses to
 other blocks of code are built. Additional language-specific syntax
 for branching and iteration will be normalised to use these same
 constructs.  For example, Fortran has the additional branching
 constructs `ELSE IF` and `CASE`: when a Fortran code is translated
 into the PSyIR, PSyclone will build a semantically equivalent
-implementation using `IfBlocks`.  Similarly, Fortran also has the
+implementation using `IfBlock` nodes.  Similarly, Fortran also has the
 `WHERE` construct and statement which are represented in the PSyIR
 with a combination of `Loop` and `IfBlock` nodes. Such nodes in the
 new tree structure are annotated with information to enable the
 original language-specific syntax to be recreated if required (see
-below).  See the full IfBlock API in the :ref_guide:`IfBlock reference
+below).  See the full `IfBlock` API in the :ref_guide:`IfBlock reference
 guide psyclone.psyir.nodes.html#psyclone.psyir.nodes.IfBlock`. The
 PSyIR also supports the concept of named arguments for `Call` nodes,
 see the :ref:`named_arguments-label` section for more details.
@@ -393,15 +395,16 @@ structure if desired) Nodes may have `annotations` associated with
 them. The annotations, the Node types to which they may be applied and
 their meanings are summarised in the table below:
 
-=================  =================  =================================
-Annotation         Node types         Origin
-=================  =================  =================================
-`was_elseif`       `IfBlock`          `else if`
-`was_single_stmt`  `IfBlock`, `Loop`  `if(logical-expr)expr` or Fortran
-                                      `where(array-mask)array-expr`
-`was_case`         `IfBlock`          Fortran `select case`
-`was_where`        `Loop`, `IfBlock`  Fortran `where` construct
-=================  =================  =================================
+===================  =================  ===================================
+Annotation           Node types         Origin
+===================  =================  ===================================
+`was_elseif`         `IfBlock`          `else if`
+`was_single_stmt`    `IfBlock`, `Loop`  `if(logical-expr)expr` or Fortran
+                                        `where(array-mask)array-expr`
+`was_case`           `IfBlock`          Fortran `select case` construct
+`was_where`          `Loop`, `IfBlock`  Fortran `where` construct
+`was_unconditional`  `WhileLoop`        Fortran `do` loop with no condition
+===================  =================  ===================================
 
 .. note:: A `Loop` may currently only be given the `was_single_stmt`
 	  annotation if it also has the `was_where` annotation. (Thus
@@ -414,7 +417,7 @@ Annotation         Node types         Origin
 Loop Node
 ^^^^^^^^^
 
-The `Loop` node is the cannonical representation of a bounded loop, it
+The `Loop` node is the canonical representation of a counted loop, it
 has the start, stop, step and loop_body of the loop as its children. The
 node has the same semantics than the Fortran do construct: the boundary
 values are inclusive (both are part of the iteration space) and the start,
@@ -424,6 +427,16 @@ loop.
 For more details on the `Loop` node, see the full API in the
 :ref_guide:`reference guide psyclone.psyir.nodes.html#psyclone.psyir.nodes.Loop`.
 
+WhileLoop Node
+--------------
+
+The `WhileLoop` node is the canonical representation of a while loop.
+The PSyIR representation of the Fortran `do` loop with no condition will have
+the annotation `was_unconditional`, but is otherwise no different from that of
+a `do while` loop whose condition is the logical constant `.TRUE.`.
+
+For more details on the `WhileLoop` node, see the full API in the
+:ref_guide:`reference guide psyclone.psyir.nodes.html#psyclone.psyir.nodes.WhileLoop`.
 
 Ranges
 ------
@@ -497,42 +510,60 @@ nodes, see the :ref:`named_arguments-label` section for more details.
 IntrinsicCall Nodes
 -------------------
 
-There are certain intrinsic functions that do not lend themselves to
-being represented as `Operation` nodes. For example, Fortran's
-`allocate` statement has various *optional* arguments, one of which
-(`stat`) may be used to store a return value. It's therefore not clear
-what an allocation 'operation' would assign to (an `Operation`
-must be a child of a `Statement` and therefore could not be included
-in a `Schedule` on its own). Similarly, Fortran's `MAXVAL` and
-`MINVAL` intrinsics have optional `dim` and `mask` arguments. In order
-to represent these using `Operation` nodes, we would need one for each
-of the four possible forms of each intrinsic.
-
-Therefore, to support intrinsic 'operations' that have optional
-arguments, the PSyIR has the
-:ref_guide:`IntrinsicCall psyclone.psyir.nodes.html#psyclone.psyir.nodes.IntrinsicCall`
-Node. This single class supports the different intrinsics listed in the
-`IntrinsicCall.Intrinsic` enumeration:
+PSyIR `IntrinsicCall` nodes (see :ref_guide:`IntrinsicCall
+psyclone.psyir.nodes.html#psyclone.psyir.nodes.IntrinsicCall`) capture
+all PSyIR intrinsics that are not expressed as language symbols (`+`,`-`,`*`
+etc). The latter are captured as `Operation` nodes. At the moment some
+intrinsics that should be captured as `IntrinsicCall` nodes are
+captured as `Operation` nodes (for example `sin` and `cos`). These
+will be migrated to being captured as `IntrinsicCall` nodes in the
+near future. Supported `IntrinsicCall` intrinsics are listed in the
+`IntrinsicCall.Intrinsic` enumeration within the class:
 
 +--------------+------------------------------+--------------------------------+
 | Name         | Positional arguments         | Optional arguments             |
 +--------------+------------------------------+------+-------------------------+
-| ALLOCATE     | One or more Reference or     | stat | Reference which will    |
-|              | ArrayReferences to which     |      | hold status.            |
-|              | memory will be allocated.    +------+-------------------------+
+| ALLOCATE     | One or more Reference or     | stat | Reference to an integer |
+|              | ArrayReferences to which     |      | variable which will hold|
+|              | memory will be allocated.    |      | return status.          |
+|              |                              +------+-------------------------+
 |              |                              | mold | Reference to an array   |
 |              |                              |      | which is used to specify|
 |              |                              |      | the dimensions of the   |
-|              |                              |      | allocated obect.        |
+|              |                              |      | allocated object.       |
+|              |                              +------+-------------------------+
+|              |                              |source| Reference to an array   |
+|              |                              |      | which is used to specify|
+|              |                              |      | both the dimensions &   |
+|              |                              |      | initial value(s) of the |
+|              |                              |      | allocated object.       |
+|              |                              +------+-------------------------+
+|              |                              |errmsg| Reference to a character|
+|              |                              |      | variable which will     |
+|              |                              |      | contain an error message|
+|              |                              |      | should the operation    |
+|              |                              |      | fail.                   |
 +--------------+------------------------------+------+-------------------------+
 | DEALLOCATE   | One or more References.      | stat | Reference which will    |
-|              |                              |      | hold status.            |
+|              |                              |      | hold return status.     |
 +--------------+------------------------------+------+-------------------------+
 | RANDOM_NUMBER| A single Reference which will|                                |
 |              | be filled with pseudo-random |                                |
 |              | numbers in the range         |                                |
 |              | [0.0, 1.0].                  |                                |
++--------------+------------------------------+------+-------------------------+
+| SUM, MAXVAL, | A single DataNode.           | dim  | A DataNode specifying   |
+| MINVAL       |                              |      | one of the supplied     |
+|              |                              |      | array's dimensions.     |
+|              |                              +------+-------------------------+
+|              |                              | mask | A DataNode indicating   |
+|              |                              |      | on which elements to    |
+|              |                              |      | apply the function.     |
++--------------+------------------------------+------+-------------------------+
+| HUGE, TINY   | A single Reference or        |                                |
+|              | Literal.                     |                                |
 +--------------+------------------------------+--------------------------------+
+
 
 CodeBlock Node
 --------------
@@ -898,9 +929,6 @@ kernel-layer datatypes and symbols. For the algorithm layer in both
 GOcean1.0 and LFRic there are specialisations for invokes and kernel
 calls. This is discussed further in the following sections.
 
-
-
-
 The LFRic PSyIR
 ===============
 
@@ -908,12 +936,13 @@ The LFRic PSyIR is a set of subclasses of the PSyIR which captures
 LFRic-specific routines, datatypes and associated symbols. These
 subclasses are work in progress and at the moment are limited to 1) a
 subset of the datatypes passed into LFRic kernels by argument and by
-use association and 2) LFRic calls (InvokeCall and KernCall) in the
-LFRic algorithm-layer. Over time these will be expanded to support a)
-all LFRic kernel datatypes, b) all LFRic PSyIR datatypes, c)
-subroutines (KernRoutine etc), d) derived quantities e.g. iterator
-variables and eventually e) higher level LFRic PSyIR concepts, which
-will not be concerned with symbol tables and datatypes.
+use association and 2) LFRic invoke and kernel calls
+(``LFRicAlgInvokeCall`` and ``LFRicKernelFunctor``) in the LFRic
+algorithm-layer. Over time these will be expanded to support a) all
+LFRic kernel datatypes, b) all LFRic PSyIR datatypes, c) subroutines
+(KernRoutine etc), d) derived quantities e.g. iterator variables and
+eventually e) higher level LFRic PSyIR concepts, which will not be
+concerned with symbol tables and datatypes.
 
 The Kernel-layer subclasses will be used to:
 
@@ -1025,8 +1054,8 @@ output strings).
 
 The logic and declaration of kernel variables is handled separately by
 the ``gen_stub`` method in ``DynKern`` and the ``gen_code`` method in
-``DynInvoke``. In both cases these methods make use of the subclasses
-of ``DynCollection`` to declare variables.
+``LFRicInvoke``. In both cases these methods make use of the subclasses
+of ``LFRicCollection`` to declare variables.
 
 When using the symbol table in the LFRic PSyIR we naturally capture
 arguments and datatypes together. The ``KernelInterface`` class is
@@ -1039,7 +1068,7 @@ clear what the limitations are for ``KernStubArgList``.
 
 Eventually the definition of lfric datatypes should be moved to the
 LFRic PSyIR, but at the moment there is a lot of information defined
-in the ``DynCollection`` subclasses. This will need to be addressed
+in the ``LFRicCollection`` subclasses. This will need to be addressed
 over time.
 
 The GOcean PSyIR

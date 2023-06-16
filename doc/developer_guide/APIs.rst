@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2019-2022, Science and Technology Facilities Council.
+.. Copyright (c) 2019-2023, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 .. POSSIBILITY OF SUCH DAMAGE.
 .. -----------------------------------------------------------------------------
 .. Written by R. W. Ford and A. R. Porter, STFC Daresbury Lab
-.. Modified by I. Kavcic, Met Office
+.. Modified by I. Kavcic and L. Turner, Met Office
 
 Generic Code
 ############
@@ -216,7 +216,7 @@ therefore this iteration is not required.) As a result, the LFRic
 infrastructure presents the mesh information to PSyclone as if the
 mesh were 2-dimensional. From now on this 2D view will be assumed
 i.e. a cell will actually be a column of cells. The LFRic
-infrastracture provides a global 2D cell index from 1 to the number of
+infrastructure provides a global 2D cell index from 1 to the number of
 cells.
 
 For example, a simple quadrilateral element mesh with 4 cells might be
@@ -651,7 +651,7 @@ loops and kernel calls that need to be generated in the PSy layer for
 the particular invoke call. Once the loops and kernel calls have been
 created then (if the ``DISTRIBUTED_MEMORY`` flag is set to ``true``) PSyclone
 adds any required halo exchanges and global sums. This work is all
-performed in the ``DynInvoke`` constructor (``__init__``) method.
+performed in the ``LFRicInvoke`` constructor (``__init__``) method.
 
 In PSyclone we apply a lazy halo exchange approach (as opposed to an
 eager one), adding a halo exchange just before it is required.
@@ -1251,7 +1251,7 @@ TBD
 .. 
 .. OpenMPLoop transformation in transformations.py. 
 .. 
-.. Create third transformtion which goes over all loops in a schedule and
+.. Create third transformation which goes over all loops in a schedule and
 .. applies the OpenMP loop transformation.
 
 NEMO

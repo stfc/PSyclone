@@ -2284,7 +2284,7 @@ class ACCEnterDataTrans(Transformation):
             posn = sched.children.index(current)
 
         # Add the directive at the position determined above, i.e. just before
-        # the first statemement containing an OpenACC compute construct.
+        # the first statement containing an OpenACC compute construct.
         data_dir = AccEnterDataDir(parent=sched, children=[])
         sched.addchild(data_dir, index=posn)
 
@@ -2540,7 +2540,7 @@ class ACCKernelsTrans(RegionTrans):
         # the proposed region
         for node in node_list:
             if (any(assign for assign in node.walk(Assignment)
-                    if assign.is_array_range) or node.walk(Loop)):
+                    if assign.is_array_assignment) or node.walk(Loop)):
                 break
         else:
             # Branch executed if loop does not exit with a break
