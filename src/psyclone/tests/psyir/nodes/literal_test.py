@@ -135,7 +135,7 @@ def test_literal_init_invalid_2(value):
             f"found '{value}'." in str(err.value))
 
 
-@pytest.mark.parametrize("value", ["02", "++2", "12.34", "*2", ".3"])
+@pytest.mark.parametrize("value", ["++2", "12.34", "*2", ".3"])
 def test_literal_init_invalid_3(value):
     '''Test the initialisation of a Literal object with invalid int
     values raises the expected exception.
@@ -144,7 +144,7 @@ def test_literal_init_invalid_3(value):
     with pytest.raises(ValueError) as err:
         Literal(value, INTEGER_SINGLE_TYPE)
     assert (f"A scalar integer literal value must conform to the "
-            f"supported format ('(([+-]?[1-9][0-9]*|0)|(NOT_INITIALISED))') "
+            f"supported format ('(([+-]?[0-9]+)|(NOT_INITIALISED))') "
             f"but found '{value}'." in str(err.value))
 
 
@@ -162,12 +162,19 @@ def test_literal_init_empty_value():
 
 @pytest.mark.parametrize("value",
                          ["2", "+2", "-2", "2.", "23", "23.4", "-23.45",
-                          "+23.45e0", "23.45e10", "-23.45e-10",
+                          "+23.45e0", "23.45e10", "-23.45e-10", "000.1",
                           "+23.45e+10", "+23e-10", "23.e10", "2.4E-5"])
-def test_literal_init_valid_value(value):
+def test_real_literal_init_valid_value(value):
     '''Test the initialisation of a Literal object with valid real values.
     Include check that we are not case sensitive. '''
     _ = Literal(value, REAL_DOUBLE_TYPE)
+
+
+@pytest.mark.parametrize("value",
+                         ["2", "+2", "-2", "1234", "000", "-000"])
+def test_integer_literal_init_valid_value(value):
+    '''Test the initialisation of a Literal object with valid int values. '''
+    _ = Literal(value, INTEGER_SINGLE_TYPE)
 
 
 def test_literal_value():

@@ -256,6 +256,7 @@ class Operation(DataNode, metaclass=ABCMeta):
                 new_argument_names.append((id(child), None))
         self._argument_names = new_argument_names
 
+    @property
     def is_elemental(self):
         '''
         :returns: whether this operation is elemental (provided with an input \
