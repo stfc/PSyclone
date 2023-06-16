@@ -84,7 +84,7 @@ jobs:
         pytest -n 2 --f90=gfortran --compile --compileopencl src/psyclone/tests
         module load nvidia-hpcsdk/23.5 netcdf_fortran
         # We have to tell nvfortran where to find the OpenCL library.
-        pytest -n 2 --f90=nvfortran --f90-flags="-L/apps/packages/compilers/nvidia-hpcsdk/Linux_x86_64/23.5/cuda/12.1/targets/x86_64-linux/lib" --compile --compileopencl src/psyclone/tests
+        pytest -n 2 --f90=nvfortran --f90flags="-L/apps/packages/compilers/nvidia-hpcsdk/Linux_x86_64/23.5/cuda/12.1/targets/x86_64-linux/lib" --compile --compileopencl src/psyclone/tests
         module rm netcdf_fortran nvidia-hpcsdk
     - name: Examples with compilation
       run: |
