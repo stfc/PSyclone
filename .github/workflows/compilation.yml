@@ -94,4 +94,4 @@ jobs:
         make -C examples allclean
         module load nvidia-hpcsdk/23.5 netcdf_fortran
         # We have to tell nvfortran where to find the OpenCL library.
-        F90=nvfortran F90FLAGS="-L/apps/packages/compilers/nvidia-hpcsdk/Linux_x86_64/23.5/cuda/12.1/targets/x86_64-linux/lib" make -C examples compile
+        F90=nvfortran F90FLAGS="-acc -Minfo=all -L/apps/packages/compilers/nvidia-hpcsdk/Linux_x86_64/23.5/cuda/12.1/targets/x86_64-linux/lib" make -C examples compile
