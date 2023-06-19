@@ -7,9 +7,9 @@
 # ---- Start of the configurable part of the Makefile ----
 
 # - Specify NEMO directory
-# NEMO_DIR ?= /home/ssiso/workspace/stfc/NEMO
+# NEMO_DIR ?=
 # - Specify location of PSyclone transformation scripts
-PSYCLONE_NEMO_DIR ?= /home/ssiso/workspace/stfc/PSyclone/examples/nemo/scripts
+PSYCLONE_NEMO_DIR ?= ${WORKSPACE}/PSyclone/examples/nemo/scripts
 # - Specify location of preprocessed files - you need to call 'make compile-serial' once first)
 # ROOT_SRC ?=
 # - Specify NEMO test case
@@ -23,8 +23,8 @@ TEST_CASE ?= SPITZ12
 # NAMELISTS_DIR ?=
 
 # Example Config for MetOffice - eORCA1_GO8 - nvidia
-NEMO_DIR ?= /home/ssiso/workspace/stfc/NEMO
-ROOT_SRC ?= /home/ssiso/workspace/stfc/NEMO/cfgs/SPITZ12_serial/BLD/ppsrc/nemo/
+NEMO_DIR ?= ${WORKSPACE}/NEMO
+ROOT_SRC ?= ${NEMO_DIR}/cfgs/SPITZ12_serial/BLD/ppsrc/nemo/
 COMPILER_ARCH ?= linux_nvidia_omp_gpu
 ADD_KEYS ?= "IEEE_IS_NAN=ieee_is_nan key_nosignedzero"
 DEL_KEYS ?= "key_iomput key_mpp_mpi key_si3"
@@ -32,13 +32,13 @@ MODEL_DIR ?= /home/aporter/NEMO/orca1_inputs/
 NAMELISTS_DIR ?= ${NEMO_DIR}/
 
 # Example Config for ECMWF - eORCA1_GO8_Z75 (with MPI and SI3) - intel compiler
-# NEMO_DIR ?= /home/ssiso/ecmwf_nemo/nemo/NEMOGCM_V40/
-# ROOT_SRC ?= /home/ssiso/ecmwf_nemo/nemo/NEMOGCM_V40/cfgs/SPITZ12_serial/BLD/ppsrc/nemo/
+# NEMO_DIR ?= ${WORKSPACE}/ecmwf_nemo/nemo/NEMOGCM_V40/
+# ROOT_SRC ?= ${NEMO_DIR}/cfgs/SPITZ12_serial/BLD/ppsrc/nemo/
 # COMPILER_ARCH ?= linux_intel
 # ADD_KEYS ?= "IEEE_IS_NAN=ieee_is_nan key_nosignedzero"
 # DEL_KEYS ?= "key_iomput"
 # MODEL_DIR ?= /archive/ssiso/ecmwf_eORCA1_GO8/
-# NAMELISTS_DIR ?= /home/ssiso/ecmwf_nemo/nemo/testscripts_V40/output/openmp_outer_V40_eORCA1_GO8_Z75_20170906_cray_dp_1x1/
+# NAMELISTS_DIR ?= ${WORKSPACE}/ecmwf_nemo/nemo/testscripts_V40/output/openmp_outer_V40_eORCA1_GO8_Z75_20170906_cray_dp_1x1/
 
 # ---- End of configuration section - do not edit below this point ----
 

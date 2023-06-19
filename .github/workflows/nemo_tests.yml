@@ -45,6 +45,13 @@ jobs:
   run_if_on_mirror:
     if: ${{ github.repository == 'stfc/PSyclone-mirror' }}
     runs-on: self-hosted
+    env:
+        PERL5LIB: /home/aporter/perl5/lib/perl5
+        PERL_LOCAL_LIB_ROOT: /home/aporter/perl5
+        PERL_MB_OPT: "--install_base \"/home/aporter/perl5\""
+        PERL_MM_OPT: "INSTALL_BASE=/home/aporter/perl5"
+        PSYCLONE_NEMO_DIR: $GITHUB_WORKSPACE/examples/nemo/scripts
+
     steps:
     - uses: actions/checkout@v3
       with:
@@ -68,21 +75,30 @@ jobs:
         # uncomment the following line:
         pip install external/fparser
         pip install .[test]
+        # Add Perl to the PATH
+        echo "/home/aporter/perl5/bin" >> $GITHUB_PATH
 
     # PSyclone, compile and run MetOffice NEMO with OpenMP for GPUs
     - name: NEMO MetOffice OpenMP for GPU PSycloning
+      env:
+          NEMO_DIR: $HOME/NEMO
       run: |
         . .runner_venv/bin/activate
         module load nvidia-hpcsdk netcdf_fortran
         cd examples/nemo/scripts
         make -j 4 openmp_gpu
     - name: NEMO MetOffice OpenMP for Nvidia GPUs Compilation
+      env:
+          NEMO_DIR: $HOME/NEMO
       run: |
         . .runner_venv/bin/activate
+        which nvfortran # is if here from previous step?
         module load nvidia-hpcsdk netcdf_fortran
         cd examples/nemo/scripts
         make -j 4 compile-openmp_gpu
     - name: NEMO MetOffice OpenMP for Nvidia GPU Execution
+      env:
+          NEMO_DIR: $HOME/NEMO
       run: |
         . .runner_venv/bin/activate
         module load nvidia-hpcsdk netcdf_fortran
