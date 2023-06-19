@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author J. Henrichs, Bureau of Meteorology
-# Modifications: A. R. Porter and R. W. Ford, STFC Daresbury Lab
+# Modifications: A. R. Porter, R. W. Ford and S.Siso, STFC Daresbury Lab
 
 ''' Module containing tests for the dependency tools.'''
 
@@ -44,7 +44,6 @@ from psyclone.configuration import Config
 from psyclone.core import Signature, VariablesAccessInfo
 from psyclone.errors import InternalError
 from psyclone.psyGen import PSyFactory
-from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.tools import DependencyTools, DTCode, ReadWriteInfo
 from psyclone.tests.utilities import get_invoke
 

@@ -100,6 +100,7 @@ jobs:
         tail -n 1 output.txt | grep -q "S_min:  0.482686"
         tail -n 1 output.txt | grep -q "S_max:  0.407622"
         grep -A 1 "Elapsed Time" output.txt
+        echo  $GITHUB_REF_NAME $GITHUB_SHA $(grep -A 1 "Elapsed Time" timing.output | head -n 2 | tail -n 1) >> ${NEMO_DIR}/performance_history
 
     # PSyclone, compile and run ECMWF NEMO with OpenMP for CPUs
     - name: NEMO ECMWF OpenMP for CPU
@@ -116,8 +117,8 @@ jobs:
         make -j 4 openmp_cpu
         module load intel/oneapi compiler mpi
         export LD_LIBRARY_PATH=/home/ssiso/ecmwf_nemo/ESiWACE2/scripts/dev/netcdf-c-4.9.0/lib/:$LD_LIBRARY_PATH
-        export LD_LIBRARY_PATH=home/ssiso/ecmwf_nemo/ESiWACE2/scripts/dev/netcdf-fortran-4.5.4/lib:$LD_LIBRARY_PATH
-        export LD_LIBRARY_PATH=/home/ssiso/ecmwf_nemo/ESiWACE2/scripts/dev/hdf5-1.12.2/lib/:$LD_LIBRARY_PATH:$LD_LIBRARY_PATH
+        export LD_LIBRARY_PATH=/home/ssiso/ecmwf_nemo/ESiWACE2/scripts/dev/netcdf-fortran-4.5.4/lib:$LD_LIBRARY_PATH
+        export LD_LIBRARY_PATH=/home/ssiso/ecmwf_nemo/ESiWACE2/scripts/dev/hdf5-1.12.2/lib/:$LD_LIBRARY_PATH
         make -j 4 compile-openmp_cpu
         export OMP_NUM_THREADS=4
         make run-openmp_cpu | tee output.txt
@@ -128,3 +129,4 @@ jobs:
         tail -n 1 output.txt | grep -q "S_min:  0.108530"
         tail -n 1 output.txt | grep -q "S_max:  0.404045"
         grep -A 1 "Elapsed Time" output.txt
+        echo  $GITHUB_REF_NAME $GITHUB_SHA $(grep -A 1 "Elapsed Time" timing.output | head -n 2 | tail -n 1) >> ${NEMO_DIR}/performance_history

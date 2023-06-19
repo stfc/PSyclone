@@ -77,7 +77,7 @@ JOBS := $(if ${JOBS}, ${JOBS}, 4)  # If none were given, default to 4
 compile-%:
 	@test -s psycloned-$(lastword $(subst -, ,$@)) || { \
 		echo "The psycloned-$(lastword $(subst -, ,$@)) folder does not exist!"; \
-		echo "You may need to execute 'make $(lastword $(subst -, ,$@))' fist."; \
+		echo "You may need to execute 'make $(lastword $(subst -, ,$@))' first."; \
 		echo "Exiting..."; exit 1; }
 	cd $(NEMO_DIR) ; \
 	./makenemo -n ${TEST_CASE}_$(lastword $(subst -, ,$@)) -r ${TEST_CASE} \

@@ -98,15 +98,14 @@ class NemoAllArrayRange2LoopTrans(Transformation):
 
         :param node: an Assignment node.
         :type node: :py:class:`psyclone.psyir.nodes.Assignment`
-        :param options: a dictionary with options for \
-            transformations. No options are used in this \
-            transformation. This is an optional argument that defaults \
-            to None.
-        :param bool options["verbose"]: whether to print out the reason \
-                why the inner transformation was not applied. This is \
-                useful because the transfomation is successful at the
-                first TransformationError, but the reason gets lost because \
-                the error is not propagated.
+        :param options: a dictionary with options for transformations. No
+            options are used in this transformation. This is an optional
+            argument that defaults to None.
+        :param bool options["verbose"]: whether to print out the reason 
+            why the inner transformation was not applied. This is useful
+            because this transfomation succeeds even if one of the inner
+            transformations fails, and therefor the reason why the inner
+            transformation failed is not propagated.
         :type options: Optional[Dict[str, Any]]
 
         '''
@@ -117,6 +116,7 @@ class NemoAllArrayRange2LoopTrans(Transformation):
             while True:
                 trans.apply(node)
         except TransformationError as err:
+            # TODO #11: Instead we could use proper logging
             if options and options.get("verbose", False):
                 errmsg = str(err)
                 # Skip the errors that are obious and are generated for any

@@ -56,12 +56,14 @@ PROFILING_IGNORE = ["_init", "_rst", "alloc", "agrif", "flo_dom",
                     "interp1", "interp2", "interp3", "integ_spline", "sbc_dcy",
                     "sum", "sign_", "ddpdd"]
 
-# From: https://docs.nvidia.com/hpc-sdk/compilers/hpc-compilers-user-guide/index.html#acc-fort-intrin-sum
+# From: https://docs.nvidia.com/hpc-sdk/compilers/hpc-compilers-user-guide/
+# index.html#acc-fort-intrin-sum
 NVIDIA_GPU_SUPPORTED_INTRINSICS = [
     IntrinsicCall.Intrinsic.SUM,
 ]
 
 VERBOSE = False
+
 
 def _it_should_be(symbol, of_type, instance):
     ''' Make sure that symbol has the datatype as provided.
@@ -108,7 +110,7 @@ def enhance_tree_information(schedule):
     for reference in schedule.walk(Reference):
         if reference.symbol.name in are_integers:
             _it_should_be(reference.symbol, ScalarType, INTEGER_TYPE)
-        elif reference.symbol.name in ('rn_avt_rnf', ): # 'rn_ucf'
+        elif reference.symbol.name in ('rn_avt_rnf', ):
             _it_should_be(reference.symbol, ScalarType, REAL_TYPE)
         elif isinstance(reference.symbol.interface, ImportInterface) and \
                 reference.symbol.interface.container_symbol.name == "phycst":
@@ -224,7 +226,7 @@ def insert_explicit_loop_parallelism(
         if loop.ancestor(Directive):
             continue  # Skip if an outer loop is already parallelised
 
-        opts={}
+        opts = {}
 
         routine_name = loop.ancestor(Routine).invoke.name
 
@@ -237,13 +239,16 @@ def insert_explicit_loop_parallelism(
         # (npti) or if the loop and array dims do not match.
         # In addition, they often nest ice linearised loops (npti)
         # which we'd rather parallelise
-        if('ice' in routine_name and isinstance(loop.stop_expr, BinaryOperation)
+        if ('ice' in routine_name
+            and isinstance(loop.stop_expr, BinaryOperation)
             and (loop.stop_expr.operator == BinaryOperation.Operator.UBOUND or
                  loop.stop_expr.operator == BinaryOperation.Operator.SIZE)
-            and (len(loop.walk(Loop)) > 2 or any([ref.symbol.name in ('npti',)
-                      for lp in loop.loop_body.walk(Loop)
-                      for ref in lp.stop_expr.walk(Reference)]) or
-                 str(len(loop.walk(Loop))) != loop.stop_expr.children[1].value)):
+            and (len(loop.walk(Loop)) > 2
+                 or any([ref.symbol.name in ('npti',)
+                         for lp in loop.loop_body.walk(Loop)
+                         for ref in lp.stop_expr.walk(Reference)])
+                 or (str(len(loop.walk(Loop))) !=
+                     loop.stop_expr.children[1].value))):
             print("ICE Loop not parallelised for performance reasons")
             continue
         # Skip if looping over ice categories, ice or snow layers
@@ -277,8 +282,8 @@ def insert_explicit_loop_parallelism(
                 continue
 
         # pnd_lev requires manual privatisation of ztmp
-        if any([name in routine_name for name in ('tab_','pnd_')]):
-            opts={"force": True}
+        if any([name in routine_name for name in ('tab_', 'pnd_')]):
+            opts = {"force": True}
 
         try:
             loop_directive_trans.apply(loop, options=opts)

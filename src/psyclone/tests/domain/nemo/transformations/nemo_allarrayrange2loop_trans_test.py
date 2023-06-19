@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2022, Science and Technology Facilities Council.
+# Copyright (c) 2020-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -165,7 +165,6 @@ def test_apply_option_verbose(fortran_reader, capsys):
     '''
     trans = NemoAllArrayRange2LoopTrans()
 
-    # The outer dimension is already set
     psyir = fortran_reader.psyir_from_source('''
     subroutine test
         use my_variables
@@ -177,13 +176,16 @@ def test_apply_option_verbose(fortran_reader, capsys):
     end subroutine test
     ''')
 
-    # Basic cases like assingment 1 are skipped
+    # Basic cases like assignment 1 are skipped
     assignment = psyir.walk(Assignment)[0]
     trans.apply(assignment, options={'verbose': True})
     out, _ = capsys.readouterr()
     assert out == ""
 
-    # Other cases liek assingment 2 are printed to stdout
+    # Other cases like assignment 2 are printed to stdout because they are due
+    # to PSyclone limitations, in this case my_func is a codeblock because
+    # currently the Fortran reader only generate functions if it can see its
+    # declaration.
     assignment = psyir.walk(Assignment)[1]
     trans.apply(assignment, options={'verbose': True})
     out, _ = capsys.readouterr()
