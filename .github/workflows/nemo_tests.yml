@@ -50,7 +50,6 @@ jobs:
         PERL_LOCAL_LIB_ROOT: /home/aporter/perl5
         PERL_MB_OPT: "--install_base \"/home/aporter/perl5\""
         PERL_MM_OPT: "INSTALL_BASE=/home/aporter/perl5"
-        PSYCLONE_NEMO_DIR: $GITHUB_WORKSPACE/examples/nemo/scripts
 
     steps:
     - uses: actions/checkout@v3
@@ -80,15 +79,13 @@ jobs:
 
     # PSyclone, compile and run MetOffice NEMO with OpenMP for GPUs
     - name: NEMO MetOffice OpenMP for GPU
-      env:
-          NEMO_DIR: $HOME/NEMO
       run: |
         . .runner_venv/bin/activate
-        module load nvidia-hpcsdk netcdf_fortran
+        export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
+        export NEMO_DIR=${HOME}/NEMO
         cd examples/nemo/scripts
-        echo "${NEMO_DIR}"
-        echo "${PSYCLONE_NEMO_DIR}"
         make -j 4 openmp_gpu
+        module load nvidia-hpcsdk netcdf_fortran
         make -j 4 compile-openmp_gpu
         export NV_ACC_POOL_THRESHOLD=75
         make run-openmp_gpu | tee output.txt
@@ -102,15 +99,15 @@ jobs:
 
     # PSyclone, compile and run ECMWF NEMO with OpenMP for CPUs
     - name: NEMO ECMWF OpenMP for CPU
-      env:
-        NEMO_DIR: /home/ssiso/ecmwf_nemo/nemo/NEMOGCM_V40/
-        COMPILER_ARCH: linux_intel
-        ADD_KEYS: "IEEE_IS_NAN=ieee_is_nan key_nosignedzero"
-        DEL_KEYS: "key_iomput"
-        MODEL_DIR: /archive/ssiso/ecmwf_eORCA1_GO8/
-        NAMELISTS_DIR: /home/ssiso/ecmwf_nemo/nemo/testscripts_V40/output/openmp_outer_V40_eORCA1_GO8_Z75_20170906_cray_dp_1x1/
       run: |
         . .runner_venv/bin/activate
+        export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
+        export NEMO_DIR=${HOME}/NEMOGCM_V40
+        export COMPILER_ARCH=linux_intel
+        export ADD_KEYS="IEEE_IS_NAN=ieee_is_nan key_nosignedzero"
+        export DEL_KEYS="key_iomput"
+        export MODEL_DIR=/archive/ssiso/ecmwf_eORCA1_GO8/
+        export NAMELISTS_DIR=${NEMO_DIR}/testscripts_V40/output/openmp_outer_V40_eORCA1_GO8_Z75_20170906_cray_dp_1x1/
         cd examples/nemo/scripts
         make -j 4 openmp_cpu
         module load intel/oneapi compiler mpi
