@@ -705,7 +705,7 @@ class OMPParallelDirective(OMPRegionDirective):
             raise GenerationError("OMPParallelClause cannot correctly generate"
                                   " the private clause when its default "
                                   "data sharing attribute in its default "
-                                  "clause is not shared.")
+                                  "clause is not 'shared'.")
 
         # TODO #598: Improve the handling of scalar variables, there are
         # remaining issues when we have accesses after the parallel region
@@ -738,7 +738,7 @@ class OMPParallelDirective(OMPRegionDirective):
             if len(accesses) == 1:
                 continue
 
-            # If we only have writes, it must be need_sync:
+            # TODO #598: If we only have writes, it must be need_sync:
             # do ji = 1, jpk
             #   if ji=3:
             #      found = .true.
@@ -793,6 +793,8 @@ class OMPParallelDirective(OMPRegionDirective):
                         break
 
                     # If the write is not guaranteed, we make it firstprivate
+                    # so that in the case that the write doesn't happen we keep
+                    # the original value
                     conditional_write = access.node.ancestor(
                         IfBlock,
                         limit=loop_ancestor,
@@ -1395,13 +1397,14 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
                 f"that need synchronisation, but found: "
                 f"{[x.name for x in need_sync]}")
 
+        private_str = ""
+        fprivate_str = ""
         private_list = [child.symbol.name for child in private_clause.children]
-        private_str = "private(" + ",".join(private_list) + ")"
+        if private_list:
+            private_str = "private(" + ",".join(private_list) + ")"
         fp_list = [child.symbol.name for child in fprivate_clause.children]
         if fp_list:
             fprivate_str = "firstprivate(" + ",".join(fp_list) + ")"
-        else:
-            fprivate_str = ""
 
         # Set schedule clause
         if self._omp_schedule != "none":

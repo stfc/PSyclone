@@ -636,7 +636,7 @@ def test_directive_infer_sharing_attributes_lfric():
         _ = directive._infer_sharing_attributes()
     assert ("OMPParallelClause cannot correctly generate the private clause "
             "when its default data sharing attribute in its default clause is "
-            "not shared." in str(excinfo.value))
+            "not 'shared'." in str(excinfo.value))
 
 
 def test_directive_infer_sharing_attributes(fortran_reader):
@@ -745,8 +745,8 @@ def test_directive_infer_sharing_attributes(fortran_reader):
     assert len(pvars) == 1
     assert len(fpvars) == 1
     assert len(sync) == 0
-    assert sorted(pvars, key=lambda x: x.name)[0].name == 'i'
-    assert sorted(fpvars, key=lambda x: x.name)[0].name == 'scalar2'
+    assert list(pvars)[0].name == 'i'
+    assert list(fpvars)[0].name == 'scalar2'
 
     # Similar but with a OMPParallelDoDirective and the firstprivate is
     # in the same loop but before the loop body
@@ -767,8 +767,8 @@ def test_directive_infer_sharing_attributes(fortran_reader):
     assert len(pvars) == 1
     assert len(fpvars) == 1
     assert len(sync) == 0
-    assert sorted(pvars, key=lambda x: x.name)[0].name == 'i'
-    assert sorted(fpvars, key=lambda x: x.name)[0].name == 'scalar1'
+    assert list(pvars)[0].name == 'i'
+    assert list(fpvars)[0].name == 'scalar1'
 
     # In this example the scalar2 variable is shared but it needs
     # synchronisation to avoid race conditions (write-after-read
@@ -778,7 +778,7 @@ def test_directive_infer_sharing_attributes(fortran_reader):
             integer :: i, scalar1, scalar2
             real, dimension(10) :: array
             do i = 1, 10
-               scalar2 = scalar2 + scalar1 
+               scalar2 = scalar2 + scalar1
             enddo
         end subroutine''')
     omplooptrans = OMPParallelLoopTrans()
@@ -816,12 +816,46 @@ def test_directive_infer_sharing_attributes(fortran_reader):
     assert len(sync) == 1
     assert list(sync)[0].name == 'scalar2'
 
+    # Example tiling routine (k is a reduction - needs sync)
+    psyir = fortran_reader.psyir_from_source('''
+        subroutine my_subroutine(k)
+            integer :: i, ii
+            integer :: j, jj
+            integer :: k
+            do i = 1, 320, 32
+                do j = 1, 320, 32
+                    do ii=i, i+32
+                        do jj = j,j+32
+                            k = k + ii
+                            k = k * jj
+                        end do
+                    end do
+                end do
+            end do
+        end subroutine''')
+    ptrans = OMPParallelTrans()
+    loop = psyir.walk(Loop)[0]
+    ptrans.apply(loop)
+    directive = psyir.walk(OMPParallelDirective)[0]
+    pvars, fpvars, sync = directive._infer_sharing_attributes()
+    assert len(pvars) == 4
+    assert sorted(pvars, key=lambda x: x.name)[0].name == 'i'
+    assert sorted(pvars, key=lambda x: x.name)[1].name == 'ii'
+    assert sorted(pvars, key=lambda x: x.name)[2].name == 'j'
+    assert sorted(pvars, key=lambda x: x.name)[3].name == 'jj'
+    assert len(fpvars) == 0
+    assert len(sync) == 1
+    assert list(sync)[0].name == 'k'
+
+
 
 def test_infer_sharing_attributes_sequential_semantics(fortran_reader):
     ''' _infer_sharing_attributes() tries to conserve the same semantics
     as the sequential loop, however, for loops that are not possible to
     parallelise (but we force the transformation anyway). For now this
     may return different results than the original code.
+
+    #TODO #598: This could be a lastprivate?
     '''
 
     # In this example the result will take the value of the last i in
@@ -839,7 +873,7 @@ def test_infer_sharing_attributes_sequential_semantics(fortran_reader):
     directive = psyir.walk(OMPParallelDoDirective)[0]
     pvars, fpvars, sync = directive._infer_sharing_attributes()
     assert len(pvars) == 1
-    assert sorted(pvars, key=lambda x: x.name)[0].name == 'i'
+    assert list(pvars)[0].name == 'i'
     assert len(fpvars) == 0
     assert len(sync) == 0
 
