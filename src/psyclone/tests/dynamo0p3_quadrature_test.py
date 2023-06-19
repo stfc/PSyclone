@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author R. W. Ford and A. R. Porter, STFC Daresbury Lab
-# Modified I. Kavcic and L. Turner Met Office
+# Modified I. Kavcic and L. Turner, Met Office
 # Modified by J. Henrichs, Bureau of Meteorology
 
 ''' Module containing py.test tests for functionality related to
@@ -90,7 +90,7 @@ def test_field_xyoz(tmpdir):
     output_decls = (
         "    SUBROUTINE invoke_0_testkern_qr_type(f1, f2, m1, a, m2, istp,"
         " qr)\n"
-        "      USE testkern_qr, ONLY: testkern_qr_code\n"
+        "      USE testkern_qr_mod, ONLY: testkern_qr_code\n"
         "      USE quadrature_xyoz_mod, ONLY: quadrature_xyoz_type, "
         "quadrature_xyoz_proxy_type\n"
         "      USE function_space_mod, ONLY: BASIS, DIFF_BASIS\n"
