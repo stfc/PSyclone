@@ -76,6 +76,10 @@ jobs:
         pip install .[test]
         # Add Perl to the PATH
         echo "/home/aporter/perl5/bin" >> $GITHUB_PATH
+        # Compile nvidia profiling tools
+        module load nvidia-hpcsdk
+        cd lib/profiling/nvidia/
+        F90=nvfortran make
 
     # PSyclone, compile and run MetOffice NEMO with OpenMP for GPUs
     - name: NEMO MetOffice OpenMP for GPU
