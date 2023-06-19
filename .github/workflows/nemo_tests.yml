@@ -100,7 +100,7 @@ jobs:
         tail -n 1 output.txt | grep -q "S_min:  0.482686"
         tail -n 1 output.txt | grep -q "S_max:  0.407622"
         grep -A 1 "Elapsed Time" output.txt
-        echo  $GITHUB_REF_NAME $GITHUB_SHA $(grep -A 1 "Elapsed Time" timing.output | head -n 2 | tail -n 1) >> ${NEMO_DIR}/performance_history
+        echo  $GITHUB_REF_NAME $GITHUB_SHA $(grep -A 1 "Elapsed Time" output.txt | head -n 2 | tail -n 1) >> ${NEMO_DIR}/performance_history
 
     # PSyclone, compile and run ECMWF NEMO with OpenMP for CPUs
     - name: NEMO ECMWF OpenMP for CPU
@@ -129,4 +129,4 @@ jobs:
         tail -n 1 output.txt | grep -q "S_min:  0.108530"
         tail -n 1 output.txt | grep -q "S_max:  0.404045"
         grep -A 1 "Elapsed Time" output.txt
-        echo  $GITHUB_REF_NAME $GITHUB_SHA $(grep -A 1 "Elapsed Time" timing.output | head -n 2 | tail -n 1) >> ${NEMO_DIR}/performance_history
+        echo  $GITHUB_REF_NAME $GITHUB_SHA $(grep -A 1 "Elapsed Time" output.txt | head -n 2 | tail -n 1) >> ${NEMO_DIR}/performance_history
