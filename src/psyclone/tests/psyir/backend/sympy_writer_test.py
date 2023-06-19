@@ -331,7 +331,7 @@ def test_sym_writer_convert_to_sympy_expressions(fortran_reader):
 
     expr = parse_expr("a_b_1 + a_c(1,1,1) + i", sympy_writer.type_map)
     assert sympy_list[0] == expr
-    assert sympy_list[1] == parse_expr("a_b + j")
+    assert sympy_list[1] == parse_expr("a_b + j", sympy_writer.type_map)
 
 
 def test_sym_writer_parse_errors(fortran_reader):
@@ -479,7 +479,13 @@ def test_gen_indices():
                                          ("c(i,j)", "c(i,j)"),
                                          ("b(2:3:4)", "b(2:3:4)"),
                                          ("b(2:3:1)", "b(2:3)"),
-                                         ("b", "b(:)")])
+                                         ("b", "b(:)"),
+                                         ("d%e(i)", "d%e(i)"),
+                                         ("e(i)%e", "e(i)%e"),
+                                         ("e(i)%e(j)", "e(i)%e(j)"),
+                                         ("e(1:9:3)%e(i:j:k)",
+                                          "e(1:9:3)%e(i:j:k)"),
+                                         ])
 def test_sympy_expr_to_psyir(fortran_reader, fortran_writer, expressions):
     '''Test conversion from a SymPy expression back to PSyIR. Especially check
     the conversion of indices, e.g. a Fortran `b(i)` becomes a SymPy
@@ -512,7 +518,7 @@ def test_sympy_expr_to_psyir(fortran_reader, fortran_writer, expressions):
                                           "a_b", (0, 1)),
                                          ("b(i)%b", "b_b(i,i,1)",
                                           "b_b", (1, 0)),
-                                         ("b(:)%b(i)+b(1)%c",
+                                         ("b(:)%b(i) + b(1)%c",
                                           "b_b(sympy_lower,sympy_upper,1,"
                                           "i,i,1) + b_c(1,1,1)",
                                           "b_b", (1, 1)),
@@ -523,7 +529,7 @@ def test_sympy_expr_to_psyir(fortran_reader, fortran_writer, expressions):
                                          ("a%b%c(i)", "a_b_c(i,i,1)",
                                           "a_b_c", (0, 0, 1))
                                          ])
-def test_sympy_writer_user_types(fortran_reader, expressions):
+def test_sympy_writer_user_types(fortran_reader, fortran_writer, expressions):
     '''Test handling of user-defined types, e.g. conversion of
     ``a(i)%b(j)`` to ``a_b(i,i,1,j,j,1)``. The SymPyWriter keeps track
     of which member has how many indices, and handling of name clashes
@@ -542,11 +548,14 @@ def test_sympy_writer_user_types(fortran_reader, expressions):
                 end program test_prog'''
 
     psyir = fortran_reader.psyir_from_source(source)
+    symbol_table = psyir.children[0].symbol_table
     sympy_writer = SymPyWriter()
     psyir_expr = psyir.children[0].children[0].rhs
     out = sympy_writer._to_str([psyir_expr])
     # Make sure we get the expected string as output:
     assert out[0] == expressions[1]
+
+    sympy_exp = sympy_writer(psyir_expr)
 
     # Test that the internally cached information which is required later
     # to convert SymPy back to PSyIR is correct:
@@ -563,3 +572,6 @@ def test_sympy_writer_user_types(fortran_reader, expressions):
     info_tuple = sympy_writer._unique_name_2_access_info[expressions[2]]
 
     assert info_tuple == (sig, expressions[3])
+
+    new_psyir = sympy_writer.sympy_to_psyir(sympy_exp, symbol_table)
+    assert fortran_writer(new_psyir) == expressions[0]

@@ -40,7 +40,7 @@
 
 # pylint: disable=too-many-lines
 
-from sympy import Function, Symbol
+from sympy import Function, sstr, Symbol
 from sympy.parsing.sympy_parser import parse_expr
 
 from psyclone.psyir.backend.fortran import FortranWriter
@@ -178,7 +178,7 @@ class SymPyWriter(FortranWriter):
         '''
 
     # -------------------------------------------------------------------------
-    def _create_sympy_array_function(self, name):
+    def _create_sympy_array_function(self, name, sig=None, num_dims=None):
         '''Creates a Function class with the given name to be used for SymPy
         parsing. This Function overwrite the conversion to string, and will
         replace the triplicated array indices back to the normal Fortran
@@ -186,8 +186,9 @@ class SymPyWriter(FortranWriter):
 
         :param str name: name of the function class to create.
 
-        :returns: a class derived from the SymPy Function class.
-        :rtype: type[sympy.Function]
+        :returns: a SymPy function, which has a special _sympystr function
+            defined as attribute to print user-defined types..
+        :rtype: sympy.Function
         '''
 
         # ---------------------------------------------------------------------
@@ -234,10 +235,51 @@ class SymPyWriter(FortranWriter):
                         # a(i,j,k) --> a(i:j:k)
                         new_args.append(f"{args[i]}:{args[i+1]}:"
                                         f"{args[i+2]}")
-            return f"{name}({','.join(new_args)})"
+
+            if self._sig is None:
+                # It's not a user defined type, just create the array access:
+                return f"{name}({','.join(new_args)})"
+
+            # It is a user defined type. Re-assemble the original call by
+            # putting the corresponding indices to the individual members,
+            # based on the information of the stored signature and number
+            # of array indices for each member:
+
+            result = []
+            # This points at the next index to use from new_args, which
+            # contains the indices converted back into Fortran:
+            index_cursor = 0
+            for i, member in enumerate(self._sig):
+                # Get the number of indices this member had:
+                num_dims = self._num_dims[i]
+                indx = []
+                for i in range(num_dims):
+                    indx.append(new_args[index_cursor])
+                    index_cursor += 1
+                if indx:
+                    result.append(f"{member}({','.join(indx)})")
+                else:
+                    result.append(member)
+
+            return "%".join(result)
+
         # ---------------------------------------------------------------------
 
-        return type(name, (Function, ), {"_sympystr": print_fortran_array})
+        new_func = Function(name)
+        # It is unfortunately not (easily) possible to write a custom Function
+        # class, SymPy, heavily uses Metaclasses and __new__ (which would
+        # misinterpret any new parameter the constructor would take).
+        # Additionally, the name 'Function' is hard coded in Function.__new__
+        # to create a special UnknownFunction class, which would break if
+        # we provide a derived class based on Function :( So, setting these
+        # attributes manually is by far the easiest option to pass the required
+        # information to the ``print_fortran_array`` function:
+        # pylint: disable=protected-access
+        new_func._sympystr = print_fortran_array
+        new_func._sig = sig
+        new_func._num_dims = num_dims
+
+        return new_func
 
     # -------------------------------------------------------------------------
     def _create_type_map(self, list_of_expressions):
@@ -425,10 +467,10 @@ class SymPyWriter(FortranWriter):
         if is_array:
             indices_str = self.gen_indices(all_dims)
             self._sympy_type_map[unique_name] = \
-                self._create_sympy_array_function(unique_name)
+                self._create_sympy_array_function(unique_name, sig, num_dims)
             return f"{unique_name}({','.join(indices_str)})"
 
-        self._sympy_type_map[unique_name] = Symbol(unique_name)
+        self._sympy_type_map[unique_name] = Symbol(str(sig))
         return unique_name
 
     # -------------------------------------------------------------------------
@@ -647,4 +689,4 @@ class SymPyWriter(FortranWriter):
         '''
         # Convert the new sympy expression to PSyIR
         reader = FortranReader()
-        return reader.psyir_from_expression(str(sympy_expr), symbol_table)
+        return reader.psyir_from_expression(sstr(sympy_expr), symbol_table)
