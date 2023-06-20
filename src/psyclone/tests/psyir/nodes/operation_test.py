@@ -525,9 +525,9 @@ def test_binaryoperation_is_elemental():
     for binary_operator in BinaryOperation.Operator:
         operation = BinaryOperation(binary_operator)
         if binary_operator in not_elemental:
-            assert not operation.is_elemental()
+            assert operation.is_elemental is False
         else:
-            assert operation.is_elemental()
+            assert operation.is_elemental is True
 
 
 # Test UnaryOperation class
@@ -697,7 +697,7 @@ def test_unaryoperation_is_elemental():
     # All unary operators are elemental
     for unary_operator in UnaryOperation.Operator:
         operation = UnaryOperation(unary_operator)
-        assert operation.is_elemental()
+        assert operation.is_elemental is True
 
 
 # Test NaryOperation class
@@ -830,7 +830,7 @@ def test_naryoperation_is_elemental():
     # All nary operations are elemental
     for nary_operator in NaryOperation.Operator:
         operation = NaryOperation(nary_operator)
-        assert operation.is_elemental()
+        assert operation.is_elemental is True
 
 
 def test_operations_can_be_copied():
