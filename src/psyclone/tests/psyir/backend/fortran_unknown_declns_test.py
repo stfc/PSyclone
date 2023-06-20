@@ -35,18 +35,21 @@
 # -----------------------------------------------------------------------------
 
 '''Performs pytest tests on the support for declarations of unknown type in
-   the psyclone.psyir.backend.fortran module'''
+   the psyclone.psyir.backend.fortran module.'''
 
+import os
 import pytest
 
 from psyclone.errors import InternalError
-from psyclone.psyir.backend.fortran import \
-    add_accessibility_to_unknown_declaration
+from psyclone.configuration import Config
+from psyclone.psyir.backend.fortran import (
+    add_accessibility_to_unknown_declaration)
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.nodes import Container, Routine
-from psyclone.psyir.symbols import Symbol, DataSymbol, RoutineSymbol, \
-    UnknownType, UnknownFortranType, ImportInterface, ContainerSymbol, \
-    SymbolTable, ArgumentInterface, INTEGER_TYPE
+from psyclone.psyir.symbols import (
+    ArgumentInterface, DataSymbol, DeferredType, RoutineSymbol,
+    UnknownType, UnknownFortranType, ImportInterface, ContainerSymbol,
+    Symbol, SymbolTable, INTEGER_TYPE)
 from psyclone.tests.utilities import Compile
 
 
@@ -218,3 +221,48 @@ def test_fw_add_accessibility():
                       "  integer, private :: id\n"
                       "  integer, public :: flag\n"
                       "end type var")
+
+
+def test_generating_unknowntype_routine_imports(
+        fortran_reader, tmpdir, monkeypatch, fortran_writer):
+    ''' Tests that generating UnknownType imported RoutineSymbols (if their
+    DeferredType is resolved) are not misinterpreted as interfaces.'''
+
+    # Set up include_path to import the proper modules
+    monkeypatch.setattr(Config.get(), '_include_paths', [str(tmpdir)])
+
+    filename = os.path.join(str(tmpdir), "a_mod.f90")
+    with open(filename, "w", encoding='UTF-8') as module:
+        module.write('''
+          module a_mod
+              contains
+              character(len=3) function unknown_type_symbol()
+                 unknown_type_symbol = 'a'
+              end function unknown_type_symbol
+          end module a_mod
+        ''')
+    psyir = fortran_reader.psyir_from_source('''
+          module test_mod
+              use a_mod, only: unknown_type_symbol
+              contains
+              subroutine test()
+                  integer :: a
+                  a = unknown_type_symbol()
+              end subroutine test
+          end module test_mod
+      ''')
+    module = psyir.children[0]
+    symbol = module.symbol_table.lookup('unknown_type_symbol')
+    module.symbol_table.resolve_imports()
+
+    # symbol is now a RoutineSymbol
+    assert isinstance(symbol, RoutineSymbol)
+    # but its datatype has not been resolved and is still a DeferredType
+    # instead of UnknownFortranType
+    assert not isinstance(symbol.datatype, UnknownFortranType)
+    assert isinstance(symbol.datatype, DeferredType)
+
+    # And the output does not mistake it for an interface
+    code = fortran_writer(psyir)
+    assert "use a_mod, only : unknown_type_symbol" in code
+    assert "interface" not in code.lower()
