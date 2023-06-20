@@ -132,16 +132,4 @@ class ArrayArgMetadata(ScalarArgMetadata):
         '''
         return self._array_nranks
 
-#    @array_nranks.setter
-#    def array_nranks(self, value):
-#        '''
-#        :param str value: set the function space to the \
-#            specified value.
-#        '''
-#        const = LFRicConstants()
-#        ArrayArgMetadata.validate_scalar_value(
-#            value, const.VALID_FUNCTION_SPACE_NAMES, "array nranks")
-#        self._array_nranks = value.lower()
-
-
 __all__ = ["ArrayArgMetadata"]
