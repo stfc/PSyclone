@@ -41,7 +41,8 @@
 # compilation tests that are not run on GHA systems. At the moment it:
 #
 #  * Runs the test suite with compilation with gfortran and nvfortran;
-#  * Builds the examples with gfortran and nvfortran.
+#  * Builds the examples with gfortran and nvfortran (the latter with
+#    OpenACC enabled).
 
 name: Compilation tests
 
