@@ -99,6 +99,9 @@ INTENT_MAPPING = {"in": ArgumentInterface.Access.READ,
                   "out": ArgumentInterface.Access.WRITE,
                   "inout": ArgumentInterface.Access.READWRITE}
 
+#: Those routine prefix specifications that we support.
+SUPPORTED_ROUTINE_PREFIXES = ["ELEMENTAL", "PURE", "IMPURE"]
+
 
 # TODO #1987. It may be that this method could be made more general so
 # that it works for more intrinsics, to help minimise the number of
@@ -825,8 +828,9 @@ def _process_routine_symbols(module_ast, symbol_table, visibility_map):
     :param symbol_table: the SymbolTable to which to add the symbols.
     :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
     :param visibility_map: dict of symbol names with explicit visibilities.
-    :type visibility_map: dict with symbol names as keys and visibilities as \
-                          values
+    :type visibility_map: Dict[str, \
+        :py:class:`psyclone.psyir.symbols.Symbol.Visibility`]
+
     '''
     routines = walk(module_ast, (Fortran2003.Subroutine_Subprogram,
                                  Fortran2003.Function_Subprogram))
@@ -834,12 +838,35 @@ def _process_routine_symbols(module_ast, symbol_table, visibility_map):
     # it is at this stage so we give all functions a DeferredType.
     # TODO #1314 extend the frontend to ensure that the type of a Routine's
     # return_symbol matches the type of the associated RoutineSymbol.
-    type_map = {Fortran2003.Subroutine_Subprogram: NoType(),
-                Fortran2003.Function_Subprogram: DeferredType()}
+    type_map = {Fortran2003.Subroutine_Subprogram: NoType,
+                Fortran2003.Function_Subprogram: DeferredType}
+
     for routine in routines:
+
+        # Fortran routines are impure by default.
+        is_pure = False
+        # By default, Fortran routines are not elemental.
+        is_elemental = False
+        # Name of the routine.
         name = str(routine.children[0].children[1]).lower()
+        # Type to give the RoutineSymbol.
+        sym_type = type_map[type(routine)]()
+        # Visibility of the symbol.
         vis = visibility_map.get(name, symbol_table.default_visibility)
-        rsymbol = RoutineSymbol(name, type_map[type(routine)], visibility=vis,
+        # Check any prefixes on the routine declaration.
+        prefix = routine.children[0].children[0]
+        if prefix:
+            for child in prefix.children:
+                if isinstance(child, Fortran2003.Prefix_Spec):
+                    if child.string == "PURE":
+                        is_pure = True
+                    elif child.string == "IMPURE":
+                        is_pure = False
+                    elif child.string == "ELEMENTAL":
+                        is_elemental = True
+
+        rsymbol = RoutineSymbol(name, sym_type, visibility=vis,
+                                is_pure=is_pure, is_elemental=is_elemental,
                                 interface=DefaultModuleInterface())
         symbol_table.add(rsymbol)
 
@@ -4339,6 +4366,9 @@ class Fparser2Reader():
         :returns: PSyIR representation of node.
         :rtype: :py:class:`psyclone.psyir.nodes.Routine`
 
+        :raises NotImplementedError: if an unsupported prefix is found or no \
+            explicit type information is available for a Function.
+
         '''
         name = node.children[0].children[1].string
         routine = Routine(name, parent=parent)
@@ -4367,22 +4397,22 @@ class Fparser2Reader():
 
         self.process_declarations(routine, decl_list, arg_list)
 
-        # If this is a function then work out the return type
-        if isinstance(node, Fortran2003.Function_Subprogram):
-            # Check whether the function-stmt has a prefix specifying the
-            # return type.
-            prefix = node.children[0].children[0]
-            if prefix:
-                # If there is anything else in the prefix (PURE, ELEMENTAL or
-                # RECURSIVE) then we will create a CodeBlock for this function.
-                if len(prefix.children) > 1:
-                    raise NotImplementedError()
-                base_type, _ = self._process_type_spec(parent,
-                                                       prefix.children[0])
-            else:
-                base_type = None
+        # Check whether the function-stmt has a prefix specifying the
+        # return type (other prefixes are handled in
+        # _process_routine_symbols()).
+        base_type = None
+        prefix = node.children[0].children[0]
+        if prefix:
+            for child in prefix.children:
+                if isinstance(child, Fortran2003.Prefix_Spec):
+                    if child.string not in SUPPORTED_ROUTINE_PREFIXES:
+                        raise NotImplementedError(
+                            f"Routine has unsupported prefix: {child.string}")
+                else:
+                    base_type, _ = self._process_type_spec(parent, child)
 
-            # Check whether the function-stmt has a suffix containing
+        if isinstance(node, Fortran2003.Function_Subprogram):
+            # Check whether this function-stmt has a suffix containing
             # 'RETURNS'
             suffix = node.children[0].children[3]
             if suffix:
@@ -4411,7 +4441,9 @@ class Fparser2Reader():
                         # The type of the return value was not specified in the
                         # function prefix either therefore we have no explicit
                         # type information for it.
-                        raise NotImplementedError()
+                        raise NotImplementedError(
+                            f"No explicit type information found for "
+                            f"function '{name}'")
                     # Remove the RoutineSymbol ready to replace it with a
                     # DataSymbol.
                     routine.symbol_table.remove(symbol)
@@ -4528,10 +4560,12 @@ class Fparser2Reader():
         try:
             spec_part = _first_type_match(
                 node.children, Fortran2003.Specification_Part)
+        except ValueError:
+            spec_part = None
+
+        if spec_part is not None:
             self.process_declarations(container, spec_part.children,
                                       [], visibility_map)
-        except ValueError:
-            pass
 
         # Parse any module subprograms (subroutine or function)
         # skipping the contains node
