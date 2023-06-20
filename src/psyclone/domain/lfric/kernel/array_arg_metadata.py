@@ -34,7 +34,7 @@
 # Author L. Turner, Met Office
 
 '''Module containing the ArrayArgMetadata class which captures the metadata
-associated with a field argument. Supports the creation, modification
+associated with an array argument. Supports the creation, modification
 and Fortran output of an Array argument.
 
 '''
@@ -49,13 +49,13 @@ class ArrayArgMetadata(ScalarArgMetadata):
 
     :param str datatype: the datatype of this array (GH_INTEGER, ...).
     :param str access: the way the kernel accesses this array (GH_WRITE, ...).
-    :param str function_space: the function space that this field is \
+    :param str function_space: the function space that this array is \
         on (W0, ...).
 
     '''
-    # The name used to specify a field argument in LFRic metadata.
+    # The name used to specify an array argument in LFRic metadata.
     form = "gh_array"
-    # The relative positions of LFRic metadata. Metadata for a field
+    # The relative positions of LFRic metadata. Metadata for an array
     # argument is provided in the following format 'arg_type(form,
     # datatype, access, function_space)'. Therefore, for example, the
     # index of the form argument (form_arg_index) is 0.
@@ -87,52 +87,20 @@ class ArrayArgMetadata(ScalarArgMetadata):
 
         :returns: a tuple containing the datatype, access and array nranks \
             metadata.
-        :rtype: Tuple[str, str, str, Optional[str]]
+        :rtype: Tuple[str, str, str]
 
         '''
         datatype, access = super()._get_metadata(fparser2_tree)
-        array_nranks = cls.get_arg(
-            fparser2_tree, cls.array_nranks_arg_index)
+        array_nranks = cls.get_vector_length(fparser2_tree)
         return (datatype, access, array_nranks)
-
-    @classmethod
-    def get_stencil(cls, fparser2_tree):
-        '''Retrieves the stencil metadata value found within the supplied
-        fparser2 tree (if there is one) and checks that it is valid.
-
-        :param fparser2_tree: fparser2 tree capturing the required metadata.
-        :type fparser2_tree: :py:class:`fparser.two.Fortran2003.Part_Ref`
-
-        :returns: the stencil value extracted from the fparser2 tree \
-            if there is one, or None if not.
-        :rtype: Optional[str]
-
-        :raises TypeError: if the stencil metadata is not in the \
-            expected form.
-
-        '''
-        raw_stencil_text = FieldArgMetadata.get_arg(
-            fparser2_tree, cls.stencil_arg_index)
-        if not raw_stencil_text:
-            return None
-        raw_stencil_text = raw_stencil_text.strip().lower()
-        if not (raw_stencil_text.startswith("stencil(") and
-                raw_stencil_text.endswith(")") and len(raw_stencil_text) > 9):
-            raise TypeError(f"The stencil metadata should be in the form "
-                            f"'stencil(type)' but found '{raw_stencil_text}'.")
-        stencil = raw_stencil_text[8:-1]
-        return stencil
 
     def fortran_string(self):
         '''
         :returns: the metadata represented by this class as Fortran.
         :rtype: str
         '''
-        if self.stencil:
-            return (f"arg_type({self.form}, {self.datatype}, {self.access}, "
-                    f"{self.function_space}, stencil({self.stencil}))")
         return (f"arg_type({self.form}, {self.datatype}, {self.access}, "
-                f"{self.function_space})")
+                f"{self.array_nranks})")
 
     @staticmethod
     def check_datatype(value):
@@ -144,8 +112,8 @@ class ArrayArgMetadata(ScalarArgMetadata):
 
         '''
         const = LFRicConstants()
-        FieldArgMetadata.validate_scalar_value(
-            value, const.VALID_FIELD_DATA_TYPES, "datatype descriptor")
+        ArrayArgMetadata.validate_scalar_value(
+            value, const.VALID_ARRAY_DATA_TYPES, "datatype descriptor")
 
     @staticmethod
     def check_access(value):
@@ -153,50 +121,27 @@ class ArrayArgMetadata(ScalarArgMetadata):
         :param str value: the access descriptor to validate.
         '''
         const = LFRicConstants()
-        FieldArgMetadata.validate_scalar_value(
-            value, const.VALID_FIELD_ACCESS_TYPES, "access descriptor")
+        ArrayArgMetadata.validate_scalar_value(
+            value, const.VALID_ARRAY_ACCESS_TYPES, "access descriptor")
 
     @property
-    def function_space(self):
+    def array_nranks(self):
         '''
-        :returns: the function space for this field argument.
+        :returns: the function space for this array argument.
         :rtype: str
         '''
-        return self._function_space
+        return self._array_nranks
 
-    @function_space.setter
-    def function_space(self, value):
-        '''
-        :param str value: set the function space to the \
-            specified value.
-        '''
-        const = LFRicConstants()
-        FieldArgMetadata.validate_scalar_value(
-            value, const.VALID_FUNCTION_SPACE_NAMES, "function space")
-        self._function_space = value.lower()
-
-    @property
-    def stencil(self):
-        '''
-        :returns: the stencil for this field argument, or None if there
-            isn't one.
-        :rtype: Optional[str]
-
-        '''
-        return self._stencil
-
-    @stencil.setter
-    def stencil(self, value):
-        '''
-        :param str value: set the stencil to the specified value.
-        '''
-        if value is None:
-            self._stencil = None
-        else:
-            const = LFRicConstants()
-            FieldArgMetadata.validate_scalar_value(
-                value, const.VALID_STENCIL_TYPES, "stencil")
-            self._stencil = value.lower()
+#    @array_nranks.setter
+#    def array_nranks(self, value):
+#        '''
+#        :param str value: set the function space to the \
+#            specified value.
+#        '''
+#        const = LFRicConstants()
+#        ArrayArgMetadata.validate_scalar_value(
+#            value, const.VALID_FUNCTION_SPACE_NAMES, "array nranks")
+#        self._array_nranks = value.lower()
 
 
 __all__ = ["ArrayArgMetadata"]
