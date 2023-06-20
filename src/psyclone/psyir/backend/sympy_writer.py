@@ -113,7 +113,6 @@ class SymPyWriter(FortranWriter):
         self._sympy_type_map = {}
         self._intrinsic = set()
         self._op_to_str = {}
-        self._unique_name_2_access_info = {}
 
         # Create the mapping of special operators/functions to the
         # name SymPy expects.
@@ -463,7 +462,6 @@ class SymPyWriter(FortranWriter):
         except KeyError:
             unique_name = self._symbol_table.new_symbol(flat_name,
                                                         tag=str(sig)).name
-        self._unique_name_2_access_info[unique_name] = (sig, tuple(num_dims))
         if is_array:
             indices_str = self.gen_indices(all_dims)
             self._sympy_type_map[unique_name] = \

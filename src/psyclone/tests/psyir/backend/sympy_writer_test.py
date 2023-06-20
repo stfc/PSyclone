@@ -564,14 +564,5 @@ def test_sympy_writer_user_types(fortran_reader, fortran_writer, expressions):
         # get the required signature in this case:
         psyir_expr = psyir_expr.children[0]
 
-    # Get the signature for a simplified test:
-    sig, _ = psyir_expr.get_signature_and_indices()
-
-    # Look up the information about the unique name from the
-    # SymPyWriter internal dictionary.
-    info_tuple = sympy_writer._unique_name_2_access_info[expressions[2]]
-
-    assert info_tuple == (sig, expressions[3])
-
     new_psyir = sympy_writer.sympy_to_psyir(sympy_exp, symbol_table)
     assert fortran_writer(new_psyir) == expressions[0]
