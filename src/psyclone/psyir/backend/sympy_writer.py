@@ -35,7 +35,7 @@
 # Modified: S. Siso, STFC Daresbury Lab
 
 
-'''PSyIR backend to create expressions that are handled by sympy.
+'''PSyIR backend to create expressions that are handled by SymPy.
 '''
 
 # pylint: disable=too-many-lines
@@ -53,7 +53,7 @@ from psyclone.psyir.symbols import (ArrayType, ScalarType, SymbolTable)
 
 
 class SymPyWriter(FortranWriter):
-    '''Implements a PSyIR-to-sympy writer, which is used to create a
+    '''Implements a PSyIR-to-SymPy writer, which is used to create a
     representation of the PSyIR tree that can be understood by SymPy. Most
     Fortran expressions work as expected without modification. This class
     implements special handling for constants (which can have a precision
@@ -126,7 +126,7 @@ class SymPyWriter(FortranWriter):
                                  (BinaryOperation.Operator.REM, "Mod"),
                                  # exp is needed for a test case only, in
                                  # general the maths functions can just be
-                                 # handled as unknown sympy functions.
+                                 # handled as unknown SymPy functions.
                                  (UnaryOperation.Operator.EXP, "exp"),
                                  ]:
             self._intrinsic.add(op_str)
@@ -185,9 +185,9 @@ class SymPyWriter(FortranWriter):
 
         :param str name: name of the function class to create.
 
-        :returns: a SymPy function, which has a special _sympystr function
+        :returns: a SymPy function, which has a special ``_sympystr`` function
             defined as attribute to print user-defined types..
-        :rtype: sympy.Function
+        :rtype: :py:class:`sympy.Function`
         '''
 
         # ---------------------------------------------------------------------
@@ -205,12 +205,13 @@ class SymPyWriter(FortranWriter):
             :param printer: the SymPy writer base class.
             :type printer: :py:class:`sympy.printing.str.StrPrinter`
             :param sympy_writer: the instance of this SymPy writer.
-            :type sympy_writer: \
+            :type sympy_writer:
                 :py:class:`psyclone.psyir.backend.SymPyWriter`
 
             '''
             # pylint: disable=protected-access
             args = [printer._print(i) for i in self.args]
+            # pylint: enable=protected-access
             name = self.__class__.__name__
             lower_b = sympy_writer.lower_bound_name
             upper_b = sympy_writer.upper_bound_name
@@ -268,7 +269,7 @@ class SymPyWriter(FortranWriter):
         # It is unfortunately not (easily) possible to write a custom Function
         # class, SymPy, heavily uses Metaclasses and __new__ (which would
         # misinterpret any new parameter the constructor would take).
-        # Additionally, the name 'Function' is hard coded in Function.__new__
+        # Additionally, the name 'Function' is hard-coded in Function.__new__
         # to create a special UnknownFunction class, which would break if
         # we provide a derived class based on Function :( So, setting these
         # attributes manually is by far the easiest option to pass the required
@@ -438,11 +439,38 @@ class SymPyWriter(FortranWriter):
 
     # -------------------------------------------------------------------------
     def structurereference_node(self, node):
+        '''The implementation of the method handling a
+        ArrayOfStructureReference is generic enough to also handle non-arrays.
+        So just use it.
+
+        :param node: a StructureReference PSyIR node.
+        :type node: :py:class:`psyclone.psyir.nodes.StructureReference`
+
+        :returns: the code as string.
+        :rtype: str
+
+        '''
         return self.arrayofstructuresreference_node(node)
 
     # -------------------------------------------------------------------------
     def arrayofstructuresreference_node(self, node):
+        '''This handles ArrayOfStructureReferences (and also simple
+        StructureReferences). An access like ``a(i)%b(j)`` is converted to
+        the string ``a_b(i,i,1,j,j,1)`` (also handling name clashes in case
+        that the user code already contains a symbol ``a_b``). The SymPy
+        function created for this new symbol will store the original signature
+        and the number of indices for each member (so in the example above
+        that would be ``Signature("a%b")`` and ``(1,1)``. This information
+        is sufficient to convert the SymPy symbol back to the correct Fortran
+        representation
 
+        :param node: a StructureReference PSyIR node.
+        :type node: :py:class:`psyclone.psyir.nodes.StructureReference`
+
+        :returns: the code as string.
+        :rtype: str
+
+        '''
         sig, indices = node.get_signature_and_indices()
 
         out = []
@@ -457,6 +485,7 @@ class SymPyWriter(FortranWriter):
             out.append(name)
         flat_name = "_".join(out)
 
+        # Find (or create) a unique variable name:
         try:
             unique_name = self._symbol_table.lookup_with_tag(str(sig)).name
         except KeyError:
@@ -464,11 +493,18 @@ class SymPyWriter(FortranWriter):
                                                         tag=str(sig)).name
         if is_array:
             indices_str = self.gen_indices(all_dims)
+            # Create the corresponding SymPy function, which will store
+            # the signature and num_dims, so that the correct Fortran
+            # representation can be recreated later.
             self._sympy_type_map[unique_name] = \
                 self._create_sympy_array_function(unique_name, sig, num_dims)
             return f"{unique_name}({','.join(indices_str)})"
 
-        self._sympy_type_map[unique_name] = Symbol(str(sig))
+        # Just a scalar reference. We use the unique name  for the string,
+        # but the required symbol is mapped to the original name, which means
+        # if the SymPy expression is converted to a string (in order to be
+        # parsed), it will use the original structure reference syntax:
+        self._sympy_type_map[unique_name] = Symbol(sig.to_language())
         return unique_name
 
     # -------------------------------------------------------------------------
@@ -685,6 +721,6 @@ class SymPyWriter(FortranWriter):
         :rtype: :py:class:`psyclone.psyir.nodes.Node`
 
         '''
-        # Convert the new sympy expression to PSyIR
+        # Convert the new SymPy expression to PSyIR
         reader = FortranReader()
         return reader.psyir_from_expression(sstr(sympy_expr), symbol_table)
