@@ -110,7 +110,13 @@ class SymPyWriter(FortranWriter):
         self._lower_bound = "sympy_lower"
         self._upper_bound = "sympy_upper"
 
+        # This dictionary will be supplied when parsing a string by SymPy
+        # and defines which symbols in the parsed expressions are scalars
+        # (SymPy symbols) or arrays (SymPy functions).
         self._sympy_type_map = {}
+
+        # The set of intrinsic Fortran operations that need a rename or
+        # are case sensitive in SymPy:
         self._intrinsic = set()
         self._op_to_str = {}
 
