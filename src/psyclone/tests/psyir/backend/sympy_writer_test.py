@@ -44,7 +44,7 @@ from sympy.parsing.sympy_parser import parse_expr
 
 from psyclone.psyir.backend.sympy_writer import SymPyWriter
 from psyclone.psyir.backend.visitor import VisitorError
-from psyclone.psyir.nodes import BinaryOperation, Literal
+from psyclone.psyir.nodes import Literal
 from psyclone.psyir.symbols import (ArrayType, BOOLEAN_TYPE, CHARACTER_TYPE,
                                     INTEGER_TYPE)
 
@@ -510,59 +510,49 @@ def test_sympy_expr_to_psyir(fortran_reader, fortran_writer, expressions):
     assert fortran_writer(new_psyir) == expressions[1]
 
 
-@pytest.mark.parametrize("expressions", [("a%b", "a_b", "a_b", (0, 0)),
-                                         # Handle name clash:
-                                         ("a%c + a_c", "a_c_1 + a_c",
-                                          "a_c_1", (0, 0)),
-                                         ("a%b(i)", "a_b(i,i,1)",
-                                          "a_b", (0, 1)),
-                                         ("b(i)%b", "b_b(i,i,1)",
-                                          "b_b", (1, 0)),
-                                         ("b(:)%b(i) + b(1)%c",
-                                          "b_b(sympy_lower,sympy_upper,1,"
-                                          "i,i,1) + b_c(1,1,1)",
-                                          "b_b", (1, 1)),
-                                         ("b(i)%b(j)", "b_b(i,i,1,j,j,1)",
-                                          "b_b", (1, 1)),
-                                         ("a%b(i)%c", "a_b_c(i,i,1)",
-                                          "a_b_c", (0, 1, 0)),
-                                         ("a%b%c(i)", "a_b_c(i,i,1)",
-                                          "a_b_c", (0, 0, 1))
-                                         ])
-def test_sympy_writer_user_types(fortran_reader, fortran_writer, expressions):
+@pytest.mark.parametrize("fortran_expr,sympy_str",
+                         [("a%b", "a_b"),
+                          # Handle name clash:
+                          ("a%c + a_c", "a_c_1 + a_c"),
+                          ("a%b(i)", "a_b(i,i,1)"),
+                          ("b(i)%b", "b_b(i,i,1)"),
+                          ("b(:)%b(i) + b(1)%c",
+                           "b_b(sympy_lower,sympy_upper,1,i,i,1) + "
+                           "b_c(1,1,1)"),
+                          ("b(i)%b(j)", "b_b(i,i,1,j,j,1)"),
+                          ("a%b(i)%c", "a_b_c(i,i,1)"),
+                          ("a%b%c(i)", "a_b_c(i,i,1)"),
+                          ("a%b%c(2 * i - 1)", "a_b_c(2 * i - 1,2 * i - 1,1)")
+                          ])
+def test_sympy_writer_user_types(fortran_reader, fortran_writer,
+                                 fortran_expr, sympy_str):
     '''Test handling of user-defined types, e.g. conversion of
-    ``a(i)%b(j)`` to ``a_b(i,i,1,j,j,1)``. The SymPyWriter keeps track
-    of which member has how many indices, and handling of name clashes
-    when creating the 'flattened' names. The four members of
-    ``expression`` are:
-    1. the expression to convert
-    2. the expected output of the conversion to string
-    3. The new 'unique' name to be created for the first user-defined type
-    4. A tuple of indices indicating which member had how many indices
+    ``a(i)%b(j)`` to ``a_b(i,i,1,j,j,1)``. Each Fortran expression
+    ``fortran_expr`` is first converted to a string ``sympy_str`` to be
+    parsed by SymPy. The sympy expression is then converted back to PSyIR.
+    This string must be the same as the original ``fortran_expr``.
 
     '''
     source = f'''program test_prog
                 use my_mod
                 type(my_mod_type) :: a, b(1)
-                x = {expressions[0]}
+                x = {fortran_expr}
                 end program test_prog'''
 
     psyir = fortran_reader.psyir_from_source(source)
-    symbol_table = psyir.children[0].symbol_table
-    sympy_writer = SymPyWriter()
+    # Get the actual fortran expression requested:
     psyir_expr = psyir.children[0].children[0].rhs
+
+    # Convert the PSyIR to a SymPy string:
+    sympy_writer = SymPyWriter()
     out = sympy_writer._to_str([psyir_expr])
     # Make sure we get the expected string as output:
-    assert out[0] == expressions[1]
+    assert out[0] == sympy_str
 
+    # Second part of the test: convert the PSyIR to a SymPy expression
+    # (not only a string):
     sympy_exp = sympy_writer(psyir_expr)
 
-    # Test that the internally cached information which is required later
-    # to convert SymPy back to PSyIR is correct:
-    if isinstance(psyir_expr, BinaryOperation):
-        # Some examples contain a%b + c --> take the first argument to
-        # get the required signature in this case:
-        psyir_expr = psyir_expr.children[0]
-
+    symbol_table = psyir.children[0].symbol_table
     new_psyir = sympy_writer.sympy_to_psyir(sympy_exp, symbol_table)
-    assert fortran_writer(new_psyir) == expressions[0]
+    assert fortran_writer(new_psyir) == fortran_expr
