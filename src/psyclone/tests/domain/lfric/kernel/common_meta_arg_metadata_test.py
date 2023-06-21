@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022, Science and Technology Facilities Council
+# Copyright (c) 2022-2023, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
+# Modified L. Turner, Met Office
 
 '''Module containing tests for the CommonMetaArgMetadata class.
 
@@ -232,22 +233,22 @@ def test_check_nargs():
     CheckArg.check_nargs(fparser2_tree)
 
 
-def test_get_vector_length():
-    '''Test that the get_vector_length method in the
+def test_get_array_dimension():
+    '''Test that the get_array_dimension method in the
     CommonMetaArgMetadata class works as expected.
 
     '''
     fparser_tree = CheckArg.create_fparser2(
         "arg_type(GH_FIELD, GH_REAL, GH_READ, W0)", Fortran2003.Part_Ref)
     with pytest.raises(TypeError) as info:
-        _ = CheckArg.get_vector_length(fparser_tree)
+        _ = CheckArg.get(fparser_tree)
     assert ("The vector length metadata should be in the form "
-            "'form*vector_length' but found 'GH_FIELD'."
+            "'form*integer' but found 'GH_FIELD'."
             in str(info.value))
 
     fparser_tree = CheckArg.create_fparser2(
         "arg_type(GH_FIELD*3, GH_REAL, GH_READ, W0)", Fortran2003.Part_Ref)
-    vector_length = CheckArg.get_vector_length(fparser_tree)
+    vector_length = CheckArg.get_array_dimension(fparser_tree)
     assert vector_length == "3"
 
 

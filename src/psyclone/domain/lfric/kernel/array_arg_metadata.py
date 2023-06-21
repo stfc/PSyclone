@@ -91,7 +91,7 @@ class ArrayArgMetadata(ScalarArgMetadata):
 
         '''
         datatype, access = super()._get_metadata(fparser2_tree)
-        array_nranks = cls.get_vector_length(fparser2_tree)
+        array_nranks = cls.get_array_dimension(fparser2_tree)
         return (datatype, access, array_nranks)
 
     def fortran_string(self):

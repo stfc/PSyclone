@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022, Science and Technology Facilities Council
+# Copyright (c) 2022-2023, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
+# Modified L. Turner, Met Office
 
 '''Module containing the abstract CommonMetaArgMetadata class which
 captures the metadata associated with an LFRic meta_arg
@@ -176,9 +177,10 @@ class CommonMetaArgMetadata(CommonArgMetadata, ABC):
     # pylint: enable=arguments-differ
 
     @classmethod
-    def get_vector_length(cls, fparser2_tree):
-        '''Retrieves the vector length metadata value found within the
-        supplied fparser2 tree and checks that it is valid.
+    def get_array_dimension(cls, fparser2_tree):
+        '''Retrieves the field vector length (for gh_field metadata value) or
+        number of ranks in a scalar array (for gh_array) metadata values found
+        within the supplied fparser2 tree and checks that it is valid.
 
         :param fparser2_tree: fparser2 tree capturing the required metadata.
         :type fparser2_tree: :py:class:`fparser.two.Fortran2003.Part_Ref`
@@ -195,10 +197,17 @@ class CommonMetaArgMetadata(CommonArgMetadata, ABC):
         components = vector_datatype.split("*")
         if len(components) != 2:
             raise TypeError(
-                f"The vector length metadata should be in the form "
-                f"'form*vector_length' but found '{vector_datatype}'.")
-        vector_length = components[1].strip()
-        return vector_length
+                f"The vector_length or array_nranks metadata should be in the form "
+                f"'form*integer' but found '{vector_datatype}'.")
+        acceptable_forms = ['gh_field', 'nranks']
+        if components[0] not in acceptable_forms:
+            raise ParseError(
+                f"In the LFRic API, array dimension notation is given in the form "
+                f"'form*integer', where form is one of '{acceptable_forms}' but "
+                f"found '{compontents[0]}'."
+            )
+        array_dimension = components[1].strip()
+        return array_dimension
 
     @property
     def datatype(self):

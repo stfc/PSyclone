@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
+# Modified L. Turner, Met Office
 
 '''Module containing the InterGridVectorArgMetadata class which captures the
 metadata associated with a intergrid vector argument. Supports the
@@ -98,7 +99,7 @@ class InterGridVectorArgMetadata(InterGridArgMetadata):
         '''
         datatype, access, function_space, mesh_arg, stencil = \
             super()._get_metadata(fparser2_tree)
-        vector_length = cls.get_vector_length(fparser2_tree)
+        vector_length = cls.get_array_dimension(fparser2_tree)
         return (datatype, access, function_space, mesh_arg, vector_length,
                 stencil)
 
