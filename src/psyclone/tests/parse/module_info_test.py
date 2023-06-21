@@ -191,7 +191,7 @@ def test_mod_info_get_psyir():
 
     mod_man = ModuleManager.get()
     dyn_path = get_base_path("dynamo0.3")
-    mod_man.add_search_path(dyn_path, recursive=False)
+    mod_man.add_search_path(f"{dyn_path}/driver_creation", recursive=False)
 
     mod_info = mod_man.get_module_info("testkern_import_symbols_mod")
     assert mod_info._psyir is None

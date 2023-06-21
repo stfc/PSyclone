@@ -171,11 +171,16 @@ class ModuleInfo:
         :rtype: :py:class:`fparser.two.Fortran2003.Program`
 
         '''
-        if not self._parse_tree:
+        if self._parse_tree is None:
+            # Set routine_info to be an empty directory (it was None before).
+            # This way we avoid that get_routine_info might trigger to parse
+            # this file again.
+            self._routine_info = {}
+
             reader = FortranStringReader(self.get_source_code())
             parser = ParserFactory().create(std="f2008")
             self._parse_tree = parser(reader)
-            self._routine_info = {}
+
             # First collect information about all subroutines/functions.
             # Store information about generic interface to be handled later
             # (so we only walk the tree once):
@@ -218,7 +223,10 @@ class ModuleInfo:
         '''
         if self._routine_info is None:
             # This will trigger adding routine information:
-            self.get_parse_tree()
+            try:
+                self.get_parse_tree()
+            except FortranSyntaxError as err:
+                raise KeyError(f"Could not parse '{self.name}'") from err
 
         return self._routine_info[routine_name.lower()]
 
@@ -231,7 +239,10 @@ class ModuleInfo:
         '''
         if self._routine_info is None:
             # This will trigger adding routine information
-            self.get_parse_tree()
+            try:
+                self.get_parse_tree()
+            except FortranSyntaxError:
+                return False
 
         return routine_name.lower() in self._routine_info
 
@@ -252,7 +263,10 @@ class ModuleInfo:
         self._used_modules = set()
         self._used_symbols_from_module = {}
 
-        parse_tree = self.get_parse_tree()
+        try:
+            parse_tree = self.get_parse_tree()
+        except FortranSyntaxError:
+            return
         for use in walk(parse_tree, Use_Stmt):
             # Ignore intrinsic modules:
             if str(use.items[0]) == "INTRINSIC":

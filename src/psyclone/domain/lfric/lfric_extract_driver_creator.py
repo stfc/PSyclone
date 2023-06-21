@@ -40,6 +40,10 @@ reads in extracted data, calls the kernel, and then compares the result with
 the output data contained in the input file.
 '''
 
+# TODO #1382: refactoring common functionality between the various driver
+# creation implementation should make this file much smaller.
+# pylint: disable=too-many-lines
+
 import re
 
 from psyclone.core import Signature
@@ -411,10 +415,11 @@ class LFRicExtractDriverCreator:
                 symbol_table.add(container)
 
             # Now look up the original symbol. While the variable could
-            # be declared Deferred here, we need the type information for
-            # the output variables (VAR_post), which are created later and
-            # which will query the original symbol for its type. And since
-            # they are not imported, they need to be explicitly declared.
+            # be declared Deferred here (i.e. just imported), we need the
+            # type information for # the output variables (VAR_post), which
+            # are created later and which will query the original symbol for
+            # its type. And since they are not imported, they need to be
+            # explicitly declared.
             mod_info = mod_man.get_module_info(module_name)
             try:
                 container_symbol = mod_info.get_symbol(signature[0])
@@ -424,8 +429,6 @@ class LFRicExtractDriverCreator:
                 # Ignore for now.
                 continue
 
-            if not container_symbol:
-                continue
             symbol_table.find_or_create_tag(tag=f"{signature[0]}@"
                                                 f"{module_name}",
                                             root_name=signature[0],
@@ -601,11 +604,9 @@ class LFRicExtractDriverCreator:
                 try:
                     orig_sym = mod_info.get_symbol(signature[0])
                 except IndexError:
-                    print(f"Index error finding '{sig_str}' in "
-                          f"'{module_name}''.")
-                    orig_sym = None
-                except AttributeError:
                     # We couldn't parse the module
+                    print(f"Index error finding '{sig_str}' in "
+                          f"'{module_name}'.")
                     orig_sym = None
             else:
                 orig_sym = original_symbol_table.lookup(signature[0])
@@ -627,7 +628,16 @@ class LFRicExtractDriverCreator:
 
             if module_name:
                 tag = f"{signature[0]}@{module_name}"
-                sym = symbol_table.lookup_with_tag(tag)
+                try:
+                    sym = symbol_table.lookup_with_tag(tag)
+                except KeyError:
+                    print(f"Cannot find variable with tag '{tag}' - likely "
+                          f"a symptom of an earlier parsing problem.")
+                    # TODO #2120: Better error handling, at this stage
+                    # we likely could not find a module variable (e.g.
+                    # because we couldn't successfully parse the module)
+                    # and will have inconsistent/missing declarations.
+                    continue
                 name_lit = Literal(tag, CHARACTER_TYPE)
             else:
                 sym = symbol_table.lookup_with_tag(str(signature))

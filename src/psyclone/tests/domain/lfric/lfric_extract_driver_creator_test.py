@@ -461,7 +461,7 @@ def test_lfric_driver_unsupported_builtins(name, filename, capsys):
 @pytest.mark.usefixtures("change_into_tmpdir", "init_module_manager")
 def test_lfric_driver_removing_structure_data():
     '''Check that array accesses correctly remove the `%data`(which would be
-    added for builtins using f1_proxy$data(df)). E.g. the following code needs
+    added for builtins using f1_proxy%data(df)). E.g. the following code needs
     to be created:
         do df = loop0_start, loop0_stop, 1
             f2(df) = a + f1(df)
@@ -627,3 +627,79 @@ def test_lfric_driver_field_array_inc():
     # does not need any of the infrastructure files
     build = Compile(".")
     build.compile_file("driver-field-test.F90")
+
+
+# ----------------------------------------------------------------------------
+@pytest.mark.usefixtures("change_into_tmpdir", "init_module_manager")
+def test_lfric_driver_external_symbols():
+    '''Test the handling of symbols imported from other modules, or calls to
+    external functions that use module variables.
+
+    '''
+    _, invoke = get_invoke("driver_creation/invoke_kernel_with_imported_"
+                           "symbols.f90", API, dist_mem=False, idx=0)
+
+    extract = LFRicExtractTrans()
+    extract.apply(invoke.schedule.children[0],
+                  options={"create_driver": True,
+                           "region_name": ("import", "test")})
+    code = str(invoke.gen())
+    assert ('CALL extract_psy_data%PreDeclareVariable("'
+            'module_var_a_post@module_with_var_mod", module_var_a)' in code)
+    assert ('CALL extract_psy_data%ProvideVariable("'
+            'module_var_a_post@module_with_var_mod", module_var_a)' in code)
+
+    filename = "driver-import-test.F90"
+    with open(filename, "r", encoding='utf-8') as my_file:
+        driver = my_file.read()
+
+    assert ("call extract_psy_data%ReadVariable('module_var_a_post@"
+            "module_with_var_mod', module_var_a_post)" in driver)
+    assert "if (module_var_a == module_var_a_post)" in driver
+
+
+# ----------------------------------------------------------------------------
+@pytest.mark.usefixtures("change_into_tmpdir", "init_module_manager")
+def test_lfric_driver_external_symbols_error(capsys):
+    '''Test the handling of symbols imported from other modules, or calls to
+    external functions that use module variables. In this example the
+    external module cannot be parsed by fparser (it contains syntax errors),
+    resulting in externa functions and variables that cannot be found.
+
+    '''
+    _, invoke = get_invoke("driver_creation/invoke_kernel_with_imported_"
+                           "symbols.f90", API, dist_mem=False, idx=1)
+
+    extract = LFRicExtractTrans()
+    extract.apply(invoke.schedule.children[0],
+                  options={"create_driver": True,
+                           "region_name": ("import", "test")})
+    code = str(invoke.gen())
+    # Even though PSyclone cannot find the variable, it should still be
+    # extracted:
+    assert ('CALL extract_psy_data%PreDeclareVariable("non_existent_var@'
+            'module_with_error_mod", non_existent_var' in code)
+    assert ('CALL extract_psy_data%ProvideVariable("non_existent_var@'
+            'module_with_error_mod", non_existent_var' in code)
+
+    filename = "driver-import-test.F90"
+    with open(filename, "r", encoding='utf-8') as my_file:
+        driver = my_file.read()
+
+    # First check output of extraction, which will detect the problems of
+    # finding variables and functions:
+    out, _ = capsys.readouterr()
+    assert ("Cannot find symbol 'non_existent_func' in module "
+            "'module_with_error_mod' - ignored." in out)
+    assert ("Index error finding 'non_existent_var' in "
+            "'module_with_error_mod'." in out)
+
+    # This error comes from the driver creation: a variable is in the list
+    # of variables to be processed, but its type cannot be found.
+    assert ("Cannot find variable with tag 'non_existent_var@module_with_"
+            "error_mod' - likely a symptom of an earlier parsing problem."
+            in out)
+    # This variable will be ignored (for now, see TODO 2120) so no code will
+    # be created for it. The string will still be in the created driver (since
+    # the module is still inlined), but no ReadVariable code should be created:
+    assert "call extract_psy_data%ReadVariable('non_existent@" not in driver
