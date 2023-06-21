@@ -4558,10 +4558,12 @@ class Fparser2Reader():
         try:
             spec_part = _first_type_match(
                 node.children, Fortran2003.Specification_Part)
+        except ValueError:
+            spec_part = None
+
+        if spec_part is not None:
             self.process_declarations(container, spec_part.children,
                                       [], visibility_map)
-        except ValueError:
-            pass
 
         # Parse any module subprograms (subroutine or function)
         # skipping the contains node

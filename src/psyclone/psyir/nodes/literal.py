@@ -81,7 +81,7 @@ class Literal(DataNode):
     _text_name = "Literal"
     _colour = "yellow"
     _real_value = r'^[+-]?[0-9]+(\.[0-9]*)?([eE][+-]?[0-9]+)?$'
-    _int_value = r'(([+-]?[1-9][0-9]*|0)|(NOT_INITIALISED))'
+    _int_value = r'(([+-]?[0-9]+)|(NOT_INITIALISED))'
 
     def __init__(self, value, datatype, parent=None):
         super().__init__(parent=parent)
