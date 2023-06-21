@@ -287,3 +287,19 @@ def test_arg_descriptor_array(array_ind, array_type, array_ranks):
     assert array_descriptor.mesh is None
     assert array_descriptor.stencil is None
 
+def test_incorrect_operator():
+    ''' Tests that we raise an error when the operator is incorrect'''
+    fparser.logging.disable(fparser.logging.CRITICAL)
+    name = "testkern_array_type"
+    const = LFRicConstants()
+    for argname in const.VALID_ARRAY_NAMES:
+        code = ARRAY_CODE.replace("arg_type(gh_array,   gh_real,    gh_read, NRANKS*1)",
+                            "arg_type(gh_array, gh_real, gh_read, NRANKS+1)", 1)
+        ast = fpapi.parse(code, ignore_comments=False)
+        with pytest.raises(ParseError) as excinfo:
+            _ = DynKernMetadata(ast, name=name)
+        assert (f"the 4th argument of a 'meta_arg' entry may be an "
+                f"array but if so must use '*' as the separator "
+                f"in the format 'NRANKS*n', but found '+' in "
+                f"'arg_type(gh_array, gh_real, gh_read, nranks + 1)'."
+                in str(excinfo.value))
