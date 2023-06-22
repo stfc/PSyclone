@@ -467,6 +467,10 @@ def generate_lfric_adjoint_harness(tl_psyir, coord_arg_idx=None,
     routine = container.walk(Routine)[0]
     table = routine.symbol_table
 
+    tl_subroutine = tl_container.children[0]
+    tl_subroutine_table = tl_subroutine.symbol_table
+    tl_argument_list = tl_subroutine_table.argument_list
+
     # Parse the kernel metadata. This still uses fparser1 as that's what
     # the meta-data handling is currently based upon. We therefore have to
     # convert back from PSyIR to Fortran for the moment.
@@ -509,6 +513,36 @@ def generate_lfric_adjoint_harness(tl_psyir, coord_arg_idx=None,
     # TODO #1806 - once we have the new PSyIR-based metadata handling then
     # we can pass PSyIR to this routine rather than an fparser1 parse tree.
     kern = lfalg.kernel_from_metadata(parse_tree, kernel_name)
+
+    # TODO RF: work out how to map from metadata indices to actual indices
+    # use arg_index_to_metadata_index() and reverse the lookup?
+    from psyclone.domain.lfric import ArgIndexToMetadataIndex
+    from psyclone.domain.lfric.transformations import RaisePSyIR2LFRicKernTrans
+    # TODO need to raise tl_psyir to LFRic_tl_psyir????
+    kern_trans = RaisePSyIR2LFRicKernTrans()
+    print(tl_psyir.debug_string())
+    kern_trans.apply(tl_psyir, options={"metadata_name": kernel_name})
+    metadata = tl_psyir.children[0].metadata
+    index_map = ArgIndexToMetadataIndex.mapping(metadata)
+    print(index_map)
+    inv_index_map = {v: k for k, v in index_map.items()}
+    print(inv_index_map)
+    tl_names = [symbol.name for symbol in tl_argument_list]
+    print(", ".join(tl_names))
+
+    # Kern arguments are in the same order as the kernel metadata
+    for idx, arg in enumerate(kern.arguments.args):
+        arg_idx = inv_index_map[idx]
+        kern_arg_name = tl_argument_list[arg_idx].name
+        arg._name = kern_arg_name
+        print(idx, arg_idx, kern_arg_name)
+
+    # TODO: THERE SEEMS TO BE A BUG IN ArgIndexToMetadataIndex as operator should be matrix but it returns ncell_3d.
+
+    #kern.arguments.args[0]._name = "lhs"
+    #kern.arguments.args[1]._name = "x"
+    #kern.arguments.args[2]._name = "matrix"
+
     kern_args = lfalg.construct_kernel_args(routine, kern)
 
     # Validate the index values for the coordinate and face_id fields if
@@ -565,7 +599,7 @@ def generate_lfric_adjoint_harness(tl_psyir, coord_arg_idx=None,
             # This kernel argument is not modified by the test harness so we
             # don't need to keep a copy of it.
             continue
-        input_sym = table.new_symbol(sym.name+"_input", symbol_type=DataSymbol,
+        input_sym = table.new_symbol(f"{sym.name}_input", symbol_type=DataSymbol,
                                      datatype=DeferredType())
         input_sym.copy_properties(sym)
         input_symbols[sym.name] = input_sym
@@ -598,6 +632,7 @@ def generate_lfric_adjoint_harness(tl_psyir, coord_arg_idx=None,
     # Fields.
     kernel_list = _init_fields_random(kernel_input_arg_list, input_symbols,
                                       table)
+
     # Operators.
     kernel_list.extend(_init_operators_random(
         [sym for sym, _, _ in kern_args.operators], table))
