@@ -130,6 +130,6 @@ class ArrayArgMetadata(ScalarArgMetadata):
         :returns: the function space for this array argument.
         :rtype: str
         '''
-        return self._array_nranks
+        return self.array_nranks
 
 __all__ = ["ArrayArgMetadata"]

@@ -43,13 +43,9 @@ import pytest
 import fparser
 from fparser import api as fpapi
 from psyclone.domain.lfric import LFRicArgDescriptor
-from psyclone.dynamo0p3 import (DynKern, DynKernMetadata,
-                                LFRicConstants)
-from psyclone.errors import InternalError, GenerationError
-from psyclone.f2pygen import ModuleGen
-from psyclone.parse.algorithm import parse
+from psyclone.dynamo0p3 import DynKernMetadata, LFRicConstants
+from psyclone.errors import InternalError
 from psyclone.parse.utils import ParseError
-from psyclone.psyGen import FORTRAN_INTENT_NAMES, PSyFactory
 
 # Constants
 BASE_PATH = os.path.join(
@@ -117,8 +113,9 @@ def test_ad_array_invalid_data_type():
     fparser.logging.disable(fparser.logging.CRITICAL)
     name = "testkern_array_type"
     # check real array
-    code = ARRAY_CODE.replace("arg_type(gh_array,   gh_real,    gh_read, NRANKS*1)",
-                        "arg_type(gh_array, gh_unreal, gh_read, NRANKS*1)", 1)
+    code = ARRAY_CODE.replace("arg_type(gh_array,   gh_real,    gh_read, "
+                        "NRANKS*1)", "arg_type(gh_array, gh_unreal, gh_read, "
+                        "NRANKS*1)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     const = LFRicConstants()
     with pytest.raises(ParseError) as excinfo:
@@ -128,8 +125,9 @@ def test_ad_array_invalid_data_type():
             f"but found 'gh_unreal' in 'arg_type(gh_array, gh_unreal, "
             f"gh_read, nranks * 1)'." in str(excinfo.value))
     # check integer array
-    code = ARRAY_CODE.replace("arg_type(gh_array,   gh_integer, gh_read, NRANKS*2)",
-                        "arg_type(gh_array, gh_frac, gh_read, NRANKS*2)", 1)
+    code = ARRAY_CODE.replace("arg_type(gh_array,   gh_integer, gh_read, "
+                        "NRANKS*2)", "arg_type(gh_array, gh_frac, gh_read, "
+                        "NRANKS*2)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     const = LFRicConstants()
     with pytest.raises(ParseError) as excinfo:
@@ -139,8 +137,9 @@ def test_ad_array_invalid_data_type():
             f"but found 'gh_frac' in 'arg_type(gh_array, gh_frac, "
             f"gh_read, nranks * 2)'." in str(excinfo.value))
     # check logical array
-    code = ARRAY_CODE.replace("arg_type(gh_array,   gh_logical, gh_read, NRANKS*4)",
-                        "arg_type(gh_array, gh_illogical, gh_read, NRANKS*4)", 1)
+    code = ARRAY_CODE.replace("arg_type(gh_array,   gh_logical, gh_read, "
+                        "NRANKS*4)", "arg_type(gh_array, gh_illogical, "
+                        "gh_read, NRANKS*4)", 1)
     ast = fpapi.parse(code, ignore_comments=False)
     const = LFRicConstants()
     with pytest.raises(ParseError) as excinfo:
@@ -246,13 +245,14 @@ def test_no_vector_array():
     name = "testkern_array_type"
     const = LFRicConstants()
     for argname in const.VALID_ARRAY_NAMES:
-        code = ARRAY_CODE.replace("arg_type(gh_array,   gh_real,    gh_read, NRANKS*1)",
-                            "arg_type(gh_array*3, gh_real, gh_read, NRANKS*1)", 1)
+        code = ARRAY_CODE.replace("arg_type(gh_array,   gh_real,    gh_read, "
+                            "NRANKS*1)", "arg_type(gh_array*3, gh_real, "
+                            "gh_read, NRANKS*1)", 1)
         ast = fpapi.parse(code, ignore_comments=False)
         with pytest.raises(ParseError) as excinfo:
             _ = DynKernMetadata(ast, name=name)
-        assert (f"vector notation is only supported for ['gh_field'] argument "
-                f"types but found 'gh_array * 3'" in str(excinfo.value))
+        assert ("vector notation is only supported for ['gh_field'] argument "
+                "types but found 'gh_array * 3'" in str(excinfo.value))
 
 
 @pytest.mark.parametrize("array_ind, array_type, array_ranks", [
@@ -293,13 +293,14 @@ def test_incorrect_operator():
     name = "testkern_array_type"
     const = LFRicConstants()
     for argname in const.VALID_ARRAY_NAMES:
-        code = ARRAY_CODE.replace("arg_type(gh_array,   gh_real,    gh_read, NRANKS*1)",
-                            "arg_type(gh_array, gh_real, gh_read, NRANKS+1)", 1)
+        code = ARRAY_CODE.replace("arg_type(gh_array,   gh_real,    gh_read, "
+                            "NRANKS*1)", "arg_type(gh_array, gh_real, "
+                            "gh_read, NRANKS+1)", 1)
         ast = fpapi.parse(code, ignore_comments=False)
         with pytest.raises(ParseError) as excinfo:
             _ = DynKernMetadata(ast, name=name)
-        assert (f"the 4th argument of a 'meta_arg' entry may be an "
-                f"array but if so must use '*' as the separator "
-                f"in the format 'NRANKS*n', but found '+' in "
-                f"'arg_type(gh_array, gh_real, gh_read, nranks + 1)'."
+        assert ("the 4th argument of a 'meta_arg' entry may be an "
+                "array but if so must use '*' as the separator "
+                "in the format 'NRANKS*n', but found '+' in "
+                "'arg_type(gh_array, gh_real, gh_read, nranks + 1)'."
                 in str(excinfo.value))

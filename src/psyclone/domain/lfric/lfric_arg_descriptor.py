@@ -306,7 +306,7 @@ class LFRicArgDescriptor(Descriptor):
 
         # Check that the operator is correct
         if arg_type.args[3].toks[1] != "*":
-            raise ParseError(                     #SHARKS (needs test coverage)
+            raise ParseError(                     #SHARKS (test works!)
                 f"In the LFRic API, the 4th argument of a 'meta_arg' "
                 f"entry may be an array but if so must use '*' as "
                 f"the separator in the format 'NRANKS*n', but found "

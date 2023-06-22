@@ -44,6 +44,7 @@ from abc import ABC, abstractmethod
 
 from psyclone.domain.lfric.kernel.common_arg_metadata import CommonArgMetadata
 from psyclone.errors import InternalError
+from psyclone.parse.utils import ParseError
 
 
 class CommonMetaArgMetadata(CommonArgMetadata, ABC):
@@ -197,14 +198,14 @@ class CommonMetaArgMetadata(CommonArgMetadata, ABC):
         components = vector_datatype.split("*")
         if len(components) != 2:
             raise TypeError(
-                f"The vector_length or array_nranks metadata should be in the form "
-                f"'form*integer' but found '{vector_datatype}'.")
+                f"The vector_length or array_nranks metadata should be in "
+                f"the form 'form*integer' but found '{vector_datatype}'.")
         acceptable_forms = ['gh_field', 'nranks']
         if components[0] not in acceptable_forms:
             raise ParseError(
-                f"In the LFRic API, array dimension notation is given in the form "
-                f"'form*integer', where form is one of '{acceptable_forms}' but "
-                f"found '{compontents[0]}'."
+                f"In the LFRic API, array dimension notation is given "
+                f"in the form 'form*integer', where form is one of "
+                f"'{acceptable_forms}' but found '{components[0]}'."
             )
         array_dimension = components[1].strip()
         return array_dimension
