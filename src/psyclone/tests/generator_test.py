@@ -786,6 +786,30 @@ def test_generate_trans_error(tmpdir, capsys, monkeypatch):
     assert expected_output2 in output
 
 
+def test_generate_no_builtin_container(tmpdir, monkeypatch):
+    '''Test that a builtin use statement is removed if it has been added
+    to a Container (a module). Also tests that everything works OK if
+    no use statement is found in a symbol table (as FileContainer does
+    not contain one).
+
+    '''
+    monkeypatch.setattr(generator, "LFRIC_TESTING", True)
+    code = (
+        "module test_mod\n"
+        "  contains\n"
+        "  subroutine test()\n"
+        "    use field_mod, only : field_type\n"
+        "    type(field_type) :: field\n"
+        "    call invoke(setval_c(field, 0.0))\n"
+        "  end subroutine test\n"
+        "end module\n")
+    filename = str(tmpdir.join("alg.f90"))
+    with open(filename, "w", encoding='utf-8') as my_file:
+        my_file.write(code)
+    alg, _ = generate(filename, api="dynamo0.3")
+    assert "use builtins" not in alg
+
+
 def test_main_unexpected_fatal_error(capsys, monkeypatch):
     '''Tests that we get the expected output and the code exits with an
     error when an unexpected fatal error is returned from the generate

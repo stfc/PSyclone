@@ -353,8 +353,8 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
             # Remove any use statements that were temporarily added to
             # avoid the PSyIR complaining about undeclared builtin
             # names.
-            for routine in psyir.walk(Routine):
-                symbol_table = routine.symbol_table
+            for node in psyir.walk((Routine, Container)):
+                symbol_table = node.symbol_table
                 try:
                     symbol = symbol_table.lookup(builtins_module_name)
                     symbol_table.remove(symbol)
