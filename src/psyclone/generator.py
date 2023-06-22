@@ -87,7 +87,7 @@ API_WITHOUT_ALGORITHM = ["nemo"]
 # implementation (mainly that the PSyIR works with algorithm-layer
 # code) whilst keeping the original implementation as default
 # until it is working.
-LFRIC_TESTING = True
+LFRIC_TESTING = False
 
 
 def handle_script(script_name, info, function_name, is_optional=False):
