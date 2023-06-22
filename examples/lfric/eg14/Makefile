@@ -46,21 +46,22 @@ PSYROOT=../../..
 include $(PSYROOT)/examples/common.mk
 
 GENERATED_FILES = *.o *.mod $(EXEC) main_alg.f90 main_psy.f90 \
-                  testkern_w0_kernel_0_mod.f90
+                  other_alg_mod_psy.f90 other_alg_mod_alg.f90 testkern_w0_kernel_?_mod.f90
 
 F90 ?= gfortran
 F90FLAGS ?= -Wall -g
 
-OBJ = main_psy.o main_alg.o testkern_w0_kernel_0_mod.o
+OBJ = main_psy.o main_alg.o other_alg_mod_psy.o other_alg_mod_alg.o testkern_w0_kernel_0_mod.o
 
 EXEC = example_openacc
 
 LFRIC_PATH ?= $(PSYROOT)/src/psyclone/tests/test_files/dynamo0p3/infrastructure
 LFRIC_NAME=lfric
 LFRIC_LIB=$(LFRIC_PATH)/lib$(LFRIC_NAME).a
-
 # This sets up LFRIC_INCLUDE_FLAGS
 include $(LFRIC_PATH)/lfric_include_flags.inc
+
+PROFILE_PATH=$(PSYROOT)/lib/profiling/nvidia
 
 .PHONY: transform compile run
 
@@ -69,17 +70,19 @@ include $(LFRIC_PATH)/lfric_include_flags.inc
 # will create 'testkern_..._1_mod.f90' so remove it first.
 transform:
 	rm -f testkern_w0_kernel_0_mod.f90
-	${PSYCLONE} -dm -s ./acc_parallel_dm.py \
+	${PSYCLONE} -dm -s ./acc_parallel_dm.py  --profile invokes \
 	-opsy main_psy.f90 -oalg main_alg.f90 main.x90
+	${PSYCLONE} -dm -s ./acc_parallel_dm.py --profile invokes \
+	-opsy other_alg_mod_psy.f90 -oalg other_alg_mod_alg.f90 other_alg_mod.x90
 
 %_psy.f90: %.x90
-	${PSYCLONE} -s ./acc_parallel_dm.py \
+	${PSYCLONE} -s ./acc_parallel_dm.py  --profile invokes \
 	-opsy $*_psy.f90 -oalg $*_alg.f90 $<
 
 testkern_w0_kernel_0_mod.f90: main_psy.f90
 
 compile: transform ${LFRIC_LIB} ${OBJ}
-	${F90} ${F90FLAGS} $(LFRIC_INCLUDE_FLAGS) $(OBJ) -o $(EXEC) -L$(LFRIC_PATH) -l$(LFRIC_NAME)
+	${F90} ${F90FLAGS} $(LFRIC_INCLUDE_FLAGS) $(OBJ) -o $(EXEC) -L$(LFRIC_PATH) -l$(LFRIC_NAME) -L${PROFILE_PATH} -lnvtx_prof -lnvToolsExt
 
 $(LFRIC_LIB):
 	$(MAKE) -C $(LFRIC_PATH)
@@ -88,25 +91,26 @@ run: compile
 	./$(EXEC)
 
 $(EXEC): $(LFRIC_LIB) $(OBJ)
-	$(F90) $(F90FLAGS) $(OBJ) -o $(EXEC) -L$(LFRIC_PATH) -l$(LFRIC_NAME)
+	$(F90) $(F90FLAGS) $(OBJ) -o $(EXEC) -L$(LFRIC_PATH) -l$(LFRIC_NAME) -L${PROFILE_PATH} -lnvtx_prof -lnvToolsExt
 
 $(LFRIC_LIB):
 	$(MAKE) -C $(LFRIC_PATH)
 
 # Dependencies
-main_psy.o:	testkern_w0_kernel_0_mod.o
-main_alg.o:	main_psy.o testkern_w0_kernel_0_mod.o
+main_psy.o:	other_alg_mod_psy.o testkern_w0_kernel_0_mod.o
+main_alg.o:	other_alg_mod_alg.o main_psy.o testkern_w0_kernel_0_mod.o
 
 %.o: %.F90
-	$(F90) $(F90FLAGS) $(LFRIC_INCLUDE_FLAGS) -c $<
+	$(F90) $(F90FLAGS) -I$(PROFILE_PATH) $(LFRIC_INCLUDE_FLAGS) -c $<
 
 %.o: %.f90
-	$(F90) $(F90FLAGS) $(LFRIC_INCLUDE_FLAGS) -c $<
+	$(F90) $(F90FLAGS) -I$(PROFILE_PATH) $(LFRIC_INCLUDE_FLAGS) -c $<
 
 # Keep the generated psy and alg files
 .precious: main_psy.f90 main_alg.f90
 
 main_alg.f90: main_psy.f90
+other_alg_mod_alg.f90: other_alg_mod_psy.f90
 
 allclean: clean
 	$(MAKE) -C $(LFRIC_PATH) allclean

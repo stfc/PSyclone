@@ -1,0 +1,16 @@
+module other_alg_mod
+  use field_mod,                      only: field_type
+  use mesh_mod,                       only: mesh_type
+  use constants_mod,                  only: r_def
+  implicit none
+
+contains
+
+  subroutine my_alg(field_1, chksum1)
+    type( field_type ), intent( inout ) :: field_1
+    real(r_def), intent(out)            :: chksum1
+
+    call invoke( X_innerproduct_X(chksum1, field_1) )
+
+  end subroutine my_alg
+end module other_alg_mod
