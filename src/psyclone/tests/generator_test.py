@@ -1129,8 +1129,8 @@ def test_add_builtins_use():
     parser = ParserFactory().create(std="f2008")
     reader = FortranStringReader(code)
     fp2_tree = parser(reader)
-    add_builtins_use(fp2_tree)
-    assert "USE builtins" in str(fp2_tree)
+    add_builtins_use(fp2_tree, "my_name")
+    assert "USE my_name" in str(fp2_tree)
     # spec_part
     code = (
         "program test_prog\n"
@@ -1138,8 +1138,8 @@ def test_add_builtins_use():
         "end program\n")
     reader = FortranStringReader(code)
     fp2_tree = parser(reader)
-    add_builtins_use(fp2_tree)
-    assert "USE builtins" in str(fp2_tree)
+    add_builtins_use(fp2_tree, "ANOTHER_NAME")
+    assert "USE ANOTHER_NAME" in str(fp2_tree)
     # multiple modules/programs
     code = (
         "program test_prog\n"
@@ -1150,7 +1150,7 @@ def test_add_builtins_use():
         "end module\n")
     reader = FortranStringReader(code)
     fp2_tree = parser(reader)
-    add_builtins_use(fp2_tree)
+    add_builtins_use(fp2_tree, "builtins")
     assert str(fp2_tree) == (
         "PROGRAM test_prog\n  USE builtins\nEND PROGRAM\n"
         "MODULE test_mod1\n  USE builtins\nEND MODULE\n"
@@ -1176,9 +1176,8 @@ def test_no_script_lfric_new(monkeypatch):
     assert " testkern_type" not in alg
     # module symbol is removed
     assert "testkern_mod" not in alg
-    # TODO issue #1618. The builtins statement should be removed from
-    # the processed source code.
-    assert "use builtins" in alg
+    # builtins symbol (that was added by PSyclone) is removed
+    assert "use builtins" not in alg
 
 
 def test_script_lfric_new(monkeypatch):
@@ -1202,9 +1201,8 @@ def test_script_lfric_new(monkeypatch):
     assert " testkern_type" not in alg
     # module symbol is removed
     assert "testkern_mod" not in alg
-    # TODO issue #1618. The builtins statement should be removed from
-    # the processed source code.
-    assert "use builtins" in alg
+    # builtins symbol (that was added by PSyclone) is removed
+    assert "use builtins" not in alg
 
 
 def test_builtins_lfric_new(monkeypatch):
@@ -1232,9 +1230,8 @@ def test_builtins_lfric_new(monkeypatch):
     assert " testkern_mod" not in alg
     assert " testkern_wtheta_mod" not in alg
     assert " testkern_w2_only_mod" not in alg
-    # TODO issue #1618. The builtins statement should be removed from
-    # the processed source code.
-    assert "use builtins" in alg
+    # builtins symbol (that was added by PSyclone) is removed
+    assert "use builtins" not in alg
 
 
 def test_no_invokes_lfric_new(monkeypatch):

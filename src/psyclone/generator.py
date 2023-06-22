@@ -87,7 +87,7 @@ API_WITHOUT_ALGORITHM = ["nemo"]
 # implementation (mainly that the PSyIR works with algorithm-layer
 # code) whilst keeping the original implementation as default
 # until it is working.
-LFRIC_TESTING = False
+LFRIC_TESTING = True
 
 
 def handle_script(script_name, info, function_name, is_optional=False):
@@ -276,10 +276,10 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
         reader = FortranReader()
         if api == "dynamo0.3":
             # avoid undeclared builtin errors in PSyIR by adding "use
-            # builtins". TODO issue #1618. This symbol needs to be
-            # removed when lowering.
+            # builtins".
+            builtins_module_name = "builtins"
             fp2_tree = parse_fp2(filename)
-            add_builtins_use(fp2_tree)
+            add_builtins_use(fp2_tree, builtins_module_name)
             psyir = reader.psyir_from_source(str(fp2_tree))
             # Check that there is only one module/program per file.
             check_psyir(psyir, filename)
@@ -349,6 +349,17 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
         for invoke in psyir.walk(AlgorithmInvokeCall):
             invoke_trans.apply(
                 invoke, options={"kernels": kernels[id(invoke)]})
+        if api == "dynamo0.3":
+            # Remove any use statements that were temporarily added to
+            # avoid the PSyIR complaining about undeclared builtin
+            # names.
+            for routine in psyir.walk(Routine):
+                symbol_table = routine.symbol_table
+                try:
+                    symbol = symbol_table.lookup(builtins_module_name)
+                    symbol_table.remove(symbol)
+                except KeyError:
+                    pass
 
         # Create Fortran from Algorithm PSyIR
         writer = FortranWriter()
@@ -581,23 +592,24 @@ def check_psyir(psyir, filename):
             f"found '{type(psyir.children[0]).__name__}'.")
 
 
-def add_builtins_use(fp2_tree):
-    '''Modify the fparser2 tree adding a 'use builtins' so that builtin kernel
+def add_builtins_use(fp2_tree, name):
+    '''Modify the fparser2 tree adding a 'use <name>' so that builtin kernel
     functors do not appear to be undeclared.
 
     :param fp2_tree: the fparser2 tree to modify.
     :type fp2_tree: py:class:`fparser.two.Program`
+    :param str name: the name of the use statement.
 
     '''
     for node in fp2_tree.children:
         if isinstance(node, (Fortran2003.Module, Fortran2003.Main_Program)):
-            # add "use builtins" to the module or program
+            # add "use <name>" to the module or program
             if not isinstance(
                     node.children[1], Fortran2003.Specification_Part):
-                fp2_reader = get_reader("use builtins")
+                fp2_reader = get_reader(f"use {name}")
                 node.children.insert(
                     1, Fortran2003.Specification_Part(fp2_reader))
             else:
                 spec_part = node.children[1]
                 spec_part.children.insert(
-                    0, Fortran2003.Use_Stmt("use builtins"))
+                    0, Fortran2003.Use_Stmt(f"use {name}"))
