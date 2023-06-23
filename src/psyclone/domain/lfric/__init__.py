@@ -63,10 +63,12 @@ from psyclone.domain.lfric.metadata_to_arguments_rules import \
 from psyclone.domain.lfric.arg_index_to_metadata_index import \
     ArgIndexToMetadataIndex
 from psyclone.domain.lfric.lfric_collection import LFRicCollection
+from psyclone.domain.lfric.check_kernel_args import check_kernel_args
 
 
 __all__ = [
     'ArgOrdering',
+    'check_kernel_args',
     'FunctionSpace',
     'KernCallAccArgList',
     'KernCallArgList',

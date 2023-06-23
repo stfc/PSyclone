@@ -67,8 +67,8 @@ class MetadataToArgumentsRules():
     '''
     _metadata = None
     _info = None
+    _index = 0
 
-    @classmethod
     def mapping(cls, metadata, info=None):
         '''Takes kernel metadata as input and returns whatever is added to the
         _info variable. This class adds nothing to the _info variable,
@@ -100,14 +100,17 @@ class MetadataToArgumentsRules():
 
         '''
         cls._info = info
+        cls._index = 0
 
     @classmethod
     def _cell_position(cls):
         '''A cell position argument.'''
+        cls._index += 1
 
     @classmethod
     def _mesh_height(cls):
         '''A mesh height argument.'''
+        cls._index += 1
 
     @classmethod
     def _mesh_ncell2d_no_halos(cls):
@@ -115,6 +118,7 @@ class MetadataToArgumentsRules():
         halos.
 
         '''
+        cls._index += 1
 
     @classmethod
     def _mesh_ncell2d(cls):
@@ -122,6 +126,7 @@ class MetadataToArgumentsRules():
         halos.
 
         '''
+        cls._index += 1
 
     @classmethod
     def _cell_map(cls):
@@ -129,6 +134,7 @@ class MetadataToArgumentsRules():
         current column.
 
         '''
+        cls._index += 4
 
     @classmethod
     def _scalar(cls, meta_arg):
@@ -139,6 +145,7 @@ class MetadataToArgumentsRules():
             :py:class:`psyclone.domain.lfric.kernel.ScalarArgMetadata`
 
         '''
+        cls._index += 1
 
     @classmethod
     def _field(cls, meta_arg):
@@ -149,6 +156,7 @@ class MetadataToArgumentsRules():
             :py:class:`psyclone.domain.lfric.kernel.FieldArgMetadata`
 
         '''
+        cls._index += 1
 
     @classmethod
     def _field_vector(cls, meta_arg):
@@ -160,6 +168,7 @@ class MetadataToArgumentsRules():
             :py:class:`psyclone.domain.lfric.kernel.FieldVectorArgMetadata`
 
         '''
+        cls._index += 1
 
     @classmethod
     def _operator(cls, meta_arg):
@@ -171,6 +180,7 @@ class MetadataToArgumentsRules():
             :py:class:`psyclone.domain.lfric.kernel.OperatorArgMetadata`
 
         '''
+        cls._index += 1
 
     @classmethod
     def _cma_operator(cls, meta_arg):
@@ -182,6 +192,7 @@ class MetadataToArgumentsRules():
             ColumnwiseOperatorArgMetadata`
 
         '''
+        cls._index += 1
 
     @classmethod
     def _ref_element_properties(cls, meta_ref_element):
@@ -194,6 +205,7 @@ class MetadataToArgumentsRules():
             :py:class:`psyclone.domain.lfric.kernel.MetaRefElementArgMetadata`]
 
         '''
+        cls._index += 1
 
     @classmethod
     def _mesh_properties(cls, meta_mesh):
@@ -206,6 +218,7 @@ class MetadataToArgumentsRules():
             :py:class:`psyclone.domain.lfric.kernel.MetaMeshArgMetadata`]
 
         '''
+        cls._index += 1
 
     @classmethod
     def _fs_common(cls, function_space):
@@ -215,6 +228,7 @@ class MetadataToArgumentsRules():
         :param str function_space: the current function space.
 
         '''
+        cls._index += 1
 
     @classmethod
     def _fs_compulsory_field(cls, function_space):
@@ -223,6 +237,7 @@ class MetadataToArgumentsRules():
         :param str function_space: the current function space.
 
         '''
+        cls._index += 2
 
     @classmethod
     def _fs_intergrid(cls, meta_arg):
@@ -234,6 +249,7 @@ class MetadataToArgumentsRules():
         :py:class:`psyclone.domain.lfric.kernel.InterGridArgMetadata`
 
         '''
+        cls._index += 1
 
     @classmethod
     def _basis(cls, function_space):
@@ -243,6 +259,7 @@ class MetadataToArgumentsRules():
         :param str function_space: the current function space.
 
         '''
+        cls._index += 1
 
     @classmethod
     def _diff_basis(cls, function_space):
@@ -252,6 +269,7 @@ class MetadataToArgumentsRules():
         :param str function_space: the current function space.
 
         '''
+        cls._index += 1
 
     @classmethod
     def _quad_rule(cls, shapes):
@@ -264,14 +282,17 @@ class MetadataToArgumentsRules():
         :type shapes: List[str]
 
         '''
+        cls._index += 1
 
     @classmethod
     def _field_bcs_kernel(cls):
         '''Fix for the field boundary condition kernel.'''
+        cls._index += 1
 
     @classmethod
     def _operator_bcs_kernel(cls):
         '''Fix for the operator boundary condition kernel.'''
+        cls._index += 1
 
     @classmethod
     def _stencil_cross2d_extent(cls, meta_arg):
@@ -285,6 +306,7 @@ class MetadataToArgumentsRules():
             :py:class:`psyclone.domain.lfric.kernel.FieldArgMetadata`
 
         '''
+        cls._index += 1
 
     @classmethod
     def _stencil_cross2d_max_extent(cls, meta_arg):
@@ -298,6 +320,7 @@ class MetadataToArgumentsRules():
             :py:class:`psyclone.domain.lfric.kernel.FieldArgMetadata`
 
         '''
+        cls._index += 1
 
     @classmethod
     def _stencil_extent(cls, meta_arg):
@@ -311,6 +334,7 @@ class MetadataToArgumentsRules():
             :py:class:`psyclone.domain.lfric.kernel.FieldArgMetadata`
 
         '''
+        cls._index += 1
 
     @classmethod
     def _stencil_xory1d_direction(cls, meta_arg):
@@ -324,6 +348,7 @@ class MetadataToArgumentsRules():
             :py:class:`psyclone.domain.lfric.kernel.FieldArgMetadata`
 
         '''
+        cls._index += 1
 
     @classmethod
     def _stencil_cross2d(cls, meta_arg):
@@ -336,6 +361,7 @@ class MetadataToArgumentsRules():
             :py:class:`psyclone.domain.lfric.kernel.FieldArgMetadata`
 
         '''
+        cls._index += 1
 
     @classmethod
     def _stencil(cls, meta_arg):
@@ -348,6 +374,7 @@ class MetadataToArgumentsRules():
             :py:class:`psyclone.domain.lfric.kernel.FieldArgMetadata`
 
         '''
+        cls._index += 1
 
     @classmethod
     def _banded_dofmap(cls, function_space, cma_operator):
@@ -362,6 +389,7 @@ class MetadataToArgumentsRules():
             ColumnwiseOperatorArgMetadata`
 
         '''
+        cls._index += 1
 
     @classmethod
     def _indirection_dofmap(cls, function_space, cma_operator):
@@ -376,6 +404,7 @@ class MetadataToArgumentsRules():
             ColumnwiseOperatorArgMetadata`
 
         '''
+        cls._index += 1
 
     # pylint: disable=too-many-branches
     # pylint: disable=too-many-statements
