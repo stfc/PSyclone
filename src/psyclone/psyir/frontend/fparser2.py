@@ -2781,34 +2781,33 @@ class Fparser2Reader():
         # Construct a mapping from associate-name to the corresponding
         # PSyIR expression.
         associate_map = {}
+        associate_typemap = {}
         # The temporary Symbols we create, one for each associate name.
-        associate_symbols = []
+        # associate_symbols = []
         # To ensure correct processing, we treat each Association as an
         # assignment: associate-name = <PSyIR expression>. This also enables
         # straightforward analysis of the expressions to determine which
         # Symbols are read.
         assigns = []
+        all_types_known = True
         for assoc in assoc_list:
             name = assoc.children[0].string
             # Add the associate-name as a Symbol to the local table so that
             # the code inside the construct can be processed as usual.
-            associate_symbols.append(table.new_symbol(name))
+            sym = table.new_symbol(name)
             # Create an Assignment node for this Association.
             assigns.append(Assignment(parent=fake_sched))
-            assigns[-1].addchild(Reference(associate_symbols[-1]))
+            assigns[-1].addchild(Reference(sym))
             self.process_nodes(parent=assigns[-1], nodes=[assoc.children[2]])
+            fake_sched.addchild(assigns[-1])
             # Add the name and PSyIR expression to the map.
             associate_map[name] = assigns[-1].rhs
-
-        # In an ASSOCIATE construct, the values associated with the associate
-        # names are computed on entry to the construct and are *not* updated.
-        # Since we are substituting the associate names with the corresponding
-        # expression we must check that none of the References read by that
-        # expression are written to within the construct (otherwise we may
-        # be changing the semantics).
-        rw_info = ReadWriteInfo()
-        self._dttools.get_input_parameters(rw_info, node_list=assigns)
-        assoc_inputs = set(rw_info.signatures_read)
+            dtype = associate_map[name].datatype
+            associate_typemap[name] = dtype
+            if isinstance(dtype, (DeferredType, UnknownFortranType)):
+                all_types_known = False
+            else:
+                sym.specialise(DataSymbol, datatype=dtype)
 
         # Now proceed to process the body of the Construct as usual, ensuring
         # that we skip the ASSOCIATE and END ASSOCIATE nodes.
@@ -2822,6 +2821,40 @@ class Fparser2Reader():
         self._dttools.get_output_parameters(rw_info2,
                                             node_list=fake_sched.children)
         block_writes = set(rw_info2.signatures_written)
+        assoc_name_written = any(sig[0] in associate_map for
+                                 sig in block_writes)
+
+        if not assoc_name_written and all_types_known:
+            # We can create local temporaries to hold the values of the
+            # expressions as long as the associate names are only ever read.
+            parent.scope.symbol_table.merge(table)
+        else:
+            # We don't know the type of one or more expressions so we have to
+            # just try substituting.
+            # First remove the assignments we created previously.
+            for child in fake_sched.children[:]:
+                if child in assigns:
+                    child.detach()
+            # Then attempt the substitutions.
+            self._substitute_expressions(block_writes, assigns,
+                                         fake_sched, associate_map)
+
+        # Move all the new nodes from our fake schedule and add them to
+        # the actual parent node.
+        parent.children.extend(fake_sched.pop_all_children())
+
+    def _substitute_expressions(self, block_writes, assigns,
+                                fake_sched, associate_map):
+        # In an ASSOCIATE construct, the values associated with the associate
+        # names are computed on entry to the construct and are *not* updated.
+        # Since we are substituting the associate names with the corresponding
+        # expression we must check that none of the References read by that
+        # expression are written to within the construct (otherwise we may
+        # be changing the semantics).
+        rw_info = ReadWriteInfo()
+        self._dttools.get_input_parameters(rw_info, node_list=assigns)
+        assoc_inputs = set(rw_info.signatures_read)
+
         intersect = assoc_inputs.intersection(block_writes)
         if intersect:
             raise NotImplementedError(
@@ -2835,9 +2868,7 @@ class Fparser2Reader():
         cblocks_or_calls = fake_sched.walk((CodeBlock, Call))
         if cblocks_or_calls:
             for cnode in cblocks_or_calls:
-                if isinstance(cnode, Call):
-                    # TODO #2165 - requires #2119 in order to check purity. We
-                    # could permit calls to pure functions.
+                if isinstance(cnode, Call) and not cnode.is_pure:
                     raise NotImplementedError(
                         f"Cannot handle ASSOCIATE block containing a Call: "
                         f"{cnode.debug_string}")
@@ -2855,10 +2886,6 @@ class Fparser2Reader():
             all_refs = child.walk(Reference)
             for ref in all_refs[:]:
                 self._sub_tool.replace_reference(ref, associate_map)
-
-        # Move all the new nodes from our fake schedule and add them to
-        # the actual parent node.
-        parent.children.extend(fake_sched.pop_all_children())
 
     def _create_loop(self, parent, variable):
         '''
