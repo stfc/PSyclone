@@ -46,12 +46,14 @@ PSYROOT=../../..
 include $(PSYROOT)/examples/common.mk
 
 GENERATED_FILES = *.o *.mod $(EXEC) main_alg.f90 main_psy.f90 \
-                  other_alg_mod_psy.f90 other_alg_mod_alg.f90 testkern_w0_kernel_?_mod.f90
+                  other_alg_mod_psy.f90 other_alg_mod_alg.f90 \
+                  testkern_w0_kernel_?_mod.f90
 
 F90 ?= gfortran
 F90FLAGS ?= -Wall -g
 
-OBJ = main_psy.o main_alg.o other_alg_mod_psy.o other_alg_mod_alg.o testkern_w0_kernel_0_mod.o
+OBJ = main_psy.o main_alg.o other_alg_mod_psy.o other_alg_mod_alg.o \
+      testkern_w0_kernel_0_mod.o
 
 EXEC = example_openacc
 
@@ -70,19 +72,18 @@ PROFILE_PATH=$(PSYROOT)/lib/profiling/nvidia
 # will create 'testkern_..._1_mod.f90' so remove it first.
 transform:
 	rm -f testkern_w0_kernel_0_mod.f90
-	${PSYCLONE} -dm -s ./acc_parallel_dm.py  --profile invokes \
-	-opsy main_psy.f90 -oalg main_alg.f90 main.x90
-	${PSYCLONE} -dm -s ./acc_parallel_dm.py --profile invokes \
-	-opsy other_alg_mod_psy.f90 -oalg other_alg_mod_alg.f90 other_alg_mod.x90
+	${MAKE} main_psy.f90
+	${MAKE} other_alg_mod_psy.f90
 
+# Instruct PSyclone to automatically put profiling calipers around every
+# invoke.
 %_psy.f90: %.x90
-	${PSYCLONE} -s ./acc_parallel_dm.py  --profile invokes \
+	${PSYCLONE} -dm -s ./acc_parallel_dm.py  --profile invokes \
 	-opsy $*_psy.f90 -oalg $*_alg.f90 $<
 
 testkern_w0_kernel_0_mod.f90: main_psy.f90
 
-compile: transform ${LFRIC_LIB} ${OBJ}
-	${F90} ${F90FLAGS} $(LFRIC_INCLUDE_FLAGS) $(OBJ) -o $(EXEC) -L$(LFRIC_PATH) -l$(LFRIC_NAME) -L${PROFILE_PATH} -lnvtx_prof -lnvToolsExt
+compile: transform ${EXEC}
 
 $(LFRIC_LIB):
 	$(MAKE) -C $(LFRIC_PATH)
@@ -91,7 +92,7 @@ run: compile
 	./$(EXEC)
 
 $(EXEC): $(LFRIC_LIB) $(OBJ)
-	$(F90) $(F90FLAGS) $(OBJ) -o $(EXEC) -L$(LFRIC_PATH) -l$(LFRIC_NAME) -L${PROFILE_PATH} -lnvtx_prof -lnvToolsExt
+	$(F90) $(F90FLAGS) $(LFRIC_INCLUDE_FLAGS) $(OBJ) -o $(EXEC) -L$(LFRIC_PATH) -l$(LFRIC_NAME) -L${PROFILE_PATH} -lnvtx_prof -lnvToolsExt
 
 $(LFRIC_LIB):
 	$(MAKE) -C $(LFRIC_PATH)
