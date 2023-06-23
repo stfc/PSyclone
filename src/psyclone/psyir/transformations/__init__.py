@@ -78,6 +78,8 @@ from psyclone.psyir.transformations.loop_tiling_2d_trans \
     import LoopTiling2DTrans
 from psyclone.psyir.transformations.loop_trans import LoopTrans
 from psyclone.psyir.transformations.nan_test_trans import NanTestTrans
+from psyclone.psyir.transformations.omp_canonical_loop_trans import \
+    OMPCanonicalLoopTrans
 from psyclone.psyir.transformations.omp_loop_trans import OMPLoopTrans
 from psyclone.psyir.transformations.omp_target_trans import OMPTargetTrans
 from psyclone.psyir.transformations.omp_taskwait_trans import OMPTaskwaitTrans
@@ -116,6 +118,7 @@ __all__ = ['ACCUpdateTrans',
            'LoopTiling2DTrans',
            'LoopTrans',
            'NanTestTrans',
+           'OMPCanonicalLoopTrans',
            'OMPLoopTrans',
            'OMPTaskwaitTrans',
            'OMPTargetTrans',

@@ -66,6 +66,8 @@ from psyclone.psyir.nodes import ACCDataDirective, ACCDirective, \
 from psyclone.psyir.symbols import ArgumentInterface, DataSymbol, \
     DeferredType, INTEGER_TYPE, ScalarType, Symbol, SymbolError
 from psyclone.psyir.transformations.loop_trans import LoopTrans
+from psyclone.psyir.transformations.omp_canonical_loop_trans import \
+    OMPCanonicalLoopTrans
 from psyclone.psyir.transformations.omp_loop_trans import OMPLoopTrans
 from psyclone.psyir.transformations.parallel_loop_trans import \
     ParallelLoopTrans
@@ -101,7 +103,7 @@ def check_intergrid(node):
                 f" is such a kernel.")
 
 
-class OMPTaskloopTrans(ParallelLoopTrans):
+class OMPTaskloopTrans(OMPCanonicalLoopTrans):
     '''
     Adds an OpenMP taskloop directive to a loop. Only one of grainsize or
     num_tasks must be specified.
