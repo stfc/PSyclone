@@ -33,30 +33,20 @@
 # -----------------------------------------------------------------------------
 # Author: R. W. Ford, STFC Daresbury Lab
 
-'''This module implements a class that returns the number of arguments
-expected in a kernel as specified by the kernel metadata.
+'''This module implements tests for the NumKernelArgs class which
+returns the number of kernel earguments as specified by the kernel
+metadata.
 
 '''
-from psyclone.domain.lfric.metadata_to_arguments_rules import \
-    MetadataToArgumentsRules
+from psyclone.domain.lfric import NumKernelArgs
+from psyclone.domain.lfric.kernel import FieldArgMetadata, LFRicKernelMetadata
 
 
-class NumKernelArgs(MetadataToArgumentsRules):
-    '''Returns the number of arguments expected in a kernel as specified
-    by the kernel metadata.
-
-    '''
-    # pylint: disable=arguments-differ
-    # pylint: disable=too-few-public-methods
-
-    @classmethod
-    def mapping(cls, metadata):
-        '''Call the parent mapping method then return the number of arguments.
-
-        :param metadata: the kernel metadata.
-        :type metadata: \
-            py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
-
-        '''
-        _ = super().mapping(cls, metadata)
-        return cls._index
+def test_num_kernel_args():
+    '''Test that the NumKernelArgs class works as expected.'''
+    meta_args = [
+        FieldArgMetadata("GH_REAL", "GH_INC", "W0")]
+    metadata = LFRicKernelMetadata(
+        operates_on="cell_column", meta_args=meta_args)
+    metadata.validate()
+    assert NumKernelArgs.mapping(metadata) == 5
