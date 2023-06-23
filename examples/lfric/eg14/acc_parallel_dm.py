@@ -40,9 +40,10 @@ are also transformed through the addition of an OpenACC Routine directive.
 The psyclone script can apply this transformation script via its -s option.
 
 '''
+from psyclone.domain.lfric import LFRicConstants
 from psyclone.psyGen import CodedKern
 from psyclone.transformations import ACCEnterDataTrans, ACCParallelTrans, \
-    ACCKernelsTrans, ACCLoopTrans, ACCRoutineTrans
+    ACCKernelsTrans, ACCLoopTrans, ACCRoutineTrans, Dynamo0p3ColourTrans
 
 
 def trans(psy):
@@ -51,8 +52,11 @@ def trans(psy):
     transformed through the addition of a routine directive.
 
     '''
-    loop_trans = ACCLoopTrans()
-    parallel_trans = ACCParallelTrans()
+    const = LFRicConstants()
+
+    ctrans = Dynamo0p3ColourTrans()
+    # loop_trans = ACCLoopTrans()
+    # parallel_trans = ACCParallelTrans()
     enter_data_trans = ACCEnterDataTrans()
     kernel_trans = ACCKernelsTrans()
     rtrans = ACCRoutineTrans()
@@ -62,11 +66,20 @@ def trans(psy):
 
         print("Transforming invoke '"+invoke.name+"'...")
         schedule = invoke.schedule
+
+        # Colour loops over cells unless they are on discontinuous
+        # spaces or over dofs
         for loop in schedule.loops():
-            kernel_trans.apply(loop)
-            # The loop is now the child of the Directive's Schedule
-            #parallel_trans.apply(loop.parent.parent)
-        #enter_data_trans.apply(schedule)
+            if loop.iteration_space == "cell_column":
+                if (loop.field_space.orig_name not in
+                        const.VALID_DISCONTINUOUS_NAMES):
+                    ctrans.apply(loop)
+
+        for loop in schedule.loops():
+            if loop.loop_type not in ["colours", "null"]:
+                kernel_trans.apply(loop)
+
+        enter_data_trans.apply(schedule)
 
         # We transform every user-supplied kernel using ACCRoutineTrans. This
         # adds '!$acc routine' which ensures the kernel is compiled for the
