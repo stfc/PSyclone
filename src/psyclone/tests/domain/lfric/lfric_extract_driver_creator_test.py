@@ -660,6 +660,41 @@ def test_lfric_driver_external_symbols():
 
 # ----------------------------------------------------------------------------
 @pytest.mark.usefixtures("change_into_tmpdir", "init_module_manager")
+def test_lfric_driver_external_symbols_name_clash():
+    '''Test the handling of symbols imported from other modules, or calls to
+    external functions that use module variables. In this example the external
+    module uses a variable with the same name as the user code, which causes
+    a name clash.
+
+    '''
+    _, invoke = get_invoke("driver_creation/invoke_kernel_with_imported_"
+                           "symbols.f90", API, dist_mem=False, idx=1)
+
+    extract = LFRicExtractTrans()
+    extract.apply(invoke.schedule.children[0],
+                  options={"create_driver": True,
+                           "region_name": ("import", "test")})
+    code = str(invoke.gen())
+
+    # Make sure the imported, clashing symbol 'f1' is renamed:
+    assert "USE module_with_name_clash_mod, ONLY: f1_1=>f1" in code
+    assert ('CALL extract_psy_data%PreDeclareVariable("f1@'
+            'module_with_name_clash_mod", f1_1)' in code)
+    assert ('CALL extract_psy_data%ProvideVariable("f1@'
+            'module_with_name_clash_mod", f1_1)' in code)
+
+    # Even though PSyclone cannot find the variable, it should still be
+    # extracted:
+
+    filename = "driver-import-test.F90"
+    with open(filename, "r", encoding='utf-8') as my_file:
+        driver = my_file.read()
+
+    # print("DRIVER", driver)
+
+
+# ----------------------------------------------------------------------------
+@pytest.mark.usefixtures("change_into_tmpdir", "init_module_manager")
 def test_lfric_driver_external_symbols_error(capsys):
     '''Test the handling of symbols imported from other modules, or calls to
     external functions that use module variables. In this example, the

@@ -48,6 +48,7 @@ from fparser.two import Fortran2003
 from fparser.two.parser import ParserFactory
 
 from psyclone.configuration import Config
+from psyclone.core import Signature
 from psyclone.errors import InternalError, GenerationError
 from psyclone.f2pygen import CallGen, TypeDeclGen, UseGen
 from psyclone.psyir.nodes.codeblock import CodeBlock
@@ -473,6 +474,38 @@ class PSyDataNode(Statement):
         parent.add(call)
 
     # -------------------------------------------------------------------------
+    def _create_unique_names(self, var_list, symbol_table):
+        '''This function takes a list of (module_name, signature) tuple, and
+        for any name that is already in the symbol table (i.e. creating a
+        name clash), creates a new, unique symbol and adds it to the symbol
+        table. It returns a list of three-element entries: module name
+        original_signature, unique_signature. The unique signature and
+        original signature are identical if the original name was not in the
+        symbol table.
+
+        :param var_list: the variable information list.
+        :type var_list: List[Tuple[str, :py:class:`psyclone.core.Signature`]]
+
+        :returns: a new list which has a unique signature name added.
+        :rtype: List[Tuple[str, :py:class:`psyclone.core.Signature`,
+            :py:class:`psyclone.core.Signature`]]
+
+        '''
+        out_list = []
+        for (module_name, signature) in var_list:
+            if module_name:
+                var_symbol = \
+                    symbol_table.find_or_create_tag(tag=f"{signature[0]}"
+                                                        f"@{module_name}",
+                                                    root_name=signature[0])
+                unique_sig = Signature(var_symbol.name, signature[1:])
+            else:
+                # This is a local variable anyway, no need to rename:
+                unique_sig = signature
+            out_list.append((module_name, signature, unique_sig))
+        return out_list
+
+    # -------------------------------------------------------------------------
     def gen_code(self, parent, options=None):
         # pylint: disable=arguments-differ, too-many-branches
         # pylint: disable=too-many-statements
@@ -540,14 +573,31 @@ class PSyDataNode(Statement):
         if not options:
             options = {}
 
-        pre_variable_list = options.get("pre_var_list", [])
-        post_variable_list = options.get("post_var_list", [])
+        # Get the list of variables, and handle name clashes: an imported
+        # symbol might be the same as a local variable. Convert the lists
+        # of 2-tuples (module_name, signature) to a list of 3-tuples
+        # (module_name, signature, unique_signature):
+
+        symbol_table = self.scope.symbol_table
+        pre_variable_list = \
+            self._create_unique_names(options.get("pre_var_list", []),
+                                      symbol_table)
+        post_variable_list = \
+            self._create_unique_names(options.get("post_var_list", []),
+                                      symbol_table)
+
         pre_suffix = options.get("pre_var_postfix", "")
         post_suffix = options.get("post_var_postfix", "")
-        for module_name, signature in pre_variable_list + post_variable_list:
+        for module_name, signature, unique_signature in (pre_variable_list +
+                                                         post_variable_list):
             if module_name:
-                use = UseGen(parent, module_name, only=True,
-                             funcnames=[str(signature)])
+                if unique_signature != signature:
+                    rename = f"{unique_signature[0]}=>{signature[0]}"
+                    use = UseGen(parent, module_name, only=True,
+                                 funcnames=[rename])
+                else:
+                    use = UseGen(parent, module_name, only=True,
+                                 funcnames=[unique_signature[0]])
                 parent.add(use)
 
         # Note that adding a use statement makes sure it is only
@@ -586,27 +636,27 @@ class PSyDataNode(Statement):
         # values of a variable "A" as "A" in the pre-variable list,
         # and store the modified value of "A" later as "A_post".
         if has_var:
-            for module_name, var_name in pre_variable_list:
+            for module_name, sig, unique_sig in pre_variable_list:
                 if module_name:
                     module_name = f"@{module_name}"
                 self._add_call("PreDeclareVariable", parent,
-                               [f"\"{var_name}{module_name}{pre_suffix}\"",
-                                var_name])
-            for module_name, var_name in post_variable_list:
+                               [f"\"{sig}{module_name}{pre_suffix}\"",
+                                unique_sig])
+            for module_name, sig, unique_sig in post_variable_list:
                 if module_name:
                     module_name = f"@{module_name}"
                 self._add_call("PreDeclareVariable", parent,
-                               [f"\"{var_name}{post_suffix}{module_name}\"",
-                                var_name])
+                               [f"\"{sig}{post_suffix}{module_name}\"",
+                                unique_sig])
 
             self._add_call("PreEndDeclaration", parent)
 
-            for module_name, var_name in pre_variable_list:
+            for module_name, sig, unique_sig in pre_variable_list:
                 if module_name:
                     module_name = f"@{module_name}"
                 self._add_call("ProvideVariable", parent,
-                               [f"\"{var_name}{module_name}{pre_suffix}\"",
-                                var_name])
+                               [f"\"{sig}{module_name}{pre_suffix}\"",
+                                unique_sig])
 
             self._add_call("PreEnd", parent)
 
@@ -616,12 +666,12 @@ class PSyDataNode(Statement):
         if has_var:
             # Only add PostStart() if there is at least one variable.
             self._add_call("PostStart", parent)
-            for module_name, var_name in post_variable_list:
+            for module_name, sig, unique_sig in post_variable_list:
                 if module_name:
                     module_name = f"@{module_name}"
                 self._add_call("ProvideVariable", parent,
-                               [f"\"{var_name}{post_suffix}{module_name}\"",
-                                var_name])
+                               [f"\"{sig[0]}{post_suffix}{module_name}\"",
+                                unique_sig[0]])
 
         self._add_call("PostEnd", parent)
 
