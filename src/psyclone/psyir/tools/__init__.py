@@ -38,8 +38,10 @@
 
 from psyclone.psyir.tools.dependency_tools import DTCode, DependencyTools
 from psyclone.psyir.tools.read_write_info import ReadWriteInfo
+from psyclone.psyir.tools.substitution_tool import SubstitutionTool
 
 # For AutoAPI documentation generation.
 __all__ = ['DTCode',
            'DependencyTools',
-           'ReadWriteInfo']
+           'ReadWriteInfo',
+           'SubstitutionTool']

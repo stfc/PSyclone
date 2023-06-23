@@ -47,7 +47,6 @@ from psyclone.core import (AccessType, SymbolicMaths,
                            VariablesAccessInfo)
 from psyclone.errors import InternalError, LazyString
 from psyclone.psyir.nodes import Loop
-from psyclone.psyir.backend.sympy_writer import SymPyWriter
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.tools.read_write_info import ReadWriteInfo
 
@@ -370,6 +369,10 @@ class DependencyTools():
         # pylint: disable=too-many-return-statements
         sym_maths = SymbolicMaths.get()
         try:
+            # This import is here to avoid circular dependencies between
+            # this module and the psyir backends.
+            # pylint: disable=import-outside-toplevel
+            from psyclone.psyir.backend.sympy_writer import SymPyWriter
             sympy_expressions, symbol_map = SymPyWriter.\
                 get_sympy_expressions_and_symbol_map([index_read,
                                                      index_written])
