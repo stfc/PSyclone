@@ -662,13 +662,13 @@ def test_lfric_driver_external_symbols():
 @pytest.mark.usefixtures("change_into_tmpdir", "init_module_manager")
 def test_lfric_driver_external_symbols_error(capsys):
     '''Test the handling of symbols imported from other modules, or calls to
-    external functions that use module variables. In this example the
+    external functions that use module variables. In this example, the
     external module cannot be parsed by fparser (it contains syntax errors),
-    resulting in externa functions and variables that cannot be found.
+    resulting in external functions and variables that cannot be found.
 
     '''
     _, invoke = get_invoke("driver_creation/invoke_kernel_with_imported_"
-                           "symbols.f90", API, dist_mem=False, idx=1)
+                           "symbols_error.f90", API, dist_mem=False, idx=0)
 
     extract = LFRicExtractTrans()
     extract.apply(invoke.schedule.children[0],

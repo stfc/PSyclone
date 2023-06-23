@@ -38,15 +38,13 @@ program invoke_kernel_with_imported_symbols
   ! Description: single function specified in a named invoke call
   use constants_mod, only: r_def
   use field_mod,     only: field_type
-  use testkern_import_symbols_mod,  only: testkern_import_symbols_type
-  use testkern_import_symbols_name_clash_mod,  only: testkern_import_symbols_name_clash_type
+  use testkern_import_symbols_error_mod,  only: testkern_import_symbols_error_type
 
   implicit none
 
   type(field_type) :: f1, f2, m1, m2
   real(r_def)      :: a
 
-  call invoke(testkern_import_symbols_type(a, f1, f2, m1, m2))
-  call invoke(testkern_import_symbols_name_clash_type(a, f1, f2, m1, m2))
+  call invoke(testkern_import_symbols_error_type(a, f1, f2, m1, m2))
 
 end program invoke_kernel_with_imported_symbols
