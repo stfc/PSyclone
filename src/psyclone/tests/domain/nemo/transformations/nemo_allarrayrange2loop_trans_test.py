@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2022, Science and Technology Facilities Council.
+# Copyright (c) 2020-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -157,6 +157,42 @@ def test_apply_with_structures(fortran_reader, fortran_writer):
     assert ("ptab(jf)%pt2d(jpi,idx_1,idx) = "
             "ptab(jf)%pt2d(jpim1,idx_1,idx)") in result
 
+def test_apply_option_verbose(fortran_reader, capsys):
+    '''Check that the transformation with the verbose option provides more
+    information about why the last attempt to convert the array range into
+    a loop was not successful.
+
+    '''
+    trans = NemoAllArrayRange2LoopTrans()
+
+    psyir = fortran_reader.psyir_from_source('''
+    subroutine test
+        use my_variables
+        integer, parameter :: constant = 3
+        integer :: jk, a, b
+        integer, dimension(3) :: array
+        a = b
+        array(:) = my_func()
+    end subroutine test
+    ''')
+
+    # Basic cases like assignment 1 are skipped
+    assignment = psyir.walk(Assignment)[0]
+    trans.apply(assignment, options={'verbose': True})
+    out, _ = capsys.readouterr()
+    assert out == ""
+
+    # Other cases like assignment 2 are printed to stdout because they are due
+    # to PSyclone limitations, in this case my_func is a codeblock because
+    # currently the Fortran reader only generate functions if it can see its
+    # declaration.
+    assignment = psyir.walk(Assignment)[1]
+    trans.apply(assignment, options={'verbose': True})
+    out, _ = capsys.readouterr()
+    assert ("Error in NemoArrayRange2LoopTrans transformation. This "
+            "transformation does not support array assignments that contain "
+            "a CodeBlock anywhere in the expression, but found:\n"
+            "array(:) = my_func()" in out)
 
 def test_apply_calls_validate():
     '''Check that the apply() method calls the validate method.'''
