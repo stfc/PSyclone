@@ -36,9 +36,10 @@
 ''' Utilities file to parallelise Nemo code. '''
 
 from psyclone.psyir.nodes import Loop, Assignment, Directive, Container, \
-    Reference, CodeBlock, Call, Return, IfBlock, Routine
+    Reference, CodeBlock, Call, Return, IfBlock, Routine, BinaryOperation, \
+    IntrinsicCall
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, REAL_TYPE, \
-    ArrayType
+    ArrayType, ScalarType, RoutineSymbol, ImportInterface
 from psyclone.psyir.transformations import HoistLoopBoundExprTrans, \
     HoistTrans, ProfileTrans, HoistLocalArraysTrans, Reference2ArrayRangeTrans
 from psyclone.domain.nemo.transformations import NemoAllArrayRange2LoopTrans
@@ -55,7 +56,29 @@ PROFILING_IGNORE = ["_init", "_rst", "alloc", "agrif", "flo_dom",
                     "interp1", "interp2", "interp3", "integ_spline", "sbc_dcy",
                     "sum", "sign_", "ddpdd"]
 
+# From: https://docs.nvidia.com/hpc-sdk/compilers/hpc-compilers-user-guide/
+# index.html#acc-fort-intrin-sum
+NVIDIA_GPU_SUPPORTED_INTRINSICS = [
+    IntrinsicCall.Intrinsic.SUM,
+]
+
 VERBOSE = False
+
+
+def _it_should_be(symbol, of_type, instance):
+    ''' Make sure that symbol has the datatype as provided.
+
+    :param symbol: the symbol to check.
+    :type symbol: :py:class:`psyclone.psyir.symbol.Symbol`
+    :param type of_type: the datatype type that it must be.
+    :param instance: the instance of Datatype to assign as the symbol datatype.
+    :type instance: :py:class:`psyclone.psyir.symbol.DataType`
+
+    '''
+    if not isinstance(symbol, DataSymbol):
+        symbol.specialise(DataSymbol, datatype=instance)
+    elif not isinstance(symbol.datatype, of_type):
+        symbol.datatype = instance
 
 
 def enhance_tree_information(schedule):
@@ -68,44 +91,45 @@ def enhance_tree_information(schedule):
 
     mod_sym_tab = schedule.ancestor(Container).symbol_table
 
-    if "oce" in mod_sym_tab:
-        oce_symbol = mod_sym_tab.lookup("oce")
-        mod_sym_tab.resolve_imports(container_symbols=[oce_symbol])
+    modules_to_import = ("oce", "par_oce", "dom_oce", "phycst", "ice",
+                         "obs_fbm", "flo_oce", "sbc_ice", "wet_dry")
 
-    if "par_oce" in mod_sym_tab:
-        par_oce_symbol = mod_sym_tab.lookup("par_oce")
-        mod_sym_tab.resolve_imports(container_symbols=[par_oce_symbol])
+    for module_name in modules_to_import:
+        if module_name in mod_sym_tab:
+            mod_symbol = mod_sym_tab.lookup(module_name)
+            mod_sym_tab.resolve_imports(container_symbols=[mod_symbol])
 
-    if "dom_oce" in mod_sym_tab:
-        dom_oce_symbol = mod_sym_tab.lookup("dom_oce")
-        mod_sym_tab.resolve_imports(container_symbols=[dom_oce_symbol])
-
-    if "phycst" in mod_sym_tab:
-        phycst_symbol = mod_sym_tab.lookup("phycst")
-        mod_sym_tab.resolve_imports(container_symbols=[phycst_symbol])
-
-    if "ice" in mod_sym_tab:
-        ice_symbol = mod_sym_tab.lookup("ice")
-        mod_sym_tab.resolve_imports(container_symbols=[ice_symbol])
+    are_integers = ('jpi', 'jpim1', 'jpj', 'jpjm1', 'jp_tem', 'jp_sal',
+                    'jpkm1', 'jpiglo', 'jpni', 'jpk', 'jpiglo_crs',
+                    'jpmxl_atf', 'jpmxl_ldf', 'jpmxl_zdf', 'jpnij',
+                    'jpts', 'jpvor_bev', 'nleapy', 'nn_ctls', 'jpmxl_npc',
+                    'jpmxl_zdfp', 'npti')
 
     # Manually set the datatype of some integer and real variables that are
     # important for performance
     for reference in schedule.walk(Reference):
-        if reference.symbol.name in ('jpi', 'jpim1', 'jpj', 'jpjm1', 'jp_tem'
-                                     'jp_sal', 'jpkm1'):
-            if not isinstance(reference.symbol, DataSymbol):
-                reference.symbol.specialise(DataSymbol, datatype=INTEGER_TYPE)
-        elif reference.symbol.name in ('rn_avt_rnf', 'rau0'):
-            if not isinstance(reference.symbol, DataSymbol):
-                reference.symbol.specialise(DataSymbol, datatype=REAL_TYPE)
-        elif reference.symbol.name in ('tmask'):
-            if not isinstance(reference.symbol, DataSymbol):
-                reference.symbol.specialise(
-                    DataSymbol,
-                    datatype=ArrayType(REAL_TYPE, [
+        if reference.symbol.name in are_integers:
+            _it_should_be(reference.symbol, ScalarType, INTEGER_TYPE)
+        elif reference.symbol.name in ('rn_avt_rnf', ):
+            _it_should_be(reference.symbol, ScalarType, REAL_TYPE)
+        elif isinstance(reference.symbol.interface, ImportInterface) and \
+                reference.symbol.interface.container_symbol.name == "phycst":
+            # Everything imported from phycst is a REAL
+            _it_should_be(reference.symbol, ScalarType, REAL_TYPE)
+        elif reference.symbol.name == 'tmask':
+            if reference.ancestor(Container).name == "dom_oce":
+                continue  # Do not update the original declaration
+            _it_should_be(reference.symbol, ArrayType, ArrayType(REAL_TYPE, [
                         ArrayType.Extent.ATTRIBUTE,
                         ArrayType.Extent.ATTRIBUTE,
                         ArrayType.Extent.ATTRIBUTE]))
+        elif reference.symbol.name == "sbc_dcy":
+            # The parser gets this wrong, it is a Call not an Array access
+            reference.symbol.specialise(RoutineSymbol)
+            call = Call(reference.symbol)
+            for child in reference.children:
+                call.addchild(child.detach())
+            reference.replace_with(call)
 
 
 def normalise_loops(
@@ -176,7 +200,6 @@ def insert_explicit_loop_parallelism(
         region_directive_trans=None,
         loop_directive_trans=None,
         collapse: bool = True,
-        exclude_calls: bool = True
         ):
     ''' For each loop in the schedule that doesn't already have a Directive
     as an ancestor, attempt to insert the given region and loop directives.
@@ -203,14 +226,71 @@ def insert_explicit_loop_parallelism(
         if loop.ancestor(Directive):
             continue  # Skip if an outer loop is already parallelised
 
-        if exclude_calls and loop.walk((Call, CodeBlock)):
+        opts = {}
+
+        routine_name = loop.ancestor(Routine).invoke.name
+
+        if ('dyn_spg' in routine_name and len(loop.walk(Loop)) > 2):
+            print("Loop not parallelised because its in 'dyn_spg' and "
+                  "its not the inner loop")
+            continue
+        # Skip if it is an array operation loop on an ice routine if along the
+        # third dim or higher or if the loop nests a loop over ice points
+        # (npti) or if the loop and array dims do not match.
+        # In addition, they often nest ice linearised loops (npti)
+        # which we'd rather parallelise
+        if ('ice' in routine_name
+            and isinstance(loop.stop_expr, BinaryOperation)
+            and (loop.stop_expr.operator == BinaryOperation.Operator.UBOUND or
+                 loop.stop_expr.operator == BinaryOperation.Operator.SIZE)
+            and (len(loop.walk(Loop)) > 2
+                 or any([ref.symbol.name in ('npti',)
+                         for lp in loop.loop_body.walk(Loop)
+                         for ref in lp.stop_expr.walk(Reference)])
+                 or (str(len(loop.walk(Loop))) !=
+                     loop.stop_expr.children[1].value))):
+            print("ICE Loop not parallelised for performance reasons")
+            continue
+        # Skip if looping over ice categories, ice or snow layers
+        # as these have only 5, 4, and 1 iterations, respectively
+        if (any([ref.symbol.name in ('jpl', 'nlay_i', 'nlay_s')
+                 for ref in loop.stop_expr.walk(Reference)])):
+            print("Loop not parallelised because stops at 'jpl', 'nlay_i' "
+                  "or 'nlay_s'.")
             continue
 
+        def skip_for_correctness():
+            for call in loop.walk(Call):
+                if not isinstance(call, IntrinsicCall):
+                    print(f"Loop not parallelised because it has a call to "
+                          f"{call.routine.name}")
+                    return True
+                if call.intrinsic not in NVIDIA_GPU_SUPPORTED_INTRINSICS:
+                    print(f"Loop not parallelised because it has a "
+                          f"{call.intrinsic.name}")
+                    return True
+            if loop.walk(CodeBlock):
+                print(f"Loop not parallelised because it has a CodeBlock")
+                return True
+            return False
+
+        # If we see one such ice linearised loop, we assume
+        # calls/codeblocks are not a problem (they are not)
+        if not any([ref.symbol.name in ('npti',)
+                    for ref in loop.stop_expr.walk(Reference)]):
+            if skip_for_correctness():
+                continue
+
+        # pnd_lev requires manual privatisation of ztmp
+        if any([name in routine_name for name in ('tab_', 'pnd_')]):
+            opts = {"force": True}
+
         try:
-            loop_directive_trans.apply(loop)
+            loop_directive_trans.apply(loop, options=opts)
             # Only add the region directive if the loop was successfully
             # parallelised.
-            region_directive_trans.apply(loop.parent.parent)
+            if region_directive_trans:
+                region_directive_trans.apply(loop.parent.parent)
         except TransformationError as err:
             # This loop can not be transformed, proceed to next loop
             print("Loop not parallelised because:", str(err))
