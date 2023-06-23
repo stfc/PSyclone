@@ -276,8 +276,8 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
         reader = FortranReader()
         if api == "dynamo0.3":
             # avoid undeclared builtin errors in PSyIR by adding "use
-            # builtins".
-            builtins_module_name = "builtins"
+            # psyclone_builtins".
+            builtins_module_name = "psyclone_builtins"
             fp2_tree = parse_fp2(filename)
             add_builtins_use(fp2_tree, builtins_module_name)
             psyir = reader.psyir_from_source(str(fp2_tree))
