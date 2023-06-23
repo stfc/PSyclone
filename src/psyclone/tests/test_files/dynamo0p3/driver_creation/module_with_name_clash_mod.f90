@@ -33,13 +33,13 @@
 
 module module_with_name_clash_mod
 
-  integer :: module_var_a, f1
+  integer :: module_var_a, f1, f2
 
 
 contains
 
   subroutine module_function()
-    f1 = f1 + 1
+    f2 = f2 + 1
   end subroutine module_function
 
 

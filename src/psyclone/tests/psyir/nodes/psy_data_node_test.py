@@ -36,18 +36,21 @@
 
 ''' Module containing tests for generating PSyData hooks'''
 
+import os
 import re
 import pytest
 
+from psyclone.domain.lfric.transformations import LFRicExtractTrans
 from psyclone.errors import InternalError, GenerationError
 from psyclone.f2pygen import ModuleGen
 from psyclone.psyir.nodes import PSyDataNode, Schedule, Return, Routine, \
         CodeBlock
+from psyclone.parse import ModuleManager
 from psyclone.psyir.nodes.statement import Statement
-from psyclone.psyir.transformations import PSyDataTrans, TransformationError
 from psyclone.psyir.symbols import ContainerSymbol, ImportInterface, \
     SymbolTable, DataTypeSymbol, DeferredType, DataSymbol, UnknownFortranType
-from psyclone.tests.utilities import get_invoke
+from psyclone.psyir.transformations import PSyDataTrans, TransformationError
+from psyclone.tests.utilities import get_base_path, get_invoke
 
 
 # -----------------------------------------------------------------------------
@@ -516,3 +519,46 @@ def test_psy_data_node_lower_to_language_level_with_options():
 
     for codeblock, string in zip(codeblocks, expected):
         assert string == str(codeblock.ast)
+
+
+# ----------------------------------------------------------------------------
+@pytest.mark.usefixtures("change_into_tmpdir")
+def test_psy_data_node_name_clash():
+    '''Test the handling of symbols imported from other modules, or calls to
+    external functions that use module variables. In this example the external
+    module uses a variable with the same name as the user code, which causes
+    a name clash.
+
+    '''
+    # Make sure we get a clean copy of the module manager:
+    api = "dynamo0.3"
+    infrastructure_path = get_base_path(api)
+    # Define the path to the ReadKernelData module (which contains functions
+    # to read extracted data from a file) relative to the infrastructure path:
+    psyclone_root = os.path.dirname(os.path.dirname(os.path.dirname(
+        os.path.dirname(os.path.dirname(infrastructure_path)))))
+    read_mod_path = os.path.join(psyclone_root, "lib", "extract", "standalone")
+    # Enforce loading of the default ModuleManager
+    ModuleManager._instance = None
+
+    module_manager = ModuleManager.get()
+    module_manager.add_search_path(infrastructure_path)
+    module_manager.add_search_path(read_mod_path)
+
+    _, invoke = get_invoke("driver_creation/invoke_kernel_with_imported_"
+                           "symbols.f90", api, dist_mem=False, idx=1)
+
+    extract = LFRicExtractTrans()
+    extract.apply(invoke.schedule.children[0],
+                  options={"create_driver": True,
+                           "region_name": ("import", "test")})
+    code = str(invoke.gen())
+
+    # Make sure the imported, clashing symbol 'f1' is renamed:
+    assert "USE module_with_name_clash_mod, ONLY: f1_1=>f1" in code
+    assert ('CALL extract_psy_data%PreDeclareVariable("f1@'
+            'module_with_name_clash_mod", f1_1)' in code)
+    assert ('CALL extract_psy_data%ProvideVariable("f1@'
+            'module_with_name_clash_mod", f1_1)' in code)
+
+    ModuleManager._instance = None
