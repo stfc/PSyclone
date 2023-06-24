@@ -116,20 +116,21 @@ def test_gen_indices(fortran_writer):
         BinaryOperation.Operator.ADD, Reference(arg), one)
     array_type = ArrayType(
         INTEGER_TYPE, [Reference(arg), 2, (0, 4), literal, arg_plus_1,
-                       (2, arg_plus_1.copy()), ArrayType.Extent.ATTRIBUTE])
+                       (2, arg_plus_1.copy())])
     assert (fortran_writer.gen_indices(array_type.shape) ==
-            ["arg", "2", "0:4", "4", "arg + 1_4", "2:arg + 1_4", ":"])
+            ["arg", "2", "0:4", "4", "arg + 1_4", "2:arg + 1_4"])
+    bray_type = ArrayType(INTEGER_TYPE, [ArrayType.Extent.ATTRIBUTE,
+                                         ArrayType.Extent.ATTRIBUTE])
+    assert fortran_writer.gen_indices(bray_type.shape) == [":", ":"]
 
 
-def test_gen_indices_error(monkeypatch, fortran_writer):
+def test_gen_indices_error(fortran_writer):
     '''Check the _gen_indices method raises an exception if a symbol shape
     entry is not supported.
 
     '''
-    array_type = ArrayType(INTEGER_TYPE, [10])
-    monkeypatch.setattr(array_type, "_shape", ["invalid"])
     with pytest.raises(NotImplementedError) as excinfo:
-        _ = fortran_writer.gen_indices(array_type.shape)
+        _ = fortran_writer.gen_indices(["invalid"])
     assert "unsupported gen_indices index 'invalid'" in str(excinfo.value)
 
 
@@ -639,29 +640,35 @@ def test_fw_gen_vardecl(fortran_writer):
     assert result == "integer :: dummy1\n"
 
     # Assumed-size array with intent
-    array_type = ArrayType(INTEGER_TYPE, [2, 2, ArrayType.Extent.ATTRIBUTE])
+    array_type = ArrayType(INTEGER_TYPE, [ArrayType.Extent.ATTRIBUTE,
+                                          (2, ArrayType.Extent.ATTRIBUTE),
+                                          ArrayType.Extent.ATTRIBUTE])
     symbol = DataSymbol("dummy2", array_type,
                         interface=ArgumentInterface(
                             ArgumentInterface.Access.READ))
     result = fortran_writer.gen_vardecl(symbol)
-    assert result == "integer, dimension(2,2,:), intent(in) :: dummy2\n"
+    assert result == "integer, dimension(:,2:,:), intent(in) :: dummy2\n"
 
     # Assumed-size array with unknown intent
-    array_type = ArrayType(INTEGER_TYPE, [2, 2, ArrayType.Extent.ATTRIBUTE])
+    array_type = ArrayType(INTEGER_TYPE, [ArrayType.Extent.ATTRIBUTE,
+                                          ArrayType.Extent.ATTRIBUTE,
+                                          ArrayType.Extent.ATTRIBUTE])
     symbol = DataSymbol("dummy2", array_type,
                         interface=ArgumentInterface(
                             ArgumentInterface.Access.UNKNOWN))
     result = fortran_writer.gen_vardecl(symbol)
-    assert result == "integer, dimension(2,2,:) :: dummy2\n"
+    assert result == "integer, dimension(:,:,:) :: dummy2\n"
 
     # Assumed-size array with specified lower bound
     array_type = ArrayType(INTEGER_TYPE,
-                           [2, 2, (-1, ArrayType.Extent.ATTRIBUTE)])
+                           [ArrayType.Extent.ATTRIBUTE,
+                            ArrayType.Extent.ATTRIBUTE,
+                            (-1, ArrayType.Extent.ATTRIBUTE)])
     symbol = DataSymbol("dummy3", array_type,
                         interface=ArgumentInterface(
                             ArgumentInterface.Access.UNKNOWN))
     result = fortran_writer.gen_vardecl(symbol)
-    assert result == "integer, dimension(2,2,-1:) :: dummy3\n"
+    assert result == "integer, dimension(:,:,-1:) :: dummy3\n"
 
     # Allocatable array
     array_type = ArrayType(REAL_TYPE, [ArrayType.Extent.DEFERRED,
@@ -694,34 +701,6 @@ def test_fw_gen_vardecl(fortran_writer):
         _ = fortran_writer.gen_vardecl(symbol)
     assert ("Symbol 'dummy1' has a DeferredType and we can not generate a "
             "declaration for DeferredTypes." in str(excinfo.value))
-
-    # An array with a mixture of deferred and explicit extents
-    array_type = ArrayType(INTEGER_TYPE, [2, ArrayType.Extent.DEFERRED])
-    symbol = DataSymbol("dummy1", array_type)
-    with pytest.raises(VisitorError) as excinfo:
-        _ = fortran_writer.gen_vardecl(symbol)
-    assert ("Fortran declaration of an allocatable array must have the "
-            "extent of every dimension as 'DEFERRED' but symbol 'dummy1' "
-            "has shape: ['2', ':']." in str(excinfo.value))
-
-    # An assumed-size array must have only the extent of its outermost
-    # rank undefined
-    array_type = ArrayType(INTEGER_TYPE, [2, ArrayType.Extent.ATTRIBUTE, 2])
-    symbol = DataSymbol("dummy1", array_type)
-    with pytest.raises(VisitorError) as excinfo:
-        _ = fortran_writer.gen_vardecl(symbol)
-    assert ("assumed-size Fortran array must only have its last dimension "
-            "unspecified (as 'ATTRIBUTE') but symbol 'dummy1' has shape: "
-            "['2', ':', '2']." in str(excinfo.value))
-    # With two dimensions unspecified, even though one is outermost
-    array_type = ArrayType(INTEGER_TYPE, [2, ArrayType.Extent.ATTRIBUTE,
-                                          ArrayType.Extent.ATTRIBUTE])
-    symbol = DataSymbol("dummy1", array_type)
-    with pytest.raises(VisitorError) as excinfo:
-        _ = fortran_writer.gen_vardecl(symbol)
-    assert ("assumed-size Fortran array must only have its last dimension "
-            "unspecified (as 'ATTRIBUTE') but symbol 'dummy1' has shape: "
-            "['2', ':', ':']." in str(excinfo.value))
 
 
 def test_fw_gen_vardecl_visibility(fortran_writer):
@@ -2061,7 +2040,9 @@ def test_fw_intrinsic_call_node(fortran_writer):
 
     for intrinsic_function in [IntrinsicCall.Intrinsic.MINVAL,
                                IntrinsicCall.Intrinsic.MAXVAL,
-                               IntrinsicCall.Intrinsic.SUM]:
+                               IntrinsicCall.Intrinsic.SUM,
+                               IntrinsicCall.Intrinsic.TINY,
+                               IntrinsicCall.Intrinsic.HUGE]:
         intrinsic_call = IntrinsicCall.create(
             intrinsic_function, [Reference(sym)])
         assignment = Assignment.create(Reference(sym), intrinsic_call)

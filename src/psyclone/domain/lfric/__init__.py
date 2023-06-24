@@ -57,10 +57,12 @@ from psyclone.domain.lfric.lfric_extract_driver_creator import \
 from psyclone.domain.lfric.lfric_symbol_table import LFRicSymbolTable
 from psyclone.domain.lfric.lfric_types import LFRicTypes
 from psyclone.domain.lfric.kern_stub_arg_list import KernStubArgList
+from psyclone.domain.lfric.lfric_invoke import LFRicInvoke
 from psyclone.domain.lfric.metadata_to_arguments_rules import \
     MetadataToArgumentsRules
 from psyclone.domain.lfric.arg_index_to_metadata_index import \
     ArgIndexToMetadataIndex
+from psyclone.domain.lfric.lfric_collection import LFRicCollection
 from psyclone.domain.lfric.formal_kernel_args_from_metadata import \
     FormalKernelArgsFromMetadata
 
@@ -74,6 +76,8 @@ __all__ = [
     'KernelInterface',
     'KernStubArgList',
     'LFRicArgDescriptor',
+    'LFRicCollection',
     'LFRicConstants',
     'LFRicExtractDriverCreator',
+    'LFRicInvoke',
     'LFRicSymbolTable']

@@ -43,7 +43,7 @@ from psyclone.psyir.nodes import (
     ArrayReference, Literal, IntrinsicCall, Reference, Schedule)
 from psyclone.psyir.symbols import (
     ArrayType, DataSymbol, INTEGER_TYPE, IntrinsicSymbol, REAL_TYPE,
-    BOOLEAN_TYPE)
+    BOOLEAN_TYPE, CHARACTER_TYPE)
 
 
 def test_intrinsiccall_constructor():
@@ -82,7 +82,15 @@ def test_intrinsiccall_is_elemental():
 
     '''
     intrinsic = IntrinsicCall(IntrinsicCall.Intrinsic.SUM)
-    assert not intrinsic.is_elemental()
+    assert intrinsic.is_elemental is False
+
+
+def test_intrinsiccall_is_pure():
+    '''Tests that the is_pure() method works as expected.'''
+    intrinsic = IntrinsicCall(IntrinsicCall.Intrinsic.SUM)
+    assert intrinsic.is_pure is True
+    intrinsic = IntrinsicCall(IntrinsicCall.Intrinsic.ALLOCATE)
+    assert intrinsic.is_pure is False
 
 
 def test_intrinsiccall_alloc_create():
@@ -93,6 +101,8 @@ def test_intrinsiccall_alloc_create():
                                            [ArrayType.Extent.DEFERRED]))
     bsym = DataSymbol("my_array2", ArrayType(INTEGER_TYPE,
                                              [ArrayType.Extent.DEFERRED]))
+    isym = DataSymbol("ierr", INTEGER_TYPE)
+    csym = DataSymbol("msg", CHARACTER_TYPE)
     # Straightforward allocation of an array.
     alloc = IntrinsicCall.create(
         IntrinsicCall.Intrinsic.ALLOCATE,
@@ -106,6 +116,11 @@ def test_intrinsiccall_alloc_create():
         [Reference(sym), ("Mold", Reference(bsym))])
     assert isinstance(alloc, IntrinsicCall)
     assert alloc.argument_names == [None, "Mold"]
+    alloc = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.ALLOCATE,
+        [Reference(sym), ("Source", Reference(bsym)),
+         ("stat", Reference(isym)), ("errmsg", Reference(csym))])
+    assert alloc.argument_names == [None, "Source", "stat", "errmsg"]
 
 
 def test_intrinsiccall_dealloc_create():
@@ -193,6 +208,33 @@ def test_intrinsiccall_minmaxsum_create(intrinsic_call):
     assert intrinsic.argument_names == [None, "mask", "dim"]
 
 
+@pytest.mark.parametrize("intrinsic_call", [
+    IntrinsicCall.Intrinsic.TINY, IntrinsicCall.Intrinsic.HUGE])
+@pytest.mark.parametrize("form", ["array", "literal"])
+def test_intrinsiccall_tinyhuge_create(intrinsic_call, form):
+    '''Tests for the creation of the different argument options for
+    'tiny' and 'huge' IntrinsicCalls.
+
+    '''
+    if form == "array":
+        array = DataSymbol(
+            "my_array", ArrayType(REAL_TYPE, [ArrayType.Extent.DEFERRED]))
+        arg = Reference(array)
+    else:  # "literal"
+        arg = Literal("1.0", REAL_TYPE)
+    intrinsic = IntrinsicCall.create(
+        intrinsic_call, [arg])
+    assert isinstance(intrinsic, IntrinsicCall)
+    assert intrinsic.intrinsic is intrinsic_call
+    assert isinstance(intrinsic.routine, IntrinsicSymbol)
+    intrinsic_name = intrinsic_call.name
+    assert intrinsic.routine.name == intrinsic_name
+    if form == "array":
+        assert intrinsic.children[0].symbol is array
+    else:  # "literal"
+        assert intrinsic.children[0] is arg
+
+
 def test_intrinsiccall_create_errors():
     '''Checks for the validation/type checking in the create() method.
 
@@ -244,7 +286,8 @@ def test_intrinsiccall_create_errors():
         IntrinsicCall.create(IntrinsicCall.Intrinsic.ALLOCATE,
                              [aref, ("yacht", Reference(sym))])
     assert ("The 'ALLOCATE' intrinsic supports the optional arguments "
-            "['mold', 'stat'] but got 'yacht'" in str(err.value))
+            "['errmsg', 'mold', 'source', 'stat'] but got 'yacht'"
+            in str(err.value))
     # Wrong type for the name of an optional argument.
     with pytest.raises(TypeError) as err:
         IntrinsicCall.create(IntrinsicCall.Intrinsic.ALLOCATE,

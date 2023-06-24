@@ -624,6 +624,15 @@ in the Developer Guide, this means that annexed DoFs are computed
 correctly without the need to iterate into the L1 halo and thus can
 remove the need for halo exchanges on those fields that are read.
 
+Example 19: Mixed Precision
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+This example shows the use of the LFRic :ref:`mixed-precision support
+<lfric-mixed-precision>` to call a kernel with :ref:`scalars
+<lfric-mixed-precision-scalars>`, :ref:`fields <lfric-mixed-precision-fields>`
+and :ref:`operators <lfric-mixed-precision-lma-operators>` of different
+precision.
+
 .. _lfric_alg_gen_example:
 
 Example 20: Algorithm Generation
