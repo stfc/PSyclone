@@ -44,26 +44,8 @@ from psyclone.errors import InternalError
 from psyclone.parse import ModuleManager
 
 
-@pytest.fixture(scope='function', autouse=True)
-def clear_module_manager_instance():
-    ''' The tests in this module all assume that there is no pre-existing
-    ModuleManager object, so this fixture ensures that the module manager
-    instance is deleted before and after each test function. The latter
-    makes sure that any other test executed next will automatically reload
-    the default ModuleManager file.
-    '''
-
-    # Enforce loading of the default ModuleManager
-    ModuleManager._instance = None
-
-    # Now execute all tests
-    yield
-
-    # Enforce loading of the default ModuleManager
-    ModuleManager._instance = None
-
-
 # ----------------------------------------------------------------------------
+@pytest.mark.usefixtures("clear_module_manager_instance")
 def test_mod_manager_instance():
     '''Tests the singleton functionality.'''
     mod_man1 = ModuleManager.get()
@@ -78,6 +60,7 @@ def test_mod_manager_instance():
 
 
 # ----------------------------------------------------------------------------
+@pytest.mark.usefixtures("clear_module_manager_instance")
 def test_mod_manager_get_modules_in_file():
     '''Tests that file names are mapped as expected to the module they
     contain. '''
@@ -90,7 +73,7 @@ def test_mod_manager_get_modules_in_file():
 
 
 # ----------------------------------------------------------------------------
-@pytest.mark.usefixtures("change_into_tmpdir",
+@pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance",
                          "mod_man_test_setup_directories")
 def test_mod_manager_directory_reading():
     '''Tests that directories are read as expected. We use the standard
@@ -132,7 +115,7 @@ def test_mod_manager_directory_reading():
 
 
 # ----------------------------------------------------------------------------
-@pytest.mark.usefixtures("change_into_tmpdir",
+@pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance",
                          "mod_man_test_setup_directories")
 def test_mod_manager_precedence_preprocessed():
     '''Make sure that a .f90 file is preferred over a .F90 file. Note that
@@ -153,7 +136,7 @@ def test_mod_manager_precedence_preprocessed():
 
 
 # ----------------------------------------------------------------------------
-@pytest.mark.usefixtures("change_into_tmpdir",
+@pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance",
                          "mod_man_test_setup_directories")
 def test_mod_manager_add_files_from_dir():
     '''Tests that directories are read as expected. We use the standard
@@ -181,7 +164,7 @@ def test_mod_manager_add_files_from_dir():
 
 
 # ----------------------------------------------------------------------------
-@pytest.mark.usefixtures("change_into_tmpdir",
+@pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance",
                          "mod_man_test_setup_directories")
 def test_mod_manager_get_module_info():
     '''Tests that module information is returned as expected. We use the
@@ -240,7 +223,7 @@ def test_mod_manager_get_module_info():
 
 
 # ----------------------------------------------------------------------------
-@pytest.mark.usefixtures("change_into_tmpdir",
+@pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance",
                          "mod_man_test_setup_directories")
 def test_mod_manager_get_all_dependencies_recursively(capsys):
     '''Tests that dependencies are correctly collected recursively. We use
@@ -287,6 +270,7 @@ def test_mod_manager_get_all_dependencies_recursively(capsys):
 
 
 # ----------------------------------------------------------------------------
+@pytest.mark.usefixtures("clear_module_manager_instance")
 def test_mod_man_sort_modules(capsys):
     '''Tests that sorting of modules works as expected.'''
 
@@ -335,7 +319,7 @@ def test_mod_man_sort_modules(capsys):
 
 
 # ----------------------------------------------------------------------------
-@pytest.mark.usefixtures("change_into_tmpdir",
+@pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance",
                          "mod_man_test_setup_directories")
 def test_mod_manager_ignore_modules():
     '''Tests that ignoring modules work. We use the standard

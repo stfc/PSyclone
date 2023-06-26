@@ -522,7 +522,7 @@ def test_psy_data_node_lower_to_language_level_with_options():
 
 
 # ----------------------------------------------------------------------------
-@pytest.mark.usefixtures("change_into_tmpdir")
+@pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance")
 def test_psy_data_node_name_clash(fortran_writer):
     '''Test the handling of symbols imported from other modules, or calls to
     external functions that use module variables. In this example the external
@@ -538,8 +538,6 @@ def test_psy_data_node_name_clash(fortran_writer):
     psyclone_root = os.path.dirname(os.path.dirname(os.path.dirname(
         os.path.dirname(os.path.dirname(infrastructure_path)))))
     read_mod_path = os.path.join(psyclone_root, "lib", "extract", "standalone")
-    # Enforce loading of the default ModuleManager
-    ModuleManager._instance = None
 
     module_manager = ModuleManager.get()
     module_manager.add_search_path(infrastructure_path)
@@ -596,5 +594,3 @@ def test_psy_data_node_name_clash(fortran_writer):
             'module_with_name_clash_mod", f2_1)' in code)
     assert ('CALL extract_psy_data % ProvideVariable("f2@'
             'module_with_name_clash_mod_post", f2_1)' in code)
-
-    ModuleManager._instance = None

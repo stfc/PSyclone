@@ -45,27 +45,8 @@ from psyclone.psyir.nodes import FileContainer
 from psyclone.tests.utilities import get_base_path
 
 
-@pytest.fixture(scope='function', autouse=True)
-def clear_module_manager_instance():
-    ''' The tests in this module all assume that there is no pre-existing
-    ModuleManager object, so this fixture ensures that the module manager
-    instance is deleted before and after each test function. The latter
-    makes sure that any other test executed next will automatically reload
-    the default ModuleManager file.
-    '''
-
-    # Enforce loading of the default ModuleManager
-    ModuleManager._instance = None
-
-    # Now execute all tests
-    yield
-
-    # Enforce loading of the default ModuleManager
-    ModuleManager._instance = None
-
-
-# ----------------------------------------------------------------------------
-@pytest.mark.usefixtures("change_into_tmpdir",
+# -----------------------------------------------------------------------------
+@pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance",
                          "mod_man_test_setup_directories")
 def test_module_info():
     '''Tests the module info object.'''
@@ -98,8 +79,8 @@ def test_module_info():
     assert isinstance(mod_info._parse_tree, Fortran2003.Program)
 
 
-# ----------------------------------------------------------------------------
-@pytest.mark.usefixtures("change_into_tmpdir",
+# -----------------------------------------------------------------------------
+@pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance",
                          "mod_man_test_setup_directories")
 def test_mod_info_get_used_modules():
     '''Tests that dependencies are reported as expected. We use the standard
@@ -153,8 +134,8 @@ def test_mod_info_get_used_modules():
         assert mod_info.get_used_symbols_from_modules()[module] == set()
 
 
-# ----------------------------------------------------------------------------
-@pytest.mark.usefixtures("change_into_tmpdir",
+# -----------------------------------------------------------------------------
+@pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance",
                          "mod_man_test_setup_directories")
 def test_mod_info_get_used_symbols_from_modules():
     '''Tests that symbols from dependencies are reported as expected. We
@@ -183,8 +164,8 @@ def test_mod_info_get_used_symbols_from_modules():
     assert used_symbols_cached is used_symbols
 
 
-# ----------------------------------------------------------------------------
-@pytest.mark.usefixtures("change_into_tmpdir")
+# -----------------------------------------------------------------------------
+@pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance")
 def test_mod_info_get_psyir():
     '''This tests the handling of PSyIR representation of the module.
     '''
