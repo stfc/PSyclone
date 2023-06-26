@@ -640,14 +640,14 @@ class PSyDataNode(Statement):
                 if module_name:
                     module_name = f"@{module_name}"
                 self._add_call("PreDeclareVariable", parent,
-                               [f"\"{sig[0]}{module_name}{pre_suffix}\"",
-                                unique_sig[0]])
+                               [f"\"{sig}{module_name}{pre_suffix}\"",
+                                unique_sig])
             for module_name, sig, unique_sig in post_variable_list:
                 if module_name:
                     module_name = f"@{module_name}"
                 self._add_call("PreDeclareVariable", parent,
-                               [f"\"{sig[0]}{post_suffix}{module_name}\"",
-                                unique_sig[0]])
+                               [f"\"{sig}{post_suffix}{module_name}\"",
+                                unique_sig])
 
             self._add_call("PreEndDeclaration", parent)
 
@@ -655,8 +655,8 @@ class PSyDataNode(Statement):
                 if module_name:
                     module_name = f"@{module_name}"
                 self._add_call("ProvideVariable", parent,
-                               [f"\"{sig[0]}{module_name}{pre_suffix}\"",
-                                unique_sig[0]])
+                               [f"\"{sig}{module_name}{pre_suffix}\"",
+                                unique_sig])
 
             self._add_call("PreEnd", parent)
 
@@ -670,8 +670,8 @@ class PSyDataNode(Statement):
                 if module_name:
                     module_name = f"@{module_name}"
                 self._add_call("ProvideVariable", parent,
-                               [f"\"{sig[0]}{post_suffix}{module_name}\"",
-                                unique_sig[0]])
+                               [f"\"{sig}{post_suffix}{module_name}\"",
+                                unique_sig])
 
         self._add_call("PostEnd", parent)
 
@@ -820,7 +820,7 @@ class PSyDataNode(Statement):
                     module_name = f"@{module_name}"
                 call = gen_type_bound_call(
                     self._var_name, "PreDeclareVariable",
-                    [f"\"{sig[0]}{module_name}{pre_suffix}\"", unique_sig[0]])
+                    [f"\"{sig}{module_name}{pre_suffix}\"", unique_sig])
                 self.parent.children.insert(self.position, call)
 
             for module_name, sig, unique_sig in post_variable_list:
@@ -828,7 +828,7 @@ class PSyDataNode(Statement):
                     module_name = f"@{module_name}"
                 call = gen_type_bound_call(
                     self._var_name, "PreDeclareVariable",
-                    [f"\"{sig[0]}{module_name}{post_suffix}\"", unique_sig[0]])
+                    [f"\"{sig}{module_name}{post_suffix}\"", unique_sig])
                 self.parent.children.insert(self.position, call)
 
             call = gen_type_bound_call(self._var_name, "PreEndDeclaration")
@@ -839,7 +839,7 @@ class PSyDataNode(Statement):
                     module_name = f"@{module_name}"
                 call = gen_type_bound_call(
                     self._var_name, "ProvideVariable",
-                    [f"\"{sig[0]}{module_name}{pre_suffix}\"", unique_sig[0]])
+                    [f"\"{sig}{module_name}{pre_suffix}\"", unique_sig])
                 self.parent.children.insert(self.position, call)
 
             call = gen_type_bound_call(self._var_name, "PreEnd")
@@ -859,7 +859,7 @@ class PSyDataNode(Statement):
                     module_name = f"@{module_name}"
                 call = gen_type_bound_call(
                     self._var_name, "ProvideVariable",
-                    [f"\"{sig[0]}{module_name}{post_suffix}\"", unique_sig[0]])
+                    [f"\"{sig}{module_name}{post_suffix}\"", unique_sig])
                 self.parent.children.insert(self.position, call)
 
         # PSyData end call
