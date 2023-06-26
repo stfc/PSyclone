@@ -37,10 +37,9 @@
 ''' PSyclone transformation script to insert OpenMP for CPU
 directives into Nemo code. Tested with ECMWF Nemo 4.0 code. '''
 
+from psyclone.transformations import OMPLoopTrans
 from utils import insert_explicit_loop_parallelism, normalise_loops, \
     enhance_tree_information, add_profiling
-from psyclone.psyGen import TransInfo
-from psyclone.transformations import OMPParallelTrans
 
 PROFILING_ENABLED = False
 
@@ -56,8 +55,9 @@ def trans(psy):
     :rtype: :py:class:`psyclone.psyGen.PSy`
 
     '''
-    omp_parallel_trans = OMPParallelTrans()
-    omp_loop_trans = TransInfo().get_trans_name('OMPLoopTrans')
+    omp_parallel_trans = None
+    omp_loop_trans = OMPLoopTrans(omp_schedule="static")
+    omp_loop_trans.omp_directive = "paralleldo"
 
     print(f"Invokes found in {psy.name}:")
     for invoke in psy.invokes.invoke_list:
@@ -66,33 +66,30 @@ def trans(psy):
         if PROFILING_ENABLED:
             add_profiling(invoke.schedule.children)
 
-        # TODO #1841: These subroutines have a bug in the array-range-to-loop
-        # transformation.
-        if invoke.name in (
-                "blk_oce",  # NVFORTRAN-S-0083-Vector expression used where
-                            # scalar expression
+        enhance_tree_information(invoke.schedule)
+
+        if invoke.name in ("eos_rprof"):
+            # TODO #1959: This subroutines make the ECMWF compilation fail
+            # because it moves a statement function outside of the
+            # specification part.
+            print("Skipping normalisation for ", invoke.name)
+
+        elif invoke.name in (
                 "trc_oce_rgb",  # Produces incorrect results
                 "removepoints"  # Compiler error: The shapes of the array
                                 # expressions do not conform
                 ):
-            print("Skipping", invoke.name)
-            continue
-
-        # TODO #1959: This subroutines make the ECMWF compilation fail because
-        # it moves a statement function outside of the specification part.
-        if invoke.name in ("eos_rprof"):
-            print("Skipping", invoke.name)
-            continue
-
-        enhance_tree_information(invoke.schedule)
-
-        normalise_loops(
-                invoke.schedule,
-                hoist_local_arrays=True,
-                convert_array_notation=True,
-                convert_range_loops=True,
-                hoist_expressions=False
-        )
+            # TODO #1841: These subroutines have a bug in the
+            # array-range-to-loop transformation.
+            print("Skipping normalisation for ", invoke.name)
+        else:
+            normalise_loops(
+                    invoke.schedule,
+                    hoist_local_arrays=False,
+                    convert_array_notation=True,
+                    convert_range_loops=True,
+                    hoist_expressions=False
+            )
 
         insert_explicit_loop_parallelism(
                 invoke.schedule,
@@ -100,11 +97,6 @@ def trans(psy):
                 loop_directive_trans=omp_loop_trans,
                 # Collapse may be useful in some architecture/compiler
                 collapse=False,
-                # Currently if there is a call we don't parallelise because we
-                # expect the subroutine to already be parallelised. lib_fortran
-                # is the only exception because we know it only has calls to
-                # functions without internal loops.
-                exclude_calls=psy.name != "psy_lib_fortran_psy",
         )
 
     return psy
