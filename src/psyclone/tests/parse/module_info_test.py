@@ -44,27 +44,8 @@ from psyclone.parse import ModuleInfo, ModuleInfoError, ModuleManager
 from psyclone.tests.utilities import get_base_path
 
 
-@pytest.fixture(scope='function', autouse=True)
-def clear_module_manager_instance():
-    ''' The tests in this module all assume that there is no pre-existing
-    ModuleManager object, so this fixture ensures that the module manager
-    instance is deleted before and after each test function. The latter
-    makes sure that any other test executed next will automatically reload
-    the default ModuleManager file.
-    '''
-
-    # Enforce loading of the default ModuleManager
-    ModuleManager._instance = None
-
-    # Now execute all tests
-    yield
-
-    # Enforce loading of the default ModuleManager
-    ModuleManager._instance = None
-
-
-# ----------------------------------------------------------------------------
-@pytest.mark.usefixtures("change_into_tmpdir",
+# -----------------------------------------------------------------------------
+@pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance",
                          "mod_man_test_setup_directories")
 def test_module_info():
     '''Tests the module info object.'''
@@ -97,8 +78,8 @@ def test_module_info():
     assert isinstance(mod_info._parse_tree, Fortran2003.Program)
 
 
-# ----------------------------------------------------------------------------
-@pytest.mark.usefixtures("change_into_tmpdir",
+# -----------------------------------------------------------------------------
+@pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance",
                          "mod_man_test_setup_directories")
 def test_mod_info_get_used_modules():
     '''Tests that dependencies are reported as expected. We use the standard
@@ -152,8 +133,8 @@ def test_mod_info_get_used_modules():
         assert mod_info.get_used_symbols_from_modules()[module] == set()
 
 
-# ----------------------------------------------------------------------------
-@pytest.mark.usefixtures("change_into_tmpdir",
+# -----------------------------------------------------------------------------
+@pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance",
                          "mod_man_test_setup_directories")
 def test_mod_info_get_used_symbols_from_modules():
     '''Tests that symbols from dependencies are reported as expected. We
@@ -180,3 +161,38 @@ def test_mod_info_get_used_symbols_from_modules():
     used_symbols_cached = mod_info.get_used_symbols_from_modules()
     # The cached copy should be the same dictionary
     assert used_symbols_cached is used_symbols
+
+
+# -----------------------------------------------------------------------------
+@pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance")
+def test_mod_info_get_psyir():
+    '''This tests the handling of PSyIR representation of the module.
+    '''
+
+    mod_man = ModuleManager.get()
+    dyn_path = get_base_path("dynamo0.3")
+    mod_man.add_search_path(f"{dyn_path}/driver_creation", recursive=False)
+
+    mod_info = mod_man.get_module_info("testkern_import_symbols_mod")
+    assert mod_info._psyir is None
+    psyir = mod_info.get_psyir()
+    assert isinstance(psyir, FileContainer)
+    assert psyir.children[0].name == "testkern_import_symbols_mod"
+    # Make sure the PSyIR is cached:
+    assert mod_info._psyir is psyir
+    # Test that we get the cached value (and not a new instance)
+    psyir_cached = mod_info.get_psyir()
+    assert psyir_cached is psyir
+
+    # Test that a file that can't be converted to PSyIR returns an
+    # empty FileContainer.
+    mod_man.add_search_path(dyn_path, recursive=False)
+    # The file 'broken_builtins_mod.f90' contains invalid Fortran and
+    # cannot be parsed:
+    constants_info = mod_man.get_module_info("broken_builtins_mod")
+    constants_psyir = constants_info.get_psyir()
+
+    # We should still get an empty FileContainer back
+    assert isinstance(constants_psyir, FileContainer)
+    assert constants_psyir.name == "broken_builtins_mod.f90"
+    assert constants_psyir.children == []
