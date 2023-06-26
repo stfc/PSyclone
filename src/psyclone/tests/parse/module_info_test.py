@@ -101,6 +101,7 @@ def test_mod_info_get_used_modules():
     assert mod_man.get_module_info("b_mod").get_used_modules() == set()
 
     mod_c_info = mod_man.get_module_info("c_mod")
+    assert mod_c_info.name == "c_mod"
     dep = mod_c_info.get_used_modules()
     assert dep == set(("a_mod", "b_mod"))
 
