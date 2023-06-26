@@ -37,12 +37,14 @@
 ''' Provides LFRic-specific PSyclone adjoint test-harness functionality. '''
 
 from fparser import api as fpapi
-from psyclone.core import AccessType
-from psyclone.domain.lfric import LFRicConstants, LFRicTypes
 
+from psyclone.core import AccessType
+from psyclone.domain.lfric import (
+    LFRicConstants, LFRicTypes, ArgIndexToMetadataIndex)
+from psyclone.domain.lfric.algorithm.lfric_alg import LFRicAlg
 from psyclone.domain.lfric.algorithm.psyir import (
     LFRicAlgorithmInvokeCall, LFRicBuiltinFunctorFactory, LFRicKernelFunctor)
-from psyclone.domain.lfric.algorithm.lfric_alg import LFRicAlg
+from psyclone.domain.lfric.transformations import RaisePSyIR2LFRicKernTrans
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyad.domain.common.adjoint_utils import (create_adjoint_name,
                                                         create_real_comparison,
@@ -514,34 +516,35 @@ def generate_lfric_adjoint_harness(tl_psyir, coord_arg_idx=None,
     # we can pass PSyIR to this routine rather than an fparser1 parse tree.
     kern = lfalg.kernel_from_metadata(parse_tree, kernel_name)
 
-    # TODO RF: work out how to map from metadata indices to actual indices
-    # use arg_index_to_metadata_index() and reverse the lookup?
-    from psyclone.domain.lfric import ArgIndexToMetadataIndex
-    from psyclone.domain.lfric.transformations import RaisePSyIR2LFRicKernTrans
-    # TODO need to raise tl_psyir to LFRic_tl_psyir????
+    # Replace generic names for fields. operators etc generated in
+    # DynKern with the scientific names used by the tangent-linear
+    # kernel. This makes the harness code more readable. Changing the
+    # names in-place within DynKern is the neatest solution given that
+    # this is a legacy structure.
+
+    # First raise the tangent-linear kernel PSyIR to an LFRic
+    # PSyIR. This gives us access to the kernel metadata.
     kern_trans = RaisePSyIR2LFRicKernTrans()
-    print(tl_psyir.debug_string())
     kern_trans.apply(tl_psyir, options={"metadata_name": kernel_name})
     metadata = tl_psyir.children[0].metadata
+    # Use the metadata to determine the mapping from a metadata
+    # meta_arg index to the kernel argument index. Note, the meta_arg
+    # index corresponds to the order of the arguments stored in
+    # DynKern.
     index_map = ArgIndexToMetadataIndex.mapping(metadata)
-    print(index_map)
-    inv_index_map = {v: k for k, v in index_map.items()}
+    inv_index_map = {value: key for key, value in index_map.items()}
+    # TODO: THERE SEEMS TO BE A BUG IN ArgIndexToMetadataIndex as operator should be matrix but it returns ncell_3d.
     print(inv_index_map)
     tl_names = [symbol.name for symbol in tl_argument_list]
     print(", ".join(tl_names))
 
-    # Kern arguments are in the same order as the kernel metadata
+    # For each kernel argument, replace the generic name with the
+    # scientific name used in the tangent-linear code.
     for idx, arg in enumerate(kern.arguments.args):
-        arg_idx = inv_index_map[idx]
-        kern_arg_name = tl_argument_list[arg_idx].name
-        arg._name = kern_arg_name
-        print(idx, arg_idx, kern_arg_name)
-
-    # TODO: THERE SEEMS TO BE A BUG IN ArgIndexToMetadataIndex as operator should be matrix but it returns ncell_3d.
-
-    #kern.arguments.args[0]._name = "lhs"
-    #kern.arguments.args[1]._name = "x"
-    #kern.arguments.args[2]._name = "matrix"
+        tl_arg_idx = inv_index_map[idx]
+        tl_arg_name = tl_argument_list[tl_arg_idx].name
+        arg._name = tl_arg_name
+        print(idx, tl_arg_idx, tl_arg_name)
 
     kern_args = lfalg.construct_kernel_args(routine, kern)
 

@@ -499,42 +499,42 @@ def test_generate_lfric_adjoint_harness(fortran_reader, fortran_writer):
     assert "subroutine adjoint_test(mesh, chi, panel_id)" in gen
     # We should have a field, a copy of that field and an inner-product value
     # for that field.
-    assert ("    real(kind=r_def) :: rscalar_1\n"
-            "    type(field_type) :: field_2\n"
-            "    real(kind=r_def) :: rscalar_1_input\n"
-            "    type(field_type) :: field_2_input\n"
-            "    real(kind=r_def) :: field_2_inner_prod\n" in gen)
+    assert ("    real(kind=r_def) :: ascalar\n"
+            "    type(field_type) :: field\n"
+            "    real(kind=r_def) :: ascalar_input\n"
+            "    type(field_type) :: field_input\n"
+            "    real(kind=r_def) :: field_inner_prod\n" in gen)
     # The field and its copy must be initialised.
-    assert ("call field_2 % initialise(vector_space=vector_space_w3_ptr, "
-            "name='field_2')" in gen)
-    assert ("call field_2_input % initialise(vector_space=vector_space_w3_ptr,"
-            " name='field_2_input')" in gen)
+    assert ("call field % initialise(vector_space=vector_space_w3_ptr, "
+            "name='field')" in gen)
+    assert ("call field_input % initialise(vector_space=vector_space_w3_ptr,"
+            " name='field_input')" in gen)
     # So too must the scalar argument.
-    assert ("    call random_number(rscalar_1)\n"
-            "    rscalar_1_input = rscalar_1\n" in gen)
+    assert ("    call random_number(ascalar)\n"
+            "    ascalar_input = ascalar\n" in gen)
 
     # The field must be given random values and those copied into the copy.
     # The TL kernel must then be called and the inner-product of the result
     # computed.
-    assert "field_2_inner_prod = 0.0_r_def" in gen
+    assert "field_inner_prod = 0.0_r_def" in gen
     assert ("    ! initialise arguments and call the tangent-linear kernel.\n"
-            "    call invoke(setval_random(field_2), setval_x(field_2_input, "
-            "field_2), testkern_type(rscalar_1, field_2), x_innerproduct_x("
-            "field_2_inner_prod, field_2))\n" in gen)
+            "    call invoke(setval_random(field), setval_x(field_input, "
+            "field), testkern_type(ascalar, field), x_innerproduct_x("
+            "field_inner_prod, field))\n" in gen)
     # Compute and store the sum of all inner products.
     assert ("    inner1 = 0.0_r_def\n"
-            "    inner1 = inner1 + rscalar_1 * rscalar_1\n"
-            "    inner1 = inner1 + field_2_inner_prod\n"
-            "    field_2_field_2_input_inner_prod = 0.0_r_def\n" in gen)
+            "    inner1 = inner1 + ascalar * ascalar\n"
+            "    inner1 = inner1 + field_inner_prod\n"
+            "    field_field_input_inner_prod = 0.0_r_def\n" in gen)
     # Run the adjoint of the kernel and compute the inner products of its
     # outputs with the inputs to the TL kernel.
-    assert ("call invoke(adj_testkern_type(rscalar_1, field_2), "
-            "x_innerproduct_y(field_2_field_2_input_inner_prod, field_2, "
-            "field_2_input))"
+    assert ("call invoke(adj_testkern_type(ascalar, field), "
+            "x_innerproduct_y(field_field_input_inner_prod, field, "
+            "field_input))"
             in gen)
     assert ("    inner2 = 0.0_r_def\n"
-            "    inner2 = inner2 + rscalar_1 * rscalar_1_input\n"
-            "    inner2 = inner2 + field_2_field_2_input_inner_prod\n" in gen)
+            "    inner2 = inner2 + ascalar * ascalar_input\n"
+            "    inner2 = inner2 + field_field_input_inner_prod\n" in gen)
 
 
 def test_generate_lfric_adj_test_quadrature(fortran_reader):
@@ -555,7 +555,7 @@ def test_generate_lfric_adj_test_quadrature(fortran_reader):
         # are never active).
         if sym.name.endswith("_input"):
             assert (sym.name.startswith("field") or
-                    sym.name.startswith("rscalar"))
+                    sym.name.startswith("ascalar"))
 
 
 def test_generate_lfric_adjoint_harness_operator(fortran_reader,
