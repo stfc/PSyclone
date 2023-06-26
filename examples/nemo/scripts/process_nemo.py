@@ -84,11 +84,6 @@ EXCLUDED_FILES = [
     "sbccpl.f90",
     # TODO #1902: Excluded to avoid HoistLocalArraysTrans bug
     "mpp_ini.f90",
-
-    # TODO # 1142: The following issue only affects the ECMWF Nemo code.
-    # Currently we have to manually uncomment the line below to process ECMWF
-    # NEMO but this can be improved resolving the referenced issue.
-    # "lbclnk.f90",  # has mpif.h in the ECMWF version
     ]
 
 
@@ -112,6 +107,7 @@ if __name__ == "__main__":
                         help="Add profiling instrumentation to the "
                              "PROFILE_ONLY list of files. Script-processed "
                              "files are not affected by this argument.")
+    PARSER.add_argument('-I', dest='include_path')
     ARGS = PARSER.parse_args()
 
     # Check whether the PSyclone command has been specified in an environment
@@ -146,13 +142,16 @@ if __name__ == "__main__":
             print(f"Processing {file_name}...")
             extra_args = []
             if ARGS.script_file:
-                extra_args = ["-s", ARGS.script_file]
+                extra_args += ["-s", ARGS.script_file]
+            if ARGS.include_path:
+                extra_args += ["-I", ARGS.include_path]
             extra_args += ["-oalg", "/dev/null",
                            "-opsy", out_file, ffile]
         # Since we're in Python we could call psyclone.generator.main()
         # directly but PSyclone is not designed to be called repeatedly
         # in that way and doesn't clear up state between invocations.
         tstart = perf_counter()
+        print("Executing:" + " ".join(args + extra_args))
         rtype = os.system(" ".join(args + extra_args))
         tstop = perf_counter()
 
