@@ -271,6 +271,20 @@ def test_mod_manager_get_all_dependencies_recursively(capsys):
     out, _ = capsys.readouterr()
     assert "Could not find module 'netcdf'" in out
 
+    all_c = mod_man.get_all_dependencies_recursively({"c_mod"})
+    print("AA", all_c)
+    assert "a_mod" in all_c
+    assert "b_mod" in all_c
+    assert "c_mod" in all_c
+
+    # Instruct the module manager to ignore a_mod, which means
+    # it should only have b_mod and c_mod in its dependencies:
+    mod_man.ignore_module("a_mod")
+    all_c = mod_man.get_all_dependencies_recursively({"c_mod"})
+    assert "a_mod" not in all_c
+    assert "b_mod" in all_c
+    assert "c_mod" in all_c
+
 
 # ----------------------------------------------------------------------------
 def test_mod_man_sort_modules(capsys):
