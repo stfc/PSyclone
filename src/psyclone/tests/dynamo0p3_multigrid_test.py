@@ -836,7 +836,7 @@ def test_restrict_prolong_chain_acc(tmpdir):
 
     '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "22.2.1_intergrid_3levels_anyd.f90"),
+                                        "22.2_intergrid_3levels.f90"),
                            api=API)
     psy = PSyFactory(API, distributed_memory=True).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
@@ -861,4 +861,6 @@ def test_restrict_prolong_chain_acc(tmpdir):
         # directive.
         if line.lstrip().startswith("!$acc enter data"):
             assert "(:,:,cell)" not in line
+            assert "cmap(colour,cell)" not in line
+            assert "cmap_fld_c,cmap_fld_m," in line
             break

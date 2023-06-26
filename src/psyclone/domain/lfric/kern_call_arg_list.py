@@ -993,7 +993,7 @@ class KernCallArgList(ArgOrdering):
         if self._kern.is_coloured():
             colour_sym = self._symtab.find_or_create_integer_symbol(
                 "colour", tag="colours_loop_idx")
-            array_ref = self.get_array_reference("cmap",
+            array_ref = self.get_array_reference(self._kern.colourmap,
                                                  [Reference(colour_sym),
                                                   Reference(cell_sym)],
                                                  ScalarType.Intrinsic.INTEGER)

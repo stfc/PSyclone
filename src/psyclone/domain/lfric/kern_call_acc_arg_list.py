@@ -67,6 +67,22 @@ class KernCallAccArgList(KernCallArgList):
         carg = cargs[0]
         base_name = "cell_map_" + carg.name
         self.append(base_name)
+        # Add the cell map to our argument list
+        _, cell_ref = self.cell_ref_name(var_accesses)
+        self.append(cell_ref.symbol.name)
+
+    def cell_position(self, var_accesses=None):
+        '''Adds a cell argument to the argument list and if supplied stores
+        this access in var_accesses.
+
+        :param var_accesses: optional VariablesAccessInfo instance to store \
+            the information about variable accesses.
+        :type var_accesses: \
+            :py:class:`psyclone.core.VariablesAccessInfo`
+
+        '''
+        cell_ref_name, ref = self.cell_ref_name(var_accesses)
+        self.append(ref.symbol.name)
 
     def field_vector(self, argvect, var_accesses=None):
         '''Add the field vector associated with the argument 'argvect' to the
