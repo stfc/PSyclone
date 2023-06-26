@@ -204,8 +204,9 @@ class CommonMetaArgMetadata(CommonArgMetadata, ABC):
         if components[0] not in acceptable_forms:
             raise ParseError(
                 f"In the LFRic API, array dimension notation is given "
-                f"in the form 'form*integer', where form is one of "
-                f"'{acceptable_forms}' but found '{components[0]}'."
+                f"in the form 'form*integer', where form is "#one of "
+                f"'gh_field' "#or '{acceptable_forms[1]}' "
+                f"but found '{components[0]}'."
             )
         array_dimension = components[1].strip()
         return array_dimension
