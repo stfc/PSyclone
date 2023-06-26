@@ -43,6 +43,7 @@ first before any members.
 '''
 
 from psyclone.domain.lfric import KernCallArgList
+from psyclone import psyGen
 
 
 class KernCallAccArgList(KernCallArgList):
@@ -55,6 +56,18 @@ class KernCallAccArgList(KernCallArgList):
     to keep them in.
 
     '''
+    def cell_map(self, var_accesses=None):
+        '''Add cell-map to the list of required arrays.
+
+        :param var_accesses: unused.
+        :type var_accesses: :py:class:`psyclone.core.VariablesAccessInfo`
+
+        '''
+        cargs = psyGen.args_filter(self._kern.args, arg_meshes=["gh_coarse"])
+        carg = cargs[0]
+        base_name = "cell_map_" + carg.name
+        self.append(base_name)
+
     def field_vector(self, argvect, var_accesses=None):
         '''Add the field vector associated with the argument 'argvect' to the
         argument list. OpenACC requires the field and the
@@ -212,6 +225,22 @@ class KernCallAccArgList(KernCallArgList):
         # The base class only adds one dimension to the list, while OpenACC
         # needs the whole field, so we cannot call the base class.
         self.append(function_space.map_name, var_accesses)
+
+    def fs_intergrid(self, function_space, var_accesses=None):
+        '''
+        '''
+        # Is this FS associated with the coarse or fine mesh? (All fields
+        # on a given mesh must be on the same FS.)
+        arg = self._kern.arguments.get_arg_on_space(function_space)
+        if arg.mesh == "gh_fine":
+            # For the fine mesh, we need the *whole* dofmap
+            map_name = function_space.map_name
+            self.append(map_name, var_accesses)
+        else:
+            # For the coarse mesh we only need undf and the dofmap for
+            # the current column
+            self.fs_compulsory_field(function_space,
+                                     var_accesses=var_accesses)
 
     def scalar(self, scalar_arg, var_accesses=None):
         '''
