@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council
+# Copyright (c) 2017-2023, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -35,13 +35,8 @@
 # Modified I. Kavcic, Met Office
 # Modified by J. Henrichs, Bureau of Meteorology
 
-''' This module contains tests for the multi-grid part of the Dynamo 0.3 API
+''' This module contains tests for the multi-grid part of the LFRic API
     using pytest. '''
-
-from __future__ import absolute_import, print_function
-# Since this is a file containing tests which often have to get in and
-# change the internal state of objects we disable pylint's warning
-# about such accesses
 
 import os
 import pytest
@@ -56,11 +51,12 @@ from psyclone.gen_kernel_stub import generate
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory
-from psyclone.psyir.nodes import Node
+from psyclone.psyir.nodes import Node, Loop
 from psyclone.psyir.symbols import Symbol
 from psyclone.tests.lfric_build import LFRicBuild
-from psyclone.transformations import check_intergrid, Dynamo0p3ColourTrans, \
-        DynamoOMPParallelLoopTrans, TransformationError
+from psyclone.transformations import (
+    ACCEnterDataTrans, ACCKernelsTrans, check_intergrid, Dynamo0p3ColourTrans,
+    DynamoOMPParallelLoopTrans, TransformationError)
 
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -832,3 +828,37 @@ def test_restrict_prolong_chain_anyd(tmpdir):
         ctrans.apply(schedule.children[1])
     assert ("Loops iterating over a discontinuous function space "
             "are not currently supported." in str(excinfo.value))
+
+
+def test_restrict_prolong_chain_acc(tmpdir):
+    ''' Test that we generate correct OpenACC code for an invoke containing
+    a chain of discontinuous restrictions and continuous prolongations.
+
+    '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "22.2.1_intergrid_3levels_anyd.f90"),
+                           api=API)
+    psy = PSyFactory(API, distributed_memory=True).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    enter_data_trans = ACCEnterDataTrans()
+    kernel_trans = ACCKernelsTrans()
+    ctrans = Dynamo0p3ColourTrans()
+    const = LFRicConstants()
+
+    for loop in schedule.walk(Loop):
+        if (loop.iteration_space == "cell_column" and
+                loop.field_space.orig_name not in
+                const.VALID_DISCONTINUOUS_NAMES):
+            ctrans.apply(loop)
+    for loop in schedule.walk(Loop):
+        if loop.loop_type not in ["colours", "null"]:
+            kernel_trans.apply(loop)
+
+    enter_data_trans.apply(schedule)
+    output = str(psy.gen)
+    for line in output.split("\n"):
+        # There should be no indexing into arrays within the enter-data
+        # directive.
+        if line.lstrip().startswith("!$acc enter data"):
+            assert "(:,:,cell)" not in line
+            break
