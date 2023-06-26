@@ -523,11 +523,11 @@ def test_psy_data_node_lower_to_language_level_with_options():
 
 # ----------------------------------------------------------------------------
 @pytest.mark.usefixtures("change_into_tmpdir")
-def test_psy_data_node_name_clash():
+def test_psy_data_node_name_clash(fortran_writer):
     '''Test the handling of symbols imported from other modules, or calls to
     external functions that use module variables. In this example the external
     module uses a variable with the same name as the user code, which causes
-    a name clash.
+    a name clash and must .
 
     '''
     # Make sure we get a clean copy of the module manager:
@@ -552,13 +552,49 @@ def test_psy_data_node_name_clash():
     extract.apply(invoke.schedule.children[0],
                   options={"create_driver": True,
                            "region_name": ("import", "test")})
+
+    # First test, use the old-style gen_code way:
+    # -------------------------------------------
     code = str(invoke.gen())
 
-    # Make sure the imported, clashing symbol 'f1' is renamed:
+    # Make sure the imported, clashing symbols 'f1' and 'f2' are renamed:
     assert "USE module_with_name_clash_mod, ONLY: f1_1=>f1" in code
+    assert "USE module_with_name_clash_mod, ONLY: f2_1=>f2" in code
     assert ('CALL extract_psy_data%PreDeclareVariable("f1@'
             'module_with_name_clash_mod", f1_1)' in code)
     assert ('CALL extract_psy_data%ProvideVariable("f1@'
             'module_with_name_clash_mod", f1_1)' in code)
+    assert ('CALL extract_psy_data%PreDeclareVariable("f2@'
+            'module_with_name_clash_mod", f2_1)' in code)
+    assert ('CALL extract_psy_data%PreDeclareVariable("f2_post@'
+            'module_with_name_clash_mod", f2_1)' in code)
+    assert ('CALL extract_psy_data%ProvideVariable("f2@'
+            'module_with_name_clash_mod", f2_1)' in code)
+    assert ('CALL extract_psy_data%ProvideVariable("f2_post@'
+            'module_with_name_clash_mod", f2_1)' in code)
+
+    # Second test, use lower_to_language_level:
+    # -----------------------------------------
+    invoke.schedule.children[0].lower_to_language_level()
+
+    # Note that atm we cannot fortran_writer() the schedule, LFRic does not
+    # yet fully support this. So we just lower each line individually:
+    code = "".join([fortran_writer(i) for i in invoke.schedule.children])
+
+    assert ('CALL extract_psy_data % PreDeclareVariable("f1_post", f1)'
+            in code)
+    assert ('CALL extract_psy_data % PreDeclareVariable("f1@'
+            'module_with_name_clash_mod", f1_1)' in code)
+    assert ('CALL extract_psy_data % PreDeclareVariable("f2@'
+            'module_with_name_clash_mod", f2_1)' in code)
+    assert ('CALL extract_psy_data % PreDeclareVariable("f2@'
+            'module_with_name_clash_mod_post", f2_1)' in code)
+
+    assert ('CALL extract_psy_data % ProvideVariable("f1@'
+            'module_with_name_clash_mod", f1_1)' in code)
+    assert ('CALL extract_psy_data % ProvideVariable("f2@'
+            'module_with_name_clash_mod", f2_1)' in code)
+    assert ('CALL extract_psy_data % ProvideVariable("f2@'
+            'module_with_name_clash_mod_post", f2_1)' in code)
 
     ModuleManager._instance = None

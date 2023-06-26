@@ -640,14 +640,14 @@ class PSyDataNode(Statement):
                 if module_name:
                     module_name = f"@{module_name}"
                 self._add_call("PreDeclareVariable", parent,
-                               [f"\"{sig}{module_name}{pre_suffix}\"",
-                                unique_sig])
+                               [f"\"{sig[0]}{module_name}{pre_suffix}\"",
+                                unique_sig[0]])
             for module_name, sig, unique_sig in post_variable_list:
                 if module_name:
                     module_name = f"@{module_name}"
                 self._add_call("PreDeclareVariable", parent,
-                               [f"\"{sig}{post_suffix}{module_name}\"",
-                                unique_sig])
+                               [f"\"{sig[0]}{post_suffix}{module_name}\"",
+                                unique_sig[0]])
 
             self._add_call("PreEndDeclaration", parent)
 
@@ -655,8 +655,8 @@ class PSyDataNode(Statement):
                 if module_name:
                     module_name = f"@{module_name}"
                 self._add_call("ProvideVariable", parent,
-                               [f"\"{sig}{module_name}{pre_suffix}\"",
-                                unique_sig])
+                               [f"\"{sig[0]}{module_name}{pre_suffix}\"",
+                                unique_sig[0]])
 
             self._add_call("PreEnd", parent)
 
@@ -776,8 +776,14 @@ class PSyDataNode(Statement):
         if not options:
             options = {}
 
-        pre_variable_list = options.get("pre_var_list", [])
-        post_variable_list = options.get("post_var_list", [])
+        symbol_table = self.scope.symbol_table
+        pre_variable_list = \
+            self._create_unique_names(options.get("pre_var_list", []),
+                                      symbol_table)
+        post_variable_list = \
+            self._create_unique_names(options.get("post_var_list", []),
+                                      symbol_table)
+
         pre_suffix = options.get("pre_var_postfix", "")
         post_suffix = options.get("post_var_postfix", "")
 
@@ -809,25 +815,31 @@ class PSyDataNode(Statement):
         # values of a variable "A" as "A" in the pre-variable list,
         # and store the modified value of "A" later as "A_post".
         if has_var:
-            for _, var_name in pre_variable_list:
+            for module_name, sig, unique_sig in pre_variable_list:
+                if module_name:
+                    module_name = f"@{module_name}"
                 call = gen_type_bound_call(
                     self._var_name, "PreDeclareVariable",
-                    [f"\"{var_name}{pre_suffix}\"", var_name])
+                    [f"\"{sig[0]}{module_name}{pre_suffix}\"", unique_sig[0]])
                 self.parent.children.insert(self.position, call)
 
-            for _, var_name in post_variable_list:
+            for module_name, sig, unique_sig in post_variable_list:
+                if module_name:
+                    module_name = f"@{module_name}"
                 call = gen_type_bound_call(
                     self._var_name, "PreDeclareVariable",
-                    [f"\"{var_name}{post_suffix}\"", var_name])
+                    [f"\"{sig[0]}{module_name}{post_suffix}\"", unique_sig[0]])
                 self.parent.children.insert(self.position, call)
 
             call = gen_type_bound_call(self._var_name, "PreEndDeclaration")
             self.parent.children.insert(self.position, call)
 
-            for _, var_name in pre_variable_list:
+            for module_name, sig, unique_sig in pre_variable_list:
+                if module_name:
+                    module_name = f"@{module_name}"
                 call = gen_type_bound_call(
                     self._var_name, "ProvideVariable",
-                    [f"\"{var_name}{pre_suffix}\"", var_name])
+                    [f"\"{sig[0]}{module_name}{pre_suffix}\"", unique_sig[0]])
                 self.parent.children.insert(self.position, call)
 
             call = gen_type_bound_call(self._var_name, "PreEnd")
@@ -842,10 +854,12 @@ class PSyDataNode(Statement):
             # Only add PostStart() if there is at least one variable.
             call = gen_type_bound_call(self._var_name, "PostStart")
             self.parent.children.insert(self.position, call)
-            for _, var_name in post_variable_list:
+            for module_name, sig, unique_sig in post_variable_list:
+                if module_name:
+                    module_name = f"@{module_name}"
                 call = gen_type_bound_call(
                     self._var_name, "ProvideVariable",
-                    [f"\"{var_name}{post_suffix}\"", var_name])
+                    [f"\"{sig[0]}{module_name}{post_suffix}\"", unique_sig[0]])
                 self.parent.children.insert(self.position, call)
 
         # PSyData end call
