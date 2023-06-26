@@ -190,6 +190,7 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
         '''
         # This symbol is used in other methods so might have already
         # been declared.
+        print("1 ",meta_arg.function_space)
         undf_name = cls._undf_name(meta_arg.function_space)
         undf_symbol = cls._get_or_create_symbol(
             "NumberOfUniqueDofsDataSymbol", undf_name)
@@ -213,6 +214,7 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
         '''
         # This symbol is used in other methods so might have already
         # been declared.
+        print("2 ",meta_arg.function_space)
         undf_name = cls._undf_name(meta_arg.function_space)
         undf_symbol = cls._get_or_create_symbol(
             "NumberOfUniqueDofsDataSymbol", undf_name)
@@ -263,8 +265,6 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
         ndf_from_symbol = cls._get_or_create_symbol(
             "NumberOfDofsDataSymbol", ndf_name_from)
 
-        # TODO: Precision depends on how it is defined in the
-        # algorithm layer!!!!
         operator_name = cls._operator_name(meta_arg)
         access = cls._access_lookup[meta_arg.access]
         cls._add_symbol_name(
@@ -491,10 +491,14 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
 
         '''
         function_space_name = cls._function_space_name(function_space)
-        cls._add_symbol_name("NumberOfDofs", f"ndf_{function_space_name}")
+        ndf_name = cls._ndf_name(function_space)
+        # This symbol might be used to dimension an array in another
+        # method and therefore could have already been declared.
+        symbol = cls._get_or_create_symbol("NumberOfDofsDataSymbol", ndf_name)
+        cls._append_to_arg_list(symbol)
 
     @classmethod
-    def fs_compulsory_field(cls, function_space):
+    def _fs_compulsory_field(cls, function_space):
         '''Compulsory arguments for this function space. First include the
         unique number of degrees of freedom for this function
         space. This is a scalar integer of kind i_def with intent in
@@ -509,8 +513,26 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
         '''
         function_space_name = cls._function_space_name(function_space)
         undf_name = cls._undf_name(function_space)
-        cls._add_symbol_name("NumberOfUniqueDofs", undf_name)
-        cls._add_symbol_name("DofMap", f"map_{function_space_name}")
+        # This symbol might be used to dimension an array in another
+        # method and therefore could have already been declared.
+        undf_symbol = cls._get_or_create_symbol(
+            "NumberOfUniqueDofsDataSymbol", undf_name)
+
+        # create and add dofmap(undf)
+        dofmap_name = cls._dofmap_name(function_space)
+        scalar_type = cls._create_datatype("LFRicIntegerScalarDataType")
+        array_type = symbols.ArrayType(
+            scalar_type, [nodes.Reference(undf_symbol)])
+        interface = symbols.ArgumentInterface(
+            symbols.ArgumentInterface.Access.READ)
+        dofmap_symbol = symbols.DataSymbol(
+            dofmap_name, array_type, interface=interface)
+        cls._add_to_symbol_table(dofmap_symbol)
+
+        # Add the symbols to the symbol table argument list in the
+        # required order
+        cls._append_to_arg_list(undf_symbol)
+        cls._append_to_arg_list(dofmap_symbol)
 
     @classmethod
     def fs_intergrid(cls, meta_arg):
@@ -1106,3 +1128,9 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
         ''' xxx '''
         function_space_name = cls._function_space_name(function_space)
         return f"ndf_{function_space_name}"
+
+    @classmethod
+    def _dofmap_name(cls, function_space):
+        ''' xxx '''
+        function_space_name = cls._function_space_name(function_space)
+        return f"dofmap_{function_space_name}"

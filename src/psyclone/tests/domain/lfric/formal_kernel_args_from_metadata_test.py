@@ -47,7 +47,7 @@ from psyclone.psyir import symbols
 def call_method(method_name, *args, metadata=None):
     '''Utility function that initialises the FormalKernelArgsFromMetadata
     class with optional metadata and a symbol table, then calls the
-    class method specified in argument 'method_name' with the the
+    class method specified in argument 'method_name' with the
     arguments specified in argument *args and returns the class.
 
     :param str method_name: the name of the method to test.
@@ -68,7 +68,7 @@ def call_method(method_name, *args, metadata=None):
 
 
 def check_single_symbol(
-        method_name, datasymbol_name, symbol_name, *args, metadata=None):
+        method_name, datasymbol_name, symbol_name, *args, metadata=None, check_unchanged=False):
     '''Utility function that calls the method in argument 'method_name'
     with the arguments stored in argument '*args' and checks that as a
     result a symbol with name 'symbol_name' of type 'datasymbol_name'
@@ -82,6 +82,7 @@ def check_single_symbol(
     :param metadata: optional metadata required by some methods.
     :type metadata: Optional[ \
         :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`]
+    *** check unchanged ***
 
     :returns: xxx
 
@@ -95,6 +96,20 @@ def check_single_symbol(
     # pylint: enable=isinstance-second-argument-not-valid-type
     assert len(cls._info._argument_list) == 1
     assert cls._info._argument_list[0] is symbol
+    if check_unchanged:
+        # Check that the symbol remains unchanged if it has already been declared.
+        symbol_id = id(symbol)
+        # Reset the argument list as this method will have added it
+        # both to the symbol table and to the argument list whereas if
+        # it had already been declared by another method it will have
+        # only been added to the symbol table.
+        cls._info._argument_list = []
+        getattr(cls, method_name)(*args)
+        symbol = cls._info.lookup_with_tag(symbol_name)
+        assert symbol_id == id(symbol)
+        assert len(cls._info._argument_list) == 1
+        assert cls._info._argument_list[0] is symbol
+
     return cls
 
 
@@ -136,20 +151,8 @@ def test_mesh_ncell2d():
     ''' Test _mesh_ncell2d method. '''
     symbol_name = "ncell_2d"
     cls = check_single_symbol(
-        "_mesh_ncell2d", "LFRicIntegerScalarDataSymbol", symbol_name)
-    # Check that the symbol remains unchanged if it has already been declared.
-    symbol = cls._info.lookup_with_tag(symbol_name)
-    symbol_id = id(symbol)
-    # Reset the argument list as '_mesh_ncell2d' adds the symbol to
-    # the symbol table and to the argument list whereas if it had
-    # already been declared by another method it will have only been
-    # added to the symbol table.
-    cls._info._argument_list = []
-    cls._mesh_ncell2d()
-    symbol = cls._info.lookup_with_tag(symbol_name)
-    assert symbol_id == id(symbol)
-    assert len(cls._info._argument_list) == 1
-    assert cls._info._argument_list[0] is symbol
+        "_mesh_ncell2d", "LFRicIntegerScalarDataSymbol", symbol_name,
+        check_unchanged=True)
 
 
 def test_cell_map():
@@ -398,3 +401,33 @@ def test_mesh_properties(monkeypatch):
         _ = call_method("_mesh_properties", [meta_mesh_arg], metadata=metadata)
     assert ("Unexpected mesh property 'invalid' found. Expected "
             "'adjacent_face'." in str(info.value))
+
+
+def test_fs_common():
+    ''' Test _fs_common method. '''
+    function_space = "w3"
+    symbol_name = lfric.FormalKernelArgsFromMetadata._ndf_name(function_space)
+    cls = check_single_symbol(
+        "_fs_common", "NumberOfDofsDataSymbol", symbol_name, function_space,
+        check_unchanged=True)
+
+
+def test_fs_compulsory_field():
+    ''' Test _fs_compulsory_field method. '''
+    function_space = "w3"
+    undf_name = lfric.FormalKernelArgsFromMetadata._undf_name(function_space)
+    dofmap_name = lfric.FormalKernelArgsFromMetadata._dofmap_name(function_space)
+    cls = call_method("_fs_compulsory_field", function_space)
+    # Symbols added to the symbol table and to the argument list.
+    undf_class = lfric.LFRicTypes("NumberOfUniqueDofsDataSymbol")
+    check_arg_symbols(cls, OrderedDict(
+        [(undf_name, undf_class), (dofmap_name, symbols.DataSymbol)]))
+    dofmap_symbol = cls._info.lookup(dofmap_name)
+    assert dofmap_symbol.is_array
+    assert len(dofmap_symbol.datatype.shape) == 1
+    assert dofmap_symbol.datatype.shape[0].upper.symbol.name == undf_name
+    # TODO: check works if numberofuniquedofs already added.
+    # remove dofmap_symbol from symbol table, remove all from arg list
+    # Should just have symbol table value but not in arg list.
+    #? cls._info.remove(dofmap_symbol)
+    #? cls._info.argument_list = []
