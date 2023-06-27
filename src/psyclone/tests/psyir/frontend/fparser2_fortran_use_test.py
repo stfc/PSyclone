@@ -48,6 +48,31 @@ from psyclone.psyir.nodes import KernelSchedule, Container
 from psyclone.psyir.symbols import ContainerSymbol, SymbolError, Symbol, \
     DataSymbol, AutomaticInterface, INTEGER_SINGLE_TYPE
 
+def test_use_return(parser):
+    ''' Check the the Fparser correctly handles when a function uses a
+    return variable with a kind defined inside the function.'''
+    processor = Fparser2Reader()
+    reader = FortranStringReader("real(rkind) function x()\n"
+                                 "  use my_mod, only: rkind\n"
+                                 "  x = 1.0_rkind\n"
+                                 "end function x\n")
+    ptree = parser(reader)
+    psyir = processor.generate_psyir(ptree)
+
+def test_use_return2(parser):
+    ''' Check the the Fparser correctly handles when a function uses a
+    return variable with a kind defined inside the parent module.'''
+    processor = Fparser2Reader()
+    reader = FortranStringReader("module mymod\n"
+                                 "  use my_mod, only: rkind\n"
+                                 " contains\n"
+                                 "real(rkind) function x()\n"
+                                 "  x = 1.0_rkind\n"
+                                 "end function x\n"
+                                 "end module mymod")
+    ptree = parser(reader)
+    psyir = processor.generate_psyir(ptree)
+
 
 @pytest.mark.usefixtures("f2008_parser")
 def test_use_stmt():

@@ -4407,7 +4407,7 @@ class Fparser2Reader():
                         raise NotImplementedError(
                             f"Routine has unsupported prefix: {child.string}")
                 else:
-                    base_type, _ = self._process_type_spec(parent, child)
+                    base_type, _ = self._process_type_spec(routine, child)
 
         if isinstance(node, Fortran2003.Function_Subprogram):
             # Check whether this function-stmt has a suffix containing
