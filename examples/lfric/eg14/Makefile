@@ -63,7 +63,16 @@ LFRIC_LIB=$(LFRIC_PATH)/lib$(LFRIC_NAME).a
 # This sets up LFRIC_INCLUDE_FLAGS
 include $(LFRIC_PATH)/lfric_include_flags.inc
 
-PROFILE_PATH=$(PSYROOT)/lib/profiling/nvidia
+# PSyData profiling wrapper library.
+# Default is to use the 'template' library which simply prints entry and exit
+# messages to stdout.
+PROFILE_PATH=$(PSYROOT)/lib/profiling/template
+PROFILE_LIB=$(PROFILE_PATH)/libdummy.a
+PROFILE_LINK=-ldummy
+# For NVIDIA profiling
+#PROFILE_PATH=$(PSYROOT)/lib/profiling/nvidia
+#PROFILE_LIB=$(PROFILE_PATH)/libnvtx_prof.a
+#PROFILE_LINK="-lnvtx_prof -lnvToolsExt"
 
 .PHONY: transform compile run
 
@@ -91,11 +100,14 @@ $(LFRIC_LIB):
 run: compile
 	./$(EXEC)
 
-$(EXEC): $(LFRIC_LIB) $(OBJ)
-	$(F90) $(F90FLAGS) $(LFRIC_INCLUDE_FLAGS) $(OBJ) -o $(EXEC) -L$(LFRIC_PATH) -l$(LFRIC_NAME) -L${PROFILE_PATH} -lnvtx_prof -lnvToolsExt
+$(EXEC): $(PROFILE_LIB) $(LFRIC_LIB) $(OBJ)
+	$(F90) $(F90FLAGS) $(LFRIC_INCLUDE_FLAGS) $(OBJ) -o $(EXEC) -L$(LFRIC_PATH) -l$(LFRIC_NAME) -L${PROFILE_PATH} $(PROFILE_LINK)
 
 $(LFRIC_LIB):
 	$(MAKE) -C $(LFRIC_PATH)
+
+$(PROFILE_LIB):
+	$(MAKE) -C $(PROFILE_PATH)
 
 # Dependencies
 main_psy.o:	other_alg_mod_psy.o testkern_w0_kernel_0_mod.o
@@ -115,3 +127,4 @@ other_alg_mod_alg.f90: other_alg_mod_psy.f90
 
 allclean: clean
 	$(MAKE) -C $(LFRIC_PATH) allclean
+	$(MAKE) -C $(PROFILE_PATH) allclean
