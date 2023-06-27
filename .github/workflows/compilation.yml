@@ -43,6 +43,7 @@
 #  * Runs the test suite with compilation with gfortran and nvfortran;
 #  * Builds the examples with gfortran and nvfortran (the latter with
 #    OpenACC enabled).
+#  * Builds the tutorials with gfortran and nvfortran.
 
 name: Compilation tests
 
@@ -102,6 +103,13 @@ jobs:
         # with CUDA.
         make -C examples allclean
         F90=gfortran F90FLAGS="-L/apps/packages/compilers/nvidia-hpcsdk/Linux_x86_64/23.5/cuda/12.1/targets/x86_64-linux/lib" make -C examples compile
+    - name: Tutorials with compilation - gfortran
+      run: |
+        module load python/3.11.3
+        . .runner_venv/bin/activate
+        make -C tutorials/practicals allclean
+        module load gcc/13.1.0 openmpi netcdf_fortran
+        make -C tutorials/practicals compile
     - name: Examples with compilation - nvfortran
       run: |
         module load python/3.11.3
@@ -110,3 +118,10 @@ jobs:
         module load nvidia-hpcsdk/23.5 netcdf_fortran
         # We have to tell nvfortran where to find the OpenCL library.
         F90=nvfortran F90FLAGS="-acc -Minfo=all -L/apps/packages/compilers/nvidia-hpcsdk/Linux_x86_64/23.5/cuda/12.1/targets/x86_64-linux/lib" make -C examples compile
+    - name: Tutorials with compilation - nvfortran
+      run: |
+        module load python/3.11.3
+        . .runner_venv/bin/activate
+        make -C tutorials/practicals allclean
+        module load nvidia-hpcsdk/23.5 netcdf_fortran
+        F90=nvfortran F90FLAGS="-acc -Minfo=all" make -C tutorials/practicals compile
