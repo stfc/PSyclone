@@ -251,12 +251,12 @@ def test_symbolic_maths_never_equal_error(fortran_reader):
     source = (
         "program test_prog\n"
         "  integer :: a(2)\n"
-        "  a(2) = (/1, 2/)\n"
+        "  a(:) = (/1, 2/)\n"
         "end program test_prog\n")
     psyir = fortran_reader.psyir_from_source(source)
     assignment = psyir.children[0][0]
     sym_maths = SymbolicMaths.get()
-    sym_maths.never_equal(assignment.lhs, assignment.rhs)
+    assert sym_maths.never_equal(assignment.lhs, assignment.rhs) is False
 
 
 @pytest.mark.parametrize("exp1, exp2, result", [("i", "2*i+1", set([-1])),
@@ -419,9 +419,6 @@ def test_symbolic_math_use_range(fortran_reader, expressions):
     # The child of the ArrayReference is the Range
     assert sym_maths.equal(schedule[0].rhs.children[0],
                            schedule[1].rhs.children[0]) is expressions[2]
-    assert (sym_maths.never_equal(schedule[0].rhs.children[0],
-                                  schedule[1].rhs.children[0]) is not
-            expressions[2])
 
 
 @pytest.mark.parametrize("expr,expected", [

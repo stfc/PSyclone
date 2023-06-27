@@ -46,9 +46,8 @@ from sympy.parsing.sympy_parser import parse_expr
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.backend.visitor import VisitorError
-from psyclone.psyir.nodes import (BinaryOperation, DataNode, Literal,
-                                  NaryOperation, Range, Reference,
-                                  UnaryOperation)
+from psyclone.psyir.nodes import (BinaryOperation, DataNode, NaryOperation,
+                                  Range, Reference, UnaryOperation)
 from psyclone.psyir.symbols import (ArrayType, ScalarType, SymbolTable)
 
 
@@ -161,7 +160,7 @@ class SymPyWriter(FortranWriter):
         :returns: either an instance of SymPyWriter, if no parameter is
             specified, or a list of SymPy expressions.
         :rtype: Union[:py:class:`psyclone.psyir.backend.SymPyWriter`,
-                      List[:py:class:`sympy.core.basic.Basic`]
+                      List[:py:class:`sympy.core.basic.Basic`]]
 
         '''
         if expressions:
@@ -181,6 +180,8 @@ class SymPyWriter(FortranWriter):
         ``out = SymPyWriter(exp1, exp2); out[1]`` does not trigger
         a pylint warning about unsubscriptable-object.
         '''
+        raise NotImplementedError("__getitem__ for a SymPyWriter should "
+                                  "never be called.")
 
     # -------------------------------------------------------------------------
     def _create_sympy_array_function(self, name, sig=None, num_dims=None):
@@ -210,7 +211,9 @@ class SymPyWriter(FortranWriter):
 
             :param printer: the SymPy writer base class.
             :type printer: :py:class:`sympy.printing.str.StrPrinter`
-            :param sympy_writer: the instance of this SymPy writer.
+            :param sympy_writer: this instance of this SymPy writer.
+                It is used to access the unique names for the lower-
+                and upper-bounds.
             :type sympy_writer:
                 :py:class:`psyclone.psyir.backend.SymPyWriter`
 
@@ -302,7 +305,7 @@ class SymPyWriter(FortranWriter):
         table to avoid name clashes in any expression.
 
         :param list_of_expressions: the list of expressions from which all
-            references are taken and added to the a symbol table to avoid
+            references are taken and added to a symbol table to avoid
             renaming any symbols (so that only member names will be renamed).
         :type list_of_expressions: List[:py:class:`psyclone.psyir.nodes.Node`]
 
@@ -311,16 +314,24 @@ class SymPyWriter(FortranWriter):
         # new conversion (i.e. this avoids name clashes with a previous
         # conversion).
         self._symbol_table = SymbolTable()
+
+        # Find each reference in each of the expression, and declare this name
+        # as either a SymPy Symbol (scalar reference), or a SymPy Function
+        # (an array).
         for expr in list_of_expressions:
             for ref in expr.walk(Reference):
                 name = ref.name
                 if name in self._symbol_table:
+                    # The name has already been declared, ignore it now
                     continue
+
+                # Add the new name to the symbol table to mark it
+                # as done
                 self._symbol_table.find_or_create(name)
 
                 # Test if an array or an array expression is used:
                 if not ref.is_array:
-                    # A simple scalar:
+                    # A simple scalar, create a SymPy symbol
                     self._sympy_type_map[name] = Symbol(name)
                     continue
 
@@ -361,7 +372,8 @@ class SymPyWriter(FortranWriter):
     @property
     def type_map(self):
         ''':returns: the mapping of names to SymPy symbols or functions.
-        :rtype: Dict[str, :py:class:`sympy.core.symbol.Symbol`]
+        :rtype: Dict[str, Union[:py:class:`sympy.core.symbol.Symbol`,
+                                :py:class:`sympy.core.function.Function`]]
 
         '''
         return self._sympy_type_map
@@ -373,7 +385,7 @@ class SymPyWriter(FortranWriter):
         argument can either be a single element (in which case a single string
         is returned) or a list/tuple, in which case a list is returned.
 
-        :param list_of_expressions: the list of expressions which are to be \
+        :param list_of_expressions: the list of expressions which are to be
             converted into SymPy-parsable strings.
         :type list_of_expressions: Union[:py:class:`psyclone.psyir.nodes.Node`,
             List[:py:class:`psyclone.psyir.nodes.Node`]]
@@ -410,13 +422,13 @@ class SymPyWriter(FortranWriter):
         member accesses, as described in
         https://psyclone-dev.readthedocs.io/en/latest/sympy.html#sympy
 
-        :param list_of_expressions: the list of expressions which are to be \
+        :param list_of_expressions: the list of expressions which are to be
             converted into SymPy-parsable strings.
-        :type list_of_expressions: list of \
+        :type list_of_expressions: list of
             :py:class:`psyclone.psyir.nodes.Node`
 
-        :returns: a 2-tuple consisting of the the converted PSyIR \
-            expressions, followed by a dictionary mapping the symbol names \
+        :returns: a 2-tuple consisting of the the converted PSyIR
+            expressions, followed by a dictionary mapping the symbol names
             to SymPy Symbols.
         :rtype: Union[:py:class:`sympy.core.basic.Basic`,
                       List[:py:class:`sympy.core.basic.Basic`]]
@@ -527,7 +539,7 @@ class SymPyWriter(FortranWriter):
         :returns: the SymPy representation for the literal.
         :rtype: str
 
-        :raises TypeError: if a character constant is found, which \
+        :raises TypeError: if a character constant is found, which
             is not supported with SymPy.
 
         '''
@@ -578,7 +590,7 @@ class SymPyWriter(FortranWriter):
 
         :param str operator: the supplied operator.
 
-        :returns: true if the supplied operator is an \
+        :returns: true if the supplied operator is an
             intrinsic and false otherwise.
 
         '''
@@ -603,9 +615,13 @@ class SymPyWriter(FortranWriter):
 
         '''
         if not node.is_array:
+            # This reference is not an array, handle its conversion to
+            # string in the FortranWriter base class
             return super().reference_node(node)
 
-        # This must be an array expression without parenthesis:
+        # Now this must be an array expression without parenthesis. Add
+        # the triple-array indices to represent `lower:upper:1` for each
+        # dimension:
         shape = node.symbol.shape
         result = [f"{self.lower_bound_name},"
                   f"{self.upper_bound_name},1"]*len(shape)
@@ -620,17 +636,17 @@ class SymPyWriter(FortranWriter):
         This is used both for array references and array declarations. Note
         that 'indices' can also be a shape in case of Fortran. The
         implementation here overwrites the one in the base class to convert
-        each array index into a three parameters to support array expressions.
+        each array index into three parameters to support array expressions.
 
         :param indices: list of PSyIR nodes.
         :type indices: List[:py:class:`psyclone.psyir.symbols.Node`]
-        :param str var_name: name of the variable for which the dimensions \
-            are created. Not used in the Fortran implementation.
+        :param str var_name: name of the variable for which the dimensions
+            are created. Not used in this implementation.
 
         :returns: the Fortran representation of the dimensions.
         :rtype: List[str]
 
-        :raises NotImplementedError: if the format of the dimension is not \
+        :raises NotImplementedError: if the format of the dimension is not
             supported.
 
         '''
@@ -677,8 +693,7 @@ class SymPyWriter(FortranWriter):
         if node.parent and node.parent.is_lower_bound(
                 node.parent.indices.index(node)):
             # The range starts for the first element in this
-            # dimension. This is the default in Fortran so no need to
-            # output anything.
+            # dimension, so use the generic name for lower bound:
             start = self.lower_bound_name
         else:
             start = self._visit(node.start)
@@ -686,23 +701,14 @@ class SymPyWriter(FortranWriter):
         if node.parent and node.parent.is_upper_bound(
                 node.parent.indices.index(node)):
             # The range ends with the last element in this
-            # dimension. This is the default in Fortran so no need to
-            # output anything.
+            # dimension, so use the generic name for the upper bound:
             stop = self.upper_bound_name
         else:
             stop = self._visit(node.stop)
         result = f"{start},{stop}"
 
-        if isinstance(node.step, Literal) and \
-                node.step.datatype.intrinsic == \
-                ScalarType.Intrinsic.INTEGER and \
-                node.step.value == "1":
-            result += ",1"
-            # Step is 1. This is the default in Fortran so no need to
-            # output any text.
-        else:
-            step = self._visit(node.step)
-            result += f",{step}"
+        step = self._visit(node.step)
+        result += f",{step}"
 
         return result
 
@@ -717,9 +723,9 @@ class SymPyWriter(FortranWriter):
 
         :param sympy_expr: the original SymPy expression.
         :type sympy_expr: :py:class:`sympy.core.basic.Basic`
-        :param symbol_table: the symbol table required for parsing, it \
-            should be the table from which the original SymPy expression \
-            was created from (i.e. contain all the required symbols in the \
+        :param symbol_table: the symbol table required for parsing, it
+            should be the table from which the original SymPy expression
+            was created from (i.e. contain all the required symbols in the
             SymPy expression).
         :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
 

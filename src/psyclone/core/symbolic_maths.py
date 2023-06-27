@@ -87,7 +87,7 @@ class SymbolicMaths:
 
         :param exp1: the first expression to be compared.
         :type exp1: :py:class:`psyclone.psyir.nodes.Node`
-        :param exp2: the first expression to be compared.
+        :param exp2: the second expression to be compared.
         :type exp2: :py:class:`psyclone.psyir.nodes.Node`
 
         :returns: whether the two expressions are mathematically \
@@ -100,10 +100,11 @@ class SymbolicMaths:
             return exp1 == exp2
 
         diff = SymbolicMaths._subtract(exp1, exp2)
-        # Add support for ranges, in which case all values must be equal
+        # For ranges all values (start, stop, step) must be equal, meaning
+        # each index of the difference must evaluate to 0:
         if isinstance(diff, list):
-            return all(i == 0 for i in diff)
-        return diff == 0
+            return all(isinstance(i, core.numbers.Zero) for i in diff)
+        return isinstance(diff, core.numbers.Zero)
 
     # -------------------------------------------------------------------------
     @staticmethod
@@ -115,7 +116,7 @@ class SymbolicMaths:
 
         :param exp1: the first expression to be compared.
         :type exp1: :py:class:`psyclone.psyir.nodes.Node`
-        :param exp2: the first expression to be compared.
+        :param exp2: the second expression to be compared.
         :type exp2: :py:class:`psyclone.psyir.nodes.Node`
 
         :returns: whether or not the expressions are never equal.
@@ -140,10 +141,22 @@ class SymbolicMaths:
         if all(isinstance(i, core.numbers.Zero) for i in result):
             return False
 
-        # If the result is an integer value, the result is independent
-        # of any variable, and never equal
-        if any(isinstance(i, core.numbers.Integer) for i in result):
-            return result != 0
+        # Handle the common case of a single integer expressions. In this
+        # case we know because of the previous test that the result is not
+        # 0, so if the result is an integer (i.e. not symbolic), we know that
+        # that the expressions are never equal:
+        if len(result) == 1 and isinstance(result[0], core.numbers.Integer):
+            return True
+
+        # TODO #2168: We can likely produce more precise results if we
+        # analyse the values as ranges, e.g. the two results (1, 5, 2)
+        # and (6,10, 2) coming from a(1:5:2) and (6:10:2) will never be
+        # equal, but (1, 11, 2) and (5, 7, 2) will overlap. For now return
+        # always False, indicating that they might be identical. A test like:
+        # if any(isinstance(i, core.numbers.Integer) for i in result):
+        # would allow us to handle e.g the case of all integer values. On
+        # the other hand, it is not known how useful this is, i.e. if we
+        # will ever see this.
 
         # Otherwise the result depends on one or more variables (e.g.
         # n-5), so it might be zero.
@@ -156,11 +169,11 @@ class SymbolicMaths:
         of this operation. An expression might result in multiple SymPy
         expressions - for example, a `Range` node becomes a 3-tuple (start,
         stop, step). In this case, each of the components will be handled
-        individually, and a tuple will be returned.
+        individually, and a list will be returned.
 
         :param exp1: the first expression to be compared.
         :type exp1: Optional[:py:class:`psyclone.psyir.nodes.Node`]
-        :param exp2: the first expression to be compared.
+        :param exp2: the second expression to be compared.
         :type exp2: Optional[:py:class:`psyclone.psyir.nodes.Node`]
 
         :returns: the sympy expression resulting from subtracting exp2 \
