@@ -104,6 +104,8 @@ def test_ompparallel_lowering(fortran_reader, monkeypatch):
 
     # If the code inside the region changes after lowering, the next lowering
     # will update the clauses appropriately
+    # TODO 2157: Alternatively, we could invalidate the clauses with an
+    # upwards signal when changed, or not store them at all.
     new_loop = pdir.children[0].children[0].children[0].children[0].copy()
     # Change the loop variable to j
     jvar = DataSymbol("j", INTEGER_SINGLE_TYPE)
@@ -847,6 +849,65 @@ def test_directive_infer_sharing_attributes(fortran_reader):
     assert len(sync) == 1
     assert list(sync)[0].name == 'k'
 
+
+def test_directive_infer_sharing_attributes_with_structures(fortran_reader):
+    ''' Tests for the _infer_sharing_attributes() method of OpenMP directives
+    with code that contains structure accesses.
+    '''
+    psyir = fortran_reader.psyir_from_source('''
+        subroutine my_subroutine()
+            use my_mod
+            integer :: i, scalar1
+            type(my_type) :: mt1, mt2
+            real, dimension(10) :: array
+            mt1%scalar1 = 3
+            do i = 1, 10
+               if (i .eq. 4) then
+                  mt2%field1%scalar1 = array(i)
+               endif
+               scalar1 = mt2%field1%scalar1 + mt1%scalar1
+               array(i) = scalar1
+            enddo
+        end subroutine''')
+    omptrans = OMPParallelTrans()
+    routine = psyir.walk(Routine)[0]
+    omptrans.apply(routine.children)
+    directive = psyir.walk(OMPParallelDirective)[0]
+    pvars, fpvars, sync = directive._infer_sharing_attributes()
+    assert len(pvars) == 2
+    assert sorted(pvars, key=lambda x: x.name)[0].name == 'i'
+    assert sorted(pvars, key=lambda x: x.name)[1].name == 'scalar1'
+    assert len(fpvars) == 1
+    assert list(fpvars)[0].name == 'mt2'
+    assert len(sync) == 0
+
+    # In this example a sub-part of mt1 should be shared and another
+    # firstprivate
+    psyir = fortran_reader.psyir_from_source('''
+        subroutine my_subroutine()
+            use my_mod
+            integer :: i, scalar1
+            type(my_type) :: mt1
+            real, dimension(10) :: array
+            do i = 1, 10
+               if (i .eq. 4) then
+                  mt1%scalar1 = 3
+               endif
+               mt1%array(i) = mt1%scalar1
+            enddo
+        end subroutine''')
+    omptrans = OMPParallelTrans()
+    routine = psyir.walk(Routine)[0]
+    omptrans.apply(routine.children)
+    directive = psyir.walk(OMPParallelDirective)[0]
+    pvars, fpvars, sync = directive._infer_sharing_attributes()
+    assert len(pvars) == 1
+    assert list(pvars)[0].name == 'i'
+    assert len(fpvars) == 1
+    if list(fpvars)[0].name == 'mt2':
+        pytest.xfail("#2094: Currently we only support top-level derived types"
+                     "as OpenMP sharing attributes, but there are cases that "
+                     "more detail is necessary.")
 
 
 def test_infer_sharing_attributes_sequential_semantics(fortran_reader):

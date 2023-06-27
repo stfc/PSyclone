@@ -718,7 +718,7 @@ class OMPParallelDirective(OMPRegionDirective):
         #   array(my_index) = 2
         # enddo
         # #end do
-        # call func(my_index) <- my_index does not have a value
+        # call func(my_index) <- my_index has not been updated
 
         private = set()
         fprivate = set()
@@ -778,7 +778,11 @@ class OMPParallelDirective(OMPRegionDirective):
                     # Otherwise, the assignment to this variable is inside a
                     # loop (and it will be repeated for each iteration), so
                     # we declare it as private or need_synch
-                    name = str(signature).lower()
+                    name = signature.var_name
+                    # TODO #2094: var_name only captures the top-level
+                    # component in the derived type accessor. If the attributes
+                    # only apply to a sub-component, this won't be captured
+                    # appropriately.
                     symbol = access.node.scope.symbol_table.lookup(name)
 
                     # If it has been read before we have to check if ...
