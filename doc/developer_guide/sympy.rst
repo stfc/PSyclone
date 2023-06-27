@@ -104,7 +104,7 @@ be fused have the same loop boundaries using code like this:
 
 SymPyWriter - Converting PSyIR to SymPy
 ---------------------------------------
-The methods of the SymbolicMaths class expect PSyIR nodes as parameter.
+The methods of the SymbolicMaths class expect to be passed PSyIR nodes.
 They convert these expressions first into strings before parsing
 them as SymPy expressions. The conversion is done with the ``SymPyWriter``
 class, and it is the task of the ``SymPyWriter`` to convert the PSyIR
@@ -115,8 +115,8 @@ the following features to allow the parsing of the expressions by SymPy:
 
 Array Accesses
 ~~~~~~~~~~~~~~
-It will declare any array access as a SymPy unknown function, and any
-scalar access as a SymPy symbol. These declarations are stored in a
+Any array access is declared as a SymPy unknown function and any scalar
+access as a SymPy symbol. These declarations are stored in a
 dictionary, which is used by the parser of SymPy to ensure the correct
 interpretation of any names found in the expression. Note that while
 SymPy has the concept of ``Indexed`` expressions, they do not work well
@@ -203,14 +203,14 @@ then renames all members and makes sure it uses a unique name. In the case of
 
 .. note:: At this stage an expression using user-defined types cannot be
     converted back to a PSyIR (which is what
-    `psyclone.core.SymbolicMaths.expand` does). This is tracked as 
-    issue #2166.
+    `psyclone.core.SymbolicMaths.expand` does as a final step). This is
+    tracked as issue #2166.
 
 
 Documentation for SymPyWriter Functions
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Here the overview of the function provided in the SymPyWriter:
+The SymPyWriter provides the following functions:
 
 .. autoclass:: psyclone.psyir.backend.sympy_writer.SymPyWriter
     :members:

@@ -56,6 +56,15 @@ def test_sym_writer_constructor():
     assert sympy_writer._sympy_type_map == {}
     assert sympy_writer._DISABLE_LOWERING is True
 
+    # __getitem_ can never be called anyway, since both the SymPy
+    # writer and the visitor base class implement __call__. In order
+    # to test the exception, we need to call it explicitly:
+    with pytest.raises(NotImplementedError) as err:
+        # pylint: disable=unnecessary-dunder-call
+        sympy_writer.__getitem__(None)
+    assert ("__getitem__ for a SymPyWriter should never be called."
+            in str(err.value))
+
 
 def test_sym_writer_lowering_disabled(monkeypatch):
     '''Test that by default this Writer does not attempt to lower higher
