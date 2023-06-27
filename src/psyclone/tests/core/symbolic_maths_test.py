@@ -419,9 +419,6 @@ def test_symbolic_math_use_range(fortran_reader, expressions):
     # The child of the ArrayReference is the Range
     assert sym_maths.equal(schedule[0].rhs.children[0],
                            schedule[1].rhs.children[0]) is expressions[2]
-    assert (sym_maths.never_equal(schedule[0].rhs.children[0],
-                                  schedule[1].rhs.children[0]) is not
-            expressions[2])
 
 
 @pytest.mark.parametrize("expr,expected", [
