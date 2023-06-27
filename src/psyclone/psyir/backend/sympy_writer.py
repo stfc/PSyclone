@@ -274,12 +274,19 @@ class SymPyWriter(FortranWriter):
                                                 f"{args[i+2]}")
                     return f"{name}({','.join(new_args)})"
 
-                # Now create a new class to represent this name, and assign
-                # it the special print function to convert array expressions
-                # back to Fortran syntax:
-                self._sympy_type_map[name] = \
-                    type(name, (Function, ),
-                         {"_sympystr": print_fortran_array})
+                # -------------------------------------------------------------
+                # Now create a new function instance, and overwrite how this
+                # function is converted back into a string using the
+                # print_fortran_array function above. Note that we cannot
+                # create a derived class based on Function: SymPy tests
+                # internally if the type is a Function (not if it is an
+                # instance), therefore, the behaviour would change if we used
+                # a derived class.
+                array_func = Function(name)
+                # pylint: disable=protected-access
+                array_func._sympystr = print_fortran_array
+                # pylint: enable=protected-access
+                self._sympy_type_map[name] = array_func
 
         # Now all symbols have been added to the symbol table, create
         # unique names for the lower- and upper-bounds using special tags:
