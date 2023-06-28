@@ -298,6 +298,7 @@ class SymbolicMaths:
         # Avoid circular import
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.backend.sympy_writer import SymPyWriter
+        from psyclone.psyir.frontend.sympy_reader import SymPyReader
         from psyclone.psyir.nodes import Reference, Literal
 
         # variables and literals do not require expansion
@@ -311,8 +312,10 @@ class SymbolicMaths:
 
         # Find the required symbol table in the original PSyIR
         symbol_table = expr.scope.symbol_table
+
+        sympy_reader = SymPyReader(sympy_writer)
         # Convert the new sympy expression to PSyIR
-        new_expr = sympy_writer.sympy_to_psyir(result, symbol_table)
+        new_expr = sympy_reader.psyir_from_expression(result, symbol_table)
 
         # If the expanded result is the same as the original then
         # nothing needs to be done.

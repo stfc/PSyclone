@@ -205,6 +205,10 @@ class SymPyWriter(FortranWriter):
         # Find each reference in each of the expression, and declare this name
         # as either a SymPy Symbol (scalar reference), or a SymPy Function
         # (an array).
+
+        # Avoid circular dependency
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.frontend.sympy_reader import SymPyReader
         for expr in list_of_expressions:
             for ref in expr.walk(Reference):
                 name = ref.name
@@ -222,69 +226,16 @@ class SymPyWriter(FortranWriter):
                     self._sympy_type_map[name] = Symbol(name)
                     continue
 
-                # Now a new Fortran array is used. Declare a special SymPy
-                # function for it. This function will convert array expressions
-                # back into the original Fortran code
-
-                # -------------------------------------------------------------
-                def print_fortran_array(self, printer, sympy_writer=self):
-                    '''A custom print function to convert a modified
-                    Fortran array access back to standard Fortran. It
-                    converts the three values that each index is converted
-                    to back into the Fortran array notation.
-                    Access to this instance of the SymPy writer is required
-                    to access the names for lower and upper bounds. At the
-                    time this function is created, the names for these bounds
-                    cannot be defined (since it might clash with a variable
-                    name that will be seen later)
-
-                    :param printer: the SymPy writer base class.
-                    :type printer: :py:class:`sympy.printing.str.StrPrinter`
-                    :param sympy_writer: this instance of this SymPy writer.
-                        It is used to access the unique names for the lower-
-                        and upper-bounds.
-                    :type sympy_writer:
-                        :py:class:`psyclone.psyir.backend.SymPyWriter`
-
-                    '''
-                    # pylint: disable=protected-access
-                    args = [printer._print(i) for i in self.args]
-                    name = self.__class__.__name__
-                    lower_b = sympy_writer.lower_bound_name
-                    upper_b = sympy_writer.upper_bound_name
-
-                    # Analyse each triple of parameters, and add the
-                    # corresponding index into new_args:
-                    new_args = []
-                    for i in range(0, len(args), 3):
-                        if args[i] == args[i+1] and args[i+2] == "1":
-                            # a(i,i,1) --> a(i)
-                            new_args.append(args[i])
-                        elif args[i] == lower_b and args[i+1] == upper_b and \
-                                args[i+2] == "1":
-                            # a(lower_b, upper_b, 1) --> a(:)
-                            new_args.append(":")
-                        else:
-                            if args[i+2] == "1":
-                                # a(i,j,1) --> a(i:j)
-                                new_args.append(f"{args[i]}:{args[i+1]}")
-                            else:
-                                # a(i,j,k) --> a(i:j:k)
-                                new_args.append(f"{args[i]}:{args[i+1]}:"
-                                                f"{args[i+2]}")
-                    return f"{name}({','.join(new_args)})"
-
-                # -------------------------------------------------------------
-                # Now create a new function instance, and overwrite how this
-                # function is converted back into a string using the
-                # print_fortran_array function above. Note that we cannot
-                # create a derived class based on Function: SymPy tests
-                # internally if the type is a Function (not if it is an
-                # instance), therefore, the behaviour would change if we used
-                # a derived class.
+                # Now a new Fortran array is used. Create a new function
+                # instance, and overwrite how this function is converted back
+                # into a string using the print_fortran_array function from
+                # the SymPyReader. Note that we cannot create a derived class
+                # based on Function: SymPy tests internally if the type is a
+                # Function (not if it is an instance), therefore, the
+                # behaviour would change if we used a derived class.
                 array_func = Function(name)
                 # pylint: disable=protected-access
-                array_func._sympystr = print_fortran_array
+                array_func._sympystr = SymPyReader.print_fortran_array
                 # pylint: enable=protected-access
                 self._sympy_type_map[name] = array_func
 
@@ -299,7 +250,7 @@ class SymPyWriter(FortranWriter):
 
     # -------------------------------------------------------------------------
     @property
-    def lower_bound_name(self):
+    def lower_bound(self):
         ''':returns: the name to be used for an unspecified lower bound.
         :rtype: str
 
@@ -308,7 +259,7 @@ class SymPyWriter(FortranWriter):
 
     # -------------------------------------------------------------------------
     @property
-    def upper_bound_name(self):
+    def upper_bound(self):
         ''':returns: the name to be used for an unspecified upper bound.
         :rtype: str
 
@@ -556,8 +507,8 @@ class SymPyWriter(FortranWriter):
         # the triple-array indices to represent `lower:upper:1` for each
         # dimension:
         shape = node.symbol.shape
-        result = [f"{self.lower_bound_name},"
-                  f"{self.upper_bound_name},1"]*len(shape)
+        result = [f"{self.lower_bound},"
+                  f"{self.upper_bound},1"]*len(shape)
 
         return (f"{node.name}{self.array_parenthesis[0]}"
                 f"{','.join(result)}{self.array_parenthesis[1]}")
@@ -603,8 +554,7 @@ class SymPyWriter(FortranWriter):
                 dims.extend([lower_expression, upper_expression, "1"])
             elif isinstance(index, ArrayType.Extent):
                 # unknown extent
-                dims.extend([self.lower_bound_name, self.upper_bound_name,
-                            "1"])
+                dims.extend([self.lower_bound, self.upper_bound, "1"])
             else:
                 raise NotImplementedError(
                     f"unsupported gen_indices index '{index}'")
@@ -627,7 +577,7 @@ class SymPyWriter(FortranWriter):
                 node.parent.indices.index(node)):
             # The range starts for the first element in this
             # dimension, so use the generic name for lower bound:
-            start = self.lower_bound_name
+            start = self.lower_bound
         else:
             start = self._visit(node.start)
 
@@ -635,7 +585,7 @@ class SymPyWriter(FortranWriter):
                 node.parent.indices.index(node)):
             # The range ends with the last element in this
             # dimension, so use the generic name for the upper bound:
-            stop = self.upper_bound_name
+            stop = self.upper_bound
         else:
             stop = self._visit(node.stop)
         result = f"{start},{stop}"
