@@ -46,34 +46,67 @@ from psyclone.psyGen import GenerationError
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import KernelSchedule, Container
 from psyclone.psyir.symbols import ContainerSymbol, SymbolError, Symbol, \
-    DataSymbol, AutomaticInterface, INTEGER_SINGLE_TYPE
+    DataSymbol, AutomaticInterface, INTEGER_SINGLE_TYPE, ScalarType, \
+    RoutineSymbol
 
 
 def test_use_return(parser):
-    ''' Check the the Fparser correctly handles when a function uses a
-    return variable with a kind defined inside the function.'''
+    ''' Check the the Fparser frontend correctly handles when a function uses
+    a return variable with a kind defined inside the function.'''
     processor = Fparser2Reader()
     reader = FortranStringReader("real(rkind) function x()\n"
                                  "  use my_mod, only: rkind\n"
                                  "  x = 1.0_rkind\n"
                                  "end function x\n")
     ptree = parser(reader)
-    processor.generate_psyir(ptree)
+    psyir = processor.generate_psyir(ptree)
+    sym = psyir.children[0].symbol_table.lookup("x")
+    assert isinstance(sym, DataSymbol)
+    assert isinstance(sym.datatype, ScalarType)
+    assert sym.datatype.intrinsic == ScalarType.Intrinsic.REAL
 
 
 def test_use_return2(parser):
-    ''' Check the the Fparser correctly handles when a function uses a
-    return variable with a kind defined inside the parent module.'''
+    ''' Check the the Fparser frontend correctly handles when a function uses
+    a return variable with a kind defined inside the parent module.'''
     processor = Fparser2Reader()
     reader = FortranStringReader("module mymod\n"
-                                 "  use my_mod, only: rkind\n"
-                                 " contains\n"
+                                 "use my_mod, only: rkind\n"
+                                 "contains\n"
                                  "real(rkind) function x()\n"
                                  "  x = 1.0_rkind\n"
                                  "end function x\n"
                                  "end module mymod")
     ptree = parser(reader)
-    processor.generate_psyir(ptree)
+    psyir = processor.generate_psyir(ptree)
+    sym = psyir.children[0].symbol_table.lookup("x")
+    assert isinstance(sym, RoutineSymbol)
+    assert isinstance(sym.datatype, ScalarType)
+    assert sym.datatype.intrinsic == ScalarType.Intrinsic.REAL
+    sym = psyir.children[0].children[0].symbol_table.lookup("x")
+    assert isinstance(sym, DataSymbol)
+    assert isinstance(sym.datatype, ScalarType)
+    assert sym.datatype.intrinsic == ScalarType.Intrinsic.REAL
+
+    reader = FortranStringReader("module mymod\n"
+                                 "use my_mod, only: rkind\n"
+                                 "private\n"
+                                 "contains\n"
+                                 "real(rkind) function x()\n"
+                                 "  x = 1.0_rkind\n"
+                                 "end function x\n"
+                                 "end module mymod")
+    ptree = parser(reader)
+    psyir = processor.generate_psyir(ptree)
+    sym = psyir.children[0].symbol_table.lookup("x")
+    assert isinstance(sym, RoutineSymbol)
+    assert sym.visibility == Symbol.Visibility.PRIVATE
+    assert isinstance(sym.datatype, ScalarType)
+    assert sym.datatype.intrinsic == ScalarType.Intrinsic.REAL
+    sym = psyir.children[0].children[0].symbol_table.lookup("x")
+    assert isinstance(sym, DataSymbol)
+    assert isinstance(sym.datatype, ScalarType)
+    assert sym.datatype.intrinsic == ScalarType.Intrinsic.REAL
 
 
 @pytest.mark.usefixtures("f2008_parser")
