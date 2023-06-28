@@ -54,7 +54,8 @@ from psyclone.errors import InternalError
 from psyclone.f2pygen import AssignGen, PSyIRGen
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import BuiltIn
-from psyclone.psyir.nodes import (Assignment, BinaryOperation, Call, Reference,
+from psyclone.psyir.nodes import (ArrayReference, Assignment, BinaryOperation,
+                                  Call, Reference,
                                   StructureReference)
 from psyclone.psyir.symbols import ArrayType, RoutineSymbol
 from psyclone.utils import a_or_an
@@ -467,14 +468,22 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
         :rtype: list of :py:class:`psyclone.psyir.nodes.StructureReference`
 
         '''
+        table = self.scope.symbol_table
         idx_sym = self.get_dof_loop_index_symbol()
 
         array_1d = ArrayType(LFRicTypes("LFRicRealScalarDataType")(),
                              [ArrayType.Extent.DEFERRED])
-        return [StructureReference.create(
-            arg.psyir_expression().symbol, [("data", [Reference(idx_sym)])],
-            overwrite_datatype=array_1d)
-                for arg in self._arguments.args if arg.is_field]
+        refs = []
+        for arg in self._arguments.args:
+            if not arg.is_field:
+                continue
+            sym = table.lookup_with_tag(f"{arg.name}_data")
+            refs.append(ArrayReference.create(sym, [Reference(idx_sym)]))
+        return refs
+#        return [StructureReference.create(
+#            arg.psyir_expression().symbol, [("data", [Reference(idx_sym)])],
+#            overwrite_datatype=array_1d)
+#                for arg in self._arguments.args if arg.is_field]
 
     def get_scalar_argument_references(self):
         '''

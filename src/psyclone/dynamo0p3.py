@@ -2860,12 +2860,24 @@ class LFRicFields(LFRicCollection):
             # data arrays.
             for arg in args:
                 if arg.vector_size > 1:
+                    entity_names = []
                     for idx in range(1, arg.vector_size+1):
-                        table.new_symbol(f"{arg.name}_{idx}_data",
-                                         tag=f"{arg.name}_{idx}_data")
+                        vsym = table.new_symbol(f"{arg.name}_{idx}_data",
+                                                symbol_type=DataSymbol,
+                                                datatype=DeferredType(),
+                                                tag=f"{arg.name}_{idx}_data")
+                        entity_names.append(vsym.name)
                 else:
-                    table.new_symbol(arg.name+"_data",
-                                     tag=arg.name+"_data")
+                    sym = table.new_symbol(arg.name+"_data",
+                                           symbol_type=DataSymbol,
+                                           datatype=DeferredType(),
+                                           tag=arg.name+"_data")
+                    entity_names = [sym.name]
+                parent.add(DeclGen(parent, datatype="real",
+                                   kind="r_def",
+                                   dimension=":",
+                                   entity_decls=entity_names,
+                                   pointer=True))
 
             (self._invoke.invokes.psy.
              infrastructure_modules[fld_mod].add(fld_type))
@@ -3209,9 +3221,23 @@ class DynProxies(LFRicCollection):
                         AssignGen(parent,
                                   lhs=arg.proxy_name+"("+str(idx)+")",
                                   rhs=arg.name+"("+str(idx)+")%get_proxy()"))
+                    name = self._symbol_table.lookup_with_tag(
+                        f"{arg.name}_{idx}_data").name
+                    parent.add(
+                        AssignGen(parent,
+                                  lhs=name,
+                                  rhs=f"{arg.proxy_name}({idx})%data",
+                                  pointer=True))
             else:
                 parent.add(AssignGen(parent, lhs=arg.proxy_name,
                                      rhs=arg.name+"%get_proxy()"))
+                name = self._symbol_table.lookup_with_tag(
+                    f"{arg.name}_data").name
+                parent.add(
+                    AssignGen(parent,
+                              lhs=name,
+                              rhs=f"{arg.proxy_name}%data",
+                              pointer=True))
 
 
 class DynCellIterators(LFRicCollection):

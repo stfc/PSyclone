@@ -69,9 +69,12 @@ class KernCallAccArgList(KernCallArgList):
             :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
+        table = self._kern.scope.symbol_table
         # First provide the derived-type object
         for idx in range(1, argvect.vector_size+1):
-            self.append(argvect.proxy_name + "(" + str(idx) + ")")
+            sym = table.lookup_with_tag(f"{argvect.name}_{idx}_data")
+            self.append(f"{sym.name}({idx})")
+            #self.append(argvect.proxy_name + "(" + str(idx) + ")")
         # Then provide the actual fields that are in the derived-type object
         super().field_vector(argvect, var_accesses)
 
@@ -89,8 +92,8 @@ class KernCallAccArgList(KernCallArgList):
             :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
-        text1 = arg.proxy_name
-        self.append(text1)
+        #text1 = arg.proxy_name
+        #self.append(text1)
         # This will add the field%data argument, and add the field
         # to the variable access list.
         super().field(arg, var_accesses)
