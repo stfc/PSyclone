@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
-# Modified by I. Kavcic, Met Office
+# Modified by I. Kavcic and L. Turner, Met Office
 # Modified by C.M. Maynard, Met Office / University of Reading
 # Modified by J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
@@ -674,7 +674,8 @@ class InvokeSchedule(Routine):
 
     :param str name: name of the Invoke.
     :param type KernFactory: class instance of the factory to use when \
-     creating Kernels. e.g. :py:class:`psyclone.dynamo0p3.DynKernCallFactory`.
+     creating Kernels. e.g. \
+     :py:class:`psyclone.domain.lfric.LFRicKernCallFactory`.
     :param type BuiltInFactory: class instance of the factory to use when \
      creating built-ins. e.g. \
      :py:class:`psyclone.domain.lfric.lfric_builtins.LFRicBuiltInCallFactory`.
@@ -1738,7 +1739,7 @@ class CodedKern(Kern):
         # manually fix the name of the procedure within the text that stores
         # the kernel metadata.
         container_table = container.symbol_table
-        for sym in container_table.local_datatypesymbols:
+        for sym in container_table.datatypesymbols:
             if isinstance(sym.datatype, UnknownFortranType):
                 orig_declaration = sym.datatype.declaration
                 sym.datatype.declaration = orig_declaration.replace(

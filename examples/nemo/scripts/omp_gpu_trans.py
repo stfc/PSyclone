@@ -37,12 +37,12 @@
 ''' PSyclone transformation script showing the introduction of OpenMP for GPU
 directives into Nemo code. '''
 
-from utils import insert_explicit_loop_parallelism, normalise_loops, \
-    enhance_tree_information, add_profiling
 from psyclone.psyGen import TransInfo
 from psyclone.psyir.nodes import Call, Loop
 from psyclone.psyir.transformations import OMPTargetTrans
 from psyclone.transformations import OMPDeclareTargetTrans
+from utils import insert_explicit_loop_parallelism, normalise_loops, \
+    enhance_tree_information, add_profiling
 
 PROFILING_ENABLED = True
 
@@ -74,16 +74,24 @@ def trans(psy):
             print("Skipping", invoke.name)
             continue
 
-        # TODO 1837: Has a TRIM intrinsic that can not be offloaded
-        if invoke.name in ("cpl_oasis3_cpl_freq"):
-            print("Skipping", invoke.name)
-            continue
-
         # TODO #1841: These files have a bug in the array-range-to-loop
         # transformation. One leads to the following compiler error
         # NVFORTRAN-S-0083-Vector expression used where scalar expression
         # required, the other to an incorrect result.
-        if invoke.name in ("blk_oce", "trc_oce_rgb"):
+        if invoke.name in ("trc_oce_rgb", ):
+            print("Skipping", invoke.name)
+            continue
+
+        # This are functions with scalar bodies, we don't want to parallelise
+        # them, but we could:
+        # - Inine them
+        # - Annotate them with 'omp declare target' and allow to call from gpus
+
+        # TODO 2019: DDPDD in additon has a wp precision symbol that PSyclone
+        # wrongly considers undeclared
+        if invoke.name in ("q_sat", "sbc_dcy", "gamma_moist", "cd_neutral_10m",
+                           "psi_h", "psi_m", "DDPDD"):
+
             print("Skipping", invoke.name)
             continue
 
@@ -108,11 +116,7 @@ def trans(psy):
                 region_directive_trans=omp_target_trans,
                 loop_directive_trans=omp_loop_trans,
                 # Collapse is necessary to give GPUs enough parallel items
-                collapse=True,
-                # We exclude loops with calls when parallelising, with the
-                # exception being lib_fortran where we have marked the
-                # called functions as GPU-enabled
-                exclude_calls=psy.name != "psy_lib_fortran_psy",
+                collapse=True
         )
 
     return psy

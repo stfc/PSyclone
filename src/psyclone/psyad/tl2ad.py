@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 
 '''The implementation of PSyAD : the PSyclone Adjoint
 support. Transforms an LFRic tangent linear kernel to its adjoint.
@@ -49,7 +49,7 @@ from psyclone.psyad.transformations.preprocess import preprocess_trans
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Routine, Assignment, Reference, Literal, \
-    Call, Container, BinaryOperation, UnaryOperation, ArrayReference, Range
+    Call, Container, BinaryOperation, IntrinsicCall, ArrayReference, Range
 from psyclone.psyir.symbols import SymbolTable, ImportInterface, Symbol, \
     ContainerSymbol, ScalarType, ArrayType, RoutineSymbol, DataSymbol, \
     INTEGER_TYPE, DeferredType, UnknownType
@@ -229,29 +229,24 @@ def generate_adjoint(tl_psyir, active_variables):
         raise InternalError("The supplied PSyIR does not contain any "
                             "routines.")
 
-    if len(routines) != 1:
-        raise NotImplementedError(
-            f"The supplied Fortran must contain one and only one routine "
-            f"but found: {[sub.name for sub in routines]}")
+    # We need to re-name the kernel routines.
+    for routine in routines:
+        # Have to take care in case we've been supplied with a bare
+        # program/subroutine rather than a subroutine within a module.
+        if container:
+            kernel_sym = container.symbol_table.lookup(routine.name)
+            adj_kernel_name = create_adjoint_name(routine.name)
+            # A symbol's name is immutable so create a new RoutineSymbol
+            adj_kernel_sym = container.symbol_table.new_symbol(
+                adj_kernel_name, symbol_type=RoutineSymbol,
+                visibility=kernel_sym.visibility)
+            container.symbol_table.remove(kernel_sym)
+            routine.name = adj_kernel_sym.name
+        else:
+            routine.name = routine.symbol_table.next_available_name(
+                create_adjoint_name(routine.name))
 
-    routine = routines[0]
-    # We need to re-name the kernel routine. Have to take care in case we've
-    # been supplied with a bare program/subroutine rather than a subroutine
-    # within a module.
-    if container:
-        kernel_sym = container.symbol_table.lookup(routine.name)
-        adj_kernel_name = create_adjoint_name(routine.name)
-        # A symbol's name is immutable so create a new RoutineSymbol
-        adj_kernel_sym = container.symbol_table.new_symbol(
-            adj_kernel_name, symbol_type=RoutineSymbol,
-            visibility=kernel_sym.visibility)
-        container.symbol_table.remove(kernel_sym)
-        routine.name = adj_kernel_sym.name
-    else:
-        routine.name = routine.symbol_table.next_available_name(
-            create_adjoint_name(routine.name))
-
-    logger.debug("AD kernel will be named '%s'", routine.name)
+        logger.debug("AD kernel will be named '%s'", routine.name)
 
     return ad_psyir
 
@@ -284,7 +279,7 @@ def _add_precision_symbol(symbol, table):
     if symbol.name in table:
         return
 
-    if symbol.is_local:
+    if symbol.is_automatic or symbol.is_modulevar:
         table.add(symbol.copy())
     elif symbol.is_import:
         contr_sym = symbol.interface.container_symbol
@@ -693,7 +688,7 @@ def _create_array_inner_product(result, array1, array2, table):
     prod = BinaryOperation.create(BinaryOperation.Operator.MUL,
                                   ref1, ref2)
     # Sum the resulting elements
-    inner = UnaryOperation.create(UnaryOperation.Operator.SUM, prod)
+    inner = IntrinsicCall.create(IntrinsicCall.Intrinsic.SUM, [prod])
     # Accumulate the result
     return Assignment.create(
         Reference(result),

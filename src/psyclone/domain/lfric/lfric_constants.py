@@ -150,6 +150,11 @@ class LFRicConstants():
             OrderedDict(zip(LFRicConstants.VALID_ARG_DATA_TYPES,
                             LFRicConstants.VALID_INTRINSIC_TYPES))
 
+        # ---------- Mapping from Fortran intrinsic type to metadata data_type
+        LFRicConstants.MAPPING_INTRINSIC_TYPES = \
+            OrderedDict(zip(LFRicConstants.VALID_INTRINSIC_TYPES,
+                            LFRicConstants.VALID_ARG_DATA_TYPES))
+
         # ---------- Loops (bounds, types, names) -----------------------------
         # These are loop bound names which identify positions in a field's
         # halo. It is useful to group these together as we often need to
@@ -307,19 +312,22 @@ class LFRicConstants():
         # The value of the actual precision is in bytes.
         # TODO #1941: this mapping should be in the config file or obtained
         # from the constants_mod.f90 file in the LFRic infrastructure. The
-        # values for 'r_tran', 'r_solver' and 'r_def' are set according to
-        # CPP ifdefs. The values given below are the defaults.
-        # l_def is included in this dict so that it contains a complete record
-        # of the various precision symbols used in LFRic.
+        # values for 'r_tran', 'r_solver', 'r_def', 'r_bl' and 'r_phys' are
+        # set according to CPP ifdefs. The values given below are the defaults.
+        # 'l_def' is included in this dict so that it contains a complete
+        # record of the various precision symbols used in LFRic.
         LFRicConstants.PRECISION_MAP = {"i_def": 4,
                                         "l_def": 1,
                                         "r_def": 8,
                                         "r_double": 8,
                                         "r_ncdf": 8,
                                         "r_quad": 16,
+                                        "r_second": 8,
                                         "r_single": 4,
                                         "r_solver": 4,
                                         "r_tran": 8,
+                                        "r_bl": 8,
+                                        "r_phys": 8,
                                         "r_um": 8}
 
         # ---------- Infrastructure module maps -------------------------------
@@ -354,6 +362,18 @@ class LFRicConstants():
                              "proxy_type": "r_tran_field_proxy_type",
                              "intrinsic": "real",
                              "kind": "r_tran"},
+            # 'real'-valued field with data of kind 'r_bl'
+            "r_bl_field": {"module": "r_bl_field_mod",
+                           "type": "r_bl_field_type",
+                           "proxy_type": "r_bl_field_proxy_type",
+                           "intrinsic": "real",
+                           "kind": "r_bl"},
+            # 'real'-valued field with data of kind 'r_phys'
+            "r_phys_field": {"module": "r_phys_field_mod",
+                             "type": "r_phys_field_type",
+                             "proxy_type": "r_phys_field_proxy_type",
+                             "intrinsic": "real",
+                             "kind": "r_phys"},
             # 'integer'-valued field with data of kind 'i_def'
             "integer_field": {"module": "integer_field_mod",
                               "type": "integer_field_type",
@@ -393,7 +413,9 @@ class LFRicConstants():
         LFRicConstants.FIELD_VECTOR_TO_FIELD_MAP = {
             "field_vector_type": "field_type",
             "r_solver_field_vector_type": "r_solver_field_type",
-            "r_tran_field_vector_type": "r_tran_field_type"}
+            "r_tran_field_vector_type": "r_tran_field_type",
+            "r_bl_field_vector_type": "r_bl_field_type",
+            "r_phys_field_vector_type": "r_phys_field_type"}
 
         # Dictionary allowing us to look-up the name of the Fortran module
         # and type (if existing) associated with stencil shapes and directions.

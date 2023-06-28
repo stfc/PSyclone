@@ -32,8 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
-
-# pylint: disable=too-many-lines
+# Modified: I. Kavcic, Met Office
 
 '''This module provides functionality for the PSyclone kernel extraction
 functionality for LFRic. It contains the class that creates a driver that
@@ -44,6 +43,8 @@ the output data contained in the input file.
 from psyclone.core import Signature
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.errors import GenerationError, InternalError
+from psyclone.line_length import FortLineLength
+from psyclone.parse import ModuleManager
 from psyclone.psyGen import InvokeSchedule, Kern
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
@@ -56,7 +57,6 @@ from psyclone.psyir.symbols import (ArrayType, CHARACTER_TYPE,
                                     DataTypeSymbol, DeferredType,
                                     ImportInterface, INTEGER_TYPE,
                                     RoutineSymbol)
-from psyclone.psyir.tools import DependencyTools
 from psyclone.psyir.transformations import ExtractTrans
 
 
@@ -169,32 +169,11 @@ class LFRicExtractDriverCreator:
         is not a dictionary.
 
     '''
-    def __init__(self, precision=None):
+    def __init__(self):
         # TODO #2069: check if this list can be taken from LFRicConstants
-        self._all_field_types = ["field_type", "integer_field_type",
+        self._all_field_types = ["integer_field_type", "field_type",
+                                 "r_bl_field", "r_phys_field",
                                  "r_solver_field_type", "r_tran_field_type"]
-        # Set the size of the various precision types used in LFRic.
-        self._precision = {"i_def": "int32",
-                           "r_def": "real64",
-                           "r_second": "real64",
-                           "r_solver": "real32",
-                           "r_tran": "real32"}
-        if precision:
-            if not isinstance(precision, dict):
-                raise InternalError(
-                    f"The precision argument of the LFRic driver creator "
-                    f"must be a dictionary, but got "
-                    f"'{type(precision).__name__}'.")
-            self._precision.update(precision)
-
-        # Create a mapping from the proxy type (e.g. "operator_proxy_type")
-        # to the kind value (e.g. "r_def")
-        const = LFRicConstants()
-        self._map_fields_to_precision = {}
-        for field_info in const.DATA_TYPE_MAP.values():
-            if field_info["proxy_type"] is not None:
-                self._map_fields_to_precision[field_info["proxy_type"]] \
-                    = field_info["kind"]
 
     # -------------------------------------------------------------------------
     @staticmethod
@@ -255,7 +234,6 @@ class LFRicExtractDriverCreator:
     # -------------------------------------------------------------------------
     def _flatten_reference(self, old_reference, symbol_table,
                            proxy_name_mapping):
-        # pylint: disable=too-many-locals
         '''Replaces ``old_reference``, which is a structure type, with a new
         simple Reference and a flattened name (replacing all % with _). It will
         also remove a '_proxy' in the name, so that the program uses the names
@@ -303,7 +281,11 @@ class LFRicExtractDriverCreator:
         else:
             # Create the new signature, e.g. f1_proyx%data --> f1
             field_type = old_reference.symbol.datatype.name
-            if field_type in ["field_proxy_type", "r_solver_field_proxy_type",
+            # TODO #2069: check if this list can be taken from LFRicConstants
+            if field_type in ["integer_field_proxy_type", "field_proxy_type",
+                              "r_bl_field_proxy_type",
+                              "r_phys_field_proxy_type",
+                              "r_solver_field_proxy_type",
                               "r_tran_field_proxy_type"]:
                 # Field proxy are accessed using '%data'. Remove this to
                 # have more familiar names for the user, and also because
@@ -341,7 +323,6 @@ class LFRicExtractDriverCreator:
                 # of an ArrayMember are the indices, so they need to be
                 # used in the flattened symbol:
                 ind = current.pop_all_children()
-                print("IND", ind, [type(i) for i in ind])
                 new_ref = ArrayReference.create(symbol, ind)
                 break
             if not current.children:
@@ -368,7 +349,6 @@ class LFRicExtractDriverCreator:
 
 
         '''
-        # pylint: disable=too-many-locals
         all_references = sched.walk(Reference)
 
         # First we add all non-structure names to the symbol table. This way
@@ -447,7 +427,7 @@ class LFRicExtractDriverCreator:
     @staticmethod
     def _create_output_var_code(name, program, is_input, read_var,
                                 postfix, index=None):
-        # pylint: disable=too-many-arguments, too-many-locals
+        # pylint: disable=too-many-arguments
         '''
         This function creates all code required for an output variable.
         It creates the '_post' variable which stores the correct result
@@ -513,7 +493,7 @@ class LFRicExtractDriverCreator:
 
     # -------------------------------------------------------------------------
     def _create_read_in_code(self, program, psy_data, original_symbol_table,
-                             input_list, output_list, postfix):
+                             read_write_info, postfix):
         # pylint: disable=too-many-arguments
         '''This function creates the code that reads in the NetCDF file
         produced during extraction. For each:
@@ -537,12 +517,9 @@ class LFRicExtractDriverCreator:
         :type program: :py:class:`psyclone.psyir.nodes.Routine`
         :param psy_data: the PSyData symbol to be used.
         :type psy_data: :py:class:`psyclone.psyir.symbols.DataSymbol`
-        :param input_list: all signatures that are input variables \
-            to the instrumented region.
-        :type input_list: List[:py:class:`psyclone.core.Signature`]
-        :param output_list: all signatures that are output variables of \
-            the instrumented region.
-        :type output_list: List[:py:class:`psyclone.core.Signature`]
+        :param read_write_info: information about all input and output \
+            parameters.
+        :type read_write_info: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
         :param str postfix: a postfix that is added to a variable name to \
             create the corresponding variable that stores the output \
             value from the kernel data file.
@@ -556,14 +533,12 @@ class LFRicExtractDriverCreator:
 
         '''
         # pylint: disable=too-many-locals
-        all_sigs = list(set(input_list).union(set(output_list)))
-        all_sigs.sort()
         symbol_table = program.scope.symbol_table
         read_var = f"{psy_data.name}%ReadVariable"
 
         # First handle variables that are read:
         # -------------------------------------
-        for signature in input_list:
+        for signature in read_write_info.signatures_read:
             # Find the right symbol for the variable. Note that all variables
             # in the input and output list have been detected as being used
             # when the variable accesses were analysed. Therefore, these
@@ -596,14 +571,14 @@ class LFRicExtractDriverCreator:
         # file. The content of these two variables should be identical
         # at the end.
         output_symbols = []
-        for signature in output_list:
+        for signature in read_write_info.signatures_written:
             # Find the right symbol for the variable. Note that all variables
             # in the input and output list have been detected as being used
             # when the variable accesses were analysed. Therefore, these
             # variables have References, and will already have been declared
             # in the symbol table (in _add_all_kernel_symbols).
             orig_sym = original_symbol_table.lookup(signature[0])
-            is_input = signature in input_list
+            is_input = signature in read_write_info.read_list
             if orig_sym.is_array and orig_sym.datatype.intrinsic.name in \
                     self._all_field_types:
                 # This is a field vector, so handle each individual field
@@ -658,60 +633,30 @@ class LFRicExtractDriverCreator:
             symbol_table.add(new_routine_sym)
 
     # -------------------------------------------------------------------------
-    def _add_precision_symbols(self, symbol_table):
-        '''This function adds an import of the iso_fortran_env standard
-        module to the given symbol table. It uses the various precision
-        symbols defined there to define the LFRic specific precision
-        symbols like 'r_def' ... The actual type is picked depending on
-        the setting in the ``self._precision`` dictionary.
+    @staticmethod
+    def _add_precision_symbols(symbol_table):
+        '''This function adds an import of the various precision
+        symbols used by LFRic from the constants_mod module.
 
         :param symbol_table: the symbol table to which the precision symbols \
             must be added.
         :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
 
         '''
-        # Using the intrinsic module requires a ",". Just add this
-        # as part of the name, the writer then produces the expected
-        # Fortran code (``use ,intrinsic::iso_fortran_env, only:``)
-        intrinsic_mod = ContainerSymbol(",intrinsic::iso_fortran_env")
-        symbol_table.add(intrinsic_mod)
-
-        # Add the import of the real32 and real64 symbols from
-        # iso_fortran_env:
-        real32_type = DataTypeSymbol("real32", INTEGER_TYPE,
-                                     interface=ImportInterface(intrinsic_mod))
-        symbol_table.add(real32_type)
-        real64_type = DataTypeSymbol("real64", INTEGER_TYPE,
-                                     interface=ImportInterface(intrinsic_mod))
-        symbol_table.add(real64_type)
-
-        # Define all required real precision symbols:
-        map_prec = {"real32": real32_type,
-                    "real64": real64_type}
-
-        for prec_name in ["r_def", "r_second", "r_solver", "r_tran"]:
-            prec_type = map_prec[self._precision[prec_name]]
+        const = LFRicConstants()
+        mod_name = const.UTILITIES_MOD_MAP["constants"]["module"]
+        constant_mod = ContainerSymbol(mod_name)
+        symbol_table.add(constant_mod)
+        # r_quad is defined in constants_mod, but not exported. So
+        # we have to remove it from the lists of precisions to import.
+        # TODO #2018
+        all_precisions = [name for name in const.PRECISION_MAP
+                          if name != "r_quad"]
+        for prec_name in all_precisions:
             symbol_table.new_symbol(prec_name,
                                     symbol_type=DataSymbol,
                                     datatype=INTEGER_TYPE,
-                                    constant_value=Reference(prec_type))
-
-        # Add integer32 or integer64 depending on self._precision
-        int_type = DataTypeSymbol(self._precision["i_def"],
-                                  INTEGER_TYPE,
-                                  interface=ImportInterface(intrinsic_mod))
-        symbol_table.add(int_type)
-
-        symbol_table.new_symbol("i_def",
-                                symbol_type=DataSymbol,
-                                datatype=INTEGER_TYPE,
-                                constant_value=Reference(int_type))
-
-        # Add l_def:
-        symbol_table.new_symbol("l_def",
-                                symbol_type=DataSymbol,
-                                datatype=INTEGER_TYPE,
-                                constant_value=Reference(int_type))
+                                    interface=ImportInterface(constant_mod))
 
     # -------------------------------------------------------------------------
     @staticmethod
@@ -760,8 +705,7 @@ class LFRicExtractDriverCreator:
             program.addchild(if_block.detach())
 
     # -------------------------------------------------------------------------
-    def create(self, nodes, input_list, output_list,
-               prefix, postfix, region_name):
+    def create(self, nodes, read_write_info, prefix, postfix, region_name):
         # pylint: disable=too-many-arguments
         '''This function uses the PSyIR to create a stand-alone driver
         that reads in a previously created file with kernel input and
@@ -771,11 +715,10 @@ class LFRicExtractDriverCreator:
         It returns the file container which contains the driver.
 
         :param nodes: a list of nodes.
-        :type nodes: List[:py:obj:`psyclone.psyir.nodes.Node`]
-        :param input_list: variables that are input parameters.
-        :type input_list: List[:py:class:`psyclone.core.Signature`]
-        :param output_list: variables that are output parameters.
-        :type output_list: List[:py:class:`psyclone.core.Signature`]
+        :type nodes: List[:py:class:`psyclone.psyir.nodes.Node`]
+        :param read_write_info: information about all input and output \
+            parameters.
+        :type read_write_info: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
         :param str prefix: the prefix to use for each PSyData symbol, \
             e.g. 'extract' as prefix will create symbols ``extract_psydata``.
         :param str postfix: a postfix that is appended to an output variable \
@@ -813,9 +756,6 @@ class LFRicExtractDriverCreator:
                         Node.lower_to_language_level:
                     raise NotImplementedError(
                         f"LFRic builtin '{builtin.name}' is not supported")
-
-        dep = DependencyTools()
-        input_list, output_list = dep.get_in_out_parameters(nodes)
 
         module_name, local_name = region_name
         unit_name = self._make_valid_unit_name(f"{module_name}_{local_name}")
@@ -903,8 +843,7 @@ class LFRicExtractDriverCreator:
 
         output_symbols = self._create_read_in_code(program, psy_data,
                                                    original_symbol_table,
-                                                   input_list, output_list,
-                                                   postfix)
+                                                   read_write_info, postfix)
         # Move the nodes making up the extracted region into the Schedule
         # of the driver program
         all_children = schedule_copy.pop_all_children()
@@ -916,21 +855,50 @@ class LFRicExtractDriverCreator:
         return file_container
 
     # -------------------------------------------------------------------------
-    def get_driver_as_string(self, nodes, input_list, output_list,
-                             prefix, postfix, region_name,
-                             writer=FortranWriter()):
+    @staticmethod
+    def collect_all_required_modules(file_container):
+        '''Collects recursively all modules used in the file container.
+        It returns a dictionary, with the keys being all the (directly or
+        indirectly) used modules.
+
+        :param file_container: the FileContainer for which to collect all \
+            used modules.
+        :type file_container: \
+            :py:class:`psyclone.psyir.psyir.nodes.FileContainer`
+
+        :returns: a dictionary, with the required module names as key, and \
+            as value a set of all modules required by the key module.
+        :rtype: Dict[str, Set[str]]
+
+        '''
+        all_mods = set()
+        for container in file_container.children:
+            sym_tab = container.symbol_table
+            # Add all imported modules (i.e. all container symbols)
+            all_mods.update(symbol.name for symbol in sym_tab.symbols
+                            if isinstance(symbol, ContainerSymbol))
+
+        mod_manager = ModuleManager.get()
+        return mod_manager.get_all_dependencies_recursively(all_mods)
+
+    # -------------------------------------------------------------------------
+    def get_driver_as_string(self, nodes, read_write_info, prefix, postfix,
+                             region_name, writer=FortranWriter()):
         # pylint: disable=too-many-arguments
-        '''This function uses ``create()`` function to get a PSyIR of a
+        '''This function uses the `create()` function to get the PSyIR of a
         stand-alone driver, and then uses the provided language writer
         to create a string representation in the selected language
         (defaults to Fortran).
+        All required modules will be inlined in the correct order, i.e. each
+        module will only depend on modules inlined earlier, which will allow
+        compilation of the driver. No other dependencies (except system
+        dependencies like NetCDF) are required for compilation.
 
         :param nodes: a list of nodes.
-        :type nodes: List[:py:obj:`psyclone.psyir.nodes.Node`]
-        :param input_list: variables that are input parameters.
-        :type input_list: List[:py:class:`psyclone.core.Signature`]
-        :param output_list: variables that are output parameters.
-        :type output_list: List[:py:class:`psyclone.core.Signature`]
+        :type nodes: List[:py:class:`psyclone.psyir.nodes.Node`]
+        :param read_write_info: information about all input and output \
+            parameters.
+        :type read_write_info: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
         :param str prefix: the prefix to use for each PSyData symbol, \
             e.g. 'extract' as prefix will create symbols `extract_psydata`.
         :param str postfix: a postfix that is appended to an output variable \
@@ -954,32 +922,50 @@ class LFRicExtractDriverCreator:
 
         '''
         try:
-            file_container = self.create(nodes, input_list, output_list,
-                                         prefix, postfix, region_name)
+            file_container = self.create(nodes, read_write_info, prefix,
+                                         postfix, region_name)
         except NotImplementedError as err:
             print(f"Cannot create driver for '{region_name[0]}-"
                   f"{region_name[1]}' because:")
             print(str(err))
             return ""
 
-        return writer(file_container)
+        module_dependencies = self.collect_all_required_modules(file_container)
+        # Sort the modules by dependencies, i.e. start with modules
+        # that have no dependency. This is required for compilation, the
+        # compiler must have found any dependent modules before it can
+        # compile a module.
+        sorted_modules = ModuleManager.sort_modules(module_dependencies)
+
+        # Inline all required modules into the driver source file so that
+        # it is stand-alone:
+        out = []
+        mod_manager = ModuleManager.get()
+        for module in sorted_modules:
+            # Note that all modules in `sorted_modules` are known to be in
+            # the module manager, so we can always get the module info here.
+            mod_info = mod_manager.get_module_info(module)
+            out.append(mod_info.get_source_code())
+
+        out.append(writer(file_container))
+
+        return "\n".join(out)
 
     # -------------------------------------------------------------------------
-    def write_driver(self, nodes, input_list, output_list,
-                     prefix, postfix, region_name, writer=FortranWriter()):
+    def write_driver(self, nodes, read_write_info, prefix, postfix,
+                     region_name, writer=FortranWriter()):
         # pylint: disable=too-many-arguments
         '''This function uses the ``get_driver_as_string()`` function to get a
         a stand-alone driver, and then writes this source code to a file. The
         file name is derived from the region name:
-        "driver-"+module_name+"_"+region_name+".f90"
+        "driver-"+module_name+"_"+region_name+".F90"
 
         :param nodes: a list of nodes containing the body of the driver
             routine.
-        :type nodes: List[:py:obj:`psyclone.psyir.nodes.Node`]
-        :param input_list: variables that are input parameters.
-        :type input_list: List[:py:class:`psyclone.core.Signature`]
-        :param output_list: variables that are output parameters.
-        :type output_list: List[:py:class:`psyclone.core.Signature`]
+        :type nodes: List[:py:class:`psyclone.psyir.nodes.Node`]
+        :param read_write_info: information about all input and output \
+            parameters.
+        :type read_write_info: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
         :param str prefix: the prefix to use for each PSyData symbol, \
             e.g. 'extract' as prefix will create symbols `extract_psydata`.
         :param str postfix: a postfix that is appended to an output variable \
@@ -999,14 +985,15 @@ class LFRicExtractDriverCreator:
             :py:class:`psyclone.psyir.backend.language_writer.LanguageWriter`
 
         '''
-        code = self.get_driver_as_string(nodes, input_list, output_list,
-                                         prefix, postfix, region_name,
-                                         writer=writer)
+        code = self.get_driver_as_string(nodes, read_write_info, prefix,
+                                         postfix, region_name, writer=writer)
+        fll = FortLineLength()
+        code = fll.process(code)
         if not code:
             # This indicates an error that was already printed,
             # so ignore it here.
             return
         module_name, local_name = region_name
-        with open(f"driver-{module_name}-{local_name}.f90", "w",
+        with open(f"driver-{module_name}-{local_name}.F90", "w",
                   encoding='utf-8') as out:
             out.write(code)

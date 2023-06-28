@@ -332,7 +332,7 @@
 	undeclared arguments.
 
 	112) PR #2067 towards #1618. Fixes bugs relating to gh_sum for
-        scalars and use of any_space_* spaces in the new metadata
+	scalars and use of any_space_* spaces in the new metadata
 	handling. Also corrects a (tested) docstring so that it sets
 	up a Config object first.
 
@@ -358,6 +358,120 @@
 
 	120) PR #2025 for #1483. Adds driver generation for LFRic kernel
 	extraction (PSyKE).
+
+	121) PR #2048 towards #1772. Implements a new MetadataToArgumentsRules
+	class using the new LFRic metadata functionality.
+
+	122) PR #2085 for #840. Add support for minval, maxval and sum Fortran
+	intrinsics.
+
+	123) PR #2077 for #2075. Specify LFRic built-in metadata descriptions
+	within LFRic built-in classes.
+
+	124) PR #2104 towards #1618. Fix invalid use of subroutine instead of
+	function in an LFRic example algorithm.
+
+	125) PR #2098 towards #2091. Split off and rename DynKernCallFactory
+	to LFRicKernCallFactory.
+
+	126) PR #2103 towards #1618. Support Fortran interfaces whose symbols
+	are already declared.
+
+	127) PR #2099. Update of tutorials.
+
+	128) PR #1937 for #1935. Adds all LFRic TL and adjoint kernels under
+	examples.
+
+	129) PR #2112 towards #1618. Splits LFRic eg11 source file into
+	driver and algorithm.
+
+	130) PR #2118 for #2117. Ensure build flags passed to LFRic
+	infrastructure
+
+	131) PR #2026 for #1991. Improves the support for building a
+	standalone driver for an extracted kernel. All required modules are
+	now inlined into the driver source file.
+
+	132) PR #2086 for #2013. Adds support for logical scalar arguments
+	in PSyAD test harness generation.
+
+	133) PR #2060 towards #1618. Adds an optional code path for LFRic
+	Algorithm-layer handling using the new metadata processing
+	functionality.
+
+	134) PR #2123. Updates GOcean project link in UG.
+
+	135) PR #2121 for #2109. Updates PSyclone to fparser 0.1.1 release.
+
+	136) PR #2128 towards #1618. Bug fix in LFRicAlgInvoke2PSyCallTrans
+	for kernels requiring more than 1 quadrature object.
+
+	137) PR #967 towards #2132. Add GH workflows for self-hosted runner.
+
+	138) PR #2084 for #1801. Improve handling of assume-shape arrays with
+	specified bounds.
+
+	139) PR #2129 towards #1618. Bug fix for -ve Literal args to kernels
+	in PSyIR handling of LFRic Alg Layer.
+
+	140) PR #2133 for #2126. Add RTD YAML config files to allow the
+	documentation (user guide, developer guide etc) to be managed
+	separately and to allow software environments other than the
+	default to be specified.
+
+	141) PR #2092 for #2008. Refactors Symbol interfaces and adds support
+	for Static/SAVE variables.
+
+	142) PR #2089 for #2005. Add a SymbolTable merge method and improve symbol
+	renaming capabilities.
+
+	143) PR #2141 towards #1618. Add support for Symbols imported from
+	Containers with renaming.
+
+	144) PR #2136 for #2134. Fix compilation tests bug with assumed shape arrays.
+
+	145) PR #2115 for #2114. Fortran allocate with type-spec becomes a CodeBlock.
+
+	146) PR #2130 towards #1161. Adds support for HUGE and TINY intrinsics.
+
+	147) PR #2095 towards #2091. Split off and rename DynInvoke to LFRicInvoke.
+
+	148) PR #2146 for #2145. Skip CI link checks for mybinder as they
+	occasionally fail.
+
+	149) PR #2135 towards #1618. Adds (limited) PSyIR support for Fortran
+	interfaces without a name.
+
+	150) PR #2152 for #2149. Adds checks in Literal constructor that
+	supplied string is a valid format.
+
+	151) PR #2143 for #2043. Adds basic PSyIR support for Fortran COMMON
+	blocks.
+
+	152) PR #2150 towards #2132. Improve self-hosted CI workflow.
+
+	153) PR #2090 for #1545. Split off and rename DynCollection to
+	LFRicCollection.
+
+	154) PR #2140 for #2139. Encapsulates the result of the dependency-
+	analysis' get_in_out_parameters() in a single class.
+
+	155) PR #2160 for #2159. Adds support for LFRic kernel arguments with two
+	new precision names (r_bl and r_phys).
+
+	156) PR #2170 for #2169. Correct import of fparser2
+	Declaration_Construct.
+
+	157) PR #2131 towards #1618. Improves the error handling when we find
+	a Routine with the same name as an LFRic Builtin.
+
+	158) PR #2147 for #2119. Add elemental and pure routine attributes.
+
+	159) PR #2181 for #2175. Bug fixes for processing of Fortran
+	declarations and integer literals.
+
+	160) PR #2107 for #2106. Improvements to NEMO processing scripts and
+	inclusion in Integration Testing.
 
 release 2.3.1 17th of June 2022
 

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2020, Science and Technology Facilities Council.
+# Copyright (c) 2019-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
 # Modified: R. W. Ford, STFC Daresbury Lab
+# Modified: S. Siso, STFC Daresbury Lab
 
 ''' Performs py.test tests on the support for use statements in the fparser2
     PSyIR front-end '''
@@ -45,7 +46,7 @@ from psyclone.psyGen import GenerationError
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import KernelSchedule, Container
 from psyclone.psyir.symbols import ContainerSymbol, SymbolError, Symbol, \
-    DataSymbol, LocalInterface, INTEGER_SINGLE_TYPE
+    DataSymbol, AutomaticInterface, INTEGER_SINGLE_TYPE
 
 
 @pytest.mark.usefixtures("f2008_parser")
@@ -56,7 +57,8 @@ def test_use_stmt():
     processor = Fparser2Reader()
     reader = FortranStringReader("use my_mod, only: some_var\n"
                                  "use this_mod\n"
-                                 "use other_mod, only: var1, var2\n")
+                                 "use other_mod, only: var1=>orig_name, "
+                                 "var2\n")
     fparser2spec = Fortran2003.Specification_Part(reader)
     processor.process_declarations(fake_parent, fparser2spec.content, [])
 
@@ -76,8 +78,13 @@ def test_use_stmt():
 
     assert symtab.lookup("some_var").interface.container_symbol \
         == symtab.lookup("my_mod")
+    assert symtab.lookup("some_var").interface.orig_name is None
+    assert symtab.lookup("var1").interface.container_symbol \
+        == symtab.lookup("other_mod")
+    assert symtab.lookup("var1").interface.orig_name == "orig_name"
     assert symtab.lookup("var2").interface.container_symbol \
         == symtab.lookup("other_mod")
+    assert symtab.lookup("var2").interface.orig_name is None
 
 
 @pytest.mark.usefixtures("f2008_parser")
@@ -244,7 +251,7 @@ def test_use_local_symbol_error():
     # come before local declarations. Therefore we manually add a symbol
     # to the table first.
     fake_parent.symbol_table.add(DataSymbol("fred", INTEGER_SINGLE_TYPE,
-                                            interface=LocalInterface()))
+                                            interface=AutomaticInterface()))
     processor = Fparser2Reader()
     reader = FortranStringReader("use mod2, only: fred\n")
     fparser2spec = Fortran2003.Specification_Part(reader)

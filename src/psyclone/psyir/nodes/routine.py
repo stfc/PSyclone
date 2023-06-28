@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2022, Science and Technology Facilities Council.
+# Copyright (c) 2020-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -79,7 +79,7 @@ class Routine(Schedule, CommentableMixin):
     def __eq__(self, other):
         '''
         Checks whether two nodes are equal. Two Routine nodes are equal
-        if they have the same name, same return symbol, same is_program and
+        if they have the same name, same return symbol, same properties and
         the inherited __eq__ is True.
 
         :param object other: the object to check equality to.
@@ -207,7 +207,7 @@ class Routine(Schedule, CommentableMixin):
                     return  # The preexisting symbol already matches
                 # Otherwise raise an exception
                 raise KeyError(
-                    f"Can't assign {new_name} as the routine name because "
+                    f"Can't assign '{new_name}' as the routine name because "
                     f"its symbol table contains a symbol ({existing_symbol}) "
                     f"already tagged as 'own_routine_symbol'.")
 
@@ -262,7 +262,7 @@ class Routine(Schedule, CommentableMixin):
         if not isinstance(value, DataSymbol):
             raise TypeError(f"Routine return-symbol should be a DataSymbol "
                             f"but found '{type(value).__name__}'.")
-        if value not in self.symbol_table.local_datasymbols:
+        if value not in self.symbol_table.datasymbols:
             raise KeyError(
                 f"For a symbol to be a return-symbol, it must be present in "
                 f"the symbol table of the Routine but '{value.name}' is not.")

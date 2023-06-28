@@ -33,7 +33,7 @@
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford, A. R. Porter and N. Nobre, STFC Daresbury Lab
 # Modified A. J. Voysey, Met Office
-# Modified by J. Henrichs, Bureau of Meteorology
+# Modified J. Henrichs, Bureau of Meteorology
 
 '''
     This module provides the PSyclone 'main' routine which is intended
@@ -49,31 +49,49 @@ import os
 import sys
 import traceback
 
+from fparser.api import get_reader
+from fparser.two import Fortran2003
+
 from psyclone import configuration
 from psyclone.alg_gen import Alg, NoInvokesError
 from psyclone.configuration import Config, ConfigurationError
 from psyclone.domain.common.algorithm.psyir import (
     AlgorithmInvokeCall, KernelFunctor)
-from psyclone.domain.common.transformations import (
-    AlgTrans, AlgInvoke2PSyCallTrans)
-from psyclone.domain.gocean.transformations import RaisePSyIR2GOceanKernTrans
+from psyclone.domain.common.transformations import AlgTrans
+from psyclone.domain.gocean.transformations import (
+    RaisePSyIR2GOceanKernTrans, GOceanAlgInvoke2PSyCallTrans)
+from psyclone.domain.lfric.algorithm import LFRicBuiltinFunctor
+from psyclone.domain.lfric.transformations import (
+    LFRicAlgTrans, RaisePSyIR2LFRicKernTrans, LFRicAlgInvoke2PSyCallTrans)
 from psyclone.errors import GenerationError, InternalError
 from psyclone.line_length import FortLineLength
+from psyclone.parse import ModuleManager
 from psyclone.parse.algorithm import parse
 from psyclone.parse.kernel import get_kernel_filepath
-from psyclone.parse.utils import ParseError
+from psyclone.parse.utils import ParseError, parse_fp2
 from psyclone.profiler import Profiler
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyir.nodes import Loop
+from psyclone.psyir.nodes import Loop, Container, Routine
+from psyclone.psyir.transformations import TransformationError
 from psyclone.version import __VERSION__
 
 # Those APIs that do not have a separate Algorithm layer
 API_WITHOUT_ALGORITHM = ["nemo"]
 
+# TODO issue #1618 remove temporary LFRIC_TESTING flag, associated
+# logic and Alg class plus tests (and ast variable).
+#
+# Temporary flag to allow optional testing of new LFRic metadata
+# implementation (mainly that the PSyIR works with algorithm-layer
+# code) whilst keeping the original implementation as default
+# until it is working.
+LFRIC_TESTING = False
+
 
 def handle_script(script_name, info, function_name, is_optional=False):
+    # pylint: disable=too-many-locals
     '''Loads and applies the specified script to the given algorithm or
     psy layer. The relevant script function (in 'function_name') is
     called with 'info' as the argument.
@@ -237,36 +255,65 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
             raise IOError(
                 f"Kernel search path '{kernel_path}' not found")
 
+    # TODO #2011: investigate if kernel search path and module manager
+    # can be combined.
+    ModuleManager.get().add_search_path(kernel_paths)
+
     ast, invoke_info = parse(filename, api=api, invoke_name="invoke",
                              kernel_paths=kernel_paths,
                              line_length=line_length)
-    if api != "gocean1.0":
+
+    if api in API_WITHOUT_ALGORITHM or \
+       (api == "dynamo0.3" and not LFRIC_TESTING):
         psy = PSyFactory(api, distributed_memory=distributed_memory)\
             .create(invoke_info)
         if script_name is not None:
             handle_script(script_name, psy, "trans")
+        alg_gen = None
 
-    alg_gen = None
-
-    if api == "gocean1.0":
+    elif api == "gocean1.0" or (api == "dynamo0.3" and LFRIC_TESTING):
         # Create language-level PSyIR from the Algorithm file
         reader = FortranReader()
-        psyir = reader.psyir_from_file(filename)
+        if api == "dynamo0.3":
+            # avoid undeclared builtin errors in PSyIR by adding "use
+            # builtins". TODO issue #1618. This symbol needs to be
+            # removed when lowering.
+            fp2_tree = parse_fp2(filename)
+            add_builtins_use(fp2_tree)
+            psyir = reader.psyir_from_source(str(fp2_tree))
+            # Check that there is only one module/program per file.
+            check_psyir(psyir, filename)
+        else:
+            psyir = reader.psyir_from_file(filename)
 
         # Raise to Algorithm PSyIR
-        alg_trans = AlgTrans()
-        alg_trans.apply(psyir)
+        if api == "gocean1.0":
+            alg_trans = AlgTrans()
+        else:  # api == "dynamo0.3"
+            alg_trans = LFRicAlgTrans()
+        try:
+            alg_trans.apply(psyir)
+        except TransformationError as info:
+            raise GenerationError(
+                f"In algorithm file '{filename}':\n{info.value}") from info
+
+        if not psyir.walk(AlgorithmInvokeCall):
+            raise NoInvokesError(
+                "Algorithm file contains no invoke() calls: refusing to "
+                "generate empty PSy code")
+
+        if script_name is not None:
+            # Call the optimisation script for algorithm optimisations
+            handle_script(script_name, psyir, "trans_alg", is_optional=True)
 
         # For each kernel called from the algorithm layer
         kernels = {}
         for invoke in psyir.walk(AlgorithmInvokeCall):
             kernels[id(invoke)] = {}
             for kern in invoke.walk(KernelFunctor):
-
-                # Find the container that includes this kernel
-                # symbol. Note that the gocean1.0 API does not make
-                # use of builtins and therefore all kernels are
-                # imported from an existing container.
+                if isinstance(kern, LFRicBuiltinFunctor):
+                    # Skip builtins
+                    continue
                 container_symbol = kern.symbol.interface.container_symbol
 
                 # Find the kernel file containing the container
@@ -282,19 +329,26 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
                     sys.exit(1)
 
                 # Raise to Kernel PSyIR
-                kern_trans = RaisePSyIR2GOceanKernTrans(kern.symbol.name)
-                kern_trans.apply(kernel_psyir)
+                if api == "gocean1.0":
+                    kern_trans = RaisePSyIR2GOceanKernTrans(kern.symbol.name)
+                    kern_trans.apply(kernel_psyir)
+                else:  # api == "dynamo0.3"
+                    kern_trans = RaisePSyIR2LFRicKernTrans()
+                    kern_trans.apply(
+                        kernel_psyir,
+                        options={"metadata_name": kern.symbol.name})
 
+                # kernels[id(invoke)][id(kern)] = kernel_psyir
                 kernels[id(invoke)][id(kern)] = kernel_psyir
 
-        if script_name is not None:
-            # Call the optimisation script for algorithm optimisations
-            handle_script(script_name, psyir, "trans_alg", is_optional=True)
-
         # Transform 'invoke' calls into calls to PSy-layer subroutines
-        invoke_trans = AlgInvoke2PSyCallTrans()
+        if api == "gocean1.0":
+            invoke_trans = GOceanAlgInvoke2PSyCallTrans()
+        else:  # api == "dynamo0.3"
+            invoke_trans = LFRicAlgInvoke2PSyCallTrans()
         for invoke in psyir.walk(AlgorithmInvokeCall):
-            invoke_trans.apply(invoke)
+            invoke_trans.apply(
+                invoke, options={"kernels": kernels[id(invoke)]})
 
         # Create Fortran from Algorithm PSyIR
         writer = FortranWriter()
@@ -309,7 +363,8 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
             # Call the optimisation script for psy-layer optimisations
             handle_script(script_name, psy, "trans")
 
-    elif api not in API_WITHOUT_ALGORITHM:
+    # TODO issue #1618 remove Alg class and tests from PSyclone
+    if api == "dynamo0.3" and not LFRIC_TESTING:
         alg_gen = Alg(ast, psy).gen
 
     # Add profiling nodes to schedule if automatic profiling has
@@ -496,3 +551,53 @@ def main(args):
             psy_file.write(psy_str)
     else:
         print(f"Generated psy layer code:\n{psy_str}")
+
+
+def check_psyir(psyir, filename):
+    '''Check the supplied psyir to make sure that it contains a
+    single program or module.
+
+    :param psyir: the psyir to check.
+    :type psyir: py:class:`psyclone.psyir.nodes.FileContainer`
+
+    :raises GenerationError: if the algorithm file contains \
+        multiple modules or programs.
+    :raises GenerationError: if the algorithm file is not a \
+        module or a program.
+
+    '''
+    if len(psyir.children) != 1:
+        raise GenerationError(
+            f"Expecting LFRic algorithm-layer code within file "
+            f"'{filename}' to be a single program or module, but "
+            f"found '{len(psyir.children)}' of type "
+            f"{[type(node).__name__ for node in psyir.children]}.")
+    if (not isinstance(psyir.children[0], Container) and not
+        (isinstance(psyir.children[0], Routine) and
+         psyir.children[0].is_program)):
+        raise GenerationError(
+            f"Expecting LFRic algorithm-layer code within file "
+            f"'{filename}' to be a single program or module, but "
+            f"found '{type(psyir.children[0]).__name__}'.")
+
+
+def add_builtins_use(fp2_tree):
+    '''Modify the fparser2 tree adding a 'use builtins' so that builtin kernel
+    functors do not appear to be undeclared.
+
+    :param fp2_tree: the fparser2 tree to modify.
+    :type fp2_tree: py:class:`fparser.two.Program`
+
+    '''
+    for node in fp2_tree.children:
+        if isinstance(node, (Fortran2003.Module, Fortran2003.Main_Program)):
+            # add "use builtins" to the module or program
+            if not isinstance(
+                    node.children[1], Fortran2003.Specification_Part):
+                fp2_reader = get_reader("use builtins")
+                node.children.insert(
+                    1, Fortran2003.Specification_Part(fp2_reader))
+            else:
+                spec_part = node.children[1]
+                spec_part.children.insert(
+                    0, Fortran2003.Use_Stmt("use builtins"))
