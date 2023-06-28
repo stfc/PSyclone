@@ -197,97 +197,21 @@ class SymPyWriter(FortranWriter):
         :rtype: :py:class:`sympy.Function`
         '''
 
-        # ---------------------------------------------------------------------
-        def print_fortran_array(self, printer, sympy_writer=self):
-            '''A custom print function to convert a modified
-            Fortran array access back to standard Fortran. It
-            converts the three values that each index is converted
-            to back into the Fortran array notation.
-            Access to this instance of the SymPy writer is required
-            to access the names for lower and upper bounds. At the
-            time this function is created, the names for these bounds
-            cannot be defined (since it might clash with a variable
-            name that will be seen later)
-
-            :param printer: the SymPy writer base class.
-            :type printer: :py:class:`sympy.printing.str.StrPrinter`
-            :param sympy_writer: this instance of this SymPy writer.
-                It is used to access the unique names for the lower-
-                and upper-bounds.
-            :type sympy_writer:
-                :py:class:`psyclone.psyir.backend.SymPyWriter`
-
-            '''
-            # pylint: disable=protected-access
-            args = [printer._print(i) for i in self.args]
-            # pylint: enable=protected-access
-            name = self.__class__.__name__
-            lower_b = sympy_writer.lower_bound_name
-            upper_b = sympy_writer.upper_bound_name
-
-            # Analyse each triple of parameters, and add the
-            # corresponding index into new_args:
-            new_args = []
-            for i in range(0, len(args), 3):
-                if args[i] == args[i+1] and args[i+2] == "1":
-                    # a(i,i,1) --> a(i)
-                    new_args.append(args[i])
-                elif args[i] == lower_b and args[i+1] == upper_b and \
-                        args[i+2] == "1":
-                    # a(lower_b, upper_b, 1) --> a(:)
-                    new_args.append(":")
-                else:
-                    if args[i+2] == "1":
-                        # a(i,j,1) --> a(i:j)
-                        new_args.append(f"{args[i]}:{args[i+1]}")
-                    else:
-                        # a(i,j,k) --> a(i:j:k)
-                        new_args.append(f"{args[i]}:{args[i+1]}:"
-                                        f"{args[i+2]}")
-
-            if self._sig is None:
-                # It's not a user defined type, just create the array access:
-                return f"{name}({','.join(new_args)})"
-
-            # It is a user defined type. Re-assemble the original call by
-            # putting the corresponding indices to the individual members,
-            # based on the information of the stored signature and number
-            # of array indices for each member:
-
-            result = []
-            # This points at the next index to use from new_args, which
-            # contains the indices converted back into Fortran:
-            index_cursor = 0
-            for i, member in enumerate(self._sig):
-                # Get the number of indices this member had:
-                num_dims = self._num_dims[i]
-                indx = []
-                for i in range(num_dims):
-                    indx.append(new_args[index_cursor])
-                    index_cursor += 1
-                if indx:
-                    result.append(f"{member}({','.join(indx)})")
-                else:
-                    result.append(member)
-
-            return "%".join(result)
-
-        # ---------------------------------------------------------------------
-
+        # Create a new function instance, and overwrite how this function is
+        # converted back into a string using the print_fortran_array function
+        # from the SymPyReader. Note that we cannot create a derived class
+        # based on Function: SymPy tests internally if the type is a Function
+        # (not if it is an instance), therefore, the behaviour would change
+        # if we used a derived class. So setting these attributes manually is
+        # by far the easiest option to pass the required information to the
+        # ``print_fortran_array`` function:
         new_func = Function(name)
-        # It is unfortunately not (easily) possible to write a custom Function
-        # class, SymPy, heavily uses Metaclasses and __new__ (which would
-        # misinterpret any new parameter the constructor would take).
-        # Additionally, the name 'Function' is hard-coded in Function.__new__
-        # to create a special UnknownFunction class, which would break if
-        # we provide a derived class based on Function :( So, setting these
-        # attributes manually is by far the easiest option to pass the required
-        # information to the ``print_fortran_array`` function:
+        from psyclone.psyir.frontend.sympy_reader import SymPyReader
         # pylint: disable=protected-access
-        new_func._sympystr = print_fortran_array
+        new_func._sympystr = SymPyReader.print_fortran_array
         new_func._sig = sig
         new_func._num_dims = num_dims
-
+        # pylint: enable=protected-access
         return new_func
 
     # -------------------------------------------------------------------------
@@ -318,6 +242,10 @@ class SymPyWriter(FortranWriter):
         # Find each reference in each of the expression, and declare this name
         # as either a SymPy Symbol (scalar reference), or a SymPy Function
         # (an array).
+
+        # Avoid circular dependency
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.frontend.sympy_reader import SymPyReader
         for expr in list_of_expressions:
             for ref in expr.walk(Reference):
                 name = ref.name
@@ -352,7 +280,7 @@ class SymPyWriter(FortranWriter):
 
     # -------------------------------------------------------------------------
     @property
-    def lower_bound_name(self):
+    def lower_bound(self):
         ''':returns: the name to be used for an unspecified lower bound.
         :rtype: str
 
@@ -361,7 +289,7 @@ class SymPyWriter(FortranWriter):
 
     # -------------------------------------------------------------------------
     @property
-    def upper_bound_name(self):
+    def upper_bound(self):
         ''':returns: the name to be used for an unspecified upper bound.
         :rtype: str
 
@@ -623,8 +551,8 @@ class SymPyWriter(FortranWriter):
         # the triple-array indices to represent `lower:upper:1` for each
         # dimension:
         shape = node.symbol.shape
-        result = [f"{self.lower_bound_name},"
-                  f"{self.upper_bound_name},1"]*len(shape)
+        result = [f"{self.lower_bound},"
+                  f"{self.upper_bound},1"]*len(shape)
 
         return (f"{node.name}{self.array_parenthesis[0]}"
                 f"{','.join(result)}{self.array_parenthesis[1]}")
@@ -670,8 +598,7 @@ class SymPyWriter(FortranWriter):
                 dims.extend([lower_expression, upper_expression, "1"])
             elif isinstance(index, ArrayType.Extent):
                 # unknown extent
-                dims.extend([self.lower_bound_name, self.upper_bound_name,
-                            "1"])
+                dims.extend([self.lower_bound, self.upper_bound, "1"])
             else:
                 raise NotImplementedError(
                     f"unsupported gen_indices index '{index}'")
@@ -694,7 +621,7 @@ class SymPyWriter(FortranWriter):
                 node.parent.indices.index(node)):
             # The range starts for the first element in this
             # dimension, so use the generic name for lower bound:
-            start = self.lower_bound_name
+            start = self.lower_bound
         else:
             start = self._visit(node.start)
 
@@ -702,7 +629,7 @@ class SymPyWriter(FortranWriter):
                 node.parent.indices.index(node)):
             # The range ends with the last element in this
             # dimension, so use the generic name for the upper bound:
-            stop = self.upper_bound_name
+            stop = self.upper_bound
         else:
             stop = self._visit(node.stop)
         result = f"{start},{stop}"

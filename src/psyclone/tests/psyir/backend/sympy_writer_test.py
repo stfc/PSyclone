@@ -43,6 +43,7 @@ from sympy import Function, Symbol
 from sympy.parsing.sympy_parser import parse_expr
 
 from psyclone.psyir.backend.sympy_writer import SymPyWriter
+from psyclone.psyir.frontend.sympy_reader import SymPyReader
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.nodes import Literal
 from psyclone.psyir.symbols import (ArrayType, BOOLEAN_TYPE, CHARACTER_TYPE,
@@ -515,7 +516,8 @@ def test_sympy_expr_to_psyir(fortran_reader, fortran_writer, expressions):
     psyir_expr = psyir.children[0].children[0].rhs
     sympy_writer = SymPyWriter()
     sympy_expr = sympy_writer(psyir_expr)
-    new_psyir = sympy_writer.sympy_to_psyir(sympy_expr, symbol_table)
+    sympy_reader = SymPyReader(sympy_writer)
+    new_psyir = sympy_reader.psyir_from_expression(sympy_expr, symbol_table)
     assert fortran_writer(new_psyir) == expressions[1]
 
 
