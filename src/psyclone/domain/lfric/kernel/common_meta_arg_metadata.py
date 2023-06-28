@@ -179,9 +179,8 @@ class CommonMetaArgMetadata(CommonArgMetadata, ABC):
 
     @classmethod
     def get_array_dimension(cls, fparser2_tree):
-        '''Retrieves the field vector length (for gh_field metadata value) or
-        number of ranks in a scalar array (for gh_array) metadata values found
-        within the supplied fparser2 tree and checks that it is valid.
+        '''Retrieves the vector length metadata value found within the
+        supplied fparser2 tree and checks that it is valid.
 
         :param fparser2_tree: fparser2 tree capturing the required metadata.
         :type fparser2_tree: :py:class:`fparser.two.Fortran2003.Part_Ref`
@@ -198,16 +197,8 @@ class CommonMetaArgMetadata(CommonArgMetadata, ABC):
         components = vector_datatype.split("*")
         if len(components) != 2:
             raise TypeError(
-                f"The vector_length or array_nranks metadata should be in "
-                f"the form 'form*integer' but found '{vector_datatype}'.")
-        acceptable_forms = ['gh_field', 'nranks']
-        if components[0] not in acceptable_forms:
-            raise ParseError(
-                f"In the LFRic API, array dimension notation is given "
-                f"in the form 'form*integer', where form is "#one of "
-                f"'gh_field' "#or '{acceptable_forms[1]}' "
-                f"but found '{components[0]}'."
-            )
+                f"The vector length metadata should be in the form "
+                f"'form*vector_length' but found '{vector_datatype}'.")
         array_dimension = components[1].strip()
         return array_dimension
 
