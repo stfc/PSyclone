@@ -807,7 +807,7 @@ def test_generate_no_builtin_container(tmpdir, monkeypatch):
     with open(filename, "w", encoding='utf-8') as my_file:
         my_file.write(code)
     alg, _ = generate(filename, api="dynamo0.3")
-    assert "use psyclone_builtins" not in alg
+    assert "use _psyclone_builtins" not in alg
 
 
 def test_main_unexpected_fatal_error(capsys, monkeypatch):
@@ -1200,8 +1200,8 @@ def test_no_script_lfric_new(monkeypatch):
     assert " testkern_type" not in alg
     # module symbol is removed
     assert "testkern_mod" not in alg
-    # builtins symbol (that was added by PSyclone) is removed
-    assert "use psyclone_builtins" not in alg
+    # _psyclone_builtins symbol (that was added by PSyclone) is removed
+    assert "use _psyclone_builtins" not in alg
 
 
 def test_script_lfric_new(monkeypatch):
@@ -1225,8 +1225,8 @@ def test_script_lfric_new(monkeypatch):
     assert " testkern_type" not in alg
     # module symbol is removed
     assert "testkern_mod" not in alg
-    # builtins symbol (that was added by PSyclone) is removed
-    assert "use psyclone_builtins" not in alg
+    # _psyclone_builtins symbol (that was added by PSyclone) is removed
+    assert "use _psyclone_builtins" not in alg
 
 
 def test_builtins_lfric_new(monkeypatch):
@@ -1254,8 +1254,8 @@ def test_builtins_lfric_new(monkeypatch):
     assert " testkern_mod" not in alg
     assert " testkern_wtheta_mod" not in alg
     assert " testkern_w2_only_mod" not in alg
-    # builtins symbol (that was added by PSyclone) is removed
-    assert "use psyclone_builtins" not in alg
+    # _psyclone_builtins symbol (that was added by PSyclone) is removed
+    assert "use _psyclone_builtins" not in alg
 
 
 def test_no_invokes_lfric_new(monkeypatch):

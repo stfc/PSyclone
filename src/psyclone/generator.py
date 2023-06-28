@@ -73,6 +73,7 @@ from psyclone.profiler import Profiler
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
+from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import Loop, Container, Routine
 from psyclone.psyir.transformations import TransformationError
 from psyclone.version import __VERSION__
@@ -275,12 +276,15 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
         # Create language-level PSyIR from the Algorithm file
         reader = FortranReader()
         if api == "dynamo0.3":
-            # avoid undeclared builtin errors in PSyIR by adding "use
-            # psyclone_builtins".
-            builtins_module_name = "psyclone_builtins"
+            # avoid undeclared builtin errors in PSyIR by adding a
+            # wildcard use statement.
             fp2_tree = parse_fp2(filename)
+            # Choose a module name that is invalid Fortran so that it
+            # does not clash with any existing names in the algorithm
+            # layer.
+            builtins_module_name = "_psyclone_builtins"
             add_builtins_use(fp2_tree, builtins_module_name)
-            psyir = reader.psyir_from_source(str(fp2_tree))
+            psyir = Fparser2Reader().generate_psyir(fp2_tree)
             # Check that there is only one module/program per file.
             check_psyir(psyir, filename)
         else:
@@ -355,11 +359,9 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
             # names.
             for node in psyir.walk((Routine, Container)):
                 symbol_table = node.symbol_table
-                try:
+                if builtins_module_name in symbol_table:
                     symbol = symbol_table.lookup(builtins_module_name)
                     symbol_table.remove(symbol)
-                except KeyError:
-                    pass
 
         # Create Fortran from Algorithm PSyIR
         writer = FortranWriter()
@@ -598,7 +600,8 @@ def add_builtins_use(fp2_tree, name):
 
     :param fp2_tree: the fparser2 tree to modify.
     :type fp2_tree: py:class:`fparser.two.Program`
-    :param str name: the name of the use statement.
+    :param str name: the name of the module imported by the use
+        statement.
 
     '''
     for node in fp2_tree.children:
@@ -606,10 +609,21 @@ def add_builtins_use(fp2_tree, name):
             # add "use <name>" to the module or program
             if not isinstance(
                     node.children[1], Fortran2003.Specification_Part):
-                fp2_reader = get_reader(f"use {name}")
-                node.children.insert(
-                    1, Fortran2003.Specification_Part(fp2_reader))
+                # Create a valid use statement then modify its name as
+                # the supplied name may be invalid Fortran to avoid
+                # clashes with existing Fortran names.
+                fp2_reader = get_reader("use dummy")
+                spec_part = Fortran2003.Specification_Part(fp2_reader)
+                use_stmt = spec_part.children[0]
+                use_name = use_stmt.children[2]
+                use_name.string = name
+                node.children.insert(1, spec_part)
             else:
                 spec_part = node.children[1]
-                spec_part.children.insert(
-                    0, Fortran2003.Use_Stmt(f"use {name}"))
+                # Create a valid use statement then modify its name as
+                # the supplied name may be invalid Fortran to avoid
+                # clashes with existing Fortran names.
+                use_stmt = Fortran2003.Use_Stmt("use dummy")
+                use_name = use_stmt.children[2]
+                use_name.string = name
+                spec_part.children.insert(0, use_stmt)
