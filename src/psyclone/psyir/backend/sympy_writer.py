@@ -38,13 +38,10 @@
 '''PSyIR backend to create expressions that are handled by sympy.
 '''
 
-# pylint: disable=too-many-lines
-
 from sympy import Function, Symbol
 from sympy.parsing.sympy_parser import parse_expr
 
 from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.nodes import (BinaryOperation, DataNode, NaryOperation,
                                   Range, Reference, UnaryOperation)
@@ -197,6 +194,10 @@ class SymPyWriter(FortranWriter):
         :type list_of_expressions: List[:py:class:`psyclone.psyir.nodes.Node`]
 
         '''
+        # Avoid circular dependency
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.frontend.sympy_reader import SymPyReader
+
         # Create a new symbol table, so previous symbol will not affect this
         # new conversion (i.e. this avoids name clashes with a previous
         # conversion).
@@ -205,10 +206,6 @@ class SymPyWriter(FortranWriter):
         # Find each reference in each of the expression, and declare this name
         # as either a SymPy Symbol (scalar reference), or a SymPy Function
         # (an array).
-
-        # Avoid circular dependency
-        # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.frontend.sympy_reader import SymPyReader
         for expr in list_of_expressions:
             for ref in expr.walk(Reference):
                 name = ref.name
@@ -594,28 +591,3 @@ class SymPyWriter(FortranWriter):
         result += f",{step}"
 
         return result
-
-    # -------------------------------------------------------------------------
-    def sympy_to_psyir(self, sympy_expr, symbol_table):
-        '''This function converts a SymPy expression back into PSyIR. It first
-        parses the SymPy expression back into PSyIR, and then replaces all
-        array indices back into the corresponding Fortran values (since they
-        were replaced with three parameters to support array expressions), e.g.
-        ``a(i,i,1)`` will be converted back to ``a(i)``, and ``a(-inf,5,2)``
-        will become ``a(:5:2)``.
-
-        :param sympy_expr: the original SymPy expression.
-        :type sympy_expr: :py:class:`sympy.core.basic.Basic`
-        :param symbol_table: the symbol table required for parsing, it
-            should be the table from which the original SymPy expression
-            was created from (i.e. contain all the required symbols in the
-            SymPy expression).
-        :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
-
-        :returns: the PSyIR representation of the SymPy expression.
-        :rtype: :py:class:`psyclone.psyir.nodes.Node`
-
-        '''
-        # Convert the new sympy expression to PSyIR
-        reader = FortranReader()
-        return reader.psyir_from_expression(str(sympy_expr), symbol_table)

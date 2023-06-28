@@ -39,11 +39,11 @@
 ''' Module containing py.test tests the SymPy writer.'''
 
 import pytest
+
 from sympy import Function, Symbol
 from sympy.parsing.sympy_parser import parse_expr
 
 from psyclone.psyir.backend.sympy_writer import SymPyWriter
-from psyclone.psyir.frontend.sympy_reader import SymPyReader
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.nodes import Literal
 from psyclone.psyir.symbols import (ArrayType, BOOLEAN_TYPE, CHARACTER_TYPE,
@@ -482,33 +482,3 @@ def test_gen_indices():
     with pytest.raises(NotImplementedError) as err:
         _ = sympy_writer.gen_indices([None])
     assert "unsupported gen_indices index 'None'" in str(err.value)
-
-
-@pytest.mark.parametrize("expressions", [("b(i)", "b(i)"),
-                                         ("c(i,j)", "c(i,j)"),
-                                         ("b(2:3:4)", "b(2:3:4)"),
-                                         ("b(2:3:1)", "b(2:3)"),
-                                         ("b", "b(:)")])
-def test_sympy_expr_to_psyir(fortran_reader, fortran_writer, expressions):
-    '''Test conversion from a SymPy expression back to PSyIR. Especially check
-    the conversion of indices, e.g. a Fortran `b(i)` becomes a SymPy
-    `b(i,i,1)` (to support array expressions), which then needs to be
-    converted back to `b(i`).
-
-    '''
-    source = f'''program test_prog
-                use my_mod
-                !integer :: i
-                integer :: a, b(10), c(10, 10)
-                type(my_mod_type) :: d, e(10)
-                x = {expressions[0]}
-                end program test_prog'''
-
-    psyir = fortran_reader.psyir_from_source(source)
-    symbol_table = psyir.children[0].symbol_table
-    psyir_expr = psyir.children[0].children[0].rhs
-    sympy_writer = SymPyWriter()
-    sympy_expr = sympy_writer(psyir_expr)
-    sympy_reader = SymPyReader(sympy_writer)
-    new_psyir = sympy_reader.psyir_from_expression(sympy_expr, symbol_table)
-    assert fortran_writer(new_psyir) == expressions[1]
