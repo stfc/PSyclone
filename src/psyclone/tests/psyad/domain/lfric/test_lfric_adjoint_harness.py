@@ -452,8 +452,8 @@ def test_generate_lfric_adjoint_harness_invalid_code(fortran_reader):
             "(Container) but the supplied PSyIR does not have a Container "
             "node:\nFileContainer[]\n    Routine[name:'oops']" in
             str(err.value))
-    psyir = fortran_reader.psyir_from_source("module wrong\n"
-                                             "end module wrong\n")
+    psyir = fortran_reader.psyir_from_source(
+        TL_CODE.replace("testkern_mod", "wrong"))
     with pytest.raises(ValueError) as err:
         _ = generate_lfric_adjoint_harness(psyir)
     assert ("The supplied LFRic TL kernel is contained within a module named "
@@ -547,6 +547,19 @@ def test_generate_lfric_adj_test_quadrature(fortran_reader):
         "          /)\n"
         "     integer :: operates_on = cell_column\n"
         "     integer :: gh_shape = gh_quadrature_xyoz\n")
+    new_code = new_code.replace(
+        "field, ndf_w3, undf_w3, map_w3)\n",
+        "field, ndf_w3, undf_w3, map_w3, basis_w3_qr_xyoz, np_xy_qr_xyoz, "
+        "np_z_qr_xyoz, weights_xy_qr_xyoz, weights_z_qr_xyoz)\n"
+        "      INTEGER(KIND=i_def), intent(in) :: np_xy_qr_xyoz, "
+        "np_z_qr_xyoz\n"
+        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w3,"
+        "np_xy_qr_xyoz,np_z_qr_xyoz) :: basis_w3_qr_xyoz\n"
+        "      REAL(KIND=r_def), intent(in), dimension(np_xy_qr_xyoz) :: "
+        "weights_xy_qr_xyoz\n"
+        "      REAL(KIND=r_def), intent(in), dimension(np_z_qr_xyoz) :: "
+        "weights_z_qr_xyoz\n")
+
     tl_psyir = fortran_reader.psyir_from_source(new_code)
     psyir = generate_lfric_adjoint_harness(tl_psyir)
     routine = psyir.walk(nodes.Routine)[0]
@@ -570,22 +583,36 @@ def test_generate_lfric_adjoint_harness_operator(fortran_reader,
                            "arg_type(gh_field,  gh_real, gh_write,  w3), &\n"
                            "arg_type(gh_operator,gh_real,gh_read,w3,w0) &")
     code = code.replace("dimension(2)", "dimension(3)")
+    code = code.replace("nlayers, ascalar", "cell, nlayers, ascalar")
+    code = code.replace(
+        "field, ndf_w3, undf_w3, map_w3",
+        "field, op_ncell_3d, op, ndf_w3, undf_w3, map_w3, ndf_w0")
+    code = code.replace(
+        "    field = ascalar\n",
+        "    INTEGER(KIND=i_def), intent(in) :: ndf_w0\n"
+        "    INTEGER(KIND=i_def), intent(in) :: cell\n"
+        "    INTEGER(KIND=i_def), intent(in) :: op_ncell_3d\n"
+        "    REAL(KIND=r_def), intent(in), dimension(ndf_w3,ndf_w0,op_ncell_3d) :: op\n"
+        "    field = ascalar\n")
+
     tl_psyir = fortran_reader.psyir_from_source(code)
     psyir = generate_lfric_adjoint_harness(tl_psyir)
     gen = fortran_writer(psyir)
-    assert "type(operator_type) :: op_3\n" in gen
+    print(gen)
+    exit(1)
+    assert "type(operator_type) :: op\n" in gen
     assert ("vector_space_w0_ptr => function_space_collection % get_fs(mesh, "
             "element_order, w0)\n" in gen)
     assert ("vector_space_w3_ptr => function_space_collection % get_fs(mesh, "
             "element_order, w3)\n" in gen)
     # Initialise takes the *to* and *from* spaces as arguments in that order.
-    assert ("call op_3 % initialise(vector_space_w3_ptr, vector_space_w0_ptr)"
+    assert ("call op % initialise(vector_space_w3_ptr, vector_space_w0_ptr)"
             in gen)
     # Operator is given random values and passed to the TL kernel.
-    assert ("setop_random_kernel_type(op_3), "
-            "testkern_type(rscalar_1, field_2, op_3)" in gen)
+    assert ("setop_random_kernel_type(op), "
+            "testkern_type(ascalar, field, op)" in gen)
     # Operator is passed to the Adjoint kernel too.
-    assert "call invoke(adj_testkern_type(rscalar_1, field_2, op_3)" in gen
+    assert "call invoke(adj_testkern_type(ascalar, field, op)" in gen
 
 
 def test_gen_lfric_adjoint_harness_written_operator(fortran_reader,):
@@ -601,7 +628,7 @@ def test_gen_lfric_adjoint_harness_written_operator(fortran_reader,):
     tl_psyir = fortran_reader.psyir_from_source(code)
     with pytest.raises(GenerationError) as err:
         generate_lfric_adjoint_harness(tl_psyir)
-    assert ("Operator argument 'op_3' to TL kernel 'testkern_type' is written "
+    assert ("Operator argument 'op' to TL kernel 'testkern_type' is written "
             "to. This is not supported." in str(err.value))
 
 
