@@ -182,7 +182,6 @@ class OMPCanonicalLoopTrans(ParallelLoopTrans, metaclass=abc.ABCMeta):
         # var-outer * a1 - a2
         # a2 - var-outer * a1
 
-
         outer_loop_var = node.variable
         # I believe the outmost associated loop should always be node
         # and any sub nodes we don't need to check according to the
@@ -191,6 +190,9 @@ class OMPCanonicalLoopTrans(ParallelLoopTrans, metaclass=abc.ABCMeta):
         # TODO This appears to be false, and depends if we allow collapse.
         # For now, it only applies to the immediate child, but if we allow
         # collapse we need to check all loops we're collapsing.
+
+        # TODO All of the expressions here must be integer expressions
+        # and we should probably check this explicitly if possible.
 
         # Check the loop variable is an integer type
         if (not isinstance(node.variable, (ScalarType, DataSymbol)) or
@@ -204,14 +206,18 @@ class OMPCanonicalLoopTrans(ParallelLoopTrans, metaclass=abc.ABCMeta):
         # For each reference, if its not the node.variable check it is not
         # modified inside the loop.
         contains_outermost_loop_var = False
+        start_var_accesses = VariablesAccessInfo(node.children[0])
         for ref in start_refs:
             if ref.symbol is not outer_loop_var:
                 # Have to check if the variable is written to in the loop.
                 # If so we assume it is invariant w.r.t the outer loop.
                 sig, _ = ref.get_signature_and_indices()
                 all_ref_accesses = all_var_accesses.get(sig)
+                start_ref_accesses = start_var_accesses.get(sig)
                 if (all_ref_accesses is not None and 
-                        all_ref_accesses.is_written()):
+                        all_ref_accesses.is_written()
+                        and start_ref_accesses is not None
+                        and start_ref_accesses.is_read()):
                     assert False
             else:
                 contains_outermost_loop_var = True
@@ -224,6 +230,7 @@ class OMPCanonicalLoopTrans(ParallelLoopTrans, metaclass=abc.ABCMeta):
 
         # Same check for the stop conditions
         stop_refs = node.stop_expr.walk(Reference)
+        stop_var_accesses = VariablesAccessInfo(node.children[1])
         # For each reference, if its not the node.variable check it is not
         # modified inside the loop.
         contains_outermost_loop_var = False
@@ -233,8 +240,11 @@ class OMPCanonicalLoopTrans(ParallelLoopTrans, metaclass=abc.ABCMeta):
                 # If so we assume it is invariant w.r.t the outer loop.
                 sig, _ = ref.get_signature_and_indices()
                 all_ref_accesses = all_var_accesses.get(sig)
+                stop_ref_accesses = stop_var_accesses.get(sig)
                 if (all_ref_accesses is not None and 
-                        all_ref_accesses.is_written()):
+                        all_ref_accesses.is_written()
+                        and stop_ref_accesses is not None
+                        and stop_ref_accesses.is_read()):
                     assert False
             else:
                 contains_outermost_loop_var = True
@@ -245,10 +255,23 @@ class OMPCanonicalLoopTrans(ParallelLoopTrans, metaclass=abc.ABCMeta):
             if not self._check_valid_format(node.stop_expr, outer_loop_var):
                 assert False # TODO Throw error message
 
-        if not isinstance(node.step_expr, (Literal, Reference)):
-            assert False
-        if isinstance(node.step_expr, Reference):
-            sig, _ = ref.get_signature_and_indices()
-            all_ref_accesses = all_var_accesses.get(sig)
-            if all_ref_accesses is not None and all_ref_accesses.is_written():
+        # Step must be a loop invariantinteger expression
+        step_refs = node.step_expr.walk(Reference)
+        step_var_accesses = VariablesAccessInfo(node.children[2])
+        # For each reference, if its not the node.variable check it is not
+        # modified inside the loop.
+        for ref in step_refs:
+            if ref.symbol is not outer_loop_var:
+                # Have to check if the variable is written to in the loop.
+                # If so we assume it is invariant w.r.t the outer loop.
+                sig, _ = ref.get_signature_and_indices()
+                all_ref_accesses = all_var_accesses.get(sig)
+                step_ref_accesses = step_var_accesses.get(sig)
+                if (all_ref_accesses is not None and 
+                        all_ref_accesses.is_written()
+                        and step_ref_accesses is not None
+                        and step_ref_accesses.is_read()):
+                    assert False
+            else:
+                # Step cannot access outer loop variable I think
                 assert False
