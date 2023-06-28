@@ -57,7 +57,17 @@ def test_sympy_reader_constructor():
                                          ("c(i,j)", "c(i,j)"),
                                          ("b(2:3:4)", "b(2:3:4)"),
                                          ("b(2:3:1)", "b(2:3)"),
-                                         ("b", "b(:)")])
+                                         ("b", "b(:)"),
+                                         ("b(:)", "b(:)"),
+                                         ("b(::)", "b(:)"),
+                                         ("b(::1)", "b(:)"),
+                                         ("b(5::1)", "b(5:)"),
+                                         ("b(5::2)", "b(5::2)"),
+                                         ("b(:5:1)", "b(:5)"),
+                                         ("b(:5:2)", "b(:5:2)"),
+                                         ("b(2:5:1)", "b(2:5)"),
+                                         ("b(2:5:2)", "b(2:5:2)"),
+                                         ])
 def test_sympy_psyir_from_expression(fortran_reader, fortran_writer,
                                      expressions):
     '''Test conversion from a SymPy expression back to PSyIR. We use the

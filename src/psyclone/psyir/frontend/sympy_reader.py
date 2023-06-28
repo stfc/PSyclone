@@ -141,10 +141,25 @@ class SymPyReader():
             if args[i] == args[i+1] and args[i+2] == "1":
                 # a(i,i,1) --> a(i)
                 new_args.append(args[i])
-            elif args[i] == lower_b and args[i+1] == upper_b and \
-                    args[i+2] == "1":
-                # a(lower_b, upper_b, 1) --> a(:)
-                new_args.append(":")
+            elif args[i] == lower_b:
+                if args[i+1] == upper_b and args[i+2] == "1":
+                    # a(lower_b, upper_b, 1) --> a(:)
+                    new_args.append(":")
+                else:
+                    if args[i+2] == "1":
+                        # a(lower_b, i, 1) --> a(:i)
+                        new_args.append(f":{args[i+1]}")
+                    else:
+                        # a(lower_b, i, j) --> a(:i:j)
+                        new_args.append(f":{args[i+1]}:{args[i+2]}")
+            elif args[i+1] == upper_b:
+                if args[i+2] == "1":
+                    # a(i, upper_b, 1) --> a(i:)
+                    new_args.append(f"{args[i]}:")
+                else:
+                    # a(i, upper_b, j) --> a(i::j)
+                    new_args.append(f"{args[i]}::{args[i+2]}")
+
             else:
                 if args[i+2] == "1":
                     # a(i,j,1) --> a(i:j)
