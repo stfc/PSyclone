@@ -34,6 +34,7 @@
 # Author: A. R. Porter, STFC Daresbury Lab
 # Modified: R. W. Ford, STFC Daresbury Lab
 # Modified: S. Siso, STFC Daresbury Lab
+# Modified: A. B. G. Chalk, STFC Daresbury Lab
 
 ''' Performs py.test tests on the support for use statements in the fparser2
     PSyIR front-end '''
@@ -50,35 +51,33 @@ from psyclone.psyir.symbols import ContainerSymbol, SymbolError, Symbol, \
     RoutineSymbol
 
 
-def test_use_return(parser):
+def test_use_return(fortran_reader):
     ''' Check the the Fparser frontend correctly handles when a function uses
     a return variable with a kind defined inside the function.'''
-    processor = Fparser2Reader()
-    reader = FortranStringReader("real(rkind) function x()\n"
-                                 "  use my_mod, only: rkind\n"
-                                 "  x = 1.0_rkind\n"
-                                 "end function x\n")
-    ptree = parser(reader)
-    psyir = processor.generate_psyir(ptree)
+    code = '''real(rkind) function x()
+    use my_mod, only: rkind
+    x = 1.0_rkind
+    end function x'''
+    psyir = fortran_reader.psyir_from_source(code)
     sym = psyir.children[0].symbol_table.lookup("x")
     assert isinstance(sym, DataSymbol)
     assert isinstance(sym.datatype, ScalarType)
     assert sym.datatype.intrinsic == ScalarType.Intrinsic.REAL
+    assert isinstance(sym.datatype.precision, DataSymbol)
+    assert sym.datatype.precision.name == "rkind"
 
 
-def test_use_return2(parser):
+def test_use_return2(fortran_reader):
     ''' Check the the Fparser frontend correctly handles when a function uses
     a return variable with a kind defined inside the parent module.'''
-    processor = Fparser2Reader()
-    reader = FortranStringReader("module mymod\n"
-                                 "use my_mod, only: rkind\n"
-                                 "contains\n"
-                                 "real(rkind) function x()\n"
-                                 "  x = 1.0_rkind\n"
-                                 "end function x\n"
-                                 "end module mymod")
-    ptree = parser(reader)
-    psyir = processor.generate_psyir(ptree)
+    code = '''module mymod
+    use my_mod, only: rkind
+    contains
+    real(rkind) function x()
+      x = 1.0_rkind
+    end function x
+    end module mymod'''
+    psyir = fortran_reader.psyir_from_source(code)
     sym = psyir.children[0].symbol_table.lookup("x")
     assert isinstance(sym, RoutineSymbol)
     assert isinstance(sym.datatype, ScalarType)
@@ -87,17 +86,18 @@ def test_use_return2(parser):
     assert isinstance(sym, DataSymbol)
     assert isinstance(sym.datatype, ScalarType)
     assert sym.datatype.intrinsic == ScalarType.Intrinsic.REAL
+    assert isinstance(sym.datatype.precision, DataSymbol)
+    assert sym.datatype.precision.name == "rkind"
 
-    reader = FortranStringReader("module mymod\n"
-                                 "use my_mod, only: rkind\n"
-                                 "private\n"
-                                 "contains\n"
-                                 "real(rkind) function x()\n"
-                                 "  x = 1.0_rkind\n"
-                                 "end function x\n"
-                                 "end module mymod")
-    ptree = parser(reader)
-    psyir = processor.generate_psyir(ptree)
+    code = '''module mymod
+    use my_mod, only: rkind
+    private
+    contains
+    real(rkind) function x()
+      x = 1.0_rkind
+    end function x
+    end module mymod'''
+    psyir = fortran_reader.psyir_from_source(code)
     sym = psyir.children[0].symbol_table.lookup("x")
     assert isinstance(sym, RoutineSymbol)
     assert sym.visibility == Symbol.Visibility.PRIVATE
@@ -107,6 +107,8 @@ def test_use_return2(parser):
     assert isinstance(sym, DataSymbol)
     assert isinstance(sym.datatype, ScalarType)
     assert sym.datatype.intrinsic == ScalarType.Intrinsic.REAL
+    assert isinstance(sym.datatype.precision, DataSymbol)
+    assert sym.datatype.precision.name == "rkind"
 
 
 @pytest.mark.usefixtures("f2008_parser")
