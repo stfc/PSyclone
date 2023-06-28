@@ -346,8 +346,8 @@ def test_any_space_1(tmpdir):
             generated_code)
     assert ("map_aspc2_b => b_proxy%vspace%get_whole_dofmap()" in
             generated_code)
-    assert ("CALL testkern_any_space_1_code(nlayers, a_proxy%data, rdt, "
-            "b_proxy%data, c_proxy(1)%data, c_proxy(2)%data, c_proxy(3)%data, "
+    assert ("CALL testkern_any_space_1_code(nlayers, a_data, rdt, "
+            "b_data, c_1_data, c_2_data, c_3_data, "
             "ndf_aspc1_a, undf_aspc1_a, map_aspc1_a(:,cell), "
             "basis_aspc1_a_qr, ndf_aspc2_b, undf_aspc2_b, "
             "map_aspc2_b(:,cell), basis_aspc2_b_qr, ndf_w0, undf_w0, "
@@ -378,8 +378,8 @@ def test_any_space_2(tmpdir):
     assert "undf_aspc1_a = a_proxy%vspace%get_undf()" in generated_code
     assert ("map_aspc1_a => a_proxy%vspace%get_whole_dofmap()"
             in generated_code)
-    assert ("CALL testkern_any_space_2_code(cell, nlayers, a_proxy%data, "
-            "b_proxy%data, c_proxy%ncell_3d, c_proxy%local_stencil, istp, "
+    assert ("CALL testkern_any_space_2_code(cell, nlayers, a_data, "
+            "b_data, c_proxy%ncell_3d, c_proxy%local_stencil, istp, "
             "ndf_aspc1_a, undf_aspc1_a, map_aspc1_a(:,cell))"
             in generated_code)
 
@@ -457,8 +457,8 @@ def test_op_any_discontinuous_space_1(tmpdir):
     assert "ndf_adspc3_op4 = op4_proxy%fs_to%get_ndf()" in generated_code
     assert "ndf_adspc7_op4 = op4_proxy%fs_from%get_ndf()" in generated_code
     assert ("CALL testkern_any_discontinuous_space_op_1_code(cell, nlayers, "
-            "f1_proxy(1)%data, f1_proxy(2)%data, f1_proxy(3)%data, "
-            "f2_proxy%data, op3_proxy%ncell_3d, op3_proxy%local_stencil, "
+            "f1_1_data, f1_2_data, f1_3_data, "
+            "f2_data, op3_proxy%ncell_3d, op3_proxy%local_stencil, "
             "op4_proxy%ncell_3d, op4_proxy%local_stencil, rdt, "
             "ndf_adspc1_f1, undf_adspc1_f1, map_adspc1_f1(:,cell), "
             "ndf_adspc2_f2, undf_adspc2_f2, map_adspc2_f2(:,cell), "

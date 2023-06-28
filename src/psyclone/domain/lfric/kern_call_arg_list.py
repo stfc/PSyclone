@@ -396,12 +396,13 @@ class KernCallArgList(ArgOrdering):
         array_1d = ArrayType(LFRicTypes("LFRicRealScalarDataType")(),
                              [ArrayType.Extent.DEFERRED])
         for idx in range(1, argvect.vector_size + 1):
+            cmpt_sym = self._symtab.lookup_with_tag(f"{argvect.name}_{idx}_data")
             # Create the accesses to each element of the vector:
             lit_ind = Literal(str(idx), INTEGER_SINGLE_TYPE)
             ref = ArrayOfStructuresReference.\
                 create(sym, [lit_ind], ["data"], overwrite_datatype=array_1d)
             self.psyir_append(ref)
-            text = f"{sym.name}({idx})%data"
+            text = cmpt_sym.name # f"{sym.name}({idx})%data"
             self.append(text, metadata_posn=argvect.metadata_index)
 
         if var_accesses is not None:
@@ -421,11 +422,13 @@ class KernCallArgList(ArgOrdering):
             :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
-        text = arg.proxy_name + "%data"
-
+        # Look-up the name of the variable that stores the reference to
+        # the data in this field.
+        sym = self._symtab.lookup_with_tag(arg.name+"_data")
+        text = sym.name #arg.proxy_name + "%data"
         # Add the field object arg%name and not just the proxy part
         # as being read.
-        self.append(text, var_accesses, var_access_name=arg.name,
+        self.append(text, var_accesses, var_access_name=sym.name, #arg.name,
                     mode=arg.access, metadata_posn=arg.metadata_index)
 
         # Add an access to field_proxy%data:

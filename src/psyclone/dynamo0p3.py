@@ -2849,12 +2849,24 @@ class LFRicFields(LFRicCollection):
         # Add the Invoke subroutine argument declarations for the
         # different fields types. They are declared as intent "in" as
         # they contain a pointer to the data that is modified.
+        table = self._invoke.schedule.symbol_table
         for fld_type, fld_mod in field_datatype_map:
             args = field_datatype_map[(fld_type, fld_mod)]
             arg_list = [arg.declaration_name for arg in args]
             parent.add(TypeDeclGen(parent, datatype=fld_type,
                                    entity_decls=arg_list,
                                    intent="in"))
+            # Create symbols that we will associate with the internal
+            # data arrays.
+            for arg in args:
+                if arg.vector_size > 1:
+                    for idx in range(1, arg.vector_size+1):
+                        table.new_symbol(f"{arg.name}_{idx}_data",
+                                         tag=f"{arg.name}_{idx}_data")
+                else:
+                    table.new_symbol(arg.name+"_data",
+                                     tag=arg.name+"_data")
+
             (self._invoke.invokes.psy.
              infrastructure_modules[fld_mod].add(fld_type))
 
