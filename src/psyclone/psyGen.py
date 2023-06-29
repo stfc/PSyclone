@@ -772,15 +772,21 @@ class InvokeSchedule(Routine):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         '''
-        # The children gen_code may generate new symbols into the symbol table,
-        # so this needs to be processed first.
-        for entity in self._children:
+        # We operate on a copy of the container and invoke because the gen_code
+        # modifies its symbol tables, and we don't want the gen_code
+        # modifications to be permanent.
+        container_copy = self.root.copy()
+        invoke_copy = container_copy.children[self.position]
+
+        # The children gen_code may generate new symbols, so they need to be
+        # processed first.
+        for entity in invoke_copy.children:
             entity.gen_code(parent)
 
         # Imported symbols promoted from Kernel imports are in the SymbolTable.
         # First aggregate all variables imported from the same module in a map.
         module_map = {}
-        for imported_var in self.symbol_table.imported_symbols:
+        for imported_var in invoke_copy.symbol_table.imported_symbols:
             module_name = imported_var.interface.container_symbol.name
             if module_name in module_map:
                 module_map[module_name].append(imported_var.name)
@@ -1503,7 +1509,13 @@ class CodedKern(Kern):
                         interface=ImportInterface(csymbol))
         else:
             # If its inlined, the symbol must exist
-            rsymbol = self.scope.symbol_table.lookup(self._name)
+            try:
+                rsymbol = self.scope.symbol_table.lookup(self._name)
+            except KeyError as err:
+                raise GenerationError(
+                    f"Cannot generate this kernel call to '{self.name}' "
+                    f"because it is marked as module-inline but no such "
+                    f"subroutine exist in this module.") from err
 
         # Create Call to the rsymbol with the argument expressions as children
         # of the new node

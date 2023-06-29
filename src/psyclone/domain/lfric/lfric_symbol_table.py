@@ -116,7 +116,6 @@ class LFRicSymbolTable(SymbolTable):
                 sym = None
 
         datatype = LFRicTypes("LFRicIntegerScalarDataType")()
-        
         if sym is None:
             # Create a DataSymbol for this kernel argument.
             sym = self.new_symbol(name, tag=tag,
