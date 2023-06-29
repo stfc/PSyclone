@@ -1,7 +1,7 @@
 !-------------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2022-2023, Science and Technology Facilities Council
+! Copyright (c) 2023, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -29,25 +29,25 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author: R. W. Ford, STFC Daresbury Lab
-! Modified: I. Kavcic, Met Office
+! Authors: R. W. Ford, STFC Daresbury Lab,
+!          I. Kavcic, Met Office
 !
-! Example where the field is dereferenced from an 'r_tran_field_vector_type'
+! Example where the field is dereferenced from an 'r_bl_field_vector_type'
 ! and therefore has no type information. The LFRic rules state that an
-! 'r_tran_field_vector_type' can only contain fields of type
-! 'r_tran_field_type' in LFRic code. This is checked at runtime in the
+! 'r_bl_field_vector_type' can only contain fields of type
+! 'r_bl_field_type' in LFRic code. This is checked at runtime in the
 ! LFRic model by using a 'select' statement in the algorithm code.
 
 module vector_type
 
-  use constants_mod,           only : r_tran
-  use vector_mod,              only : abstract_vector_type
-  use r_tran_field_vector_mod, only : r_tran_field_vector_type
-  use r_tran_field_mod,        only : r_tran_field_type
-  use testkern_mod,            only : testkern_type
+  use constants_mod,         only : r_bl
+  use vector_mod,            only : abstract_vector_type
+  use r_bl_field_vector_mod, only : r_bl_field_vector_type
+  use r_bl_field_mod,        only : r_bl_field_type
+  use testkern_mod,          only : testkern_type
 
   type :: some_type
-     type(r_tran_field_vector_type) :: vec_type(10)
+     type(r_bl_field_vector_type) :: vec_type(10)
    contains
      procedure, public :: my_sub
   end type some_type
@@ -56,9 +56,9 @@ module vector_type
 
   subroutine my_sub(self, x, m1, m2)
     class(some_type), intent(inout) :: self
-    type(r_tran_field_vector_type), intent(inout) :: x
-    type(r_tran_field_type), intent(inout) :: m1, m2
-    real(r_tran) :: a
+    type(r_bl_field_vector_type), intent(inout) :: x
+    type(r_bl_field_type), intent(inout) :: m1, m2
+    real(r_bl) :: a
     call invoke(testkern_type(a, x%vector(1), self%vec_type(1)%vector(1), m1, m2))
   end subroutine my_sub
 
