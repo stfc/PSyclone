@@ -115,7 +115,7 @@ class LFRicSymbolTable(SymbolTable):
             except KeyError:
                 sym = None
 
-        datatype = psyir.LfricIntegerScalarDataType()
+        datatype = LFRicTypes("LFRicIntegerScalarDataType")()
         
         if sym is None:
             # Create a DataSymbol for this kernel argument.

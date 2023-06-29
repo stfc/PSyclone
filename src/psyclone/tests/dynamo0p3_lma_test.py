@@ -625,7 +625,6 @@ def test_operator_different_spaces(tmpdir):
         "      END IF\n"
         "      !\n"
         "      DO cell=loop0_start,loop0_stop\n"
-        "        !\n"
         "        CALL assemble_weak_derivative_w3_w2_kernel_code(cell, "
         "nlayers, mapping_proxy%ncell_3d, mapping_local_stencil, "
         "coord_1_data, coord_2_data, coord_3_data, "

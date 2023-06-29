@@ -220,7 +220,6 @@ def test_field_xyoz(tmpdir):
         "      END IF\n"
         "      !\n"
         "      DO cell=loop0_start,loop0_stop\n"
-        "        !\n"
         "        CALL testkern_qr_code(nlayers, f1_data, f2_data, "
         "m1_data, a, m2_data, istp, ndf_w1, undf_w1, "
         "map_w1(:,cell), basis_w1_qr, ndf_w2, undf_w2, map_w2(:,cell), "
@@ -440,7 +439,6 @@ def test_face_qr(tmpdir, dist_mem):
 
     compute_output = (
         "      DO cell=loop0_start,loop0_stop\n"
-        "        !\n"
         "        CALL testkern_qr_faces_code(nlayers, f1_data, f2_data, "
         "m1_data, m2_data, ndf_w1, undf_w1, "
         "map_w1(:,cell), basis_w1_qr, ndf_w2, undf_w2, map_w2(:,cell), "
