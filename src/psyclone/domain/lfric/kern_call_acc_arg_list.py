@@ -243,7 +243,16 @@ class KernCallAccArgList(KernCallArgList):
         self.append(function_space.map_name, var_accesses)
 
     def fs_intergrid(self, function_space, var_accesses=None):
-        '''
+        '''Add arrays that need to be uploaded for inter-grid kernels.
+        These arrays contain the mapping between fine and coarse meshes.
+
+        :param function_space: the function space associated with the mesh.
+        :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
+        :param var_accesses: optional VariablesAccessInfo instance to store
+            the information about variable accesses.
+        :type var_accesses: Optional[
+            :py:class:`psyclone.core.VariablesAccessInfo`]
+
         '''
         # Is this FS associated with the coarse or fine mesh? (All fields
         # on a given mesh must be on the same FS.)
