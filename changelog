@@ -473,6 +473,15 @@
 	160) PR #2107 for #2106. Improvements to NEMO processing scripts and
 	inclusion in Integration Testing.
 
+	161) PR #2198 for #2194. Fixes handling of a function where the
+	precision of the result is only defined within the function.
+
+	162) PR #2187 towards #1618. Remove builtin use statements when
+	lowering.
+
+	163) PR #2191 for #2185. Fix element order used in PSyAD test
+	harness.
+
 release 2.3.1 17th of June 2022
 
 	1) PR #1747 for #1720. Adds support for If blocks to PSyAD.
