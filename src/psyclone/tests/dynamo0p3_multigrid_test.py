@@ -864,3 +864,5 @@ def test_restrict_prolong_chain_acc(tmpdir):
             assert "cmap(colour,cell)" not in line
             assert "cmap_fld_c,cmap_fld_m," in line
             break
+    # Check compilation
+    assert LFRicBuild(tmpdir).code_compiles(psy)
