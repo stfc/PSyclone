@@ -198,7 +198,7 @@ class CommonMetaArgMetadata(CommonArgMetadata, ABC):
         if len(components) != 2:
             raise TypeError(
                 f"The vector length metadata should be in the form "
-                f"'form*vector_length' but found '{vector_datatype}'.")
+                f"'form*integer' but found '{vector_datatype}'.")
         array_dimension = components[1].strip()
         return array_dimension
 
