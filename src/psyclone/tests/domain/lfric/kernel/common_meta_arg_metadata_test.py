@@ -241,7 +241,7 @@ def test_get_array_dimension():
     fparser_tree = CheckArg.create_fparser2(
         "arg_type(GH_FIELD, GH_REAL, GH_READ, W0)", Fortran2003.Part_Ref)
     with pytest.raises(TypeError) as info:
-        _ = CheckArg.get(fparser_tree)
+        _ = CheckArg.get_array_dimension(fparser_tree)
     assert ("The vector length metadata should be in the form "
             "'form*integer' but found 'GH_FIELD'."
             in str(info.value))
