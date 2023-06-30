@@ -91,7 +91,7 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
         type i_def and has intent in.
 
         '''
-        cls._add_symbol_name("CellPositionDataSymbol", "cell")
+        cls._add_lfric_symbol_name("CellPositionDataSymbol", "cell")
 
     @classmethod
     def _mesh_height(cls):
@@ -99,7 +99,8 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
         of type i_def and has intent in.
 
         '''
-        cls._add_symbol_name("MeshHeightDataSymbol", "nlayers")
+        # TODO: if self._kern.iterates_over not in ["cell_column", "domain"]: return
+        cls._add_lfric_symbol_name("MeshHeightDataSymbol", "nlayers")
 
     @classmethod
     def _mesh_ncell2d_no_halos(cls):
@@ -108,7 +109,7 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
         has intent in.
 
         '''
-        cls._add_symbol_name(
+        cls._add_lfric_symbol_name(
             "LFRicIntegerScalarDataSymbol", "ncell_2d_no_halos")
 
     @classmethod
@@ -120,7 +121,7 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
         '''
         # This symbol might be used to dimension an array in another
         # method and therefore could have already been declared.
-        symbol = cls._get_or_create_symbol(
+        symbol = cls._get_or_create_lfric_symbol(
             "LFRicIntegerScalarDataSymbol", "ncell_2d")
         cls._append_to_arg_list(symbol)
 
@@ -137,9 +138,9 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
 
         '''
         # Create the cell_map array extent symbols
-        x_symbol = cls._create_symbol(
+        x_symbol = cls._create_lfric_symbol(
             "LFRicIntegerScalarDataSymbol", "ncell_f_per_c_x")
-        y_symbol = cls._create_symbol(
+        y_symbol = cls._create_lfric_symbol(
             "LFRicIntegerScalarDataSymbol", "ncell_f_per_c_y")
         # Use the array extent symbols to create the cell_map array symbol
         scalar_type = cls._create_datatype("LFRicIntegerScalarDataType")
@@ -156,7 +157,8 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
         cls._append_to_arg_list(cell_map_symbol)
         cls._append_to_arg_list(x_symbol)
         cls._append_to_arg_list(y_symbol)
-        cls._add_symbol_name("LFRicIntegerScalarDataSymbol", "ncell_f")
+        # TODO Should be get or create
+        cls._add_lfric_symbol_name("LFRicIntegerScalarDataSymbol", "ncell_f")
 
     @classmethod
     def _scalar(cls, meta_arg):
@@ -174,7 +176,7 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
         # LFRicTypes?
         datatype_char = meta_arg.datatype[3:4]
         meta_arg_index = cls._metadata.meta_args.index(meta_arg)
-        cls._add_symbol_name(
+        cls._add_lfric_symbol_name(
             f"LFRic{datatype.capitalize()}ScalarDataSymbol",
             f"{datatype_char}scalar_{meta_arg_index+1}",
             access=cls._access_lookup[meta_arg.access])
@@ -192,14 +194,14 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
         # been declared.
         print("1 ",meta_arg.function_space)
         undf_name = cls._undf_name(meta_arg.function_space)
-        undf_symbol = cls._get_or_create_symbol(
+        undf_symbol = cls._get_or_create_lfric_symbol(
             "NumberOfUniqueDofsDataSymbol", undf_name)
 
         name = cls._field_name(meta_arg)
         datatype = meta_arg.datatype[3:]
-        cls._add_symbol_name(
+        cls._add_lfric_symbol_name(
             f"{datatype.capitalize()}FieldDataSymbol", name,
-            dims=[nodes.Reference(undf_symbol)],
+            dims=[undf_symbol],
             access=cls._access_lookup[meta_arg.access])
 
     @classmethod
@@ -216,7 +218,7 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
         # been declared.
         print("2 ",meta_arg.function_space)
         undf_name = cls._undf_name(meta_arg.function_space)
-        undf_symbol = cls._get_or_create_symbol(
+        undf_symbol = cls._get_or_create_lfric_symbol(
             "NumberOfUniqueDofsDataSymbol", undf_name)
 
         field_name = cls._field_name(meta_arg)
@@ -224,9 +226,9 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
         access = cls._access_lookup[meta_arg.access]
         for idx in range(int(meta_arg.vector_length)):
             name = f"{field_name}_v{idx+1}"
-            cls._add_symbol_name(
+            cls._add_lfric_symbol_name(
                 f"{datatype.capitalize()}VectorFieldDataSymbol", name,
-                dims=[nodes.Reference(undf_symbol)], access=access)
+                dims=[undf_symbol], access=access)
 
     @classmethod
     def _operator(cls, meta_arg):
@@ -249,29 +251,27 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
         '''
         meta_arg_index = cls._metadata.meta_args.index(meta_arg)
         name = f"op_{meta_arg_index+1}_ncell_3d"
-        op_ncell_3d_symbol = cls._create_symbol(
+        op_ncell_3d_symbol = cls._create_lfric_symbol(
             "LFRicIntegerScalarDataSymbol", name)
         cls._append_to_arg_list(op_ncell_3d_symbol)
 
         # This symbol is used in other methods so might have already
         # been declared.
         ndf_name_to = cls._ndf_name(meta_arg.function_space_to)
-        ndf_to_symbol = cls._get_or_create_symbol(
+        ndf_to_symbol = cls._get_or_create_lfric_symbol(
             "NumberOfDofsDataSymbol", ndf_name_to)
 
         # This symbol is used in other methods so might have already
         # been declared.
         ndf_name_from = cls._ndf_name(meta_arg.function_space_from)
-        ndf_from_symbol = cls._get_or_create_symbol(
+        ndf_from_symbol = cls._get_or_create_lfric_symbol(
             "NumberOfDofsDataSymbol", ndf_name_from)
 
         operator_name = cls._operator_name(meta_arg)
         access = cls._access_lookup[meta_arg.access]
-        cls._add_symbol_name(
+        cls._add_lfric_symbol_name(
             "OperatorDataSymbol", operator_name,
-            dims=[nodes.Reference(ndf_to_symbol),
-                  nodes.Reference(ndf_from_symbol),
-                  nodes.Reference(op_ncell_3d_symbol)],
+            dims=[ndf_to_symbol, ndf_from_symbol, op_ncell_3d_symbol],
             access=access)
 
     @classmethod
@@ -310,33 +310,32 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
         '''
         operator_name = cls._cma_operator_name(meta_arg)
 
-        bandwidth = cls._create_symbol(
+        bandwidth = cls._create_lfric_symbol(
             "LFRicIntegerScalarDataSymbol", f"bandwidth_{operator_name}")
-        nrow = cls._create_symbol(
+        nrow = cls._create_lfric_symbol(
             "LFRicIntegerScalarDataSymbol", f"nrow_{operator_name}")
         # This symbol is used in other methods so might have already
         # been declared.
-        ncell_2d = cls._get_or_create_symbol(
+        ncell_2d = cls._get_or_create_lfric_symbol(
             "LFRicIntegerScalarDataSymbol", "ncell_2d")
 
         access = cls._access_lookup[meta_arg.access]
         # TODO: should be r_solver precision
-        cls._add_symbol_name(
+        cls._add_lfric_symbol_name(
             "OperatorDataSymbol", operator_name,
-            dims=[nodes.Reference(bandwidth), nodes.Reference(nrow),
-                  nodes.Reference(ncell_2d)], access=access)
+            dims=[bandwidth, nrow, ncell_2d], access=access)
         cls._append_to_arg_list(nrow)
         if meta_arg.function_space_from != meta_arg.function_space_to:
-            cls._add_symbol_name(
+            cls._add_lfric_symbol_name(
                 "LFRicIntegerScalarDataSymbol", f"ncol_{operator_name}")
         cls._append_to_arg_list(bandwidth)
-        cls._add_symbol_name(
+        cls._add_lfric_symbol_name(
             "LFRicIntegerScalarDataSymbol", f"alpha_{operator_name}")
-        cls._add_symbol_name(
+        cls._add_lfric_symbol_name(
             "LFRicIntegerScalarDataSymbol", f"beta_{operator_name}")
-        cls._add_symbol_name(
+        cls._add_lfric_symbol_name(
             "LFRicIntegerScalarDataSymbol", f"gamma_m_{operator_name}")
-        cls._add_symbol_name(
+        cls._add_lfric_symbol_name(
             "LFRicIntegerScalarDataSymbol", f"gamma_p_{operator_name}")
 
     @classmethod
@@ -376,21 +375,21 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
         if [entry for entry in meta_ref_element if entry.reference_element in
                 ["normals_to_horizontal_faces",
                  "outward_normals_to_horizontal_faces"]]:
-            nfaces_re_h = cls._create_symbol(
+            nfaces_re_h = cls._create_lfric_symbol(
                 "NumberOfQrPointsInXyDataSymbol", "nfaces_re_h")
             cls._append_to_arg_list(nfaces_re_h)
 
         if [entry for entry in meta_ref_element if entry.reference_element in
                 ["normals_to_vertical_faces",
                  "outward_normals_to_vertical_faces"]]:
-            nfaces_re_v = cls._create_symbol(
+            nfaces_re_v = cls._create_lfric_symbol(
                 "NumberOfQrPointsInZDataSymbol", "nfaces_re_v")
             cls._append_to_arg_list(nfaces_re_v)
 
         if [entry for entry in meta_ref_element if entry.reference_element in
                 ["normals_to_faces",
                  "outward_normals_to_faces"]]:
-            nfaces_re = cls._create_symbol(
+            nfaces_re = cls._create_lfric_symbol(
                 "NumberOfQrPointsInFacesDataSymbol", "nfaces_re")
             cls._append_to_arg_list(nfaces_re)
 
@@ -453,7 +452,7 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
             if mesh_property.mesh == "adjacent_face":
                 # nfaces_re_h may have been passed via the reference
                 # element logic.
-                nfaces_re_h = cls._get_or_create_symbol(
+                nfaces_re_h = cls._get_or_create_lfric_symbol(
                     "NumberOfQrPointsInXyDataSymbol", "nfaces_re_h")
                 if not cls._metadata.meta_ref_element or not \
                    [entry for entry in cls._metadata.meta_ref_element
@@ -490,11 +489,13 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
         :param str function_space: the current function space.
 
         '''
+        # TODO: if self._kern.iterates_over not in ["cell_column", "domain"]: return
+
         function_space_name = cls._function_space_name(function_space)
         ndf_name = cls._ndf_name(function_space)
         # This symbol might be used to dimension an array in another
         # method and therefore could have already been declared.
-        symbol = cls._get_or_create_symbol("NumberOfDofsDataSymbol", ndf_name)
+        symbol = cls._get_or_create_lfric_symbol("NumberOfDofsDataSymbol", ndf_name)
         cls._append_to_arg_list(symbol)
 
     @classmethod
@@ -515,19 +516,20 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
         undf_name = cls._undf_name(function_space)
         # This symbol might be used to dimension an array in another
         # method and therefore could have already been declared.
-        undf_symbol = cls._get_or_create_symbol(
+        undf_symbol = cls._get_or_create_lfric_symbol(
             "NumberOfUniqueDofsDataSymbol", undf_name)
 
-        # create and add dofmap(undf)
+        # TODO: if domain pass whole dofmap
+
+        # get ndf
+        ndf_name = cls._ndf_name(function_space)
+        ndf_symbol = cls._get_or_create_lfric_symbol(
+            "NumberOfDofsDataSymbol", ndf_name)
+        # create dofmap(ndf)
         dofmap_name = cls._dofmap_name(function_space)
-        scalar_type = cls._create_datatype("LFRicIntegerScalarDataType")
-        array_type = symbols.ArrayType(
-            scalar_type, [nodes.Reference(undf_symbol)])
-        interface = symbols.ArgumentInterface(
-            symbols.ArgumentInterface.Access.READ)
-        dofmap_symbol = symbols.DataSymbol(
-            dofmap_name, array_type, interface=interface)
-        cls._add_to_symbol_table(dofmap_symbol)
+        dofmap_symbol = cls._create_array_symbol(
+            "LFRicIntegerScalarDataType", dofmap_name,
+            dims=[ndf_symbol])
 
         # Add the symbols to the symbol table argument list in the
         # required order
@@ -535,7 +537,7 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
         cls._append_to_arg_list(dofmap_symbol)
 
     @classmethod
-    def fs_intergrid(cls, meta_arg):
+    def _fs_intergrid(cls, meta_arg):
         '''Function-space related arguments for an intergrid kernel.
 
         For this field include the required dofmap information.
@@ -570,14 +572,24 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
         function_space = meta_arg.function_space
         function_space_name = cls._function_space_name(function_space)
         if meta_arg.mesh_arg == "gh_fine":
-            # ndf
+            # add ndf symbol
             cls._fs_common(function_space)
-            # undf
+            # add undf symbol (may have already been declared)
             undf_name = cls._undf_name(function_space)
-            cls._add_symbol_name("NumberOfUniqueDofs", undf_name)
-            # full dofmap
-            cls._add_symbol_name(
-                "LFRicIntegerScalar", f"full_map_{function_space_name}")
+            symbol = cls._get_or_create_lfric_symbol(
+                "NumberOfUniqueDofsDataSymbol", undf_name)
+            cls._append_to_arg_list(symbol)
+            # get ndf_symbol (has just been added)
+            ndf_name = cls._ndf_name(function_space)
+            ndf_symbol = cls._info.lookup(ndf_name)
+            # get ncell_f symbol (may have already been declared)
+            ncell_symbol = cls._get_or_create_lfric_symbol(
+                "LFRicIntegerScalarDataSymbol", "ncell_f")
+            # add full_dofmap(ndf, ncell_f)
+            fullmap_name = cls._fullmap_name(function_space)
+            cls._add_array_symbol_name(
+                "LFRicIntegerScalarDataType", fullmap_name,
+                dims=[ndf_symbol, ncell_symbol])
         else:  # "gh_coarse"
             # undf + dofmap
             cls._fs_compulsory_field(function_space)
@@ -644,7 +656,7 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
             return
         for shape in cls._metadata.shapes:
             if shape in const.VALID_QUADRATURE_SHAPES:
-                cls._add_symbol_name(
+                cls._add_lfric_symbol_name(
                     "LFRicIntegerScalar",
                     f"{name}_{function_space_name}_qr_{shape.split('_')[-1]}")
             elif shape in const.VALID_EVALUATOR_SHAPES:
@@ -664,7 +676,7 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
                         if field.function_space not in target_function_spaces:
                             target_function_spaces.append(field.function_space)
                 for target_function_space in target_function_spaces:
-                    cls._add_symbol_name(
+                    cls._add_lfric_symbol_name(
                         "LFRicIntegerScalar",
                         f"{name}_{function_space_name}_to_"
                         f"{target_function_space}")
@@ -786,7 +798,7 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
         # 2d integer array
         print("TO BE ADDED")
         exit(1)
-        # cls._add_symbol_name("xxx", f"boundary_dofs_{field_name}")
+        # cls._add_lfric_symbol_name("xxx", f"boundary_dofs_{field_name}")
 
     @classmethod
     def _operator_bcs_kernel(cls):
@@ -815,7 +827,7 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
         lma_operator_name = cls._operator_name(meta_arg)
         print("TO BE ADDED")
         exit(1)
-        # cls._add_symbol_name("", f"boundary_dofs_{lma_operator_name}")
+        # cls._add_lfric_symbol_name("", f"boundary_dofs_{lma_operator_name}")
 
     @classmethod
     def _stencil_2d_unknown_extent(cls, meta_arg):
@@ -836,7 +848,7 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
         # Array
         print("TO BE DONE")
         exit(1)
-        # cls._add_symbol_name(f"{field_name}_stencil_size")
+        # cls._add_lfric_symbol_name(f"{field_name}_stencil_size")
 
     @classmethod
     def _stencil_2d_max_extent(cls, meta_arg):
@@ -855,7 +867,7 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
 
         '''
         field_name = cls._field_name(meta_arg)
-        cls._add_symbol_name(
+        cls._add_lfric_symbol_name(
             "LFRicIntegerScalar", f"{field_name}_max_branch_length")
 
     @classmethod
@@ -873,7 +885,7 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
 
         '''
         field_name = cls._field_name(meta_arg)
-        cls._add_symbol_name(
+        cls._add_lfric_symbol_name(
             "LFRicIntegerScalar", f"{field_name}_stencil_size")
 
     @classmethod
@@ -891,7 +903,7 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
 
         '''
         field_name = cls._field_name(meta_arg)
-        cls._add_symbol_name("LFRicIntegerScalar", f"{field_name}_direction")
+        cls._add_lfric_symbol_name("LFRicIntegerScalar", f"{field_name}_direction")
 
     @classmethod
     def _stencil_2d(cls, meta_arg):
@@ -909,7 +921,7 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
 
         '''
         field_name = cls._field_name(meta_arg)
-        cls._add_symbol_name(
+        cls._add_lfric_symbol_name(
             "LFRicIntegerScalar", f"{field_name}_stencil_dofmap")
 
     @classmethod
@@ -930,7 +942,7 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
         field_name = cls._field_name(meta_arg)
         print("TO BE DONE")
         exit(1)
-        # cls._add_symbol_name(f"{field_name}_stencil_dofmap")
+        # cls._add_lfric_symbol_name(f"{field_name}_stencil_dofmap")
 
     @classmethod
     def _banded_dofmap(cls, function_space, cma_operator):
@@ -955,7 +967,7 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
         name = cls._cma_operator_name(cma_operator)
         print("TO BE DONE")
         exit(1)
-        # cls._add_symbol_name(f"cbanded_map_{function_space_name}_{name}")
+        # cls._add_lfric_symbol_name(f"cbanded_map_{function_space_name}_{name}")
 
     @classmethod
     def _indirection_dofmap(cls, function_space, cma_operator):
@@ -991,7 +1003,7 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
 
         print("TO BE DONE")
         exit(1)
-        # cls._add_symbol_name("",
+        # cls._add_lfric_symbol_name("",
         #     f"cma_indirection_map_{function_space_name}_{name}")
 
     @classmethod
@@ -1002,12 +1014,34 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
         return symbol
 
     @classmethod
-    def _create_symbol(cls, class_name, symbol_name, dims=None,
+    def _create_array_symbol(cls, scalar_type_name, symbol_name, dims,
+                       access=symbols.ArgumentInterface.Access.READ):
+        ''' xxx '''
+        scalar_type = cls._create_datatype(scalar_type_name)
+        array_args = [nodes.Reference(symbol) for symbol in dims]
+        array_type = symbols.ArrayType(scalar_type, array_args)
+        interface = symbols.ArgumentInterface(access)
+        array_symbol = symbols.DataSymbol(
+            symbol_name, array_type, interface=interface)
+        cls._add_to_symbol_table(array_symbol)
+        return array_symbol
+
+    @classmethod
+    def _add_array_symbol_name(cls, scalar_type_name, symbol_name, dims,
+                         access=symbols.ArgumentInterface.Access.READ):
+        '''xxx'''
+        symbol = cls._create_array_symbol(
+            scalar_type_name, symbol_name, dims, access=access)
+        cls._append_to_arg_list(symbol)
+
+    @classmethod
+    def _create_lfric_symbol(cls, class_name, symbol_name, dims=None,
                        access=symbols.ArgumentInterface.Access.READ):
         ''' xxx '''
         required_class = lfric.LFRicTypes(class_name)
         if dims:
-            symbol = required_class(symbol_name, dims)
+            array_args = [nodes.Reference(symbol) for symbol in dims]
+            symbol = required_class(symbol_name, array_args)
         else:
             symbol = required_class(symbol_name)
         symbol.interface = symbols.ArgumentInterface(access)
@@ -1015,13 +1049,27 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
         return symbol
 
     @classmethod
-    def _get_or_create_symbol(cls, class_name, symbol_name,
+    def _add_lfric_symbol_name(cls, class_name, symbol_name, dims=None,
+                         access=symbols.ArgumentInterface.Access.READ):
+        '''Utility function to create an LFRic-PSyIR symbol of type class_name
+        and name symbol_name and add it to the symbol table.
+
+        :param str class_name: the name of the class to be created.
+        :param str symbol_name: the name of the symbol to be created.
+
+        '''
+        symbol = cls._create_lfric_symbol(
+            class_name, symbol_name, dims=dims, access=access)
+        cls._append_to_arg_list(symbol)
+
+    @classmethod
+    def _get_or_create_lfric_symbol(cls, class_name, symbol_name,
                               access=symbols.ArgumentInterface.Access.READ):
         ''' xxx '''
         try:
             symbol = cls._info.lookup_with_tag(symbol_name)
         except KeyError:
-            symbol = cls._create_symbol(
+            symbol = cls._create_lfric_symbol(
                 class_name, symbol_name, access=access)
         return symbol
 
@@ -1038,7 +1086,7 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
         # symbol_table.specify_argument_list([arg1])
 
     @classmethod
-    def _add_symbol_name(cls, class_name, symbol_name, dims=None,
+    def _add_lfric_symbol_name(cls, class_name, symbol_name, dims=None,
                          access=symbols.ArgumentInterface.Access.READ):
         '''Utility function to create an LFRic-PSyIR symbol of type class_name
         and name symbol_name and add it to the symbol table.
@@ -1047,7 +1095,7 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
         :param str symbol_name: the name of the symbol to be created.
 
         '''
-        symbol = cls._create_symbol(
+        symbol = cls._create_lfric_symbol(
             class_name, symbol_name, dims=dims, access=access)
         cls._append_to_arg_list(symbol)
 
@@ -1134,3 +1182,9 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
         ''' xxx '''
         function_space_name = cls._function_space_name(function_space)
         return f"dofmap_{function_space_name}"
+
+    @classmethod
+    def _fullmap_name(cls, function_space):
+        ''' xxx '''
+        function_space_name = cls._function_space_name(function_space)
+        return f"full_map_{function_space_name}"

@@ -415,19 +415,87 @@ def test_fs_common():
 def test_fs_compulsory_field():
     ''' Test _fs_compulsory_field method. '''
     function_space = "w3"
+    cls = call_method("_fs_compulsory_field", function_space)
+    check_fs_compulsory_field(cls, function_space)
+
+
+def check_fs_compulsory_field(cls, function_space):
+    ''' xxx '''
     undf_name = lfric.FormalKernelArgsFromMetadata._undf_name(function_space)
     dofmap_name = lfric.FormalKernelArgsFromMetadata._dofmap_name(function_space)
-    cls = call_method("_fs_compulsory_field", function_space)
-    # Symbols added to the symbol table and to the argument list.
+    # Check that undf and dofmap symbols are added to the symbol table
+    # and to the argument list.
     undf_class = lfric.LFRicTypes("NumberOfUniqueDofsDataSymbol")
     check_arg_symbols(cls, OrderedDict(
         [(undf_name, undf_class), (dofmap_name, symbols.DataSymbol)]))
+    # Check that dofmap is an array with the expected extent.
     dofmap_symbol = cls._info.lookup(dofmap_name)
     assert dofmap_symbol.is_array
     assert len(dofmap_symbol.datatype.shape) == 1
-    assert dofmap_symbol.datatype.shape[0].upper.symbol.name == undf_name
-    # TODO: check works if numberofuniquedofs already added.
-    # remove dofmap_symbol from symbol table, remove all from arg list
-    # Should just have symbol table value but not in arg list.
-    #? cls._info.remove(dofmap_symbol)
-    #? cls._info.argument_list = []
+    ndf_name = lfric.FormalKernelArgsFromMetadata._ndf_name(function_space)
+    assert dofmap_symbol.datatype.shape[0].upper.symbol.name == ndf_name
+    # Check that the method works if undf has already been added to
+    # the symbol table.
+    # Remove dofmap from the symbol table and remove both symbols from
+    # the argument list. This should leave the symbol table containing
+    # just undf.
+    cls._info._argument_list = []
+    norm_name = cls._info._normalize(dofmap_name)
+    cls._info._symbols.pop(norm_name)
+    # remove dofmap tag if there is one
+    for tag, tagged_symbol in list(cls._info._tags.items()):
+        if dofmap_symbol is tagged_symbol:
+            del cls._info._tags[tag]
+
+    # Call the method again and check that the undf symbol does not
+    # change and that a dofmap symbol is added to the symbol table.
+    undf_symbol = cls._info.lookup(undf_name)
+    cls._fs_compulsory_field(function_space)
+    check_arg_symbols(cls, OrderedDict(
+        [(undf_name, undf_class), (dofmap_name, symbols.DataSymbol)]))
+    assert cls._info.lookup(undf_name) is undf_symbol
+
+
+def test_fs_intergrid():
+    ''' Test _fs_intergrid method. '''
+    # gh_fine
+    function_space = "w3"
+    intergrid_meta_arg = lfric.kernel.InterGridArgMetadata(
+        "GH_REAL", "GH_WRITE", function_space, "GH_FINE")
+    cls = call_method("_fs_intergrid", intergrid_meta_arg)
+    ndf_name = lfric.FormalKernelArgsFromMetadata._ndf_name(function_space)
+    undf_name = lfric.FormalKernelArgsFromMetadata._undf_name(function_space)
+    fullmap_name = lfric.FormalKernelArgsFromMetadata._fullmap_name(function_space)
+    ndf_class = lfric.LFRicTypes("NumberOfDofsDataSymbol")
+    undf_class = lfric.LFRicTypes("NumberOfUniqueDofsDataSymbol")
+    check_arg_symbols(cls, OrderedDict(
+        [(ndf_name, ndf_class), (undf_name, undf_class),
+         (fullmap_name, symbols.DataSymbol)]))
+    # Check that fullmap is an array with the expected extent.
+    fullmap_symbol = cls._info.lookup(fullmap_name)
+    assert fullmap_symbol.is_array
+    assert len(fullmap_symbol.datatype.shape) == 2
+    ndf_name = lfric.FormalKernelArgsFromMetadata._ndf_name(function_space)
+    assert fullmap_symbol.datatype.shape[0].upper.symbol.name == ndf_name
+    assert fullmap_symbol.datatype.shape[1].upper.symbol.name == "ncell_f"
+
+    # if undf and ndf are already declared
+    undf_symbol = cls._info.lookup(undf_name)
+    ndf_symbol = cls._info.lookup(ndf_name)
+    from psyclone.psyir.symbols import SymbolTable
+    symbol_table = SymbolTable()
+    symbol_table.add(undf_symbol)
+    symbol_table.add(ndf_symbol)
+    cls._info=symbol_table
+    cls._fs_intergrid(function_space)
+    check_arg_symbols(cls, OrderedDict(
+        [(ndf_name, ndf_class), (undf_name, undf_class),
+         (fullmap_name, symbols.DataSymbol)]))
+    assert cls._info.lookup(undf_name) is undf_symbol
+    assert cls._info.lookup(ndf_name) is ndf_symbol
+
+    # gh_coarse
+    intergrid_meta_arg = lfric.kernel.InterGridArgMetadata(
+        "GH_REAL", "GH_WRITE", function_space, "GH_COARSE")
+    cls = call_method("_fs_intergrid", intergrid_meta_arg)
+    check_fs_compulsory_field(cls, function_space)
