@@ -52,6 +52,7 @@
          a(i,j) = 3
     enddo
 
+    i = (j+1) * k
     end subroutine sub
     '''
     psyir = FortranReader().psyir_from_source(code)
@@ -63,6 +64,8 @@
     # Take the two loops
     loop1 = psyir.children[0].children[2]
     loop2 = psyir.children[0].children[3]
+
+    expr = psyir.children[0].children[4].rhs
 
 .. _sympy:
 
@@ -125,6 +128,8 @@ frequently needed for the dependency analysis). For example,
 ``M[x] - M[1] == 0`` does not result in the solution ``x=1`` when ``M``
 is an indexed SymPy type. Using an unknown function on the other hand
 handles this as expected.
+
+.. _array_expressions:
 
 Array Expressions
 ~~~~~~~~~~~~~~~~~
@@ -215,3 +220,56 @@ The SymPyWriter provides the following functions:
 .. autoclass:: psyclone.psyir.backend.sympy_writer.SymPyWriter
     :members:
     :special-members: __new__
+
+SymPyReader - Converting SymPy to PSyIr
+---------------------------------------
+The ``SymPyReader`` converts a SymPy expression back to PSyIR. Together
+with the SymPyWriter it allows to take a PSyIR expression, manipulate
+it with SymPy, and creating a new PSyIR that can be used.
+The SymPyReader is closely connected to the SymPyWriter: as explained
+in :ref:`array_expressions` the SymPyWriter creates special symbols
+to indicate the lower- and upper-bound of an array expression. In order
+to convert these arguments back to the corresponding Fortran representation,
+the SymPyReader needs to know the actual names (which might have been
+changed from their default because of a name clash with a user variable).
+The SymPyReader constructor therefore takes a SymPyWriter as argument,
+and it is the responsibility of the user to make sure the provided
+SymPyWriter instance is indeed the one used to create the SymPy expressions
+in the first place.
+
+An example of converting an expression `expr` from PSyIR to SymPy and back:
+
+.. testcode::
+
+    from sympy import expand
+    from psyclone.psyir.backend.fortran import FortranWriter
+    from psyclone.psyir.backend.sympy_writer import SymPyWriter
+    from psyclone.psyir.frontend.sympy_reader import SymPyReader
+
+    sympy_writer = SymPyWriter()
+    sympy_expr = sympy_writer(expr)
+
+    # Use SymPy to modify the expression ...
+    new_expr = expand(sympy_expr)
+
+    # Find the required symbol table in the original PSyIR
+    symbol_table = expr.scope.symbol_table
+
+    sympy_reader = SymPyReader(sympy_writer)
+    # Convert the new sympy expression to PSyIR
+    new_psyir_expr = sympy_reader.psyir_from_expression(new_expr, symbol_table)
+
+    writer = FortranWriter()
+    print(f"{writer(expr)} = {writer(new_psyir_expr)}")
+
+.. testoutput::
+
+     (j + 1) * k = j * k + k
+
+Documentation for SymPyReader Functions
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The SymPyReader provides the following functions:
+
+.. autoclass:: psyclone.psyir.frontend.sympy_reader.SymPyReader
+    :members:

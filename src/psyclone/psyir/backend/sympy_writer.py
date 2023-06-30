@@ -225,10 +225,13 @@ class SymPyWriter(FortranWriter):
 
                 # Now a new Fortran array is used. Create a new function
                 # instance, and overwrite how this function is converted back
-                # into a string using the print_fortran_array function from
-                # the SymPyReader. Note that we cannot create a derived class
-                # based on Function: SymPy tests internally if the type is a
-                # Function (not if it is an instance), therefore, the
+                # into a string by defining the ``_sympystr`` attribute,
+                # which points to a function that controls how this object
+                # is converted into a string. Use the ``print_fortran_array``
+                # function from the SymPyReader for this. Note that we cannot
+                # create a derived class based on ``Function`` and define
+                # this function there: SymPy tests internally if the type is a
+                # Function (not if it is an instance), therefore, SymPy's
                 # behaviour would change if we used a derived class.
                 array_func = Function(name)
                 # pylint: disable=protected-access

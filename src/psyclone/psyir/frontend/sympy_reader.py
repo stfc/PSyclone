@@ -45,10 +45,11 @@ class SymPyReader():
     '''This class converts a SymPy expression, that was created by the
     SymPyWriter, back to PSyIR. It basically allows to use SymPy to modify
     PSyIR expressions:
-    1. The SymPyWriter converts the Fortran expression to SymPy
-    2. SymPy is used to manipulate these mathematical expressions
-    3. The SymPyReader is used to convert these SymPy expressions back
-        into PSyIR (from which source code can be recreated)
+
+        1. The SymPyWriter converts the Fortran expression to SymPy
+        2. SymPy is used to manipulate these mathematical expressions
+        3. The SymPyReader is used to convert these SymPy expressions back
+           into PSyIR (from which source code can be recreated)
 
     Most SymPy expressions can be parsed as Fortran expression immediately,
     but the big exception to this are Fortran Arrays which must be able to
@@ -130,7 +131,8 @@ class SymPyReader():
         back to standard Fortran. This function is set as ``_sympystr_`` method
         of the SymPy functions created in the SymPyWriter (see
         ``_create_type_map`` method of the SymPyWriter), so it will be called
-        by SymPy to convert this function to a string. This function converts
+        by SymPy to convert this function to a string, with the function to
+        convert being the first argument! This function converts
         the three values that each index is converted to back into the Fortran
         array notation. It uses the class variables
         ``SymPyReader._lower_bound`` and ``SymPyReader._upper_bound`` as the
