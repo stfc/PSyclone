@@ -856,6 +856,7 @@ def test_restrict_prolong_chain_acc(tmpdir):
 
     enter_data_trans.apply(schedule)
     output = str(psy.gen)
+    assert "acc enter data" in output
     for line in output.split("\n"):
         # There should be no indexing into arrays within the enter-data
         # directive.

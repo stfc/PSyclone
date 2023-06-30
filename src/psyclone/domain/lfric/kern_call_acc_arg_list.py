@@ -59,8 +59,10 @@ class KernCallAccArgList(KernCallArgList):
     def cell_map(self, var_accesses=None):
         '''Add cell-map to the list of required arrays.
 
-        :param var_accesses: unused.
-        :type var_accesses: :py:class:`psyclone.core.VariablesAccessInfo`
+        :param var_accesses: optional VariablesAccessInfo instance to store
+            the information about variable accesses.
+        :type var_accesses: Optional[
+            :py:class:`psyclone.core.VariablesAccessInfo`]
 
         '''
         cargs = psyGen.args_filter(self._kern.args, arg_meshes=["gh_coarse"])
@@ -73,15 +75,16 @@ class KernCallAccArgList(KernCallArgList):
 
     def cell_position(self, var_accesses=None):
         '''Adds a cell argument to the argument list and if supplied stores
-        this access in var_accesses.
+        this access in var_accesses. The cell argument may actually require
+        a lookup from a colour map array.
 
-        :param var_accesses: optional VariablesAccessInfo instance to store \
+        :param var_accesses: optional VariablesAccessInfo instance to store
             the information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+        :type var_accesses: Optional[
+            :py:class:`psyclone.core.VariablesAccessInfo`]
 
         '''
-        cell_ref_name, ref = self.cell_ref_name(var_accesses)
+        _, ref = self.cell_ref_name(var_accesses)
         self.append(ref.symbol.name)
 
     def field_vector(self, argvect, var_accesses=None):
@@ -92,10 +95,10 @@ class KernCallAccArgList(KernCallArgList):
 
         :param argvect: the field vector to add.
         :type argvect: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-        :param var_accesses: optional VariablesAccessInfo instance to store \
+        :param var_accesses: optional VariablesAccessInfo instance to store
             the information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+        :type var_accesses: Optional[
+            :py:class:`psyclone.core.VariablesAccessInfo`]
 
         '''
         # First provide the derived-type object
