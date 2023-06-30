@@ -38,14 +38,12 @@
 '''PSyIR backend to create expressions that are handled by SymPy.
 '''
 
-# pylint: disable=too-many-lines
-
-from sympy import Function, sstr, Symbol
+from sympy import Function, Symbol
 from sympy.parsing.sympy_parser import parse_expr
 
 from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.backend.visitor import VisitorError
+from psyclone.psyir.frontend.sympy_reader import SymPyReader
 from psyclone.psyir.nodes import (BinaryOperation, DataNode, NaryOperation,
                                   Range, Reference, UnaryOperation)
 from psyclone.psyir.symbols import (ArrayType, ScalarType, SymbolTable)
@@ -197,16 +195,17 @@ class SymPyWriter(FortranWriter):
         :rtype: :py:class:`sympy.Function`
         '''
 
-        # Create a new function instance, and overwrite how this function is
-        # converted back into a string using the print_fortran_array function
-        # from the SymPyReader. Note that we cannot create a derived class
-        # based on Function: SymPy tests internally if the type is a Function
-        # (not if it is an instance), therefore, the behaviour would change
-        # if we used a derived class. So setting these attributes manually is
-        # by far the easiest option to pass the required information to the
-        # ``print_fortran_array`` function:
+        # Now a new Fortran array is used. Create a new function
+        # instance, and overwrite how this function is converted back
+        # into a string by defining the ``_sympystr`` attribute,
+        # which points to a function that controls how this object
+        # is converted into a string. Use the ``print_fortran_array``
+        # function from the SymPyReader for this. Note that we cannot
+        # create a derived class based on ``Function`` and define
+        # this function there: SymPy tests internally if the type is a
+        # Function (not if it is an instance), therefore, SymPy's
+        # behaviour would change if we used a derived class.
         new_func = Function(name)
-        from psyclone.psyir.frontend.sympy_reader import SymPyReader
         # pylint: disable=protected-access
         new_func._sympystr = SymPyReader.print_fortran_array
         new_func._sig = sig
@@ -242,10 +241,6 @@ class SymPyWriter(FortranWriter):
         # Find each reference in each of the expression, and declare this name
         # as either a SymPy Symbol (scalar reference), or a SymPy Function
         # (an array).
-
-        # Avoid circular dependency
-        # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.frontend.sympy_reader import SymPyReader
         for expr in list_of_expressions:
             for ref in expr.walk(Reference):
                 name = ref.name
@@ -638,28 +633,3 @@ class SymPyWriter(FortranWriter):
         result += f",{step}"
 
         return result
-
-    # -------------------------------------------------------------------------
-    def sympy_to_psyir(self, sympy_expr, symbol_table):
-        '''This function converts a SymPy expression back into PSyIR. It first
-        parses the SymPy expression back into PSyIR, and then replaces all
-        array indices back into the corresponding Fortran values (since they
-        were replaced with three parameters to support array expressions), e.g.
-        ``a(i,i,1)`` will be converted back to ``a(i)``, and ``a(-inf,5,2)``
-        will become ``a(:5:2)``.
-
-        :param sympy_expr: the original SymPy expression.
-        :type sympy_expr: :py:class:`sympy.core.basic.Basic`
-        :param symbol_table: the symbol table required for parsing, it
-            should be the table from which the original SymPy expression
-            was created from (i.e. contain all the required symbols in the
-            SymPy expression).
-        :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
-
-        :returns: the PSyIR representation of the SymPy expression.
-        :rtype: :py:class:`psyclone.psyir.nodes.Node`
-
-        '''
-        # Convert the new SymPy expression to PSyIR
-        reader = FortranReader()
-        return reader.psyir_from_expression(sstr(sympy_expr), symbol_table)
