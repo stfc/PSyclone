@@ -304,7 +304,6 @@ def _find_or_create_imported_symbol(location, name, scope_limit=None,
         if hasattr(test_node, 'symbol_table'):
             # This Node does have a SymbolTable.
             symbol_table = test_node.symbol_table
-
             try:
                 # If the name matches a Symbol in this SymbolTable then
                 # return the Symbol (after specialising it, if necessary).
@@ -1013,6 +1012,7 @@ class Fparser2Reader():
         ('**', BinaryOperation.Operator.POW),
         ('==', BinaryOperation.Operator.EQ),
         ('.eq.', BinaryOperation.Operator.EQ),
+        ('.eqv.', BinaryOperation.Operator.EQ),
         ('/=', BinaryOperation.Operator.NE),
         ('.ne.', BinaryOperation.Operator.NE),
         ('<=', BinaryOperation.Operator.LE),
@@ -2530,7 +2530,6 @@ class Fparser2Reader():
         '''
         code_block_nodes = []
         for child in nodes:
-
             try:
                 psy_child = self._create_child(child, parent)
             except NotImplementedError:

@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
 # Modified by A. R. Porter and S. Siso, STFC Daresbury Lab
+# Modified by A. B. G. Chalk, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 '''Performs pytest tests on the psyclone.psyir.backend.fortran module'''
@@ -498,6 +499,22 @@ def test_get_operator(operator, result):
 
     '''
     assert result == FortranWriter().get_operator(operator)
+
+
+def test_get_operator_logical_special_case():
+    '''Check the the geT_operator function returns the expected values
+    when provided with a Logical equivalence case.
+    '''
+    true_literal = Literal("true", BOOLEAN_TYPE)
+    sym = DataSymbol("dummy1", BOOLEAN_TYPE)
+    ref = Reference(sym)
+
+    assert (FortranWriter().get_operator(BinaryOperation.Operator.EQ,
+                                         children=[true_literal, ref])
+            == ".EQV.")
+    assert (FortranWriter().get_operator(BinaryOperation.Operator.EQ,
+                                         children=[ref, true_literal])
+            == ".EQV.")
 
 
 def test_get_operator_error():
