@@ -192,7 +192,6 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
         '''
         # This symbol is used in other methods so might have already
         # been declared.
-        print("1 ",meta_arg.function_space)
         undf_name = cls._undf_name(meta_arg.function_space)
         undf_symbol = cls._get_or_create_lfric_symbol(
             "NumberOfUniqueDofsDataSymbol", undf_name)
@@ -216,7 +215,6 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
         '''
         # This symbol is used in other methods so might have already
         # been declared.
-        print("2 ",meta_arg.function_space)
         undf_name = cls._undf_name(meta_arg.function_space)
         undf_symbol = cls._get_or_create_lfric_symbol(
             "NumberOfUniqueDofsDataSymbol", undf_name)
@@ -595,6 +593,47 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
             cls._fs_compulsory_field(function_space)
 
     @classmethod
+    def _basis_or_diff_basis_dimension(cls, name, function_space):
+        ''' xxx '''
+        if name == "basis":
+            return cls._basis_dimension(function_space)
+        elif name == "diff_basis":
+            return cls._diff_basis_dimension(function_space)
+        else:
+            raise Exception("xxx")
+
+    @staticmethod
+    def _basis_dimension(function_space):
+        ''' xxx '''
+        fs_1_list = ["w0", "w2trace", "w2htrace", "w2vtrace", "w3",
+                     "wtheta", "wchi"]
+        fs_3_list = ["w1", "w2", "w2h", "w2v", "w2broken", "any_w2"]
+        if function_space.lower() in fs_1_list:
+            return 1
+        elif function_space.lower() in fs_3_list:
+            return 3
+        else:
+            raise ValueError(
+                f"Unexpected function space value '{function_space}' found "
+                f"in basis_dimension. Expected one of {fs_1_list+fs_3_list}.")
+
+    @staticmethod
+    def _diff_basis_dimension(function_space):
+        ''' xxx '''
+        fs_1_list = ["w2", "w2h", "w2v", "w2broken", "any_w2"]
+        fs_3_list = ["w0", "w1", "w2trace", "w2htrace", "w2vtrace", "w3",
+                     "wtheta", "wchi"]
+        if function_space.lower() in fs_1_list:
+            return 1
+        elif function_space.lower() in fs_3_list:
+            return 3
+        else:
+            raise ValueError(
+                f"Unexpected function space value '{function_space}' found "
+                f"in diff_basis_dimension. Expected one of "
+                f" {fs_1_list+fs_3_list}.")
+
+    @classmethod
     def _basis_or_diff_basis(cls, name, function_space):
         '''Utility function for the basis and diff_basis methods.
 
@@ -654,11 +693,43 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
         const = lfric.LFRicConstants()
         if not cls._metadata.shapes:
             return
+        dimension = cls._basis_or_diff_basis_dimension(name, function_space)
+        scalar_datatype = cls._create_datatype("LFRicIntegerScalarDataType")
+        dimension_literal = nodes.Literal(str(dimension), scalar_datatype)
+        # This symbol is used in other methods so might have already
+        # been declared.
+        ndf_name = cls._ndf_name(function_space)
+        ndf_symbol = cls._get_or_create_lfric_symbol(
+            "NumberOfDofsDataSymbol", ndf_name)
         for shape in cls._metadata.shapes:
             if shape in const.VALID_QUADRATURE_SHAPES:
-                cls._add_lfric_symbol_name(
-                    "LFRicIntegerScalar",
-                    f"{name}_{function_space_name}_qr_{shape.split('_')[-1]}")
+                if shape == "gh_quadrature_xyoz":
+                    np_xy_symbol = cls._get_or_create_lfric_symbol(
+                        "LFRicIntegerScalarDataSymbol", "np_xy")
+                    np_z_symbol = cls._get_or_create_lfric_symbol(
+                        "LFRicIntegerScalarDataSymbol", "np_z")
+                    dims = [dimension_literal, ndf_symbol, np_xy_symbol,
+                            np_z_symbol]
+                elif shape == "gh_quadrature_face":
+                    np_xyz_symbol = cls._get_or_create_lfric_symbol(
+                        "LFRicIntegerScalarDataSymbol", "np_xyz")
+                    nfaces_symbol = cls._get_or_create_lfric_symbol(
+                        "LFRicIntegerScalarDataSymbol", "nfaces")
+                    dims = [dimension_literal, ndf_symbol, np_xyz_symbol,
+                            nfaces_symbol]
+                elif shape == "gh_quadrature_edge":
+                    np_xyz_symbol = cls._get_or_create_lfric_symbol(
+                        "LFRicIntegerScalarDataSymbol", "np_xyz")
+                    nedges_symbol = cls._get_or_create_lfric_symbol(
+                        "LFRicIntegerScalarDataSymbol", "nedges")
+                    dims = [dimension_literal, ndf_symbol, np_xyz_symbol,
+                            nedges_symbol]
+                else:
+                    raise Exception("xxx")
+                cls._add_array_symbol_name(
+                    "LFRicIntegerScalarDataType",
+                    f"{name}_{function_space_name}_qr_{shape.split('_')[-1]}",
+                    dims)
             elif shape in const.VALID_EVALUATOR_SHAPES:
                 if cls._metadata.evaluator_targets:
                     target_function_spaces = cls._metadata.evaluator_targets
@@ -676,10 +747,19 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
                         if field.function_space not in target_function_spaces:
                             target_function_spaces.append(field.function_space)
                 for target_function_space in target_function_spaces:
-                    cls._add_lfric_symbol_name(
-                        "LFRicIntegerScalar",
+
+                    target_ndf_name = cls._ndf_name(target_function_space)
+                    target_ndf_symbol = cls._get_or_create_lfric_symbol(
+                        "NumberOfDofsDataSymbol", ndf_name)
+
+                    dims = [dimension_literal, ndf_symbol, target_ndf_symbol]
+                    target_function_space_name = cls._function_space_name(
+                        target_function_space)
+                    cls._add_array_symbol_name(
+                        "LFRicIntegerScalarDataType",
                         f"{name}_{function_space_name}_to_"
-                        f"{target_function_space}")
+                        f"{target_function_space_name}",
+                        dims)
             else:
                 raise InternalError(
                     f"Unexpected shape metadata. Found '{shape}' but expected "
@@ -1018,7 +1098,7 @@ class FormalKernelArgsFromMetadata(lfric.MetadataToArgumentsRules):
                        access=symbols.ArgumentInterface.Access.READ):
         ''' xxx '''
         scalar_type = cls._create_datatype(scalar_type_name)
-        array_args = [nodes.Reference(symbol) for symbol in dims]
+        array_args = [nodes.Reference(symbol) if not isinstance(symbol, nodes.Literal) else symbol for symbol in dims]
         array_type = symbols.ArrayType(scalar_type, array_args)
         interface = symbols.ArgumentInterface(access)
         array_symbol = symbols.DataSymbol(

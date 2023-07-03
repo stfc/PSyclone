@@ -484,10 +484,10 @@ def test_fs_intergrid():
     ndf_symbol = cls._info.lookup(ndf_name)
     from psyclone.psyir.symbols import SymbolTable
     symbol_table = SymbolTable()
-    symbol_table.add(undf_symbol)
-    symbol_table.add(ndf_symbol)
+    symbol_table.add(undf_symbol, tag=undf_name)
+    symbol_table.add(ndf_symbol, tag=ndf_name)
     cls._info=symbol_table
-    cls._fs_intergrid(function_space)
+    cls._fs_intergrid(intergrid_meta_arg)
     check_arg_symbols(cls, OrderedDict(
         [(ndf_name, ndf_class), (undf_name, undf_class),
          (fullmap_name, symbols.DataSymbol)]))
@@ -499,3 +499,105 @@ def test_fs_intergrid():
         "GH_REAL", "GH_WRITE", function_space, "GH_COARSE")
     cls = call_method("_fs_intergrid", intergrid_meta_arg)
     check_fs_compulsory_field(cls, function_space)
+
+
+def test_basis_or_diff_basis_dimension():
+    ''' TODO '''
+    pass
+
+
+def test_basis_dimension():
+    '''Test the _basis_dimension utility method. Test with one example of
+    each option (returning 1, returning 3, or raising an
+    exception. Also test that function_space values can be lower or upper
+    case.
+
+    '''
+    cls = lfric.FormalKernelArgsFromMetadata
+    assert cls._basis_dimension("W0") == 1
+    assert cls._basis_dimension("w1") == 3
+    with pytest.raises(ValueError) as info:
+        cls._basis_dimension("invalid")
+    assert ("Unexpected function space value 'invalid' found in "
+            "basis_dimension. Expected one of ['w0', 'w2trace', 'w2htrace', "
+            "'w2vtrace', 'w3', 'wtheta', 'wchi', 'w1', 'w2', 'w2h', 'w2v', "
+            "'w2broken', 'any_w2']." in str(info.value))
+
+
+def test_diff_basis_dimension():
+    '''Test the _diff_basis_dimension utility method. Test with one
+    example of each case (returning 1, returning 3, or raising an
+    exception. Also test that function_space values can be upper or
+    lower case.
+
+    '''
+    cls = lfric.FormalKernelArgsFromMetadata
+    assert cls._diff_basis_dimension("W2") == 1
+    assert cls._diff_basis_dimension("w0") == 3
+    with pytest.raises(ValueError) as info:
+        cls._diff_basis_dimension("invalid")
+    assert ("Unexpected function space value 'invalid' found in "
+            "diff_basis_dimension. Expected one of  ['w2', 'w2h', 'w2v', "
+            "'w2broken', 'any_w2', 'w0', 'w1', 'w2trace', 'w2htrace', "
+            "'w2vtrace', 'w3', 'wtheta', 'wchi']." in str(info.value))
+
+
+def test_basis_or_diff_basis():
+    ''' TODO '''
+    # gh_quadrature_*
+    # name = "<name>_"<function_space>_<quadrature_arg_name>.
+    # gh_quadrature_xyoz
+    # (dimension, number_of_dofs, np_xy, np_z).
+    # gh_quadrature_face
+    # (dimension, number_of_dofs, np_xyz, nfaces)
+    # gh_quadrature_edge
+    # (dimension, number_of_dofs, np_xyz, nedges)
+    # gh_evaluator
+    # name = <name>"_"<function_space>"_on_"<target_function_space>.
+    # (dimension, number_of_dofs, ndf_<target_function_space>)
+
+
+def test_basis():
+    ''' Test _basis method. '''
+    function_space = "w3"
+    field_meta_arg = lfric.kernel.FieldArgMetadata("GH_REAL", "GH_WRITE", "W3")
+    meta_funcs_arg = lfric.kernel.MetaFuncsArgMetadata(function_space, basis_function=True)
+    metadata = lfric.kernel.LFRicKernelMetadata(
+        operates_on="cell_column", meta_args=[field_meta_arg],
+        meta_funcs=[meta_funcs_arg], shapes=["gh_quadrature_xyoz"])
+    metadata.validate()
+    cls = call_method("_basis", function_space, metadata=metadata)
+    check_arg_symbols(cls, OrderedDict(
+        [("basis_w3_qr_xyoz", symbols.DataSymbol)]))
+    # Check that basis is an array with the expected extent.
+    basis_symbol = cls._info.lookup("basis_w3_qr_xyoz")
+    assert basis_symbol.is_array
+    assert len(basis_symbol.datatype.shape) == 4
+    ndf_name = lfric.FormalKernelArgsFromMetadata._ndf_name(function_space)
+    assert basis_symbol.datatype.shape[0].upper.value == "1"
+    assert basis_symbol.datatype.shape[1].upper.symbol.name == ndf_name
+    assert basis_symbol.datatype.shape[2].upper.symbol.name == "np_xy"
+    assert basis_symbol.datatype.shape[3].upper.symbol.name == "np_z"
+
+
+def test_diff_basis():
+    ''' Test _diff_basis method. '''
+    function_space = "w3"
+    field_meta_arg = lfric.kernel.FieldArgMetadata("GH_REAL", "GH_WRITE", "W3")
+    meta_funcs_arg = lfric.kernel.MetaFuncsArgMetadata(function_space, diff_basis_function=True)
+    metadata = lfric.kernel.LFRicKernelMetadata(
+        operates_on="cell_column", meta_args=[field_meta_arg],
+        meta_funcs=[meta_funcs_arg], shapes=["gh_quadrature_xyoz"])
+    metadata.validate()
+    cls = call_method("_diff_basis", function_space, metadata=metadata)
+    check_arg_symbols(cls, OrderedDict(
+        [("diff_basis_w3_qr_xyoz", symbols.DataSymbol)]))
+    # Check that diff basis is an array with the expected extent.
+    diff_basis_symbol = cls._info.lookup("diff_basis_w3_qr_xyoz")
+    assert diff_basis_symbol.is_array
+    assert len(diff_basis_symbol.datatype.shape) == 4
+    ndf_name = lfric.FormalKernelArgsFromMetadata._ndf_name(function_space)
+    assert diff_basis_symbol.datatype.shape[0].upper.value == "3"
+    assert diff_basis_symbol.datatype.shape[1].upper.symbol.name == ndf_name
+    assert diff_basis_symbol.datatype.shape[2].upper.symbol.name == "np_xy"
+    assert diff_basis_symbol.datatype.shape[3].upper.symbol.name == "np_z"
