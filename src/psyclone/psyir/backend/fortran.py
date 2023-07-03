@@ -435,6 +435,7 @@ class FortranWriter(LanguageWriter):
         # For BinaryOperations there is a special case if the Operator is EQ
         # and one of the children is a Logical Reference or Literal we use
         # the .eqv. operator instead of ==.
+        # TODO #2204 This will not support two logical expressions equivalence
         if (children and len(children) == 2 and
                 operator == BinaryOperation.Operator.EQ):
             for child in children:
