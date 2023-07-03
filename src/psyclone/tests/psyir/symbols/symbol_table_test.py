@@ -544,7 +544,7 @@ def test_swap_symbol():
     assert ("Symbol to remove must be of type Symbol but got 'str'" in
             str(err.value))
     # Test that we reject attempts to swap symbols with different names.
-    symbol2 = DataSymbol("var2", INTEGER_TYPE, constant_value=6)
+    symbol2 = DataSymbol("var2", INTEGER_TYPE, initial_value=6)
     with pytest.raises(SymbolError) as err:
         sym_table.swap(symbol1, symbol2)
     assert ("Cannot swap symbols that have different names, got: 'var1' and "
@@ -651,7 +651,7 @@ def test_table_merge():
     # 'Own' routine symbol excluded.
     table2.add(RoutineSymbol("dent"), tag="own_routine_symbol")
     # Precision symbol should be included.
-    wp_sym = DataSymbol("wp", INTEGER_TYPE, constant_value=8)
+    wp_sym = DataSymbol("wp", INTEGER_TYPE, is_constant=True, initial_value=8)
     table2.add(wp_sym)
     table2.add(DataSymbol("marvin", ScalarType(ScalarType.Intrinsic.REAL,
                                                wp_sym)))
@@ -800,7 +800,8 @@ def test_swap_symbol_properties():
     ''' Test the symboltable swap_properties method '''
     # pylint: disable=too-many-statements
 
-    symbol1 = DataSymbol("var1", INTEGER_TYPE, constant_value=7)
+    symbol1 = DataSymbol("var1", INTEGER_TYPE, is_constant=True,
+                         initial_value=7)
     symbol2 = DataSymbol("dim1", INTEGER_TYPE,
                          interface=ArgumentInterface(
                              ArgumentInterface.Access.READ))
@@ -859,7 +860,7 @@ def test_swap_symbol_properties():
     assert symbol1.datatype.shape[0].upper.symbol == symbol2
     assert symbol1.datatype.shape[1].upper.symbol == symbol3
     assert symbol1.is_argument
-    assert symbol1.constant_value is None
+    assert symbol1.initial_value is None
     assert symbol1.interface.access == ArgumentInterface.Access.READWRITE
 
     assert symbol4.name == "var2"
@@ -867,10 +868,10 @@ def test_swap_symbol_properties():
     assert symbol4.datatype.precision == ScalarType.Precision.UNDEFINED
     assert not symbol4.shape
     assert symbol4.is_automatic
-    assert symbol4.constant_value.value == "7"
-    assert (symbol4.constant_value.datatype.intrinsic ==
+    assert symbol4.initial_value.value == "7"
+    assert (symbol4.initial_value.datatype.intrinsic ==
             symbol4.datatype.intrinsic)
-    assert (symbol4.constant_value.datatype.precision ==
+    assert (symbol4.initial_value.datatype.precision ==
             symbol4.datatype.precision)
 
     # Check symbol references are unaffected
@@ -1736,7 +1737,7 @@ def test_new_symbol():
     assert isinstance(sym2.interface, AutomaticInterface)
     assert isinstance(sym1.datatype, NoType)
     assert sym2.datatype is INTEGER_TYPE
-    assert sym2.constant_value is None
+    assert sym2.initial_value is None
 
     # The initialization parameters of new symbols can be given as
     # keyword parameters
@@ -1747,7 +1748,8 @@ def test_new_symbol():
     sym2 = symtab.new_symbol("data", symbol_type=DataSymbol,
                              datatype=INTEGER_TYPE,
                              visibility=Symbol.Visibility.PRIVATE,
-                             constant_value=3)
+                             is_constant=True,
+                             initial_value=3)
     assert sym1.name == "routine_1"
     assert sym2.name == "data_1"
     assert type(sym1) == RoutineSymbol
@@ -1758,7 +1760,8 @@ def test_new_symbol():
     assert sym2.visibility is Symbol.Visibility.PRIVATE
     assert isinstance(sym1.datatype, DeferredType)
     assert sym2.datatype is INTEGER_TYPE
-    assert sym2.constant_value is not None
+    assert sym2.initial_value is not None
+    assert sym2.is_constant is True
 
     # Check that symbol_type only accepts symbols
     with pytest.raises(TypeError) as err:
@@ -1808,12 +1811,14 @@ def test_find_or_create():
                                  symbol_type=DataSymbol,
                                  datatype=INTEGER_TYPE,
                                  visibility=Symbol.Visibility.PRIVATE,
-                                 constant_value=3)
+                                 is_constant=True,
+                                 initial_value=3)
     assert new2.name == "new2"
     assert isinstance(new2, DataSymbol)
     assert new2.datatype is INTEGER_TYPE
     assert new2.visibility is Symbol.Visibility.PRIVATE
-    assert new2.constant_value.value == "3"
+    assert new2.initial_value.value == "3"
+    assert new2.is_constant is True
     assert symtab.lookup_with_tag("mytag") is new2
 
     # Check that it fails if the named Symbol exists but is not of the
@@ -1854,12 +1859,14 @@ def test_find_or_create_tag():
                                      symbol_type=DataSymbol,
                                      datatype=INTEGER_TYPE,
                                      visibility=Symbol.Visibility.PRIVATE,
-                                     constant_value=3)
+                                     is_constant=True,
+                                     initial_value=3)
     assert symtab.lookup_with_tag("tag3") is tag3
     assert type(tag3) == DataSymbol
     assert tag3.visibility is Symbol.Visibility.PRIVATE
     assert tag3.datatype is INTEGER_TYPE
-    assert tag3.constant_value is not None
+    assert tag3.is_constant is True
+    assert tag3.initial_value is not None
 
     # It can be given a different root_name
     tag4 = symtab.find_or_create_tag("tag4", root_name="var")
@@ -2172,7 +2179,7 @@ def test_resolve_imports(fortran_reader, tmpdir, monkeypatch):
     # b_1 have all relevant info now
     assert isinstance(b_1, DataSymbol)
     assert b_1.datatype.intrinsic.name == 'INTEGER'
-    assert b_1.constant_value.value == "10"
+    assert b_1.initial_value.value == "10"
     # The interface is also updated updated now because we know where it comes
     # from
     assert isinstance(b_1.interface, ImportInterface)

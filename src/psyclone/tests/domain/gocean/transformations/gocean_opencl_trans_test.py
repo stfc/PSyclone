@@ -551,21 +551,21 @@ def test_psy_init_defaults(kernel_outputdir):
     otrans.apply(sched)
     generated_code = str(psy.gen)
     expected = '''
-    SUBROUTINE psy_init()
-      USE fortcl, ONLY: add_kernels, ocl_env_init
-      CHARACTER(LEN=30) kernel_names(1)
-      INTEGER :: ocl_device_num = 1
-      LOGICAL, SAVE :: initialised = .FALSE.
+    subroutine psy_init()
+      use fortcl, only: add_kernels, ocl_env_init
+      character(len=30) kernel_names(1)
+      integer :: ocl_device_num = 1
+      logical, save :: initialised = .false.
 
-      IF (.NOT.initialised) THEN
+      if (.not.initialised) then
         initialised = .true.
-        CALL ocl_env_init(1, ocl_device_num, .false., .false.)
+        call ocl_env_init(1, ocl_device_num, .false., .false.)
         kernel_names(1) = 'compute_cu_code'
-        CALL add_kernels(1, kernel_names)
-      END IF
+        call add_kernels(1, kernel_names)
+      end if
 
-    END SUBROUTINE psy_init'''
-    assert expected in generated_code
+    end subroutine psy_init'''
+    assert expected in generated_code.lower()
     assert GOceanOpenCLBuild(kernel_outputdir).code_compiles(psy)
 
 
@@ -628,23 +628,23 @@ def test_psy_init_multiple_devices_per_node(kernel_outputdir, monkeypatch):
     generated_code = str(psy.gen)
 
     expected = '''
-    SUBROUTINE psy_init()
-      USE parallel_mod, ONLY: get_rank
-      USE fortcl, ONLY: add_kernels, ocl_env_init
-      CHARACTER(LEN=30) kernel_names(1)
-      INTEGER :: ocl_device_num = 1
-      LOGICAL, SAVE :: initialised = .FALSE.
+    subroutine psy_init()
+      use parallel_mod, only: get_rank
+      use fortcl, only: add_kernels, ocl_env_init
+      character(len=30) kernel_names(1)
+      integer :: ocl_device_num = 1
+      logical, save :: initialised = .false.
 
-      IF (.NOT.initialised) THEN
+      if (.not.initialised) then
         initialised = .true.
-        ocl_device_num = MOD(get_rank() - 1, 2) + 1
-        CALL ocl_env_init(1, ocl_device_num, .false., .false.)
+        ocl_device_num = mod(get_rank() - 1, 2) + 1
+        call ocl_env_init(1, ocl_device_num, .false., .false.)
         kernel_names(1) = 'compute_cu_code'
-        CALL add_kernels(1, kernel_names)
-      END IF
+        call add_kernels(1, kernel_names)
+      end if
 
-    END SUBROUTINE psy_init'''
-    assert expected in generated_code
+    end subroutine psy_init'''
+    assert expected in generated_code.lower()
     assert GOceanOpenCLBuild(kernel_outputdir).code_compiles(psy)
 
 

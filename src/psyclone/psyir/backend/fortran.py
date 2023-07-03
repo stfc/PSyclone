@@ -644,8 +644,8 @@ class FortranWriter(LanguageWriter):
         result += f" :: {symbol.name}"
 
         # Specify initialization expression
-        if isinstance(symbol, DataSymbol) and symbol.is_constant:
-            result += " = " + self._visit(symbol.constant_value)
+        if isinstance(symbol, DataSymbol) and symbol.initial_value:
+            result += " = " + self._visit(symbol.initial_value)
 
         return result + "\n"
 
@@ -847,10 +847,10 @@ class FortranWriter(LanguageWriter):
             decln_inputs[symbol.name] = set()
             read_write_info = ReadWriteInfo()
             self._dep_tools.get_input_parameters(read_write_info,
-                                                 symbol.constant_value)
+                                                 symbol.initial_value)
             # The dependence analysis tools do not include symbols used to
             # define precision so check for those here.
-            for lit in symbol.constant_value.walk(Literal):
+            for lit in symbol.initial_value.walk(Literal):
                 if isinstance(lit.datatype.precision, DataSymbol):
                     read_write_info.add_read(
                         Signature(lit.datatype.precision.name))

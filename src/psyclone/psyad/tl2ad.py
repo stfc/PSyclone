@@ -396,7 +396,8 @@ def generate_adjoint_test(tl_psyir, ad_psyir,
     dim_size_sym = symbol_table.new_symbol("array_extent",
                                            symbol_type=DataSymbol,
                                            datatype=INTEGER_TYPE,
-                                           constant_value=TEST_ARRAY_DIM_SIZE)
+                                           is_constant=True,
+                                           initial_value=TEST_ARRAY_DIM_SIZE)
 
     # Create symbols for the results of the inner products
     inner1 = symbol_table.new_symbol("inner1", symbol_type=DataSymbol,
@@ -439,7 +440,8 @@ def generate_adjoint_test(tl_psyir, ad_psyir,
         new_dim_args_map[arg] = symbol_table.new_symbol(
             arg.name, symbol_type=DataSymbol,
             datatype=arg.datatype,
-            constant_value=Reference(dim_size_sym))
+            is_constant=True,
+            initial_value=Reference(dim_size_sym))
 
     # Create necessary variables for the kernel arguments.
     inputs = []

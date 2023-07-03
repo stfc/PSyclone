@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+# Copyright (c) 2017-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -38,7 +38,6 @@
 
 ''' This module contains the DataSymbol and its interfaces.'''
 
-from __future__ import absolute_import
 from psyclone.psyir.symbols.typed_symbol import TypedSymbol
 
 
@@ -80,29 +79,25 @@ class DataSymbol(TypedSymbol):
 
     def _process_arguments(self, **kwargs):
         ''' Process the arguments for the constructor and the specialise
-        methods. In this case the constant_value argument.
+        methods. In this case the initial_value argument.
 
         :param kwargs: keyword arguments which can be:\n
-            :param constant_value: sets a fixed known expression as a \
-                permanent value for this DataSymbol. If the value is None \
-                then this symbol does not have a fixed constant. Otherwise \
-                it can receive PSyIR expressions or Python intrinsic types \
-                available in the TYPE_MAP_TO_PYTHON map. By default it is \
+            :param initial_value: sets a known expression as an initial value
+                for this DataSymbol. If the value is None then this symbol has
+                no initial value (and cannot be a constant). Otherwise
+                it can receive PSyIR expressions or Python intrinsic types
+                available in the TYPE_MAP_TO_PYTHON map. By default it is
                 set to None. \n
-            :type constant_value: NoneType, item of TYPE_MAP_TO_PYTHON or \
+            :type initial_value: NoneType, item of TYPE_MAP_TO_PYTHON or
                 :py:class:`psyclone.psyir.nodes.Node`\n
+            :param bool is_constant: whether this DataSymbol represents a fixed
+                constant. Requires `initial_value` to be set.
             and the arguments in :py:class:`psyclone.psyir.symbols.TypedSymbol`
         :type kwargs: unwrapped dict.
 
         '''
         new_initial_value = None
-
-        if "is_constant" in kwargs:
-            self.is_constant = kwargs.pop("is_constant")
-        elif not hasattr(self, '_is_constant'):
-            # At least initialise it if we reach this point and it doesn't
-            # exist
-            self._is_constant = False
+        new_is_constant_value = None
 
         if "initial_value" in kwargs:
             new_initial_value = kwargs.pop("initial_value")
@@ -111,7 +106,14 @@ class DataSymbol(TypedSymbol):
             # doesn't already have it.
             self._initial_value = None
 
-        if self.is_constant and not new_initial_value:
+        if "is_constant" in kwargs:
+            new_is_constant_value = kwargs.pop("is_constant")
+        elif not hasattr(self, '_is_constant'):
+            # At least initialise it if we reach this point and it doesn't
+            # exist
+            self._is_constant = False
+
+        if self.is_constant and new_initial_value is None:
             raise ValueError(
                 "A DataSymbol representing a constant must be given an "
                 "initial value but '{0}' does not have one.".format(self.name))
@@ -127,11 +129,14 @@ class DataSymbol(TypedSymbol):
         if new_initial_value:
             self.initial_value = new_initial_value
 
+        if new_is_constant_value:
+            self.is_constant = new_is_constant_value
+
     @property
     def is_constant(self):
         '''
-        :returns: Whether the symbol is a constant with a fixed known \
-        value (True) or not (False).
+        :returns: Whether the symbol is a constant with a fixed known
+            value (True) or not (False).
         :rtype: bool
 
         '''
@@ -139,12 +144,22 @@ class DataSymbol(TypedSymbol):
 
     @is_constant.setter
     def is_constant(self, value):
+        '''
+        :param bool value: whether or not this symbol has a fixed, known value.
+
+        :raises ValueError: if `value` is True but this symbol does not have an
+            initial value set.
+
+        '''
+        if value and self.initial_value is None:
+            raise ValueError(f"Symbol '{self.name}' does not have an initial "
+                             f"value set and therefore cannot be a constant.")
         self._is_constant = value
 
     @property
     def initial_value(self):
         '''
-        :returns: the initial value of this symbol (if any).
+        :returns: the initial value associated with this symbol (if any).
         :rtype: :py:class:`psyclone.psyir.nodes.Node`
 
         '''
@@ -153,21 +168,23 @@ class DataSymbol(TypedSymbol):
     @initial_value.setter
     def initial_value(self, new_value):
         '''
-        :param new_value: set or change the fixed known value of the \
-            constant for this DataSymbol. If the value is None then this \
-            symbol does not have a fixed constant. Otherwise it can receive \
-            PSyIR expressions or Python intrinsic types available in the \
+        :param new_value: set or change the initial, known value associated
+            with this DataSymbol. If the value is None then this symbol does
+            not have an initial value. Otherwise it can receive PSyIR
+            expressions or Python intrinsic types available in the
             TYPE_MAP_TO_PYTHON map.
-        :type new_value: NoneType, item of TYPE_MAP_TO_PYTHON or \
+        :type new_value: NoneType | item of TYPE_MAP_TO_PYTHON |
             :py:class:`psyclone.psyir.nodes.Node`
 
-        :raises ValueError: if a non-None value is provided and 1) this \
-            DataSymbol instance does not have local scope, or 2) this \
-            DataSymbol instance is not a scalar (as the shape attribute is \
-            not empty), or 3) a constant value is provided but the type of \
-            the value does is not supported, or 4) the type of the value \
-            provided is not compatible with the datatype of this DataSymbol \
+        :raises ValueError: if a non-None value is provided and 1) this
+            DataSymbol instance represents an argument, or 2) this
+            DataSymbol instance is not a scalar (as the shape attribute is
+            not empty), or 3) an initial value is provided but the type of
+            the value does is not supported, or 4) the type of the value
+            provided is not compatible with the datatype of this DataSymbol
             instance, or 5) the provided PSyIR expression is unsupported.
+        :raises ValueError: if a None value is provided and this DataSymbol
+            represents a constant.
 
         '''
         # pylint: disable=import-outside-toplevel
@@ -178,13 +195,13 @@ class DataSymbol(TypedSymbol):
         if new_value is not None:
             if self.is_argument:
                 raise ValueError(
-                    f"Error setting constant value for symbol '{self.name}'. "
-                    f"A DataSymbol with an ArgumentInterface can not have a "
-                    f"constant value.")
+                    f"Error setting initial value for symbol '{self.name}'. "
+                    f"A DataSymbol with an ArgumentInterface can not have an "
+                    f"initial value.")
             if not isinstance(self.datatype, (ScalarType, ArrayType)):
                 raise ValueError(
-                    f"Error setting constant value for symbol '{self.name}'. "
-                    f"A DataSymbol with a constant value must be a scalar or "
+                    f"Error setting initial value for symbol '{self.name}'. "
+                    f"A DataSymbol with an initial value must be a scalar or "
                     f"an array but found '{type(self.datatype).__name__}'.")
 
             if isinstance(new_value, Node):
@@ -222,13 +239,19 @@ class DataSymbol(TypedSymbol):
                     self._initial_value = Literal(str(new_value),
                                                   self.datatype)
         else:
+            if self.is_constant:
+                raise ValueError(f"Symbol '{self.name}' is a constant and "
+                                 f"therefore must have an initial value but "
+                                 f"got None")
             self._initial_value = None
 
     def __str__(self):
         ret = self.name + ": DataSymbol<" + str(self.datatype)
         ret += ", " + str(self._interface)
+        if self.initial_value is not None:
+            ret += f", initial_value={self.initial_value}"
         if self.is_constant:
-            ret += f", constant_value={self.constant_value}"
+            ret += ", constant=True"
         return ret + ">"
 
     def copy(self):

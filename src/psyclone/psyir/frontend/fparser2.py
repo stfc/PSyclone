@@ -1912,12 +1912,8 @@ class Fparser2Reader():
 
             if initialisation:
                 # If the variable or parameter has an initial value then
-                # parse its initialization into a dummy Assignment inside a
-                # Schedule which temporarily hijacks the parent node's symbol
-                # table.
-                # tmp_sch = Schedule(symbol_table=symbol_table)
-                dummynode = Assignment(parent=scope) # parent=tmp_sch)
-                # tmp_sch.addchild(dummynode)
+                # parse its initialization into a dummy Assignment.
+                dummynode = Assignment(parent=scope)
                 expr = initialisation.items[1]
                 self.process_nodes(parent=dummynode, nodes=[expr])
                 init_expr = dummynode.children[0].detach()
