@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council.
+# Copyright (c) 2017-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,24 +31,23 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+# Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 #         I. Kavcic, Met Office
 #         J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
 ''' This module contains the Assignment node implementation.'''
 
-import six
-
 from psyclone.core import VariablesAccessInfo
 from psyclone.errors import InternalError
 from psyclone.f2pygen import PSyIRGen
 from psyclone.psyir.nodes.array_reference import ArrayReference
+from psyclone.psyir.nodes.datanode import DataNode
+from psyclone.psyir.nodes.intrinsic_call import (
+    IntrinsicCall, REDUCTION_INTRINSICS)
 from psyclone.psyir.nodes.ranges import Range
 from psyclone.psyir.nodes.statement import Statement
-from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.structure_reference import StructureReference
-from psyclone.psyir.nodes.operation import Operation, REDUCTION_OPERATORS
 
 
 class Assignment(Statement):
@@ -85,8 +84,8 @@ class Assignment(Statement):
         '''
         if not self._children:
             raise InternalError(
-                "Assignment '{0}' malformed or incomplete. It "
-                "needs at least 1 child to have a lhs.".format(repr(self)))
+                f"Assignment '{repr(self)}' malformed or incomplete. It "
+                f"needs at least 1 child to have a lhs.")
 
         return self._children[0]
 
@@ -101,8 +100,8 @@ class Assignment(Statement):
         '''
         if len(self._children) < 2:
             raise InternalError(
-                "Assignment '{0}' malformed or incomplete. It "
-                "needs at least 2 children to have a rhs.".format(repr(self)))
+                f"Assignment '{repr(self)}' malformed or incomplete. It "
+                f"needs at least 2 children to have a rhs.")
 
         return self._children[1]
 
@@ -138,13 +137,14 @@ class Assignment(Statement):
         :param var_accesses: VariablesAccessInfo instance that stores the \
             information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
         # It is important that a new instance is used to handle the LHS,
         # since a check in 'change_read_to_write' makes sure that there
-        # is only one access to the variable!
-        accesses_left = VariablesAccessInfo()
+        # is only one access to the variable! Also forward the options
+        # from the original object to the new object.
+        accesses_left = VariablesAccessInfo(options=var_accesses.options())
         self.lhs.reference_accesses(accesses_left)
         # Now change the (one) access to the assigned variable to be WRITE:
         sig, _ = self.lhs.get_signature_and_indices()
@@ -155,11 +155,9 @@ class Assignment(Statement):
             # An internal error typically indicates that the same variable
             # is used twice on the LHS, e.g.: g(g(1)) = ... This is not
             # supported in PSyclone.
-            six.raise_from(
-                NotImplementedError("The variable '{0}' appears more than "
-                                    "once on the left-hand side of an "
-                                    "assignment."
-                                    .format(self.lhs.name)), err)
+            raise NotImplementedError(f"The variable '{self.lhs.name}' appears"
+                                      f" more than once on the left-hand side "
+                                      f"of an assignment.") from err
 
         # Merge the data (that shows now WRITE for the variable) with the
         # parameter to this function. It is important that first the
@@ -171,7 +169,7 @@ class Assignment(Statement):
         var_accesses.next_location()
 
     @property
-    def is_array_range(self):
+    def is_array_assignment(self):
         '''
         returns: True if the lhs of the assignment is an array access with at \
             least one of its dimensions being a range and False otherwise.
@@ -186,21 +184,22 @@ class Assignment(Statement):
         if isinstance(self.lhs, (ArrayReference, StructureReference)):
             ranges = self.lhs.walk(Range)
             for array_range in ranges:
-                opn = array_range.ancestor(Operation)
+                opn = array_range.ancestor(IntrinsicCall)
                 while opn:
-                    if opn.operator in REDUCTION_OPERATORS:
+                    if opn.intrinsic in REDUCTION_INTRINSICS:
                         # The current array range is in an argument to a
-                        # reduction operation so we assume that the result
+                        # reduction intrinsic so we assume that the result
                         # is a scalar.
-                        # TODO 658 this could still be a reduction into an
-                        # array (e.g. SUM(a(:,:), 1)) but we need to be able
-                        # to interrogate the type of a PSyIR expression in
-                        # order to be sure. e.g. SUM(a(:,:), mask(:,:)) will
+                        # TODO #658 this could still be a reduction
+                        # into an array (e.g. SUM(a(:,:), dim=1)) but
+                        # we need to be able to interrogate the type
+                        # of a PSyIR expression in order to be
+                        # sure. e.g. SUM(a(:,:), mask=mask(:,:)) will
                         # return a scalar.
                         break
-                    opn = opn.ancestor(Operation)
+                    opn = opn.ancestor(IntrinsicCall)
                 else:
-                    # We didn't find a reduction operation so there is an
+                    # We didn't find a reduction intrinsic so there is an
                     # array range on the LHS
                     return True
         return False

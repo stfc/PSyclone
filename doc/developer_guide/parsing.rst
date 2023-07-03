@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2019-2021, Science and Technology Facilities Council.
+.. Copyright (c) 2019-2023, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -34,16 +34,89 @@
 .. Written by R. W. Ford and A. R. Porter, STFC Daresbury Lab
 .. Modified by I. Kavcic, Met Office
 
-Parsing Code
-############
+.. testsetup::
 
-The PSyclone `parse` module is responsible for parsing science
-(algorithm and kernel) code and extracting the required information
-for the algorithm translation and PSy generation phases.
+    # Define SOURCE_FILE to point to an existing gocean 1.0 file.
+    SOURCE_FILE = ("../../src/psyclone/tests/test_files/"
+        "gocean1p0/test11_different_iterates_over_one_invoke.f90")
+
+
+Parsing Code (new approach)
+###########################
+
+The new approach to modifying existing code is to first parse it into
+generic PSyIR and then 'raise' it into domain-specific PSyIR which
+encodes any domain-specific concepts. The domain-specific PSyIR can
+then be modified using transformations. Once any code modification is
+complete the domain-specific PSyIR can then be 'lowered' to generic
+PSyIR and PSyclone's back-ends used to output the resultant code.
+
+The GOcean and LFRic APIs support the concept of algorithm, psy and
+kernel layers.
+
+Kernel-layer Fortran written by users consists of the kernel code
+itself and metadata describing the kernel code.  PSyclone needs this
+metadata to generate the PSy-layer code. The new approach takes the
+generic PSyIR representation of the kernel metadata (which is actually
+captured as a string within a PSyIR UnknownFortranType as the generic
+PSyIR does not understand its structure) and 'raises' this into
+domain-specific classes (using the ``RaisePSyIR2LFRicKernelTrans`` and
+``RaisePSyIR2GOceanKernelTrans`` transformations for the LFRic and
+GOcean API's, respectively). These classes allow the metadata to be
+simply read when generating psy-layer code, but also to be simply
+modified if required (e.g. when generating adjoint code - see the
+:ref:`user guide <psyad_user_guide:introduction>` for more
+details). As with existing code, these domain-specific classes can be
+'lowered' to produce generic PSyIR and PSyclone's back-ends used to
+output the resultant metadata and code.
+
+Algorithm-layer Fortran, also written by users, consists of ``invoke``
+calls containing references to kernels. PSyclone needs the information
+contained in an invoke call to generate the PSy-layer code. Another
+one of PSyclone's roles is to transform the algorithm code and
+specifically the invoke calls within the algorithm code. In order to
+support these requirements in the new approach the algorithm code
+is first parsed into generic PSyIR. The generic PSyIR is then 'raised'
+to either GOcean-specific algorithm code or LFRic-specific algorithm
+code depending on the API (using the ``RaisePSyIR2AlgTrans`` and
+``RaisePSyIR2LFRicAlgTrans`` transformations respectively) making use
+of domain-specific PSyIR classes for the invoke calls
+(``AlgorithmInvokeCall`` and ``LFRicAlgInvokeCall`` respectively) and
+references to kernels (``KernelFunctor`` and ``LFRicKernelFunctor``
+respectively).
+
+The domain-specific algorithm layer PSyIR is then lowered back to generic
+PSyIR and at the same time the invoke calls replaced with calls to the
+generated PSy-layer. This is achieved using the
+``GOceanAlgInvoke2PSyCallTrans`` and ``LFRicAlgInvoke2PSyCallTrans``
+transformations for the GOcean and LFRic APIs respectively, with these
+transformations operating on individual ``AlgorithmInvokeCall`` or
+``LFRicAlgorithmInvokeCall`` nodes rather than the whole of the
+domain-specific algorithm PSyIR.
+
+The new approach described in this section is not yet fully
+implemented in PSyclone. The current status is that it is used in the
+NEMO API to transform code and is used in the GOcean API to modify
+algorithm code. The GOcean and LFRic APIs are also able to raise
+kernel metadata to domain-specific classes, but these classes are not
+yet used by the the rest of PSyclone (see `generator.py` for the
+relevant GOcean code and prototype LFRic code).
+
+
+Parsing Code (original approach)
+################################
+
+The original way to parse code is to use the PSyclone `parse` module
+which is responsible for parsing science (algorithm and kernel) code
+and extracting the required information for the algorithm translation
+and PSy generation phases. The original approach is gradually being
+replaced by the use of the PSyIR and its front-ends and back-ends
+(please see the previous section for more details).
 
 The `parse` module contains modules for parsing algorithm
 (`algorithm.py`) and kernel (`kernel.py`) code as well as a utility
-module (`utils.py`) for common functionality.
+module (`utils.py`) for common functionality. This implementation is
+discussed further in the following sections.
 
 Parsing Algorithm Code
 ======================
@@ -140,12 +213,11 @@ create the appropriate `Arg` instance. Previously we relied on the
 Mixed Precision
 ===============
 
-Support for mixed precision kernels is being added to PSyclone but is
-still work-in-progress (see #1277). The approach being taken is for
-the user to provide kernels with a generic interface and
-precision-specific implementations. As the PSyclone kernel metadata
-does not specify precision, this does not need to change. The actual
-precision being used will be specified by the scientist in the
+Support for mixed precision kernels has been added to PSyclone. The
+approach being taken is for the user to provide kernels with a generic
+interface and precision-specific implementations. As the PSyclone kernel
+metadata does not specify precision, this does not need to change. The
+actual precision being used will be specified by the scientist in the
 algorithm layer (by declaring variables with appropriate precision).
 
 .. highlight:: fortran
@@ -292,4 +364,3 @@ instance has been created (by passing it an `fparser1` parse tree) it can
 return information about the metadata contained therein. Moving from
 `fparser1` to `fparser2` would required changing the parse code logic
 in each of the API-specific classes.
-

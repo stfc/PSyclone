@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2021, Science and Technology Facilities Council
+! Copyright (c) 2021-2022, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -32,21 +32,27 @@
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Author: I. Kavcic, Met Office
+! Modified: R. W. Ford, STFC Daresbury Lab
 
 program multikernel_invokes_real_int_scalar_invalid
 
   ! Description: two kernel calls with the first kernel using two real
-  ! scalars and the second kernel using two integer scalars but incorrectly
-  ! passing a real scalar
+  ! scalars and the second kernel using two integer scalars but
+  ! incorrectly passing a scalar that would need to be both real and
+  ! integer. This is provided from a module to stop PSyclone's type
+  ! checking from raising an exception.
+
   use constants_mod,                 only: r_def, i_def
   use field_mod,                     only: field_type
   use testkern_two_real_scalars_mod, only: testkern_two_real_scalars_type
   use testkern_two_int_scalars_mod,  only: testkern_two_int_scalars_type
 
+  use unknown_mod, only : b
+
   implicit none
 
   type(field_type) :: f1, f2, m1, m2
-  real(r_def)      :: a, b
+  real(r_def)      :: a
   integer(i_def)   :: iflag
 
   call invoke(name = "real_and_integer_scalars",               &

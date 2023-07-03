@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
-# Modified by S. Siso and R. W. Ford, STFC Daresbury Lab
+# Modified by S. Siso, R. W. Ford and N. Nobre, STFC Daresbury Lab
 
 '''
 Module providing a transformation from a generic PSyIR Schedule into a
@@ -41,7 +41,6 @@ NEMO Kernel.
 
 from psyclone.errors import LazyString
 from psyclone.nemo import NemoKern
-from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import Schedule, Loop, Call, CodeBlock, Assignment
 from psyclone.transformations import Transformation, TransformationError
 
@@ -56,30 +55,33 @@ class CreateNemoKernelTrans(Transformation):
     >>> from psyclone.domain.nemo.transformations import CreateNemoKernelTrans
     >>> code = '''
     ... subroutine sub()
-    ...   integer :: ji, tmp(10)
+    ...   integer :: ji
+    ...   real :: tmp(10)
     ...   do ji=1, 10
-    ...     tmp(ji) = 2*ji
+    ...     tmp(ji) = 2.0*ji
     ...   end do
     ... end subroutine sub'''
     >>> psyir = FortranReader().psyir_from_source(code)
     >>> loop = psyir.walk(Loop)[0]
     >>> trans = CreateNemoKernelTrans()
     >>> trans.apply(loop.loop_body)
-    >>> psyir.view()
-    Routine[name:'sub']
-        0: Loop[type='None', field_space='None', it_space='None']
-            Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
-            Literal[value:'10', Scalar<INTEGER, UNDEFINED>]
-            Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
-            Schedule[]
-                0: InlinedKern[]
-                    Schedule[]
-                        0: Assignment[]
-                            ArrayReference[name:'tmp']
-                                Reference[name:'ji']
-                            BinaryOperation[operator:'MUL']
-                                Literal[value:'2.0', Scalar<REAL, UNDEFINED>]
-                                Reference[name:'ji']
+    >>> print(psyir.view(colour=False, indent="  "))
+    FileContainer[]
+      Routine[name:'sub']
+        0: Loop[variable='ji']
+          Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
+          Literal[value:'10', Scalar<INTEGER, UNDEFINED>]
+          Literal[value:'1', Scalar<INTEGER, UNDEFINED>]
+          Schedule[]
+            0: InlinedKern[]
+              Schedule[]
+                0: Assignment[]
+                  ArrayReference[name:'tmp']
+                    Reference[name:'ji']
+                  BinaryOperation[operator:'MUL']
+                    Literal[value:'2.0', Scalar<REAL, UNDEFINED>]
+                    Reference[name:'ji']
+    <BLANKLINE>
 
     The resulting Schedule contains a NemoKern (displayed as an
     'InlinedKern' by the view() method).
@@ -106,7 +108,7 @@ class CreateNemoKernelTrans(Transformation):
             transformations. No options are used in this \
             transformation. This is an optional argument that defaults \
             to None.
-        :type options: dict of string:values or None
+        :type options: Optional[Dict[str, Any]]
 
         :raises TransformationError: if the supplied node is not a Schedule, \
             is not within a loop or cannot be represented as a Kernel.
@@ -116,9 +118,9 @@ class CreateNemoKernelTrans(Transformation):
 
         if not isinstance(node, Schedule):
             raise TransformationError(
-                "Error in NemoKernelTrans transformation. The supplied node "
-                "should be a PSyIR Schedule but found '{0}'".format(
-                    type(node).__name__))
+                f"Error in NemoKernelTrans transformation. The supplied node "
+                f"should be a PSyIR Schedule but found '{type(node).__name__}'"
+                )
 
         # A Kernel must be within a Loop
         if not isinstance(node.parent, Loop):
@@ -136,21 +138,22 @@ class CreateNemoKernelTrans(Transformation):
                           stop_type=(CodeBlock, Loop, Call, NemoKern))
         if nodes and isinstance(nodes[-1], (CodeBlock, Loop, Call, NemoKern)):
             raise TransformationError(
-                "Error in NemoKernelTrans transformation. A NEMO Kernel cannot"
-                " contain a node of type: '{0}'".format(
-                    type(nodes[-1]).__name__))
+                f"Error in NemoKernelTrans transformation. A NEMO Kernel "
+                f"cannot contain a node of type: '{type(nodes[-1]).__name__}'")
 
         # Check for array assignments
         assigns = [assign for assign in nodes if
-                   (isinstance(assign, Assignment) and assign.is_array_range)]
+                   (isinstance(assign, Assignment) and
+                    assign.is_array_assignment)]
         if assigns:
-            fwriter = FortranWriter()
             # Using LazyString to improve performance when using
             # exceptions to skip invalid regions.
+            # Since "Backslashes may not appear inside the expression
+            # portions of f-strings" via PEP 498, use chr(10) for '\n'.
             raise TransformationError(LazyString(
-                lambda: "A NEMO Kernel cannot contain array assignments "
-                "but found: {0}".format(
-                    [fwriter(node).rstrip("\n") for node in nodes])))
+                lambda: "A NEMO Kernel cannot contain array assignments but "
+                f"found: "
+                f"{[node.debug_string().rstrip(chr(10)) for node in nodes]}"))
 
     def apply(self, sched, options=None):
         '''
@@ -162,7 +165,7 @@ class CreateNemoKernelTrans(Transformation):
             transformations. No options are used in this \
             transformation. This is an optional argument that defaults \
             to None.
-        :type options: dict of string:values or None
+        :type options: Optional[Dict[str, Any]]
 
         '''
         self.validate(sched, options=options)

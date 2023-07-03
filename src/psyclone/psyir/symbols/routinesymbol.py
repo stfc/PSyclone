@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,12 +31,11 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford and S. Siso, STFC Daresbury Lab
+# Authors R. W. Ford, S. Siso and N. Nobre, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' This module contains the RoutineSymbol.'''
 
-from __future__ import absolute_import
 from psyclone.psyir.symbols.datatypes import NoType
 from psyclone.psyir.symbols.typed_symbol import TypedSymbol
 
@@ -60,13 +59,20 @@ class RoutineSymbol(TypedSymbol):
         # specialised instead of constructed.
         if datatype is None:
             datatype = NoType()
-        super(RoutineSymbol, self).__init__(name, datatype)
+        super().__init__(name, datatype)
+        # Whether this Routine is 'elemental'. A value of None indicates that
+        # this is unknown.
+        self._is_elemental = None
+        # Whether this Routine is 'pure' (has no side effects). A value of
+        # None indicates that this is unknown.
+        self._is_pure = None
         self._process_arguments(**kwargs)
 
     def _process_arguments(self, **kwargs):
         ''' Process the arguments for the constructor and the specialise
-        methods. In this case it provides a default NoType datatype is
-        none is found or provided.
+        methods. In this case it provides a default NoType datatype if
+        none is found or provided. It also handles the 'is_pure' and
+        'is_elemental' arguments since these are specific to RoutineSymbol.
 
         :param kwargs: keyword arguments which can be:\n
             the arguments in :py:class:`psyclone.psyir.symbols.TypedSymbol`
@@ -76,13 +82,74 @@ class RoutineSymbol(TypedSymbol):
         if "datatype" not in kwargs and \
            (not hasattr(self, '_datatype') or self.datatype is None):
             kwargs["datatype"] = NoType()
-        super(RoutineSymbol, self)._process_arguments(**kwargs)
+        # Use the setters as they perform type checking.
+        self.is_elemental = kwargs.pop("is_elemental", None)
+        self.is_pure = kwargs.pop("is_pure", None)
+
+        super()._process_arguments(**kwargs)
 
     def __str__(self):
-        # This implementation could be moved to TypedSymbol but it is kept
-        # here to enable us to keep TypedSymbol abstract.
-        return "{0} : {1} <{2}>".format(self.name, type(self).__name__,
-                                        str(self.datatype))
+        is_pure = "unknown" if self.is_pure is None else f"{self.is_pure}"
+        is_elemental = ("unknown" if self.is_elemental is None
+                        else f"{self.is_elemental}")
+        return (f"{self.name}: {type(self).__name__}<{self.datatype}, "
+                f"pure={is_pure}, elemental={is_elemental}>")
+
+    @property
+    def is_pure(self):
+        '''
+        :returns: whether the routine represented by this Symbol has no side \
+            effects (guarantees that the routine always returns the same \
+            result for a given set of inputs).
+        :rtype: bool | NoneType
+        '''
+        return self._is_pure
+
+    @is_pure.setter
+    def is_pure(self, value):
+        '''
+        Sets whether or not the Routine represented by this Symbol is \
+        guaranteed not to have side effects (see the corresponding property \
+        description).
+
+        :param value: the new value for the is_pure property.
+        :type value: NoneType | bool
+
+        :raises TypeError: if the type of the supplied value is invalid.
+
+        '''
+        if value is not None and not isinstance(value, bool):
+            raise TypeError(f"is_pure for a {type(self).__name__} must be a "
+                            f"bool or None but got '{type(value).__name__}'")
+        self._is_pure = value
+
+    @property
+    def is_elemental(self):
+        '''
+        :returns: whether the routine represented by this Symbol is elemental \
+            (acts element-by-element on supplied array arguments) or None if \
+            this is not known.
+        :rtype: bool | NoneType
+        '''
+        return self._is_elemental
+
+    @is_elemental.setter
+    def is_elemental(self, value):
+        '''
+        Sets whether or not the Routine represented by this Symbol is
+        elemental.
+
+        :param value: the new value for the is_elemental property.
+        :type value: NoneType | bool
+
+        :raises TypeError: if the type of the supplied value is invalid.
+
+        '''
+        if value is not None and not isinstance(value, bool):
+            raise TypeError(f"is_elemental for a {type(self).__name__} must "
+                            f"be a bool or None but got "
+                            f"'{type(value).__name__}'")
+        self._is_elemental = value
 
 
 # For Sphinx AutoAPI documentation generation

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2021, Science and Technology Facilities Council.
+# Copyright (c) 2019-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -37,16 +37,16 @@
 ''' Module containing pytest tests for the handling of the WHERE
 construct in the PSyIR. '''
 
-from __future__ import absolute_import
-
 import pytest
+
 from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
-from psyclone.psyir.nodes import Schedule, CodeBlock, Loop, ArrayReference, \
-    Assignment, Literal, Reference, UnaryOperation, BinaryOperation, IfBlock, \
-    Call, Routine, Container, Range
+
 from psyclone.errors import InternalError
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
+from psyclone.psyir.nodes import Schedule, CodeBlock, Loop, ArrayReference, \
+    Assignment, Literal, Reference, UnaryOperation, BinaryOperation, IfBlock, \
+    Call, Routine, Container, Range, ArrayMember, StructureReference
 from psyclone.psyir.symbols import DataSymbol, ArrayType, ScalarType, \
     REAL_TYPE, INTEGER_TYPE, UnresolvedInterface
 
@@ -138,14 +138,15 @@ def test_elsewhere_broken_tree():
 
 
 @pytest.mark.usefixtures("parser")
-def test_missing_array_notation_expr():
+@pytest.mark.parametrize("mask", ["ptsu", "ptsu(1,1)"])
+def test_missing_array_notation_expr(mask):
     ''' Check that we get a code block if the WHERE does not use explicit
-    array syntax in the logical expression.
+    array syntax (with range(s)) in the logical expression.
 
     '''
-    fake_parent, _ = process_where("WHERE (ptsu /= 0._wp)\n"
-                                   "  z1_st(:, :, :) = 1._wp / ptsu(:, :, :)\n"
-                                   "END WHERE\n", Fortran2003.Where_Construct,
+    fake_parent, _ = process_where(f"WHERE ({mask} /= 0._wp)\n"
+                                   f"z1_st(:, :, :) = 1._wp / ptsu(:, :, :)\n"
+                                   f"END WHERE\n", Fortran2003.Where_Construct,
                                    ["ptsu", "wp", "z1_st"])
     assert isinstance(fake_parent.children[0], CodeBlock)
 
@@ -176,6 +177,18 @@ def test_missing_array_notation_lhs():
 
 
 @pytest.mark.usefixtures("parser")
+def test_missing_array_notation_in_assign():
+    ''' Check that we get a code block if the WHERE contains an assignment
+    where no array notation appears. TODO #717 - extend this test so that
+    `z1_st` is of array type with rank 3. '''
+    fake_parent, _ = process_where("WHERE (ptsu(:,:,:) /= 0._wp)\n"
+                                   "  z1_st = 1._wp\n"
+                                   "END WHERE\n", Fortran2003.Where_Construct,
+                                   ["ptsu", "wp", "z1_st"])
+    assert isinstance(fake_parent.children[0], CodeBlock)
+
+
+@pytest.mark.usefixtures("parser")
 def test_where_array_notation_rank():
     ''' Test that the _array_notation_rank() utility raises the expected
     errors when passed an unsupported Array object.
@@ -184,10 +197,11 @@ def test_where_array_notation_rank():
     symbol = DataSymbol("my_array", array_type)
     my_array = ArrayReference(symbol)
     processor = Fparser2Reader()
-    with pytest.raises(NotImplementedError) as err:
+    with pytest.raises(InternalError) as err:
         processor._array_notation_rank(my_array)
-    assert ("Array reference in the PSyIR must have at least one child but "
-            "'my_array'" in str(err.value))
+    assert ("ArrayReference malformed or incomplete: must have one or more "
+            "children representing array-index expressions but array "
+            "'my_array' has none." in str(err.value))
     array_type = ArrayType(REAL_TYPE, [10])
     my_array = ArrayReference.create(
         DataSymbol("my_array", array_type),
@@ -368,6 +382,29 @@ def test_where_array_subsections():
 
 
 @pytest.mark.usefixtures("parser")
+@pytest.mark.parametrize("rhs", ["depth", "maxval(depth(:))"])
+@pytest.mark.xfail(reason="#717 need to distinguish scalar and array "
+                   "assignments")
+def test_where_with_scalar_assignment(rhs):
+    ''' Test that a WHERE containing a scalar assignment is handled correctly.
+    Currently it is not as we do not distinguish between a scalar and an array
+    reference that is missing its colons. This will be fixed in #717.
+    '''
+    fake_parent, _ = process_where(
+        f"WHERE (dry(1, :, :))\n"
+        f"  var1 = {rhs}\n"
+        f"  z1_st(:, 2, :) = var1 / ptsu(:, :, 3)\n"
+        f"END WHERE\n", Fortran2003.Where_Construct,
+        ["dry", "z1_st", "depth", "ptsu", "var1"])
+    # We should have a doubly-nested loop with an IfBlock inside
+    loops = fake_parent.walk(Loop)
+    assert len(loops) == 2
+    for loop in loops:
+        assert "was_where" in loop.annotations
+    assert isinstance(loops[1].loop_body[0], IfBlock)
+
+
+@pytest.mark.usefixtures("parser")
 def test_elsewhere():
     ''' Check that a WHERE construct with two ELSEWHERE clauses is correctly
     translated into a canonical form in the PSyIR.
@@ -384,6 +421,7 @@ def test_elsewhere():
     # This should become:
     #
     # if ptsu(ji,jj,jk) > 10._wp)then
+    #   zval = ...
     #   z1_st(ji,jj,jk) = ...
     # else
     #   if ptsu(ji,jj,jk) < 0.0_wp)then
@@ -506,8 +544,48 @@ def test_where_ordering(parser):
         "    end subroutine test\n")
     fparser2_tree = parser(reader)
     processor = Fparser2Reader()
-    result = processor.generate_schedule("test", fparser2_tree)
+    sched = processor.generate_psyir(fparser2_tree)
+    result = sched.walk(Routine)[0]
     assert isinstance(result[0], Assignment)
     assert isinstance(result[1], Loop)
     assert isinstance(result[2], Call)
     assert isinstance(result[3], Loop)
+
+
+@pytest.mark.parametrize(
+    "code, size_arg",
+    [("where (my_type%var(:) > epsi20)\n"
+      "my_type%array(:,jl) = 3.0\n", "my_type%var"),
+     ("where (my_type%var(:) > epsi20)\n"
+      "my_type(jl)%array(:,jl) = 3.0\n", "my_type%var"),
+     ("where (my_type%block(jl)%var(:) > epsi20)\n"
+      "my_type%block%array(:,jl) = 3.0\n", "my_type%block(jl)%var"),
+     ("where (my_type%block(jl)%var(:) > epsi20)\n"
+      "my_type%block(jl)%array(:,jl) = 3.0\n", "my_type%block(jl)%var")])
+def test_where_derived_type(fortran_reader, fortran_writer, code, size_arg):
+    ''' Test that we handle the case where array members of a derived type
+    are accessed within a WHERE. '''
+    code = (f"module my_mod\n"
+            f" use some_mod\n"
+            f"contains\n"
+            f"subroutine my_sub()\n"
+            f"  integer :: jl\n"
+            f"  do jl = 1, 10\n"
+            f"{code}"
+            f"    end where\n"
+            f"  end do\n"
+            f"end subroutine my_sub\n"
+            f"end module my_mod\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    loops = psyir.walk(Loop)
+    assert len(loops) == 2
+    assert isinstance(loops[1].stop_expr, BinaryOperation)
+    assert isinstance(loops[1].stop_expr.children[0], StructureReference)
+    assert fortran_writer(loops[1].stop_expr.children[0]) == size_arg
+    assert isinstance(loops[1].loop_body[0], IfBlock)
+    # All Range nodes should have been replaced
+    assert not loops[0].walk(Range)
+    # All ArrayMember accesses should now use the `widx1` loop variable
+    array_members = loops[0].walk(ArrayMember)
+    for member in array_members:
+        assert member.indices[0].symbol.name == "widx1"

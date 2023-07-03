@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -34,6 +34,7 @@
 # Author: J. Henrichs, Bureau of Meteorology
 # Modified by R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 # Modified by I. Kavcic, Met Office
+# Modified by A. B. G. Chalk, STFC Daresbury Lab
 
 '''This module tests the loop fusion transformation.
 '''
@@ -47,7 +48,7 @@ from psyclone.domain.nemo.transformations import (NemoLoopFuseTrans,
 from psyclone.psyir.nodes import Literal, Loop, Schedule, Return
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 from psyclone.psyir.transformations import LoopFuseTrans, TransformationError
-from psyclone.tests.utilities import Compile
+from psyclone.tests.utilities import Compile, get_invoke
 
 
 # ----------------------------------------------------------------------------
@@ -67,9 +68,9 @@ def test_fusetrans_error_incomplete():
     assert ("Error in LoopFuseTrans transformation. The target loop must have "
             "four children but found: []" in str(err.value))
 
-    loop1.addchild(Literal("start", INTEGER_TYPE))
-    loop1.addchild(Literal("stop", INTEGER_TYPE))
-    loop1.addchild(Literal("step", INTEGER_TYPE))
+    loop1.addchild(Literal("1", INTEGER_TYPE))
+    loop1.addchild(Literal("3", INTEGER_TYPE))
+    loop1.addchild(Literal("1", INTEGER_TYPE))
     loop1.addchild(Schedule())
     loop1.loop_body.addchild(Return())
 
@@ -79,9 +80,9 @@ def test_fusetrans_error_incomplete():
     assert ("Error in LoopFuseTrans transformation. The target loop must have "
             "four children but found: []" in str(err.value))
 
-    loop2.addchild(Literal("start", INTEGER_TYPE))
-    loop2.addchild(Literal("stop", INTEGER_TYPE))
-    loop2.addchild(Literal("step", INTEGER_TYPE))
+    loop2.addchild(Literal("1", INTEGER_TYPE))
+    loop2.addchild(Literal("3", INTEGER_TYPE))
+    loop2.addchild(Literal("1", INTEGER_TYPE))
     loop2.addchild(Schedule())
     loop2.loop_body.addchild(Return())
 
@@ -141,9 +142,9 @@ def fuse_loops(fortran_code, fortran_reader, fortran_writer):
     psy_trans = CreateNemoPSyTrans()
     fuse = NemoLoopFuseTrans()
     # Raise the language-level PSyIR to NEMO PSyIR
-    nemo_psy, _ = psy_trans.apply(psyir)
-    loop1 = nemo_psy.children[0].children[0]
-    loop2 = nemo_psy.children[0].children[1]
+    psy_trans.apply(psyir)
+    loop1 = psyir.children[0].children[0]
+    loop2 = psyir.children[0].children[1]
     fuse.apply(loop1, loop2)
 
     return fortran_writer(psyir), psyir
@@ -337,13 +338,10 @@ def test_fuse_different_loop_vars(fortran_reader, fortran_writer):
 
 
 # ----------------------------------------------------------------------------
-@pytest.mark.xfail(reason="Needs evaluation of constant expressions")
 def test_fuse_correct_bounds(tmpdir, fortran_reader, fortran_writer):
     '''
     Test that loop boundaries must be identical.
     '''
-    # TODO: This test needs evaluation
-    # of constant expressions in PSyclone
     code = '''subroutine sub()
               integer :: ji, jj, n
               integer, dimension(10,10) :: s, t
@@ -705,3 +703,63 @@ def test_fuse_no_symbol(fortran_reader, fortran_writer):
         t(ji,jj) = s(ji,jj) + t(ji,jj)
       enddo
     enddo""" in out
+
+
+def test_loop_fuse_different_iterates_over(fortran_reader):
+    ''' Test that an appropriate error is raised when we attempt to
+    fuse two loops that have differing values of ITERATES_OVER '''
+    _, invoke = get_invoke("test11_different_iterates_over_one_invoke.f90",
+                           "gocean1.0", idx=0, dist_mem=False)
+    schedule = invoke.schedule
+    fuse = LoopFuseTrans()
+
+    # TODO 1731: For PSyLoops it currently only compares the iterates_over
+    # attribute, but this could be just a computed property so comparing the
+    # generic loop bounds would be enough. Otherwise this should be moved
+    # into a PSyLoopFuseTrans specialization.
+    with pytest.raises(TransformationError) as err:
+        fuse.apply(schedule.children[0], schedule.children[1])
+    assert "Loops do not have the same iteration space" in str(err.value)
+
+    # Generic loops compare the loop bounds
+    code = '''subroutine sub()
+              integer :: ji, jj, n
+              integer, dimension(10,10) :: s, t
+              do jj=1, n
+                 do ji=1, 10
+                    s(ji, jj)=t(ji, jj)+1
+                 enddo
+              enddo
+              do jj=2, n
+                 do ji=1, 10
+                    s(ji, jj)=t(ji, jj)+1
+                 enddo
+              enddo
+              end subroutine sub'''
+    psyir = fortran_reader.psyir_from_source(code)
+    loop1 = psyir.children[0].children[0]
+    loop2 = psyir.children[0].children[1]
+    with pytest.raises(TransformationError) as err:
+        fuse.apply(loop1, loop2)
+    assert ("Error in LoopFuseTrans transformation. Loops do not have "
+            "the same iteration space" in str(err.value))
+
+    # But symbolic differences are handled properly
+    code = '''subroutine sub()
+              integer :: ji, jj, n
+              integer, dimension(10,10) :: s, t
+              do jj=1, n
+                 do ji=1, 10
+                    s(ji, jj)=t(ji, jj)+1
+                 enddo
+              enddo
+              do jj=3-2, 1+n+n-n-1, (-1)*(-1)
+                 do ji=1, 10
+                    s(ji, jj)=t(ji, jj)+1
+                 enddo
+              enddo
+              end subroutine sub'''
+    psyir = fortran_reader.psyir_from_source(code)
+    loop1 = psyir.children[0].children[0]
+    loop2 = psyir.children[0].children[1]
+    fuse.apply(loop1, loop2)

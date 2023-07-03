@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Science and Technology Facilities Council
+# Copyright (c) 2019-2023, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,8 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author I. Kavcic, Met Office
-
+# Modified: R. W. Ford, STFC Daresbury Lab
+# Modified by J. Henrichs, Bureau of Meteorology
 
 '''
 Python helper script which returns the information useful for Kernel
@@ -55,9 +56,10 @@ TRANS_SCRIPT - Name of the transformation script which applies PSyclone
                contain a 'trans' function which modifies the PSy object.
 '''
 
-from __future__ import print_function
 import os
 import importlib
+
+from psyclone.configuration import Config
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory, Kern
 
@@ -97,6 +99,10 @@ if TRANSFORM:
 
 # ============= 3. Search for the Kernel call =============================== #
 #
+# We need to make sure a config object is created before the parsing
+# will create an instance of LFRicConstants (which would raise an exception)
+Config.get()
+
 # Parse the algorithm file and return the Invoke info objects
 _, INVOKE_INFO = parse(ALG_FILE, api=TEST_API)
 # Create the PSy object which contains all Invoke calls
@@ -125,7 +131,7 @@ if INVOKE_NAME:
     for idx, name in enumerate(INVOKE_NAME):
         print("\n- Invoke '" + name + "' with the Schedule: ")
         schedule = PSY.invokes.get(name).schedule
-        schedule.view()
+        print(schedule.view())
 else:
     print("Kernel call '" + KERNEL_NAME + "' was not found in "
           + ALG_NAME)

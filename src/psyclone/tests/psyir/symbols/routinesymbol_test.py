@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,15 +31,15 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford and S. Siso, STFC Daresbury Lab
+# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' Perform py.test tests on the psygen.psyir.symbols.routinesymbol file '''
 
-from __future__ import absolute_import
 import pytest
-from psyclone.psyir.symbols import RoutineSymbol, Symbol, UnresolvedInterface,\
-    NoType, INTEGER_TYPE, DeferredType, DataTypeSymbol
+from psyclone.psyir.symbols import (
+    RoutineSymbol, Symbol, UnresolvedInterface,
+    NoType, INTEGER_TYPE, DeferredType, DataTypeSymbol)
 
 
 def test_routinesymbol_init():
@@ -48,6 +48,9 @@ def test_routinesymbol_init():
     jo_sym = RoutineSymbol('jo')
     assert isinstance(jo_sym, RoutineSymbol)
     assert isinstance(jo_sym.datatype, NoType)
+    # By default we don't know whether a symbol is pure or elemental.
+    assert jo_sym.is_pure is None
+    assert jo_sym.is_elemental is None
     ellie_sym = RoutineSymbol('ellie', INTEGER_TYPE,
                               visibility=Symbol.Visibility.PRIVATE)
     assert isinstance(ellie_sym, RoutineSymbol)
@@ -61,6 +64,12 @@ def test_routinesymbol_init():
     tam_sym = RoutineSymbol('tam', tam_type)
     assert isinstance(tam_sym, RoutineSymbol)
     assert tam_sym.datatype is tam_type
+    # Check that is_pure and is_elemental can be specified.
+    marvin_sym = RoutineSymbol('marvin', DeferredType(), is_pure=True)
+    assert marvin_sym.is_pure is True
+    paranoid_sym = RoutineSymbol('paranoid', DeferredType(),
+                                 is_elemental=False)
+    assert paranoid_sym.is_elemental is False
 
 
 def test_routinesymbol_init_error():
@@ -76,6 +85,14 @@ def test_routinesymbol_init_error():
         _ = RoutineSymbol("isaac", "integer")
     assert ("datatype of a RoutineSymbol must be specified using either a "
             "DataType or a DataTypeSymbol but got: 'str'" in str(error.value))
+    with pytest.raises(TypeError) as error:
+        _ = RoutineSymbol("android", DeferredType(), is_pure="maybe")
+    assert ("is_pure for a RoutineSymbol must be a bool or None but got "
+            "'str'" in str(error.value))
+    with pytest.raises(TypeError) as error:
+        _ = RoutineSymbol("android", DeferredType(), is_elemental="maybe")
+    assert ("is_elemental for a RoutineSymbol must be a bool or None but got "
+            "'str'" in str(error.value))
 
 
 def test_routinesymbol_specialise_and_process_arguments():
@@ -85,6 +102,8 @@ def test_routinesymbol_specialise_and_process_arguments():
     # Try to make a RoutineSymbol without a datatype
     sym1 = Symbol("symbol1")
     sym1.specialise(RoutineSymbol)
+    # pylint gets confused because it doesn't know about specialise()
+    # pylint: disable=no-member
     assert isinstance(sym1.datatype, NoType)
 
     # Include a datatype
@@ -92,15 +111,34 @@ def test_routinesymbol_specialise_and_process_arguments():
     sym2.specialise(RoutineSymbol, datatype=INTEGER_TYPE)
     assert sym2.datatype is INTEGER_TYPE
 
+    # Include is_pure
+    sym3 = Symbol("sym3")
+    sym3.specialise(RoutineSymbol, is_pure=False)
+    assert sym3.is_pure is False
+
+    # Include is_elemental
+    sym4 = Symbol("sym4")
+    sym4.specialise(RoutineSymbol, is_elemental=True)
+    assert sym4.is_elemental is True
+
 
 def test_routinesymbol_str():
     '''Test that the __str__ method in routinesymbol behaves as expected.'''
     routine_symbol = RoutineSymbol("roo")
-    assert routine_symbol.__str__() == "roo : RoutineSymbol <NoType>"
+    assert (str(routine_symbol) == "roo: RoutineSymbol<NoType, "
+            "pure=unknown, elemental=unknown>")
     routine_symbol = RoutineSymbol("roo", INTEGER_TYPE)
-    assert (routine_symbol.__str__() ==
-            "roo : RoutineSymbol <Scalar<INTEGER, UNDEFINED>>")
+    assert (str(routine_symbol) ==
+            "roo: RoutineSymbol<Scalar<INTEGER, UNDEFINED>, pure=unknown, "
+            "elemental=unknown>")
     type_sym = DataTypeSymbol("some_type", DeferredType())
-    routine_symbol = RoutineSymbol("roo", type_sym)
-    assert (routine_symbol.__str__() ==
-            "roo : RoutineSymbol <some_type : DataTypeSymbol>")
+    routine_symbol = RoutineSymbol("roo", type_sym, is_elemental=True,
+                                   is_pure=True)
+    assert (str(routine_symbol) ==
+            "roo: RoutineSymbol<some_type: DataTypeSymbol, pure=True, "
+            "elemental=True>")
+    routine_symbol = RoutineSymbol("eyore", type_sym, is_elemental=False,
+                                   is_pure=True)
+    assert (str(routine_symbol) ==
+            "eyore: RoutineSymbol<some_type: DataTypeSymbol, pure=True, "
+            "elemental=False>")

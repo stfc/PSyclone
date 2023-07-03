@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author S. Siso, STFC Daresbury Lab
+# Authors: S. Siso and N. Nobre, STFC Daresbury Lab
 
 '''This module contains the FoldConditionalReturnExpressionsTrans. '''
 
@@ -91,16 +91,16 @@ class FoldConditionalReturnExpressionsTrans(Transformation):
         :param node: the node to validate.
         :type node: :py:class:`psyclone.psyir.nodes.Routine`
         :param options: a dictionary with options for transformations.
-        :type options: dict of string:values or None
+        :type options: Optional[Dict[str, Any]]
 
         :raises TransformationError: if the node is not a Routine.
 
         '''
         if not isinstance(node, Routine):
             raise TransformationError(
-                "Error in {0} transformation. This transformation can only be "
-                "applied to 'Routine' nodes, but found '{1}'."
-                "".format(self.name, type(node).__name__))
+                f"Error in {self.name} transformation. This transformation "
+                f"can only be applied to 'Routine' nodes, but found "
+                f"'{type(node).__name__}'.")
 
     def apply(self, node, options=None):
         '''Apply this transformation to the supplied node.
@@ -108,11 +108,7 @@ class FoldConditionalReturnExpressionsTrans(Transformation):
         :param node: the node to transform.
         :type node: :py:class:`psyclone.psyir.nodes.Routine`
         :param options: a dictionary with options for transformations.
-        :type options: dict of string:values or None
-
-        :returns: 2-tuple of new schedule and memento of transform.
-        :rtype: (:py:class:`psyclone.psyGen.InvokeSchedule`, \
-                 :py:class:`psyclone.undoredo.Memento`)
+        :type options: Optional[Dict[str, Any]]
 
         '''
         routine = node

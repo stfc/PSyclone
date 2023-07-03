@@ -2,8 +2,19 @@
 
 Welcome to the PSyclone hands-on practicals. Unlike those parts of the
 tutorial that use Jupyter notebooks, the sections in the directories
-below this one work through using PSyclone in a 'normal' Linux
-environment.
+below this one work through using PSyclone in a 'normal' Linux environment.
+There are two sections to the practicals:
+
+1. Transforming [existing code](nemo/README.md)
+2. Using the [LFRic DSL](LFRic/README.md)
+
+## Prerequisites
+
+These practicals require:
+
+* Some knowledge of how to use the Linux command line;
+* Knowledge of how to build and run Fortran applications;
+* Basic Python programming.
 
 ## Requirements
 
@@ -31,14 +42,15 @@ Ubuntu 20.04 LTS.
      running, set DISPLAY=localhost:0.0 in your linux terminal and you
      will then be able to launch GUI applications.
 
-* Please see https://www.virtualbox.org/ for instructions on getting
-  started with VirtualBox and the system requirements. Here are the
-  basic steps:
+* Please see https://www.oracle.com/virtualization/technologies/vm/virtualbox.html
+  for instructions on getting started with VirtualBox and the system requirements.
+  Here are the basic steps:
   
    * Download the ubuntu 20.04.1 ISO from
      [here](https://ubuntu.com/download/desktop);
-   * Install Virtual Box from  https://www.virtualbox.org (using the
-     Windows hosts link for Windows);
+   * Install Virtual Box from
+     https://www.oracle.com/virtualization/technologies/vm/downloads/virtualbox-downloads.html
+     (using the Windows hosts link for Windows);
    * Select new in the Virtual Box manager page;
    * Choose a name for the VM and linux and ubuntu (64-bit) as the options;
    * Click start;
@@ -244,7 +256,7 @@ In order to test that you have a working Fortran compiler along with
 the necessary dependencies then doing:
 
 ```bash
-$ cd examples/lfric/full_example_netcdf
+$ cd examples/lfric/eg17/full_example_netcdf
 $ make
 ```
 

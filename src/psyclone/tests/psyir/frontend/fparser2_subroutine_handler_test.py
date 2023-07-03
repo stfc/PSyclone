@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,8 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford, STFC Daresbury Lab
-#          A. R. Porter, STFC Daresbury Lab
+# Authors: R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 
 '''Module containing pytest tests for the _subroutine_handler method
 in the class Fparser2Reader. This handler deals with the translation
@@ -40,48 +39,45 @@ of the fparser2 Subroutine_Subprogram and Function_Subprogram constructs
 to PSyIR.
 
 '''
-from __future__ import absolute_import
 import pytest
 
 from fparser.common.readfortran import FortranStringReader
-from psyclone.psyir.symbols import DataSymbol, ScalarType, UnknownFortranType
+from psyclone.errors import InternalError
+from psyclone.psyir.frontend.fparser2 import (Fparser2Reader,
+                                              TYPE_MAP_FROM_FORTRAN)
 from psyclone.psyir.nodes import Container, Routine, CodeBlock, FileContainer
-from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
-    TYPE_MAP_FROM_FORTRAN
+from psyclone.psyir.symbols import (DataSymbol, DeferredType, NoType,
+                                    RoutineSymbol, ScalarType,
+                                    UnknownFortranType)
 
+IN_OUTS = []
 # subroutine no declarations
-SUB1_IN = (
-    "subroutine sub1()\n"
-    "end subroutine\n")
-SUB1_OUT = (
-    "subroutine sub1()\n\n\n"
-    "end subroutine sub1\n")
+IN_OUTS.append(
+    (("subroutine sub1()\n"
+      "end subroutine\n"),
+     ("subroutine sub1()\n\n\n"
+      "end subroutine sub1\n")))
 # subroutine with symbols/declarations
-SUB2_IN = (
-    "subroutine sub1(a)\n"
-    "real :: a\n"
-    "end subroutine\n")
-SUB2_OUT = (
-    "subroutine sub1(a)\n"
-    "  real :: a\n\n\n"
-    "end subroutine sub1\n")
+IN_OUTS.append(
+    (("subroutine sub1(a)\n"
+      "real :: a\n"
+      "end subroutine\n"),
+     ("subroutine sub1(a)\n"
+      "  real :: a\n\n\n"
+      "end subroutine sub1\n")))
 # subroutine with executable content
-SUB3_IN = (
-    "subroutine sub1()\n"
-    "real :: a\n"
-    "a=0.0\n"
-    "end subroutine\n")
-SUB3_OUT = (
-    "subroutine sub1()\n"
-    "  real :: a\n\n"
-    "  a = 0.0\n\n"
-    "end subroutine sub1\n")
+IN_OUTS.append(
+    (("subroutine sub1()\n"
+      "real :: a\n"
+      "a=0.0\n"
+      "end subroutine\n"),
+     ("subroutine sub1()\n"
+      "  real :: a\n\n"
+      "  a = 0.0\n\n"
+      "end subroutine sub1\n")))
 
 
-@pytest.mark.parametrize("code,expected",
-                         [(SUB1_IN, SUB1_OUT),
-                          (SUB2_IN, SUB2_OUT),
-                          (SUB3_IN, SUB3_OUT)])
+@pytest.mark.parametrize("code,expected", IN_OUTS)
 def test_subroutine_handler(parser, fortran_writer, code, expected):
     '''Test that subroutine_handler handles valid Fortran subroutines.'''
 
@@ -95,6 +91,45 @@ def test_subroutine_handler(parser, fortran_writer, code, expected):
     assert psyir.parent is None
     result = fortran_writer(psyir)
     assert expected == result
+
+
+def test_subroutine_implicit_args(parser):
+    """Check that we raise the expected error when we encounter a
+    subroutine argument without an explicit declaration.
+
+    """
+    code = '''
+subroutine sub1(idx)
+end subroutine'''
+    processor = Fparser2Reader()
+    reader = FortranStringReader(code)
+    parse_tree = parser(reader)
+    subroutine = parse_tree.children[0]
+    with pytest.raises(InternalError) as err:
+        _ = processor._subroutine_handler(subroutine, None)
+    assert ("The argument list ['idx'] for routine 'sub1' does not match "
+            "the variable declarations:" in str(err.value))
+
+
+def test_subroutine_some_implicit_args(parser):
+    """Check that we raise the expected error when we encounter a
+    subroutine which has declarations but has omitted to declare one
+    of its arguments.
+
+    """
+    code = '''
+subroutine sub1(var, idx)
+    real, intent(in) :: var
+end subroutine'''
+    processor = Fparser2Reader()
+    reader = FortranStringReader(code)
+    parse_tree = parser(reader)
+    subroutine = parse_tree.children[0]
+    with pytest.raises(InternalError) as err:
+        _ = processor._subroutine_handler(subroutine, None)
+    err_msg = str(err.value)
+    assert "The argument list ['var', 'idx'] for routine 'sub1'" in err_msg
+    assert "Could not find 'idx' in the Symbol Table" in err_msg
 
 
 def test_function_handler(fortran_reader, fortran_writer):
@@ -114,7 +149,6 @@ def test_function_handler(fortran_reader, fortran_writer):
         "module a\n"
         "  implicit none\n"
         "  public\n\n"
-        "  public :: my_func\n\n"
         "  contains\n"
         "  function my_func()\n"
         "    integer :: my_func\n"
@@ -126,13 +160,21 @@ def test_function_handler(fortran_reader, fortran_writer):
         "end module a\n")
     psyir = fortran_reader.psyir_from_source(code)
     # Check PSyIR nodes are being created
-    assert isinstance(psyir, Container)
+    assert isinstance(psyir, FileContainer)
+    container = psyir.children[0]
+    assert isinstance(container, Container)
+    # Check that an appropriate RoutineSymbol has been created.
+    func_sym = container.symbol_table.lookup("my_func")
+    assert isinstance(func_sym, RoutineSymbol)
     routines = psyir.walk(Routine)
     assert len(routines) == 1
+    # Check that there's a DataSymbol of the same name inside the function.
     assert isinstance(routines[0].return_symbol, DataSymbol)
     assert routines[0].return_symbol.name == "my_func"
     assert (routines[0].return_symbol.datatype.intrinsic ==
             ScalarType.Intrinsic.INTEGER)
+    assert (routines[0].symbol_table.lookup("my_func") is
+            routines[0].return_symbol)
     assert psyir.parent is None
     result = fortran_writer(psyir)
     assert result == expected
@@ -150,26 +192,25 @@ def test_function_type_prefix(fortran_reader, fortran_writer,
 
     '''
     code = (
-        "module a\n"
-        "contains\n"
-        "  {0} function my_fUnc()\n"
-        "    my_Func = {1}\n"
-        "  end function my_func\n"
-        "end module\n".format(basic_type, rhs_val))
+        f"module a\n"
+        f"contains\n"
+        f"  {basic_type} function my_fUnc()\n"
+        f"    my_Func = {rhs_val}\n"
+        f"  end function my_func\n"
+        f"end module\n")
     expected = (
-        "module a\n"
-        "  implicit none\n"
-        "  public\n\n"
-        "  public :: my_func\n\n"
-        "  contains\n"
-        "  function my_fUnc()\n"
-        "    {0} :: my_fUnc\n"
-        "\n"
-        "    my_fUnc = {1}\n"
-        "\n"
-        "  end function my_fUnc\n"
-        "\n"
-        "end module a\n".format(basic_type, rhs_val))
+        f"module a\n"
+        f"  implicit none\n"
+        f"  public\n\n"
+        f"  contains\n"
+        f"  function my_fUnc()\n"
+        f"    {basic_type} :: my_fUnc\n"
+        f"\n"
+        f"    my_fUnc = {rhs_val}\n"
+        f"\n"
+        f"  end function my_fUnc\n"
+        f"\n"
+        f"end module a\n")
     psyir = fortran_reader.psyir_from_source(code)
     assert isinstance(psyir, FileContainer)
     module = psyir.children[0]
@@ -181,6 +222,9 @@ def test_function_type_prefix(fortran_reader, fortran_writer,
     assert return_sym.datatype.intrinsic == TYPE_MAP_FROM_FORTRAN[basic_type]
     result = fortran_writer(psyir)
     assert result == expected
+    # Also check that the "own_routine_symbol" tag is maintained
+    assert routine.symbol_table.lookup_with_tag("own_routine_symbol") \
+        is return_sym
 
 
 FN1_IN = ("  function my_func() result(my_val)\n"
@@ -217,10 +261,10 @@ def test_function_result_suffix(fortran_reader, fortran_writer,
 
     '''
     code = (
-        "module a\n"
-        "use kind_params, only: wp\n"
-        "contains\n"
-        "{0}end module\n".format(code))
+        f"module a\n"
+        f"use kind_params, only: wp\n"
+        f"contains\n"
+        f"{code}end module\n")
     psyir = fortran_reader.psyir_from_source(code)
     # Check PSyIR nodes are being created
     assert isinstance(psyir, Container)
@@ -260,14 +304,25 @@ def test_function_unsupported_type(fortran_reader):
         "    complex :: my_func\n"
         "    my_func = CMPLX(1.0, 1.0)\n"
         "  end function my_func\n"
+        "\n"
+        "  character(len=3) function Agrif_CFixed()\n"
+        "    Agrif_CFixed = '0'\n"
+        "  end function Agrif_CFixed\n"
         "end module\n")
     psyir = fortran_reader.psyir_from_source(code)
-    routine = psyir.children[0].children[0]
-    assert isinstance(routine, Routine)
-    assert routine.return_symbol.name == "my_func"
-    assert isinstance(routine.return_symbol.datatype, UnknownFortranType)
-    assert (routine.return_symbol.datatype.declaration.lower() ==
+    routines = psyir.walk(Routine)
+    assert routines[0].return_symbol.name == "my_func"
+    assert isinstance(routines[0].return_symbol.datatype, UnknownFortranType)
+    assert (routines[0].return_symbol.datatype.declaration.lower() ==
             "complex :: my_func")
+    # The Agrif_CFixed function ends up as a CodeBlock because of the
+    # unsupported type prefix.
+    assert isinstance(routines[0].parent.children[1], CodeBlock)
+    table = psyir.children[0].symbol_table
+    for name in ["my_func", "agrif_cfixed"]:
+        sym = table.lookup(name)
+        assert isinstance(sym, RoutineSymbol)
+        assert isinstance(sym.datatype, DeferredType)
 
 
 def test_function_unsupported_derived_type(fortran_reader):
@@ -296,20 +351,50 @@ def test_function_unsupported_derived_type(fortran_reader):
     assert sym.datatype.declaration.lower() == "type(my_type), pointer :: var1"
 
 
-@pytest.mark.parametrize("fn_prefix",
-                         ["pure real", "real pure", "recursive", "elemental"])
-def test_unsupported_function_prefix(fortran_reader, fn_prefix):
-    ''' Check that we get a CodeBlock if a Fortran function has an unsupported
+@pytest.mark.parametrize("fn_prefix", ["elemental", "pure", "impure",
+                                       "pure elemental"])
+@pytest.mark.parametrize("routine_type", ["function", "subroutine"])
+def test_supported_prefix(fortran_reader, fn_prefix, routine_type):
+    '''Check that the frontend correctly handles a routine with the various
+    prefixes that the PSyIR supports.'''
+    code = (
+        f"module a\n"
+        f"contains\n"
+        f"  {fn_prefix} {routine_type} my_func()\n"
+        f"    real :: my_func\n"
+        f"    my_func = 1.0\n"
+        f"  end {routine_type} my_func\n"
+        f"end module\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    rsym = routine.parent.scope.symbol_table.lookup("my_func")
+    assert isinstance(rsym, RoutineSymbol)
+    assert rsym.is_elemental is ("elemental" in fn_prefix)
+    assert rsym.is_pure is fn_prefix.startswith("pure")
+
+
+@pytest.mark.parametrize("routine_type", ["function", "subroutine"])
+@pytest.mark.parametrize("fn_prefix", ["recursive", "module"])
+def test_unsupported_routine_prefix(fortran_reader, fn_prefix, routine_type):
+    ''' Check that we get a CodeBlock if a Fortran routine has an unsupported
     prefix. '''
     code = (
-        "module a\n"
-        "contains\n"
-        "  {0} function my_func()\n"
-        "    my_func = 1.0\n"
-        "  end function my_func\n"
-        "end module\n".format(fn_prefix))
+        f"module a\n"
+        f"contains\n"
+        f"  {fn_prefix} {routine_type} my_func()\n"
+        f"    real :: my_func\n"
+        f"    my_func = 1.0\n"
+        f"  end {routine_type} my_func\n"
+        f"end module\n")
     psyir = fortran_reader.psyir_from_source(code)
     assert isinstance(psyir.children[0].children[0], CodeBlock)
+    # The Symbol for this routine should be of either NoType or DeferredType.
+    fsym = psyir.children[0].symbol_table.lookup("my_func")
+    assert isinstance(fsym, RoutineSymbol)
+    if routine_type == "subroutine":
+        assert isinstance(fsym.datatype, NoType)
+    else:
+        assert isinstance(fsym.datatype, DeferredType)
 
 
 def test_unsupported_char_len_function(fortran_reader):
@@ -325,3 +410,6 @@ def test_unsupported_char_len_function(fortran_reader):
     cblock = psyir.children[0].children[0]
     assert isinstance(cblock, CodeBlock)
     assert "LEN = 2" in str(cblock.get_ast_nodes[0])
+    fsym = psyir.children[0].symbol_table.lookup("my_func")
+    assert isinstance(fsym, RoutineSymbol)
+    assert isinstance(fsym.datatype, DeferredType)

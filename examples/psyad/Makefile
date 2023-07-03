@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,31 +31,9 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Laboratory
+# Author: A. R. Porter, STFC Daresbury Lab
+# Modified by: R. W. Ford, STFC Daresbury Lab
 
-include ../common.mk
+EXAMPLES=$(sort $(wildcard eg*)) lfric
 
-CONFIG_ENV = PSYCLONE_CONFIG=${PSYCLONE_DIR}/config/psyclone.cfg
-GENERATED_FILES += testkernadj_mod.f90 testkern*.o testkern*.mod \
-                   test_harness.*
-
-# The first command will write the adjoint kernel to stdout. The second will
-# write both it and the corresponding test harness to separate files.
-transform:
-	$(PSYAD) testkern_mod.f90 -a field1 field2
-	$(PSYAD) -t -otest test_harness.f90 -oad testkernadj_mod.f90 \
-                 testkern_mod.f90 -a field1 field2
-
-compile: transform
-	$(F90) -c testkern_mod.f90
-	$(F90) -c testkernadj_mod.f90
-	$(F90) -c test_harness.f90
-	$(F90) -o test_harness.exe testkern_mod.o testkernadj_mod.o \
-                  test_harness.o
-
-run: compile
-	@echo ""
-	@echo "Running PSyAD-generated test harness..."
-	@./test_harness.exe
-	@echo "...done."
-
+include ../top_level.mk

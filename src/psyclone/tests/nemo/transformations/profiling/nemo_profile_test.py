@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2021, Science and Technology Facilities Council.
+# Copyright (c) 2019-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -43,6 +43,7 @@
 from __future__ import absolute_import
 import pytest
 from fparser.common.readfortran import FortranStringReader
+from fparser.two.symbol_table import SYMBOL_TABLES
 from psyclone.configuration import Config
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import Loop, ProfileNode
@@ -61,7 +62,7 @@ def setup():
     up the config file at the end of the tests.'''
 
     Config.get().api = "nemo"
-    yield()
+    yield
     # At the end of all tests make sure that we wipe the Config object
     # so we get a fresh/default one for any further test (and not a
     # left-over one from a test here).
@@ -81,6 +82,7 @@ def get_nemo_schedule(parser, code):
              :py:class:`psyclone.nemo.NemoInvokeSchedule`)
 
     '''
+    SYMBOL_TABLES.clear()
     reader = FortranStringReader(code)
     ptree = parser(reader)
     psy = PSyFactory("nemo", distributed_memory=False).create(ptree)
@@ -278,8 +280,8 @@ def test_profile_single_line_if(parser):
     gen_code = str(psy.gen).lower()
     assert (
         "  if (do_this) then\n"
-        "    call profile_psy_data % prestart(\"one_line_if_test\", \"r0\", 0, "
-        "0)\n"
+        "    call profile_psy_data % prestart(\"one_line_if_test\", \"r0\", 0,"
+        " 0)\n"
         "    write(*, *) sto_tmp2(ji)\n"
         "    call profile_psy_data % postend\n"
         "  end if\n" in gen_code)
@@ -357,12 +359,12 @@ def test_profiling_case(parser):
             "        call profile_psy_data % postend\n"
             "      end if\n" in code)
     assert ("  if (cd_op == 'vol') then\n"
-            "    call profile_psy_data_1 % prestart(\"my_test\", \"r1\", 0, 0)\n"
-            in code)
+            "    call profile_psy_data_1 % prestart(\"my_test\", \"r1\", 0, 0)"
+            "\n" in code)
     assert ("    call profile_psy_data_1 % postend\n"
             "  else\n"
-            "    call profile_psy_data_2 % prestart(\"my_test\", \"r3\", 0, 0)\n"
-            in code)
+            "    call profile_psy_data_2 % prestart(\"my_test\", \"r3\", 0, 0)"
+            "\n" in code)
     assert ("    call profile_psy_data_2 % postend\n"
             "  end if\n"
             "  call profile_psy_data_3 % postend\n"
@@ -434,16 +436,16 @@ def test_profiling_symbol_clash(parser):
     for sym in ["PSyDataType", "psy_data_mod"]:
         _, schedule = get_nemo_schedule(
             parser,
-            "program my_test\n"
-            "  real :: my_array(3,3)\n"
-            "  integer :: {0}\n"
-            "  my_array(:,:) = 0.0\n"
-            "end program my_test\n".format("profile_"+sym))
+            f"program my_test\n"
+            f"  real :: my_array(3,3)\n"
+            f"  integer :: profile_{sym}\n"
+            f"  my_array(:,:) = 0.0\n"
+            f"end program my_test\n")
         with pytest.raises(TransformationError) as err:
             PTRANS.apply(schedule.children[0])
-        assert ("Cannot add PSyData calls because there is already "
-                "a symbol named '{0}' which clashes with one of those used "
-                "by the PSyclone PSyData API.".format("profile_"+sym)
+        assert (f"Cannot add PSyData calls because there is already a symbol "
+                f"named 'profile_{sym}' which clashes with one of those used "
+                f"by the PSyclone PSyData API."
                 in str(err.value))
 
 
@@ -558,7 +560,7 @@ def test_profile_nemo_openmp(parser):
             "\n"
             "  call profile_psy_data % prestart(\"do_loop\", \"r0\", 0, 0)\n"
             "  !$omp parallel do default(shared), private(ji,jj), "
-            "schedule(static)\n"
+            "schedule(auto)\n"
             "  do jj = 1, jpj, 1" in code)
 
 
@@ -623,5 +625,6 @@ def test_profile_nemo_loop_imperfect_nest(parser):
     assert ("        enddo\n"
             "      enddo\n"
             "      call profile_psy_data % postend\n"
-            "      call profile_psy_data_1 % prestart(\"do_loop\", \"r1\", 0, 0)\n"
+            "      call profile_psy_data_1 % prestart(\"do_loop\", \"r1\", 0,"
+            " 0)\n"
             "      do ji = 1, jpi, 1" in code)

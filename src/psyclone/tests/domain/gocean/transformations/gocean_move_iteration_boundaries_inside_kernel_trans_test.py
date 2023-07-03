@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council
+# Copyright (c) 2021-2022, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,19 +31,18 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author S. Siso, STFC Daresbury Lab
+# Authors: S. Siso and A. R. Porter, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' Module containing tests for the PSyclone
 GOMoveIterationBoundariesInsideKernelTrans transformation.
 '''
 
-from __future__ import absolute_import
 import pytest
 from psyclone.tests.utilities import get_invoke
 from psyclone.domain.gocean.transformations import \
     GOMoveIterationBoundariesInsideKernelTrans
-from psyclone.psyir.nodes import Assignment, IfBlock, Return
+from psyclone.psyir.nodes import Assignment, Container, IfBlock, Return
 from psyclone.psyir.symbols import ArgumentInterface
 from psyclone.gocean1p0 import GOLoop
 from psyclone.psyir.transformations import TransformationError
@@ -65,9 +64,9 @@ def test_validation():
     trans = GOMoveIterationBoundariesInsideKernelTrans()
     with pytest.raises(TransformationError) as info:
         trans.apply(None)
-    assert("Error in GOMoveIterationBoundariesInsideKernelTrans "
-           "transformation. This transformation can only be applied to "
-           "'GOKern' nodes, but found 'NoneType'." in str(info.value))
+    assert ("Error in GOMoveIterationBoundariesInsideKernelTrans "
+            "transformation. This transformation can only be applied to "
+            "'GOKern' nodes, but found 'NoneType'." in str(info.value))
 
 
 def test_go_move_iteration_boundaries_inside_kernel_trans():
@@ -81,7 +80,7 @@ def test_go_move_iteration_boundaries_inside_kernel_trans():
     num_args = len(kernel.arguments.args)
 
     # Add some name conflicting symbols in the Invoke and the Kernel
-    kernel.root.symbol_table.new_symbol("xstop")
+    kernel.ancestor(Container).symbol_table.new_symbol("xstop")
     kernel.get_kernel_schedule().symbol_table.new_symbol("ystart")
 
     # Apply the transformation

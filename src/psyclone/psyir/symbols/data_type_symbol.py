@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
+# Modified: S. Siso and N. Nobre, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' This module contains the DataTypeSymbol. '''
@@ -76,7 +77,7 @@ class DataTypeSymbol(Symbol):
                           interface=self.interface)
 
     def __str__(self):
-        return "{0} : {1}".format(self.name, type(self).__name__)
+        return f"{self.name}: {type(self).__name__}"
 
     @property
     def datatype(self):
@@ -103,9 +104,25 @@ class DataTypeSymbol(Symbol):
         from psyclone.psyir.symbols import DataType
         if not isinstance(value, DataType):
             raise TypeError(
-                "The datatype of a DataTypeSymbol must be specified using a "
-                "DataType but got: '{0}'".format(type(value).__name__))
+                f"The datatype of a DataTypeSymbol must be specified using a "
+                f"DataType but got: '{type(value).__name__}'")
         self._datatype = value
+
+    def copy_properties(self, symbol_in):
+        '''Replace all properties in this object with the properties from
+        symbol_in, apart from the name (which is immutable) and visibility.
+
+        :param symbol_in: the symbol from which the properties are copied.
+        :type symbol_in: :py:class:`psyclone.psyir.symbols.DataSymbol`
+
+        :raises TypeError: if the argument is not the expected type.
+
+        '''
+        if not isinstance(symbol_in, DataTypeSymbol):
+            raise TypeError(f"Argument should be of type 'DataTypeSymbol' but "
+                            f"found '{type(symbol_in).__name__}'.")
+        super(DataTypeSymbol, self).copy_properties(symbol_in)
+        self._datatype = symbol_in.datatype
 
 
 # For automatic documentation generation

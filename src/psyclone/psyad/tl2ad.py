@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 
 '''The implementation of PSyAD : the PSyclone Adjoint
 support. Transforms an LFRic tangent linear kernel to its adjoint.
@@ -39,52 +39,58 @@ support. Transforms an LFRic tangent linear kernel to its adjoint.
 '''
 import logging
 
-from fparser.two import Fortran2003
 from psyclone.errors import InternalError
 from psyclone.psyad import AdjointVisitor
+from psyclone.psyad.domain.common import (find_container, create_adjoint_name,
+                                          create_real_comparison)
+from psyclone.psyad.domain.lfric import (generate_lfric_adjoint,
+                                         generate_lfric_adjoint_harness)
+from psyclone.psyad.transformations.preprocess import preprocess_trans
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Routine, Assignment, Reference, Literal, \
-    Call, Container, BinaryOperation, UnaryOperation, Return, IfBlock, \
-    CodeBlock, FileContainer, ArrayReference, Range
-from psyclone.psyir.symbols import SymbolTable, ImportInterface, \
+    Call, Container, BinaryOperation, IntrinsicCall, ArrayReference, Range
+from psyclone.psyir.symbols import SymbolTable, ImportInterface, Symbol, \
     ContainerSymbol, ScalarType, ArrayType, RoutineSymbol, DataSymbol, \
-    INTEGER_TYPE, REAL_DOUBLE_TYPE
+    INTEGER_TYPE, DeferredType, UnknownType
 
 
-#: The tolerance applied to the comparison of the inner product values in
-#: the generated test-harness code.
-#: TODO #1346 this tolerance should be user configurable.
-INNER_PRODUCT_TOLERANCE = "1.0e-10"
-#: The type (and precision) of the variable used to accumulate the inner
-#: product in the generated test-harness code.
-INNER_PRODUCT_DATATYPE = REAL_DOUBLE_TYPE
-#: The suffix we will prepend to a routine and container name when generating
-#: its adjoint.
-ADJOINT_NAME_SUFFIX = "_adj"
 #: The extent we will allocate to each dimension of arrays used in the
 #: generated test-harness code.
 #: TODO #1331 provide some way of configuring the extent of the test arrays
 TEST_ARRAY_DIM_SIZE = 20
 
 
-def generate_adjoint_str(tl_fortran_str, active_variables, create_test=False):
-    '''Takes an LFRic tangent-linear kernel encoded as a string as input
+def generate_adjoint_str(tl_fortran_str, active_variables,
+                         api=None, create_test=False,
+                         coord_arg_index=None, panel_id_arg_index=None):
+    '''Takes a tangent-linear kernel encoded as a string as input
     and returns its adjoint encoded as a string along with (if requested)
     a test harness, also encoded as a string.
 
-    :param str tl_fortran_str: Fortran implementation of an LFRic \
-        tangent-linear kernel.
-    :param list of str active_variables: list of active variable names.
-    :param bool create_test: whether or not to create test code for the \
-        adjoint kernel.
+    :param str tl_fortran_str: Fortran implementation of a tangent-linear \
+        kernel.
+    :param List[str] active_variables: list of active variable names.
+    :param Optional[str] api: the PSyclone API in use, if any.
+    :param Optional[bool] create_test: whether or not to create test code for \
+        the adjoint kernel.
+    :param Optional[int] coord_arg_index: the (1-based) index of the kernel \
+        argument holding the mesh coordinates (if any). Only applies to the \
+        LFRic (dynamo0.3) API.
+    :param Optional[int] panel_id_arg_index: the (1-based) index of the kernel\
+        argument holding the panel IDs (if any). Only applies to the LFRic \
+        (dynamo0.3) API.
 
     :returns: a 2-tuple consisting of a string containing the Fortran \
         implementation of the supplied tangent-linear kernel and (if \
         requested) a string containing the Fortran implementation of a test \
         harness for the adjoint kernel.
-    :rtype: 2-tuple of str
+    :rtype: Tuple[str, str]
 
+    :raises NotImplementedError: if the tangent-linear code is a function.
+    :raises NotImplementedError: if an unsupported API is specified.
+    :raises NotImplementedError: if test-harness generation is requested for \
+                                 the LFRic API.
     '''
     logger = logging.getLogger(__name__)
     logger.debug(tl_fortran_str)
@@ -93,79 +99,105 @@ def generate_adjoint_str(tl_fortran_str, active_variables, create_test=False):
     reader = FortranReader()
     tl_psyir = reader.psyir_from_source(tl_fortran_str)
 
-    # Addressing issue #1238 will allow the view() method to be output
-    # to the logger.
-    # logger.debug(tl_psyir.view())
+    # Check there is only one routine (program or subroutine) and that
+    # this routine is not a function,as functions are not supported.
+    routines = tl_psyir.walk(Routine)
+    for routine in routines:
+        if routine.return_symbol:
+            raise NotImplementedError(
+                f"PSyAD does not support tangent-linear code written as a "
+                f"function. Please re-write '{routine.name}' as a subroutine.")
 
-    # TL to AD translation
-    ad_psyir = generate_adjoint(tl_psyir, active_variables)
+    logger.debug("PSyIR\n%s", tl_psyir.view(colour=False))
+
+    # Apply any required transformations to the TL PSyIR
+    logger.debug("Preprocessing")
+    preprocess_trans(tl_psyir, active_variables)
+
+    logger.debug("PSyIR after TL preprocessing\n%s",
+                 tl_psyir.view(colour=False))
+
+    # TL to AD translation and test harness generation
+
+    if not api:
+        ad_psyir = generate_adjoint(tl_psyir, active_variables)
+        if create_test:
+            test_psyir = generate_adjoint_test(tl_psyir, ad_psyir,
+                                               active_variables)
+    elif api == "dynamo0.3":
+        ad_psyir = generate_lfric_adjoint(tl_psyir, active_variables)
+        if create_test:
+            test_psyir = generate_lfric_adjoint_harness(tl_psyir,
+                                                        coord_arg_index,
+                                                        panel_id_arg_index)
+    else:
+        raise NotImplementedError(
+            f"PSyAD only supports generic routines/programs or LFRic "
+            f"(dynamo0.3) kernels but got API '{api}'")
+
+    writer = FortranWriter()
 
     # AD Fortran code
-    writer = FortranWriter()
     adjoint_fortran_str = writer(ad_psyir)
     logger.debug(adjoint_fortran_str)
 
-    # Create test harness if requested
+    # Test harness Fortran code
     test_fortran_str = ""
     if create_test:
-        test_psyir = generate_adjoint_test(tl_psyir, ad_psyir)
         test_fortran_str = writer(test_psyir)
         logger.debug(test_fortran_str)
 
     return adjoint_fortran_str, test_fortran_str
 
 
-def _find_container(psyir):
-    ''' Finds the first Container in the supplied PSyIR that is not a
-    FileContainer. Also validates that the PSyIR contains at most one
-    FileContainer which, if present, contains a Container.
-
-    :returns: the first Container that is not a FileContainer or None if \
-              there is none.
-    :rtype: :py:class:`psyclone.psyir.nodes.Container` or NoneType
-
-    :raises InternalError: if there are two Containers and the second is a \
-                           FileContainer.
-    :raises NotImplementedError: if there are two Containers and the first is \
-                                 not a FileContainer.
-    :raises NotImplementedError: if there are more than two Containers.
-
+def _get_active_variables_datatype(kernel, active_variables):
     '''
-    containers = psyir.walk(Container)
-    if not containers:
-        return None
+    Returns a ScalarType describing the type of the active variables in
+    the supplied kernel PSyIR.
 
-    if len(containers) == 1:
-        if isinstance(containers[0], FileContainer):
-            return None
-        return containers[0]
+    :param kernel: the PSyIR of a tangent-linear kernel.
+    :type kernel: :py:class:`psyclone.psyir.nodes.KernelSchedule`
+    :param active_variables: the names of the active variables.
+    :type active_variables: list of str
 
-    if len(containers) == 2:
-        if isinstance(containers[1], FileContainer):
-            raise InternalError(
-                "The supplied PSyIR contains two Containers but the innermost "
-                "is a FileContainer. This should not be possible.")
-        if not isinstance(containers[0], FileContainer):
-            raise NotImplementedError(
-                "The supplied PSyIR contains two Containers and the outermost "
-                "one is not a FileContainer. This is not supported.")
-        return containers[1]
+    :returns: the type of the active variables.
+    :rtype: :py:class:`psyclone.psyir.symbols.ScalarType`
 
-    raise NotImplementedError("The supplied PSyIR contains more than two "
-                              "Containers. This is not supported.")
+    :raises InternalError: if no active variables are supplied.
+    :raises NotImplementedError: if the supplied active variables are not all \
+                                 of the same intrinsic type and precision.
+    '''
+    if not active_variables:
+        raise InternalError("No active variables have been supplied.")
+
+    precision = None
+    intrinsic = None
+    for var in active_variables:
+        sym = kernel.symbol_table.lookup(var)
+        if precision is None:
+            precision = sym.datatype.precision
+            intrinsic = sym.datatype.intrinsic
+        else:
+            if (precision != sym.datatype.precision or
+                    intrinsic != sym.datatype.intrinsic):
+                raise NotImplementedError(
+                    f"Found active variables of different datatype: "
+                    f"'{active_variables[0]}' is of intrinsic type "
+                    f"'{intrinsic}' and precision '{precision}' while "
+                    f"'{sym.name}' is of intrinsic type "
+                    f"'{sym.datatype.intrinsic}' and precision "
+                    f"'{sym.datatype.precision}'. This is not currently "
+                    f"supported.")
+    return ScalarType(intrinsic, precision)
 
 
 def generate_adjoint(tl_psyir, active_variables):
-    '''Takes an LFRic tangent-linear kernel represented in language-level PSyIR
+    '''Takes a tangent-linear kernel represented in language-level PSyIR
     and returns its adjoint represented in language-level PSyIR.
 
-    Currently just takes a copy of the supplied PSyIR and re-names the
-    Container (if there is one) and Routine nodes.
-
-    :param tl_psyir: language-level PSyIR containing the LFRic \
-        tangent-linear kernel.
+    :param tl_psyir: language-level PSyIR containing the tangent-linear kernel.
     :type tl_psyir: :py:class:`psyclone.psyir.Node`
-    :param list of str active_variables: list of active variable names.
+    :param List[str] active_variables: list of active variable names.
 
     :returns: language-level PSyIR containing the adjoint of the \
         supplied tangent-linear kernel.
@@ -178,18 +210,18 @@ def generate_adjoint(tl_psyir, active_variables):
     logger = logging.getLogger(__name__)
 
     # Translate from TL to AD
-    logger.debug("Translating from TL to AD.")
+    logger.debug("Translating from LFRic TL to AD.")
     adjoint_visitor = AdjointVisitor(active_variables)
     ad_psyir = adjoint_visitor(tl_psyir)
 
     # We permit the input code to be a single Program or Subroutine
-    container = _find_container(ad_psyir)
+    container = find_container(ad_psyir)
     if container:
         # Re-name the Container for the adjoint code. Use the symbol table
         # for the existing TL code so that we don't accidentally clash with
         # e.g. the name of the kernel routine.
         container.name = container.symbol_table.next_available_name(
-            container.name + ADJOINT_NAME_SUFFIX)
+            create_adjoint_name(container.name))
 
     routines = ad_psyir.walk(Routine)
 
@@ -197,34 +229,78 @@ def generate_adjoint(tl_psyir, active_variables):
         raise InternalError("The supplied PSyIR does not contain any "
                             "routines.")
 
-    if len(routines) != 1:
-        raise NotImplementedError(
-            "The supplied Fortran must contain one and only one routine "
-            "but found: {0}".format([sub.name for sub in routines]))
-    routine = routines[0]
+    # We need to re-name the kernel routines.
+    for routine in routines:
+        # Have to take care in case we've been supplied with a bare
+        # program/subroutine rather than a subroutine within a module.
+        if container:
+            kernel_sym = container.symbol_table.lookup(routine.name)
+            adj_kernel_name = create_adjoint_name(routine.name)
+            # A symbol's name is immutable so create a new RoutineSymbol
+            adj_kernel_sym = container.symbol_table.new_symbol(
+                adj_kernel_name, symbol_type=RoutineSymbol,
+                visibility=kernel_sym.visibility)
+            container.symbol_table.remove(kernel_sym)
+            routine.name = adj_kernel_sym.name
+        else:
+            routine.name = routine.symbol_table.next_available_name(
+                create_adjoint_name(routine.name))
 
-    # We need to re-name the kernel routine. Have to take care in case we've
-    # been supplied with a bare program/subroutine rather than a subroutine
-    # within a module.
-    if container:
-        kernel_sym = container.symbol_table.lookup(routine.name)
-        adj_kernel_name = routine.name + ADJOINT_NAME_SUFFIX
-        # A symbol's name is immutable so create a new RoutineSymbol
-        adj_kernel_sym = container.symbol_table.new_symbol(
-            adj_kernel_name, symbol_type=RoutineSymbol,
-            visibility=kernel_sym.visibility)
-        container.symbol_table.remove(kernel_sym)
-        routine.name = adj_kernel_sym.name
-    else:
-        routine.name = routine.symbol_table.next_available_name(
-            routine.name + ADJOINT_NAME_SUFFIX)
-
-    logger.debug("AD kernel will be named '%s'", routine.name)
+        logger.debug("AD kernel will be named '%s'", routine.name)
 
     return ad_psyir
 
 
-def generate_adjoint_test(tl_psyir, ad_psyir):
+def _add_precision_symbol(symbol, table):
+    '''
+    Adds (a copy of) the supplied precision symbol to the supplied symbol
+    table unless there is already an entry with the same name. Also takes
+    care of any ContainerSymbol from which the symbol is imported.
+
+    :param symbol: the precision symbol to copy into the table.
+    :type symbol: :py:class:`psyclone.psyir.symbols.DataSymbol`
+    :param table: the symbol table to which to add the precision symbol.
+    :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+
+    :raises TypeError: if the supplied symbol is not of the correct type.
+    :raises NotImplementedError: if the supplied symbol is not local or \
+                                 explicitly imported.
+
+    '''
+    # A precision symbol must be of integer, deferred or unknown type.
+    if not (isinstance(symbol.datatype, (DeferredType, UnknownType)) or
+            isinstance(symbol.datatype, ScalarType) and
+            symbol.datatype.intrinsic == ScalarType.Intrinsic.INTEGER):
+        raise TypeError(
+            f"For a symbol to represent a precision it must be of deferred, "
+            f"unknown or scalar, integer type but '{symbol.name}' has type "
+            f"'{symbol.datatype}'.")
+
+    if symbol.name in table:
+        return
+
+    if symbol.is_automatic or symbol.is_modulevar:
+        table.add(symbol.copy())
+    elif symbol.is_import:
+        contr_sym = symbol.interface.container_symbol
+        try:
+            kind_contr_sym = table.lookup(contr_sym.name)
+        except KeyError:
+            # The table does not already have a symbol for this container.
+            kind_contr_sym = contr_sym.copy()
+            table.add(kind_contr_sym)
+        kind_symbol = symbol.copy()
+        kind_symbol.interface = ImportInterface(kind_contr_sym)
+        table.add(kind_symbol)
+    else:
+        raise NotImplementedError(
+            f"One or more variables have a precision specified by symbol "
+            f"'{symbol.name}' which is not local or explicitly imported. This "
+            f"is not supported.")
+
+
+def generate_adjoint_test(tl_psyir, ad_psyir,
+                          active_variables):
     '''
     Creates the PSyIR of a test harness for the supplied TL and adjoint
     kernels.
@@ -233,6 +309,7 @@ def generate_adjoint_test(tl_psyir, ad_psyir):
     :type tl_psyir: :py:class:`psyclone.psyir.Container`
     :param ad_psyir: PSyIR of the adjoint kernel code.
     :type ad_psyir: :py:class:`psyclone.psyir.Container`
+    :param List[str] active_variables: names of active variables.
 
     :returns: the PSyIR of the test harness.
     :rtype: :py:class:`psyclone.psyir.Routine`
@@ -255,7 +332,7 @@ def generate_adjoint_test(tl_psyir, ad_psyir):
     # We expect a single Container containing a single Kernel. Anything else
     # is not supported. However, we have to allow for the fact that, in
     # general, there will be an outermost FileContainer.
-    container = _find_container(ad_psyir)
+    container = find_container(ad_psyir)
     if not container:
         raise NotImplementedError(
             "Generation of a test harness is only supported for a TL kernel "
@@ -267,16 +344,16 @@ def generate_adjoint_test(tl_psyir, ad_psyir):
 
     if len(routines) != 1:
         raise NotImplementedError(
-            "The supplied Fortran must contain one and only one subroutine "
-            "but found: {0}".format([sub.name for sub in routines]))
+            f"The supplied Fortran must contain one and only one subroutine "
+            f"but found: {[sub.name for sub in routines]}")
 
     tl_kernel = routines[0]
 
     if tl_kernel.is_program:
         raise NotImplementedError(
-            "Generation of a test harness for a kernel defined as a Program "
-            "(as opposed to a Subroutine) is not currently supported. (Found "
-            "'{0}' which is a Program.)".format(tl_kernel.name))
+            f"Generation of a test harness for a kernel defined as a Program "
+            f"(as opposed to a Subroutine) is not currently supported. (Found "
+            f"'{tl_kernel.name}' which is a Program.)")
 
     # First Container is a FileContainer and that's not what we want
     container = tl_psyir.walk(Container)[1]
@@ -304,6 +381,16 @@ def generate_adjoint_test(tl_psyir, ad_psyir):
         adjoint_kernel_name, symbol_type=RoutineSymbol,
         interface=ImportInterface(adj_container))
 
+    # Query the TL Kernel to find out the intrinsic type and precision of
+    # the active variables. The test-harness code will use this when
+    # computing inner products.
+    datatype = _get_active_variables_datatype(tl_kernel, active_variables)
+
+    # If the precision of the active variables is specified by another symbol
+    # then we must ensure that it is declared in the harness too.
+    if isinstance(datatype.precision, Symbol):
+        _add_precision_symbol(datatype.precision, symbol_table)
+
     # Create a symbol to hold the extent of any test arrays. This is done here
     # to avoid any clashes with any of the container and kernel names.
     dim_size_sym = symbol_table.new_symbol("array_extent",
@@ -313,12 +400,9 @@ def generate_adjoint_test(tl_psyir, ad_psyir):
 
     # Create symbols for the results of the inner products
     inner1 = symbol_table.new_symbol("inner1", symbol_type=DataSymbol,
-                                     datatype=INNER_PRODUCT_DATATYPE)
+                                     datatype=datatype)
     inner2 = symbol_table.new_symbol("inner2", symbol_type=DataSymbol,
-                                     datatype=INNER_PRODUCT_DATATYPE)
-    # Create symbol for result of the diff of the inner products
-    diff_sym = symbol_table.new_symbol("abs_diff", symbol_type=DataSymbol,
-                                       datatype=INNER_PRODUCT_DATATYPE)
+                                     datatype=datatype)
 
     # Identify any arguments to the kernel that are used to dimension other
     # arguments.
@@ -348,6 +432,10 @@ def generate_adjoint_test(tl_psyir, ad_psyir):
     # kernel arguments to the new symbols in the test harness.
     new_dim_args_map = {}
     for arg in dimensioning_args:
+        if isinstance(arg.datatype.precision, DataSymbol):
+            # The precision of this symbol is defined by another symbol so
+            # we must ensure that the latter is also in the symbol table.
+            _add_precision_symbol(arg.datatype.precision, symbol_table)
         new_dim_args_map[arg] = symbol_table.new_symbol(
             arg.name, symbol_type=DataSymbol,
             datatype=arg.datatype,
@@ -386,32 +474,36 @@ def generate_adjoint_test(tl_psyir, ad_psyir):
                                     Reference(new_dim_args_map[bound.symbol]))
                             else:
                                 raise NotImplementedError(
-                                    "Found argument '{0}' to kernel '{1}' "
-                                    "which has a reference to '{2}' in its "
-                                    "shape. However, '{2}' is not passed as an"
-                                    " argument. This is not supported.".format(
-                                        arg.name, tl_kernel.name,
-                                        bound.symbol.name))
+                                    f"Found argument '{arg.name}' to kernel "
+                                    f"'{tl_kernel.name}' which has a reference"
+                                    f" to '{bound.symbol.name}' in its shape. "
+                                    f"However, '{bound.symbol.name}' is not "
+                                    f"passed as an argument. This is not "
+                                    f"supported.")
                         elif isinstance(bound, Literal):
                             new_bounds.append(bound.copy())
                         else:
                             raise NotImplementedError(
-                                "Found argument '{0}' to kernel '{1}' which "
-                                "has an array bound specified by a '{2}' node."
-                                " Only Literals or References are supported.".
-                                format(arg.name, tl_kernel.name,
-                                       type(bound).__name__))
+                                f"Found argument '{arg.name}' to kernel "
+                                f"'{tl_kernel.name}' which has an array bound "
+                                f"specified by a '{type(bound).__name__}' "
+                                f"node. Only Literals or References are "
+                                f"supported.")
                     new_shape.append(ArrayType.ArrayBounds(new_bounds[0],
                                                            new_bounds[1]))
                 else:
                     raise InternalError(
-                        "Argument '{0}' to kernel '{1}' contains a '{2}' in "
-                        "its shape definition but expected an ArrayType."
-                        "Extent or ArrayType.ArrayBounds".format(
-                            arg.name, tl_kernel.name, type(dim).__name__))
+                        f"Argument '{arg.name}' to kernel '{tl_kernel.name}' "
+                        f"contains a '{type(dim).__name__}' in its shape "
+                        f"definition but expected an ArrayType."
+                        f"Extent or ArrayType.ArrayBounds")
             new_sym = symbol_table.new_symbol(arg.name, symbol_type=DataSymbol,
                                               datatype=ArrayType(arg.datatype,
                                                                  new_shape))
+        if isinstance(arg.datatype.precision, DataSymbol):
+            # The precision of this symbol is defined by another symbol so
+            # we must ensure that the latter is also in the symbol table.
+            _add_precision_symbol(arg.datatype.precision, symbol_table)
         new_arg_list.append(new_sym)
         # Create variables to hold a copy of the inputs
         input_sym = symbol_table.new_symbol(new_sym.name+"_input",
@@ -424,63 +516,51 @@ def generate_adjoint_test(tl_psyir, ad_psyir):
                  [arg.name for arg in new_arg_list])
 
     statements = []
+    freader = FortranReader()
     # Initialise those variables and keep a copy of them.
-    # TODO #1247 we need to add comments to the generated code!
-    for sym, sym_copy in zip(inputs, input_copies):
+    for sym, sym_record in zip(inputs, input_copies):
         # The PSyIR doesn't support the random_number Fortran intrinsic so we
         # create a CodeBlock for it. Happily, the intrinsic will initialise
         # all elements of an array passed to it so we don't have to take any
         # special action.
         # TODO #1345 make this code language agnostic.
-        ptree = Fortran2003.Call_Stmt(
-            "call random_number({0})".format(sym.name))
-        statements.append(CodeBlock([ptree], CodeBlock.Structure.STATEMENT))
         statements.append(
-            Assignment.create(Reference(sym_copy), Reference(sym)))
+            freader.psyir_from_statement(f"call random_number({sym.name})",
+                                         symbol_table))
+        # Keep a copy of the value of this argument.
+        statements.append(
+            Assignment.create(Reference(sym_record), Reference(sym)))
+    statements[0].preceding_comment = ("Initialise the kernel arguments and "
+                                       "keep copies of them")
 
     # Call the TL kernel
     statements.append(Call.create(tl_kernel_sym,
                                   [Reference(sym) for sym in new_arg_list]))
+    statements[-1].preceding_comment = "Call the tangent-linear kernel"
 
     # Compute the inner product of the result of the TL kernel
-    statements += _create_inner_product(inner1,
-                                        [(sym, sym) for sym in inputs])
+    stmt_list = _create_inner_product(inner1, [(sym, sym) for sym in inputs],
+                                      symbol_table)
+    stmt_list[0].preceding_comment = ("Compute the inner product of the "
+                                      "results of the tangent-linear kernel")
+    statements.extend(stmt_list)
 
     # Call the adjoint kernel using the outputs of the TL kernel as input
     statements.append(Call.create(adj_kernel_sym,
                                   [Reference(sym) for sym in new_arg_list]))
+    statements[-1].preceding_comment = "Call the adjoint of the kernel"
 
     # Compute inner product of result of adjoint kernel with original inputs
-    statements += _create_inner_product(inner2,
-                                        zip(inputs, input_copies))
+    stmt_list = _create_inner_product(inner2, zip(inputs, input_copies),
+                                      symbol_table)
+    stmt_list[0].preceding_comment = (
+        "Compute inner product of results of adjoint kernel with the "
+        "original inputs to the tangent-linear kernel")
+    statements.extend(stmt_list)
 
     # Compare the inner products.
-    tol_zero = Literal(INNER_PRODUCT_TOLERANCE, INNER_PRODUCT_DATATYPE)
-
-    diff = BinaryOperation.create(BinaryOperation.Operator.SUB,
-                                  Reference(inner1), Reference(inner2))
-    abs_diff = UnaryOperation.create(UnaryOperation.Operator.ABS, diff)
-    statements.append(Assignment.create(Reference(diff_sym), abs_diff))
-
-    # If the test fails then the harness will print a message and return early.
-    # TODO #1345 make this code language agnostic.
-    ptree = Fortran2003.Write_Stmt(
-        "write(*,*) 'Test of adjoint of ''{0}'' failed: diff = ', {1}".format(
-            tl_kernel.name, diff_sym.name))
-
-    statements.append(
-        IfBlock.create(BinaryOperation.create(BinaryOperation.Operator.GT,
-                                              Reference(diff_sym),
-                                              tol_zero.copy()),
-                       [CodeBlock([ptree], CodeBlock.Structure.STATEMENT),
-                        Return()]))
-
-    # Otherwise the harness prints a message reporting that all is well.
-    # TODO #1345 make this code language agnostic.
-    ptree = Fortran2003.Write_Stmt(
-        "write(*,*) 'Test of adjoint of ''{0}'' passed: diff = ', {1}".format(
-            tl_kernel.name, diff_sym.name))
-    statements.append(CodeBlock([ptree], CodeBlock.Structure.STATEMENT))
+    statements += create_real_comparison(symbol_table, tl_kernel, inner1,
+                                         inner2)
 
     # Finally, create the driver program from the list of statements.
     routine = Routine.create(
@@ -491,7 +571,7 @@ def generate_adjoint_test(tl_psyir, ad_psyir):
     return routine
 
 
-def _create_inner_product(result, symbol_pairs):
+def _create_inner_product(result, symbol_pairs, table):
     '''
     Creates PSyIR that computes the inner product of each pair of symbols
     in the supplied list and accumulates it into the supplied `result`
@@ -513,7 +593,7 @@ def _create_inner_product(result, symbol_pairs):
     '''
     # Zero the variable used to accumulate the result
     statements = [Assignment.create(Reference(result),
-                                    Literal("0.0", INNER_PRODUCT_DATATYPE))]
+                                    Literal("0.0", result.datatype))]
 
     # Now generate code to compute the inner product of each pair of symbols
     for (sym1, sym2) in symbol_pairs:
@@ -522,11 +602,10 @@ def _create_inner_product(result, symbol_pairs):
 
             if sym1.datatype != sym2.datatype:
                 raise TypeError(
-                    "Cannot compute inner product of Symbols '{0}' and '{1}' "
-                    "because they represent different datatypes ({2} and {3}, "
-                    "respectively).".format(
-                        sym1.name, sym2.name, str(sym1.datatype),
-                        str(sym2.datatype)))
+                    f"Cannot compute inner product of Symbols '{sym1.name}' "
+                    f"and '{sym2.name}' because they represent different "
+                    f"datatypes ({sym1.datatype} and {sym2.datatype}, "
+                    f"respectively).")
 
             prod = BinaryOperation.create(BinaryOperation.Operator.MUL,
                                           Reference(sym1), Reference(sym2))
@@ -537,12 +616,13 @@ def _create_inner_product(result, symbol_pairs):
                                            Reference(result), prod)))
         else:
 
-            statements.append(_create_array_inner_product(result, sym1, sym2))
+            statements.append(_create_array_inner_product(result, sym1, sym2,
+                                                          table))
 
     return statements
 
 
-def _create_array_inner_product(result, array1, array2):
+def _create_array_inner_product(result, array1, array2, table):
     '''
     Generates the PSyIR for the innerproduct of array1 and array2 with
     accumulation into the 'result' symbol.
@@ -559,28 +639,25 @@ def _create_array_inner_product(result, array1, array2):
     '''
     if array1.datatype != array2.datatype:
         raise TypeError(
-            "Cannot compute inner product of Symbols '{0}' and '{1}' "
-            "because they represent different datatypes ({2} and {3}, "
-            "respectively).".format(
-                array1.name, array2.name, str(array1.datatype),
-                str(array2.datatype)))
+            f"Cannot compute inner product of Symbols '{array1.name}' and "
+            f"'{array2.name}' because they represent different datatypes "
+            f"({array1.datatype} and {array2.datatype}, respectively).")
 
     if not isinstance(array1.datatype, ArrayType):
-        raise TypeError(
-            "Supplied Symbols must represent arrays but got '{0}' for '{1}'.".
-            format(array1.datatype, array1.name))
+        raise TypeError(f"Supplied Symbols must represent arrays but got "
+                        f"'{array1.datatype}' for '{array1.name}'.")
 
     if len(array1.datatype.shape) == 1:
         # PSyIR does not support the DOT_PRODUCT (Fortran) intrinsic
         # so we create a CodeBlock.
-        ptree = Fortran2003.Expr("DOT_PRODUCT({0}, {1})".format(
-            array1.name, array2.name))
-        cblock = CodeBlock([ptree], CodeBlock.Structure.EXPRESSION)
+        freader = FortranReader()
+        dotprod = freader.psyir_from_expression(
+            f"DOT_PRODUCT({array1.name}, {array2.name})", table)
 
         return Assignment.create(
             Reference(result),
             BinaryOperation.create(BinaryOperation.Operator.ADD,
-                                   Reference(result), cblock))
+                                   Reference(result), dotprod))
 
     # Create a matrix inner product
     ranges1 = []
@@ -611,7 +688,7 @@ def _create_array_inner_product(result, array1, array2):
     prod = BinaryOperation.create(BinaryOperation.Operator.MUL,
                                   ref1, ref2)
     # Sum the resulting elements
-    inner = UnaryOperation.create(UnaryOperation.Operator.SUM, prod)
+    inner = IntrinsicCall.create(IntrinsicCall.Intrinsic.SUM, [prod])
     # Accumulate the result
     return Assignment.create(
         Reference(result),

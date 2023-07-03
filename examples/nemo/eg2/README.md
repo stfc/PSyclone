@@ -2,31 +2,27 @@
 
 **Authors:** A. R. Porter, STFC Daresbury Lab
 **Modified by:** R. W. Ford, STFC Daresbury Lab
+**Modified by:** S. Siso, STFC Daresbury Lab
 
-This directory contains two python scripts demonstrating the use of
-PSyclone to add OpenMP parallelism to the `traldf_iso.F90` code.  Once
-you have installed PSyclone, the standalone script (`runme_openmp.py`)
-may be run by doing:
+This directory contains a python script demonstrating the use of
+PSyclone to add OpenMP parallelism to the `traldf_iso.F90` code.
+It also contains Makefile rules to generate parallel versions of the
+file with the ../scripts/ OpenMP scripts.
 
-```sh
-./runme_openmp.py
-```
-
-This will output PSyclone's Schedule view of the Fortran routine
-followed by the generated Fortran code with the OpenMP directives
-added.
-
-The second script, omp_levels_trans.py, is intended to be provided to
-PSyclone as an optimisation script:
+Once you have installed PSyclone, these scripts may be run by doing:
 
 ```sh
 psyclone -api "nemo" -s ./omp_levels_trans.py traldf_iso.F90
 ```
-
-Again, the generated Fortran will be written to stdout.
+or
+```sh
+psyclone -api nemo -s ../scripts/omp_[cpu|gpu]_trans.py ../code/traldf_iso.f90
+```
 
 `traldf_iso.F90`, is an unmodified NEMO ocean model routine. This code
-can be found in the `../code` directory.
+can be found in the `../code` directory. The PSyclone command will output
+the generated Fortran code with the OpenMP directives added.
+
 
 ## Licence
 
@@ -34,7 +30,7 @@ can be found in the `../code` directory.
 
 BSD 3-Clause License
 
-Copyright (c) 2018, Science and Technology Facilities Council
+Copyright (c) 2018-2022, Science and Technology Facilities Council
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without

@@ -9,7 +9,7 @@
 !
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2018, Science and Technology Facilities Council
+! Modifications copyright (c) 2018-2023, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -39,7 +39,7 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Modified, R. W. Ford, STFC Daresbury Lab
+! Modified: R. W. Ford, STFC Daresbury Lab
 
 module helmholtz_solver_alg_mod
 
@@ -47,12 +47,16 @@ module helmholtz_solver_alg_mod
 
   subroutine apply_helmholtz_lhs(Hp, p)
 
+    use field_mod, only : field_type
+    use operator_mod, only : operator_type
     use scaled_matrix_vector_kernel_mod, only: opt_scaled_matrix_vector_kernel_type
 
     implicit none
 
     type(field_type), intent(inout) :: Hp
     type(field_type), intent(in)    :: p
+    type(field_type) :: grad_p, hb_inv, u_normalisation
+    type(operator_type) :: div_star
 
     call invoke( setval_c( grad_p, 0.0_r_def ),                                 &
                  opt_scaled_matrix_vector_kernel_type(grad_p, p, div_star,      &

@@ -130,7 +130,7 @@ def test_gocean_omp_parallel():
                            idx=0, dist_mem=False)
 
     omp = OMPParallelTrans()
-    _, _ = omp.apply(invoke.schedule[0])
+    omp.apply(invoke.schedule[0])
 
     # Now remove the GOKern (since it's not yet supported in the
     # visitor pattern) and replace it with a simple assignment
@@ -190,7 +190,7 @@ def test_nemo_omp_do(fortran_reader):
     # Disable checks on global constraints to remove need for parallel region
     fvisitor = FortranWriter(check_global_constraints=False)
     result = fvisitor(schedule)
-    correct = '''  !$omp do schedule(static)
+    correct = '''  !$omp do schedule(auto)
   do i = 1, 20, 2
     a = 2 * i
     b(i) = b(i) + a
@@ -200,7 +200,7 @@ def test_nemo_omp_do(fortran_reader):
 
     cvisitor = CWriter(check_global_constraints=False)
     result = cvisitor(schedule[0])
-    correct = '''#pragma omp do schedule(static)
+    correct = '''#pragma omp do schedule(auto)
 {
   for(i=1; i<=20; i+=2)
   {
@@ -220,7 +220,7 @@ def test_gocean_omp_do():
     _, invoke = get_invoke("single_invoke.f90", "gocean1.0",
                            idx=0, dist_mem=False)
     omp = OMPLoopTrans()
-    _, _ = omp.apply(invoke.schedule[0])
+    omp.apply(invoke.schedule[0])
 
     # Now remove the GOKern (since it's not yet supported in the
     # visitor pattern) and replace it with a simple assignment.
@@ -235,14 +235,14 @@ def test_gocean_omp_do():
     # GOInvokeSchedule is not yet supported, so start with
     # the OMP node:
     result = fvisitor(invoke.schedule[0])
-    correct = '''!$omp do schedule(static)
+    correct = '''!$omp do schedule(auto)
 a = b
 !$omp end do'''
     assert correct in result
 
     cvisitor = CWriter(check_global_constraints=False)
     result = cvisitor(invoke.schedule[0])
-    correct = '''#pragma omp do schedule(static)
+    correct = '''#pragma omp do schedule(auto)
 {
   a = b;
 }'''
@@ -257,7 +257,7 @@ def test_gocean_omp_taskloop():
                            idx=0, dist_mem=False)
     omp = OMPTaskloopTrans()
     wait_dir = OMPTaskwaitDirective()
-    _, _ = omp.apply(invoke.schedule[0])
+    omp.apply(invoke.schedule[0])
 
     # Now remove the GOKern (since it's not yet supported in the
     # visitor pattern) and replace it with a simple assignment.

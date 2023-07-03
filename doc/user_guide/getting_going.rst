@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2017-2021, Science and Technology Facilities Council.
+.. Copyright (c) 2017-2022, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 .. ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .. POSSIBILITY OF SUCH DAMAGE.
 .. -----------------------------------------------------------------------------
-.. Written by R. W. Ford and A. R. Porter, STFC Daresbury Lab
+.. Authors: R. W. Ford, A. R. Porter and N. Nobre, STFC Daresbury Lab
 .. Modified by I. Kavcic, Met Office
 
 .. _getting-going:
@@ -63,12 +63,12 @@ PyPI using ``pip install``, see :ref:`getting-going-env-pypi` for
 more detailed information.
 
 Alternatively, PSyclone can be downloaded from GitHub - either see |release|
-in the ``Releases`` `tab <https://github.com/stfc/PSyclone/releases>`_
+in the ``Tags`` `tab <https://github.com/stfc/PSyclone/tags>`_
 on the PSyclone page or download and extract the latest release of
 PSyclone directly, e.g.
 
 .. parsed-literal::
-   > wget https://github.com/stfc/PSyclone/archive/\ |release|\ .tar.gz
+   > wget \https://github.com/stfc/PSyclone/archive/\ |release|\ .tar.gz
    > tar zxf \ |release|\ .tar.gz
    > ls
    PSyclone-\ |release|\
@@ -113,8 +113,7 @@ to do a user-local install instead then supply the ``--user`` flag::
    > pip install --user psyclone
 
 PSyclone can also be installed to a specific location using ``--install-option``
-(see ``pip``
-`documentation <https://pip.pypa.io/en/stable/reference/pip_install/#install-install-option>`_
+(see ``pip`` `documentation <https://pip.pypa.io/en/stable/cli/pip_install/>`_
 for more detailed information)::
 
    > pip install --install-option="--prefix=/my/install/path" psyclone==X.Y.Z
@@ -203,7 +202,7 @@ for instance the script directory is usually called ``Scripts`` instead
 of ``bin`` and the modules directory ``Lib`` instead of ``lib``.
 
 Installation in an `Anaconda Python
-<https://www.anaconda.com/products/individual>`_ environment on
+<https://www.anaconda.com/products/distribution>`_ environment on
 Windows also needs to be done using ``pip`` as ``conda install`` for
 PSyclone is currently not supported.
 
@@ -212,16 +211,16 @@ PSyclone is currently not supported.
 Dependencies
 ------------
 
-PSyclone is written in Python so needs Python to be installed on the
-target machine. PSyclone has been tested under Python 2.7, 3.5, 3.6
-and 3.8.
+PSyclone is written in Python so needs Python 3 to be installed on the
+target machine. PSyclone is regularly tested with Python 3.7, 3.8 and 3.11
+but should work with any version >= 3.6. (The last PSyclone release to
+support Python 2.7 was version 2.1.0.)
 
-PSyclone immediately relies on four external Python packages; ``six``,
-``configparser``, ``fparser`` and ``pyparsing``. There is also dependency
-on ``enum34`` for Python 2 support, however support for Python 2 will be
-dropped in future. The easiest way to satisfy the Python dependencies is
-to use the `PyPI installation
-<https://packaging.python.org/installing>`_ and ``pip``.
+PSyclone immediately relies on four external Python packages; ``configparser``,
+``fparser``, ``sympy``, and ``pyparsing``. The easiest way to satisfy the
+Python dependencies is to use the
+`PyPI installation <https://packaging.python.org/installing>`_
+and ``pip``.
 
 If everything is working correctly then using ``pip`` to install PSyclone::
 
@@ -327,7 +326,41 @@ you can instruct ``pip`` to do a user-local install:
 Alternatively, you could follow `these instructions
 <https://github.com/pyparsing/pyparsing>`_.
 
-graphviz
+
+SymPy
+^^^^^
+
+PSyclone requires ``sympy``, a library for symbolic mathematics. PSyclone
+uses ``sympy`` to reason about expression being equal or not, e.g. ``i+j``
+and ``j+i``. PSyclone has been tested with ``sympy`` versions 1.7.1.
+
+You can test whether ``sympy`` is already installed on your machine by
+typing ``import sympy`` from the Python command line. If ``sympy``
+is installed, this command will complete successfully. If ``sympy`` is
+installed you can check its version by typing
+``sympy.__version__`` after successfully importing it.
+
+If ``sympy`` is not installed on your system then it may be installed
+from the Python Package Index using ``pip``:
+::
+
+   > pip install sympy
+
+Should you wish to, uninstalling is simply performed by doing:
+::
+
+   > pip uninstall sympy
+
+If you do not have sufficient privileges for a system-wide install then
+you can instruct ``pip`` to do a user-local install:
+::
+
+   > pip install --user sympy
+
+Alternatively, you could follow the instructions on the `SymPy web page
+<https://docs.sympy.org/latest/install.html>`_.
+
+Graphviz
 ^^^^^^^^
 
 The data dependencies of a PSyIR schedule determine the validity of
@@ -434,7 +467,7 @@ is on your ``PATH``::
    usage: psyclone [-h] [-oalg OALG] [-opsy OPSY] [-okern OKERN] [-api API]
                    [-s SCRIPT] [-d DIRECTORY] [-I INCLUDE] [-l {off,all,output}]
                    [-dm] [-nodm] [--kernel-renaming {multiple,single}]
-                   [--profile {invokes,kernels}] [--config CONFIG] [-v]
+                   [--profile {invokes,kernels}] [--config CONFIG] [--version]
                    filename
    psyclone: error: the following arguments are required: filename
 
@@ -488,6 +521,6 @@ by the ``print_psyir_trans.py`` script in the second LFRic example::
 
 Take a look at the ``print_psyir_trans.py`` script for more information. *Hint*;
 you can insert a single line in that script in order to break into the Python
-interpreter during exection: ``import pdb; pdb.set_trace()``. This then enables
+interpreter during execution: ``import pdb; pdb.set_trace()``. This then enables
 interactive exploration of the PSyIR if you are interested. Alternatively,
 you can play with some interactive examples on `Binder <https://github.com/stfc/PSyclone#user-content-try-it-on-binder>`_.

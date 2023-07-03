@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2021, Science and Technology Facilities Council.
+# Copyright (c) 2019-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: Joerg Henrichs, Bureau of Meteorology
-# Modified by R. W. Ford, STFC Daresbury Lab
+# Modified by R. W. Ford and N. Nobre, STFC Daresbury Lab
 
 '''This module tests AccessType.'''
 
@@ -95,8 +95,8 @@ def test_from_string():
     with pytest.raises(ValueError) as err:
         AccessType.from_string("invalid")
     valid = [str(access).lower() for access in AccessType]
-    assert ("Unknown access type 'invalid'. Valid values are {0}."
-            "".format(str(valid)) in str(err.value))
+    assert (f"Unknown access type 'invalid'. Valid values are {valid}."
+            in str(err.value))
 
 
 def test_all_write_accesses():

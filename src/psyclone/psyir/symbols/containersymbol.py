@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council.
+# Copyright (c) 2017-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,17 +31,16 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+# Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 #         I. Kavcic, Met Office
 #         J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
 ''' This module contains the ContainerSymbol and its interfaces.'''
 
-from __future__ import absolute_import
 from os import listdir, path
-from psyclone.psyir.symbols import Symbol, SymbolError
-from psyclone.psyir.symbols.symbol import SymbolInterface
+from psyclone.psyir.symbols.symbol import Symbol, SymbolError
+from psyclone.psyir.symbols.interfaces import SymbolInterface
 from psyclone.configuration import Config
 
 
@@ -97,11 +96,10 @@ class ContainerSymbol(Symbol):
         if "interface" not in kwargs or kwargs["interface"] is None:
             kwargs["interface"] = FortranModuleInterface()
         elif not isinstance(kwargs["interface"], FortranModuleInterface):
-            raise TypeError("A ContainerSymbol interface must be of type '"
-                            "FortranModuleInterface' but found '{0}' for "
-                            "Container '{1}'."
-                            "".format(type(kwargs["interface"]).__name__,
-                                      self.name))
+            raise TypeError(f"A ContainerSymbol interface must be of type '"
+                            f"FortranModuleInterface' but found "
+                            f"'{type(kwargs['interface']).__name__}' for "
+                            f"Container '{self.name}'.")
         super(ContainerSymbol, self)._process_arguments(**kwargs)
 
     def copy(self):
@@ -132,7 +130,7 @@ class ContainerSymbol(Symbol):
         return self._reference
 
     def __str__(self):
-        string = self._name + ": <"
+        string = self._name + ": ContainerSymbol<"
         if self._reference:
             string += "linked>"
         else:
@@ -161,8 +159,8 @@ class ContainerSymbol(Symbol):
 
         '''
         if not isinstance(value, bool):
-            raise TypeError("wildcard_import must be a bool but got: '{0}'".
-                            format(type(value).__name__))
+            raise TypeError(f"wildcard_import must be a bool but got: "
+                            f"'{type(value).__name__}'")
         self._has_wildcard_import = value
 
 
@@ -215,15 +213,14 @@ class FortranModuleInterface(ContainerSymbolInterface):
                         if candidate.name.lower() == name.lower():
                             return candidate
                     raise ValueError(
-                        "Error importing the Fortran module '{0}' into a "
-                        "PSyIR container. The file with filename '{1}' "
-                        "does not contain the expected module."
-                        "".format(name, filename))
+                        f"Error importing the Fortran module '{name}' into a "
+                        f"PSyIR container. The file with filename "
+                        f"'{filename}' does not contain the expected module.")
 
         raise SymbolError(
-            "Module '{0}' (expected to be found in '{0}.[f|F]90') not found in"
-            " any of the include_paths directories {1}."
-            "".format(name, Config.get().include_paths))
+            f"Module '{name}' (expected to be found in '{name}.[f|F]90') not "
+            f"found in any of the include_paths directories "
+            f"{Config.get().include_paths}.")
 
 
 # For Sphinx AutoAPI documentation generation

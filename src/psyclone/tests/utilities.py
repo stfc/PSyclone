@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council.
+# Copyright (c) 2017-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -36,9 +36,8 @@
 
 ''' Test utilities including support for testing that code compiles. '''
 
-from __future__ import absolute_import, print_function
-
 import difflib
+from contextlib import contextmanager
 import os
 from pprint import pprint
 import subprocess
@@ -72,8 +71,20 @@ class CompileError(PSycloneError):
 
 # =============================================================================
 def line_number(root, string_name):
-    '''helper routine which returns the first index of the supplied
-    string or -1 if it is not found'''
+    '''Helper routine which returns the first index of the supplied
+    name in the root object, when it is converted into a string, or
+    -1 if it is not found.
+
+    :param root: the supplied object, which is converted into a list of \
+        strings using `str(root).splitlines()`
+    :type root: Any
+    :param str string_name: the string to search for.
+
+    :returns: first index in the converted list of strings, or -1 if it \
+        is not found
+    :rtype: int
+
+    '''
     lines = str(root).splitlines()
     for idx, line in enumerate(lines):
         if string_name in line:
@@ -83,8 +94,18 @@ def line_number(root, string_name):
 
 # =============================================================================
 def count_lines(root, string_name):
-    '''helper routine which returns the number of lines that contain the
-    supplied string'''
+    '''Helper routine which returns the number of lines that contain the
+    supplied string.
+
+    :param root: the supplied object, which is converted into a list of \
+        strings using `str(root).splitlines()`
+    :type root: Any
+    :param str string_name: the string to search for.
+
+    :returns: the number of lines that contain the specified string.
+    :rtype: int
+
+    '''
     count = 0
     lines = str(root).splitlines()
     for line in lines:
@@ -109,17 +130,36 @@ def print_diffs(expected, actual):
 
 
 # =============================================================================
-class Compile(object):
+@contextmanager
+def change_dir(new_dir):
+    '''This is a small context manager that changes the current working
+    directory, and will automatically switch back. Usage:
+
+    >>> with change_dir("/tmp"):
+    ...     print(f"CWD is {os.getcwd()}")
+    CWD is /tmp
+
+    '''
+    prev_dir = os.getcwd()
+    os.chdir(os.path.expanduser(new_dir))
+    try:
+        yield
+    finally:
+        os.chdir(prev_dir)
+
+
+# =============================================================================
+class Compile():
     '''This class provides compile functionality to the testing framework.
     It stores the name of the compiler, compiler flags, and a temporary
-    directory used for test compiles. The temporary directory will be
-    defined per test case, so a new instance must be created for each
-    test function.
+    directory used for test compiles (defaults to the current working
+    directory). The temporary directory will be defined per test case, so a
+    new instance must be created for each test function.
     API-specific classes are derived from this class to manage handling
     of the corresponding infrastructure library.
 
-    :param tmpdir: py.test-supplied temporary directory
-    :type tmpdir: :py:class:`LocalPath`
+    :param tmpdir: temporary directory, defaults to os.getcwd()
+    :type tmpdir: Optional[:py:class:`LocalPath`]
 
     '''
     # Class variable to store whether compilation is enabled (--compile).
@@ -143,7 +183,8 @@ class Compile(object):
         compilation based on the command-line options.
 
         :param config: The config object from pytest.
-        :type config: Instance of :py:class:`pytest.config.
+        :type config: :py:class:`pytest.config`.
+
         '''
         # Whether or not we run tests requiring code compilation is picked-up
         # from a command-line flag. (This is set-up in conftest.py.)
@@ -153,7 +194,10 @@ class Compile(object):
         Compile.F90FLAGS = config.getoption("--f90flags")
 
     def __init__(self, tmpdir=None):
-        self._tmpdir = tmpdir
+        if tmpdir:
+            self._tmpdir = tmpdir
+        else:
+            self._tmpdir = os.getcwd()
         # Take the compiler and compile flags from the static variables.
         # This allows a specific instance to use different compiler options
         # which is used in some of the compilation tests.
@@ -166,8 +210,10 @@ class Compile(object):
         '''Returns the directory of all Fortran test files for the API,
         i.e. <PSYCLONEHOME>/src/psyclone/tests/test_files/<API>.
         Needs to be set by each API-specific compile class.
+
         :returns: A string with the base path of all API specific files.
         :rtype: str
+
         '''
         return self._base_path
 
@@ -185,8 +231,10 @@ class Compile(object):
         '''Returns a list with the required flags to use the required
         infrastructure library. This is typically ["-I", some_path] so that
         the module files of the infrastructure can be found.
+
         :returns: A list of strings with the compiler flags required.
-        :rtype: list
+        :rtype: List[str]
+
         '''
         return []
 
@@ -213,10 +261,11 @@ class Compile(object):
         files with suffixes defined in FORTRAN_SUFFIXES.
 
         :param search_paths: List of locations to search for Fortran file.
-        :type search_paths: list of str
+        :type search_paths: List[str]
         :param str root_name: Base name of the Fortran file to look \
             for. If it ends with a recognised Fortran suffix then this \
             is stripped before performing the search.
+
         :return: Full path to a Fortran source file.
         :rtype: str
 
@@ -234,8 +283,8 @@ class Compile(object):
                 if os.path.isfile(str(name)+"."+suffix):
                     name += "." + suffix
                     return name
-        raise IOError("Cannot find a Fortran file '{0}' with suffix in {1}".
-                      format(base_name, FORTRAN_SUFFIXES))
+        raise IOError(f"Cannot find a Fortran file '{base_name}' with "
+                      f"suffix in {FORTRAN_SUFFIXES}")
 
     def compile_file(self, filename, link=False):
         ''' Compiles the specified Fortran file into an object file (in
@@ -246,9 +295,10 @@ class Compile(object):
         :param str filename: Full path to the Fortran file to compile.
         :param bool link: If true will also try to link the file.
             Used in testing.
-        :raises CompileError: if the compilation fails.
-        '''
 
+        :raises CompileError: if the compilation fails.
+
+        '''
         if not Compile.TEST_COMPILE and not Compile.TEST_COMPILE_OPENCL:
             # Compilation testing is not enabled
             return
@@ -263,25 +313,26 @@ class Compile(object):
             arg_list.append("-c")
 
         # Attempt to execute it using subprocess
-        try:
-            build = subprocess.Popen(arg_list,
-                                     stdout=subprocess.PIPE,
-                                     stderr=subprocess.STDOUT)
-            (output, error) = build.communicate()
-        except OSError as err:
-            print("Failed to run: {0}: ".format(" ".join(arg_list)),
-                  file=sys.stderr)
-            print("Error was: ", str(err.value), file=sys.stderr)
-            raise CompileError(str(err.value))
+
+        # Change to the temporary directory passed in to us from
+        # pytest. (This is a LocalPath object.)
+        with change_dir(self._tmpdir):
+            try:
+                with subprocess.Popen(arg_list,
+                                      stdout=subprocess.PIPE,
+                                      stderr=subprocess.STDOUT) as build:
+                    # stderr = stdout, so ignore empty stderr in result:
+                    (output, _) = build.communicate()
+            except OSError as err:
+                print(f"Failed to run: {' '.join(arg_list)}: ",
+                      file=sys.stderr)
+                raise CompileError(str(err)) from err
 
         # Check the return code
         stat = build.returncode
         if stat != 0:
-            print("Compiling: {0}".format(" ".join(arg_list)), file=sys.stderr)
-            print(output, file=sys.stderr)
-            if error:
-                print("=========", file=sys.stderr)
-                print(error, file=sys.stderr)
+            print(f"Compiling: {' '.join(arg_list)}", file=sys.stderr)
+            print(output.decode("utf-8"), file=sys.stderr)
             raise CompileError(output)
 
     def _code_compiles(self, psy_ast, dependencies=None):
@@ -292,13 +343,13 @@ class Compile(object):
         otherwse). All files produced are deleted.
 
         :param psy_ast: The AST of the generated PSy layer.
-        :type psy_ast: Instance of :py:class:`psyclone.psyGen.PSy`
+        :type psy_ast: :py:class:`psyclone.psyGen.PSy`
         :param dependencies: optional module- or file-names on which \
                     one or more of the kernels/PSy-layer depend (and \
                     that are not part of e.g. the GOcean or LFRic \
                     infrastructure).  These dependencies will be built \
                     in the order they occur in this list.
-        :type dependencies: list of str
+        :type dependencies: List[str]
 
         :return: True if generated code compiles, False otherwise.
         :rtype: bool
@@ -322,29 +373,27 @@ class Compile(object):
 
         # Change to the temporary directory passed in to us from
         # pytest. (This is a LocalPath object.)
-        old_pwd = self._tmpdir.chdir()
+        with change_dir(self._tmpdir):
+            # Create a file containing our generated PSy layer.
+            psy_filename = "psy.f90"
+            with open(psy_filename, 'w', encoding="utf-8") as psy_file:
+                # We limit the line lengths of the generated code so that
+                # we don't trip over compiler limits.
+                fll = FortLineLength()
+                psy_file.write(fll.process(str(psy_ast.gen)))
 
-        # Create a file containing our generated PSy layer.
-        psy_filename = "psy.f90"
-        with open(psy_filename, 'w') as psy_file:
-            # We limit the line lengths of the generated code so that
-            # we don't trip over compiler limits.
-            fll = FortLineLength()
-            psy_file.write(fll.process(str(psy_ast.gen)))
+            success = True
 
-        success = True
+            build_list = []
+            # We must ensure that we build any dependencies first and in
+            # the order supplied.
+            if dependencies:
+                build_list.extend(dependencies)
+            # Then add the modules we found on the tree
+            for module in modules:
+                if module not in build_list:
+                    build_list.append(module)
 
-        build_list = []
-        # We must ensure that we build any dependencies first and in
-        # the order supplied.
-        if dependencies:
-            build_list.extend(dependencies)
-        # Then add the modules we found on the tree
-        for module in modules:
-            if module not in build_list:
-                build_list.append(module)
-
-        try:
             # Build the dependencies and then the kernels. We allow kernels
             # to also be located in the temporary directory that we have
             # been passed.
@@ -355,20 +404,27 @@ class Compile(object):
                 if fort_file.endswith(".cl"):
                     continue
 
-                name = self.find_fortran_file([self.base_path,
-                                               str(self._tmpdir)], fort_file)
-                self.compile_file(name)
+                try:
+                    name = self.find_fortran_file([self.base_path,
+                                                   str(self._tmpdir)],
+                                                  fort_file)
+                    self.compile_file(name)
+                except IOError:
+                    # Not all modules need to be found, for example API
+                    # infrastructure modules will be provided already built.
+                    print(f"File {fort_file} not found for compilation.")
+                    paths = [self.base_path, str(self._tmpdir)]
+                    print(f"It was searched in: {paths}")
+                except CompileError:
+                    # Failed to compile one of the files
+                    success = False
+
             # Finally, we can build the psy file we have generated
-            self.compile_file(psy_filename)
-        except IOError:
-            # Not all modules need to be found, for example API infrastructure
-            # modules will be provided already built.
-            pass
-        except CompileError:
-            # Failed to compile one of the files
-            success = False
-        finally:
-            old_pwd.chdir()
+            try:
+                self.compile_file(psy_filename)
+            except CompileError:
+                # Failed to compile one of the files
+                success = False
 
         return success
 
@@ -379,13 +435,13 @@ class Compile(object):
         for the actual compilation. All files produced are deleted.
 
         :param psy_ast: The AST of the generated PSy layer.
-        :type psy_ast: Instance of :py:class:`psyclone.psyGen.PSy`
+        :type psy_ast: :py:class:`psyclone.psyGen.PSy`
         :param dependencies: optional module- or file-names on which \
                     one or more of the kernels/PSy-layer depend (and \
                     that are not part of e.g. the GOcean or LFRic \
                     infrastructure).  These dependencies will be built \
                     in the order they occur in this list.
-        :type dependencies: list of str
+        :type dependencies: List[str]
 
         :return: True if generated code compiles, False otherwise
         :rtype: bool
@@ -417,29 +473,27 @@ class Compile(object):
 
         # Change to the temporary directory passed in to us from
         # pytest. (This is a LocalPath object.)
-        old_pwd = self._tmpdir.chdir()
-        # Add a object-specific hash-code to the file name so that all files
-        # created in the same test have different names and can easily be
-        # inspected in case of errors.
-        filename = "generated-{0}.f90".format(str(hash(self)))
-        with open(filename, 'w') as test_file:
-            test_file.write(code)
+        with change_dir(self._tmpdir):
+            # Add a object-specific hash-code to the file name so that all
+            # files created in the same test have different names and can
+            # easily be inspected in case of errors.
+            filename = f"generated-{hash(self)}.F90"
+            with open(filename, 'w', encoding="utf-8") as test_file:
+                test_file.write(code)
 
-        success = True
-        try:
-            self.compile_file(filename)
-        except CompileError:
-            # Failed to compile the file
-            success = False
-        finally:
-            old_pwd.chdir()
+            success = True
+            try:
+                self.compile_file(filename)
+            except CompileError:
+                # Failed to compile the file
+                success = False
 
         return success
 
 
 # =============================================================================
 def get_base_path(api):
-    '''Get the absolute base path for the specified API relateive to the
+    '''Get the absolute base path for the specified API relative to the
     'tests/test_files' directory, i.e. the directory in which all
     Fortran test files are stored.
 
@@ -454,17 +508,15 @@ def get_base_path(api):
     # Define the mapping of supported APIs to Fortran directories
     # Note that the nemo files are outside of the default tests/test_files
     # directory, they are in tests/nemo/test_files
-    api_2_path = {"dynamo0.1": "dynamo0p1",
-                  "dynamo0.3": "dynamo0p3",
+    api_2_path = {"dynamo0.3": "dynamo0p3",
                   "nemo": "../nemo/test_files",
-                  "gocean1.0": "gocean1p0",
-                  "gocean0.1": "gocean0p1"}
+                  "gocean1.0": "gocean1p0"}
     try:
         dir_name = api_2_path[api]
-    except KeyError:
-        raise RuntimeError("The API '{0}' is not supported. "
-                           "Supported types are {1}.".
-                           format(api, api_2_path.keys()))
+    except KeyError as err:
+        raise RuntimeError(f"The API '{api}' is not supported. "
+                           f"Supported types are {api_2_path.keys()}.") \
+                           from err
     return os.path.join(os.path.dirname(os.path.abspath(__file__)),
                         "test_files", dir_name)
 
@@ -485,8 +537,9 @@ def get_invoke(algfile, api, idx=None, name=None, dist_mem=None):
                           without distributed memory support.
 
     :returns: (psy object, invoke object)
-    :rtype: 2-tuple containing :py:class:`psyclone.psyGen.PSy` and
-            :py:class:`psyclone.psyGen.Invoke` objects.
+    :rtype: Tuple[:py:class:`psyclone.psyGen.PSy`, \
+                  :py:class:`psyclone.psyGen.Invoke`]
+
     :raises RuntimeError: if neither idx or name are supplied or if
                           both are supplied
     :raises RuntimeError: if the supplied name does not match an invoke in
@@ -537,7 +590,7 @@ def check_links(parent, children):
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
     :param children: the child nodes that should have the parent \
         node as their parent.
-    :type parent: list of :py:class:`psyclone.psyir.nodes.Node`
+    :type parent: List[:py:class:`psyclone.psyir.nodes.Node`]
 
     '''
     assert len(parent.children) == len(children)

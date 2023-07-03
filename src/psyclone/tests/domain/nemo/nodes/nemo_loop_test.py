@@ -56,11 +56,8 @@ def test_instance():
     assert isinstance(nemo_loop, Loop)
     assert nemo_loop.parent is None
     assert nemo_loop._variable is None
-    # The order in which loop types are stored can differ from one
-    # version of python to another (as they are extracted from an
-    # unordered dictionary) therefore we compare them as a set.
     assert (nemo_loop._valid_loop_types ==
-            set(('lon', 'lat', 'levels', 'tracers', 'unknown')))
+            ['lat', 'levels', 'lon', 'tracers', 'unknown'])
 
 
 def test_instance_args():

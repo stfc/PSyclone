@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2021, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -39,7 +39,8 @@
 from __future__ import absolute_import
 import pytest
 from psyclone.psyir.nodes import BinaryOperation, Literal, ArrayReference
-from psyclone.psyir.symbols import REAL_TYPE, INTEGER_TYPE
+from psyclone.psyir.symbols import (REAL_TYPE, INTEGER_TYPE, DataSymbol,
+                                    DeferredType)
 
 
 @pytest.mark.xfail(reason="#677 the create() method does not check that the "
@@ -50,16 +51,16 @@ from psyclone.psyir.symbols import REAL_TYPE, INTEGER_TYPE
 def test_bound_intrinsic_wrong_type(bound):
     ''' Check that attempting to create an L/UBOUND intrinsic operator
     with the wrong type of arguments raises the expected error. '''
+    int_one = Literal("1", INTEGER_TYPE)
     with pytest.raises(TypeError) as err:
         # First argument must be an Array
-        _ = BinaryOperation.create(bound,
-                                   Literal("1", INTEGER_TYPE),
-                                   Literal("1", INTEGER_TYPE))
+        _ = BinaryOperation.create(bound, int_one.copy(), int_one.copy())
     assert "must be an Array but got: 'Literal" in str(err.value)
+    sym = DataSymbol("array", DeferredType())
     with pytest.raises(TypeError) as err:
         # Second argument cannot be a real literal
-        _ = BinaryOperation.create(bound,
-                                   Array("array"),
-                                   Literal("1.0", REAL_TYPE))
+        _ = BinaryOperation.create(
+            bound, ArrayReference.create(sym, [int_one.copy()]),
+            Literal("1.0", REAL_TYPE))
     assert ("must be an integer but got a Literal of type REAL" in
             str(err.value))

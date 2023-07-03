@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2021, Science and Technology Facilities Council.
+# Copyright (c) 2019-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -34,6 +34,7 @@
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 #         I. Kavcic, Met Office
 #         J. Henrichs, Bureau of Meteorology
+# Modified A. B. G. Chalk and N. Nobre, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' Performs py.test tests on the Literal PSyIR node. '''
@@ -42,8 +43,7 @@ from __future__ import absolute_import
 import pytest
 from psyclone.psyir.nodes import Literal
 from psyclone.psyir.symbols import ScalarType, ArrayType, \
-    REAL_DOUBLE_TYPE, INTEGER_SINGLE_TYPE, BOOLEAN_TYPE, CHARACTER_TYPE, \
-    REAL_TYPE, INTEGER_TYPE
+    REAL_DOUBLE_TYPE, INTEGER_SINGLE_TYPE, BOOLEAN_TYPE, CHARACTER_TYPE
 from psyclone.errors import GenerationError
 from psyclone.psyir.nodes.node import colored
 
@@ -130,9 +130,22 @@ def test_literal_init_invalid_2(value):
     '''
     with pytest.raises(ValueError) as err:
         Literal(value, REAL_DOUBLE_TYPE)
-    assert ("A scalar real literal value must conform to the supported "
-            "format ('^[+-]?[0-9]+(\\.[0-9]*)?([eE][+-]?[0-9]+)?$') but "
-            "found '{0}'.".format(value) in str(err.value))
+    assert (f"A scalar real literal value must conform to the supported "
+            f"format ('^[+-]?[0-9]+(\\.[0-9]*)?([eE][+-]?[0-9]+)?$') but "
+            f"found '{value}'." in str(err.value))
+
+
+@pytest.mark.parametrize("value", ["++2", "12.34", "*2", ".3"])
+def test_literal_init_invalid_3(value):
+    '''Test the initialisation of a Literal object with invalid int
+    values raises the expected exception.
+
+    '''
+    with pytest.raises(ValueError) as err:
+        Literal(value, INTEGER_SINGLE_TYPE)
+    assert (f"A scalar integer literal value must conform to the "
+            f"supported format ('(([+-]?[0-9]+)|(NOT_INITIALISED))') "
+            f"but found '{value}'." in str(err.value))
 
 
 def test_literal_init_empty_value():
@@ -149,12 +162,19 @@ def test_literal_init_empty_value():
 
 @pytest.mark.parametrize("value",
                          ["2", "+2", "-2", "2.", "23", "23.4", "-23.45",
-                          "+23.45e0", "23.45e10", "-23.45e-10",
+                          "+23.45e0", "23.45e10", "-23.45e-10", "000.1",
                           "+23.45e+10", "+23e-10", "23.e10", "2.4E-5"])
-def test_literal_init_valid_value(value):
+def test_real_literal_init_valid_value(value):
     '''Test the initialisation of a Literal object with valid real values.
     Include check that we are not case sensitive. '''
     _ = Literal(value, REAL_DOUBLE_TYPE)
+
+
+@pytest.mark.parametrize("value",
+                         ["2", "+2", "-2", "1234", "000", "-000"])
+def test_integer_literal_init_valid_value(value):
+    '''Test the initialisation of a Literal object with valid int values. '''
+    _ = Literal(value, INTEGER_SINGLE_TYPE)
 
 
 def test_literal_value():
@@ -230,30 +250,13 @@ def test_literal_can_be_copied():
     assert literal.value == "1"
 
 
-def test_literal_math_equal():
-    '''Test that the math_equal() function behaves as expected.'''
+def test_literal_equality():
+    ''' Test the __eq__ method of the Literal node. '''
+    literal = Literal("1", INTEGER_SINGLE_TYPE)
+    literal2 = Literal("1", INTEGER_SINGLE_TYPE)
+    literal3 = Literal("10", INTEGER_SINGLE_TYPE)
+    literal4 = Literal("1", REAL_DOUBLE_TYPE)
 
-    one = Literal("1.0", REAL_TYPE)
-    two = Literal("2.0", REAL_TYPE)
-    assert one.math_equal(one)
-    assert not one.math_equal(None)
-    assert not one.math_equal(two)
-
-
-@pytest.mark.xfail(message="issue #1321. math_equal() for literal is not "
-                   "robust")
-def test_literal_math_equal_reps():
-    '''test that the math_equal() function works with different
-    representations and datatypes.
-
-    '''
-    one = Literal("1.0", REAL_TYPE)
-    another_one = Literal("1.00", REAL_TYPE)
-    yet_another_one = Literal("1", REAL_TYPE)
-    one_with_precision = Literal("1.0", REAL_DOUBLE_TYPE)
-    one_different_type = Literal("1", INTEGER_TYPE)
-
-    assert one.math_equal(another_one)
-    assert one.math_equal(yet_another_one)
-    assert not one.math_equal(one_with_precision)
-    assert not yet_another_one.math_equal(one_different_type)
+    assert literal == literal2
+    assert literal != literal3
+    assert literal != literal4

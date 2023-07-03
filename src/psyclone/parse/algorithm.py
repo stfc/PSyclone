@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2021, Science and Technology Facilities Council.
+# Copyright (c) 2019-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford and A. R. Porter STFC Daresbury Lab
+# Authors R. W. Ford, A. R. Porter and N. Nobre, STFC Daresbury Lab
 
 '''Module that uses the Fortran parser fparser2 to parse
 PSyclone-conformant Algorithm code.
@@ -40,7 +40,6 @@ PSyclone-conformant Algorithm code.
 
 from __future__ import absolute_import
 from collections import OrderedDict
-import six
 
 from fparser.two import pattern_tools
 from fparser.two.utils import walk
@@ -69,7 +68,6 @@ from psyclone.parse.utils import check_api, check_line_length, ParseError, \
 # Section 1: parse the algorithm file
 
 
-# pylint: disable=too-many-arguments
 def parse(alg_filename, api="", invoke_name="invoke", kernel_paths=None,
           line_length=False):
     '''Takes a PSyclone conformant algorithm file as input and outputs a
@@ -102,7 +100,7 @@ def parse(alg_filename, api="", invoke_name="invoke", kernel_paths=None,
     For example:
 
     >>> from psyclone.parse.algorithm import parse
-    >>> ast, info = parse("alg.f90")
+    >>> ast, info = parse(SOURCE_FILE)
 
     '''
     if kernel_paths is None:
@@ -114,7 +112,7 @@ def parse(alg_filename, api="", invoke_name="invoke", kernel_paths=None,
 
 
 # pylint: disable=too-many-instance-attributes
-class Parser(object):
+class Parser():
     '''Supports the parsing of PSyclone conformant algorithm code within a
     file and extraction of relevant information for any 'invoke' calls
     contained within the code.
@@ -135,8 +133,8 @@ class Parser(object):
     For example:
 
     >>> from psyclone.parse.algorithm import Parser
-    >>> parser = Parser()
-    >>> ast, info = parser.parse("alg.f90")
+    >>> parser = Parser(api="gocean1.0")
+    >>> ast, info = parser.parse(SOURCE_FILE)
 
     '''
 
@@ -252,7 +250,7 @@ class Parser(object):
         # Dict holding a 2-tuple consisting of type and precision
         # information for each variable declared in the algorithm
         # file, indexed by variable name.
-        self._arg_type_defns = dict()
+        self._arg_type_defns = {}
         invoke_calls = []
 
         # Find all invoke calls and capture information about
@@ -282,10 +280,10 @@ class Parser(object):
                             spec.children[1].children[1].string.lower()
                 else:
                     raise InternalError(
-                        "Expected first child of Type_Declaration_Stmt or "
-                        "Data_Component_Def_Stmt to be Declaration_Type_Spec "
-                        "or Intrinsic_Type_Spec but found '{0}'"
-                        "".format(type(spec).__name__))
+                        f"Expected first child of Type_Declaration_Stmt or "
+                        f"Data_Component_Def_Stmt to be Declaration_Type_Spec "
+                        f"or Intrinsic_Type_Spec but found "
+                        f"'{type(spec).__name__}'")
                 for decl in walk(statement.children[2], (
                         Entity_Decl, Component_Decl)):
                     # Determine the variables names. Note that if a
@@ -300,13 +298,12 @@ class Parser(object):
                             self._arg_type_defns[my_var_name][1] !=
                             my_precision):
                         raise NotImplementedError(
-                            "The same symbol '{0}' is used for different "
-                            "datatypes, '{1}, {2}' and '{3}, {4}'. This is "
-                            "not currently supported.".format(
-                                my_var_name,
-                                self._arg_type_defns[my_var_name][0],
-                                self._arg_type_defns[my_var_name][1],
-                                my_type, my_precision))
+                            f"The same symbol '{my_var_name}' is used for "
+                            f"different datatypes, "
+                            f"'{self._arg_type_defns[my_var_name][0]}, "
+                            f"{self._arg_type_defns[my_var_name][1]}' and "
+                            f"'{my_type}, {my_precision}'. This is not "
+                            f"currently supported.")
                     # Store the variable name and information about its type
                     self._arg_type_defns[my_var_name] = (my_type, my_precision)
 
@@ -352,10 +349,10 @@ class Parser(object):
                 # This should be the invoke label.
                 if invoke_label:
                     raise ParseError(
-                        "algorithm.py:Parser():create_invoke_call: An invoke "
-                        "must contain one or zero 'name=xxx' arguments but "
-                        "found more than one in: {0} in file {1}".
-                        format(str(statement), self._alg_filename))
+                        f"algorithm.py:Parser():create_invoke_call: An invoke "
+                        f"must contain one or zero 'name=xxx' arguments but "
+                        f"found more than one in: {statement} in file "
+                        f"{self._alg_filename}")
                 invoke_label = self.check_invoke_label(argument)
 
             elif isinstance(
@@ -367,10 +364,9 @@ class Parser(object):
             else:
                 # Unknown and/or unsupported argument type
                 raise ParseError(
-                    "algorithm.py:Parser():create_invoke_call: Expecting "
-                    "argument to be of the form 'name=xxx' or a "
-                    "Kernel call but found '{0}' in file "
-                    "'{1}'.".format(argument, self._alg_filename))
+                    f"algorithm.py:Parser():create_invoke_call: Expecting "
+                    f"argument to be of the form 'name=xxx' or a Kernel call "
+                    f"but found '{argument}' in file '{self._alg_filename}'.")
 
         return InvokeCall(kernel_calls, name=invoke_label)
 
@@ -424,12 +420,10 @@ class Parser(object):
         '''
         if kernel_name.lower() in self._arg_name_to_module_name:
             raise ParseError(
-                "A built-in cannot be named in a use "
-                "statement but '{0}' is used from "
-                "module '{1}' in file {2}".
-                format(kernel_name,
-                       self._arg_name_to_module_name[kernel_name.lower()],
-                       self._alg_filename))
+                f"A built-in cannot be named in a use statement but "
+                f"'{kernel_name}' is used from module "
+                f"'{self._arg_name_to_module_name[kernel_name.lower()]}' in "
+                f"file {self._alg_filename}")
 
         return BuiltInCall(BuiltInKernelTypeFactory(api=self._api).create(
             self._builtin_name_map.keys(), self._builtin_defs_file,
@@ -458,13 +452,13 @@ class Parser(object):
             module_name = self._arg_name_to_module_name[kernel_name.lower()]
         except KeyError as info:
             message = (
-                "kernel call '{0}' must either be named in a use statement "
-                "(found {1}) or be a recognised built-in (one of '{2}' for "
-                "this API)".format(
-                    kernel_name.lower(),
-                    list(self._arg_name_to_module_name.values()),
-                    list(self._builtin_name_map.keys())))
-            six.raise_from(ParseError(message), info)
+                f"kernel call '{kernel_name.lower()}' must either be named in "
+                f"a use statement (found "
+                f"{list(self._arg_name_to_module_name.values())}) or be a "
+                f"recognised built-in (one of "
+                f"'{list(self._builtin_name_map.keys())}' for "
+                f"this API)")
+            raise ParseError(message) from info
 
         modast = get_kernel_ast(module_name, self._alg_filename,
                                 self._kernel_paths, self._line_length)
@@ -486,9 +480,9 @@ class Parser(object):
         # make sure statement is a use
         if not isinstance(statement, Use_Stmt):
             raise InternalError(
-                "algorithm.py:Parser:update_arg_to_module_map: Expected "
-                "a use statement but found instance of "
-                "'{0}'.".format(type(statement)))
+                f"algorithm.py:Parser:update_arg_to_module_map: Expected "
+                f"a use statement but found instance of "
+                f"'{type(statement)}'.")
 
         use_name = str(statement.items[2])
 
@@ -519,9 +513,8 @@ class Parser(object):
         invoke_label = get_invoke_label(argument, self._alg_filename)
         if invoke_label in self._unique_invoke_labels:
             raise ParseError(
-                "Found multiple named invoke()'s with the same "
-                "label ('{0}') when parsing {1}".
-                format(invoke_label, self._alg_filename))
+                f"Found multiple named invoke()'s with the same "
+                f"label ('{invoke_label}') when parsing {self._alg_filename}")
         self._unique_invoke_labels.append(invoke_label)
         return invoke_label
 
@@ -584,28 +577,27 @@ def get_invoke_label(parse_tree, alg_filename, identifier="name"):
     '''
     if not isinstance(parse_tree, Actual_Arg_Spec):
         raise InternalError(
-            "algorithm.py:Parser:get_invoke_label: Expected a Fortran "
-            "argument of the form name=xxx but found instance of "
-            "'{0}'.".format(type(parse_tree)))
+            f"algorithm.py:Parser:get_invoke_label: Expected a Fortran "
+            f"argument of the form name=xxx but found instance of "
+            f"'{type(parse_tree)}'.")
 
     if len(parse_tree.items) != 2:
         raise InternalError(
-            "algorithm.py:Parser:get_invoke_label: Expected the Fortran "
-            "argument to have two items but found "
-            "'{0}'.".format(len(parse_tree.items)))
+            f"algorithm.py:Parser:get_invoke_label: Expected the Fortran "
+            f"argument to have two items but found "
+            f"'{len(parse_tree.items)}'.")
 
     ident = str(parse_tree.items[0])
     if ident.lower() != identifier.lower():
         raise ParseError(
-            "algorithm.py:Parser:get_invoke_label Expected named identifier "
-            "to be '{0}' but found '{1}'".format(identifier.lower(),
-                                                 ident.lower()))
+            f"algorithm.py:Parser:get_invoke_label: Expected named identifier "
+            f"to be '{identifier.lower()}' but found '{ident.lower()}'")
 
     if not isinstance(parse_tree.items[1], Char_Literal_Constant):
         raise ParseError(
-            "algorithm.py:Parser:get_invoke_label The (optional) name of an "
-            "invoke must be specified as a string, but found {0} in "
-            "{1}".format(str(parse_tree.items[1]), alg_filename))
+            f"algorithm.py:Parser:get_invoke_label: The (optional) name of an "
+            f"invoke must be specified as a string, but found "
+            f"{parse_tree.items[1]} in {alg_filename}")
 
     invoke_label = parse_tree.items[1].items[0]
     invoke_label = invoke_label.lower()
@@ -617,10 +609,10 @@ def get_invoke_label(parse_tree, alg_filename, identifier="name"):
 
     if not pattern_tools.abs_name.match(invoke_label):
         raise ParseError(
-            "algorithm.py:Parser:get_invoke_label the (optional) name of an "
-            "invoke must be a string containing a valid Fortran name (with "
-            "any spaces replaced by underscores) but got '{0}' in file "
-            "{1}".format(invoke_label, alg_filename))
+            f"algorithm.py:Parser:get_invoke_label the (optional) name of an "
+            f"invoke must be a string containing a valid Fortran name (with "
+            f"any spaces replaced by underscores) but got '{invoke_label}' in "
+            f"file {alg_filename}")
 
     return invoke_label
 
@@ -662,15 +654,15 @@ def get_kernel(parse_tree, alg_filename, arg_type_defns):
     # pylint: disable=too-many-branches
     if not isinstance(parse_tree, (Part_Ref, Structure_Constructor)):
         raise InternalError(
-            "algorithm.py:get_kernel: Expected a parse tree (type Part_Ref "
-            "or Structure_Constructor) but found instance of '{0}'."
-            "".format(type(parse_tree)))
+            f"algorithm.py:get_kernel: Expected a parse tree (type Part_Ref "
+            f"or Structure_Constructor) but found instance of "
+            f"'{type(parse_tree)}'.")
 
     if len(parse_tree.items) != 2:
         raise InternalError(
-            "algorithm.py:get_kernel: Expected Part_Ref or "
-            "Structure_Constructor to have 2 children "
-            "but found {0}.".format(len(parse_tree.items)))
+            f"algorithm.py:get_kernel: Expected Part_Ref or "
+            f"Structure_Constructor to have 2 children "
+            f"but found {len(parse_tree.items)}.")
 
     kernel_name = str(parse_tree.items[0])
 
@@ -687,7 +679,15 @@ def get_kernel(parse_tree, alg_filename, arg_type_defns):
     for argument in argument_list:
         if isinstance(argument, (Real_Literal_Constant, Int_Literal_Constant)):
             # A simple constant e.g. 1.0, or 1_i_def
-            arguments.append(Arg('literal', argument.tostr().lower()))
+            precision = argument.children[1]
+            if precision:
+                precision = str(precision)
+            if isinstance(argument, Real_Literal_Constant):
+                datatype = ("real", precision)
+            else:
+                datatype = ("integer", precision)
+            arguments.append(Arg('literal', argument.tostr().lower(),
+                                 datatype=datatype))
         elif isinstance(argument, Name):
             # A simple variable e.g. arg
             full_text = str(argument).lower()
@@ -710,7 +710,7 @@ def get_kernel(parse_tree, alg_filename, arg_type_defns):
             lhs = designator.items[0]
             lhs = create_var_name(lhs)
             rhs = str(designator.items[2])
-            var_name = "{0}_{1}".format(lhs, rhs)
+            var_name = f"{lhs}_{rhs}"
             var_name = var_name.lower()
             arguments.append(Arg('indexed_variable', full_text,
                                  varname=var_name))
@@ -726,46 +726,82 @@ def get_kernel(parse_tree, alg_filename, arg_type_defns):
                     # Data_Ref otherwise always has a Name on the rhs
                     # (3rd argument).
                     raise InternalError(
-                        "The third argument to to a Proc_Component_Ref is "
-                        "expected to be a Name, but found '{0}'."
-                        "".format(type(argument.children[2]).__name__))
+                        f"The third argument to to a Proc_Component_Ref is "
+                        f"expected to be a Name, but found "
+                        f"'{type(argument.children[2]).__name__}'.")
             elif isinstance(argument, Data_Ref):
                 rhs_node = argument.children[-1]
                 if isinstance(rhs_node, Part_Ref):
                     rhs_node = rhs_node.children[0]
                 if not isinstance(rhs_node, Name):
                     raise InternalError(
-                        "The last child of a Data_Ref is expected to be "
-                        "a Name or a Part_Ref whose first child is a "
-                        "Name, but found '{0}'."
-                        "".format(type(rhs_node).__name__))
+                        f"The last child of a Data_Ref is expected to be "
+                        f"a Name or a Part_Ref whose first child is a "
+                        f"Name, but found '{type(rhs_node).__name__}'.")
                 arg = rhs_node.string.lower()
             datatype = arg_type_defns.get(arg)
             full_text = argument.tostr().lower()
             var_name = create_var_name(argument).lower()
-            arguments.append(Arg('variable', full_text,
-                                 varname=var_name, datatype=datatype))
+            collection_type = None
+            if not datatype and isinstance(argument, Data_Ref):
+                # This could be a collection of some sort.
+                # Find the name of the parent type.
+                collection = argument.children[-2]
+                if isinstance(collection, Part_Ref):
+                    collection = collection.children[0]
+                if isinstance(collection, Name):
+                    collection_type = arg_type_defns.get(
+                        collection.tostr().lower())
+            if collection_type:
+                arguments.append(
+                    Arg('collection', full_text,
+                        varname=var_name, datatype=collection_type))
+            else:
+                arguments.append(Arg('variable', full_text,
+                                     varname=var_name, datatype=datatype))
         elif isinstance(argument, (Level_2_Unary_Expr, Add_Operand,
                                    Parenthesis)):
             # An expression e.g. -1, 1*n, ((1*n)/m). Note, for some
             # reason Add_Operation represents binary expressions in
             # fparser2.  Walk the tree to look for an argument.
-            if not walk(argument, Name):
-                # This is a literal so store the full expression as a
-                # string
-                arguments.append(Arg('literal', argument.tostr().lower()))
-            else:
+            if walk(argument, Name):
                 raise NotImplementedError(
-                    "algorithm.py:get_kernel: Expressions containing "
-                    "variables are not yet supported '{0}', value '{1}', "
-                    "kernel '{2}' in file '{3}'.".format(
-                        type(argument), str(argument), parse_tree,
-                        alg_filename))
+                    f"algorithm.py:get_kernel: Expressions containing "
+                    f"variables are not yet supported '{type(argument)}', "
+                    f"value '{str(argument)}', kernel '{parse_tree}' in "
+                    f"file '{alg_filename}'.")
+            # This is a literal so store the full expression as a
+            # string.
+            candidate_datatype = None
+            for literal in walk(
+                # Determine datatype and precision.
+                    argument, (Real_Literal_Constant,
+                               Int_Literal_Constant)):
+                precision = literal.children[1]
+                if precision:
+                    precision = str(precision)
+                if isinstance(literal, Real_Literal_Constant):
+                    datatype = ("real", precision)
+                else:  # it's an Int_Literal_Constant
+                    datatype = ("integer", precision)
+
+                if not candidate_datatype:
+                    # This is the first candidate
+                    candidate_datatype = datatype
+                elif candidate_datatype != datatype:
+                    raise NotImplementedError(
+                        f"Found two non-matching literals within an "
+                        f"expression ('{str(argument)}') passed into an "
+                        f"invoke from the algorithm layer. '{datatype}' and "
+                        f"'{candidate_datatype}' do not match. This is not "
+                        f"supported in PSyclone.")
+            arguments.append(Arg('literal', argument.tostr().lower(),
+                                 datatype=datatype))
         else:
             raise InternalError(
-                "algorithm.py:get_kernel: Unsupported argument structure "
-                "'{0}', value '{1}', kernel '{2}' in file '{3}'.".format(
-                    type(argument), str(argument), parse_tree, alg_filename))
+                f"algorithm.py:get_kernel: Unsupported argument structure "
+                f"'{type(argument)}', value '{str(argument)}', kernel "
+                f"'{parse_tree}' in file '{alg_filename}'.")
 
     return kernel_name, arguments
 
@@ -797,8 +833,7 @@ def create_var_name(arg_parse_tree):
         # proc-name'. Its RHS (proc-name) is always a Name but its
         # LHS (variable) could be more complex, so call the function
         # again for the LHS.
-        return "{0}_{1}".format(
-            create_var_name(tree.items[0]), tree.items[2])
+        return f"{create_var_name(tree.items[0])}_{tree.items[2]}"
     if isinstance(tree, Data_Ref):
         component_names = []
         for item in tree.items:
@@ -808,17 +843,16 @@ def create_var_name(arg_parse_tree):
                 component_names.append(str(item))
             else:
                 raise InternalError(
-                    "algorithm.py:create_var_name unrecognised structure "
-                    "'{0}' in '{1}'.".format(type(item), type(tree)))
+                    f"algorithm.py:create_var_name unrecognised structure "
+                    f"'{type(item)}' in '{type(tree)}'.")
         return "_".join(component_names)
     raise InternalError(
-        "algorithm.py:create_var_name unrecognised structure "
-        "'{0}'".format(type(tree)))
+        f"algorithm.py:create_var_name unrecognised structure '{type(tree)}'")
 
 # Section 3: Classes holding algorithm information.
 
 
-class FileInfo(object):
+class FileInfo():
     '''Captures information about the algorithm file and the invoke calls
     found within the contents of the file.
 
@@ -852,7 +886,7 @@ class FileInfo(object):
         return self._calls
 
 
-class InvokeCall(object):
+class InvokeCall():
     '''Keeps information about an individual invoke call.
 
     :param kcalls: Information about the kernels specified in the \
@@ -872,8 +906,8 @@ class InvokeCall(object):
         if name:
             # Prefix the name with invoke_name + '_" unless it already
             # starts with that ...
-            if not name.lower().startswith("{0}_".format(invoke_name)):
-                self._name = "{0}_".format(invoke_name) + name.lower()
+            if not name.lower().startswith(f"{invoke_name}_"):
+                self._name = f"{invoke_name}_{name.lower()}"
             else:
                 self._name = name.lower()
         else:
@@ -900,7 +934,7 @@ class InvokeCall(object):
         return self._kcalls
 
 
-class ParsedCall(object):
+class ParsedCall():
     '''Base class for information about a user-supplied or built-in
     kernel.
 
@@ -925,10 +959,10 @@ class ParsedCall(object):
             # same number of real arguments as arguments specified in
             # the metadata.
             raise ParseError(
-                "Kernel '{0}' called from the algorithm layer with an "
-                "insufficient number of arguments as specified by the "
-                "metadata. Expected at least '{1}' but found '{2}'.".
-                format(self._ktype.name, self._ktype.nargs, len(self._args)))
+                f"Kernel '{self._ktype.name}' called from the algorithm layer "
+                f"with an insufficient number of arguments as specified by "
+                f"the metadata. Expected at least '{self._ktype.nargs}' but "
+                f"found '{len(self._args)}'.")
         self._module_name = None
 
     @property
@@ -996,7 +1030,7 @@ class KernelCall(ParsedCall):
         return "kernelCall"
 
     def __repr__(self):
-        return "KernelCall('{0}', {1})".format(self.ktype.name, self.args)
+        return f"KernelCall('{self.ktype.name}', {self.args})"
 
 
 class BuiltInCall(ParsedCall):
@@ -1039,10 +1073,10 @@ class BuiltInCall(ParsedCall):
         return "BuiltInCall"
 
     def __repr__(self):
-        return "BuiltInCall('{0}', {1})".format(self.ktype.name, self.args)
+        return f"BuiltInCall('{self.ktype.name}', {self.args})"
 
 
-class Arg(object):
+class Arg():
     '''Description of an argument as obtained from parsing kernel or
     builtin arguments within invokes in a PSyclone algorithm code.
 
@@ -1063,7 +1097,7 @@ class Arg(object):
     supported types as specified in the local form_options list.
 
     '''
-    form_options = ["literal", "variable", "indexed_variable"]
+    form_options = ["literal", "variable", "indexed_variable", "collection"]
 
     def __init__(self, form, text, varname=None, datatype=None):
         self._form = form
@@ -1071,16 +1105,16 @@ class Arg(object):
         self._varname = varname
         if form not in Arg.form_options:
             raise InternalError(
-                "algorithm.py:Alg:__init__: Unknown arg type provided. "
-                "Expected one of {0} but found "
-                "'{1}'.".format(str(Arg.form_options), form))
+                f"algorithm.py:Alg:__init__: Unknown arg type provided. "
+                f"Expected one of {str(Arg.form_options)} but found "
+                f"'{form}'.")
         # A tuple containing information about the datatype and
         # precision of this argument, or None if there is none.
         self._datatype = datatype
 
     def __str__(self):
-        return "Arg(form='{0}',text='{1}',varname='{2}')". \
-            format(self._form, self._text, str(self._varname))
+        return (f"Arg(form='{self._form}',text='{self._text}',"
+                f"varname='{self._varname}')")
 
     @property
     def form(self):

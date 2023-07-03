@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,14 +31,13 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Lab
+# Authors: A. R. Porter, N. Nobre and S. Siso, STFC Daresbury Lab
 
 '''This module contains the base class LoopTrans. All transformations which
    act on a loop sub-class this one.
 '''
 
 import abc
-import six
 
 from psyclone.psyGen import Kern, Transformation
 from psyclone.psyir.transformations.transformation_error \
@@ -46,8 +45,7 @@ from psyclone.psyir.transformations.transformation_error \
 from psyclone.psyir.nodes import Schedule, Loop
 
 
-@six.add_metaclass(abc.ABCMeta)
-class LoopTrans(Transformation):
+class LoopTrans(Transformation, metaclass=abc.ABCMeta):
     # Avoid pylint warning about abstract method (apply) not overwritten:
     # pylint: disable=abstract-method
     '''
@@ -70,7 +68,7 @@ class LoopTrans(Transformation):
         :param node: target PSyIR node.
         :type node: subclass of :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.
-        :type options: dictionary of string:values or None
+        :type options: Optional[Dict[str, Any]]
         :param bool options["node-type-check"]: this flag controls if the \
             type of the nodes enclosed in the loop should be tested to \
             avoid including unsupported nodes in a transformation.
@@ -87,23 +85,22 @@ class LoopTrans(Transformation):
         # pylint: disable=too-many-branches
         if not isinstance(node, Loop):
             raise TransformationError(
-                "Target of {0} transformation must be a sub-class of Loop "
-                "but got '{1}'".format(self.name, type(node).__name__))
+                f"Target of {self.name} transformation must be a sub-class of "
+                f"Loop but got '{type(node).__name__}'")
 
         # The loop must be fully-formed.
         if len(node.children) != 4:
             raise TransformationError(
-                "Error in {0} transformation. The target loop "
-                "must have four children but found: {1}.".format(
-                    self.name,
-                    [type(child).__name__ for child in node.children]))
+                f"Error in {self.name} transformation. The target loop "
+                f"must have four children but found: "
+                f"{[type(child).__name__ for child in node.children]}.")
 
         if not options:
             options = {}
         if not isinstance(options, dict):
             raise TransformationError(
-                "Transformation validate method 'options' argument must be a "
-                "dictionary but found '{0}'.".format(type(options).__name__))
+                f"Transformation validate method 'options' argument must be a "
+                f"dictionary but found '{type(options).__name__}'.")
 
         # Check that the proposed region contains only supported node types
         if options.get("node-type-check", True):
@@ -114,17 +111,23 @@ class LoopTrans(Transformation):
             for item in flat_list:
                 if isinstance(item, self.excluded_node_types):
                     raise TransformationError(
-                        "Nodes of type '{0}' cannot be enclosed by a {1} "
-                        "transformation".format(type(item).__name__,
-                                                self.name))
+                        f"Nodes of type '{type(item).__name__}' cannot be "
+                        f"enclosed by a {self.name} transformation")
+
+        # Disable warning to avoid circular dependency
+        # pylint: disable=import-outside-toplevel
+        from psyclone.domain.common.psylayer import PSyLoop
 
         # A 'null' loop is one which exists in the PSyIR hierarchy (mainly for
         # halo-exchange logic) but does *not* correspond to an actual loop
         # in the code that is generated for the PSy layer.
-        if node.loop_type == 'null':
+
+        # TODO 1756: PSyLoop is a PSy-layer concept and 'null' is only defined
+        # in LFRic. Maybe a generic transformation validation is not the best
+        # place for this check.
+        if isinstance(node, PSyLoop) and node.loop_type == 'null':
             raise TransformationError(
-                "Cannot apply a {0} transformation to a 'null' loop.".format(
-                    self.name))
+                f"Cannot apply a {self.name} transformation to a 'null' loop.")
 
     @property
     def name(self):

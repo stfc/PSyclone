@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2021, Science and Technology Facilities Council
+# Copyright (c) 2018-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -36,20 +36,20 @@
 '''This module tests the LFRic API-specific halo exchange
    implementation. '''
 
-from __future__ import absolute_import
 import os
 import pytest
 
+from psyclone.configuration import Config
+from psyclone.core import AccessType
+from psyclone.dynamo0p3 import (
+    DynLoop, DynHaloExchange, HaloDepth, _create_depth_list)
+from psyclone.errors import InternalError
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory, GenerationError
-from psyclone.dynamo0p3 import DynLoop, DynHaloExchange
-from psyclone.transformations import Dynamo0p3RedundantComputationTrans, \
-    Dynamo0p3AsyncHaloExchangeTrans
-from psyclone.configuration import Config
-from psyclone.errors import InternalError
-from psyclone.core.access_info import AccessType
-
 from psyclone.tests.lfric_build import LFRicBuild
+from psyclone.transformations import (
+    Dynamo0p3RedundantComputationTrans, Dynamo0p3AsyncHaloExchangeTrans)
+
 
 # constants
 API = "dynamo0.3"
@@ -61,7 +61,7 @@ BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 def setup():
     '''Make sure that all tests here use dynamo0.3 as API.'''
     Config.get().api = "dynamo0.3"
-    yield()
+    yield
     Config._instance = None
 
 
@@ -279,8 +279,8 @@ def test_gh_inc_nohex_3(tmpdir, monkeypatch):
     rc_trans.apply(schedule.children[2])
     # we should now have a speculative halo exchange at the start of
     # the schedule for "f1" to depth max halo - 1 and "f2" to max halo
-    check(schedule, f1depth="mesh%get_halo_depth()-1",
-          f2depth="mesh%get_halo_depth()")
+    check(schedule, f1depth="max_halo_depth_mesh-1",
+          f2depth="max_halo_depth_mesh")
 
 
 def test_gh_inc_nohex_4(tmpdir, monkeypatch):
@@ -356,8 +356,8 @@ def test_gh_inc_nohex_4(tmpdir, monkeypatch):
     rc_trans.apply(schedule.children[2])
     # we should now have a speculative halo exchange at the start of
     # the schedule for "f1" to depth max halo - 1 and "f2" to max halo
-    check(schedule, f1depth="mesh%get_halo_depth()-1",
-          f2depth="mesh%get_halo_depth()")
+    check(schedule, f1depth="max_halo_depth_mesh-1",
+          f2depth="max_halo_depth_mesh")
 
 
 def test_gh_inc_max(tmpdir, monkeypatch, annexed):
@@ -417,7 +417,7 @@ def test_gh_inc_max(tmpdir, monkeypatch, annexed):
     rc_trans.apply(schedule.children[loop2idx])
     # f1 halo exchange should be depth max(1,max-1)
     haloex = schedule.children[haloidx]
-    check(haloex, "max(mesh%get_halo_depth()-1,1)")
+    check(haloex, "max(max_halo_depth_mesh-1,1)")
     # just check compilation here as it is the most
     # complicated. (Note, compilation of redundant computation is
     # checked separately)
@@ -425,7 +425,28 @@ def test_gh_inc_max(tmpdir, monkeypatch, annexed):
     rc_trans.apply(schedule.children[loop1idx])
     # f1 halo exchange should be depth max
     haloex = schedule.children[haloidx]
-    check(haloex, "mesh%get_halo_depth()")
+    check(haloex, "max_halo_depth_mesh")
+
+
+def test_write_cont_dirty(tmpdir, monkeypatch, annexed):
+    ''' Check that no halo-exchange call is added before a
+    kernel that has a field on any space with a 'GH_WRITE' access. '''
+    config = Config.get()
+    dyn_config = config.api_conf(API)
+    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
+    _, invoke_info = parse(os.path.join(
+        BASE_PATH, "14.1.1_halo_cont_write.f90"), api=API)
+    psy = PSyFactory(API, distributed_memory=True).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    # We should have no halo exchange since this kernel is a special case
+    # and does not read from annexed dofs.
+    hexchs = schedule.walk(DynHaloExchange)
+    assert len(hexchs) == 0
+    # The field that is written to should be marked as dirty.
+    code = str(psy.gen)
+    assert "CALL f1_proxy%set_dirty()\n" in code
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_setval_x_then_user(tmpdir, monkeypatch):
@@ -449,7 +470,7 @@ def test_setval_x_then_user(tmpdir, monkeypatch):
     # Now transform the first loop to perform redundant computation out to
     # the level-1 halo
     rtrans = Dynamo0p3RedundantComputationTrans()
-    _, _ = rtrans.apply(first_invoke.schedule[0], options={"depth": 1})
+    rtrans.apply(first_invoke.schedule[0], options={"depth": 1})
     # There should now be a halo exchange for f1 before the first
     # (builtin) kernel call
     assert isinstance(first_invoke.schedule[0], DynHaloExchange)
@@ -587,5 +608,53 @@ def test_gh_readinc(tmpdir):
     check_dirty = not known
     assert not check_dirty
     assert f1_hex._compute_halo_depth() == '1'
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+
+def test_stencil_then_w3_read(tmpdir):
+    '''Test that a stencil access to a discontinuous field followed by a
+    'read' (or 'readwrite)' in a subsequent kernel to the same field
+    results in the expected halo exchange extents. There used to be an
+    error resulting in incorrect code being produced here. Now we
+    expect the value of depth to be 'extent', as the subsequent 'read'
+    is to owned dofs so does not access the halo (a halo depth of 0).
+
+    '''
+    # Check that an instance of the HaloDepth class returns the
+    # expected results for this case.
+    halo_depth = HaloDepth(None)
+    assert str(halo_depth) == "0"
+    halo_depth2 = HaloDepth(None)
+    halo_depth2._var_depth = "extent"
+    assert str(halo_depth2) == "extent"
+    # Quick check when we have both depth and literal depth > 0.
+    halo_depth2.literal_depth = 1
+    assert str(halo_depth2) == "extent+1"
+    # Go back to original 0 depth case.
+    halo_depth2.literal_depth = 0
+
+    # Check that '_create_depth_list' removes depths that are 0 from
+    # its return list. It takes two entries as input and returns one.
+    result = _create_depth_list([halo_depth, halo_depth2], None)
+    assert isinstance(result, list)
+    assert len(result) == 1
+    assert isinstance(result[0], HaloDepth)
+    assert str(result[0]) == "extent"
+
+    # Check that it all works in practice (functional test).
+    _, info = parse(os.path.join(BASE_PATH,
+                                 "14.16_disc_stencil_then_read.f90"),
+                    api=API)
+    psy = PSyFactory(API, distributed_memory=True).create(info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    f4_hex = schedule.children[1]
+    assert isinstance(f4_hex, DynHaloExchange)
+    assert f4_hex.field.name == "f4"
+
+    result = str(psy.gen)
+    assert ("      IF (f4_proxy%is_dirty(depth=extent)) THEN\n"
+            "        CALL f4_proxy%halo_exchange(depth=extent)\n"
+            "      END IF" in result)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)

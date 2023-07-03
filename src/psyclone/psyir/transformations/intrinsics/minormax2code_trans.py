@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council
+# Copyright (c) 2021-2022, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: R. W. Ford, STFC Daresbury Laboratory
+# Authors: R. W. Ford and N. Nobre, STFC Daresbury Lab
 
 '''Module containing a class that provides functionality to transform
 a PSyIR MIN or MAX operator to PSyIR code. This could be useful if the
@@ -117,7 +117,7 @@ class MinOrMax2CodeTrans(Operator2CodeTrans):
         :type node: :py:class:`psyclone.psyir.nodes.BinaryOperation` or \
             :py:class:`psyclone.psyir.nodes.NaryOperation`
         :param options: a dictionary with options for transformations.
-        :type options: dict of str:values or None
+        :type options: Optional[Dict[str, Any]]
 
         '''
         # pylint: disable=too-many-locals
@@ -133,13 +133,13 @@ class MinOrMax2CodeTrans(Operator2CodeTrans):
         # different types) but this can't be checked as we don't have
         # appropriate methods to query nodes (see #658).
         res_var_symbol = symbol_table.new_symbol(
-            "res_{0}".format(self._operator_name.lower()),
+            f"res_{self._operator_name.lower()}",
             symbol_type=DataSymbol, datatype=REAL_TYPE)
         # Create a temporary variable. Again there is an
         # assumption here about the datatype - please see previous
         # comment (associated issue #658).
         tmp_var_symbol = symbol_table.new_symbol(
-            "tmp_{0}".format(self._operator_name.lower()),
+            f"tmp_{self._operator_name.lower()}",
             symbol_type=DataSymbol, datatype=REAL_TYPE)
 
         # Replace operation with a temporary (res_var).

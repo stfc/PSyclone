@@ -3,7 +3,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council
+# Copyright (c) 2017-2023, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,6 +33,9 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
+# Authors: R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
+#          I. Kavcic and P. Elson, Met Office
+#          J. Henrichs, Bureau of Meteorology
 
 """Setup script. Used by easy_install and pip."""
 
@@ -83,7 +86,8 @@ CLASSIFIERS = [
 # src/psyclone directory. Rather than importing it (which would require
 # that PSyclone already be installed), we read it and then exec() it:
 BASE_PATH = os.path.dirname(os.path.abspath(__file__))
-with open(os.path.join(BASE_PATH, "src", "psyclone", "version.py")) as vfile:
+with open(os.path.join(BASE_PATH, "src", "psyclone", "version.py"),
+          encoding="utf-8") as vfile:
     exec(vfile.read())  # pylint:disable=exec-used
 VERSION = __VERSION__  # pylint:disable=undefined-variable
 
@@ -111,8 +115,8 @@ if __name__ == '__main__':
                 rel_path = os.path.relpath(dirpath, directory)
                 files = []
                 for filename in filenames:
-                    if any([filename.endswith(suffix) for
-                            suffix in valid_suffixes]):
+                    if any(filename.endswith(suffix) for suffix in
+                           valid_suffixes):
                         files.append(
                             os.path.join(os.path.basename(install_path),
                                          rel_path, filename))
@@ -157,19 +161,18 @@ if __name__ == '__main__':
         packages=PACKAGES,
         package_dir={"": "src"},
         # TODO #1193: Pinned jsonschema to support older versions of python
-        install_requires=['pyparsing', 'fparser==0.0.13', 'configparser',
-                          'six', 'enum34 ; python_version < "3.0"',
-                          'jsonschema==3.0.2'],
+        install_requires=['pyparsing', 'fparser==0.1.1', 'configparser',
+                          'jsonschema==3.0.2', 'sympy'],
         extras_require={
             'dag': ["graphviz"],
-            'doc': ["sphinx", "sphinxcontrib.bibtex < 2.0.0",
+            'doc': ["sphinx", "sphinxcontrib.bibtex",
                     "sphinx_rtd_theme", "autoapi"],
             'psydata': ["Jinja2"],
-            'test': ["pep8", "pylint", "pytest-cov", "pytest-pep8",
-                     "pytest-pylint", "pytest-flakes", "pytest-pep257"],
+            'test': ["pep8", "flake8", "pylint", "pytest-cov", "pytest-pep8",
+                     "pytest-pylint", "pytest-flakes", "pytest-xdist"],
         },
         include_package_data=True,
-        scripts=['bin/psyclone', 'bin/genkernelstub', 'bin/psyad'],
+        scripts=['bin/psyclone', 'bin/psyclone-kern', 'bin/psyad'],
         data_files=[
             ('share/psyclone',
              ['config/psyclone.cfg'])]+EXAMPLES+TUTORIAL+LIBS,)

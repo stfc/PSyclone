@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council.
+# Copyright (c) 2020-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -61,7 +61,7 @@ INF_INC = $(LFRIC_INF_DIR)
 INF_LIB_NAME = lfric
 INF_LIB = $(LFRIC_INF_DIR)/lib$(INF_LIB_NAME).a
 
-F90FLAGS += -I$(INF_INC)
+F90FLAGS += -I$(INF_INC)/field
 PSYDATA_LIB_NAME = _nan_test
 PSYDATA_LIB = lib$(PSYDATA_LIB_NAME).a
 
@@ -70,7 +70,7 @@ PSYDATA_LIB = lib$(PSYDATA_LIB_NAME).a
 # and double, and for 1-, 2-, 3-, and 4-dimensional arrays. These arguments
 # are used for both base classes: PSyDataBase and NANTestBase to ensure
 # consistent code creation.
-PROCESS_ARGS = -prefix=nan_test_ -types=real,int,double \
+PROCESS_ARGS = -prefix=nan_test_ -types=real,int,logical,double \
 		       -dims=1,2,3,4
 PROCESS = $$($(PSYDATA_LIB_DIR)/get_python.sh) $(PSYDATA_LIB_DIR)/process.py
 
@@ -98,6 +98,9 @@ nan_test_base.o: psy_data_base.o
 # ------------------------
 %.o: %.f90
 	$(F90) $(F90FLAGS) -c $<
+
+nan_test.f90: nan_test.jinja Makefile
+	$(PROCESS) $(PROCESS_ARGS) $< > nan_test.f90
 
 # The LFRic NaN checking library is built on the PSyData base library
 # and the NAN-checking base library. So add the rules to process

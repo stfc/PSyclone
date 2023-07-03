@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2021, Science and Technology Facilities Council
+# Copyright (c) 2019-2023, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author S. Siso, STFC Daresbury Lab.
-# Modified A. R. Porter and R. W. Ford, STFC Daresbury Lab.
+# Modified A. R. Porter, R. W. Ford and N. Nobre, STFC Daresbury Lab.
 
 '''OpenCL PSyIR backend. Extends the C PSyIR back-end to generate
 OpenCL code from PSyIR nodes.
@@ -73,36 +73,15 @@ class OpenCLWriter(CWriter):
 
         if not isinstance(kernels_local_size, int):
             raise TypeError(
-                "kernel_local_size should be an integer but found "
-                "'{0}'.".format(type(kernels_local_size).__name__))
+                f"kernel_local_size should be an integer but found "
+                f"'{type(kernels_local_size).__name__}'.")
 
         if kernels_local_size < 1:
             raise ValueError(
-                "kernel_local_size should be a positive integer but found "
-                "{0}.".format(kernels_local_size))
+                f"kernel_local_size should be a positive integer but found "
+                f"{kernels_local_size}.")
 
         self._kernels_local_size = kernels_local_size
-
-    def __call__(self, node):
-        '''This method is called when an instance of the class is called
-        directly (like a function). This implementation is known as
-        a functor. It makes sense for this class as there is only one
-        main method - the `visit` method.
-
-        # TODO #1134: This method should be removed and instead use the generic
-        # implementation, however currently OpenCL uses a DSL-level concept
-        # in a visitor (the SymbolTable.data_arguments) and this needs to
-        # be removed and PSyIR converted to language-level before calling
-        # the backend.
-
-        :param node: A PSyIR node.
-        :type node: :py:class:`psyclone.psyir.nodes.Node`
-
-        :returns: text representation of the PSyIR tree.
-        :rtype: str
-
-        '''
-        return self._visit(node)
 
     def gen_id_variable(self, symbol, dimension_index):
         '''
@@ -123,8 +102,8 @@ class OpenCLWriter(CWriter):
         if (not isinstance(symbol.datatype, ScalarType) or
                 symbol.datatype.intrinsic != ScalarType.Intrinsic.INTEGER):
             raise VisitorError(
-                "OpenCL work-item identifiers must be scalar integer symbols "
-                "but found {0}.".format(str(symbol)))
+                f"OpenCL work-item identifiers must be scalar integer symbols "
+                f"but found {symbol}.")
 
         code = ""
         code += self._nindent + "int " + symbol.name
@@ -160,11 +139,11 @@ class OpenCLWriter(CWriter):
                 if (not isinstance(dim.lower, Literal) or
                         dim.lower.value != "1"):
                     raise VisitorError(
-                        "The OpenCL backend only supports arrays with a lower"
-                        " bound of 1 in each dimension. However, array '{0}' "
-                        "has a lower bound of '{1}' for dimension {2}".format(
-                            symbol.name, self._visit(dim.lower),
-                            symbol.shape.index(dim)))
+                        f"The OpenCL backend only supports arrays with a lower"
+                        f" bound of 1 in each dimension. However, array "
+                        f"'{symbol.name}' has a lower bound of "
+                        f"'{self._visit(dim.lower)}' for dimension "
+                        f"{symbol.shape.index(dim)}")
             prefix += "__global "
         return prefix + super(OpenCLWriter, self).gen_declaration(symbol)
 
@@ -198,10 +177,9 @@ class OpenCLWriter(CWriter):
             # Check there is no clash with other variables
             if symtab and varname in symtab:
                 raise VisitorError(
-                    "Unable to declare the variable '{0}' to store the "
-                    "length of '{1}' because the Symbol Table already "
-                    "contains a symbol with the same name."
-                    "".format(varname, symbol.name))
+                    f"Unable to declare the variable '{varname}' to store the "
+                    f"length of '{symbol.name}' because the Symbol Table "
+                    f"already contains a symbol with the same name.")
 
             code += varname + " = get_global_size("
             code += str(dim - 1) + ");\n"
@@ -238,22 +216,22 @@ class OpenCLWriter(CWriter):
         # comes from.  TODO #592 ultimately precision symbols should
         # be included in this check too as we will need to be able to
         # map from them to the equivalent OpenCL type.
-        unresolved_datasymbols = symtab.get_unresolved_datasymbols(
-            ignore_precision=True)
+        unresolved_datasymbols = list(set(symtab.unresolved_datasymbols) -
+                                      set(symtab.precision_datasymbols))
         if unresolved_datasymbols:
             symbols_txt = ", ".join(
-                ["'" + sym + "'" for sym in unresolved_datasymbols])
+                [f"'{sym.name}'" for sym in unresolved_datasymbols])
             raise VisitorError(
-                "Cannot generate OpenCL because the symbol table contains "
-                "unresolved data entries (i.e. that have no defined Interface)"
-                " which are not used purely to define the precision of other "
-                "symbols: {0}".format(symbols_txt))
+                f"Cannot generate OpenCL because the symbol table contains "
+                f"unresolved data entries (i.e. that have no defined "
+                f"Interface) which are not used purely to define the "
+                f"precision of other symbols: {symbols_txt}")
 
         # Start OpenCL kernel definition
         code = self._nindent
         if self._kernels_local_size != 1:
-            code += "__attribute__((reqd_work_group_size({0}, 1, 1)))\n" \
-                    "".format(self._kernels_local_size)
+            code += f"__attribute__((reqd_work_group_size("\
+                    f"{self._kernels_local_size}, 1, 1)))\n"
         code += "__kernel void " + node.name + "(\n"
         self._depth += 1
         arguments = []
@@ -265,7 +243,7 @@ class OpenCLWriter(CWriter):
         code += self._nindent + "){\n"
 
         # Declare local variables.
-        for symbol in symtab.local_datasymbols:
+        for symbol in symtab.automatic_datasymbols:
             code += self.gen_local_variable(symbol)
 
         # Declare array length

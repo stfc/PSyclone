@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,8 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: J. Henrichs, Bureau of Meteorology
+# Authors: J. Henrichs, Bureau of Meteorology
+#          N. Nobre, STFC Daresbury Lab
 
 '''This module provides functionality for the PSyclone kernel extraction
 functionality. It contains the class that creates a driver that
@@ -39,16 +40,13 @@ reads in extracted data, calls the kernel, and then compares the result with
 the output data contained in the input file.
 '''
 
-from __future__ import absolute_import
-
-import six
 
 from psyclone.configuration import Config
 from psyclone.errors import InternalError
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (Assignment, Call, FileContainer,
-                                  Literal, Reference, Routine,
+                                  IntrinsicCall, Literal, Reference, Routine,
                                   StructureReference)
 from psyclone.psyir.symbols import (ArrayType, CHARACTER_TYPE,
                                     ContainerSymbol, DataSymbol,
@@ -57,7 +55,7 @@ from psyclone.psyir.symbols import (ArrayType, CHARACTER_TYPE,
                                     REAL8_TYPE, RoutineSymbol, ScalarType)
 from psyclone.psyir.transformations import ExtractTrans
 
-# TODO 1392: once we support LFRic, make this into a proper base class
+# TODO 1382: once we support LFRic, make this into a proper base class
 # and put the domain-specific implementations into the domain/* directories.
 
 
@@ -125,20 +123,17 @@ class ExtractDriverCreator:
                 break
         else:
             raise InternalError(
-                "Could not find type for reference '{0}' in the "
-                "config file '{1}'."
-                .format(fortran_expression, Config.get().filename))
+                f"Could not find type for reference '{fortran_expression}' "
+                f"in the config file '{Config.get().filename}'.")
         try:
             base_type = self._default_types[gocean_property.intrinsic_type]
         except KeyError as err:
-            raise six.raise_from(
-                InternalError("Type '{0}' of the property reference "
-                              "'{1}' as defined in the config file "
-                              "'{2}' is not supported in the GOcean API."
-                              .format(gocean_property.intrinsic_type,
-                                      fortran_expression,
-                                      Config.get().filename)),
-                err)
+            raise InternalError(
+                              f"Type '{gocean_property.intrinsic_type}' of "
+                              f"the property reference '{fortran_expression}' "
+                              f"as defined in the config file "
+                              f"'{Config.get().filename}' is not supported "
+                              f"in the GOcean API.") from err
         # Handle name clashes (e.g. if the user used a variable that is
         # the same as a flattened grid property)
         flattened_name = symbol_table.next_available_name(flattened_name)
@@ -152,12 +147,10 @@ class ExtractDriverCreator:
                                           ArrayType.Extent.DEFERRED])
             new_symbol = DataSymbol(flattened_name, array)
         else:
-            raise InternalError("The expression '{0}' maps to an unknown "
-                                "GOcean property type '{1}' in the config "
-                                "file '{2}'."
-                                .format(fortran_expression,
-                                        gocean_property.type,
-                                        Config.get().filename))
+            raise InternalError(f"The expression '{fortran_expression}' maps "
+                                f"to an unknown GOcean property type "
+                                f"'{gocean_property.type}' in the config "
+                                f"file '{Config.get().filename}'.")
 
         return new_symbol
 
@@ -266,13 +259,11 @@ class ExtractDriverCreator:
                 valid = list(self._default_types.keys())
                 # Sort to make sure we get a reproducible order for testing
                 valid.sort()
-                six.raise_from(InternalError(
-                    "Error when constructing driver for '{0}': "
-                    "Unknown intrinsic data type '{1}' in reference '{2}'. "
-                    "Valid types are '{3}'."
-                    .format(sched.name, old_symbol.datatype.intrinsic,
-                            fortran_string, valid)),
-                    err)
+                raise InternalError(
+                    f"Error when constructing driver for '{sched.name}': "
+                    f"Unknown intrinsic data type "
+                    f"'{old_symbol.datatype.intrinsic}' in reference "
+                    f"'{fortran_string}'. Valid types are '{valid}'.") from err
             new_symbol = symbol_table.new_symbol(root_name=reference.name,
                                                  tag=reference.name,
                                                  symbol_type=DataSymbol,
@@ -295,10 +286,9 @@ class ExtractDriverCreator:
             if old_symbol.datatype.name != "r2d_field":
                 fortran_string = writer(reference)
                 raise InternalError(
-                    "Error when constructing driver for '{0}': "
-                    "Unknown derived type '{1}' in reference '{2}'."
-                    .format(sched.name, old_symbol.datatype.name,
-                            fortran_string))
+                    f"Error when constructing driver for '{sched.name}': "
+                    f"Unknown derived type '{old_symbol.datatype.name}' "
+                    f"in reference '{fortran_string}'.")
             # We have a structure reference to a field, flatten it, and
             # replace the StructureReference with a new Reference to this
             # flattened name (e.g. `fld%data` becomes `fld_data`)
@@ -325,9 +315,9 @@ class ExtractDriverCreator:
             routine_symbol = program.symbol_table.lookup(name)
             if not isinstance(routine_symbol, RoutineSymbol):
                 raise TypeError(
-                    "Error when adding call: Routine '{0}' is "
-                    "a symbol of type '{1}', not a 'RoutineSymbol'."
-                    .format(name, type(routine_symbol).__name__))
+                    f"Error when adding call: Routine '{name}' is "
+                    f"a symbol of type '{type(routine_symbol).__name__}', "
+                    f"not a 'RoutineSymbol'.")
         else:
             routine_symbol = RoutineSymbol(name)
             program.symbol_table.add(routine_symbol)
@@ -336,8 +326,7 @@ class ExtractDriverCreator:
 
     # -------------------------------------------------------------------------
     @staticmethod
-    def create_read_in_code(program, psy_data, input_list, output_list,
-                            postfix):
+    def create_read_in_code(program, psy_data, read_write_info, postfix):
         '''This function creates the code that reads in the NetCDF file
         produced during extraction. For each:
 
@@ -360,12 +349,9 @@ class ExtractDriverCreator:
         :type program: :py:class:`psyclone.psyir.nodes.Routine`
         :param psy_data: the PSyData symbol to be used.
         :type psy_data: :py:class:`psyclone.psyir.symbols.DataSymbol`
-        :param input_list: list of all signatures that are input variables \
-            to the instrumented region.
-        :type input_list: list of :py:class:`psyclone.core.Signature`
-        :param output_list: list of all signatures that are output \
-            variables of the instrumented region.
-        :type output_list: list of :py:class:`psyclone.core.Signature`
+        :param read_write_info: information about all input and output \
+            parameters.
+        :type read_write_info: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
         :param str postfix: a postfix that is added to a variable to \
             create the corresponding variable that stores the output \
             value from the kernel data file.
@@ -379,11 +365,8 @@ class ExtractDriverCreator:
             :py:class:`psyclone.psyir.symbols.Symbol`
 
         '''
-        # pylint: disable=too-many-locals
-        all_sigs = list(set(input_list).union(set(output_list)))
-        all_sigs.sort()
         symbol_table = program.scope.symbol_table
-        read_var = "{0}%ReadVariable".format(psy_data.name)
+        read_var = f"{psy_data.name}%ReadVariable"
 
         # Collect all output symbols to later create the tests for
         # correctness. This list stores 2-tuples: first one the
@@ -393,7 +376,9 @@ class ExtractDriverCreator:
         # at the end.
         output_symbols = []
 
-        for signature in all_sigs:
+        # First handle variables that are read:
+        # -------------------------------------
+        for signature in read_write_info.signatures_read:
             # Find the right symbol for the variable. Note that all variables
             # in the input and output list have been detected as being used
             # when the variable accesses were analysed. Therefore, these
@@ -401,18 +386,20 @@ class ExtractDriverCreator:
             # in the symbol table (in add_all_kernel_symbols).
             sig_str = str(signature)
             sym = symbol_table.lookup_with_tag(sig_str)
-            is_input = signature in input_list
-            is_output = signature in output_list
+            name_lit = Literal(sig_str, CHARACTER_TYPE)
+            ExtractDriverCreator.add_call(program, read_var,
+                                          [name_lit, Reference(sym)])
 
-            # First handle variables that are read:
-            # -------------------------------------
-            if is_input:
-                name_lit = Literal(sig_str, CHARACTER_TYPE)
-                ExtractDriverCreator.add_call(program, read_var,
-                                              [name_lit, Reference(sym)])
-                if not is_output:
-                    # input only variable, nothing else to do.
-                    continue
+        # Then handle all variables that are written (note that some
+        # variables might be read and written)
+        for signature in read_write_info.signatures_written:
+            # Find the right symbol for the variable. Note that all variables
+            # in the input and output list have been detected as being used
+            # when the variable accesses were analysed. Therefore, these
+            # variables have References, and will already have been declared
+            # in the symbol table (in add_all_kernel_symbols).
+            sig_str = str(signature)
+            sym = symbol_table.lookup_with_tag(sig_str)
 
             # The variable is written (and maybe read as well)
             # ------------------------------------------------
@@ -428,23 +415,11 @@ class ExtractDriverCreator:
 
             # Now if a variable is written to, but not read, the variable
             # is not allocated. So we need to allocate it and set it to 0.
-            if not is_input:
+            if not read_write_info.is_read(signature):
                 if isinstance(post_sym.datatype, ArrayType):
-                    # TODO #1366 Once allocate is supported in PSyIR
-                    # this parsing of a file can be replaced. Also,
-                    # if the mold parameter is supported, we can
-                    # use the second allocate statement to create code
-                    # that's independent of the number of dimensions.
-                    code = '''
-                        subroutine tmp()
-                          integer, allocatable, dimension(:,:) :: b
-                          allocate({0}(size({1},1), size({1},2)))
-                          !allocate({0}, mold={1})
-                        end subroutine tmp'''.format(sig_str, post_name)
-                    fortran_reader = FortranReader()
-                    container = fortran_reader.psyir_from_source(code)\
-                        .children[0]
-                    alloc = container.children[0].detach()
+                    alloc = IntrinsicCall.create(
+                        IntrinsicCall.Intrinsic.ALLOCATE,
+                        [Reference(sym), ("mold", Reference(post_sym))])
                     program.addchild(alloc)
                 set_zero = Assignment.create(Reference(sym),
                                              Literal("0", INTEGER_TYPE))
@@ -505,27 +480,24 @@ class ExtractDriverCreator:
 
         for (sym_computed, sym_read) in output_symbols:
             if isinstance(sym_computed.datatype, ArrayType):
-                cond = "all({0} - {1} == 0.0)".format(sym_computed.name,
-                                                      sym_read.name)
+                cond = f"all({sym_computed.name} - {sym_read.name} == 0.0)"
             else:
-                cond = "{0} == {1}".format(sym_computed.name,
-                                           sym_read.name)
+                cond = f"{sym_computed.name} == {sym_read.name}"
             # The PSyIR has no support for output functions, so we parse
             # Fortran code to create a code block which stores the output
             # statements.
-            code = '''
+            code = f'''
                 subroutine tmp()
-                  integer :: {0}, {1}
-                  if ({2}) then
-                     print *,"{0} correct"
+                  integer :: {sym_computed.name}, {sym_read.name}
+                  if ({cond}) then
+                     print *,"{sym_computed.name} correct"
                   else
-                     print *,"{0} incorrect. Values are:"
-                     print *,{0}
-                     print *,"{0} values should be:"
-                     print *,{1}
+                     print *,"{sym_computed.name} incorrect. Values are:"
+                     print *,{sym_computed.name}
+                     print *,"{sym_computed.name} values should be:"
+                     print *,{sym_read.name}
                   endif
-                end subroutine tmp'''.format(sym_computed.name,
-                                             sym_read.name, cond)
+                end subroutine tmp'''
 
             fortran_reader = FortranReader()
             container = fortran_reader.psyir_from_source(code)
@@ -533,8 +505,7 @@ class ExtractDriverCreator:
             program.addchild(if_block.detach())
 
     # -------------------------------------------------------------------------
-    def create(self, nodes, input_list, output_list,
-               prefix, postfix, region_name):
+    def create(self, nodes, read_write_info, prefix, postfix, region_name):
         # pylint: disable=too-many-arguments
         '''This function uses the PSyIR to create a stand-alone driver
         that reads in a previously created file with kernel input and
@@ -543,11 +514,10 @@ class ExtractDriverCreator:
         file container which contains the driver.
 
         :param nodes: a list of nodes.
-        :type nodes: list of :py:obj:`psyclone.psyir.nodes.Node`
-        :param input_list: list of variables that are input parameters.
-        :type input_list: list of :py:class:`psyclone.core.Signature`
-        :param output_list: list of variables that are output parameters.
-        :type output_list: list or :py:class:`psyclone.core.Signature`
+        :type nodes: list of :py:class:`psyclone.psyir.nodes.Node`
+        :param read_write_info: information about all input and output \
+            parameters.
+        :type read_write_info: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
         :param str prefix: the prefix to use for each PSyData symbol, \
             e.g. 'extract' as prefix will create symbols `extract_psydata`.
         :param str postfix: a postfix that is appended to an output variable \
@@ -575,7 +545,7 @@ class ExtractDriverCreator:
         extract_trans.validate(nodes, options={"prefix": prefix})
 
         module_name, local_name = region_name
-        unit_name = "{0}_{1}".format(module_name, local_name)
+        unit_name = f"{module_name}_{local_name}"
 
         # First create the file container, which will only store the program:
         file_container = FileContainer(unit_name)
@@ -588,9 +558,9 @@ class ExtractDriverCreator:
         if prefix:
             prefix = prefix + "_"
 
-        psy_data_mod = ContainerSymbol(prefix+"psy_data_mod")
+        psy_data_mod = ContainerSymbol("read_kernel_data_mod")
         program_symbol_table.add(psy_data_mod)
-        psy_data_type = DataTypeSymbol(prefix+"PsyDataType", DeferredType(),
+        psy_data_type = DataTypeSymbol("ReadKernelDataType", DeferredType(),
                                        interface=ImportInterface(psy_data_mod))
         program_symbol_table.add(psy_data_type)
 
@@ -610,12 +580,11 @@ class ExtractDriverCreator:
 
         module_str = Literal(module_name, CHARACTER_TYPE)
         region_str = Literal(local_name, CHARACTER_TYPE)
-        self.add_call(program, "{0}%OpenRead".format(psy_data.name),
+        self.add_call(program, f"{psy_data.name}%OpenRead",
                       [module_str, region_str])
 
         output_symbols = self.create_read_in_code(program, psy_data,
-                                                  input_list, output_list,
-                                                  postfix)
+                                                  read_write_info, postfix)
         # Copy over all of the executable part of the extracted region
         all_children = schedule_copy.pop_all_children()
         for child in all_children:
@@ -626,21 +595,20 @@ class ExtractDriverCreator:
         return file_container
 
     # -------------------------------------------------------------------------
-    def get_driver_as_string(self, nodes, input_list, output_list,
+    def get_driver_as_string(self, nodes, read_write_info,
                              prefix, postfix, region_name,
                              writer=FortranWriter()):
         # pylint: disable=too-many-arguments
-        '''This function uses 'create()` function to get a PSyIR of a
+        '''This function uses `create()` function to get the PSyIR of a
         stand-alone driver, and then uses the provided language writer
         to create a string representation in the selected language
         (defaults to Fortran).
 
         :param nodes: a list of nodes.
-        :type nodes: list of :py:obj:`psyclone.psyir.nodes.Node`
-        :param input_list: list of variables that are input parameters.
-        :type input_list: list of :py:class:`psyclone.core.Signature`
-        :param output_list: list of variables that are output parameters.
-        :type output_list: list or :py:class:`psyclone.core.Signature`
+        :type nodes: List[:py:class:`psyclone.psyir.nodes.Node`]
+        :param read_write_info: information about all input and output \
+            parameters.
+        :type read_write_info: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
         :param str prefix: the prefix to use for each PSyData symbol, \
             e.g. 'extract' as prefix will create symbols `extract_psydata`.
         :param str postfix: a postfix that is appended to an output variable \
@@ -663,25 +631,24 @@ class ExtractDriverCreator:
         :rtype: str
 
         '''
-        file_container = self.create(nodes, input_list, output_list,
+        file_container = self.create(nodes, read_write_info,
                                      prefix, postfix, region_name)
         return writer(file_container)
 
     # -------------------------------------------------------------------------
-    def write_driver(self, nodes, input_list, output_list,
-                     prefix, postfix, region_name, writer=FortranWriter()):
+    def write_driver(self, nodes, read_write_info, prefix, postfix,
+                     region_name, writer=FortranWriter()):
         # pylint: disable=too-many-arguments
-        '''This function uses the 'get_driver_as_string()` function to get a
+        '''This function uses the `get_driver_as_string()` function to get a
         a stand-alone driver, and then writes this source code to a file. The
         file name is derived from the region name:
         "driver-"+module_name+"_"+region_name+".f90"
 
         :param nodes: a list of nodes.
-        :type nodes: list of :py:obj:`psyclone.psyir.nodes.Node`
-        :param input_list: list of variables that are input parameters.
-        :type input_list: list of :py:class:`psyclone.core.Signature`
-        :param output_list: list of variables that are output parameters.
-        :type output_list: list or :py:class:`psyclone.core.Signature`
+        :type nodes: List[:py:class:`psyclone.psyir.nodes.Node`]
+        :param read_write_info: information about all input and output \
+            parameters.
+        :type read_write_info: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
         :param str prefix: the prefix to use for each PSyData symbol, \
             e.g. 'extract' as prefix will create symbols `extract_psydata`.
         :param str postfix: a postfix that is appended to an output variable \
@@ -701,10 +668,9 @@ class ExtractDriverCreator:
             :py:class:`psyclone.psyir.backend.language_writer.LanguageWriter`
 
         '''
-        code = self.get_driver_as_string(nodes, input_list, output_list,
-                                         prefix, postfix, region_name,
-                                         writer=writer)
+        code = self.get_driver_as_string(nodes, read_write_info, prefix,
+                                         postfix, region_name, writer=writer)
         module_name, local_name = region_name
-        with open("driver-{0}-{1}.f90".
-                  format(module_name, local_name), "w") as out:
+        with open(f"driver-{module_name}-{local_name}.f90", "w",
+                  encoding='utf-8') as out:
             out.write(code)

@@ -38,12 +38,11 @@
 of the fparser2 frontend. '''
 
 
-from __future__ import absolute_import
 import os
 import pytest
 from fparser.common.readfortran import FortranFileReader
-from psyclone.psyir.frontend.fparser2 import _find_or_create_imported_symbol
 from psyclone.psyGen import PSyFactory, Kern
+from psyclone.psyir.frontend.fparser2 import _find_or_create_imported_symbol
 from psyclone.psyir.nodes import Reference, Container, Assignment, Literal, \
     KernelSchedule, BinaryOperation
 from psyclone.psyir.symbols import Symbol, DataSymbol, SymbolError, \
@@ -88,7 +87,7 @@ def test_find_or_create_imported_symbol():
     assert alpha.name == "alpha"
     assert isinstance(_find_or_create_imported_symbol(alpha, alpha.name),
                       DataSymbol)
-    container = kernel_schedule.root
+    container = kernel_schedule.ancestor(Container)
     assert isinstance(container, Container)
     assert (_find_or_create_imported_symbol(alpha, alpha.name) in
             container.symbol_table.symbols)
@@ -105,14 +104,14 @@ def test_find_or_create_imported_symbol():
     assert (_find_or_create_imported_symbol(
         alpha, alpha.name, scope_limit=container).name == alpha.name)
 
-    # Test _find_or_create_impored_symbol with invalid location
+    # Test _find_or_create_imported_symbol with invalid location
     with pytest.raises(TypeError) as excinfo:
         _ = _find_or_create_imported_symbol("hello", alpha.name)
     assert ("The location argument 'hello' provided to "
             "_find_or_create_imported_symbol() is not of type `Node`."
             in str(excinfo.value))
 
-    # Test _find_or_create_impored_symbol with invalid scope type
+    # Test _find_or_create_imported_symbol with invalid scope type
     with pytest.raises(TypeError) as excinfo:
         _ = _find_or_create_imported_symbol(alpha, alpha.name,
                                             scope_limit="hello")

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author S. Siso, STFC Daresbury Lab
+# Authors: S. Siso and N. Nobre, STFC Daresbury Lab
 
 '''This module contains the GOMoveIterationBoundariesInsideKernelTrans.'''
 
@@ -98,16 +98,16 @@ class GOMoveIterationBoundariesInsideKernelTrans(Transformation):
         :param node: the node to validate.
         :type node: :py:class:`psyclone.gocean1p0.GOKern`
         :param options: a dictionary with options for transformations.
-        :type options: dict of string:values or None
+        :type options: Optional[Dict[str, Any]]
 
         :raises TransformationError: if the node is not a GOKern.
 
         '''
         if not isinstance(node, GOKern):
             raise TransformationError(
-                "Error in {0} transformation. This transformation can only be "
-                "applied to 'GOKern' nodes, but found '{1}'."
-                "".format(self.name, type(node).__name__))
+                f"Error in {self.name} transformation. This transformation "
+                f"can only be applied to 'GOKern' nodes, but found "
+                f"'{type(node).__name__}'.")
 
     def apply(self, node, options=None):
         '''Apply this transformation to the supplied node.
@@ -115,11 +115,7 @@ class GOMoveIterationBoundariesInsideKernelTrans(Transformation):
         :param node: the node to transform.
         :type node: :py:class:`psyclone.gocean1p0.GOKern`
         :param options: a dictionary with options for transformations.
-        :type options: dict of string:values or None
-
-        :returns: 2-tuple of new schedule and memento of transform.
-        :rtype: (:py:class:`psyclone.gocean1p0.GOInvokeSchedule`, \
-                 :py:class:`psyclone.undoredo.Memento`)
+        :type options: Optional[Dict[str, Any]]
 
         '''
         self.validate(node, options)
@@ -131,16 +127,16 @@ class GOMoveIterationBoundariesInsideKernelTrans(Transformation):
         cursor = outer_loop.position
 
         # Make sure the boundary symbols in the PSylayer exist
-        inv_xstart = invoke_st.symbol_from_tag(
+        inv_xstart = invoke_st.find_or_create_tag(
             "xstart_" + node.name, root_name="xstart", symbol_type=DataSymbol,
             datatype=INTEGER_TYPE)
-        inv_xstop = invoke_st.symbol_from_tag(
+        inv_xstop = invoke_st.find_or_create_tag(
             "xstop_" + node.name, root_name="xstop", symbol_type=DataSymbol,
             datatype=INTEGER_TYPE)
-        inv_ystart = invoke_st.symbol_from_tag(
+        inv_ystart = invoke_st.find_or_create_tag(
             "ystart_" + node.name, root_name="ystart", symbol_type=DataSymbol,
             datatype=INTEGER_TYPE)
-        inv_ystop = invoke_st.symbol_from_tag(
+        inv_ystop = invoke_st.find_or_create_tag(
             "ystop_" + node.name, root_name="ystop", symbol_type=DataSymbol,
             datatype=INTEGER_TYPE)
 
@@ -240,8 +236,6 @@ class GOMoveIterationBoundariesInsideKernelTrans(Transformation):
         # Insert the conditional mask as the first statement of the kernel
         if_statement = IfBlock.create(condition, [Return()])
         kschedule.children.insert(0, if_statement)
-
-        return node.root, None
 
 
 # For Sphinx AutoAPI documentation generation

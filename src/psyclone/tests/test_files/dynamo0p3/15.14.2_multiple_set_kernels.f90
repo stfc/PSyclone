@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2020, Science and Technology Facilities Council.
+! Copyright (c) 2017-2022, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -31,8 +31,9 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author A. R. Porter STFC Daresbury Lab
-! Modified I. Kavcic Met Office
+! Author: A. R. Porter, STFC Daresbury Lab
+! Modified: I. Kavcic, Met Office
+! Modified: R. W. Ford, STFC Daresbury Lab
 
 program single_invoke
 
@@ -43,7 +44,7 @@ program single_invoke
 
   implicit none
 
-  type(field_type) :: f1, f2
+  type(field_type) :: f1, f2, f3
   real(r_def)      :: fred, ginger
 
   fred = 20.1_r_def

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council.
+# Copyright (c) 2020-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,11 +32,11 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
+# Author: J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
 ''' This module contains pytest tests for the Member class. '''
 
-from __future__ import absolute_import
 import pytest
 from psyclone.psyir import nodes
 
@@ -45,6 +45,7 @@ def test_member_constructor():
     ''' Test that we can construct an instance of Member. '''
     mem = nodes.Member("fred")
     assert mem.name == "fred"
+    assert str(mem) == "Member[name:'fred']"
     assert mem.children == []
 
 
@@ -71,3 +72,27 @@ def test_member_can_be_copied():
     member1._component_name = "name2"
     assert member1.name == "name2"
     assert member.name == "name1"
+
+
+def test_member_is_array():
+    ''' Test that we can check if a member is an array. '''
+    mem = nodes.Member("fred")
+    assert mem.is_array is False
+
+
+def test_member_get_signature():
+    ''' Test that we get the expected signature from a member. '''
+    mem = nodes.Member("fred")
+    signature, indices = mem.get_signature_and_indices()
+    assert str(signature) == "fred"
+    assert indices == [[]]
+
+
+def test_member_equality():
+    ''' Test member equality. '''
+    mem = nodes.Member("m1")
+    mem2 = nodes.Member("m1")
+    mem3 = nodes.Member("notm1")
+
+    assert mem == mem2
+    assert mem != mem3

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council.
+# Copyright (c) 2020-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -37,7 +37,7 @@
 # Modified by J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
-'''Perform py.test tests on the psygen.psyir.symbols.symbol module.
+'''Perform py.test tests on the psyclone.psyir.symbols.symbol module.
 
 Note that SymbolError is declared but not used in symbol.py. There are
 many other files that use SymbolError and have associated tests so it
@@ -46,16 +46,14 @@ is not tested here.
 '''
 
 
-from __future__ import absolute_import
 import pytest
 
 from psyclone.psyir.nodes import Container, Literal, KernelSchedule
 from psyclone.psyir.symbols import ArgumentInterface, ContainerSymbol, \
-                                   DataSymbol, ImportInterface, \
-                                   INTEGER_SINGLE_TYPE, LocalInterface, \
-                                   RoutineSymbol, Symbol, SymbolError, \
-                                   SymbolTable, UnresolvedInterface
-from psyclone.psyir.symbols.symbol import SymbolInterface
+    DataSymbol, ImportInterface, DefaultModuleInterface, StaticInterface, \
+    INTEGER_SINGLE_TYPE, AutomaticInterface, CommonBlockInterface, \
+    RoutineSymbol, Symbol, SymbolError, UnknownInterface, \
+    SymbolTable, UnresolvedInterface
 
 
 def test_symbol_initialisation():
@@ -68,7 +66,7 @@ def test_symbol_initialisation():
     assert isinstance(sym, Symbol)
     assert sym.name == "sym1"
     assert sym.visibility == Symbol.DEFAULT_VISIBILITY
-    assert isinstance(sym.interface, LocalInterface)
+    assert isinstance(sym.interface, AutomaticInterface)
     # Check that the default visibility is public
     assert Symbol.DEFAULT_VISIBILITY == Symbol.Visibility.PUBLIC
 
@@ -94,36 +92,93 @@ def test_symbol_initialisation():
             "'str'" in str(error.value))
 
 
-def test_symbol_interface_setter():
+def test_symbol_interface_setter_and_is_properties():
     '''Test that the Symbol interface setter behaves as expected,
     including raising an exception if the input is of the wrong
-    type. Also use this to test the is_local, is_import and
-    is_argument and is_unresolved properties.
+    type. Also use this to test the is_automatic, is_import and
+    is_argument, is_unresolved, is_modulevar, is_static,
+    is_commonblock, is_unknown_interface properties.
 
     '''
     symbol = Symbol('sym1')
-    assert symbol.is_local
+    assert symbol.is_automatic
     assert not symbol.is_import
     assert not symbol.is_argument
     assert not symbol.is_unresolved
+    assert not symbol.is_modulevar
+    assert not symbol.is_static
+    assert not symbol.is_commonblock
+    assert not symbol.is_unknown_interface
 
     symbol.interface = ImportInterface(ContainerSymbol("my_mod"))
-    assert not symbol.is_local
+    assert not symbol.is_automatic
     assert symbol.is_import
     assert not symbol.is_argument
     assert not symbol.is_unresolved
+    assert not symbol.is_modulevar
+    assert not symbol.is_static
+    assert not symbol.is_commonblock
+    assert not symbol.is_unknown_interface
 
     symbol.interface = ArgumentInterface()
-    assert not symbol.is_local
+    assert not symbol.is_automatic
     assert not symbol.is_import
     assert symbol.is_argument
     assert not symbol.is_unresolved
+    assert not symbol.is_modulevar
+    assert not symbol.is_static
+    assert not symbol.is_commonblock
+    assert not symbol.is_unknown_interface
 
     symbol.interface = UnresolvedInterface()
-    assert not symbol.is_local
+    assert not symbol.is_automatic
     assert not symbol.is_import
     assert not symbol.is_argument
     assert symbol.is_unresolved
+    assert not symbol.is_modulevar
+    assert not symbol.is_static
+    assert not symbol.is_commonblock
+    assert not symbol.is_unknown_interface
+
+    symbol.interface = DefaultModuleInterface()
+    assert not symbol.is_automatic
+    assert not symbol.is_import
+    assert not symbol.is_argument
+    assert not symbol.is_unresolved
+    assert symbol.is_modulevar
+    assert not symbol.is_static
+    assert not symbol.is_commonblock
+    assert not symbol.is_unknown_interface
+
+    symbol.interface = StaticInterface()
+    assert not symbol.is_automatic
+    assert not symbol.is_import
+    assert not symbol.is_argument
+    assert not symbol.is_unresolved
+    assert not symbol.is_modulevar
+    assert symbol.is_static
+    assert not symbol.is_commonblock
+    assert not symbol.is_unknown_interface
+
+    symbol.interface = CommonBlockInterface()
+    assert not symbol.is_automatic
+    assert not symbol.is_import
+    assert not symbol.is_argument
+    assert not symbol.is_unresolved
+    assert not symbol.is_modulevar
+    assert not symbol.is_static
+    assert symbol.is_commonblock
+    assert not symbol.is_unknown_interface
+
+    symbol.interface = UnknownInterface()
+    assert not symbol.is_automatic
+    assert not symbol.is_import
+    assert not symbol.is_argument
+    assert not symbol.is_unresolved
+    assert not symbol.is_modulevar
+    assert not symbol.is_static
+    assert not symbol.is_commonblock
+    assert symbol.is_unknown_interface
 
     with pytest.raises(TypeError) as info:
         symbol.interface = "hello"
@@ -135,97 +190,7 @@ def test_symbol_str():
     '''Test that a Symbol instance can be stringified'''
 
     sym = Symbol("my_symbol")
-    assert str(sym) == "my_symbol"
-
-
-def test_symbolinterface():
-    '''Test we can create a SymbolInterface instance. This does nothing so
-    needs no further testing.
-
-    '''
-    _ = SymbolInterface()
-
-
-def test_localinterface():
-    '''Test we can create a LocalInterface instance and check its __str__
-    value
-
-    '''
-    interface = LocalInterface()
-    assert str(interface) == "Local"
-
-
-def test_unresolvedinterface():
-    '''Test we can create an UnresolvedInterface instance and check its
-    __str__ value
-
-    '''
-    interface = UnresolvedInterface()
-    assert str(interface) == "Unresolved"
-
-
-def test_importinterface():
-    '''Test that we can create an Import Interface successfully, that is
-    raises the expected exception if the container_symbol attribute is
-    of the wrong type, that the container symbol property and str
-    method work as expected.
-
-    '''
-    container_symbol = ContainerSymbol("my_mod")
-    import_interface = ImportInterface(container_symbol)
-    assert import_interface.container_symbol is container_symbol
-    assert str(import_interface) == "Import(container='my_mod')"
-
-    with pytest.raises(TypeError) as info:
-        _ = ImportInterface("hello")
-    assert ("ImportInterface container_symbol parameter must be of type "
-            "ContainerSymbol, but found 'str'." in str(info.value))
-
-
-def test_argumentinterface_init():
-    '''Check that the ArgumentInterface can be created successfully and
-    has the expected values. Also checks the access property and that
-    an exception is raised if the supplied access value is the wrong
-    type.
-
-    '''
-    argument_interface = ArgumentInterface()
-    assert argument_interface._access == ArgumentInterface.Access.UNKNOWN
-    assert argument_interface.access == argument_interface._access
-    assert argument_interface._pass_by_value is False
-
-    argument_interface = ArgumentInterface(ArgumentInterface.Access.READ)
-    assert argument_interface._access == ArgumentInterface.Access.READ
-    assert argument_interface.access == argument_interface._access
-
-    with pytest.raises(TypeError) as info:
-        _ = ArgumentInterface("hello")
-    assert ("SymbolInterface.access must be an 'ArgumentInterface.Access' but "
-            "got 'str'." in str(info.value))
-    with pytest.raises(TypeError) as info:
-        argument_interface.access = "hello"
-    assert ("SymbolInterface.access must be an 'ArgumentInterface.Access' but "
-            "got 'str'." in str(info.value))
-
-
-@pytest.mark.parametrize("access", [ArgumentInterface.Access.READ,
-                                    ArgumentInterface.Access.WRITE,
-                                    ArgumentInterface.Access.READWRITE,
-                                    ArgumentInterface.Access.UNKNOWN])
-def test_argumentinterface_access_values(access):
-    '''Check that all the ArgumentInterface access values are supported.
-
-    '''
-    argument_interface = ArgumentInterface()
-    argument_interface.access = access
-    assert argument_interface.access == access
-
-
-def test_argumentinterface_str():
-    '''Test that an ArgumentInterface instance can be stringified'''
-
-    argument_interface = ArgumentInterface()
-    assert str(argument_interface) == "Argument(pass-by-value=False)"
+    assert str(sym) == "my_symbol: Symbol<Automatic>"
 
 
 def test_find_symbol_table():
@@ -264,8 +229,13 @@ def test_symbol_copy():
     new_sym = asym.copy()
     assert new_sym is not asym
     assert new_sym.name == asym.name
-    assert new_sym.interface == asym.interface
+    assert isinstance(new_sym.interface, ImportInterface)
+    assert new_sym.interface.container_symbol is csym
     assert new_sym.visibility == asym.visibility
+    # Check that we can modify the interface of the new symbol without
+    # affecting the original.
+    new_sym.interface.container_symbol = ContainerSymbol("other_mod")
+    assert asym.interface.container_symbol is csym
 
 
 def test_symbol_copy_properties():
@@ -292,10 +262,11 @@ def test_symbol_specialise():
     # pylint: disable = unidiomatic-typecheck
     asym = Symbol("a")
     assert type(asym) is Symbol
-    assert str(asym) == "a"
+    assert str(asym) == "a: Symbol<Automatic>"
     asym.specialise(RoutineSymbol)
     assert type(asym) is RoutineSymbol
-    assert str(asym) == "a : RoutineSymbol <NoType>"
+    assert (str(asym) == "a: RoutineSymbol<NoType, pure=unknown, "
+            "elemental=unknown>")
 
 
 @pytest.mark.parametrize("test_class", [Symbol, RoutineSymbol])
@@ -309,10 +280,10 @@ def test_symbol_specialise_class_error(test_class, arg):
     asym = test_class("a")
     with pytest.raises(TypeError) as info:
         asym.specialise(arg)
-    assert ("The specialise method in 'a', an instance of '{0}', expects "
-            "the subclass argument to be a subclass of '{0}', but found "
-            "'{1}'.".format(test_class.__name__, arg.__name__)
-            in str(info.value))
+    assert (f"The specialise method in 'a', an instance of "
+            f"'{test_class.__name__}', expects the subclass argument to be a "
+            f"subclass of '{test_class.__name__}', but found "
+            f"'{arg.__name__}'." in str(info.value))
 
 
 @pytest.mark.parametrize("test_class", [Symbol, RoutineSymbol])
@@ -336,7 +307,7 @@ def test_get_external_symbol(monkeypatch):
     with pytest.raises(NotImplementedError) as err:
         asym.get_external_symbol()
     assert ("trying to resolve symbol 'a' properties, the lazy evaluation "
-            "of 'Local' interfaces is not supported" in str(err.value))
+            "of 'Automatic' interfaces is not supported" in str(err.value))
     other_container = ContainerSymbol("some_mod")
     ctable = SymbolTable()
     ctable.add(other_container)
@@ -398,7 +369,7 @@ def test_symbol_resolve_deferred(monkeypatch):
     assert new_sym.is_import
 
 
-def test_symbol_array_handling(fortran_reader):
+def test_symbol_array_handling():
     '''Verifies the handling of arrays together with access information.
 
     '''
@@ -412,9 +383,6 @@ def test_symbol_array_handling(fortran_reader):
     assert "No array information is available for the symbol 'a'." \
         in str(error.value)
 
-    # Import additional tests from access_info_test to reach 100% coverage
-    # for the is_array_access function. Import these tests locally only.
-    # pylint: disable=import-outside-toplevel
-    from psyclone.tests.core.access_info_test import \
-        test_symbol_array_detection
-    test_symbol_array_detection(fortran_reader)
+    # A generic symbol (no datatype) without an explicit array access
+    # expression is not considered to have array access.
+    assert not asym.is_array_access()

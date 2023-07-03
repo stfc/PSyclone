@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2019-2021, Science and Technology Facilities Council.
+! Copyright (c) 2019-2022, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -31,6 +31,7 @@
 ! -----------------------------------------------------------------------------
 ! Author A. R. Porter, STFC Daresbury Lab
 ! Modified I. Kavcic, Met Office
+! Modified N. Nobre, STFC Daresbury Lab
 
 module profile_psy_data_mod
 
@@ -65,9 +66,9 @@ module profile_psy_data_mod
   integer, parameter :: NUM_COLOURS = 7
 
   !> List of colours to use for different regions.
-  integer :: col(NUM_COLOURS) = [ Z'0000ff00', Z'000000ff', Z'00ffff00', &
-                                  Z'00ff00ff', Z'0000ffff', Z'00ff0000', &
-                                  Z'00ffffff']
+  integer :: col(NUM_COLOURS) = [ int(Z'0000ff00'), int(Z'000000ff'), int(Z'00ffff00'), &
+                                  int(Z'00ff00ff'), int(Z'0000ffff'), int(Z'00ff0000'), &
+                                  int(Z'00ffffff')]
 
   !> Holds the name of the region being created
   character(kind=C_CHAR, len=256), target :: tempName

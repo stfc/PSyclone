@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council.
+# Copyright (c) 2020-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,8 +32,8 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author J. Henrichs, Bureau of Meteorology
-# Modified I. Kavcic, Met Office
-# Modified R. W. Ford, STFC Daresbury Lab
+# Modified: I. Kavcic and L. Turner, Met Office
+#           R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
 '''Module for the LFRic domain.
 '''
@@ -48,12 +48,22 @@ from psyclone.domain.lfric.lfric_constants import LFRicConstants
 from psyclone.domain.lfric.arg_ordering import ArgOrdering
 from psyclone.domain.lfric.kern_call_arg_list import KernCallArgList
 from psyclone.domain.lfric.kern_call_acc_arg_list import KernCallAccArgList
-from psyclone.domain.lfric.kern_stub_arg_list import KernStubArgList
+from psyclone.domain.lfric.kern_call_invoke_arg_list import \
+    KernCallInvokeArgList
+from psyclone.domain.lfric.lfric_kern_call_factory import LFRicKernCallFactory
 from psyclone.domain.lfric.kernel_interface import KernelInterface
+from psyclone.domain.lfric.lfric_extract_driver_creator import \
+    LFRicExtractDriverCreator
+from psyclone.domain.lfric.lfric_symbol_table import LFRicSymbolTable
+from psyclone.domain.lfric.lfric_types import LFRicTypes
+from psyclone.domain.lfric.kern_stub_arg_list import KernStubArgList
+from psyclone.domain.lfric.lfric_invoke import LFRicInvoke
+from psyclone.domain.lfric.metadata_to_arguments_rules import \
+    MetadataToArgumentsRules
+from psyclone.domain.lfric.arg_index_to_metadata_index import \
+    ArgIndexToMetadataIndex
+from psyclone.domain.lfric.lfric_collection import LFRicCollection
 
-# The entities in the __all__ list are made available to import directly from
-# this package e.g.:
-# from psyclone.domain.lfric import FunctionSpace
 
 __all__ = [
     'ArgOrdering',
@@ -63,4 +73,8 @@ __all__ = [
     'KernelInterface',
     'KernStubArgList',
     'LFRicArgDescriptor',
-    'LFRicConstants']
+    'LFRicCollection',
+    'LFRicConstants',
+    'LFRicExtractDriverCreator',
+    'LFRicInvoke',
+    'LFRicSymbolTable']

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2021, Science and Technology Facilities Council.
+# Copyright (c) 2018-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,19 +33,27 @@
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
 # Modified: I. Kavcic, Met Office, R. W. Ford, STFC Daresbury Lab
+#           J. Henrichs, Bureau of Meteorology
+#           N. Nobre, STFC Daresbury Lab
 
 '''
 Module containing tests relating to PSyclone configuration handling.
 '''
 
-from __future__ import absolute_import
 import os
 import re
-import six
+import sys
+
 import pytest
-from psyclone.configuration import APISpecificConfig, ConfigurationError, \
-    Config
+
+import psyclone
+
+from psyclone.configuration import (APISpecificConfig, ConfigurationError,
+                                    Config, VALID_KERNEL_NAMING_SCHEMES)
 from psyclone.core.access_type import AccessType
+from psyclone.domain.gocean import GOceanConstants
+from psyclone.domain.lfric import LFRicConstants
+from psyclone.domain.nemo import NemoConstants
 
 
 # constants
@@ -57,7 +65,7 @@ TEST_CONFIG = os.path.join(BASE_PATH, "dummy_config.cfg")
 # different tests
 _CONFIG_CONTENT = '''\
 [DEFAULT]
-API = dynamo0.3
+DEFAULTAPI = dynamo0.3
 DEFAULTSTUBAPI = dynamo0.3
 DISTRIBUTED_MEMORY = true
 REPRODUCIBLE_REDUCTIONS = false
@@ -193,85 +201,92 @@ def test_missing_file(tmpdir):
     assert "not_a_file.cfg does not exist" in str(err.value)
 
 
-def test_search_path(monkeypatch, tmpdir):
+@pytest.mark.usefixtures("change_into_tmpdir")
+def test_search_path(monkeypatch):
     ''' Check that the search path for a configuration file is as
     expected. It is important to use monkeypatch for manipulating
     PSYCLONE_CONFIG, since all other tests rely on this variable
-    (see conftest.setup_psyclone_config).'''
-    import sys
+    (see conftest.setup_psyclone_config).
+
+    '''
     # Ensure that PSYCLONE_CONFIG is not set
     monkeypatch.delitem(os.environ, "PSYCLONE_CONFIG", raising=False)
     # We test the search path used by causing the find_file() method
     # to fail to find any file and thus raise an error. The error msg
     # then gives us the list of locations searched.
     monkeypatch.setattr("os.path.isfile", lambda arg: False)
-    try:
-        # Store our working directory
-        oldpwd = tmpdir.chdir()
-        cwd = str(tmpdir)
-        # Test when (we appear to be) both inside and outside a virtual
-        # environment
-        for inside_venv in [True, False]:
-            monkeypatch.setattr(
-                "psyclone.virtual_utils.within_virtual_env",
-                lambda: inside_venv)  # pylint: disable=cell-var-from-loop
-            with pytest.raises(ConfigurationError) as err:
-                _ = Config.find_file()
-            err_msg = str(err.value)
-            assert "not found in any of " in err_msg
-            # CWD
-            cwd_idx = err_msg.find(os.path.join(cwd, ".psyclone"))
-            assert cwd_idx != -1
-            # Home directory
-            home_idx = err_msg.find(os.path.join(os.path.expanduser("~"),
-                                                 ".local", "share",
-                                                 "psyclone"))
-            assert home_idx != -1
-            # Some share directory
-            share_idx = err_msg.find(os.path.join(sys.prefix, "share",
-                                                  "psyclone"))
-            assert share_idx != -1
-            assert cwd_idx < home_idx
-            if inside_venv:
-                # When inside a virtual environment, the 'share' directory of
-                # that environment takes precedence over the user's home
-                # directory
-                assert share_idx < home_idx
-            else:
-                assert home_idx < share_idx
-    finally:
-        oldpwd.chdir()
+
+    cwd = os.getcwd()
+    # Test when (we appear to be) both inside and outside a virtual
+    # environment
+    for inside_venv in [True, False]:
+        monkeypatch.setattr(
+            "psyclone.utils.within_virtual_env",
+            lambda: inside_venv)  # pylint: disable=cell-var-from-loop
+        with pytest.raises(ConfigurationError) as err:
+            _ = Config.find_file()
+        err_msg = str(err.value)
+        assert "not found in any of " in err_msg
+        # CWD
+        cwd_idx = err_msg.find(os.path.join(cwd, ".psyclone"))
+        assert cwd_idx != -1
+        # Home directory
+        home_idx = err_msg.find(os.path.join(os.path.expanduser("~"),
+                                             ".local", "share",
+                                             "psyclone"))
+        assert home_idx != -1
+        # Some share directory
+        share_idx = err_msg.find(os.path.join(sys.prefix, "share",
+                                              "psyclone"))
+        assert share_idx != -1
+
+        # share directory within package installation directory
+        pkg_share_dir = [os.path.join(os.path.dirname(psyclone_path),
+                                      "share", "psyclone")
+                         for psyclone_path in psyclone.__path__]
+        pkg_share_idx = min(err_msg.find(dir) for dir in pkg_share_dir)
+        assert pkg_share_idx != -1
+
+        # Check the order of the various directories, which depends on
+        # whether we are in a virtualenv or not:
+        if inside_venv:
+            # When inside a virtual environment, the 'share' directory of
+            # that environment takes precedence over the user's home
+            # directory
+            assert cwd_idx < share_idx < home_idx < pkg_share_idx
+        else:
+            assert cwd_idx < home_idx < share_idx < pkg_share_idx
 
 
-def test_search_env(monkeypatch, tmpdir):
+@pytest.mark.usefixtures("change_into_tmpdir")
+def test_search_env(monkeypatch):
     ''' Check that we pick up the configuration file specified in an
     environment variable. It is important to use monkeypatch for manipulating
     PSYCLONE_CONFIG, since all other tests rely on this variable
     (see conftest.setup_psyclone_config).'''
-    try:
-        oldpwd = tmpdir.chdir()
-        cwd = str(tmpdir)
-        # Create a .psyclone/psyclone.cfg in the CWD
-        cfg_dir = os.path.join(cwd, ".psyclone")
-        os.mkdir(cfg_dir)
-        with open(os.path.join(cfg_dir, "psyclone.cfg"), "w") as cfile:
-            cfile.write(TEST_CONFIG)
-        # Point PSYCLONE_CONFIG to a non-existent file - we should revert
-        # to the normal search path in this case
-        cfg_file = os.path.join(cwd, "not_a_dir", "psyclone.cfg")
-        monkeypatch.setitem(os.environ, "PSYCLONE_CONFIG", cfg_file)
-        name = Config.find_file()
-        assert name.startswith(cfg_dir)
-        assert "not_a_dir" not in name
-        # Now point PSYCLONE_CONFIG to a file that does exist
-        cfg_file = os.path.join(cwd, "another.cfg")
-        with open(cfg_file, "w") as cfile:
-            cfile.write(TEST_CONFIG)
-        monkeypatch.setitem(os.environ, "PSYCLONE_CONFIG", cfg_file)
-        name = Config.find_file()
-        assert name == cfg_file
-    finally:
-        oldpwd.chdir()
+
+    # Get the cwd, which is in a temporary directory
+    cwd = os.getcwd()
+    # Create a .psyclone/psyclone.cfg in the CWD
+    cfg_dir = os.path.join(cwd, ".psyclone")
+    os.mkdir(cfg_dir)
+    fname = os.path.join(cfg_dir, "psyclone.cfg")
+    with open(fname, "w", encoding="utf-8") as cfile:
+        cfile.write(TEST_CONFIG)
+    # Point PSYCLONE_CONFIG to a non-existent file - we should revert
+    # to the normal search path in this case
+    cfg_file = os.path.join("not_a_dir", "psyclone.cfg")
+    monkeypatch.setitem(os.environ, "PSYCLONE_CONFIG", cfg_file)
+    name = Config.find_file()
+    assert name.startswith(cfg_dir)
+    assert "not_a_dir" not in name
+    # Now point PSYCLONE_CONFIG to a file that does exist
+    cfg_file = "another.cfg"
+    with open(cfg_file, "w", encoding="utf-8") as cfile:
+        cfile.write(TEST_CONFIG)
+    monkeypatch.setitem(os.environ, "PSYCLONE_CONFIG", cfg_file)
+    name = Config.find_file()
+    assert name == cfg_file
 
 
 def test_read_values():
@@ -286,15 +301,14 @@ def test_read_values():
     assert dist_mem
     # The default API
     api = _config.default_api
-    assert isinstance(api, six.text_type)
+    assert isinstance(api, str)
     assert api == "dynamo0.3"
     # The list of supported APIs
     api_list = _config.supported_apis
-    assert api_list == ['dynamo0.1', 'dynamo0.3',
-                        'gocean0.1', 'gocean1.0', 'nemo']
+    assert api_list == ['dynamo0.3', 'gocean1.0', 'nemo']
     # The default API for kernel stub generation
     api = _config.default_stub_api
-    assert isinstance(api, six.text_type)
+    assert isinstance(api, str)
     assert api == "dynamo0.3"
     # The list of supported APIs for kernel stub generation
     api_list = _config.supported_stub_apis
@@ -330,8 +344,8 @@ def test_api_not_in_list(tmpdir):
 
     '''
     config_file = tmpdir.join("config")
-    content = re.sub(r"^API = .*$",
-                     "API = invalid",
+    content = re.sub(r"^DEFAULTAPI = .*$",
+                     "DEFAULTAPI = invalid",
                      _CONFIG_CONTENT,
                      flags=re.MULTILINE)
     config_file = tmpdir.join("config")
@@ -383,8 +397,8 @@ def test_not_bool(bool_entry, tmpdir):
 
     '''
     config_file = tmpdir.join("config")
-    content = re.sub(r"^{0} = .*$".format(bool_entry),
-                     "{0} = wrong".format(bool_entry),
+    content = re.sub(rf"^{bool_entry} = .*$",
+                     f"{bool_entry} = wrong",
                      _CONFIG_CONTENT,
                      flags=re.MULTILINE)
 
@@ -392,7 +406,7 @@ def test_not_bool(bool_entry, tmpdir):
         config(config_file, content)
 
     assert "configuration error (file=" in str(err.value)
-    assert ": Error while parsing {0}".format(bool_entry) in str(err.value)
+    assert f": Error while parsing {bool_entry}" in str(err.value)
     assert "Not a boolean: wrong" in str(err.value)
 
 
@@ -402,8 +416,8 @@ def test_not_int(int_entry, tmpdir):
 
     '''
     config_file = tmpdir.join("config")
-    content = re.sub(r"^{0} = .*$".format(int_entry),
-                     "{0} = wrong".format(int_entry),
+    content = re.sub(rf"^{int_entry} = .*$",
+                     f"{int_entry} = wrong",
                      _CONFIG_CONTENT,
                      flags=re.MULTILINE)
 
@@ -411,7 +425,7 @@ def test_not_int(int_entry, tmpdir):
         config(config_file, content)
 
     assert "configuration error (file=" in str(err.value)
-    assert (": error while parsing {0}: invalid literal".format(int_entry)
+    assert (f": error while parsing {int_entry}: invalid literal"
             in str(err.value))
 
 
@@ -469,9 +483,9 @@ def test_wrong_api():
         _ = _config.api_conf("blah")
     assert "API 'blah' is not in the list" in str(err.value)
     with pytest.raises(ConfigurationError) as err:
-        _ = _config.api_conf("dynamo0.1")
+        _ = _config.api_conf("nemo")
     assert ("Configuration file did not contain a section for the "
-            "'dynamo0.1' API" in str(err.value))
+            "'nemo' API" in str(err.value))
     with pytest.raises(ValueError) as err:
         _config.api = "invalid"
     assert "'invalid' is not a valid API" in str(err.value)
@@ -546,16 +560,16 @@ def test_root_name_load(tmpdir, content, result):
 
 def test_kernel_naming_setter():
     ''' Check that the setter for the kernel-naming scheme rejects
-    unrecognised values. '''
-    from psyclone import configuration
+    unrecognised values.
+
+    '''
     config = Config()
     config.kernel_naming = "single"
     assert config.kernel_naming == "single"
     with pytest.raises(ValueError) as err:
         config.kernel_naming = "not-a-scheme"
-    assert ("kernel_naming must be one of '{0}' but got 'not-a-scheme'".
-            format(configuration.VALID_KERNEL_NAMING_SCHEMES)
-            in str(err.value))
+    assert (f"kernel_naming must be one of '{VALID_KERNEL_NAMING_SCHEMES}' "
+            f"but got 'not-a-scheme'" in str(err.value))
 
 
 def test_incl_path_errors(tmpdir):
@@ -682,9 +696,33 @@ def test_invalid_prefix(tmpdir):
         # When there is a '"' in the invalid prefix, the "'" in the
         # error message is escaped with a '\'. So in order to test the
         # invalid 'cd"' prefix, we need to have two tests in the assert:
-        assert "Invalid PsyData-prefix '{0}' in config file" \
-               .format(prefix) in str(err.value)  \
-            or "Invalid PsyData-prefix \\'{0}\\' in config file" \
-               .format(prefix) in str(err.value)
+        assert (f"Invalid PsyData-prefix '{prefix}' in config file"
+                in str(err.value)
+                or f"Invalid PsyData-prefix \\'{prefix}\\' in config file"
+                in str(err.value))
         assert "The prefix must be valid for use as the start of a " \
                "Fortran variable name." in str(err.value)
+
+
+def test_get_constants():
+    '''Tests the API-independent version of get_constants in
+    the Config class.
+
+    '''
+    config = Config().get()
+    config.api = "dynamo0.3"
+    assert isinstance(config.get_constants(), LFRicConstants)
+    config.api = "gocean1.0"
+    assert isinstance(config.get_constants(), GOceanConstants)
+    config.api = "nemo"
+    assert isinstance(config.get_constants(), NemoConstants)
+
+
+def test_config_class_initialised(monkeypatch):
+    '''Tests that the flag indicating that the Config class is
+    initialised works as expected.'''
+
+    monkeypatch.setattr(Config, "_HAS_CONFIG_BEEN_INITIALISED", False)
+
+    _ = Config().get()
+    assert Config.has_config_been_initialised() is True

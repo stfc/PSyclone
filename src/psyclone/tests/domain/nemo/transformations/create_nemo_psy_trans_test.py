@@ -124,8 +124,8 @@ end subroutine basic_loop
 end module my_mod
 '''
     psyir = fortran_reader.psyir_from_source(code)
-    sched, _ = psy_trans.apply(psyir)
-    invokes = sched.walk(NemoInvokeSchedule)
+    psy_trans.apply(psyir)
+    invokes = psyir.walk(NemoInvokeSchedule)
     assert len(invokes) == 2
     assert invokes[0].name == "init"
     assert isinstance(invokes[0][0], CodeBlock)
