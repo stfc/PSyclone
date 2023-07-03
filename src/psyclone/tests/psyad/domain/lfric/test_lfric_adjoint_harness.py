@@ -598,8 +598,6 @@ def test_generate_lfric_adjoint_harness_operator(fortran_reader,
     tl_psyir = fortran_reader.psyir_from_source(code)
     psyir = generate_lfric_adjoint_harness(tl_psyir)
     gen = fortran_writer(psyir)
-    print(gen)
-    exit(1)
     assert "type(operator_type) :: op\n" in gen
     assert ("vector_space_w0_ptr => function_space_collection % get_fs(mesh, "
             "element_order, w0)\n" in gen)
@@ -625,6 +623,18 @@ def test_gen_lfric_adjoint_harness_written_operator(fortran_reader,):
                            "arg_type(gh_field,  gh_real, gh_write,  w3), &\n"
                            "arg_type(gh_operator,gh_real,gh_write,w3,w0) &")
     code = code.replace("dimension(2)", "dimension(3)")
+
+    code = code.replace("nlayers, ascalar", "cell, nlayers, ascalar")
+    code = code.replace(
+        "field, ndf_w3, undf_w3, map_w3",
+        "field, op_ncell_3d, op, ndf_w3, undf_w3, map_w3, ndf_w0")
+    code = code.replace(
+        "    field = ascalar\n",
+        "    INTEGER(KIND=i_def), intent(in) :: ndf_w0\n"
+        "    INTEGER(KIND=i_def), intent(in) :: cell\n"
+        "    INTEGER(KIND=i_def), intent(in) :: op_ncell_3d\n"
+        "    REAL(KIND=r_def), intent(out), dimension(ndf_w3,ndf_w0,op_ncell_3d) :: op\n"
+        "    field = ascalar\n")
     tl_psyir = fortran_reader.psyir_from_source(code)
     with pytest.raises(GenerationError) as err:
         generate_lfric_adjoint_harness(tl_psyir)
@@ -632,7 +642,7 @@ def test_gen_lfric_adjoint_harness_written_operator(fortran_reader,):
             "to. This is not supported." in str(err.value))
 
 
-def test_generate_lfric_adjoint_harness_invalid_geom_arg(fortran_reader):
+def test_generate_lfric_adjoint_harness_invalid_geom_arg(fortran_reader, fortran_writer):
     '''
     Check that generate_lfric_adjoint_harness() calls _validate_geom_arg.
     '''
@@ -641,6 +651,8 @@ def test_generate_lfric_adjoint_harness_invalid_geom_arg(fortran_reader):
         _ = generate_lfric_adjoint_harness(tl_psyir, coord_arg_idx=1)
     assert ("The 'coordinate' argument is expected to be a field but argument "
             "1 to kernel 'testkern_code' is a 'gh_scalar'" in str(err.value))
+    # TODO: WHY DO WE NEED THE NEXT LINE?
+    tl_psyir = fortran_reader.psyir_from_source(TL_CODE)
     with pytest.raises(ValueError) as err:
         _ = generate_lfric_adjoint_harness(tl_psyir, panel_id_arg_idx=1)
     assert ("The 'panel-id' argument is expected to be a field but argument 1 "
@@ -705,8 +717,8 @@ def test_generate_lfric_adjoint_harness_chi_arg(fortran_reader,
     assert "setval_random(chi(1))" not in gen
     # chi should be passed as the second argument to the TL and adjoint
     # kernels.
-    assert "testkern_type(rscalar_1, chi, field_3, field_4)" in gen
-    assert "invoke(adj_testkern_type(rscalar_1, chi, field_3, field_4)" in gen
+    assert "testkern_type(ascalar, chi, field, pids)" in gen
+    assert "invoke(adj_testkern_type(ascalar, chi, field, pids)" in gen
 
 
 def test_generate_lfric_adjoint_harness_panel_id_arg(fortran_reader,
@@ -726,8 +738,8 @@ def test_generate_lfric_adjoint_harness_panel_id_arg(fortran_reader,
     assert "setval_random(panel_id)" not in gen
     # panel id should be passed as the 4th argument to both the TL and adjoint
     # kernels.
-    assert "testkern_type(rscalar_1, field_2, field_3, panel_id)" in gen
-    assert ("invoke(adj_testkern_type(rscalar_1, field_2, field_3, panel_id)"
+    assert "testkern_type(ascalar, cfield3, field, panel_id)" in gen
+    assert ("invoke(adj_testkern_type(ascalar, cfield3, field, panel_id)"
             in gen)
 
 
@@ -742,8 +754,8 @@ def test_generate_lfric_adjoint_harness_geom_args(fortran_reader,
     psyir = generate_lfric_adjoint_harness(tl_psyir, panel_id_arg_idx=4,
                                            coord_arg_idx=2)
     gen = fortran_writer(psyir)
-    assert "testkern_type(rscalar_1, chi, field_3, panel_id)" in gen
-    assert ("invoke(adj_testkern_type(rscalar_1, chi, field_3, panel_id)"
+    assert "testkern_type(ascalar, chi, field, panel_id)" in gen
+    assert ("invoke(adj_testkern_type(ascalar, chi, field, panel_id)"
             in gen)
 
 
