@@ -33,6 +33,7 @@
 # Authors: R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 #          J. Henrichs, Bureau of Meteorology
 #          I. Kavcic, Met Office
+# Modified: A. B. G. Chalk, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' This module provides the fparser2 to PSyIR front-end, it follows a
@@ -4407,7 +4408,7 @@ class Fparser2Reader():
                         raise NotImplementedError(
                             f"Routine has unsupported prefix: {child.string}")
                 else:
-                    base_type, _ = self._process_type_spec(parent, child)
+                    base_type, _ = self._process_type_spec(routine, child)
 
         if isinstance(node, Fortran2003.Function_Subprogram):
             # Check whether this function-stmt has a suffix containing

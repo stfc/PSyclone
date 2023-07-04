@@ -357,7 +357,7 @@ def test_init_scalar_value(monkeypatch):
     sym4 = DataSymbol("my_var", LFRicTypes("LFRicRealScalarDataType")())
 
     class BrokenType:
-        '''Utility class to test init_scalar_value error.'''
+        '''Utility class to provide an unsupported type.'''
         def __init__(self):
             self.name = "wrong"
     monkeypatch.setattr(sym4.datatype, "intrinsic", BrokenType())
@@ -496,6 +496,7 @@ def test_generate_lfric_adjoint_harness(fortran_reader, fortran_writer):
     tl_psyir = fortran_reader.psyir_from_source(TL_CODE)
     psyir = generate_lfric_adjoint_harness(tl_psyir)
     gen = fortran_writer(psyir).lower()
+    assert "use finite_element_config_mod, only : element_order" in gen
     assert "module adjoint_test_mod" in gen
     assert "subroutine adjoint_test(mesh, chi, panel_id)" in gen
     # We should have a field, a copy of that field and an inner-product value
