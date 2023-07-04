@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors: A. R. Porter and N. Nobre, STFC Daresbury Lab
+# Modified A. B. G. Chalk, STFC Datesbury Lab
 
 ''' Module containing pytest tests for the handling of the DO
 construct in the PSyIR fparser2 frontend. '''
@@ -181,3 +182,37 @@ def test_undeclared_loop_var(fortran_reader):
         _ = fortran_reader.psyir_from_source(code)
     assert ("Loop-variable name 'i' is not declared and there are no "
             "unqualified use statements" in str(err.value))
+
+
+def test_do_inside_while(fortran_reader):
+    '''Check that the loop handler correctly identifies a while loop
+    containing a do loop as a separate while loop.'''
+    code = '''subroutine test_subroutine
+    integer :: j, iu_stdout, range_bands, i
+
+    i = 0
+    DO
+      WRITE(iu_stdout, '(A)') &
+        'Enter units followed by lower and upper limits and increment:'
+      DO
+        EXIT
+      END DO
+      range_bands = 3
+      if (range_bands + i > 3 .and. range_bands + i < 15) then
+        CYCLE
+      end if
+      do j = 1, range_bands
+        i = i + 1
+      end do
+      if (i > 15) then
+        EXIT
+      end if
+  end do
+
+  end subroutine'''
+
+    psyir = fortran_reader.psyir_from_source(code)
+    loops = psyir.walk((WhileLoop, Loop))
+    assert isinstance(loops[0], WhileLoop)
+    assert isinstance(loops[1], WhileLoop)
+    assert isinstance(loops[2], Loop)
