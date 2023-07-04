@@ -126,10 +126,10 @@ class DataSymbol(TypedSymbol):
 
         # Now that we have a datatype we can use initial_value setter
         # with proper error checking.
-        if new_initial_value:
+        if new_initial_value is not None:
             self.initial_value = new_initial_value
 
-        if new_is_constant_value:
+        if new_is_constant_value is not None:
             self.is_constant = new_is_constant_value
 
     @property

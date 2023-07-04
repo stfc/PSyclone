@@ -63,8 +63,9 @@ def test_parameter_statements_work():
     processor.process_declarations(routine, fparser2spec.content, [])
     newsymbol = symtab.lookup("var1")
     assert newsymbol.is_constant
-    assert isinstance(newsymbol.constant_value, Literal)
-    assert newsymbol.constant_value.value == "3"
+    assert isinstance(newsymbol.initial_value, Literal)
+    assert newsymbol.initial_value.value == "3"
+    assert newsymbol.is_constant is True
 
     # Test with a single parameter with an expression
     reader = FortranStringReader('''
@@ -74,8 +75,9 @@ def test_parameter_statements_work():
     processor.process_declarations(routine, fparser2spec.content, [])
     newsymbol1 = symtab.lookup("var_expr")
     assert newsymbol1.is_constant
-    assert isinstance(newsymbol1.constant_value, BinaryOperation)
-    assert newsymbol1.constant_value.children[0].value == "10"
+    assert isinstance(newsymbol1.initial_value, BinaryOperation)
+    assert newsymbol1.initial_value.children[0].value == "10"
+    assert newsymbol1.is_constant is True
 
     # Test with multiple parameters of different types
     reader = FortranStringReader('''
@@ -94,14 +96,14 @@ def test_parameter_statements_work():
     assert newsymbol3.is_constant
     assert newsymbol4.is_constant
     assert newsymbol5.is_constant
-    assert isinstance(newsymbol2.constant_value, Literal)
-    assert newsymbol2.constant_value.value == "1"
-    assert isinstance(newsymbol3.constant_value, Literal)
-    assert newsymbol3.constant_value.value == "3.14"
-    assert isinstance(newsymbol4.constant_value, Literal)
-    assert newsymbol4.constant_value.value == "true"
-    assert isinstance(newsymbol5.constant_value, Literal)
-    assert newsymbol5.constant_value.value == "a"
+    assert isinstance(newsymbol2.initial_value, Literal)
+    assert newsymbol2.initial_value.value == "1"
+    assert isinstance(newsymbol3.initial_value, Literal)
+    assert newsymbol3.initial_value.value == "3.14"
+    assert isinstance(newsymbol4.initial_value, Literal)
+    assert newsymbol4.initial_value.value == "true"
+    assert isinstance(newsymbol5.initial_value, Literal)
+    assert newsymbol5.initial_value.value == "a"
 
 
 @pytest.mark.usefixtures("f2008_parser")
@@ -129,12 +131,12 @@ def test_parameter_statements_complex_case_work():
     assert newsymbol1.is_constant
     assert newsymbol2.is_constant
     assert newsymbol3.is_constant
-    assert isinstance(newsymbol1.constant_value, Literal)
-    assert isinstance(newsymbol2.constant_value, Reference)
-    assert newsymbol2.constant_value.name == "var1"
-    assert isinstance(newsymbol3.constant_value, BinaryOperation)
-    assert newsymbol3.constant_value.children[0].name == "var1"
-    assert newsymbol3.constant_value.children[1].name == "var2"
+    assert isinstance(newsymbol1.initial_value, Literal)
+    assert isinstance(newsymbol2.initial_value, Reference)
+    assert newsymbol2.initial_value.name == "var1"
+    assert isinstance(newsymbol3.initial_value, BinaryOperation)
+    assert newsymbol3.initial_value.children[0].name == "var1"
+    assert newsymbol3.initial_value.children[1].name == "var2"
 
 
 @pytest.mark.usefixtures("f2008_parser")

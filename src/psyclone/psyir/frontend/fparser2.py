@@ -2292,7 +2292,8 @@ class Fparser2Reader():
                             # Add the initialization expression in the symbol
                             # constant_value attribute
                             ct_expr = dummynode.children[0].detach()
-                            symbol.constant_value = ct_expr
+                            symbol.initial_value = ct_expr
+                            symbol.is_constant = True
                     else:
                         # TODO #1254: We currently silently ignore the rest of
                         # the Implicit_Part statements

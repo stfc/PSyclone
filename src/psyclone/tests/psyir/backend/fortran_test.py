@@ -681,7 +681,8 @@ def test_fw_gen_vardecl(fortran_writer):
         "real, allocatable, dimension(:,:), intent(inout) :: dummy2\n"
 
     # Constant
-    symbol = DataSymbol("dummy3", INTEGER_TYPE, constant_value=10)
+    symbol = DataSymbol("dummy3", INTEGER_TYPE, is_constant=True,
+                        initial_value=10)
     result = fortran_writer.gen_vardecl(symbol)
     assert result == "integer, parameter :: dummy3 = 10\n"
 
@@ -707,7 +708,8 @@ def test_fw_gen_vardecl_visibility(fortran_writer):
     ''' Test the include_visibility argument to gen_vardecl(). '''
     # Simple constant
     symbol = DataSymbol("dummy3", INTEGER_TYPE,
-                        visibility=Symbol.Visibility.PUBLIC, constant_value=10)
+                        visibility=Symbol.Visibility.PUBLIC, is_constant=True,
+                        initial_value=10)
     # Expect include_visibility to default to False
     result = fortran_writer.gen_vardecl(symbol)
     assert result == "integer, parameter :: dummy3 = 10\n"

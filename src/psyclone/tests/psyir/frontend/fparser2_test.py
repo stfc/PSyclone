@@ -777,7 +777,8 @@ def test_process_declarations():
         fake_parent.symbol_table.lookup("val1")
 
     # Initialisation with a complex constant expression
-    symtab.add(DataSymbol("precisionkind", INTEGER_TYPE, constant_value=4))
+    symtab.add(DataSymbol("precisionkind", INTEGER_TYPE, is_constant=True,
+                          initial_value=4))
     reader = FortranStringReader(
         "integer, parameter :: val3 = 2 * (val1 + val2) + 2_precisionkind")
     fparser2spec = Specification_Part(reader).content[0]
@@ -899,14 +900,19 @@ def test_declarations_with_initialisations(fortran_reader):
     assert isinstance(inner_st.lookup('d').datatype, UnknownFortranType)
     assert isinstance(inner_st.lookup('e').datatype, UnknownFortranType)
 
-    # When it is a parameter the interface, type and constant_value is defined
-    assert isinstance(inner_st.lookup('c').interface, DefaultModuleInterface)
-    assert isinstance(inner_st.lookup('c').datatype, ScalarType)
-    assert isinstance(inner_st.lookup('c').constant_value, Literal)
-    assert isinstance(inner_st.lookup('f').interface, AutomaticInterface)
-    assert isinstance(inner_st.lookup('f').datatype, ScalarType)
-    assert isinstance(inner_st.lookup('f').constant_value, Literal)
-    assert isinstance(inner_st.lookup('f').interface, AutomaticInterface)
+    # When it is a parameter the interface, type and initial_value is defined
+    csym = inner_st.lookup('c')
+    assert isinstance(csym.interface, DefaultModuleInterface)
+    assert isinstance(csym.datatype, ScalarType)
+    assert isinstance(csym.initial_value, Literal)
+    assert csym.is_constant is True
+
+    fsym = inner_st.lookup('f')
+    assert isinstance(fsym.interface, AutomaticInterface)
+    assert isinstance(fsym.datatype, ScalarType)
+    assert isinstance(fsym.initial_value, Literal)
+    assert fsym.is_constant is True
+    assert isinstance(fsym.interface, AutomaticInterface)
 
 
 @pytest.mark.usefixtures("f2008_parser")
