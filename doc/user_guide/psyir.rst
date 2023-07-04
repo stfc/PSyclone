@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2019-2022, Science and Technology Facilities Council.
+.. Copyright (c) 2019-2023, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 .. POSSIBILITY OF SUCH DAMAGE.
 .. -----------------------------------------------------------------------------
 .. Written by A. R. Porter, STFC Daresbury Lab
-.. Modified by R. W. Ford and N. Nobre, STFC Daresbury Lab
+.. Modified by R. W. Ford, N. Nobre and S. Siso, STFC Daresbury Lab
 
 .. The following section imports those Python modules that are needed in
    subsequent doctest snippets.
@@ -418,13 +418,21 @@ variable data is provided into the local context. The currently available
 Interfaces are:
 
 
-- .. autoclass:: psyclone.psyir.symbols.LocalInterface
+- .. autoclass:: psyclone.psyir.symbols.AutomaticInterface
+
+- .. autoclass:: psyclone.psyir.symbols.DefaultModuleInterface
 
 - .. autoclass:: psyclone.psyir.symbols.ImportInterface
 
 - .. autoclass:: psyclone.psyir.symbols.ArgumentInterface
 
+- .. autoclass:: psyclone.psyir.symbols.StaticInterface
+
+- .. autoclass:: psyclone.psyir.symbols.CommonBlockInterface
+
 - .. autoclass:: psyclone.psyir.symbols.UnresolvedInterface
+
+- .. autoclass:: psyclone.psyir.symbols.UnknownInterface
 
 
 Creating PSyIR

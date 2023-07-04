@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2019-2022, Science and Technology Facilities Council.
+.. Copyright (c) 2019-2023, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -426,13 +426,12 @@ Continuous Integration
 ======================
 
 The PSyclone project uses GitHub Actions
-(https://psyclone.readthedocs.io/en/stable/examples.html#examples)
-for continuous integration. GitHub triggers an action whenever there
-is a push to a pull-request on the repository. The work performed by
-the action is configured in the
-``PSyclone/.github/workflows/python-package.yml`` file.
-
-Currently there are five main checks performed, in order of increasing
+(https://github.com/stfc/PSyclone/actions) for continuous
+integration. The configuration of these actions is stored in YAML
+files in the ``.github/workflows`` directory. The most important
+action is that configured in ``python-package.yml``. This action is
+triggered whenever there is a push to a pull-request on the repository
+and consists of five main checks performed, in order of increasing
 computational cost (so that we 'fail fast'):
 
  1. All links within all MarkDown files are checked. Those links to skip
@@ -462,7 +461,9 @@ computational cost (so that we 'fail fast'):
 Since we try to be good 'open-source citizens' we do not do any compilation
 testing using GitHub as that would use a lot more compute time. Instead, it
 is the responsibility of the developer and code reviewer to run these checks
-locally (see :ref:`compilation_testing`).
+locally (see :ref:`compilation_testing`). Code reviewers are able to make
+use of the ``compilation`` GitHub Action which will eventually perform
+these checks semi-automatically - see :ref:`integration-testing`.
 
 By default, the GitHub Actions configuration uses ``pip`` to install
 the dependencies required by PSyclone before running the test
@@ -534,6 +535,40 @@ is set to be that of the latest version of the docs on RTD.
 Since links between the User and Developer Guide use ``intersphinx``,
 these may simply be configured using the ``intersphinx_mapping``
 dictionary within ``conf.py``.
+
+.. _integration-testing:
+
+Compilation and Integration Testing
+-----------------------------------
+
+As mentioned above, running the test suite and/or examples with compilation
+enabled significantly increases the required compute time. However, there
+is a need to test PSyclone with full builds of the LFRic and NEMO
+applications. Therefore, in addition to the principal action described
+above, there are the following workflow files that manage multiple
+Integration tests:
+
+The ``repo-sync`` action, which must be triggered
+manually (on GitHub) and pushes a copy of the current branch to a private
+repository. (This action uses the ``integration`` environment and can
+therefore only be triggered by GitHub users who have ``review`` permissions
+in that environment.) That private repository has a GitHub self-hosted runner
+setup which then enables tests to be run on a machine at the Hartree
+Centre. Access to the private repository is handled using ssh with a key
+saved as a 'secret' in the GitHub PSyclone repository.
+The work performed by the self-hosted runner is configured in the ``yml`` files
+below. Since the self-hosted runner is only available in the private
+repository, these action are configured such that they only run if the name
+of the repository is that of the private one.
+
+The ``compilation.yml`` action, runs the test suite and examples with
+compilation enabled (using ``gfortran``).
+
+The ``nemo.yml`` action, processes the NEMO source code (available in
+self-hosted runner) with the PSyclone scripts in examples/nemo/scripts.
+Then it compiles the generated code, runs it, and validates that the
+output produced matches with the expected results.
+
 
 Performance
 ===========

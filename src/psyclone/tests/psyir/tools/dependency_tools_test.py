@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2022, Science and Technology Facilities Council.
+# Copyright (c) 2019-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,11 +32,10 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author J. Henrichs, Bureau of Meteorology
-# Modifications: A. R. Porter and R. W. Ford, STFC Daresbury Lab
+# Modifications: A. R. Porter, R. W. Ford and S.Siso, STFC Daresbury Lab
 
 ''' Module containing tests for the dependency tools.'''
 
-from __future__ import absolute_import
 import pytest
 
 from fparser.common.readfortran import FortranStringReader
@@ -45,8 +44,7 @@ from psyclone.configuration import Config
 from psyclone.core import Signature, VariablesAccessInfo
 from psyclone.errors import InternalError
 from psyclone.psyGen import PSyFactory
-from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.psyir.tools.dependency_tools import DependencyTools, DTCode
+from psyclone.psyir.tools import DependencyTools, DTCode, ReadWriteInfo
 from psyclone.tests.utilities import get_invoke
 
 
@@ -574,7 +572,7 @@ def test_scalar_parallelise(declaration, variable, fortran_reader):
                  end program test'''
     psyir = fortran_reader.psyir_from_source(source)
     loops = psyir.children[0].children
-    dep_tools = DependencyTools(language_writer=FortranWriter())
+    dep_tools = DependencyTools()
 
     jj_symbol = psyir.children[0].scope.symbol_table.lookup("jj")
 
@@ -698,38 +696,42 @@ def test_inout_parameters_nemo(fortran_reader):
     loops = psyir.children[0].children
 
     dep_tools = DependencyTools()
-    input_list = dep_tools.get_input_parameters(loops)
+    read_write_info_read = ReadWriteInfo()
+    dep_tools.get_input_parameters(read_write_info_read, loops)
     # Use set to be order independent
-    input_set = set(input_list)
+    input_set = set(read_write_info_read.signatures_read)
     # Note that by default the read access to `dummy` in lbound etc should
     # not be reported, since it does not really read the array values.
     assert input_set == set([Signature("b"), Signature("c"),
                              Signature("jpj")])
 
-    output_list = dep_tools.get_output_parameters(loops)
+    read_write_info_write = ReadWriteInfo()
+    dep_tools.get_output_parameters(read_write_info_write, loops)
     # Use set to be order independent
-    output_set = set(output_list)
+    output_set = set(read_write_info_write.signatures_written)
     assert output_set == set([Signature("jj"), Signature("ji"),
                               Signature("a")])
 
-    in_list1, out_list1 = dep_tools.get_in_out_parameters(loops)
+    read_write_info_all = dep_tools.get_in_out_parameters(loops)
 
-    assert in_list1 == input_list
-    assert out_list1 == output_list
+    assert read_write_info_read.read_list == read_write_info_all.read_list
+    assert read_write_info_write.write_list == read_write_info_all.write_list
 
     # Check that we can also request to get the access to 'dummy'
     # inside the ubound/lbound function calls.
-    input_list = dep_tools.\
-        get_input_parameters(loops,
-                             options={'COLLECT-ARRAY-SHAPE-READS': True})
-    assert set(input_list) == set([Signature("b"), Signature("c"),
-                                   Signature("jpj"), Signature("dummy")])
+    read_write_info = ReadWriteInfo()
+    dep_tools.get_input_parameters(read_write_info, loops,
+                                   options={'COLLECT-ARRAY-SHAPE-READS': True})
+    input_set = set(sig for _, sig in read_write_info.set_of_all_used_vars)
+    assert input_set == set([Signature("b"), Signature("c"),
+                             Signature("jpj"), Signature("dummy")])
 
-    in_list1, out_list1 = dep_tools.\
+    read_write_info = dep_tools.\
         get_in_out_parameters(loops,
                               options={'COLLECT-ARRAY-SHAPE-READS': True})
-    assert set(in_list1) == set([Signature("b"), Signature("c"),
-                                 Signature("jpj"), Signature("dummy")])
+    output_set = set(read_write_info.signatures_read)
+    assert output_set == set([Signature("b"), Signature("c"),
+                              Signature("jpj"), Signature("dummy")])
 
 
 # -----------------------------------------------------------------------------
@@ -739,10 +741,11 @@ def test_const_argument():
     _, invoke = get_invoke("test00.1_invoke_kernel_using_const_scalar.f90",
                            api="gocean1.0", idx=0)
     dep_tools = DependencyTools()
-    input_list = dep_tools.get_input_parameters(invoke.schedule)
+    read_write_info = ReadWriteInfo()
+    dep_tools.get_input_parameters(read_write_info, invoke.schedule)
     # Make sure the constant '0' is not listed
-    assert "0" not in input_list
-    assert Signature("0") not in input_list
+    assert "0" not in read_write_info.signatures_read
+    assert Signature("0") not in read_write_info.signatures_read
 
 
 # -----------------------------------------------------------------------------

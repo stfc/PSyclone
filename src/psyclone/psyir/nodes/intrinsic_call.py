@@ -42,6 +42,7 @@ from enum import Enum
 
 from psyclone.psyir.nodes.call import Call
 from psyclone.psyir.nodes.datanode import DataNode
+from psyclone.psyir.nodes.literal import Literal
 from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.symbols import IntrinsicSymbol
 
@@ -72,8 +73,8 @@ class IntrinsicCall(Call):
 
     #: The intrinsics that can be represented by this node.
     Intrinsic = Enum('Intrinsic', [
-        'ALLOCATE', 'DEALLOCATE', 'RANDOM_NUMBER', 'MINVAL', 'MAXVAL', "SUM"
-        ])
+        'ALLOCATE', 'DEALLOCATE', 'RANDOM_NUMBER', 'MINVAL', 'MAXVAL', "SUM",
+        "TINY", "HUGE"])
     #: Named tuple for describing the properties of the required arguments to
     #: a particular intrinsic. If there's no limit on the number of arguments
     #: then `max_count` will be None.
@@ -88,7 +89,16 @@ class IntrinsicCall(Call):
     # ArrayReferences but they are a subclass of Reference).
     _required_args[Intrinsic.ALLOCATE] = ArgDesc(1, None, Reference)
     _optional_args[Intrinsic.ALLOCATE] = {
-        "mold": Reference, "stat": Reference}
+        # Argument used to specify the shape of the object being allocated.
+        "mold": Reference,
+        # Argument specifying both shape and initial value(s) for the object
+        # being allocated.
+        "source": Reference,
+        # Integer variable given status value upon exit.
+        "stat": Reference,
+        # Variable in which message is stored upon error. (Requires that 'stat'
+        # also be provided otherwise the program will just abort upon error.)
+        "errmsg": Reference}
     _required_args[Intrinsic.DEALLOCATE] = ArgDesc(1, None, Reference)
     _optional_args[Intrinsic.DEALLOCATE] = {"stat": Reference}
     _required_args[Intrinsic.RANDOM_NUMBER] = ArgDesc(1, 1, Reference)
@@ -102,6 +112,10 @@ class IntrinsicCall(Call):
     _required_args[Intrinsic.SUM] = ArgDesc(1, 1, DataNode)
     _optional_args[Intrinsic.SUM] = {
         "dim": DataNode, "mask": DataNode}
+    _required_args[Intrinsic.TINY] = ArgDesc(1, 1, (Reference, Literal))
+    _optional_args[Intrinsic.TINY] = {}
+    _required_args[Intrinsic.HUGE] = ArgDesc(1, 1, (Reference, Literal))
+    _optional_args[Intrinsic.HUGE] = {}
 
     def __init__(self, routine, **kwargs):
         if not isinstance(routine, Enum) or routine not in self.Intrinsic:
@@ -111,7 +125,12 @@ class IntrinsicCall(Call):
                 f"'{type(routine).__name__}'.")
 
         # A Call expects a symbol, so give it an intrinsic symbol.
-        super().__init__(IntrinsicSymbol(routine.name), **kwargs)
+        super().__init__(
+            IntrinsicSymbol(
+                routine.name,
+                is_elemental=(routine in ELEMENTAL_INTRINSICS),
+                is_pure=(routine in PURE_INTRINSICS)),
+            **kwargs)
         self._intrinsic = routine
 
     @property
@@ -123,15 +142,6 @@ class IntrinsicCall(Call):
 
         '''
         return self._intrinsic
-
-    def is_elemental(self):
-        '''
-        :returns: whether this intrinsic is elemental (provided with an input \
-            array it will apply the operation individually to each of the \
-            array elements and return an array with the results).
-        :rtype: bool
-        '''
-        return self.intrinsic in ELEMENTAL_INTRINSICS
 
     @classmethod
     def create(cls, routine, arguments):
@@ -251,3 +261,11 @@ REDUCTION_INTRINSICS = [
 # individually to each of the array elements and return an array with
 # the results.
 ELEMENTAL_INTRINSICS = []
+
+# Intrinsics that are 'pure' functions. Given the same input arguments, a pure
+# function will always return the same value.
+PURE_INTRINSICS = [IntrinsicCall.Intrinsic.SUM,
+                   IntrinsicCall.Intrinsic.MINVAL,
+                   IntrinsicCall.Intrinsic.MAXVAL,
+                   IntrinsicCall.Intrinsic.TINY,
+                   IntrinsicCall.Intrinsic.HUGE]

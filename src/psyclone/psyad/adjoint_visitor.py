@@ -37,14 +37,13 @@
 transformations to tangent-linear PSyIR to return its PSyIR adjoint.
 
 '''
-from __future__ import print_function
+
 import logging
 
 from fparser.two import Fortran2003
 from psyclone.psyad.transformations import AssignmentTrans
 from psyclone.psyad.utils import node_is_passive, node_is_active, negate_expr
 from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.psyir.backend.language_writer import LanguageWriter
 from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
 from psyclone.psyir.nodes import (Routine, Schedule, Reference, Node, Literal,
                                   CodeBlock, BinaryOperation, Assignment,
@@ -64,7 +63,7 @@ class AdjointVisitor(PSyIRVisitor):
 
     '''
     def __init__(self, active_variable_names):
-        super(AdjointVisitor, self).__init__()
+        super().__init__()
         if not active_variable_names:
             raise ValueError(
                 "There should be at least one active variable supplied to "
@@ -111,6 +110,8 @@ class AdjointVisitor(PSyIRVisitor):
         :rtype: :py:class:`psyclone.psyir.nodes.Schedule`
 
         '''
+        # pylint: disable=too-many-locals, too-many-branches
+        # pylint: disable=too-many-statements
         self._logger.debug("Transforming Schedule")
 
         # A schedule has a scope so determine and store active variables
@@ -128,7 +129,7 @@ class AdjointVisitor(PSyIRVisitor):
             # Zero local active variables.
             self._logger.debug("Zero-ing any local active variables")
             for active_variable in self._active_variables:
-                if active_variable.is_local:
+                if active_variable.is_automatic:
                     if not (active_variable.is_scalar or
                             active_variable.is_array):
                         # Issue #1627 structures are not allowed.
@@ -190,11 +191,12 @@ class AdjointVisitor(PSyIRVisitor):
             # read.
             # Output signatures ('out_sigs') are those that are written to at
             # some point.
-            in_sigs, out_sigs = dtools.get_in_out_parameters(
-                node_copy.children)
+            read_write_info = dtools.get_in_out_parameters(node_copy.children)
             # Get the variable name associated with each of these signatures.
-            in_names = [sig.var_name for sig in in_sigs]
-            out_names = [sig.var_name for sig in out_sigs]
+            in_names = [sig.var_name
+                        for sig in read_write_info.signatures_read]
+            out_names = [sig.var_name
+                         for sig in read_write_info.signatures_written]
 
             # We must update the symbols in the table of the new tree
             adj_table = node_copy.symbol_table

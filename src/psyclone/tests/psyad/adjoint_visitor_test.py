@@ -436,7 +436,7 @@ def test_schedule_zero_datatype_error1(fortran_reader):
     with pytest.raises(NotImplementedError) as info:
         _ = adj_visitor.schedule_node(tl_schedule)
     assert ("Active local variables can only be scalars and arrays, but "
-            "found 'a: DataSymbol<field_type: DataTypeSymbol, Local>'."
+            "found 'a: DataSymbol<field_type: DataTypeSymbol, Automatic>'."
             in str(info.value))
 
 

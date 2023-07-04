@@ -34,6 +34,7 @@
 .. Authors: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 ..          A. B. G. Chalk and N. Nobre, STFC Daresbury Lab
 ..          J. Henrichs, Bureau of Meteorology
+..          L. Turner, Met Office
 
 
 The PSyclone Internal Representation (PSyIR)
@@ -509,42 +510,60 @@ nodes, see the :ref:`named_arguments-label` section for more details.
 IntrinsicCall Nodes
 -------------------
 
-There are certain intrinsic functions that do not lend themselves to
-being represented as `Operation` nodes. For example, Fortran's
-`allocate` statement has various *optional* arguments, one of which
-(`stat`) may be used to store a return value. It's therefore not clear
-what an allocation 'operation' would assign to (an `Operation`
-must be a child of a `Statement` and therefore could not be included
-in a `Schedule` on its own). Similarly, Fortran's `MAXVAL` and
-`MINVAL` intrinsics have optional `dim` and `mask` arguments. In order
-to represent these using `Operation` nodes, we would need one for each
-of the four possible forms of each intrinsic.
-
-Therefore, to support intrinsic 'operations' that have optional
-arguments, the PSyIR has the
-:ref_guide:`IntrinsicCall psyclone.psyir.nodes.html#psyclone.psyir.nodes.IntrinsicCall`
-Node. This single class supports the different intrinsics listed in the
-`IntrinsicCall.Intrinsic` enumeration:
+PSyIR `IntrinsicCall` nodes (see :ref_guide:`IntrinsicCall
+psyclone.psyir.nodes.html#psyclone.psyir.nodes.IntrinsicCall`) capture
+all PSyIR intrinsics that are not expressed as language symbols (`+`,`-`,`*`
+etc). The latter are captured as `Operation` nodes. At the moment some
+intrinsics that should be captured as `IntrinsicCall` nodes are
+captured as `Operation` nodes (for example `sin` and `cos`). These
+will be migrated to being captured as `IntrinsicCall` nodes in the
+near future. Supported `IntrinsicCall` intrinsics are listed in the
+`IntrinsicCall.Intrinsic` enumeration within the class:
 
 +--------------+------------------------------+--------------------------------+
 | Name         | Positional arguments         | Optional arguments             |
 +--------------+------------------------------+------+-------------------------+
-| ALLOCATE     | One or more Reference or     | stat | Reference which will    |
-|              | ArrayReferences to which     |      | hold status.            |
-|              | memory will be allocated.    +------+-------------------------+
+| ALLOCATE     | One or more Reference or     | stat | Reference to an integer |
+|              | ArrayReferences to which     |      | variable which will hold|
+|              | memory will be allocated.    |      | return status.          |
+|              |                              +------+-------------------------+
 |              |                              | mold | Reference to an array   |
 |              |                              |      | which is used to specify|
 |              |                              |      | the dimensions of the   |
 |              |                              |      | allocated object.       |
+|              |                              +------+-------------------------+
+|              |                              |source| Reference to an array   |
+|              |                              |      | which is used to specify|
+|              |                              |      | both the dimensions &   |
+|              |                              |      | initial value(s) of the |
+|              |                              |      | allocated object.       |
+|              |                              +------+-------------------------+
+|              |                              |errmsg| Reference to a character|
+|              |                              |      | variable which will     |
+|              |                              |      | contain an error message|
+|              |                              |      | should the operation    |
+|              |                              |      | fail.                   |
 +--------------+------------------------------+------+-------------------------+
 | DEALLOCATE   | One or more References.      | stat | Reference which will    |
-|              |                              |      | hold status.            |
+|              |                              |      | hold return status.     |
 +--------------+------------------------------+------+-------------------------+
 | RANDOM_NUMBER| A single Reference which will|                                |
 |              | be filled with pseudo-random |                                |
 |              | numbers in the range         |                                |
 |              | [0.0, 1.0].                  |                                |
++--------------+------------------------------+------+-------------------------+
+| SUM, MAXVAL, | A single DataNode.           | dim  | A DataNode specifying   |
+| MINVAL       |                              |      | one of the supplied     |
+|              |                              |      | array's dimensions.     |
+|              |                              +------+-------------------------+
+|              |                              | mask | A DataNode indicating   |
+|              |                              |      | on which elements to    |
+|              |                              |      | apply the function.     |
++--------------+------------------------------+------+-------------------------+
+| HUGE, TINY   | A single Reference or        |                                |
+|              | Literal.                     |                                |
 +--------------+------------------------------+--------------------------------+
+
 
 CodeBlock Node
 --------------
@@ -910,9 +929,6 @@ kernel-layer datatypes and symbols. For the algorithm layer in both
 GOcean1.0 and LFRic there are specialisations for invokes and kernel
 calls. This is discussed further in the following sections.
 
-
-
-
 The LFRic PSyIR
 ===============
 
@@ -920,12 +936,13 @@ The LFRic PSyIR is a set of subclasses of the PSyIR which captures
 LFRic-specific routines, datatypes and associated symbols. These
 subclasses are work in progress and at the moment are limited to 1) a
 subset of the datatypes passed into LFRic kernels by argument and by
-use association and 2) LFRic calls (InvokeCall and KernCall) in the
-LFRic algorithm-layer. Over time these will be expanded to support a)
-all LFRic kernel datatypes, b) all LFRic PSyIR datatypes, c)
-subroutines (KernRoutine etc), d) derived quantities e.g. iterator
-variables and eventually e) higher level LFRic PSyIR concepts, which
-will not be concerned with symbol tables and datatypes.
+use association and 2) LFRic invoke and kernel calls
+(``LFRicAlgInvokeCall`` and ``LFRicKernelFunctor``) in the LFRic
+algorithm-layer. Over time these will be expanded to support a) all
+LFRic kernel datatypes, b) all LFRic PSyIR datatypes, c) subroutines
+(KernRoutine etc), d) derived quantities e.g. iterator variables and
+eventually e) higher level LFRic PSyIR concepts, which will not be
+concerned with symbol tables and datatypes.
 
 The Kernel-layer subclasses will be used to:
 
@@ -1037,8 +1054,8 @@ output strings).
 
 The logic and declaration of kernel variables is handled separately by
 the ``gen_stub`` method in ``DynKern`` and the ``gen_code`` method in
-``DynInvoke``. In both cases these methods make use of the subclasses
-of ``DynCollection`` to declare variables.
+``LFRicInvoke``. In both cases these methods make use of the subclasses
+of ``LFRicCollection`` to declare variables.
 
 When using the symbol table in the LFRic PSyIR we naturally capture
 arguments and datatypes together. The ``KernelInterface`` class is
@@ -1051,7 +1068,7 @@ clear what the limitations are for ``KernStubArgList``.
 
 Eventually the definition of lfric datatypes should be moved to the
 LFRic PSyIR, but at the moment there is a lot of information defined
-in the ``DynCollection`` subclasses. This will need to be addressed
+in the ``LFRicCollection`` subclasses. This will need to be addressed
 over time.
 
 The GOcean PSyIR

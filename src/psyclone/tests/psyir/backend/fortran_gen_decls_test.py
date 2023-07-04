@@ -45,7 +45,8 @@ from psyclone.psyir.symbols import (Symbol, DataSymbol, DataTypeSymbol,
                                     SymbolTable, ContainerSymbol, ScalarType,
                                     DeferredType, StructureType, RoutineSymbol,
                                     ImportInterface, UnresolvedInterface,
-                                    ArgumentInterface, INTEGER_TYPE, REAL_TYPE)
+                                    ArgumentInterface, INTEGER_TYPE, REAL_TYPE,
+                                    StaticInterface)
 
 
 def test_gen_param_decls_dependencies(fortran_writer):
@@ -262,6 +263,19 @@ def test_gen_decls_routine_wrong_interface(fortran_writer):
     symbol_table.add(rsym)
     with pytest.raises(VisitorError) as info:
         _ = fortran_writer.gen_decls(symbol_table)
-    assert ("Routine symbol 'arg_sub' is passed as an argument (has an "
-            "ArgumentInterface). This is not supported by the Fortran "
-            "back-end." in str(info.value))
+    assert (" Routine symbol 'arg_sub' has 'Argument(Access.UNKNOWN)'. This "
+            "is not supported by the Fortran back-end." in str(info.value))
+
+
+def test_gen_decls_static_variables(fortran_writer):
+    '''Test that the gen_decls and gen_vardecl methods add the appropriate
+    Fortran attributes to static variables.
+
+    '''
+    symbol_table = SymbolTable()
+    sym = DataSymbol("v1", datatype=INTEGER_TYPE, interface=StaticInterface())
+    symbol_table.add(sym)
+    assert "integer, save :: v1" in fortran_writer.gen_decls(symbol_table)
+    assert "integer, save :: v1" in fortran_writer.gen_vardecl(sym)
+    sym.constant_value = 1
+    assert "parameter :: v1 = 1" in fortran_writer.gen_vardecl(sym)

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+# Copyright (c) 2017-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -87,7 +87,7 @@ class LFRicBuild(Compile):
         files for dynamo0p3. Each parameter must be a separate entry
         in the list, e.g.: ["-I", "/some/path"] and not ["-I /some/path"].
 
-        :returns: A list of strings with the compiler flags required.
+        :returns: the required compiler flags.
         :rtype: List[str]
 
         '''
@@ -110,7 +110,8 @@ class LFRicBuild(Compile):
             # files can be used by all test compilations later.
             LFRicBuild._compilation_path = str(self._tmpdir)
             makefile = os.path.join(self._infrastructure_path, "Makefile")
-            arg_list = [LFRicBuild._make_command, "-f", makefile]
+            arg_list = [LFRicBuild._make_command, f"F90={self._f90}",
+                        f"F90FLAGS={self._f90flags}", "-f", makefile]
             try:
                 with subprocess.Popen(arg_list, stdout=subprocess.PIPE,
                                       stderr=subprocess.STDOUT) as build:

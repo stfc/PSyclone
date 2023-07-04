@@ -82,7 +82,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = 'PSyclone'
-copyright = '2017-2022, STFC Daresbury Laboratory'
+copyright = '2017-2023, STFC Daresbury Laboratory'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -366,9 +366,12 @@ epub_copyright = copyright
 
 linkcheck_anchors = True
 
-# puma is using an old https server and that causes errors in linkcheck.
+# MyBinder fails on a very regular basis so we skip those links.
+# The puma site no longer exists but the GOcean documentation needs to be
+# updated (TODO #237).
 # Despite its name 'collab.metoffice.../twiki' requires authenticated access.
-linkcheck_ignore = [r'https://puma.nerc.ac.uk/trac/GOcean',
+linkcheck_ignore = [r'^https://mybinder.org/v2/gh/stfc/psyclone',
+                    r'https://puma.nerc.ac.uk/trac/GOcean',
                     r'code.metoffice.gov.uk/trac/lfric/attachment/wiki/'
                     r'LFRicDocumentationPapers/lfric_documentation.pdf']
 
@@ -378,6 +381,6 @@ linkcheck_ignore = [r'https://puma.nerc.ac.uk/trac/GOcean',
 # is set earlier and depends on whether the docs are being built as part
 # of a CI run or not.
 intersphinx_mapping = {
-    'http://docs.python.org/': None,
+    'python': ('http://docs.python.org/', None),
     'dev_guide': (dev_guide_base, None),
     'psyad': ('https://psyclone-adjoint.readthedocs.io/en/latest', None)}

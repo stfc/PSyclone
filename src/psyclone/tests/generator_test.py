@@ -49,14 +49,21 @@ import stat
 from sys import modules
 import pytest
 
+from fparser.common.readfortran import FortranStringReader
+from fparser.two.parser import ParserFactory
+
+from psyclone import generator
+from psyclone.alg_gen import NoInvokesError
 from psyclone.configuration import Config
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.errors import GenerationError
-from psyclone.generator import generate, main
+from psyclone.generator import (
+    generate, main, check_psyir, add_builtins_use)
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.profiler import Profiler
 from psyclone.psyGen import PSyFactory
+from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.transformations import LoopFuseTrans
 from psyclone.version import __VERSION__
 
@@ -738,6 +745,71 @@ def test_main_expected_fatal_error(capsys):
     assert output == expected_output
 
 
+def test_generate_trans_error(tmpdir, capsys, monkeypatch):
+    '''Test that a TransformationError exception in the generate function
+    is caught and output as expected by the main function.  The
+    exception is only raised with the new PSyIR approach to modify the
+    algorithm layer which is currently in development so is protected
+    by a switch. This switch is turned on in this test by
+    monkeypatching.
+
+    '''
+    monkeypatch.setattr(generator, "LFRIC_TESTING", True)
+    code = (
+        "module setval_c_mod\n"
+        "contains\n"
+        "subroutine setval_c()\n"
+        "  use psyclone_builtins\n"
+        "  use constants_mod, only: r_def\n"
+        "  use field_mod, only : field_type\n"
+        "  type(field_type) :: field\n"
+        "  real(kind=r_def) :: value\n"
+        "  call invoke(setval_c(field, value))\n"
+        "end subroutine setval_c\n"
+        "end module setval_c_mod\n")
+    filename = str(tmpdir.join("alg.f90"))
+    with open(filename, "w", encoding='utf-8') as my_file:
+        my_file.write(code)
+    with pytest.raises(SystemExit) as excinfo:
+        main([filename])
+    # the error code should be 1
+    assert str(excinfo.value) == "1"
+    _, output = capsys.readouterr()
+    # The output is split as the location of the algorithm file varies
+    # due to it being stored in a temporary directory by pytest.
+    expected_output1 = "Generation Error: In algorithm file '"
+    expected_output2 = (
+        "alg.f90':\nTransformation Error: Error in RaisePSyIR2LFRicAlgTrans "
+        "transformation. The invoke call argument 'setval_c' has been used as"
+        " a routine name. This is not allowed.\n")
+    assert expected_output1 in output
+    assert expected_output2 in output
+
+
+def test_generate_no_builtin_container(tmpdir, monkeypatch):
+    '''Test that a builtin use statement is removed if it has been added
+    to a Container (a module). Also tests that everything works OK if
+    no use statement is found in a symbol table (as FileContainer does
+    not contain one).
+
+    '''
+    monkeypatch.setattr(generator, "LFRIC_TESTING", True)
+    code = (
+        "module test_mod\n"
+        "  contains\n"
+        "  subroutine test()\n"
+        "    use field_mod, only : field_type\n"
+        "    type(field_type) :: field\n"
+        "    call invoke(setval_c(field, 0.0))\n"
+        "  end subroutine test\n"
+        "end module\n")
+    filename = str(tmpdir.join("alg.f90"))
+    with open(filename, "w", encoding='utf-8') as my_file:
+        my_file.write(code)
+    alg, _ = generate(filename, api="dynamo0.3")
+    assert "use _psyclone_builtins" not in alg
+
+
 def test_main_unexpected_fatal_error(capsys, monkeypatch):
     '''Tests that we get the expected output and the code exits with an
     error when an unexpected fatal error is returned from the generate
@@ -1035,3 +1107,170 @@ def test_utf_char(tmpdir):
     tmp_file = os.path.join(str(tmpdir), "test_psy.f90")
     main(["-api", "nemo", "-opsy", tmp_file, test_file])
     assert os.path.isfile(tmp_file)
+
+
+def test_check_psyir():
+    '''Tests for the check_psyir utility method.'''
+
+    # multiple program, module etc.
+    code = (
+        "program test_prog\n"
+        "end program\n"
+        "subroutine test_sub\n"
+        "end subroutine\n")
+    psyir = FortranReader().psyir_from_source(code)
+    filename = "dummy"
+    with pytest.raises(GenerationError) as info:
+        check_psyir(psyir, filename)
+    assert ("Expecting LFRic algorithm-layer code within file 'dummy' to be "
+            "a single program or module, but found '2' of type "
+            "['Routine', 'Routine']." in str(info.value))
+    # not a program or module
+    code = (
+        "subroutine test_sub\n"
+        "end subroutine\n")
+    psyir = FortranReader().psyir_from_source(code)
+    with pytest.raises(GenerationError) as info:
+        check_psyir(psyir, filename)
+    assert ("Expecting LFRic algorithm-layer code within file 'dummy' to be "
+            "a single program or module, but found 'Routine'."
+            in str(info.value))
+    # OK
+    code = (
+        "program test_sub\n"
+        "end\n")
+    psyir = FortranReader().psyir_from_source(code)
+    check_psyir(psyir, filename)
+
+
+def test_add_builtins_use():
+    '''Tests for the add_builtins_use utility method.'''
+
+    # no spec_part
+    code = (
+        "program test_prog\n"
+        "end program\n")
+    parser = ParserFactory().create(std="f2008")
+    reader = FortranStringReader(code)
+    fp2_tree = parser(reader)
+    add_builtins_use(fp2_tree, "my_name")
+    assert "USE my_name" in str(fp2_tree)
+    # spec_part
+    code = (
+        "program test_prog\n"
+        "  integer :: i\n"
+        "end program\n")
+    reader = FortranStringReader(code)
+    fp2_tree = parser(reader)
+    add_builtins_use(fp2_tree, "ANOTHER_NAME")
+    assert "USE ANOTHER_NAME" in str(fp2_tree)
+    # multiple modules/programs
+    code = (
+        "program test_prog\n"
+        "end program\n"
+        "module test_mod1\n"
+        "end module\n"
+        "module test_mod2\n"
+        "end module\n")
+    reader = FortranStringReader(code)
+    fp2_tree = parser(reader)
+    add_builtins_use(fp2_tree, "builtins")
+    assert str(fp2_tree) == (
+        "PROGRAM test_prog\n  USE builtins\nEND PROGRAM\n"
+        "MODULE test_mod1\n  USE builtins\nEND MODULE\n"
+        "MODULE test_mod2\n  USE builtins\nEND MODULE")
+
+
+def test_no_script_lfric_new(monkeypatch):
+    '''Test that the generate function in generator.py returns
+    successfully if no script is specified for the dynamo0.3 (LFRic)
+    api. This test uses the new PSyIR approach to modify the algorithm
+    layer which is currently in development so is protected by a
+    switch. This switch is turned on in this test by monkeypatching.
+
+    '''
+    monkeypatch.setattr(generator, "LFRIC_TESTING", True)
+    alg, _ = generate(
+        os.path.join(BASE_PATH, "dynamo0p3", "1_single_invoke.f90"),
+        api="dynamo0.3")
+    # new call replaces invoke
+    assert "use single_invoke_psy, only : invoke_0_testkern_type" in alg
+    assert "call invoke_0_testkern_type(a, f1, f2, m1, m2)" in alg
+    # functor symbol is removed
+    assert " testkern_type" not in alg
+    # module symbol is removed
+    assert "testkern_mod" not in alg
+    # _psyclone_builtins symbol (that was added by PSyclone) is removed
+    assert "use _psyclone_builtins" not in alg
+
+
+def test_script_lfric_new(monkeypatch):
+    '''Test that the generate function in generator.py returns
+    successfully if a script (containing both trans_alg() and trans()
+    functions) is specified. This test uses the new PSyIR approach to
+    modify the algorithm layer which is currently in development so is
+    protected by a switch. This switch is turned on in this test by
+    monkeypatching.
+
+    '''
+    monkeypatch.setattr(generator, "LFRIC_TESTING", True)
+    alg, _ = generate(
+        os.path.join(BASE_PATH, "dynamo0p3", "1_single_invoke.f90"),
+        api="dynamo0.3",
+        script_name=os.path.join(BASE_PATH, "dynamo0p3", "alg_script.py"))
+    # new call replaces invoke
+    assert "use single_invoke_psy, only : invoke_0_testkern_type" in alg
+    assert "call invoke_0_testkern_type(a, f1, f2, m1, m2)" in alg
+    # functor symbol is removed
+    assert " testkern_type" not in alg
+    # module symbol is removed
+    assert "testkern_mod" not in alg
+    # _psyclone_builtins symbol (that was added by PSyclone) is removed
+    assert "use _psyclone_builtins" not in alg
+
+
+def test_builtins_lfric_new(monkeypatch):
+    '''Test that the generate function in generator.py returns
+    successfully when the algorithm layer contains a mixture of
+    kernels and builtins. This test uses the new PSyIR approach to
+    modify the algorithm layer which is currently in development so is
+    protected by a switch. This switch is turned on in this test by
+    monkeypatching.
+
+    '''
+    monkeypatch.setattr(generator, "LFRIC_TESTING", True)
+    alg, _ = generate(
+        os.path.join(BASE_PATH, "dynamo0p3",
+                     "15.1.2_builtin_and_normal_kernel_invoke.f90"),
+        api="dynamo0.3")
+    # new call replaces invoke
+    assert "use single_invoke_builtin_then_kernel_psy, only : invoke_0" in alg
+    assert "call invoke_0(f5, f2, f3, f4, scalar, f1)" in alg
+    # functor symbols are removed
+    assert " testkern_type" not in alg
+    assert " testkern_wtheta_type" not in alg
+    assert " testkern_w2_only_type" not in alg
+    # module symbols are removed
+    assert " testkern_mod" not in alg
+    assert " testkern_wtheta_mod" not in alg
+    assert " testkern_w2_only_mod" not in alg
+    # _psyclone_builtins symbol (that was added by PSyclone) is removed
+    assert "use _psyclone_builtins" not in alg
+
+
+def test_no_invokes_lfric_new(monkeypatch):
+    '''Test that the generate function in generator.py raises the expected
+    exception if the algorithm layer contains no invoke() calls. This
+    test uses the new PSyIR approach to modify the algorithm layer
+    which is currently in development so is protected by a
+    switch. This switch is turned on in this test by monkeypatching.
+
+    '''
+    monkeypatch.setattr(generator, "LFRIC_TESTING", True)
+    # pass a kernel file as it has no invoke's in it.
+    with pytest.raises(NoInvokesError) as info:
+        _, _ = generate(
+            os.path.join(BASE_PATH, "dynamo0p3", "testkern_mod.F90"),
+            api="dynamo0.3")
+    assert ("Algorithm file contains no invoke() calls: refusing to generate "
+            "empty PSy code" in str(info.value))

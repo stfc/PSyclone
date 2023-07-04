@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2020, Science and Technology Facilities Council
+! Copyright (c) 2017-2023, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -48,6 +48,7 @@ program single_function
   type(quadrature_xyoz_type) :: qr
   real(r_def)                :: b(2), a(8)
   integer(i_def)             :: iflag(4)
+  integer(i_def)             :: index, index1, index2, index3
 
   call invoke(                                                   &
        testkern_qr_type(f0(1), f1(1,1), f1(2,index), b(1),       &

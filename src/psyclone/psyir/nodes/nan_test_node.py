@@ -41,7 +41,6 @@ This module provides support for verifying that the real inputs and outputs
 of a kernel are valid numbers (i.e. neither NAN nor infinite).
 '''
 
-from __future__ import absolute_import, print_function
 
 from psyclone.f2pygen import CommentGen
 from psyclone.psyir.nodes.psy_data_node import PSyDataNode
@@ -84,14 +83,14 @@ class NanTestNode(PSyDataNode):
 
         # pylint: disable=import-outside-toplevel
         # This cannot be moved to the top, it would cause a circular import
-        from psyclone.psyir.tools.dependency_tools import DependencyTools
+        from psyclone.psyir.tools import DependencyTools
         # Determine the variables to check:
         dep = DependencyTools()
-        input_list, output_list = \
-            dep.get_in_out_parameters(self, options=self.options)
+        read_write_info = dep.get_in_out_parameters(self,
+                                                    options=self.options)
 
-        options = {'pre_var_list': input_list,
-                   'post_var_list': output_list}
+        options = {'pre_var_list': read_write_info.read_list,
+                   'post_var_list': read_write_info.write_list}
 
         parent.add(CommentGen(parent, ""))
         parent.add(CommentGen(parent, " NanTestStart"))
@@ -113,13 +112,13 @@ class NanTestNode(PSyDataNode):
         '''
         # This cannot be moved to the top, it would cause a circular import
         # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.tools.dependency_tools import DependencyTools
+        from psyclone.psyir.tools import DependencyTools
         # Determine the variables to check:
         dep = DependencyTools()
-        input_list, output_list = dep.get_in_out_parameters(self)
+        read_write_info = dep.get_in_out_parameters(self)
 
-        options = {'pre_var_list': input_list,
-                   'post_var_list': output_list}
+        options = {'pre_var_list': read_write_info.read_list,
+                   'post_var_list': read_write_info.write_list}
 
         return super().lower_to_language_level(options)
 

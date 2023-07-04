@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022, Science and Technology Facilities Council.
+# Copyright (c) 2022-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,15 +32,17 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
+# Modified: S. Siso, STFC Daresbury Lab
 
 '''
 This module contains the HoistLocalArraysTrans transformation.
 
 '''
 
+import copy
+
 from psyclone.psyGen import Transformation
 from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import (Routine, Container, ArrayReference, Range,
                                   FileContainer, IfBlock, UnaryOperation,
                                   CodeBlock, ACCRoutineDirective, Literal,
@@ -159,9 +161,9 @@ then
             orig_shape = sym.datatype.shape[:]
             # Modify the *existing* symbol so that any references to it
             # remain valid.
-            # pylint: disable=consider-using-enumerate
-            for idx in range(len(sym.shape)):
-                sym.shape[idx] = ArrayType.Extent.DEFERRED
+            new_type = copy.copy(sym.datatype)
+            new_type._shape = len(orig_shape)*[ArrayType.Extent.DEFERRED]
+            sym.datatype = new_type
             # Ensure that the promoted symbol is private to the container.
             sym.visibility = Symbol.Visibility.PRIVATE
             # We must allow for the situation where there's a clash with a
@@ -266,7 +268,7 @@ then
 
         '''
         local_arrays = {}
-        for sym in node.symbol_table.local_datasymbols:
+        for sym in node.symbol_table.automatic_datasymbols:
             if (sym is node.return_symbol or not sym.is_array or
                     sym.is_constant):
                 continue

@@ -153,6 +153,8 @@ class KernCallInvokeArgList(ArgOrdering):
             datatype = LFRicTypes("LFRicRealScalarDataType")()
         elif scalar_arg.intrinsic_type == "integer":
             datatype = LFRicTypes("LFRicIntegerScalarDataType")()
+        elif scalar_arg.intrinsic_type == "logical":
+            datatype = LFRicTypes("LFRicLogicalScalarDataType")()
         else:
             raise NotImplementedError(
                 f"Scalar of type '{scalar_arg.intrinsic_type}' not supported.")
