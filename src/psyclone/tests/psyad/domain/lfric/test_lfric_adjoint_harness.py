@@ -356,10 +356,11 @@ def test_init_scalar_value(monkeypatch):
     # property of the datatype.
     sym4 = DataSymbol("my_var", LFRicTypes("LFRicRealScalarDataType")())
 
-    class broken_type:
+    class BrokenType:
+        '''Utility class to test init_scalar_value error.'''
         def __init__(self):
             self.name = "wrong"
-    monkeypatch.setattr(sym4.datatype, "intrinsic", broken_type())
+    monkeypatch.setattr(sym4.datatype, "intrinsic", BrokenType())
     with pytest.raises(InternalError) as err:
         _init_scalar_value(sym4, routine, {})
     assert ("scalars of REAL, INTEGER or BOOLEAN type are supported but got "
@@ -592,7 +593,8 @@ def test_generate_lfric_adjoint_harness_operator(fortran_reader,
         "    INTEGER(KIND=i_def), intent(in) :: ndf_w0\n"
         "    INTEGER(KIND=i_def), intent(in) :: cell\n"
         "    INTEGER(KIND=i_def), intent(in) :: op_ncell_3d\n"
-        "    REAL(KIND=r_def), intent(in), dimension(ndf_w3,ndf_w0,op_ncell_3d) :: op\n"
+        "    REAL(KIND=r_def), intent(in), dimension(ndf_w3,ndf_w0,"
+        "op_ncell_3d) :: op\n"
         "    field = ascalar\n")
 
     tl_psyir = fortran_reader.psyir_from_source(code)
@@ -633,7 +635,8 @@ def test_gen_lfric_adjoint_harness_written_operator(fortran_reader,):
         "    INTEGER(KIND=i_def), intent(in) :: ndf_w0\n"
         "    INTEGER(KIND=i_def), intent(in) :: cell\n"
         "    INTEGER(KIND=i_def), intent(in) :: op_ncell_3d\n"
-        "    REAL(KIND=r_def), intent(out), dimension(ndf_w3,ndf_w0,op_ncell_3d) :: op\n"
+        "    REAL(KIND=r_def), intent(out), dimension(ndf_w3,ndf_w0,"
+        "op_ncell_3d) :: op\n"
         "    field = ascalar\n")
     tl_psyir = fortran_reader.psyir_from_source(code)
     with pytest.raises(GenerationError) as err:
@@ -642,7 +645,7 @@ def test_gen_lfric_adjoint_harness_written_operator(fortran_reader,):
             "to. This is not supported." in str(err.value))
 
 
-def test_generate_lfric_adjoint_harness_invalid_geom_arg(fortran_reader, fortran_writer):
+def test_generate_lfric_adjoint_harness_invalid_geom_arg(fortran_reader):
     '''
     Check that generate_lfric_adjoint_harness() calls _validate_geom_arg.
     '''
@@ -651,7 +654,7 @@ def test_generate_lfric_adjoint_harness_invalid_geom_arg(fortran_reader, fortran
         _ = generate_lfric_adjoint_harness(tl_psyir, coord_arg_idx=1)
     assert ("The 'coordinate' argument is expected to be a field but argument "
             "1 to kernel 'testkern_code' is a 'gh_scalar'" in str(err.value))
-    # TODO: WHY DO WE NEED THE NEXT LINE?
+    # Recreate the tl_psyir as it gets raised by this routine.
     tl_psyir = fortran_reader.psyir_from_source(TL_CODE)
     with pytest.raises(ValueError) as err:
         _ = generate_lfric_adjoint_harness(tl_psyir, panel_id_arg_idx=1)

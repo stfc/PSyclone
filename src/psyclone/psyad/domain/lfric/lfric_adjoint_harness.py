@@ -522,8 +522,8 @@ def generate_lfric_adjoint_harness(tl_psyir, coord_arg_idx=None,
     # names in-place within DynKern is the neatest solution given that
     # this is a legacy structure.
 
-    # First raise the tangent-linear kernel PSyIR to an LFRic
-    # PSyIR. This gives us access to the kernel metadata.
+    # First raise the tangent-linear kernel PSyIR to LFRic PSyIR. This
+    # gives us access to the kernel metadata.
     kern_trans = RaisePSyIR2LFRicKernTrans()
     kern_trans.apply(tl_psyir, options={"metadata_name": kernel_name})
     metadata = tl_psyir.children[0].metadata
@@ -533,18 +533,14 @@ def generate_lfric_adjoint_harness(tl_psyir, coord_arg_idx=None,
     # DynKern.
     index_map = ArgIndexToMetadataIndex.mapping(metadata)
     inv_index_map = {value: key for key, value in index_map.items()}
-    # TODO: THERE SEEMS TO BE A BUG IN ArgIndexToMetadataIndex as operator should be matrix but it returns ncell_3d.
-    print(inv_index_map)
-    tl_names = [symbol.name for symbol in tl_argument_list]
-    print(", ".join(tl_names))
 
     # For each kernel argument, replace the generic name with the
     # scientific name used in the tangent-linear code.
     for idx, arg in enumerate(kern.arguments.args):
         tl_arg_idx = inv_index_map[idx]
-        tl_arg_name = tl_argument_list[tl_arg_idx].name
-        arg._name = tl_arg_name
-        print(idx, tl_arg_idx, tl_arg_name)
+        # pylint: disable=protected-access
+        arg._name = tl_argument_list[tl_arg_idx].name
+        # pylint: enable=protected-access
 
     kern_args = lfalg.construct_kernel_args(routine, kern)
 
@@ -602,8 +598,9 @@ def generate_lfric_adjoint_harness(tl_psyir, coord_arg_idx=None,
             # This kernel argument is not modified by the test harness so we
             # don't need to keep a copy of it.
             continue
-        input_sym = table.new_symbol(f"{sym.name}_input", symbol_type=DataSymbol,
-                                     datatype=DeferredType())
+        input_sym = table.new_symbol(
+            f"{sym.name}_input", symbol_type=DataSymbol,
+            datatype=DeferredType())
         input_sym.copy_properties(sym)
         input_symbols[sym.name] = input_sym
 

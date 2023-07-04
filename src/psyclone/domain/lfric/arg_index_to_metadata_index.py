@@ -131,7 +131,7 @@ class ArgIndexToMetadataIndex(MetadataToArgumentsRules):
         cls._index += 1  # nrow
         if meta_arg.function_space_to != meta_arg.function_space_from:
             cls._index += 1  # ncol
-        cls._index += 5  # bandwith, alpha, beta, gamma_m, gamma_p
+        cls._index += 5  # bandwidth, alpha, beta, gamma_m, gamma_p
 
     @classmethod
     def _add_arg(cls, meta_arg):
