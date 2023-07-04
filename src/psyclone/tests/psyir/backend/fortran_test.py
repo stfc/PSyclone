@@ -515,6 +515,9 @@ def test_get_operator_logical_special_case():
     assert (FortranWriter().get_operator(BinaryOperation.Operator.EQ,
                                          children=[ref, true_literal])
             == ".EQV.")
+    assert (FortranWriter().get_operator(BinaryOperation.Operator.EQ,
+                                         children=[ref, ref])
+            == ".EQV.")
 
 
 def test_get_operator_error():

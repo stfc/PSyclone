@@ -445,7 +445,9 @@ class FortranWriter(LanguageWriter):
                         ScalarType.Intrinsic.BOOLEAN):
                     return ".EQV."
                 if (isinstance(child, Reference) and
-                        isinstance(child.symbol, DataTypeSymbol) and
+                        isinstance(child.symbol, DataSymbol) and
+                        not isinstance(child.symbol.datatype,
+                                       UnknownFortranType) and
                         child.symbol.datatype.intrinsic ==
                         ScalarType.Intrinsic.BOOLEAN):
                     return ".EQV."
