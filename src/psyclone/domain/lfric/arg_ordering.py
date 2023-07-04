@@ -411,8 +411,7 @@ class ArgOrdering:
                     if arg.descriptor.stencil['type'] == "xory1d":
                         # if "xory1d is specified then the actual
                         # direction must be passed from the Algorithm layer.
-                        self.stencil_unknown_direction(arg,
-                                                       var_accesses)
+                        self.stencil_unknown_direction(arg, var_accesses)
                     # stencil information that is always passed from the
                     # Algorithm layer.
                     if arg.descriptor.stencil['type'] == "cross2d":

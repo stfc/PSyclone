@@ -715,7 +715,8 @@ class InvokeSchedule(Routine):
         # Populate the Schedule Symbol Table with the reserved names.
         if reserved_names:
             for reserved in reserved_names:
-                self.symbol_table.add(Symbol(reserved))
+                self.symbol_table.add(Symbol(reserved),
+                                      tag=f"AlgArgs_{reserved}")
 
         # We need to separate calls into loops (an iteration space really)
         # and calls so that we can perform optimisations separately on the
