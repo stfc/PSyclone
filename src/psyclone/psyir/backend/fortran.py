@@ -414,7 +414,7 @@ class FortranWriter(LanguageWriter):
         '''
         return operator in FORTRAN_INTRINSICS
 
-    def get_operator(self, operator, children=None):
+    def get_operator(self, operator):
         '''Determine the Fortran operator that is equivalent to the provided
         PSyIR operator. This is achieved by reversing the Fparser2Reader
         maps that are used to convert from Fortran operator names to PSyIR
@@ -422,9 +422,6 @@ class FortranWriter(LanguageWriter):
 
         :param operator: a PSyIR operator.
         :type operator: :py:class:`psyclone.psyir.nodes.Operation.Operator`
-        :param children: optional parameter containing the children of the
-                         Operation corresponding to operator.
-        :type children: list of :py:class:`psyclone.psyir.nodes` or None.
 
         :returns: the Fortran operator.
         :rtype: str
@@ -432,26 +429,6 @@ class FortranWriter(LanguageWriter):
         :raises KeyError: if the supplied operator is not known.
 
         '''
-        # For BinaryOperations there is a special case if the Operator is EQ
-        # and one of the children is a Logical Reference or Literal we use
-        # the .eqv. operator instead of ==.
-        # TODO #2204 This will not support two logical expressions equivalence
-        if (children and len(children) == 2 and
-                operator == BinaryOperation.Operator.EQ):
-            for child in children:
-                if (isinstance(child, Literal) and
-                        isinstance(child.datatype, ScalarType) and
-                        child.datatype.intrinsic ==
-                        ScalarType.Intrinsic.BOOLEAN):
-                    return ".EQV."
-                if (isinstance(child, Reference) and
-                        isinstance(child.symbol, DataSymbol) and
-                        not isinstance(child.symbol.datatype,
-                                       UnknownFortranType) and
-                        child.symbol.datatype.intrinsic ==
-                        ScalarType.Intrinsic.BOOLEAN):
-                    return ".EQV."
-
         return self._operator_2_str[operator]
 
     def gen_indices(self, indices, var_name=None):
@@ -1250,8 +1227,7 @@ class FortranWriter(LanguageWriter):
         if node.argument_names[1]:
             rhs = f"{node.argument_names[1]}={rhs}"
         try:
-            fort_oper = self.get_operator(node.operator,
-                                          children=node.children)
+            fort_oper = self.get_operator(node.operator)
             if self.is_intrinsic(fort_oper):
                 # This is a binary intrinsic function.
                 return f"{fort_oper}({lhs}, {rhs})"

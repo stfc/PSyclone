@@ -1012,7 +1012,7 @@ class Fparser2Reader():
         ('**', BinaryOperation.Operator.POW),
         ('==', BinaryOperation.Operator.EQ),
         ('.eq.', BinaryOperation.Operator.EQ),
-        ('.eqv.', BinaryOperation.Operator.EQ),
+        ('.eqv.', BinaryOperation.Operator.EQV),
         ('/=', BinaryOperation.Operator.NE),
         ('.ne.', BinaryOperation.Operator.NE),
         ('<=', BinaryOperation.Operator.LE),
@@ -3233,9 +3233,48 @@ class Fparser2Reader():
             # The case value is some scalar initialisation expression
             bop = BinaryOperation(BinaryOperation.Operator.EQ,
                                   parent=parent)
-            parent.addchild(bop)
             self.process_nodes(parent=bop, nodes=[selector])
             self.process_nodes(parent=bop, nodes=[node])
+            # TODO #2204 This will not support if we have two expressions
+            # or a unknown type, as we cannot determine if we have == or EQV
+            # operator for thoses cases. This should result in a CodeBlock
+            # Keep track of if we know if the operator should be EQ or EQV
+            operator_known = False
+            for child in bop.children:
+                if (isinstance(child, Literal) and
+                        isinstance(child.datatype, ScalarType)):
+                    # We know the operator for all literals
+                    operator_known = True
+                    if (child.datatype.intrinsic ==
+                            ScalarType.Intrinsic.BOOLEAN):
+                        rhs = bop.children[1].detach()
+                        lhs = bop.children[0].detach()
+                        bop = BinaryOperation(BinaryOperation.Operator.EQV,
+                                              parent=parent)
+                        bop.addchild(lhs)
+                        bop.addchild(rhs)
+                elif (isinstance(child, Reference) and
+                        isinstance(child.symbol, DataSymbol) and
+                        not isinstance(child.symbol.datatype,
+                                       UnknownFortranType)):
+                    # We know the operator for all known reference types.
+                    operator_known = True
+                    if (child.symbol.datatype.intrinsic ==
+                            ScalarType.Intrinsic.BOOLEAN):
+                        rhs = bop.children[1].detach()
+                        lhs = bop.children[0].detach()
+                        bop = BinaryOperation(BinaryOperation.Operator.EQV,
+                                              parent=parent)
+                        bop.addchild(lhs)
+                        bop.addchild(rhs)
+
+            if operator_known:
+                parent.addchild(bop)
+            else:
+                raise NotImplementedError("PSyclone can't determine if this "
+                                          "case should be == or .EQV. so "
+                                          "we need to make a code block "
+                                          "instead.")
 
     @staticmethod
     def _array_notation_rank(node):

@@ -303,7 +303,7 @@ class SymPyWriter(FortranWriter):
         # information can be ignored.
         return node.value
 
-    def get_operator(self, operator, children=None):
+    def get_operator(self, operator):
         '''Determine the operator that is equivalent to the provided
         PSyIR operator. This implementation checks for certain functions
         that SymPy supports: Max, Min, Mod. These functions must be
@@ -314,9 +314,6 @@ class SymPyWriter(FortranWriter):
 
         :param operator: a PSyIR operator.
         :type operator: :py:class:`psyclone.psyir.nodes.Operation.Operator`
-        :param children: optional parameter containing the children of the
-                         Operation corresponding to operator.
-        :type children: list of :py:class:`psyclone.psyir.nodes` or None.
 
         :returns: the operator as string.
         :rtype: str
