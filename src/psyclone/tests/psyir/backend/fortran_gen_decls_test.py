@@ -52,12 +52,12 @@ from psyclone.psyir.symbols import (Symbol, DataSymbol, DataTypeSymbol,
 def test_gen_param_decls_dependencies(fortran_writer):
     ''' Test that dependencies between parameter declarations are handled. '''
     symbol_table = SymbolTable()
-    rlg_sym = DataSymbol("rlg", INTEGER_TYPE,
-                         constant_value=Literal("8", INTEGER_TYPE))
-    wp_sym = DataSymbol("wp", INTEGER_TYPE,
-                        constant_value=Reference(rlg_sym))
-    var_sym = DataSymbol("var", INTEGER_TYPE,
-                         constant_value=BinaryOperation.create(
+    rlg_sym = DataSymbol("rlg", INTEGER_TYPE, is_constant=True,
+                         initial_value=Literal("8", INTEGER_TYPE))
+    wp_sym = DataSymbol("wp", INTEGER_TYPE, is_constant=True,
+                        initial_value=Reference(rlg_sym))
+    var_sym = DataSymbol("var", INTEGER_TYPE, is_constant=True,
+                         initial_value=BinaryOperation.create(
                              BinaryOperation.Operator.ADD,
                              Reference(rlg_sym), Reference(wp_sym)))
     symbol_table.add(var_sym)
@@ -70,8 +70,8 @@ def test_gen_param_decls_dependencies(fortran_writer):
     # Check that an (invalid, obviously) circular dependency is handled.
     # Replace "rlg" with a new one that depends on "wp".
     del symbol_table._symbols[rlg_sym.name]
-    rlg_sym = DataSymbol("rlg", INTEGER_TYPE,
-                         constant_value=Reference(wp_sym))
+    rlg_sym = DataSymbol("rlg", INTEGER_TYPE, is_constant=True,
+                         initial_value=Reference(wp_sym))
     symbol_table.add(rlg_sym)
     with pytest.raises(VisitorError) as err:
         fortran_writer._gen_parameter_decls(symbol_table)

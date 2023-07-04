@@ -2760,12 +2760,13 @@ class KernelImportsToArguments(Transformation):
             # Convert the symbol to an argument and add it to the argument list
             current_arg_list = symtab.argument_list
             # An argument does not have an initial value.
+            was_constant = updated_sym.is_constant
+            updated_sym.is_constant = False
             updated_sym.initial_value = None
-            if updated_sym.is_constant:
+            if was_constant:
                 # Imported constants lose the constant value but are read-only
                 # TODO: When #633 and #11 are implemented, warn the user that
                 # they should transform the constants to literal values first.
-                updated_sym.is_constant = False
                 updated_sym.interface = ArgumentInterface(
                     ArgumentInterface.Access.READ)
             else:
