@@ -114,65 +114,38 @@ def test_ompparallel_changes_begin_string(fortran_reader):
     assert pdir.children[2] is not priv_clause
 
 
-def test_ompparallel_structures_private_clause():
-    '''TODO'''
-    subroutine = Routine("testsub")
+def test_ompparallel_structures_private_clause(fortran_reader):
+    '''Check that the OMP Parallel clause only sets the entire structure
+    to be firstprivate, not structure members as required by the OpenMP
+    standard.'''
+    code = '''
+    Subroutine testsub
+    type :: grid_type
+        integer :: nx
+        integer, dimension(3) :: sub_grids
+        real, dimension(128, 128) :: data
+    end type
+    integer :: tmp, tmp2, tmp3
+    type(grid_type) :: rval
+    do tmp=1, 128, 1
+        tmp2 = rval%nx
+    end do
+
+    do tmp=1, 128, 1
+        rval%nx = tmp2
+    end do
+end subroutine'''
+
+    psyir = fortran_reader.psyir_from_source(code)
+    loops = psyir.walk(Loop)
+    do_dir = loops[0].detach()
+    do_dir2 = loops[1].detach()
+
     parallel = OMPParallelDirective.create()
-    subroutine.addchild(parallel)
-    sing = OMPSingleDirective()
-    tmp = DataSymbol("tmp", INTEGER_SINGLE_TYPE)
-    tmp2 = DataSymbol("tmp2", INTEGER_SINGLE_TYPE)
-    tmp3 = DataSymbol("tmp3", INTEGER_SINGLE_TYPE)
-    # StructureType for Structure tests
-    grid_type = StructureType.create(
-        [
-            ("nx", INTEGER_TYPE, Symbol.Visibility.PUBLIC),
-            (
-                "sub_grids",
-                ArrayType(INTEGER_TYPE, [3]),
-                Symbol.Visibility.PUBLIC,
-            ),
-            (
-                "data",
-                ArrayType(REAL_TYPE, [128, 128]),
-                Symbol.Visibility.PUBLIC,
-            ),
-        ]
-    )
-    rval = DataSymbol("rval", grid_type)
-    subroutine.symbol_table.add(tmp)
-    subroutine.symbol_table.add(tmp2)
-    subroutine.symbol_table.add(tmp3)
-    subroutine.symbol_table.add(rval)
-
-    do_dir = OMPDoDirective()
-    assign1 = Assignment.create(
-        Reference(tmp2), StructureReference.create(rval, ["nx"])
-    )
-    loop1 = Loop.create(
-        tmp,
-        Literal("1", INTEGER_SINGLE_TYPE),
-        Literal("128", INTEGER_SINGLE_TYPE),
-        Literal("1", INTEGER_SINGLE_TYPE),
-        [assign1],
-    )
-    do_dir.children[0].addchild(loop1)
-
-    do_dir2 = OMPDoDirective()
-    assign2 = Assignment.create(
-        StructureReference.create(rval, ["nx"]), Reference(tmp2)
-    )
-    loop2 = Loop.create(
-        tmp,
-        Literal("1", INTEGER_SINGLE_TYPE),
-        Literal("128", INTEGER_SINGLE_TYPE),
-        Literal("1", INTEGER_SINGLE_TYPE),
-        [assign2]
-    )
-    do_dir2.children[0].addchild(loop2)
 
     parallel.children[0].addchild(do_dir)
     parallel.children[0].addchild(do_dir2)
+    psyir.children[0].addchild(parallel)
 
     priv_clause, firstpriv_clause = parallel._get_private_clauses()
     assert isinstance(priv_clause, OMPPrivateClause)

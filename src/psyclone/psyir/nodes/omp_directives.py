@@ -704,7 +704,9 @@ class OMPParallelDirective(OMPRegionDirective):
 
                     if loop_ancestor:
                         # The assignment to the variable is inside a loop, so
-                        # declare it to be private
+                        # declare it to be private. If the variable is a
+                        # structure member then we only use the root variable
+                        # name (see 3.2.1 of the OMP spec. v5.2).
                         name = str(signature[0]).lower()
                         symbol = access.node.scope.symbol_table.lookup(name)
 
