@@ -482,6 +482,9 @@
 	163) PR #2191 for #2185. Fix element order used in PSyAD test
 	harness.
 
+	164) PR #2208 towards #2205. Ensures that functions or subroutines
+	that CONTAIN other functions/subroutines are put into a CodeBlock.
+
 release 2.3.1 17th of June 2022
 
 	1) PR #1747 for #1720. Adds support for If blocks to PSyAD.
