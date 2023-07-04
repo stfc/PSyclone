@@ -3202,6 +3202,10 @@ class Fparser2Reader():
         :param parent: parent node in the PSyIR.
         :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
+        :raises NotImplementedError: If the operator for an equality cannot be
+                                     determined (i.e. the statement cannot be
+                                     determined to be a logical comparison
+                                     or not)
         '''
         if isinstance(node, Fortran2003.Case_Value_Range):
             # The case value is a range (e.g. lim1:lim2)
