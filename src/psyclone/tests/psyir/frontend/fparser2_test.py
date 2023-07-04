@@ -869,7 +869,7 @@ def test_declarations_with_initialisations(fortran_reader):
     psyir = fortran_reader.psyir_from_source(
         """
         module test
-            integer :: a = 1
+            integer :: a = 1, aa = 4
             integer, save :: b = 1
             integer, parameter :: c = 1
             contains
@@ -882,19 +882,23 @@ def test_declarations_with_initialisations(fortran_reader):
         """)
 
     inner_st = psyir.walk(Routine)[0].symbol_table
+    asym = inner_st.lookup('a')
+    aasym = inner_st.lookup('aa')
+    bsym = inner_st.lookup('b')
+    csym = inner_st.lookup('c')
+    dsym = inner_st.lookup('d')
+    esym = inner_st.lookup('e')
+    fsym = inner_st.lookup('f')
     # All initialisation variables are DataSymbols
-    assert isinstance(inner_st.lookup('a'), DataSymbol)
-    assert isinstance(inner_st.lookup('b'), DataSymbol)
-    assert isinstance(inner_st.lookup('c'), DataSymbol)
-    assert isinstance(inner_st.lookup('d'), DataSymbol)
-    assert isinstance(inner_st.lookup('e'), DataSymbol)
-    assert isinstance(inner_st.lookup('f'), DataSymbol)
+    assert all(isinstance(sym, DataSymbol) for sym in
+               [asym, aasym, bsym, csym, dsym, esym, fsym])
 
+    # All of the symbols should have a static interface because they are
+    # either parameters or are given initial values.
+    assert all(isinstance(sym.interface, StaticInterface) for sym in
+               [asym, aasym, bsym, csym, dsym, esym])
+    # TODO ARPDBG
     # When it is not a parameter they are unknown interface and datatype
-    assert isinstance(inner_st.lookup('a').interface, UnknownInterface)
-    assert isinstance(inner_st.lookup('b').interface, UnknownInterface)
-    assert isinstance(inner_st.lookup('d').interface, UnknownInterface)
-    assert isinstance(inner_st.lookup('e').interface, UnknownInterface)
     assert isinstance(inner_st.lookup('a').datatype, UnknownFortranType)
     assert isinstance(inner_st.lookup('b').datatype, UnknownFortranType)
     assert isinstance(inner_st.lookup('d').datatype, UnknownFortranType)

@@ -1871,7 +1871,7 @@ class Fparser2Reader():
                 interface = DefaultModuleInterface()
             else:
                 interface = AutomaticInterface()
-                # This might still be redifined as Argument later if it
+                # This might still be redefined as Argument later if it
                 # appears in the argument list, but we don't know at this
                 # point.
 
@@ -1983,7 +1983,12 @@ class Fparser2Reader():
             # We use copies of the interface object because we will reuse the
             # interface for each entity if there are multiple in the same
             # declaration statement.
-            sym.interface = interface.copy()
+            if init_expr:
+                # In Fortran, an initialisation expression implies that the
+                # symbol is static.
+                sym.interface = StaticInterface()
+            else:
+                sym.interface = interface.copy()
 
     def _process_derived_type_decln(self, parent, decl, visibility_map):
         '''
