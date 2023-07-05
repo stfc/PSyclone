@@ -60,6 +60,23 @@ def test_logical_literal_case(fortran_reader, fortran_writer):
     assert "a == .true." not in pass_through
     assert "a .EQV. .true." in pass_through
 
+    # Test with an unknown comparison to a literal.
+    code = '''subroutine test_subroutine()
+    use mymod, only: a
+
+    SELECT CASE(A)
+    CASE(.FALSE.)
+        print *, "Not hello"
+    CASE(.TRUE.)
+        print *, "hello"
+    END SELECT
+  end subroutine'''
+
+    psyir = fortran_reader.psyir_from_source(code)
+    pass_through = fortran_writer(psyir)
+    assert "a == .true." not in pass_through
+    assert "a .EQV. .true." in pass_through
+
 
 def test_logical_reference_case(fortran_reader, fortran_writer):
     '''Test that a select case statement comparing to logical references
