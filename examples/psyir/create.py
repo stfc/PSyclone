@@ -46,7 +46,6 @@ This should output a Fortran representation of the PSyIR and part of a
 C representation of the PSyIR.
 
 '''
-from __future__ import print_function
 from psyclone.psyir.nodes import Reference, Literal, UnaryOperation, \
     BinaryOperation, NaryOperation, Assignment, IfBlock, Loop, \
     Container, ArrayReference, Call, Routine, FileContainer
@@ -80,7 +79,8 @@ def create_psyir_tree():
     real_kind = symbol_table.new_symbol(root_name="RKIND",
                                         symbol_type=DataSymbol,
                                         datatype=INTEGER_TYPE,
-                                        constant_value=8)
+                                        is_constant=True,
+                                        initial_value=8)
     routine_symbol = RoutineSymbol("my_sub")
 
     # Array using precision defined by another symbol
