@@ -396,7 +396,8 @@ class KernCallArgList(ArgOrdering):
         array_1d = ArrayType(LFRicTypes("LFRicRealScalarDataType")(),
                              [ArrayType.Extent.DEFERRED])
         for idx in range(1, argvect.vector_size + 1):
-            cmpt_sym = self._symtab.lookup_with_tag(f"{argvect.name}_{idx}_data")
+            cmpt_sym = self._symtab.lookup_with_tag(
+                f"{argvect.name}_{idx}_data")
             # Create the accesses to each element of the vector:
             lit_ind = Literal(str(idx), INTEGER_SINGLE_TYPE)
             ref = ArrayOfStructuresReference.\
@@ -630,8 +631,9 @@ class KernCallArgList(ArgOrdering):
         self.append_structure_reference(
             operator["module"], operator["proxy_type"], ["local_stencil"],
             arg.proxy_name_indexed, overwrite_datatype=array_type)
+        sym = self._symtab.lookup_with_tag(arg.name+"_local_stencil")
         # The access mode of `local_stencil` is taken from the meta-data:
-        self.append(arg.proxy_name_indexed + "%local_stencil", var_accesses,
+        self.append(sym.name, var_accesses, # arg.proxy_name_indexed + "%local_stencil", var_accesses,
                     mode=arg.access, metadata_posn=arg.metadata_index)
 
     def fs_common(self, function_space, var_accesses=None):

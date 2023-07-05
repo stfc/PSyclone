@@ -3177,6 +3177,23 @@ class DynProxies(LFRicCollection):
                                arg in operators_list]
             parent.add(TypeDeclGen(parent, datatype=operator_datatype,
                                    entity_decls=operators_names))
+            # Create symbols that we will associate with the internal
+            # data arrays.
+            table = self._invoke.schedule.symbol_table
+            for arg in operators_list:
+                name = arg.name
+                # TODO use UnknownFortranType rather than DeferredType?
+                sym = table.new_symbol(name+"_local_stencil",
+                                       symbol_type=DataSymbol,
+                                       datatype=DeferredType(),
+                                       tag=name+"_local_stencil")
+                # Declare the pointer to the stencil array.
+                # TODO use the correct precision rather than hardwiring "r_def"
+                parent.add(DeclGen(parent, datatype="real",
+                                   kind="r_def",
+                                   dimension=":,:,:",
+                                   entity_decls=[sym.name],
+                                   pointer=True))
             op_mod = operators_list[0].module_name
             (self._invoke.invokes.psy.infrastructure_modules[op_mod].
              add(operator_datatype))
@@ -3231,13 +3248,22 @@ class DynProxies(LFRicCollection):
             else:
                 parent.add(AssignGen(parent, lhs=arg.proxy_name,
                                      rhs=arg.name+"%get_proxy()"))
-                name = self._symbol_table.lookup_with_tag(
-                    f"{arg.name}_data").name
-                parent.add(
-                    AssignGen(parent,
-                              lhs=name,
-                              rhs=f"{arg.proxy_name}%data",
-                              pointer=True))
+                if arg.is_field:
+                    name = self._symbol_table.lookup_with_tag(
+                        f"{arg.name}_data").name
+                    parent.add(
+                        AssignGen(parent,
+                                  lhs=name,
+                                  rhs=f"{arg.proxy_name}%data",
+                                  pointer=True))
+                else:
+                    name = self._symbol_table.lookup_with_tag(
+                        f"{arg.name}_local_stencil").name
+                    parent.add(
+                        AssignGen(parent,
+                                  lhs=name,
+                                  rhs=f"{arg.proxy_name}%local_stencil",
+                                  pointer=True))
 
 
 class DynCellIterators(LFRicCollection):
