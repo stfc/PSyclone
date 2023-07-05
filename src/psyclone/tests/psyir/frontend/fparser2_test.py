@@ -2724,7 +2724,7 @@ def test_handling_binaryopbase():
     assert len(new_node.children) == 2
     assert new_node._operator == BinaryOperation.Operator.ADD
 
-    # Test parsing all supported binary operators.
+    # Test parsing all supported arithmetic binary operators.
     testlist = (('+', BinaryOperation.Operator.ADD),
                 ('-', BinaryOperation.Operator.SUB),
                 ('*', BinaryOperation.Operator.MUL),
@@ -2742,15 +2742,30 @@ def test_handling_binaryopbase():
                 ('>=', BinaryOperation.Operator.GE),
                 ('.ge.', BinaryOperation.Operator.GE),
                 ('<=', BinaryOperation.Operator.LE),
-                ('.LE.', BinaryOperation.Operator.LE),
-                ('.and.', BinaryOperation.Operator.AND),
-                ('.eqv.', BinaryOperation.Operator.EQV),
-                ('.or.', BinaryOperation.Operator.OR))
+                ('.LE.', BinaryOperation.Operator.LE))
 
     for opstring, expected in testlist:
         # Manipulate the fparser2 ParseTree so that it contains the operator
         # under test
         reader = FortranStringReader("x=1" + opstring + "4")
+        fp2binaryop = Execution_Part.match(reader)[0][0]
+        # And then translate it to PSyIR again.
+        fake_parent = Schedule()
+        processor.process_nodes(fake_parent, [fp2binaryop])
+        assert len(fake_parent.children) == 1
+        assert isinstance(fake_parent[0].rhs, BinaryOperation), \
+            "Fails when parsing '" + opstring + "'"
+        assert fake_parent[0].rhs._operator == expected, \
+            "Fails when parsing '" + opstring + "'"
+
+    # Test parsing all supported logical binary operators.
+    testlist = (('.and.', BinaryOperation.Operator.AND),
+                ('.eqv.', BinaryOperation.Operator.EQV),
+                ('.or.', BinaryOperation.Operator.OR))
+    for opstring, expected in testlist:
+        # Manipulate the fparser2 ParseTree so that it contains the operator
+        # under test
+        reader = FortranStringReader("x=a" + opstring + ".true.")
         fp2binaryop = Execution_Part.match(reader)[0][0]
         # And then translate it to PSyIR again.
         fake_parent = Schedule()
