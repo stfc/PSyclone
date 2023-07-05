@@ -1983,9 +1983,10 @@ class Fparser2Reader():
             # We use copies of the interface object because we will reuse the
             # interface for each entity if there are multiple in the same
             # declaration statement.
-            if init_expr:
-                # In Fortran, an initialisation expression implies that the
-                # symbol is static.
+            if init_expr and isinstance(scope, Routine):
+                # In Fortran, an initialisation expression on a declaration
+                # of a symbol inside a routine implies that the symbol is
+                # static.
                 sym.interface = StaticInterface()
             else:
                 sym.interface = interface.copy()

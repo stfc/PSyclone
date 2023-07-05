@@ -554,7 +554,7 @@ def test_psy_init_defaults(kernel_outputdir):
     subroutine psy_init()
       use fortcl, only: add_kernels, ocl_env_init
       character(len=30) kernel_names(1)
-      integer :: ocl_device_num = 1
+      integer, save :: ocl_device_num = 1
       logical, save :: initialised = .false.
 
       if (.not.initialised) then
@@ -632,7 +632,7 @@ def test_psy_init_multiple_devices_per_node(kernel_outputdir, monkeypatch):
       use parallel_mod, only: get_rank
       use fortcl, only: add_kernels, ocl_env_init
       character(len=30) kernel_names(1)
-      integer :: ocl_device_num = 1
+      integer, save :: ocl_device_num = 1
       logical, save :: initialised = .false.
 
       if (.not.initialised) then

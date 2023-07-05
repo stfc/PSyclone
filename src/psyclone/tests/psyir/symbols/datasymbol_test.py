@@ -273,8 +273,8 @@ def test_datasymbol_constant_value_setter_invalid():
     # is_constant specified but without an intial_value
     with pytest.raises(ValueError) as error:
         DataSymbol('a', BOOLEAN_TYPE, is_constant=True)
-    assert ("A DataSymbol representing a constant must be given an initial "
-            "value but 'a' does not have one" in str(error.value))
+    assert ("Symbol 'a' does not have an initial value set and therefore "
+            "cannot be a constant." in str(error.value))
 
 
 def test_datasymbol_is_constant():

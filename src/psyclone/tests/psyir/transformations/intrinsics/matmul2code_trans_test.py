@@ -56,7 +56,7 @@ def create_matmul():
     symbol_table = SymbolTable()
     one = Literal("1", INTEGER_TYPE)
     two = Literal("2", INTEGER_TYPE)
-    index = DataSymbol("idx", INTEGER_TYPE, constant_value=3)
+    index = DataSymbol("idx", INTEGER_TYPE, is_constant=True, initial_value=3)
     symbol_table.add(index)
     array_type = ArrayType(REAL_TYPE, [5, 10, 15])
     mat_symbol = DataSymbol("x", array_type)
@@ -166,7 +166,8 @@ def test_get_array_bound():
     new nodes are created each time the utility is called.
 
     '''
-    scalar_symbol = DataSymbol("n", INTEGER_TYPE, constant_value=20)
+    scalar_symbol = DataSymbol("n", INTEGER_TYPE, is_constant=True,
+                               initial_value=20)
     array_type = ArrayType(REAL_TYPE, [10, Reference(scalar_symbol)])
     array_symbol = DataSymbol("x", array_type)
     reference = Reference(array_symbol)

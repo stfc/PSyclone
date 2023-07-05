@@ -893,30 +893,25 @@ def test_declarations_with_initialisations(fortran_reader):
     assert all(isinstance(sym, DataSymbol) for sym in
                [asym, aasym, bsym, csym, dsym, esym, fsym])
 
-    # All of the symbols should have a static interface because they are
-    # either parameters or are given initial values.
-    assert all(isinstance(sym.interface, StaticInterface) for sym in
-               [asym, aasym, bsym, csym, dsym, esym])
-    # TODO ARPDBG
-    # When it is not a parameter they are unknown interface and datatype
-    assert isinstance(inner_st.lookup('a').datatype, UnknownFortranType)
-    assert isinstance(inner_st.lookup('b').datatype, UnknownFortranType)
-    assert isinstance(inner_st.lookup('d').datatype, UnknownFortranType)
-    assert isinstance(inner_st.lookup('e').datatype, UnknownFortranType)
+    # All of the module symbols should have a DefaultModuleInterface.
+    assert all(isinstance(sym.interface, DefaultModuleInterface) for sym in
+               [asym, aasym, csym])
+    # The save attribute directly specifies that the symbol is static.
+    assert isinstance(bsym.interface, StaticInterface)
 
-    # When it is a parameter the interface, type and initial_value is defined
-    csym = inner_st.lookup('c')
-    assert isinstance(csym.interface, DefaultModuleInterface)
-    assert isinstance(csym.datatype, ScalarType)
+    # All symbols should have a known data type.
+    assert all(isinstance(sym.datatype, ScalarType) for sym in
+               [asym, aasym, bsym, csym, dsym, esym, fsym])
+
+    # When it is a parameter the initial_value is defined and is_constant
+    # is True.
     assert isinstance(csym.initial_value, Literal)
     assert csym.is_constant is True
 
-    fsym = inner_st.lookup('f')
-    assert isinstance(fsym.interface, AutomaticInterface)
+    assert isinstance(fsym.interface, StaticInterface)
     assert isinstance(fsym.datatype, ScalarType)
     assert isinstance(fsym.initial_value, Literal)
     assert fsym.is_constant is True
-    assert isinstance(fsym.interface, AutomaticInterface)
 
 
 @pytest.mark.usefixtures("f2008_parser")
