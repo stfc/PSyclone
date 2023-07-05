@@ -2744,6 +2744,7 @@ def test_handling_binaryopbase():
                 ('<=', BinaryOperation.Operator.LE),
                 ('.LE.', BinaryOperation.Operator.LE),
                 ('.and.', BinaryOperation.Operator.AND),
+                ('.eqv.', BinaryOperation.Operator.EQV),
                 ('.or.', BinaryOperation.Operator.OR))
 
     for opstring, expected in testlist:
