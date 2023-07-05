@@ -2849,36 +2849,12 @@ class LFRicFields(LFRicCollection):
         # Add the Invoke subroutine argument declarations for the
         # different fields types. They are declared as intent "in" as
         # they contain a pointer to the data that is modified.
-        table = self._invoke.schedule.symbol_table
         for fld_type, fld_mod in field_datatype_map:
             args = field_datatype_map[(fld_type, fld_mod)]
             arg_list = [arg.declaration_name for arg in args]
             parent.add(TypeDeclGen(parent, datatype=fld_type,
                                    entity_decls=arg_list,
                                    intent="in"))
-            # Create symbols that we will associate with the internal
-            # data arrays.
-            for arg in args:
-                if arg.vector_size > 1:
-                    entity_names = []
-                    for idx in range(1, arg.vector_size+1):
-                        vsym = table.new_symbol(f"{arg.name}_{idx}_data",
-                                                symbol_type=DataSymbol,
-                                                datatype=DeferredType(),
-                                                tag=f"{arg.name}_{idx}_data")
-                        entity_names.append(vsym.name)
-                else:
-                    sym = table.new_symbol(arg.name+"_data",
-                                           symbol_type=DataSymbol,
-                                           datatype=DeferredType(),
-                                           tag=arg.name+"_data")
-                    entity_names = [sym.name]
-                parent.add(DeclGen(parent, datatype="real",
-                                   kind="r_def",
-                                   dimension=":",
-                                   entity_decls=entity_names,
-                                   pointer=True))
-
             (self._invoke.invokes.psy.
              infrastructure_modules[fld_mod].add(fld_type))
 
@@ -3116,6 +3092,42 @@ class DynProxies(LFRicCollection):
     generation since Kernels know nothing about proxies.
 
     '''
+    def __init__(self, node):
+        super().__init__(node)
+        const = LFRicConstants()
+        real_field_args = self._invoke.unique_declarations(
+            argument_types=const.VALID_FIELD_NAMES,
+            intrinsic_type=const.MAPPING_DATA_TYPES["gh_real"])
+        int_field_args = self._invoke.unique_declarations(
+            argument_types=const.VALID_FIELD_NAMES,
+            intrinsic_type=const.MAPPING_DATA_TYPES["gh_integer"])
+        for arg in real_field_args + int_field_args:
+            # Create symbols that we will associate with the internal
+            # data arrays.
+            if arg.vector_size > 1:
+                for idx in range(1, arg.vector_size+1):
+                    self._symbol_table.new_symbol(
+                        f"{arg.name}_{idx}_data",
+                        symbol_type=DataSymbol,
+                        datatype=DeferredType(),
+                        tag=f"{arg.name}_{idx}_data")
+            else:
+                self._symbol_table.new_symbol(arg.name+"_data",
+                                              symbol_type=DataSymbol,
+                                              datatype=DeferredType(),
+                                              tag=arg.name+"_data")
+        # Create symbols that we will associate with pointers to the
+        # internal data arrays.
+        op_args = self._invoke.unique_declarations(
+            argument_types=["gh_operator"])
+        for arg in op_args:
+            name = arg.name
+            # TODO use UnknownFortranType rather than DeferredType?
+            self._symbol_table.new_symbol(name+"_local_stencil",
+                                          symbol_type=DataSymbol,
+                                          datatype=DeferredType(),
+                                          tag=name+"_local_stencil")
+
     def _invoke_declarations(self, parent):
         '''
         Insert declarations of all proxy-related quantities into the PSy layer.
@@ -3125,8 +3137,11 @@ class DynProxies(LFRicCollection):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         '''
-        # Declarations of real and integer field proxies
         const = LFRicConstants()
+        table = self._symbol_table
+
+        # Declarations of real and integer field proxies
+
         # Filter field arguments by intrinsic type
         real_field_args = self._invoke.unique_declarations(
             argument_types=const.VALID_FIELD_NAMES,
@@ -3157,6 +3172,22 @@ class DynProxies(LFRicCollection):
                                    entity_decls=arg_list))
             (self._invoke.invokes.psy.
              infrastructure_modules[fld_mod].add(fld_type))
+            # Create declarations for the pointers to the internal
+            # data arrays.
+            for arg in args:
+                if arg.vector_size > 1:
+                    entity_names = []
+                    for idx in range(1, arg.vector_size+1):
+                        vsym = table.lookup_with_tag(f"{arg.name}_{idx}_data")
+                        entity_names.append(vsym.name)
+                else:
+                    sym = table.lookup_with_tag(arg.name+"_data")
+                    entity_names = [sym.name]
+                parent.add(DeclGen(parent, datatype="real",
+                                   kind="r_def",
+                                   dimension=":",
+                                   entity_decls=entity_names,
+                                   pointer=True))
 
         # Declarations of LMA operator proxies
         op_args = self._invoke.unique_declarations(
@@ -3177,16 +3208,11 @@ class DynProxies(LFRicCollection):
                                arg in operators_list]
             parent.add(TypeDeclGen(parent, datatype=operator_datatype,
                                    entity_decls=operators_names))
-            # Create symbols that we will associate with the internal
-            # data arrays.
-            table = self._invoke.schedule.symbol_table
+            # Create symbols that we will associate with pointers to the
+            # internal data arrays.
             for arg in operators_list:
                 name = arg.name
-                # TODO use UnknownFortranType rather than DeferredType?
-                sym = table.new_symbol(name+"_local_stencil",
-                                       symbol_type=DataSymbol,
-                                       datatype=DeferredType(),
-                                       tag=name+"_local_stencil")
+                sym = table.lookup_with_tag(name+"_local_stencil")
                 # Declare the pointer to the stencil array.
                 # TODO use the correct precision rather than hardwiring "r_def"
                 parent.add(DeclGen(parent, datatype="real",
@@ -3211,6 +3237,22 @@ class DynProxies(LFRicCollection):
                                    entity_decls=cma_op_proxy_decs))
             (self._invoke.invokes.psy.infrastructure_modules[op_mod].
              add(op_type))
+
+        # Create symbols that we will associate with pointers to the
+        # internal data arrays.
+        for arg in cma_op_args:
+            # TODO use UnknownFortranType rather than DeferredType?
+            sym = table.new_symbol(arg.name+"_cma_matrix",
+                                   symbol_type=DataSymbol,
+                                   datatype=DeferredType(),
+                                   tag=arg.name+"_cma_matrix")
+            # Declare the pointer to the CMA matrix.
+            # TODO use the correct precision rather than hardwiring "r_def"
+            parent.add(DeclGen(parent, datatype="real",
+                               kind="r_def",
+                               dimension=":,:,:",
+                               entity_decls=[sym.name],
+                               pointer=True))
 
     def initialise(self, parent):
         '''
