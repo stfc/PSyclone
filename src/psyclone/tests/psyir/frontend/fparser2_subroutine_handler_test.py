@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
+# Modified: A. B. G. Chalk, STFC Daresbury Lab
 
 '''Module containing pytest tests for the _subroutine_handler method
 in the class Fparser2Reader. This handler deals with the translation
@@ -413,3 +414,75 @@ def test_unsupported_char_len_function(fortran_reader):
     fsym = psyir.children[0].symbol_table.lookup("my_func")
     assert isinstance(fsym, RoutineSymbol)
     assert isinstance(fsym.datatype, DeferredType)
+
+
+def test_unsupported_contains_subroutine(fortran_reader):
+    '''Test that a Subroutine with Contains results in a Codeblock'''
+    code = '''subroutine a(b, c, d)
+    real b, c, d
+
+    b = my_func(c, d)
+
+    contains
+    real function my_func(a1, a2)
+    real a1, a2
+    my_func = a1 * a2
+    end function
+    end subroutine'''
+    psyir = fortran_reader.psyir_from_source(code)
+    cblock = psyir.children[0]
+    assert isinstance(cblock, CodeBlock)
+    assert "FUNCTION" in str(cblock.get_ast_nodes[0])
+
+    code = '''subroutine a(b, c, d)
+    real b, c, d
+
+    call my_func(c, d)
+
+    contains
+    subroutine my_func(a1, a2)
+    real a1, a2
+    a1 = a1 * a2
+    end subroutine
+    end subroutine'''
+    psyir = fortran_reader.psyir_from_source(code)
+    cblock = psyir.children[0]
+    assert isinstance(cblock, CodeBlock)
+    assert "CONTAINS\n  SUBROUTINE" in str(cblock.get_ast_nodes[0])
+
+
+def test_unsupported_contains_function(fortran_reader):
+    '''Test that a Function with Contains results in a Codeblock'''
+    code = '''function a(b, c, d)
+    real b, c, d
+
+    b = my_func(c, d)
+    a = b * b
+
+    contains
+    real function my_func(a1, a2)
+    real a1, a2
+    my_func = a1 * a2
+    end function
+    end function'''
+    psyir = fortran_reader.psyir_from_source(code)
+    cblock = psyir.children[0]
+    assert isinstance(cblock, CodeBlock)
+    assert "CONTAINS\n  REAL FUNCTION" in str(cblock.get_ast_nodes[0])
+
+    code = '''function a(b, c, d)
+    real b, c, d
+
+    call my_func(c, d)
+    a = c + d
+
+    contains
+    subroutine my_func(a1, a2)
+    real a1, a2
+    a1 = a1 * a2
+    end subroutine
+    end function'''
+    psyir = fortran_reader.psyir_from_source(code)
+    cblock = psyir.children[0]
+    assert isinstance(cblock, CodeBlock)
+    assert "SUBROUTINE" in str(cblock.get_ast_nodes[0])
