@@ -2458,6 +2458,7 @@ def test_handling_binaryopbase():
     # Test parsing all supported logical binary operators.
     testlist = (('.and.', BinaryOperation.Operator.AND),
                 ('.eqv.', BinaryOperation.Operator.EQV),
+                ('.neqv.', BinaryOperation.Operator.NEQV),
                 ('.or.', BinaryOperation.Operator.OR))
     for opstring, expected in testlist:
         # Manipulate the fparser2 ParseTree so that it contains the operator
