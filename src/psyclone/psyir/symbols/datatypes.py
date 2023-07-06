@@ -96,8 +96,8 @@ class UnknownType(DataType, metaclass=abc.ABCMeta):
     This class is abstract and must be subclassed for each language
     supported by the PSyIR frontends.
 
-    :param str declaration_txt: string containing the original variable \
-                                declaration.
+    :param str declaration_txt: the original textual declaration of
+        the symbol.string
 
     :raises TypeError: if the supplied declaration_txt is not a str.
 
@@ -108,12 +108,16 @@ class UnknownType(DataType, metaclass=abc.ABCMeta):
                 f"UnknownType constructor expects the original variable "
                 f"declaration as a string but got an argument of type "
                 f"'{type(declaration_txt).__name__}'")
-        self._declaration = declaration_txt[:]
+        self._declaration = declaration_txt
 
     @abc.abstractmethod
     def __str__(self):
         ''' Abstract method that must be implemented in subclass. '''
 
+    # Note, an UnknownType is immutable so a declaration setter is not
+    # allowed. This is to allow subclasses to extract and provide
+    # parts of the declaration without worrying about their values
+    # becoming invalid due to a change in the original declaration.
     @property
     def declaration(self):
         '''
@@ -152,8 +156,7 @@ class UnknownFortranType(UnknownType):
         self._partial_datatype = partial_datatype
 
     def __str__(self):
-        return (f"UnknownFortranType('{self._declaration}', "
-                f"partial_datatype='{self._partial_datatype}')")
+        return f"UnknownFortranType('{self._declaration}')"
 
     @property
     def partial_datatype(self):
@@ -171,7 +174,7 @@ class UnknownFortranType(UnknownType):
         parse tree to extract the type information. This is returned in
         text form and also cached.
 
-        TODO #1419 - alter Unknown(Fortran)Type so that it is only the
+        TODO #2137 - alter Unknown(Fortran)Type so that it is only the
         type information that is stored as a string. i.e. remove the name
         of the variable being declared. Once that is done this method
         won't be required.

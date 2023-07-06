@@ -578,8 +578,7 @@ def test_unknown_fortran_type():
     utype = UnknownFortranType(decl)
     assert utype._type_text == ""
     assert utype._partial_datatype is None
-    assert str(utype) == (f"UnknownFortranType('{decl}', "
-                          f"partial_datatype='None')")
+    assert str(utype) == f"UnknownFortranType('{decl}')"
     assert utype._declaration == decl
 
 
@@ -605,8 +604,7 @@ def test_unknown_fortran_type_optional_arg():
     assert isinstance(utype._partial_datatype, DataTypeSymbol)
     assert isinstance(utype.partial_datatype, DataTypeSymbol)
     assert utype.partial_datatype.name == "some_type"
-    assert str(utype) == (f"UnknownFortranType('{decl}', "
-                          f"partial_datatype='some_type: DataTypeSymbol')")
+    assert str(utype) == f"UnknownFortranType('{decl}')"
 
 
 def test_unknown_fortran_type_text():

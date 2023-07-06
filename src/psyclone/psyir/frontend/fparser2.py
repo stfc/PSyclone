@@ -2091,7 +2091,7 @@ class Fparser2Reader():
             tsymbol.datatype = UnknownFortranType(str(decl))
             tsymbol.interface = UnknownInterface()
 
-    def _get_partial_datatype(self, node, parent, visibility_map):
+    def _get_partial_datatype(self, node, scope, visibility_map):
         '''Try to obtain partial datatype information from node by removing
         any unsupported properties in the declaration. This method
         assumes that the provided declaration statement only declares
@@ -2100,8 +2100,8 @@ class Fparser2Reader():
         :param node: fparser2 node containing the declaration statement.
         :type node: :py:class:`fparser.two.Fortran2008.Type_Declaration_Stmt`
             or :py:class:`fparser.two.Fortran2003.Type_Declaration_Stmt`
-        :param parent: PSyIR node in which to insert the symbols found.
-        :type parent: :py:class:`psyclone.psyir.nodes.Node`
+        :param scope: PSyIR node in which to insert the symbols found.
+        :type scope: :py:class:`psyclone.psyir.nodes.ScopingNode`
         :param visibility_map: mapping of symbol names to explicit
             visibilities.
         :type visibility_map: dict with str keys and values of type
@@ -2115,7 +2115,9 @@ class Fparser2Reader():
             :py:class:`psyclone.psyir.symbols.DataTypeSymbol`]
 
         '''
-        # 1: Remove any initialisation
+        # 1: Remove any initialisation. TODO: This won't be needed
+        # when #1419 is implemented (assuming the implementation
+        # supports both assignments and pointer assignments).
         entity_decl_list = node.children[2]
         entity_decl = entity_decl_list.children[0]
         orig_entity_decl_children = list(entity_decl.children[:])
@@ -2142,7 +2144,7 @@ class Fparser2Reader():
         # Try to parse the modified node.
         symbol_table = SymbolTable()
         try:
-            self._process_decln(parent, symbol_table, node,
+            self._process_decln(scope, symbol_table, node,
                                 visibility_map)
             symbol_name = node.children[2].children[0].children[0].string
             symbol_name = symbol_name.lower()
@@ -2174,20 +2176,20 @@ class Fparser2Reader():
         :type nodes: list of :py:class:`fparser.two.utils.Base`
         :param arg_list: fparser2 AST node containing the argument list.
         :type arg_list: :py:class:`fparser.Fortran2003.Dummy_Arg_List`
-        :param visibility_map: mapping of symbol names to explicit \
-                        visibilities.
-        :type visibility_map: dict with str keys and values of type \
-                        :py:class:`psyclone.psyir.symbols.Symbol.Visibility`
+        :param visibility_map: mapping of symbol names to explicit
+            visibilities.
+        :type visibility_map: dict with str keys and values of type
+            :py:class:`psyclone.psyir.symbols.Symbol.Visibility`
 
         :raises GenerationError: if an INCLUDE statement is encountered.
-        :raises NotImplementedError: the provided declarations contain \
-                                     attributes which are not supported yet.
-        :raises GenerationError: if the parse tree for a USE statement does \
-                                 not have the expected structure.
-        :raises SymbolError: if a declaration is found for a Symbol that is \
-                    already in the symbol table with a defined interface.
-        :raises InternalError: if the provided declaration is an unexpected \
-                               or invalid fparser or Fortran expression.
+        :raises NotImplementedError: the provided declarations contain
+            attributes which are not supported yet.
+        :raises GenerationError: if the parse tree for a USE statement does
+            not have the expected structure.
+        :raises SymbolError: if a declaration is found for a Symbol that is
+            already in the symbol table with a defined interface.
+        :raises InternalError: if the provided declaration is an unexpected
+            or invalid fparser or Fortran expression.
 
         '''
         if visibility_map is None:
