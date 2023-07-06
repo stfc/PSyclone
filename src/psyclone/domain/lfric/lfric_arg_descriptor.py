@@ -297,16 +297,16 @@ class LFRicArgDescriptor(Descriptor):
         '''
         print(arg_type.args[3].toks[0])
         if arg_type.args[3].toks[0].name != "NRANKS".lower():
-            raise ParseError(                     #SHARKS (needs test coverage)
-                f"In the LFRic API the 4th argument of a 'meta_arg' "
-                f"entry may give the number of ranks in an array but "
-                f"if so it must use 'NRANKS' as the keyword in the format "
-                f"'NRANKS*n', but found '{arg_type.args[3].toks[0]}' as the "
-                f"keyword in '{arg_type}'.")
+            raise ParseError(
+                f"In the LFRic API, the 4th argument of a 'meta_arg' "
+                f"entry must use 'NRANKS' as the keyword in the format "
+                f"'NRANKS*n' if the 1st argument is 'GH_ARRAY', but "
+                f"found '{arg_type.args[3].toks[0]}' as the keyword "
+                f"in '{arg_type}'.")
 
         # Check that the operator is correct
         if arg_type.args[3].toks[1] != "*":
-            raise ParseError(                     #SHARKS (test works!)
+            raise ParseError(
                 f"In the LFRic API, the 4th argument of a 'meta_arg' "
                 f"entry may be an array but if so must use '*' as "
                 f"the separator in the format 'NRANKS*n', but found "
@@ -317,30 +317,30 @@ class LFRicArgDescriptor(Descriptor):
         # an error if it is not an integer number...
         try:
             arraysize = int(arg_type.args[3].toks[2])
-        except TypeError as err:                  #SHARKS (needs test coverage)
-            raise ParseError(                     #SHARKS (needs test coverage)
-                f"In the LFRic API, the array notation must be in the "
-                f"format 'NRANKS*n' where 'n' is an integer, but the following "
-                f"'{arg_type.args[3].toks[2]}' was found in "
+        except ValueError as err:
+            raise ParseError(
+                f"In the LFRic API, the array notation must be in "
+                f"the format 'NRANKS*n' where 'n' is an integer, "
+                f"but '{arg_type.args[3].toks[2]}' was found in "
                 f"'{arg_type}'.") from err
 
         # ... or it is less than 1 (1 is the default for all fields)...
         const = LFRicConstants()
         if arraysize < 1:
-            raise ParseError(                     #SHARKS (needs test coverage)
-                f"In the LFRic API the 1st argument of a 'meta_arg' entry may "
-                f"be a field vector with format 'NRANKS*n' where n is an "
-                f"integer >= 1. However, found n = {arraysize} in '{arg_type}'.")
+            raise ParseError(
+                f"In the LFRic API, the array notation must be in "
+                f"the format 'NRANKS*n' where 'n' is an integer >= 1. "
+                f"However, found n = '{arraysize}' in '{arg_type}'.")
         # ... and set the array size if all checks pass
         self._array_nranks = arraysize
 
-        # Check that no other arguments than fields use array notation
+        # Check that no other arguments than arrays use array notation
         if self._argument_type not in \
            const.VALID_ARRAY_NAMES and self._array_nranks:
             raise ParseError(                     #SHARKS (needs test coverage)
                 f"In the LFRic API, array notation is only supported for "
-                f"{const.VALID_ARRAY_NAMES} argument types but found "
-                f"'{arg_type.args[0]}'.")
+                f"'{const.VALID_ARRAY_NAMES}' argument types but found "
+                f"'{arg_type.args[0]}' in '{arg_type}'.")
 
     def _init_field(self, arg_type, operates_on):
         '''

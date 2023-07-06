@@ -287,6 +287,24 @@ def test_arg_descriptor_array(array_ind, array_type, array_ranks):
     assert array_descriptor.mesh is None
     assert array_descriptor.stencil is None
 
+def test_keyword_not_nranks():
+    ''' Tests that we raise an error when the keyword is not nranks'''
+    fparser.logging.disable(fparser.logging.CRITICAL)
+    name = "testkern_array_type"
+    const = LFRicConstants()
+    for argname in const.VALID_ARRAY_NAMES:
+        code = ARRAY_CODE.replace("arg_type(gh_array,   gh_real,    gh_read, "
+                            "NRANKS*1)", "arg_type(gh_array, gh_real, "
+                            "gh_read, SKNARN*1)", 1)
+        ast = fpapi.parse(code, ignore_comments=False)
+        with pytest.raises(ParseError) as excinfo:
+            _ = DynKernMetadata(ast, name=name)
+        assert ("the 4th argument of a 'meta_arg' entry must use 'NRANKS' as "
+                "the keyword in the format 'NRANKS*n' if the 1st argument "
+                "is 'GH_ARRAY', but found 'sknarn' as the keyword in "
+                "'arg_type(gh_array, gh_real, gh_read, sknarn * 1)'."
+                in str(excinfo.value))
+
 def test_incorrect_operator():
     ''' Tests that we raise an error when the operator is incorrect'''
     fparser.logging.disable(fparser.logging.CRITICAL)
@@ -303,4 +321,38 @@ def test_incorrect_operator():
                 "array but if so must use '*' as the separator "
                 "in the format 'NRANKS*n', but found '+' in "
                 "'arg_type(gh_array, gh_real, gh_read, nranks + 1)'."
+                in str(excinfo.value))
+
+def test_n_not_integer():
+    ''' Tests that we raise an error when n is not an integer'''
+    fparser.logging.disable(fparser.logging.CRITICAL)
+    name = "testkern_array_type"
+    const = LFRicConstants()
+    for argname in const.VALID_ARRAY_NAMES:
+        code = ARRAY_CODE.replace("arg_type(gh_array,   gh_real,    gh_read, "
+                            "NRANKS*1)", "arg_type(gh_array, gh_real, "
+                            "gh_read, NRANKS*0.5)", 1)
+        ast = fpapi.parse(code, ignore_comments=False)
+        with pytest.raises(ParseError) as excinfo:
+            _ = DynKernMetadata(ast, name=name)
+        assert ("the array notation must be in the format 'NRANKS*n' "
+                "where 'n' is an integer, but '0.5' was found in "
+                "'arg_type(gh_array, gh_real, gh_read, nranks * 0.5)'."
+                in str(excinfo.value))
+
+def test_n_less_than_one():
+    ''' Tests that we raise an error when n is less than 1'''
+    fparser.logging.disable(fparser.logging.CRITICAL)
+    name = "testkern_array_type"
+    const = LFRicConstants()
+    for argname in const.VALID_ARRAY_NAMES:
+        code = ARRAY_CODE.replace("arg_type(gh_array,   gh_real,    gh_read, "
+                            "NRANKS*1)", "arg_type(gh_array, gh_real, "
+                            "gh_read, NRANKS*0)", 1)
+        ast = fpapi.parse(code, ignore_comments=False)
+        with pytest.raises(ParseError) as excinfo:
+            _ = DynKernMetadata(ast, name=name)
+        assert ("the array notation must be in the format 'NRANKS*n' "
+                "where 'n' is an integer >= 1. However, found n = '0' in "
+                "'arg_type(gh_array, gh_real, gh_read, nranks * 0)'."
                 in str(excinfo.value))
