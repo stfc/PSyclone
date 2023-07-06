@@ -4234,7 +4234,6 @@ class DynMeshes():
                 parent.add(CommentGen(parent, " Get the colourmap"))
                 parent.add(CommentGen(parent, ""))
                 # Look-up variable names for colourmap and number of colours
-                self._colourmap_init()
                 colour_map = self._schedule.symbol_table.find_or_create_tag(
                     "cmap").name
                 ncolour = \
