@@ -33,6 +33,7 @@
 # Authors: R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 #          J. Henrichs, Bureau of Meteorology
 #          I. Kavcic, Met Office
+# Modified: A. B. G. Chalk, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' This module provides the fparser2 to PSyIR front-end, it follows a
@@ -4438,10 +4439,22 @@ class Fparser2Reader():
         :returns: PSyIR representation of node.
         :rtype: :py:class:`psyclone.psyir.nodes.Routine`
 
+
+        :raises NotImplementedError: if the node contains a Contains clause.
         :raises NotImplementedError: if an unsupported prefix is found or no \
             explicit type information is available for a Function.
 
         '''
+        try:
+            _first_type_match(node.children,
+                              Fortran2003.Internal_Subprogram_Part)
+            has_contains = True
+        except ValueError:
+            has_contains = False
+        if has_contains:
+            raise NotImplementedError("PSyclone doesn't yet support 'Contains'"
+                                      " inside a Subroutine or Function")
+
         name = node.children[0].children[1].string
         routine = Routine(name, parent=parent)
 
@@ -4481,7 +4494,7 @@ class Fparser2Reader():
                         raise NotImplementedError(
                             f"Routine has unsupported prefix: {child.string}")
                 else:
-                    base_type, _ = self._process_type_spec(parent, child)
+                    base_type, _ = self._process_type_spec(routine, child)
 
         if isinstance(node, Fortran2003.Function_Subprogram):
             # Check whether this function-stmt has a suffix containing
@@ -4632,10 +4645,12 @@ class Fparser2Reader():
         try:
             spec_part = _first_type_match(
                 node.children, Fortran2003.Specification_Part)
+        except ValueError:
+            spec_part = None
+
+        if spec_part is not None:
             self.process_declarations(container, spec_part.children,
                                       [], visibility_map)
-        except ValueError:
-            pass
 
         # Parse any module subprograms (subroutine or function)
         # skipping the contains node

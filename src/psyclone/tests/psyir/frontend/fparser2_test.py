@@ -3171,3 +3171,34 @@ def test_call_codeblock_args(fortran_reader):
     assert isinstance(call_node.children[2], CodeBlock)
     assert isinstance(call_node.children[3], Reference)
     assert call_node.children[3].name == "b"
+
+
+def test_declarations_with_initialisations_errors(parser):
+    ''' Test that Fparser2Reader propagates uncaught errors from
+    declaration initialisations.
+    '''
+
+    def raise_value_error(_1, _2):
+        raise ValueError("error to propagate")
+
+    # We create a new parser(we don't want to pollute the cached one) and we
+    # patch the integer literal handler (we need to do this by updating the
+    # handlers map instead of monkeypatching the function)
+    processor = Fparser2Reader()
+    processor.handlers[Fortran2003.Int_Literal_Constant] = raise_value_error
+
+    reader = FortranStringReader("""
+    module test_mod
+        integer, parameter :: b = 1
+        contains
+        subroutine a()
+            integer :: var1
+            integer, parameter :: b = 1
+        end subroutine a
+    end module test_mod
+    """)
+    ast = parser(reader)
+
+    with pytest.raises(ValueError) as err:
+        _ = processor.get_routine_schedules("a", ast)
+    assert "error to propagate" in str(err.value)
