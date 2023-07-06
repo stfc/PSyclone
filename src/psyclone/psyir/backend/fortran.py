@@ -216,7 +216,7 @@ def precedence(fortran_operator):
     # then it should be respected. These issues are dealt with in the
     # binaryoperation handler.
     fortran_precedence = [
-        ['.EQV.', '.NEQV.', '.XOR.'],
+        ['.EQV.', '.NEQV.'],
         ['.OR.'],
         ['.AND.'],
         ['.NOT.'],

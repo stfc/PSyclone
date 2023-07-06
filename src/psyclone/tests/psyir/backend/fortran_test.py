@@ -530,7 +530,6 @@ def test_precedence():
     assert precedence('*') < precedence('**')
     assert precedence('.EQ.') == precedence('==')
     assert precedence('*') == precedence('/')
-    assert precedence('.XOR.') < precedence('.OR.')
     assert precedence('.EQV.') == precedence('.NEQV.')
 
 

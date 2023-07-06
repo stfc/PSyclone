@@ -1026,7 +1026,6 @@ class Fparser2Reader():
         ('.gt.', BinaryOperation.Operator.GT),
         ('.and.', BinaryOperation.Operator.AND),
         ('.or.', BinaryOperation.Operator.OR),
-        ('.xor.', BinaryOperation.Operator.XOR),
         ('dot_product', BinaryOperation.Operator.DOT_PRODUCT),
         ('int', BinaryOperation.Operator.INT),
         ('real', BinaryOperation.Operator.REAL),
