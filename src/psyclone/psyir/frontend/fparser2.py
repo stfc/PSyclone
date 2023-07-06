@@ -1015,6 +1015,7 @@ class Fparser2Reader():
         ('.eqv.', BinaryOperation.Operator.EQV),
         ('/=', BinaryOperation.Operator.NE),
         ('.ne.', BinaryOperation.Operator.NE),
+        ('.neqv.', BinaryOperation.Operator.NEQV),
         ('<=', BinaryOperation.Operator.LE),
         ('.le.', BinaryOperation.Operator.LE),
         ('<', BinaryOperation.Operator.LT),
@@ -1025,6 +1026,7 @@ class Fparser2Reader():
         ('.gt.', BinaryOperation.Operator.GT),
         ('.and.', BinaryOperation.Operator.AND),
         ('.or.', BinaryOperation.Operator.OR),
+        ('.xor.', BinaryOperation.Operator.XOR),
         ('dot_product', BinaryOperation.Operator.DOT_PRODUCT),
         ('int', BinaryOperation.Operator.INT),
         ('real', BinaryOperation.Operator.REAL),
@@ -3234,15 +3236,16 @@ class Fparser2Reader():
                 self.process_nodes(parent=leop, nodes=[node.items[1]])
                 new_parent.addchild(leop)
         else:
-            # The case value is some scalar initialisation expression
+            # The case value is some scalar expression
             bop = BinaryOperation(BinaryOperation.Operator.EQ,
                                   parent=parent)
             self.process_nodes(parent=bop, nodes=[selector])
             self.process_nodes(parent=bop, nodes=[node])
-            # TODO #2204 This will not support if we have two expressions
-            # or a unknown type, as we cannot determine if we have == or EQV
-            # operator for thoses cases. This should result in a CodeBlock
-            # Keep track of if we know if the operator should be EQ or EQV
+            # TODO #1799 when generic child.datatype is supported we can
+            # remove the conditional inside the loop and support full
+            # expressions
+
+            # Keep track of whether we know if the operator should be EQ/EQV
             operator_known = False
             for child in bop.children:
                 if (isinstance(child, Literal) and
@@ -3275,10 +3278,12 @@ class Fparser2Reader():
             if operator_known:
                 parent.addchild(bop)
             else:
-                raise NotImplementedError("PSyclone can't determine if this "
-                                          "case should be == or .EQV. so "
-                                          "we need to make a code block "
-                                          "instead.")
+                raise NotImplementedError(f"PSyclone can't determine if this "
+                                          f"case should be '==' or '.EQV.' "
+                                          f"because it can't figure out if "
+                                          f"{bop.children[0].debug_string} "
+                                          f"or {bop.children[1].debug_string}"
+                                          f" are logical expressions.")
 
     @staticmethod
     def _array_notation_rank(node):
