@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2022, Science and Technology Facilities Council.
+# Copyright (c) 2019-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -38,20 +38,18 @@
 
 ''' Module containing py.test tests for dependency analysis.'''
 
-from __future__ import print_function, absolute_import
 import os
 import pytest
 
 from fparser.common.readfortran import FortranStringReader
 from psyclone import nemo
 from psyclone.core import AccessType, Signature, VariablesAccessInfo
-from psyclone.domain.lfric import KernCallAccArgList, KernStubArgList
+from psyclone.domain.lfric import KernStubArgList
 from psyclone.dynamo0p3 import DynKernMetadata, DynKern
 from psyclone.parse.algorithm import parse
-from psyclone.psyGen import CodedKern, PSyFactory
+from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import Assignment, IfBlock, Loop
 from psyclone.tests.utilities import get_invoke, get_ast
-from psyclone.transformations import ACCParallelTrans, ACCEnterDataTrans
 
 # Constants
 API = "nemo"
@@ -849,86 +847,3 @@ def test_lfric_stub_boundary_dofmap():
     create_arg_list = KernStubArgList(kernel)
     create_arg_list.generate(var_accesses=var_accesses)
     assert "boundary_dofs_op_1: READ" in str(var_accesses)
-
-
-def test_lfric_acc():
-    '''Check variable usage detection when OpenACC is used.
-
-    '''
-    # Use the OpenACC transforms to enclose the kernels
-    # with OpenACC directives.
-    acc_par_trans = ACCParallelTrans()
-    acc_enter_trans = ACCEnterDataTrans()
-    _, invoke = get_invoke("1_single_invoke.f90", "dynamo0.3",
-                           name="invoke_0_testkern_type", dist_mem=False)
-    sched = invoke.schedule
-    acc_par_trans.apply(sched.children)
-    acc_enter_trans.apply(sched)
-
-    # Find the first kernel:
-    kern = invoke.schedule.walk(CodedKern)[0]
-    create_acc_arg_list = KernCallAccArgList(kern)
-    var_accesses = VariablesAccessInfo()
-    create_acc_arg_list.generate(var_accesses=var_accesses)
-    var_info = str(var_accesses)
-    assert "f1: READ+WRITE" in var_info
-    assert "f2: READ" in var_info
-    assert "m1: READ" in var_info
-    assert "m2: READ" in var_info
-    assert "undf_w1: READ" in var_info
-    assert "map_w1: READ" in var_info
-    assert "undf_w2: READ" in var_info
-    assert "map_w2: READ" in var_info
-    assert "undf_w3: READ" in var_info
-    assert "map_w3: READ" in var_info
-
-
-def test_lfric_acc_operator():
-    '''Check variable usage detection when OpenACC is used with
-    a kernel that uses an operator.
-
-    '''
-    # Use the OpenACC transforms to enclose the kernels
-    # with OpenACC directives.
-    acc_par_trans = ACCParallelTrans()
-    acc_enter_trans = ACCEnterDataTrans()
-    _, invoke = get_invoke("20.0_cma_assembly.f90", "dynamo0.3",
-                           idx=0, dist_mem=False)
-    sched = invoke.schedule
-    acc_par_trans.apply(sched.children)
-    acc_enter_trans.apply(sched)
-
-    # Find the first kernel:
-    kern = invoke.schedule.walk(CodedKern)[0]
-    create_acc_arg_list = KernCallAccArgList(kern)
-    var_accesses = VariablesAccessInfo()
-    create_acc_arg_list.generate(var_accesses=var_accesses)
-    var_info = str(var_accesses)
-    assert "lma_op1_proxy%ncell_3d: READ" in var_info
-    assert "lma_op1_proxy%local_stencil: READ" in var_info
-    assert "cma_op1_matrix: WRITE" in var_info
-
-
-def test_lfric_stencil():
-    '''Check variable usage detection when OpenACC is used with a
-    kernel that uses a stencil.
-
-    '''
-    # Use the OpenACC transforms to create the required kernels
-    acc_par_trans = ACCParallelTrans()
-    acc_enter_trans = ACCEnterDataTrans()
-    _, invoke = get_invoke("14.4_halo_vector.f90", "dynamo0.3",
-                           idx=0, dist_mem=False)
-    sched = invoke.schedule
-    acc_par_trans.apply(sched.children)
-    acc_enter_trans.apply(sched)
-
-    # Find the first kernel:
-    kern = invoke.schedule.walk(CodedKern)[0]
-    create_acc_arg_list = KernCallAccArgList(kern)
-    var_accesses = VariablesAccessInfo()
-    create_acc_arg_list.generate(var_accesses=var_accesses)
-    var_info = str(var_accesses)
-    assert "f1: READ+WRITE" in var_info
-    assert "f2: READ" in var_info
-    assert "f2_stencil_dofmap: READ" in var_info

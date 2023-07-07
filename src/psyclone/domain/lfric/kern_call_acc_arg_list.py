@@ -70,7 +70,7 @@ class KernCallAccArgList(KernCallArgList):
         if len(cargs) > 1:
             raise InternalError(
                 f"An LFRic intergrid kernel should have only one coarse mesh "
-                f"but {self._kern.name} has {len(cargs)}")
+                f"but '{self._kern.name}' has {len(cargs)}")
         carg = cargs[0]
         base_name = "cell_map_" + carg.name
         self.append(base_name)
