@@ -130,7 +130,7 @@ def test_datasymbol_specialise_and_process_arguments():
     assert sym2.is_constant is False
     assert sym2.initial_value is None
 
-    # Include a constant_value
+    # Include an initial_value
     sym3 = Symbol("symbol3")
     sym3.specialise(DataSymbol, datatype=REAL_SINGLE_TYPE,
                     initial_value=3.14)
@@ -138,7 +138,7 @@ def test_datasymbol_specialise_and_process_arguments():
     assert isinstance(sym3.initial_value, Literal)
     assert sym3.initial_value.value == '3.14'
 
-    # Include a constant_value of the wrong type
+    # Include an initial_value of the wrong type
     sym4 = Symbol("symbol4")
     with pytest.raises(ValueError) as error:
         sym4.specialise(DataSymbol, datatype=INTEGER_SINGLE_TYPE,
@@ -146,6 +146,15 @@ def test_datasymbol_specialise_and_process_arguments():
     assert ("This DataSymbol instance datatype is 'Scalar<INTEGER, SINGLE>' "
             "meaning the initial value should be"
             in str(error.value))
+
+    # Attempt to specify that the symbol is constant but without providing an
+    # initial value.
+    sym5 = Symbol("symbol5")
+    with pytest.raises(ValueError) as error:
+        sym5.specialise(DataSymbol, datatype=INTEGER_SINGLE_TYPE,
+                        is_constant=True)
+    assert ("A DataSymbol representing a constant must be given an initial "
+            "value but 'symbol5' does not have one." in str(error.value))
 
 
 def test_datasymbol_can_be_printed():
@@ -273,8 +282,8 @@ def test_datasymbol_constant_value_setter_invalid():
     # is_constant specified but without an intial_value
     with pytest.raises(ValueError) as error:
         DataSymbol('a', BOOLEAN_TYPE, is_constant=True)
-    assert ("Symbol 'a' does not have an initial value set and therefore "
-            "cannot be a constant." in str(error.value))
+    assert ("A DataSymbol representing a constant must be given an initial "
+            "value but 'a' does not have one." in str(error.value))
 
 
 def test_datasymbol_is_constant():
@@ -295,7 +304,7 @@ def test_datasymbol_is_constant():
     with pytest.raises(ValueError) as err:
         sym.is_constant = True
     assert ("Symbol 'a' does not have an initial value set and therefore "
-            "cannot be a constant" in str(err.value))
+            "cannot be a constant." in str(err.value))
 
 
 @pytest.mark.usefixtures("parser")

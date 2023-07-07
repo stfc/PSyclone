@@ -113,7 +113,7 @@ class DataSymbol(TypedSymbol):
             # exist
             self._is_constant = False
 
-        if self.is_constant and new_initial_value is None:
+        if new_is_constant_value and new_initial_value is None:
             raise ValueError(
                 "A DataSymbol representing a constant must be given an "
                 "initial value but '{0}' does not have one.".format(self.name))
