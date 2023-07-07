@@ -50,20 +50,20 @@ class DataSymbol(TypedSymbol):
     :param str name: name of the symbol.
     :param datatype: data type of the symbol.
     :type datatype: :py:class:`psyclone.psyir.symbols.DataType`
-    :param bool is_constant: whether this DataSymbol is a compile-time \
-        constant (default is False). If True then an `initial_value` must \
+    :param bool is_constant: whether this DataSymbol is a compile-time
+        constant (default is False). If True then an `initial_value` must
         also be provided.
-    :param initial_value: sets a fixed known expression as an initial \
-        value for this DataSymbol. If `is_constant` is True then this \
-        Symbol will always have this value. If the value is None then this \
-        symbol does not have an intial value. Otherwise it can receive \
-        PSyIR expressions or Python intrinsic types available in the \
+    :param initial_value: sets a fixed known expression as an initial
+        value for this DataSymbol. If `is_constant` is True then this
+        Symbol will always have this value. If the value is None then this
+        symbol does not have an initial value. Otherwise it can receive
+        PSyIR expressions or Python intrinsic types available in the
         TYPE_MAP_TO_PYTHON map. By default it is None.
-    :type initial_value: NoneType, item of TYPE_MAP_TO_PYTHON or \
-        :py:class:`psyclone.psyir.nodes.Node`
-    :type initial_value: NoneType, item of TYPE_MAP_TO_PYTHON or \
-        :py:class:`psyclone.psyir.nodes.Node`
-    :param kwargs: additional keyword arguments provided by \
+    :type initial_value: Optional[item of TYPE_MAP_TO_PYTHON |
+        :py:class:`psyclone.psyir.nodes.Node`]
+    :type initial_value: Optional[item of TYPE_MAP_TO_PYTHON |
+        :py:class:`psyclone.psyir.nodes.Node`]
+    :param kwargs: additional keyword arguments provided by
                    :py:class:`psyclone.psyir.symbols.TypedSymbol`
     :type kwargs: unwrapped dict.
 
@@ -79,7 +79,7 @@ class DataSymbol(TypedSymbol):
 
     def _process_arguments(self, **kwargs):
         ''' Process the arguments for the constructor and the specialise
-        methods. In this case the initial_value argument.
+        methods. In this case the initial_value and is_constant arguments.
 
         :param kwargs: keyword arguments which can be:\n
             :param initial_value: sets a known expression as an initial value
@@ -98,6 +98,12 @@ class DataSymbol(TypedSymbol):
         '''
         new_initial_value = None
         new_is_constant_value = None
+
+        # We need to consume 'initial_value' and 'is_constant' before calling
+        # the super because otherwise there will be an unknown argument in
+        # kwargs. However, we can only call the 'initial_value' setter after
+        # the super because it uses self.datatype which in turn is set in
+        # the super.
 
         if "initial_value" in kwargs:
             new_initial_value = kwargs.pop("initial_value")
@@ -118,10 +124,6 @@ class DataSymbol(TypedSymbol):
                 "A DataSymbol representing a constant must be given an "
                 "initial value but '{0}' does not have one.".format(self.name))
 
-        # We need to consume 'initial_value' before calling the super because
-        # otherwise there will be an unknown argument in kwargs but we need
-        # to call the 'initial_value' setter after this because it uses
-        # the self.datatype which is in turn set in the super.
         super(DataSymbol, self)._process_arguments(**kwargs)
 
         # Now that we have a datatype we can use initial_value setter
@@ -129,6 +131,8 @@ class DataSymbol(TypedSymbol):
         if new_initial_value is not None:
             self.initial_value = new_initial_value
 
+        # Now that we know whether or not we have an intial_value, we can
+        # call the is_constant setter.
         if new_is_constant_value is not None:
             self.is_constant = new_is_constant_value
 
@@ -173,14 +177,14 @@ class DataSymbol(TypedSymbol):
             not have an initial value. Otherwise it can receive PSyIR
             expressions or Python intrinsic types available in the
             TYPE_MAP_TO_PYTHON map.
-        :type new_value: NoneType | item of TYPE_MAP_TO_PYTHON |
-            :py:class:`psyclone.psyir.nodes.Node`
+        :type new_value: Optional[item of TYPE_MAP_TO_PYTHON |
+            :py:class:`psyclone.psyir.nodes.Node`]
 
         :raises ValueError: if a non-None value is provided and 1) this
             DataSymbol instance represents an argument, or 2) this
             DataSymbol instance is not a scalar (as the shape attribute is
             not empty), or 3) an initial value is provided but the type of
-            the value does is not supported, or 4) the type of the value
+            the value is not supported, or 4) the type of the value
             provided is not compatible with the datatype of this DataSymbol
             instance, or 5) the provided PSyIR expression is unsupported.
         :raises ValueError: if a None value is provided and this DataSymbol
