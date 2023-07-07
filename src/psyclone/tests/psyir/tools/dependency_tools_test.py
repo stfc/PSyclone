@@ -391,6 +391,15 @@ def test_array_access_pairs_0_vars(lhs, rhs, is_dependent, fortran_reader):
                           ("a1(2*i)", "a1(2*i+1)", None),
                           ("a1(i*i)", "a1(-1)", None),
                           ("a1(i-i+2)", "a1(2)", None),
+                          # Test the handling of array ranges. This is not
+                          # yet supported (TODO #2168), so it will always
+                          # return None, indicating an overlap.
+                          ("a1(:)", "a1(:)", None),
+                          # TODO #2168 A more complex case of distance
+                          # computation with a range - this needs to compare
+                          # the lower value of the left expression (i) with
+                          # the upper value of the right expression (i-1) etc
+                          ("a1(i:i+2)", "a1(i-3:i-1)", None),
                           # The /= is parsed as valid Fortran,
                           # but not converted into valid SymPy.
                           # It will therefore raise an exception,
