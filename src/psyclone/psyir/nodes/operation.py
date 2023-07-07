@@ -399,7 +399,7 @@ class BinaryOperation(Operation):
         # Relational Operators
         'EQ', 'NE', 'GT', 'LT', 'GE', 'LE',
         # Logical Operators
-        'AND', 'OR',
+        'AND', 'OR', 'EQV', 'NEQV',
         # Other Maths Operators
         'SIGN', 'MIN', 'MAX',
         # Casting operators

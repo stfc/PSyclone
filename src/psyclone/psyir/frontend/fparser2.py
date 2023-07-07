@@ -33,6 +33,7 @@
 # Authors: R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 #          J. Henrichs, Bureau of Meteorology
 #          I. Kavcic, Met Office
+# Modified: A. B. G. Chalk, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' This module provides the fparser2 to PSyIR front-end, it follows a
@@ -303,7 +304,6 @@ def _find_or_create_imported_symbol(location, name, scope_limit=None,
         if hasattr(test_node, 'symbol_table'):
             # This Node does have a SymbolTable.
             symbol_table = test_node.symbol_table
-
             try:
                 # If the name matches a Symbol in this SymbolTable then
                 # return the Symbol (after specialising it, if necessary).
@@ -1012,8 +1012,10 @@ class Fparser2Reader():
         ('**', BinaryOperation.Operator.POW),
         ('==', BinaryOperation.Operator.EQ),
         ('.eq.', BinaryOperation.Operator.EQ),
+        ('.eqv.', BinaryOperation.Operator.EQV),
         ('/=', BinaryOperation.Operator.NE),
         ('.ne.', BinaryOperation.Operator.NE),
+        ('.neqv.', BinaryOperation.Operator.NEQV),
         ('<=', BinaryOperation.Operator.LE),
         ('.le.', BinaryOperation.Operator.LE),
         ('<', BinaryOperation.Operator.LT),
@@ -2529,7 +2531,6 @@ class Fparser2Reader():
         '''
         code_block_nodes = []
         for child in nodes:
-
             try:
                 psy_child = self._create_child(child, parent)
             except NotImplementedError:
@@ -3202,6 +3203,10 @@ class Fparser2Reader():
         :param parent: parent node in the PSyIR.
         :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
+        :raises NotImplementedError: If the operator for an equality cannot be
+                                     determined (i.e. the statement cannot be
+                                     determined to be a logical comparison
+                                     or not)
         '''
         if isinstance(node, Fortran2003.Case_Value_Range):
             # The case value is a range (e.g. lim1:lim2)
@@ -3230,12 +3235,54 @@ class Fparser2Reader():
                 self.process_nodes(parent=leop, nodes=[node.items[1]])
                 new_parent.addchild(leop)
         else:
-            # The case value is some scalar initialisation expression
+            # The case value is some scalar expression
             bop = BinaryOperation(BinaryOperation.Operator.EQ,
                                   parent=parent)
-            parent.addchild(bop)
             self.process_nodes(parent=bop, nodes=[selector])
             self.process_nodes(parent=bop, nodes=[node])
+            # TODO #1799 when generic child.datatype is supported we can
+            # remove the conditional inside the loop and support full
+            # expressions
+
+            # Keep track of whether we know if the operator should be EQ/EQV
+            operator_known = False
+            for child in bop.children:
+                if (isinstance(child, Literal) and
+                        isinstance(child.datatype, ScalarType)):
+                    # We know the operator for all literals
+                    operator_known = True
+                    if (child.datatype.intrinsic ==
+                            ScalarType.Intrinsic.BOOLEAN):
+                        rhs = bop.children[1].detach()
+                        lhs = bop.children[0].detach()
+                        bop = BinaryOperation(BinaryOperation.Operator.EQV,
+                                              parent=parent)
+                        bop.addchild(lhs)
+                        bop.addchild(rhs)
+                elif (isinstance(child, Reference) and
+                        isinstance(child.symbol, DataSymbol) and
+                        not isinstance(child.symbol.datatype,
+                                       UnknownFortranType)):
+                    # We know the operator for all known reference types.
+                    operator_known = True
+                    if (child.symbol.datatype.intrinsic ==
+                            ScalarType.Intrinsic.BOOLEAN):
+                        rhs = bop.children[1].detach()
+                        lhs = bop.children[0].detach()
+                        bop = BinaryOperation(BinaryOperation.Operator.EQV,
+                                              parent=parent)
+                        bop.addchild(lhs)
+                        bop.addchild(rhs)
+
+            if operator_known:
+                parent.addchild(bop)
+            else:
+                raise NotImplementedError(f"PSyclone can't determine if this "
+                                          f"case should be '==' or '.EQV.' "
+                                          f"because it can't figure out if "
+                                          f"{bop.children[0].debug_string} "
+                                          f"or {bop.children[1].debug_string}"
+                                          f" are logical expressions.")
 
     @staticmethod
     def _array_notation_rank(node):
@@ -4364,10 +4411,22 @@ class Fparser2Reader():
         :returns: PSyIR representation of node.
         :rtype: :py:class:`psyclone.psyir.nodes.Routine`
 
+
+        :raises NotImplementedError: if the node contains a Contains clause.
         :raises NotImplementedError: if an unsupported prefix is found or no \
             explicit type information is available for a Function.
 
         '''
+        try:
+            _first_type_match(node.children,
+                              Fortran2003.Internal_Subprogram_Part)
+            has_contains = True
+        except ValueError:
+            has_contains = False
+        if has_contains:
+            raise NotImplementedError("PSyclone doesn't yet support 'Contains'"
+                                      " inside a Subroutine or Function")
+
         name = node.children[0].children[1].string
         routine = Routine(name, parent=parent)
 
@@ -4407,7 +4466,7 @@ class Fparser2Reader():
                         raise NotImplementedError(
                             f"Routine has unsupported prefix: {child.string}")
                 else:
-                    base_type, _ = self._process_type_spec(parent, child)
+                    base_type, _ = self._process_type_spec(routine, child)
 
         if isinstance(node, Fortran2003.Function_Subprogram):
             # Check whether this function-stmt has a suffix containing

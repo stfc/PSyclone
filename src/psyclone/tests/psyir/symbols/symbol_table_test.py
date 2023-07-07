@@ -1547,7 +1547,8 @@ def test_deep_copy():
     sym1 = DataSymbol("symbol1", INTEGER_TYPE,
                       interface=ArgumentInterface(
                           ArgumentInterface.Access.READ))
-    sym2 = Symbol("symbol2", interface=ImportInterface(mod))
+    sym2 = Symbol("symbol2", interface=ImportInterface(mod,
+                                                       orig_name="altsym2"))
     sym3 = DataSymbol("symbol3", INTEGER_TYPE)
     symtab.add(mod)
     symtab.add(sym1)
@@ -1576,6 +1577,8 @@ def test_deep_copy():
     # ContainerSymbols have been updated
     assert symtab2.lookup("symbol2").interface.container_symbol is \
         symtab2.lookup("my_mod")
+    # Check that the orig_name is copied across.
+    assert symtab2.lookup("symbol2").interface.orig_name == "altsym2"
 
     # Add new symbols and rename symbols in both symbol tables and check
     # they are not added/renamed in the other symbol table
