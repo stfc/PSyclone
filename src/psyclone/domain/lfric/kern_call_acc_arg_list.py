@@ -72,16 +72,17 @@ class KernCallAccArgList(KernCallArgList):
                 f"An LFRic intergrid kernel should have only one coarse mesh "
                 f"but '{self._kern.name}' has {len(cargs)}")
         carg = cargs[0]
+        # Add the cell map to our argument list
         base_name = "cell_map_" + carg.name
         self.append(base_name)
-        # Add the cell map to our argument list
-        _, cell_ref = self.cell_ref_name(var_accesses)
-        self.append(cell_ref.symbol.name)
+        # We'll need the current cell to index into this cell map.
+        self.cell_position(var_accesses)
 
     def cell_position(self, var_accesses=None):
         '''Adds a cell argument to the argument list and if supplied stores
-        this access in var_accesses. The cell argument may actually require
-        a lookup from a colour map array.
+        this access in var_accesses. Although normally just a scalar, the cell
+        argument may actually require a lookup from a colour map array. Either
+        way, this method adds the name of the variable to the argument list.
 
         :param var_accesses: optional VariablesAccessInfo instance to store
             the information about variable accesses.
@@ -120,10 +121,10 @@ class KernCallAccArgList(KernCallArgList):
 
         :param arg: the field to be added.
         :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-        :param var_accesses: optional VariablesAccessInfo instance to store \
+        :param var_accesses: optional VariablesAccessInfo instance to store
             the information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+        :type var_accesses: Optional[
+            :py:class:`psyclone.core.VariablesAccessInfo`]
 
         '''
         text1 = arg.proxy_name
@@ -137,13 +138,13 @@ class KernCallAccArgList(KernCallArgList):
         to the argument list. OpenACC requires the full dofmap to be
         specified. If supplied it also stores this access in var_accesses.
 
-        :param arg: the meta-data description of the kernel \
-            argument with which the stencil is associated.
+        :param arg: the meta-data description of the kernel argument with
+            which the stencil is associated.
         :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-        :param var_accesses: optional VariablesAccessInfo instance to store \
+        :param var_accesses: optional VariablesAccessInfo instance to store
             the information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+        :type var_accesses: [
+            :py:class:`psyclone.core.VariablesAccessInfo`]
 
         '''
         # Import here to avoid circular dependency
@@ -159,13 +160,13 @@ class KernCallAccArgList(KernCallArgList):
         specified. If supplied it also stores this access in var_accesses.This
         method passes through to the stencil method.
 
-        :param arg: the meta-data description of the kernel \
+        :param arg: the meta-data description of the kernel
             argument with which the stencil is associated.
         :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-        :param var_accesses: optional VariablesAccessInfo instance to store \
+        :param var_accesses: optional VariablesAccessInfo instance to store
             the information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+        :type var_accesses: Optional[
+            :py:class:`psyclone.core.VariablesAccessInfo`]
 
         '''
         self.stencil(arg, var_accesses)
@@ -177,10 +178,10 @@ class KernCallAccArgList(KernCallArgList):
 
         :param arg: the kernel argument with which the stencil is associated.
         :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-        :param var_accesses: optional VariablesAccessInfo instance to store \
+        :param var_accesses: optional VariablesAccessInfo instance to store
             the information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+        :type var_accesses: Optional[
+            :py:class:`psyclone.core.VariablesAccessInfo`]
 
         '''
         # The extent is not specified in the metadata so pass the value in
@@ -199,10 +200,10 @@ class KernCallAccArgList(KernCallArgList):
 
         :param arg: the kernel argument with which the stencil is associated.
         :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-        :param var_accesses: optional VariablesAccessInfo instance to store \
+        :param var_accesses: optional VariablesAccessInfo instance to store
             the information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+        :type var_accesses: Optional[
+            :py:class:`psyclone.core.VariablesAccessInfo`]
 
         '''
         self.stencil_unknown_extent(arg, var_accesses)
@@ -215,10 +216,10 @@ class KernCallAccArgList(KernCallArgList):
 
         :param arg: the meta-data description of the operator.
         :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-        :param var_accesses: optional VariablesAccessInfo instance to store \
+        :param var_accesses: optional VariablesAccessInfo instance to store
             the information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+        :type var_accesses: Optional[
+            :py:class:`psyclone.core.VariablesAccessInfo`]
 
         '''
         # In case of OpenACC we do not want to transfer the same
@@ -234,13 +235,13 @@ class KernCallAccArgList(KernCallArgList):
         to be specified. If supplied it also stores this access in
         var_accesses.
 
-        :param function_space: the function space for which the compulsory \
+        :param function_space: the function space for which the compulsory
             arguments are added.
         :type function_space: :py:class:`psyclone.domain.lfric.FunctionSpace`
-        :param var_accesses: optional VariablesAccessInfo instance to store \
+        :param var_accesses: optional VariablesAccessInfo instance to store
             the information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+        :type var_accesses: Optional[
+            :py:class:`psyclone.core.VariablesAccessInfo`]
 
         '''
         if self._kern.iterates_over != "cell_column":
@@ -282,10 +283,10 @@ class KernCallAccArgList(KernCallArgList):
 
         :param scalar_arg: the kernel argument.
         :type scalar_arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-        :param var_accesses: optional VariablesAccessInfo instance that \
+        :param var_accesses: optional VariablesAccessInfo instance that
             stores information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+        :type var_accesses: Optional[
+            :py:class:`psyclone.core.VariablesAccessInfo`]
 
         '''
 

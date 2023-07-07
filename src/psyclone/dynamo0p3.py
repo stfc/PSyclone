@@ -1860,7 +1860,9 @@ class LFRicMeshProperties(LFRicCollection):
                     cell_name = "cell"
                     if self._kernel.is_coloured():
                         colour_name = "colour"
-                        cmap_name = "cmap"
+                        #cmap_name = "cmap"
+                        cmap_name = self._symbol_table.find_or_create_tag(
+                            "cmap", root_name="cmap").name
                         adj_face += (f"(:,{cmap_name}({colour_name},"
                                      f"{cell_name}))")
                     else:
@@ -4066,6 +4068,8 @@ class DynMeshes():
             # There aren't any inter-grid kernels but we do need colourmap
             # information and that means we'll need a mesh object
             self._add_mesh_symbols(["mesh"])
+            # This creates the colourmap information for this invoke if we
+            # don't already have one.
             colour_map = non_intergrid_kern.colourmap
             # No. of colours
             ncolours = sym_tab.find_or_create_integer_symbol(
@@ -4167,8 +4171,8 @@ class DynMeshes():
             # There aren't any inter-grid kernels but we do need
             # colourmap information
             base_name = "cmap"
-            colour_map = \
-                self._schedule.symbol_table.lookup_with_tag(base_name).name
+            csym = self._schedule.symbol_table.lookup_with_tag("cmap")
+            colour_map = csym.name
             # No. of colours
             base_name = "ncolour"
             ncolours = \
@@ -7922,10 +7926,11 @@ class DynKern(CodedKern):
             try:
                 cmap = sched.symbol_table.lookup_with_tag("cmap").name
             except KeyError:
-                # We have to do this here as _init_colourmap is only called
-                # at code-generation time.
+                # We have to do this here as _init_colourmap (which calls this
+                # method) is only called at code-generation time.
                 cmap = sched.symbol_table.find_or_create_array(
-                    "cmap", 2, ScalarType.Intrinsic.INTEGER, tag="cmap").name
+                    "cmap", 2, ScalarType.Intrinsic.INTEGER,
+                    tag="cmap").name
 
         return cmap
 
