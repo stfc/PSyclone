@@ -33,7 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
 
-''' Module containing py.test tests the SymPy reader.'''
+''' Module containing  tests for the SymPy reader.'''
 
 import pytest
 
@@ -42,7 +42,8 @@ from psyclone.psyir.frontend.sympy_reader import SymPyReader
 
 
 def test_sympy_reader_constructor():
-    '''Tests that the constructor sets the class variables as expected.
+    '''Tests that the constructor sets the variables from the provided
+    Writer as expected.
     '''
     sympy_writer = SymPyWriter()
     sympy_writer._lower_bound = "new_lower_bound"
