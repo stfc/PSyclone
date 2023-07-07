@@ -373,6 +373,12 @@ class DependencyTools():
             sympy_expressions = sympy_writer([index_read, index_written])
         except VisitorError:
             return None
+        if isinstance(sympy_expressions[0], tuple) or \
+                isinstance(sympy_expressions[1], tuple):
+            # TODO 2168: the SymPy expressions represent a range, so we
+            # need to analyse this in more detail.
+            return None
+
         symbol_map = sympy_writer.type_map
         # If the subscripts do not even depend on the specified variable,
         # any dependency distance is possible (e.g. `do i ... a(j)=a(j)+1`)
