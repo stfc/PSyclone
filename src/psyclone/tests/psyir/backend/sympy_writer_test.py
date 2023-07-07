@@ -403,6 +403,22 @@ def test_sym_writer_parse_errors(fortran_reader):
                                          ("c(i::k,j)%d%f(i:j:k)",
                                           "c(i,sympy_upper,k,j,j,1)%c_d%"
                                           "c_d_f(i,j,k)"),
+                                         # Check name clashes, if a user
+                                         # variable is the same as the names
+                                         # for upper/lower bound
+                                         ("sympy_upper(:)",
+                                          "sympy_upper(sympy_lower,"
+                                          "sympy_upper_1,1)"),
+                                         ("sympy_lower(:)",
+                                          "sympy_lower(sympy_lower_1,"
+                                          "sympy_upper,1)"),
+                                         # The +sympy_upper at the end is
+                                         # an array expression, so it gets
+                                         # indices added!
+                                         ("sympy_lower(:)+sympy_upper",
+                                          "sympy_lower(sympy_lower_1,"
+                                          "sympy_upper_1,1) + sympy_upper"
+                                          "(sympy_lower_1,sympy_upper_1,1)"),
                                          ])
 def test_sym_writer_array_expressions(fortran_reader, expressions):
     '''Test that array expressions (including ones using user-defined
@@ -418,45 +434,8 @@ def test_sym_writer_array_expressions(fortran_reader, expressions):
     # expressions we need. We just take the RHS of the assignments
     source = f'''program test_prog
                 use my_mod
-                type(my_type) :: a, b(10), c(10, 10)
-                x = {expressions[0]}
-                end program test_prog '''
-
-    psyir = fortran_reader.psyir_from_source(source)
-    expr = psyir.children[0].children[0].rhs
-    sympy_writer = SymPyWriter()
-    out = sympy_writer._to_str([expr])
-    assert out[0] == expressions[1]
-
-
-@pytest.mark.parametrize("expressions", [("sympy_upper(:)",
-                                          "sympy_upper(sympy_lower,"
-                                          "sympy_upper_1,1)"),
-                                         ("sympy_lower(:)",
-                                          "sympy_lower(sympy_lower_1,"
-                                          "sympy_upper,1)"),
-                                         # The +sympy_upper at the end is
-                                         # an array expression, so it gets
-                                         # indices added!
-                                         ("sympy_lower(:)+sympy_upper",
-                                          "sympy_lower(sympy_lower_1,"
-                                          "sympy_upper_1,1) + sympy_upper"
-                                          "(sympy_lower_1,sympy_upper_1,1)"),
-                                         ])
-def test_sym_writer_array_bounds(fortran_reader, expressions):
-    '''Test that array expressions (including ones using user-defined
-    types) are converted correctly. A Fortran range is converted into
-    three arguments for the SymPy function used: lower bound, upper bound,
-    step. If the bounds are not given, +/- sympy_upper(inity) is used. E.g.:
-    `a(:)` --> `a(sympy_lower,sympy_upper,1)`. And to keep the number of
-    arguments the same, an array index access like `b(i,j)` is converted to:
-    `b(i,i,1, j,j,1)`.
-
-    '''
-    # A dummy program to easily create the PSyIR for the
-    # expressions we need. We just take the RHS of the assignments
-    source = f'''program test_prog
                 integer :: sympy_upper(10), sympy_lower(10), x
+                type(my_type) :: a, b(10), c(10, 10)
                 x = {expressions[0]}
                 end program test_prog '''
 

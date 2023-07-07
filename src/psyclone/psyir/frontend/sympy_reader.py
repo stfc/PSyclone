@@ -79,15 +79,14 @@ class SymPyReader():
     In order to achieve this, the SymPyReader must know the names used for
     the lower- and upper-bounds. The constructor takes a SymPyWriter as
     argument in order to get the name of these bounds. It is important that
-    same SymPyWriter is provided here that was used to create the SymPy
+    the SymPyWriter provided here is the one that was used to create the SymPy
     expressions in the first place.
 
     :param sympy_writer: the SymPyWriter that was used to create the SymPy
-        expressions
+        expressions.
     :type sympy_writer: :py:class:`psyclone.psyir.backend.SymPyWriter`
 
     '''
-
     # The default values for the bounds, they will be changed to the
     # correct values in the constructor.
     _lower_bound = "sympy_lower"
@@ -146,7 +145,7 @@ class SymPyReader():
         :param printer: the SymPy writer base class.
         :type printer: :py:class:`sympy.printing.str.StrPrinter`
 
-        :returns: the string representation of this function.
+        :returns: the string representation of this array access.
         :rtype: str
 
         '''
