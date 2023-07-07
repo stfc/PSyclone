@@ -271,7 +271,9 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         # Store the parent parallel directive node
         self._parent_parallel = anc
         # pylint: disable=protected-access
-        self._parallel_private = anc._get_private_clauses()[0].children
+        self._parallel_private, firstprivate, _ = \
+            anc.infer_sharing_attributes()
+        self._parallel_private = self._parallel_private.union(firstprivate)
 
     def _is_reference_private(self, ref):
         """
@@ -285,13 +287,13 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         :returns: True if ref is private, else False.
         :rtype: bool
         """
-        for parent_ref in self._parallel_private:
+        for parent_sym in self._parallel_private:
             if (
-                ref.symbol.name == parent_ref.symbol.name
+                ref.symbol.name == parent_sym.name
                 and ref.symbol.datatype.intrinsic
-                == parent_ref.symbol.datatype.intrinsic
+                == parent_sym.datatype.intrinsic
                 and ref.symbol.datatype.precision
-                == parent_ref.symbol.datatype.precision
+                == parent_sym.datatype.precision
             ):
                 return True
         return False
@@ -323,7 +325,8 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         :param in_list: The list of input References for this task.
         :type in_list: List of :py:class:`psyclone.psyir.nodes.Reference`
         """
-        is_private = ref in self._parallel_private
+        symbol = ref.symbol
+        is_private = symbol in self._parallel_private
         if is_private:
             # If the reference is private in the parent parallel,
             # then it is added to the firstprivate clause for this
@@ -1793,9 +1796,9 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         # Loop variable is private unless already set as firstprivate.
         # Throw exception if shared
         loop_var_ref = Reference(loop_var)
-        if loop_var_ref not in self._parallel_private:
+        if loop_var not in self._parallel_private:
             raise GenerationError(
-                "Found shared loop variable which is"
+                "Found shared loop variable which is "
                 "not allowed in OpenMP Task directive. "
                 f"Variable name is {loop_var_ref.name}"
             )

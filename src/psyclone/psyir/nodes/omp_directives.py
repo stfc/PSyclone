@@ -66,7 +66,7 @@ from psyclone.psyir.nodes.member import Member
 from psyclone.psyir.nodes.omp_clauses import OMPGrainsizeClause, \
     OMPNowaitClause, OMPNogroupClause, OMPNumTasksClause, OMPPrivateClause,\
     OMPDefaultClause, OMPReductionClause, OMPScheduleClause, \
-    OMPFirstprivateClause
+    OMPFirstprivateClause, OMPDependClause
 from psyclone.psyir.nodes.operation import BinaryOperation
 from psyclone.psyir.nodes.ranges import Range
 from psyclone.psyir.nodes.reference import Reference
@@ -619,7 +619,7 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
         '''
         Takes two lists of SymPy expressions, and checks that any overlaps
         between the expressions is valid for OpenMP depend clauses.
-        
+
         :param sympy_ref1s: the list of SymPy expressions corresponding to
                             the first dependency clause.
         :type sympy_ref1s: list of SymPy expressions
@@ -633,7 +633,7 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
         '''
         # r1_min will contain the minimum computed value for (ref + value)
         # from the list. r1_max will contain the maximum computed value.
-        # Loop through the values in sympy_ref1s, and compute the maximum 
+        # Loop through the values in sympy_ref1s, and compute the maximum
         # and minumum values in that list. These correspond to the maximum and
         # minimum values used for accessing the array relative to the
         # symbol used as a base access.
@@ -748,7 +748,6 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
             # integer values for these Literals
             sympy_ref1s = SymPyWriter.convert_to_sympy_expressions(values)
 
-
             # val2s stores all the values added to the base reference in
             # the BinaryOperations in ref2_accesses, so if ref2_accesses
             # contains ref+32, ref+64, then ref2_accesses will contain the
@@ -764,22 +763,19 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                 val2s.append(member.children[1])
             sympy_ref2s = SymPyWriter.convert_to_sympy_expressions(val2s)
             return self._check_valid_overlap(sympy_ref1s, sympy_ref2s)
-        else:
-            # Handle no Reference case
-            # We have a set of Literal values, we use the SymPyWriter to
-            # convert these objects to expressions we can use to obtain
-            # integer values for these Literals
-            sympy_ref1s = \
-                SymPyWriter.convert_to_sympy_expressions(ref1_accesses)
+        # Handle no Reference case
+        # We have a set of Literal values, we use the SymPyWriter to
+        # convert these objects to expressions we can use to obtain
+        # integer values for these Literals
+        sympy_ref1s = \
+            SymPyWriter.convert_to_sympy_expressions(ref1_accesses)
 
-            # We have a set of Literal values, we use the SymPyWriter to
-            # convert these objects to expressions we can use to obtain
-            # integer values for these Literals
-            sympy_ref2s = \
-                SymPyWriter.convert_to_sympy_expressions(ref2_accesses)
-            return self._check_valid_overlap(sympy_ref1s, sympy_ref2s)
-
-        return True
+        # We have a set of Literal values, we use the SymPyWriter to
+        # convert these objects to expressions we can use to obtain
+        # integer values for these Literals
+        sympy_ref2s = \
+            SymPyWriter.convert_to_sympy_expressions(ref2_accesses)
+        return self._check_valid_overlap(sympy_ref1s, sympy_ref2s)
 
     def _check_dependency_pairing_valid(self, node1, node2, task1, task2):
         '''
@@ -988,12 +984,12 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
         # dependency nodes that were previously computed, but sorted
         # according to abs_position in the tree.
         sorted_highest_positions, sorted_lowest_positions, \
-                sorted_dependency_pairs = (list(t) for t in
-                                           zip(*sorted(zip(
-                                               highest_position_nodes,
-                                               lowest_position_nodes,
-                                               unhandled_dependent_nodes)
-                                               )))
+            sorted_dependency_pairs = (list(t) for t in
+                                       zip(*sorted(zip(
+                                           highest_position_nodes,
+                                           lowest_position_nodes,
+                                           unhandled_dependent_nodes)
+                                           )))
         # The location of any node where need to place an OMPTaskwaitDirective
         # to ensure code correctness. The size of this list should be
         # minimised during construction as we will not add another
@@ -1334,7 +1330,7 @@ class OMPParallelDirective(OMPRegionDirective):
         self._encloses_omp_directive()
 
         # Generate the private and firstprivate clauses
-        private, fprivate, need_sync = self._infer_sharing_attributes()
+        private, fprivate, need_sync = self.infer_sharing_attributes()
         private_clause = OMPPrivateClause.create(
                             sorted(private, key=lambda x: x.name))
         fprivate_clause = OMPFirstprivateClause.create(
@@ -1439,16 +1435,33 @@ class OMPParallelDirective(OMPRegionDirective):
 
         # Create data sharing clauses (order alphabetically to make generation
         # reproducible)
-        private, fprivate, need_sync = self._infer_sharing_attributes()
+        private, fprivate, need_sync = self.infer_sharing_attributes()
         private_clause = OMPPrivateClause.create(
                             sorted(private, key=lambda x: x.name))
         fprivate_clause = OMPFirstprivateClause.create(
                             sorted(fprivate, key=lambda x: x.name))
+        # Check all of the need_sync nodes are synchronized in children.
+        sync_clauses = self.walk(OMPDependClause)
         if need_sync:
-            raise GenerationError(
-                f"Lowering {type(self).__name__} does not support symbols that"
-                f" need synchronisation, but found: "
-                f"{[x.name for x in need_sync]}")
+            for sym in need_sync:
+                found = False
+                for clause in sync_clauses:
+                    # Needs to be an out depend clause to synchronize
+                    if clause.operand == "IN":
+                        continue
+                    # Check if the symbol is in this depend clause.
+                    for child in clause.children:
+                        if sym.name == child.symbol.name:
+                            found = True
+                            break
+                    if found:
+                        break
+                if not found:
+                    raise GenerationError(
+                        f"Lowering {type(self).__name__} does not support "
+                        f"symbols that need synchronisation unless they are "
+                        f"in a depend clause, but found: "
+                        f"{sym.name} which is not in a depend clause.")
 
         self.addchild(private_clause)
         self.addchild(fprivate_clause)
@@ -1481,7 +1494,7 @@ class OMPParallelDirective(OMPRegionDirective):
         '''
         return "omp end parallel"
 
-    def _infer_sharing_attributes(self):
+    def infer_sharing_attributes(self):
         '''
         The PSyIR does not specify if each symbol inside an OpenMP region is
         private, firstprivate, shared or shared but needs synchronisation,
@@ -1517,8 +1530,6 @@ class OMPParallelDirective(OMPRegionDirective):
                                  this OMPParallelDirective is not shared.
 
         '''
-        import pdb
-        pdb.set_trace()
         if (self.default_clause.clause_type !=
                 OMPDefaultClause.DefaultClauseTypes.SHARED):
             raise GenerationError("OMPParallelClause cannot correctly generate"
@@ -2209,7 +2220,7 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         # pylint: disable=protected-access
         default_str = self.children[1]._clause_string
         # pylint: enable=protected-access
-        private, fprivate, need_sync = self._infer_sharing_attributes()
+        private, fprivate, need_sync = self.infer_sharing_attributes()
         private_clause = OMPPrivateClause.create(
                             sorted(private, key=lambda x: x.name))
         fprivate_clause = OMPFirstprivateClause.create(

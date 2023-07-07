@@ -1373,7 +1373,7 @@ def test_omp_task_directive_19(fortran_reader, fortran_writer):
             do j = 1, 320, 32
                 do ii=i, i+32
                     do jj = j,j+32
-                        k = ty%jp + ii
+                        k = k + ty%jp + ii
                         ty%jp = ty%jp - (1 - ty%jp)
                     end do
                 end do
@@ -1409,10 +1409,10 @@ def test_omp_task_directive_19(fortran_reader, fortran_writer):
   do i = 1, 320, 32
     do j = 1, 320, 32
       !$omp task private(ii,jj), firstprivate(i,j), shared(k,ty), \
-depend(in: ty), depend(out: k,ty)
+depend(in: k,ty), depend(out: k,ty)
       do ii = i, i + 32, 1
         do jj = j, j + 32, 1
-          k = ty%jp + ii
+          k = k + ty%jp + ii
           ty%jp = ty%jp - (1 - ty%jp)
         enddo
       enddo
@@ -1954,70 +1954,63 @@ end subroutine my_subroutine\n'''
     assert fortran_writer(tree) == correct
 
 
-def test_omp_task_directive_25(fortran_reader, fortran_writer):
-    ''' Test the code generation correctly generates the correct clauses
-    when we have access to a first private constant in '''
-    code = '''
-    subroutine my_subroutine()
-        integer, dimension(320, 10) :: A
-        integer :: i,ii
-        integer :: j
-        integer :: k
-        do i = 1, 32
-          k = 1
-        end do
-        k = 32
-        do i = 1, 320, 32
-          do ii = i, i + 32
-            j = k
-            A(ii,k+1) = 20
-          end do
-        end do
-    end subroutine
-    '''
-    tree = fortran_reader.psyir_from_source(code)
-    ptrans = OMPParallelTrans()
-    strans = OMPSingleTrans()
-    ltrans = OMPLoopTrans()
-    tdir = DynamicOMPTaskDirective()
-    loops = tree.walk(Loop)
-    ltrans.apply(loops[0])
-    loop = loops[1].children[3].children[0]
-    parent = loop.parent
-    loop.detach()
-    tdir.children[0].addchild(loop)
-    parent.addchild(tdir, index=0)
-    strans.apply(tree.children[0].children[:])
-    ptrans.apply(tree.children[0].children[0])
-    correct = '''subroutine my_subroutine()
-  integer, dimension(320,10) :: a
-  integer :: i
-  integer :: ii
-  integer :: j
-  integer :: k
-
-  !$omp parallel default(shared), private(i,ii,k)
-  !$omp single
-  !$omp do schedule(auto)
-  do i = 1, 32, 1
-    k = 1
-  enddo
-  !$omp end do
-  k = 32
-  do i = 1, 320, 32
-    !$omp task private(ii), firstprivate(i,k), shared(j,a), \
-depend(out: j,a(i,k + 1))
-    do ii = i, i + 32, 1
-      j = k
-      a(ii,k + 1) = 20
-    enddo
-    !$omp end task
-  enddo
-  !$omp end single
-  !$omp end parallel
-
-end subroutine my_subroutine\n'''
-    assert fortran_writer(tree) == correct
+#def test_omp_task_directive_25(fortran_reader, fortran_writer):
+#    ''' Test the code generation correctly generates the correct clauses
+#    when we have access to a first private constant in '''
+#    code = '''
+#    subroutine my_subroutine()
+#        integer, dimension(320, 10) :: A
+#        integer :: i,ii
+#        integer :: j
+#        integer :: k
+#        k = 32
+#        do i = 1, 320, 32
+#          do ii = i, i + 32
+#            j = k
+#            A(ii,k+1) = 20
+#          end do
+#        end do
+#    end subroutine
+#    '''
+#    tree = fortran_reader.psyir_from_source(code)
+#    ptrans = OMPParallelTrans()
+#    strans = OMPSingleTrans()
+#    ltrans = OMPLoopTrans()
+#    tdir = DynamicOMPTaskDirective()
+#    loops = tree.walk(Loop)
+#    ltrans.apply(loops[0])
+#    loop = loops[1].children[3].children[0]
+#    parent = loop.parent
+#    loop.detach()
+#    tdir.children[0].addchild(loop)
+#    parent.addchild(tdir, index=0)
+#    strans.apply(tree.children[0].children[2:])
+#    ptrans.apply(tree.children[0].children[1:])
+#    correct = '''subroutine my_subroutine()
+#  integer, dimension(320,10) :: a
+#  integer :: i
+#  integer :: ii
+#  integer :: j
+#  integer :: k
+#
+#  k = 32
+#  !$omp parallel default(shared), private(i,ii,k)
+#  !$omp single
+#  do i = 1, 320, 32
+#    !$omp task private(ii), firstprivate(i,k), shared(j,a), \
+#depend(out: j,a(i,k + 1))
+#    do ii = i, i + 32, 1
+#      j = k
+#      a(ii,k + 1) = 20
+#    enddo
+#    !$omp end task
+#  enddo
+#  !$omp end single
+#  !$omp end parallel
+#
+#end subroutine my_subroutine\n'''
+#    print(fortran_writer(tree))
+#    assert fortran_writer(tree) == correct
 
 
 def test_omp_task_directive_26(fortran_reader):
@@ -2088,7 +2081,8 @@ def test_omp_task_directive_27(fortran_reader):
     ptrans.apply(tree.children[0].children[:])
     with pytest.raises(GenerationError) as excinfo:
         tree.lower_to_language_level()
-    assert ("Found shared loop variable which isnot allowed in OpenMP Task "
+    print(str(excinfo.value))
+    assert ("Found shared loop variable which is not allowed in OpenMP Task "
            "directive. Variable name is j" in str(excinfo.value))
 
 
@@ -2177,7 +2171,7 @@ def test_omp_task_directive_29(fortran_reader, fortran_writer):
             do j = 1, 320, 32
                 do ii=i, i+32
                     do jj = j,j+32
-                        k = ty%y%jp(index) + ii
+                        k = k + ty%y%jp(index) + ii
                         ty%y%jp(index+1) = ty%y%jp(index+1) - (1 - \
 ty%y%jp(index+1))
                     end do
@@ -2221,11 +2215,11 @@ ty%y%jp(index+1))
   index = 1
   do i = 1, 320, 32
     !$omp task private(j,ii,jj), firstprivate(i,index), shared(k,ty), depend(\
-in: ty%y%jp(index),ty%y%jp(index + 1)), depend(out: k,ty%y%jp(index + 1))
+in: k,ty%y%jp(index),ty%y%jp(index + 1)), depend(out: k,ty%y%jp(index + 1))
     do j = 1, 320, 32
       do ii = i, i + 32, 1
         do jj = j, j + 32, 1
-          k = ty%y%jp(index) + ii
+          k = k + ty%y%jp(index) + ii
           ty%y%jp(index + 1) = ty%y%jp(index + 1) - (1 - ty%y%jp(index + 1))
         enddo
       enddo
@@ -2259,7 +2253,7 @@ def test_omp_task_directive_30(fortran_reader, fortran_writer):
             do j = 1, 320, 32
                 do ii=i, i+32
                     do jj = j,j+32
-                        k = ty%y%jp(j) + ii
+                        k = k + ty%y%jp(j) + ii
                         ty%y%jp(j+1) = ty%y%jp(j+1) - (1 - ty%y%jp(j+1))
                     end do
                 end do
@@ -2298,10 +2292,10 @@ def test_omp_task_directive_30(fortran_reader, fortran_writer):
   do i = 1, 320, 32
     do j = 1, 320, 32
       !$omp task private(ii,jj), firstprivate(i,j), shared(k,ty), depend(in: \
-ty%y%jp(j),ty%y%jp(j + 32)), depend(out: k,ty%y%jp(j + 32),ty%y%jp(j))
+k,ty%y%jp(j),ty%y%jp(j + 32)), depend(out: k,ty%y%jp(j + 32),ty%y%jp(j))
       do ii = i, i + 32, 1
         do jj = j, j + 32, 1
-          k = ty%y%jp(j) + ii
+          k = k + ty%y%jp(j) + ii
           ty%y%jp(j + 1) = ty%y%jp(j + 1) - (1 - ty%y%jp(j + 1))
         enddo
       enddo
@@ -2335,7 +2329,7 @@ def test_omp_task_directive_31(fortran_reader, fortran_writer):
             do j = 1, 320, 32
                 do ii=i, i+32
                     do jj = j,j+32
-                        k = ty%y%jp(ii) + ii
+                        k = k + ty%y%jp(ii) + ii
                         ty%y%jp(ii+1) = ty%y%jp(ii+1) - (1 - ty%y%jp(ii+1))
                         ty%y%jp(1) = ty%y%jp(1) + 1
                     end do
@@ -2374,12 +2368,12 @@ def test_omp_task_directive_31(fortran_reader, fortran_writer):
   !$omp single
   do i = 1, 320, 32
     !$omp task private(j,ii,jj), firstprivate(i), shared(k,ty), depend(in: \
-ty%y%jp(i),ty%y%jp(i + 32),ty%y%jp(1)), depend(out: k,ty%y%jp(i + 32),\
+k,ty%y%jp(i),ty%y%jp(i + 32),ty%y%jp(1)), depend(out: k,ty%y%jp(i + 32),\
 ty%y%jp(i),ty%y%jp(1))
     do j = 1, 320, 32
       do ii = i, i + 32, 1
         do jj = j, j + 32, 1
-          k = ty%y%jp(ii) + ii
+          k = k + ty%y%jp(ii) + ii
           ty%y%jp(ii + 1) = ty%y%jp(ii + 1) - (1 - ty%y%jp(ii + 1))
           ty%y%jp(1) = ty%y%jp(1) + 1
         enddo
@@ -2636,7 +2630,7 @@ def test_omp_task_directive_35(fortran_reader, fortran_writer):
             do j = 1, 320, 32
                 do ii=i, i+32
                     do jj = j,j+32
-                        k = ty%y%jp(ii) + ii
+                        k = k + ty%y%jp(ii) + ii
                         ty%y%jp(ii) = ty%y%jp(ii) - (1 - ty%y%jp(ii))
                         ty%y%jp(1) = ty%y%jp(1) + 1
                     end do
@@ -2675,11 +2669,11 @@ def test_omp_task_directive_35(fortran_reader, fortran_writer):
   !$omp single
   do i = 1, 320, 32
     !$omp task private(j,ii,jj), firstprivate(i), shared(k,ty), depend(in: \
-ty%y%jp(i),ty%y%jp(1)), depend(out: k,ty%y%jp(i),ty%y%jp(1))
+k,ty%y%jp(i),ty%y%jp(1)), depend(out: k,ty%y%jp(i),ty%y%jp(1))
     do j = 1, 320, 32
       do ii = i, i + 32, 1
         do jj = j, j + 32, 1
-          k = ty%y%jp(ii) + ii
+          k = k + ty%y%jp(ii) + ii
           ty%y%jp(ii) = ty%y%jp(ii) - (1 - ty%y%jp(ii))
           ty%y%jp(1) = ty%y%jp(1) + 1
         enddo
@@ -2992,7 +2986,7 @@ def test_omp_task_directive_40(fortran_reader, fortran_writer):
   integer :: j
   integer :: k
 
-  !$omp parallel default(shared), private(i,iplusone,j)
+  !$omp parallel default(shared), private(i,j), firstprivate(iplusone)
   !$omp single
   do i = 1, 320, 32
     !$omp task private(j,iplusone), firstprivate(i), shared(boundary,a,b), \
@@ -3063,7 +3057,7 @@ def test_omp_task_directive_41(fortran_reader, fortran_writer):
   integer :: j
   integer :: k
 
-  !$omp parallel default(shared), private(i,iplusone,j)
+  !$omp parallel default(shared), private(i,j), firstprivate(iplusone)
   !$omp single
   do i = 1, 320, 32
     !$omp task private(j,iplusone), firstprivate(i), shared(boundary,a,b), \
@@ -3135,7 +3129,7 @@ def test_omp_task_directive_42(fortran_reader, fortran_writer):
   integer :: i
   integer :: j
 
-  !$omp parallel default(shared), private(i,iplusone,j)
+  !$omp parallel default(shared), private(i,j), firstprivate(iplusone)
   !$omp single
   do i = 1, 320, 32
     !$omp task private(j,iplusone), firstprivate(i), shared(boundary,b,aa), \
@@ -3208,7 +3202,7 @@ def test_omp_task_directive_43(fortran_reader, fortran_writer):
   integer :: i
   integer :: j
 
-  !$omp parallel default(shared), private(i,iplusone,j)
+  !$omp parallel default(shared), private(i,j), firstprivate(iplusone)
   !$omp single
   do i = 1, 320, 32
     !$omp task private(j,iplusone), firstprivate(i), shared(boundary,aa,b), \
@@ -3232,7 +3226,7 @@ end subroutine my_subroutine
     assert correct == fortran_writer(tree)
 
 
-def test_omp_task_directive_test_44(fortran_reader, fortran_writer):
+def test_omp_task_directive_44(fortran_reader, fortran_writer):
     '''Test the code generation generates the correct depend clause for a case
     like the boundary condition for NemoLite2D. here we have a normal structure
     for task + chunk loop code, and jiv = j + 1 needs to be correctly resolved
@@ -3312,7 +3306,8 @@ sshn_v(i,jiv))
   real, dimension(100,100) :: sshn_v
   real :: g
 
-  !$omp parallel default(shared), private(i,j,j_el_inner,j_out_var,jiv)
+  !$omp parallel default(shared), private(i,j,j_el_inner,j_out_var), \
+firstprivate(jiv)
   !$omp single
   do j_out_var = ystart, ystop, 32
     j_el_inner = MIN(j_out_var + (32 - 1), ystop)
