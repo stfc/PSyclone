@@ -482,6 +482,21 @@
 	163) PR #2191 for #2185. Fix element order used in PSyAD test
 	harness.
 
+	164) PR #2208 towards #2205. Ensures that functions or subroutines
+	that CONTAIN other functions/subroutines are put into a CodeBlock.
+
+	165) PR #2124 fir #2101. Refactors OpenMP inference of private/first-
+	private variables and those requiring synchronisation.
+
+	166) PR #2210 for #2206. Ensure symbol renaming included when deep-
+	copying a symbol table.
+
+	167) PR #2209 for #2204. Add support for EQV and NEQV and fix select
+	case bug with logical comparisons.
+
+	168) PR #2211 for #2183. Change PSyAD test-harness generation to use
+	the same variable names as the TL kernel being tested.
+
 release 2.3.1 17th of June 2022
 
 	1) PR #1747 for #1720. Adds support for If blocks to PSyAD.
