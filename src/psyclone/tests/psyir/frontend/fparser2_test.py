@@ -44,7 +44,7 @@ from fparser.common.readfortran import FortranStringReader
 from fparser.common.sourceinfo import FortranFormat
 from fparser.two import Fortran2003
 from fparser.two.Fortran2003 import (
-    Assignment_Stmt, Dimension_Attr_Spec, Execution_Part, Name, Return_Stmt,
+    Dimension_Attr_Spec, Execution_Part, Name, Return_Stmt,
     Specification_Part, Stmt_Function_Stmt, Subroutine_Subprogram,
     Type_Declaration_Stmt)
 from fparser.two.utils import walk
@@ -2400,309 +2400,6 @@ def test_handling_complex_if_construct():
 
 
 @pytest.mark.usefixtures("disable_declaration_check", "f2008_parser")
-def test_handling_case_construct():
-    ''' Test that fparser2 Case_Construct is converted to the expected PSyIR
-    tree structure.
-
-    TODO #754 fix test so that 'disable_declaration_check' fixture is not
-    required.
-    '''
-    reader = FortranStringReader(
-        '''SELECT CASE (selector)
-            CASE (label1)
-                branch1 = 1
-            CASE (label2)
-                branch2 = 1
-            END SELECT''')
-    fparser2case_construct = Execution_Part.match(reader)[0][0]
-
-    fake_parent = Schedule()
-    processor = Fparser2Reader()
-    processor.process_nodes(fake_parent, [fparser2case_construct])
-
-    # Check a new node was properly generated and connected to parent
-    assert len(fake_parent.children) == 1
-    ifnode = fake_parent.children[0]
-    assert isinstance(ifnode, IfBlock)
-    assert ifnode.if_body.ast is fparser2case_construct.content[2]
-    assert ifnode.if_body.ast_end is fparser2case_construct.content[2]
-    assert 'was_case' in ifnode.annotations
-    assert ifnode.condition.children[0].name == 'selector'
-    assert ifnode.condition.children[1].name == 'label1'
-    assert ifnode.if_body[0].children[0].name == 'branch1'
-    assert isinstance(ifnode.else_body[0], IfBlock)
-    assert ifnode.else_body[0].condition.children[1].name == 'label2'
-    assert ifnode.else_body[0].if_body[0].children[0].name == 'branch2'
-    assert ifnode.else_body[0].ast is \
-        fparser2case_construct.content[4]
-    assert ifnode.else_body[0].children[1].ast is \
-        fparser2case_construct.content[4]
-    assert ifnode.else_body[0].children[1].ast_end is \
-        fparser2case_construct.content[4]
-    assert len(ifnode.else_body[0].children) == 2  # SELECT CASE ends here
-
-
-@pytest.mark.usefixtures("f2008_parser")
-def test_case_default():
-    ''' Check that the fparser2Reader handles SELECT blocks with
-    a default clause.
-
-    '''
-    case_clauses = ["CASE default\nbranch3 = 1\nbranch3 = branch3 * 2\n",
-                    "CASE (label1)\nbranch1 = 1\n",
-                    "CASE (label2)\nbranch2 = 1\n"]
-
-    # Create the symbols that the frontend will expect to already be
-    # present in the symbol table.
-    symbols = []
-    for idx in [1, 2, 3]:
-        symbols.append(DataSymbol(f"branch{idx}", INTEGER_TYPE))
-    for var_name in ["selector", "label1", "label2"]:
-        symbols.append(DataSymbol(var_name, INTEGER_TYPE))
-
-    # Loop over the 3 possible locations for the 'default' clause
-    for idx1, idx2, idx3 in [(0, 1, 2), (1, 0, 2), (1, 2, 0)]:
-        fortran_text = (
-            f"SELECT CASE (selector)\n"
-            f"{case_clauses[idx1]}{case_clauses[idx2]}{case_clauses[idx3]}"
-            f"END SELECT\n")
-        reader = FortranStringReader(fortran_text)
-        fparser2case_construct = Execution_Part.match(reader)[0][0]
-
-        fake_parent = Schedule()
-        # Ensure we have the necessary symbols in the symbol table.
-        for sym in symbols:
-            fake_parent.symbol_table.add(sym)
-
-        processor = Fparser2Reader()
-        processor.process_nodes(fake_parent, [fparser2case_construct])
-        assigns = fake_parent.walk(Assignment)
-        # Check that the assignment to 'branch 3' (in the default clause) is
-        # the deepest in the tree
-        assert "branch3" in str(assigns[2])
-        assert isinstance(assigns[2].ast, Assignment_Stmt)
-        assert isinstance(assigns[2].parent, Schedule)
-        assert isinstance(assigns[2].parent.ast, Assignment_Stmt)
-        assert "branch3 * 2" in str(assigns[2].parent.ast_end)
-        assert isinstance(assigns[2].parent.parent, IfBlock)
-        # Check that the if-body of the parent IfBlock also contains
-        # an Assignment
-        assert isinstance(assigns[2].parent.parent.children[1], Schedule)
-        assert isinstance(assigns[2].parent.parent.children[1].children[0],
-                          Assignment)
-
-
-@pytest.mark.usefixtures("disable_declaration_check", "f2008_parser")
-def test_handling_case_list():
-    ''' Test that the Case_Construct handler correctly processes CASE
-    statements involving a list of conditions.
-
-    TODO #754 fix test so that 'disable_declaration_check' fixture is not
-    required.
-    '''
-    reader = FortranStringReader(
-        '''SELECT CASE (my_var)
-            CASE (label2, label3)
-                branch2 = 1
-            END SELECT''')
-    fparser2case_construct = Execution_Part.match(reader)[0][0]
-
-    fake_parent = Schedule()
-    processor = Fparser2Reader()
-    processor.process_nodes(fake_parent, [fparser2case_construct])
-    assert len(fake_parent.children) == 1
-    ifnode = fake_parent.children[0]
-    assert isinstance(ifnode, IfBlock)
-    assert isinstance(ifnode.condition, BinaryOperation)
-    assert ifnode.condition.operator == BinaryOperation.Operator.OR
-    eqnode = ifnode.condition.children[0]
-    assert eqnode.operator == BinaryOperation.Operator.EQ
-    assert "my_var" in str(eqnode.children[0])
-    assert "label2" in str(eqnode.children[1])
-    eqnode = ifnode.children[0].children[1]
-    assert eqnode.operator == BinaryOperation.Operator.EQ
-    assert "my_var" in str(eqnode.children[0])
-    assert "label3" in str(eqnode.children[1])
-
-    assert "Reference[name:'branch2']" in str(ifnode.if_body[0].lhs)
-
-
-@pytest.mark.usefixtures("disable_declaration_check", "f2008_parser")
-def test_handling_case_range():
-    ''' Test that the Case_Construct handler correctly processes CASE
-    statements involving a range.
-
-    TODO #754 fix test so that 'disable_declaration_check' fixture is not
-    required.
-    '''
-    reader = FortranStringReader(
-        '''SELECT CASE (my_var)
-            CASE (label4:label5)
-                branch3 = 1
-            END SELECT''')
-    fparser2case_construct = Execution_Part.match(reader)[0][0]
-
-    fake_parent = Schedule()
-    processor = Fparser2Reader()
-    processor.process_nodes(fake_parent, [fparser2case_construct])
-    assert len(fake_parent.children) == 1
-    ifnode = fake_parent.children[0]
-    assert isinstance(ifnode, IfBlock)
-    assert isinstance(ifnode.children[0], BinaryOperation)
-    assert ifnode.condition.operator == BinaryOperation.Operator.AND
-    assert ifnode.condition.children[0].operator == BinaryOperation.Operator.GE
-    assert ifnode.condition.children[1].operator == BinaryOperation.Operator.LE
-    assert "branch3" in str(ifnode.if_body[0].lhs)
-
-
-@pytest.mark.usefixtures("disable_declaration_check", "f2008_parser")
-def test_handling_case_range_list():
-    ''' Test that the Case_Construct handler correctly processes CASE
-    statements involving a list of ranges.
-
-    TODO #754 fix test so that 'disable_declaration_check' fixture is not
-    required.
-    '''
-    reader = FortranStringReader(
-        '''SELECT CASE (my_var)
-            CASE (:label1, label5:, label6)
-                branch4 = 1
-            END SELECT''')
-    # We should end up with:
-    #    my_var <= label1 OR my_var >= label5 OR my_var == label6
-    fparser2case_construct = Execution_Part.match(reader)[0][0]
-
-    fake_parent = Schedule()
-    processor = Fparser2Reader()
-    processor.process_nodes(fake_parent, [fparser2case_construct])
-    assert len(fake_parent.children) == 1
-    ifnode = fake_parent.children[0]
-    assert isinstance(ifnode, IfBlock)
-    assert isinstance(ifnode.condition, BinaryOperation)
-    assert ifnode.condition.operator == BinaryOperation.Operator.OR
-    assert ifnode.condition.children[0].operator == BinaryOperation.Operator.LE
-    assert "label1" in str(ifnode.condition.children[0].children[1])
-    orop = ifnode.condition.children[1]
-    assert orop.operator == BinaryOperation.Operator.OR
-    assert orop.children[0].operator == BinaryOperation.Operator.GE
-    assert "label5" in str(orop.children[0].children[1])
-    assert orop.children[1].operator == BinaryOperation.Operator.EQ
-    assert "label6" in str(orop.children[1].children[1])
-    assert "branch4" in str(ifnode.if_body[0].lhs)
-
-
-@pytest.mark.usefixtures("disable_declaration_check", "f2008_parser")
-def test_handling_invalid_case_construct():
-    ''' Test that the Case_Construct handler raises the proper errors when
-    it parses invalid or unsupported fparser2 trees.
-
-    TODO #754 fix test so that 'disable_declaration_check' fixture is not
-    required.
-    '''
-    # CASE (default) is just a regular symbol named default
-    reader = FortranStringReader(
-        '''SELECT CASE (selector)
-            CASE (default)
-                branch3 = 1
-            END SELECT''')
-    fparser2case_construct = Execution_Part.match(reader)[0][0]
-
-    fake_parent = Schedule()
-    processor = Fparser2Reader()
-    processor.process_nodes(fake_parent, [fparser2case_construct])
-    assert isinstance(fake_parent.children[0], IfBlock)
-
-    # Test with no opening Select_Case_Stmt
-    reader = FortranStringReader(
-        '''SELECT CASE (selector)
-            CASE (label1)
-                branch1 = 1
-            CASE (label2)
-                branch2 = 1
-            END SELECT''')
-    fparser2case_construct = Execution_Part.match(reader)[0][0]
-    del fparser2case_construct.content[0]
-    with pytest.raises(InternalError) as error:
-        processor.process_nodes(fake_parent, [fparser2case_construct])
-    assert "Failed to find opening case statement in:" in str(error.value)
-
-    # Test with no closing End_Select_Stmt
-    reader = FortranStringReader(
-        '''SELECT CASE (selector)
-            CASE (label1)
-                branch1 = 1
-            CASE (label2)
-                branch2 = 1
-            END SELECT''')
-    fparser2case_construct = Execution_Part.match(reader)[0][0]
-    del fparser2case_construct.content[-1]
-    with pytest.raises(InternalError) as error:
-        processor.process_nodes(fake_parent, [fparser2case_construct])
-    assert "Failed to find closing case statement in:" in str(error.value)
-
-    # Test when one clause is not of the expected type
-    reader = FortranStringReader(
-        '''SELECT CASE (selector)
-            CASE (label1)
-                branch1 = 1
-            CASE (label2)
-                branch2 = 1
-            END SELECT''')
-    fparser2case_construct = Execution_Part.match(reader)[0][0]
-    fparser2case_construct.content[1].items = (Name("Fake"), None)
-    with pytest.raises(InternalError) as error:
-        processor.process_nodes(fake_parent, [fparser2case_construct])
-    assert "to be a Case_Selector but got" in str(error.value)
-
-
-@pytest.mark.usefixtures("parser")
-def test_handling_labelled_case_construct():
-    ''' Test that a labelled case construct results in a CodeBlock. '''
-    reader = FortranStringReader(
-        '''999 SELECT CASE (selector)
-            CASE (pick_me)
-                branch3 = 1
-            END SELECT''')
-    fparser2case_construct = Execution_Part.match(reader)[0][0]
-
-    fake_parent = Schedule()
-    fake_parent.symbol_table.new_symbol("selector", symbol_type=DataSymbol,
-                                        datatype=INTEGER_TYPE)
-    fake_parent.symbol_table.new_symbol("pick_me", symbol_type=DataSymbol,
-                                        datatype=INTEGER_TYPE)
-    fake_parent.symbol_table.new_symbol("branch3", symbol_type=DataSymbol,
-                                        datatype=INTEGER_TYPE)
-    processor = Fparser2Reader()
-    processor.process_nodes(fake_parent, [fparser2case_construct])
-    assert len(fake_parent.children) == 1
-    assert isinstance(fake_parent.children[0], CodeBlock)
-
-
-@pytest.mark.usefixtures("f2008_parser")
-def test_case_default_only():
-    ''' Check that we handle a select case that contains only a
-    default clause and is thus redundant. The PSyIR should represent
-    only the code that is within the default case.
-
-    '''
-    fake_parent = Schedule()
-    fake_parent.symbol_table.add(Symbol("a"))
-    processor = Fparser2Reader()
-    reader = FortranStringReader(
-        '''SELECT CASE ( jprstlib )
-           CASE DEFAULT
-             WRITE(numout,*) 'open ice restart NetCDF file: '
-             a = 1
-           END SELECT''')
-    exe_part = Execution_Part.match(reader)
-    processor.process_nodes(fake_parent, exe_part[0])
-    # We should have no IfBlock in the resulting PSyIR
-    assert len(fake_parent.children) == 2
-    assert isinstance(fake_parent.children[0], CodeBlock)
-    assert isinstance(fake_parent.children[1], Assignment)
-
-
-@pytest.mark.usefixtures("disable_declaration_check", "f2008_parser")
 def test_handling_binaryopbase():
     ''' Test that fparser2 BinaryOpBase is converted to the expected PSyIR
     tree structure.
@@ -2720,7 +2417,7 @@ def test_handling_binaryopbase():
     assert len(new_node.children) == 2
     assert new_node._operator == BinaryOperation.Operator.ADD
 
-    # Test parsing all supported binary operators.
+    # Test parsing all supported arithmetic binary operators.
     testlist = (('+', BinaryOperation.Operator.ADD),
                 ('-', BinaryOperation.Operator.SUB),
                 ('*', BinaryOperation.Operator.MUL),
@@ -2738,14 +2435,31 @@ def test_handling_binaryopbase():
                 ('>=', BinaryOperation.Operator.GE),
                 ('.ge.', BinaryOperation.Operator.GE),
                 ('<=', BinaryOperation.Operator.LE),
-                ('.LE.', BinaryOperation.Operator.LE),
-                ('.and.', BinaryOperation.Operator.AND),
-                ('.or.', BinaryOperation.Operator.OR))
+                ('.LE.', BinaryOperation.Operator.LE))
 
     for opstring, expected in testlist:
         # Manipulate the fparser2 ParseTree so that it contains the operator
         # under test
         reader = FortranStringReader("x=1" + opstring + "4")
+        fp2binaryop = Execution_Part.match(reader)[0][0]
+        # And then translate it to PSyIR again.
+        fake_parent = Schedule()
+        processor.process_nodes(fake_parent, [fp2binaryop])
+        assert len(fake_parent.children) == 1
+        assert isinstance(fake_parent[0].rhs, BinaryOperation), \
+            "Fails when parsing '" + opstring + "'"
+        assert fake_parent[0].rhs._operator == expected, \
+            "Fails when parsing '" + opstring + "'"
+
+    # Test parsing all supported logical binary operators.
+    testlist = (('.and.', BinaryOperation.Operator.AND),
+                ('.eqv.', BinaryOperation.Operator.EQV),
+                ('.neqv.', BinaryOperation.Operator.NEQV),
+                ('.or.', BinaryOperation.Operator.OR))
+    for opstring, expected in testlist:
+        # Manipulate the fparser2 ParseTree so that it contains the operator
+        # under test
+        reader = FortranStringReader("x=a" + opstring + ".true.")
         fp2binaryop = Execution_Part.match(reader)[0][0]
         # And then translate it to PSyIR again.
         fake_parent = Schedule()

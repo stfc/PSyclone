@@ -530,6 +530,7 @@ def test_precedence():
     assert precedence('*') < precedence('**')
     assert precedence('.EQ.') == precedence('==')
     assert precedence('*') == precedence('/')
+    assert precedence('.EQV.') == precedence('.NEQV.')
 
 
 def test_precedence_error():
@@ -1176,6 +1177,8 @@ def test_fw_binaryoperator_precedence(fortran_reader, fortran_writer, tmpdir):
         "    a = -(a + b)\n"
         "    e = .not.(e .and. (f .or. g))\n"
         "    e = (((.not.e) .and. f) .or. g)\n"
+        "    e = (e .and. (f .eqv. g))\n"
+        "    e = (e .and. f .neqv. g)\n"
         "end subroutine tmp\n"
         "end module test")
     schedule = fortran_reader.psyir_from_source(code)
@@ -1190,7 +1193,9 @@ def test_fw_binaryoperator_precedence(fortran_reader, fortran_writer, tmpdir):
         "    a = b * (c * (d * a))\n"
         "    a = -(a + b)\n"
         "    e = .NOT.(e .AND. (f .OR. g))\n"
-        "    e = .NOT.e .AND. f .OR. g\n")
+        "    e = .NOT.e .AND. f .OR. g\n"
+        "    e = e .AND. (f .EQV. g)\n"
+        "    e = e .AND. f .NEQV. g\n")
     assert expected in result
     assert Compile(tmpdir).string_compiles(result)
 

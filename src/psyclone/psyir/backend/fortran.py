@@ -48,7 +48,8 @@ from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
     TYPE_MAP_FROM_FORTRAN
 from psyclone.psyir.nodes import BinaryOperation, Call, CodeBlock, DataNode, \
-    IntrinsicCall, Literal, Operation, Range, Routine, Schedule, UnaryOperation
+    IntrinsicCall, Literal, Operation, Range, Routine, Schedule, \
+    UnaryOperation
 from psyclone.psyir.symbols import (
     ArgumentInterface, ArrayType, ContainerSymbol, DataSymbol, DataTypeSymbol,
     DeferredType, RoutineSymbol, ScalarType, Symbol, IntrinsicSymbol,
@@ -215,7 +216,7 @@ def precedence(fortran_operator):
     # then it should be respected. These issues are dealt with in the
     # binaryoperation handler.
     fortran_precedence = [
-        ['.EQV.', 'NEQV'],
+        ['.EQV.', '.NEQV.'],
         ['.OR.'],
         ['.AND.'],
         ['.NOT.'],
