@@ -373,10 +373,13 @@ class DependencyTools():
             sympy_expressions = sympy_writer([index_read, index_written])
         except VisitorError:
             return None
+
         if isinstance(sympy_expressions[0], tuple) or \
                 isinstance(sympy_expressions[1], tuple):
             # TODO 2168: the SymPy expressions represent a range, so we
-            # need to analyse this in more detail.
+            # need to analyse this in more detail, i.e. evaluate the
+            # start/stop/step tuple. For now it is safe to flag this
+            # array range as a (potential) overlap.
             return None
 
         symbol_map = sympy_writer.type_map
@@ -386,7 +389,7 @@ class DependencyTools():
             return None
 
         var = symbol_map[var_name]
-        # Create a unique 'dx' variable name if 'x' is the variable.
+        # Create a unique 'd_x' variable name if 'x' is the variable.
         d_var_name = "d_"+var_name
         idx = 1
         while d_var_name in symbol_map:
