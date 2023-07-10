@@ -920,10 +920,6 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         :type shared_list: List of :py:class:`psyclone.psyir.nodes.Reference`
         :param in_list: The list of input References for this task.
         :type in_list: List of :py:class:`psyclone.psyir.nodes.Reference`
-
-        :raises GenerationError: If an array index is a shared variable.
-        :raises GenerationError: If an array index is not a Reference, Literal
-                                 or BinaryOperation.
         """
 
         # Index list stores the set of indices to use with this ArrayMixin
@@ -1090,6 +1086,8 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         :type index_list: List of :py:class:`psyclone.psyir.nodes.Reference`
 
         :raises GenerationError: If an array index is a shared variable.
+        :raises GenerationError: If an array index is not a Reference, Literal
+                                 or BinaryOperation.
         """
         for dim, index in enumerate(array_access_member.indices):
             # pylint: disable=unidiomatic-typecheck
@@ -1248,8 +1246,6 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         :type shared_list: List of :py:class:`psyclone.psyir.nodes.Reference`
         :param out_list: The list of output References for this task.
         :type out_list: List of :py:class:`psyclone.psyir.nodes.Reference`
-
-        :raises GenerationError: If an array index is a shared variable.
         """
         # We write to this arrayref, so its shared and depend out on
         # the array.
