@@ -157,6 +157,7 @@ def test_apply_with_structures(fortran_reader, fortran_writer):
     assert ("ptab(jf)%pt2d(jpi,idx_1,idx) = "
             "ptab(jf)%pt2d(jpim1,idx_1,idx)") in result
 
+
 def test_apply_option_verbose(fortran_reader, capsys):
     '''Check that the transformation with the verbose option provides more
     information about why the last attempt to convert the array range into
@@ -193,6 +194,7 @@ def test_apply_option_verbose(fortran_reader, capsys):
             "transformation does not support array assignments that contain "
             "a CodeBlock anywhere in the expression, but found:\n"
             "array(:) = my_func()" in out)
+
 
 def test_apply_calls_validate():
     '''Check that the apply() method calls the validate method.'''
