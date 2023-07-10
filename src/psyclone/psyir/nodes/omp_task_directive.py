@@ -934,7 +934,163 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         new_member = ref.member.copy()
         sref_base = StructureReference(ref.symbol)
         sref_base.addchild(new_member)
+        self._evaluate_structure_with_array_reference_indexlist(
+            ref,
+            sref_base,
+            array_access_member,
+            private_list,
+            firstprivate_list,
+            shared_list,
+            index_list,
+        )
 
+        # So we have a list of (lists of) indices
+        # [ [index1, index4], index2, index3] so convert these
+        # to an ArrayReference again.
+        # To create all combinations, we use itertools.product
+        # We have to create a new list which only contains lists.
+        new_index_list = []
+        for element in index_list:
+            if isinstance(element, list):
+                new_index_list.append(element)
+            else:
+                new_index_list.append([element])
+        combinations = itertools.product(*new_index_list)
+        for temp_list in combinations:
+            # We need to make copies of the members as each
+            # member can only be the child of one ArrayRef
+            final_list = []
+            for element in temp_list:
+                final_list.append(element.copy())
+            final_member = ArrayMember.create(
+                array_access_member.name, list(final_list)
+            )
+            sref_copy = sref_base.copy()
+            # Copy copies the members
+            members = sref_copy.walk(Member)
+            members[-1].replace_with(final_member)
+            # Add dclause into the in_list if required
+            if sref_copy not in in_list:
+                in_list.append(sref_copy)
+        # Add to shared_list (for explicity)
+        sclause = Reference(ref.symbol)
+        if sclause not in shared_list:
+            shared_list.append(sclause)
+
+    def _evaluate_readonly_reference(
+        self, ref, private_list, firstprivate_list, shared_list, in_list
+    ):
+        """
+        Evaluates any Reference used in a read context. This is done by
+        calling the appropriate helper functions for ArrayReferences,
+        StructureReferences or other References as appropriate.
+
+        :param node: The Reference to be evaluated.
+        :type node: :py:class:`psyclone.psyir.nodes.Reference`
+        :param private_list: The list of private References used in this task
+                             region.
+        :type private_list: List of :py:class:`psyclone.psyir.nodes.Reference`
+        :param firstprivate_list: The list of firstprivate References used in
+                                  this task region.
+        :type firstprivate_list: List of
+                                 :py:class:`psyclone.psyir.nodes.Reference`
+        :param shared_list: The list of shared References for this task.
+        :type shared_list: List of :py:class:`psyclone.psyir.nodes.Reference`
+        :param in_list: The list of input References for this task.
+        :type in_list: List of :py:class:`psyclone.psyir.nodes.Reference`
+
+        :raises GenerationError: If a StructureReference containing multiple \
+                                 ArrayMember or ArrayOfStructuresMember as \
+                                 children is found.
+        """
+        if isinstance(ref, (ArrayReference, ArrayOfStructuresReference)):
+            # Resolve ArrayReference or ArrayOfStructuresReference
+            self._evaluate_readonly_arrayref(
+                ref, private_list, firstprivate_list, shared_list, in_list
+            )
+        elif isinstance(ref, StructureReference):
+            # If the StructureReference contains an ArrayMixin then
+            # we need to treat it differently, like an arrayref, however
+            # the code to handle an arrayref is not compatible with more
+            # than one ArrayMixin child
+            array_children = ref.walk((ArrayOfStructuresMember, ArrayMember))
+            if len(array_children) > 0:
+                if len(array_children) > 1:
+                    raise GenerationError(
+                        "Doesn't support a "
+                        "StructureReference child with multiple array "
+                        "accessing members."
+                    )
+                self._evaluate_structure_with_array_reference_read(
+                    ref,
+                    array_children[0],
+                    private_list,
+                    firstprivate_list,
+                    shared_list,
+                    in_list,
+                )
+            else:
+                # This is treated the same as a Reference, except we have to
+                # create a Reference to the symbol to handle.
+                base_ref = Reference(ref.symbol)
+                self._evaluate_readonly_baseref(
+                    base_ref, private_list, firstprivate_list, in_list
+                )
+        elif isinstance(ref, Reference):
+            self._evaluate_readonly_baseref(
+                ref, private_list, firstprivate_list, in_list
+            )
+
+    def _evaluate_structure_with_array_reference_indexlist(
+        self,
+        ref,
+        sref_base,
+        array_access_member,
+        private_list,
+        firstprivate_list,
+        shared_list,
+        index_list,
+    ):
+        """
+        Evaluates an access to an Array inside the task region, and
+        generates the index_list used by the calling function - 
+        either _evaluate_structure_with_array_reference_{read/write}.
+
+
+        This is done by evaluating each of the array indices, and determining
+        whether they are:
+        1. A Literal index, in which case we need a dependency to that
+           specific section of the array.
+        2. A Reference index, in which case we need a dependency to the section
+           of the array represented by that Reference.
+        3. A Binary Operation, in which case the code calls
+          `_handle_index_binop` to evaluate any additional dependencies.
+
+        Each of these results are added to the index_list, used in the callee.
+
+        :param ref: The Reference to be evaluated.
+        :type ref: :py:class:`psyclone.psyir.nodes.Reference`
+        :param sref_base: A copy of ref containing the members included
+                          in the final reference.
+        :type sref_base: :py:class:`psyclone.psyir.nodes.StructureReference`
+        :param array_access_member: The ArrayMixin member child of the
+                                    node.
+        :type array_access_member: \
+                :py:class:psyclone.psyir.nodes.array_mixin.ArrayMixin`
+        :param private_list: The list of private References used in this task
+                             region.
+        :type private_list: List of :py:class:`psyclone.psyir.nodes.Reference`
+        :param firstprivate_list: The list of firstprivate References used in
+                                  this task region.
+        :type firstprivate_list: List of
+                                 :py:class:`psyclone.psyir.nodes.Reference`
+        :param shared_list: The list of shared References for this task.
+        :type shared_list: List of :py:class:`psyclone.psyir.nodes.Reference`
+        :param index_list: The list of output References for this task.
+        :type index_list: List of :py:class:`psyclone.psyir.nodes.Reference`
+
+        :raises GenerationError: If an array index is a shared variable.
+        """
         for dim, index in enumerate(array_access_member.indices):
             # pylint: disable=unidiomatic-typecheck
             if type(index) is Reference:
@@ -1047,102 +1203,6 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                     "expression inside an "
                     "OMPTaskDirective."
                 )
-        # So we have a list of (lists of) indices
-        # [ [index1, index4], index2, index3] so convert these
-        # to an ArrayReference again.
-        # To create all combinations, we use itertools.product
-        # We have to create a new list which only contains lists.
-        new_index_list = []
-        for element in index_list:
-            if isinstance(element, list):
-                new_index_list.append(element)
-            else:
-                new_index_list.append([element])
-        combinations = itertools.product(*new_index_list)
-        for temp_list in combinations:
-            # We need to make copies of the members as each
-            # member can only be the child of one ArrayRef
-            final_list = []
-            for element in temp_list:
-                final_list.append(element.copy())
-            final_member = ArrayMember.create(
-                array_access_member.name, list(final_list)
-            )
-            sref_copy = sref_base.copy()
-            # Copy copies the members
-            members = sref_copy.walk(Member)
-            members[-1].replace_with(final_member)
-            # Add dclause into the in_list if required
-            if sref_copy not in in_list:
-                in_list.append(sref_copy)
-        # Add to shared_list (for explicity)
-        sclause = Reference(ref.symbol)
-        if sclause not in shared_list:
-            shared_list.append(sclause)
-
-    def _evaluate_readonly_reference(
-        self, ref, private_list, firstprivate_list, shared_list, in_list
-    ):
-        """
-        Evaluates any Reference used in a read context. This is done by
-        calling the appropriate helper functions for ArrayReferences,
-        StructureReferences or other References as appropriate.
-
-        :param node: The Reference to be evaluated.
-        :type node: :py:class:`psyclone.psyir.nodes.Reference`
-        :param private_list: The list of private References used in this task
-                             region.
-        :type private_list: List of :py:class:`psyclone.psyir.nodes.Reference`
-        :param firstprivate_list: The list of firstprivate References used in
-                                  this task region.
-        :type firstprivate_list: List of
-                                 :py:class:`psyclone.psyir.nodes.Reference`
-        :param shared_list: The list of shared References for this task.
-        :type shared_list: List of :py:class:`psyclone.psyir.nodes.Reference`
-        :param in_list: The list of input References for this task.
-        :type in_list: List of :py:class:`psyclone.psyir.nodes.Reference`
-
-        :raises GenerationError: If a StructureReference containing multiple \
-                                 ArrayMember or ArrayOfStructuresMember as \
-                                 children is found.
-        """
-        if isinstance(ref, (ArrayReference, ArrayOfStructuresReference)):
-            # Resolve ArrayReference or ArrayOfStructuresReference
-            self._evaluate_readonly_arrayref(
-                ref, private_list, firstprivate_list, shared_list, in_list
-            )
-        elif isinstance(ref, StructureReference):
-            # If the StructureReference contains an ArrayMixin then
-            # we need to treat it differently, like an arrayref, however
-            # the code to handle an arrayref is not compatible with more
-            # than one ArrayMixin child
-            array_children = ref.walk((ArrayOfStructuresMember, ArrayMember))
-            if len(array_children) > 0:
-                if len(array_children) > 1:
-                    raise GenerationError(
-                        "Doesn't support a "
-                        "StructureReference child with multiple array "
-                        "accessing members."
-                    )
-                self._evaluate_structure_with_array_reference_read(
-                    ref,
-                    array_children[0],
-                    private_list,
-                    firstprivate_list,
-                    shared_list,
-                    in_list,
-                )
-            else:
-                # This is treated the same as a Reference, except we have to
-                # create a Reference to the symbol to handle.
-                base_ref = Reference(ref.symbol)
-                self._evaluate_readonly_baseref(
-                    base_ref, private_list, firstprivate_list, in_list
-                )
-        elif isinstance(ref, Reference):
-            self._evaluate_readonly_baseref(
-                ref, private_list, firstprivate_list, in_list
-            )
 
     def _evaluate_structure_with_array_reference_write(
         self,
@@ -1205,106 +1265,15 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         # Index list stores the set of indices to use with this ArrayMixin
         # for the depend clause.
         index_list = []
-        # Work out the indices needed.
-        for dim, index in enumerate(array_access_member.indices):
-            if isinstance(index, Literal):
-                # Literals are just a value, just use the value.
-                index_list.append(index.copy())
-            elif isinstance(index, Reference):
-                index_private = self._is_reference_private(index)
-                # Check whether the reference is to a child loop variable.
-                child_loop_vars = []
-                for child_loop in self.walk(Loop):
-                    if child_loop.variable not in self._proxy_loop_vars:
-                        child_loop_vars.append(child_loop.variable)
-
-                if index_private:
-                    if (
-                        index not in private_list
-                        and index not in firstprivate_list
-                    ):
-                        firstprivate_list.append(index.copy())
-                    # Special case 1. If index belongs to a child loop
-                    # that is NOT a proxy for a parent loop, then we
-                    # can only do as well as guessing the entire range
-                    # of the loop is used.
-                    if index.symbol in child_loop_vars:
-                        # Append a full Range (i.e. :)
-                        one = Literal(str(dim + 1), INTEGER_TYPE)
-                        members = sref_base.walk(Member)
-                        new_member = members[0].copy()
-                        final_member = new_member.walk(Member)[-1]
-                        num_child = len(final_member.children)
-                        final_member.pop_all_children()
-                        for _ in range(num_child):
-                            final_member.addchild(one.copy())
-
-                        # Need a copy of the members for ubound as well
-                        new_member2 = new_member.copy()
-
-                        # Similar to StructureReference._create but we already
-                        # have members.
-                        lbound_sref = StructureReference(sref_base.symbol)
-                        lbound_sref.addchild(new_member)
-                        lbound = BinaryOperation.create(
-                            BinaryOperation.Operator.LBOUND,
-                            lbound_sref,
-                            one.copy(),
-                        )
-                        # Similar to StructureReference._create but we already
-                        # have members.
-                        ubound_sref = StructureReference(sref_base.symbol)
-                        ubound_sref.addchild(new_member2)
-                        ubound = BinaryOperation.create(
-                            BinaryOperation.Operator.UBOUND,
-                            ubound_sref,
-                            one.copy(),
-                        )
-                        full_range = Range.create(lbound, ubound)
-                        index_list.append(full_range)
-                    elif index.symbol in self._proxy_loop_vars:
-                        # Special case 2. the index is a proxy for a parent
-                        # loop's variable. In this case, we add a reference to
-                        # the parent loop's value. We create a list of all
-                        # possible variants, as we might have multiple values
-                        # set for a value, e.g. for a boundary condition if
-                        # statement.
-                        if len(index_list) <= dim:
-                            index_list.append([])
-                        for temp_ref in self._proxy_loop_vars[index.symbol][
-                            "parent_node"
-                        ]:
-                            parent_ref = temp_ref.copy()
-                            if isinstance(parent_ref, BinaryOperation):
-                                quick_list = []
-                                self._handle_index_binop(
-                                    parent_ref,
-                                    quick_list,
-                                    firstprivate_list,
-                                    private_list,
-                                )
-                                for element in quick_list:
-                                    if isinstance(element, list):
-                                        index_list[dim].extend(element)
-                                    else:
-                                        index_list[dim].append(element)
-                            else:
-                                index_list[dim].append(parent_ref)
-                    else:
-                        # Final case is just a generic Reference, in which case
-                        # just copy the Reference
-                        index_list.append(index.copy())
-                else:
-                    raise GenerationError(
-                        "Shared variable access used "
-                        "as an index inside an "
-                        "OMPTaskDirective which is not "
-                        f"supported. Variable name is {index}"
-                    )
-            elif isinstance(index, BinaryOperation):
-                self._handle_index_binop(
-                    index, index_list, firstprivate_list, private_list
-                )
+        self._evaluate_structure_with_array_reference_indexlist(
+            ref,
+            sref_base,
+            array_access_member,
+            private_list,
+            firstprivate_list,
+            shared_list,
+            index_list,
+        )
 
         # So we have a list of (lists of) indices
         # [ [index1, index4], index2, index3] so convert these
