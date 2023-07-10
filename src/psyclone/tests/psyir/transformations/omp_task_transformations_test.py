@@ -95,7 +95,55 @@ def test_omptask_validate(fortran_reader):
             "a code block" in str(excinfo.value))
 
 
-def test_omptask_apply():
+def test_omptask_apply(fortran_reader, fortran_writer):
+    ''' Test the apply method of the OMPTaskTrans. '''
+    code = '''
+    subroutine sub()
+        integer :: ji, jj, n
+        integer, dimension(10, 10) :: t
+        integer, dimension(10, 10) :: s
+        do jj = 1, 10
+            do ji = 1, 10
+                t(ji, jj) = s(ji, jj)
+            end do
+        end do
+    end subroutine sub
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    trans = OMPTaskTrans()
+    master = OMPSingleTrans()
+    parallel = OMPParallelTrans()
+    loops = psyir.walk(Loop)
+    trans.apply(loops[1])
+    master.apply(loops[0])
+    parallel.apply(psyir.children[0].children[:])
+    out = fortran_writer(psyir)
+    correct = '''subroutine sub()
+  integer :: ji
+  integer :: jj
+  integer :: n
+  integer, dimension(10,10) :: t
+  integer, dimension(10,10) :: s
+
+  !$omp parallel default(shared), private(ji,jj)
+  !$omp single
+  do jj = 1, 10, 1
+    !$omp task private(ji), firstprivate(jj), shared(t,s), depend(in: s(:,jj)), depend(out: t(:,jj))
+    do ji = 1, 10, 1
+      t(ji,jj) = s(ji,jj)
+    enddo
+    !$omp end task
+  enddo
+  !$omp end single
+  !$omp end parallel
+
+end subroutine sub
+'''
+    assert out == correct
+
+# This test relies on inline functionality not yet supported
+@pytest.mark.xfail
+def test_omptask_apply_gocean():
     ''' Test the apply method of the OMPTaskTrans. '''
     _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH, "single_invoke.f90"),
                            api="gocean1.0")
@@ -105,7 +153,6 @@ def test_omptask_apply():
     psy = PSyFactory("gocean1.0", distributed_memory=False).\
         create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
-
     taskt.apply(schedule.children[0])
     master.apply(schedule.children[0])
     parallel.apply(schedule.children[0])
