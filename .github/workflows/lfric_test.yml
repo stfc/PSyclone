@@ -69,6 +69,7 @@ jobs:
         # uncomment the following line:
         pip install external/fparser
         pip install .[test]
+        pip install jinja2
 
     # PSyclone, compile and run MetOffice LFRic with 6 MPI ranks
     - name: LFRic passthrough (with DistributedMemory)
