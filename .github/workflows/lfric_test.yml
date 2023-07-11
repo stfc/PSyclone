@@ -83,7 +83,7 @@ jobs:
         make clean
         make -j 6 build
         # Run
-        cd examples
+        cd example
         cp ${HOME}/lfric_gunho_configuration.nml configuration.nml
         mpirun -n 6 ../bin/gungho_model configuration.nml
         tail PET0.gungho_model.Log
@@ -104,7 +104,7 @@ jobs:
         make clean
         make OPTIMISATION_PATH=${MINIAPP_DIR}/psyclone-test -j 4 build
         # Run
-        cd examples
+        cd example
         cp ${HOME}/lfric_gunho_configuration.nml configuration.nml
         export OMP_NUM_THREADS=6
         mpirun -n 1 ../bin/gungho_model configuration.nml
