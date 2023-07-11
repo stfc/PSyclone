@@ -288,13 +288,8 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         :rtype: bool
         """
         for parent_sym in self._parallel_private:
-            if (
-                ref.symbol.name == parent_sym.name
-                and ref.symbol.datatype.intrinsic
-                == parent_sym.datatype.intrinsic
-                and ref.symbol.datatype.precision
-                == parent_sym.datatype.precision
-            ):
+            if (ref.symbol.name == parent_sym.name and
+                    ref.symbol == parent_sym):
                 return True
         return False
 
@@ -1049,7 +1044,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
     ):
         """
         Evaluates an access to an Array inside the task region, and
-        generates the index_list used by the calling function - 
+        generates the index_list used by the calling function -
         either _evaluate_structure_with_array_reference_{read/write}.
 
 

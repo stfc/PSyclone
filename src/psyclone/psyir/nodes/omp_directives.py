@@ -919,6 +919,9 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
             outout = list(itertools.product(task1_out, task2_out))
             # Loop through each potential dependency pair and check they
             # will be handled correctly.
+
+            # Need to predefine satisfiable in case all lists are empty.
+            satisfiable = True
             for mem in inout + outin + outout:
                 satisfiable = \
                     self._check_dependency_pairing_valid(mem[0], mem[1],
