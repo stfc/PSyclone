@@ -707,13 +707,16 @@ def test_merge_container_syms():
     tab3.add(csym2)
     wpsym2 = DataSymbol("wp", INTEGER_TYPE, interface=ImportInterface(csym2))
     tab3.add(wpsym2)
-    dpsym = DataSymbol("dp", INTEGER_TYPE, interface=ImportInterface(csym2))
+    dpsym = DataSymbol("dp", INTEGER_TYPE,
+            interface=ImportInterface(csym2, orig_name="different_name"))
     tab3.add(dpsym)
     tab1.merge(tab3)
     wp3 = tab1.lookup("wp")
     assert wp3.interface.container_symbol.name == "slartibartfast"
     dp3 = tab1.lookup("dp")
     assert dp3.interface.container_symbol.name == "slartibartfast"
+    # Check that the dp import renaming is conserved
+    assert dp3.interface.orig_name == "different_name"
     # A third table which imports wp from a *different* container.
     tab4 = SymbolTable()
     csym3 = ContainerSymbol("magrathea")

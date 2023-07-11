@@ -414,6 +414,52 @@ def test_module_inline_apply_bring_in_non_local_symbols(
     assert "not_needed" not in result
     assert "not_used" not in result
 
+    # Also if they are imports with 'only' and '=>' keywords
+    psyir = fortran_reader.psyir_from_source('''
+    module my_mod
+        use external_mod1, only: a
+        use external_mod2, only: b => var1, c => var2
+        use not_needed, only: not_used
+        implicit none
+        contains
+        subroutine code()
+            a = b + c
+        end subroutine code
+    end module my_mod
+    ''')
+
+    routine = psyir.walk(Routine)[0]
+    inline_trans._prepare_code_to_inline(routine)
+    result = fortran_writer(routine)
+    assert "use external_mod1, only : a" in result
+    assert "use external_mod2, only : b=>var1, c=>var2" in result
+    assert "not_needed" not in result
+    assert "not_used" not in result
+
+    # Same but now with some pre-existing module clashes
+    psyir = fortran_reader.psyir_from_source('''
+    module my_mod
+        use external_mod1, only: a
+        use external_mod2, only: b => var1, c => var2
+        use not_needed, only: not_used
+        implicit none
+        contains
+        subroutine code()
+             use external_mod1, only : d
+             use external_mod2, only : var1
+            a = b + c
+        end subroutine code
+    end module my_mod
+    ''')
+
+    routine = psyir.walk(Routine)[0]
+    inline_trans._prepare_code_to_inline(routine)
+    result = fortran_writer(routine)
+    assert "use external_mod1, only : a, d" in result
+    assert "use external_mod2, only : b=>var1, c=>var2, var1" in result
+    assert "not_needed" not in result
+    assert "not_used" not in result
+
     # Also, if they are in datatype precision expressions
     psyir = fortran_reader.psyir_from_source('''
     module my_mod
