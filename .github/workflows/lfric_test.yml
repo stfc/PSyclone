@@ -69,22 +69,24 @@ jobs:
         # uncomment the following line:
         pip install external/fparser
         pip install .[test]
-        # Load GCC LFRic software depedencies
-        module load lfric_env
 
     # PSyclone, compile and run MetOffice LFRic with 6 MPI ranks
-    - name: LFRic passthrough (it adds DistributedMemory)
+    - name: LFRic passthrough (with DistributedMemory)
       run: |
         . .runner_venv/bin/activate
         export PSYCLONE_LFRIC_DIR=${GITHUB_WORKSPACE}/examples/lfric/scripts
         export MINIAPP_DIR=${HOME}/LFRic/miniapps/gungho_model
         cd ${MINIAPP_DIR}
         # Compile
-        make -j 4 build
+        module load lfric_env
+        make clean
+        make -j 6 build
         # Run
         cd examples
+        cp ${HOME}/lfric_gunho_configuration.nml configuration.nml
         mpirun -n 6 ../bin/gungho_model configuration.nml
-        ls
+        tail PET0.gungho_model.Log
+        cat timer.txt
 
     # PSyclone, compile and run MetOffice LFRic with all optimisations and 6 OpenMP threads
     - name: LFRic with all transformations
@@ -97,10 +99,13 @@ jobs:
         mkdir psyclone-test
         cp ${PSYCLONE_LFRIC_DIR}/everything_everywhere_all_at_once.py psyclone-test/global.py
         # Compile
+        module load lfric_env
         make clean
         make OPTIMISATION_PATH=${MINIAPP_DIR}/psyclone-test -j 4 build
         # Run
         cd examples
+        cp ${HOME}/lfric_gunho_configuration.nml configuration.nml
         export OMP_NUM_THREADS=6
         mpirun -n 1 ../bin/gungho_model configuration.nml
-        ls
+        tail PET0.gungho_model.Log
+        cat timer.txt

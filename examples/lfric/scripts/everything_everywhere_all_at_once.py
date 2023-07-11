@@ -57,7 +57,7 @@ def trans(psy):
     ctrans = Dynamo0p3ColourTrans()
     otrans = Dynamo0p3OMPLoopTrans()
     oregtrans = OMPParallelTrans()
-    lf_trans = LFRicLoopFuseTrans()
+    # lf_trans = LFRicLoopFuseTrans()
     inline_trans = KernelModuleInlineTrans()
     matmul_trans = Matmul2CodeTrans()
     const = LFRicConstants()
@@ -65,19 +65,15 @@ def trans(psy):
     # Loop over all of the Invokes in the PSy object
     for invoke in psy.invokes.invoke_list:
 
-        print("Transforming invoke '{0}' ...".format(invoke.name))
         schedule = invoke.schedule
 
         # Make setval_* compute redundantly to the level 1 halo if it
         # is in its own loop.
         for loop in schedule.loops():
             if loop.iteration_space == "dof":
-                if len(loop.kernels()) != 1:
-                    raise Exception(
-                        "Expecting loop to contain 1 call but found '{0}'".
-                        format(len(loop.kernels())))
-                if loop.kernels()[0].name in ["setval_c", "setval_x"]:
-                    rtrans.apply(loop, options={"depth": 1})
+                if len(loop.kernels()) == 1:
+                    if loop.kernels()[0].name in ["setval_c", "setval_x"]:
+                        rtrans.apply(loop, options={"depth": 1})
 
         # Fuse Loops when possible
         # idx = len(schedule.children) - 1
@@ -110,10 +106,17 @@ def trans(psy):
             except TransformationError:
                 pass
 
-    for kschedule in schedule.ancestor(Container).walk(KernelSchedule):
-        # Expand MATMUL intrinsic
-        for bop in kschedule.walk(BinaryOperation):
-            if bop.operator == BinaryOperation.Operator.MATMUL:
-                matmul_trans.apply(bop)
+    # Then we transform all the kernels inlined into the module
+    if psy.invokes.invoke_list:
+        root = psy.invokes.invoke_list[0].schedule.ancestor(Container)
+        for kschedule in root.walk(KernelSchedule):
+            # Expand MATMUL intrinsic
+            for bop in kschedule.walk(BinaryOperation):
+                if bop.operator == BinaryOperation.Operator.MATMUL:
+                    try:
+                        matmul_trans.apply(bop)
+                    except TransformationError:
+                        pass
+
 
     return psy

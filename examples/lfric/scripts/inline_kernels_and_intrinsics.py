@@ -66,10 +66,17 @@ def trans(psy):
                 print(str(err))
 
     # Then we transform all the kernels inlined into the module
-    for kschedule in schedule.ancestor(Container).walk(KernelSchedule):
-        # Expand MATMUL intrinsic
-        for bop in kschedule.walk(BinaryOperation):
-            if bop.operator == BinaryOperation.Operator.MATMUL:
-                matmul_trans.apply(bop)
+    if psy.invokes.invoke_list:
+        root = psy.invokes.invoke_list[0].schedule.ancestor(Container)
+        for kschedule in root.walk(KernelSchedule):
+            # Expand MATMUL intrinsic
+            for bop in kschedule.walk(BinaryOperation):
+                if bop.operator == BinaryOperation.Operator.MATMUL:
+                    try:
+                        matmul_trans.apply(bop)
+                    except TransformationError as err:
+                        print(f"Inline MATMUL failed for '{kschedule.name}' "
+                               "because:")
+                        print(str(err))
 
     return psy
