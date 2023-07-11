@@ -1059,7 +1059,7 @@ class Node():
         return local_list
 
     def ancestor(self, my_type, excluding=None, include_self=False,
-                 limit=None):
+                 limit=None, shared_with=None):
         '''
         Search back up the tree and check whether this node has an ancestor
         that is an instance of the supplied type. If it does then we return
@@ -1077,6 +1077,8 @@ class Node():
                                   search.
         :param limit: an optional node at which to stop the search.
         :type limit: Optional[:py:class:`psyclone.psyir.nodes.Node`]
+        :param shared_with: an optional node which must also have the
+                            found node as an ancestor.
 
         :returns: First ancestor Node that is an instance of any of the \
                   requested classes or None if not found.
@@ -1107,15 +1109,49 @@ class Node():
                 f"The 'limit' argument to ancestor() must be an instance of "
                 f"Node but got '{type(limit).__name__}'")
 
+        # If we need to find a shared ancestor, then find a starting ancestor
+        # for the sharing node.
+        shared_ancestor = None
+        if shared_with is not None:
+            shared_ancestor = shared_with.ancestor(
+                    my_type, excluding=excluding,
+                    include_self=include_self, limit=limit)
+
         while myparent is not None:
             if isinstance(myparent, my_type):
                 if not (excluding and isinstance(myparent, excludes)):
+                    # If this is a valid instance but not the same as for
+                    # the shared_with node, we do logic afterwards to continue
+                    # searching upwards, as we could be either higher or
+                    # lower than the shared_ancestor found previously.
+                    if shared_ancestor and shared_ancestor is not myparent:
+                        break
                     # This parent node is not an instance of an excluded
                     # sub-class so return it
                     return myparent
             if myparent is limit:
                 break
             myparent = myparent.parent
+
+        # We search up the tree until we find an ancestor of the requested
+        # type(s) shared by the shared_with node.
+        while (myparent is not shared_ancestor and myparent is not None and
+               shared_ancestor is not None):
+            if myparent is limit:
+                break
+            if myparent.depth > shared_ancestor.depth:
+                myparent = myparent.ancestor(
+                        my_type, excluding=excluding,
+                        include_self=False, limit=limit)
+            else:
+                shared_ancestor = shared_ancestor.ancestor(
+                        my_type, excluding=excluding, include_self=False,
+                        limit=limit)
+        # If myparent is shared ancestor then return myparent.
+        if myparent is shared_ancestor:
+            return myparent
+
+        # Otherwise we didn't find an ancestor that was valid.
         return None
 
     def kernels(self):
