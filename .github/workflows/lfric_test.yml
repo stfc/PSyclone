@@ -80,6 +80,7 @@ jobs:
         cd ${MINIAPP_DIR}
         # Compile
         module load lfric_env
+        export PSYCLONE_CONFIG=${HOME}/lfric_psyclone_config.cfg
         make clean
         make -j 6 build
         # Run
@@ -101,6 +102,7 @@ jobs:
         cp ${PSYCLONE_LFRIC_DIR}/everything_everywhere_all_at_once.py psyclone-test/global.py
         # Compile
         module load lfric_env
+        export PSYCLONE_CONFIG=${HOME}/lfric_psyclone_config.cfg
         make clean
         make OPTIMISATION_PATH=${MINIAPP_DIR}/psyclone-test -j 4 build
         # Run

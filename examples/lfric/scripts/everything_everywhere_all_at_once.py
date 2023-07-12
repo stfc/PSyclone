@@ -50,6 +50,13 @@ from psyclone.transformations import Dynamo0p3ColourTrans, \
                                      Dynamo0p3RedundantComputationTrans, \
                                      TransformationError
 
+VERBOSE = False
+ENABLE_REDUNDANT_COMPUTATION = True
+ENABLE_LOOP_FUSING = False
+ENABLE_INTRINSIC_INLINING = False
+ENABLE_OMP_COLOURING = True
+ENABLE_KERNEL_CONSTANTS = False
+
 
 def trans(psy):
     ''' Applies PSyclone optimisation script. '''
@@ -57,66 +64,70 @@ def trans(psy):
     ctrans = Dynamo0p3ColourTrans()
     otrans = Dynamo0p3OMPLoopTrans()
     oregtrans = OMPParallelTrans()
-    # lf_trans = LFRicLoopFuseTrans()
+    lf_trans = LFRicLoopFuseTrans()
     inline_trans = KernelModuleInlineTrans()
     matmul_trans = Matmul2CodeTrans()
     const = LFRicConstants()
 
     # Loop over all of the Invokes in the PSy object
     for invoke in psy.invokes.invoke_list:
-
         schedule = invoke.schedule
 
-        # Make setval_* compute redundantly to the level 1 halo if it
-        # is in its own loop.
-        for loop in schedule.loops():
-            if loop.iteration_space == "dof":
-                if len(loop.kernels()) == 1:
-                    if loop.kernels()[0].name in ["setval_c", "setval_x"]:
-                        rtrans.apply(loop, options={"depth": 1})
+        if ENABLE_REDUNDANT_COMPUTATION:
+            # Make setval_* compute redundantly to the level 1 halo if it
+            # is in its own loop.
+            for loop in schedule.loops():
+                if loop.iteration_space == "dof":
+                    if len(loop.kernels()) == 1:
+                        if loop.kernels()[0].name in ["setval_c", "setval_x"]:
+                            rtrans.apply(loop, options={"depth": 1})
 
-        # Fuse Loops when possible
-        # idx = len(schedule.children) - 1
-        # while idx > 0:
-        #     node = schedule.children[idx]
-        #     prev_node = schedule.children[idx-1]
-        #     try:
-        #         lf_trans.apply(prev_node, node, {"same_space": True})
-        #     except TransformationError:
-        #         pass
+        if ENABLE_LOOP_FUSING:
+            # Fuse Loops when possible
+            idx = len(schedule.children) - 1
+            while idx > 0:
+                node = schedule.children[idx]
+                prev_node = schedule.children[idx-1]
+                try:
+                    lf_trans.apply(prev_node, node, {"same_space": True})
+                except TransformationError:
+                    pass
 
-        # Colour loops over cells unless they are on discontinuous
-        # spaces or over dofs
-        for loop in schedule.loops():
-            if loop.iteration_space == "cell_column" \
-                and loop.field_space.orig_name \
-                    not in const.VALID_DISCONTINUOUS_NAMES:
-                ctrans.apply(loop)
+        if ENABLE_OMP_COLOURING:
+            # Colour loops over cells unless they are on discontinuous
+            # spaces or over dofs
+            for loop in schedule.loops():
+                if loop.iteration_space == "cell_column" \
+                    and loop.field_space.orig_name \
+                        not in const.VALID_DISCONTINUOUS_NAMES:
+                    ctrans.apply(loop)
 
-        # Add OpenMP to loops unless they are over colours or are null
-        for loop in schedule.loops():
-            if loop.loop_type not in ["colours", "null"]:
-                oregtrans.apply(loop)
-                otrans.apply(loop, options={"reprod": True})
+            # Add OpenMP to loops unless they are over colours or are null
+            for loop in schedule.loops():
+                if loop.loop_type not in ["colours", "null"]:
+                    oregtrans.apply(loop)
+                    otrans.apply(loop, options={"reprod": True})
 
-        # Inline kernels when possible
-        for kernel in schedule.coded_kernels():
-            try:
-                inline_trans.apply(kernel)
-            except TransformationError:
-                pass
+        if ENABLE_KERNEL_CONSTANTS or ENABLE_INTRINSIC_INLINING:
+            # Inline kernels when possible
+            for kernel in schedule.coded_kernels():
+                try:
+                    inline_trans.apply(kernel)
+                except TransformationError:
+                    pass
 
-    # Then we transform all the kernels inlined into the module
+    # Then transform all the kernels inlined into the module
     if psy.invokes.invoke_list:
         root = psy.invokes.invoke_list[0].schedule.ancestor(Container)
         for kschedule in root.walk(KernelSchedule):
-            # Expand MATMUL intrinsic
-            for bop in kschedule.walk(BinaryOperation):
-                if bop.operator == BinaryOperation.Operator.MATMUL:
-                    try:
-                        matmul_trans.apply(bop)
-                    except TransformationError:
-                        pass
+            if ENABLE_INTRINSIC_INLINING:
+                # Expand MATMUL intrinsic
+                for bop in kschedule.walk(BinaryOperation):
+                    if bop.operator == BinaryOperation.Operator.MATMUL:
+                        try:
+                            matmul_trans.apply(bop)
+                        except TransformationError:
+                            pass
 
 
     return psy
