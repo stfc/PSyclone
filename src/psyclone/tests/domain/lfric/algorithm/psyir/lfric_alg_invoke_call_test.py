@@ -145,3 +145,30 @@ def test_aic_defcontainerrootname():
     routine_node = psyir.children[0]
     name = invoke._def_container_root_name(routine_node)
     assert name == "alg1_psy"
+
+
+def test_aic_defroutinerootname():
+    '''Check that _def_container_root_name returns the expected
+    values. Test for when there is a single user kernel or builtin in
+    an invoke, as the output will differ.
+
+    '''
+    code = (
+        "subroutine alg1()\n"
+        "  use kern_mod, only : kern\n"
+        "  use field_mod, only : field_type\n"
+        "  type(field_type) :: field1\n"
+        "  call invoke(kern(field1))\n"
+        "end subroutine alg1\n")
+    psyir = create_alg_psyir(code)
+    invoke = psyir.children[0][0]
+    assert isinstance(invoke, LFRicAlgorithmInvokeCall)
+    name = invoke._def_routine_root_name()
+    assert name == "invoke_0_kern"
+    # Single builtin should not have the name of the builtin added
+    builtin_code = code.replace("kern(field1)", "setval_c(field1, 0.0)")
+    psyir = create_alg_psyir(builtin_code)
+    invoke = psyir.children[0][0]
+    assert isinstance(invoke, LFRicAlgorithmInvokeCall)
+    name = invoke._def_routine_root_name()
+    assert name == "invoke_0"
