@@ -98,7 +98,7 @@ jobs:
         export MINIAPP_DIR=${HOME}/LFRic/miniapps/gungho_model
         cd ${MINIAPP_DIR}
         # Prepare script (LFRics expects a folder with a global.py)
-        mkdir psyclone-test
+        mkdir -p psyclone-test
         cp ${PSYCLONE_LFRIC_DIR}/everything_everywhere_all_at_once.py psyclone-test/global.py
         # Compile
         module load lfric_env
