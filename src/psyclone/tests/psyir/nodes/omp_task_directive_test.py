@@ -46,7 +46,7 @@ from psyclone.psyir.nodes import Schedule, \
     OMPSingleDirective
 from psyclone.errors import GenerationError
 from psyclone.transformations import OMPSingleTrans, \
-    OMPLoopTrans, OMPParallelTrans
+    OMPParallelTrans
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__)))), "test_files", "dynamo0p3")
@@ -88,6 +88,49 @@ def test_omp_task_validate_child():
     assert OMPTaskDirective._validate_child(3, "string") is False
     assert OMPTaskDirective._validate_child(4, "string") is False
     assert OMPTaskDirective._validate_child(5, "string") is False
+
+
+def test_omp_task_directive_clause_accesors(fortran_reader):
+    ''' Test the input_depend_clause and output_depend_clause methods.'''
+    code = '''
+    subroutine my_subroutine()
+        integer, dimension(10, 10) :: A
+        integer, dimension(10, 10) :: B
+        integer :: i
+        integer :: j
+        do i = 1, 10
+            do j = 1, 10
+                A(i, j) = B(i, j) + 1
+            end do
+        end do
+        do i = 1, 10
+            do j = 1, 10
+                A(i, j) = 0
+            end do
+        end do
+    end subroutine
+    '''
+    tree = fortran_reader.psyir_from_source(code)
+    ptrans = OMPParallelTrans()
+    strans = OMPSingleTrans()
+    tdir = DynamicOMPTaskDirective()
+    loops = tree.walk(Loop, stop_type=Loop)
+    loop = loops[0]
+    parent = loop.parent
+    loop.detach()
+    tdir.children[0].addchild(loop)
+    parent.addchild(tdir, index=0)
+    strans.apply(parent.children)
+    ptrans.apply(parent.children)
+
+    copy = tree.lower_to_language_level()
+    task_dir = copy.walk(OMPTaskDirective)[0]
+    assert isinstance(task_dir.input_depend_clause, OMPDependClause)
+    assert (task_dir.input_depend_clause._operand ==
+            OMPDependClause.DependClauseTypes.IN)
+    assert isinstance(task_dir.output_depend_clause, OMPDependClause)
+    assert (task_dir.output_depend_clause._operand ==
+            OMPDependClause.DependClauseTypes.OUT)
 
 
 def test_omp_task_directive_1(fortran_reader, fortran_writer):
