@@ -1070,7 +1070,7 @@ class Node():
         node is encountered.
         If `shared_with` is provided, then the ancestor search will find an
         ancestor of both this node and the node provided as `shared_with` if
-        one exists.
+        such an ancestor exists.
 
         :param my_type: class(es) to search for.
         :type my_type: type | Tuple[type, ...]
@@ -1128,7 +1128,7 @@ class Node():
                     # the shared_with node, we do logic afterwards to continue
                     # searching upwards, as we could be either higher or
                     # lower than the shared_ancestor found previously.
-                    if shared_ancestor is not myparent:
+                    if shared_ancestor and shared_ancestor is not myparent:
                         break
                     # This parent node is not an instance of an excluded
                     # sub-class so return it
@@ -1139,7 +1139,8 @@ class Node():
 
         # We search up the tree until we find an ancestor of the requested
         # type(s) shared by the shared_with node.
-        while (myparent is not shared_ancestor and myparent and shared_ancestor):
+        while (myparent is not shared_ancestor and myparent and
+                shared_ancestor):
             if myparent is limit:
                 break
             if myparent.depth > shared_ancestor.depth:
