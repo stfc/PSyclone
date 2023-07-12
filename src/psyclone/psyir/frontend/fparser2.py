@@ -304,7 +304,6 @@ def _find_or_create_imported_symbol(location, name, scope_limit=None,
         if hasattr(test_node, 'symbol_table'):
             # This Node does have a SymbolTable.
             symbol_table = test_node.symbol_table
-
             try:
                 # If the name matches a Symbol in this SymbolTable then
                 # return the Symbol (after specialising it, if necessary).
@@ -1013,8 +1012,10 @@ class Fparser2Reader():
         ('**', BinaryOperation.Operator.POW),
         ('==', BinaryOperation.Operator.EQ),
         ('.eq.', BinaryOperation.Operator.EQ),
+        ('.eqv.', BinaryOperation.Operator.EQV),
         ('/=', BinaryOperation.Operator.NE),
         ('.ne.', BinaryOperation.Operator.NE),
+        ('.neqv.', BinaryOperation.Operator.NEQV),
         ('<=', BinaryOperation.Operator.LE),
         ('.le.', BinaryOperation.Operator.LE),
         ('<', BinaryOperation.Operator.LT),
@@ -2530,7 +2531,6 @@ class Fparser2Reader():
         '''
         code_block_nodes = []
         for child in nodes:
-
             try:
                 psy_child = self._create_child(child, parent)
             except NotImplementedError:
@@ -2828,7 +2828,7 @@ class Fparser2Reader():
                 if construct_name in [name.string for name in names]:
                     raise NotImplementedError()
 
-        ctrl = walk(node.content, Fortran2003.Loop_Control)
+        ctrl = walk(nonlabel_do, Fortran2003.Loop_Control)
         # do loops with no condition and do while loops
         if not ctrl or ctrl[0].items[0]:
             annotation = ['was_unconditional'] if not ctrl else None
@@ -3203,6 +3203,10 @@ class Fparser2Reader():
         :param parent: parent node in the PSyIR.
         :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
+        :raises NotImplementedError: If the operator for an equality cannot be
+                                     determined (i.e. the statement cannot be
+                                     determined to be a logical comparison
+                                     or not)
         '''
         if isinstance(node, Fortran2003.Case_Value_Range):
             # The case value is a range (e.g. lim1:lim2)
@@ -3231,12 +3235,54 @@ class Fparser2Reader():
                 self.process_nodes(parent=leop, nodes=[node.items[1]])
                 new_parent.addchild(leop)
         else:
-            # The case value is some scalar initialisation expression
+            # The case value is some scalar expression
             bop = BinaryOperation(BinaryOperation.Operator.EQ,
                                   parent=parent)
-            parent.addchild(bop)
             self.process_nodes(parent=bop, nodes=[selector])
             self.process_nodes(parent=bop, nodes=[node])
+            # TODO #1799 when generic child.datatype is supported we can
+            # remove the conditional inside the loop and support full
+            # expressions
+
+            # Keep track of whether we know if the operator should be EQ/EQV
+            operator_known = False
+            for child in bop.children:
+                if (isinstance(child, Literal) and
+                        isinstance(child.datatype, ScalarType)):
+                    # We know the operator for all literals
+                    operator_known = True
+                    if (child.datatype.intrinsic ==
+                            ScalarType.Intrinsic.BOOLEAN):
+                        rhs = bop.children[1].detach()
+                        lhs = bop.children[0].detach()
+                        bop = BinaryOperation(BinaryOperation.Operator.EQV,
+                                              parent=parent)
+                        bop.addchild(lhs)
+                        bop.addchild(rhs)
+                elif (isinstance(child, Reference) and
+                        isinstance(child.symbol, DataSymbol) and
+                        not isinstance(child.symbol.datatype,
+                                       UnknownFortranType)):
+                    # We know the operator for all known reference types.
+                    operator_known = True
+                    if (child.symbol.datatype.intrinsic ==
+                            ScalarType.Intrinsic.BOOLEAN):
+                        rhs = bop.children[1].detach()
+                        lhs = bop.children[0].detach()
+                        bop = BinaryOperation(BinaryOperation.Operator.EQV,
+                                              parent=parent)
+                        bop.addchild(lhs)
+                        bop.addchild(rhs)
+
+            if operator_known:
+                parent.addchild(bop)
+            else:
+                raise NotImplementedError(f"PSyclone can't determine if this "
+                                          f"case should be '==' or '.EQV.' "
+                                          f"because it can't figure out if "
+                                          f"{bop.children[0].debug_string} "
+                                          f"or {bop.children[1].debug_string}"
+                                          f" are logical expressions.")
 
     @staticmethod
     def _array_notation_rank(node):
