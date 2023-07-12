@@ -1007,9 +1007,21 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
             taskwait_location_nodes.append(taskwait)
             taskwait_location_abs_pos.append(taskwait.abs_position)
         # Add the first node to have a taskwait placed in front of it into the
-        # list
-        taskwait_location_nodes.append(sorted_dependency_pairs[0][1])
-        taskwait_location_abs_pos.append(sorted_highest_positions[0])
+        # list, unless one of the existing OMPTaskwaitDirective nodes already
+        # satisfies the dependency.
+        lo_abs_pos = sorted_lowest_positions[0]
+        hi_abs_pos = sorted_highest_positions[0]
+        for ind, taskwait_loc in enumerate(taskwait_location_nodes):
+            if (taskwait_location_abs_pos[ind] <= hi_abs_pos and
+                    taskwait_location_abs_pos[ind] >= lo_abs_pos):
+                # We potentially already satisfy this initial dependency
+                if (sorted_dependency_pairs[0][1].ancestor(Schedule) is
+                        taskwait_loc.ancestor(Schedule)):
+                    break
+        else:
+            taskwait_location_nodes.append(sorted_dependency_pairs[0][1])
+            taskwait_location_abs_pos.append(sorted_highest_positions[0])
+
         for index, pairs in enumerate(sorted_dependency_pairs[1:]):
             # Add 1 to index here because we're looking from [1:]
             lo_abs_pos = sorted_lowest_positions[index+1]
@@ -1029,9 +1041,12 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                 # this dependency, add it to the list
                 taskwait_location_nodes.append(pairs[1])
                 taskwait_location_abs_pos.append(hi_abs_pos)
-        # Now loop through the list in reverse and add taskwaits
+        # Now loop through the list in reverse and add taskwaits unless the
+        # node is already a taskwait
         taskwait_location_nodes.reverse()
         for taskwait_loc in taskwait_location_nodes:
+            if isinstance(taskwait_loc, OMPTaskwaitDirective):
+                continue
             node_parent = taskwait_loc.parent
             loc = taskwait_loc.position
             node_parent.addchild(OMPTaskwaitDirective(), loc)
@@ -1450,7 +1465,7 @@ class OMPParallelDirective(OMPRegionDirective):
                 found = False
                 for clause in sync_clauses:
                     # Needs to be an out depend clause to synchronize
-                    if clause.operand == "IN":
+                    if clause.operand == "in":
                         continue
                     # Check if the symbol is in this depend clause.
                     for child in clause.children:

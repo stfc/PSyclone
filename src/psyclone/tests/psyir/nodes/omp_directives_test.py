@@ -56,7 +56,7 @@ from psyclone.psyir.nodes import OMPDoDirective, OMPParallelDirective, \
     OMPScheduleClause, OMPTeamsDistributeParallelDoDirective, \
     OMPFirstprivateClause, ArrayReference, BinaryOperation, Call, \
     IfBlock, StructureReference, DynamicOMPTaskDirective, OMPTaskDirective, \
-    Range
+    Range, OMPSharedClause, OMPDependClause
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, SymbolTable, \
     REAL_SINGLE_TYPE, INTEGER_SINGLE_TYPE, Symbol, ArrayType, RoutineSymbol, \
     REAL_TYPE, StructureType
@@ -134,8 +134,26 @@ def test_ompparallel_lowering(fortran_reader, monkeypatch):
     assert pdir.children[3].children[0].name == 'b'
 
     # Monkeypatch a case with shared variables that need synchronisation
+    a_sym = Symbol("a")
     monkeypatch.setattr(pdir, "infer_sharing_attributes",
-                        lambda: ({}, {}, {Symbol("a")}))
+                        lambda: ({}, {}, {a_sym}))
+    with pytest.raises(GenerationError) as err:
+        pdir.lower_to_language_level()
+    assert("Lowering OMPParallelDirective does not support symbols that "
+           "need synchronisation unless they are in a depend clause, but "
+           "found: a which is not in a depend clause." in str(err.value))
+
+    # Also a case which contains the symbol in an input dependency clause.
+    task_dir = OMPTaskDirective()
+    task_dir.addchild(OMPPrivateClause())
+    task_dir.addchild(OMPFirstprivateClause())
+    task_dir.addchild(OMPSharedClause())
+    in_clause = OMPDependClause(
+            depend_type=OMPDependClause.DependClauseTypes.IN)
+    in_clause.addchild(Reference(a_sym))
+    task_dir.addchild(in_clause)
+    pdir.children[0].addchild(task_dir)
+
     with pytest.raises(GenerationError) as err:
         pdir.lower_to_language_level()
     assert("Lowering OMPParallelDirective does not support symbols that "
@@ -4299,6 +4317,59 @@ def test_omp_serial_validate_task_dependencies_add_taskwait(fortran_reader):
     parallel_trans = OMPParallelTrans()
     single_trans.apply(schedule.children)
     parallel_trans.apply(schedule.children)
+    tree.lower_to_language_level()
+
+    taskwaits = tree.walk(OMPTaskwaitDirective)
+    assert len(taskwaits) == 2
+    assert taskwaits[0].position == 1
+    assert taskwaits[1].position == 4
+
+    code = '''subroutine my_subroutine(grid_max, grid_min)
+        integer, dimension(100, 100) :: A, B, C, D
+        integer :: i, j
+        integer, intent(in) :: grid_max, grid_min
+
+        do i = grid_min, grid_max
+            do j = grid_min, grid_max
+                a(i, j) = i*grid_max + j
+            end do
+        end do
+        do i = grid_min+1, grid_max-1
+            do j = grid_min, grid_max
+                c(i, j) = a(i,j) * 3
+            end do
+        end do
+        do i = grid_min, grid_max
+            do j = grid_min, grid_max
+                b(i, j) = j*grid_max + i
+            end do
+        end do
+        do i = grid_min+1, grid_max-1
+            do j = grid_min, grid_max
+                d(i, j) = b(i,j) + a(i,j)
+            end do
+        end do
+    end subroutine
+    '''
+    tree = fortran_reader.psyir_from_source(code)
+
+    loop_trans = ChunkLoopTrans()
+    task_trans = OMPTaskTrans()
+
+    schedule = tree.walk(Schedule)[0]
+    for child in schedule.children[:]:
+        if isinstance(child, Loop):
+            loop_trans.apply(child)
+            assert isinstance(child.children[3].children[0], Loop)
+            task_trans.apply(child, {"force": True})
+
+    single_trans = OMPSingleTrans()
+    parallel_trans = OMPParallelTrans()
+    single_trans.apply(schedule.children)
+    parallel_trans.apply(schedule.children)
+    user_taskwait = OMPTaskwaitDirective()
+    schedule[0].children[0].children[0].children[0].addchild(user_taskwait,
+                                                             index=1)
     tree.lower_to_language_level()
 
     taskwaits = tree.walk(OMPTaskwaitDirective)
