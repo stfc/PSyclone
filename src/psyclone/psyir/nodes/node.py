@@ -1068,6 +1068,9 @@ class Node():
         `include_self` is True then the current node is included in the search.
         If `limit` is provided then the search ceases if/when the supplied
         node is encountered.
+        If `shared_with` is provided, then the ancestor search will find an
+        ancestor of both this node and the node provided as `shared_with` if
+        one exists.
 
         :param my_type: class(es) to search for.
         :type my_type: type | Tuple[type, ...]
@@ -1079,6 +1082,7 @@ class Node():
         :type limit: Optional[:py:class:`psyclone.psyir.nodes.Node`]
         :param shared_with: an optional node which must also have the
                             found node as an ancestor.
+        :type shared_with: Optional[:py:class:`psyclone.psyir.nodes.Node`]
 
         :returns: First ancestor Node that is an instance of any of the \
                   requested classes or None if not found.
@@ -1124,7 +1128,7 @@ class Node():
                     # the shared_with node, we do logic afterwards to continue
                     # searching upwards, as we could be either higher or
                     # lower than the shared_ancestor found previously.
-                    if shared_ancestor and shared_ancestor is not myparent:
+                    if shared_ancestor is not myparent:
                         break
                     # This parent node is not an instance of an excluded
                     # sub-class so return it
@@ -1135,15 +1139,20 @@ class Node():
 
         # We search up the tree until we find an ancestor of the requested
         # type(s) shared by the shared_with node.
-        while (myparent is not shared_ancestor and myparent is not None and
-               shared_ancestor is not None):
+        while (myparent is not shared_ancestor and myparent and shared_ancestor):
             if myparent is limit:
                 break
             if myparent.depth > shared_ancestor.depth:
+                # If myparent is deeper in the tree than the shared_ancestor
+                # the potential shared ancestor so we search upwards to find
+                # another potential shared ancestor.
                 myparent = myparent.ancestor(
                         my_type, excluding=excluding,
                         include_self=False, limit=limit)
             else:
+                # Otherwise shared_ancestor is deeper in the structure than
+                # my parent, so we search upwards for another potential
+                # shared ancestor.
                 shared_ancestor = shared_ancestor.ancestor(
                         my_type, excluding=excluding, include_self=False,
                         limit=limit)
