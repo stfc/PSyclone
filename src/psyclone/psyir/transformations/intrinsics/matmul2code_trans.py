@@ -208,23 +208,23 @@ class Matmul2CodeTrans(Operator2CodeTrans):
 
         matrix1 = node.children[0]
         matrix2 = node.children[1]
+        result = node.parent.lhs
 
         # The children of matvec should be References
         if not (isinstance(matrix1, Reference) and
-                isinstance(matrix2, Reference)):
+                isinstance(matrix2, Reference) and
+                isinstance(result, Reference)):
             raise TransformationError(
-                f"Expected children of a MATMUL BinaryOperation to be "
-                f"references, but found '{type(matrix1).__name__}', "
-                f"'{type(matrix2).__name__}'.")
+                f"Expected result and operands of MATMUL BinaryOperation to "
+                f"be references, but found: '{node.parent.debug_string()}'.")
 
         # The children of matvec should be References to arrays
-        if not (matrix1.symbol.shape or matrix2.symbol.shape):
+        if (len(matrix1.symbol.shape) == 0 or len(matrix2.symbol.shape) == 0 or
+            len(result.symbol.shape) == 0):
             raise TransformationError(
-                f"Expected children of a MATMUL BinaryOperation to be "
-                f"references to arrays but found "
-                f"'{type(matrix1.symbol).__name__}', "
-                f"'{type(matrix2.symbol).__name__}' for "
-                f"'{matrix1.symbol.name}', '{matrix2.symbol.name}'.")
+                f"Expected result and operands of MATMUL BinaryOperation to "
+                f"be references to arrays but found "
+                f"'{result.symbol}', {matrix1.symbol} and {matrix2.symbol}.")
 
         # The first child (matrix1) should be declared as an array
         # with at least 2 dimensions.
@@ -260,6 +260,13 @@ class Matmul2CodeTrans(Operator2CodeTrans):
                     f"To use matmul2code_trans on matmul, the first two "
                     f"indices of the 1st argument '{matrix1.name}' must be "
                     f"full ranges.")
+
+            if result.children:
+                if result.is_full_range(0) and result.is_full_range(1):
+                    raise NotImplementedError(
+                        f"To use matmul2code_trans on matmul, the first two "
+                        f"indices of the 1st argument '{matrix1.name}' must be "
+                        f"full ranges.")
 
             if len(matrix1.children) > 2:
                 # The 3rd index and onwards must not be ranges.
@@ -312,6 +319,14 @@ class Matmul2CodeTrans(Operator2CodeTrans):
                             f"first two indices of the 2nd argument are "
                             f"permitted to be a Range but found "
                             f"{type(index).__name__} at index {count+2}.")
+
+        # Make sure the result is not one of the MATMUL operands
+        for ref in result.walk(Reference):
+            if ref.symbol in (matrix1.symbol, matrix2.symbol):
+                raise TransformationError(
+                    f"'{ref.symbol.name}' is the result location and one of "
+                    f"the MATMUL operators. This is not supported.")
+
 
     def apply(self, node, options=None):
         '''Apply the MATMUL intrinsic conversion transformation to the
@@ -454,18 +469,19 @@ class Matmul2CodeTrans(Operator2CodeTrans):
         assign = Assignment.create(result_ref.copy(), rhs)
         # Create ii loop and add the above code as a child
         # Work out the bounds
-        lower_bound, upper_bound, step = _get_array_bound(matrix1, 0)
+        lower_bound, upper_bound, step = _get_array_bound(matrix1, 1)
+        # Must be the same as _get_array_bound(matrix2, 0)
         iiloop = Loop.create(ii_loop_sym, lower_bound, upper_bound, step,
                              [assign])
         # Create "result(i,j) = 0.0"
         assign = Assignment.create(result_ref.copy(),
                                    Literal("0.0", REAL_TYPE))
         # Create i loop and add assignment and ii loop as children.
-        lower_bound, upper_bound, step = _get_array_bound(matrix2, 0)
+        lower_bound, upper_bound, step = _get_array_bound(matrix1, 0)
         iloop = Loop.create(i_loop_sym, lower_bound, upper_bound, step,
                             [assign, iiloop])
         # Create j loop and add i loop as child.
-        lower_bound, upper_bound, step = _get_array_bound(matrix1, 1)
+        lower_bound, upper_bound, step = _get_array_bound(matrix2, 1)
         jloop = Loop.create(j_loop_sym, lower_bound, upper_bound, step,
                             [iloop])
         # Replace the original assignment with the new loop.
