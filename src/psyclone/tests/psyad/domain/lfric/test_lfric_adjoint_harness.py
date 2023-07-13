@@ -453,8 +453,8 @@ def test_generate_lfric_adjoint_harness_invalid_code(fortran_reader):
             "(Container) but the supplied PSyIR does not have a Container "
             "node:\nFileContainer[]\n    Routine[name:'oops']" in
             str(err.value))
-    psyir = fortran_reader.psyir_from_source("module wrong\n"
-                                             "end module wrong\n")
+    psyir = fortran_reader.psyir_from_source(
+        TL_CODE.replace("testkern_mod", "wrong"))
     with pytest.raises(ValueError) as err:
         _ = generate_lfric_adjoint_harness(psyir)
     assert ("The supplied LFRic TL kernel is contained within a module named "
@@ -501,42 +501,42 @@ def test_generate_lfric_adjoint_harness(fortran_reader, fortran_writer):
     assert "subroutine adjoint_test(mesh, chi, panel_id)" in gen
     # We should have a field, a copy of that field and an inner-product value
     # for that field.
-    assert ("    real(kind=r_def) :: rscalar_1\n"
-            "    type(field_type) :: field_2\n"
-            "    real(kind=r_def) :: rscalar_1_input\n"
-            "    type(field_type) :: field_2_input\n"
-            "    real(kind=r_def) :: field_2_inner_prod\n" in gen)
+    assert ("    real(kind=r_def) :: ascalar\n"
+            "    type(field_type) :: field\n"
+            "    real(kind=r_def) :: ascalar_input\n"
+            "    type(field_type) :: field_input\n"
+            "    real(kind=r_def) :: field_inner_prod\n" in gen)
     # The field and its copy must be initialised.
-    assert ("call field_2 % initialise(vector_space=vector_space_w3_ptr, "
-            "name='field_2')" in gen)
-    assert ("call field_2_input % initialise(vector_space=vector_space_w3_ptr,"
-            " name='field_2_input')" in gen)
+    assert ("call field % initialise(vector_space=vector_space_w3_ptr, "
+            "name='field')" in gen)
+    assert ("call field_input % initialise(vector_space=vector_space_w3_ptr,"
+            " name='field_input')" in gen)
     # So too must the scalar argument.
-    assert ("    call random_number(rscalar_1)\n"
-            "    rscalar_1_input = rscalar_1\n" in gen)
+    assert ("    call random_number(ascalar)\n"
+            "    ascalar_input = ascalar\n" in gen)
 
     # The field must be given random values and those copied into the copy.
     # The TL kernel must then be called and the inner-product of the result
     # computed.
-    assert "field_2_inner_prod = 0.0_r_def" in gen
+    assert "field_inner_prod = 0.0_r_def" in gen
     assert ("    ! initialise arguments and call the tangent-linear kernel.\n"
-            "    call invoke(setval_random(field_2), setval_x(field_2_input, "
-            "field_2), testkern_type(rscalar_1, field_2), x_innerproduct_x("
-            "field_2_inner_prod, field_2))\n" in gen)
+            "    call invoke(setval_random(field), setval_x(field_input, "
+            "field), testkern_type(ascalar, field), x_innerproduct_x("
+            "field_inner_prod, field))\n" in gen)
     # Compute and store the sum of all inner products.
     assert ("    inner1 = 0.0_r_def\n"
-            "    inner1 = inner1 + rscalar_1 * rscalar_1\n"
-            "    inner1 = inner1 + field_2_inner_prod\n"
-            "    field_2_field_2_input_inner_prod = 0.0_r_def\n" in gen)
+            "    inner1 = inner1 + ascalar * ascalar\n"
+            "    inner1 = inner1 + field_inner_prod\n"
+            "    field_field_input_inner_prod = 0.0_r_def\n" in gen)
     # Run the adjoint of the kernel and compute the inner products of its
     # outputs with the inputs to the TL kernel.
-    assert ("call invoke(adj_testkern_type(rscalar_1, field_2), "
-            "x_innerproduct_y(field_2_field_2_input_inner_prod, field_2, "
-            "field_2_input))"
+    assert ("call invoke(adj_testkern_type(ascalar, field), "
+            "x_innerproduct_y(field_field_input_inner_prod, field, "
+            "field_input))"
             in gen)
     assert ("    inner2 = 0.0_r_def\n"
-            "    inner2 = inner2 + rscalar_1 * rscalar_1_input\n"
-            "    inner2 = inner2 + field_2_field_2_input_inner_prod\n" in gen)
+            "    inner2 = inner2 + ascalar * ascalar_input\n"
+            "    inner2 = inner2 + field_field_input_inner_prod\n" in gen)
 
 
 def test_generate_lfric_adj_test_quadrature(fortran_reader):
@@ -549,6 +549,19 @@ def test_generate_lfric_adj_test_quadrature(fortran_reader):
         "          /)\n"
         "     integer :: operates_on = cell_column\n"
         "     integer :: gh_shape = gh_quadrature_xyoz\n")
+    new_code = new_code.replace(
+        "field, ndf_w3, undf_w3, map_w3)\n",
+        "field, ndf_w3, undf_w3, map_w3, basis_w3_qr_xyoz, np_xy_qr_xyoz, "
+        "np_z_qr_xyoz, weights_xy_qr_xyoz, weights_z_qr_xyoz)\n"
+        "      INTEGER(KIND=i_def), intent(in) :: np_xy_qr_xyoz, "
+        "np_z_qr_xyoz\n"
+        "      REAL(KIND=r_def), intent(in), dimension(1,ndf_w3,"
+        "np_xy_qr_xyoz,np_z_qr_xyoz) :: basis_w3_qr_xyoz\n"
+        "      REAL(KIND=r_def), intent(in), dimension(np_xy_qr_xyoz) :: "
+        "weights_xy_qr_xyoz\n"
+        "      REAL(KIND=r_def), intent(in), dimension(np_z_qr_xyoz) :: "
+        "weights_z_qr_xyoz\n")
+
     tl_psyir = fortran_reader.psyir_from_source(new_code)
     psyir = generate_lfric_adjoint_harness(tl_psyir)
     routine = psyir.walk(nodes.Routine)[0]
@@ -557,7 +570,7 @@ def test_generate_lfric_adj_test_quadrature(fortran_reader):
         # are never active).
         if sym.name.endswith("_input"):
             assert (sym.name.startswith("field") or
-                    sym.name.startswith("rscalar"))
+                    sym.name.startswith("ascalar"))
 
 
 def test_generate_lfric_adjoint_harness_operator(fortran_reader,
@@ -572,22 +585,35 @@ def test_generate_lfric_adjoint_harness_operator(fortran_reader,
                            "arg_type(gh_field,  gh_real, gh_write,  w3), &\n"
                            "arg_type(gh_operator,gh_real,gh_read,w3,w0) &")
     code = code.replace("dimension(2)", "dimension(3)")
+    code = code.replace("nlayers, ascalar", "cell, nlayers, ascalar")
+    code = code.replace(
+        "field, ndf_w3, undf_w3, map_w3",
+        "field, op_ncell_3d, op, ndf_w3, undf_w3, map_w3, ndf_w0")
+    code = code.replace(
+        "    field = ascalar\n",
+        "    INTEGER(KIND=i_def), intent(in) :: ndf_w0\n"
+        "    INTEGER(KIND=i_def), intent(in) :: cell\n"
+        "    INTEGER(KIND=i_def), intent(in) :: op_ncell_3d\n"
+        "    REAL(KIND=r_def), intent(in), dimension(ndf_w3,ndf_w0,"
+        "op_ncell_3d) :: op\n"
+        "    field = ascalar\n")
+
     tl_psyir = fortran_reader.psyir_from_source(code)
     psyir = generate_lfric_adjoint_harness(tl_psyir)
     gen = fortran_writer(psyir)
-    assert "type(operator_type) :: op_3\n" in gen
+    assert "type(operator_type) :: op\n" in gen
     assert ("vector_space_w0_ptr => function_space_collection % get_fs(mesh, "
             "element_order, w0)\n" in gen)
     assert ("vector_space_w3_ptr => function_space_collection % get_fs(mesh, "
             "element_order, w3)\n" in gen)
     # Initialise takes the *to* and *from* spaces as arguments in that order.
-    assert ("call op_3 % initialise(vector_space_w3_ptr, vector_space_w0_ptr)"
+    assert ("call op % initialise(vector_space_w3_ptr, vector_space_w0_ptr)"
             in gen)
     # Operator is given random values and passed to the TL kernel.
-    assert ("setop_random_kernel_type(op_3), "
-            "testkern_type(rscalar_1, field_2, op_3)" in gen)
+    assert ("setop_random_kernel_type(op), "
+            "testkern_type(ascalar, field, op)" in gen)
     # Operator is passed to the Adjoint kernel too.
-    assert "call invoke(adj_testkern_type(rscalar_1, field_2, op_3)" in gen
+    assert "call invoke(adj_testkern_type(ascalar, field, op)" in gen
 
 
 def test_gen_lfric_adjoint_harness_written_operator(fortran_reader,):
@@ -600,10 +626,23 @@ def test_gen_lfric_adjoint_harness_written_operator(fortran_reader,):
                            "arg_type(gh_field,  gh_real, gh_write,  w3), &\n"
                            "arg_type(gh_operator,gh_real,gh_write,w3,w0) &")
     code = code.replace("dimension(2)", "dimension(3)")
+
+    code = code.replace("nlayers, ascalar", "cell, nlayers, ascalar")
+    code = code.replace(
+        "field, ndf_w3, undf_w3, map_w3",
+        "field, op_ncell_3d, op, ndf_w3, undf_w3, map_w3, ndf_w0")
+    code = code.replace(
+        "    field = ascalar\n",
+        "    INTEGER(KIND=i_def), intent(in) :: ndf_w0\n"
+        "    INTEGER(KIND=i_def), intent(in) :: cell\n"
+        "    INTEGER(KIND=i_def), intent(in) :: op_ncell_3d\n"
+        "    REAL(KIND=r_def), intent(out), dimension(ndf_w3,ndf_w0,"
+        "op_ncell_3d) :: op\n"
+        "    field = ascalar\n")
     tl_psyir = fortran_reader.psyir_from_source(code)
     with pytest.raises(GenerationError) as err:
         generate_lfric_adjoint_harness(tl_psyir)
-    assert ("Operator argument 'op_3' to TL kernel 'testkern_type' is written "
+    assert ("Operator argument 'op' to TL kernel 'testkern_type' is written "
             "to. This is not supported." in str(err.value))
 
 
@@ -616,6 +655,8 @@ def test_generate_lfric_adjoint_harness_invalid_geom_arg(fortran_reader):
         _ = generate_lfric_adjoint_harness(tl_psyir, coord_arg_idx=1)
     assert ("The 'coordinate' argument is expected to be a field but argument "
             "1 to kernel 'testkern_code' is a 'gh_scalar'" in str(err.value))
+    # Recreate the tl_psyir as it gets raised by this routine.
+    tl_psyir = fortran_reader.psyir_from_source(TL_CODE)
     with pytest.raises(ValueError) as err:
         _ = generate_lfric_adjoint_harness(tl_psyir, panel_id_arg_idx=1)
     assert ("The 'panel-id' argument is expected to be a field but argument 1 "
@@ -680,8 +721,8 @@ def test_generate_lfric_adjoint_harness_chi_arg(fortran_reader,
     assert "setval_random(chi(1))" not in gen
     # chi should be passed as the second argument to the TL and adjoint
     # kernels.
-    assert "testkern_type(rscalar_1, chi, field_3, field_4)" in gen
-    assert "invoke(adj_testkern_type(rscalar_1, chi, field_3, field_4)" in gen
+    assert "testkern_type(ascalar, chi, field, pids)" in gen
+    assert "invoke(adj_testkern_type(ascalar, chi, field, pids)" in gen
 
 
 def test_generate_lfric_adjoint_harness_panel_id_arg(fortran_reader,
@@ -701,8 +742,8 @@ def test_generate_lfric_adjoint_harness_panel_id_arg(fortran_reader,
     assert "setval_random(panel_id)" not in gen
     # panel id should be passed as the 4th argument to both the TL and adjoint
     # kernels.
-    assert "testkern_type(rscalar_1, field_2, field_3, panel_id)" in gen
-    assert ("invoke(adj_testkern_type(rscalar_1, field_2, field_3, panel_id)"
+    assert "testkern_type(ascalar, cfield3, field, panel_id)" in gen
+    assert ("invoke(adj_testkern_type(ascalar, cfield3, field, panel_id)"
             in gen)
 
 
@@ -717,8 +758,8 @@ def test_generate_lfric_adjoint_harness_geom_args(fortran_reader,
     psyir = generate_lfric_adjoint_harness(tl_psyir, panel_id_arg_idx=4,
                                            coord_arg_idx=2)
     gen = fortran_writer(psyir)
-    assert "testkern_type(rscalar_1, chi, field_3, panel_id)" in gen
-    assert ("invoke(adj_testkern_type(rscalar_1, chi, field_3, panel_id)"
+    assert "testkern_type(ascalar, chi, field, panel_id)" in gen
+    assert ("invoke(adj_testkern_type(ascalar, chi, field, panel_id)"
             in gen)
 
 

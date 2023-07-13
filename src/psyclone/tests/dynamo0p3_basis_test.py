@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+# Copyright (c) 2017-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -38,7 +38,6 @@
 ''' Module containing py.test tests for functionality related to
 evaluators in the LFRic API '''
 
-from __future__ import absolute_import, print_function
 import os
 import pytest
 import fparser
@@ -204,10 +203,10 @@ def test_single_kern_eval(tmpdir):
 
     # Check subroutine declarations
     expected_decl = (
-        "    SUBROUTINE invoke_0_testkern_eval_type(f0, f1)\n"
+        "    SUBROUTINE invoke_0_testkern_eval_type(f0, cmap)\n"
         "      USE testkern_eval_mod, ONLY: testkern_eval_code\n"
         "      USE function_space_mod, ONLY: BASIS, DIFF_BASIS\n"
-        "      TYPE(field_type), intent(in) :: f0, f1\n"
+        "      TYPE(field_type), intent(in) :: f0, cmap\n"
         "      INTEGER(KIND=i_def) cell\n"
         "      INTEGER(KIND=i_def) loop0_start, loop0_stop\n"
         "      INTEGER(KIND=i_def) df_nodal, df_w0, df_w1\n"
@@ -216,7 +215,7 @@ def test_single_kern_eval(tmpdir):
         "      INTEGER(KIND=i_def) dim_w0, diff_dim_w1\n"
         "      REAL(KIND=r_def), pointer :: nodes_w0(:,:) => null()\n"
         "      INTEGER(KIND=i_def) nlayers\n"
-        "      TYPE(field_proxy_type) f0_proxy, f1_proxy\n"
+        "      TYPE(field_proxy_type) f0_proxy, cmap_proxy\n"
         "      INTEGER(KIND=i_def), pointer :: map_w0(:,:) => null(), "
         "map_w1(:,:) => null()\n"
         "      INTEGER(KIND=i_def) ndf_w0, undf_w0, ndf_w1, undf_w1\n")
@@ -227,7 +226,7 @@ def test_single_kern_eval(tmpdir):
         "      ! Initialise field and/or operator proxies\n"
         "      !\n"
         "      f0_proxy = f0%get_proxy()\n"
-        "      f1_proxy = f1%get_proxy()\n"
+        "      cmap_proxy = cmap%get_proxy()\n"
         "      !\n"
         "      ! Initialise number of layers\n"
         "      !\n"
@@ -236,7 +235,7 @@ def test_single_kern_eval(tmpdir):
         "      ! Look-up dofmaps for each function space\n"
         "      !\n"
         "      map_w0 => f0_proxy%vspace%get_whole_dofmap()\n"
-        "      map_w1 => f1_proxy%vspace%get_whole_dofmap()\n"
+        "      map_w1 => cmap_proxy%vspace%get_whole_dofmap()\n"
         "      !\n"
         "      ! Initialise number of DoFs for w0\n"
         "      !\n"
@@ -245,8 +244,8 @@ def test_single_kern_eval(tmpdir):
         "      !\n"
         "      ! Initialise number of DoFs for w1\n"
         "      !\n"
-        "      ndf_w1 = f1_proxy%vspace%get_ndf()\n"
-        "      undf_w1 = f1_proxy%vspace%get_undf()\n"
+        "      ndf_w1 = cmap_proxy%vspace%get_ndf()\n"
+        "      undf_w1 = cmap_proxy%vspace%get_undf()\n"
         "      !\n"
         "      ! Initialise evaluator-related quantities for the target "
         "function spaces\n"
@@ -256,7 +255,7 @@ def test_single_kern_eval(tmpdir):
         "      ! Allocate basis/diff-basis arrays\n"
         "      !\n"
         "      dim_w0 = f0_proxy%vspace%get_dim_space()\n"
-        "      diff_dim_w1 = f1_proxy%vspace%get_dim_space_diff()\n"
+        "      diff_dim_w1 = cmap_proxy%vspace%get_dim_space_diff()\n"
         "      ALLOCATE (basis_w0_on_w0(dim_w0, ndf_w0, ndf_w0))\n"
         "      ALLOCATE (diff_basis_w1_on_w0(diff_dim_w1, ndf_w1, ndf_w0))\n"
         "      !\n"
@@ -270,7 +269,7 @@ def test_single_kern_eval(tmpdir):
         "      END DO\n"
         "      DO df_nodal=1,ndf_w0\n"
         "        DO df_w1=1,ndf_w1\n"
-        "          diff_basis_w1_on_w0(:,df_w1,df_nodal) = f1_proxy%vspace%"
+        "          diff_basis_w1_on_w0(:,df_w1,df_nodal) = cmap_proxy%vspace%"
         "call_function(DIFF_BASIS,df_w1,nodes_w0(:,df_nodal))\n"
         "        END DO\n"
         "      END DO\n"
@@ -285,7 +284,7 @@ def test_single_kern_eval(tmpdir):
         "      DO cell=loop0_start,loop0_stop\n"
         "        !\n"
         "        CALL testkern_eval_code(nlayers, f0_proxy%data, "
-        "f1_proxy%data, ndf_w0, undf_w0, map_w0(:,cell), basis_w0_on_w0, "
+        "cmap_proxy%data, ndf_w0, undf_w0, map_w0(:,cell), basis_w0_on_w0, "
         "ndf_w1, undf_w1, map_w1(:,cell), diff_basis_w1_on_w0)\n"
         "      END DO\n"
         "      !\n"

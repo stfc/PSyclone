@@ -93,6 +93,7 @@ def test_scalar():
     assert len(cls._info) == 1
     # pylint: disable=unsubscriptable-object
     assert cls._info[0] == 1
+    assert cls._index == 1
 
 
 def test_field():
@@ -104,6 +105,7 @@ def test_field():
     assert len(cls._info) == 1
     # pylint: disable=unsubscriptable-object
     assert cls._info[0] == 0
+    assert cls._index == 1
 
 
 def test_field_vector():
@@ -117,6 +119,7 @@ def test_field_vector():
     assert cls._info[0] == 0
     assert cls._info[1] == 0
     assert cls._info[2] == 0
+    assert cls._index == 3
 
 
 def test_operator():
@@ -127,7 +130,8 @@ def test_operator():
     cls = call_method("_operator", meta_arg, metadata)
     assert len(cls._info) == 1
     # pylint: disable=unsubscriptable-object
-    assert cls._info[0] == 0
+    assert cls._info[1] == 0
+    assert cls._index == 2
 
 
 def test_cma_operator():
@@ -139,6 +143,7 @@ def test_cma_operator():
     assert len(cls._info) == 1
     # pylint: disable=unsubscriptable-object
     assert cls._info[0] == 0
+    assert cls._index == 8
 
 
 def test_add_arg():
