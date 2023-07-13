@@ -97,7 +97,7 @@ class UnknownType(DataType, metaclass=abc.ABCMeta):
     supported by the PSyIR frontends.
 
     :param str declaration_txt: the original textual declaration of
-        the symbol.string
+        the symbol.
 
     :raises TypeError: if the supplied declaration_txt is not a str.
 

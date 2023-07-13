@@ -2094,9 +2094,7 @@ class Fparser2Reader():
 
     def _get_partial_datatype(self, node, scope, visibility_map):
         '''Try to obtain partial datatype information from node by removing
-        any unsupported properties in the declaration. This method
-        assumes that the provided declaration statement only declares
-        a single variable.
+        any unsupported properties in the declaration.
 
         :param node: fparser2 node containing the declaration statement.
         :type node: :py:class:`fparser.two.Fortran2008.Type_Declaration_Stmt`
@@ -2116,16 +2114,20 @@ class Fparser2Reader():
             :py:class:`psyclone.psyir.symbols.DataTypeSymbol`]
 
         '''
-        # 1: Remove any initialisation. TODO: This won't be needed
-        # when #1419 is implemented (assuming the implementation
-        # supports both assignments and pointer assignments).
+        # 1: Remove any initialisation and additional variables. TODO:
+        # This won't be needed when #1419 is implemented (assuming the
+        # implementation supports both assignments and pointer
+        # assignments).
         entity_decl_list = node.children[2]
+        orig_entity_decl_list = list(entity_decl_list.children[:])
+        entity_decl_list.items = tuple(entity_decl_list.children[0:1])
         entity_decl = entity_decl_list.children[0]
         orig_entity_decl_children = list(entity_decl.children[:])
         if isinstance(entity_decl.children[3], Fortran2003.Initialization):
             entity_decl.items = (
                 entity_decl.items[0], entity_decl.items[1],
                 entity_decl.items[2], None)
+
         # 2: Remove any unsupported attributes
         unsupported_attribute_names = ["pointer", "target"]
         attr_spec_list = node.children[1]
@@ -2157,6 +2159,7 @@ class Fparser2Reader():
         node.items = tuple(orig_node_children)
         if node.children[1]:
             node.children[1].items = tuple(orig_attr_spec_list_children)
+        node.children[2].items = tuple(orig_entity_decl_list)
         node.children[2].children[0].items = tuple(orig_entity_decl_children)
 
         return datatype

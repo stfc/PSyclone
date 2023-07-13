@@ -743,6 +743,18 @@ def test_get_partial_datatype():
     # Check fparser2 tree is unmodified
     assert ids == [id(entry) for entry in walk(node)]
 
+    # Multiple variables in the declaration are also supported but are
+    # not used by PSyclone at the moment.
+    reader = FortranStringReader(
+        "integer, pointer :: l1 => null(), l2 => null()")
+    node = Specification_Part(reader).content[0]
+    ids = [id(entry) for entry in walk(node)]
+    datatype = processor._get_partial_datatype(node, fake_parent, {})
+    assert isinstance(datatype, ScalarType)
+    assert datatype.intrinsic is ScalarType.Intrinsic.INTEGER
+    # Check fparser2 tree is unmodified
+    assert ids == [id(entry) for entry in walk(node)]
+
 
 @pytest.mark.usefixtures("f2008_parser")
 def test_process_declarations():
@@ -861,14 +873,16 @@ def test_process_declarations_unknownfortrantype():
     fake_parent = KernelSchedule("dummy_schedule")
     symtab = fake_parent.symbol_table
     processor = Fparser2Reader()
-    reader = FortranStringReader("integer, pointer :: l1 => null()")
+    reader = FortranStringReader(
+        "integer, pointer :: l1 => null(), l2 => null()")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
-    l1_var = symtab.lookup("l1")
-    assert isinstance(l1_var.datatype, UnknownFortranType)
-    assert isinstance(l1_var.datatype.partial_datatype, ScalarType)
-    assert (l1_var.datatype.partial_datatype.intrinsic is
-            ScalarType.Intrinsic.INTEGER)
+    for varname in ("l1", "l2"):
+        var_symbol = symtab.lookup(varname)
+        assert isinstance(var_symbol.datatype, UnknownFortranType)
+        assert isinstance(var_symbol.datatype.partial_datatype, ScalarType)
+        assert (var_symbol.datatype.partial_datatype.intrinsic is
+                ScalarType.Intrinsic.INTEGER)
 
 
 @pytest.mark.usefixtures("f2008_parser")
