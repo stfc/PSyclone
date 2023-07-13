@@ -500,6 +500,9 @@
 	169) PR #2212 for #2203. Fix bug in PSyIR fparser2 frontend when
 	DO WHILE contains normal DO loops.
 
+	170) PR #2220 for #2219. Adds 'shared_with' argument to the
+	node.ancestor() method.
+
 release 2.3.1 17th of June 2022
 
 	1) PR #1747 for #1720. Adds support for If blocks to PSyAD.
