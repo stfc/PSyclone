@@ -671,7 +671,11 @@ def test_node_ancestor_shared_with(fortran_reader):
     psyir2 = fortran_reader.psyir_from_source(code2)
     assignment2 = psyir2.children[0].children[0]
 
+    # Tests where node (one_list) and the shared_with argument are
+    # from separate psyir trees, i.e. they have no shared ancestors.
     assert one_lit.ancestor(Node, shared_with=assignment2) is None
+    # Test when supplied a limit argument that is not an ancestor of
+    # the node (one_lit) but is an ancestor of the shared_with parameter.
     assert one_lit.ancestor(Node, shared_with=assignment2,
                             limit=assignment2.parent) is None
 

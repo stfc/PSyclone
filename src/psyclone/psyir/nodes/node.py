@@ -1144,16 +1144,16 @@ class Node():
             if myparent is limit:
                 break
             if myparent.depth > shared_ancestor.depth:
-                # If myparent is deeper in the tree than the shared_ancestor
-                # the potential shared ancestor so we search upwards to find
-                # another potential shared ancestor.
+                # If myparent is deeper in the tree than the current
+                # potential shared ancestor, search upwards to find
+                # the next valid ancestor of this node.
                 myparent = myparent.ancestor(
                         my_type, excluding=excluding,
                         include_self=False, limit=limit)
             else:
-                # Otherwise shared_ancestor is deeper in the structure than
-                # my parent, so we search upwards for another potential
-                # shared ancestor.
+                # shared_ancestor is equal or deeper in the tree than
+                # myparent, so search upwards for the next valid ancestor
+                # of shared_ancestor.
                 shared_ancestor = shared_ancestor.ancestor(
                         my_type, excluding=excluding, include_self=False,
                         limit=limit)
