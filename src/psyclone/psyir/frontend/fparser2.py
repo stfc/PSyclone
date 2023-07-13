@@ -999,8 +999,10 @@ class Fparser2Reader():
         ('acos', UnaryOperation.Operator.ACOS),
         ('tan', UnaryOperation.Operator.TAN),
         ('atan', UnaryOperation.Operator.ATAN),
+        ('tanh', UnaryOperation.Operator.TANH),
         ('sqrt', UnaryOperation.Operator.SQRT),
         ('real', UnaryOperation.Operator.REAL),
+        ('float', UnaryOperation.Operator.FLOAT),
         ('nint', UnaryOperation.Operator.NINT),
         ('int', UnaryOperation.Operator.INT)])
 

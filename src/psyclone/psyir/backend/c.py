@@ -300,11 +300,13 @@ class CWriter(LanguageWriter):
             UnaryOperation.Operator.SIN: ("sin", function_format),
             UnaryOperation.Operator.COS: ("cos", function_format),
             UnaryOperation.Operator.TAN: ("tan", function_format),
+            UnaryOperation.Operator.TANH: ("tanh", function_format),
             UnaryOperation.Operator.ASIN: ("asin", function_format),
             UnaryOperation.Operator.ACOS: ("acos", function_format),
             UnaryOperation.Operator.ATAN: ("atan", function_format),
             UnaryOperation.Operator.ABS: ("abs", function_format),
             UnaryOperation.Operator.REAL: ("float", cast_format),
+            UnaryOperation.Operator.FLOAT: ("float", cast_format),
             UnaryOperation.Operator.SQRT: ("sqrt", function_format),
             }
 

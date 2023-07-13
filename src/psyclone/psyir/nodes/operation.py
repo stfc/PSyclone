@@ -319,11 +319,11 @@ class UnaryOperation(Operation):
         # Logical Operators
         'NOT',
         # Trigonometric Operators
-        'COS', 'SIN', 'TAN', 'ACOS', 'ASIN', 'ATAN',
+        'COS', 'SIN', 'TAN', 'TANH', 'ACOS', 'ASIN', 'ATAN',
         # Other Maths Operators
         'ABS', 'CEIL',
         # Casting Operators
-        'REAL', 'INT', 'NINT'
+        'REAL', 'FLOAT', 'INT', 'NINT'
         ])
 
     _non_elemental_ops = []

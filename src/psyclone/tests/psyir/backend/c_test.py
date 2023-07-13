@@ -295,7 +295,9 @@ def test_cw_unaryoperator():
                  (UnaryOperation.Operator.ACOS, 'acos(a)'),
                  (UnaryOperation.Operator.ASIN, 'asin(a)'),
                  (UnaryOperation.Operator.ATAN, 'atan(a)'),
+                 (UnaryOperation.Operator.TANH, 'tanh(a)'),
                  (UnaryOperation.Operator.ABS, 'abs(a)'),
+                 (UnaryOperation.Operator.FLOAT, '(float)a'),
                  (UnaryOperation.Operator.REAL, '(float)a'))
 
     for operator, expected in test_list:
