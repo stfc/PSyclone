@@ -2904,7 +2904,7 @@ class Fparser2Reader():
                 if construct_name in [name.string for name in names]:
                     raise NotImplementedError()
 
-        ctrl = walk(node.content, Fortran2003.Loop_Control)
+        ctrl = walk(nonlabel_do, Fortran2003.Loop_Control)
         # do loops with no condition and do while loops
         if not ctrl or ctrl[0].items[0]:
             annotation = ['was_unconditional'] if not ctrl else None
