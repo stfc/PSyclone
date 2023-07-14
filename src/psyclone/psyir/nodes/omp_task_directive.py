@@ -248,6 +248,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         self._proxy_loop_vars = {}
         self._parent_parallel = None
         self._parallel_private = None
+        self._parallel_firstprivate = None
 
         # We need to do extra steps when inside a Kern to correctly identify
         # symbols.
@@ -271,9 +272,10 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         # Store the parent parallel directive node
         self._parent_parallel = anc
         # pylint: disable=protected-access
-        self._parallel_private, firstprivate, _ = \
+        self._parallel_private, self._parallel_firstprivate, _ = \
             anc.infer_sharing_attributes()
-        self._parallel_private = self._parallel_private.union(firstprivate)
+        self._parallel_private = self._parallel_private.union(
+                self._parallel_firstprivate)
 
     def _is_reference_private(self, ref):
         """
@@ -926,12 +928,10 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         sref_base = StructureReference(ref.symbol)
         sref_base.addchild(new_member)
         self._evaluate_structure_with_array_reference_indexlist(
-            ref,
             sref_base,
             array_access_member,
             private_list,
             firstprivate_list,
-            shared_list,
             index_list,
         )
 
@@ -1034,12 +1034,10 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
 
     def _evaluate_structure_with_array_reference_indexlist(
         self,
-        ref,
         sref_base,
         array_access_member,
         private_list,
         firstprivate_list,
-        shared_list,
         index_list,
     ):
         """
@@ -1059,8 +1057,6 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
 
         Each of these results are added to the index_list, used in the callee.
 
-        :param ref: The Reference to be evaluated.
-        :type ref: :py:class:`psyclone.psyir.nodes.Reference`
         :param sref_base: A copy of ref containing the members included
                           in the final reference.
         :type sref_base: :py:class:`psyclone.psyir.nodes.StructureReference`
@@ -1075,8 +1071,6 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                                   this task region.
         :type firstprivate_list: List of
                                  :py:class:`psyclone.psyir.nodes.Reference`
-        :param shared_list: The list of shared References for this task.
-        :type shared_list: List of :py:class:`psyclone.psyir.nodes.Reference`
         :param index_list: The list of output References for this task.
         :type index_list: List of :py:class:`psyclone.psyir.nodes.Reference`
 
@@ -1257,12 +1251,10 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         # for the depend clause.
         index_list = []
         self._evaluate_structure_with_array_reference_indexlist(
-            ref,
             sref_base,
             array_access_member,
             private_list,
             firstprivate_list,
-            shared_list,
             index_list,
         )
 
@@ -2059,9 +2051,14 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         # We skip references to constants as we don't need them.
         # Constants will never be private.
         private_clause = OMPPrivateClause()
-        for ref in private_list:
-            private_clause.addchild(ref)
         firstprivate_clause = OMPFirstprivateClause()
+        for ref in private_list:
+            # If the symbol is in the parallel_firstprivate set then
+            # we trust the parent parallel region and make it firstprivate
+            if ref.symbol in self._parallel_firstprivate:
+                firstprivate_list.append(ref)
+            else:
+                private_clause.addchild(ref)
         for ref in firstprivate_list:
             firstprivate_clause.addchild(ref)
         shared_clause = OMPSharedClause()

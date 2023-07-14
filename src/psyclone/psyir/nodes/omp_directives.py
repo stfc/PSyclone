@@ -938,14 +938,8 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
             # dependent.
             if not satisfiable:
                 # Find the lowest schedule containing both nodes.
-                schedule1 = task1.ancestor(Schedule)
-                schedule2 = task2.ancestor(Schedule)
-                # While they're not distinct
-                while schedule1 is not schedule2:
-                    if schedule1.depth > schedule2.depth:
-                        schedule1 = schedule1.ancestor(Schedule)
-                    else:
-                        schedule2 = schedule2.ancestor(Schedule)
+                schedule1 = task1.ancestor(Schedule, shared_with=task2)
+                # Find the closest ancestor to the common schedule.
                 task1_proxy = task1
                 while task1_proxy.parent is not schedule1:
                     task1_proxy = task1_proxy.parent

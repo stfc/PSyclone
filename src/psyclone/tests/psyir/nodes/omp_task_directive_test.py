@@ -1997,63 +1997,65 @@ end subroutine my_subroutine\n'''
     assert fortran_writer(tree) == correct
 
 
-#def test_omp_task_directive_25(fortran_reader, fortran_writer):
-#    ''' Test the code generation correctly generates the correct clauses
-#    when we have access to a first private constant in '''
-#    code = '''
-#    subroutine my_subroutine()
-#        integer, dimension(320, 10) :: A
-#        integer :: i,ii
-#        integer :: j
-#        integer :: k
-#        k = 32
-#        do i = 1, 320, 32
-#          do ii = i, i + 32
-#            j = k
-#            A(ii,k+1) = 20
-#          end do
-#        end do
-#    end subroutine
-#    '''
-#    tree = fortran_reader.psyir_from_source(code)
-#    ptrans = OMPParallelTrans()
-#    strans = OMPSingleTrans()
-#    ltrans = OMPLoopTrans()
-#    tdir = DynamicOMPTaskDirective()
-#    loops = tree.walk(Loop)
-#    ltrans.apply(loops[0])
-#    loop = loops[1].children[3].children[0]
-#    parent = loop.parent
-#    loop.detach()
-#    tdir.children[0].addchild(loop)
-#    parent.addchild(tdir, index=0)
-#    strans.apply(tree.children[0].children[2:])
-#    ptrans.apply(tree.children[0].children[1:])
-#    correct = '''subroutine my_subroutine()
-#  integer, dimension(320,10) :: a
-#  integer :: i
-#  integer :: ii
-#  integer :: j
-#  integer :: k
-#
-#  k = 32
-#  !$omp parallel default(shared), private(i,ii,k)
-#  !$omp single
-#  do i = 1, 320, 32
-#    !$omp task private(ii), firstprivate(i,k), shared(j,a), \
-#depend(out: j,a(i,k + 1))
-#    do ii = i, i + 32, 1
-#      j = k
-#      a(ii,k + 1) = 20
-#    enddo
-#    !$omp end task
-#  enddo
-#  !$omp end single
-#  !$omp end parallel
-#
-#end subroutine my_subroutine\n'''
-#    print(fortran_writer(tree))
-#    assert fortran_writer(tree) == correct
+def test_omp_task_directive_25(fortran_reader, fortran_writer):
+    ''' Test the code generation correctly generates the correct clauses
+    when we have access to a first private constant in the routine'''
+    code = '''
+    subroutine my_subroutine()
+        integer, dimension(320, 10) :: A
+        integer :: i,ii
+        integer :: k
+        logical :: statement
+        k = 32
+        do i = 1, 320, 32
+          do ii = i, i + 32
+            if(statement) then
+              k = 30
+            end if
+            A(ii,k+1) = 20
+          end do
+        end do
+    end subroutine
+    '''
+    tree = fortran_reader.psyir_from_source(code)
+    ptrans = OMPParallelTrans()
+    strans = OMPSingleTrans()
+    tdir = DynamicOMPTaskDirective()
+    loops = tree.walk(Loop)
+    loop = loops[0].children[3].children[0]
+    parent = loop.parent
+    loop.detach()
+    tdir.children[0].addchild(loop)
+    parent.addchild(tdir, index=0)
+    strans.apply(tree.children[0].children[1:])
+    ptrans.apply(tree.children[0].children[1:])
+    correct = '''subroutine my_subroutine()
+  integer, dimension(320,10) :: a
+  integer :: i
+  integer :: ii
+  integer :: k
+  logical :: statement
+
+  k = 32
+  !$omp parallel default(shared), private(i,ii), firstprivate(k)
+  !$omp single
+  do i = 1, 320, 32
+    !$omp task private(ii), firstprivate(i,k), shared(a), \
+depend(in: statement), depend(out: a(i,:))
+    do ii = i, i + 32, 1
+      if (statement) then
+        k = 30
+      end if
+      a(ii,k + 1) = 20
+    enddo
+    !$omp end task
+  enddo
+  !$omp end single
+  !$omp end parallel
+
+end subroutine my_subroutine\n'''
+    print(fortran_writer(tree))
+    assert fortran_writer(tree) == correct
 
 
 def test_omp_task_directive_26(fortran_reader):
@@ -3032,7 +3034,7 @@ def test_omp_task_directive_40(fortran_reader, fortran_writer):
   !$omp parallel default(shared), private(i,j), firstprivate(iplusone)
   !$omp single
   do i = 1, 320, 32
-    !$omp task private(j,iplusone), firstprivate(i), shared(boundary,a,b), \
+    !$omp task private(j), firstprivate(i,iplusone), shared(boundary,a,b), \
 depend(in: boundary(i,:),b(i,:),k), depend(out: a(i + 32,:),a(i,:),a(i - 32,:))
     do j = 1, 32, 1
       if (boundary(i,j) > 1) then
@@ -3103,7 +3105,7 @@ def test_omp_task_directive_41(fortran_reader, fortran_writer):
   !$omp parallel default(shared), private(i,j), firstprivate(iplusone)
   !$omp single
   do i = 1, 320, 32
-    !$omp task private(j,iplusone), firstprivate(i), shared(boundary,a,b), \
+    !$omp task private(j), firstprivate(i,iplusone), shared(boundary,a,b), \
 depend(in: boundary(i,:),k,b(i + 32,:),b(i,:),b(i - 32,:)), depend(out: a(i,:))
     do j = 1, 32, 1
       if (boundary(i,j) > 1) then
@@ -3175,7 +3177,7 @@ def test_omp_task_directive_42(fortran_reader, fortran_writer):
   !$omp parallel default(shared), private(i,j), firstprivate(iplusone)
   !$omp single
   do i = 1, 320, 32
-    !$omp task private(j,iplusone), firstprivate(i), shared(boundary,b,aa), \
+    !$omp task private(j), firstprivate(i,iplusone), shared(boundary,b,aa), \
 depend(in: boundary(i,:),aa%A(i + 32,:),aa%A(i - 32,:),aa%A(i,:)), \
 depend(out: b(i,:))
     do j = 1, 10, 1
@@ -3248,7 +3250,7 @@ def test_omp_task_directive_43(fortran_reader, fortran_writer):
   !$omp parallel default(shared), private(i,j), firstprivate(iplusone)
   !$omp single
   do i = 1, 320, 32
-    !$omp task private(j,iplusone), firstprivate(i), shared(boundary,aa,b), \
+    !$omp task private(j), firstprivate(i,iplusone), shared(boundary,aa,b), \
 depend(in: boundary(i,:),b(i,:)), \
 depend(out: aa%A(i + 32,:),aa%A(i - 32,:),aa%A(i,:))
     do j = 1, 10, 1
@@ -3354,8 +3356,8 @@ firstprivate(jiv)
   !$omp single
   do j_out_var = ystart, ystop, 32
     j_el_inner = MIN(j_out_var + (32 - 1), ystop)
-    !$omp task private(j,i,jiv), firstprivate(j_out_var,j_el_inner,xstart,\
-xstop), shared(boundary,va,hv,sshn_v), depend(in: boundary(:,j_out_var),\
+    !$omp task private(j,i), firstprivate(j_out_var,j_el_inner,xstart,\
+xstop,jiv), shared(boundary,va,hv,sshn_v), depend(in: boundary(:,j_out_var),\
 boundary(:,j_out_var + 32),va(:,j_out_var + 32),va(:,j_out_var),g,\
 hv(:,j_out_var),sshn_v(:,j_out_var),sshn_v(:,j_out_var + 32),\
 va(:,j_out_var - 32),sshn_v(:,j_out_var - 32)), depend(out: va(:,j_out_var))
