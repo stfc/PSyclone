@@ -59,7 +59,7 @@ from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, SymbolTable, \
 from psyclone.errors import InternalError, GenerationError
 from psyclone.transformations import Dynamo0p3OMPLoopTrans, OMPParallelTrans, \
     OMPParallelLoopTrans, DynamoOMPParallelLoopTrans, OMPSingleTrans, \
-    OMPMasterTrans, OMPTaskloopTrans
+    OMPMasterTrans, OMPTaskloopTrans, OMPLoopTrans
 from psyclone.tests.utilities import get_invoke
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
@@ -69,9 +69,10 @@ GOCEAN_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                 "gocean1p0")
 
 
-def test_ompparallel_changes_begin_string(fortran_reader):
-    ''' Check that when the code inside an OMP Parallel region changes, the
-    parallel clause changes appropriately. '''
+def test_ompparallel_lowering(fortran_reader, monkeypatch):
+    ''' Check that lowering an OMP Parallel region leaves it with the
+    appropriate begin_string and clauses for the backend to generate
+    the right code'''
     code = '''
     subroutine my_subroutine()
         integer, dimension(320) :: A
@@ -101,7 +102,10 @@ def test_ompparallel_changes_begin_string(fortran_reader):
     assert isinstance(pdir.children[3], OMPFirstprivateClause)
     priv_clause = pdir.children[2]
 
-    # Make acopy of the loop
+    # If the code inside the region changes after lowering, the next lowering
+    # will update the clauses appropriately
+    # TODO 2157: Alternatively, we could invalidate the clauses with an
+    # upwards signal when changed, or not store them at all.
     new_loop = pdir.children[0].children[0].children[0].children[0].copy()
     # Change the loop variable to j
     jvar = DataSymbol("j", INTEGER_SINGLE_TYPE)
@@ -112,10 +116,32 @@ def test_ompparallel_changes_begin_string(fortran_reader):
     pdir.lower_to_language_level()
     assert pdir.children[2] is not priv_clause
 
+    # Monkeypatch a case with private and firstprivate clauses
+    monkeypatch.setattr(pdir, "_infer_sharing_attributes",
+                        lambda: ({Symbol("a")}, {Symbol("b")}, None))
 
-def test_ompparallel_changes_gen_code(monkeypatch):
-    ''' Check that when the code inside an OMP Parallel region changes, the
-    private clause changes appropriately. '''
+    pdir.lower_to_language_level()
+    assert isinstance(pdir.children[2], OMPPrivateClause)
+    assert len(pdir.children[2].children) == 1
+    assert pdir.children[2].children[0].name == 'a'
+    assert isinstance(pdir.children[3], OMPFirstprivateClause)
+    assert len(pdir.children[3].children) == 1
+    assert pdir.children[3].children[0].name == 'b'
+
+    # Monkeypatch a case with shared variables that need synchronisation
+    monkeypatch.setattr(pdir, "_infer_sharing_attributes",
+                        lambda: ({}, {}, {Symbol("a")}))
+    with pytest.raises(GenerationError) as err:
+        pdir.lower_to_language_level()
+    assert ("Lowering OMPParallelDirective does not support symbols that "
+            "need synchronisation, but found: ['a']" in str(err.value))
+
+
+def test_ompparallel_gen_code_clauses(monkeypatch):
+    ''' Check that the OMP Parallel region clauses are generated
+    appropriately. '''
+
+    # Check with an LFRic kernel, the cell variable must be private
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke_w3.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
@@ -136,7 +162,8 @@ def test_ompparallel_changes_gen_code(monkeypatch):
     assert len(pdir.children) == 4
     assert "private(cell)" in code
 
-    # Make acopy of the loop
+    # Check that making a change (add private k variable) after the first
+    # time psy.gen is called recomputes the clauses attributes
     new_loop = pdir.children[0].children[0].children[0].children[0].copy()
     routine = pdir.ancestor(Routine)
     routine.symbol_table.add(DataSymbol("k", INTEGER_SINGLE_TYPE))
@@ -152,20 +179,27 @@ def test_ompparallel_changes_gen_code(monkeypatch):
     assert "private(cell,k)" in code
 
     # Monkeypatch a case with private and firstprivate clauses
-    pclause = OMPPrivateClause(children=[Reference(Symbol("a"))])
-    fpclause = OMPFirstprivateClause(children=[Reference(Symbol("b"))])
-    monkeypatch.setattr(pdir, "_get_private_clauses",
-                        lambda: (pclause, fpclause))
+    monkeypatch.setattr(pdir, "_infer_sharing_attributes",
+                        lambda: ({Symbol("a")}, {Symbol("b")}, None))
 
     code = str(psy.gen).lower()
     assert "private(a)" in code
     assert "firstprivate(b)" in code
 
+    # Monkeypatch a case with shared variables that need synchronisation
+    monkeypatch.setattr(pdir, "_infer_sharing_attributes",
+                        lambda: ({}, {}, {Symbol("a")}))
+    with pytest.raises(GenerationError) as err:
+        code = str(psy.gen).lower()
+    assert ("OMPParallelDirective.gen_code() does not support symbols that "
+            "need synchronisation, but found: ['a']" in str(err.value))
 
-def test_omp_paralleldo_changes_gen_code(monkeypatch):
-    ''' Check that when the code inside an OMP Parallel Do region changes, the
-    private clause changes appropriately. Also check that changing the schedule
-    is correctly picked up.'''
+
+def test_omp_paralleldo_clauses_gen_code(monkeypatch):
+    ''' Check that the OMP ParallelDo clauses are generated
+    appropriately. '''
+
+    # Check with an LFRic kernel, the cell variable must be private
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke_w3.f90"),
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
@@ -182,7 +216,8 @@ def test_omp_paralleldo_changes_gen_code(monkeypatch):
     assert "schedule(auto)" in code
     assert "firstprivate" not in code
 
-    # Modify the loop
+    # Check that making a change (add private k variable) after the first
+    # time psy.gen is called recomputes the clauses attributes
     routine = pdir.ancestor(Routine)
     routine.symbol_table.add(DataSymbol("k", INTEGER_SINGLE_TYPE))
     # Change the loop variable to k
@@ -198,19 +233,26 @@ def test_omp_paralleldo_changes_gen_code(monkeypatch):
     assert "firstprivate" not in code
 
     # Monkeypatch a case with firstprivate clauses
-    pclause = OMPPrivateClause(children=[Reference(Symbol("a"))])
-    fpclause = OMPFirstprivateClause(children=[Reference(Symbol("b"))])
-    monkeypatch.setattr(pdir, "_get_private_clauses",
-                        lambda: (pclause, fpclause))
+    monkeypatch.setattr(pdir, "_infer_sharing_attributes",
+                        lambda: ({Symbol("a")}, {Symbol("b")}, None))
 
     code = str(psy.gen).lower()
     assert "private(a)" in code
     assert "firstprivate(b)" in code
 
+    # Monkeypatch a case with shared variables that need synchronisation
+    monkeypatch.setattr(pdir, "_infer_sharing_attributes",
+                        lambda: ({}, {}, {Symbol("a")}))
+    with pytest.raises(GenerationError) as err:
+        code = str(psy.gen).lower()
+    assert ("OMPParallelDoDirective.gen_code() does not support symbols that "
+            "need synchronisation, but found: ['a']" in str(err.value))
 
-def test_omp_parallel_do_changes_begin_str(fortran_reader):
-    ''' Check that when the code inside an OMP Parallel Do region changes, the
-    private clause changes appropriately. '''
+
+def test_omp_parallel_do_lowering(fortran_reader, monkeypatch):
+    ''' Check that lowering an OMP Parallel Do leaves it with the
+    appropriate begin_string and clauses for the backend to generate
+    the right code'''
     code = '''
     subroutine my_subroutine()
         integer, dimension(321, 10) :: A
@@ -240,7 +282,8 @@ def test_omp_parallel_do_changes_begin_str(fortran_reader):
     fpriv_clause = pdir.children[3]
     sched_clause = pdir.children[4]
 
-    # Make acopy of the loop
+    # If the code inside the region changes after lowering, the next lowering
+    # will update the clauses appropriately
     routine = pdir.ancestor(Routine)
     routine.symbol_table.add(DataSymbol("k", INTEGER_SINGLE_TYPE))
     # Change the loop variable to j
@@ -257,6 +300,26 @@ def test_omp_parallel_do_changes_begin_str(fortran_reader):
     assert pdir.children[3] is not fpriv_clause
     assert pdir.children[4] is not sched_clause
     assert isinstance(pdir.children[4], OMPScheduleClause)
+
+    # Monkeypatch a case with private and firstprivate clauses
+    monkeypatch.setattr(pdir, "_infer_sharing_attributes",
+                        lambda: ({Symbol("a")}, {Symbol("b")}, None))
+
+    pdir.lower_to_language_level()
+    assert isinstance(pdir.children[2], OMPPrivateClause)
+    assert len(pdir.children[2].children) == 1
+    assert pdir.children[2].children[0].name == 'a'
+    assert isinstance(pdir.children[3], OMPFirstprivateClause)
+    assert len(pdir.children[3].children) == 1
+    assert pdir.children[3].children[0].name == 'b'
+
+    # Monkeypatch a case with shared variables that need synchronisation
+    monkeypatch.setattr(pdir, "_infer_sharing_attributes",
+                        lambda: ({}, {}, {Symbol("a")}))
+    with pytest.raises(GenerationError) as err:
+        pdir.lower_to_language_level()
+    assert ("Lowering OMPParallelDoDirective does not support symbols that "
+            "need synchronisation, but found: ['a']" in str(err.value))
 
 
 def test_omp_teams_distribute_parallel_do_strings(
@@ -531,8 +594,10 @@ def test_omp_do_children_err():
             "this Node has a child of type 'Return'" in str(err.value))
 
 
-def test_directive_get_private_lfric():
-    ''' Tests for the _get_private_clauses() method of OMPParallelDirective.
+def test_directive_infer_sharing_attributes_lfric():
+    ''' Tests for the _infer_sharing_attributes() method of
+    OMPParallelDirective containing an LFRic kernel.
+
     Note: this test does not apply colouring so the loops must be over
     discontinuous function spaces.
 
@@ -558,27 +623,57 @@ def test_directive_get_private_lfric():
     # replaced by a `lower_to_language_level` call.
     # pylint: disable=pointless-statement
     psy.gen
-    # Now check that _get_private_clause returns what we expect
-    pvars, fpvars = directive._get_private_clauses()
-    assert isinstance(pvars, OMPPrivateClause)
-    assert isinstance(fpvars, OMPFirstprivateClause)
-    assert len(pvars.children) == 1
-    assert len(fpvars.children) == 0
-    assert pvars.children[0].name == 'cell'
+    # Now check that _infer_sharing_attributes returns what we expect
+    pvars, fpvars, sync = directive._infer_sharing_attributes()
+    assert isinstance(pvars, set)
+    assert isinstance(fpvars, set)
+    assert len(pvars) == 1
+    assert len(fpvars) == 0
+    assert len(sync) == 0
+    assert list(pvars)[0].name == 'cell'
 
     directive.children[1] = OMPDefaultClause(
             clause_type=OMPDefaultClause.DefaultClauseTypes.NONE)
     with pytest.raises(GenerationError) as excinfo:
-        _ = directive._get_private_clauses()
+        _ = directive._infer_sharing_attributes()
     assert ("OMPParallelClause cannot correctly generate the private clause "
             "when its default data sharing attribute in its default clause is "
-            "not shared." in str(excinfo.value))
+            "not 'shared'." in str(excinfo.value))
 
 
-def test_directive_get_private(fortran_reader):
-    ''' Tests for the _get_private_clauses() method of OpenMP directives.'''
+def test_directive_infer_sharing_attributes(fortran_reader):
+    ''' Tests for the _infer_sharing_attributes() method of OpenMP directives
+    with generic code inside the directive body.
+    '''
+
+    # Example with arrays, read-only and only-writen-once variables, this are
+    # all shared (only the iteration index is private in this parallel region)
+    psyir = fortran_reader.psyir_from_source('''
+        subroutine my_subroutine()
+            integer :: i, scalar1, scalar2
+            real, dimension(10) :: array
+            scalar2 = scalar1
+            do i = 1, 10
+               array(i) = scalar2
+            enddo
+        end subroutine''')
+    omplooptrans = OMPLoopTrans()
+    loop = psyir.walk(Loop)[0]
+    omplooptrans.apply(loop)
+    omptrans = OMPParallelTrans()
+    routine = psyir.walk(Routine)[0]
+    omptrans.apply(routine.children)
+    directive = psyir.walk(OMPParallelDirective)[0]
+    pvars, fpvars, sync = directive._infer_sharing_attributes()
+    assert len(pvars) == 1
+    assert list(pvars)[0].name == 'i'
+    assert len(fpvars) == 0
+    assert len(sync) == 0
 
     # Example with private and firstprivate variables on OMPParallelDoDirective
+    # In this case scalar1 is firstprivate because it has a conditional-write
+    # that it is not guaranteed to happen on each iteration, so the private
+    # variable needs to be initialised with the value it has before the loop.
     psyir = fortran_reader.psyir_from_source('''
         subroutine my_subroutine()
             integer :: i, scalar1, scalar2
@@ -596,15 +691,16 @@ def test_directive_get_private(fortran_reader):
     loop = psyir.walk(Loop)[0]
     omplooptrans.apply(loop)
     directive = psyir.walk(OMPParallelDoDirective)[0]
-    pvars, fpvars = directive._get_private_clauses()
-    assert len(pvars.children) == 2
-    assert len(fpvars.children) == 1
-    assert pvars.children[0].name == 'i'
-    assert pvars.children[1].name == 'scalar2'
-    assert fpvars.children[0].name == 'scalar1'
+    pvars, fpvars, sync = directive._infer_sharing_attributes()
+    assert len(pvars) == 2
+    assert sorted(pvars, key=lambda x: x.name)[0].name == 'i'
+    assert sorted(pvars, key=lambda x: x.name)[1].name == 'scalar2'
+    assert len(fpvars) == 1
+    assert list(fpvars)[0].name == 'scalar1'
+    assert len(sync) == 0
 
-    # Another example with OMPParallelDirective (not actual worksharing)
-    # and scalars set outside the loop (this should be shared by convention)
+    # Another example with only a OMPParallelDirective (not actual worksharing)
+    # and scalars set outside the loop (only-written-once), these are shared
     psyir = fortran_reader.psyir_from_source('''
         subroutine my_subroutine()
             integer :: i, scalar1, scalar2, scalar3, scalar4
@@ -616,17 +712,231 @@ def test_directive_get_private(fortran_reader):
                array(i) = scalar2
             enddo
         end subroutine''')
-    omplooptrans = OMPParallelTrans()
-    loop = psyir.walk(Routine)[0]
-    omplooptrans.apply(loop.children)
+    omptrans = OMPParallelTrans()
+    routine = psyir.walk(Routine)[0]
+    omptrans.apply(routine.children)
     directive = psyir.walk(OMPParallelDirective)[0]
-    pvars, fpvars = directive._get_private_clauses()
-    assert len(pvars.children) == 2
-    assert len(fpvars.children) == 0
-    assert pvars.children[0].name == 'i'
-    assert pvars.children[1].name == 'scalar2'
-    # scalar 1 is shared because is read-only and scalar3 and scalar4 are
-    # shared because they are set outside a loop
+    pvars, fpvars, sync = directive._infer_sharing_attributes()
+    assert len(pvars) == 2
+    assert len(fpvars) == 0
+    assert len(sync) == 0
+    assert sorted(pvars, key=lambda x: x.name)[0].name == 'i'
+    assert sorted(pvars, key=lambda x: x.name)[1].name == 'scalar2'
+    # scalar1 is shared because is read-only and scalar3 and scalar4 are
+    # shared because they are set outside a loop (only written once)
+
+    # Another example with only a OMPParallelDirective (not actual worksharing)
+    # and one scalar (scalar2) it is used as a private variable inside the loop
+    # but it is first read before the loop, and therefore it should be
+    # firstprivate
+    psyir = fortran_reader.psyir_from_source('''
+        subroutine my_subroutine()
+            integer :: i, scalar1, scalar2, scalar3
+            real, dimension(10) :: array
+            scalar3 = scalar2
+            do i = 1, 10
+               scalar2 = scalar1 + scalar3 + array(i)
+               array(i) = scalar2
+            enddo
+        end subroutine''')
+    omptrans = OMPParallelTrans()
+    routine = psyir.walk(Routine)[0]
+    omptrans.apply(routine.children)
+    directive = psyir.walk(OMPParallelDirective)[0]
+    pvars, fpvars, sync = directive._infer_sharing_attributes()
+    assert len(pvars) == 1
+    assert len(fpvars) == 1
+    assert len(sync) == 0
+    assert list(pvars)[0].name == 'i'
+    assert list(fpvars)[0].name == 'scalar2'
+
+    # Similar but with a OMPParallelDoDirective and the firstprivate is
+    # in the same loop but before the loop body
+    psyir = fortran_reader.psyir_from_source('''
+        subroutine my_subroutine()
+            integer :: i, scalar1
+            real, dimension(10) :: array
+            do i = 1, 10, scalar1
+                scalar1 = array(i)
+                array(i) = scalar1
+            enddo
+        end subroutine''')
+    omplooptrans = OMPParallelLoopTrans()
+    loop = psyir.walk(Loop)[0]
+    omplooptrans.apply(loop, options={'force': True})
+    directive = psyir.walk(OMPParallelDoDirective)[0]
+    pvars, fpvars, sync = directive._infer_sharing_attributes()
+    assert len(pvars) == 1
+    assert len(fpvars) == 1
+    assert len(sync) == 0
+    assert list(pvars)[0].name == 'i'
+    assert list(fpvars)[0].name == 'scalar1'
+
+    # In this example the scalar2 variable is shared but it needs
+    # synchronisation to avoid race conditions (write-after-read
+    # in the same statement)
+    psyir = fortran_reader.psyir_from_source('''
+        subroutine my_subroutine()
+            integer :: i, scalar1, scalar2
+            real, dimension(10) :: array
+            do i = 1, 10
+               scalar2 = scalar2 + scalar1
+            enddo
+        end subroutine''')
+    omplooptrans = OMPParallelLoopTrans()
+    loop = psyir.walk(Loop)[0]
+    omplooptrans.apply(loop, options={"force": True})
+    directive = psyir.walk(OMPParallelDoDirective)[0]
+    pvars, fpvars, sync = directive._infer_sharing_attributes()
+    assert len(pvars) == 1
+    assert list(pvars)[0].name == 'i'
+    assert len(fpvars) == 0
+    assert len(sync) == 1
+    assert list(sync)[0].name == 'scalar2'
+
+    # In this example the scalar2 variable is shared but it needs
+    # synchronisation to avoid race conditions (write-after-read
+    # in different statements)
+    psyir = fortran_reader.psyir_from_source('''
+        subroutine my_subroutine()
+            integer :: i, scalar1, scalar2, tmp
+            real, dimension(10) :: array
+            do i = 1, 10
+               tmp = scalar2 + scalar1
+               scalar2 = tmp
+            enddo
+        end subroutine''')
+    omplooptrans = OMPParallelLoopTrans()
+    loop = psyir.walk(Loop)[0]
+    omplooptrans.apply(loop, options={"force": True})
+    directive = psyir.walk(OMPParallelDoDirective)[0]
+    pvars, fpvars, sync = directive._infer_sharing_attributes()
+    assert len(pvars) == 2
+    assert sorted(pvars, key=lambda x: x.name)[0].name == 'i'
+    assert sorted(pvars, key=lambda x: x.name)[1].name == 'tmp'
+    assert len(fpvars) == 0
+    assert len(sync) == 1
+    assert list(sync)[0].name == 'scalar2'
+
+    # Example tiling routine (k is a reduction - needs sync)
+    psyir = fortran_reader.psyir_from_source('''
+        subroutine my_subroutine(k)
+            integer :: i, ii
+            integer :: j, jj
+            integer :: k
+            do i = 1, 320, 32
+                do j = 1, 320, 32
+                    do ii=i, i+32
+                        do jj = j,j+32
+                            k = k + ii
+                            k = k * jj
+                        end do
+                    end do
+                end do
+            end do
+        end subroutine''')
+    ptrans = OMPParallelTrans()
+    loop = psyir.walk(Loop)[0]
+    ptrans.apply(loop)
+    directive = psyir.walk(OMPParallelDirective)[0]
+    pvars, fpvars, sync = directive._infer_sharing_attributes()
+    assert len(pvars) == 4
+    assert sorted(pvars, key=lambda x: x.name)[0].name == 'i'
+    assert sorted(pvars, key=lambda x: x.name)[1].name == 'ii'
+    assert sorted(pvars, key=lambda x: x.name)[2].name == 'j'
+    assert sorted(pvars, key=lambda x: x.name)[3].name == 'jj'
+    assert len(fpvars) == 0
+    assert len(sync) == 1
+    assert list(sync)[0].name == 'k'
+
+
+def test_directive_infer_sharing_attributes_with_structures(fortran_reader):
+    ''' Tests for the _infer_sharing_attributes() method of OpenMP directives
+    with code that contains structure accesses.
+    '''
+    psyir = fortran_reader.psyir_from_source('''
+        subroutine my_subroutine()
+            use my_mod
+            integer :: i, scalar1
+            type(my_type) :: mt1, mt2
+            real, dimension(10) :: array
+            mt1%scalar1 = 3
+            do i = 1, 10
+               if (i .eq. 4) then
+                  mt2%field1%scalar1 = array(i)
+               endif
+               scalar1 = mt2%field1%scalar1 + mt1%scalar1
+               array(i) = scalar1
+            enddo
+        end subroutine''')
+    omptrans = OMPParallelTrans()
+    routine = psyir.walk(Routine)[0]
+    omptrans.apply(routine.children)
+    directive = psyir.walk(OMPParallelDirective)[0]
+    pvars, fpvars, sync = directive._infer_sharing_attributes()
+    assert len(pvars) == 2
+    assert sorted(pvars, key=lambda x: x.name)[0].name == 'i'
+    assert sorted(pvars, key=lambda x: x.name)[1].name == 'scalar1'
+    assert len(fpvars) == 1
+    assert list(fpvars)[0].name == 'mt2'
+    assert len(sync) == 0
+
+    # In this example a sub-part of mt1 should be shared and another
+    # firstprivate
+    psyir = fortran_reader.psyir_from_source('''
+        subroutine my_subroutine()
+            use my_mod
+            integer :: i, scalar1
+            type(my_type) :: mt1
+            real, dimension(10) :: array
+            do i = 1, 10
+               if (i .eq. 4) then
+                  mt1%scalar1 = 3
+               endif
+               mt1%array(i) = mt1%scalar1
+            enddo
+        end subroutine''')
+    omptrans = OMPParallelTrans()
+    routine = psyir.walk(Routine)[0]
+    omptrans.apply(routine.children)
+    directive = psyir.walk(OMPParallelDirective)[0]
+    pvars, fpvars, sync = directive._infer_sharing_attributes()
+    assert len(pvars) == 1
+    assert list(pvars)[0].name == 'i'
+    assert len(fpvars) == 1
+    if list(fpvars)[0].name == 'mt2':
+        pytest.xfail("#2094: Currently we only support top-level derived types"
+                     "as OpenMP sharing attributes, but there are cases that "
+                     "more detail is necessary.")
+
+
+def test_infer_sharing_attributes_sequential_semantics(fortran_reader):
+    ''' _infer_sharing_attributes() tries to conserve the same semantics
+    as the sequential loop, however, for loops that are not possible to
+    parallelise (but we force the transformation anyway). For now this
+    may return different results than the original code.
+
+    #TODO #598: This could be a lastprivate?
+    '''
+
+    # In this example the result will take the value of the last i in
+    # sequential order, but an arbitrary i in parallel.
+    psyir = fortran_reader.psyir_from_source('''
+        subroutine my_subroutine()
+            integer :: i, result
+            do i = 1, 10
+               result = i
+            enddo
+        end subroutine''')
+    omplooptrans = OMPParallelLoopTrans()
+    loop = psyir.walk(Loop)[0]
+    omplooptrans.apply(loop, options={"force": True})
+    directive = psyir.walk(OMPParallelDoDirective)[0]
+    pvars, fpvars, sync = directive._infer_sharing_attributes()
+    assert len(pvars) == 1
+    assert list(pvars)[0].name == 'i'
+    assert len(fpvars) == 0
+    assert len(sync) == 0
 
 
 def test_directive_lastprivate(fortran_reader, fortran_writer):

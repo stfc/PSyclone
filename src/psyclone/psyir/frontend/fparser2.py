@@ -33,6 +33,7 @@
 # Authors: R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 #          J. Henrichs, Bureau of Meteorology
 #          I. Kavcic, Met Office
+# Modified: A. B. G. Chalk, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' This module provides the fparser2 to PSyIR front-end, it follows a
@@ -303,7 +304,6 @@ def _find_or_create_imported_symbol(location, name, scope_limit=None,
         if hasattr(test_node, 'symbol_table'):
             # This Node does have a SymbolTable.
             symbol_table = test_node.symbol_table
-
             try:
                 # If the name matches a Symbol in this SymbolTable then
                 # return the Symbol (after specialising it, if necessary).
@@ -1012,8 +1012,10 @@ class Fparser2Reader():
         ('**', BinaryOperation.Operator.POW),
         ('==', BinaryOperation.Operator.EQ),
         ('.eq.', BinaryOperation.Operator.EQ),
+        ('.eqv.', BinaryOperation.Operator.EQV),
         ('/=', BinaryOperation.Operator.NE),
         ('.ne.', BinaryOperation.Operator.NE),
+        ('.neqv.', BinaryOperation.Operator.NEQV),
         ('<=', BinaryOperation.Operator.LE),
         ('.le.', BinaryOperation.Operator.LE),
         ('<', BinaryOperation.Operator.LT),
@@ -2090,6 +2092,78 @@ class Fparser2Reader():
             tsymbol.datatype = UnknownFortranType(str(decl))
             tsymbol.interface = UnknownInterface()
 
+    def _get_partial_datatype(self, node, scope, visibility_map):
+        '''Try to obtain partial datatype information from node by removing
+        any unsupported properties in the declaration.
+
+        :param node: fparser2 node containing the declaration statement.
+        :type node: :py:class:`fparser.two.Fortran2008.Type_Declaration_Stmt`
+            or :py:class:`fparser.two.Fortran2003.Type_Declaration_Stmt`
+        :param scope: PSyIR node in which to insert the symbols found.
+        :type scope: :py:class:`psyclone.psyir.nodes.ScopingNode`
+        :param visibility_map: mapping of symbol names to explicit
+            visibilities.
+        :type visibility_map: dict with str keys and values of type
+            :py:class:`psyclone.psyir.symbols.Symbol.Visibility`
+
+        :returns: a PSyIR datatype, or datatype symbol, containing
+            partial datatype information for the declaration statement
+            in the cases where it is possible to extract this
+            information and None otherwise.
+        :rtype: Optional[:py:class:`psyclone.psyir.symbols.DataType` or
+            :py:class:`psyclone.psyir.symbols.DataTypeSymbol`]
+
+        '''
+        # 1: Remove any initialisation and additional variables. TODO:
+        # This won't be needed when #1419 is implemented (assuming the
+        # implementation supports both assignments and pointer
+        # assignments).
+        entity_decl_list = node.children[2]
+        orig_entity_decl_list = list(entity_decl_list.children[:])
+        entity_decl_list.items = tuple(entity_decl_list.children[0:1])
+        entity_decl = entity_decl_list.children[0]
+        orig_entity_decl_children = list(entity_decl.children[:])
+        if isinstance(entity_decl.children[3], Fortran2003.Initialization):
+            entity_decl.items = (
+                entity_decl.items[0], entity_decl.items[1],
+                entity_decl.items[2], None)
+
+        # 2: Remove any unsupported attributes
+        unsupported_attribute_names = ["pointer", "target"]
+        attr_spec_list = node.children[1]
+        orig_node_children = list(node.children[:])
+        orig_attr_spec_list_children = (list(node.children[1].children[:])
+                                        if attr_spec_list else None)
+        if attr_spec_list:
+            entry_list = []
+            for attr_spec in attr_spec_list.children:
+                if str(attr_spec).lower() not in unsupported_attribute_names:
+                    entry_list.append(attr_spec)
+            if not entry_list:
+                node.items = (node.items[0], None, node.items[2])
+            else:
+                node.items[1].items = tuple(entry_list)
+
+        # Try to parse the modified node.
+        symbol_table = SymbolTable()
+        try:
+            self._process_decln(scope, symbol_table, node,
+                                visibility_map)
+            symbol_name = node.children[2].children[0].children[0].string
+            symbol_name = symbol_name.lower()
+            datatype = symbol_table.lookup(symbol_name).datatype
+        except NotImplementedError:
+            datatype = None
+
+        # Restore the fparser2 parse tree
+        node.items = tuple(orig_node_children)
+        if node.children[1]:
+            node.children[1].items = tuple(orig_attr_spec_list_children)
+        node.children[2].items = tuple(orig_entity_decl_list)
+        node.children[2].children[0].items = tuple(orig_entity_decl_children)
+
+        return datatype
+
     def process_declarations(self, parent, nodes, arg_list,
                              visibility_map=None):
         '''
@@ -2107,19 +2181,19 @@ class Fparser2Reader():
         :param arg_list: fparser2 AST node containing the argument list.
         :type arg_list: :py:class:`fparser.Fortran2003.Dummy_Arg_List`
         :param visibility_map: mapping of symbol names to explicit
-                        visibilities.
-        :type visibility_map: dict with str keys and values of type \
-                        :py:class:`psyclone.psyir.symbols.Symbol.Visibility`
+            visibilities.
+        :type visibility_map: dict with str keys and values of type
+            :py:class:`psyclone.psyir.symbols.Symbol.Visibility`
 
         :raises GenerationError: if an INCLUDE statement is encountered.
-        :raises NotImplementedError: the provided declarations contain \
-                                     attributes which are not supported yet.
-        :raises GenerationError: if the parse tree for a USE statement does \
-                                 not have the expected structure.
-        :raises SymbolError: if a declaration is found for a Symbol that is \
-                    already in the symbol table with a defined interface.
-        :raises InternalError: if the provided declaration is an unexpected \
-                               or invalid fparser or Fortran expression.
+        :raises NotImplementedError: the provided declarations contain
+            attributes which are not supported yet.
+        :raises GenerationError: if the parse tree for a USE statement does
+            not have the expected structure.
+        :raises SymbolError: if a declaration is found for a Symbol that is
+            already in the symbol table with a defined interface.
+        :raises InternalError: if the provided declaration is an unexpected
+            or invalid fparser or Fortran expression.
 
         '''
         if visibility_map is None:
@@ -2239,16 +2313,23 @@ class Fparser2Reader():
                         except KeyError:
                             pass
 
+                        # Try to extract partial datatype information.
+                        datatype = self._get_partial_datatype(
+                            node, parent, visibility_map)
+
                         # If a declaration declares multiple entities, it's
                         # possible that some may have already been processed
                         # successfully and thus be in the symbol table.
                         try:
                             parent.symbol_table.add(
-                                DataSymbol(symbol_name,
-                                           UnknownFortranType(str(node)),
-                                           interface=UnknownInterface(),
-                                           visibility=vis),
+                                DataSymbol(
+                                    symbol_name, UnknownFortranType(
+                                        str(node),
+                                        partial_datatype=datatype),
+                                    interface=UnknownInterface(),
+                                    visibility=vis),
                                 tag=tag)
+
                         except KeyError as err:
                             if len(orig_children) == 1:
                                 raise SymbolError(
@@ -2529,7 +2610,6 @@ class Fparser2Reader():
         '''
         code_block_nodes = []
         for child in nodes:
-
             try:
                 psy_child = self._create_child(child, parent)
             except NotImplementedError:
@@ -2827,7 +2907,7 @@ class Fparser2Reader():
                 if construct_name in [name.string for name in names]:
                     raise NotImplementedError()
 
-        ctrl = walk(node.content, Fortran2003.Loop_Control)
+        ctrl = walk(nonlabel_do, Fortran2003.Loop_Control)
         # do loops with no condition and do while loops
         if not ctrl or ctrl[0].items[0]:
             annotation = ['was_unconditional'] if not ctrl else None
@@ -3202,6 +3282,10 @@ class Fparser2Reader():
         :param parent: parent node in the PSyIR.
         :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
+        :raises NotImplementedError: If the operator for an equality cannot be
+                                     determined (i.e. the statement cannot be
+                                     determined to be a logical comparison
+                                     or not)
         '''
         if isinstance(node, Fortran2003.Case_Value_Range):
             # The case value is a range (e.g. lim1:lim2)
@@ -3230,12 +3314,54 @@ class Fparser2Reader():
                 self.process_nodes(parent=leop, nodes=[node.items[1]])
                 new_parent.addchild(leop)
         else:
-            # The case value is some scalar initialisation expression
+            # The case value is some scalar expression
             bop = BinaryOperation(BinaryOperation.Operator.EQ,
                                   parent=parent)
-            parent.addchild(bop)
             self.process_nodes(parent=bop, nodes=[selector])
             self.process_nodes(parent=bop, nodes=[node])
+            # TODO #1799 when generic child.datatype is supported we can
+            # remove the conditional inside the loop and support full
+            # expressions
+
+            # Keep track of whether we know if the operator should be EQ/EQV
+            operator_known = False
+            for child in bop.children:
+                if (isinstance(child, Literal) and
+                        isinstance(child.datatype, ScalarType)):
+                    # We know the operator for all literals
+                    operator_known = True
+                    if (child.datatype.intrinsic ==
+                            ScalarType.Intrinsic.BOOLEAN):
+                        rhs = bop.children[1].detach()
+                        lhs = bop.children[0].detach()
+                        bop = BinaryOperation(BinaryOperation.Operator.EQV,
+                                              parent=parent)
+                        bop.addchild(lhs)
+                        bop.addchild(rhs)
+                elif (isinstance(child, Reference) and
+                        isinstance(child.symbol, DataSymbol) and
+                        not isinstance(child.symbol.datatype,
+                                       UnknownFortranType)):
+                    # We know the operator for all known reference types.
+                    operator_known = True
+                    if (child.symbol.datatype.intrinsic ==
+                            ScalarType.Intrinsic.BOOLEAN):
+                        rhs = bop.children[1].detach()
+                        lhs = bop.children[0].detach()
+                        bop = BinaryOperation(BinaryOperation.Operator.EQV,
+                                              parent=parent)
+                        bop.addchild(lhs)
+                        bop.addchild(rhs)
+
+            if operator_known:
+                parent.addchild(bop)
+            else:
+                raise NotImplementedError(f"PSyclone can't determine if this "
+                                          f"case should be '==' or '.EQV.' "
+                                          f"because it can't figure out if "
+                                          f"{bop.children[0].debug_string} "
+                                          f"or {bop.children[1].debug_string}"
+                                          f" are logical expressions.")
 
     @staticmethod
     def _array_notation_rank(node):
@@ -4364,10 +4490,22 @@ class Fparser2Reader():
         :returns: PSyIR representation of node.
         :rtype: :py:class:`psyclone.psyir.nodes.Routine`
 
+
+        :raises NotImplementedError: if the node contains a Contains clause.
         :raises NotImplementedError: if an unsupported prefix is found or no \
             explicit type information is available for a Function.
 
         '''
+        try:
+            _first_type_match(node.children,
+                              Fortran2003.Internal_Subprogram_Part)
+            has_contains = True
+        except ValueError:
+            has_contains = False
+        if has_contains:
+            raise NotImplementedError("PSyclone doesn't yet support 'Contains'"
+                                      " inside a Subroutine or Function")
+
         name = node.children[0].children[1].string
         routine = Routine(name, parent=parent)
 
@@ -4407,7 +4545,7 @@ class Fparser2Reader():
                         raise NotImplementedError(
                             f"Routine has unsupported prefix: {child.string}")
                 else:
-                    base_type, _ = self._process_type_spec(parent, child)
+                    base_type, _ = self._process_type_spec(routine, child)
 
         if isinstance(node, Fortran2003.Function_Subprogram):
             # Check whether this function-stmt has a suffix containing

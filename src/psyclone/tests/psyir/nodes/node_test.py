@@ -624,6 +624,62 @@ def test_node_ancestor():
     assert kern.ancestor(Loop, limit=sched) is kern.parent.parent
 
 
+def test_node_ancestor_shared_with(fortran_reader):
+    ''' Test the shared_with parameter of the Node.ancestor() method. '''
+    code = '''Subroutine test()
+    integer :: x
+    x = 1 + 2 * 3
+    End Subroutine test
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    assignment = psyir.children[0].children[0]
+    add_binop = assignment.rhs
+    one_lit = add_binop.children[0]
+    mul_binop = add_binop.children[1]
+    two_lit = mul_binop.children[0]
+    three_lit = mul_binop.children[1]
+
+    assert (two_lit.ancestor(BinaryOperation, shared_with=three_lit) is
+            mul_binop)
+    assert (two_lit.ancestor(BinaryOperation, shared_with=mul_binop,
+                             include_self=True) is mul_binop)
+    assert (two_lit.ancestor(BinaryOperation, shared_with=mul_binop,
+                             include_self=False) is add_binop)
+    assert (two_lit.ancestor(Node, shared_with=one_lit,
+                             excluding=(BinaryOperation)) is assignment)
+    # Check the inverse of previous statements is the same.
+    assert (three_lit.ancestor(BinaryOperation, shared_with=two_lit) is
+            mul_binop)
+    assert (mul_binop.ancestor(BinaryOperation, shared_with=two_lit,
+                               include_self=True) is mul_binop)
+    assert (mul_binop.ancestor(BinaryOperation, shared_with=two_lit,
+                               include_self=False) is add_binop)
+    assert (one_lit.ancestor(Node, shared_with=two_lit,
+                             excluding=(BinaryOperation)) is assignment)
+
+    # Check cases where we don't find a valid ancestor
+    assert (two_lit.ancestor(BinaryOperation, shared_with=one_lit,
+                             limit=mul_binop) is None)
+    assert (assignment.ancestor(BinaryOperation, shared_with=one_lit)
+            is None)
+
+    code2 = '''Subroutine test2()
+    integer :: x
+    x = 1 + 2
+    End Subroutine test2
+    '''
+    psyir2 = fortran_reader.psyir_from_source(code2)
+    assignment2 = psyir2.children[0].children[0]
+
+    # Tests where node (one_list) and the shared_with argument are
+    # from separate psyir trees, i.e. they have no shared ancestors.
+    assert one_lit.ancestor(Node, shared_with=assignment2) is None
+    # Test when supplied a limit argument that is not an ancestor of
+    # the node (one_lit) but is an ancestor of the shared_with parameter.
+    assert one_lit.ancestor(Node, shared_with=assignment2,
+                            limit=assignment2.parent) is None
+
+
 def test_dag_names():
     ''' Test that the dag_name method returns the correct value for the
     node class and its specialisations. '''

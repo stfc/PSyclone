@@ -470,6 +470,42 @@
 	159) PR #2181 for #2175. Bug fixes for processing of Fortran
 	declarations and integer literals.
 
+	160) PR #2107 for #2106. Improvements to NEMO processing scripts and
+	inclusion in Integration Testing.
+
+	161) PR #2198 for #2194. Fixes handling of a function where the
+	precision of the result is only defined within the function.
+
+	162) PR #2187 towards #1618. Remove builtin use statements when
+	lowering.
+
+	163) PR #2191 for #2185. Fix element order used in PSyAD test
+	harness.
+
+	164) PR #2208 towards #2205. Ensures that functions or subroutines
+	that CONTAIN other functions/subroutines are put into a CodeBlock.
+
+	165) PR #2124 fir #2101. Refactors OpenMP inference of private/first-
+	private variables and those requiring synchronisation.
+
+	166) PR #2210 for #2206. Ensure symbol renaming included when deep-
+	copying a symbol table.
+
+	167) PR #2209 for #2204. Add support for EQV and NEQV and fix select
+	case bug with logical comparisons.
+
+	168) PR #2211 for #2183. Change PSyAD test-harness generation to use
+	the same variable names as the TL kernel being tested.
+
+	169) PR #2212 for #2203. Fix bug in PSyIR fparser2 frontend when
+	DO WHILE contains normal DO loops.
+
+	170) PR #2220 for #2219. Adds 'shared_with' argument to the
+	node.ancestor() method.
+
+	171) PR #2174 for #2171. Add support for obtaining the partial datatype
+	of an UnknownFortranType.
+
 release 2.3.1 17th of June 2022
 
 	1) PR #1747 for #1720. Adds support for If blocks to PSyAD.
