@@ -7611,6 +7611,7 @@ class DynKern(CodedKern):
         if False:  # pylint: disable=using-constant-test
             self._arguments = DynKernelArguments(None, None)  # for pyreverse
         self._parent = parent
+        self._has_constructor_parent = True
         self._base_name = ""
         self._func_descriptors = None
         self._fs_descriptors = None

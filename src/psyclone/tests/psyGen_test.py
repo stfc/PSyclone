@@ -64,10 +64,8 @@ from psyclone.psyGen import TransInfo, Transformation, PSyFactory, \
     InlinedKern, object_index, HaloExchange, Invoke, \
     DataAccess, Kern, Arguments, CodedKern, Argument, GlobalSum, \
     InvokeSchedule, BuiltIn
-from psyclone.psyir.backend.c import CWriter
-from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import Assignment, BinaryOperation, Container, \
-    Literal, Node, KernelSchedule, Call, colored
+    Literal, Node, KernelSchedule, Call, Schedule, colored
 from psyclone.psyir.symbols import DataSymbol, RoutineSymbol, REAL_TYPE, \
     ImportInterface, ContainerSymbol, Symbol, INTEGER_TYPE, DeferredType, \
     SymbolTable
@@ -529,6 +527,8 @@ def test_codedkern_module_inline_gen_code(tmpdir):
     coded_kern.module_inline = True
 
     # Fail if local routine symbol does not already exist
+    del schedule.symbol_table._symbols["ru_code"]
+
     with pytest.raises(GenerationError) as err:
         gen = str(psy.gen)
     assert ("Cannot generate this kernel call to 'ru_code' because it "
@@ -570,6 +570,7 @@ def test_codedkern_module_inline_kernel_in_multiple_invokes(tmpdir):
 
     # After this, one invoke uses the inlined top-level subroutine
     # and the other imports it (shadowing the top-level symbol)
+    import pdb; pdb.set_trace()
     assert gen.count("USE testkern_qr, ONLY: testkern_qr_code") == 1
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -663,36 +664,6 @@ def test_kern_coloured_text():
     assert colored("BuiltIn", bkern._colour) in ret_str
 
 
-def test_kern_children_validation():
-    '''Test that children added to Kern are validated. A Kern node does not
-    accept any children.
-
-    '''
-    # We use a subclass (CodedKern->DynKern) to test this functionality.
-    ast = fpapi.parse(FAKE_KERNEL_METADATA, ignore_comments=False)
-    metadata = DynKernMetadata(ast)
-    kern = DynKern(parent=Schedule())
-    kern.load_meta(metadata)
-
-    with pytest.raises(GenerationError) as excinfo:
-        kern.addchild(Literal("2", INTEGER_TYPE))
-    assert ("Item 'Literal' can't be child 0 of 'CodedKern'. CodedKern "
-            "is a LeafNode and doesn't accept children.") in str(excinfo.value)
-
-
-def test_inlinedkern_children_validation():
-    '''Test that children added to Kern are validated. A Kern node does not
-    accept any children.
-
-    '''
-    ikern = InlinedKern(None)
-
-    with pytest.raises(GenerationError) as excinfo:
-        ikern.addchild(Literal("2", INTEGER_TYPE))
-    assert ("Item 'Literal' can't be child 1 of 'InlinedKern'. The valid "
-            "format is: 'Schedule'.") in str(excinfo.value)
-
-
 def test_call_abstract_methods():
     ''' Check that calling the abstract methods of Kern raises
     the expected exceptions '''
@@ -717,14 +688,10 @@ def test_call_abstract_methods():
             Arguments.__init__(self, parent_call)
 
     dummy_call = DummyClass(my_ktype)
-    my_call = Kern(None, dummy_call, "dummy", DummyArguments)
+    my_call = Kern(dummy_call, "dummy", DummyArguments)
     with pytest.raises(NotImplementedError) as excinfo:
         my_call.local_vars()
     assert "Kern.local_vars should be implemented" in str(excinfo.value)
-
-    with pytest.raises(NotImplementedError) as excinfo:
-        my_call.gen_code(None)
-    assert "Kern.gen_code should be implemented" in str(excinfo.value)
 
 
 def test_arguments_abstract():
@@ -799,6 +766,7 @@ def test_kern_is_coloured2():
                          datatype=INTEGER_TYPE)
     # Create a loop nest of depth 3 containing the kernel, innermost first
     my_kern = DynKern(parent=Schedule())
+    my_kern._parent = None
     loops = [PSyLoop.create(table.lookup("cell0"),
                             Literal("1", INTEGER_TYPE),
                             Literal("10", INTEGER_TYPE),

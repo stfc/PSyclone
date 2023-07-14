@@ -1464,15 +1464,16 @@ class CodedKern(Kern, Call):
             # If it is not module inlined then make sure we generate the kernel
             # file (and rename it when necessary).
             self.rename_and_write()
-        else:
-            # If its inlined, the symbol must exist
-            rsymbol = self.scope.symbol_table.lookup(self._name)
 
-        # Create Call to the rsymbol with the argument expressions as children
-        # of the new node
-        self.children = self.arguments.psyir_expressions()
+        # The symbol must already exist
+        rsymbol = self.scope.symbol_table.lookup(self._name)
 
-        return self
+        call_node = Call.create(rsymbol, self.arguments.psyir_expressions())
+
+        # Swap itself with the appropriate Call node
+        self.replace_with(call_node)
+
+        return call_node
 
     def gen_code(self, parent):
         '''
