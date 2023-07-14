@@ -186,7 +186,7 @@ class Matmul2CodeTrans(Operator2CodeTrans):
             operation is not an assignment.
         :raises TransformationError: if the matmul arguments are not in \
             the required form.
-        :raises NotImplementedError: if sub-sections of an array are present \
+        :raises TransformationError: if sub-sections of an array are present \
             in the arguments.
 
         '''
@@ -256,23 +256,16 @@ class Matmul2CodeTrans(Operator2CodeTrans):
             # limited to Ranges which specify the full extent of the
             # dimension.
             if not (matrix1.is_full_range(0) and matrix1.is_full_range(1)):
-                raise NotImplementedError(
+                raise TransformationError(
                     f"To use matmul2code_trans on matmul, the first two "
                     f"indices of the 1st argument '{matrix1.name}' must be "
                     f"full ranges.")
-
-            if result.children:
-                if result.is_full_range(0) and result.is_full_range(1):
-                    raise NotImplementedError(
-                        f"To use matmul2code_trans on matmul, the first two "
-                        f"indices of the 1st argument '{matrix1.name}' must be "
-                        f"full ranges.")
 
             if len(matrix1.children) > 2:
                 # The 3rd index and onwards must not be ranges.
                 for (count, index) in enumerate(matrix1.children[2:]):
                     if isinstance(index, Range):
-                        raise NotImplementedError(
+                        raise TransformationError(
                             f"To use matmul2code_trans on matmul, only the "
                             f"first two indices of the 1st argument are "
                             f"permitted to be Ranges but found "
@@ -298,7 +291,7 @@ class Matmul2CodeTrans(Operator2CodeTrans):
             # transformation is currently limited to Ranges which
             # specify the full extent of the dimension.
             if not matrix2.is_full_range(0):
-                raise NotImplementedError(
+                raise TransformationError(
                     f"To use matmul2code_trans on matmul, the first index of "
                     f"the 2nd argument '{matrix2.name}' must be a full range.")
             # Check that the second dimension is a full range if it is
@@ -306,7 +299,7 @@ class Matmul2CodeTrans(Operator2CodeTrans):
             if (len(matrix2.symbol.shape) > 1 and
                     isinstance(matrix2.children[1], Range)
                     and not matrix2.is_full_range(1)):
-                raise NotImplementedError(
+                raise TransformationError(
                     f"To use matmul2code_trans on matmul for a matrix-matrix "
                     f"multiplication, the second index of the 2nd "
                     f"argument '{matrix2.name}' must be a full range.")
@@ -314,11 +307,20 @@ class Matmul2CodeTrans(Operator2CodeTrans):
                 # The 3rd index and onwards must not be ranges.
                 for (count, index) in enumerate(matrix2.children[2:]):
                     if isinstance(index, Range):
-                        raise NotImplementedError(
+                        raise TransformationError(
                             f"To use matmul2code_trans on matmul, only the "
                             f"first two indices of the 2nd argument are "
                             f"permitted to be a Range but found "
                             f"{type(index).__name__} at index {count+2}.")
+
+        # Make sure the result has as many full range as needed
+        if result.children:
+            for idx, child in enumerate(result.children):
+                if isinstance(child, Range) and not result.is_full_range(idx):
+                    raise TransformationError(
+                        f"To use matmul2code_trans on matmul, each range on "
+                        f"the result variable '{result.name}' must be a full "
+                        f"range but found {result.debug_string()}")
 
         # Make sure the result is not one of the MATMUL operands
         for ref in result.walk(Reference):

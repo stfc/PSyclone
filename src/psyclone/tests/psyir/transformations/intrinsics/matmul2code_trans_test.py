@@ -482,7 +482,7 @@ def test_validate10():
     matmul = create_matmul()
     matrix = matmul.children[0]
     matrix.children[0] = Literal("1", INTEGER_TYPE)
-    with pytest.raises(NotImplementedError) as excinfo:
+    with pytest.raises(TransformationError) as excinfo:
         trans.validate(matmul)
     assert ("To use matmul2code_trans on matmul, the first two indices of the "
             "1st argument 'x' must be full ranges." in str(excinfo.value))
@@ -500,7 +500,7 @@ def test_validate11():
     matrix = matmul.children[0]
     my_range = matrix.children[0].copy()
     matrix.children[2] = my_range
-    with pytest.raises(NotImplementedError) as excinfo:
+    with pytest.raises(TransformationError) as excinfo:
         trans.validate(matmul)
     assert ("To use matmul2code_trans on matmul, only the first two indices "
             "of the 1st argument are permitted to be Ranges but "
@@ -518,7 +518,7 @@ def test_validate12():
     matmul = create_matmul()
     vector = matmul.children[1]
     vector.children[0] = Literal("1", INTEGER_TYPE)
-    with pytest.raises(NotImplementedError) as excinfo:
+    with pytest.raises(TransformationError) as excinfo:
         trans.validate(matmul)
     assert ("To use matmul2code_trans on matmul, the first index of the 2nd "
             "argument 'y' must be a full range." in str(excinfo.value))
@@ -533,11 +533,11 @@ def test_validate_2nd_dim_2nd_arg():
     matrix2 = matmul.children[1]
     matrix2.children[1] = Range.create(Literal("1", INTEGER_TYPE),
                                        Literal("2", INTEGER_TYPE))
-    with pytest.raises(NotImplementedError) as excinfo:
+    with pytest.raises(TransformationError) as excinfo:
         trans.validate(matmul)
     assert ("To use matmul2code_trans on matmul for a matrix-matrix "
             "multiplication, the second index of the 2nd argument 'y' must "
-            "be a full range." in str(excinfo))
+            "be a full range." in str(excinfo.value))
 
 
 def test_validate13():
@@ -552,7 +552,7 @@ def test_validate13():
     vector = matmul.children[1]
     my_range = vector.children[0].copy()
     vector.children[2] = my_range
-    with pytest.raises(NotImplementedError) as excinfo:
+    with pytest.raises(TransformationError) as excinfo:
         trans.validate(matmul)
     assert ("To use matmul2code_trans on matmul, only the first two "
             "indices of the 2nd argument are permitted to be a Range but "
@@ -568,6 +568,66 @@ def test_validate14():
     trans = Matmul2CodeTrans()
     matmul = create_matmul()
     trans.validate(matmul)
+
+
+def test_validate_matmat_with_slices_on_rhs(fortran_reader):
+    '''
+    Check the apply method works when there are already symbols present
+    with names that would clash with the new loop variables.
+
+    '''
+    psyir = fortran_reader.psyir_from_source(
+        "subroutine my_sub()\n"
+        "  real, dimension(2,6) :: jac\n"
+        "  real, dimension(6,3) :: jac_inv\n"
+        "  real, dimension(10,10) :: result\n"
+        "  result(2:4,2:5) = matmul(jac(:,:), jac_inv(:,:))\n"
+        "end subroutine my_sub\n")
+    trans = Matmul2CodeTrans()
+    assign = psyir.walk(Assignment)[0]
+    with pytest.raises(TransformationError) as excinfo:
+        trans.apply(assign.rhs)
+    assert ("To use matmul2code_trans on matmul, each range on the result "
+            "variable 'result' must be a full range but found "
+            "result(2:4,2:5)" in str(excinfo.value))
+
+
+def test_validate_matmat_with_same_mem(fortran_reader):
+    '''
+    Check the apply method works when there are already symbols present
+    with names that would clash with the new loop variables.
+
+    '''
+    psyir = fortran_reader.psyir_from_source(
+        "subroutine my_sub()\n"
+        "  real, dimension(2,2) :: jac\n"
+        "  real, dimension(2,2) :: jac_inv\n"
+        "  jac = matmul(jac(:,:), jac_inv(:,:))\n"
+        "end subroutine my_sub\n")
+    trans = Matmul2CodeTrans()
+    assign = psyir.walk(Assignment)[0]
+    with pytest.raises(TransformationError) as excinfo:
+        trans.apply(assign.rhs)
+    assert ("Transformation Error: 'jac' is the result location and one of the"
+            " MATMUL operators. This is not supported." in str(excinfo.value))
+
+    # In the version below we can not guarantee whether the memory is the same
+    psyir = fortran_reader.psyir_from_source(
+        "subroutine my_sub()\n"
+        "  real, dimension(2,2) :: jac\n"
+        "  real, dimension(2,2), pointer :: jac_inv\n"
+        "  real, dimension(2,2), pointer :: result\n"
+        "  result = matmul(jac(:,:), jac_inv(:,:))\n"
+        "end subroutine my_sub\n")
+    trans = Matmul2CodeTrans()
+    assign = psyir.walk(Assignment)[0]
+    with pytest.raises(TransformationError) as excinfo:
+        trans.apply(assign.rhs)
+    print(excinfo.value)
+    assert ("Transformation Error: Expected result and operands of MATMUL "
+            "BinaryOperation to be references to arrays but found 'result: "
+            "DataSymbol<UnknownFortranType('REAL, DIMENSION(2, 2), POINTER "
+            ":: result')" in str(excinfo.value))
 
 
 def test_apply_matvect(tmpdir):
@@ -823,82 +883,6 @@ def test_apply_matmat_extra_indices(tmpdir, fortran_reader, fortran_writer):
         "    enddo\n"
         "  enddo\n" in out)
     assert Compile(tmpdir).string_compiles(out)
-
-
-def test_validate_matmat_with_slices(tmpdir, fortran_reader, fortran_writer):
-    '''
-    Check the apply method works when there are already symbols present
-    with names that would clash with the new loop variables.
-
-    '''
-    psyir = fortran_reader.psyir_from_source(
-        "subroutine my_sub()\n"
-        "  real, dimension(2,6) :: jac\n"
-        "  real, dimension(6,3) :: jac_inv\n"
-        "  real, dimension(10,10) :: result\n"
-        "  result(2:4,2:5) = matmul(jac(:,:), jac_inv(:,:))\n"
-        "end subroutine my_sub\n")
-    trans = Matmul2CodeTrans()
-    assign = psyir.walk(Assignment)[0]
-    trans.apply(assign.rhs)
-    out = fortran_writer(psyir)
-    print(out)
-    assert (
-        "  real, dimension(2,6) :: jac\n"
-        "  real, dimension(6,3) :: jac_inv\n"
-        "  real, dimension(2,3,4,4) :: result\n"
-        "  integer :: i\n"
-        "  integer :: j\n"
-        "  integer :: ii\n"
-        "\n"
-        "  do j = 1, 3, 1\n"
-        "    do i = 1, 2, 1\n"
-        "      result(i,j,2,3) = 0.0\n"
-        "      do ii = 1, 6, 1\n"
-        "        result(i,j,2,3) = result(i,j,2,3) + jac(i,ii) * jac_inv(ii,j)"
-        "\n"
-        "      enddo\n"
-        "    enddo\n"
-        "  enddo\n" in out)
-    assert Compile(tmpdir).string_compiles(out)
-
-
-def test_validate_matmat_with_same_mem(fortran_reader):
-    '''
-    Check the apply method works when there are already symbols present
-    with names that would clash with the new loop variables.
-
-    '''
-    psyir = fortran_reader.psyir_from_source(
-        "subroutine my_sub()\n"
-        "  real, dimension(2,2) :: jac\n"
-        "  real, dimension(2,2) :: jac_inv\n"
-        "  jac = matmul(jac(:,:), jac_inv(:,:))\n"
-        "end subroutine my_sub\n")
-    trans = Matmul2CodeTrans()
-    assign = psyir.walk(Assignment)[0]
-    with pytest.raises(TransformationError) as excinfo:
-        trans.apply(assign.rhs)
-    assert ("Transformation Error: 'jac' is the result location and one of the"
-            " MATMUL operators. This is not supported." in str(excinfo.value))
-
-    # In the version below we can not guarantee whether the memory is the same
-    psyir = fortran_reader.psyir_from_source(
-        "subroutine my_sub()\n"
-        "  real, dimension(2,2) :: jac\n"
-        "  real, dimension(2,2), pointer :: jac_inv\n"
-        "  real, dimension(2,2), pointer :: result\n"
-        "  result = matmul(jac(:,:), jac_inv(:,:))\n"
-        "end subroutine my_sub\n")
-    trans = Matmul2CodeTrans()
-    assign = psyir.walk(Assignment)[0]
-    with pytest.raises(TransformationError) as excinfo:
-        trans.apply(assign.rhs)
-    print(excinfo.value)
-    assert ("Transformation Error: Expected result and operands of MATMUL "
-            "BinaryOperation to be references to arrays but found 'result: "
-            "DataSymbol<UnknownFortranType('REAL, DIMENSION(2, 2), POINTER "
-            ":: result')" in str(excinfo.value))
 
 
 def test_apply_matmat_name_clashes(tmpdir, fortran_reader, fortran_writer):
