@@ -3531,6 +3531,111 @@ end subroutine my_subroutine
     assert fortran_writer(tree) == correct
 
 
+def test_omp_task_directive_call_failure(fortran_reader):
+    ''' Test that lowering fails when we have a non-inlined call.'''
+    code = '''
+    subroutine my_subroutine()
+        use temp_mod, only: external_sub
+        integer :: i, ii
+        integer :: j, jj
+
+        do i = 1, 320, 32
+            do j = 1, 320, 32
+                call external_sub(i, j)
+            end do
+        end do
+    end subroutine
+    '''
+    tree = fortran_reader.psyir_from_source(code)
+    ptrans = OMPParallelTrans()
+    strans = OMPSingleTrans()
+    tdir = DynamicOMPTaskDirective()
+    loops = tree.walk(Loop)
+    loop = loops[0]
+    parent = loop.parent
+    loop.detach()
+    tdir.children[0].addchild(loop)
+    parent.addchild(tdir, index=0)
+    strans.apply(tree.children[0].children[:])
+    ptrans.apply(tree.children[0].children[:])
+    with pytest.raises(GenerationError) as excinfo:
+        tree.lower_to_language_level()
+    assert ("Attempted to lower to OMPTaskDirective node, but the node "
+            "contains a Call or Kern which must be inlined first."
+            in str(excinfo.value))
+
+
+def test_omp_task_external_constant(fortran_reader, fortran_writer):
+    ''' Test the an external constant is ignored in clauses.'''
+    code = '''
+    module mymod
+        integer, parameter :: constant = 1
+
+        contains
+    subroutine my_subroutine()
+        integer, dimension(321, 10) :: A
+        integer, dimension(32, 10) :: B
+        integer :: i, ii
+        integer :: j
+        do i = 1, 320, 32
+            do ii=i, i+32
+                do j = 1, 32
+                    A(ii, j) = B(ii+1, j) + constant
+                end do
+            end do
+        end do
+    end subroutine
+    end module mymod
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    tree = psyir.children[0].children[0]
+    ptrans = OMPParallelTrans()
+    strans = OMPSingleTrans()
+    tdir = DynamicOMPTaskDirective()
+    loops = tree.walk(Loop, stop_type=Loop)
+    loop = loops[0].children[3].children[0]
+    parent = loop.parent
+    loop.detach()
+    tdir.children[0].addchild(loop)
+    parent.addchild(tdir, index=0)
+    strans.apply(loops[0])
+    ptrans.apply(loops[0].parent.parent)
+
+    correct = '''module mymod
+  implicit none
+  integer, parameter, public :: constant = 1
+  public
+
+  contains
+  subroutine my_subroutine()
+    integer, dimension(321,10) :: a
+    integer, dimension(32,10) :: b
+    integer :: i
+    integer :: ii
+    integer :: j
+
+    !$omp parallel default(shared), private(i,ii,j)
+    !$omp single
+    do i = 1, 320, 32
+      !$omp task private(ii,j), firstprivate(i), shared(a,b), \
+depend(in: b(i + 32,:),b(i,:)), depend(out: a(i,:))
+      do ii = i, i + 32, 1
+        do j = 1, 32, 1
+          a(ii,j) = b(ii + 1,j) + constant
+        enddo
+      enddo
+      !$omp end task
+    enddo
+    !$omp end single
+    !$omp end parallel
+
+  end subroutine my_subroutine
+
+end module mymod
+'''
+    assert correct == fortran_writer(psyir)
+
+
 # TODO #2052 This test is expected to fail as we can't yet handle
 # multiple indirections on either side of a statement and will over
 # generate code for this dependency.
