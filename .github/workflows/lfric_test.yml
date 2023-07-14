@@ -110,5 +110,4 @@ jobs:
         cp ${HOME}/lfric_gunho_configuration.nml configuration.nml
         export OMP_NUM_THREADS=6
         mpirun -n 1 ../bin/gungho_model configuration.nml
-        tail PET0.gungho_model.Log
         cat timer.txt

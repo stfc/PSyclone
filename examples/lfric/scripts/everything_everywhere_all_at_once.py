@@ -42,19 +42,22 @@ DistibutedMemory, OpenMP coloring and serial transformations possible.
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
+from psyclone.dynamo0p3 import DynHaloExchange, DynHaloExchangeStart
 from psyclone.psyir.transformations import Matmul2CodeTrans
 from psyclone.psyir.nodes import BinaryOperation, Container, KernelSchedule
 from psyclone.transformations import Dynamo0p3ColourTrans, \
                                      Dynamo0p3OMPLoopTrans, \
                                      OMPParallelTrans, \
                                      Dynamo0p3RedundantComputationTrans, \
+                                     Dynamo0p3AsyncHaloExchangeTrans, \
+                                     MoveTrans, \
                                      TransformationError
 
-VERBOSE = False
 ENABLE_REDUNDANT_COMPUTATION = True
-ENABLE_LOOP_FUSING = False
-ENABLE_INTRINSIC_INLINING = False
+ENABLE_ASYNC_HALOS = True
 ENABLE_OMP_COLOURING = True
+ENABLE_LOOP_FUSING = False
+ENABLE_INTRINSIC_INLINING = True
 ENABLE_KERNEL_CONSTANTS = False
 
 
@@ -68,6 +71,8 @@ def trans(psy):
     inline_trans = KernelModuleInlineTrans()
     matmul_trans = Matmul2CodeTrans()
     const = LFRicConstants()
+    ahex_trans = Dynamo0p3AsyncHaloExchangeTrans()
+    mtrans = MoveTrans()
 
     # Loop over all of the Invokes in the PSy object
     for invoke in psy.invokes.invoke_list:
@@ -81,6 +86,25 @@ def trans(psy):
                     if len(loop.kernels()) == 1:
                         if loop.kernels()[0].name in ["setval_c", "setval_x"]:
                             rtrans.apply(loop, options={"depth": 1})
+
+        if ENABLE_ASYNC_HALOS:
+            # This transformation splits the three synchronous halo exchanges
+            for h_ex in schedule.walk(DynHaloExchange):
+                ahex_trans.apply(h_ex)
+
+            # This transformation moves the start of the halo exchanges as far
+            # as possible offering the potential for overlap between communication
+            # and computation.
+            location_cursor = 0
+            for ahex in schedule.walk(DynHaloExchangeStart):
+                if ahex.position <= location_cursor:
+                    continue
+                try:
+                    mtrans.apply(ahex, schedule.children[location_cursor])
+                    location_cursor += 1
+                except TransformationError:
+                    pass
+
 
         if ENABLE_LOOP_FUSING:
             # Fuse Loops when possible
@@ -128,6 +152,5 @@ def trans(psy):
                             matmul_trans.apply(bop)
                         except TransformationError:
                             pass
-
 
     return psy
