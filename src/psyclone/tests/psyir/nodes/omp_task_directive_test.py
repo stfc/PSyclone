@@ -3459,6 +3459,78 @@ end subroutine my_subroutine\n'''
     assert fortran_writer(tree) == correct
 
 
+def test_omp_task_directive_46(fortran_reader, fortran_writer):
+    ''' Test the code generation correctly generates the correct code if
+    code contains a type within a type and the array index is a binary
+    operation.'''
+    code = '''
+    subroutine my_subroutine()
+      type :: y
+        integer, dimension(321) :: jp
+      end type
+      type :: x
+        type(y) :: y
+      end type
+        integer :: i, ii
+        integer :: j, jj
+        integer :: k
+        type(x) :: ty
+
+        do i = 1, 320, 32
+            do j = 1, 320, 32
+                k = k + ty%y%jp(i) + i
+                ty%y%jp(i+1) = ty%y%jp(i+1) - (1 - ty%y%jp(i+1))
+                ty%y%jp(1) = ty%y%jp(1) + 1
+            end do
+        end do
+    end subroutine
+    '''
+    tree = fortran_reader.psyir_from_source(code)
+    ptrans = OMPParallelTrans()
+    strans = OMPSingleTrans()
+    tdir = DynamicOMPTaskDirective()
+    loops = tree.walk(Loop)
+    loop = loops[0]
+    parent = loop.parent
+    loop.detach()
+    tdir.children[0].addchild(loop)
+    parent.addchild(tdir, index=0)
+    strans.apply(tree.children[0].children[:])
+    ptrans.apply(tree.children[0].children[:])
+    correct = '''subroutine my_subroutine()
+  type :: y
+    integer, dimension(321) :: jp
+  end type y
+  type :: x
+    type(y) :: y
+  end type x
+  integer :: i
+  integer :: ii
+  integer :: j
+  integer :: jj
+  integer :: k
+  type(x) :: ty
+
+  !$omp parallel default(shared), private(i,j)
+  !$omp single
+  !$omp task private(i,j), shared(k,ty), depend(in: k,ty%y%jp(:),ty%y%jp(1)), \
+depend(out: k,ty%y%jp(:),ty%y%jp(1))
+  do i = 1, 320, 32
+    do j = 1, 320, 32
+      k = k + ty%y%jp(i) + i
+      ty%y%jp(i + 1) = ty%y%jp(i + 1) - (1 - ty%y%jp(i + 1))
+      ty%y%jp(1) = ty%y%jp(1) + 1
+    enddo
+  enddo
+  !$omp end task
+  !$omp end single
+  !$omp end parallel
+
+end subroutine my_subroutine
+'''
+    assert fortran_writer(tree) == correct
+
+
 # TODO #2052 This test is expected to fail as we can't yet handle
 # multiple indirections on either side of a statement and will over
 # generate code for this dependency.
