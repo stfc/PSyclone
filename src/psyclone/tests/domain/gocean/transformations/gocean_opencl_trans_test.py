@@ -109,6 +109,9 @@ def test_transformation_name():
 def test_validate_unsupported_api():
     ''' Check that attempting to apply an OpenCL transformation to a Dynamo
     InvokeSchedule raises the expected error. '''
+    # Undo the effect of the 'auto-use' fixture (at the top of this file)
+    # that sets-up the Config object for the GOcean API.
+    Config._instance = None
     _, invoke = get_invoke("1_single_invoke.f90", "dynamo0.3",
                            name="invoke_0_testkern_type", dist_mem=False)
     sched = invoke.schedule

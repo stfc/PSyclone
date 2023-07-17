@@ -49,7 +49,7 @@ from psyclone.dynamo0p3 import DynKern
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import Literal, Loop, Reference, UnaryOperation
-from psyclone.psyir.symbols import ArrayType, ScalarType
+from psyclone.psyir.symbols import ArrayType, DeferredType, ScalarType
 from psyclone.tests.utilities import get_base_path, get_invoke
 from psyclone.transformations import Dynamo0p3ColourTrans
 
@@ -128,14 +128,12 @@ def test_cellmap_intergrid(dist_mem, fortran_writer):
 
     assert create_arg_list._arglist == [
         'nlayers', 'cell_map_field2(:,:,cell)', 'ncpc_field1_field2_x',
-        'ncpc_field1_field2_y', 'ncell_field1', 'field1_proxy%data',
-        'field2_proxy%data', 'ndf_w1', 'undf_w1', 'map_w1', 'undf_w2',
+        'ncpc_field1_field2_y', 'ncell_field1', 'field1_data',
+        'field2_data', 'ndf_w1', 'undf_w1', 'map_w1', 'undf_w2',
         'map_w2(:,cell)']
 
     check_psyir_results(create_arg_list, fortran_writer)
-    array_1d = ArrayType(LFRicTypes("LFRicRealScalarDataType")(),
-                         [ArrayType.Extent.DEFERRED])
-    assert create_arg_list.psyir_arglist[5].datatype == array_1d
+    assert isinstance(create_arg_list.psyir_arglist[5].datatype, DeferredType)
 
 
 def test_kerncallarglist_face_xyoz(dist_mem, fortran_writer):
@@ -150,8 +148,8 @@ def test_kerncallarglist_face_xyoz(dist_mem, fortran_writer):
 
     create_arg_list.generate()
     assert create_arg_list._arglist == [
-        'nlayers', 'f1_proxy%data', 'f2_proxy(1)%data', 'f2_proxy(2)%data',
-        'f2_proxy(3)%data', 'f3_proxy%data', 'istp', 'ndf_w2', 'undf_w2',
+        'nlayers', 'f1_data', 'f2_1_data', 'f2_2_data',
+        'f2_3_data', 'f3_data', 'istp', 'ndf_w2', 'undf_w2',
         'map_w2(:,cell)', 'basis_w2_qr_xyoz', 'basis_w2_qr_face', 'ndf_wchi',
         'undf_wchi', 'map_wchi(:,cell)', 'diff_basis_wchi_qr_xyoz',
         'diff_basis_wchi_qr_face', 'ndf_adspc1_f3', 'undf_adspc1_f3',
@@ -164,7 +162,8 @@ def test_kerncallarglist_face_xyoz(dist_mem, fortran_writer):
     check_psyir_results(create_arg_list, fortran_writer)
 
     # Check that the right datatype is set:
-    array_1d = ArrayType(LFRicTypes("LFRicRealScalarDataType")(),
+    # The kernel in question accepts integer fields.
+    array_1d = ArrayType(LFRicTypes("LFRicIntegerScalarDataType")(),
                          [ArrayType.Extent.DEFERRED])
     assert create_arg_list.psyir_arglist[2].datatype == array_1d
     array_4d = ArrayType(LFRicTypes("LFRicRealScalarDataType")(),
@@ -186,8 +185,8 @@ def test_kerncallarglist_face_edge(dist_mem, fortran_writer):
 
     create_arg_list.generate()
     assert create_arg_list._arglist == [
-        'nlayers', 'f1_proxy%data', 'f2_proxy%data', 'm1_proxy%data',
-        'm2_proxy%data', 'ndf_w1', 'undf_w1', 'map_w1(:,cell)',
+        'nlayers', 'f1_data', 'f2_data', 'm1_data',
+        'm2_data', 'ndf_w1', 'undf_w1', 'map_w1(:,cell)',
         'basis_w1_qr_face', 'basis_w1_qr_edge', 'ndf_w2', 'undf_w2',
         'map_w2(:,cell)', 'diff_basis_w2_qr_face', 'diff_basis_w2_qr_edge',
         'ndf_w3', 'undf_w3', 'map_w3(:,cell)', 'basis_w3_qr_face',
@@ -220,8 +219,8 @@ def test_kerncallarglist_colouring(dist_mem, fortran_writer):
     create_arg_list = KernCallArgList(schedule.kernels()[0])
     create_arg_list.generate()
     assert create_arg_list._arglist == [
-        'nlayers', 'rdt', 'h_proxy%data', 'f_proxy%data', 'c_proxy%data',
-        'd_proxy%data', 'ndf_w1', 'undf_w1', 'map_w1(:,cmap(colour,cell))',
+        'nlayers', 'rdt', 'h_data', 'f_data', 'c_data',
+        'd_data', 'ndf_w1', 'undf_w1', 'map_w1(:,cmap(colour,cell))',
         'ndf_w2', 'undf_w2', 'map_w2(:,cmap(colour,cell))', 'ndf_w3',
         'undf_w3', 'map_w3(:,cmap(colour,cell))']
 
@@ -243,7 +242,7 @@ def test_kerncallarglist_mesh_properties(fortran_writer):
     var_info = VariablesAccessInfo()
     create_arg_list.generate(var_accesses=var_info)
     assert str(var_info) == ("a: READ, adjacent_face: READ, cell: READ, "
-                             "cmap: READ, colour: READ, f1: READ+WRITE, "
+                             "cmap: READ, colour: READ, f1_data: READ+WRITE, "
                              "map_w1: READ, ndf_w1: READ, nfaces_re_h: "
                              "READ, nlayers: READ, undf_w1: READ")
     # Tests that multiple reads are reported as expected:
@@ -253,7 +252,7 @@ def test_kerncallarglist_mesh_properties(fortran_writer):
     assert str(var_info[Signature("adjacent_face")]) == "adjacent_face:READ(0)"
 
     assert create_arg_list._arglist == [
-        'nlayers', 'a', 'f1_proxy%data', 'ndf_w1', 'undf_w1',
+        'nlayers', 'a', 'f1_data', 'ndf_w1', 'undf_w1',
         'map_w1(:,cmap(colour,cell))', 'nfaces_re_h',
         'adjacent_face(:,cmap(colour,cell))']
 
@@ -274,7 +273,7 @@ def test_kerncallarglist_evaluator(fortran_writer):
     create_arg_list = KernCallArgList(schedule.kernels()[0])
     create_arg_list.generate()
     assert create_arg_list._arglist == [
-        'nlayers', 'f0_proxy%data', 'f1_proxy%data', 'ndf_w0', 'undf_w0',
+        'nlayers', 'f0_data', 'f1_data', 'ndf_w0', 'undf_w0',
         'map_w0(:,cmap(colour,cell))', 'basis_w0_on_w0', 'ndf_w1', 'undf_w1',
         'map_w1(:,cmap(colour,cell))', 'diff_basis_w1_on_w0']
 
@@ -296,11 +295,11 @@ def test_kerncallarglist_stencil(fortran_writer):
     create_arg_list.generate()
 
     assert create_arg_list._arglist == [
-        'nlayers', 'f1_proxy%data', 'f2_proxy%data',
+        'nlayers', 'f1_data', 'f2_data',
         'f2_stencil_size(cmap(colour,cell))',
-        'f2_stencil_dofmap(:,:,cmap(colour,cell))', 'f3_proxy%data',
+        'f2_stencil_dofmap(:,:,cmap(colour,cell))', 'f3_data',
         'f3_stencil_size(cmap(colour,cell))', 'f3_direction',
-        'f3_stencil_dofmap(:,:,cmap(colour,cell))', 'f4_proxy%data',
+        'f3_stencil_dofmap(:,:,cmap(colour,cell))', 'f4_data',
         'f4_stencil_size(cmap(colour,cell))',
         'f4_stencil_dofmap(:,:,cmap(colour,cell))', 'ndf_w1', 'undf_w1',
         'map_w1(:,cmap(colour,cell))', 'ndf_w2', 'undf_w2',
@@ -328,9 +327,9 @@ def test_kerncallarglist_cross2d_stencil(fortran_writer):
     create_arg_list.generate()
 
     assert create_arg_list._arglist == [
-        'nlayers', 'f1_proxy%data', 'f2_proxy%data',
+        'nlayers', 'f1_data', 'f2_data',
         'f2_stencil_size(:,cell)', 'f2_max_branch_length',
-        'f2_stencil_dofmap(:,:,:,cell)', 'f3_proxy%data', 'f4_proxy%data',
+        'f2_stencil_dofmap(:,:,:,cell)', 'f3_data', 'f4_data',
         'ndf_w1', 'undf_w1', 'map_w1(:,cell)', 'ndf_w2', 'undf_w2',
         'map_w2(:,cell)', 'ndf_w3', 'undf_w3', 'map_w3(:,cell)'
     ]
@@ -348,7 +347,7 @@ def test_kerncallarglist_bcs(fortran_writer, monkeypatch):
     create_arg_list = KernCallArgList(schedule.kernels()[0])
     create_arg_list.generate()
     assert create_arg_list._arglist == [
-        'nlayers', 'a_proxy%data', 'ndf_aspc1_a', 'undf_aspc1_a',
+        'nlayers', 'a_data', 'ndf_aspc1_a', 'undf_aspc1_a',
         'map_aspc1_a(:,cell)', 'boundary_dofs_a']
 
     check_psyir_results(create_arg_list, fortran_writer)
@@ -360,6 +359,9 @@ def test_kerncallarglist_bcs(fortran_writer, monkeypatch):
     # Monkeypatch the argument object so that it thinks it is an
     # operator rather than a field
     monkeypatch.setattr(arg, "_argument_type", value="gh_operator")
+    # Add a tag to the symbol table to allow us to get through to the error
+    # (since the argument is/was a field, its tagged name is now wrong).
+    schedule.symbol_table.find_or_create_tag("a_local_stencil")
     with pytest.raises(GenerationError) as err:
         create_arg_list.generate()
     assert ("Expected an argument of ['gh_field'] type from which to look-up "
@@ -379,7 +381,7 @@ def test_kerncallarglist_bcs_operator(fortran_writer):
     access_info = VariablesAccessInfo()
     create_arg_list.generate(access_info)
     assert create_arg_list._arglist == [
-        'cell', 'nlayers', 'op_a_proxy%ncell_3d', 'op_a_proxy%local_stencil',
+        'cell', 'nlayers', 'op_a_proxy%ncell_3d', 'op_a_local_stencil',
         'ndf_aspc1_op_a', 'ndf_aspc2_op_a', 'boundary_dofs_op_a']
 
     check_psyir_results(create_arg_list, fortran_writer)
@@ -391,8 +393,10 @@ def test_kerncallarglist_bcs_operator(fortran_writer):
 
     # Also check that the structure access is correctly converted
     # into a 2-component signature:
-    sig = Signature(("op_a_proxy", "local_stencil"))
-    assert str(access_info[sig]) == "op_a_proxy%local_stencil:READWRITE(0)"
+    sig = Signature(("op_a_proxy", "ncell_3d"))
+    assert str(access_info[sig]) == "op_a_proxy%ncell_3d:READ(0)"
+    assert (str(access_info[Signature("op_a_local_stencil")]) ==
+            "op_a_local_stencil:READWRITE(0)")
 
 
 def test_kerncallarglist_mixed_precision():
@@ -466,8 +470,8 @@ def test_kerncallarglist_scalar_literal(fortran_writer):
     assert "1.0" not in str(vai)
 
     assert create_arg_list._arglist == [
-        'nlayers', 'f1_proxy%data', 'f2_proxy%data', 'm1_proxy%data',
-        '1.0_r_def', 'm2_proxy%data', '2_i_def', 'ndf_w1', 'undf_w1',
+        'nlayers', 'f1_data', 'f2_data', 'm1_data',
+        '1.0_r_def', 'm2_data', '2_i_def', 'ndf_w1', 'undf_w1',
         'map_w1(:,cell)', 'basis_w1_qr', 'ndf_w2', 'undf_w2', 'map_w2(:,cell)',
         'diff_basis_w2_qr', 'ndf_w3', 'undf_w3', 'map_w3(:,cell)',
         'basis_w3_qr', 'diff_basis_w3_qr', 'np_xy_qr', 'np_z_qr',

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2022, Science and Technology Facilities Council.
+# Copyright (c) 2019-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -220,8 +220,8 @@ def test_refelem_gen(tmpdir):
     assert ("call reference_element%get_normals_to_vertical_faces("
             "normals_to_vert_faces)" in gen)
     # The kernel call
-    assert ("call testkern_ref_elem_code(nlayers, a, f1_proxy%data, "
-            "f2_proxy%data, m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, "
+    assert ("call testkern_ref_elem_code(nlayers, a, f1_data, "
+            "f2_data, m1_data, m2_data, ndf_w1, undf_w1, "
             "map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, "
             "undf_w3, map_w3(:,cell), nfaces_re_h, nfaces_re_v, "
             "normals_to_horiz_faces, normals_to_vert_faces)" in gen)
@@ -248,13 +248,13 @@ def test_duplicate_refelem_gen(tmpdir):
                      "normals_to_horiz_faces)") == 1
     assert gen.count("call reference_element%get_normals_to_vertical_faces("
                      "normals_to_vert_faces)") == 1
-    assert ("call testkern_ref_elem_code(nlayers, a, f1_proxy%data, "
-            "f2_proxy%data, m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, "
+    assert ("call testkern_ref_elem_code(nlayers, a, f1_data, "
+            "f2_data, m1_data, m2_data, ndf_w1, undf_w1, "
             "map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, "
             "undf_w3, map_w3(:,cell), nfaces_re_h, nfaces_re_v, "
             "normals_to_horiz_faces, normals_to_vert_faces)" in gen)
-    assert ("call testkern_ref_elem_code(nlayers, a, f3_proxy%data, "
-            "f4_proxy%data, m3_proxy%data, m4_proxy%data, ndf_w1, undf_w1, "
+    assert ("call testkern_ref_elem_code(nlayers, a, f3_data, "
+            "f4_data, m3_data, m4_data, ndf_w1, undf_w1, "
             "map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, "
             "undf_w3, map_w3(:,cell), nfaces_re_h, nfaces_re_v, "
             "normals_to_horiz_faces, normals_to_vert_faces)" in gen)
@@ -281,13 +281,13 @@ def test_union_refelem_gen(tmpdir):
         "normals_to_vert_faces)\n"
         "      call reference_element%get_outward_normals_to_vertical_faces("
         "out_normals_to_vert_faces)\n" in gen)
-    assert ("call testkern_ref_elem_code(nlayers, a, f1_proxy%data, "
-            "f2_proxy%data, m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, "
+    assert ("call testkern_ref_elem_code(nlayers, a, f1_data, "
+            "f2_data, m1_data, m2_data, ndf_w1, undf_w1, "
             "map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3,"
             " map_w3(:,cell), nfaces_re_h, nfaces_re_v, "
             "normals_to_horiz_faces, normals_to_vert_faces)" in gen)
-    assert ("call testkern_ref_elem_out_code(nlayers, a, f3_proxy%data, "
-            "f4_proxy%data, m3_proxy%data, m4_proxy%data, ndf_w1, undf_w1, "
+    assert ("call testkern_ref_elem_out_code(nlayers, a, f3_data, "
+            "f4_data, m3_data, m4_data, ndf_w1, undf_w1, "
             "map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3,"
             " map_w3(:,cell), nfaces_re_v, nfaces_re_h, "
             "out_normals_to_vert_faces, normals_to_vert_faces, "
@@ -310,8 +310,8 @@ def test_all_faces_refelem_gen(tmpdir):
         "      call reference_element%get_normals_to_faces(normals_to_faces)\n"
         "      call reference_element%get_outward_normals_to_faces("
         "out_normals_to_faces)\n" in gen)
-    assert ("call testkern_ref_elem_all_faces_code(nlayers, a, f1_proxy%data, "
-            "f2_proxy%data, m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, "
+    assert ("call testkern_ref_elem_all_faces_code(nlayers, a, f1_data, "
+            "f2_data, m1_data, m2_data, ndf_w1, undf_w1, "
             "map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3,"
             " map_w3(:,cell), nfaces_re, out_normals_to_faces, "
             "normals_to_faces)" in gen)

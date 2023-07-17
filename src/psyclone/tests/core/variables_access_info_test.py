@@ -437,9 +437,9 @@ def test_variables_access_info_domain_loop():
     '''
     _, invoke = get_invoke("25.1_kern_two_domain.f90", "dynamo0.3", idx=0)
     vai = VariablesAccessInfo(invoke.schedule)
-    assert str(vai) == ("a: READ, b: READ, f1: READWRITE, f2: READWRITE, "
-                        "map_w3: READ, ncell_2d_no_halos: READ, ndf_w3: READ, "
-                        "nlayers: READ, undf_w3: READ")
+    assert str(vai) == ("a: READ, b: READ, f1_data: READWRITE, f2_data: "
+                        "READWRITE, map_w3: READ, ncell_2d_no_halos: READ, "
+                        "ndf_w3: READ, nlayers: READ, undf_w3: READ")
 
 
 # -----------------------------------------------------------------------------
@@ -456,9 +456,10 @@ def test_lfric_access_info():
     # Make sure a literal (1.0_r_def in this example) is not reported as a
     # variable in the access list:
     assert ("basis_w1_qr: READ, basis_w3_qr: READ, cell: READ+WRITE, "
-            "diff_basis_w2_qr: READ, diff_basis_w3_qr: READ, f1: READ+WRITE, "
-            "f2: READ, loop0_start: READ, loop0_stop: READ, m1: READ, m2: "
-            "READ, map_w1: READ, map_w2: READ, map_w3: READ, ndf_w1: READ, "
-            "ndf_w2: READ, ndf_w3: READ, nlayers: READ, np_xy_qr: READ, "
-            "np_z_qr: READ, undf_w1: READ, undf_w2: READ, undf_w3: READ, "
-            "weights_xy_qr: READ, weights_z_qr: READ" == str(vai))
+            "diff_basis_w2_qr: READ, diff_basis_w3_qr: READ, f1_data: "
+            "READ+WRITE, f2_data: READ, loop0_start: READ, loop0_stop: READ, "
+            "m1_data: READ, m2_data: READ, map_w1: READ, map_w2: READ, map_w3:"
+            " READ, ndf_w1: READ, ndf_w2: READ, ndf_w3: READ, nlayers: READ, "
+            "np_xy_qr: READ, np_z_qr: READ, undf_w1: READ, undf_w2: READ, "
+            "undf_w3: READ, weights_xy_qr: READ, weights_z_qr: READ"
+            == str(vai))
