@@ -1,5 +1,5 @@
 !------------------------------------------------------------------------------
-! Copyright (c) 2020, Science and Technology Facilities Council
+! Copyright (c) 2020-2023, Science and Technology Facilities Council
 ! 
 ! Redistribution and use in source and binary forms, with or without
 ! modification, are permitted provided that the following conditions are met:
@@ -27,18 +27,19 @@
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 !
 ! Author: A. R. Porter, STFC Daresbury Lab.
+! Modified: L. Turner, Met Office
 !------------------------------------------------------------------------------
 
 program single_invoke
 
   ! Description: two kernels specified in an invoke call, each requiring
   ! quadrature but of different shapes.
-  use constants_mod,         only: r_def, i_def
-  use testkern_qr,           only: testkern_qr_type
-  use testkern_qr_faces_mod, only: testkern_qr_faces_type
-  use field_mod,             only: field_type
-  use quadrature_xyoz_mod,   only: quadrature_xyoz_type
-  use quadrature_face_mod,   only: quadrature_face_type
+  use constants_mod,            only: r_def, i_def
+  use testkern_wrong_file_name, only: testkern_qr_type
+  use testkern_qr_faces_mod,    only: testkern_qr_faces_type
+  use field_mod,                only: field_type
+  use quadrature_xyoz_mod,      only: quadrature_xyoz_type
+  use quadrature_face_mod,      only: quadrature_face_type
 
   implicit none
 

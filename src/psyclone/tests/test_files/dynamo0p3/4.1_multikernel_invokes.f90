@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2020, Science and Technology Facilities Council
+! Copyright (c) 2017-2023, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -31,18 +31,18 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 !-------------------------------------------------------------------------------
-! Author R. W. Ford STFC Daresbury Lab
-! Modified I. Kavcic Met Office
+! Author R. W. Ford, STFC Daresbury Lab
+! Modified I. Kavcic and L. Turner, Met Office
 
 program multikernel_invokes_2
 
   ! Multiple kernel calls within an invoke where the kernels require
   ! a quadrature rule
 
-  use constants_mod,       only: r_def, i_def
-  use field_mod,           only: field_type
-  use quadrature_xyoz_mod, only: quadrature_xyoz_type
-  use testkern_qr,         only: testkern_qr_type
+  use constants_mod,            only: r_def, i_def
+  use field_mod,                only: field_type
+  use quadrature_xyoz_mod,      only: quadrature_xyoz_type
+  use testkern_wrong_file_name, only: testkern_qr_type
 
   implicit none
 

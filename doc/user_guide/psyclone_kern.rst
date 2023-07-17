@@ -451,10 +451,10 @@ supported in the stub generator::
     tests/test_files/dynamo0p3/testkern_invalid_fortran_mod.f90
     tests/test_files/dynamo0p3/testkern_short_name_mod.f90
     tests/test_files/dynamo0p3/testkern_no_datatype_mod.f90
-    tests/test_files/dynamo0p3/testkern_qr_mod.F90
+    tests/test_files/dynamo0p3/testkern_wrong_file_name.F90
 
 ``testkern_invalid_fortran_mod.f90``, ``testkern_no_datatype_mod.f90``,
-``testkern_short_name_mod.f90`` and ``testkern_qr_mod.F90`` are designed to be
+``testkern_short_name_mod.f90`` and ``testkern_wrong_file_name.F90`` are designed to be
 invalid for PSyclone stub generation testing purposes and should produce
 appropriate errors. Two examples are below::
 
@@ -488,8 +488,8 @@ As noted above, if the LFRic API naming convention for module and type
 names is not followed, the stub generator will return with an error
 message. For example::
 
-    > psyclone-kern -gen stub tests/test_files/dynamo0p3/testkern_qr_mod.F90
-    Error: "Parse Error: Error, module name 'testkern_qr_mod' does not have
+    > psyclone-kern -gen stub tests/test_files/dynamo0p3/testkern_wrong_file_name.F90
+    Error: "Parse Error: Error, module name 'testkern_wrong_file_name' does not have
     '_mod' as an extension. This convention is assumed."
 
 

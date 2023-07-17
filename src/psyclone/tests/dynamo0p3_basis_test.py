@@ -389,7 +389,7 @@ def test_two_qr_same_shape(tmpdir):
     expected_declns = (
         "    SUBROUTINE invoke_0(f1, f2, m1, a, m2, istp, g1, g2, n1, b, "
         "n2, qr, qr2)\n"
-        "      USE testkern_qr_mod, ONLY: testkern_qr_code\n"
+        "      USE testkern_wrong_file_name, ONLY: testkern_qr_code\n"
         "      USE quadrature_xyoz_mod, ONLY: quadrature_xyoz_type, "
         "quadrature_xyoz_proxy_type\n"
         "      USE function_space_mod, ONLY: BASIS, DIFF_BASIS\n"
@@ -690,7 +690,7 @@ def test_qr_plus_eval(tmpdir):
 
     output_decls = (
         "    SUBROUTINE invoke_0(f0, f1, f2, m1, a, m2, istp, qr)\n"
-        "      USE testkern_qr_mod, ONLY: testkern_qr_code\n"
+        "      USE testkern_wrong_file_name, ONLY: testkern_qr_code\n"
         "      USE testkern_eval_mod, ONLY: testkern_eval_code\n"
         "      USE quadrature_xyoz_mod, ONLY: quadrature_xyoz_type, "
         "quadrature_xyoz_proxy_type\n"
