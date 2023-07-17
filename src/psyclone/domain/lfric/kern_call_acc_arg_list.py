@@ -55,49 +55,6 @@ class KernCallAccArgList(KernCallArgList):
     to keep them in.
 
     '''
-    def field_vector(self, argvect, var_accesses=None):
-        '''Add the field vector associated with the argument 'argvect' to the
-        argument list. OpenACC requires the field and the
-        dereferenced data to be specified. If supplied it also stores
-        this access in var_accesses.
-
-        :param argvect: the field vector to add.
-        :type argvect: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-        :param var_accesses: optional VariablesAccessInfo instance to store \
-            the information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
-
-        '''
-        table = self._kern.scope.symbol_table
-        # First provide the derived-type object
-        for idx in range(1, argvect.vector_size+1):
-            sym = table.lookup_with_tag(f"{argvect.name}_{idx}_data")
-            self.append(f"{sym.name}({idx})")
-            #self.append(argvect.proxy_name + "(" + str(idx) + ")")
-        # Then provide the actual fields that are in the derived-type object
-        super().field_vector(argvect, var_accesses)
-
-    def field(self, arg, var_accesses=None):
-        '''Add the field array associated with the argument 'arg' to the
-        argument list. OpenACC requires the field and the
-        dereferenced data to be specified. If supplied it also
-        stores this access in var_accesses.
-
-        :param arg: the field to be added.
-        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-        :param var_accesses: optional VariablesAccessInfo instance to store \
-            the information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
-
-        '''
-        #text1 = arg.proxy_name
-        #self.append(text1)
-        # This will add the field%data argument, and add the field
-        # to the variable access list.
-        super().field(arg, var_accesses)
-
     def stencil(self, arg, var_accesses=None):
         '''Add general stencil information associated with the argument 'arg'
         to the argument list. OpenACC requires the full dofmap to be

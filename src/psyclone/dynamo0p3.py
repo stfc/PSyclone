@@ -3104,17 +3104,26 @@ class DynProxies(LFRicCollection):
         for arg in real_field_args + int_field_args:
             # Create symbols that we will associate with the internal
             # data arrays.
+            precision = KernCallArgList._map_type_to_precision(arg.data_type)
+            if arg in real_field_args:
+                dtype = ArrayType(
+                    LFRicTypes("LFRicRealScalarDataType")(precision),
+                    [ArrayType.Extent.DEFERRED])
+            else:
+                dtype = ArrayType(
+                    LFRicTypes("LFRicIntegerScalarDataType")(precision),
+                    [ArrayType.Extent.DEFERRED])
             if arg.vector_size > 1:
                 for idx in range(1, arg.vector_size+1):
                     self._symbol_table.new_symbol(
                         f"{arg.name}_{idx}_data",
                         symbol_type=DataSymbol,
-                        datatype=DeferredType(),
+                        datatype=dtype,
                         tag=f"{arg.name}_{idx}_data")
             else:
                 self._symbol_table.new_symbol(arg.name+"_data",
                                               symbol_type=DataSymbol,
-                                              datatype=DeferredType(),
+                                              datatype=dtype,
                                               tag=arg.name+"_data")
         # Create symbols that we will associate with pointers to the
         # internal data arrays.
@@ -3122,10 +3131,13 @@ class DynProxies(LFRicCollection):
             argument_types=["gh_operator"])
         for arg in op_args:
             name = arg.name
-            # TODO use UnknownFortranType rather than DeferredType?
+            precision = self._symbol_table.lookup(arg.precision)
+            array_type = ArrayType(
+                LFRicTypes("LFRicRealScalarDataType")(precision),
+                [ArrayType.Extent.DEFERRED]*3)
             self._symbol_table.new_symbol(name+"_local_stencil",
                                           symbol_type=DataSymbol,
-                                          datatype=DeferredType(),
+                                          datatype=array_type,
                                           tag=name+"_local_stencil")
 
     def _invoke_declarations(self, parent):

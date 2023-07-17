@@ -400,9 +400,9 @@ class KernCallArgList(ArgOrdering):
                 f"{argvect.name}_{idx}_data")
             # Create the accesses to each element of the vector:
             lit_ind = Literal(str(idx), INTEGER_SINGLE_TYPE)
-            ref = ArrayOfStructuresReference.\
-                create(sym, [lit_ind], ["data"], overwrite_datatype=array_1d)
-            self.psyir_append(ref)
+            #ref = ArrayOfStructuresReference.\
+            #    create(sym, [lit_ind], ["data"], overwrite_datatype=array_1d)
+            self.psyir_append(Reference(cmpt_sym))
             text = cmpt_sym.name # f"{sym.name}({idx})%data"
             self.append(text, metadata_posn=argvect.metadata_index)
 
@@ -437,9 +437,10 @@ class KernCallArgList(ArgOrdering):
         array_1d = \
             ArrayType(LFRicTypes("LFRicRealScalarDataType")(precision),
                       [ArrayType.Extent.DEFERRED])
-        self.append_structure_reference(
-            arg.module_name, arg.proxy_data_type, ["data"],
-            arg.proxy_name, overwrite_datatype=array_1d)
+        #self.append_structure_reference(
+        #    arg.module_name, arg.proxy_data_type, ["data"],
+        #    arg.proxy_name, overwrite_datatype=array_1d)
+        self.psyir_append(Reference(sym))
 
     def stencil_unknown_extent(self, arg, var_accesses=None):
         '''Add stencil information to the argument list associated with the
@@ -624,16 +625,14 @@ class KernCallArgList(ArgOrdering):
         self.append(arg.proxy_name_indexed + "%ncell_3d", var_accesses,
                     mode=AccessType.READ)
 
-        precision = KernCallArgList._map_type_to_precision(operator["type"])
-        array_type = \
-            ArrayType(LFRicTypes("LFRicRealScalarDataType")(precision),
-                      [ArrayType.Extent.DEFERRED]*3)
-        self.append_structure_reference(
-            operator["module"], operator["proxy_type"], ["local_stencil"],
-            arg.proxy_name_indexed, overwrite_datatype=array_type)
+        #precision = KernCallArgList._map_type_to_precision(operator["type"])
+        #array_type = \
+        #    ArrayType(LFRicTypes("LFRicRealScalarDataType")(precision),
+        #              [ArrayType.Extent.DEFERRED]*3)
         sym = self._symtab.lookup_with_tag(arg.name+"_local_stencil")
+        self.psyir_append(Reference(sym))
         # The access mode of `local_stencil` is taken from the meta-data:
-        self.append(sym.name, var_accesses, # arg.proxy_name_indexed + "%local_stencil", var_accesses,
+        self.append(sym.name, var_accesses,
                     mode=arg.access, metadata_posn=arg.metadata_index)
 
     def fs_common(self, function_space, var_accesses=None):
