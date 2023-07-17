@@ -342,11 +342,12 @@ def test_lfric():
     # pylint: disable=pointless-statement
     psy.gen
     var_accesses = VariablesAccessInfo(schedule)
-    assert (str(var_accesses) == "a: READ, cell: READ+WRITE, f1: READ+WRITE, "
-            "f2: READ, loop0_start: READ, loop0_stop: READ, m1: READ, "
-            "m2: READ, map_w1: READ, map_w2: READ, "
-            "map_w3: READ, ndf_w1: READ, ndf_w2: READ, ndf_w3: READ, "
-            "nlayers: READ, undf_w1: READ, undf_w2: READ, undf_w3: READ")
+    assert str(var_accesses) == (
+        "a: READ, cell: READ+WRITE, f1_data: READ+WRITE, f2_data: READ, "
+        "loop0_start: READ, loop0_stop: READ, m1_data: READ, "
+        "m2_data: READ, map_w1: READ, map_w2: READ, "
+        "map_w3: READ, ndf_w1: READ, ndf_w2: READ, ndf_w3: READ, "
+        "nlayers: READ, undf_w1: READ, undf_w2: READ, undf_w3: READ")
 
 
 def test_lfric_kern_cma_args():
@@ -508,8 +509,8 @@ def test_lfric_operator():
     # pylint: disable=pointless-statement
     psy.gen
     var_info = str(VariablesAccessInfo(invoke_info.schedule))
-    assert "f0: READ+WRITE" in var_info
-    assert "f1: READ" in var_info
+    assert "f0_data: READ+WRITE" in var_info
+    assert "f1_data: READ" in var_info
     assert "basis_w0_on_w0: READ" in var_info
     assert "diff_basis_w1_on_w0: READ" in var_info
 
@@ -538,8 +539,8 @@ def test_lfric_cma():
     assert "cma_op1_nrow: READ," in var_info
     assert "cbanded_map_adspc1_lma_op1: READ" in var_info
     assert "cbanded_map_adspc2_lma_op1: READ" in var_info
-    assert "op1_proxy%local_stencil: READ" in var_info
-    assert "op1_proxy%ncell_3d: READ" in var_info
+    assert "lma_op1_local_stencil: READ" in var_info
+    assert "lma_op1_proxy%ncell_3d: READ" in var_info
 
 
 def test_lfric_cma2():
@@ -871,10 +872,10 @@ def test_lfric_acc():
     var_accesses = VariablesAccessInfo()
     create_acc_arg_list.generate(var_accesses=var_accesses)
     var_info = str(var_accesses)
-    assert "f1: READ+WRITE" in var_info
-    assert "f2: READ" in var_info
-    assert "m1: READ" in var_info
-    assert "m2: READ" in var_info
+    assert "f1_data: READ+WRITE" in var_info
+    assert "f2_data: READ" in var_info
+    assert "m1_data: READ" in var_info
+    assert "m2_data: READ" in var_info
     assert "undf_w1: READ" in var_info
     assert "map_w1: READ" in var_info
     assert "undf_w2: READ" in var_info
@@ -905,7 +906,7 @@ def test_lfric_acc_operator():
     create_acc_arg_list.generate(var_accesses=var_accesses)
     var_info = str(var_accesses)
     assert "lma_op1_proxy%ncell_3d: READ" in var_info
-    assert "lma_op1_proxy%local_stencil: READ" in var_info
+    assert "lma_op1_local_stencil: READ" in var_info
     assert "cma_op1_matrix: WRITE" in var_info
 
 

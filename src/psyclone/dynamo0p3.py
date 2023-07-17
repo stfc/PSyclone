@@ -3183,11 +3183,14 @@ class DynProxies(LFRicCollection):
                 else:
                     sym = table.lookup_with_tag(arg.name+"_data")
                     entity_names = [sym.name]
-                parent.add(DeclGen(parent, datatype="real",
-                                   kind="r_def",
-                                   dimension=":",
-                                   entity_decls=entity_names,
-                                   pointer=True))
+                parent.add(
+                    DeclGen(
+                        parent, datatype="real",
+                        kind=arg.precision,
+                        dimension=":",
+                        entity_decls=[f"{name} => null()" for
+                                      name in entity_names],
+                        pointer=True))
 
         # Declarations of LMA operator proxies
         op_args = self._invoke.unique_declarations(
@@ -3214,11 +3217,10 @@ class DynProxies(LFRicCollection):
                 name = arg.name
                 sym = table.lookup_with_tag(name+"_local_stencil")
                 # Declare the pointer to the stencil array.
-                # TODO use the correct precision rather than hardwiring "r_def"
                 parent.add(DeclGen(parent, datatype="real",
-                                   kind="r_def",
+                                   kind=arg.precision,
                                    dimension=":,:,:",
-                                   entity_decls=[sym.name],
+                                   entity_decls=[f"{sym.name} => null()"],
                                    pointer=True))
             op_mod = operators_list[0].module_name
             (self._invoke.invokes.psy.infrastructure_modules[op_mod].
@@ -3247,11 +3249,10 @@ class DynProxies(LFRicCollection):
                                    datatype=DeferredType(),
                                    tag=arg.name+"_cma_matrix")
             # Declare the pointer to the CMA matrix.
-            # TODO use the correct precision rather than hardwiring "r_def"
             parent.add(DeclGen(parent, datatype="real",
-                               kind="r_def",
+                               kind=arg.precision,
                                dimension=":,:,:",
-                               entity_decls=[sym.name],
+                               entity_decls=[f"{sym.name} => null()"],
                                pointer=True))
 
     def initialise(self, parent):
@@ -3298,14 +3299,24 @@ class DynProxies(LFRicCollection):
                                   lhs=name,
                                   rhs=f"{arg.proxy_name}%data",
                                   pointer=True))
+                elif arg.is_operator:
+                    if arg.argument_type == "gh_columnwise_operator":
+                        # CMA operator arguments are handled in DynCMAOperators
+                        pass
+                    elif arg.argument_type == "gh_operator":
+                        name = self._symbol_table.lookup_with_tag(
+                            f"{arg.name}_local_stencil").name
+                        parent.add(
+                            AssignGen(parent,
+                                      lhs=name,
+                                      rhs=f"{arg.proxy_name}%local_stencil",
+                                      pointer=True))
+                    else:
+                        raise InternalError("ARPDBG")
                 else:
-                    name = self._symbol_table.lookup_with_tag(
-                        f"{arg.name}_local_stencil").name
-                    parent.add(
-                        AssignGen(parent,
-                                  lhs=name,
-                                  rhs=f"{arg.proxy_name}%local_stencil",
-                                  pointer=True))
+                    raise InternalError(
+                        f"Kernel argument of type '{arg.argument_type}' not "
+                        f"handled in DynProxies.initialise()")
 
 
 class DynCellIterators(LFRicCollection):

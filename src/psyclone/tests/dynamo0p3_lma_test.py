@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2022 Science and Technology Facilities Council.
+# Copyright (c) 2019-2023 Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -480,8 +480,8 @@ def test_operator(tmpdir):
     assert "TYPE(operator_proxy_type) mm_w0_proxy" in generated_code
     assert "mm_w0_proxy = mm_w0%get_proxy()" in generated_code
     assert ("CALL testkern_operator_code(cell, nlayers, mm_w0_proxy%ncell_3d, "
-            "mm_w0_proxy%local_stencil, coord_proxy(1)%data, "
-            "coord_proxy(2)%data, coord_proxy(3)%data, a, ndf_w0, undf_w0, "
+            "mm_w0_local_stencil, coord_1_data, "
+            "coord_2_data, coord_3_data, a, ndf_w0, undf_w0, "
             "map_w0(:,cell), basis_w0_qr, diff_basis_w0_qr, np_xy_qr, "
             "np_z_qr, weights_xy_qr, weights_z_qr)") in generated_code
 
@@ -526,8 +526,12 @@ def test_operator_different_spaces(tmpdir):
         "weights_z_qr(:) => null()\n"
         "      INTEGER(KIND=i_def) np_xy_qr, np_z_qr\n"
         "      INTEGER(KIND=i_def) nlayers\n"
+        "      REAL(KIND=r_def), pointer, dimension(:,:,:) :: "
+        "mapping_local_stencil => null()\n"
         "      TYPE(operator_proxy_type) mapping_proxy\n"
         "      TYPE(field_proxy_type) coord_proxy(3)\n"
+        "      REAL(KIND=r_def), pointer, dimension(:) :: coord_1_data => "
+        "null(), coord_2_data => null(), coord_3_data => null()\n"
         "      TYPE(quadrature_xyoz_proxy_type) qr_proxy\n"
         "      INTEGER(KIND=i_def), pointer :: map_w0(:,:) => null()\n"
         "      INTEGER(KIND=i_def) ndf_w3, ndf_w2, ndf_w0, undf_w0\n"
