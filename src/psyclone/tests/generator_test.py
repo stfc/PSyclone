@@ -759,7 +759,7 @@ def test_generate_trans_error(tmpdir, capsys, monkeypatch):
         "module setval_c_mod\n"
         "contains\n"
         "subroutine setval_c()\n"
-        "  use builtins\n"
+        "  use psyclone_builtins\n"
         "  use constants_mod, only: r_def\n"
         "  use field_mod, only : field_type\n"
         "  type(field_type) :: field\n"
@@ -784,6 +784,30 @@ def test_generate_trans_error(tmpdir, capsys, monkeypatch):
         " a routine name. This is not allowed.\n")
     assert expected_output1 in output
     assert expected_output2 in output
+
+
+def test_generate_no_builtin_container(tmpdir, monkeypatch):
+    '''Test that a builtin use statement is removed if it has been added
+    to a Container (a module). Also tests that everything works OK if
+    no use statement is found in a symbol table (as FileContainer does
+    not contain one).
+
+    '''
+    monkeypatch.setattr(generator, "LFRIC_TESTING", True)
+    code = (
+        "module test_mod\n"
+        "  contains\n"
+        "  subroutine test()\n"
+        "    use field_mod, only : field_type\n"
+        "    type(field_type) :: field\n"
+        "    call invoke(setval_c(field, 0.0))\n"
+        "  end subroutine test\n"
+        "end module\n")
+    filename = str(tmpdir.join("alg.f90"))
+    with open(filename, "w", encoding='utf-8') as my_file:
+        my_file.write(code)
+    alg, _ = generate(filename, api="dynamo0.3")
+    assert "use _psyclone_builtins" not in alg
 
 
 def test_main_unexpected_fatal_error(capsys, monkeypatch):
@@ -1129,8 +1153,8 @@ def test_add_builtins_use():
     parser = ParserFactory().create(std="f2008")
     reader = FortranStringReader(code)
     fp2_tree = parser(reader)
-    add_builtins_use(fp2_tree)
-    assert "USE builtins" in str(fp2_tree)
+    add_builtins_use(fp2_tree, "my_name")
+    assert "USE my_name" in str(fp2_tree)
     # spec_part
     code = (
         "program test_prog\n"
@@ -1138,8 +1162,8 @@ def test_add_builtins_use():
         "end program\n")
     reader = FortranStringReader(code)
     fp2_tree = parser(reader)
-    add_builtins_use(fp2_tree)
-    assert "USE builtins" in str(fp2_tree)
+    add_builtins_use(fp2_tree, "ANOTHER_NAME")
+    assert "USE ANOTHER_NAME" in str(fp2_tree)
     # multiple modules/programs
     code = (
         "program test_prog\n"
@@ -1150,7 +1174,7 @@ def test_add_builtins_use():
         "end module\n")
     reader = FortranStringReader(code)
     fp2_tree = parser(reader)
-    add_builtins_use(fp2_tree)
+    add_builtins_use(fp2_tree, "builtins")
     assert str(fp2_tree) == (
         "PROGRAM test_prog\n  USE builtins\nEND PROGRAM\n"
         "MODULE test_mod1\n  USE builtins\nEND MODULE\n"
@@ -1176,9 +1200,8 @@ def test_no_script_lfric_new(monkeypatch):
     assert " testkern_type" not in alg
     # module symbol is removed
     assert "testkern_mod" not in alg
-    # TODO issue #1618. The builtins statement should be removed from
-    # the processed source code.
-    assert "use builtins" in alg
+    # _psyclone_builtins symbol (that was added by PSyclone) is removed
+    assert "use _psyclone_builtins" not in alg
 
 
 def test_script_lfric_new(monkeypatch):
@@ -1202,9 +1225,8 @@ def test_script_lfric_new(monkeypatch):
     assert " testkern_type" not in alg
     # module symbol is removed
     assert "testkern_mod" not in alg
-    # TODO issue #1618. The builtins statement should be removed from
-    # the processed source code.
-    assert "use builtins" in alg
+    # _psyclone_builtins symbol (that was added by PSyclone) is removed
+    assert "use _psyclone_builtins" not in alg
 
 
 def test_builtins_lfric_new(monkeypatch):
@@ -1232,9 +1254,8 @@ def test_builtins_lfric_new(monkeypatch):
     assert " testkern_mod" not in alg
     assert " testkern_wtheta_mod" not in alg
     assert " testkern_w2_only_mod" not in alg
-    # TODO issue #1618. The builtins statement should be removed from
-    # the processed source code.
-    assert "use builtins" in alg
+    # _psyclone_builtins symbol (that was added by PSyclone) is removed
+    assert "use _psyclone_builtins" not in alg
 
 
 def test_no_invokes_lfric_new(monkeypatch):

@@ -265,7 +265,8 @@ def test_symbol_specialise():
     assert str(asym) == "a: Symbol<Automatic>"
     asym.specialise(RoutineSymbol)
     assert type(asym) is RoutineSymbol
-    assert str(asym) == "a: RoutineSymbol<NoType>"
+    assert (str(asym) == "a: RoutineSymbol<NoType, pure=unknown, "
+            "elemental=unknown>")
 
 
 @pytest.mark.parametrize("test_class", [Symbol, RoutineSymbol])

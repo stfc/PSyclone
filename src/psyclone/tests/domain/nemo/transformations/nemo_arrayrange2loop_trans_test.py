@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2022, Science and Technology Facilities Council.
+# Copyright (c) 2020-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,12 +31,10 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford and S. Siso, STFC Daresbury Lab
+# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 
 '''Module containing tests for the NemoArrayRange2LoopTrans
 transformation.'''
-
-from __future__ import absolute_import
 
 import os
 import pytest
@@ -376,8 +374,8 @@ def test_validate_with_a_function_call():
 
     with pytest.raises(TransformationError) as info:
         trans.apply(array_ref.children[2])
-    assert ("This transformation does not support array assignments that "
-            "contain a Call anywhere in the expression, but found:\n"
+    assert ("This transformation does not support non-elemental Calls on the "
+            "rhs of the associated Assignment node, but found 'func' in:\n"
             "umask(:,:,:) = 0.0d0 + func()\n" in str(info.value))
 
 
@@ -573,8 +571,8 @@ def test_validate_array_non_elemental_operator():
         trans.apply(array_ref.children[0])
     assert (
         "Error in NemoArrayRange2LoopTrans transformation. This "
-        "transformation does not support non-elemental operations on the rhs "
-        "of the associated Assignment node, but found 'MATMUL'."
+        "transformation does not support non-elemental Operations on the rhs "
+        "of the associated Assignment node, but found 'MATMUL' in:"
         in str(info.value))
 
 

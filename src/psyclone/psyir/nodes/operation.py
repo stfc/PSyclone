@@ -256,6 +256,7 @@ class Operation(DataNode, metaclass=ABCMeta):
                 new_argument_names.append((id(child), None))
         self._argument_names = new_argument_names
 
+    @property
     def is_elemental(self):
         '''
         :returns: whether this operation is elemental (provided with an input \
@@ -320,7 +321,7 @@ class UnaryOperation(Operation):
         # Trigonometric Operators
         'COS', 'SIN', 'TAN', 'ACOS', 'ASIN', 'ATAN',
         # Other Maths Operators
-        'ABS', 'CEIL',
+        'ABS', 'CEIL', 'FLOOR', 'TRANSPOSE',
         # Casting Operators
         'REAL', 'INT', 'NINT'
         ])
@@ -398,7 +399,7 @@ class BinaryOperation(Operation):
         # Relational Operators
         'EQ', 'NE', 'GT', 'LT', 'GE', 'LE',
         # Logical Operators
-        'AND', 'OR',
+        'AND', 'OR', 'EQV', 'NEQV',
         # Other Maths Operators
         'SIGN', 'MIN', 'MAX',
         # Casting operators

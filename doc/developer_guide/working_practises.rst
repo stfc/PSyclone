@@ -545,10 +545,10 @@ As mentioned above, running the test suite and/or examples with compilation
 enabled significantly increases the required compute time. However, there
 is a need to test PSyclone with full builds of the LFRic and NEMO
 applications. Therefore, in addition to the principal action described
-above, there are two others which are configured in ``repo-sync.yml``
-and ``compilation.yml``.
+above, there are the following workflow files that manage multiple
+Integration tests:
 
-The ``repo-sync`` action must be triggered
+The ``repo-sync`` action, which must be triggered
 manually (on GitHub) and pushes a copy of the current branch to a private
 repository. (This action uses the ``integration`` environment and can
 therefore only be triggered by GitHub users who have ``review`` permissions
@@ -556,14 +556,18 @@ in that environment.) That private repository has a GitHub self-hosted runner
 setup which then enables tests to be run on a machine at the Hartree
 Centre. Access to the private repository is handled using ssh with a key
 saved as a 'secret' in the GitHub PSyclone repository.
-
-It is the work performed by the self-hosted runner that is configured in the
-``compilation.yml`` file. Currently this is limited to simply running the test
-suite with compilation enabled (using ``gfortran``) but we plan to extend this
-to perform integration tests with whole LFRic and NEMO applications, including
-GPU execution. Since the self-hosted runner is only available in the private
-repository, this action is configured such that it only runs if the name
+The work performed by the self-hosted runner is configured in the ``yml`` files
+below. Since the self-hosted runner is only available in the private
+repository, these action are configured such that they only run if the name
 of the repository is that of the private one.
+
+The ``compilation.yml`` action, runs the test suite and examples with
+compilation enabled (using ``gfortran``).
+
+The ``nemo.yml`` action, processes the NEMO source code (available in
+self-hosted runner) with the PSyclone scripts in examples/nemo/scripts.
+Then it compiles the generated code, runs it, and validates that the
+output produced matches with the expected results.
 
 
 Performance
