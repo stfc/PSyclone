@@ -31,7 +31,8 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: S. Siso STFC Daresbury Lab
+# Author: S. Siso, STFC Daresbury Lab
+# Modified: R. W. Ford, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' This module contains the SymbolInterface class and its subclasses. '''
@@ -100,6 +101,13 @@ class UnresolvedInterface(SymbolInterface):
 
     def __str__(self):
         return "Unresolved"
+
+
+class VisibilityInterface(SymbolInterface):
+    ''' We have a symbol but only know about its visibility. '''
+
+    def __str__(self):
+        return "Visibility"
 
 
 class ImportInterface(SymbolInterface):
