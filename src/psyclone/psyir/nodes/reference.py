@@ -85,11 +85,11 @@ class Reference(DataNode):
 
     @property
     def is_array(self):
-        ''':returns: whether this reference is an array. Note that if an array
-        expression is used, it will be a Reference in the PSyIR, but if the
-        symbol has been resolved, the symbol will be queried to determine
-        whether it is an array or not.
-
+        '''
+        :returns: whether this reference is an array. Note that if an array
+            expression is used, it will be a Reference in the PSyIR, but if the
+            symbol has been resolved, the symbol will be queried to determine
+            whether it is an array or not.
         :rtype: bool
 
         '''
