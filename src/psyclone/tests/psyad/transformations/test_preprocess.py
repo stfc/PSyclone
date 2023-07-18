@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Modified: J. Henrichs, Bureau of Meteorology
 
 '''A module to perform pytest tests on the code in the preprocess.py
 file within the psyad/transformations directory
@@ -400,3 +401,30 @@ def test_associativity6(tmpdir, fortran_reader, fortran_writer):
     result = fortran_writer(psyir)
     assert result == expected
     assert Compile(tmpdir).string_compiles(result)
+
+
+def test_associativity7(fortran_reader, fortran_writer):
+    '''Test that the associativity function works as expected when we have
+    user-defined types.
+    '''
+    code = (
+        "program test\n"
+        "  use my_type_mod\n"
+        "  integer :: a, b, c(10), d(10)\n"
+        "  type(my_type) :: mt\n"
+        "  a = b*(sum(c(:)) + sum(mt%x(:)))\n"
+        "end program test\n")
+    expected = (
+        "program test\n"
+        "  use my_type_mod\n"
+        "  integer :: a\n"
+        "  integer :: b\n"
+        "  integer, dimension(10) :: c\n"
+        "  integer, dimension(10) :: d\n"
+        "  type(my_type) :: mt\n\n"
+        "  a = b * SUM(c(:)) + b * SUM(mt%x(:))\n\n"
+        "end program test\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    preprocess_trans(psyir, ["a", "c", "mt"])
+    result = fortran_writer(psyir)
+    assert result == expected
