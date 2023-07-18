@@ -57,8 +57,8 @@ EXEC = ./builtins
 # LFRic infrastructure library
 PSYCLONE_RELPATH = ../../../../../..
 LFRIC_PATH = $(PSYCLONE_RELPATH)/src/psyclone/tests/test_files/dynamo0p3/infrastructure
-LFRIC_NAME=lfric
-LFRIC_LIB=$(LFRIC_PATH)/lib$(LFRIC_NAME).a
+LFRIC_NAME = lfric
+LFRIC_LIB = $(LFRIC_PATH)/lib$(LFRIC_NAME).a
 
 # This will add the required include flags to LFRIC_INCLUDE_FLAGS
 include $(LFRIC_PATH)/lfric_include_flags.inc
@@ -90,8 +90,8 @@ $(LFRIC_LIB):
 	$(MAKE) -C $(LFRIC_PATH)
 
 # Dependencies
-$(DRIVER_OBJ): $(ALGORITHM_OBJ) $(PSY_OBJ) $(LFRIC_LIB)
-$(ALGORITHM_OBJ): $(PSY_OBJ) $(LFRIC_LIB)
+$(DRIVER_OBJ): $(ALGORITHM_OBJ) $(PSY_OBJ)
+$(ALGORITHM_OBJ): $(PSY_OBJ)
 $(PSY_OBJ): $(LFRIC_LIB)
 
 %.o %.mod: %.F90
