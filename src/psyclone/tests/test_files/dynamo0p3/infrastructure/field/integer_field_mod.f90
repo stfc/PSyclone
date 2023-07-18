@@ -740,9 +740,10 @@ contains
       if( self%data(i) > l_max ) l_max = self%data(i)
       if( self%data(i) < l_min ) l_min = self%data(i)
     end do
-    ! Functions global_max() and global_min() rely on MPI comms
-    ! so these calls are disabled here. Max and min are simply
-    ! l_max and l_min.
+    ! Functions 'global_max()' and 'global_min()' rely on MPI
+    ! comms which are not supported by the PSyclone test LFRic
+    ! infrastructure. Hence, these calls are disabled here and
+    ! 'max' and 'min' are simply 'l_max' and 'l_min'.
     !call global_mpi%global_max( l_max, answer_max )
     !call global_mpi%global_min( l_min, answer_min )
     answer_max = l_max
@@ -785,8 +786,9 @@ contains
     do i = 2, function_space%get_last_dof_owned()
       if( abs(self%data(i)) > l_max ) l_max = abs(self%data(i))
     end do
-    ! Function global_max() relies on MPI comms so this call
-    ! is disabled here. Max is simply l_max.
+    ! Function 'global_max()' relies on MPI comms which are not
+    ! supported by the PSyclone test LFRic infrastructure. Hence,
+    ! this call is disabled here and 'max' is simply 'l_max'.
     !call global_mpi%global_max( l_max, answer )
     answer = l_max
 
