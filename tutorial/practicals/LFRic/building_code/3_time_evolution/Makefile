@@ -99,9 +99,9 @@ $(LFRIC_LIB):
 	$(MAKE) -C $(LFRIC_PATH) netcdf 
 
 # Dependencies
-$(DRIVER_OBJ): $(ALGORITHM_OBJ) $(PSY_OBJ) $(KERNEL_OBJ) $(LFRIC_LIB) $(GHLIB_LIB)
-$(ALGORITHM_OBJ): $(PSY_OBJ) $(KERNEL_OBJ) $(LFRIC_LIB) $(GHLIB_LIB)
-$(PSY_OBJ): $(KERNEL_OBJ) $(LFRIC_LIB) $(GHLIB_LIB)
+$(DRIVER_OBJ): $(ALGORITHM_OBJ) $(PSY_OBJ) $(KERNEL_OBJ)
+$(ALGORITHM_OBJ): $(PSY_OBJ) $(KERNEL_OBJ)
+$(PSY_OBJ): $(KERNEL_OBJ)
 $(KERNEL_OBJ): $(LFRIC_LIB) $(GHLIB_LIB)
 time_evolution_alg_mod.o: init_perturbation_kernel_mod.o \
 	prop_perturbation_kernel_mod.o time_evolution_alg_mod_psy.o \
