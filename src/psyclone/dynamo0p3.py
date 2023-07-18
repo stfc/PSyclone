@@ -3131,7 +3131,8 @@ class DynProxies(LFRicCollection):
             argument_types=["gh_operator"])
         for arg in op_args:
             name = arg.name
-            precision = self._symbol_table.lookup(arg.precision)
+            precision = self._symbol_table.add_lfric_precision_symbol(
+                arg.precision)
             array_type = ArrayType(
                 LFRicTypes("LFRicRealScalarDataType")(precision),
                 [ArrayType.Extent.DEFERRED]*3)
