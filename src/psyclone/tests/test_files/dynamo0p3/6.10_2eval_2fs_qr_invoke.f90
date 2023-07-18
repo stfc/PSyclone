@@ -33,13 +33,13 @@ program eval_invoke
 
   ! Test program containing a single invoke of two kernels that
   ! require evaluators and one that requires quadrature
-  use constants_mod,            only: r_def, i_def
-  use field_mod,                only: field_type
-  use operator_mod,             only: operator_type
-  use quadrature_xyoz_mod,      only: quadrature_xyoz_type
-  use testkern_eval_2fs_mod,    only: testkern_eval_2fs_type
-  use testkern_eval_op_mod,     only: testkern_eval_op_type
-  use testkern_wrong_file_name, only: testkern_qr_type
+  use constants_mod,         only: r_def, i_def
+  use field_mod,             only: field_type
+  use operator_mod,          only: operator_type
+  use quadrature_xyoz_mod,   only: quadrature_xyoz_type
+  use testkern_eval_2fs_mod, only: testkern_eval_2fs_type
+  use testkern_eval_op_mod,  only: testkern_eval_op_type
+  use testkern_qr_mod,       only: testkern_qr_type
 
   implicit none
 

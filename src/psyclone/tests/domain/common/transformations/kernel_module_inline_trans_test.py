@@ -307,14 +307,14 @@ def test_module_inline_apply_transformation(tmpdir, fortran_writer):
 def test_module_inline_apply_kernel_in_multiple_invokes(tmpdir):
     ''' Check that module-inline works as expected when the same kernel
     is provided in different invokes'''
-    # Use LFRic example with the kernel 'testkern_wrong_file_name' repeated once in
+    # Use LFRic example with the kernel 'testkern_qr_mod' repeated once in
     # the first invoke and 3 times in the second invoke.
     psy, _ = get_invoke("3.1_multi_functions_multi_invokes.f90", "dynamo0.3",
                         idx=0, dist_mem=False)
 
     # By default the kernel is imported once per invoke
     gen = str(psy.gen)
-    assert gen.count("USE testkern_wrong_file_name, ONLY: testkern_qr_code") == 2
+    assert gen.count("USE testkern_qr_mod, ONLY: testkern_qr_code") == 2
     assert gen.count("END SUBROUTINE testkern_qr_code") == 0
 
     # Module inline kernel in invoke 1
@@ -327,7 +327,7 @@ def test_module_inline_apply_kernel_in_multiple_invokes(tmpdir):
 
     # After this, one invoke uses the inlined top-level subroutine
     # and the other imports it (shadowing the top-level symbol)
-    assert gen.count("USE testkern_wrong_file_name, ONLY: testkern_qr_code") == 1
+    assert gen.count("USE testkern_qr_mod, ONLY: testkern_qr_code") == 1
     assert gen.count("END SUBROUTINE testkern_qr_code") == 1
 
     # Module inline kernel in invoke 2
@@ -338,7 +338,7 @@ def test_module_inline_apply_kernel_in_multiple_invokes(tmpdir):
     gen = str(psy.gen)
     # After this, no imports are remaining and both use the same
     # top-level implementation
-    assert gen.count("USE testkern_wrong_file_name, ONLY: testkern_qr_code") == 0
+    assert gen.count("USE testkern_qr_mod, ONLY: testkern_qr_code") == 0
     assert gen.count("END SUBROUTINE testkern_qr_code") == 1
 
     # And it is valid code

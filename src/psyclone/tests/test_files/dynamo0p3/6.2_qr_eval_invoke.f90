@@ -33,11 +33,11 @@ program qr_eval_invoke
 
   ! Test program containing a single invoke of two kernels, one
   ! requiring an evaluator and one quadrature.
-  use constants_mod,            only: r_def, i_def
-  use field_mod,                only: field_type
-  use quadrature_xyoz_mod,      only: quadrature_xyoz_type
-  use testkern_eval_mod,        only: testkern_eval_type
-  use testkern_wrong_file_name, only: testkern_qr_type
+  use constants_mod,       only: r_def, i_def
+  use field_mod,           only: field_type
+  use quadrature_xyoz_mod, only: quadrature_xyoz_type
+  use testkern_eval_mod,   only: testkern_eval_type
+  use testkern_qr_mod,     only: testkern_qr_type
 
   implicit none
 

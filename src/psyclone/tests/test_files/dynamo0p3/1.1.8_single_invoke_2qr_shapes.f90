@@ -34,12 +34,12 @@ program single_invoke
 
   ! Description: two kernels specified in an invoke call, each requiring
   ! quadrature but of different shapes.
-  use constants_mod,            only: r_def, i_def
-  use testkern_wrong_file_name, only: testkern_qr_type
-  use testkern_qr_faces_mod,    only: testkern_qr_faces_type
-  use field_mod,                only: field_type
-  use quadrature_xyoz_mod,      only: quadrature_xyoz_type
-  use quadrature_face_mod,      only: quadrature_face_type
+  use constants_mod,         only: r_def, i_def
+  use testkern_qr_mod,       only: testkern_qr_type
+  use testkern_qr_faces_mod, only: testkern_qr_faces_type
+  use field_mod,             only: field_type
+  use quadrature_xyoz_mod,   only: quadrature_xyoz_type
+  use quadrature_face_mod,   only: quadrature_face_type
 
   implicit none
 

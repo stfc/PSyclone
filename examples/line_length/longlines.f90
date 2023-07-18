@@ -35,10 +35,10 @@
 
 program long_lines
 
-  use constants_mod, only : r_def, i_def
-  use field_mod, only : field_type
+  use constants_mod,       only : r_def, i_def
+  use field_mod,           only : field_type
   use quadrature_xyoz_mod, only: quadrature_xyoz_type
-  use testkern_wrong_file_name,   only : testkern_qr_type
+  use testkern_qr_mod,     only : testkern_qr_type
 
   real(r_def)    :: rdt
   integer(i_def) :: iflag

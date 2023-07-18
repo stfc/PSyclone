@@ -38,10 +38,10 @@ program single_invoke
   ! quadrature is supplied by dereferencing a derived type. Note, none of
   ! the actual LFRic objects has quadrature so we use a fake reference-
   ! element-like object that contains a quadrature object.
-  use constants_mod,            only: r_def, i_def
-  use reference_element_mod,    only: reference_element_type
-  use field_mod,                only: field_type
-  use testkern_wrong_file_name, only: testkern_qr_type
+  use constants_mod,         only: r_def, i_def
+  use reference_element_mod, only: reference_element_type
+  use field_mod,             only: field_type
+  use testkern_qr_mod,       only: testkern_qr_type
 
   implicit none
 
