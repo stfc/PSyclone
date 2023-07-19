@@ -391,22 +391,33 @@ def test_array_access_pairs_0_vars(lhs, rhs, is_dependent, fortran_reader):
                           ("a1(2*i)", "a1(2*i+1)", None),
                           ("a1(i*i)", "a1(-1)", None),
                           ("a1(i-i+2)", "a1(2)", None),
-                          # An array range raises an exception
-                          # TODO: 1655 - if this is fixed we might
-                          # need a different example that is valid
-                          # Fortran but causes the sympy writer to fail
-                          ("a1(:)", "a1(:)+1", None),
+                          # Test the handling of array ranges. This is not
+                          # yet supported (TODO #2168), so it will always
+                          # return None, indicating an overlap.
+                          ("a1(:)", "a1(:)", None),
+                          # TODO #2168 A more complex case of distance
+                          # computation with a range - this needs to compare
+                          # the lower value of the left expression (i) with
+                          # the upper value of the right expression (i-1) etc
+                          ("a1(i:i+2)", "a1(i-3:i-1)", None),
+                          # The /= is parsed as valid Fortran,
+                          # but not converted into valid SymPy.
+                          # It will therefore raise an exception,
+                          # which we want to test:
+                          ("a1(:)", "a1(mt%x(:) /= 1)+1", None),
                           ])
 def test_array_access_pairs_1_var(lhs, rhs, distance, fortran_reader):
     '''Tests the array checks of can_loop_be_parallelised.
     '''
     source = f'''program test
+                 use my_type_mod
                  integer i, j, k, d_i
                  integer, parameter :: n=10, m=10
                  integer, dimension(10, 10) :: indx
                  real, dimension(n) :: a1
                  real, dimension(n, m) :: a2
                  real, dimension(n, m, n) :: a3
+                 type(my_type) :: mt
                  {lhs} = {rhs}
                  end program test'''
     psyir = fortran_reader.psyir_from_source(source)
