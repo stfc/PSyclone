@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022, Science and Technology Facilities Council.
+# Copyright (c) 2022-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -67,6 +67,23 @@ def generate_lfric_adjoint(tl_psyir, active_variables):
     '''
     logger = logging.getLogger(__name__)
 
+    container = find_container(tl_psyir)
+    if not container:
+        raise InternalError(
+            "An LFRic kernel must be within a Container but the supplied "
+            "PSyIR does not contain one.")
+
+    # Infer the tangent-linear metadata name from the container
+    # name. This will be used later to find and modify the metadata.
+    container_name = container.name.lower()
+    if container_name.endswith("_mod"):
+        root_name = container_name[:(len(container_name)-len("_mod"))]
+    else:
+        raise Exception(
+            f"LFRic modules should end with \"_mod\", but found "
+            f"'{container_name}'")
+    tl_metadata_name = root_name + "_type"
+
     # Translate from TL to AD
     logger.debug("Translating from TL to AD.")
     adjoint_visitor = AdjointVisitor(active_variables)
@@ -120,5 +137,96 @@ def generate_lfric_adjoint(tl_psyir, active_variables):
         routine.name = adj_kernel_sym.name
 
         logger.debug("AD LFRic kernel will be named '%s'", routine.name)
+
+    # Infer the adjoint metadata name from the container name. This will be
+    # used later to find and modify the metadata.
+    container_name = container.name.lower()
+    if container_name.endswith("_mod"):
+        root_name = container_name[:(len(container_name)-len("_mod"))]
+    else:
+        raise Exception(
+            f"LFRic modules should end with \"_mod\", but found "
+            f"'{container_name}'")
+    adj_metadata_name = root_name + "_type"
+
+    # Modify the kernel metadata
+    # TODO Assumption that the first child of the container is a kernel
+    arg_symbols = container.children[0].symbol_table.argument_list
+
+    # 1: Raise the PSyIR from generic to LFRic-specific
+    from psyclone.domain.lfric.transformations import RaisePSyIR2LFRicKernTrans
+    raise_trans = RaisePSyIR2LFRicKernTrans()
+    raise_trans.apply(
+        ad_psyir, options={"metadata_name": tl_metadata_name})
+    # 2: Find the metadata
+    ad_container = find_container(ad_psyir)
+    # TODO Test that ad_container finds a container - really should push this exception into find_container as we always want to test this.
+    metadata = ad_container.metadata
+    # 3: Change the type and procedure names
+    metadata.name = create_adjoint_name(metadata.name)
+    if metadata.procedure_name:
+        metadata.procedure_name = create_adjoint_name(metadata.procedure_name)
+    else:
+        # issue #xxx need to raise interface metadata
+        return ad_psyir
+
+    # 4: Determine the order of the kernel arguments from the
+    # metadata. This is needed to find the metadata associated with
+    # the specified active variables.
+    from psyclone.domain.lfric import ArgIndexToMetadataIndex
+    meta_arg_index_from_arg_index = ArgIndexToMetadataIndex.mapping(metadata)
+
+    # 5: Change the meta_args access metadata
+    for var_name in active_variables:
+        # Determine whether this active variable is passed by argument.
+        found_symbol = None
+        for arg_symbol in arg_symbols:
+            if arg_symbol.name == var_name:
+                found_symbol = arg_symbol
+                break
+        else:
+            continue
+
+        arg_index = arg_symbols.index(found_symbol)
+        try:
+            meta_arg_index = meta_arg_index_from_arg_index[arg_index]
+        except:
+            raise Exception(f"The argument position '{arg_index}' of the active variable '{found_symbol.name}' does not match any position as specified by the metadata. The expected meta_arg positions from argument positions are '{meta_arg_index_from_arg_index}' ")
+        meta_arg = metadata.meta_args[meta_arg_index]
+        print(f"{var_name} found at index {arg_index} has meta_arg index {meta_arg_index}.")
+
+        # Determine the intent of this variable from its declaration
+        # and update metadata appropriately.
+        from psyclone.psyir.symbols.symbol import ArgumentInterface, ImportInterface
+        from psyclone.domain.lfric.kernel import ScalarArgMetadata
+        var_access = found_symbol.interface.access
+        from psyclone.domain.lfric import LFRicConstants
+        const = LFRicConstants()
+        # TODO different data types (operator?)
+        access = None
+        if var_access == ArgumentInterface.Access.READWRITE:
+            if type(meta_arg) == ScalarArgMetadata:
+                access = "gh_sum"
+            elif meta_arg.function_space in const.DISCONTINUOUS_FUNCTION_SPACES:
+                access = "gh_readwrite"
+            else:
+                access = "gh_inc"
+        if var_access == ArgumentInterface.Access.WRITE:
+            access = "gh_write"
+        if var_access == ArgumentInterface.Access.READ:
+            access = "gh_read"
+
+        # Check that access name exists in symbol table and if not add it.
+        # TODO Assumption that the first child of the container is a kernel
+        kernel = ad_container.children[0]
+        symbol_table = kernel.symbol_table
+        try:
+            argument_mod_symbol = symbol_table.lookup(access)
+            # TODO, check it is imported from argument_mod
+        except:
+            arg_mod_symbol = symbol_table.lookup("argument_mod")
+            symbol_table = arg_mod_symbol.find_symbol_table(kernel)
+            symbol_table.new_symbol(root_name=access, interface=ImportInterface(arg_mod_symbol))
+        meta_arg.access = access
 
     return ad_psyir
