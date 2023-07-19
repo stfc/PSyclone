@@ -718,6 +718,9 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
             # dependencies based on it need to be handled by a taskwait
             return False
 
+        # Create our sympy_writer
+        sympy_writer = SymPyWriter()
+
         # If either of the returned accesses are a dict, this is a special
         # case where both must be a dict and have the same start, stop and
         # step.
@@ -733,12 +736,9 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
             # Now we know the step is equal, we need the start values to be
             # start1 = start2 + x * step, where x is an integer value.
             # We use SymPy to solve this equation and perform this check.
-            sympy_start1 = SymPyWriter.convert_to_sympy_expressions(
-                    [ref1_accesses["start"]])[0]
-            sympy_start2 = SymPyWriter.convert_to_sympy_expressions(
-                    [ref2_accesses["start"]])[0]
-            sympy_step = SymPyWriter.convert_to_sympy_expressions(
-                    [ref2_accesses["step"]])[0]
+            sympy_start1 = sympy_writer(ref1_accesses["start"])
+            sympy_start2 = sympy_writer(ref2_accesses["start"])
+            sympy_step = sympy_writer(ref2_accesses["step"])
             b_sym = sympy.Symbol('b')
             result = sympy.solvers.solve(sympy_start1 - sympy_start2 +
                                          b_sym * sympy_step, b_sym)
@@ -753,10 +753,8 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
         # If we have a list, then we have a set of Literal values.
         # We use the SymPyWriter to convert these objects to expressions
         # we can use to obtain integer values for these Literals
-        sympy_ref1s = \
-            SymPyWriter.convert_to_sympy_expressions(ref1_accesses)
-        sympy_ref2s = \
-            SymPyWriter.convert_to_sympy_expressions(ref2_accesses)
+        sympy_ref1s = sympy_writer(ref1_accesses)
+        sympy_ref2s = sympy_writer(ref2_accesses)
         return self._check_valid_overlap(sympy_ref1s, sympy_ref2s)
 
     def _check_dependency_pairing_valid(self, node1, node2, task1, task2):
