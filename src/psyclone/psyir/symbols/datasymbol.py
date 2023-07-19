@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+# Copyright (c) 2017-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -38,7 +38,6 @@
 
 ''' This module contains the DataSymbol and its interfaces.'''
 
-from __future__ import absolute_import
 from psyclone.psyir.symbols.typed_symbol import TypedSymbol
 
 
@@ -204,6 +203,24 @@ class DataSymbol(TypedSymbol):
         if self.is_constant:
             ret += f", constant_value={self.constant_value}"
         return ret + ">"
+
+    def __eq__(self, other):
+        '''
+        A DataSymbol is equal to another DataSymbol if it:
+
+            * Has the same name;
+            * Has the same datatype;
+            * Has the same interface;
+            * Has the same initial value;
+            * Has the same static/not static attribute.
+        '''
+        if any([type(self) != type(other),
+                self.name != other.name,
+                self.datatype != other.datatype,
+                self.interface != other.interface,
+                self.constant_value != other.constant_value]):
+            return False
+        return True
 
     def copy(self):
         '''Create and return a copy of this object. Any references to the

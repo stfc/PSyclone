@@ -441,3 +441,19 @@ def test_datasymbol_str():
     assert (data_symbol.__str__() ==
             "a: DataSymbol<Scalar<INTEGER, 4>, Automatic, constant_value="
             "Literal[value:'3', Scalar<INTEGER, 4>]>")
+
+
+def test_datasymbol_equality():
+    '''Test the equality operator for DataSymbol.'''
+    dsym1 = DataSymbol("a", INTEGER4_TYPE, constant_value=3)
+    dsym2 = DataSymbol("a", INTEGER4_TYPE, constant_value=3)
+    assert dsym1 == dsym2
+    # Different name.
+    dsym3 = DataSymbol("b", INTEGER4_TYPE, constant_value=3)
+    assert dsym1 != dsym3
+    # Different type.
+    dsym4 = DataSymbol("a", INTEGER_SINGLE_TYPE, constant_value=3)
+    assert dsym1 != dsym4
+    # Different constant value.
+    dsym5 = DataSymbol("a", INTEGER4_TYPE, constant_value=2)
+    assert dsym1 != dsym5
