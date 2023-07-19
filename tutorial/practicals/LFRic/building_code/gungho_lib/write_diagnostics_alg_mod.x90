@@ -85,7 +85,8 @@ contains
     ! Populate components of the temporary output diagnostic field (all
     ! same here)
     do i = 1, dim_fs
-       call diag_field%copy_field_serial(diag_write_field(i))
+       call diag_field%copy_field_properties(diag_write_field(i))
+       call invoke( setval_X(diag_write_field(i), diag_field) )
     end do
 
     ! Output data
