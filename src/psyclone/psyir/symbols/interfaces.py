@@ -143,11 +143,11 @@ class ImportInterface(SymbolInterface):
           * perform the same symbol renaming.
 
         '''
-        if all([super().__eq__(other),
-                self.container_symbol == other.container_symbol,
-                self.orig_name == other.orig_name]):
-            return True
-        return False
+        if (not super().__eq__(other) or
+            any([self.container_symbol != other.container_symbol,
+                 self.orig_name != other.orig_name])):
+            return False
+        return True
 
     @property
     def orig_name(self):
@@ -245,10 +245,9 @@ class ArgumentInterface(SymbolInterface):
           * have the same access.
 
         '''
-        if all([super().__eq__(other),
-                self.access == other.access]):
-            return True
-        return False
+        if (not super().__eq__(other) or self.access != other.access):
+            return False
+        return True
 
     @property
     def access(self):

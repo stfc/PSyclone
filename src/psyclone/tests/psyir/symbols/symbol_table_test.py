@@ -1570,8 +1570,12 @@ def test_deep_copy():
     # But the symbols are not the same objects as the original ones
     assert symtab2.lookup("symbol1") is not sym1
     assert symtab2.lookup_with_tag("tag1") is not sym2
-    assert sym1 not in symtab2.argument_list
-    assert symtab2.lookup("symbol1") not in symtab.argument_list
+    # Can't do 'not in' here as DataSymbols are hot hashable.
+    for sym in symtab2.argument_list:
+        assert sym1 is not sym
+    sym1a = symtab2.lookup("symbol1")
+    for sym in symtab.argument_list:
+        assert sym is not sym1a
 
     # Check that the internal links between ImportInterfaces and
     # ContainerSymbols have been updated
@@ -1687,7 +1691,7 @@ def test_symbols_tags_dict():
     assert schedule_symbol_table.symbols_dict is schedule_symbol_table._symbols
     assert schedule_symbol_table.tags_dict is schedule_symbol_table._tags
     rdict = schedule_symbol_table.get_reverse_tags_dict()
-    assert rdict[symbol1] == symbol1_tag
+    assert rdict[symbol1.name] == symbol1_tag
 
 
 def test_new_symbol():

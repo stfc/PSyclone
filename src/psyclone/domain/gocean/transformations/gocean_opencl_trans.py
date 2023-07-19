@@ -378,17 +378,17 @@ class GOOpenCLTrans(Transformation):
                                 [Literal(kern.name, CHARACTER_TYPE)])))
 
         # Traverse all arguments and make sure all the buffers are initialised
-        initialised_fields = set()
+        initialised_fields = dict()
         there_is_a_grid_buffer = False
         for kern in node.coded_kernels():
             for arg in kern.arguments.args:
                 if arg.argument_type == "field":
                     field = node.symbol_table.lookup(arg.name)
-                    if field not in initialised_fields:
+                    if field.name not in initialised_fields:
                         # Call the init_buffer routine with this field
                         call = Call.create(init_buf, [Reference(field)])
                         setup_block.if_body.addchild(call)
-                        initialised_fields.add(field)
+                        initialised_fields[field.name] = field
                 elif (arg.argument_type == "grid_property" and
                       not arg.is_scalar):
                     if not there_is_a_grid_buffer:
@@ -434,7 +434,7 @@ class GOOpenCLTrans(Transformation):
         first_statement_comment = False
         for field in initialised_fields:
             call = Call.create(
-                RoutineSymbol(field.name+"%write_to_device"), [])
+                RoutineSymbol(f"{field}%write_to_device"), [])
             setup_block.if_body.addchild(call)
             if not first_statement_comment:
                 call.preceding_comment = "Write data to the device"

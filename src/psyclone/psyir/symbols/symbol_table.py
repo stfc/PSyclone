@@ -1130,7 +1130,7 @@ class SymbolTable():
         Constructs and returns a reverse of the map returned by tags_dict
         method.
 
-        :returns: ordered dictionary of tags indexed by symbol.
+        :returns: ordered dictionary of tags indexed by symbol name.
         :rtype: OrderedDict[:py:class:`psyclone.psyir.symbols.Symbol`, str]
 
         '''
@@ -1139,7 +1139,7 @@ class SymbolTable():
         # with a particular Symbol. At present this is guaranteed by the
         # SymbolTable interface but this restriction may be lifted in future.
         for tag, sym in self._tags.items():
-            tags_dict_reversed[sym] = tag
+            tags_dict_reversed[sym.name] = tag
         return tags_dict_reversed
 
     @property
@@ -1201,14 +1201,14 @@ class SymbolTable():
         :rtype: List[:py:class:`psyclone.psyir.symbols.DataSymbol`]
 
         '''
-        # Accumulate into a set so as to remove any duplicates
-        precision_symbols = set()
+        # Accumulate into a dict so as to remove any duplicates
+        precision_symbols = dict()
         for sym in self.datasymbols:
             # Not all types have the 'precision' attribute (e.g. DeferredType)
             if (hasattr(sym.datatype, "precision") and
                     isinstance(sym.datatype.precision, DataSymbol)):
-                precision_symbols.add(sym.datatype.precision)
-        return list(precision_symbols)
+                precision_symbols[sym.datatype.precision.name] = sym.datatype.precision
+        return list(precision_symbols.values())
 
     @property
     def containersymbols(self):

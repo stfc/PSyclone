@@ -2156,8 +2156,8 @@ class DynReferenceElement(LFRicCollection):
                     symtab.find_or_create_array(name, 2,
                                                 ScalarType.Intrinsic.REAL,
                                                 tag=name)
-                if self._horiz_face_normals_symbol not in self._arg_properties:
-                    self._arg_properties[self._horiz_face_normals_symbol] = \
+                if self._horiz_face_normals_symbol.name not in self._arg_properties:
+                    self._arg_properties[self._horiz_face_normals_symbol.name] = \
                          self._nfaces_h_symbol
             # Provide horizontal normals to "outward" faces
             elif prop == (RefElementMetaData.Property.
@@ -2167,9 +2167,9 @@ class DynReferenceElement(LFRicCollection):
                     symtab.find_or_create_array(name, 2,
                                                 ScalarType.Intrinsic.REAL,
                                                 tag=name)
-                if self._horiz_face_out_normals_symbol not in \
+                if self._horiz_face_out_normals_symbol.name not in \
                         self._arg_properties:
-                    self._arg_properties[self._horiz_face_out_normals_symbol] \
+                    self._arg_properties[self._horiz_face_out_normals_symbol.name] \
                         = self._nfaces_h_symbol
             elif prop == (RefElementMetaData.Property.
                           NORMALS_TO_VERTICAL_FACES):
@@ -2178,8 +2178,8 @@ class DynReferenceElement(LFRicCollection):
                     symtab.find_or_create_array(name, 2,
                                                 ScalarType.Intrinsic.REAL,
                                                 tag=name)
-                if self._vert_face_normals_symbol not in self._arg_properties:
-                    self._arg_properties[self._vert_face_normals_symbol] = \
+                if self._vert_face_normals_symbol.name not in self._arg_properties:
+                    self._arg_properties[self._vert_face_normals_symbol.name] = \
                          self._nfaces_v_symbol
             # Provide vertical normals to "outward" faces
             elif prop == (RefElementMetaData.Property.
@@ -2189,9 +2189,9 @@ class DynReferenceElement(LFRicCollection):
                     symtab.find_or_create_array(name, 2,
                                                 ScalarType.Intrinsic.REAL,
                                                 tag=name)
-                if self._vert_face_out_normals_symbol not in \
+                if self._vert_face_out_normals_symbol.name not in \
                         self._arg_properties:
-                    self._arg_properties[self._vert_face_out_normals_symbol] \
+                    self._arg_properties[self._vert_face_out_normals_symbol.name] \
                         = self._nfaces_v_symbol
             # Provide normals to all faces
             elif prop == RefElementMetaData.Property.NORMALS_TO_FACES:
@@ -2200,8 +2200,8 @@ class DynReferenceElement(LFRicCollection):
                     symtab.find_or_create_array(name, 2,
                                                 ScalarType.Intrinsic.REAL,
                                                 tag=name)
-                if self._face_normals_symbol not in self._arg_properties:
-                    self._arg_properties[self._face_normals_symbol] = \
+                if self._face_normals_symbol.name not in self._arg_properties:
+                    self._arg_properties[self._face_normals_symbol.name] = \
                         self._nfaces_symbol
             # Provide vertical normals to all "outward" faces
             elif prop == RefElementMetaData.Property.OUTWARD_NORMALS_TO_FACES:
@@ -2210,9 +2210,9 @@ class DynReferenceElement(LFRicCollection):
                     symtab.find_or_create_array(name, 2,
                                                 ScalarType.Intrinsic.REAL,
                                                 tag=name)
-                if self._face_out_normals_symbol not in \
+                if self._face_out_normals_symbol.name not in \
                    self._arg_properties:
-                    self._arg_properties[self._face_out_normals_symbol] = \
+                    self._arg_properties[self._face_out_normals_symbol.name] = \
                         self._nfaces_symbol
             else:
                 all_props = [str(sprop)
@@ -2230,6 +2230,7 @@ class DynReferenceElement(LFRicCollection):
 
         '''
         argdict = self._arg_properties
+        return [sym.name for sym in argdict.values()]
         # Remove duplicate "nfaces" by using OrderedDict
         nfaces = list(OrderedDict.fromkeys(argdict.values()))
         kern_args = nfaces + list(argdict.keys())
@@ -2242,6 +2243,7 @@ class DynReferenceElement(LFRicCollection):
 
         '''
         argdict = self._arg_properties
+        return list(argdict.values())
         # Remove duplicate "nfaces" by using OrderedDict
         nfaces = list(OrderedDict.fromkeys(argdict.values()))
         return nfaces + list(argdict.keys())
@@ -2258,8 +2260,8 @@ class DynReferenceElement(LFRicCollection):
         # Get the list of the required scalars
         if self._properties:
             # remove duplicates with an OrderedDict
-            nface_vars = list(OrderedDict.fromkeys(
-                self._arg_properties.values()))
+            nface_vars = list(#OrderedDict.fromkeys(
+                self._arg_properties.values())#)
         elif self._nfaces_h_required:
             # We only need the number of 'horizontal' faces
             nface_vars = [self._nfaces_h_symbol]
@@ -2288,8 +2290,8 @@ class DynReferenceElement(LFRicCollection):
             return
 
         # Declare the necessary arrays
-        array_decls = [f"{sym.name}(:,:)"
-                       for sym in self._arg_properties.keys()]
+        array_decls = [f"{name}(:,:)"
+                       for name in self._arg_properties.keys()]
         my_kind = api_config.default_kind["real"]
         parent.add(DeclGen(parent, datatype="real", kind=my_kind,
                            allocatable=True, entity_decls=array_decls))
@@ -2331,7 +2333,7 @@ class DynReferenceElement(LFRicCollection):
             parent.add(DeclGen(parent, datatype="real",
                                kind=api_config.default_kind["real"],
                                intent="in", dimension=dimension,
-                               entity_decls=[arr.name]))
+                               entity_decls=[arr]))
 
     def initialise(self, parent):
         '''

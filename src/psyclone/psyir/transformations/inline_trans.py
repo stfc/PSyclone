@@ -686,7 +686,7 @@ class InlineTrans(Transformation):
                     ref_or_lits.extend(dim.upper.walk(Reference, Literal))
         # Keep a reference to each Symbol that we check so that we can avoid
         # repeatedly checking the same Symbol.
-        _symbol_cache = set()
+        _symbol_cache = dict()
         for lnode in ref_or_lits:
             if isinstance(lnode, Literal):
                 if not isinstance(lnode.datatype.precision, DataSymbol):
@@ -695,9 +695,11 @@ class InlineTrans(Transformation):
             else:
                 sym = lnode.symbol
             # If we've already seen this Symbol then we can skip it.
-            if sym in _symbol_cache:
-                continue
-            _symbol_cache.add(sym)
+            if sym.name in _symbol_cache:
+                if any(csym is sym for csym in _symbol_cache[sym.name]):
+                    break
+                _symbol_cache[sym.name].append(sym)
+            _symbol_cache[sym.name] = [sym]
             # We haven't seen this Symbol before.
             if sym.is_unresolved:
                 try:

@@ -170,12 +170,12 @@ then
             # symbol name already present at container scope. (The validate()
             # method will already have checked for tag clashes.)
             try:
-                container.symbol_table.add(sym, tag=tags_dict.get(sym))
+                container.symbol_table.add(sym, tag=tags_dict.get(sym.name))
             except KeyError:
                 new_name = container.symbol_table.next_available_name(
                     sym.name, other_table=node.symbol_table)
                 node.symbol_table.rename_symbol(sym, new_name)
-                container.symbol_table.add(sym, tag=tags_dict.get(sym))
+                container.symbol_table.add(sym, tag=tags_dict.get(sym.name))
 
             # Create the array reference that will be the argument to the
             # new memory allocation statement.
@@ -248,7 +248,7 @@ then
             # support DataSymbols.
             # pylint: disable=protected-access
             del node.symbol_table._symbols[sym.name]
-            tag = tags_dict.get(sym)
+            tag = tags_dict.get(sym.name)
             if tag:
                 del node.symbol_table._tags[tag]
 
@@ -355,7 +355,7 @@ then
         tags_dict = node.symbol_table.get_reverse_tags_dict()
         cont_tags_dict = container.symbol_table.tags_dict
         for sym in auto_arrays:
-            tag = tags_dict.get(sym)
+            tag = tags_dict.get(sym.name)
             if tag in cont_tags_dict:
                 raise TransformationError(
                     f"The supplied routine '{node.name}' contains a local "

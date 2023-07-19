@@ -214,11 +214,11 @@ class DataSymbol(TypedSymbol):
             * Has the same initial value;
             * Has the same static/not static attribute.
         '''
-        if any([type(self) != type(other),
-                self.name != other.name,
-                self.datatype != other.datatype,
-                self.interface != other.interface,
-                self.constant_value != other.constant_value]):
+        if (type(self) != type(other) or
+            any([self.name != other.name,
+                 self.datatype != other.datatype,
+                 self.interface != other.interface,
+                 self.constant_value != other.constant_value])):
             return False
         return True
 

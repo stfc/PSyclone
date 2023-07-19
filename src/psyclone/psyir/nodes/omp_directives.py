@@ -720,9 +720,9 @@ class OMPParallelDirective(OMPRegionDirective):
         # #end do
         # call func(my_index) <- my_index has not been updated
 
-        private = set()
-        fprivate = set()
-        need_sync = set()
+        private = dict()#set()
+        fprivate = dict()#set()
+        need_sync = dict()#set()
 
         # Determine variables that must be private, firstprivate or need_sync
         var_accesses = VariablesAccessInfo()
@@ -790,10 +790,10 @@ class OMPParallelDirective(OMPRegionDirective):
                         loop_pos = loop_ancestor.loop_body.abs_position
                         if last_read_position < loop_pos:
                             # .. it was before the loop, so it is fprivate
-                            fprivate.add(symbol)
+                            fprivate[symbol.name] = symbol #.add(symbol)
                         else:
                             # or inside the loop, in which case it needs sync
-                            need_sync.add(symbol)
+                            need_sync[symbol.name] = symbol #.add(symbol)
                         break
 
                     # If the write is not guaranteed, we make it firstprivate
@@ -804,15 +804,15 @@ class OMPParallelDirective(OMPRegionDirective):
                         limit=loop_ancestor,
                         include_self=True)
                     if conditional_write:
-                        fprivate.add(symbol)
+                        fprivate[symbol.name] = symbol #.add(symbol)
                         break
 
                     # Already found the first write and decided if it is
                     # shared, private or firstprivate. We can stop looking.
-                    private.add(symbol)
+                    private[symbol.name] = symbol #.add(symbol)
                     break
 
-        return private, fprivate, need_sync
+        return list(private.values()), list(fprivate.values()), list(need_sync.values())
 
     def validate_global_constraints(self):
         '''

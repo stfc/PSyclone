@@ -411,7 +411,7 @@ def generate_adjoint_test(tl_psyir, ad_psyir,
         if arg.is_scalar and (arg.datatype.intrinsic ==
                               ScalarType.Intrinsic.INTEGER):
             integer_scalars.append(arg)
-    dimensioning_args = set()
+    dimensioning_args = dict()
     for arg in tl_kernel.symbol_table.argument_datasymbols:
         if arg.is_array:
             for dim in arg.shape:
@@ -419,11 +419,10 @@ def generate_adjoint_test(tl_psyir, ad_psyir,
                     for bound in [dim.lower, dim.upper]:
                         for ref in bound.walk(Reference):
                             if ref.symbol in integer_scalars:
-                                dimensioning_args.add(ref.symbol)
-
+                                dimensioning_args[ref.symbol.name] = ref.symbol
     logger.debug("Kernel '%s' has the following dimensioning arguments: "
-                 "%s", tl_kernel.name,
-                 [arg.name for arg in dimensioning_args])
+                 "%s", tl_kernel.name, list(dimensioning_args.keys()))
+                 #[arg.name for arg in dimensioning_args])
 
     # Create local versions of these dimensioning variables in the test
     # program. Since they are dimensioning variables, they have to be given
@@ -431,12 +430,12 @@ def generate_adjoint_test(tl_psyir, ad_psyir,
     # are handled and add them to a dict so we can map from the original
     # kernel arguments to the new symbols in the test harness.
     new_dim_args_map = {}
-    for arg in dimensioning_args:
+    for arg in dimensioning_args.values():
         if isinstance(arg.datatype.precision, DataSymbol):
             # The precision of this symbol is defined by another symbol so
             # we must ensure that the latter is also in the symbol table.
             _add_precision_symbol(arg.datatype.precision, symbol_table)
-        new_dim_args_map[arg] = symbol_table.new_symbol(
+        new_dim_args_map[arg.name] = symbol_table.new_symbol(
             arg.name, symbol_type=DataSymbol,
             datatype=arg.datatype,
             constant_value=Reference(dim_size_sym))
@@ -446,10 +445,10 @@ def generate_adjoint_test(tl_psyir, ad_psyir,
     input_copies = []
     new_arg_list = []
     for arg in tl_kernel.symbol_table.argument_list:
-        if arg in dimensioning_args:
+        if arg.name in dimensioning_args:
             # This is a dimensioning argument - look up the test-harness
             # equivalent using the map we constructed earlier.
-            new_arg_list.append(new_dim_args_map[arg])
+            new_arg_list.append(new_dim_args_map[arg.name])
             continue
         if arg.is_scalar:
             # The arguments will be local variables in the test program. We
@@ -469,9 +468,9 @@ def generate_adjoint_test(tl_psyir, ad_psyir,
                     new_bounds = []
                     for bound in [dim.lower, dim.upper]:
                         if isinstance(bound, Reference):
-                            if bound.symbol in new_dim_args_map:
+                            if bound.symbol.name in new_dim_args_map:
                                 new_bounds.append(
-                                    Reference(new_dim_args_map[bound.symbol]))
+                                    Reference(new_dim_args_map[bound.symbol.name]))
                             else:
                                 raise NotImplementedError(
                                     f"Found argument '{arg.name}' to kernel "
