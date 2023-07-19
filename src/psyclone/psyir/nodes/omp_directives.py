@@ -741,7 +741,7 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                     [ref2_accesses["step"]])[0]
             b_sym = sympy.Symbol('b')
             result = sympy.solvers.solve(sympy_start1 - sympy_start2 +
-                                         b_sym * sympy_step, b)
+                                         b_sym * sympy_step, b_sym)
             if not isinstance(result[0], sympy.core.numbers.Integer):
                 return False
 
@@ -750,58 +750,9 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
             # value.
             return True
 
-        # If the first access in each accesses contains a Reference
-        # we should check that both are to the same symbol
-        ref1_ref = ref1_accesses[0].walk(Reference)
-        ref2_ref = ref2_accesses[0].walk(Reference)
-        if ((len(ref1_ref) > 0 and len(ref2_ref) == 0) or
-                (len(ref1_ref) == 0 and len(ref2_ref) > 0)):
-            # Found a pair of dependencies on the same array which are not
-            # valid under OpenMP, as one contains a Reference while the
-            # other is a compile-time constant.
-            return False
-        # If we have any References in the accesses lists, check the first
-        # Reference is the same in both.
-        if len(ref1_ref) > 0 and ref1_ref[0] != ref2_ref[0]:
-            # Found a pair of dependencies on the same array which are not
-            # supported in PSyclone, as the index accesses are both References
-            # but to different variables so we don't know if they are
-            # equivalent at compile time.
-            return False
-
-        # Now we know if there is a Reference, both are to the same Symbol
-        if len(ref1_ref) > 0:
-            # Handle reference case
-            values = []
-            for member in ref1_accesses:
-                # If its a reference (not a BinaryOperation) we need to treat
-                # it as a special case, as this means that we essentially have
-                # a `Reference + 0` case.
-                if isinstance(member, Reference):
-                    # If we find the Reference then we need to set the min
-                    # to 0 as we have Reference + 0
-                    values.append(Literal("0", INTEGER_TYPE))
-                    continue
-                # We know its a BinaryOperation of the Reference and something.
-                # Take the second child of the BinaryOperation to compute
-                values.append(member.children[1])
-            # We have a set of Literal values, we use the SymPyWriter to
-            # convert these objects to expressions we can use to obtain
-            # integer values for these Literals
-            sympy_ref1s = SymPyWriter.convert_to_sympy_expressions(values)
-
-            # val2s stores all the values added to the base reference in
-            # the BinaryOperations in ref2_accesses, so if ref2_accesses
-            # contains ref+32, ref+64, then ref2_accesses will contain the
-            # Literals for 32 and 64.
-            val2s = [member.children[1] for member in ref2_accesses if
-                     isinstance(member, Reference)]
-            sympy_ref2s = SymPyWriter.convert_to_sympy_expressions(val2s)
-            return self._check_valid_overlap(sympy_ref1s, sympy_ref2s)
-        # Handle no Reference case
-        # We have a set of Literal values, we use the SymPyWriter to
-        # convert these objects to expressions we can use to obtain
-        # integer values for these Literals
+        # If we have a list, then we have a set of Literal values.
+        # We use the SymPyWriter to convert these objects to expressions
+        # we can use to obtain integer values for these Literals
         sympy_ref1s = \
             SymPyWriter.convert_to_sympy_expressions(ref1_accesses)
         sympy_ref2s = \

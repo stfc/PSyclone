@@ -2188,6 +2188,69 @@ def test_omp_serial_compute_accesses_results():
     assert res["step"].value == "32"
 
 
+def test_omp_serial_valid_dependence_ref_binop_dict_cases():
+    '''
+    Tests the _valid_dependence_ref_binop cases when either of the computed
+    accesses is a dict.
+    '''
+    sing = OMPSingleDirective()
+    start = DataSymbol("start", INTEGER_SINGLE_TYPE)
+    stop = DataSymbol("stop", INTEGER_SINGLE_TYPE)
+    outer_var = DataSymbol("outvar", INTEGER_SINGLE_TYPE)
+    task = OMPTaskDirective()
+    task2 = OMPTaskDirective()
+
+    # Check the case where only 1 of the references results in a
+    # dict output from compute_accesses returns False
+    parent_loop = Loop.create(
+        outer_var,
+        Reference(start),
+        Reference(stop),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        [task]
+    )
+    parent_loop2 = Loop.create(
+        outer_var,
+        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("128", INTEGER_SINGLE_TYPE),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        [task2]
+    )
+    ref1 = Reference(outer_var)
+    ref2 = Reference(outer_var)
+    assert (sing._valid_dependence_ref_binop(ref1, ref2, task, task2)
+            is False)
+
+    # Check the case where the steps are not equal
+    task2 = OMPTaskDirective()
+    parent_loop2 = Loop.create(
+        outer_var,
+        Reference(start),
+        Reference(stop),
+        Literal("33", INTEGER_SINGLE_TYPE),
+        [task2]
+    )
+    assert (sing._valid_dependence_ref_binop(ref1, ref2, task, task2)
+            is False)
+
+    # Check the case where the starts offset is not an integer multiple
+    # of the step.
+    task2 = OMPTaskDirective()
+    parent_loop2 = Loop.create(
+        outer_var,
+        BinaryOperation.create(
+            BinaryOperation.Operator.ADD,
+            Reference(start),
+            Literal("16", INTEGER_SINGLE_TYPE)
+        ),
+        Reference(stop),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        [task2]
+    )
+    assert (sing._valid_dependence_ref_binop(ref1, ref2, task, task2)
+            is False)
+
+
 def test_omp_serial_valid_dependence_ref_binop_fails():
     '''
     Tests the _valid_dependence_ref_binop failure cases of OMPSerialDirective
@@ -4344,3 +4407,43 @@ def test_omp_serial_check_dependency_valid_pairing_edgecase():
 
     val = test_dir._check_dependency_pairing_valid(ref1, ref2, None, None)
     assert not val
+
+
+def test_omp_serial_check_dependency_valid_pairing():
+    '''
+    Test check_dependency_valid_pairing calls the correct functions for
+    various array indices.
+    '''
+    # Check we use the valid_dependence_literals function to get
+    # the correct answer for literal indices.
+    array_type = ArrayType(INTEGER_SINGLE_TYPE, [128, 128])
+    rval = DataSymbol("rval", array_type)
+    one = Literal("1", INTEGER_SINGLE_TYPE)
+    two = Literal("2", INTEGER_SINGLE_TYPE)
+    ref1 = ArrayReference.create(rval, [one.copy(), one.copy()])
+    ref2 = ArrayReference.create(rval, [two.copy(), two.copy()])
+
+    test_dir = OMPSingleDirective()
+    assert test_dir._check_dependency_pairing_valid(ref1, ref2, None, None)
+
+    # Check we use the valid_dependence_ranges function to get the
+    # correct answer for range indices.
+    array_type = ArrayType(INTEGER_SINGLE_TYPE, [128, 128])
+    rval = DataSymbol("rval", array_type)
+    lbound = BinaryOperation.create(BinaryOperation.Operator.LBOUND,
+                                    Reference(rval), one.copy())
+    ubound = BinaryOperation.create(BinaryOperation.Operator.UBOUND,
+                                    Reference(rval), one.copy())
+    my_range1 = Range.create(lbound.copy(), ubound.copy(), one.copy())
+    lbound2 = BinaryOperation.create(BinaryOperation.Operator.LBOUND,
+                                     Reference(rval), two.copy())
+    ubound2 = BinaryOperation.create(BinaryOperation.Operator.UBOUND,
+                                     Reference(rval), two.copy())
+    my_range2 = Range.create(lbound2.copy(), ubound2.copy(), one.copy())
+    array_reference1 = ArrayReference.create(rval, [my_range1.copy(),
+                                                    my_range2.copy()])
+    array_reference2 = ArrayReference.create(rval, [my_range1.copy(),
+                                                    my_range2.copy()])
+    assert test_dir._check_dependency_pairing_valid(
+               array_reference1, array_reference2, None, None
+           )
