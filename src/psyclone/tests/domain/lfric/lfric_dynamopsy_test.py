@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -94,7 +94,7 @@ def test_dynamopsy_kind():
     dynamo_psy = DynamoPSy(invoke_info)
     result = str(dynamo_psy.gen)
     assert "USE constants_mod, ONLY: r_def, i_def" in result
-    assert "f1_proxy%data(df) = 0.0\n" in result
+    assert "f1_data(df) = 0.0\n" in result
     # 2: Literal kind value is declared (trying with two cases to check)
     for kind_name in ["r_solver", "r_tran"]:
         invoke_info.calls[0].kcalls[0].args[1]._text = f"0.0_{kind_name}"
@@ -102,7 +102,7 @@ def test_dynamopsy_kind():
         dynamo_psy = DynamoPSy(invoke_info)
         result = str(dynamo_psy.gen)
         assert f"USE constants_mod, ONLY: {kind_name}, i_def" in result
-        assert f"f1_proxy%data(df) = 0.0_{kind_name}" in result
+        assert f"f1_data(df) = 0.0_{kind_name}" in result
 
 
 def test_dynamopsy_names():
@@ -173,8 +173,8 @@ def test_dynamopsy_gen(monkeypatch):
     assert (
         "      DO cell=loop0_start,loop0_stop\n"
         "        !\n"
-        "        CALL testkern_code(nlayers, ginger, f1_proxy%data, "
-        "f2_proxy%data, m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, "
+        "        CALL testkern_code(nlayers, ginger, f1_data, "
+        "f2_data, m1_data, m2_data, ndf_w1, undf_w1, "
         "map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3, "
         "map_w3(:,cell))\n"
         "      END DO\n"
@@ -184,5 +184,5 @@ def test_dynamopsy_gen(monkeypatch):
         "      CALL f1_proxy%set_dirty()\n"
         "      !\n"
         "      DO df=loop1_start,loop1_stop\n"
-        "        f1_proxy%data(df) = 0.0_r_def\n"
+        "        f1_data(df) = 0.0_r_def\n"
         "      END DO\n" in result)

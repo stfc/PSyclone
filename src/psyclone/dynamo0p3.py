@@ -3199,9 +3199,8 @@ class DynProxies(LFRicCollection):
                     entity_names = [sym.name]
                 parent.add(
                     DeclGen(
-                        parent, datatype="real",
-                        kind=arg.precision,
-                        dimension=":",
+                        parent, datatype=arg.intrinsic_type,
+                        kind=arg.precision, dimension=":",
                         entity_decls=[f"{name} => null()" for
                                       name in entity_names],
                         pointer=True))

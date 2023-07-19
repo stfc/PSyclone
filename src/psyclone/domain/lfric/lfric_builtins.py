@@ -351,11 +351,11 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
 
     def array_ref(self, fld_name):
         '''
-        :returns: the array reference for a proxy with the supplied name.
+        :returns: the array reference for a variable with the supplied name.
         :rtype: str
 
         '''
-        return fld_name + "%data(" + self._idx_name + ")"
+        return f"{fld_name}({self._idx_name})"
 
     @property
     def undf_name(self):
@@ -527,14 +527,17 @@ class LFRicXKern(LFRicBuiltIn, metaclass=abc.ABCMeta):
             raise InternalError(
                 "Subclasses of LFRicXKern must set the _field_type variable "
                 "to the output datatype.")
+        table = self.scope.symbol_table
         # Convert all the elements of a field of one type to the
         # corresponding elements of a field of another type using
         # the PSyclone configuration for the correct 'kind'.
-        field_name2 = self.array_ref(self._arguments.args[0].proxy_name)
-        field_name1 = self.array_ref(self._arguments.args[1].proxy_name)
+        sym2 = table.lookup_with_tag(f"{self._arguments.args[0].name}_data")
+        field2 = self.array_ref(sym2.name)
+        sym1 = table.lookup_with_tag(f"{self._arguments.args[1].name}_data")
+        field1 = self.array_ref(sym1.name)
         precision = self._arguments.args[0].precision
-        rhs_expr = f"{self._field_type}({field_name1}, {precision})"
-        parent.add(AssignGen(parent, lhs=field_name2, rhs=rhs_expr))
+        rhs_expr = f"{self._field_type}({field1}, {precision})"
+        parent.add(AssignGen(parent, lhs=field2, rhs=rhs_expr))
         # Import the precision variable if it is not already imported
         const = LFRicConstants()
         const_mod = const.UTILITIES_MOD_MAP["constants"]["module"]
@@ -2378,13 +2381,16 @@ class LFRicXInnerproductYKern(LFRicBuiltIn):
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
 
         '''
+        table = self.scope.symbol_table
         # We sum the DoF-wise product of the supplied real-valued fields.
         # The real scalar variable holding the sum is initialised to zero
         # in the PSy layer.
         innprod_name = self._reduction_ref(self._arguments.args[0].name)
-        field_name1 = self.array_ref(self._arguments.args[1].proxy_name)
-        field_name2 = self.array_ref(self._arguments.args[2].proxy_name)
-        rhs_expr = innprod_name + " + " + field_name1 + "*" + field_name2
+        sym1 = table.lookup_with_tag(f"{self._arguments.args[1].name}_data")
+        field1 = self.array_ref(sym1.name)
+        sym2 = table.lookup_with_tag(f"{self._arguments.args[2].name}_data")
+        field2 = self.array_ref(sym2.name)
+        rhs_expr = f"{innprod_name} + {field1}*{field2}"
         parent.add(AssignGen(parent, lhs=innprod_name, rhs=rhs_expr))
 
 
@@ -2418,12 +2424,14 @@ class LFRicXInnerproductXKern(LFRicBuiltIn):
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
 
         '''
+        table = self.scope.symbol_table
         # We sum the DoF-wise product of the supplied real-valued fields.
         # The real scalar variable holding the sum is initialised to zero
         # in the PSy layer.
         innprod_name = self._reduction_ref(self._arguments.args[0].name)
-        field_name = self.array_ref(self._arguments.args[1].proxy_name)
-        rhs_expr = innprod_name + " + " + field_name + "*" + field_name
+        sym = table.lookup_with_tag(f"{self._arguments.args[1].name}_data")
+        field_name = self.array_ref(sym.name)
+        rhs_expr = f"{innprod_name} + {field_name}*{field_name}"
         parent.add(AssignGen(parent, lhs=innprod_name, rhs=rhs_expr))
 
 
@@ -2465,11 +2473,13 @@ class LFRicSumXKern(LFRicBuiltIn):
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
 
         '''
+        table = self.scope.symbol_table
         # Sum all the elements of a real-valued field. The real scalar
         # variable holding the sum is initialised to zero in the PSy layer.
-        field_name = self.array_ref(self._arguments.args[1].proxy_name)
+        sym = table.lookup_with_tag(f"{self._arguments.args[1].name}_data")
+        field_name = self.array_ref(sym.name)
         sum_name = self._reduction_ref(self._arguments.args[0].name)
-        rhs_expr = sum_name + " + " + field_name
+        rhs_expr = f"{sum_name} + {field_name}"
         parent.add(AssignGen(parent, lhs=sum_name, rhs=rhs_expr))
 
 
