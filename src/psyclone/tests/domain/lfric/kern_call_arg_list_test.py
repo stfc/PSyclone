@@ -133,7 +133,7 @@ def test_cellmap_intergrid(dist_mem, fortran_writer):
         'map_w2(:,cell)']
 
     check_psyir_results(create_arg_list, fortran_writer)
-    assert isinstance(create_arg_list.psyir_arglist[5].datatype, DeferredType)
+    assert isinstance(create_arg_list.psyir_arglist[5].datatype, ArrayType)
 
 
 def test_kerncallarglist_face_xyoz(dist_mem, fortran_writer):
@@ -163,12 +163,9 @@ def test_kerncallarglist_face_xyoz(dist_mem, fortran_writer):
 
     # Check that the right datatype is set:
     # The kernel in question accepts integer fields.
-    # TODO #2223 - we can put back specific types once the precision symbols
-    # don't cause us problems.
-    # array_1d = ArrayType(LFRicTypes("LFRicIntegerScalarDataType")(),
-    #                     [ArrayType.Extent.DEFERRED])
-    assert isinstance(create_arg_list.psyir_arglist[2].datatype,
-                      DeferredType)
+    array_1d = ArrayType(LFRicTypes("LFRicIntegerScalarDataType")(),
+                         [ArrayType.Extent.DEFERRED])
+    assert create_arg_list.psyir_arglist[2].datatype == array_1d
     array_4d = ArrayType(LFRicTypes("LFRicRealScalarDataType")(),
                          [ArrayType.Extent.DEFERRED]*4)
     assert create_arg_list.psyir_arglist[15].datatype == array_4d
@@ -390,11 +387,13 @@ def test_kerncallarglist_bcs_operator(fortran_writer):
     check_psyir_results(create_arg_list, fortran_writer)
     assert (create_arg_list.psyir_arglist[2].datatype ==
             LFRicTypes("LFRicIntegerScalarDataType")())
-    # TODO #2223 - switch back to using proper type.
+    # TODO #744 - implement support for comparing datatypes.
     # array_type_3d = ArrayType(LFRicTypes("LFRicRealScalarDataType")(),
     #                           [ArrayType.Extent.DEFERRED]*3)
-    assert isinstance(create_arg_list.psyir_arglist[3].datatype,
-                      DeferredType)
+    # assert create_arg_list.psyir_arglist[3].datatype == array_type_3d
+    assert isinstance(create_arg_list.psyir_arglist[3].datatype, ArrayType)
+    assert create_arg_list.psyir_arglist[3].datatype.precision.name == "r_def"
+    assert len(create_arg_list.psyir_arglist[3].datatype.shape) == 3
 
     # Also check that the structure access is correctly converted
     # into a 2-component signature:
@@ -423,56 +422,48 @@ def test_kerncallarglist_mixed_precision():
     # Scalar:
     assert create_arg_list.psyir_arglist[2].datatype.precision.name == "r_def"
     # Field.
-    # TODO #2223 - switch back to proper datatype and precision.
-    assert isinstance(create_arg_list.psyir_arglist[3].datatype,
-                      DeferredType)
+    assert isinstance(create_arg_list.psyir_arglist[3].datatype, ArrayType)
     # operator: ncell_3d:
     assert create_arg_list.psyir_arglist[4].datatype.precision.name == "i_def"
     # operator: local_stencil
-    # TODO #2223 - switch back to proper datatype and precision.
     assert isinstance(create_arg_list.psyir_arglist[5].datatype,
-                      DeferredType)
+                      ArrayType)
+    assert len(create_arg_list.psyir_arglist[5].datatype.shape) == 3
 
     create_arg_list = KernCallArgList(schedule.kernels()[1])
     create_arg_list.generate()
     assert (create_arg_list.psyir_arglist[2].datatype.precision.name ==
             "r_solver")
-    # TODO #2223 - switch back to proper datatype and precision.
     assert isinstance(create_arg_list.psyir_arglist[3].datatype,
-                      DeferredType)
+                      ArrayType)
     assert create_arg_list.psyir_arglist[4].datatype.precision.name == "i_def"
-    # TODO #2223 - switch back to proper datatype and precision.
     assert isinstance(create_arg_list.psyir_arglist[5].datatype,
-                      DeferredType)
+                      ArrayType)
 
     create_arg_list = KernCallArgList(schedule.kernels()[2])
     create_arg_list.generate()
     assert create_arg_list.psyir_arglist[2].datatype.precision.name == "r_tran"
-    # TODO #2223 - switch back to proper datatype and precision.
     assert isinstance(create_arg_list.psyir_arglist[3].datatype,
-                      DeferredType)
+                      ArrayType)
     assert create_arg_list.psyir_arglist[4].datatype.precision.name == "i_def"
-    # TODO #2223 - switch back to proper datatype and precision.
     assert isinstance(create_arg_list.psyir_arglist[5].datatype,
-                      DeferredType)
+                      ArrayType)
 
     create_arg_list = KernCallArgList(schedule.kernels()[3])
     create_arg_list.generate()
     assert create_arg_list.psyir_arglist[2].datatype.precision.name == "r_bl"
-    # TODO #2223 - switch back to proper datatype and precision.
     assert isinstance(create_arg_list.psyir_arglist[3].datatype,
-                      DeferredType)
+                      ArrayType)
     assert isinstance(create_arg_list.psyir_arglist[5].datatype,
-                      DeferredType)
+                      ArrayType)
 
     create_arg_list = KernCallArgList(schedule.kernels()[4])
     create_arg_list.generate()
     assert create_arg_list.psyir_arglist[2].datatype.precision.name == "r_phys"
-    # TODO #2223 - switch back to proper datatype and precision.
     assert isinstance(create_arg_list.psyir_arglist[3].datatype,
-                      DeferredType)
+                      ArrayType)
     assert isinstance(create_arg_list.psyir_arglist[5].datatype,
-                      DeferredType)
+                      ArrayType)
 
 
 def test_kerncallarglist_scalar_literal(fortran_writer):
@@ -576,10 +567,8 @@ def test_indirect_dofmap(fortran_writer):
     for i in [2, 3]:
         # The datatype of a field  reference is the type of the member
         # accessed, i.e. it's the 1D real array.
-        # TODO #2223 - type should be:
-        # real_1d = dummy_sym_tab.find_or_create_array(
-        #     "doesnt_matter1dreal", 1, ScalarType.Intrinsic.REAL)
-        assert isinstance(psyir_args[i].datatype, DeferredType)
+        assert isinstance(psyir_args[i].datatype, ArrayType)
+        assert psyir_args[i].datatype.intrinsic == ScalarType.Intrinsic.REAL
 
     # Test all 3D real arrays:
     real_3d = dummy_sym_tab.find_or_create_array("doesnt_matter2dreal", 3,
@@ -634,13 +623,13 @@ def test_ref_element_handling(fortran_writer):
     # Test the 1d real array, which is of type r_solver
     # The datatype of a field  reference is the type of the member
     # accessed, i.e. it's the 1D real array.
-    assert isinstance(psyir_args[1].datatype, DeferredType)
-    # TODO #2223 - put back full type information.
-    # assert len(psyir_args[1].datatype.shape) == 1
-    # assert psyir_args[1].datatype.intrinsic == ScalarType.Intrinsic.REAL
-    # assert psyir_args[1].datatype.precision.name == "r_solver"
+    assert isinstance(psyir_args[1].datatype, ArrayType)
+    assert len(psyir_args[1].datatype.shape) == 1
+    assert psyir_args[1].datatype.intrinsic == ScalarType.Intrinsic.REAL
+    assert psyir_args[1].datatype.precision.name == "r_solver"
     # TODO #2022: it would be convenient if find_or_create_array could
-    # create an r_solver based array, then the above tests would  just be:
+    # create an r_solver based array, then the above tests would just (
+    # once #744 is sorted out) be:
     # assert psyir_args[i].datatype == r_solver_1d.datatype
 
     # Create a dummy LFRic symbol table to simplify creating

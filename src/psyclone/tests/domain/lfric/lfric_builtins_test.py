@@ -624,13 +624,11 @@ def test_get_indexed_field_argument_refs():
     assert len(refs) == 2
     for ref in refs:
         assert isinstance(ref, ArrayReference)
-        # TODO #2223 - put back full type information.
-        assert isinstance(ref.symbol.datatype, DeferredType)
+        assert isinstance(ref.symbol.datatype, ArrayType)
+        assert len(ref.symbol.datatype.shape) == 1
         # The reference in a built-in will have a data type hard coded
-        # TODO #2223 - datatype should be:
-        # array_1d = ArrayType(LFRicTypes("LFRicRealScalarDataType")(),
-        #                      [ArrayType.Extent.DEFERRED])
-        assert isinstance(ref.datatype, DeferredType)
+        assert isinstance(ref.datatype, ScalarType)
+        assert ref.datatype.precision.name == "r_def"
 
 
 def test_get_scalar_argument_references():
