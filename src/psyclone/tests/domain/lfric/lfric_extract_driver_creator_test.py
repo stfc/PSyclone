@@ -255,8 +255,8 @@ def test_lfric_driver_simple_test():
                  "loop0_start)",
                  "call extract_psy_data%ReadVariable('loop0_stop', "
                  "loop0_stop)",
-                 "call extract_psy_data%ReadVariable('m1', m1)",
-                 "call extract_psy_data%ReadVariable('m2', m2)",
+                 "call extract_psy_data%ReadVariable('m1_data', m1_data)",
+                 "call extract_psy_data%ReadVariable('m2_data', m2_data)",
                  "call extract_psy_data%ReadVariable('map_w1', map_w1)",
                  "call extract_psy_data%ReadVariable('map_w2', map_w2)",
                  "call extract_psy_data%ReadVariable('map_w3', map_w3)",
@@ -264,13 +264,13 @@ def test_lfric_driver_simple_test():
                  "call extract_psy_data%ReadVariable('ndf_w2', ndf_w2)",
                  "call extract_psy_data%ReadVariable('ndf_w3', ndf_w3)",
                  "call extract_psy_data%ReadVariable('nlayers', nlayers)",
-                 "call extract_psy_data%ReadVariable('self_vec_type_vector', "
-                 "self_vec_type_vector)",
+                 "call extract_psy_data%ReadVariable('self_vec_type_vector_data', "
+                 "self_vec_type_vector_data)",
                  "call extract_psy_data%ReadVariable('undf_w1', undf_w1)",
                  "call extract_psy_data%ReadVariable('undf_w2', undf_w2)",
                  "call extract_psy_data%ReadVariable('undf_w3', undf_w3)",
-                 "call extract_psy_data%ReadVariable('x_ptr_vector', "
-                 "x_ptr_vector)",
+                 "call extract_psy_data%ReadVariable('x_ptr_vector_data', "
+                 "x_ptr_vector_data)",
                  "call extract_psy_data%ReadVariable('cell_post', cell_post)"]:
         assert line in driver
 
@@ -346,9 +346,9 @@ def test_lfric_driver_field_arrays():
         driver = my_file.read()
 
     # Check that the driver reads the three individual fields
-    assert "ReadVariable('chi%1', chi_1)" in driver
-    assert "ReadVariable('chi%2', chi_2)" in driver
-    assert "ReadVariable('chi%3', chi_3)" in driver
+    assert "ReadVariable('chi_1_data', chi_1_data)" in driver
+    assert "ReadVariable('chi_2_data', chi_2_data)" in driver
+    assert "ReadVariable('chi_3_data', chi_3_data)" in driver
 
     for mod in ["read_kernel_data_mod", "constants_mod", "kernel_mod",
                 "argument_mod", "log_mod", "fs_continuity_mod",
@@ -378,8 +378,8 @@ def test_lfric_driver_operator():
                            "region_name": ("operator", "test")})
     out = str(invoke.gen())
     # Check the structure members that are added for operators:
-    assert ("ProvideVariable(\"mm_w3_proxy%local_stencil\", "
-            "mm_w3_proxy%local_stencil)" in out)
+    assert ("ProvideVariable(\"mm_w3_local_stencil\", "
+            "mm_w3_local_stencil)" in out)
     assert ("ProvideVariable(\"mm_w3_proxy%ncell_3d\", "
             "mm_w3_proxy%ncell_3d)" in out)
     assert "ProvideVariable(\"coord_post\", coord)" in out
@@ -390,13 +390,13 @@ def test_lfric_driver_operator():
 
     # Check that the user defined variables that are added for
     # operators are flattened correctly:
-    assert ("ReadVariable('mm_w3_proxy%local_stencil', "
-            "mm_w3_proxy_local_stencil" in driver)
+    assert ("ReadVariable('mm_w3_local_stencil', "
+            "mm_w3_local_stencil" in driver)
     assert ("ReadVariable('mm_w3_proxy%ncell_3d', "
             "mm_w3_proxy_ncell_3d" in driver)
     # And check the field arrays just in case
     for i in range(1, 4):
-        assert f"ReadVariable('coord_post%{i}', coord_{i}" in driver
+        assert f"ReadVariable('coord_{i}_data_post', coord_{i}_data" in driver
 
     for mod in ["read_kernel_data_mod", "constants_mod", "kernel_mod",
                 "argument_mod", "log_mod", "fs_continuity_mod",
