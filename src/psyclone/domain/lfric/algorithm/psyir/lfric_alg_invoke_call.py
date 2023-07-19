@@ -74,14 +74,13 @@ class LFRicAlgorithmInvokeCall(AlgorithmInvokeCall):
         :rtype: str
 
         '''
-        name = super()._def_routine_root_name()
         if (len(self.children) == 1 and
                 isinstance(self.children[0], LFRicBuiltinFunctor)):
             # By default the name of the kernel is added if there is
             # only one functor. However we don't add this in LFRic if
             # the functor is a builtin.
-            name = f"invoke_{self._index}"
-        return name
+            return f"invoke_{self._index}"
+        return super()._def_routine_root_name()
 
 
 # For AutoAPI documentation generation.

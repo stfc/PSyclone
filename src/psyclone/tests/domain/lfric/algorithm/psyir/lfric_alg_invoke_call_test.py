@@ -147,7 +147,12 @@ def test_aic_defcontainerrootname():
     assert name == "alg1_psy"
 
 
-def test_aic_defroutinerootname():
+@pytest.mark.parametrize(
+    "orig_string,new_string,expected_name",
+    [("", "", "invoke_0_kern"),
+     ("kern(field1)", "setval_c(field1, 0.0)", "invoke_0")])
+def test_aic_defcontainerrootname_single(
+        orig_string, new_string, expected_name):
     '''Check that _def_container_root_name returns the expected
     values. Test for when there is a single user kernel or builtin in
     an invoke, as the output will differ.
@@ -160,15 +165,9 @@ def test_aic_defroutinerootname():
         "  type(field_type) :: field1\n"
         "  call invoke(kern(field1))\n"
         "end subroutine alg1\n")
+    code = code.replace(orig_string, new_string)
     psyir = create_alg_psyir(code)
     invoke = psyir.children[0][0]
     assert isinstance(invoke, LFRicAlgorithmInvokeCall)
     name = invoke._def_routine_root_name()
-    assert name == "invoke_0_kern"
-    # Single builtin should not have the name of the builtin added
-    builtin_code = code.replace("kern(field1)", "setval_c(field1, 0.0)")
-    psyir = create_alg_psyir(builtin_code)
-    invoke = psyir.children[0][0]
-    assert isinstance(invoke, LFRicAlgorithmInvokeCall)
-    name = invoke._def_routine_root_name()
-    assert name == "invoke_0"
+    assert name == expected_name
