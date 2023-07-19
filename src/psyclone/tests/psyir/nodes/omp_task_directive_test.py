@@ -3397,6 +3397,7 @@ va(:,j_out_var))
 
 end subroutine my_subroutine
 '''
+    print(fortran_writer(tree))
     assert correct in fortran_writer(tree)
 
 

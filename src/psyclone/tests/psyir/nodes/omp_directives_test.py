@@ -1976,26 +1976,19 @@ def test_omp_serial_compute_accesses_results():
 
     res = sing._compute_accesses(binop, [loop], task)
     assert len(res) == 3
-    assert isinstance(res[0], BinaryOperation)
-    assert res[0].operator == BinaryOperation.Operator.ADD
-    assert isinstance(res[0].children[0], Reference)
-    assert res[0].children[0].symbol == tmp2
-    assert isinstance(res[0].children[1], Literal)
-    assert res[0].children[1].value == "1"
+    assert isinstance(res, dict)
+    assert isinstance(res["start"], BinaryOperation)
+    assert res["start"].operator == BinaryOperation.Operator.ADD
+    assert isinstance(res["start"].children[0], Reference)
+    assert res["start"].children[0].symbol == tmp2
+    assert isinstance(res["start"].children[1], Literal)
+    assert res["start"].children[1].value == "1"
 
-    assert isinstance(res[1], BinaryOperation)
-    assert res[1].operator == BinaryOperation.Operator.ADD
-    assert isinstance(res[1].children[0], Reference)
-    assert res[1].children[0].symbol == tmp2
-    assert isinstance(res[1].children[1], Literal)
-    assert res[1].children[1].value == "33"
+    assert isinstance(res["stop"], Literal)
+    assert res["stop"].value == "256"
 
-    assert isinstance(res[2], BinaryOperation)
-    assert res[2].operator == BinaryOperation.Operator.ADD
-    assert isinstance(res[2].children[0], Reference)
-    assert res[2].children[0].symbol == tmp2
-    assert isinstance(res[2].children[1], Literal)
-    assert res[2].children[1].value == "65"
+    assert isinstance(res["step"], Literal)
+    assert res["step"].value == "32"
 
     # Third result output, Reference to Assignment
     assign = Assignment.create(Reference(tmp), Reference(tmp2))
@@ -2006,12 +1999,14 @@ def test_omp_serial_compute_accesses_results():
 
     # Fifth result output, Reference access to loop with non Literal start
     res = sing._compute_accesses(Reference(tmp), [loop], task)
-    assert len(res) == 2
-    assert isinstance(res[0], Reference)
-    assert res[0].symbol == tmp2
-    assert isinstance(res[1], BinaryOperation)
-    assert res[1].children[0].symbol == tmp2
-    assert res[1].children[1].value == "32"
+    assert len(res) == 3
+    assert isinstance(res, dict)
+    assert isinstance(res["start"], Reference)
+    assert res["start"].symbol == tmp2
+    assert isinstance(res["stop"], Literal)
+    assert res["stop"].value == "256"
+    assert isinstance(res["step"], Literal)
+    assert res["step"].value == "32"
 
     # Fourth result output, Reference access to loop with all Literals
     task = task.copy()
@@ -2094,27 +2089,15 @@ def test_omp_serial_compute_accesses_results():
         BinaryOperation.Operator.ADD, binop, ref.copy()
     )
     res = sing._compute_accesses(binop2, [loop], task)
-    assert len(res) == 5
-    assert isinstance(res[0], BinaryOperation)
-    assert res[0].operator == BinaryOperation.Operator.ADD
-    assert res[0].children[0].symbol == tmp2
-    assert res[0].children[1].value == "32"
-    assert isinstance(res[1], BinaryOperation)
-    assert res[1].operator == BinaryOperation.Operator.ADD
-    assert res[1].children[0].symbol == tmp2
-    assert res[1].children[1].value == "64"
-    assert isinstance(res[2], BinaryOperation)
-    assert res[2].operator == BinaryOperation.Operator.ADD
-    assert res[2].children[0].symbol == tmp2
-    assert res[2].children[1].value == "96"
-    assert isinstance(res[3], BinaryOperation)
-    assert res[3].operator == BinaryOperation.Operator.ADD
-    assert res[3].children[0].symbol == tmp2
-    assert res[3].children[1].value == "128"
-    assert isinstance(res[4], BinaryOperation)
-    assert res[4].operator == BinaryOperation.Operator.ADD
-    assert res[4].children[0].symbol == tmp2
-    assert res[4].children[1].value == "160"
+    assert len(res) == 3
+    assert isinstance(res, dict)
+    assert isinstance(res["start"], BinaryOperation)
+    assert res["start"].children[0].symbol == tmp2
+    assert res["start"].children[1].value == "32"
+    assert isinstance(res["stop"], Literal)
+    assert res["stop"].value == "1028"
+    assert isinstance(res["step"], Literal)
+    assert res["step"].value == "32"
 
     task = OMPTaskDirective()
     loop = Loop.create(
@@ -2133,23 +2116,15 @@ def test_omp_serial_compute_accesses_results():
         BinaryOperation.Operator.SUB, ref.copy(), binop
     )
     res = sing._compute_accesses(binop2, [loop], task)
-    assert len(res) == 4
-    assert isinstance(res[0], BinaryOperation)
-    assert res[0].operator == BinaryOperation.Operator.ADD
-    assert res[0].children[0].symbol == tmp2
-    assert res[0].children[1].value == "-32"
-    assert isinstance(res[1], BinaryOperation)
-    assert res[1].operator == BinaryOperation.Operator.ADD
-    assert res[1].children[0].symbol == tmp2
-    assert res[1].children[1].value == "-64"
-    assert isinstance(res[2], BinaryOperation)
-    assert res[2].operator == BinaryOperation.Operator.ADD
-    assert res[2].children[0].symbol == tmp2
-    assert res[2].children[1].value == "-96"
-    assert isinstance(res[3], BinaryOperation)
-    assert res[3].operator == BinaryOperation.Operator.ADD
-    assert res[3].children[0].symbol == tmp2
-    assert res[3].children[1].value == "-128"
+    assert len(res) == 3
+    assert isinstance(res, dict)
+    assert isinstance(res["start"], BinaryOperation)
+    assert res["start"].children[0].symbol == tmp2
+    assert res["start"].children[1].value == "-32"
+    assert isinstance(res["stop"], Literal)
+    assert res["stop"].value == "1028"
+    assert isinstance(res["step"], Literal)
+    assert res["step"].value == "32"
 
     task = OMPTaskDirective()
     loop = Loop.create(
@@ -2168,27 +2143,15 @@ def test_omp_serial_compute_accesses_results():
         BinaryOperation.Operator.ADD, ref.copy(), binop
     )
     res = sing._compute_accesses(binop2, [loop], task)
-    assert len(res) == 5
-    assert isinstance(res[0], BinaryOperation)
-    assert res[0].operator == BinaryOperation.Operator.ADD
-    assert res[0].children[0].symbol == tmp2
-    assert res[0].children[1].value == "32"
-    assert isinstance(res[1], BinaryOperation)
-    assert res[1].operator == BinaryOperation.Operator.ADD
-    assert res[1].children[0].symbol == tmp2
-    assert res[1].children[1].value == "64"
-    assert isinstance(res[2], BinaryOperation)
-    assert res[2].operator == BinaryOperation.Operator.ADD
-    assert res[2].children[0].symbol == tmp2
-    assert res[2].children[1].value == "96"
-    assert isinstance(res[3], BinaryOperation)
-    assert res[3].operator == BinaryOperation.Operator.ADD
-    assert res[3].children[0].symbol == tmp2
-    assert res[3].children[1].value == "128"
-    assert isinstance(res[4], BinaryOperation)
-    assert res[4].operator == BinaryOperation.Operator.ADD
-    assert res[4].children[0].symbol == tmp2
-    assert res[4].children[1].value == "160"
+    assert len(res) == 3
+    assert isinstance(res, dict)
+    assert isinstance(res["start"], BinaryOperation)
+    assert res["start"].children[0].symbol == tmp2
+    assert res["start"].children[1].value == "32"
+    assert isinstance(res["stop"], Literal)
+    assert res["stop"].value == "1028"
+    assert isinstance(res["step"], Literal)
+    assert res["step"].value == "32"
 
     task = OMPTaskDirective()
     loop = Loop.create(
@@ -2214,27 +2177,15 @@ def test_omp_serial_compute_accesses_results():
         BinaryOperation.Operator.ADD, ref.copy(), binop
     )
     res = sing._compute_accesses(binop2, [loop, loop2], task)
-    assert len(res) == 5
-    assert isinstance(res[0], BinaryOperation)
-    assert res[0].operator == BinaryOperation.Operator.ADD
-    assert res[0].children[0].symbol == tmp2
-    assert res[0].children[1].value == "32"
-    assert isinstance(res[1], BinaryOperation)
-    assert res[1].operator == BinaryOperation.Operator.ADD
-    assert res[1].children[0].symbol == tmp2
-    assert res[1].children[1].value == "64"
-    assert isinstance(res[2], BinaryOperation)
-    assert res[2].operator == BinaryOperation.Operator.ADD
-    assert res[2].children[0].symbol == tmp2
-    assert res[2].children[1].value == "96"
-    assert isinstance(res[3], BinaryOperation)
-    assert res[3].operator == BinaryOperation.Operator.ADD
-    assert res[3].children[0].symbol == tmp2
-    assert res[3].children[1].value == "128"
-    assert isinstance(res[4], BinaryOperation)
-    assert res[4].operator == BinaryOperation.Operator.ADD
-    assert res[4].children[0].symbol == tmp2
-    assert res[4].children[1].value == "160"
+    assert len(res) == 3
+    assert isinstance(res, dict)
+    assert isinstance(res["start"], BinaryOperation)
+    assert res["start"].children[0].symbol == tmp2
+    assert res["start"].children[1].value == "32"
+    assert isinstance(res["stop"], Literal)
+    assert res["stop"].value == "1028"
+    assert isinstance(res["step"], Literal)
+    assert res["step"].value == "32"
 
 
 def test_omp_serial_valid_dependence_ref_binop_fails():

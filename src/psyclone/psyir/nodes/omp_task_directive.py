@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council.
+# Copyright (c) 2022-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -36,20 +36,19 @@
 """ This module contains the implementation of the OpenMP Task Directive
 node."""
 
-from __future__ import absolute_import
 import itertools
 import math
 
 from psyclone.errors import GenerationError
 from psyclone.psyir.nodes import (
-    Reference,
-    Assignment,
-    IfBlock,
-    ArrayReference,
-    ArrayOfStructuresReference,
-    StructureReference,
-    Call,
     ArrayMember,
+    ArrayOfStructuresReference,
+    ArrayReference,
+    Assignment,
+    Call,
+    IfBlock,
+    Reference,
+    StructureReference,
 )
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.nodes.array_of_structures_member import (
@@ -78,10 +77,11 @@ from psyclone.psyir.symbols import INTEGER_TYPE, DataSymbol
 class OMPTaskDirective(OMPRegionDirective):
     """
     Class representing an OpenMP TASK directive in the PSyIR after lowering.
-    This node should not be created by any transformation, and it solely used
+    This node should not be created by any transformation, it is solely used
     to represent TASK directives after lowering a DynamicOMPTaskDirective.
 
     :param list children: list of Nodes that are children of this Node.
+    :type children: List[:py:class:`psyclone.psyir.nodes.Node`]
     :param parent: the Node in the AST that has this directive as a child
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
     :param bool lowering: If this node is being lowered from another node.
@@ -177,7 +177,6 @@ class OMPTaskDirective(OMPRegionDirective):
         :rtype: str
 
         """
-        # pylint: disable=no-self-use
         return "omp end task"
 
     def validate_global_constraints(self):
@@ -271,7 +270,6 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
 
         # Store the parent parallel directive node
         self._parent_parallel = anc
-        # pylint: disable=protected-access
         self._parallel_private, self._parallel_firstprivate, _ = \
             anc.infer_sharing_attributes()
         self._parallel_private = self._parallel_private.union(

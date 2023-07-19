@@ -44,6 +44,7 @@ nodes.'''
 
 import abc
 import itertools
+import sympy
 import sys
 
 from psyclone.configuration import Config
@@ -142,7 +143,7 @@ class OMPDeclareTargetDirective(OMPStandaloneDirective):
 
         :param parent: the parent Node in the Schedule to which to add our \
                        content.
-        :type parent: sub-class of :py:class:`psyclone.f2pygen.BaseGen`
+        f:type parent: sub-class of :py:class:`psyclone.f2pygen.BaseGen`
         '''
         # Check the constraints are correct
         self.validate_global_constraints()
@@ -252,15 +253,16 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
         :param lit2: the second node to compare.
         :type lit2: :py:class:`psyclone.psyir.nodes.Node`
 
-        :returns: whether or not these two nodes can be used as a valid \
+        :returns: whether or not these two nodes can be used as a valid
                   dependency pair in OpenMP.
         :rtype: bool
 
         '''
         # Check both are Literals
 
-        # If a Literal index to dependency has calculated dependency to a
-        # non-Literal index, this will return False, as this is not
+        # If a Literal index into an array that is a dependency
+        # has calculated dependency to a
+        # non-Literal array index, this will return False, as this is not
         # currently supported in PSyclone.
 
         # If literals are not the same its fine, since a(1) is not a
@@ -279,7 +281,7 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
         :param arraymixin2: the second node to validate.
         :type arraymixin2: :py:class:`psyclone.psyir.nodes.ArrayMixin`
 
-        :returns: whether or not these two nodes can be used as a valid \
+        :returns: whether or not these two nodes can be used as a valid
                   dependency pair in OpenMP, based upon the provided index.
         :rtype: bool
         '''
@@ -315,38 +317,40 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
         4. Reference ADD/SUB Binop(Literal MUL Literal)
 
 
-        :param ref: the Reference or BinaryOperation node to compute \
+        :param ref: the Reference or BinaryOperation node to compute
                     accesses for.
-        :type ref: Union[:py:class:`psyclone.psyir.nodes.Reference, \
+        :type ref: Union[:py:class:`psyclone.psyir.nodes.Reference,
                    :py:class:`psyclone.psyir.nodes.BinaryOperation]
-        :param preceding_nodes: a list of nodes that precede the task in the \
+        :param preceding_nodes: a list of nodes that precede the task in the
                                 tree.
         :type preceding_nodes: List[:py:class:`psyclone.psyir.nodes.Node`]
         :param task: the OMPTaskDirective node containing ref as a child.
         :type task: :py:class:`psyclone.psyir.nodes.OMPTaskDirective`
 
-        :raises UnresolvedDependencyError: If the ref contains an unsupported \
-                                           BinaryOperation structure, such as \
-                                           a non-ADD/SUB/MUL operator. Check \
+        :raises UnresolvedDependencyError: If the ref contains an unsupported
+                                           BinaryOperation structure, such as
+                                           a non-ADD/SUB/MUL operator. Check
                                            error message for more details.
-        :raises UnresolvedDependencyError: If preceding_nodes contains a Call \
+        :raises UnresolvedDependencyError: If preceding_nodes contains a Call
                                            node.
-        :raises UnresolvedDependencyError: If ref is a BinaryOperation and \
-                                           neither child of ref is a Literal \
+        :raises UnresolvedDependencyError: If ref is a BinaryOperation and
+                                           neither child of ref is a Literal
                                            or BinaryOperation.
-        :raises UnresolvedDependencyError: If there is a dependency between \
-                                           ref (a BinaryOperation) and a \
+        :raises UnresolvedDependencyError: If there is a dependency between
+                                           ref (a BinaryOperation) and a
                                            previously set constant.
-        :raises UnresolvedDependencyError: If there is a dependency between \
-                                           ref and a Loop variable that is \
+        :raises UnresolvedDependencyError: If there is a dependency between
+                                           ref and a Loop variable that is
                                            not an ancestor of task.
-        :raises UnresolvedDependencyError: If preceding_nodes contains a \
-                                           dependent loop with a non-Literal \
+        :raises UnresolvedDependencyError: If preceding_nodes contains a
+                                           dependent loop with a non-Literal
                                            step.
 
-        :returns: a list of the dependency values for the input ref.
-        :rtype: List[Union[:py:class:`psyclone.psyir.nodes.Literal`, \
-                :py:class:`psyclone.psyir.nodes.BinaryOperation`]]
+        :returns: a list of the dependency values for the input ref, or a
+                  dict of the start, stop and step values.
+        :rtype: List[Union[:py:class:`psyclone.psyir.nodes.Literal`,
+                :py:class:`psyclone.psyir.nodes.BinaryOperation`]] or
+                Dict[str: py:class:`psyclone.psyir.nodes.Node`]
         '''
         if isinstance(ref, Reference):
             symbol = ref.symbol
@@ -354,7 +358,7 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
             # Get the symbol out of the Binop, and store some other
             # important information. We store the step value of the
             # ancestor loop (which will be the value of the Literal, or
-            # the one of the Literals if an operand is a BinaryOperation).
+            # one of the Literals if an operand is a BinaryOperation).
             # In the case that one of the operands is a BinaryOperation,
             # we also store a "num_entries" value, which is based upon the
             # multiplier of the step value. This is how we can handle
@@ -369,11 +373,13 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                     num_entries = 2
                 else:
                     raise UnresolvedDependencyError(
-                            "Found a dependency index that is "
-                            "a BinaryOperation where the "
-                            "format is Literal OP Reference "
-                            "with a non-ADD operand "
-                            "which is not supported.")
+                            f"Found a dependency index that is "
+                            f"a BinaryOperation where the "
+                            f"format is Literal OP Reference "
+                            f"with a non-ADD operand "
+                            f"which is not supported. "
+                            f"The operation found was "
+                            f"{ref.debug_string()}.")
             elif isinstance(ref.children[1], Literal):
                 # Have Reference OP Literal. Store the symbol of the
                 # Reference, and the integer value of the Literal. If the
@@ -387,10 +393,12 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                         binop_val = -binop_val
                 else:
                     raise UnresolvedDependencyError(
-                            "Found a dependency index that is "
-                            "a BinaryOperation where the "
-                            "Operator is neither ADD not SUB "
-                            "which is not supported.")
+                            f"Found a dependency index that is "
+                            f"a BinaryOperation where the "
+                            f"Operator is neither ADD not SUB "
+                            f"which is not supported. "
+                            f"The operation found was "
+                            f"{ref.debug_string()}.")
 
             elif isinstance(ref.children[0], BinaryOperation):
                 if ref.operator == BinaryOperation.Operator.ADD:
@@ -402,20 +410,24 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                     binop = ref.children[0]
                     if binop.operator != BinaryOperation.Operator.MUL:
                         raise UnresolvedDependencyError(
-                                "Found a dependency index that is a "
-                                "BinaryOperation with a child "
-                                "BinaryOperation with a non-MUL operator "
-                                "which is not supported.")
+                                f"Found a dependency index that is a "
+                                f"BinaryOperation with a child "
+                                f"BinaryOperation with a non-MUL operator "
+                                f"which is not supported. "
+                                f"The operation found was "
+                                f"{ref.debug_string()}.")
                     # These binary operations are format of Literal MUL Literal
                     # where step_val is the 2nd literal and the multiplier
                     # is the first literal
                     if (not (isinstance(binop.children[0], Literal) and
                              isinstance(binop.children[1], Literal))):
                         raise UnresolvedDependencyError(
-                                "Found a dependency index that is a "
-                                "BinaryOperation with a child "
-                                "BinaryOperation with a non-Literal child "
-                                "which is not supported.")
+                                f"Found a dependency index that is a "
+                                f"BinaryOperation with a child "
+                                f"BinaryOperation with a non-Literal child "
+                                f"which is not supported. "
+                                f"The operation found was "
+                                f"{ref.debug_string()}.")
                     # We store the step of the parent loop in binop_val, and
                     # use the other operand to compute how many entries we
                     # need to compute to validate this dependency list.
@@ -423,11 +435,13 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                     num_entries = int(binop.children[0].value)+1
                 else:
                     raise UnresolvedDependencyError(
-                            "Found a dependency index that is "
-                            "a BinaryOperation where the "
-                            "format is BinaryOperator OP "
-                            "Reference with a non-ADD operand "
-                            "which is not supported.")
+                            f"Found a dependency index that is "
+                            f"a BinaryOperation where the "
+                            f"format is BinaryOperator OP "
+                            f"Reference with a non-ADD operand "
+                            f"which is not supported. "
+                            f"The operation found was "
+                            f"{ref.debug_string()}.")
             elif isinstance(ref.children[1], BinaryOperation):
                 # Have Reference ADD/SUB Binop. Store the symbol of the
                 # Reference, and store the binop. The binop is of
@@ -439,19 +453,23 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                     binop = ref.children[1]
                     if binop.operator != BinaryOperation.Operator.MUL:
                         raise UnresolvedDependencyError(
-                                "Found a dependency index that is a "
-                                "BinaryOperation with a child "
-                                "BinaryOperation with a non-MUL operator "
-                                "which is not supported.")
+                                f"Found a dependency index that is a "
+                                f"BinaryOperation with a child "
+                                f"BinaryOperation with a non-MUL operator "
+                                f"which is not supported. "
+                                f"The operation found was "
+                                f"{ref.debug_string()}.")
                     # These binary operations are format of Literal MUL Literal
                     # where step_val is the 2nd literal.
                     if (not (isinstance(binop.children[0], Literal) and
                              isinstance(binop.children[1], Literal))):
                         raise UnresolvedDependencyError(
-                                "Found a dependency index that is a "
-                                "BinaryOperation with an operand "
-                                "BinaryOperation with a non-Literal operand "
-                                "which is not supported.")
+                                f"Found a dependency index that is a "
+                                f"BinaryOperation with an operand "
+                                f"BinaryOperation with a non-Literal operand "
+                                f"which is not supported. "
+                                f"The operation found was "
+                                f"{ref.debug_string()}.")
                     # We store the step of the parent loop in binop_val, and
                     # use the other operand to compute how many entries we
                     # need to compute to validate this dependency list.
@@ -465,19 +483,23 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                         num_entries = num_entries-1
                 else:
                     raise UnresolvedDependencyError(
-                            "Found a dependency index that is "
-                            "a BinaryOperation where the "
-                            "format is Reference OP "
-                            "BinaryOperation with a non-ADD, "
-                            "non-SUB operand "
-                            "which is not supported.")
+                            f"Found a dependency index that is "
+                            f"a BinaryOperation where the "
+                            f"format is Reference OP "
+                            f"BinaryOperation with a non-ADD, "
+                            f"non-SUB operand "
+                            f"which is not supported. "
+                            f"The operation found was "
+                            f"{ref.debug_string()}.")
             else:
                 raise UnresolvedDependencyError(
-                        "Found a dependency index that is a "
-                        "BinaryOperation where neither child "
-                        "is a Literal or BinaryOperation. "
-                        "PSyclone can't validate "
-                        "this dependency.")
+                        f"Found a dependency index that is a "
+                        f"BinaryOperation where neither child "
+                        f"is a Literal or BinaryOperation. "
+                        f"PSyclone can't validate "
+                        f"this dependency. "
+                        f"The operation found was "
+                        f"{ref.debug_string()}.")
         start = None
         stop = None
         step = None
@@ -535,9 +557,10 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
             # dependency.
             if not isinstance(step, Literal):
                 raise UnresolvedDependencyError(
-                        "Found a dependency index that is a "
-                        "Loop variable with a non-Literal step "
-                        "which we can't resolve in PSyclone.")
+                        f"Found a dependency index that is a "
+                        f"Loop variable with a non-Literal step "
+                        f"which we can't resolve in PSyclone. "
+                        f"Containing node is {node.debug_string()}.")
             # If the start and stop are both Literals, we can compute a set
             # of accesses this BinaryOperation is related to precisely.
             if (isinstance(start, Literal) and isinstance(stop, Literal)):
@@ -553,29 +576,18 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                     output_list.append(Literal(f"{new_x}", INTEGER_TYPE))
                 return output_list
 
-            # If they are not all literals, then we create a small number of
-            # entries, based on the num_entries value computed previously.
-            # The list will contain num_entries+1 entries, as the first entry
-            # is a starting value, and then we create num_entries value
-            # based on the step value.
-            # Each entry in the list is a BinaryOperation, the first value is
-            # the original (start + binop_val), whilst the following elements
-            # are incremented/decremented by the step value accordingly.
-            first_val = BinaryOperation.create(
-                    BinaryOperation.Operator.ADD,
-                    start.copy(),
-                    Literal(f"{binop_val}", INTEGER_TYPE))
-            output_list.append(first_val)
-            for i in range(1, num_entries+1):
-                if binop_val >= 0:
-                    val = binop_val + i * int(step.value)
-                else:
-                    val = binop_val - i * int(step.value)
-                output_list.append(
-                        BinaryOperation.create(
-                            BinaryOperation.Operator.ADD,
-                            start.copy(),
-                            Literal(f"{val}", INTEGER_TYPE)))
+            # If they are not all literals, we have a special case. In this
+            # case we return a dict containing start, stop and step and this
+            # is compared directly to the start, stop and step of a
+            # corresponding access.
+            output_list = {}
+            output_list["start"] = BinaryOperation.create(
+                                       BinaryOperation.Operator.ADD,
+                                       start.copy(),
+                                       Literal(f"{binop_val}", INTEGER_TYPE)
+                                    )
+            output_list["stop"] = stop.copy()
+            output_list["step"] = step.copy()
             return output_list
         if step is None:
             # Result for an assignment.
@@ -601,18 +613,16 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                 output_list.append(Literal(f"{i}", INTEGER_TYPE))
             return output_list
 
-        # If ref is a reference then we generate the first two values of
         # the sequence only. In this case, we have a non-parent loop reference
         # which is also firstprivate (as shared indices are forbidden in
         # OMPTaskDirective already), so is essentially a constant. In this
-        # case therefore we will have an unknown "stop" value, so we just
-        # verify values close to the step
-        output_list.append(start.copy())
-        second_val = BinaryOperation.create(
-                BinaryOperation.Operator.ADD,
-                start.copy(),
-                step.copy())
-        output_list.append(second_val)
+        # case therefore we will have an unknown start and stop value, so we
+        # verify this dependency differently. To ensure this special case is
+        # understood as a special case, we return a dict with the 3 members.
+        output_list = {}
+        output_list["start"] = start.copy()
+        output_list["stop"] = stop.copy()
+        output_list["step"] = step.copy()
         return output_list
 
     def _check_valid_overlap(self, sympy_ref1s, sympy_ref2s):
@@ -622,10 +632,10 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
 
         :param sympy_ref1s: the list of SymPy expressions corresponding to
                             the first dependency clause.
-        :type sympy_ref1s: list of SymPy expressions
+        :type sympy_ref1s: List[:py:class:`sympy.core.basic.Basic`]
         :param sympy_ref2s: the list of SymPy expressions corresponding to
                             the second dependency clause.
-        :type sympy_ref2s: list of SymPy expressions
+        :type sympy_ref2s: List[:py:class:`sympy.core.basic.Basic`]
 
         :returns: whether this is a valid overlap according to the OpenMP \
                   standard.
@@ -690,6 +700,8 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
         :rtype: bool
 
         '''
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.backend.sympy_writer import SymPyWriter
         # In this case we have two Reference/BinaryOperation as indices.
         # We need to attempt to find their value set and check the value
         # set matches.
@@ -706,6 +718,38 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
             # dependencies based on it need to be handled by a taskwait
             return False
 
+        # If either of the returned accesses are a dict, this is a special
+        # case where both must be a dict and have the same start, stop and
+        # step.
+        if isinstance(ref1_accesses, dict) or isinstance(ref2_accesses, dict):
+            # If they aren't both dicts then we need to return False as
+            # the special case isn't handled correctly.
+            if type(ref1_accesses) != type(ref2_accesses):
+                return False
+            # If they're both dicts then we need the step to be equal for
+            # this dependency to be satisfiable.
+            if ref1_accesses["step"] != ref2_accesses["step"]:
+                return False
+            # Now we know the step is equal, we need the start values to be
+            # start1 = start2 + x * step, where x is an integer value.
+            # We use SymPy to solve this equation and perform this check.
+            sympy_start1 = SymPyWriter.convert_to_sympy_expressions(
+                    [ref1_accesses["start"]])[0]
+            sympy_start2 = SymPyWriter.convert_to_sympy_expressions(
+                    [ref2_accesses["start"]])[0]
+            sympy_step = SymPyWriter.convert_to_sympy_expressions(
+                    [ref2_accesses["step"]])[0]
+            b_sym = sympy.Symbol('b')
+            result = sympy.solvers.solve(sympy_start1 - sympy_start2 +
+                                         b_sym * sympy_step, b)
+            if not isinstance(result[0], sympy.core.numbers.Integer):
+                return False
+
+            # If we know the start and step are aligned, all possible
+            # dependencies are aligned so we don't need to check the stop
+            # value.
+            return True
+
         # If the first access in each accesses contains a Reference
         # we should check that both are to the same symbol
         ref1_ref = ref1_accesses[0].walk(Reference)
@@ -714,7 +758,7 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                 (len(ref1_ref) == 0 and len(ref2_ref) > 0)):
             # Found a pair of dependencies on the same array which are not
             # valid under OpenMP, as one contains a Reference while the
-            # other does not.
+            # other is a compile-time constant.
             return False
         # If we have any References in the accesses lists, check the first
         # Reference is the same in both.
@@ -725,8 +769,6 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
             # equivalent at compile time.
             return False
 
-        # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.backend.sympy_writer import SymPyWriter
         # Now we know if there is a Reference, both are to the same Symbol
         if len(ref1_ref) > 0:
             # Handle reference case
@@ -752,15 +794,8 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
             # the BinaryOperations in ref2_accesses, so if ref2_accesses
             # contains ref+32, ref+64, then ref2_accesses will contain the
             # Literals for 32 and 64.
-            val2s = []
-            for member in ref2_accesses:
-                # If its a reference only we can ignore it as we know both
-                # feature the Reference.
-                if isinstance(member, Reference):
-                    continue
-                # We know its a BinaryOperation of the Reference and something.
-                # Take the second child of the BinaryOperation to compute
-                val2s.append(member.children[1])
+            val2s = [member.children[1] for member in ref2_accesses if
+                     isinstance(member, Reference)]
             sympy_ref2s = SymPyWriter.convert_to_sympy_expressions(val2s)
             return self._check_valid_overlap(sympy_ref1s, sympy_ref2s)
         # Handle no Reference case
@@ -769,10 +804,6 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
         # integer values for these Literals
         sympy_ref1s = \
             SymPyWriter.convert_to_sympy_expressions(ref1_accesses)
-
-        # We have a set of Literal values, we use the SymPyWriter to
-        # convert these objects to expressions we can use to obtain
-        # integer values for these Literals
         sympy_ref2s = \
             SymPyWriter.convert_to_sympy_expressions(ref2_accesses)
         return self._check_valid_overlap(sympy_ref1s, sympy_ref2s)
@@ -837,6 +868,11 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
         # All remaining objects are some sort of Array access
         array1 = None
         array2 = None
+
+        # PSyclone will not handle dependencies on multiple array indexes
+        # at the moment, so we return False.
+        if len(node1.walk(ArrayMixin)) > 1 or len(node2.walk(ArrayMixin)) > 1:
+            return False
         if isinstance(node1, ArrayReference):
             array1 = node1
             array2 = node2

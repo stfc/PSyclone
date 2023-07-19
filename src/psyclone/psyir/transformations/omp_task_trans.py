@@ -73,10 +73,26 @@ class OMPTaskTrans(ParallelLoopTrans):
         :type options: dict of string:values or None
         '''
         # Disallow CodeBlocks inside the region
-        if len(node.walk(CodeBlock)) > 0:
+        if any(node.walk(CodeBlock)):
             raise GenerationError(
                 "OMPTaskTransformation cannot be applied to a region "
                 "containing a code block")
+
+        # Check we can apply all the required transformations on any sub
+        # nodes
+        node_copy = node.copy()
+        kerns = node_copy.walk(Kern)
+        kintrans = KernelModuleInlineTrans()
+        cond_trans = FoldConditionalReturnExpressionsTrans()
+        intrans = InlineTrans()
+        for kern in kerns:
+            kintrans.validate(kern)
+            cond_trans.validate(kern.get_kernel_schedule())
+            kern.lower_to_language_level()
+
+        calls = node_copy.walk(Call)
+        for call in calls:
+            intrans.validate(call)
         super().validate(node, options)
 
     def _directive(self, children, collapse=None):
@@ -86,7 +102,7 @@ class OMPTaskTrans(ParallelLoopTrans):
 
         :param children: list of Nodes that will be the children of \
                          the created directive.
-        :type children: list of :py:class:`psyclone.psyir.nodes.Node`
+        :type children: List[:py:class:`psyclone.psyir.nodes.Node`]
         :param collapse: A required parameter from parent class. Must
                          never be set for TaskTrans (is None).
         :type collapse: None.
@@ -108,6 +124,14 @@ class OMPTaskTrans(ParallelLoopTrans):
         '''
         Searches the PsyIR tree inside the directive and inlines any kern
         objects found.
+        This is a multi-step process:
+        1. Module inline any kernels found.
+        2. Fold any conditional return expressions.
+        3. Lower kernels to language level, resulting in Call nodes.
+        4. Inline all the Call operations found.
+
+        :param node: The node this transformation is operating on.
+        :type node: :py:class:`psyclone.psyir.nodes.Loop`
         '''
 
         kerns = node.walk(Kern)
@@ -152,7 +176,8 @@ class OMPTaskTrans(ParallelLoopTrans):
                         and validation.
         :type options: dictionary of string:values or None
         '''
+        self.validate(node, options=options)
         if not options:
             options = {}
         self._inline_kernels(node)
-        super(OMPTaskTrans, self).apply(node, options)
+        super().apply(node, options)
