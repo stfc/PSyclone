@@ -56,60 +56,82 @@ def test_symbolinterface():
     inter2 = inter1.copy()
     assert isinstance(inter2, SymbolInterface)
     assert inter2 is not inter1
+    # The copy should be equal to the original.
+    assert inter2 == inter1
 
 
 def test_automatic_interface():
-    '''Test we can create a AutomaticInterface instance and check its __str__
-    value
+    '''Test we can create a AutomaticInterface instance, check its __str__
+    value and test for equality.
 
     '''
     interface = AutomaticInterface()
     assert str(interface) == "Automatic"
+    inter2 = interface.copy()
+    assert inter2 == interface
 
 
 def test_defaultmoduleinterface():
-    '''Test we can create an DefaultModuleInterface instance and check its
-    __str__ value
+    '''Test we can create an DefaultModuleInterface instance, check its
+    __str__ value and test for equality.
 
     '''
     interface = DefaultModuleInterface()
     assert str(interface) == "DefaultModule"
+    inter2 = interface.copy()
+    assert inter2 == interface
 
 
 def test_static_interface():
-    '''Test we can create a StaticInterface instance and check its __str__
-    value
+    '''Test we can create a StaticInterface instance, check its __str__
+    value and test for equality.
 
     '''
     interface = StaticInterface()
     assert str(interface) == "Static"
+    inter2 = interface.copy()
+    assert inter2 == interface
+    inter3 = DefaultModuleInterface()
+    assert inter3 != inter2
 
 
 def test_commonblockinterface():
-    '''Test we can create an CommonBlockInterface instance and check its
-    __str__ value
+    '''Test we can create an CommonBlockInterface instance, check its
+    __str__ value and test for equality.
 
     '''
     interface = CommonBlockInterface()
     assert str(interface) == "CommonBlock"
+    inter2 = interface.copy()
+    assert inter2 == interface
+    inter3 = DefaultModuleInterface()
+    assert inter3 != inter2
 
 
 def test_unresolvedinterface():
-    '''Test we can create an UnresolvedInterface instance and check its
-    __str__ value
+    '''Test we can create an UnresolvedInterface instance, check its
+    __str__ value and test for equality.
 
     '''
     interface = UnresolvedInterface()
     assert str(interface) == "Unresolved"
+    inter2 = interface.copy()
+    assert inter2 == interface
+    inter3 = DefaultModuleInterface()
+    assert inter3 != inter2
 
 
 def test_unknowninterface():
-    '''Test we can create an UnknownInterface instance and check its
-    __str__ value
+    '''Test we can create an UnknownInterface instance, check its
+    __str__ value and test for equality.
 
     '''
     interface = UnknownInterface()
     assert str(interface) == "Unknown"
+    inter2 = interface.copy()
+    assert inter2 == interface
+    inter3 = DefaultModuleInterface()
+    assert inter3 != inter2
 
 
 def test_importinterface():
@@ -120,14 +142,17 @@ def test_importinterface():
 
     '''
     container_symbol = ContainerSymbol("my_mod")
-    import_interface = ImportInterface(container_symbol)
-    assert import_interface.container_symbol is container_symbol
-    assert str(import_interface) == "Import(container='my_mod')"
+    import_interface1 = ImportInterface(container_symbol)
+    assert import_interface1.container_symbol is container_symbol
+    assert str(import_interface1) == "Import(container='my_mod')"
 
-    import_interface = ImportInterface(container_symbol, orig_name="orig_name")
-    assert import_interface.container_symbol is container_symbol
-    assert str(import_interface) == ("Import(container='my_mod', "
-                                     "orig_name='orig_name')")
+    import_interface2 = ImportInterface(container_symbol,
+                                        orig_name="orig_name")
+    assert import_interface2.container_symbol is container_symbol
+    assert str(import_interface2) == ("Import(container='my_mod', "
+                                      "orig_name='orig_name')")
+    # Different orig_name so interfaces not equal.
+    assert import_interface2 != import_interface1
 
     with pytest.raises(TypeError) as info:
         _ = ImportInterface("hello")
@@ -173,8 +198,12 @@ def test_importinterface_copy():
     assert new_interface is not import_interface
     assert new_interface.container_symbol is csym
     assert new_interface.orig_name is None
+    # Copy should be 'equal'.
+    assert new_interface == import_interface
     new_interface.container_symbol = ContainerSymbol("other_mod")
     assert import_interface.container_symbol is csym
+    # Copy no longer 'equal' because container symbol has changed.
+    assert new_interface != import_interface
 
     import_interface = ImportInterface(csym, orig_name="orig_name")
     new_interface = import_interface.copy()
@@ -188,20 +217,21 @@ def test_argumentinterface_init():
     type.
 
     '''
-    argument_interface = ArgumentInterface()
-    assert argument_interface._access == ArgumentInterface.Access.UNKNOWN
-    assert argument_interface.access == argument_interface._access
+    argument_interface1 = ArgumentInterface()
+    assert argument_interface1._access == ArgumentInterface.Access.UNKNOWN
+    assert argument_interface1.access == argument_interface1._access
 
-    argument_interface = ArgumentInterface(ArgumentInterface.Access.READ)
-    assert argument_interface._access == ArgumentInterface.Access.READ
-    assert argument_interface.access == argument_interface._access
+    argument_interface2 = ArgumentInterface(ArgumentInterface.Access.READ)
+    assert argument_interface2._access == ArgumentInterface.Access.READ
+    assert argument_interface2.access == argument_interface2._access
+    assert argument_interface2 != argument_interface1
 
     with pytest.raises(TypeError) as info:
         _ = ArgumentInterface("hello")
     assert ("SymbolInterface.access must be an 'ArgumentInterface.Access' but "
             "got 'str'." in str(info.value))
     with pytest.raises(TypeError) as info:
-        argument_interface.access = "hello"
+        argument_interface2.access = "hello"
     assert ("SymbolInterface.access must be an 'ArgumentInterface.Access' but "
             "got 'str'." in str(info.value))
 
@@ -234,6 +264,8 @@ def test_argumentinterface_copy():
     arg_interface = ArgumentInterface(access=ArgumentInterface.Access.WRITE)
     new_interface = arg_interface.copy()
     assert new_interface.access == ArgumentInterface.Access.WRITE
+    assert arg_interface == new_interface
     # Check that we can modify the copy without affecting the original
     new_interface.access = ArgumentInterface.Access.READ
     assert arg_interface.access == ArgumentInterface.Access.WRITE
+    assert arg_interface != new_interface

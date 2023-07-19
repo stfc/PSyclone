@@ -31,7 +31,8 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: S. Siso STFC Daresbury Lab
+# Author: S. Siso, STFC Daresbury Lab
+# Modifications: A. R. Porter, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' This module contains the SymbolInterface class and its subclasses. '''
@@ -50,6 +51,12 @@ class SymbolInterface():
         :rtype: :py:class:`psyclone.psyir.symbol.SymbolInterface`
         '''
         return self.__class__()
+
+    def __eq__(self, other):
+        '''
+        In general, two Interfaces are equal if they are of the same type.
+        '''
+        return type(self) == type(other)
 
 
 class AutomaticInterface(SymbolInterface):
@@ -108,12 +115,12 @@ class ImportInterface(SymbolInterface):
     if so, its original name in the Container is specified using the
     optional 'orig_name' argument.
 
-    :param container_symbol: symbol representing the external container \
+    :param container_symbol: symbol representing the external container
         from which the symbol is imported.
-    :type container_symbol: \
+    :type container_symbol:
         :py:class:`psyclone.psyir.symbols.ContainerSymbol`
-    :param Optional[str] orig_name: the name of the symbol in the \
-        external container before it is renamed, or None (the default) if \
+    :param Optional[str] orig_name: the name of the symbol in the
+        external container before it is renamed, or None (the default) if
         it is not renamed.
 
     :raises TypeError: if the orig_name argument is an unexpected type.
@@ -128,6 +135,19 @@ class ImportInterface(SymbolInterface):
         self._orig_name = orig_name
         # Use error-checking setter
         self.container_symbol = container_symbol
+
+    def __eq__(self, other):
+        '''
+        Two import interfaces are equal if they:
+          * refer to the same container;
+          * perform the same symbol renaming.
+
+        '''
+        if all([super().__eq__(other),
+                self.container_symbol == other.container_symbol,
+                self.orig_name == other.orig_name]):
+            return True
+        return False
 
     @property
     def orig_name(self):
@@ -218,6 +238,17 @@ class ArgumentInterface(SymbolInterface):
             self.access = ArgumentInterface.Access.UNKNOWN
         else:
             self.access = access
+
+    def __eq__(self, other):
+        '''
+        Two argument interfaces are equal if they:
+          * have the same access.
+
+        '''
+        if all([super().__eq__(other),
+                self.access == other.access]):
+            return True
+        return False
 
     @property
     def access(self):
