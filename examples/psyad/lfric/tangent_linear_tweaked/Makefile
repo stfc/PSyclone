@@ -38,6 +38,7 @@ include ${PSYROOT}/examples/common.mk
 
 CONFIG_ENV = PSYCLONE_CONFIG=${PSYCLONE_DIR}/config/psyclone.cfg
 
+API = -api dynamo0.3
 F90FLAGS += -ffree-line-length-none
 
 OUT_DIR ?= ../adjoint_partial
@@ -52,7 +53,7 @@ GENERATED_FILES = ${OUT_DIR}/adj*.[fF]90
 single: ${ADJ_KERNEL_FILE}
 
 ${ADJ_KERNEL_FILE}: ${TL_KERNEL_FILE}
-	$(PSYAD) -api dynamo0.3 $< -oad ${OUT_DIR}/$@ -a ${ACTIVE_VAR_LIST}
+	$(PSYAD) $(API) $< -oad ${OUT_DIR}/$@ -a ${ACTIVE_VAR_LIST}
 
 transform:
 	$(MAKE) single -e TL_KERNEL_NAME=tl_kinetic_energy_gradient_kernel ACTIVE_VAR_LIST="r_u ru_e ke_at_quad res_dot_product mul2 u_at_quad u_e u"
@@ -63,7 +64,7 @@ transform:
 	$(MAKE) single -e TL_KERNEL_NAME=poly1d_w3_reconstruction_kernel ACTIVE_VAR_LIST="reconstruction polynomial_tracer tracer"
 	$(MAKE) single -e TL_KERNEL_NAME=tl_poly1d_vert_w3_reconstruction_kernel ACTIVE_VAR_LIST="reconstruction polynomial_tracer tracer"
 	$(MAKE) single -e TL_KERNEL_NAME=convert_hdiv_field_kernel ACTIVE_VAR_LIST="physical_field1 physical_field2 physical_field3 vector_out vector_in computational_field"
-	$(MAKE) single -e TL_KERNEL_NAME=tl_calc_exner_pointwise ACTIVE_VAR_LIST="exner rho theta"
+	$(MAKE) single -e TL_KERNEL_NAME=tl_calc_exner_pointwise ACTIVE_VAR_LIST="exner rho theta" API=""
 	$(MAKE) single -e TL_KERNEL_NAME=poly2d_w3_reconstruction_kernel ACTIVE_VAR_LIST="reconstruction polynomial_tracer tracer"
 	$(MAKE) single -e TL_KERNEL_NAME=tl_sample_eos_pressure_kernel ACTIVE_VAR_LIST="exner rho_cell rho_e rho tmp_exner theta_vd_cell theta_vd_e theta moist_dyn_gas"
 	$(MAKE) single -e TL_KERNEL_NAME=tl_rhs_project_eos_kernel ACTIVE_VAR_LIST="rhs_eos exner rho theta moist_dyn_gas eos exner_quad theta_vd_quad rho_quad rho_e exner_e theta_vd_e"
