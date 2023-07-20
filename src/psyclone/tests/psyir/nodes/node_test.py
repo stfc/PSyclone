@@ -1485,5 +1485,5 @@ def test_path_from(fortran_reader):
     loops = psyir.walk(Loop)
     with pytest.raises(ValueError) as excinfo:
         assigns[0].path_from(loops[0])
-    assert ("Attempted to find path_from a non-ancestor node."
-            in str(excinfo.value))
+    assert ("Attempted to find path_from a non-ancestor node: "
+            "Loop." in str(excinfo.value))
