@@ -242,15 +242,21 @@ specialisations are possible:
     >>> sym = Symbol("a")
     >>> # The following statement would fail because it doesn't have a datatype
     >>> # sym.specialise(DataSymbol)
-    >>> # The following statement is valid and constant_value is set to None
+    >>> # The following statement is valid (in this case initial_value will
+    >>> # default to None and is_constant to False):
     >>> sym.specialise(DataSymbol, datatype=INTEGER_TYPE)
 
     >>> sym2 = Symbol("b")
     >>> # The following statement would fail because the initial_value doesn't
-    >>> # match the datatype of the symbol
+    >>> # match the datatype of the symbol:
     >>> # sym2.specialise(DataSymbol, datatype=INTEGER_TYPE, initial_value=3.14)
     >>> # The following statement is valid and initial_value is set to 3
+    >>> # (and is_constant will default to False):
     >>> sym2.specialise(DataSymbol, datatype=INTEGER_TYPE, initial_value=3)
+    >>> print(sym2.initial_value)
+    Literal[value:'3', Scalar<INTEGER, UNDEFINED>]
+    >>> print(sym2.is_constant)
+    False
 
 
 Routine Interfaces
