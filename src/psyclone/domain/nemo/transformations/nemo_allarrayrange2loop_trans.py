@@ -101,7 +101,7 @@ class NemoAllArrayRange2LoopTrans(Transformation):
         :param options: a dictionary with options for transformations. No
             options are used in this transformation. This is an optional
             argument that defaults to None.
-        :param bool options["verbose"]: whether to print out the reason 
+        :param bool options["verbose"]: whether to print out the reason
             why the inner transformation was not applied. This is useful
             because this transfomation succeeds even if one of the inner
             transformations fails, and therefor the reason why the inner

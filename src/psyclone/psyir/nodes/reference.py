@@ -85,11 +85,21 @@ class Reference(DataNode):
 
     @property
     def is_array(self):
-        ''':returns: if this reference is an array.
+        '''
+        :returns: whether this reference is an array. Note that if an array
+            expression is used, it will be a Reference in the PSyIR, but if the
+            symbol has been resolved, the symbol will be queried to determine
+            whether it is an array or not.
         :rtype: bool
 
         '''
-        return False
+        try:
+            # The standard symbol raises a ValueError if is_array
+            # is called - which indicates that we don't know if this
+            # symbol is an array or not.
+            return self.symbol.is_array
+        except ValueError:
+            return False
 
     @property
     def symbol(self):
@@ -172,7 +182,10 @@ class Reference(DataNode):
         '''
         :returns: the datatype of this reference.
         :rtype: :py:class:`psyclone.psyir.symbols.DataType`
+
         '''
+        # pylint: disable=unidiomatic-typecheck
+        # Use type() directly as we need to ignore inheritance.
         if type(self.symbol) is Symbol:
             # We don't even have a DataSymbol
             return DeferredType()

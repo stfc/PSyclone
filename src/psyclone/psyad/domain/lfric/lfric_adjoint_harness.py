@@ -37,12 +37,14 @@
 ''' Provides LFRic-specific PSyclone adjoint test-harness functionality. '''
 
 from fparser import api as fpapi
-from psyclone.core import AccessType
-from psyclone.domain.lfric import LFRicConstants, LFRicTypes
 
+from psyclone.core import AccessType
+from psyclone.domain.lfric import (
+    LFRicConstants, LFRicTypes, ArgIndexToMetadataIndex)
+from psyclone.domain.lfric.algorithm.lfric_alg import LFRicAlg
 from psyclone.domain.lfric.algorithm.psyir import (
     LFRicAlgorithmInvokeCall, LFRicBuiltinFunctorFactory, LFRicKernelFunctor)
-from psyclone.domain.lfric.algorithm.lfric_alg import LFRicAlg
+from psyclone.domain.lfric.transformations import RaisePSyIR2LFRicKernTrans
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyad.domain.common.adjoint_utils import (create_adjoint_name,
                                                         create_real_comparison,
@@ -467,6 +469,10 @@ def generate_lfric_adjoint_harness(tl_psyir, coord_arg_idx=None,
     routine = container.walk(Routine)[0]
     table = routine.symbol_table
 
+    tl_subroutine = tl_container.children[0]
+    tl_subroutine_table = tl_subroutine.symbol_table
+    tl_argument_list = tl_subroutine_table.argument_list
+
     # Parse the kernel metadata. This still uses fparser1 as that's what
     # the meta-data handling is currently based upon. We therefore have to
     # convert back from PSyIR to Fortran for the moment.
@@ -509,6 +515,33 @@ def generate_lfric_adjoint_harness(tl_psyir, coord_arg_idx=None,
     # TODO #1806 - once we have the new PSyIR-based metadata handling then
     # we can pass PSyIR to this routine rather than an fparser1 parse tree.
     kern = lfalg.kernel_from_metadata(parse_tree, kernel_name)
+
+    # Replace generic names for fields. operators etc generated in
+    # DynKern with the scientific names used by the tangent-linear
+    # kernel. This makes the harness code more readable. Changing the
+    # names in-place within DynKern is the neatest solution given that
+    # this is a legacy structure.
+
+    # First raise the tangent-linear kernel PSyIR to LFRic PSyIR. This
+    # gives us access to the kernel metadata.
+    kern_trans = RaisePSyIR2LFRicKernTrans()
+    kern_trans.apply(tl_psyir, options={"metadata_name": kernel_name})
+    metadata = tl_psyir.children[0].metadata
+    # Use the metadata to determine the mapping from a metadata
+    # meta_arg index to the kernel argument index. Note, the meta_arg
+    # index corresponds to the order of the arguments stored in
+    # DynKern.
+    index_map = ArgIndexToMetadataIndex.mapping(metadata)
+    inv_index_map = {value: key for key, value in index_map.items()}
+
+    # For each kernel argument, replace the generic name with the
+    # scientific name used in the tangent-linear code.
+    for idx, arg in enumerate(kern.arguments.args):
+        tl_arg_idx = inv_index_map[idx]
+        # pylint: disable=protected-access
+        arg._name = tl_argument_list[tl_arg_idx].name
+        # pylint: enable=protected-access
+
     kern_args = lfalg.construct_kernel_args(routine, kern)
 
     # Validate the index values for the coordinate and face_id fields if
@@ -565,8 +598,9 @@ def generate_lfric_adjoint_harness(tl_psyir, coord_arg_idx=None,
             # This kernel argument is not modified by the test harness so we
             # don't need to keep a copy of it.
             continue
-        input_sym = table.new_symbol(sym.name+"_input", symbol_type=DataSymbol,
-                                     datatype=DeferredType())
+        input_sym = table.new_symbol(
+            f"{sym.name}_input", symbol_type=DataSymbol,
+            datatype=DeferredType())
         input_sym.copy_properties(sym)
         input_symbols[sym.name] = input_sym
 
@@ -598,6 +632,7 @@ def generate_lfric_adjoint_harness(tl_psyir, coord_arg_idx=None,
     # Fields.
     kernel_list = _init_fields_random(kernel_input_arg_list, input_symbols,
                                       table)
+
     # Operators.
     kernel_list.extend(_init_operators_random(
         [sym for sym, _, _ in kern_args.operators], table))
