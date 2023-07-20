@@ -515,6 +515,9 @@
 	174) PR #2225 for #2224. Fix erroneous CI link check error by
 	omitting test for the particular link.
 
+	175) PR #2172 for #1833. Fixes the LFRic tutorials so that they
+	build correctly.
+
 release 2.3.1 17th of June 2022
 
 	1) PR #1747 for #1720. Adds support for If blocks to PSyAD.
