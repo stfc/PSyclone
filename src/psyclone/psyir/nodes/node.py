@@ -1502,6 +1502,32 @@ class Node():
         from psyclone.psyir.backend.debug_writer import DebugWriter
         return DebugWriter()(self)
 
+    def path_from(self, ancestor):
+        ''' Find the path in the psyir tree between ancestor and node and
+        returns a list containing the path.
+
+        :param ancestor: an ancestor node of self to find the path from.
+        :type ancestor: :py:class:`psyclone.psyir.nodes.Node`
+
+        :raises ValueError: if ancestor is not an ancestor of self.
+
+        :returns: a list of child indices representing the path between
+                  ancestor and self.
+        :rtype: List[Int]
+        '''
+        result_list = []
+        current_node = self
+        while current_node is not ancestor and current_node.parent is not None:
+            result_list.append(current_node.position)
+            current_node = current_node.parent
+
+        if current_node is not ancestor:
+            raise ValueError("Attempted to find path_from a non-ancestor "
+                             "node.")
+
+        result_list.reverse()
+        return result_list
+
 
 # For automatic documentation generation
 # TODO #913 the 'colored' routine shouldn't be in this module.
