@@ -40,7 +40,7 @@ from psyclone.psyir.transformations.fold_conditional_return_expressions_trans \
         import FoldConditionalReturnExpressionsTrans
 from psyclone.psyir.transformations.parallel_loop_trans import\
     ParallelLoopTrans
-from psyclone.psyir.nodes import CodeBlock, Call
+from psyclone.psyir.nodes import CodeBlock, Call, Routine
 from psyclone.psyir.nodes import DynamicOMPTaskDirective
 from psyclone.psyir.transformations.inline_trans import InlineTrans
 from psyclone.psyir.transformations.transformation_error import \
@@ -80,7 +80,13 @@ class OMPTaskTrans(ParallelLoopTrans):
 
         # Check we can apply all the required transformations on any sub
         # nodes
-        node_copy = node.copy()
+        routine_ancestor = node.ancestor(Routine)
+        path_to_node = node.path_from(routine_ancestor)
+        routine_copy = routine_ancestor.copy()
+        node_copy = routine_copy
+        for index in path_to_node:
+            node_copy = node_copy.children[index]
+
         kerns = node_copy.walk(Kern)
         kintrans = KernelModuleInlineTrans()
         cond_trans = FoldConditionalReturnExpressionsTrans()
