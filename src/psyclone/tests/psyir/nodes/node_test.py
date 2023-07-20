@@ -1455,3 +1455,35 @@ def test_debug_string(monkeypatch):
     monkeypatch.setattr(DebugWriter, "__call__", lambda x, y: "CORRECT STRING")
     tnode = Node()
     assert tnode.debug_string() == "CORRECT STRING"
+
+
+def test_path_from(fortran_reader):
+    ''' Test the path_from method of the Node class.'''
+
+    code = '''subroutine test_sub()
+    integer :: i, j, k, l
+    k = 12
+    do i = 1, 128
+      do j = 2, 256
+        k = k + 32
+      end do
+    end do
+    l = k
+    end subroutine'''
+
+    psyir = fortran_reader.psyir_from_source(code)
+    assigns = psyir.walk(Assignment)
+    routine = psyir.walk(Routine)[0]
+    result = assigns[1].path_from(routine)
+    start = routine
+    for index in result:
+        start = start.children[index]
+    assert start is assigns[1]
+
+    assert len(assigns[1].path_from(assigns[1])) == 0
+
+    loops = psyir.walk(Loop)
+    with pytest.raises(ValueError) as excinfo:
+        assigns[0].path_from(loops[0])
+    assert ("Attempted to find path_from a non-ancestor node: "
+            "Loop." in str(excinfo.value))
