@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2022, Science and Technology Facilities Council.
+# Copyright (c) 2020-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -73,7 +73,7 @@ include $(LFRIC_PATH)/lfric_include_flags.inc
 GHLIB_PATH = ../gungho_lib
 GHLIB_NAME = gungho
 GHLIB_LIB = $(GHLIB_PATH)/lib$(GHLIB_NAME).a
-F90FLAGS += -I$(GHLIB_PATH)
+F90FLAGS += -I$(GHLIB_PATH) $(LFRIC_INCLUDE_FLAGS)
 
 
 # Targets
