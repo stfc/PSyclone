@@ -78,11 +78,12 @@ class OMPTaskTrans(ParallelLoopTrans):
                 "OMPTaskTransformation cannot be applied to a region "
                 "containing a code block")
 
+        super().validate(node, options)
         # Check we can apply all the required transformations on any sub
         # nodes
-        routine_ancestor = node.ancestor(Routine)
-        path_to_node = node.path_from(routine_ancestor)
-        routine_copy = routine_ancestor.copy()
+        root_ancestor = node.ancestor(Routine)
+        path_to_node = node.path_from(root_ancestor)
+        routine_copy = root_ancestor.copy()
         node_copy = routine_copy
         for index in path_to_node:
             node_copy = node_copy.children[index]
@@ -94,12 +95,15 @@ class OMPTaskTrans(ParallelLoopTrans):
         for kern in kerns:
             kintrans.validate(kern)
             cond_trans.validate(kern.get_kernel_schedule())
+            # We need to apply these transformations to ensure we can
+            # validate the InlineTrans
+            kintrans.apply(kern)
+            cond_trans.apply(kern.get_kernel_schedule())
             kern.lower_to_language_level()
 
         calls = node_copy.walk(Call)
         for call in calls:
             intrans.validate(call)
-        super().validate(node, options)
 
     def _directive(self, children, collapse=None):
         '''
