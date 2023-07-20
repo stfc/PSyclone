@@ -687,6 +687,11 @@ def test_fw_gen_vardecl(fortran_writer):
     result = fortran_writer.gen_vardecl(symbol)
     assert result == "integer, parameter :: dummy3 = 10\n"
 
+    # Initial value but not constant
+    symbol = DataSymbol("dummy3a", INTEGER_TYPE, initial_value=10)
+    result = fortran_writer.gen_vardecl(symbol)
+    assert result == "integer, parameter :: dummy3a = 10\n"
+
     # Use statement
     symbol = DataSymbol("dummy1", DeferredType(),
                         interface=ImportInterface(
