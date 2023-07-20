@@ -32,7 +32,7 @@
 ! Author R. W. Ford STFC Daresbury Lab
 ! Modified I. Kavcic, Met Office
 
-module testkern_qr
+module testkern_qr_mod
 
     use constants_mod
     use argument_mod
@@ -84,5 +84,5 @@ module testkern_qr
   
     end subroutine testkern_qr_code
   
-  end module testkern_qr
+  end module testkern_qr_mod
   
