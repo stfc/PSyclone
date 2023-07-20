@@ -151,9 +151,9 @@ def test_aic_defcontainerrootname():
     "orig_string,new_string,expected_name",
     [("", "", "invoke_0_kern"),
      ("kern(field1)", "setval_c(field1, 0.0)", "invoke_0")])
-def test_aic_defcontainerrootname_single(
+def test_aic_defroutinerootname_single(
         orig_string, new_string, expected_name):
-    '''Check that _def_container_root_name returns the expected
+    '''Check that _def_routine_root_name returns the expected
     values. Test for when there is a single user kernel or builtin in
     an invoke, as the output will differ.
 
