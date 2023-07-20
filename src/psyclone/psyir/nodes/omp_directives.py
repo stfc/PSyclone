@@ -44,8 +44,8 @@ nodes.'''
 
 import abc
 import itertools
-import sympy
 import sys
+import sympy
 
 from psyclone.configuration import Config
 from psyclone.core import AccessType, VariablesAccessInfo
@@ -302,6 +302,67 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
         return (arraymixin1.is_full_range(index) and
                 arraymixin2.is_full_range(index))
 
+    def _compute_accesses_get_start_stop_step(self, preceding_nodes, task,
+                                              symbol):
+        '''
+        Computes the start, stop and step values used in the _compute_accesses
+        function by searching through the preceding nodes for the last access
+        to the symbol.
+
+        :param preceding_nodes: a list of nodes that precede the task in the
+                                tree.
+        :type preceding_nodes: List[:py:class:`psyclone.psyir.nodes.Node`]
+        :param task: the OMPTaskDirective node being used in
+                     _compute_accesses.
+        :type task: :py:class:`psyclone.psyir.nodes.OMPTaskDirective`
+        :param symbol: the symbol used by the ref in _compute_accesses.
+        :type symbol: :py:class:`psyclone.psyir.symbols.Symbol`
+
+        :returns: a tuple containing the start, stop and step nodes (or None
+                  if there is no value).
+        :rtype: Tuple[:py:class`psyclone.psyir.nodes.Node, None]
+        '''
+        start = None
+        stop = None
+        step = None
+        for node in preceding_nodes:
+            # Only Assignment, Loop or Call nodes can modify the symbol in our
+            # Reference
+            if not isinstance(node, (Assignment, Loop, Call)):
+                continue
+            if isinstance(node, Call):
+                # Currently opting to fail on any Call.
+                # Potentially it might be possible to check if the Symbol is
+                # written to and only if so then raise an error
+                raise UnresolvedDependencyError(
+                        "Found a Call in preceding_nodes, which "
+                        "is not yet supported.")
+            if isinstance(node, Assignment) and node.lhs.symbol == symbol:
+                start = node.rhs.copy()
+                break
+            if isinstance(node, Loop) and node.variable == symbol:
+                # If the loop is not an ancestor of the task then
+                # we don't currently support it.
+                ancestor_loop = task.ancestor(Loop, limit=self)
+                is_ancestor = False
+                while ancestor_loop is not None:
+                    if ancestor_loop == node:
+                        is_ancestor = True
+                        break
+                    ancestor_loop = ancestor_loop.ancestor(Loop, limit=self)
+                if not is_ancestor:
+                    raise UnresolvedDependencyError(
+                            "Found a dependency index that "
+                            "was updated as a Loop variable "
+                            "that is not an ancestor Loop of "
+                            "the task.")
+                # It has to be an ancestor loop, so we want to find the start,
+                # stop and step Nodes
+                start, stop, step = node.start_expr, node.stop_expr, \
+                    node.step_expr
+                break
+        return (start, stop, step)
+
     def _compute_accesses(self, ref, preceding_nodes, task):
         '''
         Computes the set of accesses for a Reference or BinaryOperation
@@ -500,45 +561,8 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                         f"this dependency. "
                         f"The operation found was "
                         f"{ref.debug_string()}.")
-        start = None
-        stop = None
-        step = None
-        for node in preceding_nodes:
-            # Only Assignment, Loop or Call nodes can modify the symbol in our
-            # Reference
-            if not isinstance(node, (Assignment, Loop, Call)):
-                continue
-            if isinstance(node, Call):
-                # Currently opting to fail on any Call.
-                # Potentially it might be possible to check if the Symbol is
-                # written to and only if so then raise an error
-                raise UnresolvedDependencyError(
-                        "Found a Call in preceding_nodes, which "
-                        "is not yet supported.")
-            if isinstance(node, Assignment) and node.lhs.symbol == symbol:
-                start = node.rhs.copy()
-                break
-            if isinstance(node, Loop) and node.variable == symbol:
-                # If the loop is not an ancestor of the task then
-                # we don't currently support it.
-                ancestor_loop = task.ancestor(Loop, limit=self)
-                is_ancestor = False
-                while ancestor_loop is not None:
-                    if ancestor_loop == node:
-                        is_ancestor = True
-                        break
-                    ancestor_loop = ancestor_loop.ancestor(Loop, limit=self)
-                if not is_ancestor:
-                    raise UnresolvedDependencyError(
-                            "Found a dependency index that "
-                            "was updated as a Loop variable "
-                            "that is not an ancestor Loop of "
-                            "the task.")
-                # It has to be an ancestor loop, so we want to find the start,
-                # stop and step Nodes
-                start, stop, step = node.start_expr, node.stop_expr, \
-                    node.step_expr
-                break
+        start, stop, step = self._compute_accesses_get_start_stop_step(
+                preceding_nodes, task, symbol)
 
         if isinstance(ref, BinaryOperation):
             output_list = []
@@ -560,7 +584,7 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                         f"Found a dependency index that is a "
                         f"Loop variable with a non-Literal step "
                         f"which we can't resolve in PSyclone. "
-                        f"Containing node is {node.debug_string()}.")
+                        f"Containing node is {ref.debug_string()}.")
             # If the start and stop are both Literals, we can compute a set
             # of accesses this BinaryOperation is related to precisely.
             if (isinstance(start, Literal) and isinstance(stop, Literal)):
