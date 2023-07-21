@@ -1989,7 +1989,8 @@ class Fparser2Reader():
             if init_expr:
                 # In Fortran, an initialisation expression on a declaration of
                 # a symbol (whether in a routine or a module) implies that the
-                # symbol is static (endures for the lifetime of the program).
+                # symbol is static (endures for the lifetime of the program)
+                # unless it is a pointer initialisation.
                 sym.interface = StaticInterface()
             else:
                 sym.interface = interface.copy()
@@ -2106,27 +2107,23 @@ class Fparser2Reader():
         :type visibility_map: dict with str keys and values of type
             :py:class:`psyclone.psyir.symbols.Symbol.Visibility`
 
-        :returns: a PSyIR datatype, or datatype symbol, containing
-            partial datatype information for the declaration statement
-            in the cases where it is possible to extract this
-            information and None otherwise.
-        :rtype: Optional[:py:class:`psyclone.psyir.symbols.DataType` or
-            :py:class:`psyclone.psyir.symbols.DataTypeSymbol`]
+        :returns: a 2-tuple containing a PSyIR datatype, or datatype symbol,
+            containing partial datatype information for the declaration
+            statement and the PSyIR for any initialisation expression.
+            When it is not possible to extract partial datatype information
+            then (None, None) is returned.
+        :rtype: Tuple[
+            Optional[:py:class:`psyclone.psyir.symbols.DataType` |
+                     :py:class:`psyclone.psyir.symbols.DataTypeSymbol`],
+            Optional[:py:class:`psyclone.psyir.nodes.Node`]]
 
         '''
-        # 1: Remove any initialisation and additional variables. TODO:
-        # This won't be needed when #1419 is implemented (assuming the
-        # implementation supports both assignments and pointer
-        # assignments).
+        # 1: Remove any additional variables.
         entity_decl_list = node.children[2]
         orig_entity_decl_list = list(entity_decl_list.children[:])
         entity_decl_list.items = tuple(entity_decl_list.children[0:1])
         entity_decl = entity_decl_list.children[0]
         orig_entity_decl_children = list(entity_decl.children[:])
-        if isinstance(entity_decl.children[3], Fortran2003.Initialization):
-            entity_decl.items = (
-                entity_decl.items[0], entity_decl.items[1],
-                entity_decl.items[2], None)
 
         # 2: Remove any unsupported attributes
         unsupported_attribute_names = ["pointer", "target"]
@@ -2151,9 +2148,12 @@ class Fparser2Reader():
                                 visibility_map)
             symbol_name = node.children[2].children[0].children[0].string
             symbol_name = symbol_name.lower()
-            datatype = symbol_table.lookup(symbol_name).datatype
+            new_sym = symbol_table.lookup(symbol_name)
+            datatype = new_sym.datatype
+            init_expr = new_sym.initial_value
         except NotImplementedError:
             datatype = None
+            init_expr = None
 
         # Restore the fparser2 parse tree
         node.items = tuple(orig_node_children)
@@ -2162,7 +2162,7 @@ class Fparser2Reader():
         node.children[2].items = tuple(orig_entity_decl_list)
         node.children[2].children[0].items = tuple(orig_entity_decl_children)
 
-        return datatype
+        return datatype, init_expr
 
     def process_declarations(self, parent, nodes, arg_list,
                              visibility_map=None):
@@ -2314,7 +2314,7 @@ class Fparser2Reader():
                             pass
 
                         # Try to extract partial datatype information.
-                        datatype = self._get_partial_datatype(
+                        datatype, init = self._get_partial_datatype(
                             node, parent, visibility_map)
 
                         # If a declaration declares multiple entities, it's
@@ -2327,7 +2327,8 @@ class Fparser2Reader():
                                         str(node),
                                         partial_datatype=datatype),
                                     interface=UnknownInterface(),
-                                    visibility=vis),
+                                    visibility=vis,
+                                    initial_value=init),
                                 tag=tag)
 
                         except KeyError as err:

@@ -214,7 +214,8 @@ class DataSymbol(TypedSymbol):
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.nodes import (Node, Literal, Operation, Reference,
                                           CodeBlock)
-        from psyclone.psyir.symbols.datatypes import ScalarType, ArrayType
+        from psyclone.psyir.symbols.datatypes import (ScalarType, ArrayType,
+                                                      UnknownType)
 
         if new_value is not None:
             if self.is_argument:
@@ -222,11 +223,13 @@ class DataSymbol(TypedSymbol):
                     f"Error setting initial value for symbol '{self.name}'. "
                     f"A DataSymbol with an ArgumentInterface can not have an "
                     f"initial value.")
-            if not isinstance(self.datatype, (ScalarType, ArrayType)):
+            if not isinstance(self.datatype,
+                              (ScalarType, ArrayType, UnknownType)):
                 raise ValueError(
                     f"Error setting initial value for symbol '{self.name}'. "
                     f"A DataSymbol with an initial value must be a scalar or "
-                    f"an array but found '{type(self.datatype).__name__}'.")
+                    f"an array or of UnknownType but found "
+                    f"'{type(self.datatype).__name__}'.")
 
             if isinstance(new_value, Node):
                 for node in new_value.walk(Node):

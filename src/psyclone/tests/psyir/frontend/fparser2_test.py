@@ -850,8 +850,10 @@ def test_process_declarations():
         "integer, parameter :: val3 = 2 * (val1 + val2) + 2_precisionkind")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
-    # Val3 has been given a constant expression
-    assert fake_parent.symbol_table.lookup("val3").initial_value
+    # Val3 has been given an initial_value expression
+    val3 = fake_parent.symbol_table.lookup("val3")
+    assert isinstance(val3.initial_value, BinaryOperation)
+    assert val3.is_constant
     # The new symbol (precisionkind) has been added to the parent Symbol Table
     assert fake_parent.symbol_table.lookup("precisionkind")
 
@@ -872,6 +874,17 @@ def test_process_declarations():
         processor.process_declarations(fake_parent, [fparser2spec], [])
     assert ("Symbol 'i2' already present in SymbolTable with a defined "
             "interface" in str(error.value))
+
+    # Initialisation of a pointer. C506 of F2003 says that only '=> null()'
+    # is permitted.
+    reader = FortranStringReader(
+        "real, dimension(:), pointer :: dptr => null()")
+    fparser2spec = Specification_Part(reader).content[0]
+    processor.process_declarations(fake_parent, [fparser2spec], [])
+    ptr_sym = fake_parent.symbol_table.lookup("dptr")
+    assert isinstance(ptr_sym, DataSymbol)
+    assert isinstance(ptr_sym.datatype, UnknownFortranType)
+    assert isinstance(ptr_sym.initial_value, CodeBlock)
 
 
 @pytest.mark.usefixtures("f2008_parser")
