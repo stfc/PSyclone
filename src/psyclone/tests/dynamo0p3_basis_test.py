@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+# Copyright (c) 2017-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford, A. R. Porter and N. Nobre, STFC Daresbury Lab
-# Modified: I. Kavcic, Met Office
+# Modified: I. Kavcic and L. Turner, Met Office
 # Modified: J. Henrichs, Bureau of Meteorology
 
 ''' Module containing py.test tests for functionality related to
@@ -389,7 +389,7 @@ def test_two_qr_same_shape(tmpdir):
     expected_declns = (
         "    SUBROUTINE invoke_0(f1, f2, m1, a, m2, istp, g1, g2, n1, b, "
         "n2, qr, qr2)\n"
-        "      USE testkern_qr, ONLY: testkern_qr_code\n"
+        "      USE testkern_qr_mod, ONLY: testkern_qr_code\n"
         "      USE quadrature_xyoz_mod, ONLY: quadrature_xyoz_type, "
         "quadrature_xyoz_proxy_type\n"
         "      USE function_space_mod, ONLY: BASIS, DIFF_BASIS\n"
@@ -690,7 +690,7 @@ def test_qr_plus_eval(tmpdir):
 
     output_decls = (
         "    SUBROUTINE invoke_0(f0, f1, f2, m1, a, m2, istp, qr)\n"
-        "      USE testkern_qr, ONLY: testkern_qr_code\n"
+        "      USE testkern_qr_mod, ONLY: testkern_qr_code\n"
         "      USE testkern_eval_mod, ONLY: testkern_eval_code\n"
         "      USE quadrature_xyoz_mod, ONLY: quadrature_xyoz_type, "
         "quadrature_xyoz_proxy_type\n"

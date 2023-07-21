@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+# Copyright (c) 2017-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab;
-#          I. Kavcic and A. Coughtrie, Met Office;
+#          I. Kavcic, A. Coughtrie and L. Turner, Met Office;
 #          C. M. Maynard, Met Office/University of Reading;
 #          J. Henrichs, Bureau of Meteorology.
 
@@ -131,7 +131,7 @@ def test_stub_generate_with_scalar_sums_err():
     a reduction (since these are not permitted for user-supplied kernels). '''
     with pytest.raises(ParseError) as err:
         _ = generate(
-            os.path.join(BASE_PATH, "simple_with_reduction.f90"),
+            os.path.join(BASE_PATH, "testkern_simple_with_reduction_mod.f90"),
             api=TEST_API)
     assert (
         "A user-supplied LFRic kernel must not write/update a scalar "

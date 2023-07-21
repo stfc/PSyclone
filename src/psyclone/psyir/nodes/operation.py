@@ -321,7 +321,7 @@ class UnaryOperation(Operation):
         # Trigonometric Operators
         'COS', 'SIN', 'TAN', 'ACOS', 'ASIN', 'ATAN',
         # Other Maths Operators
-        'ABS', 'CEIL',
+        'ABS', 'CEIL', 'FLOOR', 'TRANSPOSE',
         # Casting Operators
         'REAL', 'INT', 'NINT'
         ])
@@ -399,7 +399,7 @@ class BinaryOperation(Operation):
         # Relational Operators
         'EQ', 'NE', 'GT', 'LT', 'GE', 'LE',
         # Logical Operators
-        'AND', 'OR',
+        'AND', 'OR', 'EQV', 'NEQV',
         # Other Maths Operators
         'SIGN', 'MIN', 'MAX',
         # Casting operators

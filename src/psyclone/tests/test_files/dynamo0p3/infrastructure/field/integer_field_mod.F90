@@ -8,7 +8,7 @@
 !-------------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2021, Science and Technology Facilities
+! Modifications copyright (c) 2021-2023, Science and Technology Facilities
 ! Council
 ! All rights reserved.
 !
@@ -38,13 +38,13 @@
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Modified by: I. Kavcic, Met Office
-
+!
 !> @brief A module providing integer field related classes.
 !>
 !> @details This is a version of a field object that can hold integer data
 !> values. It contains both a representation of an integer field which provides
 !> no access to the underlying data (to be used in the algorithm layer) and an
-!> accessor class (to be used in the Psy layer) are provided.
+!> accessor class (to be used in the Psy layer).
 
 module integer_field_mod
 
@@ -52,7 +52,6 @@ module integer_field_mod
                                 str_def, integer_type
   use function_space_mod, only: function_space_type
   use mesh_mod,           only: mesh_type
-
   use field_parent_mod,   only: field_parent_type, &
                                 field_parent_proxy_type, &
                                 write_interface, read_interface, &
@@ -80,6 +79,9 @@ module integer_field_mod
 
     !> The integer values of the field
     integer(kind=i_def), allocatable :: data( : )
+    !> Enable field to point to bespoke data provided by application
+    !> instead of having allocated data
+    integer(kind=i_def), pointer :: override_data( : )
 
     ! IO interface procedure pointers
 
@@ -93,7 +95,7 @@ module integer_field_mod
     procedure, public :: initialise => field_initialiser
 
     ! Routine to return a deep copy of a field including all its data
-    procedure, public :: copy_field
+    procedure, public :: copy_field_serial
 
     ! Routine to return a deep, but empty copy of a field
     procedure, public :: copy_field_properties
@@ -153,6 +155,9 @@ module integer_field_mod
     !> Routine to destroy field_type
     procedure         :: field_final
 
+    !> Checks if field has been initialised
+    procedure, public :: is_initialised
+
     !> Finalizers for scalar and arrays of field_type objects
     final             :: field_destructor_scalar, &
                          field_destructor_array1d, &
@@ -163,22 +168,23 @@ module integer_field_mod
 
   end type integer_field_type
 
-!______integer_field_pointer_type_______________________________________________
+!______integer_field_pointer_type_______________________________________________________
 
 !> a class to hold a pointer to an integer field in an object that is a child
 !> of the pure abstract field class
 
   type, extends(pure_abstract_field_type), public :: integer_field_pointer_type
+    private
     !> A pointer to an integer field
     type(integer_field_type), pointer, public :: field_ptr
   contains
     !> Initialiser for a field. May only be called once.
-    procedure, public :: integer_field_pointer_initialiser
+    procedure, public :: initialise => integer_field_pointer_initialiser
     !> Finaliser for a field pointer object
     final :: integer_field_pointer_destructor
   end type integer_field_pointer_type
 
-!______integer_field_proxy_type_______________________________________________
+!______integer_field_proxy_type_______________________________________________________
 
   !> Psy layer representation of a field.
   !>
@@ -253,7 +259,12 @@ contains
     ! Call the routine that initialises the proxy for data held in the parent
     call self%field_parent_proxy_initialiser(get_proxy)
 
-    get_proxy%data   => self%data
+    if (allocated(self%data))then
+      get_proxy%data => self%data
+    else
+      ! Fields can alternatively point to bespoke data
+      get_proxy%data => self%override_data
+    end if
 
   end function get_proxy
 
@@ -263,37 +274,49 @@ contains
   !> @param [in] name The name of the field. 'none' is a reserved name
   !> @param [in] ndata_first Whether mutlidata fields have data ordered by
   !>                         the multidata dimension first
-  !> @param [in] advection_flag Whether the field is to be advected
+  !> @param [in] override_data Optional alternative data that can be attached to field
   !>
   subroutine field_initialiser(self, &
                                vector_space, &
                                name, &
                                ndata_first, &
-                               advection_flag)
+                               override_data)
 
-    use log_mod,         only : log_event, &
-                                LOG_LEVEL_ERROR
     implicit none
 
     class(integer_field_type), intent(inout)       :: self
     type(function_space_type), pointer, intent(in) :: vector_space
     character(*), optional, intent(in)             :: name
     logical,      optional, intent(in)             :: ndata_first
-    logical,      optional, intent(in)             :: advection_flag
+    integer(i_def), target, optional, intent(in)   :: override_data( : )
 
-    ! If there's already data in the field, destruct it
-    ! ready for re-initialisation
-    if(allocated(self%data))call field_destructor_scalar(self)
+    character(str_def) :: local_name
+
+    if ( present(name) ) then
+      local_name = name
+    else
+      local_name = 'none'
+    end if
+
+    ! In case the field is already initialised, destruct it ready for
+    ! re-initialisation
+    call field_destructor_scalar(self)
 
     call self%field_parent_initialiser(vector_space, &
-                                       name=name, &
+                                       name=local_name, &
                                        fortran_type=integer_type, &
                                        fortran_kind=i_def, &
-                                       ndata_first= ndata_first, &
-                                       advection_flag=advection_flag)
+                                       ndata_first=ndata_first)
 
-    ! Create space for holding field data
-    allocate( self%data(self%vspace%get_last_dof_halo()) )
+    ! Associate data with the field
+    if (present(override_data))then
+      ! Override normal field data if an alternative was provided
+      self%override_data => override_data
+    else
+      ! Create space for holding field data
+      allocate( self%data(vector_space%get_last_dof_halo()) )
+      self%override_data => null()
+    end if
 
   end subroutine field_initialiser
 
@@ -312,7 +335,7 @@ contains
   !
   ! The following finaliser doesn't do anything. Without it, the Gnu compiler
   ! tries to create its own, but only ends up producing an Internal Compiler
-  ! Error, so its included here to prevent that.
+  ! Error, so it is included here to prevent that.
   subroutine integer_field_pointer_destructor(self)
     implicit none
     type(integer_field_pointer_type), intent(inout) :: self
@@ -323,12 +346,19 @@ contains
   !>
   !> @param[out] dest   field object into which the copy will be made
   !> @param[in]  name   An optional argument that provides an identifying name
-  subroutine copy_field(self, dest, name)
+  subroutine copy_field_serial(self, dest, name)
+    use log_mod,         only : log_event, &
+                                LOG_LEVEL_ERROR
 
     implicit none
     class(integer_field_type), target, intent(in)  :: self
     class(integer_field_type), target, intent(out) :: dest
     character(*), optional, intent(in)             :: name
+
+    if ( .not. allocated(self%data) ) then
+      call log_event( 'Error: copy_field_serial: Copied field must have field data', &
+           LOG_LEVEL_ERROR )
+    end if
 
     if (present(name)) then
       call self%copy_field_properties(dest, name)
@@ -339,24 +369,30 @@ contains
     dest%data(:) = self%data(:)
     call self%copy_field_parent(dest)
 
-  end subroutine copy_field
+  end subroutine copy_field_serial
 
   !> Create a new empty field that inherits the properties of the source field.
   !>
   !> @param[out] dest   field object into which the copy will be made
   !> @param[in]  name   An optional argument that provides an identifying name
   subroutine copy_field_properties(self, dest, name)
-    use log_mod,         only : log_event, &
-                                LOG_LEVEL_ERROR
+
     implicit none
     class(integer_field_type), target, intent(in)  :: self
     class(integer_field_type), target, intent(out) :: dest
     character(*), optional, intent(in)             :: name
 
+    type(function_space_type), pointer :: function_space => null()
+
+    ! Get function space from parent
+    function_space => self%get_function_space()
+
     if (present(name)) then
-      call dest%initialise(self%vspace, name, self%is_advected())
+      call dest%initialise(vector_space = function_space,      &
+                           name = name)
     else
-      call dest%initialise( self%vspace, self%get_name(), self%is_advected() )
+      call dest%initialise(vector_space = function_space,      &
+                           name = self%get_name())
     end if
 
     dest%write_method => self%write_method
@@ -384,8 +420,8 @@ contains
 
     write(log_scratch_space,'(A,A)')&
               '"field2=field1" syntax no longer supported. '// &
-              'Use "call field1%copy_field(field2)". Field: ', &
-              source%name
+              'Use "setval_X(field2, field1)". Field: ', &
+              source%get_name()
     call log_event(log_scratch_space,LOG_LEVEL_INFO )
     allocate(dest%data(1))   ! allocate the same memory twice, to force
     allocate(dest%data(2))   ! an error and generate a stack trace
@@ -407,13 +443,22 @@ contains
       deallocate(self%data)
     end if
 
-    nullify( self%vspace,                   &
-             self%write_method,             &
+    nullify( self%write_method,             &
              self%read_method,              &
              self%checkpoint_write_method,  &
              self%checkpoint_read_method )
 
   end subroutine field_final
+
+  !> Return a logical indicating whether the field has been initialised
+  function is_initialised(self) result(initialised)
+    implicit none
+    class(integer_field_type), intent(in) :: self
+    logical(l_def)                        :: initialised
+
+    initialised = allocated(self%data)
+
+  end function is_initialised
 
   !> Finalizer for a scalar <code>field_type</code> instance.
   subroutine field_destructor_scalar(self)
@@ -484,7 +529,6 @@ contains
   end subroutine get_write_behaviour
 
   !> Setter for read behaviour
-  !> @param[in,out]  self  field_type
   !> @param [in] read_behaviour - pointer to procedure implementing read method
   subroutine set_read_behaviour(self, read_behaviour)
     implicit none
@@ -604,18 +648,22 @@ contains
     integer(i_def),                      intent(in) :: dump_level
     character( * ),                      intent(in) :: label
 
-    integer(i_def)          :: cell
-    integer(i_def)          :: layer
-    integer(i_def)          :: df
-    integer(i_def), pointer :: map(:) => null()
+    type(function_space_type), pointer :: function_space => null()
+    integer(i_def)                     :: cell
+    integer(i_def)                     :: layer
+    integer(i_def)                     :: df
+    integer(i_def),            pointer :: map(:) => null()
+
+    ! Get function space from parent
+    function_space => self%get_function_space()
 
     write( log_scratch_space, '( A, A)' ) trim( label ), " =["
     call log_event( log_scratch_space, dump_level )
 
-    do cell=1,self%vspace%get_ncell()
-      map => self%vspace%get_cell_dofmap( cell )
-      do df=1,self%vspace%get_ndf()
-        do layer=0,self%vspace%get_nlayers()-1
+    do cell=1,function_space%get_ncell()
+      map => function_space%get_cell_dofmap( cell )
+      do df=1,function_space%get_ndf()
+        do layer=0,function_space%get_nlayers()-1
           write( log_scratch_space, '( I6, I6, I6, I16 )' ) &
               cell, df, layer+1, self%data( map( df ) + layer )
           call log_event( log_scratch_space, dump_level )
@@ -642,11 +690,15 @@ contains
     integer(i_def),              intent(in) :: log_level
     character( * ),              intent(in) :: label
 
+    type(function_space_type), pointer :: function_space => null()
     integer(i_def) :: df
+
+    ! Get function space from parent
+    function_space => self%get_function_space()
 
     call log_event( label, log_level )
 
-    do df=1,self%vspace%get_undf()
+    do df=1,function_space%get_undf()
       write( log_scratch_space, '( I6, I16 )' ) df,self%data( df )
       call log_event( log_scratch_space, log_level )
     end do
@@ -668,9 +720,13 @@ contains
     class( integer_field_type ), target, intent(in) :: self
     integer(i_def),              intent(in) :: log_level
     character( * ),              intent(in) :: label
+    type(function_space_type),      pointer :: function_space => null()
     integer(i_def)                          :: i
     integer(i_def)                          :: l_min, l_max
     integer(i_def)                          :: answer_min, answer_max
+
+    ! Get function space from parent
+    function_space => self%get_function_space()
 
     ! If we aren't going to log the min and max then we don't need to
     ! do any further work here.
@@ -678,15 +734,16 @@ contains
 
     l_max = self%data(1)
     l_min = self%data(1)
-    do i = 2, self%vspace%get_last_dof_owned()
+    do i = 2, function_space%get_last_dof_owned()
       if( self%data(i) > l_max ) l_max = self%data(i)
       if( self%data(i) < l_min ) l_min = self%data(i)
     end do
-    ! Functions global_max() and global_min() rely on MPI comms
-    ! so these calls are disabled here. Max and min are simply
-    ! l_max and l_min.
-    !call global_max( l_max, answer_max )
-    !call global_min( l_min, answer_min )
+    ! Functions 'global_max()' and 'global_min()' rely on MPI
+    ! comms which are not supported by the PSyclone test LFRic
+    ! infrastructure. Hence, these calls are disabled here and
+    ! 'max' and 'min' are simply 'l_max' and 'l_min'.
+    !call global_mpi%global_max( l_max, answer_max )
+    !call global_mpi%global_min( l_min, answer_min )
     answer_max = l_max
     answer_min = l_min
 
@@ -712,20 +769,25 @@ contains
     class( integer_field_type ), target, intent(in) :: self
     integer(i_def),              intent(in) :: log_level
     character( * ),              intent(in) :: label
+    type(function_space_type),      pointer :: function_space => null()
     integer(i_def)                          :: i
     integer(i_def)                          :: l_max, answer
+
+    ! Get function space from parent
+    function_space => self%get_function_space()
 
     ! If we aren't going to log the abs max then we don't need to
     ! do any further work here.
     if ( log_level < application_log_level() ) return
 
     l_max = abs(self%data(1))
-    do i = 2, self%vspace%get_last_dof_owned()
+    do i = 2, function_space%get_last_dof_owned()
       if( abs(self%data(i)) > l_max ) l_max = abs(self%data(i))
     end do
-    ! Function global_max() relies on MPI comms so this call
-    ! is disabled here. Max is simply l_max.
-    !call global_max( l_max, answer )
+    ! Function 'global_max()' relies on MPI comms which are not
+    ! supported by the PSyclone test LFRic infrastructure. Hence,
+    ! this call is disabled here and 'max' is simply 'l_max'.
+    !call global_mpi%global_max( l_max, answer )
     answer = l_max
 
     write( log_scratch_space, '( A, A, E16.8 )' ) &
@@ -764,8 +826,7 @@ contains
   !> @param [in] field_name - field name / id to read
   subroutine read_field( self, field_name)
     use log_mod,         only : log_event, &
-                                LOG_LEVEL_ERROR, &
-                                LOG_LEVEL_INFO
+                                LOG_LEVEL_ERROR
 
     implicit none
 
@@ -904,6 +965,7 @@ contains
         call log_event( 'Error in field: '// &
                         'attempt to exchange halos with depth out of range.', &
                         LOG_LEVEL_ERROR )
+
     else
       call log_event( 'Error in field: '// &
         'attempt to exchange halos (a write operation) on a read-only field.', &
@@ -912,7 +974,7 @@ contains
 
   end subroutine halo_exchange_start
 
-  !! Wait for a halo exchange to complete
+  !! Wait for an asynchronous halo exchange to complete
   !!
   subroutine halo_exchange_finish( self, depth )
 

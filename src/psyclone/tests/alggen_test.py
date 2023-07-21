@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+# Copyright (c) 2017-2023, Science and Technology Facilities Council.
 #
 # All rights reserved.
 #
@@ -33,7 +33,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
-# Modified: I. Kavcic, Met Office
+# Modified: I. Kavcic and L. Turner, Met Office
 
 ''' Tests for the algorithm generation (re-writing) as implemented
     in alg_gen.py '''
@@ -162,7 +162,7 @@ def test_single_function_invoke_qr():
                                    "1.1.0_single_invoke_xyoz_qr.f90"),
                       api="dynamo0.3")
     gen = str(alg).lower()
-    assert "use testkern_qr" not in gen
+    assert "use testkern_qr_mod" not in gen
     # TODO issue #1618 Split test into two as while there are
     # different implementations we may or may not output a space
     # before the ':'
@@ -192,7 +192,7 @@ def test_single_function_multi_invokes():
     gen = str(alg).lower()
     # Use statements for kernels should have been removed.
     assert "use testkern_mod" not in gen
-    assert "use testkern_qr" not in gen
+    assert "use testkern_qr_mod" not in gen
     # TODO issue #1618 Split test into two as while there are
     # different implementations we may or may not output a space
     # before the ':' and may have multiple only names
@@ -217,7 +217,7 @@ def test_named_multi_invokes():
     gen = str(alg).lower()
     # Use statements for kernels should have been removed.
     assert "use testkern_mod" not in gen
-    assert "use testkern_qr" not in gen
+    assert "use testkern_qr_mod" not in gen
     # TODO issue #1618 Split test into two as while there are
     # different implementations we may or may not output a space
     # before the ':' and may have multiple only names.
@@ -252,7 +252,7 @@ def test_multi_function_invoke_qr():
         BASE_PATH, "1.3_multi_invoke_qr.f90"), api="dynamo0.3")
     gen = str(alg).lower()
     # Use statements for kernels should have been removed.
-    assert "use testkern_qr" not in gen
+    assert "use testkern_qr_mod" not in gen
     assert "use testkern_mod" not in gen
     # TODO issue #1618 Split test into two as while there are
     # different implementations we may or may not output a space
