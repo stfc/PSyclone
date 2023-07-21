@@ -368,7 +368,7 @@ def test_script_file_too_short():
                                      "1_single_invoke.f90"),
                         api="dynamo0.3",
                         script_name=os.path.join(BASE_PATH,
-                                                 "dynamo0p3", "xyz"))
+                                                 "dynamo0p3", "testkern_xyz_mod.f90"))
 
 
 def test_no_script_gocean():
