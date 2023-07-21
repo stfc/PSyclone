@@ -1508,6 +1508,7 @@ class Node():
 
         The result of this method can be used to find the node from its
         ancestor for example by:
+
         >>> index_list = node.path_from(ancestor)
         >>> cursor = ancestor
         >>> for index in index_list:
@@ -1531,7 +1532,7 @@ class Node():
 
         if current_node is not ancestor:
             raise ValueError(f"Attempted to find path_from a non-ancestor "
-                             f"node: {type(ancestor).__name__}.")
+                             f"'{type(ancestor).__name__}' node.")
 
         result_list.reverse()
         return result_list
