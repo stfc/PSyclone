@@ -3451,6 +3451,76 @@ end subroutine my_subroutine
     assert fortran_writer(tree) == correct
 
 
+def test_omp_task_directive_47(fortran_reader, fortran_writer):
+    ''' Test the code generation correctly generates the correct depend clause
+    when an input array is shifted by less than a full step of the outer loop,
+    but this is done using an extra variable for indirection. In this case
+    we have indirection from an if statement for +32 (a full step) or +1
+    '''
+    code = '''
+    subroutine my_subroutine()
+        integer, dimension(320, 10) :: A
+        integer, dimension(321, 10) :: B
+        integer, dimension(320, 10) :: boundary
+        integer :: i
+        integer :: iplusone
+        integer :: j
+        integer :: k
+        do i = 1, 320, 32
+            do j = 1, 32
+                if(boundary(i,j) > 1) then
+                    iplusone = i + 32
+                else
+                    iplusone = i + 1
+                endif
+                A(iplusone, j) = B(i, j) + k
+            end do
+        end do
+    end subroutine
+    '''
+    tree = fortran_reader.psyir_from_source(code)
+    ptrans = OMPParallelTrans()
+    strans = OMPSingleTrans()
+    tdir = DynamicOMPTaskDirective()
+    loops = tree.walk(Loop, stop_type=Loop)
+    loop = loops[0].children[3].children[0]
+    parent = loop.parent
+    loop.detach()
+    tdir.children[0].addchild(loop)
+    parent.addchild(tdir, index=0)
+    strans.apply(loops[0])
+    ptrans.apply(loops[0].parent.parent)
+    correct = '''subroutine my_subroutine()
+  integer, dimension(320,10) :: a
+  integer, dimension(321,10) :: b
+  integer, dimension(320,10) :: boundary
+  integer :: i
+  integer :: iplusone
+  integer :: j
+  integer :: k
+
+  !$omp parallel default(shared), private(i,j), firstprivate(iplusone)
+  !$omp single
+  do i = 1, 320, 32
+    !$omp task private(j), firstprivate(i,iplusone), shared(boundary,a,b), \
+depend(in: boundary(i,:),b(i,:),k), depend(out: a(i + 32,:),a(i,:))
+    do j = 1, 32, 1
+      if (boundary(i,j) > 1) then
+        iplusone = i + 32
+      else
+        iplusone = i + 1
+      end if
+      a(iplusone,j) = b(i,j) + k
+    enddo
+    !$omp end task
+  enddo
+  !$omp end single
+  !$omp end parallel
+
+end subroutine my_subroutine\n'''
+    assert fortran_writer(tree) == correct
+
+
 def test_omp_task_directive_call_failure(fortran_reader):
     ''' Test that lowering fails when we have a non-inlined call.'''
     code = '''
@@ -3490,9 +3560,9 @@ def test_omp_task_external_constant(fortran_reader, fortran_writer):
     code = '''
     module mymod
         integer, parameter :: constant = 1
-
-        contains
+    end module
     subroutine my_subroutine()
+        use mymod, only: constant
         integer, dimension(321, 10) :: A
         integer, dimension(32, 10) :: B
         integer :: i, ii
@@ -3505,10 +3575,13 @@ def test_omp_task_external_constant(fortran_reader, fortran_writer):
             end do
         end do
     end subroutine
-    end module mymod
     '''
     psyir = fortran_reader.psyir_from_source(code)
-    tree = psyir.children[0].children[0]
+    tree = psyir.children[1]
+    # Setup the module import for the constant symbol
+    # Once 2201 is fixed we won't need this.
+    sym = tree.symbol_table.lookup("constant")
+    sym.interface.container_symbol._reference = psyir.children[0]
     ptrans = OMPParallelTrans()
     strans = OMPSingleTrans()
     tdir = DynamicOMPTaskDirective()
@@ -3520,38 +3593,42 @@ def test_omp_task_external_constant(fortran_reader, fortran_writer):
     parent.addchild(tdir, index=0)
     strans.apply(loops[0])
     ptrans.apply(loops[0].parent.parent)
-
+    # Lower it explicitly now to avoid import issues
+    # For some reason this locks it in, test fails
+    # without it.
+    psyir.lower_to_language_level()
     correct = '''module mymod
   implicit none
   integer, parameter, public :: constant = 1
   public
 
   contains
-  subroutine my_subroutine()
-    integer, dimension(321,10) :: a
-    integer, dimension(32,10) :: b
-    integer :: i
-    integer :: ii
-    integer :: j
-
-    !$omp parallel default(shared), private(i,ii,j)
-    !$omp single
-    do i = 1, 320, 32
-      !$omp task private(ii,j), firstprivate(i), shared(a,b), \
-depend(in: b(i + 32,:),b(i,:)), depend(out: a(i,:))
-      do ii = i, i + 32, 1
-        do j = 1, 32, 1
-          a(ii,j) = b(ii + 1,j) + constant
-        enddo
-      enddo
-      !$omp end task
-    enddo
-    !$omp end single
-    !$omp end parallel
-
-  end subroutine my_subroutine
 
 end module mymod
+subroutine my_subroutine()
+  use mymod, only : constant
+  integer, dimension(321,10) :: a
+  integer, dimension(32,10) :: b
+  integer :: i
+  integer :: ii
+  integer :: j
+
+  !$omp parallel default(shared), private(i,ii,j)
+  !$omp single
+  do i = 1, 320, 32
+    !$omp task private(ii,j), firstprivate(i), shared(a,b), \
+depend(in: b(i + 32,:),b(i,:)), depend(out: a(i,:))
+    do ii = i, i + 32, 1
+      do j = 1, 32, 1
+        a(ii,j) = b(ii + 1,j) + constant
+      enddo
+    enddo
+    !$omp end task
+  enddo
+  !$omp end single
+  !$omp end parallel
+
+end subroutine my_subroutine
 '''
     assert correct == fortran_writer(psyir)
 
