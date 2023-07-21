@@ -41,8 +41,8 @@ import pytest
 
 from psyclone.errors import GenerationError
 from psyclone.parse.algorithm import parse
-from psyclone.psyGen import PSyFactory
-from psyclone.psyir.nodes import Loop, CodeBlock
+from psyclone.psyGen import Kern, PSyFactory
+from psyclone.psyir.nodes import Call, CodeBlock, Container, Loop
 from psyclone.psyir.transformations import TransformationError
 from psyclone.transformations import OMPParallelTrans, \
     OMPSingleTrans
@@ -167,7 +167,13 @@ def test_omptask_apply_kern(fortran_reader, fortran_writer):
     end subroutine my_test
     '''
     psyir = fortran_reader.psyir_from_source(code)
-    my_test = psyir.children[1]
+    new_container = Container("test_container")
+    test_kernel_mod = psyir.children[0].detach()
+    my_test = psyir.children[0].detach()
+    new_container.addchild(test_kernel_mod)
+    new_container.addchild(my_test)
+    sym = my_test.symbol_table.lookup("test_kernel")
+    sym.interface.container_symbol._reference = test_kernel_mod
     trans = OMPTaskTrans()
     master = OMPSingleTrans()
     parallel = OMPParallelTrans()
@@ -175,8 +181,7 @@ def test_omptask_apply_kern(fortran_reader, fortran_writer):
     trans.apply(loops[1])
     master.apply(my_test.children[:])
     parallel.apply(my_test.children[:])
-    print(fortran_writer(psyir))
-    assert False
+    assert len(my_test.walk(Call, Kern)) == 0
 
 
 # This test relies on inline functionality not yet supported

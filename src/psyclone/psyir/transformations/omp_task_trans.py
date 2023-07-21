@@ -81,7 +81,7 @@ class OMPTaskTrans(ParallelLoopTrans):
         super().validate(node, options)
         # Check we can apply all the required transformations on any sub
         # nodes
-        root_ancestor = node.ancestor(Routine)
+        root_ancestor = node.root
         path_to_node = node.path_from(root_ancestor)
         routine_copy = root_ancestor.copy()
         node_copy = routine_copy
