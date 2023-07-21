@@ -141,6 +141,44 @@ end subroutine sub
 '''
     assert out == correct
 
+def test_omptask_apply_kern(fortran_reader, fortran_writer):
+    code = '''
+    module test_kernel_mod
+    contains
+      subroutine test_kernel(i, j, array)
+        integer :: i, j
+        integer, dimension(:,:) :: array
+
+        array(i, j) = 1
+      end subroutine test_kernel
+    end module test_kernel_mod
+
+    subroutine my_test()
+    use test_kernel_mod, only: test_kernel
+    integer :: i, j
+    integer, dimension(100, 100) :: array
+
+    do i = 1, 100
+      do j = 1, 100
+        call test_kernel(i, j, array)
+      end do
+    end do
+
+    end subroutine my_test
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    my_test = psyir.children[1]
+    trans = OMPTaskTrans()
+    master = OMPSingleTrans()
+    parallel = OMPParallelTrans()
+    loops = my_test.walk(Loop)
+    trans.apply(loops[1])
+    master.apply(my_test.children[:])
+    parallel.apply(my_test.children[:])
+    print(fortran_writer(psyir))
+    assert False
+
+
 # This test relies on inline functionality not yet supported
 @pytest.mark.xfail
 def test_omptask_apply_gocean():
