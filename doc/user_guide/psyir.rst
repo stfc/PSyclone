@@ -208,11 +208,16 @@ information about the exact location.
 
 .. automethod:: psyclone.psyir.nodes.Node.walk
 
-Finally, all nodes also provide the `ancestor` method which may be used to
+All nodes also provide the `ancestor` method which may be used to
 recurse back up the tree from a given node in order to find a node of a
 particular type:
 
 .. automethod:: psyclone.psyir.nodes.Node.ancestor
+
+Finally, the `path_from` method can be used to find the route through the
+tree from an ancestor node to the node:
+
+.. automethod:: psyclone.psyir.nodes.Node.path_from
 
 DataTypes
 =========
