@@ -51,11 +51,13 @@ from psyclone.psyir.nodes import (
     Schedule, Routine, Return, FileContainer, IfBlock, OMPTaskloopDirective,
     OMPMasterDirective, OMPParallelDirective, Loop, OMPNumTasksClause,
     OMPDependClause, IntrinsicCall)
-from psyclone.psyir.symbols import DataSymbol, SymbolTable, ContainerSymbol, \
-    ImportInterface, ArgumentInterface, UnresolvedInterface, ScalarType, \
-    ArrayType, INTEGER_TYPE, REAL_TYPE, CHARACTER_TYPE, BOOLEAN_TYPE, \
-    REAL_DOUBLE_TYPE, DeferredType, RoutineSymbol, Symbol, UnknownType, \
-    UnknownFortranType, DataTypeSymbol, StructureType
+from psyclone.psyir.symbols import (
+    DataSymbol, SymbolTable, ContainerSymbol, RoutineSymbol, Symbol,
+    ImportInterface, ArgumentInterface, AutomaticInterface,
+    UnresolvedInterface, StaticInterface,
+    ScalarType, ArrayType, INTEGER_TYPE, REAL_TYPE, CHARACTER_TYPE,
+    BOOLEAN_TYPE, REAL_DOUBLE_TYPE, DeferredType,
+    UnknownType, UnknownFortranType, DataTypeSymbol, StructureType)
 from psyclone.errors import InternalError
 from psyclone.tests.utilities import Compile
 from psyclone.psyGen import PSyFactory
@@ -678,19 +680,27 @@ def test_fw_gen_vardecl(fortran_writer):
                         interface=ArgumentInterface(
                             ArgumentInterface.Access.READWRITE))
     result = fortran_writer.gen_vardecl(symbol)
-    assert result == \
-        "real, allocatable, dimension(:,:), intent(inout) :: dummy2\n"
+    assert (result ==
+            "real, allocatable, dimension(:,:), intent(inout) :: dummy2\n")
 
-    # Constant
+    # Constant.
     symbol = DataSymbol("dummy3", INTEGER_TYPE, is_constant=True,
                         initial_value=10)
     result = fortran_writer.gen_vardecl(symbol)
     assert result == "integer, parameter :: dummy3 = 10\n"
 
-    # Initial value but not constant
+    # Symbol has initial value but is not constant (static). This is a property
+    # of the Fortran language and therefore is only checked for when we attempt
+    # to generate Fortran.
     symbol = DataSymbol("dummy3a", INTEGER_TYPE, initial_value=10)
+    with pytest.raises(VisitorError) as err:
+        _ = fortran_writer.gen_vardecl(symbol)
+    assert ("'dummy3a' has an initial value (10) and therefore (in Fortran) "
+            "must have a StaticInterface. However it has an interface of "
+            "'Automatic'" in str(err.value))
+    symbol.interface = StaticInterface()
     result = fortran_writer.gen_vardecl(symbol)
-    assert result == "integer, parameter :: dummy3a = 10\n"
+    assert result == "integer, save :: dummy3a = 10\n"
 
     # Use statement
     symbol = DataSymbol("dummy1", DeferredType(),

@@ -1986,10 +1986,10 @@ class Fparser2Reader():
             # We use copies of the interface object because we will reuse the
             # interface for each entity if there are multiple in the same
             # declaration statement.
-            if init_expr and isinstance(scope, Routine):
-                # In Fortran, an initialisation expression on a declaration
-                # of a symbol inside a routine implies that the symbol is
-                # static.
+            if init_expr:
+                # In Fortran, an initialisation expression on a declaration of
+                # a symbol (whether in a routine or a module) implies that the
+                # symbol is static (endures for the lifetime of the program).
                 sym.interface = StaticInterface()
             else:
                 sym.interface = interface.copy()
@@ -2382,6 +2382,8 @@ class Fparser2Reader():
                             ct_expr = dummynode.children[0].detach()
                             symbol.initial_value = ct_expr
                             symbol.is_constant = True
+                            # Ensure the interface to this Symbol is static
+                            symbol.interface = StaticInterface()
                     else:
                         # TODO #1254: We currently silently ignore the rest of
                         # the Implicit_Part statements
@@ -2492,12 +2494,15 @@ class Fparser2Reader():
 
         :param nodes: fparser2 AST nodes containing declaration statements.
         :type nodes: List[:py:class:`fparser.two.utils.Base`]
-        :param psyir_parent: the PSyIR Node with a symbol table in which to \
+        :param psyir_parent: the PSyIR Node with a symbol table in which to
             add the Common Blocks and update the symbols interfaces.
         :type psyir_parent: :py:class:`psyclone.psyir.nodes.ScopingNode`
 
-        :raises NotImplementedError: if it is unable to find one of the \
-            CommonBlock expressions in the symbol table (because it has not \
+        :raises NotImplementedError: if one of the Symbols in a common block
+            has initialisation (including when it is a parameter). This is not
+            valid Fortran.
+        :raises NotImplementedError: if it is unable to find one of the
+            CommonBlock expressions in the symbol table (because it has not
             been declared yet or when it is not just the symbol name).
 
         '''
@@ -2522,6 +2527,13 @@ class Fparser2Reader():
                         for symbol_name in cb_object[1].items:
                             sym = psyir_parent.symbol_table.lookup(
                                         str(symbol_name))
+                            if sym.initial_value:
+                                # This is C506 of the F2008 standard.
+                                raise NotImplementedError(
+                                    f"Symbol '{sym.name}' has an initial value"
+                                    f" ({sym.initial_value.debug_string()}) "
+                                    f"but appears in a common block. This is "
+                                    f"not valid Fortran.")
                             sym.interface = CommonBlockInterface()
                 except KeyError as error:
                     raise NotImplementedError(

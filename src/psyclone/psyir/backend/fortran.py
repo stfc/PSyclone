@@ -553,15 +553,17 @@ class FortranWriter(LanguageWriter):
         :rtype: str
 
         :raises VisitorError: if the symbol is of DeferredType.
-        :raises VisitorError: if the symbol is of UnknownType other than \
+        :raises VisitorError: if the symbol is of UnknownType other than
             UnknownFortranType.
-        :raises VisitorError: if the symbol is of known type but does not \
-            specify a variable declaration (it is not a local declaration or \
+        :raises VisitorError: if the symbol is of known type but does not
+            specify a variable declaration (it is not a local declaration or
             an argument declaration).
+        :raises VisitorError: if the symbol is a runtime constant but does not
+            have a StaticInterface.
         :raises InternalError: if the symbol is a ContainerSymbol or an import.
-        :raises InternalError: if the symbol is a RoutineSymbol other than \
+        :raises InternalError: if the symbol is a RoutineSymbol other than
             UnknownFortranType.
-        :raises InternalError: if visibility is to be included but is not \
+        :raises InternalError: if visibility is to be included but is not
             either PUBLIC or PRIVATE.
 
         '''
@@ -646,6 +648,12 @@ class FortranWriter(LanguageWriter):
 
         # Specify initialization expression
         if isinstance(symbol, DataSymbol) and symbol.initial_value:
+            if not symbol.is_static:
+                raise VisitorError(
+                    f"{type(symbol).__name__} '{symbol.name}' has an initial "
+                    f"value ({self._visit(symbol.initial_value)}) and "
+                    f"therefore (in Fortran) must have a StaticInterface. "
+                    f"However it has an interface of '{symbol.interface}'.")
             result += " = " + self._visit(symbol.initial_value)
 
         return result + "\n"

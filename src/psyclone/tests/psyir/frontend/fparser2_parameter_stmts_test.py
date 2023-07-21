@@ -42,7 +42,7 @@ from fparser.two.Fortran2003 import Specification_Part
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import Routine, Literal, BinaryOperation, \
     Container, CodeBlock, Reference
-from psyclone.psyir.symbols import Symbol
+from psyclone.psyir.symbols import Symbol, StaticInterface
 
 
 @pytest.mark.usefixtures("f2008_parser")
@@ -66,6 +66,7 @@ def test_parameter_statements_work():
     assert isinstance(newsymbol.initial_value, Literal)
     assert newsymbol.initial_value.value == "3"
     assert newsymbol.is_constant is True
+    assert isinstance(newsymbol.interface, StaticInterface)
 
     # Test with a single parameter with an expression
     reader = FortranStringReader('''

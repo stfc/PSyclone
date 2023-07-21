@@ -279,9 +279,9 @@ def _add_precision_symbol(symbol, table):
     if symbol.name in table:
         return
 
-    if symbol.is_automatic or symbol.is_modulevar:
-        table.add(symbol.copy())
-    elif symbol.is_import:
+    if symbol.is_import:
+        # Handle imported symbols first because they may also be constants
+        # while the reverse is not true.
         contr_sym = symbol.interface.container_symbol
         try:
             kind_contr_sym = table.lookup(contr_sym.name)
@@ -292,6 +292,8 @@ def _add_precision_symbol(symbol, table):
         kind_symbol = symbol.copy()
         kind_symbol.interface = ImportInterface(kind_contr_sym)
         table.add(kind_symbol)
+    elif symbol.is_automatic or symbol.is_modulevar or symbol.is_constant:
+        table.add(symbol.copy())
     else:
         raise NotImplementedError(
             f"One or more variables have a precision specified by symbol "

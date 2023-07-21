@@ -950,9 +950,7 @@ def test_process_declarations_errors():
 @pytest.mark.usefixtures("f2008_parser")
 def test_declarations_with_initialisations(fortran_reader):
     '''Test that Fparser2Reader keeps all the variable initialisation
-    expressions, even though some may end up in UnknownTypes for now
-    because we don't support variable initialisations that are not
-    parameters.
+    expressions.
     '''
 
     psyir = fortran_reader.psyir_from_source(
@@ -978,27 +976,24 @@ def test_declarations_with_initialisations(fortran_reader):
     dsym = inner_st.lookup('d')
     esym = inner_st.lookup('e')
     fsym = inner_st.lookup('f')
-    # All initialisation variables are DataSymbols
-    assert all(isinstance(sym, DataSymbol) for sym in
-               [asym, aasym, bsym, csym, dsym, esym, fsym])
+    all_syms = [asym, aasym, bsym, csym, dsym, esym, fsym]
 
-    # All of the module symbols should have a DefaultModuleInterface.
-    assert all(isinstance(sym.interface, DefaultModuleInterface) for sym in
-               [asym, aasym, csym])
-    # The save attribute directly specifies that the symbol is static.
-    assert isinstance(bsym.interface, StaticInterface)
+    # All initialisation variables are DataSymbols
+    assert all(isinstance(sym, DataSymbol) for sym in all_syms)
+
+    # All of the data symbols should have a StaticInterface (because they
+    # either have an explicit 'save' or 'parameter' or are given an
+    # initial_value with then implies 'save').
+    assert all(isinstance(sym.interface, StaticInterface) for sym in all_syms)
 
     # All symbols should have a known data type.
-    assert all(isinstance(sym.datatype, ScalarType) for sym in
-               [asym, aasym, bsym, csym, dsym, esym, fsym])
+    assert all(isinstance(sym.datatype, ScalarType) for sym in all_syms)
 
     # When it is a parameter the initial_value is defined and is_constant
     # is True.
     assert isinstance(csym.initial_value, Literal)
     assert csym.is_constant is True
 
-    assert isinstance(fsym.interface, StaticInterface)
-    assert isinstance(fsym.datatype, ScalarType)
     assert isinstance(fsym.initial_value, Literal)
     assert fsym.is_constant is True
 

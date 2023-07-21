@@ -95,6 +95,10 @@ class DataSymbol(TypedSymbol):
             and the arguments in :py:class:`psyclone.psyir.symbols.TypedSymbol`
         :type kwargs: unwrapped dict.
 
+        :raises ValueError: if the symbol is a run-time constant but is not
+            given an initial value.
+        :raises ValueError: if the symbol is a run-time constant and an
+            interface other than StaticInterface is specified.
         '''
         new_initial_value = None
         new_is_constant_value = None
@@ -119,10 +123,8 @@ class DataSymbol(TypedSymbol):
             # exist
             self._is_constant = False
 
-        if new_is_constant_value and new_initial_value is None:
-            raise ValueError(
-                f"A DataSymbol representing a constant must be given an "
-                f"initial value but '{self.name}' does not have one.")
+        # Record whether an explicit value has been supplied for 'interface'
+        interface_supplied = "interface" in kwargs
 
         super()._process_arguments(**kwargs)
 
@@ -135,6 +137,23 @@ class DataSymbol(TypedSymbol):
         # call the is_constant setter.
         if new_is_constant_value is not None:
             self.is_constant = new_is_constant_value
+
+        # A run-time constant must have a StaticInterface or an
+        # ImportInterface. If the user did not supply an explicit interface
+        # then default to StaticInterface. If they did supply
+        # one then we check it is valid.
+        if self.is_constant:
+            if interface_supplied:
+                if not (self.is_static or self.is_import):
+                    raise ValueError(
+                        f"A DataSymbol representing a constant must have "
+                        f"either a StaticInterface or an ImportInterface but "
+                        f"'{self.name}' has interface '{self.interface}'.")
+            else:
+                # No explicit interface was supplied and this Symbol represents
+                # a runtime constant so change its interface to be static.
+                from psyclone.psyir.symbols.interfaces import StaticInterface
+                self.interface = StaticInterface()
 
     @property
     def is_constant(self):
@@ -152,12 +171,13 @@ class DataSymbol(TypedSymbol):
             constant.
 
         :raises ValueError: if `value` is True but this symbol does not have an
-            initial value set.
+            initial value set and does not have an ImportInterface.
 
         '''
-        if value and self.initial_value is None:
-            raise ValueError(f"Symbol '{self.name}' does not have an initial "
-                             f"value set and therefore cannot be a constant.")
+        if value and not self.is_import and self.initial_value is None:
+            raise ValueError(
+                f"DataSymbol '{self.name}' does not have an initial value set "
+                f"and is not imported and therefore cannot be a constant.")
         self._is_constant = value
 
     @property
@@ -188,7 +208,7 @@ class DataSymbol(TypedSymbol):
             provided is not compatible with the datatype of this DataSymbol
             instance, or 5) the provided PSyIR expression is unsupported.
         :raises ValueError: if a None value is provided and this DataSymbol
-            represents a constant.
+            represents a constant and is not imported.
 
         '''
         # pylint: disable=import-outside-toplevel
@@ -243,10 +263,10 @@ class DataSymbol(TypedSymbol):
                     self._initial_value = Literal(str(new_value),
                                                   self.datatype)
         else:
-            if self.is_constant:
-                raise ValueError(f"Symbol '{self.name}' is a constant and "
-                                 f"therefore must have an initial value but "
-                                 f"got None")
+            if self.is_constant and not self.is_import:
+                raise ValueError(
+                    f"DataSymbol '{self.name}' is a constant and not imported "
+                    f"and therefore must have an initial value but got None")
             self._initial_value = None
 
     def __str__(self):
