@@ -128,7 +128,8 @@ def test_omptask_apply(fortran_reader, fortran_writer):
   !$omp parallel default(shared), private(ji,jj)
   !$omp single
   do jj = 1, 10, 1
-    !$omp task private(ji), firstprivate(jj), shared(t,s), depend(in: s(:,jj)), depend(out: t(:,jj))
+    !$omp task private(ji), firstprivate(jj), shared(t,s), \
+depend(in: s(:,jj)), depend(out: t(:,jj))
     do ji = 1, 10, 1
       t(ji,jj) = s(ji,jj)
     enddo
@@ -140,6 +141,7 @@ def test_omptask_apply(fortran_reader, fortran_writer):
 end subroutine sub
 '''
     assert out == correct
+
 
 def test_omptask_apply_kern(fortran_reader, fortran_writer):
     code = '''
@@ -185,6 +187,20 @@ def test_omptask_apply_kern(fortran_reader, fortran_writer):
 
 
 # This test relies on inline functionality not yet supported
+@pytest.mark.xfail()
+def test_omptask_inline_kernels():
+    '''Test the _inline_kernels functionality up to inlining of Call nodes.'''
+    _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH, "single_invoke.f90"),
+                           api="gocean1.0")
+    taskt = OMPTaskTrans()
+    psy = PSyFactory("gocean1.0", distributed_memory=False).\
+        create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    # Cover the _inline_kernels code
+    taskt._inline_kernels(schedule.children[0])
+
+
+# This test relies on inline functionality not yet supported
 @pytest.mark.xfail
 def test_omptask_apply_gocean():
     ''' Test the apply method of the OMPTaskTrans. '''
@@ -196,6 +212,7 @@ def test_omptask_apply_gocean():
     psy = PSyFactory("gocean1.0", distributed_memory=False).\
         create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
+
     taskt.apply(schedule.children[0])
     master.apply(schedule.children[0])
     parallel.apply(schedule.children[0])
