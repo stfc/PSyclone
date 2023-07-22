@@ -503,6 +503,26 @@
 	170) PR #2220 for #2219. Adds 'shared_with' argument to the
 	node.ancestor() method.
 
+	171) PR #2174 for #2171. Add support for obtaining the partial datatype
+	of an UnknownFortranType.
+
+	172) PR #2163 for #1537. Support array-slicing notation in SymPy
+	comparisons.
+
+	173) PR #2221 for #2214. Fix names of invokes containing a single
+	kernel in the PSyIR of the LFRic Alg layer.
+
+	174) PR #2225 for #2224. Fix erroneous CI link check error by
+	omitting test for the particular link.
+
+	175) PR #2172 for #1833. Fixes the LFRic tutorials so that they
+	build correctly.
+
+	176) PR #2227 for #2226. Adds new Node.path_from(ancestor) method.
+
+	177) PR #2158 for #81. Ensures all example/test Fortran code for
+	LFRic follows the LFRic naming convention.
+
 release 2.3.1 17th of June 2022
 
 	1) PR #1747 for #1720. Adds support for If blocks to PSyAD.

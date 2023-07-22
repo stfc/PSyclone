@@ -43,11 +43,12 @@ import pytest
 
 from psyclone.core import VariablesAccessInfo
 from psyclone.psyGen import GenerationError
-from psyclone.psyir.nodes import (colored, Reference, Assignment, Literal,
-                                  KernelSchedule)
-from psyclone.psyir.symbols import (ArrayType, DataSymbol, INTEGER_SINGLE_TYPE,
-                                    REAL_SINGLE_TYPE,
-                                    REAL_TYPE, ScalarType)
+from psyclone.psyir.nodes import (ArrayReference, Assignment, colored,
+                                  KernelSchedule, Literal, Reference)
+from psyclone.psyir.symbols import (ArrayType, DataSymbol, DeferredType,
+                                    INTEGER_SINGLE_TYPE, REAL_SINGLE_TYPE,
+                                    REAL_TYPE, ScalarType, Symbol,
+                                    UnresolvedInterface)
 
 
 def test_reference_bad_init():
@@ -134,6 +135,18 @@ def test_reference_is_array():
     reference = Reference(DataSymbol("test", REAL_TYPE))
     assert reference.is_array is False
 
+    # Test that a standard symbol (which would raise an exception if
+    # `is_array` of the symbol is called), does not raise an exception
+    # and is reported as not being an array:
+    ref = Reference(Symbol("symbol"))
+    assert ref.is_array is False
+
+    # Now add a real array to make sure this works as expected:
+    array_symbol = DataSymbol("symbol", ArrayType(REAL_TYPE, [10]),
+                              interface=UnresolvedInterface())
+    ref = Reference(array_symbol)
+    assert ref.is_array is True
+
 
 def test_reference_datatype():
     '''Test the datatype property.
@@ -142,6 +155,10 @@ def test_reference_datatype():
     reference = Reference(DataSymbol("test", REAL_TYPE))
     assert isinstance(reference.datatype, ScalarType)
     assert reference.datatype.intrinsic == ScalarType.Intrinsic.REAL
+
+    # Use a normal symbol, which should result in a DeferredType
+    reference = Reference(Symbol("test"))
+    assert isinstance(reference.datatype, DeferredType)
 
 
 def test_reference_accesses():
@@ -153,6 +170,17 @@ def test_reference_accesses():
     var_access_info = VariablesAccessInfo()
     reference.reference_accesses(var_access_info)
     assert (str(var_access_info)) == "test: READ"
+
+    # Test using reference_access with an array to check
+    # that arrays are handled correctly.
+    array_type = ArrayType(REAL_SINGLE_TYPE, [10])
+    symbol_temp = DataSymbol("temp", array_type)
+    symbol_i = DataSymbol("i", INTEGER_SINGLE_TYPE)
+    array = ArrayReference.create(symbol_temp, [Reference(symbol_i)])
+    assert array.is_array is True
+    var_access_info = VariablesAccessInfo()
+    array.reference_accesses(var_access_info)
+    assert str(var_access_info) == "i: READ, temp: READ"
 
 
 def test_reference_can_be_copied():
