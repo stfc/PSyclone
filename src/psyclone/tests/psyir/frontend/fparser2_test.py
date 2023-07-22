@@ -690,6 +690,73 @@ def test_get_routine_schedules_interface(interface_code, parser):
 
 
 @pytest.mark.usefixtures("f2008_parser")
+def test_get_partial_datatype():
+    '''Test that the _get_partial_datatype method of Fparser2Reader
+    works as expected.
+
+    '''
+    fake_parent = KernelSchedule("dummy_schedule")
+    processor = Fparser2Reader()
+
+    # Entry in symbol table with unmodified properties.
+    reader = FortranStringReader("integer :: l1")
+    node = Specification_Part(reader).content[0]
+    ids = [id(entry) for entry in walk(node)]
+    datatype = processor._get_partial_datatype(node, fake_parent, {})
+    assert isinstance(datatype, ScalarType)
+    assert datatype.intrinsic is ScalarType.Intrinsic.INTEGER
+    # Check fparser2 tree is unmodified
+    assert ids == [id(entry) for entry in walk(node)]
+
+    # Entry in symbol table with partial information. Example has one
+    # unsupported attribute (and no others) and an unsupported assignment.
+    reader = FortranStringReader("integer, pointer :: l1 => null()")
+    node = Specification_Part(reader).content[0]
+    ids = [id(entry) for entry in walk(node)]
+    datatype = processor._get_partial_datatype(node, fake_parent, {})
+    assert isinstance(datatype, ScalarType)
+    assert datatype.intrinsic is ScalarType.Intrinsic.INTEGER
+    # Check fparser2 tree is unmodified
+    assert ids == [id(entry) for entry in walk(node)]
+
+    # Entry in symbol table with partial information. Example has one
+    # unsupported attribute and one supported attribute.
+    reader = FortranStringReader("real*4, target, dimension(10,20) :: l1")
+    node = Specification_Part(reader).content[0]
+    ids = [id(entry) for entry in walk(node)]
+    datatype = processor._get_partial_datatype(node, fake_parent, {})
+    assert isinstance(datatype, ArrayType)
+    assert datatype.intrinsic is ScalarType.Intrinsic.REAL
+    assert datatype.precision == 4
+    assert datatype.shape[0].upper.value == '10'
+    assert datatype.shape[1].upper.value == '20'
+    # Check fparser2 tree is unmodified
+    assert ids == [id(entry) for entry in walk(node)]
+
+    # No entry in symbol table.
+    # Notice the space before complex keyword. This avoids it being
+    # treated as a comment.
+    reader = FortranStringReader(" complex :: c\n")
+    node = Specification_Part(reader).content[0]
+    ids = [id(entry) for entry in walk(node)]
+    assert not processor._get_partial_datatype(node, fake_parent, {})
+    # Check fparser2 tree is unmodified
+    assert ids == [id(entry) for entry in walk(node)]
+
+    # Multiple variables in the declaration are also supported but are
+    # not used by PSyclone at the moment.
+    reader = FortranStringReader(
+        "integer, pointer :: l1 => null(), l2 => null()")
+    node = Specification_Part(reader).content[0]
+    ids = [id(entry) for entry in walk(node)]
+    datatype = processor._get_partial_datatype(node, fake_parent, {})
+    assert isinstance(datatype, ScalarType)
+    assert datatype.intrinsic is ScalarType.Intrinsic.INTEGER
+    # Check fparser2 tree is unmodified
+    assert ids == [id(entry) for entry in walk(node)]
+
+
+@pytest.mark.usefixtures("f2008_parser")
 def test_process_declarations():
     '''Test that process_declarations method of Fparser2Reader
     converts the fparser2 declarations to symbols in the provided
@@ -794,6 +861,28 @@ def test_process_declarations():
         processor.process_declarations(fake_parent, [fparser2spec], [])
     assert ("Symbol 'i2' already present in SymbolTable with a defined "
             "interface" in str(error.value))
+
+
+@pytest.mark.usefixtures("f2008_parser")
+def test_process_declarations_unknownfortrantype():
+    '''Test that process_declarations method of Fparser2Reader adds
+    datatype information to an UnknownFortranType by calling the
+    get_partial_datatype method, also from Fparser2Reader.
+
+    '''
+    fake_parent = KernelSchedule("dummy_schedule")
+    symtab = fake_parent.symbol_table
+    processor = Fparser2Reader()
+    reader = FortranStringReader(
+        "integer, pointer :: l1 => null(), l2 => null()")
+    fparser2spec = Specification_Part(reader).content[0]
+    processor.process_declarations(fake_parent, [fparser2spec], [])
+    for varname in ("l1", "l2"):
+        var_symbol = symtab.lookup(varname)
+        assert isinstance(var_symbol.datatype, UnknownFortranType)
+        assert isinstance(var_symbol.datatype.partial_datatype, ScalarType)
+        assert (var_symbol.datatype.partial_datatype.intrinsic is
+                ScalarType.Intrinsic.INTEGER)
 
 
 @pytest.mark.usefixtures("f2008_parser")
@@ -2841,3 +2930,28 @@ def test_declarations_with_initialisations_errors(parser):
     with pytest.raises(ValueError) as err:
         _ = processor.get_routine_schedules("a", ast)
     assert "error to propagate" in str(err.value)
+
+
+@pytest.mark.parametrize("visibility", [
+    Symbol.Visibility.PUBLIC, Symbol.Visibility.PRIVATE])
+def test_visibility_interface(fortran_reader, visibility):
+    '''Test that PSyclone successfully parses public/private symbols where
+    their declaration is hidden in an abstract interface.
+
+    '''
+    code = (
+        f"module test\n"
+        f"  abstract interface\n"
+        f"     subroutine update_interface()\n"
+        f"     end subroutine update_interface\n"
+        f"  end interface\n"
+        f"  {visibility.name} :: update_interface\n"
+        f"contains\n"
+        f"  subroutine alg()\n"
+        f"  end subroutine alg\n"
+        f"end module test\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    symbol_table = psyir.children[0].symbol_table
+    assert symbol_table.lookup("_psyclone_internal_interface")
+    symbol = symbol_table.lookup("update_interface")
+    assert symbol.visibility is visibility

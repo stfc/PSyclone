@@ -909,7 +909,7 @@ class FortranWriter(LanguageWriter):
         :raises VisitorError: if there are any symbols (other than \
             RoutineSymbols) in the supplied table that do not have an \
             explicit declaration (UnresolvedInterface) and there are no \
-            wildcard imports.
+            wildcard imports or unknown interfaces.
 
         '''
         # pylint: disable=too-many-branches
@@ -936,16 +936,20 @@ class FortranWriter(LanguageWriter):
                     isinstance(sym.interface, UnresolvedInterface)):
                 all_symbols.remove(sym)
 
-        # If the symbol table contain any symbols with an UnresolvedInterface
-        # interface (they are not explicitly declared), we need to check that
-        # we have at least one wildcard import which could be bringing them
-        # into this scope.
+        # If the symbol table contain any symbols with an
+        # UnresolvedInterface interface (they are not explicitly
+        # declared), we need to check that we have at least one
+        # wildcard import which could be bringing them into this
+        # scope, or an unknown interface which could be declaring
+        # them.
         unresolved_symbols = []
         for sym in all_symbols[:]:
             if isinstance(sym.interface, UnresolvedInterface):
                 unresolved_symbols.append(sym)
                 all_symbols.remove(sym)
-        if unresolved_symbols and not symbol_table.has_wildcard_imports():
+        if unresolved_symbols and not (
+                symbol_table.has_wildcard_imports() or
+                symbol_table.lookup("_psyclone_internal_interface")):
             symbols_txt = ", ".join(
                 ["'" + sym.name + "'" for sym in unresolved_symbols])
             raise VisitorError(
