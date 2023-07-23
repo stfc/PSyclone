@@ -947,9 +947,14 @@ class FortranWriter(LanguageWriter):
             if isinstance(sym.interface, UnresolvedInterface):
                 unresolved_symbols.append(sym)
                 all_symbols.remove(sym)
+        try:
+            internal_interface_symbol = symbol_table.lookup(
+                "_psyclone_internal_interface")
+        except KeyError:
+            internal_interface_symbol = None
         if unresolved_symbols and not (
                 symbol_table.has_wildcard_imports() or
-                symbol_table.lookup("_psyclone_internal_interface")):
+                internal_interface_symbol):
             symbols_txt = ", ".join(
                 ["'" + sym.name + "'" for sym in unresolved_symbols])
             raise VisitorError(
@@ -1130,7 +1135,6 @@ class FortranWriter(LanguageWriter):
                               node is empty or None.
 
         '''
-        # pylint: disable=too-many-branches
         if not node.name:
             raise VisitorError("Expected node name to have a value.")
 

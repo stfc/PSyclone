@@ -279,3 +279,34 @@ def test_gen_decls_static_variables(fortran_writer):
     assert "integer, save :: v1" in fortran_writer.gen_vardecl(sym)
     sym.constant_value = 1
     assert "parameter :: v1 = 1" in fortran_writer.gen_vardecl(sym)
+
+
+@pytest.mark.parametrize("visibility", ["public", "private"])
+def test_visibility_interface(fortran_reader, fortran_writer, visibility):
+    '''Test that PSyclone's Fortran backend successfully writes out
+    public/private clauses and symbols when the symbol's declaration
+    is hidden in an abstract interface.
+
+    '''
+    code = (
+        f"module test\n"
+        f"  abstract interface\n"
+        f"     subroutine update_interface()\n"
+        f"     end subroutine update_interface\n"
+        f"  end interface\n"
+        f"  {visibility} :: update_interface\n"
+        f"contains\n"
+        f"  subroutine alg()\n"
+        f"  end subroutine alg\n"
+        f"end module test\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    result = fortran_writer(psyir)
+    # The default visibility is PUBLIC so it is always output by
+    # the backend.
+    assert "public\n" in result
+    if visibility == "public":
+        # The generic PUBLIC visibility covers all symbols so we do
+        # not need to output "public :: update_interface".
+        assert "public :: update_interface" not in result
+    if visibility == "private":
+        assert "private :: update_interface" in result
