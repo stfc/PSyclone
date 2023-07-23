@@ -893,22 +893,22 @@ class FortranWriter(LanguageWriter):
 
         :param symbol_table: the SymbolTable instance.
         :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
-        :param bool is_module_scope: whether or not the declarations are in \
-                                     a module scoping unit. Default is False.
+        :param bool is_module_scope: whether or not the declarations are in
+            a module scoping unit. Default is False.
 
         :returns: the Fortran declarations for the table.
         :rtype: str
 
-        :raises VisitorError: if one of the symbols is a RoutineSymbol which \
-            does not have an ImportInterface or UnresolvedInterface ( \
-            representing named and unqualified imports respectively) or \
-            ModuleDefaultInterface (representing routines declared in the \
+        :raises VisitorError: if one of the symbols is a RoutineSymbol which
+            does not have an ImportInterface or UnresolvedInterface (
+            representing named and unqualified imports respectively) or
+            ModuleDefaultInterface (representing routines declared in the
             same module) or is not a Fortran intrinsic.
-        :raises VisitorError: if args_allowed is False and one or more \
+        :raises VisitorError: if args_allowed is False and one or more
             argument declarations exist in symbol_table.
-        :raises VisitorError: if there are any symbols (other than \
-            RoutineSymbols) in the supplied table that do not have an \
-            explicit declaration (UnresolvedInterface) and there are no \
+        :raises VisitorError: if there are any symbols (other than
+            RoutineSymbols) in the supplied table that do not have an
+            explicit declaration (UnresolvedInterface) and there are no
             wildcard imports or unknown interfaces.
 
         '''
