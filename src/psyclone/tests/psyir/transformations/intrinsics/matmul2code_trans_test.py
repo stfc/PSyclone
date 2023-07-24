@@ -369,9 +369,9 @@ def test_validate5():
     _ = Assignment.create(array, matmul)
     with pytest.raises(TransformationError) as excinfo:
         trans.validate(matmul)
-    assert ("Expected children of a MATMUL BinaryOperation to be references, "
-            "but found 'BinaryOperation', 'BinaryOperation'."
-            in str(excinfo.value))
+    assert ("Expected result and operands of MATMUL BinaryOperation to be "
+            "references, but found: 'x(10) = MATMUL(x(10) * x(10), x(10) * "
+            "x(10))\n'." in str(excinfo.value))
 
 
 def test_validate6():
@@ -388,9 +388,8 @@ def test_validate6():
     _ = Assignment.create(scalar.copy(), matmul)
     with pytest.raises(TransformationError) as excinfo:
         trans.validate(matmul)
-    assert ("Transformation Error: Expected children of a MATMUL "
-            "BinaryOperation to be references to arrays but found "
-            "'DataSymbol', 'DataSymbol' for 'x', 'x'." in str(excinfo.value))
+    assert ("Expected result and operands of MATMUL BinaryOperation to be "
+            "references to arrays but found" in str(excinfo.value))
 
 
 def test_validate_structure_accesses(fortran_reader):
@@ -410,9 +409,8 @@ def test_validate_structure_accesses(fortran_reader):
     assign = psyir.walk(Assignment)[0]
     with pytest.raises(TransformationError) as err:
         trans.apply(assign.rhs)
-    assert ("Expected children of a MATMUL BinaryOperation to be references "
-            "to arrays but found 'DataSymbol', 'DataSymbol' for 'grid', "
-            "'grid_inv'" in str(err.value))
+    assert ("Expected result and operands of MATMUL BinaryOperation to be "
+            "references to arrays but found" in str(err.value))
 
 
 def test_validate7():
@@ -485,7 +483,7 @@ def test_validate10():
     matmul = create_matmul()
     matrix = matmul.children[0]
     matrix.children[0] = Literal("1", INTEGER_TYPE)
-    with pytest.raises(NotImplementedError) as excinfo:
+    with pytest.raises(TransformationError) as excinfo:
         trans.validate(matmul)
     assert ("To use matmul2code_trans on matmul, the first two indices of the "
             "1st argument 'x' must be full ranges." in str(excinfo.value))
@@ -503,7 +501,7 @@ def test_validate11():
     matrix = matmul.children[0]
     my_range = matrix.children[0].copy()
     matrix.children[2] = my_range
-    with pytest.raises(NotImplementedError) as excinfo:
+    with pytest.raises(TransformationError) as excinfo:
         trans.validate(matmul)
     assert ("To use matmul2code_trans on matmul, only the first two indices "
             "of the 1st argument are permitted to be Ranges but "
@@ -521,7 +519,7 @@ def test_validate12():
     matmul = create_matmul()
     vector = matmul.children[1]
     vector.children[0] = Literal("1", INTEGER_TYPE)
-    with pytest.raises(NotImplementedError) as excinfo:
+    with pytest.raises(TransformationError) as excinfo:
         trans.validate(matmul)
     assert ("To use matmul2code_trans on matmul, the first index of the 2nd "
             "argument 'y' must be a full range." in str(excinfo.value))
@@ -536,11 +534,11 @@ def test_validate_2nd_dim_2nd_arg():
     matrix2 = matmul.children[1]
     matrix2.children[1] = Range.create(Literal("1", INTEGER_TYPE),
                                        Literal("2", INTEGER_TYPE))
-    with pytest.raises(NotImplementedError) as excinfo:
+    with pytest.raises(TransformationError) as excinfo:
         trans.validate(matmul)
     assert ("To use matmul2code_trans on matmul for a matrix-matrix "
             "multiplication, the second index of the 2nd argument 'y' must "
-            "be a full range." in str(excinfo))
+            "be a full range." in str(excinfo.value))
 
 
 def test_validate13():
@@ -555,7 +553,7 @@ def test_validate13():
     vector = matmul.children[1]
     my_range = vector.children[0].copy()
     vector.children[2] = my_range
-    with pytest.raises(NotImplementedError) as excinfo:
+    with pytest.raises(TransformationError) as excinfo:
         trans.validate(matmul)
     assert ("To use matmul2code_trans on matmul, only the first two "
             "indices of the 2nd argument are permitted to be a Range but "
@@ -571,6 +569,65 @@ def test_validate14():
     trans = Matmul2CodeTrans()
     matmul = create_matmul()
     trans.validate(matmul)
+
+
+def test_validate_matmat_with_slices_on_rhs(fortran_reader):
+    '''
+    Check that the validate method refuses matrix-matrix operations with
+    array slides in its lhs.
+
+    '''
+    psyir = fortran_reader.psyir_from_source(
+        "subroutine my_sub()\n"
+        "  real, dimension(2,6) :: jac\n"
+        "  real, dimension(6,3) :: jac_inv\n"
+        "  real, dimension(10,10) :: result\n"
+        "  result(2:4,2:5) = matmul(jac(:,:), jac_inv(:,:))\n"
+        "end subroutine my_sub\n")
+    trans = Matmul2CodeTrans()
+    assign = psyir.walk(Assignment)[0]
+    with pytest.raises(TransformationError) as excinfo:
+        trans.validate(assign.rhs)
+    assert ("To use matmul2code_trans on matmul, each range on the result "
+            "variable 'result' must be a full range but found "
+            "result(2:4,2:5)" in str(excinfo.value))
+
+
+def test_validate_matmat_with_same_mem(fortran_reader):
+    '''
+    Check that the validate method refuses cases where one of the operands
+    is also the lhs of the matrix multiplication.
+
+    '''
+    psyir = fortran_reader.psyir_from_source(
+        "subroutine my_sub()\n"
+        "  real, dimension(2,2) :: jac\n"
+        "  real, dimension(2,2) :: jac_inv\n"
+        "  jac = matmul(jac(:,:), jac_inv(:,:))\n"
+        "end subroutine my_sub\n")
+    trans = Matmul2CodeTrans()
+    assign = psyir.walk(Assignment)[0]
+    with pytest.raises(TransformationError) as excinfo:
+        trans.validate(assign.rhs)
+    assert ("Transformation Error: 'jac' is the result location and one of the"
+            " MATMUL operators. This is not supported." in str(excinfo.value))
+
+    # In the version below we can not guarantee whether the memory is the same
+    psyir = fortran_reader.psyir_from_source(
+        "subroutine my_sub()\n"
+        "  real, dimension(2,2) :: jac\n"
+        "  real, dimension(2,2), pointer :: jac_inv\n"
+        "  real, dimension(2,2), pointer :: result\n"
+        "  result = matmul(jac(:,:), jac_inv(:,:))\n"
+        "end subroutine my_sub\n")
+    trans = Matmul2CodeTrans()
+    assign = psyir.walk(Assignment)[0]
+    with pytest.raises(TransformationError) as excinfo:
+        trans.validate(assign.rhs)
+    assert ("Transformation Error: Expected result and operands of MATMUL "
+            "BinaryOperation to be references to arrays but found 'result: "
+            "DataSymbol<UnknownFortranType('REAL, DIMENSION(2, 2), POINTER "
+            ":: result')" in str(excinfo.value))
 
 
 def test_apply_matvect(tmpdir):
@@ -690,45 +747,6 @@ def test_apply_matvect_no_indices(tmpdir, fortran_writer):
     assert Compile(tmpdir).string_compiles(result)
 
 
-def test_apply_matvect_increment(tmpdir, fortran_writer):
-    '''Test that the matmul2code apply method produces the expected
-    PSyIR. We use the Fortran backend to help provide the test for
-    correctness. This example make the lhs be the same array as the
-    second operand of the matmul (the vector in this case).
-
-    '''
-    trans = Matmul2CodeTrans()
-    one = Literal("1", INTEGER_TYPE)
-    five = Literal("5", INTEGER_TYPE)
-    matmul = create_matmul()
-    root = matmul.root
-    assignment = matmul.parent
-    vector = assignment.scope.symbol_table.lookup("y")
-    assignment.children[0] = ArrayReference.create(
-            vector, [Range.create(one, five, one.copy()),
-                     one.copy(), one.copy()])
-    trans.apply(matmul)
-    result = fortran_writer(root)
-    assert (
-        "subroutine my_kern()\n"
-        "  integer, parameter :: idx = 3\n"
-        "  real, dimension(5,10,15) :: x\n"
-        "  real, dimension(10,20,10) :: y\n"
-        "  real, dimension(10) :: result\n"
-        "  integer :: i\n"
-        "  integer :: j\n"
-        "\n"
-        "  do i = 1, 5, 1\n"
-        "    y(i,1,1) = 0.0\n"
-        "    do j = 1, 10, 1\n"
-        "      y(i,1,1) = y(i,1,1) + x(i,j,idx) * y(j,idx,1)\n"
-        "    enddo\n"
-        "  enddo\n"
-        "\n"
-        "end subroutine my_kern" in result)
-    assert Compile(tmpdir).string_compiles(result)
-
-
 def test_apply_matmat_no_indices(tmpdir, fortran_reader, fortran_writer):
     '''
     Check the apply method works when the second argument to matmul is a
@@ -737,9 +755,9 @@ def test_apply_matmat_no_indices(tmpdir, fortran_reader, fortran_writer):
     '''
     psyir = fortran_reader.psyir_from_source(
         "subroutine my_sub()\n"
-        "  real, dimension(3,6) :: jac\n"
-        "  real, dimension(5,3) :: jac_inv\n"
-        "  real, dimension(5,6) :: result\n"
+        "  real, dimension(2,3) :: jac\n"
+        "  real, dimension(3,4) :: jac_inv\n"
+        "  real, dimension(2,4) :: result\n"
         "  result = matmul(jac, jac_inv)\n"
         "end subroutine my_sub\n")
     trans = Matmul2CodeTrans()
@@ -748,15 +766,15 @@ def test_apply_matmat_no_indices(tmpdir, fortran_reader, fortran_writer):
     out = fortran_writer(psyir)
     assert (
         "subroutine my_sub()\n"
-        "  real, dimension(3,6) :: jac\n"
-        "  real, dimension(5,3) :: jac_inv\n"
-        "  real, dimension(5,6) :: result\n"
+        "  real, dimension(2,3) :: jac\n"
+        "  real, dimension(3,4) :: jac_inv\n"
+        "  real, dimension(2,4) :: result\n"
         "  integer :: i\n"
         "  integer :: j\n"
         "  integer :: ii\n"
         "\n"
-        "  do j = 1, 6, 1\n"
-        "    do i = 1, 5, 1\n"
+        "  do j = 1, 4, 1\n"
+        "    do i = 1, 2, 1\n"
         "      result(i,j) = 0.0\n"
         "      do ii = 1, 3, 1\n"
         "        result(i,j) = result(i,j) + jac(i,ii) * jac_inv(ii,j)\n"
@@ -774,31 +792,93 @@ def test_apply_matmat_extra_indices(tmpdir, fortran_reader, fortran_writer):
     matrix but additional indices are present.
 
     '''
+
+    #  Extra indices in the inputs
     psyir = fortran_reader.psyir_from_source(
         "subroutine my_sub()\n"
-        "  real, dimension(3,6,4) :: jac\n"
-        "  real, dimension(5,3,4) :: jac_inv\n"
-        "  real, dimension(5,6,2) :: result\n"
-        "  result(:,:,2) = matmul(jac(:,:,1), jac_inv(:,:,2))\n"
+        "  real, dimension(2,6,4) :: jac\n"
+        "  real, dimension(6,3,4) :: jac_inv\n"
+        "  real, dimension(2,3) :: result\n"
+        "  result(:,:) = matmul(jac(:,:,1), jac_inv(:,:,2))\n"
         "end subroutine my_sub\n")
     trans = Matmul2CodeTrans()
     assign = psyir.walk(Assignment)[0]
     trans.apply(assign.rhs)
     out = fortran_writer(psyir)
     assert (
-        "  real, dimension(3,6,4) :: jac\n"
-        "  real, dimension(5,3,4) :: jac_inv\n"
-        "  real, dimension(5,6,2) :: result\n"
+        "  real, dimension(2,6,4) :: jac\n"
+        "  real, dimension(6,3,4) :: jac_inv\n"
+        "  real, dimension(2,3) :: result\n"
         "  integer :: i\n"
         "  integer :: j\n"
         "  integer :: ii\n"
         "\n"
-        "  do j = 1, 6, 1\n"
-        "    do i = 1, 5, 1\n"
-        "      result(i,j,2) = 0.0\n"
-        "      do ii = 1, 3, 1\n"
-        "        result(i,j,2) = result(i,j,2) + "
-        "jac(i,ii,1) * jac_inv(ii,j,2)\n"
+        "  do j = 1, 3, 1\n"
+        "    do i = 1, 2, 1\n"
+        "      result(i,j) = 0.0\n"
+        "      do ii = 1, 6, 1\n"
+        "        result(i,j) = result(i,j) + jac(i,ii,1) * jac_inv(ii,j,2)\n"
+        "      enddo\n"
+        "    enddo\n"
+        "  enddo\n" in out)
+    assert Compile(tmpdir).string_compiles(out)
+
+    #  Extra indices in 1 input (and rhs array-notation)
+    psyir = fortran_reader.psyir_from_source(
+        "subroutine my_sub()\n"
+        "  real, dimension(2,6) :: jac\n"
+        "  real, dimension(6,3,4,5,6) :: jac_inv\n"
+        "  real, dimension(2,3) :: result\n"
+        "  result = matmul(jac(:,:), jac_inv(:,:,2,3,4))\n"
+        "end subroutine my_sub\n")
+    trans = Matmul2CodeTrans()
+    assign = psyir.walk(Assignment)[0]
+    trans.apply(assign.rhs)
+    out = fortran_writer(psyir)
+    assert (
+        "  real, dimension(2,6) :: jac\n"
+        "  real, dimension(6,3,4,5,6) :: jac_inv\n"
+        "  real, dimension(2,3) :: result\n"
+        "  integer :: i\n"
+        "  integer :: j\n"
+        "  integer :: ii\n"
+        "\n"
+        "  do j = 1, 3, 1\n"
+        "    do i = 1, 2, 1\n"
+        "      result(i,j) = 0.0\n"
+        "      do ii = 1, 6, 1\n"
+        "        result(i,j) = result(i,j) + jac(i,ii) * jac_inv(ii,j,2,3,4)\n"
+        "      enddo\n"
+        "    enddo\n"
+        "  enddo\n" in out)
+    assert Compile(tmpdir).string_compiles(out)
+
+    #  Extra indices in the output
+    psyir = fortran_reader.psyir_from_source(
+        "subroutine my_sub()\n"
+        "  real, dimension(2,6) :: jac\n"
+        "  real, dimension(6,3) :: jac_inv\n"
+        "  real, dimension(2,3,4,4) :: result\n"
+        "  result(:,:,2,3) = matmul(jac(:,:), jac_inv(:,:))\n"
+        "end subroutine my_sub\n")
+    trans = Matmul2CodeTrans()
+    assign = psyir.walk(Assignment)[0]
+    trans.apply(assign.rhs)
+    out = fortran_writer(psyir)
+    assert (
+        "  real, dimension(2,6) :: jac\n"
+        "  real, dimension(6,3) :: jac_inv\n"
+        "  real, dimension(2,3,4,4) :: result\n"
+        "  integer :: i\n"
+        "  integer :: j\n"
+        "  integer :: ii\n"
+        "\n"
+        "  do j = 1, 3, 1\n"
+        "    do i = 1, 2, 1\n"
+        "      result(i,j,2,3) = 0.0\n"
+        "      do ii = 1, 6, 1\n"
+        "        result(i,j,2,3) = result(i,j,2,3) + jac(i,ii) * jac_inv(ii,j)"
+        "\n"
         "      enddo\n"
         "    enddo\n"
         "  enddo\n" in out)
@@ -814,9 +894,9 @@ def test_apply_matmat_name_clashes(tmpdir, fortran_reader, fortran_writer):
     psyir = fortran_reader.psyir_from_source(
         "subroutine my_sub()\n"
         "  real :: i, j, ii\n"
-        "  real, dimension(3,6,4) :: jac\n"
-        "  real, dimension(5,3,4) :: jac_inv\n"
-        "  real, dimension(5,6,2) :: result\n"
+        "  real, dimension(2,6,4) :: jac\n"
+        "  real, dimension(6,3,4) :: jac_inv\n"
+        "  real, dimension(2,3,2) :: result\n"
         "  result(:,:,2) = matmul(jac(:,:,1), jac_inv(:,:,2))\n"
         "end subroutine my_sub\n")
     trans = Matmul2CodeTrans()
@@ -824,17 +904,17 @@ def test_apply_matmat_name_clashes(tmpdir, fortran_reader, fortran_writer):
     trans.apply(assign.rhs)
     out = fortran_writer(psyir)
     assert (
-        "  real, dimension(3,6,4) :: jac\n"
-        "  real, dimension(5,3,4) :: jac_inv\n"
-        "  real, dimension(5,6,2) :: result\n"
+        "  real, dimension(2,6,4) :: jac\n"
+        "  real, dimension(6,3,4) :: jac_inv\n"
+        "  real, dimension(2,3,2) :: result\n"
         "  integer :: i_1\n"
         "  integer :: j_1\n"
         "  integer :: ii_1\n"
         "\n"
-        "  do j_1 = 1, 6, 1\n"
-        "    do i_1 = 1, 5, 1\n"
+        "  do j_1 = 1, 3, 1\n"
+        "    do i_1 = 1, 2, 1\n"
         "      result(i_1,j_1,2) = 0.0\n"
-        "      do ii_1 = 1, 3, 1\n"
+        "      do ii_1 = 1, 6, 1\n"
         "        result(i_1,j_1,2) = result(i_1,j_1,2) + "
         "jac(i_1,ii_1,1) * jac_inv(ii_1,j_1,2)\n"
         "      enddo\n"
