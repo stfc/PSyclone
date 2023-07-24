@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022, Science and Technology Facilities Council.
+# Copyright (c) 2022-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -36,14 +36,14 @@
 
 '''This module tests the Signature class.'''
 
-from __future__ import absolute_import
+from collections import OrderedDict
 import pytest
 
 from psyclone.core import ComponentIndices, Signature
 from psyclone.errors import InternalError
 from psyclone.psyir.backend.c import CWriter
 from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.psyir.nodes import Reference
+from psyclone.psyir.nodes import Reference, Routine, StructureReference
 from psyclone.psyir.symbols import DataSymbol, INTEGER_SINGLE_TYPE
 
 
@@ -239,3 +239,62 @@ def test_output_languages():
     assert sig.to_language(comp) == "a(1)%b%c(i,j)"
     assert sig.to_language(comp, f_writer) == "a(1)%b%c(i,j)"
     assert sig.to_language(comp, c_writer) == "a[1].b.c[i + j * cLEN1]"
+
+
+def test_add_deep_copy_refs(fortran_reader):
+    '''Tests for the add_deep_copy_refs() method. This method is responsible
+    for creating the required list of References for deep-copying any given
+    type of Reference over to a remote address space (in e.g. OpenACC or
+    OpenMP).
+
+    '''
+    psyir = fortran_reader.psyir_from_source(
+        '''
+program my_prog
+  use some_mod
+  implicit None
+  integer :: ji = 1
+  real :: a_scalar
+  real :: a(10)
+  type(my_type) :: b, d(5)
+  a(:) = 10.0
+  b%grid(ji)%data(:) = 0.0
+  d(ji)%grid(2)%data(:) = 3.0
+  a_scalar = 1.0
+end program my_prog
+''')
+    sched = psyir.walk(Routine)[0]
+    # Wrong dictionary type.
+    sig = Signature("a")
+    with pytest.raises(TypeError) as err:
+        sig.add_deep_copy_refs(sched.children[0].lhs, sched.symbol_table, {})
+    assert ("add_deep_copy_refs: dictionary to update must be an OrderedDict "
+            "but got 'dict'" in str(err.value))
+    # Flat array.
+    refs = OrderedDict()
+    sig.add_deep_copy_refs(sched.children[0].lhs, sched.symbol_table, refs)
+    assert isinstance(refs[sig], Reference)
+    assert refs[sig].symbol.name == "a"
+    # Structure access.
+    node = sched.children[1].lhs
+    sig, _ = node.get_signature_and_indices()
+    sig.add_deep_copy_refs(node, sched.symbol_table, refs)
+    assert isinstance(refs[Signature("b")], Reference)
+    assert isinstance(refs[Signature(("b", "grid"))],
+                      StructureReference)
+    assert isinstance(refs[Signature(("b", "grid", "data"))],
+                      StructureReference)
+    # Array of structures access.
+    node = sched.children[2].lhs
+    sig, _ = node.get_signature_and_indices()
+    sig.add_deep_copy_refs(node,
+                           sched.symbol_table, refs)
+    assert isinstance(refs[Signature("d")], Reference)
+    assert isinstance(refs[Signature(("d", "grid"))],
+                      StructureReference)
+    assert isinstance(refs[Signature(("d", "grid", "data"))],
+                      StructureReference)
+    # Scalars are excluded.
+    Signature("a_scalar").add_deep_copy_refs(sched.children[3].lhs,
+                                             sched.symbol_table, refs)
+    assert Signature("a_scalar") not in refs

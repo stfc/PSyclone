@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
-# Modified I. Kavcic, Met Office
+# Modified I. Kavcic and L. Turner, Met Office
 # -----------------------------------------------------------------------------
 
 ''' Performs py.test tests on the psyGen module '''
@@ -547,7 +547,7 @@ def test_codedkern_module_inline_gen_code(tmpdir):
 def test_codedkern_module_inline_kernel_in_multiple_invokes(tmpdir):
     ''' Check that module-inline works as expected when the same kernel
     is provided in different invokes'''
-    # Use LFRic example with the kernel 'testkern_qr' repeated once in
+    # Use LFRic example with the kernel 'testkern_qr_mod' repeated once in
     # the first invoke and 3 times in the second invoke.
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "3.1_multi_functions_multi_invokes.f90"),
@@ -556,7 +556,7 @@ def test_codedkern_module_inline_kernel_in_multiple_invokes(tmpdir):
 
     # By default the kernel is imported once per invoke
     gen = str(psy.gen)
-    assert gen.count("USE testkern_qr, ONLY: testkern_qr_code") == 2
+    assert gen.count("USE testkern_qr_mod, ONLY: testkern_qr_code") == 2
 
     # Module inline kernel in invoke 1
     schedule = psy.invokes.invoke_list[0].schedule
@@ -570,7 +570,7 @@ def test_codedkern_module_inline_kernel_in_multiple_invokes(tmpdir):
 
     # After this, one invoke uses the inlined top-level subroutine
     # and the other imports it (shadowing the top-level symbol)
-    assert gen.count("USE testkern_qr, ONLY: testkern_qr_code") == 1
+    assert gen.count("USE testkern_qr_mod, ONLY: testkern_qr_code") == 1
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
     # Module inline kernel in invoke 2
@@ -581,7 +581,7 @@ def test_codedkern_module_inline_kernel_in_multiple_invokes(tmpdir):
     gen = str(psy.gen)
     # After this, no imports are remaining and both use the same
     # top-level implementation
-    assert gen.count("USE testkern_qr, ONLY: testkern_qr_code") == 0
+    assert gen.count("USE testkern_qr_mod, ONLY: testkern_qr_code") == 0
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 

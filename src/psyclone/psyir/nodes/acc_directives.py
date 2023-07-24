@@ -49,17 +49,12 @@ from psyclone.f2pygen import DirectiveGen, CommentGen
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.nodes.acc_clauses import (ACCCopyClause, ACCCopyInClause,
                                               ACCCopyOutClause)
-from psyclone.psyir.nodes.array_of_structures_reference import \
-    ArrayOfStructuresReference
 from psyclone.psyir.nodes.codeblock import CodeBlock
-from psyclone.psyir.nodes.directive import StandaloneDirective, \
-    RegionDirective
+from psyclone.psyir.nodes.directive import (StandaloneDirective,
+                                            RegionDirective)
 from psyclone.psyir.nodes.psy_data_node import PSyDataNode
-from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes.schedule import Schedule
-from psyclone.psyir.nodes.structure_reference import StructureReference
-from psyclone.psyir.symbols import ScalarType
 
 
 class ACCDirective(metaclass=abc.ABCMeta):
@@ -648,80 +643,6 @@ class ACCDataDirective(ACCRegionDirective):
         super()._refine_copy(other)
         self._disable_tree_update = False
 
-    @staticmethod
-    def _sig2refs(var_accesses, table, sig, refs_dict):
-        '''
-        Examines the supplied Signature and creates the References required
-        in order to access it. These are added to the supplied dictionary.
-
-        :param var_accesses: object holding information on the accesses
-            relating to the supplied signature.
-        :type var_accesses: :py:class:`psyclone.core.VariablesAccessInfo`
-        :param table: the most local symbol table.
-        :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
-        :param sig: the Signature to process for accesses.
-        :type sig: :py:class:`psyclone.core.Signature`
-        :param OrderedDict refs_dict: the dict of accesses to update.
-
-        :raises NotImplementedError: if a non-leaf structure component is
-            iterated over, e.g. a(i)%b.
-
-        '''
-        # Having this import at the top level causes a circular dependency due
-        # to psyGen importing FortranWriter at the top level.
-        # pylint: disable=import-outside-toplevel
-        from psyclone.psyGen import Kern
-
-        node = var_accesses[sig].all_accesses[0].node
-        sym = table.lookup(sig.var_name)
-        if isinstance(sym.datatype, ScalarType):
-            # We ignore scalars as these are copied by value when launching
-            # kernels.
-            return
-
-        if isinstance(node, StructureReference):
-            # We have to do a 'deep copy' of any structure access. This
-            # means that if we have an access `a%b%c(i)` then we need to
-            # copy `a`, `a%b` and then `a%b%c`.
-
-            # A Signature does not contain indexing information so we must
-            # lookup a PSyIR node that corresponds to this access.
-            _, index_lists = node.get_signature_and_indices()
-
-            if Signature(node.symbol.name) not in refs_dict:
-                refs_dict[Signature(node.symbol.name)] = Reference(node.symbol)
-
-            for depth in range(1, len(sig)):
-                if sig[:depth+1] not in refs_dict:
-                    if node.is_array:
-                        base_cls = ArrayOfStructuresReference
-                        # Copy the indices so as not to modify the original
-                        # node.
-                        base_args = [node.symbol,
-                                     [idx.copy() for idx in node.indices]]
-                    else:
-                        base_cls = StructureReference
-                        base_args = [node.symbol]
-                    # Create the new lists of indices, one list for each member
-                    # of the structure access apart from the last one where
-                    # we assume the whole array (if it is an array) is
-                    # accessed. Hence the loop is 1:depth and then we set the
-                    # last one separately.
-                    new_lists = []
-                    for idx_list in index_lists[1:depth]:
-                        new_lists.append([idx.copy() for idx in idx_list])
-                    new_lists.append([])
-                    members = list(zip(sig[1:depth+1], new_lists))
-                    refs_dict[sig[:depth+1]] = base_cls.create(
-                        *base_args, members)
-            return
-
-        # TODO #1396 - in languages such as C++ it will be necessary to
-        # supply the extent of an array that is being accessed. For now we
-        # only supply a Reference (which is sufficient in Fortran).
-        if sig not in refs_dict:
-            refs_dict[sig] = Reference(node.symbol)
-
     def gen_code(self, _):
         '''
         :raises InternalError: the ACC data directive is currently only \
@@ -805,17 +726,20 @@ class ACCDataDirective(ACCRegionDirective):
         # and add them as children of the appropriate clauses.
         nodes_dict = OrderedDict()
         for sig in readers_list:
-            self._sig2refs(var_accesses, table, sig, nodes_dict)
+            sig.add_deep_copy_refs(var_accesses[sig].all_accesses[0].node,
+                                   table, nodes_dict)
         if nodes_dict:
             self.addchild(ACCCopyInClause(children=list(nodes_dict.values())))
         nodes_dict = OrderedDict()
         for sig in writers_list:
-            self._sig2refs(var_accesses, table, sig, nodes_dict)
+            sig.add_deep_copy_refs(var_accesses[sig].all_accesses[0].node,
+                                   table, nodes_dict)
         if nodes_dict:
             self.addchild(ACCCopyOutClause(children=list(nodes_dict.values())))
         nodes_dict = OrderedDict()
         for sig in readwrites_list:
-            self._sig2refs(var_accesses, table, sig, nodes_dict)
+            sig.add_deep_copy_refs(var_accesses[sig].all_accesses[0].node,
+                                   table, nodes_dict)
         if nodes_dict:
             self.addchild(ACCCopyClause(children=list(nodes_dict.values())))
 
