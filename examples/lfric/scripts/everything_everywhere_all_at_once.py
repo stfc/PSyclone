@@ -41,7 +41,6 @@ DistibutedMemory, OpenMP coloring and serial transformations possible.
 '''
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.domain.lfric import LFRicConstants
-from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
 from psyclone.dynamo0p3 import DynHaloExchange, DynHaloExchangeStart
 from psyclone.psyir.transformations import Matmul2CodeTrans
 from psyclone.psyir.nodes import BinaryOperation, Container, KernelSchedule
@@ -56,18 +55,17 @@ from psyclone.transformations import Dynamo0p3ColourTrans, \
 ENABLE_REDUNDANT_COMPUTATION = True
 ENABLE_ASYNC_HALOS = True
 ENABLE_OMP_COLOURING = True
-ENABLE_LOOP_FUSING = False
 ENABLE_INTRINSIC_INLINING = True
-ENABLE_KERNEL_CONSTANTS = False
+# LFRicLoopFuseTrans and DynKernelConstTrans could also be included but there
+# are some issues to overcome, e.g. TODO #2232
 
 
 def trans(psy):
-    ''' Applies PSyclone optimisation script. '''
+    ''' Apply all possible LFRic transformations. '''
     rtrans = Dynamo0p3RedundantComputationTrans()
     ctrans = Dynamo0p3ColourTrans()
     otrans = Dynamo0p3OMPLoopTrans()
     oregtrans = OMPParallelTrans()
-    lf_trans = LFRicLoopFuseTrans()
     inline_trans = KernelModuleInlineTrans()
     matmul_trans = Matmul2CodeTrans()
     const = LFRicConstants()
@@ -80,7 +78,7 @@ def trans(psy):
 
         if ENABLE_REDUNDANT_COMPUTATION:
             # Make setval_* compute redundantly to the level 1 halo if it
-            # is in its own loop.
+            # is in its own loop
             for loop in schedule.loops():
                 if loop.iteration_space == "dof":
                     if len(loop.kernels()) == 1:
@@ -88,13 +86,13 @@ def trans(psy):
                             rtrans.apply(loop, options={"depth": 1})
 
         if ENABLE_ASYNC_HALOS:
-            # This transformation splits the three synchronous halo exchanges
+            # This transformation splits all synchronous halo exchanges
             for h_ex in schedule.walk(DynHaloExchange):
                 ahex_trans.apply(h_ex)
 
-            # This transformation moves the start of the halo exchanges as far
-            # as possible offering the potential for overlap between communication
-            # and computation.
+            # This transformation moves the start of the halo exchanges as
+            # far as possible offering the potential for overlap between
+            # communication and computation
             location_cursor = 0
             for ahex in schedule.walk(DynHaloExchangeStart):
                 if ahex.position <= location_cursor:
@@ -102,18 +100,6 @@ def trans(psy):
                 try:
                     mtrans.apply(ahex, schedule.children[location_cursor])
                     location_cursor += 1
-                except TransformationError:
-                    pass
-
-
-        if ENABLE_LOOP_FUSING:
-            # Fuse Loops when possible
-            idx = len(schedule.children) - 1
-            while idx > 0:
-                node = schedule.children[idx]
-                prev_node = schedule.children[idx-1]
-                try:
-                    lf_trans.apply(prev_node, node, {"same_space": True})
                 except TransformationError:
                     pass
 
@@ -132,8 +118,9 @@ def trans(psy):
                     oregtrans.apply(loop)
                     otrans.apply(loop, options={"reprod": True})
 
-        if ENABLE_KERNEL_CONSTANTS or ENABLE_INTRINSIC_INLINING:
-            # Inline kernels when possible
+        # Transformations that modify kernel code will need to have the
+        # kernels inlined first
+        if ENABLE_INTRINSIC_INLINING:
             for kernel in schedule.coded_kernels():
                 try:
                     inline_trans.apply(kernel)

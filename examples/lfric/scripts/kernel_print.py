@@ -38,9 +38,7 @@ transformed into the PSyIR can be transformed back into Fortran by
 using the FortranWriter class.
 
 '''
-from __future__ import print_function
 from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.transformations import TransformationError
 
 
 def trans(psy):
@@ -61,7 +59,7 @@ def trans(psy):
                     kern = fortran_writer(kernel_schedule)
                     print(kern)
                     already_printed.append(kernel_schedule)
-            except Exception as err:
+            except Exception as err:  # pylint: disable=broad-except
                 print(f"Code of '{kernel.name}' in '{invoke.name}' "
                       f"cannot be printed because:\n{err}")
 

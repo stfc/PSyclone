@@ -46,11 +46,9 @@ from psyclone.transformations import Dynamo0p3AsyncHaloExchangeTrans, \
 
 
 def trans(psy):
-    '''A sample transformation script to demonstrate the use of asynchronous
-    halo exchanges with overlapping compute and communication for the
-    most costly halo exchanges in the (current version of the) LFRic model.
+    '''A transformation script to use asynchronous halo exchanges with
+    overlapping compute and communication for the LFRic model. '''
 
-    '''
     for invoke in psy.invokes.invoke_list:
         schedule = invoke.schedule
 
