@@ -712,7 +712,6 @@ class ACCDataDirective(ACCRegionDirective):
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.tools import DependencyTools
         dtools = DependencyTools()
-        table = self.scope.symbol_table
         in_outs = dtools.get_in_out_parameters(self.children)
         var_accesses = dtools.variable_access_info
         readers = in_outs.signatures_read
@@ -726,25 +725,26 @@ class ACCDataDirective(ACCRegionDirective):
         # and add them as children of the appropriate clauses.
         nodes_dict = OrderedDict()
         for sig in readers_list:
-            sig.add_deep_copy_refs(var_accesses[sig].all_accesses[0].node,
-                                   table, nodes_dict)
+            sig.create_deep_copy_refs(var_accesses[sig].all_accesses[0].node,
+                                      nodes_dict)
         if nodes_dict:
             self.addchild(ACCCopyInClause(children=list(nodes_dict.values())))
         nodes_dict = OrderedDict()
         for sig in writers_list:
-            sig.add_deep_copy_refs(var_accesses[sig].all_accesses[0].node,
-                                   table, nodes_dict)
+            sig.create_deep_copy_refs(var_accesses[sig].all_accesses[0].node,
+                                      nodes_dict)
         if nodes_dict:
             self.addchild(ACCCopyOutClause(children=list(nodes_dict.values())))
         nodes_dict = OrderedDict()
         for sig in readwrites_list:
-            sig.add_deep_copy_refs(var_accesses[sig].all_accesses[0].node,
-                                   table, nodes_dict)
+            sig.create_deep_copy_refs(var_accesses[sig].all_accesses[0].node,
+                                      nodes_dict)
         if nodes_dict:
             self.addchild(ACCCopyClause(children=list(nodes_dict.values())))
 
-        # Mark that we've left this method.
+        # Enable updates again now that we're leaving this method.
         self._disable_tree_update = False
+
         # Propagate any changes on up the tree.
         super().tree_update()
 

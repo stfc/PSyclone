@@ -109,79 +109,81 @@ class Signature:
         return "%".join(self._signature)
 
     # ------------------------------------------------------------------------
-    def add_deep_copy_refs(self, node, table, refs_dict):
+    def create_deep_copy_refs(self, node, refs_dict):
         '''
         Creates the References required to perform a deep copy of this
-        Signature. These are References are added to the supplied
-        dictionary.
+        Signature in e.g. OpenACC or OpenMP. These References are added to the
+        supplied OrderedDict in the order in which they must be copied.
 
-        :param var_accesses: object holding information on the accesses
-            relating to the supplied signature.
-        :type var_accesses: :py:class:`psyclone.core.VariablesAccessInfo`
-        :param table: the most local symbol table.
-        :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
-        :param sig: the Signature to process for accesses.
-        :type sig: :py:class:`psyclone.core.Signature`
-        :param OrderedDict refs_dict: the dict of accesses to update. Contains
-            lists of References, indexed by Signature.
+        :param node: PSyIR node containing an access with this Signature.
+        :type node: :py:class:`psyclone.psyir.nodes.Node`
+        :param refs_dict: the dict that will be updated. Contains
+            References indexed by Signatures.
+        :type refs_dict: OrderedDict[
+            :py:class:`psyclone.core.Signature`,
+            :py:class:`psyclone.psyir.nodes.Reference`]
+
+        :raises TypeError: if the supplied refs_dict is not an OrderedDict.
 
         '''
         if not isinstance(refs_dict, OrderedDict):
             raise TypeError(
-                f"add_deep_copy_refs: dictionary to update must be an "
+                f"create_deep_copy_refs: dictionary to update must be an "
                 f"OrderedDict but got '{type(refs_dict).__name__}'")
+
+        sym = node.scope.symbol_table.lookup(self.var_name)
+        if isinstance(sym.datatype, ScalarType):
+            # We ignore scalars as these are typically copied by value.
+            return
+
         # Having this import at the top level causes a circular dependency.
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir import nodes
 
-        sym = table.lookup(self.var_name)
-        if isinstance(sym.datatype, ScalarType):
-            # We ignore scalars as these are copied by value when launching
-            # kernels.
+        if not isinstance(node, nodes.StructureReference):
+            # This must be an array.
+            # TODO #1396 - in languages such as C++ it will be necessary to
+            # supply the extent of an array that is being accessed. For now we
+            # only supply a Reference (which is sufficient in Fortran).
+            if self not in refs_dict:
+                refs_dict[self] = nodes.Reference(node.symbol)
             return
 
-        if isinstance(node, nodes.StructureReference):
-            # We have to do a 'deep copy' of any structure access. This
-            # means that if we have an access `a%b%c(i)` then we need to
-            # copy `a`, `a%b` and then `a%b%c`.
+        # We have a structure access and so we need the list of references
+        # required to do a 'deep copy'. This means that if we have an access
+        # `a%b%c(i)` then we need references to `a`, `a%b` and then `a%b%c`.
 
-            # A Signature does not contain indexing information so we must
-            # lookup a PSyIR node that corresponds to this access.
-            _, index_lists = node.get_signature_and_indices()
+        # A Signature does not contain indexing information so we use the
+        # supplied PSyIR node that corresponds to this access.
+        _, index_lists = node.get_signature_and_indices()
 
-            if Signature(node.symbol.name) not in refs_dict:
-                refs_dict[Signature(node.symbol.name)] = nodes.Reference(node.symbol)
+        # First add the root access (`a` in the above example).
+        if Signature(node.symbol.name) not in refs_dict:
+            refs_dict[Signature(node.symbol.name)] = nodes.Reference(
+                node.symbol)
 
-            for depth in range(1, len(self)):
-                if self[:depth+1] not in refs_dict:
-                    if node.is_array:
-                        base_cls = nodes.ArrayOfStructuresReference
-                        # Copy the indices so as not to modify the original
-                        # node.
-                        base_args = [node.symbol,
-                                     [idx.copy() for idx in node.indices]]
-                    else:
-                        base_cls = nodes.StructureReference
-                        base_args = [node.symbol]
-                    # Create the new lists of indices, one list for each member
-                    # of the structure access apart from the last one where
-                    # we assume the whole array (if it is an array) is
-                    # accessed. Hence the loop is 1:depth and then we set the
-                    # last one separately.
-                    new_lists = []
-                    for idx_list in index_lists[1:depth]:
-                        new_lists.append([idx.copy() for idx in idx_list])
-                    new_lists.append([])
-                    members = list(zip(self[1:depth+1], new_lists))
-                    refs_dict[self[:depth+1]] = base_cls.create(
-                        *base_args, members)
-            return
-
-        # TODO #1396 - in languages such as C++ it will be necessary to
-        # supply the extent of an array that is being accessed. For now we
-        # only supply a Reference (which is sufficient in Fortran).
-        if self not in refs_dict:
-            refs_dict[self] = nodes.Reference(node.symbol)
+        # Then work our way down the various members.
+        for depth in range(1, len(self)):
+            if self[:depth+1] not in refs_dict:
+                if node.is_array:
+                    base_cls = nodes.ArrayOfStructuresReference
+                    # Copy the indices so as not to modify the original node.
+                    base_args = [node.symbol,
+                                 [idx.copy() for idx in node.indices]]
+                else:
+                    base_cls = nodes.StructureReference
+                    base_args = [node.symbol]
+                # Create the new lists of indices, one list for each member of
+                # the structure access apart from the last one where we assume
+                # the whole array (if it is an array) is accessed. Hence the
+                # loop is 1:depth and then we set the last one separately.
+                new_lists = []
+                for idx_list in index_lists[1:depth]:
+                    new_lists.append([idx.copy() for idx in idx_list])
+                new_lists.append([])
+                members = list(zip(self[1:depth+1], new_lists))
+                refs_dict[self[:depth+1]] = base_cls.create(
+                    *base_args, members)
 
     # ------------------------------------------------------------------------
     def to_language(self, component_indices=None, language_writer=None):

@@ -267,18 +267,18 @@ end program my_prog
     # Wrong dictionary type.
     sig = Signature("a")
     with pytest.raises(TypeError) as err:
-        sig.add_deep_copy_refs(sched.children[0].lhs, sched.symbol_table, {})
-    assert ("add_deep_copy_refs: dictionary to update must be an OrderedDict "
-            "but got 'dict'" in str(err.value))
+        sig.create_deep_copy_refs(sched.children[0].lhs, {})
+    assert ("create_deep_copy_refs: dictionary to update must be an "
+            "OrderedDict but got 'dict'" in str(err.value))
     # Flat array.
     refs = OrderedDict()
-    sig.add_deep_copy_refs(sched.children[0].lhs, sched.symbol_table, refs)
+    sig.create_deep_copy_refs(sched.children[0].lhs, refs)
     assert isinstance(refs[sig], Reference)
     assert refs[sig].symbol.name == "a"
     # Structure access.
     node = sched.children[1].lhs
     sig, _ = node.get_signature_and_indices()
-    sig.add_deep_copy_refs(node, sched.symbol_table, refs)
+    sig.create_deep_copy_refs(node, refs)
     assert isinstance(refs[Signature("b")], Reference)
     assert isinstance(refs[Signature(("b", "grid"))],
                       StructureReference)
@@ -287,14 +287,12 @@ end program my_prog
     # Array of structures access.
     node = sched.children[2].lhs
     sig, _ = node.get_signature_and_indices()
-    sig.add_deep_copy_refs(node,
-                           sched.symbol_table, refs)
+    sig.create_deep_copy_refs(node, refs)
     assert isinstance(refs[Signature("d")], Reference)
     assert isinstance(refs[Signature(("d", "grid"))],
                       StructureReference)
     assert isinstance(refs[Signature(("d", "grid", "data"))],
                       StructureReference)
     # Scalars are excluded.
-    Signature("a_scalar").add_deep_copy_refs(sched.children[3].lhs,
-                                             sched.symbol_table, refs)
+    Signature("a_scalar").create_deep_copy_refs(sched.children[3].lhs, refs)
     assert Signature("a_scalar") not in refs
