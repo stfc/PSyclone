@@ -311,13 +311,14 @@ def test_validate_kernel_code_arg(monkeypatch):
                                                       interface=read_access)
     lfric_real_field_symbol2 = LFRicTypes("RealFieldDataSymbol")(
         "field", dims=[Reference(undf)], fs="w0", interface=read_access)
-    # if one of the dimensions is not a datasymbol then the arguments
+    # If one of the dimensions is not a datasymbol then the arguments
     # are not checked.
     kernel._validate_kernel_code_arg(lfric_real_field_symbol,
                                      lfric_real_field_symbol2)
     kernel._validate_kernel_code_arg(lfric_real_field_symbol2,
                                      lfric_real_field_symbol)
 
+    # Check for the correct number of array dimensions.
     lfric_real_field_symbol3 = LFRicTypes("RealFieldDataSymbol")(
         "field", dims=[Reference(undf)], fs="w0", interface=read_access)
     monkeypatch.setattr(lfric_real_field_symbol3.datatype, "_shape",
@@ -329,19 +330,12 @@ def test_validate_kernel_code_arg(monkeypatch):
             "dimension(s) according to the LFRic API, but found 1."
             in str(info.value))
 
-#     lfric_real_field_symbol4 = LFRicTypes("RealFieldDataSymbol")(
-#        "field", dims=[Reference(undf)],
-#        fs="w0", interface=read_access)
-#    lfric_real_field_symbol3 = LFRicTypes("RealFieldDataSymbol")(
-#        "field", dims=[ArrayType.ArrayBounds(2, Reference(undf))],
-#         fs="w0", interface=read_access)
-#    # we want to monkeypatch lfric_real_field_symbol4 so it is not 
-#    # type ArrayType.ArrayBounds - maybe ArrayType.Extent?
-#    monkeypatch.setattr(lfric_real_field_symbol4.datatype, "_shape",
-#                        [1, Reference(undf)])
-#    kernel._validate_kernel_code_arg(lfric_real_field_symbol4,
-#                                     lfric_real_field_symbol3) 
-#    #assert ("dinosaurs" in str(info.value))
+    # Monkeypatch the shape of lfric_real_field_symbol3 from ArrayBounds
+    # to a Reference to check the 'continue' statement is triggered.
+    monkeypatch.setattr(lfric_real_field_symbol3.datatype, "_shape",
+                        [Reference(undf)])
+    kernel._validate_kernel_code_arg(lfric_real_field_symbol3,
+                                     lfric_real_field_symbol2)
 
     # Lower array bound of 2 rather than 1
     monkeypatch.setattr(lfric_real_field_symbol3.datatype, "_shape",
@@ -368,7 +362,7 @@ def test_validate_kernel_code_arg(monkeypatch):
         "integer number of bytes but argument 'generic_int_scalar' to kernel "
         "'dummy' has precision Precision.UNDEFINED" in str(info.value))
 
-    # monkeypatch lfric_real_scalar_symbol to return that it is not a
+    # Monkeypatch lfric_real_scalar_symbol to return that it is not a
     # scalar in order to force the required exception. We do this by
     # changing the ScalarType as it is used when determining whether
     # the symbol is a scalar.
@@ -377,7 +371,7 @@ def test_validate_kernel_code_arg(monkeypatch):
         kernel._validate_kernel_code_arg(
             lfric_real_scalar_symbol, lfric_real_scalar_symbol)
     assert (
-        "unexpected argument type found for 'scalar' in kernel 'dummy'. "
+        "Unexpected argument type found for 'scalar' in kernel 'dummy'. "
         "Expecting a scalar or an array." in str(info.value))
 
 

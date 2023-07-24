@@ -60,6 +60,7 @@ from psyclone.psyir.nodes import (Loop, Literal, Reference,
                                   KernelSchedule)
 from psyclone.psyir.symbols import DataSymbol, ScalarType, ArrayType
 
+
 class LFRicKern(CodedKern):
     ''' Stores information about Dynamo Kernels as specified by the
     Kernel metadata and associated algorithm call. Uses this
@@ -905,12 +906,8 @@ class LFRicKern(CodedKern):
                     f"dimension(s) according to the LFRic API, but "
                     f"found {len(kern_code_arg.shape)}.")
             for dim_idx, kern_code_arg_dim in enumerate(kern_code_arg.shape):
-                #print(dim_idx)
-                #print(type(kern_code_arg_dim))
-                #print(kern_code_arg.shape)
                 if not isinstance(kern_code_arg_dim, ArrayType.ArrayBounds):
-                    #print('sharks')
-                    continue #sharks
+                    continue
                 if (not isinstance(kern_code_arg_dim.lower, Literal) or
                         kern_code_arg_dim.lower.value != "1"):
                     raise GenerationError(
@@ -942,8 +939,9 @@ class LFRicKern(CodedKern):
                             f"{info.args[0]}") from info
         else:
             raise InternalError(
-                f"unexpected argument type found for '{kern_code_arg.name}' in"
+                f"Unexpected argument type found for '{kern_code_arg.name}' in"
                 f" kernel '{self.name}'. Expecting a scalar or an array.")
+
 
 # ---------- Documentation utils -------------------------------------------- #
 # The list of module members that we wish AutoAPI to generate
