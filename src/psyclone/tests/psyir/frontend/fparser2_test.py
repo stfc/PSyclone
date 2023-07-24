@@ -699,11 +699,12 @@ def test_get_partial_datatype():
     processor = Fparser2Reader()
 
     # Entry in symbol table with unmodified properties.
-    reader = FortranStringReader("integer :: l1")
+    reader = FortranStringReader("integer :: l1=2")
     node = Specification_Part(reader).content[0]
     ids = [id(entry) for entry in walk(node)]
-    datatype = processor._get_partial_datatype(node, fake_parent, {})
+    datatype, init = processor._get_partial_datatype(node, fake_parent, {})
     assert isinstance(datatype, ScalarType)
+    assert isinstance(init, Literal)
     assert datatype.intrinsic is ScalarType.Intrinsic.INTEGER
     # Check fparser2 tree is unmodified
     assert ids == [id(entry) for entry in walk(node)]
@@ -713,8 +714,9 @@ def test_get_partial_datatype():
     reader = FortranStringReader("integer, pointer :: l1 => null()")
     node = Specification_Part(reader).content[0]
     ids = [id(entry) for entry in walk(node)]
-    datatype = processor._get_partial_datatype(node, fake_parent, {})
+    datatype, init = processor._get_partial_datatype(node, fake_parent, {})
     assert isinstance(datatype, ScalarType)
+    assert isinstance(init, CodeBlock)
     assert datatype.intrinsic is ScalarType.Intrinsic.INTEGER
     # Check fparser2 tree is unmodified
     assert ids == [id(entry) for entry in walk(node)]
@@ -724,8 +726,9 @@ def test_get_partial_datatype():
     reader = FortranStringReader("real*4, target, dimension(10,20) :: l1")
     node = Specification_Part(reader).content[0]
     ids = [id(entry) for entry in walk(node)]
-    datatype = processor._get_partial_datatype(node, fake_parent, {})
+    datatype, init = processor._get_partial_datatype(node, fake_parent, {})
     assert isinstance(datatype, ArrayType)
+    assert init is None
     assert datatype.intrinsic is ScalarType.Intrinsic.REAL
     assert datatype.precision == 4
     assert datatype.shape[0].upper.value == '10'
@@ -739,7 +742,9 @@ def test_get_partial_datatype():
     reader = FortranStringReader(" complex :: c\n")
     node = Specification_Part(reader).content[0]
     ids = [id(entry) for entry in walk(node)]
-    assert not processor._get_partial_datatype(node, fake_parent, {})
+    dtype, init = processor._get_partial_datatype(node, fake_parent, {})
+    assert dtype is None
+    assert init is None
     # Check fparser2 tree is unmodified
     assert ids == [id(entry) for entry in walk(node)]
 
@@ -749,8 +754,9 @@ def test_get_partial_datatype():
         "integer, pointer :: l1 => null(), l2 => null()")
     node = Specification_Part(reader).content[0]
     ids = [id(entry) for entry in walk(node)]
-    datatype = processor._get_partial_datatype(node, fake_parent, {})
+    datatype, init = processor._get_partial_datatype(node, fake_parent, {})
     assert isinstance(datatype, ScalarType)
+    assert isinstance(init, CodeBlock)
     assert datatype.intrinsic is ScalarType.Intrinsic.INTEGER
     # Check fparser2 tree is unmodified
     assert ids == [id(entry) for entry in walk(node)]

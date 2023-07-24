@@ -257,8 +257,8 @@ def test_datasymbol_initial_value_setter_invalid():
     with pytest.raises(ValueError) as error:
         sym.initial_value = 1.0
     assert ("Error setting initial value for symbol 'a'. A DataSymbol with "
-            "an initial value must be a scalar or an array but found "
-            "'DeferredType'." in str(error.value))
+            "an initial value must be a scalar or an array or of UnknownType "
+            "but found 'DeferredType'." in str(error.value))
 
     # Test with invalid initial expressions
     ct_expr = Return()
