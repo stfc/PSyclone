@@ -649,7 +649,9 @@ class SymbolTable():
                             other_sym,
                             self.next_available_name(
                                 other_sym.name, other_table=other_table))
-                isym.interface = ImportInterface(self.lookup(csym.name))
+                isym.interface = ImportInterface(
+                        self.lookup(csym.name),
+                        orig_name=isym.interface.orig_name)
 
     def _add_symbols_from_table(self, other_table, include_arguments=True):
         '''

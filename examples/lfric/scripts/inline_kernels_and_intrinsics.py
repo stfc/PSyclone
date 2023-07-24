@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Science and Technology Facilities Council
+# Copyright (c) 2023, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,36 +31,52 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: R. W. Ford, STFC Daresbury Laboratory
+# Authors: S. Siso, STFC Daresbury Lab
 
-'''PSyclone script demonstrating that kernels that have been
-transformed into the PSyIR can be transformed back into Fortran by
-using the FortranWriter class.
 
+'''PSyclone transformation script for the LFRic API to apply serial
+optimisations: inline kernels into modules, expand intrinsics into code.
 '''
-from psyclone.psyir.backend.fortran import FortranWriter
+
+from psyclone.domain.common.transformations import KernelModuleInlineTrans
+from psyclone.psyir.nodes import BinaryOperation, Container, KernelSchedule
+from psyclone.psyir.transformations import Matmul2CodeTrans
+from psyclone.transformations import TransformationError
 
 
 def trans(psy):
-    '''Print out Fortran versions of all kernels found in this file.'''
-    fortran_writer = FortranWriter()
+    '''Applies LFRic serial optimisations'''
 
-    already_printed = []
+    matmul_trans = Matmul2CodeTrans()
+    inline_trans = KernelModuleInlineTrans()
 
-    # Loop over all of the Invokes in the PSy object.
+    # Loop over all of the Invokes in the PSy object
     for invoke in psy.invokes.invoke_list:
         schedule = invoke.schedule
 
-        # Loop over all of the Kernels in this Schedule.
+        # Try to Inline all kernels into the PSy module
         for kernel in schedule.coded_kernels():
             try:
-                kernel_schedule = kernel.get_kernel_schedule()
-                if kernel_schedule not in already_printed:
-                    kern = fortran_writer(kernel_schedule)
-                    print(kern)
-                    already_printed.append(kernel_schedule)
-            except Exception as err:  # pylint: disable=broad-except
-                print(f"Code of '{kernel.name}' in '{invoke.name}' "
-                      f"cannot be printed because:\n{err}")
+                inline_trans.apply(kernel)
+                print(f"Inline transformation was successful for "
+                      f"'{kernel.name}' in '{invoke.name}'.")
+            except TransformationError as err:
+                print(f"Inline transformation failed for "
+                      f"'{kernel.name}' in '{invoke.name}' because:")
+                print(str(err))
+
+    # Then we transform all the kernels inlined into the module
+    if psy.invokes.invoke_list:
+        root = psy.invokes.invoke_list[0].schedule.ancestor(Container)
+        for kschedule in root.walk(KernelSchedule):
+            # Expand MATMUL intrinsic
+            for bop in kschedule.walk(BinaryOperation):
+                if bop.operator == BinaryOperation.Operator.MATMUL:
+                    try:
+                        matmul_trans.apply(bop)
+                    except TransformationError as err:
+                        print(f"Inline MATMUL failed for '{kschedule.name}' "
+                               "because:")
+                        print(str(err))
 
     return psy
