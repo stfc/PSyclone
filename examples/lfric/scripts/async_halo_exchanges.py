@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Science and Technology Facilities Council
+# Copyright (c) 2018-2022, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,36 +31,47 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: R. W. Ford, STFC Daresbury Laboratory
+# Authors: R. Ford, A. R. Porter and S. Siso, STFC Daresbury Laboratory
 
-'''PSyclone script demonstrating that kernels that have been
-transformed into the PSyIR can be transformed back into Fortran by
-using the FortranWriter class.
+'''File containing a PSyclone transformation script for the Dynamo0p3
+API to make asynchronous halo exchanges and overlap their
+communication with computation. This can be applied via the -s option
+in the generator.py script.
 
 '''
-from psyclone.psyir.backend.fortran import FortranWriter
+
+from psyclone.dynamo0p3 import DynHaloExchange, DynHaloExchangeStart
+from psyclone.transformations import Dynamo0p3AsyncHaloExchangeTrans, \
+    MoveTrans, TransformationError
 
 
 def trans(psy):
-    '''Print out Fortran versions of all kernels found in this file.'''
-    fortran_writer = FortranWriter()
+    '''A transformation script to use asynchronous halo exchanges with
+    overlapping compute and communication for the LFRic model. '''
 
-    already_printed = []
-
-    # Loop over all of the Invokes in the PSy object.
     for invoke in psy.invokes.invoke_list:
         schedule = invoke.schedule
 
-        # Loop over all of the Kernels in this Schedule.
-        for kernel in schedule.coded_kernels():
+        # This transformation splits the three synchronous halo exchanges
+        ahex_trans = Dynamo0p3AsyncHaloExchangeTrans()
+        for h_ex in schedule.walk(DynHaloExchange):
+            ahex_trans.apply(h_ex)
+
+        # This transformation moves the start of the halo exchanges as far
+        # as possible offering the potential for overlap between communication
+        # and computation.
+        mtrans = MoveTrans()
+        location_cursor = 0
+        for ahex in schedule.walk(DynHaloExchangeStart):
+            if ahex.position <= location_cursor:
+                continue
             try:
-                kernel_schedule = kernel.get_kernel_schedule()
-                if kernel_schedule not in already_printed:
-                    kern = fortran_writer(kernel_schedule)
-                    print(kern)
-                    already_printed.append(kernel_schedule)
-            except Exception as err:  # pylint: disable=broad-except
-                print(f"Code of '{kernel.name}' in '{invoke.name}' "
-                      f"cannot be printed because:\n{err}")
+                mtrans.apply(ahex, schedule.children[location_cursor])
+                location_cursor += 1
+            except TransformationError:
+                pass
+
+        print(f"{location_cursor} AsyncHaloExchanges have been rearranged"
+              f" in {invoke.name}")
 
     return psy
