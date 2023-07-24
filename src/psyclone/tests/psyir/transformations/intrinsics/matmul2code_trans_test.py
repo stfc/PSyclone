@@ -572,8 +572,8 @@ def test_validate14():
 
 def test_validate_matmat_with_slices_on_rhs(fortran_reader):
     '''
-    Check the apply method works when there are already symbols present
-    with names that would clash with the new loop variables.
+    Check that the validate method refuses matrix-matrix operations with
+    array slides in its lhs.
 
     '''
     psyir = fortran_reader.psyir_from_source(
@@ -586,7 +586,7 @@ def test_validate_matmat_with_slices_on_rhs(fortran_reader):
     trans = Matmul2CodeTrans()
     assign = psyir.walk(Assignment)[0]
     with pytest.raises(TransformationError) as excinfo:
-        trans.apply(assign.rhs)
+        trans.validate(assign.rhs)
     assert ("To use matmul2code_trans on matmul, each range on the result "
             "variable 'result' must be a full range but found "
             "result(2:4,2:5)" in str(excinfo.value))
@@ -594,8 +594,8 @@ def test_validate_matmat_with_slices_on_rhs(fortran_reader):
 
 def test_validate_matmat_with_same_mem(fortran_reader):
     '''
-    Check the apply method works when there are already symbols present
-    with names that would clash with the new loop variables.
+    Check that the validate method refuses cases where one of the operands
+    is also the lhs of the matrix multiplication.
 
     '''
     psyir = fortran_reader.psyir_from_source(
@@ -607,7 +607,7 @@ def test_validate_matmat_with_same_mem(fortran_reader):
     trans = Matmul2CodeTrans()
     assign = psyir.walk(Assignment)[0]
     with pytest.raises(TransformationError) as excinfo:
-        trans.apply(assign.rhs)
+        trans.validate(assign.rhs)
     assert ("Transformation Error: 'jac' is the result location and one of the"
             " MATMUL operators. This is not supported." in str(excinfo.value))
 
@@ -622,8 +622,7 @@ def test_validate_matmat_with_same_mem(fortran_reader):
     trans = Matmul2CodeTrans()
     assign = psyir.walk(Assignment)[0]
     with pytest.raises(TransformationError) as excinfo:
-        trans.apply(assign.rhs)
-    print(excinfo.value)
+        trans.validate(assign.rhs)
     assert ("Transformation Error: Expected result and operands of MATMUL "
             "BinaryOperation to be references to arrays but found 'result: "
             "DataSymbol<UnknownFortranType('REAL, DIMENSION(2, 2), POINTER "

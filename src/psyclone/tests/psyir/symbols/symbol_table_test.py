@@ -708,7 +708,8 @@ def test_merge_container_syms():
     wpsym2 = DataSymbol("wp", INTEGER_TYPE, interface=ImportInterface(csym2))
     tab3.add(wpsym2)
     dpsym = DataSymbol("dp", INTEGER_TYPE,
-            interface=ImportInterface(csym2, orig_name="different_name"))
+                       interface=ImportInterface(csym2,
+                                                 orig_name="different_name"))
     tab3.add(dpsym)
     tab1.merge(tab3)
     wp3 = tab1.lookup("wp")

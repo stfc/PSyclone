@@ -166,7 +166,7 @@ class Matmul2CodeTrans(Operator2CodeTrans):
 
     '''
     def __init__(self):
-        super(Matmul2CodeTrans, self).__init__()
+        super().__init__()
         self._operator_name = "MATMUL"
         self._classes = (BinaryOperation,)
         self._operators = (BinaryOperation.Operator.MATMUL,)
@@ -196,7 +196,7 @@ class Matmul2CodeTrans(Operator2CodeTrans):
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.transformations import TransformationError
 
-        super(Matmul2CodeTrans, self).validate(node, options)
+        super().validate(node, options)
 
         # Check the matmul is the only code on the rhs of an assignment
         # i.e. ... = matmul(a,b)
@@ -220,7 +220,7 @@ class Matmul2CodeTrans(Operator2CodeTrans):
 
         # The children of matvec should be References to arrays
         if (len(matrix1.symbol.shape) == 0 or len(matrix2.symbol.shape) == 0 or
-            len(result.symbol.shape) == 0):
+                len(result.symbol.shape) == 0):
             raise TransformationError(
                 f"Expected result and operands of MATMUL BinaryOperation to "
                 f"be references to arrays but found "
@@ -323,12 +323,10 @@ class Matmul2CodeTrans(Operator2CodeTrans):
                         f"range but found {result.debug_string()}")
 
         # Make sure the result is not one of the MATMUL operands
-        for ref in result.walk(Reference):
-            if ref.symbol in (matrix1.symbol, matrix2.symbol):
-                raise TransformationError(
-                    f"'{ref.symbol.name}' is the result location and one of "
-                    f"the MATMUL operators. This is not supported.")
-
+        if result.symbol in (matrix1.symbol, matrix2.symbol):
+            raise TransformationError(
+                f"'{result.symbol.name}' is the result location and one of "
+                f"the MATMUL operators. This is not supported.")
 
     def apply(self, node, options=None):
         '''Apply the MATMUL intrinsic conversion transformation to the
