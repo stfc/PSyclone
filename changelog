@@ -523,6 +523,10 @@
 	177) PR #2158 for #81. Ensures all example/test Fortran code for
 	LFRic follows the LFRic naming convention.
 
+	178) PR #2218 towards #2132. Adds LFRic integration tests and
+	new, associated optimisation scripts. Includes bug fixes for
+	matmul inlining transformation.
+
 release 2.3.1 17th of June 2022
 
 	1) PR #1747 for #1720. Adds support for If blocks to PSyAD.
