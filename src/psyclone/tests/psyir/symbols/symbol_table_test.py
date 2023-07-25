@@ -707,13 +707,17 @@ def test_merge_container_syms():
     tab3.add(csym2)
     wpsym2 = DataSymbol("wp", INTEGER_TYPE, interface=ImportInterface(csym2))
     tab3.add(wpsym2)
-    dpsym = DataSymbol("dp", INTEGER_TYPE, interface=ImportInterface(csym2))
+    dpsym = DataSymbol("dp", INTEGER_TYPE,
+                       interface=ImportInterface(csym2,
+                                                 orig_name="different_name"))
     tab3.add(dpsym)
     tab1.merge(tab3)
     wp3 = tab1.lookup("wp")
     assert wp3.interface.container_symbol.name == "slartibartfast"
     dp3 = tab1.lookup("dp")
     assert dp3.interface.container_symbol.name == "slartibartfast"
+    # Check that the dp import renaming is conserved
+    assert dp3.interface.orig_name == "different_name"
     # A third table which imports wp from a *different* container.
     tab4 = SymbolTable()
     csym3 = ContainerSymbol("magrathea")
@@ -1547,7 +1551,8 @@ def test_deep_copy():
     sym1 = DataSymbol("symbol1", INTEGER_TYPE,
                       interface=ArgumentInterface(
                           ArgumentInterface.Access.READ))
-    sym2 = Symbol("symbol2", interface=ImportInterface(mod))
+    sym2 = Symbol("symbol2", interface=ImportInterface(mod,
+                                                       orig_name="altsym2"))
     sym3 = DataSymbol("symbol3", INTEGER_TYPE)
     symtab.add(mod)
     symtab.add(sym1)
@@ -1576,6 +1581,8 @@ def test_deep_copy():
     # ContainerSymbols have been updated
     assert symtab2.lookup("symbol2").interface.container_symbol is \
         symtab2.lookup("my_mod")
+    # Check that the orig_name is copied across.
+    assert symtab2.lookup("symbol2").interface.orig_name == "altsym2"
 
     # Add new symbols and rename symbols in both symbol tables and check
     # they are not added/renamed in the other symbol table

@@ -34,6 +34,7 @@
 # Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 #         I. Kavcic, Met Office
 #         J. Henrichs, Bureau of Meteorology
+# Modified A. B. G. Chalk, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' This module contains the SymbolTable implementation. '''
@@ -282,8 +283,10 @@ class SymbolTable():
         # Fix the container links for imported symbols
         for symbol in new_st.imported_symbols:
             name = symbol.interface.container_symbol.name
+            orig_name = symbol.interface.orig_name
             new_container = new_st.lookup(name)
-            symbol.interface = ImportInterface(new_container)
+            symbol.interface = ImportInterface(new_container,
+                                               orig_name=orig_name)
 
         # Set the default visibility
         new_st._default_visibility = self.default_visibility
@@ -646,7 +649,9 @@ class SymbolTable():
                             other_sym,
                             self.next_available_name(
                                 other_sym.name, other_table=other_table))
-                isym.interface = ImportInterface(self.lookup(csym.name))
+                isym.interface = ImportInterface(
+                        self.lookup(csym.name),
+                        orig_name=isym.interface.orig_name)
 
     def _add_symbols_from_table(self, other_table, include_arguments=True):
         '''

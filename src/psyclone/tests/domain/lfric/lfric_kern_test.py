@@ -178,9 +178,9 @@ def test_get_kernel_schedule_mixed_precision():
                            name="invoke_0", dist_mem=False)
     sched = invoke.schedule
     kernels = sched.walk(LFRicKern, stop_type=LFRicKern)
-    # 26.8 contains an invoke of three kernels, one each at the following
+    # 26.8 contains an invoke of five kernels, one each at the following
     # precisions.
-    kernel_precisions = ["r_def", "r_solver", "r_tran"]
+    kernel_precisions = ["r_def", "r_solver", "r_tran", "r_bl", "r_phys"]
     # Get the precision (in bytes) for each of these.
     precisions = [LFRicConstants.PRECISION_MAP[name] for
                   name in kernel_precisions]
@@ -357,10 +357,11 @@ def test_validate_kernel_code_arg(monkeypatch):
         "For dimension 1 in array argument 'field' to kernel 'dummy' the "
         "following error was found: An argument to an LFRic kernel must have a"
         " precision defined by either a recognised LFRic type parameter (one "
-        "of ['i_def', 'l_def', 'r_def', 'r_double', 'r_ncdf', 'r_quad', "
-        "'r_second', 'r_single', 'r_solver', 'r_tran', 'r_um']) or an "
-        "integer number of bytes but argument 'generic_int_scalar' to kernel "
-        "'dummy' has precision Precision.UNDEFINED" in str(info.value))
+        "of ['i_def', 'l_def', 'r_bl', 'r_def', 'r_double', 'r_ncdf', "
+        "'r_phys', 'r_quad', 'r_second', 'r_single', 'r_solver', 'r_tran', "
+        "'r_um']) or an integer number of bytes but argument "
+        "'generic_int_scalar' to kernel 'dummy' has precision "
+        "Precision.UNDEFINED" in str(info.value))
 
     # Monkeypatch lfric_real_scalar_symbol to return that it is not a
     # scalar in order to force the required exception. We do this by
@@ -450,35 +451,3 @@ def test_kern_all_updates_are_writes():
     # Change the GH_INC to be GH_WRITE.
     loop.kernel.args[1]._access = AccessType.WRITE
     assert loop.kernel.all_updates_are_writes
-
-
-def test_kern_local_vars():
-    ''' Check that the LFRicKern.local_vars() method returns the expected
-    names used by the Kernel that vary from one invocation to the next.
-
-    '''
-    kernel = LFRicKern()
-    output = kernel.local_vars()
-    assert output == []
-
-
-def test_kern_not_coloured_inc(monkeypatch):
-    ''' Tests that there is no kernel argument with INC access when OpenMP
-    is applied without colouring.
-
-    '''
-    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-                           api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    sched = psy.invokes.invoke_list[0].schedule
-    kern = sched.walk(LFRicKern)[0]
-    # Kernel is not coloured.
-    assert kern.is_coloured() is False
-    # Monkeypatch the Kernel so that it appears to be OpenMP parallel.
-    monkeypatch.setattr(kern, "is_openmp_parallel", lambda: True)
-    assert kern.is_openmp_parallel() is True
-    with pytest.raises(GenerationError) as err:
-        _ = psy.gen
-    assert ("Kernel 'testkern_code' has an argument with INC access and "
-            "therefore must be coloured in order to be parallelised with "
-            "OpenMP.")

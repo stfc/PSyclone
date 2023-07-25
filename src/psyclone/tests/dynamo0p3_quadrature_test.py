@@ -90,7 +90,7 @@ def test_field_xyoz(tmpdir):
     output_decls = (
         "    SUBROUTINE invoke_0_testkern_qr_type(f1, f2, m1, a, m2, istp,"
         " qr)\n"
-        "      USE testkern_qr, ONLY: testkern_qr_code\n"
+        "      USE testkern_qr_mod, ONLY: testkern_qr_code\n"
         "      USE quadrature_xyoz_mod, ONLY: quadrature_xyoz_type, "
         "quadrature_xyoz_proxy_type\n"
         "      USE function_space_mod, ONLY: BASIS, DIFF_BASIS\n"
@@ -710,7 +710,7 @@ def test_lfrickern_setup(monkeypatch):
     monkeypatch.setattr(kern, "_eval_shapes", value=["gh_wrong_shape"])
     # Rather than try and mock-up a DynKernMetadata object, it's easier
     # to make one properly by parsing the kernel code.
-    ast = fpapi.parse(os.path.join(BASE_PATH, "testkern_qr.F90"),
+    ast = fpapi.parse(os.path.join(BASE_PATH, "testkern_qr_mod.F90"),
                       ignore_comments=False)
     name = "testkern_qr_type"
     dkm = DynKernMetadata(ast, name=name)

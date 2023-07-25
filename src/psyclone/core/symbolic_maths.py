@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -72,7 +72,7 @@ class SymbolicMaths:
         singleton SymbolicMaths instance.
 
         :returns: the instance of the symbolic maths class.
-        :rtype: :py:class:`psyclone.core.SymbolicMaths.`
+        :rtype: :py:class:`psyclone.core.SymbolicMaths`
 
         '''
         if SymbolicMaths._instance is None:
@@ -86,9 +86,9 @@ class SymbolicMaths:
         '''Test if the two PSyIR expressions are symbolically equivalent.
 
         :param exp1: the first expression to be compared.
-        :type exp1: Optional[:py:class:`psyclone.psyir.nodes.Node`]
-        :param exp2: the first expression to be compared.
-        :type exp2: Optional[:py:class:`psyclone.psyir.nodes.Node`]
+        :type exp1: :py:class:`psyclone.psyir.nodes.Node`
+        :param exp2: the second expression to be compared.
+        :type exp2: :py:class:`psyclone.psyir.nodes.Node`
 
         :returns: whether the two expressions are mathematically \
             identical.
@@ -99,7 +99,12 @@ class SymbolicMaths:
         if exp1 is None or exp2 is None:
             return exp1 == exp2
 
-        return SymbolicMaths._subtract(exp1, exp2) == 0
+        diff = SymbolicMaths._subtract(exp1, exp2)
+        # For ranges all values (start, stop, step) must be equal, meaning
+        # each index of the difference must evaluate to 0:
+        if isinstance(diff, list):
+            return all(isinstance(i, core.numbers.Zero) for i in diff)
+        return isinstance(diff, core.numbers.Zero)
 
     # -------------------------------------------------------------------------
     @staticmethod
@@ -110,9 +115,9 @@ class SymbolicMaths:
         different.
 
         :param exp1: the first expression to be compared.
-        :type exp1: py:class:`psyclone.psyir.nodes.Node`
-        :param exp2: the first expression to be compared.
-        :type exp2: py:class:`psyclone.psyir.nodes.Node`
+        :type exp1: :py:class:`psyclone.psyir.nodes.Node`
+        :param exp2: the second expression to be compared.
+        :type exp2: :py:class:`psyclone.psyir.nodes.Node`
 
         :returns: whether or not the expressions are never equal.
         :rtype: bool
@@ -126,15 +131,32 @@ class SymbolicMaths:
             result = SymbolicMaths._subtract(exp1, exp2)
         except VisitorError:
             return False
+        # In case of a range, subtract will return a list of tuple. To
+        # simplify the following tests, convert a non-list into a one
+        # element list:
+        if not isinstance(result, list):
+            result = [result]
 
-        # If the result is 0, they are always the same:
-        if isinstance(result, core.numbers.Zero):
+        # If the result(s) are all 0, the expressions are always the same:
+        if all(isinstance(i, core.numbers.Zero) for i in result):
             return False
 
-        # If the result is an integer value, the result is independent
-        # of any variable, and never equal
-        if isinstance(result, core.numbers.Integer):
-            return result != 0
+        # Handle the common case of a single integer expressions. In this
+        # case we know because of the previous test that the result is not
+        # 0, so if the result is an integer (i.e. not symbolic), we know that
+        # that the expressions are never equal:
+        if len(result) == 1 and isinstance(result[0], core.numbers.Integer):
+            return True
+
+        # TODO #2168: We can likely produce more precise results if we
+        # analyse the values as ranges, e.g. the two results (1, 5, 2)
+        # and (6,10, 2) coming from a(1:5:2) and (6:10:2) will never be
+        # equal, but (1, 11, 2) and (5, 7, 2) will overlap. For now return
+        # always False, indicating that they might be identical. A test like:
+        # if any(isinstance(i, core.numbers.Integer) for i in result):
+        # would allow us to handle e.g the case of all integer values. On
+        # the other hand, it is not known how useful this is, i.e. if we
+        # will ever see this.
 
         # Otherwise the result depends on one or more variables (e.g.
         # n-5), so it might be zero.
@@ -144,16 +166,20 @@ class SymbolicMaths:
     @staticmethod
     def _subtract(exp1, exp2):
         '''Subtracts two PSyIR expressions and returns the simplified result
-        of this operation.
+        of this operation. An expression might result in multiple SymPy
+        expressions - for example, a `Range` node becomes a 3-tuple (start,
+        stop, step). In this case, each of the components will be handled
+        individually, and a list will be returned.
 
         :param exp1: the first expression to be compared.
         :type exp1: Optional[:py:class:`psyclone.psyir.nodes.Node`]
-        :param exp2: the first expression to be compared.
+        :param exp2: the second expression to be compared.
         :type exp2: Optional[:py:class:`psyclone.psyir.nodes.Node`]
 
         :returns: the sympy expression resulting from subtracting exp2 \
             from exp1.
-        :rtype: :py:class:`sympy.core.basic.Basic`
+        :rtype: Union[:py:class:`sympy.core.basic.Basic`,
+                      List[:py:class:`sympy.core.basic.Basic`]]
 
         '''
         # Avoid circular import
@@ -162,8 +188,16 @@ class SymbolicMaths:
 
         # Use the SymPyWriter to convert the two expressions to
         # SymPy expressions:
-        sympy_expressions = SymPyWriter.convert_to_sympy_expressions([exp1,
-                                                                      exp2])
+        sympy_expressions = SymPyWriter(exp1, exp2)
+        # If an expression is a range node, then the corresponding SymPy
+        # expression will be a tuple:
+        if isinstance(sympy_expressions[0], tuple) and \
+                isinstance(sympy_expressions[1], tuple):
+            result = []
+            for i, j in zip(sympy_expressions[0], sympy_expressions[1]):
+                result.append(simplify(i - j))
+            return result
+
         # Simplify triggers a set of SymPy algorithms to simplify
         # the expression.
         return simplify(sympy_expressions[0] - sympy_expressions[1])
@@ -258,27 +292,31 @@ class SymbolicMaths:
         nodes, see issue #1655.
 
         :param expr: the expression to be expanded.
-        :type expr: py:class:`psyclone.psyir.nodes.Node`
+        :type expr: :py:class:`psyclone.psyir.nodes.Node`
 
         '''
         # Avoid circular import
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.backend.sympy_writer import SymPyWriter
-        from psyclone.psyir.frontend.fortran import FortranReader
+        from psyclone.psyir.frontend.sympy_reader import SymPyReader
         from psyclone.psyir.nodes import Reference, Literal
 
         # variables and literals do not require expansion
         if isinstance(expr, (Reference, Literal)):
             return
         # Convert the PSyIR expression to a sympy expression
-        sympy_expression = SymPyWriter.convert_to_sympy_expressions([expr])
+        sympy_writer = SymPyWriter()
+        sympy_expression = sympy_writer(expr)
         # Expand the expression
-        result = expand(sympy_expression[0])
+        result = expand(sympy_expression)
+
         # Find the required symbol table in the original PSyIR
         symbol_table = expr.scope.symbol_table
+
+        sympy_reader = SymPyReader(sympy_writer)
         # Convert the new sympy expression to PSyIR
-        reader = FortranReader()
-        new_expr = reader.psyir_from_expression(str(result), symbol_table)
+        new_expr = sympy_reader.psyir_from_expression(result, symbol_table)
+
         # If the expanded result is the same as the original then
         # nothing needs to be done.
         if new_expr == expr:
