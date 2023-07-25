@@ -1317,12 +1317,12 @@ def test_generate_unknown_container_lfric(tmpdir, monkeypatch):
     shutil.copyfile(kern_filename, str(tmpdir.join("testkern_mod.F90")))
     with pytest.raises(GenerationError) as info:
         _, _ = generate(alg_filename)
-    assert("Kernel functor 'testkern_type' in routine 'some_kernel' from "
-           "algorithm file '" in str(info.value))
-    assert("alg.f90' must be named in a use statement (found ["
-           "'constants_mod', 'field_mod', '_psyclone_builtins', "
-           "'module_mod']) or be a recognised built-in (one of "
-           "['x_plus_y', 'inc_x_plus_y'," in str(info.value))
+    assert ("Kernel functor 'testkern_type' in routine 'some_kernel' from "
+            "algorithm file '" in str(info.value))
+    assert ("alg.f90' must be named in a use statement (found ["
+            "'constants_mod', 'field_mod', '_psyclone_builtins', "
+            "'module_mod']) or be a recognised built-in (one of "
+            "['x_plus_y', 'inc_x_plus_y'," in str(info.value))
 
 
 def test_generate_unknown_container_gocean(tmpdir):
@@ -1360,8 +1360,8 @@ def test_generate_unknown_container_gocean(tmpdir):
     shutil.copyfile(kern_filename, str(tmpdir.join("compute_cu_mod.f90")))
     with pytest.raises(GenerationError) as info:
         _, _ = generate(alg_filename, api="gocean1.0")
-    assert("Kernel functor 'compute_cu' in routine 'some_kernel' from "
-           "algorithm file '" in str(info.value))
-    assert("alg.f90' must be named in a use statement (found "
-           "['kind_params_mod', 'grid_mod', 'field_mod', 'module_mod'])."
-           in str(info.value))
+    assert ("Kernel functor 'compute_cu' in routine 'some_kernel' from "
+            "algorithm file '" in str(info.value))
+    assert ("alg.f90' must be named in a use statement (found "
+            "['kind_params_mod', 'grid_mod', 'field_mod', 'module_mod'])."
+            in str(info.value))
