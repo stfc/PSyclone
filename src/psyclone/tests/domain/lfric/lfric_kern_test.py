@@ -58,8 +58,8 @@ from psyclone.psyir.symbols import ArgumentInterface, DataSymbol, REAL_TYPE, \
 from psyclone.tests.utilities import get_invoke
 from psyclone.transformations import Dynamo0p3ColourTrans
 
-BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                         "test_files", "dynamo0p3")
+BASE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
+                os.path.abspath(__file__)))), "test_files", "dynamo0p3")
 TEST_API = "dynamo0.3"
 
 CODE = '''
