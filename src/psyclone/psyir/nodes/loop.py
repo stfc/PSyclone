@@ -111,7 +111,10 @@ class Loop(Statement):
         :rtype: bool
         '''
         is_eq = super().__eq__(other)
-        is_eq = is_eq and self.variable == other.variable
+        # Similar to Reference equality, it is enough to compare the name
+        # since if the same-named symbols represent the same is already
+        # done in their respective scope symbol_table equality check.
+        is_eq = is_eq and self.variable.name == other.variable.name
 
         return is_eq
 
