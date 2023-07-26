@@ -47,7 +47,7 @@ TL_KERNEL_NAME ?=
 TL_KERNEL_FILE = ${TL_KERNEL_NAME}_mod.F90
 ADJ_KERNEL_FILE = $(addprefix adj_,$(subst tl_,,${TL_KERNEL_FILE}))
 
-GENERATED_FILES = ${OUT_DIR}/adj*.[fF]90 ../adjoint/adj_transpose_matrix_vector_kernel_mod.F90 ../adjoint/adj_hydrostatic_kernel_mod.F90 ../adjoint/add_moist_dyn_mass_kernel_mod.F90 ../adjoint/adj_w3_advective_update_kernel_mod.F90 ../adjoint/adj_combine_w2_field_kernel_mod.F90 ../adjoint/adj_split_w2_field_kernel_mod.F90 ../adjoint/adj_sample_flux_kernel_mod.F90 ../adjoint/adj_tracer_viscosity_kernel_mod.F90 ../adjoint/adj_dg_matrix_vector_kernel_mod.F90 ../adjoint/adj_w2_to_w1_projection_kernel_mod.F90
+GENERATED_FILES = ${OUT_DIR}/adj*.[fF]90 ../adjoint/adj_transpose_matrix_vector_kernel_mod.F90 ../adjoint/adj_hydrostatic_kernel_mod.F90 ../adjoint/adj_moist_dyn_mass_kernel_mod.F90 ../adjoint/adj_w3_advective_update_kernel_mod.F90 ../adjoint/adj_combine_w2_field_kernel_mod.F90 ../adjoint/adj_split_w2_field_kernel_mod.F90 ../adjoint/adj_sample_flux_kernel_mod.F90 ../adjoint/adj_tracer_viscosity_kernel_mod.F90 ../adjoint/adj_dg_matrix_vector_kernel_mod.F90 ../adjoint/adj_w2_to_w1_projection_kernel_mod.F90
 
 single: ${ADJ_KERNEL_FILE}
 
