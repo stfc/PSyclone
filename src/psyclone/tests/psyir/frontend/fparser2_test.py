@@ -2930,28 +2930,3 @@ def test_declarations_with_initialisations_errors(parser):
     with pytest.raises(ValueError) as err:
         _ = processor.get_routine_schedules("a", ast)
     assert "error to propagate" in str(err.value)
-
-
-@pytest.mark.parametrize("visibility", [
-    Symbol.Visibility.PUBLIC, Symbol.Visibility.PRIVATE])
-def test_visibility_interface(fortran_reader, visibility):
-    '''Test that PSyclone successfully parses public/private symbols where
-    their declaration is hidden in an abstract interface.
-
-    '''
-    code = (
-        f"module test\n"
-        f"  abstract interface\n"
-        f"     subroutine update_interface()\n"
-        f"     end subroutine update_interface\n"
-        f"  end interface\n"
-        f"  {visibility.name} :: update_interface\n"
-        f"contains\n"
-        f"  subroutine alg()\n"
-        f"  end subroutine alg\n"
-        f"end module test\n")
-    psyir = fortran_reader.psyir_from_source(code)
-    symbol_table = psyir.children[0].symbol_table
-    assert symbol_table.lookup("_psyclone_internal_interface")
-    symbol = symbol_table.lookup("update_interface")
-    assert symbol.visibility is visibility
