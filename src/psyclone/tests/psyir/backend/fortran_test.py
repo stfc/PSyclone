@@ -53,8 +53,7 @@ from psyclone.psyir.nodes import (
     OMPDependClause, IntrinsicCall)
 from psyclone.psyir.symbols import (
     DataSymbol, SymbolTable, ContainerSymbol, RoutineSymbol, Symbol,
-    ImportInterface, ArgumentInterface, AutomaticInterface,
-    UnresolvedInterface, StaticInterface,
+    ImportInterface, ArgumentInterface, UnresolvedInterface, StaticInterface,
     ScalarType, ArrayType, INTEGER_TYPE, REAL_TYPE, CHARACTER_TYPE,
     BOOLEAN_TYPE, REAL_DOUBLE_TYPE, DeferredType,
     UnknownType, UnknownFortranType, DataTypeSymbol, StructureType)

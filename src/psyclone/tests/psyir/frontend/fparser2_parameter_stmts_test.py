@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: S. Siso, STFC Daresbury Lab
+# Modified: A. R. Porter, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' Tests Fortran parameter statements in the fparser2 PSyIR front-end '''

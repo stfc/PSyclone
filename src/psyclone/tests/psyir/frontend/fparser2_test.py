@@ -881,8 +881,7 @@ def test_process_declarations():
     assert ("Symbol 'i2' already present in SymbolTable with a defined "
             "interface" in str(error.value))
 
-    # Initialisation of a pointer. C506 of F2003 says that only '=> null()'
-    # is permitted.
+    # Initialisation of a pointer.
     reader = FortranStringReader(
         "real, dimension(:), pointer :: dptr => null()")
     fparser2spec = Specification_Part(reader).content[0]

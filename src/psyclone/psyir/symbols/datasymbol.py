@@ -39,6 +39,7 @@
 ''' This module contains the DataSymbol and its interfaces.'''
 
 from psyclone.psyir.symbols.typed_symbol import TypedSymbol
+from psyclone.psyir.symbols.interfaces import StaticInterface
 
 
 class DataSymbol(TypedSymbol):
@@ -152,7 +153,6 @@ class DataSymbol(TypedSymbol):
             else:
                 # No explicit interface was supplied and this Symbol represents
                 # a runtime constant so change its interface to be static.
-                from psyclone.psyir.symbols.interfaces import StaticInterface
                 self.interface = StaticInterface()
 
     @property

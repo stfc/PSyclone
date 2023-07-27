@@ -646,7 +646,7 @@ class FortranWriter(LanguageWriter):
         # Specify name
         result += f" :: {symbol.name}"
 
-        # Specify initialization expression
+        # Specify initialisation expression
         if isinstance(symbol, DataSymbol) and symbol.initial_value:
             if not symbol.is_static:
                 raise VisitorError(
