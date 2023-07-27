@@ -1786,8 +1786,6 @@ class Fparser2Reader():
             a non-array declaration.
         :raises InternalError: if an array with defined extent has the \
             allocatable attribute.
-        :raises NotImplementedError: if an initialisation expression is found \
-            for a variable declaration.
         :raises NotImplementedError: if an unsupported initialisation \
             expression is found for a parameter declaration.
         :raises NotImplementedError: if a character-length specification is \
@@ -1891,7 +1889,7 @@ class Fparser2Reader():
                 interface = DefaultModuleInterface()
             else:
                 interface = AutomaticInterface()
-                # This might still be redifined as Argument later if it
+                # This might still be redefined as Argument later if it
                 # appears in the argument list, but we don't know at this
                 # point.
 
@@ -1899,7 +1897,7 @@ class Fparser2Reader():
         # parent symbol table for each entity found.
         for entity in entities.items:
             (name, array_spec, char_len, initialisation) = entity.items
-            ct_expr = None
+            init_expr = None
 
             # If the entity has an array-spec shape, it has priority.
             # Otherwise use the declaration attribute shape.
@@ -1931,19 +1929,12 @@ class Fparser2Reader():
                         f"extent cannot have the ALLOCATABLE attribute.")
 
             if initialisation:
-                if has_constant_value:
-                    # If it is a parameter parse its initialization into
-                    # a dummy Assignment (but connected to the current scope
-                    # since symbols must be resolved)
-                    dummynode = Assignment(parent=scope)
-                    expr = initialisation.items[1]
-                    self.process_nodes(parent=dummynode, nodes=[expr])
-                    ct_expr = dummynode.children[0].detach()
-                else:
-                    raise NotImplementedError(
-                        f"Could not process {decl.items}. Initialisations on "
-                        f"the declaration statements are only supported for "
-                        f"parameter declarations.")
+                # If the variable or parameter has an initial value then
+                # parse its initialization into a dummy Assignment.
+                dummynode = Assignment(parent=scope)
+                expr = initialisation.items[1]
+                self.process_nodes(parent=dummynode, nodes=[expr])
+                init_expr = dummynode.children[0].detach()
 
             if char_len is not None:
                 raise NotImplementedError(
@@ -1990,7 +1981,8 @@ class Fparser2Reader():
                 try:
                     sym = DataSymbol(sym_name, datatype,
                                      visibility=visibility,
-                                     constant_value=ct_expr)
+                                     is_constant=has_constant_value,
+                                     initial_value=init_expr)
                 except ValueError:
                     # Error setting initial value have to be raised as
                     # NotImplementedError in order to create an UnknownType
@@ -2009,7 +2001,14 @@ class Fparser2Reader():
             # We use copies of the interface object because we will reuse the
             # interface for each entity if there are multiple in the same
             # declaration statement.
-            sym.interface = interface.copy()
+            if init_expr:
+                # In Fortran, an initialisation expression on a declaration of
+                # a symbol (whether in a routine or a module) implies that the
+                # symbol is static (endures for the lifetime of the program)
+                # unless it is a pointer initialisation.
+                sym.interface = StaticInterface()
+            else:
+                sym.interface = interface.copy()
 
     def _process_derived_type_decln(self, parent, decl, visibility_map):
         '''
@@ -2123,27 +2122,23 @@ class Fparser2Reader():
         :type visibility_map: dict with str keys and values of type
             :py:class:`psyclone.psyir.symbols.Symbol.Visibility`
 
-        :returns: a PSyIR datatype, or datatype symbol, containing
-            partial datatype information for the declaration statement
-            in the cases where it is possible to extract this
-            information and None otherwise.
-        :rtype: Optional[:py:class:`psyclone.psyir.symbols.DataType` or
-            :py:class:`psyclone.psyir.symbols.DataTypeSymbol`]
+        :returns: a 2-tuple containing a PSyIR datatype, or datatype symbol,
+            containing partial datatype information for the declaration
+            statement and the PSyIR for any initialisation expression.
+            When it is not possible to extract partial datatype information
+            then (None, None) is returned.
+        :rtype: Tuple[
+            Optional[:py:class:`psyclone.psyir.symbols.DataType` |
+                     :py:class:`psyclone.psyir.symbols.DataTypeSymbol`],
+            Optional[:py:class:`psyclone.psyir.nodes.Node`]]
 
         '''
-        # 1: Remove any initialisation and additional variables. TODO:
-        # This won't be needed when #1419 is implemented (assuming the
-        # implementation supports both assignments and pointer
-        # assignments).
+        # 1: Remove any additional variables.
         entity_decl_list = node.children[2]
         orig_entity_decl_list = list(entity_decl_list.children[:])
         entity_decl_list.items = tuple(entity_decl_list.children[0:1])
         entity_decl = entity_decl_list.children[0]
         orig_entity_decl_children = list(entity_decl.children[:])
-        if isinstance(entity_decl.children[3], Fortran2003.Initialization):
-            entity_decl.items = (
-                entity_decl.items[0], entity_decl.items[1],
-                entity_decl.items[2], None)
 
         # 2: Remove any unsupported attributes
         unsupported_attribute_names = ["pointer", "target"]
@@ -2168,9 +2163,12 @@ class Fparser2Reader():
                                 visibility_map)
             symbol_name = node.children[2].children[0].children[0].string
             symbol_name = symbol_name.lower()
-            datatype = symbol_table.lookup(symbol_name).datatype
+            new_sym = symbol_table.lookup(symbol_name)
+            datatype = new_sym.datatype
+            init_expr = new_sym.initial_value
         except NotImplementedError:
             datatype = None
+            init_expr = None
 
         # Restore the fparser2 parse tree
         node.items = tuple(orig_node_children)
@@ -2179,7 +2177,7 @@ class Fparser2Reader():
         node.children[2].items = tuple(orig_entity_decl_list)
         node.children[2].children[0].items = tuple(orig_entity_decl_children)
 
-        return datatype
+        return datatype, init_expr
 
     def process_declarations(self, parent, nodes, arg_list,
                              visibility_map=None):
@@ -2331,7 +2329,7 @@ class Fparser2Reader():
                             pass
 
                         # Try to extract partial datatype information.
-                        datatype = self._get_partial_datatype(
+                        datatype, init = self._get_partial_datatype(
                             node, parent, visibility_map)
 
                         # If a declaration declares multiple entities, it's
@@ -2344,7 +2342,8 @@ class Fparser2Reader():
                                         str(node),
                                         partial_datatype=datatype),
                                     interface=UnknownInterface(),
-                                    visibility=vis),
+                                    visibility=vis,
+                                    initial_value=init),
                                 tag=tag)
 
                         except KeyError as err:
@@ -2397,7 +2396,10 @@ class Fparser2Reader():
                             # Add the initialization expression in the symbol
                             # constant_value attribute
                             ct_expr = dummynode.children[0].detach()
-                            symbol.constant_value = ct_expr
+                            symbol.initial_value = ct_expr
+                            symbol.is_constant = True
+                            # Ensure the interface to this Symbol is static
+                            symbol.interface = StaticInterface()
                     else:
                         # TODO #1254: We currently silently ignore the rest of
                         # the Implicit_Part statements
@@ -2508,12 +2510,15 @@ class Fparser2Reader():
 
         :param nodes: fparser2 AST nodes containing declaration statements.
         :type nodes: List[:py:class:`fparser.two.utils.Base`]
-        :param psyir_parent: the PSyIR Node with a symbol table in which to \
+        :param psyir_parent: the PSyIR Node with a symbol table in which to
             add the Common Blocks and update the symbols interfaces.
         :type psyir_parent: :py:class:`psyclone.psyir.nodes.ScopingNode`
 
-        :raises NotImplementedError: if it is unable to find one of the \
-            CommonBlock expressions in the symbol table (because it has not \
+        :raises NotImplementedError: if one of the Symbols in a common block
+            has initialisation (including when it is a parameter). This is not
+            valid Fortran.
+        :raises NotImplementedError: if it is unable to find one of the
+            CommonBlock expressions in the symbol table (because it has not
             been declared yet or when it is not just the symbol name).
 
         '''
@@ -2538,6 +2543,13 @@ class Fparser2Reader():
                         for symbol_name in cb_object[1].items:
                             sym = psyir_parent.symbol_table.lookup(
                                         str(symbol_name))
+                            if sym.initial_value:
+                                # This is C506 of the F2008 standard.
+                                raise NotImplementedError(
+                                    f"Symbol '{sym.name}' has an initial value"
+                                    f" ({sym.initial_value.debug_string()}) "
+                                    f"but appears in a common block. This is "
+                                    f"not valid Fortran.")
                             sym.interface = CommonBlockInterface()
                 except KeyError as error:
                     raise NotImplementedError(
