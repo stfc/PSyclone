@@ -526,13 +526,18 @@ class KernelProcedure():
     def get_procedure(ast, name, modast):
         '''
         Get the name of the subroutine associated with the Kernel. This is
-        a type-bound procedure in the meta-data which may take one of three
-        forms:
+        a type-bound procedure in the meta-data, or an interface,
+        which may take one of three forms:
+
                 PROCEDURE, nopass :: code => <proc_name>
         or
                 PROCEDURE, nopass :: <proc_name>
-        or if there is no type-bound procedure, an interface may be used:
+        or
                 INTERFACE <proc_name>
+
+        If an interface is provided then the type-bound procedure is
+        allowed but is optional and must have the same name as the
+        interface.
 
         :param ast: the fparser1 parse tree for the Kernel meta-data.
         :type ast: :py:class:`fparser.one.block_statements.Type`
@@ -555,6 +560,7 @@ class KernelProcedure():
                             name but the generic name is not "code".
         :raises InternalError: if we get an empty string for the name of the \
                                type-bound procedure.
+
         '''
         bname = None
         # Search the the meta-data for a SpecificBinding
@@ -572,21 +578,30 @@ class KernelProcedure():
                 else:
                     bname = statement.name.lower()
                 break
-        if bname is None:
-            # If no type-bound procedure found, search for an explicit
-            # interface that has module procedures.
-            bname, subnames = get_kernel_interface(name, modast)
-            if bname is None:
-                # no interface found either
-                raise ParseError(
-                    f"Kernel type {name} does not bind a specific procedure "
-                    f"or provide an explicit interface")
-        elif bname == '':
+
+        if bname == '':
             raise InternalError(
                 f"Empty Kernel name returned for Kernel type {name}.")
+
+        # See if an interface has been declared
+        subnames = None
+        interface_name, interface_subnames = get_kernel_interface(name, modast)
+        if interface_name:
+            if bname and (interface_name.lower() != bname.lower()):
+                raise ParseError(
+                    f"The interface name '{interface_name}' does not match "
+                    f"the metadata procedure name '{bname}'.")
+            bname = interface_name
+            subnames = interface_subnames
         else:
-            # add the name of the tbp to the list of strings to search for.
             subnames = [bname]
+
+        if not bname and not interface_name:
+            # No procedure name or interface found
+            raise ParseError(
+                f"Kernel type {name} does not bind a specific procedure "
+                f"or provide an explicit interface")
+
         # walk the AST to check the subroutine names exist.
         procedure_count = 0
         for subname in subnames:
