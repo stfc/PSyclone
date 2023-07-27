@@ -43,12 +43,12 @@ import pytest
 from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
 
-from psyclone.psyir.symbols import DataSymbol, ContainerSymbol, \
-    AutomaticInterface, ImportInterface, ArgumentInterface, \
-    ScalarType, ArrayType, REAL_SINGLE_TYPE, REAL_DOUBLE_TYPE, REAL4_TYPE, \
-    REAL8_TYPE, INTEGER_SINGLE_TYPE, INTEGER_DOUBLE_TYPE, INTEGER4_TYPE, \
-    BOOLEAN_TYPE, CHARACTER_TYPE, DeferredType, Symbol, DataTypeSymbol, \
-    UnresolvedInterface
+from psyclone.psyir.symbols import (
+    DataSymbol, ContainerSymbol, Symbol, DataTypeSymbol, AutomaticInterface,
+    ImportInterface, ArgumentInterface, UnresolvedInterface,
+    ScalarType, ArrayType, REAL_SINGLE_TYPE, REAL_DOUBLE_TYPE, REAL4_TYPE,
+    REAL8_TYPE, INTEGER_SINGLE_TYPE, INTEGER_DOUBLE_TYPE, INTEGER4_TYPE,
+    BOOLEAN_TYPE, CHARACTER_TYPE, DeferredType)
 from psyclone.psyir.nodes import (Literal, Reference, BinaryOperation, Return,
                                   CodeBlock)
 
@@ -65,19 +65,31 @@ def test_datasymbol_initialisation():
     real_kind_type = ScalarType(ScalarType.Intrinsic.REAL, kind)
     assert isinstance(DataSymbol('a', real_kind_type),
                       DataSymbol)
-    # real constants are not currently supported
     assert isinstance(DataSymbol('a', INTEGER_SINGLE_TYPE), DataSymbol)
-    assert isinstance(DataSymbol('a', INTEGER_DOUBLE_TYPE, constant_value=0),
-                      DataSymbol)
+    # Run-time constant.
+    sym = DataSymbol('a', REAL_DOUBLE_TYPE, is_constant=True,
+                     initial_value=0.0)
+    assert isinstance(sym, DataSymbol)
+    assert sym.is_constant
+    # Defaults to StaticInterface for a run-time constant.
+    assert sym.is_static
+    # Run-time constant can only have StaticInterface or ImportInterface.
+    with pytest.raises(ValueError) as err:
+        _ = DataSymbol('a', INTEGER_DOUBLE_TYPE, is_constant=True,
+                       initial_value=1, interface=AutomaticInterface())
+    assert ("A DataSymbol representing a constant must have either a "
+            "StaticInterface or an ImportInterface but 'a' has interface "
+            "'Automatic'" in str(err.value))
+
     assert isinstance(DataSymbol('a', INTEGER4_TYPE),
                       DataSymbol)
 
     assert isinstance(DataSymbol('a', CHARACTER_TYPE), DataSymbol)
-    assert isinstance(DataSymbol('a', CHARACTER_TYPE,
-                                 constant_value="hello"), DataSymbol)
+    assert isinstance(DataSymbol('a', CHARACTER_TYPE, is_constant=True,
+                                 initial_value="hello"), DataSymbol)
     assert isinstance(DataSymbol('a', BOOLEAN_TYPE), DataSymbol)
-    assert isinstance(DataSymbol('a', BOOLEAN_TYPE,
-                                 constant_value=False),
+    assert isinstance(DataSymbol('a', BOOLEAN_TYPE, is_constant=True,
+                                 initial_value=False),
                       DataSymbol)
     array_type = ArrayType(REAL_SINGLE_TYPE, [ArrayType.Extent.ATTRIBUTE])
     assert isinstance(DataSymbol('a', array_type), DataSymbol)
@@ -126,24 +138,43 @@ def test_datasymbol_specialise_and_process_arguments():
     sym2 = Symbol("symbol2")
     sym2.specialise(DataSymbol, datatype=REAL_SINGLE_TYPE)
     assert sym2.datatype is REAL_SINGLE_TYPE
-    assert sym2.constant_value is None
+    assert sym2.is_constant is False
+    assert sym2.initial_value is None
 
-    # Include a constant_value
+    # Include an initial_value
     sym3 = Symbol("symbol3")
     sym3.specialise(DataSymbol, datatype=REAL_SINGLE_TYPE,
-                    constant_value=3.14)
+                    initial_value=3.14)
     assert sym3.datatype is REAL_SINGLE_TYPE
-    assert isinstance(sym3.constant_value, Literal)
-    assert sym3.constant_value.value == '3.14'
+    assert isinstance(sym3.initial_value, Literal)
+    assert sym3.initial_value.value == '3.14'
 
-    # Include a constant_value of the wrong type
+    # Include an initial_value of the wrong type
     sym4 = Symbol("symbol4")
     with pytest.raises(ValueError) as error:
         sym4.specialise(DataSymbol, datatype=INTEGER_SINGLE_TYPE,
-                        constant_value=3.14)
+                        initial_value=3.14)
     assert ("This DataSymbol instance datatype is 'Scalar<INTEGER, SINGLE>' "
-            "meaning the constant value should be"
+            "meaning the initial value should be"
             in str(error.value))
+
+    # Attempt to specify that the symbol is constant but without providing an
+    # initial value.
+    sym5 = Symbol("symbol5")
+    with pytest.raises(ValueError) as error:
+        sym5.specialise(DataSymbol, datatype=INTEGER_SINGLE_TYPE,
+                        is_constant=True)
+    assert ("DataSymbol 'symbol5' does not have an initial value set and is "
+            "not imported and therefore cannot be a constant."
+            in str(error.value))
+    # The absence of an initial value is permitted if the symbol has an
+    # ImportInterface.
+    csym = ContainerSymbol("some_mod")
+    sym6 = Symbol("symbol6")
+    sym6.specialise(DataSymbol, datatype=INTEGER_SINGLE_TYPE,
+                    is_constant=True, interface=ImportInterface(csym))
+    assert sym6.is_constant
+    assert sym6.is_import
 
 
 def test_datasymbol_can_be_printed():
@@ -170,99 +201,109 @@ def test_datasymbol_can_be_printed():
     assert ("s3: DataSymbol<Scalar<REAL, SINGLE>, Import(container='my_mod')>"
             in str(sym3))
 
-    sym3 = DataSymbol("s3", INTEGER_SINGLE_TYPE, constant_value=12)
+    sym3 = DataSymbol("s3", INTEGER_SINGLE_TYPE, initial_value=12)
     assert ("s3: DataSymbol<Scalar<INTEGER, SINGLE>, Automatic, "
-            "constant_value=Literal"
+            "initial_value=Literal"
             "[value:'12', Scalar<INTEGER, SINGLE>]>" in str(sym3))
-
+    sym3.is_constant = True
+    assert ("s3: DataSymbol<Scalar<INTEGER, SINGLE>, Automatic, "
+            "initial_value=Literal"
+            "[value:'12', Scalar<INTEGER, SINGLE>], constant=True>"
+            in str(sym3))
     sym4 = DataSymbol("s4", INTEGER_SINGLE_TYPE,
                       interface=UnresolvedInterface())
     assert "s4: DataSymbol<Scalar<INTEGER, SINGLE>, Unresolved>" in str(sym4)
 
 
-def test_datasymbol_constant_value_setter():
-    '''Test that a DataSymbol constant value can be set if given a new valid
-    constant value.'''
+def test_datasymbol_initial_value_setter():
+    '''Test that a DataSymbol initial value can be set if given a new valid
+    value.'''
 
     # Test with valid constant values
-    sym = DataSymbol('a', INTEGER_SINGLE_TYPE, constant_value=7)
-    assert sym.constant_value.value == "7"
-    sym.constant_value = 9
-    assert sym.constant_value.value == "9"
+    sym = DataSymbol('a', INTEGER_SINGLE_TYPE, initial_value=7)
+    assert sym.initial_value.value == "7"
+    sym.initial_value = 9
+    assert sym.initial_value.value == "9"
 
-    sym = DataSymbol('a', REAL_SINGLE_TYPE, constant_value=3.1415)
-    assert sym.constant_value.value == "3.1415"
-    sym.constant_value = 1.0
-    assert sym.constant_value.value == "1.0"
+    sym = DataSymbol('a', REAL_SINGLE_TYPE, initial_value=3.1415)
+    assert sym.initial_value.value == "3.1415"
+    sym.initial_value = 1.0
+    assert sym.initial_value.value == "1.0"
 
-    sym = DataSymbol('a', BOOLEAN_TYPE, constant_value=True)
-    assert sym.constant_value.value == "true"
-    sym.constant_value = False
-    assert sym.constant_value.value == "false"
+    sym = DataSymbol('a', BOOLEAN_TYPE, initial_value=True)
+    assert sym.initial_value.value == "true"
+    sym.initial_value = False
+    assert sym.initial_value.value == "false"
 
     # Test with valid constant expressions
     lhs = Literal('2', INTEGER_SINGLE_TYPE)
     rhs = Reference(DataSymbol('constval', INTEGER_SINGLE_TYPE))
     ct_expr = BinaryOperation.create(BinaryOperation.Operator.ADD, lhs, rhs)
-    sym = DataSymbol('a', INTEGER_SINGLE_TYPE, constant_value=ct_expr)
-    assert isinstance(sym.constant_value, BinaryOperation)
-    assert sym.constant_value is ct_expr
+    sym = DataSymbol('a', INTEGER_SINGLE_TYPE, initial_value=ct_expr)
+    assert isinstance(sym.initial_value, BinaryOperation)
+    assert sym.initial_value is ct_expr
 
-    # Test setting it back to non-constant
-    sym.constant_value = None
-    assert sym.constant_value is None
+    # Test setting it back to nothing
+    sym.initial_value = None
+    assert sym.initial_value is None
 
 
-def test_datasymbol_constant_value_setter_invalid():
-    '''Test that a DataSymbol constant value setter raises the appropriate
+def test_datasymbol_initial_value_setter_invalid():
+    '''Test that the DataSymbol initial_value setter raises the appropriate
     error if an invalid value and/or datatype are given.'''
 
     # Test with invalid constant values
     sym = DataSymbol('a', DeferredType())
     with pytest.raises(ValueError) as error:
-        sym.constant_value = 1.0
-    assert ("Error setting constant value for symbol 'a'. A DataSymbol with "
-            "a constant value must be a scalar or an array but found "
-            "'DeferredType'." in str(error.value))
+        sym.initial_value = 1.0
+    assert ("Error setting initial value for symbol 'a'. A DataSymbol with "
+            "an initial value must be a scalar or an array or of UnknownType "
+            "but found 'DeferredType'." in str(error.value))
 
-    # Test with invalid constant expressions
+    # Test with invalid initial expressions
     ct_expr = Return()
     with pytest.raises(ValueError) as error:
-        _ = DataSymbol('a', INTEGER_SINGLE_TYPE, constant_value=ct_expr)
-    assert ("Error setting constant value for symbol 'a'. PSyIR static "
+        _ = DataSymbol('a', INTEGER_SINGLE_TYPE, initial_value=ct_expr)
+    assert ("Error setting initial value for symbol 'a'. PSyIR static "
             "expressions can only contain PSyIR Literal, Operation, Reference "
             "or CodeBlock nodes but found:" in str(error.value))
 
     with pytest.raises(ValueError) as error:
         DataSymbol('a', INTEGER_SINGLE_TYPE, interface=ArgumentInterface(),
-                   constant_value=9)
-    assert ("Error setting constant value for symbol 'a'. A DataSymbol with "
-            "an ArgumentInterface can not have a constant value."
+                   initial_value=9)
+    assert ("Error setting initial value for symbol 'a'. A DataSymbol with "
+            "an ArgumentInterface can not have an initial value."
             in str(error.value))
 
     with pytest.raises(ValueError) as error:
-        DataSymbol('a', INTEGER_SINGLE_TYPE, constant_value=9.81)
-    assert ("Error setting constant value for symbol 'a'. This DataSymbol "
+        DataSymbol('a', INTEGER_SINGLE_TYPE, initial_value=9.81)
+    assert ("Error setting initial value for symbol 'a'. This DataSymbol "
             "instance datatype is 'Scalar<INTEGER, SINGLE>' meaning "
-            "the constant value should be") in str(error.value)
+            "the initial value should be") in str(error.value)
     assert "'int'>' but found " in str(error.value)
     assert "'float'>'." in str(error.value)
 
     with pytest.raises(ValueError) as error:
-        DataSymbol('a', CHARACTER_TYPE, constant_value=42)
-    assert ("Error setting constant value for symbol 'a'. This DataSymbol "
+        DataSymbol('a', CHARACTER_TYPE, initial_value=42)
+    assert ("Error setting initial value for symbol 'a'. This DataSymbol "
             "instance datatype is 'Scalar<CHARACTER, UNDEFINED>' meaning "
-            "the constant value should be") in str(error.value)
+            "the initial value should be") in str(error.value)
     assert "'str'>' but found " in str(error.value)
     assert "'int'>'." in str(error.value)
 
     with pytest.raises(ValueError) as error:
-        DataSymbol('a', BOOLEAN_TYPE, constant_value="hello")
-    assert ("Error setting constant value for symbol 'a'. This DataSymbol "
+        DataSymbol('a', BOOLEAN_TYPE, initial_value="hello")
+    assert ("Error setting initial value for symbol 'a'. This DataSymbol "
             "instance datatype is 'Scalar<BOOLEAN, UNDEFINED>' meaning "
-            "the constant value should be") in str(error.value)
+            "the initial value should be") in str(error.value)
     assert "'bool'>' but found " in str(error.value)
     assert "'str'>'." in str(error.value)
+
+    # is_constant specified but without an initial_value
+    with pytest.raises(ValueError) as error:
+        DataSymbol('a', BOOLEAN_TYPE, is_constant=True)
+    assert ("DataSymbol 'a' does not have an initial value set and is not "
+            "imported and therefore cannot be a constant" in str(error.value))
 
 
 def test_datasymbol_is_constant():
@@ -270,15 +311,25 @@ def test_datasymbol_is_constant():
     constant value is set and False if it is not.
 
     '''
-    sym = DataSymbol('a', INTEGER_SINGLE_TYPE)
+    sym = DataSymbol('a', INTEGER_SINGLE_TYPE, initial_value=9)
     assert not sym.is_constant
-    sym.constant_value = 9
+    sym.is_constant = True
     assert sym.is_constant
+    with pytest.raises(ValueError) as err:
+        sym.initial_value = None
+    assert ("DataSymbol 'a' is a constant and not imported and therefore "
+            "must have an initial value but got None" in str(err.value))
+    sym.is_constant = False
+    sym.initial_value = None
+    with pytest.raises(ValueError) as err:
+        sym.is_constant = True
+    assert ("DataSymbol 'a' does not have an initial value set and is not "
+            "imported and therefore cannot be a constant." in str(err.value))
 
 
 @pytest.mark.usefixtures("parser")
-def test_datasymbol_is_constant_codeblock():
-    ''' Test that a DataSymbol can have a CodeBlock as its constant value. '''
+def test_datasymbol_initial_value_codeblock():
+    ''' Test that a DataSymbol can have a CodeBlock as its initial value. '''
     sym = DataSymbol('a', INTEGER_SINGLE_TYPE)
     reader = FortranStringReader(
         "INTEGER, PARAMETER :: a=SELECTED_REAL_KIND(6,37)")
@@ -287,9 +338,9 @@ def test_datasymbol_is_constant_codeblock():
     # the basis for our CodeBlock
     inits = Fortran2003.walk(fparser2spec, Fortran2003.Initialization)
     cblock = CodeBlock([inits[0].children[1]], CodeBlock.Structure.EXPRESSION)
-    assert not sym.is_constant
-    sym.constant_value = cblock
-    assert sym.is_constant
+    assert sym.initial_value is None
+    sym.initial_value = cblock
+    assert isinstance(sym.initial_value, CodeBlock)
 
 
 def test_datasymbol_scalar_array():
@@ -314,7 +365,7 @@ def test_datasymbol_copy():
 
     '''
     array_type = ArrayType(REAL_SINGLE_TYPE, [1, 2])
-    symbol = DataSymbol("myname", array_type, constant_value=None,
+    symbol = DataSymbol("myname", array_type, initial_value=None,
                         interface=ArgumentInterface(
                             ArgumentInterface.Access.READWRITE))
     new_symbol = symbol.copy()
@@ -323,11 +374,12 @@ def test_datasymbol_copy():
     assert symbol.name == new_symbol.name
     assert symbol.datatype == new_symbol.datatype
     assert symbol.shape == new_symbol.shape
-    assert symbol.constant_value == new_symbol.constant_value
+    assert symbol.initial_value == new_symbol.initial_value
+    assert symbol.is_constant == new_symbol.is_constant
     assert symbol.interface == new_symbol.interface
 
     # Change the properties of the new symbol and check the original
-    # is not affected. Can't check constant_value yet as we have a
+    # is not affected. Can't check initial_value yet as we have a
     # shape value
     new_symbol._name = "new"
     new_symbol.datatype = ArrayType(ScalarType(ScalarType.Intrinsic.INTEGER,
@@ -357,10 +409,10 @@ def test_datasymbol_copy():
             ScalarType.Intrinsic.INTEGER)
     assert (symbol.shape[1].upper.datatype.precision ==
             ScalarType.Precision.UNDEFINED)
-    assert not symbol.constant_value
+    assert symbol.initial_value is None
 
-    # Now check constant_value
-    new_symbol.constant_value = 3
+    # Now check initial_value
+    new_symbol.initial_value = 3
 
     assert isinstance(symbol.shape[0].upper, Literal)
     assert symbol.shape[0].upper.value == "1"
@@ -374,13 +426,13 @@ def test_datasymbol_copy():
             ScalarType.Intrinsic.INTEGER)
     assert (symbol.shape[1].upper.datatype.precision ==
             ScalarType.Precision.UNDEFINED)
-    assert not symbol.constant_value
+    assert symbol.initial_value is None
 
 
 def test_datasymbol_copy_properties():
     '''Test that the DataSymbol copy_properties method works as expected.'''
     array_type = ArrayType(REAL_SINGLE_TYPE, [1, 2])
-    symbol = DataSymbol("myname", array_type, constant_value=None,
+    symbol = DataSymbol("myname", array_type, initial_value=None,
                         interface=ArgumentInterface(
                             ArgumentInterface.Access.READWRITE))
 
@@ -391,7 +443,7 @@ def test_datasymbol_copy_properties():
             "") in str(excinfo.value)
 
     new_symbol = DataSymbol("other_name", INTEGER_SINGLE_TYPE,
-                            constant_value=7)
+                            initial_value=7)
 
     symbol.copy_properties(new_symbol)
 
@@ -399,11 +451,11 @@ def test_datasymbol_copy_properties():
     assert symbol.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
     assert symbol.datatype.precision == ScalarType.Precision.SINGLE
     assert symbol.is_automatic
-    assert isinstance(symbol.constant_value, Literal)
-    assert symbol.constant_value.value == "7"
-    assert (symbol.constant_value.datatype.intrinsic ==
+    assert isinstance(symbol.initial_value, Literal)
+    assert symbol.initial_value.value == "7"
+    assert (symbol.initial_value.datatype.intrinsic ==
             symbol.datatype.intrinsic)
-    assert (symbol.constant_value.datatype.precision ==
+    assert (symbol.initial_value.datatype.precision ==
             symbol.datatype.precision)
 
 
@@ -437,7 +489,7 @@ def test_datasymbol_shape():
 
 def test_datasymbol_str():
     '''Test that the DataSymbol __str__ method returns the expected string'''
-    data_symbol = DataSymbol("a", INTEGER4_TYPE, constant_value=3)
+    data_symbol = DataSymbol("a", INTEGER4_TYPE, initial_value=3)
     assert (data_symbol.__str__() ==
-            "a: DataSymbol<Scalar<INTEGER, 4>, Automatic, constant_value="
+            "a: DataSymbol<Scalar<INTEGER, 4>, Automatic, initial_value="
             "Literal[value:'3', Scalar<INTEGER, 4>]>")

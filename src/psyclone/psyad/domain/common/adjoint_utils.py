@@ -100,7 +100,8 @@ def create_real_comparison(sym_table, kernel, var1, var2):
     overall_tol = sym_table.new_symbol("overall_tolerance",
                                        symbol_type=DataSymbol,
                                        datatype=var1.datatype,
-                                       constant_value=INNER_PRODUCT_TOLERANCE)
+                                       is_constant=True,
+                                       initial_value=INNER_PRODUCT_TOLERANCE)
     # TODO #1161 - the PSyIR does not support `SPACING`
     assign = freader.psyir_from_statement(
         f"MachineTol = SPACING ( MAX( ABS({var1.name}), ABS({var2.name}) ) )",
