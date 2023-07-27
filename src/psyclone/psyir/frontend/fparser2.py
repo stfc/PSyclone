@@ -347,7 +347,8 @@ def _find_or_create_unresolved_symbol(location, name, scope_limit=None,
     # Are there any interfaces that might be hiding the symbol declaration?
     symbol_table = location.scope.symbol_table
     try:
-        _ = symbol_table.lookup("_psyclone_internal_interface")
+        _ = symbol_table.lookup(
+            "_psyclone_internal_interface", scope_limit=scope_limit)
         # There is an unknown interface so add this symbol.
         return location.scope.symbol_table.new_symbol(
             name, interface=UnresolvedInterface(), **kargs)
