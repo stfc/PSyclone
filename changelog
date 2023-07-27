@@ -527,6 +527,9 @@
 	new, associated optimisation scripts. Includes bug fixes for
 	matmul inlining transformation.
 
+	179) PR #2230 for #2228. Improve reporting of errors due to kernel
+	functors not explicitly included in algorithm use statements.
+
 release 2.3.1 17th of June 2022
 
 	1) PR #1747 for #1720. Adds support for If blocks to PSyAD.
