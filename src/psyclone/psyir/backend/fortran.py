@@ -944,7 +944,7 @@ class FortranWriter(LanguageWriter):
                     isinstance(sym.interface, UnresolvedInterface)):
                 all_symbols.remove(sym)
 
-        # If the symbol table contain any symbols with an
+        # If the symbol table contains any symbols with an
         # UnresolvedInterface interface (they are not explicitly
         # declared), we need to check that we have at least one
         # wildcard import which could be bringing them into this

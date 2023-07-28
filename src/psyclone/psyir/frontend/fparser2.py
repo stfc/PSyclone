@@ -237,7 +237,7 @@ def _find_or_create_unresolved_symbol(location, name, scope_limit=None,
     bringing the symbol into scope) or one or more interfaces with
     unknown content then a new Symbol with the specified visibility
     but of unknown interface is created and inserted in the most local
-    SymbolTable that has such an import.  The scope_limit variable
+    SymbolTable that has such an import. The scope_limit variable
     further limits the symbol table search so that the search through
     ancestor nodes stops when the scope_limit node is reached
     i.e. ancestors of the scope_limit node are not searched.
