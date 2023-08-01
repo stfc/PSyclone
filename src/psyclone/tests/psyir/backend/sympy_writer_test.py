@@ -523,8 +523,8 @@ def test_sympy_writer_user_types(fortran_reader, fortran_writer,
                                         "class", "from", "or", "continue",
                                         "global", "pass"])
 def test_sym_writer_reserved_names(fortran_reader, expression):
-    '''Test that integer constants are handled, including precision
-    specifications (either as int or as a name).
+    '''Test that reserved names are properly renamed. In this example,
+    all reserved named will get a ``_1`` appended.
     '''
     # A dummy program to easily create the PSyIR for the
     # expressions we need. We just take the RHS of the assignments
@@ -538,8 +538,18 @@ def test_sym_writer_reserved_names(fortran_reader, expression):
     # first child the assignment, of which we take the right hand side
     psyir_expr = psyir.children[0].children[0].rhs
 
+    # Make sure that the symbols are rewritten in the string representation
+    # of the PSyIR:
     sympy_writer = SymPyWriter()
     assert sympy_writer._to_str(psyir_expr) == f"{expression}_1"
+
+    # The SymPy representation will contain e.g. the symbol 'lambda_1' after
+    # renaming, but when the expression is converted to a string, it should
+    # use 'lambda' as string representation for the symbol 'lambda_1'.
+    # Explicit:
+    #  >>> lambda_1 = sp.Symbol("lambda")
+    #  >>> print(lambda_1)
+    # lambda
 
     sympy_exp = sympy_writer(psyir_expr)
     assert str(sympy_exp) == expression
