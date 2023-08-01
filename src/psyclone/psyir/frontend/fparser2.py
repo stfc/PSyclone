@@ -222,57 +222,60 @@ def _first_type_match(nodelist, typekind):
     raise ValueError  # Type not found
 
 
-def _find_or_create_imported_symbol(location, name, scope_limit=None,
-                                    **kargs):
+def _find_or_create_unresolved_symbol(location, name, scope_limit=None,
+                                      **kargs):
     '''Returns the symbol with the name 'name' from a symbol table
     associated with this node or one of its ancestors.  If a symbol is found
     and the `symbol_type` keyword argument is supplied then the type of the
     existing symbol is compared with the specified type. If it is not already
     an instance of this type, then the symbol is specialised (in place).
 
-    If the symbol is not found and there are no ContainerSymbols with wildcard
-    imports then an exception is raised. However, if there are one or more
+    If the symbol is not found and there are no ContainerSymbols with
+    wildcard imports and no interfaces with unknown content then an
+    exception is raised. However, if there are one or more
     ContainerSymbols with wildcard imports (which could therefore be
-    bringing the symbol into scope) then a new Symbol with the
-    specified visibility but of unknown interface is created and
-    inserted in the most local SymbolTable that has such an import.
-    The scope_limit variable further limits the symbol table search so
-    that the search through ancestor nodes stops when the scope_limit node
-    is reached i.e. ancestors of the scope_limit node are not searched.
+    bringing the symbol into scope) or one or more interfaces with
+    unknown content then a new Symbol with the specified visibility
+    but of unknown interface is created and inserted in the most local
+    SymbolTable that has such an import. The scope_limit variable
+    further limits the symbol table search so that the search through
+    ancestor nodes stops when the scope_limit node is reached
+    i.e. ancestors of the scope_limit node are not searched.
 
     :param location: PSyIR node from which to operate.
     :type location: :py:class:`psyclone.psyir.nodes.Node`
     :param str name: the name of the symbol.
-    :param scope_limit: optional Node which limits the symbol \
-        search space to the symbol tables of the nodes within the \
-        given scope. If it is None (the default), the whole \
-        scope (all symbol tables in ancestor nodes) is searched \
-        otherwise ancestors of the scope_limit node are not \
+    :param scope_limit: optional Node which limits the symbol
+        search space to the symbol tables of the nodes within the
+        given scope. If it is None (the default), the whole
+        scope (all symbol tables in ancestor nodes) is searched
+        otherwise ancestors of the scope_limit node are not
         searched.
-    :type scope_limit: :py:class:`psyclone.psyir.nodes.Node` or \
+    :type scope_limit: :py:class:`psyclone.psyir.nodes.Node` or
         `NoneType`
 
     :returns: the matching symbol.
     :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
 
     :raises TypeError: if the supplied scope_limit is not a Node.
-    :raises ValueError: if the supplied scope_limit node is not an \
+    :raises ValueError: if the supplied scope_limit node is not an
         ancestor of the supplied node.
-    :raises SymbolError: if no matching symbol is found and there are \
-        no ContainerSymbols from which it might be brought into scope.
+    :raises SymbolError: if no matching symbol is found and there are
+        no ContainerSymbols from which it might be brought into scope
+        or unknown interfaces which might contain its declaration.
 
     '''
     if not isinstance(location, Node):
         raise TypeError(
             f"The location argument '{location}' provided to "
-            f"_find_or_create_imported_symbol() is not of type `Node`.")
+            f"_find_or_create_unresolved_symbol() is not of type `Node`.")
 
     if scope_limit is not None:
         # Validate the supplied scope_limit
         if not isinstance(scope_limit, Node):
             raise TypeError(
                 f"The scope_limit argument '{scope_limit}' provided to "
-                f"_find_or_create_imported_symbol() is not of type `Node`.")
+                f"_find_or_create_unresolved_symbol() is not of type `Node`.")
 
         # Check that the scope_limit Node is an ancestor of this
         # Reference Node and raise an exception if not.
@@ -288,8 +291,8 @@ def _find_or_create_imported_symbol(location, name, scope_limit=None,
             # supplied node so raise an exception.
             raise ValueError(
                 f"The scope_limit node '{scope_limit}' provided to "
-                f"_find_or_create_imported_symbol() is not an ancestor of this"
-                f" node '{location}'.")
+                f"_find_or_create_unresolved_symbol() is not an ancestor of "
+                f"this node '{location}'.")
 
     # Keep a reference to the most local SymbolTable with a wildcard
     # import in case we need to create a Symbol.
@@ -341,8 +344,20 @@ def _find_or_create_imported_symbol(location, name, scope_limit=None,
         return first_symbol_table.new_symbol(
                 name, interface=UnresolvedInterface(), **kargs)
 
+    # Are there any interfaces that might be hiding the symbol declaration?
+    symbol_table = location.scope.symbol_table
+    try:
+        _ = symbol_table.lookup(
+            "_psyclone_internal_interface", scope_limit=scope_limit)
+        # There is an unknown interface so add this symbol.
+        return location.scope.symbol_table.new_symbol(
+            name, interface=UnresolvedInterface(), **kargs)
+    except KeyError:
+        pass
+
     # All requested Nodes have been checked but there has been no
-    # match and there are no wildcard imports so raise an exception.
+    # match and there are no wildcard imports or unknown interfaces so
+    # raise an exception.
     raise SymbolError(f"No Symbol found for name '{name}'.")
 
 
@@ -739,7 +754,7 @@ def _kind_find_or_create(name, symbol_table):
     except KeyError:
         # The SymbolTable does not contain an entry for this kind parameter
         # so look to see if it is imported and if not create one.
-        kind_symbol = _find_or_create_imported_symbol(
+        kind_symbol = _find_or_create_unresolved_symbol(
             symbol_table.node, lower_name,
             symbol_type=DataSymbol,
             datatype=default_integer_type(),
@@ -1773,7 +1788,7 @@ class Fparser2Reader():
                     f"other than 'type' are not yet supported.")
             type_name = str(walk(type_spec, Fortran2003.Type_Name)[0])
             # Do we already have a Symbol for this derived type?
-            type_symbol = _find_or_create_imported_symbol(parent, type_name)
+            type_symbol = _find_or_create_unresolved_symbol(parent, type_name)
             # pylint: disable=unidiomatic-typecheck
             if type(type_symbol) == Symbol:
                 # We do but we didn't know what kind of symbol it was. Create
@@ -2462,8 +2477,8 @@ class Fparser2Reader():
                         # If a suitable unqualified use statement is found then
                         # this call creates a Symbol and inserts it in the
                         # appropriate symbol table.
-                        _find_or_create_imported_symbol(parent, name,
-                                                        visibility=vis)
+                        _find_or_create_unresolved_symbol(parent, name,
+                                                          visibility=vis)
                     except SymbolError as err:
                         # Improve the error message with context-specific info
                         raise SymbolError(
@@ -2996,7 +3011,7 @@ class Fparser2Reader():
         loop_var = str(ctrl[0].items[1][0])
         variable_name = str(loop_var)
         try:
-            data_symbol = _find_or_create_imported_symbol(
+            data_symbol = _find_or_create_unresolved_symbol(
                 parent, variable_name, symbol_type=DataSymbol,
                 datatype=DeferredType())
         except SymbolError as err:
@@ -3529,7 +3544,7 @@ class Fparser2Reader():
             range_idx = 0
             for idx, child in enumerate(array.indices):
                 if isinstance(child, Range):
-                    symbol = _find_or_create_imported_symbol(
+                    symbol = _find_or_create_unresolved_symbol(
                         array, loop_vars[range_idx],
                         symbol_type=DataSymbol, datatype=DeferredType())
                     array.children[idx] = Reference(symbol)
@@ -3675,7 +3690,7 @@ class Fparser2Reader():
                                                    parent=member.parent)
             else:
                 # The array access is to a symbol of ArrayType
-                symbol = _find_or_create_imported_symbol(
+                symbol = _find_or_create_unresolved_symbol(
                     size_node, first_array.name, symbol_type=DataSymbol,
                     datatype=DeferredType())
                 new_ref = Reference(symbol)
@@ -3853,7 +3868,7 @@ class Fparser2Reader():
         # that first.
         if isinstance(node.children[0], Fortran2003.Name):
             # Base of reference is a scalar entity and must be a DataSymbol.
-            base_sym = _find_or_create_imported_symbol(
+            base_sym = _find_or_create_unresolved_symbol(
                 parent, node.children[0].string.lower(),
                 symbol_type=DataSymbol, datatype=DeferredType())
             base_indices = []
@@ -3863,7 +3878,7 @@ class Fparser2Reader():
             # Base of reference is an array access. Lookup the corresponding
             # symbol.
             part_ref = node.children[0]
-            base_sym = _find_or_create_imported_symbol(
+            base_sym = _find_or_create_unresolved_symbol(
                 parent, part_ref.children[0].string.lower(),
                 symbol_type=DataSymbol, datatype=DeferredType())
             # Processing the array-index expressions requires access to the
@@ -4169,7 +4184,7 @@ class Fparser2Reader():
         :rtype: :py:class:`psyclone.psyir.nodes.Reference`
 
         '''
-        symbol = _find_or_create_imported_symbol(parent, node.string)
+        symbol = _find_or_create_unresolved_symbol(parent, node.string)
         return Reference(symbol, parent=parent)
 
     def _parenthesis_handler(self, node, parent):
@@ -4213,7 +4228,7 @@ class Fparser2Reader():
         # We can't say for sure that the symbol we create here should be a
         # DataSymbol as fparser2 often identifies function calls as
         # part-references instead of function-references.
-        symbol = _find_or_create_imported_symbol(parent, reference_name)
+        symbol = _find_or_create_unresolved_symbol(parent, reference_name)
 
         if isinstance(symbol, RoutineSymbol):
             call_or_array = Call(symbol, parent=parent)

@@ -901,23 +901,23 @@ class FortranWriter(LanguageWriter):
 
         :param symbol_table: the SymbolTable instance.
         :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
-        :param bool is_module_scope: whether or not the declarations are in \
-                                     a module scoping unit. Default is False.
+        :param bool is_module_scope: whether or not the declarations are in
+            a module scoping unit. Default is False.
 
         :returns: the Fortran declarations for the table.
         :rtype: str
 
-        :raises VisitorError: if one of the symbols is a RoutineSymbol which \
-            does not have an ImportInterface or UnresolvedInterface ( \
-            representing named and unqualified imports respectively) or \
-            ModuleDefaultInterface (representing routines declared in the \
+        :raises VisitorError: if one of the symbols is a RoutineSymbol which
+            does not have an ImportInterface or UnresolvedInterface (
+            representing named and unqualified imports respectively) or
+            ModuleDefaultInterface (representing routines declared in the
             same module) or is not a Fortran intrinsic.
-        :raises VisitorError: if args_allowed is False and one or more \
+        :raises VisitorError: if args_allowed is False and one or more
             argument declarations exist in symbol_table.
-        :raises VisitorError: if there are any symbols (other than \
-            RoutineSymbols) in the supplied table that do not have an \
-            explicit declaration (UnresolvedInterface) and there are no \
-            wildcard imports.
+        :raises VisitorError: if there are any symbols (other than
+            RoutineSymbols) in the supplied table that do not have an
+            explicit declaration (UnresolvedInterface) and there are no
+            wildcard imports or unknown interfaces.
 
         '''
         # pylint: disable=too-many-branches
@@ -944,16 +944,25 @@ class FortranWriter(LanguageWriter):
                     isinstance(sym.interface, UnresolvedInterface)):
                 all_symbols.remove(sym)
 
-        # If the symbol table contain any symbols with an UnresolvedInterface
-        # interface (they are not explicitly declared), we need to check that
-        # we have at least one wildcard import which could be bringing them
-        # into this scope.
+        # If the symbol table contains any symbols with an
+        # UnresolvedInterface interface (they are not explicitly
+        # declared), we need to check that we have at least one
+        # wildcard import which could be bringing them into this
+        # scope, or an unknown interface which could be declaring
+        # them.
         unresolved_symbols = []
         for sym in all_symbols[:]:
             if isinstance(sym.interface, UnresolvedInterface):
                 unresolved_symbols.append(sym)
                 all_symbols.remove(sym)
-        if unresolved_symbols and not symbol_table.has_wildcard_imports():
+        try:
+            internal_interface_symbol = symbol_table.lookup(
+                "_psyclone_internal_interface")
+        except KeyError:
+            internal_interface_symbol = None
+        if unresolved_symbols and not (
+                symbol_table.has_wildcard_imports() or
+                internal_interface_symbol):
             symbols_txt = ", ".join(
                 ["'" + sym.name + "'" for sym in unresolved_symbols])
             raise VisitorError(
@@ -1134,7 +1143,6 @@ class FortranWriter(LanguageWriter):
                               node is empty or None.
 
         '''
-        # pylint: disable=too-many-branches
         if not node.name:
             raise VisitorError("Expected node name to have a value.")
 
