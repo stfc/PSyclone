@@ -141,11 +141,6 @@ class SymPyWriter(FortranWriter):
                 if reserved.lower() == reserved:
                     SymPyWriter._RESERVED_NAMES.add(reserved)
 
-        # This dictionary contains a mapping of Fortran symbol names which
-        # are the same as a reserved Python keyword to a new name (which is
-        # unique and not a reserved word):
-        self._renamed_symbols = {}
-
         # This dictionary will be supplied when parsing a string by SymPy
         # and defines which symbols in the parsed expressions are scalars
         # (SymPy symbols) or arrays (SymPy functions).
@@ -288,34 +283,32 @@ class SymPyWriter(FortranWriter):
         # Create a new symbol table, so previous symbol will not affect this
         # new conversion (i.e. this avoids name clashes with a previous
         # conversion). First add all reserved names so that these names will
-        # automatically be renamed:
+        # automatically be renamed. The symbol table is used later to also
+        # create guaranteed unique names for lower and upper bounds.
         self._symbol_table = SymbolTable()
         for reserved in SymPyWriter._RESERVED_NAMES:
             self._symbol_table.find_or_create(reserved)
 
-        self._renamed_symbols = {}
         # Find each reference in each of the expression, and declare this name
         # as either a SymPy Symbol (scalar reference), or a SymPy Function
         # (an array).
         for expr in list_of_expressions:
             for ref in expr.walk(Reference):
                 name = ref.name
-                unique_sym = self._symbol_table.find_or_create_tag(tag=name)
-                ref.symbol._name = unique_sym.name
-                if ref.symbol in self._renamed_symbols:
+                if name in self._symbol_table.tags_dict:
                     continue
-                self._renamed_symbols[ref.symbol] = name
 
+                unique_sym = self._symbol_table.new_symbol(name, tag=name)
                 # Test if an array or an array expression is used:
                 if not ref.is_array:
-                    self._sympy_type_map[ref.symbol.name] = Symbol(name)
+                    self._sympy_type_map[unique_sym.name] = Symbol(name)
                     continue
 
                 # Now a new Fortran array is used. Declare a special SymPy
                 # function for it. This function will convert array expressions
                 # back into the original Fortran code
-                self._sympy_type_map[name] = \
-                    self._create_sympy_array_function(unique_sym.name)
+                self._sympy_type_map[unique_sym.name] = \
+                    self._create_sympy_array_function(name)
 
         # Now all symbols have been added to the symbol table, create
         # unique names for the lower- and upper-bounds using special tags:
@@ -382,9 +375,6 @@ class SymPyWriter(FortranWriter):
         for expr in list_of_expressions:
             expression_str_list.append(super().__call__(expr))
 
-        for (symbol, orig_name) in self._renamed_symbols.items():
-            symbol._name = orig_name
-
         # If the argument was a single expression, only return a single
         # expression, otherwise return a list
         if not is_list:
@@ -433,6 +423,21 @@ class SymPyWriter(FortranWriter):
         # We had no list initially, so only convert the one and only
         # list member
         return result[0]
+
+    # -------------------------------------------------------------------------
+    def arrayreference_node(self, node):
+        '''The implementation of the method handling a
+        ArrayOfStructureReference is generic enough to also handle
+        non-structure arrays. So just use it.
+
+        :param node: a ArrayReference PSyIR node.
+        :type node: :py:class:`psyclone.psyir.nodes.ArrayReference`
+
+        :returns: the code as string.
+        :rtype: str
+
+        '''
+        return self.arrayofstructuresreference_node(node)
 
     # -------------------------------------------------------------------------
     def structurereference_node(self, node):
@@ -593,10 +598,13 @@ class SymPyWriter(FortranWriter):
         :rtype: str
 
         '''
+        # Support renaming a symbol (e.g. if it is a reserved Python name).
+        # Look up with the name as tag, which will return the symbol with
+        # a unique name (e.g. lambda --> lambda_1):
+        name = self._symbol_table.lookup_with_tag(node.name).name
         if not node.is_array:
-            # This reference is not an array, handle its conversion to
-            # string in the FortranWriter base class
-            return super().reference_node(node)
+            # This reference is not an array, just return the name
+            return name
 
         # Now this must be an array expression without parenthesis. Add
         # the triple-array indices to represent `lower:upper:1` for each
@@ -605,7 +613,7 @@ class SymPyWriter(FortranWriter):
         result = [f"{self.lower_bound},"
                   f"{self.upper_bound},1"]*len(shape)
 
-        return (f"{node.name}{self.array_parenthesis[0]}"
+        return (f"{name}{self.array_parenthesis[0]}"
                 f"{','.join(result)}{self.array_parenthesis[1]}")
 
     # ------------------------------------------------------------------------
