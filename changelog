@@ -530,6 +530,14 @@
 	179) PR #2230 for #2228. Improve reporting of errors due to kernel
 	functors not explicitly included in algorithm use statements.
 
+	180) PR #2207 for #1419. Split the DataSymbol constant_value attribute
+	into is_constant (bool) and initial_value (PSyIR Node). This allows
+	parsing Fortran declarations with initial_value that are not constant.
+
+	181) PR #2231 for #2213. The Fortran frontend and backend now also
+	consider that UnresolvedInterface symbols can come from the body of
+	a Fortran Interface.
+
 release 2.3.1 17th of June 2022
 
 	1) PR #1747 for #1720. Adds support for If blocks to PSyAD.
