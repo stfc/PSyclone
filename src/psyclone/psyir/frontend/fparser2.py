@@ -346,6 +346,59 @@ def _find_or_create_imported_symbol(location, name, scope_limit=None,
     raise SymbolError(f"No Symbol found for name '{name}'.")
 
 
+def _find_or_create_psyclone_internal_cmp(node):
+    '''
+    Utility routine to return a symbol of the generic psyclone comparison
+    interface. If the interface does not exist in the scope it first adds
+    the necessary code to the parent module.
+
+    :returns: the comparison interface symbol.
+    :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
+
+    :raises NotImplementedError: if there is no ancestor module container
+        on which to add the interface code into.
+    '''
+    try:
+        return node.scope.symbol_table.lookup("psyclone_internal_cmp")
+    except KeyError:
+        container = node.ancestor(Container)
+        if container and not isinstance(container, FileContainer):
+            from psyclone.psyir.frontend.fortran import FortranReader
+            fortran_reader = FortranReader()
+            dummymod = fortran_reader.psyir_from_source('''
+            module dummy
+                implicit none
+                interface psyclone_internal_cmp
+                    procedure psyclone_cmp_int
+                    procedure psyclone_cmp_logical
+                    procedure psyclone_cmp_char
+                end interface psyclone_internal_cmp
+                contains
+                logical pure function psyclone_cmp_int(op1, op2)
+                    integer, intent(in) :: op1, op2
+                    psyclone_cmp_int = op1.eq.op2
+                end function
+                logical pure function psyclone_cmp_logical(op1, op2)
+                    logical, intent(in) :: op1, op2
+                    psyclone_cmp_logical = op1.eqv.op2
+                end function
+                logical pure function psyclone_cmp_char(op1, op2)
+                    character(*), intent(in) :: op1, op2
+                    psyclone_cmp_char = op1.eq.op2
+                end function
+            end module dummy
+            ''').children[0]  # We skip the top FileContainer
+
+            # Add the new functions and interface to the ancestor container
+            container.children.extend(dummymod.pop_all_children())
+            container.symbol_table.merge(dummymod.symbol_table)
+            return node.scope.symbol_table.lookup("psyclone_internal_cmp")
+
+    raise NotImplementedError(
+        "Could not find the generic comparison interface nor an ancestor "
+        "container on which to add it.")
+
+
 def _check_args(array, dim):
     '''Utility routine used by the _check_bound_is_full_extent and
     _check_array_range_literal functions to check common arguments.
@@ -3329,53 +3382,29 @@ class Fparser2Reader():
                 new_parent.addchild(leop)
         else:
             # The case value is some scalar expression
-            bop = BinaryOperation(BinaryOperation.Operator.EQ,
-                                  parent=parent)
-            self.process_nodes(parent=bop, nodes=[selector])
-            self.process_nodes(parent=bop, nodes=[node])
-            # TODO #1799 when generic child.datatype is supported we can
-            # remove the conditional inside the loop and support full
-            # expressions
+            fake_parent = Assignment(parent=parent)
+            self.process_nodes(parent=fake_parent, nodes=[selector])
+            self.process_nodes(parent=fake_parent, nodes=[node])
 
-            # Keep track of whether we know if the operator should be EQ/EQV
-            operator_known = False
-            for child in bop.children:
-                if (isinstance(child, Literal) and
-                        isinstance(child.datatype, ScalarType)):
-                    # We know the operator for all literals
-                    operator_known = True
-                    if (child.datatype.intrinsic ==
-                            ScalarType.Intrinsic.BOOLEAN):
-                        rhs = bop.children[1].detach()
-                        lhs = bop.children[0].detach()
+            for op in fake_parent.lhs, fake_parent.rhs:
+                if hasattr(op, "datatype") and isinstance(op.datatype, ScalarType):
+                    if op.datatype.intrinsic == ScalarType.Intrinsic.BOOLEAN:
                         bop = BinaryOperation(BinaryOperation.Operator.EQV,
                                               parent=parent)
-                        bop.addchild(lhs)
-                        bop.addchild(rhs)
-                elif (isinstance(child, Reference) and
-                        isinstance(child.symbol, DataSymbol) and
-                        not isinstance(child.symbol.datatype,
-                                       UnknownFortranType)):
-                    # We know the operator for all known reference types.
-                    operator_known = True
-                    if (child.symbol.datatype.intrinsic ==
-                            ScalarType.Intrinsic.BOOLEAN):
-                        rhs = bop.children[1].detach()
-                        lhs = bop.children[0].detach()
-                        bop = BinaryOperation(BinaryOperation.Operator.EQV,
+                    else:
+                        bop = BinaryOperation(BinaryOperation.Operator.EQ,
                                               parent=parent)
-                        bop.addchild(lhs)
-                        bop.addchild(rhs)
-
-            if operator_known:
-                parent.addchild(bop)
+                    parent.addchild(bop)
+                    bop.children.extend(fake_parent.pop_all_children())
+                    break
             else:
-                raise NotImplementedError(f"PSyclone can't determine if this "
-                                          f"case should be '==' or '.EQV.' "
-                                          f"because it can't figure out if "
-                                          f"{bop.children[0].debug_string} "
-                                          f"or {bop.children[1].debug_string}"
-                                          f" are logical expressions.")
+                # If the loop did not encounter a break, we don't know which
+                # operator is needed, so we use the generic interface instead
+                cmp_symbol = _find_or_create_psyclone_internal_cmp(parent)
+                call = Call(cmp_symbol, parent=parent)
+                parent.addchild(call)
+                call.children.extend(fake_parent.pop_all_children())
+
 
     @staticmethod
     def _array_notation_rank(node):

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2020, Science and Technology Facilities Council.
+# Copyright (c) 2019-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,12 +31,11 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author A. Porter and A. B. G. Chalk, STFC Daresbury Laboratory
+# Author A. Porter, A. B. G. Chalk and S. Siso, STFC Daresbury Laboratory
 
 ''' Module containing pytest tests for the handling of some select case
 construction for the Fparser->PSyIR frontend.'''
 
-from __future__ import absolute_import
 import pytest
 
 from fparser.common.readfortran import FortranStringReader
@@ -452,37 +451,133 @@ def test_nonlogical_reference_case(fortran_reader, fortran_writer):
     assert "a == c" in pass_through
 
 
-def test_expression_case(fortran_reader):
-    '''Test that a select case statement comparing two expressions
-    results in a code block.'''
-    code = '''subroutine test_subroutine(a, b, c)
-    integer :: a, b, c
+def has_cmp_interface(code):
+    ''' Utility function that asserts that the psyclone_internal_cmp
+    generic interface and its 3 implementations are part of a given code.
+    '''
 
-    SELECT CASE(a*a)
-    CASE(b-c)
-        print *, "Not hello"
-    CASE(c-b)
-        print *, "hello"
-    END SELECT
-  end subroutine'''
+    # Check that the generic interface in in the code
+    assert '''interface psyclone_internal_cmp
+  procedure psyclone_cmp_int
+  procedure psyclone_cmp_logical
+  procedure psyclone_cmp_char
+end interface psyclone_internal_cmp''' in code
+
+    # Check that the integer implementation is in the code
+    assert '''function psyclone_cmp_int(op1, op2)
+    integer, intent(in) :: op1
+    integer, intent(in) :: op2
+    logical :: psyclone_cmp_int
+
+    psyclone_cmp_int = op1 == op2
+
+  end function psyclone_cmp_int''' in code
+
+    # Check that the char implementation is in the code
+    assert '''function psyclone_cmp_char(op1, op2)
+    CHARACTER(LEN = *), INTENT(IN) :: op1
+    CHARACTER(LEN = *), INTENT(IN) :: op2
+    logical :: psyclone_cmp_char
+
+    psyclone_cmp_char = op1 == op2
+
+  end function psyclone_cmp_char''' in code
+
+    # Check that the logical implementation is in the code
+    assert '''function psyclone_cmp_logical(op1, op2)
+    logical, intent(in) :: op1
+    logical, intent(in) :: op2
+    logical :: psyclone_cmp_logical
+
+    psyclone_cmp_logical = op1 .EQV. op2
+
+  end function psyclone_cmp_logical''' in code
+
+
+def test_find_or_create_psyclone_internal_cmp(fortran_writer):
+    '''Test that the find_or_create_psyclone_internal_cmp returns the expected
+    symbol and creates the interface if it does not exist. '''
+    pass
+
+
+def test_expression_case(fortran_reader, fortran_writer):
+    '''Test that a select case statement comparing two expressions
+    is using the generic comparison interface.
+
+    # TODO #1799: The interface may not be needed for this case if
+    # we can successuly obtain the expression.datatype
+
+    '''
+    code = '''
+    module test
+        contains
+        subroutine test_subroutine(a, b, c)
+            integer :: a, b, c
+
+            SELECT CASE(a*a)
+            CASE(b-c)
+                print *, "Not hello"
+            CASE(c-b)
+                print *, "hello"
+            END SELECT
+        end subroutine
+    end module test
+    '''
 
     psyir = fortran_reader.psyir_from_source(code)
-    assert isinstance(psyir.children[0].children[0], CodeBlock)
+    output = fortran_writer(psyir)
+
+    # Check that the interface implementation has been inserted
+    has_cmp_interface(output)
+
+    # Check that the cannonicalised comparisons use the interface method
+    assert "if (psyclone_internal_cmp(a * a, b - c)) then" in output
+    assert "if (psyclone_internal_cmp(a * a, c - b)) then" in output
 
 
-def test_unknown_types_case(fortran_reader):
+def test_unknown_types_case(fortran_reader, fortran_writer):
     '''Test that a select case statement comparing two unknown types
-    results in a code block.'''
-    code = '''subroutine test_subroutine()
-    use my_mod, only : a, b, c
+    is using the generic comparison interface'''
+    code = '''
+    module test
+        contains
+        subroutine test_subroutine()
+            use my_mod, only : a, b, c
 
-    SELECT CASE(a)
-    CASE(b)
-        print *, "Not hello"
-    CASE(c)
-        print *, "hello"
-    END SELECT
-  end subroutine'''
+            SELECT CASE(a)
+            CASE(b)
+                print *, "Not hello"
+            CASE(c)
+                print *, "hello"
+            END SELECT
+      end subroutine test_subroutine
+    end module test
+    '''
 
+    psyir = fortran_reader.psyir_from_source(code)
+    output = fortran_writer(psyir)
+
+    # Check that the interface implementation has been inserted
+    has_cmp_interface(output)
+
+    # Check that the cannonicalised comparisons use the interface method
+    assert "if (psyclone_internal_cmp(a, b)) then" in output
+    assert "if (psyclone_internal_cmp(a, c)) then" in output
+
+def test_unknown_types_case_without_module(fortran_reader, fortran_writer):
+    '''Test that a select case statement comparing two unknown types in a
+    situation wihtout an ancestor module, it will generate a CodeBlock'''
+    code = '''
+    subroutine test_subroutine()
+        use my_mod, only : a, b, c
+
+        SELECT CASE(a)
+        CASE(b)
+            print *, "Not hello"
+        CASE(c)
+            print *, "hello"
+        END SELECT
+    end subroutine test_subroutine
+    '''
     psyir = fortran_reader.psyir_from_source(code)
     assert isinstance(psyir.children[0].children[0], CodeBlock)
