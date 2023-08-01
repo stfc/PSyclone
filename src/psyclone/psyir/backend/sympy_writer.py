@@ -38,6 +38,9 @@
 '''PSyIR backend to create expressions that are handled by SymPy.
 '''
 
+from io import StringIO
+import sys
+
 from sympy import Function, Symbol
 from sympy.parsing.sympy_parser import parse_expr
 
@@ -91,6 +94,10 @@ class SymPyWriter(FortranWriter):
     # is set to True as the modifications will persist after the Writer!
     _DISABLE_LOWERING = True
 
+    # A list of all reserved Python keywords (Fortran variables that are the
+    # same as a reserved name must be renamed, otherwise parsing will fail):
+    _RESERVED_NAMES = set()
+
     def __init__(self):
         super().__init__()
 
@@ -106,6 +113,38 @@ class SymPyWriter(FortranWriter):
         # to resolve a potential name clash with a user variable.
         self._lower_bound = "sympy_lower"
         self._upper_bound = "sympy_upper"
+
+        if not SymPyWriter._RESERVED_NAMES:
+            # Get the list of all reserved Python words from the 'help'
+            # command. If a symbol should be the same as a Python reserved
+            # words, SymPy parsing (which relies on Python's ``eval``) will
+            # fail, so any variable that is a reserved word needs to be
+            # renamed.
+
+            # The output of help is on stdout only, so modify sys.stdout to
+            # catch the output into a string buffer:
+            buffer = StringIO()
+            sys.stdout = buffer
+            help("keywords")
+            out_text = buffer.getvalue()
+            sys.stdout = sys.__stdout__
+            # The output contains some help text before the list of keywords.
+            # It ends with:
+            # ... Enter any keyword to get more help.
+            # So only take the text after 'help.', and then split it:
+            keywords = out_text[out_text.index("help.")+5:].split()
+
+            for reserved in keywords:
+                # Some Python keywords are capitalised (True, False, None).
+                # Since all symbols in PSyclone are lowercase, these can
+                # never clash. So only take keywords that are in lowercase:
+                if reserved.lower() == reserved:
+                    SymPyWriter._RESERVED_NAMES.add(reserved)
+
+        # This dictionary contains a mapping of Fortran symbol names which
+        # are the same as a reserved Python keyword to a new name (which is
+        # unique and not a reserved word):
+        self._renamed_symbols = {}
 
         # This dictionary will be supplied when parsing a string by SymPy
         # and defines which symbols in the parsed expressions are scalars
@@ -227,6 +266,19 @@ class SymPyWriter(FortranWriter):
         it is important to provide all expressions at once for the symbol
         table to avoid name clashes in any expression.
 
+        This function also handles reserved names like 'lambda' which might
+        occur in one of the Fortran expressions. These reserved names must be
+        renamed (otherwise SymPy parsing, which uses ``eval`` internally,
+        fails). A symbol table is used which is initially filled with all
+        reserved names. Then for each reference accounted, a unique name is
+        generated using this symbol table - so if the reference is a reserved
+        name, a new name will be created (e.g. ``lambda`` might become
+        ``lambda_1``). This unique name is temporarily inserted as symbol
+        name, and the original name is stored in the dictionary
+        ``self._renamed_symbols`` . The expression is converted to a
+        string using a SymPyWriter, before the PSyIR tree is restored with the
+        original names using the dictionary.
+
         :param list_of_expressions: the list of expressions from which all
             references are taken and added to a symbol table to avoid
             renaming any symbols (so that only member names will be renamed).
@@ -235,34 +287,35 @@ class SymPyWriter(FortranWriter):
         '''
         # Create a new symbol table, so previous symbol will not affect this
         # new conversion (i.e. this avoids name clashes with a previous
-        # conversion).
+        # conversion). First add all reserved names so that these names will
+        # automatically be renamed:
         self._symbol_table = SymbolTable()
+        for reserved in SymPyWriter._RESERVED_NAMES:
+            self._symbol_table.find_or_create(reserved)
 
+        self._renamed_symbols = {}
         # Find each reference in each of the expression, and declare this name
         # as either a SymPy Symbol (scalar reference), or a SymPy Function
         # (an array).
         for expr in list_of_expressions:
             for ref in expr.walk(Reference):
                 name = ref.name
-                if name in self._symbol_table:
-                    # The name has already been declared, ignore it now
+                unique_sym = self._symbol_table.find_or_create_tag(tag=name)
+                ref.symbol._name = unique_sym.name
+                if ref.symbol in self._renamed_symbols:
                     continue
-
-                # Add the new name to the symbol table to mark it
-                # as done
-                self._symbol_table.find_or_create(name)
+                self._renamed_symbols[ref.symbol] = name
 
                 # Test if an array or an array expression is used:
                 if not ref.is_array:
-                    # A simple scalar, create a SymPy symbol
-                    self._sympy_type_map[name] = Symbol(name)
+                    self._sympy_type_map[ref.symbol.name] = Symbol(name)
                     continue
 
                 # Now a new Fortran array is used. Declare a special SymPy
                 # function for it. This function will convert array expressions
                 # back into the original Fortran code
                 self._sympy_type_map[name] = \
-                    self._create_sympy_array_function(name)
+                    self._create_sympy_array_function(unique_sym.name)
 
         # Now all symbols have been added to the symbol table, create
         # unique names for the lower- and upper-bounds using special tags:
@@ -328,6 +381,9 @@ class SymPyWriter(FortranWriter):
         expression_str_list = []
         for expr in list_of_expressions:
             expression_str_list.append(super().__call__(expr))
+
+        for (symbol, orig_name) in self._renamed_symbols.items():
+            symbol._name = orig_name
 
         # If the argument was a single expression, only return a single
         # expression, otherwise return a list

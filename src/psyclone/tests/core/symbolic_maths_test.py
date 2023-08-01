@@ -356,6 +356,8 @@ def test_symbolic_math_functions_with_constants(fortran_reader, expressions):
 
 
 @pytest.mark.parametrize("expressions", [("field(1+i)", "field(i+1)"),
+                                         ("lambda", "lambda"),
+                                         ("lambda(1+i)", "lambda(i+1)"),
                                          ("a%field(b+1)", "a%field(1+b)"),
                                          ("a%b%c(a_b+1)", "a%b%c(1+a_b)"),
                                          ("a%field(field+1)",
@@ -373,7 +375,8 @@ def test_symbolic_math_use_reserved_names(fortran_reader, expressions):
     # expressions we need. We just take the RHS of the assignments
     source = f'''program test_prog
                  use some_mod
-                 integer :: field(10), i
+                 integer :: field(10)
+                 integer :: i, x
                  type(my_mod_type) :: a, b
                  x = {expressions[0]}
                  x = {expressions[1]}
@@ -422,6 +425,7 @@ def test_symbolic_math_use_range(fortran_reader, expressions):
 
 
 @pytest.mark.parametrize("expr,expected", [
+    ("lambda + 1", "lambda + 1"),
     ("1.0", "1.0"),
     ("a", "a"),
     ("a*b+c", "a * b + c"),

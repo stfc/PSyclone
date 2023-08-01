@@ -512,3 +512,34 @@ def test_sympy_writer_user_types(fortran_reader, fortran_writer,
     sympy_reader = SymPyReader(sympy_writer)
     new_psyir = sympy_reader.psyir_from_expression(sympy_exp, symbol_table)
     assert fortran_writer(new_psyir) == fortran_expr
+
+
+@pytest.mark.parametrize("expression", ["def", "if", "raise", "del",
+                                        "import", "return", "elif", "in",
+                                        "try", "and", "else", "is", "while",
+                                        "as", "except", "lambda", "with",
+                                        "assert", "finally", "nonlocal",
+                                        "yield", "break", "for", "not",
+                                        "class", "from", "or", "continue",
+                                        "global", "pass"])
+def test_sym_writer_reserved_names(fortran_reader, expression):
+    '''Test that integer constants are handled, including precision
+    specifications (either as int or as a name).
+    '''
+    # A dummy program to easily create the PSyIR for the
+    # expressions we need. We just take the RHS of the assignments
+    source = f'''program test_prog
+                use some_mod
+                integer :: x
+                x = {expression}
+                end program test_prog '''
+    psyir = fortran_reader.psyir_from_source(source)
+    # psyir is a FileContainer, its first child the program, and its
+    # first child the assignment, of which we take the right hand side
+    psyir_expr = psyir.children[0].children[0].rhs
+
+    sympy_writer = SymPyWriter()
+    assert sympy_writer._to_str(psyir_expr) == f"{expression}_1"
+
+    sympy_exp = sympy_writer(psyir_expr)
+    assert str(sympy_exp) == expression
