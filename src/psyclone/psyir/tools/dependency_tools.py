@@ -383,12 +383,19 @@ class DependencyTools():
             return None
 
         symbol_map = sympy_writer.type_map
-        # If the subscripts do not even depend on the specified variable,
-        # any dependency distance is possible (e.g. `do i ... a(j)=a(j)+1`)
-        if var_name not in symbol_map:
+        # Find the SymPy symbol that has the same name as the var name. We
+        # cannot use the dictionary key, since a symbol might be renamed
+        # (e.g. if a Fortran variable 'lambda' is used, it will be
+        # renamed to lambda_1, and the type map will have lambda_1 as key
+        #and the SymPy symbol for 'lambda' as value).
+        for var in symbol_map.values():
+            if str(var) == var_name:
+                break
+        else:
+            # If the subscripts do not even depend on the specified variable,
+            # any dependency distance is possible (e.g. `do i ... a(j)=a(j)+1`)
             return None
 
-        var = symbol_map[var_name]
         # Create a unique 'd_x' variable name if 'x' is the variable.
         d_var_name = "d_"+var_name
         idx = 1
@@ -423,7 +430,7 @@ class DependencyTools():
                 # evaluated here. We then also need to check if `i+di` (i.e.
                 # the iteration to which the dependency is) is a valid
                 # iteration. E.g. in case of a(i^2)=a(i^2) --> di=0 or di=-2*i
-                # --> # i+di = -i < 0 for i>0. Since this is not a valid loop
+                # --> i+di = -i < 0 for i>0. Since this is not a valid loop
                 # iteration that means no dependencies.
                 return None
 
