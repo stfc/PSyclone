@@ -832,7 +832,6 @@ def test_reserved_words(fortran_reader):
 
     # Write to array that does not depend on parallel loop variable
     parallel = dep_tools.can_loop_be_parallelised(loops[1])
-    print("XX", [str(i) for i in dep_tools.get_all_messages()])
     assert parallel is True
     assert dep_tools.get_all_messages() == []
 
