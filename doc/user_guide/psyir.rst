@@ -257,7 +257,7 @@ example:
     >>> int_type = ScalarType(ScalarType.Intrinsic.INTEGER,
     ...                       ScalarType.Precision.SINGLE)
     >>> bool_type = ScalarType(ScalarType.Intrinsic.BOOLEAN, 4)
-    >>> symbol = DataSymbol("rdef", int_type, constant_value=4)
+    >>> symbol = DataSymbol("rdef", int_type, initial_value=4)
     >>> scalar_type = ScalarType(ScalarType.Intrinsic.REAL, symbol)
 
 For convenience PSyclone predefines a number of scalar datatypes:
@@ -522,10 +522,12 @@ as keyword arguments. For example, the following code:
   symbol_table.new_symbol(root_name="something",
                           symbol_type=DataSymbol,
                           datatype=REAL_TYPE,
-                          constant_value=3)
+			  is_constant=True,
+                          initial_value=3)
 
 declares a symbol named "something" of REAL_TYPE datatype where the
-constant_value argument will be passed to the DataSymbol constructor.
+``is_constant`` and ``initial_value`` arguments will be passed to the
+DataSymbol constructor.
 
 An example of using the ``new_symbol()`` method can be found in the
 PSyclone ``examples/psyir`` directory.
