@@ -41,8 +41,8 @@ from psyclone.errors import InternalError, LazyString
 from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import (
     ArrayReference, ArrayOfStructuresReference, BinaryOperation, Call,
-    CodeBlock, Container, IntrinsicCall, Range, Routine, Reference, Return,
-    Literal, Assignment, StructureMember, StructureReference)
+    CodeBlock, Container, IntrinsicCall, Node, Range, Routine, Reference,
+    Return, Literal, Assignment, StructureMember, StructureReference)
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.symbols import (
     ArgumentInterface, ArrayType, DataSymbol, DeferredType, INTEGER_TYPE,
@@ -650,7 +650,8 @@ class InlineTrans(Transformation):
                     f" '{sym.datatype.declaration}'")
             # Check that there are no static variables in the routine (because
             # we don't know whether the routine is called from other places).
-            if isinstance(sym.interface, StaticInterface):
+            if (isinstance(sym.interface, StaticInterface) and
+                    not sym.is_constant):
                 raise TransformationError(
                     f"Routine '{routine.name}' cannot be inlined because it "
                     f"has a static (Fortran SAVE) interface for Symbol "
@@ -674,16 +675,21 @@ class InlineTrans(Transformation):
         # table. If a precision symbol is only used within Statements then we
         # don't currently capture the fact that it is a precision symbol.
         ref_or_lits = routine.walk((Reference, Literal))
-        # Check for symbols in any constant-value expressions
-        # (Fortran parameters) or array dimensions.
-        for sym in routine_table.automatic_datasymbols:
-            if sym.is_constant:
+        # Check for symbols in any initial-value expressions
+        # (including Fortran parameters) or array dimensions.
+        for sym in routine_table.datasymbols:
+            if sym.initial_value:
                 ref_or_lits.extend(
-                    sym.constant_value.walk((Reference, Literal)))
+                    sym.initial_value.walk((Reference, Literal)))
             if isinstance(sym.datatype, ArrayType):
                 for dim in sym.shape:
-                    ref_or_lits.extend(dim.lower.walk(Reference, Literal))
-                    ref_or_lits.extend(dim.upper.walk(Reference, Literal))
+                    if isinstance(dim, ArrayType.ArrayBounds):
+                        if isinstance(dim.lower, Node):
+                            ref_or_lits.extend(dim.lower.walk(Reference,
+                                                              Literal))
+                        if isinstance(dim.upper, Node):
+                            ref_or_lits.extend(dim.upper.walk(Reference,
+                                                              Literal))
         # Keep a reference to each Symbol that we check so that we can avoid
         # repeatedly checking the same Symbol.
         _symbol_cache = set()
