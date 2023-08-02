@@ -268,11 +268,8 @@ class SymPyWriter(FortranWriter):
         reserved names. Then for each reference accounted, a unique name is
         generated using this symbol table - so if the reference is a reserved
         name, a new name will be created (e.g. ``lambda`` might become
-        ``lambda_1``). This unique name is temporarily inserted as symbol
-        name, and the original name is stored in the dictionary
-        ``self._renamed_symbols`` . The expression is converted to a
-        string using a SymPyWriter, before the PSyIR tree is restored with the
-        original names using the dictionary.
+        ``lambda_1``). The SymPyWriter (e.g. in ``reference_node``) will
+        use the renamed value when creating the string representation.
 
         :param list_of_expressions: the list of expressions from which all
             references are taken and added to a symbol table to avoid

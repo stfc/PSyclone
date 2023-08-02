@@ -538,8 +538,9 @@ def test_sym_writer_reserved_names(fortran_reader, expression):
     # first child the assignment, of which we take the right hand side
     psyir_expr = psyir.children[0].children[0].rhs
 
-    # Make sure that the symbols are rewritten in the string representation
-    # of the PSyIR:
+    # Make sure that the symbols are renamed in the string representation
+    # of the PSyIR - the symbol table will make the symbols unique by
+    # appending ``_1``
     sympy_writer = SymPyWriter()
     assert sympy_writer._to_str(psyir_expr) == f"{expression}_1"
 

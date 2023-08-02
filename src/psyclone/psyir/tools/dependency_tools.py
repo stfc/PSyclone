@@ -387,7 +387,7 @@ class DependencyTools():
         # cannot use the dictionary key, since a symbol might be renamed
         # (e.g. if a Fortran variable 'lambda' is used, it will be
         # renamed to lambda_1, and the type map will have lambda_1 as key
-        #and the SymPy symbol for 'lambda' as value).
+        # and the SymPy symbol for 'lambda' as value).
         for var in symbol_map.values():
             if str(var) == var_name:
                 break
