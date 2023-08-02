@@ -54,7 +54,7 @@ region is found to contain such a node (by the ``valid_acc_kernel``
 routine) then the script moves a level down the tree and then repeats
 the process of attempting to create the largest possible Kernel region.
 
-Tested with the NVIDIA HPC SDK version 22.5.
+Tested with the NVIDIA HPC SDK version 23.7.
 '''
 
 import logging
@@ -63,7 +63,7 @@ from psyclone.errors import InternalError
 from psyclone.nemo import NemoInvokeSchedule, NemoKern, NemoLoop
 from psyclone.psyGen import TransInfo
 from psyclone.psyir.nodes import IfBlock, CodeBlock, Schedule, \
-    ArrayReference, Assignment, BinaryOperation, Loop, \
+    ArrayReference, Assignment, BinaryOperation, Loop, WhileLoop, \
     Literal, Return, Call, ACCLoopDirective
 from psyclone.psyir.transformations import TransformationError, ProfileTrans, \
                                            ACCUpdateTrans
@@ -184,11 +184,11 @@ def valid_acc_kernel(node):
 
     # Rather than walk the tree multiple times, look for both excluded node
     # types and possibly problematic operations
-    excluded_node_types = (CodeBlock, Return, Call, IfBlock, NemoLoop)
-    excluded_nodes = node.walk(excluded_node_types)
+    excluded_types = (CodeBlock, Return, Call, IfBlock, NemoLoop, WhileLoop)
+    excluded_nodes = node.walk(excluded_types)
 
     for enode in excluded_nodes:
-        if isinstance(enode, (CodeBlock, Return, Call)):
+        if isinstance(enode, (CodeBlock, Return, Call, WhileLoop)):
             log_msg(routine_name,
                     f"region contains {type(enode).__name__}", enode)
             return False
