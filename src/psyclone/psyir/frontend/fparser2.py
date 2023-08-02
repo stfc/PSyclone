@@ -374,32 +374,40 @@ def _find_or_create_psyclone_internal_cmp(node):
         on which to add the interface code into.
     '''
     try:
-        return node.scope.symbol_table.lookup("psyclone_internal_cmp")
+        return node.scope.symbol_table.lookup_with_tag("psyclone_internal_cmp")
     except KeyError:
         container = node.ancestor(Container)
         if container and not isinstance(container, FileContainer):
             from psyclone.psyir.frontend.fortran import FortranReader
+            name_interface = node.scope.symbol_table.next_available_name(
+                                                       "psyclone_internal_cmp")
+            name_f_int = node.scope.symbol_table.next_available_name(
+                                                       "psyclone_cmp_int")
+            name_f_logical = node.scope.symbol_table.next_available_name(
+                                                       "psyclone_cmp_logical")
+            name_f_char = node.scope.symbol_table.next_available_name(
+                                                       "psyclone_cmp_char")
             fortran_reader = FortranReader()
-            dummymod = fortran_reader.psyir_from_source('''
+            dummymod = fortran_reader.psyir_from_source(f'''
             module dummy
                 implicit none
-                interface psyclone_internal_cmp
-                    procedure psyclone_cmp_int
-                    procedure psyclone_cmp_logical
-                    procedure psyclone_cmp_char
-                end interface psyclone_internal_cmp
+                interface {name_interface}
+                    procedure {name_f_int}
+                    procedure {name_f_logical}
+                    procedure {name_f_char}
+                end interface {name_interface}
                 contains
-                logical pure function psyclone_cmp_int(op1, op2)
+                logical pure function {name_f_int}(op1, op2)
                     integer, intent(in) :: op1, op2
-                    psyclone_cmp_int = op1.eq.op2
+                    {name_f_int} = op1.eq.op2
                 end function
-                logical pure function psyclone_cmp_logical(op1, op2)
+                logical pure function {name_f_logical}(op1, op2)
                     logical, intent(in) :: op1, op2
-                    psyclone_cmp_logical = op1.eqv.op2
+                    {name_f_logical} = op1.eqv.op2
                 end function
-                logical pure function psyclone_cmp_char(op1, op2)
+                logical pure function {name_f_char}(op1, op2)
                     character(*), intent(in) :: op1, op2
-                    psyclone_cmp_char = op1.eq.op2
+                    {name_f_char} = op1.eq.op2
                 end function
             end module dummy
             ''').children[0]  # We skip the top FileContainer
@@ -407,7 +415,10 @@ def _find_or_create_psyclone_internal_cmp(node):
             # Add the new functions and interface to the ancestor container
             container.children.extend(dummymod.pop_all_children())
             container.symbol_table.merge(dummymod.symbol_table)
-            return node.scope.symbol_table.lookup("psyclone_internal_cmp")
+            symbol = container.symbol_table.lookup(name_interface)
+            # Add the appropriate tag to find it regardless of the name
+            container.symbol_table.tags_dict['psyclone_internal_cmp'] = symbol
+            return symbol
 
     raise NotImplementedError(
         "Could not find the generic comparison interface nor an ancestor "

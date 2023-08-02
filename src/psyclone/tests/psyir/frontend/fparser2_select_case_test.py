@@ -43,9 +43,11 @@ from fparser.two.Fortran2003 import (
     Assignment_Stmt, Execution_Part, Name)
 
 from psyclone.errors import InternalError
-from psyclone.psyir.frontend.fparser2 import Fparser2Reader
+from psyclone.psyir.frontend.fparser2 import (
+    Fparser2Reader, _find_or_create_psyclone_internal_cmp)
 from psyclone.psyir.nodes import (
-    Schedule, CodeBlock, Assignment, BinaryOperation, IfBlock)
+    Schedule, CodeBlock, Assignment, BinaryOperation, IfBlock, Routine, Return,
+    Container)
 from psyclone.psyir.symbols import (
     DataSymbol, INTEGER_TYPE, Symbol)
 
@@ -497,7 +499,52 @@ end interface psyclone_internal_cmp''' in code
 def test_find_or_create_psyclone_internal_cmp(fortran_writer):
     '''Test that the find_or_create_psyclone_internal_cmp returns the expected
     symbol and creates the interface if it does not exist. '''
-    pass
+    subroutine = Routine("mysub", children=[Return()])
+    node_in_subroutine = subroutine.children[0]
+
+    # If it is not inside a Container it producess a NotImplementedError
+    with pytest.raises(NotImplementedError) as error:
+        _ = _find_or_create_psyclone_internal_cmp(node_in_subroutine)
+    assert ("Could not find the generic comparison interface nor an ancestor "
+            "container on which to add it." in str(error.value))
+
+    container = Container("test", children=[subroutine])
+    symbol = _find_or_create_psyclone_internal_cmp(node_in_subroutine)
+
+    # Check that the interface and 3 additional functions have been added to
+    # the container
+    assert "psyclone_internal_cmp" in container.symbol_table
+    assert len(container.children) == 4
+    assert symbol is container.symbol_table.lookup_with_tag(
+            "psyclone_internal_cmp")
+    has_cmp_interface(fortran_writer(container))
+
+    # If called again, the same symbol is retrived and no extra code is added
+    another_symbol = _find_or_create_psyclone_internal_cmp(node_in_subroutine)
+    assert symbol is another_symbol
+    assert len(container.children) == 4
+
+    # Test what happens if there are name clashes for the interface and
+    # supporting functions, an easy way to do it is remove the existing tag
+    # so the existing symbols remain but are not considered the ones we are
+    # looking for
+    del container.symbol_table.tags_dict['psyclone_internal_cmp']
+    another_symbol = _find_or_create_psyclone_internal_cmp(node_in_subroutine)
+    assert another_symbol is not symbol
+    assert another_symbol.name == "psyclone_internal_cmp_1"
+    assert len(container.children) == 7  # 3 more functions added
+    assert "psyclone_internal_cmp_1" in container.symbol_table
+
+    # Check that the interface new names are internally consistent
+    assert '''interface psyclone_internal_cmp_1
+  procedure psyclone_cmp_int_1
+  procedure psyclone_cmp_logical_1
+  procedure psyclone_cmp_char_1
+end interface psyclone_internal_cmp_1''' in fortran_writer(container)
+
+    # And that from now on the tag referes to the new symbol
+    assert container.symbol_table.lookup_with_tag(
+            "psyclone_internal_cmp").name == "psyclone_internal_cmp_1"
 
 
 def test_expression_case(fortran_reader, fortran_writer):
@@ -564,7 +611,7 @@ def test_unknown_types_case(fortran_reader, fortran_writer):
     assert "if (psyclone_internal_cmp(a, b)) then" in output
     assert "if (psyclone_internal_cmp(a, c)) then" in output
 
-def test_unknown_types_case_without_module(fortran_reader, fortran_writer):
+def test_unknown_types_case_without_module(fortran_reader):
     '''Test that a select case statement comparing two unknown types in a
     situation wihtout an ancestor module, it will generate a CodeBlock'''
     code = '''
