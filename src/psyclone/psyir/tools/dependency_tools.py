@@ -372,20 +372,28 @@ class DependencyTools():
 
         '''
         # pylint: disable=too-many-return-statements
-        sym_maths = SymbolicMaths.get()
+        sympy_writer = SymPyWriter()
         try:
-            sympy_expressions, symbol_map = SymPyWriter.\
-                get_sympy_expressions_and_symbol_map([index_read,
-                                                     index_written])
+            sympy_expressions = sympy_writer([index_read, index_written])
         except VisitorError:
             return None
+
+        if isinstance(sympy_expressions[0], tuple) or \
+                isinstance(sympy_expressions[1], tuple):
+            # TODO 2168: the SymPy expressions represent a range, so we
+            # need to analyse this in more detail, i.e. evaluate the
+            # start/stop/step tuple. For now it is safe to flag this
+            # array range as a (potential) overlap.
+            return None
+
+        symbol_map = sympy_writer.type_map
         # If the subscripts do not even depend on the specified variable,
         # any dependency distance is possible (e.g. `do i ... a(j)=a(j)+1`)
         if var_name not in symbol_map:
             return None
 
         var = symbol_map[var_name]
-        # Create a unique 'dx' variable name if 'x' is the variable.
+        # Create a unique 'd_x' variable name if 'x' is the variable.
         d_var_name = "d_"+var_name
         idx = 1
         while d_var_name in symbol_map:
@@ -399,6 +407,7 @@ class DependencyTools():
         sympy_expressions[1] = sympy_expressions[1].subs({var: (var+d_var)})
 
         # Now solve for `d_var` to identify the distance
+        sym_maths = SymbolicMaths.get()
         solutions = sym_maths.solve_equal_for(sympy_expressions[0],
                                               sympy_expressions[1],
                                               d_var)

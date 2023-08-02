@@ -48,7 +48,8 @@ from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
     TYPE_MAP_FROM_FORTRAN
 from psyclone.psyir.nodes import BinaryOperation, Call, CodeBlock, DataNode, \
-    IntrinsicCall, Literal, Operation, Range, Routine, Schedule, UnaryOperation
+    IntrinsicCall, Literal, Operation, Range, Routine, Schedule, \
+    UnaryOperation
 from psyclone.psyir.symbols import (
     ArgumentInterface, ArrayType, ContainerSymbol, DataSymbol, DataTypeSymbol,
     DeferredType, RoutineSymbol, ScalarType, Symbol, IntrinsicSymbol,
@@ -215,7 +216,7 @@ def precedence(fortran_operator):
     # then it should be respected. These issues are dealt with in the
     # binaryoperation handler.
     fortran_precedence = [
-        ['.EQV.', 'NEQV'],
+        ['.EQV.', '.NEQV.'],
         ['.OR.'],
         ['.AND.'],
         ['.NOT.'],
@@ -552,15 +553,17 @@ class FortranWriter(LanguageWriter):
         :rtype: str
 
         :raises VisitorError: if the symbol is of DeferredType.
-        :raises VisitorError: if the symbol is of UnknownType other than \
+        :raises VisitorError: if the symbol is of UnknownType other than
             UnknownFortranType.
-        :raises VisitorError: if the symbol is of known type but does not \
-            specify a variable declaration (it is not a local declaration or \
+        :raises VisitorError: if the symbol is of known type but does not
+            specify a variable declaration (it is not a local declaration or
             an argument declaration).
+        :raises VisitorError: if the symbol is a runtime constant but does not
+            have a StaticInterface.
         :raises InternalError: if the symbol is a ContainerSymbol or an import.
-        :raises InternalError: if the symbol is a RoutineSymbol other than \
+        :raises InternalError: if the symbol is a RoutineSymbol other than
             UnknownFortranType.
-        :raises InternalError: if visibility is to be included but is not \
+        :raises InternalError: if visibility is to be included but is not
             either PUBLIC or PRIVATE.
 
         '''
@@ -643,9 +646,15 @@ class FortranWriter(LanguageWriter):
         # Specify name
         result += f" :: {symbol.name}"
 
-        # Specify initialization expression
-        if isinstance(symbol, DataSymbol) and symbol.is_constant:
-            result += " = " + self._visit(symbol.constant_value)
+        # Specify initialisation expression
+        if isinstance(symbol, DataSymbol) and symbol.initial_value:
+            if not symbol.is_static:
+                raise VisitorError(
+                    f"{type(symbol).__name__} '{symbol.name}' has an initial "
+                    f"value ({self._visit(symbol.initial_value)}) and "
+                    f"therefore (in Fortran) must have a StaticInterface. "
+                    f"However it has an interface of '{symbol.interface}'.")
+            result += " = " + self._visit(symbol.initial_value)
 
         return result + "\n"
 
@@ -847,10 +856,10 @@ class FortranWriter(LanguageWriter):
             decln_inputs[symbol.name] = set()
             read_write_info = ReadWriteInfo()
             self._dep_tools.get_input_parameters(read_write_info,
-                                                 symbol.constant_value)
+                                                 symbol.initial_value)
             # The dependence analysis tools do not include symbols used to
             # define precision so check for those here.
-            for lit in symbol.constant_value.walk(Literal):
+            for lit in symbol.initial_value.walk(Literal):
                 if isinstance(lit.datatype.precision, DataSymbol):
                     read_write_info.add_read(
                         Signature(lit.datatype.precision.name))
@@ -892,23 +901,23 @@ class FortranWriter(LanguageWriter):
 
         :param symbol_table: the SymbolTable instance.
         :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
-        :param bool is_module_scope: whether or not the declarations are in \
-                                     a module scoping unit. Default is False.
+        :param bool is_module_scope: whether or not the declarations are in
+            a module scoping unit. Default is False.
 
         :returns: the Fortran declarations for the table.
         :rtype: str
 
-        :raises VisitorError: if one of the symbols is a RoutineSymbol which \
-            does not have an ImportInterface or UnresolvedInterface ( \
-            representing named and unqualified imports respectively) or \
-            ModuleDefaultInterface (representing routines declared in the \
+        :raises VisitorError: if one of the symbols is a RoutineSymbol which
+            does not have an ImportInterface or UnresolvedInterface (
+            representing named and unqualified imports respectively) or
+            ModuleDefaultInterface (representing routines declared in the
             same module) or is not a Fortran intrinsic.
-        :raises VisitorError: if args_allowed is False and one or more \
+        :raises VisitorError: if args_allowed is False and one or more
             argument declarations exist in symbol_table.
-        :raises VisitorError: if there are any symbols (other than \
-            RoutineSymbols) in the supplied table that do not have an \
-            explicit declaration (UnresolvedInterface) and there are no \
-            wildcard imports.
+        :raises VisitorError: if there are any symbols (other than
+            RoutineSymbols) in the supplied table that do not have an
+            explicit declaration (UnresolvedInterface) and there are no
+            wildcard imports or unknown interfaces.
 
         '''
         # pylint: disable=too-many-branches
@@ -935,16 +944,25 @@ class FortranWriter(LanguageWriter):
                     isinstance(sym.interface, UnresolvedInterface)):
                 all_symbols.remove(sym)
 
-        # If the symbol table contain any symbols with an UnresolvedInterface
-        # interface (they are not explicitly declared), we need to check that
-        # we have at least one wildcard import which could be bringing them
-        # into this scope.
+        # If the symbol table contains any symbols with an
+        # UnresolvedInterface interface (they are not explicitly
+        # declared), we need to check that we have at least one
+        # wildcard import which could be bringing them into this
+        # scope, or an unknown interface which could be declaring
+        # them.
         unresolved_symbols = []
         for sym in all_symbols[:]:
             if isinstance(sym.interface, UnresolvedInterface):
                 unresolved_symbols.append(sym)
                 all_symbols.remove(sym)
-        if unresolved_symbols and not symbol_table.has_wildcard_imports():
+        try:
+            internal_interface_symbol = symbol_table.lookup(
+                "_psyclone_internal_interface")
+        except KeyError:
+            internal_interface_symbol = None
+        if unresolved_symbols and not (
+                symbol_table.has_wildcard_imports() or
+                internal_interface_symbol):
             symbols_txt = ", ".join(
                 ["'" + sym.name + "'" for sym in unresolved_symbols])
             raise VisitorError(
@@ -1125,7 +1143,6 @@ class FortranWriter(LanguageWriter):
                               node is empty or None.
 
         '''
-        # pylint: disable=too-many-branches
         if not node.name:
             raise VisitorError("Expected node name to have a value.")
 

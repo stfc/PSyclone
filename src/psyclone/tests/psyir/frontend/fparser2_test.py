@@ -44,7 +44,7 @@ from fparser.common.readfortran import FortranStringReader
 from fparser.common.sourceinfo import FortranFormat
 from fparser.two import Fortran2003
 from fparser.two.Fortran2003 import (
-    Assignment_Stmt, Dimension_Attr_Spec, Execution_Part, Name, Return_Stmt,
+    Dimension_Attr_Spec, Execution_Part, Name, Return_Stmt,
     Specification_Part, Stmt_Function_Stmt, Subroutine_Subprogram,
     Type_Declaration_Stmt)
 from fparser.two.utils import walk
@@ -690,6 +690,79 @@ def test_get_routine_schedules_interface(interface_code, parser):
 
 
 @pytest.mark.usefixtures("f2008_parser")
+def test_get_partial_datatype():
+    '''Test that the _get_partial_datatype method of Fparser2Reader
+    works as expected.
+
+    '''
+    fake_parent = KernelSchedule("dummy_schedule")
+    processor = Fparser2Reader()
+
+    # Entry in symbol table with unmodified properties.
+    reader = FortranStringReader("integer :: l1=2")
+    node = Specification_Part(reader).content[0]
+    ids = [id(entry) for entry in walk(node)]
+    datatype, init = processor._get_partial_datatype(node, fake_parent, {})
+    assert isinstance(datatype, ScalarType)
+    assert isinstance(init, Literal)
+    assert datatype.intrinsic is ScalarType.Intrinsic.INTEGER
+    # Check fparser2 tree is unmodified
+    assert ids == [id(entry) for entry in walk(node)]
+
+    # Entry in symbol table with partial information. Example has one
+    # unsupported attribute (and no others) and an unsupported assignment.
+    reader = FortranStringReader("integer, pointer :: l1 => null()")
+    node = Specification_Part(reader).content[0]
+    ids = [id(entry) for entry in walk(node)]
+    datatype, init = processor._get_partial_datatype(node, fake_parent, {})
+    assert isinstance(datatype, ScalarType)
+    assert isinstance(init, CodeBlock)
+    assert datatype.intrinsic is ScalarType.Intrinsic.INTEGER
+    # Check fparser2 tree is unmodified
+    assert ids == [id(entry) for entry in walk(node)]
+
+    # Entry in symbol table with partial information. Example has one
+    # unsupported attribute and one supported attribute.
+    reader = FortranStringReader("real*4, target, dimension(10,20) :: l1")
+    node = Specification_Part(reader).content[0]
+    ids = [id(entry) for entry in walk(node)]
+    datatype, init = processor._get_partial_datatype(node, fake_parent, {})
+    assert isinstance(datatype, ArrayType)
+    assert init is None
+    assert datatype.intrinsic is ScalarType.Intrinsic.REAL
+    assert datatype.precision == 4
+    assert datatype.shape[0].upper.value == '10'
+    assert datatype.shape[1].upper.value == '20'
+    # Check fparser2 tree is unmodified
+    assert ids == [id(entry) for entry in walk(node)]
+
+    # No entry in symbol table.
+    # Notice the space before complex keyword. This avoids it being
+    # treated as a comment.
+    reader = FortranStringReader(" complex :: c\n")
+    node = Specification_Part(reader).content[0]
+    ids = [id(entry) for entry in walk(node)]
+    dtype, init = processor._get_partial_datatype(node, fake_parent, {})
+    assert dtype is None
+    assert init is None
+    # Check fparser2 tree is unmodified
+    assert ids == [id(entry) for entry in walk(node)]
+
+    # Multiple variables in the declaration are also supported but are
+    # not used by PSyclone at the moment.
+    reader = FortranStringReader(
+        "integer, pointer :: l1 => null(), l2 => null()")
+    node = Specification_Part(reader).content[0]
+    ids = [id(entry) for entry in walk(node)]
+    datatype, init = processor._get_partial_datatype(node, fake_parent, {})
+    assert isinstance(datatype, ScalarType)
+    assert isinstance(init, CodeBlock)
+    assert datatype.intrinsic is ScalarType.Intrinsic.INTEGER
+    # Check fparser2 tree is unmodified
+    assert ids == [id(entry) for entry in walk(node)]
+
+
+@pytest.mark.usefixtures("f2008_parser")
 def test_process_declarations():
     '''Test that process_declarations method of Fparser2Reader
     converts the fparser2 declarations to symbols in the provided
@@ -750,42 +823,55 @@ def test_process_declarations():
     processor.process_declarations(fake_parent, [fparser2spec], [])
     newsymbol = symtab.lookup("i1")
     assert newsymbol.is_constant
-    assert isinstance(newsymbol.constant_value, Literal)
-    assert newsymbol.constant_value.value == "1"
+    assert isinstance(newsymbol.initial_value, Literal)
+    assert newsymbol.initial_value.value == "1"
 
     reader = FortranStringReader("real, parameter :: i2 = 2.2, i3 = 3.3")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert symtab.lookup("i2").constant_value.value == "2.2"
-    assert symtab.lookup("i3").constant_value.value == "3.3"
+    assert symtab.lookup("i2").initial_value.value == "2.2"
+    assert symtab.lookup("i3").initial_value.value == "3.3"
 
     # Initialisation with constant expressions
     reader = FortranStringReader("real, parameter :: i4 = 1.1, i5 = i4 * 2")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert symtab.lookup("i4").constant_value.value == "1.1"
-    assert isinstance(symtab.lookup("i5").constant_value, BinaryOperation)
+    assert symtab.lookup("i4").initial_value.value == "1.1"
+    assert isinstance(symtab.lookup("i5").initial_value, BinaryOperation)
 
     # Initialisation with a constant expression (1) and with a symbol (val1)
     reader = FortranStringReader("integer, parameter :: val1 = 1, val2 = val1")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert fake_parent.symbol_table.lookup("val1").constant_value.value == "1"
+    assert fake_parent.symbol_table.lookup("val1").initial_value.value == "1"
     assert isinstance(
-        fake_parent.symbol_table.lookup("val2").constant_value, Reference)
-    assert fake_parent.symbol_table.lookup("val2").constant_value.symbol == \
+        fake_parent.symbol_table.lookup("val2").initial_value, Reference)
+    assert fake_parent.symbol_table.lookup("val2").initial_value.symbol == \
         fake_parent.symbol_table.lookup("val1")
 
     # Initialisation with a complex constant expression
-    symtab.add(DataSymbol("precisionkind", INTEGER_TYPE, constant_value=4))
+    symtab.add(DataSymbol("precisionkind", INTEGER_TYPE, is_constant=True,
+                          initial_value=4))
     reader = FortranStringReader(
         "integer, parameter :: val3 = 2 * (val1 + val2) + 2_precisionkind")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
-    # Val3 has been given a constant expression
-    assert fake_parent.symbol_table.lookup("val3").constant_value
+    # Val3 has been given an initial_value expression
+    val3 = fake_parent.symbol_table.lookup("val3")
+    assert isinstance(val3.initial_value, BinaryOperation)
+    assert val3.is_constant
     # The new symbol (precisionkind) has been added to the parent Symbol Table
     assert fake_parent.symbol_table.lookup("precisionkind")
+
+    # Initialisation of a variable
+    reader = FortranStringReader(
+        "integer :: val4 = 2 * (val1 + val2) + 2_precisionkind")
+    fparser2spec = Specification_Part(reader).content[0]
+    processor.process_declarations(fake_parent, [fparser2spec], [])
+    val4 = fake_parent.symbol_table.lookup("val4")
+    assert val4.initial_value
+    assert isinstance(val4.initial_value, BinaryOperation)
+    assert val4.is_constant is False
 
     # Check we catch duplicated symbols
     reader = FortranStringReader("integer :: i2")
@@ -794,6 +880,38 @@ def test_process_declarations():
         processor.process_declarations(fake_parent, [fparser2spec], [])
     assert ("Symbol 'i2' already present in SymbolTable with a defined "
             "interface" in str(error.value))
+
+    # Initialisation of a pointer.
+    reader = FortranStringReader(
+        "real, dimension(:), pointer :: dptr => null()")
+    fparser2spec = Specification_Part(reader).content[0]
+    processor.process_declarations(fake_parent, [fparser2spec], [])
+    ptr_sym = fake_parent.symbol_table.lookup("dptr")
+    assert isinstance(ptr_sym, DataSymbol)
+    assert isinstance(ptr_sym.datatype, UnknownFortranType)
+    assert isinstance(ptr_sym.initial_value, CodeBlock)
+
+
+@pytest.mark.usefixtures("f2008_parser")
+def test_process_declarations_unknownfortrantype():
+    '''Test that process_declarations method of Fparser2Reader adds
+    datatype information to an UnknownFortranType by calling the
+    get_partial_datatype method, also from Fparser2Reader.
+
+    '''
+    fake_parent = KernelSchedule("dummy_schedule")
+    symtab = fake_parent.symbol_table
+    processor = Fparser2Reader()
+    reader = FortranStringReader(
+        "integer, pointer :: l1 => null(), l2 => null()")
+    fparser2spec = Specification_Part(reader).content[0]
+    processor.process_declarations(fake_parent, [fparser2spec], [])
+    for varname in ("l1", "l2"):
+        var_symbol = symtab.lookup(varname)
+        assert isinstance(var_symbol.datatype, UnknownFortranType)
+        assert isinstance(var_symbol.datatype.partial_datatype, ScalarType)
+        assert (var_symbol.datatype.partial_datatype.intrinsic is
+                ScalarType.Intrinsic.INTEGER)
 
 
 @pytest.mark.usefixtures("f2008_parser")
@@ -850,15 +968,13 @@ def test_process_declarations_errors():
 @pytest.mark.usefixtures("f2008_parser")
 def test_declarations_with_initialisations(fortran_reader):
     '''Test that Fparser2Reader keeps all the variable initialisation
-    expressions, even though some may end up in UnknownTypes for now
-    because we don't support variable initialisations that are not
-    parameters.
+    expressions.
     '''
 
     psyir = fortran_reader.psyir_from_source(
         """
         module test
-            integer :: a = 1
+            integer :: a = 1, aa = 4
             integer, save :: b = 1
             integer, parameter :: c = 1
             contains
@@ -871,32 +987,33 @@ def test_declarations_with_initialisations(fortran_reader):
         """)
 
     inner_st = psyir.walk(Routine)[0].symbol_table
+    asym = inner_st.lookup('a')
+    aasym = inner_st.lookup('aa')
+    bsym = inner_st.lookup('b')
+    csym = inner_st.lookup('c')
+    dsym = inner_st.lookup('d')
+    esym = inner_st.lookup('e')
+    fsym = inner_st.lookup('f')
+    all_syms = [asym, aasym, bsym, csym, dsym, esym, fsym]
+
     # All initialisation variables are DataSymbols
-    assert isinstance(inner_st.lookup('a'), DataSymbol)
-    assert isinstance(inner_st.lookup('b'), DataSymbol)
-    assert isinstance(inner_st.lookup('c'), DataSymbol)
-    assert isinstance(inner_st.lookup('d'), DataSymbol)
-    assert isinstance(inner_st.lookup('e'), DataSymbol)
-    assert isinstance(inner_st.lookup('f'), DataSymbol)
+    assert all(isinstance(sym, DataSymbol) for sym in all_syms)
 
-    # When it is not a parameter they are unknown interface and datatype
-    assert isinstance(inner_st.lookup('a').interface, UnknownInterface)
-    assert isinstance(inner_st.lookup('b').interface, UnknownInterface)
-    assert isinstance(inner_st.lookup('d').interface, UnknownInterface)
-    assert isinstance(inner_st.lookup('e').interface, UnknownInterface)
-    assert isinstance(inner_st.lookup('a').datatype, UnknownFortranType)
-    assert isinstance(inner_st.lookup('b').datatype, UnknownFortranType)
-    assert isinstance(inner_st.lookup('d').datatype, UnknownFortranType)
-    assert isinstance(inner_st.lookup('e').datatype, UnknownFortranType)
+    # All of the data symbols should have a StaticInterface (because they
+    # either have an explicit 'save' or 'parameter' or are given an
+    # initial_value with then implies 'save').
+    assert all(isinstance(sym.interface, StaticInterface) for sym in all_syms)
 
-    # When it is a parameter the interface, type and constant_value is defined
-    assert isinstance(inner_st.lookup('c').interface, DefaultModuleInterface)
-    assert isinstance(inner_st.lookup('c').datatype, ScalarType)
-    assert isinstance(inner_st.lookup('c').constant_value, Literal)
-    assert isinstance(inner_st.lookup('f').interface, AutomaticInterface)
-    assert isinstance(inner_st.lookup('f').datatype, ScalarType)
-    assert isinstance(inner_st.lookup('f').constant_value, Literal)
-    assert isinstance(inner_st.lookup('f').interface, AutomaticInterface)
+    # All symbols should have a known data type.
+    assert all(isinstance(sym.datatype, ScalarType) for sym in all_syms)
+
+    # When it is a parameter the initial_value is defined and is_constant
+    # is True.
+    assert isinstance(csym.initial_value, Literal)
+    assert csym.is_constant is True
+
+    assert isinstance(fsym.initial_value, Literal)
+    assert fsym.is_constant is True
 
 
 @pytest.mark.usefixtures("f2008_parser")
@@ -954,49 +1071,30 @@ def test_process_unsupported_declarations(fortran_reader):
     fake_parent = KernelSchedule("dummy_schedule")
     processor = Fparser2Reader()
 
-    # Initial values for variables are not supported so we should get a symbol
-    # with unknown type.
-    reader = FortranStringReader("real:: a = 1.1")
-    fparser2spec = Specification_Part(reader).content[0]
-    processor.process_declarations(fake_parent, [fparser2spec], [])
-    asym = fake_parent.symbol_table.lookup("a")
-    assert isinstance(asym.datatype, UnknownFortranType)
-    assert asym.datatype.declaration == "REAL :: a = 1.1"
-
-    reader = FortranStringReader("real:: b = 1.1, c = 2.2")
-    fparser2spec = Specification_Part(reader).content[0]
-    processor.process_declarations(fake_parent, [fparser2spec], [])
-    bsym = fake_parent.symbol_table.lookup("b")
-    assert isinstance(bsym.datatype, UnknownFortranType)
-    assert bsym.datatype.declaration == "REAL :: b = 1.1"
-    csym = fake_parent.symbol_table.lookup("c")
-    assert isinstance(csym.datatype, UnknownFortranType)
-    assert csym.datatype.declaration == "REAL :: c = 2.2"
-
     # Multiple symbols with a single attribute
-    reader = FortranStringReader("integer, private :: d = 1, e = 2")
+    reader = FortranStringReader("integer, private, pointer :: d, e")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
     dsym = fake_parent.symbol_table.lookup("d")
     assert isinstance(dsym.datatype, UnknownFortranType)
-    assert dsym.datatype.declaration == "INTEGER, PRIVATE :: d = 1"
+    assert dsym.datatype.declaration == "INTEGER, PRIVATE, POINTER :: d"
     esym = fake_parent.symbol_table.lookup("e")
     assert isinstance(esym.datatype, UnknownFortranType)
-    assert esym.datatype.declaration == "INTEGER, PRIVATE :: e = 2"
+    assert esym.datatype.declaration == "INTEGER, PRIVATE, POINTER :: e"
 
     # Multiple attributes
     reader = FortranStringReader(
-        "INTEGER, PRIVATE, DIMENSION(3) :: f = 2, g = 3")
+        "INTEGER, PRIVATE, DIMENSION(3), POINTER :: f, g")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
     fsym = fake_parent.symbol_table.lookup("f")
     assert isinstance(fsym.datatype, UnknownFortranType)
     assert (fsym.datatype.declaration ==
-            "INTEGER, PRIVATE, DIMENSION(3) :: f = 2")
+            "INTEGER, PRIVATE, DIMENSION(3), POINTER :: f")
     gsym = fake_parent.symbol_table.lookup("g")
     assert isinstance(gsym.datatype, UnknownFortranType)
     assert (gsym.datatype.declaration ==
-            "INTEGER, PRIVATE, DIMENSION(3) :: g = 3")
+            "INTEGER, PRIVATE, DIMENSION(3), POINTER :: g")
 
     # Test with unsupported intrinsic type. Note the space before complex
     # below which stops the line being treated as a comment.
@@ -1029,16 +1127,16 @@ def test_process_unsupported_declarations(fortran_reader):
     processor.process_declarations(fake_parent, [fparser2spec], [])
     fbsym = fake_parent.symbol_table.lookup("fbsp")
     assert fbsym.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
-    assert isinstance(fbsym.constant_value, CodeBlock)
+    assert isinstance(fbsym.initial_value, CodeBlock)
     # The first parameter should have been handled correctly
     hsym = fake_parent.symbol_table.lookup("happy")
     assert hsym.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
-    assert hsym.constant_value.value == "1"
+    assert hsym.initial_value.value == "1"
     # As should the third
     ssym = fake_parent.symbol_table.lookup("sad")
     assert ssym.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
-    assert isinstance(ssym.constant_value, Reference)
-    assert ssym.constant_value.symbol.name == "fbsp"
+    assert isinstance(ssym.initial_value, Reference)
+    assert ssym.initial_value.symbol.name == "fbsp"
 
 
 @pytest.mark.usefixtures("f2008_parser")
@@ -1055,16 +1153,16 @@ def test_unsupported_decln_initial_value(monkeypatch):
     # for anything other than a Literal.
 
     class BrokenDataSymbol(DataSymbol):
-        ''' Sub-class of DataSymbol with `constant_value` setter patched
+        ''' Sub-class of DataSymbol with `initial_value` setter patched
         so that it raises a ValueError for anything other than a Literal. '''
         @property
-        def constant_value(self):
-            return self._constant_value
+        def initial_value(self):
+            return self._initial_value
 
-        @constant_value.setter
-        def constant_value(self, value):
+        @initial_value.setter
+        def initial_value(self, value):
             if isinstance(value, Literal):
-                self._constant_value = value
+                self._initial_value = value
             else:
                 raise ValueError("")
 
@@ -1079,7 +1177,7 @@ def test_unsupported_decln_initial_value(monkeypatch):
     processor.process_declarations(fake_parent, [fparser2spec], [])
     hsym = fake_parent.symbol_table.lookup("happy")
     assert hsym.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
-    assert hsym.constant_value.value == "1"
+    assert hsym.initial_value.value == "1"
     fbsym = fake_parent.symbol_table.lookup("fbsp")
     assert isinstance(fbsym.datatype, UnknownFortranType)
     assert (fbsym.datatype.declaration == "INTEGER, PRIVATE, PARAMETER :: "
@@ -2404,309 +2502,6 @@ def test_handling_complex_if_construct():
 
 
 @pytest.mark.usefixtures("disable_declaration_check", "f2008_parser")
-def test_handling_case_construct():
-    ''' Test that fparser2 Case_Construct is converted to the expected PSyIR
-    tree structure.
-
-    TODO #754 fix test so that 'disable_declaration_check' fixture is not
-    required.
-    '''
-    reader = FortranStringReader(
-        '''SELECT CASE (selector)
-            CASE (label1)
-                branch1 = 1
-            CASE (label2)
-                branch2 = 1
-            END SELECT''')
-    fparser2case_construct = Execution_Part.match(reader)[0][0]
-
-    fake_parent = Schedule()
-    processor = Fparser2Reader()
-    processor.process_nodes(fake_parent, [fparser2case_construct])
-
-    # Check a new node was properly generated and connected to parent
-    assert len(fake_parent.children) == 1
-    ifnode = fake_parent.children[0]
-    assert isinstance(ifnode, IfBlock)
-    assert ifnode.if_body.ast is fparser2case_construct.content[2]
-    assert ifnode.if_body.ast_end is fparser2case_construct.content[2]
-    assert 'was_case' in ifnode.annotations
-    assert ifnode.condition.children[0].name == 'selector'
-    assert ifnode.condition.children[1].name == 'label1'
-    assert ifnode.if_body[0].children[0].name == 'branch1'
-    assert isinstance(ifnode.else_body[0], IfBlock)
-    assert ifnode.else_body[0].condition.children[1].name == 'label2'
-    assert ifnode.else_body[0].if_body[0].children[0].name == 'branch2'
-    assert ifnode.else_body[0].ast is \
-        fparser2case_construct.content[4]
-    assert ifnode.else_body[0].children[1].ast is \
-        fparser2case_construct.content[4]
-    assert ifnode.else_body[0].children[1].ast_end is \
-        fparser2case_construct.content[4]
-    assert len(ifnode.else_body[0].children) == 2  # SELECT CASE ends here
-
-
-@pytest.mark.usefixtures("f2008_parser")
-def test_case_default():
-    ''' Check that the fparser2Reader handles SELECT blocks with
-    a default clause.
-
-    '''
-    case_clauses = ["CASE default\nbranch3 = 1\nbranch3 = branch3 * 2\n",
-                    "CASE (label1)\nbranch1 = 1\n",
-                    "CASE (label2)\nbranch2 = 1\n"]
-
-    # Create the symbols that the frontend will expect to already be
-    # present in the symbol table.
-    symbols = []
-    for idx in [1, 2, 3]:
-        symbols.append(DataSymbol(f"branch{idx}", INTEGER_TYPE))
-    for var_name in ["selector", "label1", "label2"]:
-        symbols.append(DataSymbol(var_name, INTEGER_TYPE))
-
-    # Loop over the 3 possible locations for the 'default' clause
-    for idx1, idx2, idx3 in [(0, 1, 2), (1, 0, 2), (1, 2, 0)]:
-        fortran_text = (
-            f"SELECT CASE (selector)\n"
-            f"{case_clauses[idx1]}{case_clauses[idx2]}{case_clauses[idx3]}"
-            f"END SELECT\n")
-        reader = FortranStringReader(fortran_text)
-        fparser2case_construct = Execution_Part.match(reader)[0][0]
-
-        fake_parent = Schedule()
-        # Ensure we have the necessary symbols in the symbol table.
-        for sym in symbols:
-            fake_parent.symbol_table.add(sym)
-
-        processor = Fparser2Reader()
-        processor.process_nodes(fake_parent, [fparser2case_construct])
-        assigns = fake_parent.walk(Assignment)
-        # Check that the assignment to 'branch 3' (in the default clause) is
-        # the deepest in the tree
-        assert "branch3" in str(assigns[2])
-        assert isinstance(assigns[2].ast, Assignment_Stmt)
-        assert isinstance(assigns[2].parent, Schedule)
-        assert isinstance(assigns[2].parent.ast, Assignment_Stmt)
-        assert "branch3 * 2" in str(assigns[2].parent.ast_end)
-        assert isinstance(assigns[2].parent.parent, IfBlock)
-        # Check that the if-body of the parent IfBlock also contains
-        # an Assignment
-        assert isinstance(assigns[2].parent.parent.children[1], Schedule)
-        assert isinstance(assigns[2].parent.parent.children[1].children[0],
-                          Assignment)
-
-
-@pytest.mark.usefixtures("disable_declaration_check", "f2008_parser")
-def test_handling_case_list():
-    ''' Test that the Case_Construct handler correctly processes CASE
-    statements involving a list of conditions.
-
-    TODO #754 fix test so that 'disable_declaration_check' fixture is not
-    required.
-    '''
-    reader = FortranStringReader(
-        '''SELECT CASE (my_var)
-            CASE (label2, label3)
-                branch2 = 1
-            END SELECT''')
-    fparser2case_construct = Execution_Part.match(reader)[0][0]
-
-    fake_parent = Schedule()
-    processor = Fparser2Reader()
-    processor.process_nodes(fake_parent, [fparser2case_construct])
-    assert len(fake_parent.children) == 1
-    ifnode = fake_parent.children[0]
-    assert isinstance(ifnode, IfBlock)
-    assert isinstance(ifnode.condition, BinaryOperation)
-    assert ifnode.condition.operator == BinaryOperation.Operator.OR
-    eqnode = ifnode.condition.children[0]
-    assert eqnode.operator == BinaryOperation.Operator.EQ
-    assert "my_var" in str(eqnode.children[0])
-    assert "label2" in str(eqnode.children[1])
-    eqnode = ifnode.children[0].children[1]
-    assert eqnode.operator == BinaryOperation.Operator.EQ
-    assert "my_var" in str(eqnode.children[0])
-    assert "label3" in str(eqnode.children[1])
-
-    assert "Reference[name:'branch2']" in str(ifnode.if_body[0].lhs)
-
-
-@pytest.mark.usefixtures("disable_declaration_check", "f2008_parser")
-def test_handling_case_range():
-    ''' Test that the Case_Construct handler correctly processes CASE
-    statements involving a range.
-
-    TODO #754 fix test so that 'disable_declaration_check' fixture is not
-    required.
-    '''
-    reader = FortranStringReader(
-        '''SELECT CASE (my_var)
-            CASE (label4:label5)
-                branch3 = 1
-            END SELECT''')
-    fparser2case_construct = Execution_Part.match(reader)[0][0]
-
-    fake_parent = Schedule()
-    processor = Fparser2Reader()
-    processor.process_nodes(fake_parent, [fparser2case_construct])
-    assert len(fake_parent.children) == 1
-    ifnode = fake_parent.children[0]
-    assert isinstance(ifnode, IfBlock)
-    assert isinstance(ifnode.children[0], BinaryOperation)
-    assert ifnode.condition.operator == BinaryOperation.Operator.AND
-    assert ifnode.condition.children[0].operator == BinaryOperation.Operator.GE
-    assert ifnode.condition.children[1].operator == BinaryOperation.Operator.LE
-    assert "branch3" in str(ifnode.if_body[0].lhs)
-
-
-@pytest.mark.usefixtures("disable_declaration_check", "f2008_parser")
-def test_handling_case_range_list():
-    ''' Test that the Case_Construct handler correctly processes CASE
-    statements involving a list of ranges.
-
-    TODO #754 fix test so that 'disable_declaration_check' fixture is not
-    required.
-    '''
-    reader = FortranStringReader(
-        '''SELECT CASE (my_var)
-            CASE (:label1, label5:, label6)
-                branch4 = 1
-            END SELECT''')
-    # We should end up with:
-    #    my_var <= label1 OR my_var >= label5 OR my_var == label6
-    fparser2case_construct = Execution_Part.match(reader)[0][0]
-
-    fake_parent = Schedule()
-    processor = Fparser2Reader()
-    processor.process_nodes(fake_parent, [fparser2case_construct])
-    assert len(fake_parent.children) == 1
-    ifnode = fake_parent.children[0]
-    assert isinstance(ifnode, IfBlock)
-    assert isinstance(ifnode.condition, BinaryOperation)
-    assert ifnode.condition.operator == BinaryOperation.Operator.OR
-    assert ifnode.condition.children[0].operator == BinaryOperation.Operator.LE
-    assert "label1" in str(ifnode.condition.children[0].children[1])
-    orop = ifnode.condition.children[1]
-    assert orop.operator == BinaryOperation.Operator.OR
-    assert orop.children[0].operator == BinaryOperation.Operator.GE
-    assert "label5" in str(orop.children[0].children[1])
-    assert orop.children[1].operator == BinaryOperation.Operator.EQ
-    assert "label6" in str(orop.children[1].children[1])
-    assert "branch4" in str(ifnode.if_body[0].lhs)
-
-
-@pytest.mark.usefixtures("disable_declaration_check", "f2008_parser")
-def test_handling_invalid_case_construct():
-    ''' Test that the Case_Construct handler raises the proper errors when
-    it parses invalid or unsupported fparser2 trees.
-
-    TODO #754 fix test so that 'disable_declaration_check' fixture is not
-    required.
-    '''
-    # CASE (default) is just a regular symbol named default
-    reader = FortranStringReader(
-        '''SELECT CASE (selector)
-            CASE (default)
-                branch3 = 1
-            END SELECT''')
-    fparser2case_construct = Execution_Part.match(reader)[0][0]
-
-    fake_parent = Schedule()
-    processor = Fparser2Reader()
-    processor.process_nodes(fake_parent, [fparser2case_construct])
-    assert isinstance(fake_parent.children[0], IfBlock)
-
-    # Test with no opening Select_Case_Stmt
-    reader = FortranStringReader(
-        '''SELECT CASE (selector)
-            CASE (label1)
-                branch1 = 1
-            CASE (label2)
-                branch2 = 1
-            END SELECT''')
-    fparser2case_construct = Execution_Part.match(reader)[0][0]
-    del fparser2case_construct.content[0]
-    with pytest.raises(InternalError) as error:
-        processor.process_nodes(fake_parent, [fparser2case_construct])
-    assert "Failed to find opening case statement in:" in str(error.value)
-
-    # Test with no closing End_Select_Stmt
-    reader = FortranStringReader(
-        '''SELECT CASE (selector)
-            CASE (label1)
-                branch1 = 1
-            CASE (label2)
-                branch2 = 1
-            END SELECT''')
-    fparser2case_construct = Execution_Part.match(reader)[0][0]
-    del fparser2case_construct.content[-1]
-    with pytest.raises(InternalError) as error:
-        processor.process_nodes(fake_parent, [fparser2case_construct])
-    assert "Failed to find closing case statement in:" in str(error.value)
-
-    # Test when one clause is not of the expected type
-    reader = FortranStringReader(
-        '''SELECT CASE (selector)
-            CASE (label1)
-                branch1 = 1
-            CASE (label2)
-                branch2 = 1
-            END SELECT''')
-    fparser2case_construct = Execution_Part.match(reader)[0][0]
-    fparser2case_construct.content[1].items = (Name("Fake"), None)
-    with pytest.raises(InternalError) as error:
-        processor.process_nodes(fake_parent, [fparser2case_construct])
-    assert "to be a Case_Selector but got" in str(error.value)
-
-
-@pytest.mark.usefixtures("parser")
-def test_handling_labelled_case_construct():
-    ''' Test that a labelled case construct results in a CodeBlock. '''
-    reader = FortranStringReader(
-        '''999 SELECT CASE (selector)
-            CASE (pick_me)
-                branch3 = 1
-            END SELECT''')
-    fparser2case_construct = Execution_Part.match(reader)[0][0]
-
-    fake_parent = Schedule()
-    fake_parent.symbol_table.new_symbol("selector", symbol_type=DataSymbol,
-                                        datatype=INTEGER_TYPE)
-    fake_parent.symbol_table.new_symbol("pick_me", symbol_type=DataSymbol,
-                                        datatype=INTEGER_TYPE)
-    fake_parent.symbol_table.new_symbol("branch3", symbol_type=DataSymbol,
-                                        datatype=INTEGER_TYPE)
-    processor = Fparser2Reader()
-    processor.process_nodes(fake_parent, [fparser2case_construct])
-    assert len(fake_parent.children) == 1
-    assert isinstance(fake_parent.children[0], CodeBlock)
-
-
-@pytest.mark.usefixtures("f2008_parser")
-def test_case_default_only():
-    ''' Check that we handle a select case that contains only a
-    default clause and is thus redundant. The PSyIR should represent
-    only the code that is within the default case.
-
-    '''
-    fake_parent = Schedule()
-    fake_parent.symbol_table.add(Symbol("a"))
-    processor = Fparser2Reader()
-    reader = FortranStringReader(
-        '''SELECT CASE ( jprstlib )
-           CASE DEFAULT
-             WRITE(numout,*) 'open ice restart NetCDF file: '
-             a = 1
-           END SELECT''')
-    exe_part = Execution_Part.match(reader)
-    processor.process_nodes(fake_parent, exe_part[0])
-    # We should have no IfBlock in the resulting PSyIR
-    assert len(fake_parent.children) == 2
-    assert isinstance(fake_parent.children[0], CodeBlock)
-    assert isinstance(fake_parent.children[1], Assignment)
-
-
-@pytest.mark.usefixtures("disable_declaration_check", "f2008_parser")
 def test_handling_binaryopbase():
     ''' Test that fparser2 BinaryOpBase is converted to the expected PSyIR
     tree structure.
@@ -2724,7 +2519,7 @@ def test_handling_binaryopbase():
     assert len(new_node.children) == 2
     assert new_node._operator == BinaryOperation.Operator.ADD
 
-    # Test parsing all supported binary operators.
+    # Test parsing all supported arithmetic binary operators.
     testlist = (('+', BinaryOperation.Operator.ADD),
                 ('-', BinaryOperation.Operator.SUB),
                 ('*', BinaryOperation.Operator.MUL),
@@ -2742,14 +2537,31 @@ def test_handling_binaryopbase():
                 ('>=', BinaryOperation.Operator.GE),
                 ('.ge.', BinaryOperation.Operator.GE),
                 ('<=', BinaryOperation.Operator.LE),
-                ('.LE.', BinaryOperation.Operator.LE),
-                ('.and.', BinaryOperation.Operator.AND),
-                ('.or.', BinaryOperation.Operator.OR))
+                ('.LE.', BinaryOperation.Operator.LE))
 
     for opstring, expected in testlist:
         # Manipulate the fparser2 ParseTree so that it contains the operator
         # under test
         reader = FortranStringReader("x=1" + opstring + "4")
+        fp2binaryop = Execution_Part.match(reader)[0][0]
+        # And then translate it to PSyIR again.
+        fake_parent = Schedule()
+        processor.process_nodes(fake_parent, [fp2binaryop])
+        assert len(fake_parent.children) == 1
+        assert isinstance(fake_parent[0].rhs, BinaryOperation), \
+            "Fails when parsing '" + opstring + "'"
+        assert fake_parent[0].rhs._operator == expected, \
+            "Fails when parsing '" + opstring + "'"
+
+    # Test parsing all supported logical binary operators.
+    testlist = (('.and.', BinaryOperation.Operator.AND),
+                ('.eqv.', BinaryOperation.Operator.EQV),
+                ('.neqv.', BinaryOperation.Operator.NEQV),
+                ('.or.', BinaryOperation.Operator.OR))
+    for opstring, expected in testlist:
+        # Manipulate the fparser2 ParseTree so that it contains the operator
+        # under test
+        reader = FortranStringReader("x=a" + opstring + ".true.")
         fp2binaryop = Execution_Part.match(reader)[0][0]
         # And then translate it to PSyIR again.
         fake_parent = Schedule()

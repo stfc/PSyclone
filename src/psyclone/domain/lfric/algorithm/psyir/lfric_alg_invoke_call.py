@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -38,7 +38,7 @@
 '''
 from psyclone.domain.common.algorithm import AlgorithmInvokeCall
 from psyclone.domain.lfric.algorithm.psyir.lfric_kernel_functor import (
-    LFRicFunctor)
+    LFRicFunctor, LFRicBuiltinFunctor)
 
 
 class LFRicAlgorithmInvokeCall(AlgorithmInvokeCall):
@@ -67,6 +67,20 @@ class LFRicAlgorithmInvokeCall(AlgorithmInvokeCall):
         :rtype: str
         '''
         return f"{node.name}_psy"
+
+    def _def_routine_root_name(self):
+        '''
+        :returns: the proposed processed routine name for this invoke.
+        :rtype: str
+
+        '''
+        if (len(self.children) == 1 and
+                isinstance(self.children[0], LFRicBuiltinFunctor)):
+            # By default the name of the kernel is added if there is
+            # only one functor. However we don't add this in LFRic if
+            # the functor is a builtin.
+            return f"invoke_{self._index}"
+        return super()._def_routine_root_name()
 
 
 # For AutoAPI documentation generation.

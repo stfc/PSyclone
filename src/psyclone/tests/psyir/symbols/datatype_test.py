@@ -43,9 +43,9 @@ from psyclone.errors import InternalError
 from psyclone.psyir.nodes import Literal, BinaryOperation, Reference, \
     Container, KernelSchedule
 from psyclone.psyir.symbols import (
-    ArrayType, DataType, DeferredType, ScalarType, UnknownType,
-    UnknownFortranType, DataSymbol, StructureType, NoType,
-    INTEGER_TYPE, REAL_TYPE, Symbol, DataTypeSymbol, SymbolTable)
+    ArrayType, DataType, DeferredType, ScalarType, UnknownFortranType,
+    DataSymbol, StructureType, NoType, INTEGER_TYPE, REAL_TYPE, Symbol,
+    DataTypeSymbol, SymbolTable)
 
 
 # Abstract DataType class
@@ -157,7 +157,8 @@ def test_scalartype_datasymbol_precision(intrinsic):
     # Create an r_def precision symbol with a constant value of 8
     data_type = ScalarType(ScalarType.Intrinsic.INTEGER,
                            ScalarType.Precision.UNDEFINED)
-    precision_symbol = DataSymbol("r_def", data_type, constant_value=8)
+    precision_symbol = DataSymbol("r_def", data_type, is_constant=True,
+                                  initial_value=8)
     # Set the precision of our ScalarType to be the precision symbol
     scalar_type = ScalarType(intrinsic, precision_symbol)
     assert isinstance(scalar_type, ScalarType)
@@ -177,7 +178,8 @@ def test_scalartype_not_equal():
     intrinsic = ScalarType.Intrinsic.INTEGER
     data_type = ScalarType(ScalarType.Intrinsic.INTEGER,
                            ScalarType.Precision.UNDEFINED)
-    precision_symbol = DataSymbol("r_def", data_type, constant_value=8)
+    precision_symbol = DataSymbol("r_def", data_type, is_constant=True,
+                                  initial_value=8)
     # Set the precision of our ScalarType to be the precision symbol
     scalar_type = ScalarType(intrinsic, precision_symbol)
     # Same precision symbol but different intrinsic type
@@ -268,7 +270,8 @@ def test_arraytype():
     '''Test that the ArrayType class __init__ works as expected. Test the
     different dimension datatypes that are supported.'''
     scalar_type = ScalarType(ScalarType.Intrinsic.INTEGER, 4)
-    data_symbol = DataSymbol("var", scalar_type, constant_value=30)
+    data_symbol = DataSymbol("var", scalar_type, is_constant=True,
+                             initial_value=30)
     one = Literal("1", scalar_type)
     var_plus_1 = BinaryOperation.create(
         BinaryOperation.Operator.ADD, Reference(data_symbol), one)
@@ -382,7 +385,8 @@ def test_arraytype_invalid_shape_dimension_1():
 
     '''
     scalar_type = ScalarType(ScalarType.Intrinsic.REAL, 4)
-    symbol = DataSymbol("fred", scalar_type, constant_value=3.0)
+    symbol = DataSymbol("fred", scalar_type, is_constant=True,
+                        initial_value=3.0)
     with pytest.raises(TypeError) as excinfo:
         _ = ArrayType(scalar_type, [Reference(symbol)])
     assert (
@@ -457,7 +461,7 @@ def test_arraytype_invalid_shape_bounds():
     assert ("If present, the lower bound in an ArrayType 'shape' must "
             "represent a value but found ArrayType.Extent" in str(err.value))
     scalar_type = ScalarType(ScalarType.Intrinsic.REAL, 4)
-    symbol = DataSymbol("fred", scalar_type, constant_value=3.0)
+    symbol = DataSymbol("fred", scalar_type, initial_value=3.0)
     with pytest.raises(TypeError) as excinfo:
         _ = ArrayType(scalar_type, [(1, Reference(symbol))])
     assert (
@@ -503,7 +507,8 @@ def test_arraytype_str():
     '''Test that the ArrayType class str method works as expected.'''
     scalar_type = ScalarType(ScalarType.Intrinsic.INTEGER,
                              ScalarType.Precision.UNDEFINED)
-    data_symbol = DataSymbol("var", scalar_type, constant_value=20)
+    data_symbol = DataSymbol("var", scalar_type, is_constant=True,
+                             initial_value=20)
     data_type = ArrayType(scalar_type, [10, Reference(data_symbol),
                                         (2, Reference(data_symbol)),
                                         (Reference(data_symbol), 10)])
@@ -565,23 +570,6 @@ def test_arraytype_eq():
     assert data_type1 != ArrayType(iscalar_type, [10, 10])
 
 
-# UnknownType tests
-
-def test_unknown_type_declaration_setter():
-    '''Test the declaration setter/getter in UnknownType. We have to subclass
-    UnknownType as it is virtual.'''
-
-    class HardType(UnknownType):
-        '''Concrete sub-class of UnknownType for testing.'''
-        def __str__(self):
-            return "HardType"
-
-    htype = HardType("real var2;")
-    assert htype.declaration == "real var2;"
-    htype.declaration = "real var;"
-    assert htype.declaration == "real var;"
-
-
 # UnknownFortranType tests
 
 def test_unknown_fortran_type():
@@ -593,8 +581,35 @@ def test_unknown_fortran_type():
             "string but got an argument of type 'int'" in str(err.value))
     decl = "type(some_type) :: var"
     utype = UnknownFortranType(decl)
-    assert str(utype) == "UnknownFortranType('" + decl + "')"
-    assert utype.declaration == decl
+    assert utype._type_text == ""
+    assert utype._partial_datatype is None
+    assert str(utype) == f"UnknownFortranType('{decl}')"
+    assert utype._declaration == decl
+
+
+def test_unknown_fortran_type_optional_arg():
+    '''Check the optional 'partial_datatype' argument of the
+    UnknownFortranType class works as expected. Also check the getter
+    method and the string methods work as expected when
+    partial_datatype information is supplied.
+
+    '''
+    decl = "type(some_type) :: var"
+    with pytest.raises(TypeError) as err:
+        _ = UnknownFortranType(decl, partial_datatype="invalid")
+    assert ("partial_datatype argument in UnknownFortranType initialisation "
+            "should be a DataType, DataTypeSymbol, or NoneType, but found "
+            "'str'." in str(err.value))
+    utype = UnknownFortranType(decl, partial_datatype=None)
+    assert utype._partial_datatype is None
+    assert utype.partial_datatype is None
+
+    utype = UnknownFortranType(
+        decl, partial_datatype=DataTypeSymbol("some_type", DeferredType()))
+    assert isinstance(utype._partial_datatype, DataTypeSymbol)
+    assert isinstance(utype.partial_datatype, DataTypeSymbol)
+    assert utype.partial_datatype.name == "some_type"
+    assert str(utype) == f"UnknownFortranType('{decl}')"
 
 
 def test_unknown_fortran_type_text():
@@ -609,9 +624,6 @@ def test_unknown_fortran_type_text():
     # Calling it a second time should just return the previously cached
     # result.
     assert utype.type_text is text
-    # Changing the declaration text should wipe the cache
-    utype.declaration = decl
-    assert utype.type_text is not text
 
 
 def test_unknown_fortran_type_eq():

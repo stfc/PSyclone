@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2022, Science and Technology Facilities Council
+! Copyright (c) 2017-2023, Science and Technology Facilities Council
 !
 ! Redistribution and use in source and binary forms, with or without
 ! modification, are permitted provided that the following conditions are met:
@@ -31,14 +31,14 @@
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
-! Modified I. Kavcic, Met Office
+! Modified I. Kavcic and L. Turner, Met Office
 
 program long_lines
 
-  use constants_mod, only : r_def, i_def
-  use field_mod, only : field_type
+  use constants_mod,       only : r_def, i_def
+  use field_mod,           only : field_type
   use quadrature_xyoz_mod, only: quadrature_xyoz_type
-  use testkern_qr,   only : testkern_qr_type
+  use testkern_qr_mod,     only : testkern_qr_type
 
   real(r_def)    :: rdt
   integer(i_def) :: iflag
