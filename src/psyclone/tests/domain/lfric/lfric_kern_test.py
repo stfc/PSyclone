@@ -451,3 +451,33 @@ def test_kern_all_updates_are_writes():
     # Change the GH_INC to be GH_WRITE.
     loop.kernel.args[1]._access = AccessType.WRITE
     assert loop.kernel.all_updates_are_writes
+
+
+def test_kern_local_vars():
+    ''' Check that the LFRicKern.local_vars() method returns the expected
+    names used by the Kernel that vary from one invocation to the next.
+    '''
+    kernel = LFRicKern()
+    output = kernel.local_vars()
+    assert output == []
+
+
+def test_kern_not_coloured_inc(monkeypatch):
+    ''' Tests that there is no kernel argument with INC access when OpenMP
+    is applied without colouring.
+    '''
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    sched = psy.invokes.invoke_list[0].schedule
+    kern = sched.walk(LFRicKern)[0]
+    # Kernel is not coloured.
+    assert kern.is_coloured() is False
+    # Monkeypatch the Kernel so that it appears to be OpenMP parallel.
+    monkeypatch.setattr(kern, "is_openmp_parallel", lambda: True)
+    assert kern.is_openmp_parallel() is True
+    with pytest.raises(GenerationError) as err:
+        _ = psy.gen
+    assert ("Kernel 'testkern_code' has an argument with INC access and "
+            "therefore must be coloured in order to be parallelised with "
+            "OpenMP.")
