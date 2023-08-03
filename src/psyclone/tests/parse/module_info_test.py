@@ -41,6 +41,7 @@ import pytest
 from fparser.two import Fortran2003
 
 from psyclone.parse import ModuleInfo, ModuleInfoError, ModuleManager
+from psyclone.parse.routine_info import GenericRoutineInfo
 from psyclone.psyir.nodes import FileContainer
 from psyclone.tests.utilities import get_base_path
 
@@ -198,3 +199,26 @@ def test_mod_info_get_psyir():
     assert isinstance(constants_psyir, FileContainer)
     assert constants_psyir.name == "broken_builtins_mod.f90"
     assert constants_psyir.children == []
+
+
+# -----------------------------------------------------------------------------
+@pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance",
+                         "mod_man_test_setup_directories")
+def test_generic_interface():
+    '''Tests that a generic interface works as expected.
+    '''
+    mod_man = ModuleManager.get()
+    mod_man.add_search_path("d1")
+    mod_man.add_search_path("d2")
+
+    mod_info = mod_man.get_module_info("g_mod")
+
+    mod_info.get_routine_info("myfunc")
+
+    # It should contain all three functions
+    assert mod_info.contains_routine("myfunc")
+    assert mod_info.contains_routine("myfunc1")
+    assert mod_info.contains_routine("myfunc2")
+
+    routine_info = mod_info.get_routine_info("myfunc")
+    assert isinstance(routine_info, GenericRoutineInfo)
