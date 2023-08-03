@@ -2082,6 +2082,10 @@ class Fparser2Reader():
                 self._process_decln(parent, local_table, child)
             # Convert from Symbols to type information
             for symbol in local_table.symbols:
+                print("xxx ", symbol.name)
+                print(symbol.initial_value)
+                print(type(symbol.datatype))
+                # RF need initial value too
                 dtype.add(symbol.name, symbol.datatype, symbol.visibility)
 
             # Update its type with the definition we've found

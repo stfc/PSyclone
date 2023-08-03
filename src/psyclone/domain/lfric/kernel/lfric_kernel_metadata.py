@@ -699,16 +699,38 @@ class LFRicKernelMetadata(CommonMetadata):
 
         datatype = symbol.datatype
 
-        if not isinstance(datatype, UnknownFortranType):
+        from psyclone.psyir.symbols import StructureType
+        if not isinstance(datatype, (UnknownFortranType, StructureType)):
             raise InternalError(
                 f"Expected kernel metadata to be stored in the PSyIR as "
-                f"an UnknownFortranType, but found "
+                f"an UnknownFortranType or StructureType, but found "
                 f"{type(datatype).__name__}.")
 
-        # In an UnknownFortranType, the declaration is stored as a
-        # string, so use create_from_fortran_string()
-        return LFRicKernelMetadata.create_from_fortran_string(
-            datatype.declaration)
+        if isinstance(datatype, UnknownFortranType):
+            # In an UnknownFortranType, the declaration is stored as a
+            # string, so use create_from_fortran_string()
+            return LFRicKernelMetadata.create_from_fortran_string(
+                datatype.declaration)
+
+        # structure type so could be a mixed precision kernel
+        print(dir(datatype))
+        for components in datatype.components:
+            print(type(components))
+            print(components)
+        print(dir(symbol))
+        print(symbol.name)
+        exit(1)
+        
+        #from psyclone.psyir.nodes import Routine
+        #from psyclone.psyir.symbols import SymbolTable
+        #symbol_table = SymbolTable()
+        #symbol_table.add(symbol)
+        #routine = Routine.create("dummy",symbol_table, [])
+        #from psyclone.psyir.backend.fortran import FortranWriter
+        #fortran_writer = FortranWriter()
+        #string = fortran_writer(routine)
+        #print(string)
+        exit(1)
 
     @staticmethod
     def create_from_fparser2(fparser2_tree):
