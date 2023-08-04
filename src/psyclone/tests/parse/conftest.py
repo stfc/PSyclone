@@ -56,6 +56,7 @@ def mod_man_test_setup_directories():
     tmp/d2/d4/e_mod.F90    : depends on netcdf
     tmp/d2/d4/f_mod.ignore
     tmp/d2/g_mod.F90       : no dependencies, contains an interface
+    tmp/d2/error_mod.F90   : invalid Fortran, not parseable
     '''
 
     os.makedirs("d1/d3")
@@ -75,21 +76,31 @@ def mod_man_test_setup_directories():
                   "w", encoding="utf-8") as f_out:
             f_out.write(f"module {base}\n{uses}\nend module {base}")
 
-        # g_mod contains a generic interface
-        # ----------------------------------
-        module_code = '''
-        module g_mod
-        interface myfunc
-            procedure myfunc1
-            procedure myfunc2
-        end interface myfunc
-        contains
-            subroutine myfunc1()
-            end subroutine myfunc1
-            subroutine myfunc2()
-            end subroutine myfunc2
-        end module g_mod
-        '''
-        with open(os.path.join(path, "g_mod.F90"),
-                  "w", encoding="utf-8") as f_out:
-            f_out.write(module_code)
+    # g_mod contains a generic interface
+    # ----------------------------------
+    module_code = '''
+    module g_mod
+    interface myfunc
+        procedure myfunc1
+        procedure myfunc2
+    end interface myfunc
+    contains
+        subroutine myfunc1()
+        end subroutine myfunc1
+        subroutine myfunc2()
+        end subroutine myfunc2
+    end module g_mod
+    '''
+    with open("d2/g_mod.F90", "w", encoding="utf-8") as f_out:
+        f_out.write(module_code)
+
+    # h_mod contains invalid Fortran
+    # ------------------------------
+    module_code = '''
+    module error_mod
+    contains
+       ERROR
+    end module error_mod
+    '''
+    with open("d2/error_mod.F90", "w", encoding="utf-8") as f_out:
+        f_out.write(module_code)

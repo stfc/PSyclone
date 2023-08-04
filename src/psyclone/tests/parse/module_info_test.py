@@ -42,7 +42,7 @@ from fparser.two import Fortran2003
 
 from psyclone.parse import ModuleInfo, ModuleInfoError, ModuleManager
 from psyclone.parse.routine_info import GenericRoutineInfo
-from psyclone.psyir.nodes import FileContainer
+from psyclone.psyir.nodes import Container, FileContainer
 from psyclone.tests.utilities import get_base_path
 
 
@@ -110,12 +110,6 @@ def test_mod_info_get_used_modules():
     # Calling the method a second time should return the same
     # (cached) list object
     assert dep_cached is dep
-
-    # Check error conditions:
-    with pytest.raises(ModuleInfoError) as err:
-        mod_c_info._extract_import_information()
-    assert ("_extract_import_information for 'c_mod' should not be "
-            "called twice" in str(err.value))
 
     dyn_path = get_base_path("dynamo0.3")
     # This will add all subdirectories, including infrastructure:
@@ -192,13 +186,15 @@ def test_mod_info_get_psyir():
     mod_man.add_search_path(dyn_path, recursive=False)
     # The file 'broken_builtins_mod.f90' contains invalid Fortran and
     # cannot be parsed:
-    constants_info = mod_man.get_module_info("broken_builtins_mod")
-    constants_psyir = constants_info.get_psyir()
+    broken_builtins = mod_man.get_module_info("broken_builtins_mod")
+    broken_builtins_psyir = broken_builtins.get_psyir()
 
-    # We should still get an empty FileContainer back
-    assert isinstance(constants_psyir, FileContainer)
-    assert constants_psyir.name == "broken_builtins_mod.f90"
-    assert constants_psyir.children == []
+    # We should still get an empty FileContainer with a dummy Container:
+    assert isinstance(broken_builtins_psyir, FileContainer)
+    assert broken_builtins_psyir.name == "broken_builtins_mod.f90"
+    assert len(broken_builtins_psyir.children) == 1
+    assert isinstance(broken_builtins_psyir.children[0], Container)
+    assert broken_builtins_psyir.children[0].name == "invalid-module"
 
 
 # -----------------------------------------------------------------------------
@@ -222,3 +218,94 @@ def test_generic_interface():
 
     routine_info = mod_info.get_routine_info("myfunc")
     assert isinstance(routine_info, GenericRoutineInfo)
+
+
+# -----------------------------------------------------------------------------
+@pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance",
+                         "mod_man_test_setup_directories")
+def test_module_info_get_routine_info():
+    '''Test get_routine info.
+    '''
+    mod_man = ModuleManager.get()
+    mod_man.add_search_path("d2")
+    mod_info = mod_man.get_module_info("g_mod")
+    assert mod_info.name == "g_mod"
+
+    # Get the routine info of an existing subroutine
+    # ----------------------------------------------
+    routine_info = mod_info.get_routine_info("myfunc1")
+    assert routine_info.name == "myfunc1"
+
+    # Try to get the routine info of a non-existing subroutine
+    # ---------------------------------------------------------
+    with pytest.raises(KeyError) as err:
+        mod_info.get_routine_info("DOES_NOT_EXIST")
+    assert ("Routine 'does_not_exist' is not in module 'g_mod'."
+            in str(err.value))
+
+    # Test handling of files that cannot be parsed
+    # --------------------------------------------
+    mod_info = mod_man.get_module_info("error_mod")
+    with pytest.raises(KeyError) as err:
+        mod_info.get_routine_info("ERROR-CANNOT-BE-PARSED")
+    assert "Could not parse 'error_mod'" in str(err.value)
+
+
+# -----------------------------------------------------------------------------
+@pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance",
+                         "mod_man_test_setup_directories")
+def test_module_info_contains_routine():
+    '''Test contains_routine.
+    '''
+    mod_man = ModuleManager.get()
+    mod_man.add_search_path("d2")
+    mod_info = mod_man.get_module_info("g_mod")
+    assert mod_info.name == "g_mod"
+
+    assert mod_info.contains_routine("myfunc1")
+    assert not mod_info.contains_routine("does-not-exist")
+
+    # Test handling of files that cannot be parsed
+    # --------------------------------------------
+    mod_info = mod_man.get_module_info("error_mod")
+    assert not mod_info.contains_routine("ERROR-CANNOT-BE-PARSED")
+
+
+# -----------------------------------------------------------------------------
+@pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance",
+                         "mod_man_test_setup_directories")
+def test_module_info_extract_import_information_error():
+    '''Test handling of files that cannot be parsed in
+    _extract_import_information.
+    '''
+    mod_man = ModuleManager.get()
+    mod_man.add_search_path("d2")
+    mod_info = mod_man.get_module_info("error_mod")
+    assert mod_info.name == "error_mod"
+
+    assert mod_info._used_modules is None
+    assert mod_info._used_symbols_from_module is None
+    mod_info._extract_import_information()
+    # Make sure the internal attributes are set to not None to avoid
+    # trying to parse them again later
+    assert mod_info._used_modules == set()
+    assert mod_info._used_symbols_from_module == {}
+
+
+# -----------------------------------------------------------------------------
+@pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance",
+                         "mod_man_test_setup_directories")
+def test_module_info_get_symbol():
+    '''Test the get_symbol.
+    '''
+    mod_man = ModuleManager.get()
+    mod_man.add_search_path("d2")
+    mod_info = mod_man.get_module_info("g_mod")
+    assert mod_info.name == "g_mod"
+
+    routine_info = mod_info.get_symbol("myfunc1")
+    assert routine_info.name == "myfunc1"
+
+    mod_info = mod_man.get_module_info("error_mod")
+    assert mod_info.name == "error_mod"
+    mod_info.get_symbol("myfunc1")

@@ -49,7 +49,7 @@ from fparser.two.parser import ParserFactory
 from fparser.two.utils import FortranSyntaxError, walk
 
 from psyclone.errors import InternalError, PSycloneError
-from psyclone.psyir.nodes import FileContainer, Routine
+from psyclone.psyir.nodes import Container, FileContainer, Routine
 from psyclone.parse.routine_info import GenericRoutineInfo, RoutineInfo
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.symbols import SymbolError
@@ -220,6 +220,9 @@ class ModuleInfo:
         :returns: the RoutineInfo object for the specified routine.
         :rtype: :py:class:`psyclone.parse.RoutineInfo`
 
+        :raises KeyError: if the module source file could not be parsed.
+        :raises KeyError: if the specified routine is not in the module.
+
         '''
         if self._routine_info is None:
             # This will trigger adding routine information:
@@ -228,12 +231,17 @@ class ModuleInfo:
             except FortranSyntaxError as err:
                 raise KeyError(f"Could not parse '{self.name}'") from err
 
-        return self._routine_info[routine_name.lower()]
+        routine_info = self._routine_info.get(routine_name.lower(), None)
+        if routine_info:
+            return routine_info
+        raise KeyError(f"Routine '{routine_name.lower()}' is not in module "
+                       f"'{self.name}'.")
 
     # ------------------------------------------------------------------------
     def contains_routine(self, routine_name):
-        ''':returns: whether the specified routine name is part of this \
-            module or not.
+        ''':returns: whether the specified routine name is part of this
+            module or not. It will also return False if the file could
+            not be parsed.
         :rtype: bool
 
         '''
@@ -254,11 +262,6 @@ class ModuleInfo:
         self._used_symbols_from_module).
 
         '''
-        if self._used_modules is not None or \
-                self._used_symbols_from_module is not None:
-            raise ModuleInfoError(f"_extract_import_information for "
-                                  f"'{self._name}' should not be called "
-                                  f"twice.")
         # Initialise the caches:
         self._used_modules = set()
         self._used_symbols_from_module = {}
@@ -266,6 +269,7 @@ class ModuleInfo:
         try:
             parse_tree = self.get_parse_tree()
         except FortranSyntaxError:
+            # Hide syntax errors
             return
         for use in walk(parse_tree, Use_Stmt):
             # Ignore intrinsic modules:
@@ -327,8 +331,11 @@ class ModuleInfo:
         cached. If the PSyIR must be modified, it needs to be copied,
         otherwise the modified tree will be returned from the cache in the
         future.
-        If the conversion to PSyIR fails, an empty FileContainer is returned.
-        #TODO: Maybe return a copy of the tree??
+        If the conversion to PSyIR fails, a dummy FileContainer with an
+        empty Container (module) is returned, which avoids additional error
+        handling in many other subroutines.
+        #TODO 2120: This should be revisited when improving on the error
+        handling.
 
         :returns: PSyIR representing this module.
         :rtype: :py:class:`psyclone.psyir.nodes.Node`
@@ -339,7 +346,12 @@ class ModuleInfo:
                 self._psyir = \
                     self._processor.generate_psyir(self.get_parse_tree())
             except (KeyError, SymbolError, InternalError, FortranSyntaxError):
+                # Create a dummy FileContainer with a dummy module. This avoids
+                # additional error handling in other subroutines, since they
+                # will all return 'no information', whatever you ask for
                 self._psyir = FileContainer(os.path.basename(self._filename))
+                module = Container("invalid-module")
+                self._psyir.children.append(module)
             # Now update all RoutineInfo objects:
             for routine in self._psyir.walk(Routine):
                 routine_info = self._routine_info[routine.name.lower()]
@@ -354,17 +366,15 @@ class ModuleInfo:
 
         :param str name: name of the symbol to look up.
 
-        :returns: the symbol with the give name.
-        :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
+        :returns: the symbol with the give name, or None if the information
+            could not be found.
+        :rtype: Union[:py:class:`psyclone.psyir.symbols.Symbol`, NoneType]
 
         '''
-        psyir = self.get_psyir()
-        # Get the symbol table from the module
+        symbol_table = self.get_psyir().children[0].symbol_table
+
         try:
-            symbol_table = psyir.children[0].symbol_table
-        except AttributeError:
-            # TODO 2120: we need to handle errors better.
-            print(f"Cannot find symbol table of '{self._filename}' "
-                  f"while looking up '{name}'.")
+            return symbol_table.lookup(name)
+        except KeyError:
+            # Convert the exception to a None return value.
             return None
-        return symbol_table.lookup(name)
