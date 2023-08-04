@@ -124,10 +124,11 @@ class SymPyWriter(FortranWriter):
             # The output of help is on stdout only, so modify sys.stdout to
             # catch the output into a string buffer:
             buffer = StringIO()
+            old_stdout = sys.stdout
             sys.stdout = buffer
             help("keywords")
             out_text = buffer.getvalue()
-            sys.stdout = sys.__stdout__
+            sys.stdout = old_stdout
             # The output contains some help text before the list of keywords.
             # It ends with:
             # ... Enter any keyword to get more help.
