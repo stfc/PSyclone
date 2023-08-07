@@ -396,6 +396,8 @@ def _find_or_create_psyclone_internal_cmp(node):
                     procedure {name_f_logical}
                     procedure {name_f_char}
                 end interface {name_interface}
+                private {name_interface}
+                private {name_f_int}, {name_f_logical}, {name_f_char}
                 contains
                 logical pure function {name_f_int}(op1, op2)
                     integer, intent(in) :: op1, op2

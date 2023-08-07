@@ -514,9 +514,18 @@ def test_find_or_create_psyclone_internal_cmp(fortran_writer):
     # Check that the interface and 3 additional functions have been added to
     # the container
     assert "psyclone_internal_cmp" in container.symbol_table
-    assert len(container.children) == 4
     assert symbol is container.symbol_table.lookup_with_tag(
             "psyclone_internal_cmp")
+    assert symbol.visibility == Symbol.Visibility.PRIVATE
+    assert len(container.children) == 4
+    assert container.symbol_table.lookup("psyclone_cmp_int").visibility \
+            == Symbol.Visibility.PRIVATE
+    assert container.symbol_table.lookup("psyclone_cmp_logical").visibility \
+            == Symbol.Visibility.PRIVATE
+    assert container.symbol_table.lookup("psyclone_cmp_char").visibility \
+            == Symbol.Visibility.PRIVATE
+
+    # Check the generated code matches the expected code
     has_cmp_interface(fortran_writer(container))
 
     # If called again, the same symbol is retrived and no extra code is added
