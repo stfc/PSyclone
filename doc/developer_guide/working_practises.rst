@@ -549,7 +549,7 @@ the LFRic and NEMO applications. Therefore, in addition to the
 principal action described above, there are the following workflow
 files that manage multiple Integration tests:
 
-The ``repo-sync`` action, which must be triggered
+The ``repo-sync.yml`` action, which must be triggered
 manually (on GitHub) and pushes a copy of the current branch to a private
 repository. (This action uses the ``integration`` environment and can
 therefore only be triggered by GitHub users who have ``review`` permissions
@@ -572,6 +572,14 @@ Then it compiles the generated code, runs it, and validates that the
 output produced matches with the expected results. The wallclock time used
 by the run is also recorded for future reference.
 
+The ``lfric_test.yml`` action performs integration testing of PSyclone with
+the LFRic model (available in the self-hosted runner). Two tests are performed:
+
+ 1. A 'pass-through' test where the LFRic GungHo mini-app is built and then
+    run 6-way parallel using MPI;
+ 2. An optimisation test where the LFRic GungHo mini-app is transformed using
+    the ``examples/lfric/scripts/everything_everywhere_all_at_once.py`` script
+    and then compiled and run 6-way parallel using OpenMP threading.
 
 Performance
 ===========
