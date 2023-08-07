@@ -157,7 +157,8 @@ def test_scalartype_datasymbol_precision(intrinsic):
     # Create an r_def precision symbol with a constant value of 8
     data_type = ScalarType(ScalarType.Intrinsic.INTEGER,
                            ScalarType.Precision.UNDEFINED)
-    precision_symbol = DataSymbol("r_def", data_type, constant_value=8)
+    precision_symbol = DataSymbol("r_def", data_type, is_constant=True,
+                                  initial_value=8)
     # Set the precision of our ScalarType to be the precision symbol
     scalar_type = ScalarType(intrinsic, precision_symbol)
     assert isinstance(scalar_type, ScalarType)
@@ -177,7 +178,8 @@ def test_scalartype_not_equal():
     intrinsic = ScalarType.Intrinsic.INTEGER
     data_type = ScalarType(ScalarType.Intrinsic.INTEGER,
                            ScalarType.Precision.UNDEFINED)
-    precision_symbol = DataSymbol("r_def", data_type, constant_value=8)
+    precision_symbol = DataSymbol("r_def", data_type, is_constant=True,
+                                  initial_value=8)
     # Set the precision of our ScalarType to be the precision symbol
     scalar_type = ScalarType(intrinsic, precision_symbol)
     # Same precision symbol but different intrinsic type
@@ -268,7 +270,8 @@ def test_arraytype():
     '''Test that the ArrayType class __init__ works as expected. Test the
     different dimension datatypes that are supported.'''
     scalar_type = ScalarType(ScalarType.Intrinsic.INTEGER, 4)
-    data_symbol = DataSymbol("var", scalar_type, constant_value=30)
+    data_symbol = DataSymbol("var", scalar_type, is_constant=True,
+                             initial_value=30)
     one = Literal("1", scalar_type)
     var_plus_1 = BinaryOperation.create(
         BinaryOperation.Operator.ADD, Reference(data_symbol), one)
@@ -382,7 +385,8 @@ def test_arraytype_invalid_shape_dimension_1():
 
     '''
     scalar_type = ScalarType(ScalarType.Intrinsic.REAL, 4)
-    symbol = DataSymbol("fred", scalar_type, constant_value=3.0)
+    symbol = DataSymbol("fred", scalar_type, is_constant=True,
+                        initial_value=3.0)
     with pytest.raises(TypeError) as excinfo:
         _ = ArrayType(scalar_type, [Reference(symbol)])
     assert (
@@ -457,7 +461,7 @@ def test_arraytype_invalid_shape_bounds():
     assert ("If present, the lower bound in an ArrayType 'shape' must "
             "represent a value but found ArrayType.Extent" in str(err.value))
     scalar_type = ScalarType(ScalarType.Intrinsic.REAL, 4)
-    symbol = DataSymbol("fred", scalar_type, constant_value=3.0)
+    symbol = DataSymbol("fred", scalar_type, initial_value=3.0)
     with pytest.raises(TypeError) as excinfo:
         _ = ArrayType(scalar_type, [(1, Reference(symbol))])
     assert (
@@ -503,7 +507,8 @@ def test_arraytype_str():
     '''Test that the ArrayType class str method works as expected.'''
     scalar_type = ScalarType(ScalarType.Intrinsic.INTEGER,
                              ScalarType.Precision.UNDEFINED)
-    data_symbol = DataSymbol("var", scalar_type, constant_value=20)
+    data_symbol = DataSymbol("var", scalar_type, is_constant=True,
+                             initial_value=20)
     data_type = ArrayType(scalar_type, [10, Reference(data_symbol),
                                         (2, Reference(data_symbol)),
                                         (Reference(data_symbol), 10)])

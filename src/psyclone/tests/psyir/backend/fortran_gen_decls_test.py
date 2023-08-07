@@ -52,12 +52,12 @@ from psyclone.psyir.symbols import (Symbol, DataSymbol, DataTypeSymbol,
 def test_gen_param_decls_dependencies(fortran_writer):
     ''' Test that dependencies between parameter declarations are handled. '''
     symbol_table = SymbolTable()
-    rlg_sym = DataSymbol("rlg", INTEGER_TYPE,
-                         constant_value=Literal("8", INTEGER_TYPE))
-    wp_sym = DataSymbol("wp", INTEGER_TYPE,
-                        constant_value=Reference(rlg_sym))
-    var_sym = DataSymbol("var", INTEGER_TYPE,
-                         constant_value=BinaryOperation.create(
+    rlg_sym = DataSymbol("rlg", INTEGER_TYPE, is_constant=True,
+                         initial_value=Literal("8", INTEGER_TYPE))
+    wp_sym = DataSymbol("wp", INTEGER_TYPE, is_constant=True,
+                        initial_value=Reference(rlg_sym))
+    var_sym = DataSymbol("var", INTEGER_TYPE, is_constant=True,
+                         initial_value=BinaryOperation.create(
                              BinaryOperation.Operator.ADD,
                              Reference(rlg_sym), Reference(wp_sym)))
     symbol_table.add(var_sym)
@@ -70,8 +70,8 @@ def test_gen_param_decls_dependencies(fortran_writer):
     # Check that an (invalid, obviously) circular dependency is handled.
     # Replace "rlg" with a new one that depends on "wp".
     del symbol_table._symbols[rlg_sym.name]
-    rlg_sym = DataSymbol("rlg", INTEGER_TYPE,
-                         constant_value=Reference(wp_sym))
+    rlg_sym = DataSymbol("rlg", INTEGER_TYPE, is_constant=True,
+                         initial_value=Reference(wp_sym))
     symbol_table.add(rlg_sym)
     with pytest.raises(VisitorError) as err:
         fortran_writer._gen_parameter_decls(symbol_table)
@@ -99,15 +99,15 @@ def test_gen_param_decls_kind_dep(fortran_writer):
     ''' Check that symbols defining precision are accounted for when
     allowing for dependencies between parameter declarations. '''
     table = SymbolTable()
-    rdef_sym = DataSymbol("r_def", INTEGER_TYPE,
-                          constant_value=Literal("4", INTEGER_TYPE))
-    wp_sym = DataSymbol("wp", INTEGER_TYPE,
-                        constant_value=Reference(rdef_sym))
+    rdef_sym = DataSymbol("r_def", INTEGER_TYPE, is_constant=True,
+                          initial_value=Literal("4", INTEGER_TYPE))
+    wp_sym = DataSymbol("wp", INTEGER_TYPE, is_constant=True,
+                        initial_value=Reference(rdef_sym))
     rdef_type = ScalarType(ScalarType.Intrinsic.REAL, wp_sym)
-    var_sym = DataSymbol("var", rdef_type,
-                         constant_value=Literal("1.0", rdef_type))
-    var2_sym = DataSymbol("var2", REAL_TYPE,
-                          constant_value=Literal("1.0", rdef_type))
+    var_sym = DataSymbol("var", rdef_type, is_constant=True,
+                         initial_value=Literal("1.0", rdef_type))
+    var2_sym = DataSymbol("var2", REAL_TYPE, is_constant=True,
+                          initial_value=Literal("1.0", rdef_type))
     table.add(var2_sym)
     table.add(var_sym)
     table.add(wp_sym)
@@ -144,8 +144,8 @@ def test_gen_decls(fortran_writer):
     symbol_table.add(grid_type)
     grid_variable = DataSymbol("grid", grid_type)
     symbol_table.add(grid_variable)
-    symbol_table.add(DataSymbol("rlg", INTEGER_TYPE,
-                                constant_value=Literal("8", INTEGER_TYPE)))
+    symbol_table.add(DataSymbol("rlg", INTEGER_TYPE, is_constant=True,
+                                initial_value=Literal("8", INTEGER_TYPE)))
     result = fortran_writer.gen_decls(symbol_table)
     # If derived type declaration is not inside a module then its components
     # cannot have accessibility attributes.
@@ -277,5 +277,37 @@ def test_gen_decls_static_variables(fortran_writer):
     symbol_table.add(sym)
     assert "integer, save :: v1" in fortran_writer.gen_decls(symbol_table)
     assert "integer, save :: v1" in fortran_writer.gen_vardecl(sym)
-    sym.constant_value = 1
+    sym.initial_value = 1
+    sym.is_constant = True
     assert "parameter :: v1 = 1" in fortran_writer.gen_vardecl(sym)
+
+
+@pytest.mark.parametrize("visibility", ["public", "private"])
+def test_visibility_interface(fortran_reader, fortran_writer, visibility):
+    '''Test that PSyclone's Fortran backend successfully writes out
+    public/private clauses and symbols when the symbol's declaration
+    is hidden in an abstract interface.
+
+    '''
+    code = (
+        f"module test\n"
+        f"  abstract interface\n"
+        f"     subroutine update_interface()\n"
+        f"     end subroutine update_interface\n"
+        f"  end interface\n"
+        f"  {visibility} :: update_interface\n"
+        f"contains\n"
+        f"  subroutine alg()\n"
+        f"  end subroutine alg\n"
+        f"end module test\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    result = fortran_writer(psyir)
+    # The default visibility is PUBLIC so it is always output by
+    # the backend.
+    assert "public\n" in result
+    if visibility == "public":
+        # The generic PUBLIC visibility covers all symbols so we do
+        # not need to output "public :: update_interface".
+        assert "public :: update_interface" not in result
+    if visibility == "private":
+        assert "private :: update_interface" in result
