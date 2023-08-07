@@ -107,9 +107,9 @@ jobs:
       run: |
         module load python/3.11.3
         . .runner_venv/bin/activate
-        make -C tutorials/practicals allclean
+        make -C tutorial/practicals allclean
         module load gcc/13.1.0 openmpi netcdf_fortran
-        make -C tutorials/practicals compile
+        make -C tutorial/practicals compile
     - name: Examples with compilation - nvfortran
       run: |
         module load python/3.11.3
@@ -122,6 +122,6 @@ jobs:
       run: |
         module load python/3.11.3
         . .runner_venv/bin/activate
-        make -C tutorials/practicals allclean
+        make -C tutorial/practicals allclean
         module load nvidia-hpcsdk/23.5 netcdf_fortran
-        F90=nvfortran F90FLAGS="-acc -Minfo=all" make -C tutorials/practicals compile
+        F90=nvfortran F90FLAGS="-acc -Minfo=all" make -C tutorial/practicals compile
