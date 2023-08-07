@@ -428,6 +428,8 @@ class LFRicExtractDriverCreator:
                 # a module: the psyir does not have the full tree structure.
                 # Ignore for now.
                 continue
+            if not container_symbol:
+                continue
 
             symbol_table.find_or_create_tag(tag=f"{signature[0]}@"
                                                 f"{module_name}",
@@ -601,13 +603,11 @@ class LFRicExtractDriverCreator:
             sig_str = self._flatten_signature(signature)
             if module_name:
                 mod_info = mod_man.get_module_info(module_name)
-                try:
-                    orig_sym = mod_info.get_symbol(signature[0])
-                except IndexError:
-                    # We couldn't parse the module
+                orig_sym = mod_info.get_symbol(signature[0])
+                if not orig_sym:
+                    # TODO 2120: We likely couldn't parse the module.
                     print(f"Index error finding '{sig_str}' in "
                           f"'{module_name}'.")
-                    orig_sym = None
             else:
                 orig_sym = original_symbol_table.lookup(signature[0])
 
