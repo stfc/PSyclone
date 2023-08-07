@@ -288,9 +288,7 @@ psyclone -s ./acc_parallel_dm.py main.x90
 ```
 
 The supplied Makefile defines a `compile` target that will build the
-transformed code. Currently the compilation will fail because the
-generated PSy-layer code does not contain the correct name for the
-transformed kernel module (issue #1724).
+transformed code.
 
 ## Example 15: Optimise matvec Kernel for CPU
 

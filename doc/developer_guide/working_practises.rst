@@ -375,7 +375,8 @@ code to file and then invoking a Fortran compiler. This testing is not
 performed by default since it requires a Fortran compiler and
 significantly increases the time taken to run the test suite.
 
-The Gnu Fortran compiler (gfortran) is used by default. If you wish to
+If compilation testing is requested then the Gnu Fortran compiler (gfortran)
+is used by default. If you wish to
 use a different compiler and/or supply specific flags then these are
 specified by further command-line flags::
 
@@ -462,7 +463,7 @@ Since we try to be good 'open-source citizens' we do not do any compilation
 testing using GitHub as that would use a lot more compute time. Instead, it
 is the responsibility of the developer and code reviewer to run these checks
 locally (see :ref:`compilation_testing`). Code reviewers are able to make
-use of the ``compilation`` GitHub Action which will eventually perform
+use of the ``compilation`` GitHub Action which performs
 these checks semi-automatically - see :ref:`integration-testing`.
 
 By default, the GitHub Actions configuration uses ``pip`` to install
@@ -541,12 +542,12 @@ dictionary within ``conf.py``.
 Compilation and Integration Testing
 -----------------------------------
 
-As mentioned above, running the test suite and/or examples with compilation
-enabled significantly increases the required compute time. However, there
-is a need to test PSyclone with full builds of the LFRic and NEMO
-applications. Therefore, in addition to the principal action described
-above, there are the following workflow files that manage multiple
-Integration tests:
+As mentioned above, running the test suite, examples and tutorials
+with compilation enabled significantly increases the required compute
+time. However, there is a need to test PSyclone with full builds of
+the LFRic and NEMO applications. Therefore, in addition to the
+principal action described above, there are the following workflow
+files that manage multiple Integration tests:
 
 The ``repo-sync`` action, which must be triggered
 manually (on GitHub) and pushes a copy of the current branch to a private
@@ -561,13 +562,15 @@ below. Since the self-hosted runner is only available in the private
 repository, these action are configured such that they only run if the name
 of the repository is that of the private one.
 
-The ``compilation.yml`` action, runs the test suite and examples with
-compilation enabled (using ``gfortran``).
+The ``compilation.yml`` action runs the test suite, examples and tutorials
+with compilation enabled for both ``gfortran`` and ``nvfortran`` (the latter
+with OpenACC enabled).
 
-The ``nemo.yml`` action, processes the NEMO source code (available in
-self-hosted runner) with the PSyclone scripts in examples/nemo/scripts.
+The ``nemo.yml`` action, processes the NEMO source code (available in the
+self-hosted runner) with the PSyclone scripts in ``examples/nemo/scripts``.
 Then it compiles the generated code, runs it, and validates that the
-output produced matches with the expected results.
+output produced matches with the expected results. The wallclock time used
+by the run is also recorded for future reference.
 
 
 Performance
