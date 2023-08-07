@@ -620,6 +620,7 @@ def test_unknown_types_case(fortran_reader, fortran_writer):
     assert "if (psyclone_internal_cmp(a, b)) then" in output
     assert "if (psyclone_internal_cmp(a, c)) then" in output
 
+
 def test_unknown_types_case_without_module(fortran_reader):
     '''Test that a select case statement comparing two unknown types in a
     situation wihtout an ancestor module, it will generate a CodeBlock'''
@@ -637,3 +638,33 @@ def test_unknown_types_case_without_module(fortran_reader):
     '''
     psyir = fortran_reader.psyir_from_source(code)
     assert isinstance(psyir.children[0].children[0], CodeBlock)
+
+
+def test_derived_types_case(fortran_reader, fortran_writer):
+    '''Test that a select case statement comparing two derived types accessors
+    is using the generic comparison interface'''
+    code = '''
+    module test
+        contains
+        subroutine test_subroutine()
+            use my_mod, only : a, b, c, i
+
+            SELECT CASE(a%b(i)%c)
+            CASE(b%d)
+                print *, "Not hello"
+            CASE(c%a)
+                print *, "hello"
+            END SELECT
+      end subroutine test_subroutine
+    end module test
+    '''
+
+    psyir = fortran_reader.psyir_from_source(code)
+    output = fortran_writer(psyir)
+
+    # Check that the interface implementation has been inserted
+    has_cmp_interface(output)
+
+    # Check that the cannonicalised comparisons use the interface method
+    assert "if (psyclone_internal_cmp(a%b(i)%c, b%d)) then" in output
+    assert "if (psyclone_internal_cmp(a%b(i)%c, c%a)) then" in output
