@@ -642,7 +642,34 @@ def test_unknown_types_case_without_module(fortran_reader):
 
 def test_derived_types_case(fortran_reader, fortran_writer):
     '''Test that a select case statement comparing two derived types accessors
-    is using the generic comparison interface'''
+    generate the appropriate code'''
+
+    # When the datatype information is known
+    code = '''
+    module test
+        type :: my_type
+            integer :: field
+        end type
+        contains
+        subroutine test_subroutine()
+            type(my_type) :: a
+            SELECT CASE(a%field)
+            CASE(1)
+                print *, "Not hello"
+            CASE(2)
+                print *, "hello"
+            END SELECT
+      end subroutine test_subroutine
+    end module test
+    '''
+
+    psyir = fortran_reader.psyir_from_source(code)
+    output = fortran_writer(psyir)
+    assert "if (a%field == 1) then" in output
+    assert "if (a%field == 2) then" in output
+
+
+    # And then the datatype information is unknown
     code = '''
     module test
         contains
