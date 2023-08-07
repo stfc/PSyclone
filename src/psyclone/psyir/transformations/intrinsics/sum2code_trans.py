@@ -48,7 +48,7 @@ from psyclone.psyir.transformations.intrinsics.mms_base_trans import (
 
 
 class Sum2CodeTrans(MMSBaseTrans):
-    '''Provides a transformation from a PSyIR SUM Operator node to
+    '''Provides a transformation from a PSyIR SUM IntrinsicCall node to
     equivalent code in a PSyIR tree. Validity checks are also
     performed.
 
@@ -56,14 +56,14 @@ class Sum2CodeTrans(MMSBaseTrans):
     all element on that array are summed and the result returned in
     the scalar R.
 
-    .. code-block:: python
+    .. code-block:: fortran
 
         R = SUM(ARRAY)
 
     For example, if the array is two dimensional, the equivalent code
     for real data is:
 
-    .. code-block:: python
+    .. code-block:: fortran
 
         R = 0.0
         DO J=LBOUND(ARRAY,2),UBOUND(ARRAY,2)
@@ -73,14 +73,14 @@ class Sum2CodeTrans(MMSBaseTrans):
     If the dimension argument is provided then only that dimension is
     summed:
 
-    .. code-block:: python
+    .. code-block:: fortran
 
         R = SUM(ARRAY, dimension=2)
 
     If the array is two dimensional, the equivalent code
     for real data is:
 
-    .. code-block:: python
+    .. code-block:: fortran
 
         R(:) = 0.0
         DO J=LBOUND(ARRAY,2),UBOUND(ARRAY,2)
@@ -90,19 +90,19 @@ class Sum2CodeTrans(MMSBaseTrans):
     If the mask argument is provided then the mask is used to
     determine whether the sum is applied:
 
-    .. code-block:: python
+    .. code-block:: fortran
 
         R = SUM(ARRAY, mask=MOD(ARRAY, 2.0)==1)
 
     If the array is two dimensional, the equivalent code
     for real data is:
 
-    .. code-block:: python
+    .. code-block:: fortran
 
         R = 0.0
         DO J=LBOUND(ARRAY,2),UBOUND(ARRAY,2)
           DO I=LBOUND(ARRAY,1),UBOUND(ARRAY,1)
-            if (MOD(ARRAY(I,J), 2.0)==1):
+            IF (MOD(ARRAY(I,J), 2.0)==1) THEN
               R = R + ARRAY(I,J)
 
     For example:
@@ -148,13 +148,13 @@ class Sum2CodeTrans(MMSBaseTrans):
         '''Provide the body of the nested loop that computes the sum of an
         array.
 
-        :param bool array_reduction: True if the implementation should \
-            provide a sum over a particular array dimension and False \
-            if the sum is for all elements the array.
-        :param array_iterators: a list of datasymbols containing the \
-            loop iterators ordered from outermost loop symbol to innermost \
+        :param bool array_reduction: True if the implementation should
+            provide a sum over a particular array dimension and False
+            if the sum is for all elements of the array.
+        :param array_iterators: a list of datasymbols containing the
+            loop iterators ordered from outermost loop symbol to innermost
             loop symbol.
-        :type array_iterators: \
+        :type array_iterators:
             List[:py:class:`psyclone.psyir.symbols.DataSymbol`]
         :param var_symbol: the symbol used to store the final result.
         :type var_symbol: :py:class:`psyclone.psyir.symbols.DataSymbol`
@@ -191,7 +191,7 @@ class Sum2CodeTrans(MMSBaseTrans):
         :param var_symbol: the symbol used to store the final result.
         :type var_symbol: :py:class:`psyclone.psyir.symbols.DataSymbol`
 
-        :returns: PSyIR for the value to initialise the variable that \
+        :returns: PSyIR for the value to initialise the variable that
             computes the sum.
         :rtype: :py:class:`psyclone.psyir.nodes.Literal`
 

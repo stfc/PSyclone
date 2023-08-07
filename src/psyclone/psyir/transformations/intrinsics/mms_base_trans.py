@@ -53,7 +53,7 @@ from psyclone.psyir.transformations.transformation_error import \
 class MMSBaseTrans(Transformation, ABC):
     '''An abstract parent class providing common functionality to the
     sum2code_trans, minval2code_trans and maxval2_code trans
-    tranformations.
+    transformations.
 
     '''
     _INTRINSIC_NAME = None
@@ -67,10 +67,10 @@ class MMSBaseTrans(Transformation, ABC):
         :type node: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
 
         returns: a tuple containing the 3 arguments.
-        rtype: Tuple[py:class:`psyclone.psyir.nodes.reference.Reference`, \
-                     py:class:`psyclone.psyir.nodes.Literal` | \
-                     :py:class:`psyclone.psyir.nodes.Reference`, \
-                     Optional[:py:class:`psyclone.psyir.nodes.node`]]
+        rtype: Tuple[py:class:`psyclone.psyir.nodes.reference.Reference`,
+            py:class:`psyclone.psyir.nodes.Literal` |
+            :py:class:`psyclone.psyir.nodes.Reference`,
+            Optional[:py:class:`psyclone.psyir.nodes.Node`]]
 
         '''
         # Determine the arguments to the intrinsic
@@ -84,10 +84,12 @@ class MMSBaseTrans(Transformation, ABC):
                 # named arg
                 name = node.argument_names[idx].lower()
                 args[arg_names_map[name]] = child
-        array_ref = args[0]
-        dimension_ref = args[1]
-        mask_ref = args[2]
-        return (array_ref, dimension_ref, mask_ref)
+        # RF TODO WORKS?????
+        return tuple(args)
+        #array_ref = args[0]
+        #dimension_ref = args[1]
+        #mask_ref = args[2]
+        #return (array_ref, dimension_ref, mask_ref)
 
     def __str__(self):
         return (f"Convert the PSyIR {self._INTRINSIC_NAME} intrinsic "
@@ -102,16 +104,16 @@ class MMSBaseTrans(Transformation, ABC):
         :param options: options for the transformation.
         :type options: Optional[Dict[str, Any]]
 
-        :raises TransformationError: if the supplied node is not an \
+        :raises TransformationError: if the supplied node is not an
             intrinsic.
-        :raises TransformationError: if the supplied node is not a sum, \
+        :raises TransformationError: if the supplied node is not a sum,
             minval, or maxval intrinsic.
-        :raises TransformationError: if a valid value for the \
+        :raises TransformationError: if a valid value for the
             dimension argument can't be determined.
         :raises TransformationError: if the array argument is not an array.
-        :raises TransformationError: if the shape of the array is not \
+        :raises TransformationError: if the shape of the array is not
             supported.
-        :raises TransformationError: if the array datatype is not \
+        :raises TransformationError: if the array datatype is not
             supported.
 
         '''

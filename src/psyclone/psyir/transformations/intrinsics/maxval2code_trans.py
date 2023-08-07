@@ -47,7 +47,7 @@ from psyclone.psyir.transformations.intrinsics.mms_base_trans import (
 
 
 class Maxval2CodeTrans(MMSBaseTrans):
-    '''Provides a transformation from a PSyIR MAXVAL Operator node to
+    '''Provides a transformation from a PSyIR MAXVAL IntrinsicCall node to
     equivalent code in a PSyIR tree. Validity checks are also
     performed.
 
@@ -55,56 +55,56 @@ class Maxval2CodeTrans(MMSBaseTrans):
     the maximum value of all of the elements in the array is returned
     in the the scalar R.
 
-    .. code-block:: python
+    .. code-block:: fortran
 
         R = MAXVAL(ARRAY)
 
     For example, if the array is two dimensional, the equivalent code
     for real data is:
 
-    .. code-block:: python
+    .. code-block:: fortran
 
         R = TINY(R)
         DO J=LBOUND(ARRAY,2),UBOUND(ARRAY,2)
           DO I=LBOUND(ARRAY,1),UBOUND(ARRAY,1)
-            IF R < ARRAY(I,J) THEN
+            IF (R < ARRAY(I,J)) THEN
               R = ARRAY(I,J)
 
     If the dimension argument is provided then the maximum value is
     returned along the row for each entry in that dimension:
 
-    .. code-block:: python
+    .. code-block:: fortran
 
         R = MAXVAL(ARRAY, dimension=2)
 
     If the array is two dimensional, the equivalent code
     for real data is:
 
-    .. code-block:: python
+    .. code-block:: fortran
 
         R(:) = TINY(R)
         DO J=LBOUND(ARRAY,2),UBOUND(ARRAY,2)
           DO I=LBOUND(ARRAY,1),UBOUND(ARRAY,1)
-            IF R(I) < ARRAY(I,J) THEN
+            IF (R(I) < ARRAY(I,J)) THEN
               R(I) = ARRAY(I,J)
 
     If the mask argument is provided then the mask is used to
     determine whether the maxval is applied:
 
-    .. code-block:: python
+    .. code-block:: fortran
 
         R = MAXVAL(ARRAY, mask=MOD(ARRAY, 2.0)==1)
 
     If the array is two dimensional, the equivalent code
     for real data is:
 
-    .. code-block:: python
+    .. code-block:: fortran
 
         R = TINY(R)
         DO J=LBOUND(ARRAY,2),UBOUND(ARRAY,2)
           DO I=LBOUND(ARRAY,1),UBOUND(ARRAY,1)
-            IF MOD(ARRAY(I,J), 2.0)==1 THEN
-              IF R < ARRAY(I,J) THEN
+            IF (MOD(ARRAY(I,J), 2.0)==1) THEN
+              IF (R < ARRAY(I,J)) THEN
                 R = ARRAY(I,J)
 
     For example:
@@ -112,7 +112,7 @@ class Maxval2CodeTrans(MMSBaseTrans):
     >>> from psyclone.psyir.backend.fortran import FortranWriter
     >>> from psyclone.psyir.frontend.fortran import FortranReader
     >>> from psyclone.psyir.transformations import Maxval2CodeTrans
-    >>> code = ("subroutine maxval_test(array,n,m)\\n"
+    >>> code = ("subroutine maxval_test(array)\\n"
     ...         "  real :: array(10,10)\\n"
     ...         "  real :: result\\n"
     ...         "  result = maxval(array)\\n"
@@ -121,7 +121,7 @@ class Maxval2CodeTrans(MMSBaseTrans):
     >>> sum_node = psyir.children[0].children[0].children[1]
     >>> Maxval2CodeTrans().apply(sum_node)
     >>> print(FortranWriter()(psyir))
-    subroutine maxval_test(array, n, m)
+    subroutine maxval_test(array)
       real, dimension(10,10) :: array
       real :: result
       real :: maxval_var
@@ -149,13 +149,13 @@ class Maxval2CodeTrans(MMSBaseTrans):
         '''Provide the body of the nested loop that computes the maximum value
         of an array.
 
-        :param bool array_reduction: True if the implementation should \
-            provide a maximum over a particular array dimension and False \
-            if the maximum is for all elements the array.
-        :param array_iterators: a list of datasymbols containing the \
-            loop iterators ordered from innermost loop symbol to outermost \
+        :param bool array_reduction: True if the implementation should
+            provide a maximum over a particular array dimension and False
+            if the maximum is for all elements of the array.
+        :param array_iterators: a list of datasymbols containing the
+            loop iterators ordered from innermost loop symbol to outermost
             loop symbol.
-        :type array_iterators: \
+        :type array_iterators:
             List[:py:class:`psyclone.psyir.symbols.DataSymbol`]
         :param var_symbol: the symbol used to store the final result.
         :type var_symbol: :py:class:`psyclone.psyir.symbols.DataSymbol`
@@ -195,7 +195,7 @@ class Maxval2CodeTrans(MMSBaseTrans):
         :param var_symbol: the symbol used to store the final result.
         :type var_symbol: :py:class:`psyclone.psyir.symbols.DataSymbol`
 
-        :returns: PSyIR for the value to initialise the variable that \
+        :returns: PSyIR for the value to initialise the variable that
             computes the maximum value.
         :rtype: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
 
