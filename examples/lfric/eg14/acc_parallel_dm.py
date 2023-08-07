@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2022, Science and Technology Facilities Council.
+# Copyright (c) 2019-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -34,29 +34,33 @@
 # Authors: R. W. Ford and A. R. Porter, STFC Daresbury Laboratory
 
 '''File containing a PSyclone transformation script for the LFRic
-API to apply OpenACC Loop, Parallel and Enter Data directives
-generically in the presence of halo exchanges. Any user-supplied kernels
-are also transformed through the addition of an OpenACC Routine directive.
-The psyclone script can apply this transformation script via its -s option.
+API to apply OpenACC Kernels and Enter Data directives generically. Any
+user-supplied kernels are also transformed through the addition of an OpenACC
+Routine directive. PSyclone can apply this transformation script via its
+ -s option.
 
 '''
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.psyGen import CodedKern
-from psyclone.transformations import ACCEnterDataTrans, ACCParallelTrans, \
-    ACCKernelsTrans, ACCLoopTrans, ACCRoutineTrans, Dynamo0p3ColourTrans
+from psyclone.transformations import (
+    ACCEnterDataTrans, ACCKernelsTrans, ACCRoutineTrans, Dynamo0p3ColourTrans)
 
 
 def trans(psy):
-    '''PSyclone transformation script for the LFRic API to apply OpenACC loop,
-    parallel and enter data directives generically. User-supplied kernels are
+    '''PSyclone transformation script for the LFRic API to apply OpenACC
+    kernels and enter data directives generically. User-supplied kernels are
     transformed through the addition of a routine directive.
+
+    :param psy: the PSy object containing the invokes to transform.
+    :type psy: :py:class:`psyclone.dynamo0p3.DynamoPSy`
+
+    :returns: the transformed PSy object.
+    :rtype: :py:class:`psyclone.dynamo0p3.DynamoPSy`
 
     '''
     const = LFRicConstants()
 
     ctrans = Dynamo0p3ColourTrans()
-    # loop_trans = ACCLoopTrans()
-    # parallel_trans = ACCParallelTrans()
     enter_data_trans = ACCEnterDataTrans()
     kernel_trans = ACCKernelsTrans()
     rtrans = ACCRoutineTrans()
