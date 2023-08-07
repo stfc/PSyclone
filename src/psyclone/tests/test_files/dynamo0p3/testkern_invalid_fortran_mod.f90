@@ -1,7 +1,8 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2021, Science and Technology Facilities Council
+! Copyright (c) 2017-2023, Science and Technology Facilities Council
+! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
 ! modification, are permitted provided that the following conditions are met:
@@ -31,9 +32,9 @@
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Author R. W. Ford, STFC Daresbury Lab
-! Modified I. Kavcic, Met Office
+! Modified I. Kavcic and L. Turner, Met Office
 
-module jo
+module testkern
 
   use argument_mod
   use fs_continuity_mod
@@ -42,6 +43,7 @@ module jo
 
   implicit none
 
+  ! Description: Invalid Fortran example
   type, extends(kernel_type) :: testkern_type
      type(arg_type), dimension(4) :: meta_args =          &
           (/ arg_type(gh_field, gh_real, gh_inc,  w1),    &
@@ -50,13 +52,13 @@ module jo
              arg_type(gh_field, gh_real, gh_read, w3)     &
            /)
      integer :: operates_on = cell_column
-   contains
+   contain
      procedure, nopass :: code => testkern_code
   end type testkern_type
 
 contains
 
-  subroutine testkern_code()
+  subroutine testkern_code(a, b, c, d)
   end subroutine testkern_code
 
-end module jo
+end module testkern

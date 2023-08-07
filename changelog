@@ -518,6 +518,29 @@
 	175) PR #2172 for #1833. Fixes the LFRic tutorials so that they
 	build correctly.
 
+	176) PR #2227 for #2226. Adds new Node.path_from(ancestor) method.
+
+	177) PR #2158 for #81. Ensures all example/test Fortran code for
+	LFRic follows the LFRic naming convention.
+
+	178) PR #2218 towards #2132. Adds LFRic integration tests and
+	new, associated optimisation scripts. Includes bug fixes for
+	matmul inlining transformation.
+
+	179) PR #2230 for #2228. Improve reporting of errors due to kernel
+	functors not explicitly included in algorithm use statements.
+
+	180) PR #2207 for #1419. Split the DataSymbol constant_value attribute
+	into is_constant (bool) and initial_value (PSyIR Node). This allows
+	parsing Fortran declarations with initial_value that are not constant.
+
+	181) PR #2231 for #2213. The Fortran frontend and backend now also
+	consider that UnresolvedInterface symbols can come from the body of
+	a Fortran Interface.
+
+	182) PR #2240 for #2234. Fix WhileLoop issue in the NEMO OpenACC kernels
+	script.
+
 release 2.3.1 17th of June 2022
 
 	1) PR #1747 for #1720. Adds support for If blocks to PSyAD.
