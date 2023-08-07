@@ -5,7 +5,7 @@ uses OpenACC. The framework for this stand-alone example is explained in
 more detail in the directory
 ``<PSYCLONEHOME>/examples/lfric/eg17/full_example``.
 
-The script ``acc_parallel_dm.py`` applies various OpenACC transformations
+The script ``acc_parallel.py`` applies various OpenACC transformations
 to all kernels. See the PSyclone User Guide for [details](https://psyclone.readthedocs.io/en/stable/examples.html#example-14-openacc).
 
 ## Compilation

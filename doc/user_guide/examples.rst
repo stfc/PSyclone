@@ -481,7 +481,7 @@ Example 14: OpenACC
 ^^^^^^^^^^^^^^^^^^^
 
 Example of adding OpenACC directives in the LFRic API.
-A single transformation script (``acc_parallel_dm.py``) is provided
+A single transformation script (``acc_parallel.py``) is provided
 which demonstrates how to add OpenACC Kernels and Enter Data
 directives to the PSy-layer. It supports distributed memory being
 switched on by placing an OpenACC Kernels directive around each

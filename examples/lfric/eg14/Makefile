@@ -87,7 +87,7 @@ transform:
 # Instruct PSyclone to automatically put profiling calipers around every
 # invoke.
 %_psy.f90: %.x90
-	${PSYCLONE} -dm -s ./acc_parallel_dm.py  --profile invokes \
+	${PSYCLONE} -dm -s ./acc_parallel.py  --profile invokes \
 	-opsy $*_psy.f90 -oalg $*_alg.f90 $<
 
 testkern_w0_kernel_0_mod.f90: main_psy.f90
