@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2022, Science and Technology Facilities Council
+# Copyright (c) 2020-2023, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -43,7 +43,6 @@ Once you have psyclone installed, this script may be run by doing:
 >>> python create_structure_types.py
 
 '''
-from __future__ import print_function
 from psyclone.psyir.nodes import Literal, KernelSchedule, Container, \
     StructureReference, ArrayOfStructuresReference, Assignment, \
     BinaryOperation, Range
@@ -58,7 +57,7 @@ from psyclone.psyir.backend.fortran import FortranWriter
 CONTAINER_SYMBOL_TABLE = SymbolTable()
 REAL_KIND = CONTAINER_SYMBOL_TABLE.new_symbol(
         root_name="RKIND", symbol_type=DataSymbol, datatype=INTEGER_TYPE,
-        constant_value=8)
+        is_constant=True, initial_value=8)
 
 # Shorthand for a scalar type with REAL_KIND precision
 SCALAR_TYPE = ScalarType(ScalarType.Intrinsic.REAL, REAL_KIND)
