@@ -53,7 +53,7 @@ on:
 env:
   PYTHON_VERSION: 3.11.4
   GFORTRAN_VERSION: 13.2.0
-  NVFORTRAN_VERSION: 23.5
+  NVFORTRAN_VERSION: 23.7
 
 jobs:
   run_if_on_mirror:
