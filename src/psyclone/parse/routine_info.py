@@ -224,13 +224,9 @@ class RoutineInfo(RoutineInfoBase):
 
         self._non_locals = []
 
-        if not self.get_psyir():
-            # Since the psyir property will parse the file if required,
-            # if the value is None, the file could not be parsed.
-            print(f"Could not create PSyIR for '{self.name}' in module "
-                  f"'{self.module_info.name}'- ignored.")
-            return
-
+        # Even if the file could not be parsed, there will be a dummy
+        # psyir returned, so no need to handle parsing errors here.
+        # TODO #2010
         for access in self.get_psyir().walk((Kern, Call, Reference)):
             # Builtins are certainly not externals, so ignore them.
             if isinstance(access, BuiltIn):
