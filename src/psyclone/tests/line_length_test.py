@@ -329,13 +329,16 @@ def test_edge_conditions_comments():
     output_string = fll.process(input_string)
     assert output_string == expected_output
 
+
 def test_lone_lines_allocate(fortran_reader, fortran_writer):
+    '''Test the we get the correct behaviour and never break the
+    line before the first statement.'''
     code = '''subroutine test()
     use external_module, only: some_type
     integer, dimension(:,:,:,:), allocatable :: pressure_prsc
-    IF (.NOT. ALLOCATED(pressure_prsc))                                        &
-      ALLOCATE(pressure_prsc        ( some_type%longstringname1,        &
-                                      some_type%longstringname2,           &
+    IF (.NOT. ALLOCATED(pressure_prsc)) &
+      ALLOCATE(pressure_prsc        ( some_type%longstringname1, &
+                                      some_type%longstringname2, &
                                       some_type%longstringname3, &
                                       some_type%longstringname4 ))
     end subroutine test
@@ -346,7 +349,8 @@ def test_lone_lines_allocate(fortran_reader, fortran_writer):
     output = fortran_writer(psyir)
     line_length = FortLineLength()
     correct = '''  if (.NOT.ALLOCATED(pressure_prsc)) then
-    ALLOCATE(pressure_prsc(1:some_type%longstringname1,1:some_type%longstringname2,1:some_type%longstringname3,&
+    ALLOCATE(pressure_prsc(1:some_type%longstringname1,1:some_type%\
+longstringname2,1:some_type%longstringname3,&
 &1:some_type%longstringname4))'''
     out = line_length.process(output)
     assert correct in out
