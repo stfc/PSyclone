@@ -130,4 +130,6 @@ jobs:
         . .runner_venv/bin/activate
         make -C tutorial/practicals allclean
         module load nvidia-hpcsdk/${NVFORTRAN_VERSION} netcdf_fortran
-        F90=nvfortran F90FLAGS="-acc -Minfo=all" make -C tutorial/practicals compile
+        # TODO #2251. Cannot build the LFRic practicals with 23.5/7 of nvfortran
+        # because the compilation of nan_test.f90 gives an ICE.
+        F90=nvfortran F90FLAGS="-acc -Minfo=all" make -C tutorial/practicals/nemo compile
