@@ -86,6 +86,8 @@ def mod_man_test_setup_directories():
     end interface myfunc
     contains
         subroutine myfunc1()
+            integer :: a, p
+            a = p+1
         end subroutine myfunc1
         subroutine myfunc2()
         end subroutine myfunc2

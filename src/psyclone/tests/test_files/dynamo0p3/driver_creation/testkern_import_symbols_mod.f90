@@ -41,6 +41,9 @@ module testkern_import_symbols_mod
 
   implicit none
 
+  integer :: dummy_module_variable
+  integer, parameter :: dummy_constant=2
+
   type, extends(kernel_type) :: testkern_import_symbols_type
      type(arg_type), dimension(5) :: meta_args =        &
           (/ arg_type(gh_scalar, gh_real, gh_read),     &
@@ -82,6 +85,7 @@ contains
 
     tmp = fld2(1)*fld3(1)*fld4(1)
     fld1(1) = eps * nlayers + tmp
+    dummy_module_variable = 1 + dummy_constant
     call module_function()
     module_var_a = 1
 
