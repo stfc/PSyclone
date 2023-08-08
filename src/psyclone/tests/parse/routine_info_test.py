@@ -138,7 +138,10 @@ def test_routine_info_get_used_symbols_from_modules():
                 ("reference", "testkern_import_symbols_mod",
                  "dummy_module_variable"),
                 ("routine", "module_with_var_mod", "module_function"),
-                ("unknown", "module_with_var_mod", "module_var_a")]
+                ("unknown", "module_with_var_mod", "module_var_a"),
+                ("routine", "testkern_import_symbols_mod", "local_subroutine"),
+                ("routine", None, "unknown_subroutine"),
+                ]
     # First check the length. This will ensure that e.g. the constant in the
     # example subroutine is not reported.
     assert len(non_locals) == len(expected)
@@ -237,3 +240,34 @@ def test_generic_routine_info():
     # Convert the access info to a string for easy comparison:
     assert (set((i[0], i[1], i[2], str(i[3])) for i in all_non_locals) ==
             expected)
+
+def test_routine_info_all_non_locals():
+    '''Tests that _compute_all_non_locals works as expected.
+    '''
+
+    # Get the PSyclone-processed PSyIR
+    test_file = os.path.join("driver_creation", "module_with_builtin_mod.f90")
+    psyir, _ = get_invoke(test_file, "dynamo0.3", 0, dist_mem=False)
+
+    # Now create the module and routine info
+    test_dir = os.path.join(get_base_path("dynamo0.3"), "driver_creation")
+    mod_man = ModuleManager.get()
+    mod_man.add_search_path(test_dir)
+    mod_info = mod_man.get_module_info("module_with_builtin_mod")
+    routine_info = mod_info.get_routine_info("sub_with_builtin")
+
+    # Replace the generic PSyir with the PSyclone processed PSyIR, which
+    # has a builtin
+    routine_info._psyir = psyir.invokes.invoke_list[0].schedule
+    # This will return three schedule - the DynInvokeSchedule, and two
+    # schedules for the kernel and builtin:
+    schedules = routine_info._psyir.walk(Schedule)
+    assert isinstance(schedules[1].children[0], DynKern)
+    assert isinstance(schedules[2].children[0], BuiltIn)
+
+    routine_info._compute_all_non_locals()
+    non_locals = routine_info._non_locals
+    # There should be exactly one entry - the kernel, but not the builtin:
+    assert len(non_locals) == 1
+    assert non_locals[0] == ("routine", "testkern_import_symbols_mod",
+                             Signature("testkern_import_symbols_code"))
