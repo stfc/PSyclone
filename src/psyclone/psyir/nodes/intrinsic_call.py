@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
 # Modified: R. W. Ford, STFC Daresbury Lab
+# Modified: S. Siso, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' This module contains the IntrinsicCall node implementation.'''
@@ -48,7 +49,7 @@ from psyclone.psyir.symbols import IntrinsicSymbol
 
 # pylint: disable=too-many-branches
 
-#: Named tuple for describing the attributes of each intrinisc
+#: Named tuple for describing the attributes of each intrinsic
 IAttr = namedtuple(
     'IAttr',
     'name is_pure is_elemental is_inquiry is_available_gpu '
@@ -59,6 +60,7 @@ IAttr = namedtuple(
 #: a particular intrinsic. If there's no limit on the number of arguments
 #: then `max_count` will be None.
 ArgDesc = namedtuple('ArgDesc', 'min_count max_count types')
+
 
 class IntrinsicCall(Call):
     ''' Node representing a call to an intrinsic routine (function or
@@ -83,11 +85,19 @@ class IntrinsicCall(Call):
     _symbol_type = IntrinsicSymbol
 
     class Intrinsic(IAttr, Enum):
-        ''' Enum that lists all intrinsics with the following IAttr as values:
-        IAttr: pure elemental inquiry available_gpu required_args optional_args
+        ''' Enum of all intrinsics with their attributes as values using the
+        IAttr namedtuple format:
+
+            NAME = IAttr(name, is_pure, is_elemental, is_inquiry,
+                         is_available_gpu, required_args, optional_args)
+
+        Note that name is duplicated inside IAttr because each item in the
+        Enum must have a different value, and without the name that would
+        not be guaranteed.
 
         '''
-        # Fortran special-case statements (technically not Fortran intrinsics)
+        # Fortran special-case statements (technically not Fortran intrinsics
+        # but in PSyIR they are represented as Intrinsics)
         ALLOCATE = IAttr('ALLOCATE', False, False, False, False,
                          ArgDesc(1, None, Reference),
                          {"mold": Reference, "source": Reference,
@@ -249,16 +259,3 @@ class IntrinsicCall(Call):
 REDUCTION_INTRINSICS = [
     IntrinsicCall.Intrinsic.SUM, IntrinsicCall.Intrinsic.MINVAL,
     IntrinsicCall.Intrinsic.MAXVAL]
-
-# Intrinsics that, provided with an input array, apply their operation
-# individually to each of the array elements and return an array with
-# the results.
-ELEMENTAL_INTRINSICS = []
-
-# Intrinsics that are 'pure' functions. Given the same input arguments, a pure
-# function will always return the same value.
-PURE_INTRINSICS = [IntrinsicCall.Intrinsic.SUM,
-                   IntrinsicCall.Intrinsic.MINVAL,
-                   IntrinsicCall.Intrinsic.MAXVAL,
-                   IntrinsicCall.Intrinsic.TINY,
-                   IntrinsicCall.Intrinsic.HUGE]
