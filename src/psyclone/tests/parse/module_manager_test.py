@@ -212,7 +212,8 @@ def test_mod_manager_get_module_info():
     assert list(mod_man._remaining_search_paths) == []
     assert set(mod_man._mod_2_filename.keys()) == set(["a_mod", "b_mod",
                                                        "c_mod", "d_mod",
-                                                       "e_mod"])
+                                                       "e_mod", "g_mod",
+                                                       "error_mod"])
 
     with pytest.raises(FileNotFoundError) as err:
         mod_man.get_module_info("does_not_exist")
