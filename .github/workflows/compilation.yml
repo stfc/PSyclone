@@ -70,7 +70,7 @@ jobs:
         commit-filter: '[skip ci]'
     - name: Install dependencies
       run: |
-        module load python/3.11.3
+        module load python/3.11.4
         python -m venv .runner_venv
         . .runner_venv/bin/activate
         python -m pip install --upgrade pip
@@ -81,14 +81,14 @@ jobs:
         pip install .[test,psydata]
     - name: Unit tests with compilation - gfortran
       run: |
-        module load python/3.11.3
+        module load python/3.11.4
         . .runner_venv/bin/activate
         module load gcc/13.1.0 openmpi netcdf_fortran
         pytest -n 2 --f90=gfortran --compile --compileopencl src/psyclone/tests
         module rm netcdf_fortran gcc
     - name: Unit tests with compilation - nvfortran
       run: |
-        module load python/3.11.3
+        module load python/3.11.4
         . .runner_venv/bin/activate
         module load nvidia-hpcsdk/23.5 netcdf_fortran
         # We have to tell nvfortran where to find the OpenCL library.
@@ -96,7 +96,7 @@ jobs:
         module rm netcdf_fortran nvidia-hpcsdk
     - name: Examples with compilation - gfortran
       run: |
-        module load python/3.11.3
+        module load python/3.11.4
         . .runner_venv/bin/activate
         module load gcc/13.1.0 openmpi netcdf_fortran
         # Although we're using gfortran, we link with the OpenCL lib that comes
@@ -105,14 +105,14 @@ jobs:
         F90=gfortran F90FLAGS="-L/apps/packages/compilers/nvidia-hpcsdk/Linux_x86_64/23.5/cuda/12.1/targets/x86_64-linux/lib" make -C examples compile
     - name: Tutorials with compilation - gfortran
       run: |
-        module load python/3.11.3
+        module load python/3.11.4
         . .runner_venv/bin/activate
         make -C tutorial/practicals allclean
         module load gcc/13.1.0 openmpi netcdf_fortran
         make -C tutorial/practicals compile
     - name: Examples with compilation - nvfortran
       run: |
-        module load python/3.11.3
+        module load python/3.11.4
         . .runner_venv/bin/activate
         make -C examples allclean
         module load nvidia-hpcsdk/23.5 netcdf_fortran
@@ -120,7 +120,7 @@ jobs:
         F90=nvfortran F90FLAGS="-acc -Minfo=all -L/apps/packages/compilers/nvidia-hpcsdk/Linux_x86_64/23.5/cuda/12.1/targets/x86_64-linux/lib" make -C examples compile
     - name: Tutorials with compilation - nvfortran
       run: |
-        module load python/3.11.3
+        module load python/3.11.4
         . .runner_venv/bin/activate
         make -C tutorial/practicals allclean
         module load nvidia-hpcsdk/23.5 netcdf_fortran
