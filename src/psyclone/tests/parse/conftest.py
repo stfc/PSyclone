@@ -80,6 +80,7 @@ def mod_man_test_setup_directories():
     # ----------------------------------
     module_code = '''
     module g_mod
+      integer :: module_var, module_var_1, module_var_2
     interface myfunc
         procedure myfunc1
         procedure myfunc2
@@ -87,9 +88,13 @@ def mod_man_test_setup_directories():
     contains
         subroutine myfunc1()
             integer :: a, p
-            a = p+1
+            ! Read module_var
+            a = p + module_var_1 + module_var
         end subroutine myfunc1
         subroutine myfunc2()
+            integer :: a, p
+            ! Write module_var
+            module_var = p + module_var_2
         end subroutine myfunc2
     end module g_mod
     '''

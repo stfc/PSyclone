@@ -114,7 +114,8 @@ def test_routine_info_var_accesses():
     mod_info = mod_man.get_module_info("g_mod")
     routine_info = mod_info.get_routine_info("myfunc1")
     var_accesses = routine_info.get_var_accesses()
-    assert str(var_accesses) == "a: WRITE, p: READ"
+    assert str(var_accesses) == ("a: WRITE, module_var: READ, "
+                                 "module_var_1: READ, p: READ")
 
 
 # -----------------------------------------------------------------------------
@@ -199,3 +200,43 @@ def test_routine_info_non_locals_invokes():
     routine_info = mod_info.get_routine_info("local_func")
     routine_info._compute_all_non_locals()
     assert len(routine_info._non_locals) == 0
+
+
+# -----------------------------------------------------------------------------
+@pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance",
+                         "mod_man_test_setup_directories")
+def test_generic_routine_info():
+    '''Tests the GenericRoutineInfo class, which should return the combined
+    results from all individual subroutines. The example in g_mod declares
+    myfunc to be myfunc1 and myfunc2, which are implemented as:
+        subroutine myfunc1() ...
+            a = p + module_var_1 + module_var
+        end subroutine myfunc1
+
+        subroutine myfunc2() ...
+            module_var = p + module_var_2
+        end subroutine myfunc2
+    So they both use the module variable module_var, but myfunc1 reads it,
+    myfunc2 writes it. '''
+    mod_man = ModuleManager.get()
+    mod_man.add_search_path("d2")
+    mod_info = mod_man.get_module_info("g_mod")
+    routine_info = mod_info.get_routine_info("myfunc")
+    assert isinstance(routine_info, GenericRoutineInfo)
+    all_non_locals = routine_info.get_non_local_symbols()
+    # Both functions of the generic interface use 'module_var',
+    # and in addition my_func1 uses module_var_1, myfunc2 uses module_var_2
+    # So three variables should be reported, i.e. module_var should only
+    # be reported once (even though it is used in both functions), and
+    # each variable specific to the two functions:
+    expected = set([("reference", "g_mod", Signature("module_var_1"),
+                     'module_var_1:READ(0)'),
+                    ("reference", "g_mod", Signature("module_var_2"),
+                     'module_var_2:READ(0)'),
+                    ("reference", "g_mod", Signature("module_var"),
+                     'module_var:READ(0)'),
+                    ("reference", "g_mod", Signature("module_var"),
+                     'module_var:WRITE(0)')])
+    # Convert the access info to a string for easy comparison:
+    assert (set((i[0], i[1], i[2], str(i[3])) for i in all_non_locals) ==
+            expected)
