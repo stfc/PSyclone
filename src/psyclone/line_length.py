@@ -13,9 +13,11 @@ for f90 free format is the default)'''
 
 def find_break_point(line, max_index, key_list):
     ''' find the most appropriate break point for a fortran line '''
-
+    # We should never break the line before the first element on the
+    # line.
+    first_non_whitespace = len(line) - len(line.lstrip())
     for key in key_list:
-        idx = line.rfind(key, 0, max_index)
+        idx = line.rfind(key, first_non_whitespace+1, max_index)
         if idx > 0:
             return idx+len(key)
     raise Exception(
