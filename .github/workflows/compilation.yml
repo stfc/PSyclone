@@ -54,6 +54,7 @@ env:
   PYTHON_VERSION: 3.11.4
   GFORTRAN_VERSION: 13.2.0
   NVFORTRAN_VERSION: 23.7
+  CUDA_VERSION: 12.2
 
 jobs:
   run_if_on_mirror:
@@ -97,7 +98,7 @@ jobs:
         . .runner_venv/bin/activate
         module load nvidia-hpcsdk/${NVFORTRAN_VERSION} netcdf_fortran
         # We have to tell nvfortran where to find the OpenCL library.
-        pytest -n 2 --f90=nvfortran --f90flags="-L/apps/packages/compilers/nvidia-hpcsdk/Linux_x86_64/${NVFORTRAN_VERSION}/cuda/12.1/targets/x86_64-linux/lib" --compile --compileopencl src/psyclone/tests
+        pytest -n 2 --f90=nvfortran --f90flags="-L/apps/packages/compilers/nvidia-hpcsdk/Linux_x86_64/${NVFORTRAN_VERSION}/cuda/${CUDA_VERSION}/targets/x86_64-linux/lib" --compile --compileopencl src/psyclone/tests
         module rm netcdf_fortran nvidia-hpcsdk
     - name: Examples with compilation - gfortran
       run: |
@@ -107,7 +108,7 @@ jobs:
         # Although we're using gfortran, we link with the OpenCL lib that comes
         # with CUDA.
         make -C examples allclean
-        F90=gfortran F90FLAGS="-L/apps/packages/compilers/nvidia-hpcsdk/Linux_x86_64/${NVFORTRAN_VERSION}/cuda/12.1/targets/x86_64-linux/lib" make -C examples compile
+        F90=gfortran F90FLAGS="-L/apps/packages/compilers/nvidia-hpcsdk/Linux_x86_64/${NVFORTRAN_VERSION}/cuda/${CUDA_VERSION}/targets/x86_64-linux/lib" make -C examples compile
     - name: Tutorials with compilation - gfortran
       run: |
         module load python/${PYTHON_VERSION}
@@ -122,7 +123,7 @@ jobs:
         make -C examples allclean
         module load nvidia-hpcsdk/${NVFORTRAN_VERSION} netcdf_fortran
         # We have to tell nvfortran where to find the OpenCL library.
-        F90=nvfortran F90FLAGS="-acc -Minfo=all -L/apps/packages/compilers/nvidia-hpcsdk/Linux_x86_64/${NVFORTRAN_VERSION}/cuda/12.1/targets/x86_64-linux/lib" make -C examples compile
+        F90=nvfortran F90FLAGS="-acc -Minfo=all -L/apps/packages/compilers/nvidia-hpcsdk/Linux_x86_64/${NVFORTRAN_VERSION}/cuda/${CUDA_VERSION}/targets/x86_64-linux/lib" make -C examples compile
     - name: Tutorials with compilation - nvfortran
       run: |
         module load python/${PYTHON_VERSION}
