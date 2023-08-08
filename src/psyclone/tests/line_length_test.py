@@ -329,6 +329,28 @@ def test_edge_conditions_comments():
     output_string = fll.process(input_string)
     assert output_string == expected_output
 
+def test_lone_lines_allocate(fortran_reader, fortran_writer):
+    code = '''subroutine test()
+    use external_module, only: some_type
+    integer, dimension(:,:,:,:), allocatable :: pressure_prsc
+    IF (.NOT. ALLOCATED(pressure_prsc))                                        &
+      ALLOCATE(pressure_prsc        ( some_type%longstringname1,        &
+                                      some_type%longstringname2,           &
+                                      some_type%longstringname3, &
+                                      some_type%longstringname4 ))
+    end subroutine test
+    '''
+
+    psyir = fortran_reader.psyir_from_source(code)
+    from psyclone.line_length import FortLineLength
+    output = fortran_writer(psyir)
+    line_length = FortLineLength()
+    correct = '''  if (.NOT.ALLOCATED(pressure_prsc)) then
+    ALLOCATE(pressure_prsc(1:some_type%longstringname1,1:some_type%longstringname2,1:some_type%longstringname3,&
+&1:some_type%longstringname4))'''
+    out = line_length.process(output)
+    assert correct in out
+
 
 def test_long_lines_true():
     ''' Tests that the long_lines method returns true with fortran
