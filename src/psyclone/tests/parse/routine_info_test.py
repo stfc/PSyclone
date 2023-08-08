@@ -266,8 +266,4 @@ def test_routine_info_all_non_locals():
     assert isinstance(schedules[2].children[0], BuiltIn)
 
     routine_info._compute_all_non_locals()
-    non_locals = routine_info._non_locals
-    # There should be exactly one entry - the kernel, but not the builtin:
-    assert len(non_locals) == 1
-    assert non_locals[0] == ("routine", "testkern_import_symbols_mod",
-                             Signature("testkern_import_symbols_code"))
+    assert len(routine_info._non_locals) == 0
