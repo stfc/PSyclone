@@ -115,9 +115,11 @@ class RoutineInfoBase:
         - the name of the module (lowercase). This can be 'None' if no
           module information is available.
         - the name of the symbol (lowercase)
+        - the access information for the given variable
 
         :returns: the non-local accesses in this routine.
-        :rtype: List[Tuple[str, str, str]]
+        :rtype: List[Tuple[str, str, :py:class:`psyclone.core.Signature`, \
+                          :py:class:`psyclone.core.SingleVariableAccessInfo`]]
 
         '''
 
@@ -295,6 +297,7 @@ class RoutineInfo(RoutineInfoBase):
         - the name of the module (lowercase). This can be 'None' if no
           module information is available.
         - the name of the symbol (lowercase)
+        - the access information for the given variable
 
         :returns: the non-local accesses in this routine.
         :rtype: List[Tuple[str, str, :py:class:`psyclone.core.Signature`, \
@@ -352,10 +355,12 @@ class GenericRoutineInfo(RoutineInfoBase):
         - the name of the module (lowercase). This can be 'None' if no
           module information is available.
         - the name of the symbol (lowercase)
+        - the access information for the given variable
 
         :returns: the non-local accesses for all specific routines of this \
             generic interface.
-        :rtype: List[Tuple[str, str, str]]
+        :rtype: List[Tuple[str, str, :py:class:`psyclone.core.Signature`, \
+                          :py:class:`psyclone.core.SingleVariableAccessInfo`]]
 
         '''
         non_locals = []
