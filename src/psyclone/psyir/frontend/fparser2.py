@@ -1060,16 +1060,6 @@ class Fparser2Reader():
         ('max', NaryOperation.Operator.MAX),
         ('min', NaryOperation.Operator.MIN)])
 
-    intrinsics = OrderedDict([
-        ('allocate', IntrinsicCall.Intrinsic.ALLOCATE),
-        ('deallocate', IntrinsicCall.Intrinsic.DEALLOCATE),
-        ('random', IntrinsicCall.Intrinsic.RANDOM_NUMBER),
-        ('minval', IntrinsicCall.Intrinsic.MINVAL),
-        ('maxval', IntrinsicCall.Intrinsic.MAXVAL),
-        ('sum', IntrinsicCall.Intrinsic.SUM),
-        ('tiny', IntrinsicCall.Intrinsic.TINY),
-        ('huge', IntrinsicCall.Intrinsic.HUGE)])
-
     def __init__(self):
         # Map of fparser2 node types to handlers (which are class methods)
         self.handlers = {
@@ -4105,40 +4095,40 @@ class Fparser2Reader():
             supported.
 
         '''
-        # First item is the name of the intrinsic
-        name = node.items[0].string.upper()
+        try:
+            intrinsic = IntrinsicCall.Intrinsic[node.items[0].string.upper()]
 
-        # Fortran intrinsics are (or will be) treated as intrinsic calls.
-        if name.lower() in ["tiny", "huge"]:
-            # Intrinsics with no optional arguments
-            call = IntrinsicCall(self.intrinsics[name.lower()], parent=parent)
-            return self._process_args(node, call)
-        if name.lower() in ["minval", "maxval", "sum"]:
-            # Intrinsics with optional arguments require a
-            # canonicalise function
-            call = IntrinsicCall(self.intrinsics[name.lower()], parent=parent)
-            return self._process_args(
-                node, call, canonicalise=_canonicalise_minmaxsum)
+            # Fortran intrinsics are (or will be) treated as intrinsic calls.
+            if intrinsic.name.lower() in ["tiny", "huge"]:
+                # Intrinsics with no optional arguments
+                call = IntrinsicCall(intrinsic, parent=parent)
+                return self._process_args(node, call)
+            if intrinsic.name.lower() in ["minval", "maxval", "sum"]:
+                # Intrinsics with optional arguments require a
+                # canonicalise function
+                call = IntrinsicCall(intrinsic, parent=parent)
+                return self._process_args(
+                    node, call, canonicalise=_canonicalise_minmaxsum)
+        except KeyError:
+            # Treat all other intrinsics as Operations.
 
-        # Treat all other intrinsics as Operations.
+            # Now work out how many arguments it has
+            num_args = 0
+            if len(node.items) > 1:
+                num_args = len(node.items[1].items)
 
-        # Now work out how many arguments it has
-        num_args = 0
-        if len(node.items) > 1:
-            num_args = len(node.items[1].items)
-
-        # We don't handle any intrinsics that don't have arguments
-        if num_args == 1:
-            return self._unary_op_handler(node, parent)
-        if num_args == 2:
-            return self._binary_op_handler(node, parent)
-        if num_args > 2:
-            return self._nary_op_handler(node, parent)
+            # We don't handle any intrinsics that don't have arguments
+            if num_args == 1:
+                return self._unary_op_handler(node, parent)
+            if num_args == 2:
+                return self._binary_op_handler(node, parent)
+            if num_args > 2:
+                return self._nary_op_handler(node, parent)
 
         # Intrinsic is not handled - this will result in a CodeBlock
         raise NotImplementedError(
-            f"Operator '{name}' has no arguments but operators must have at "
-            f"least one.")
+            f"Operator '{node.items[0].string}' has no arguments but operators must "
+            f"have at least one.")
 
     def _name_handler(self, node, parent):
         '''

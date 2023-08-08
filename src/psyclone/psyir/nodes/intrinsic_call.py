@@ -46,8 +46,19 @@ from psyclone.psyir.nodes.literal import Literal
 from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.symbols import IntrinsicSymbol
 
-
 # pylint: disable=too-many-branches
+
+#: Named tuple for describing the attributes of each intrinisc
+IAttr = namedtuple(
+    'IAttr',
+    'name is_pure is_elemental is_inquiry is_available_gpu '
+    'required_args optional_args'
+)
+
+#: Named tuple for describing the properties of the required arguments to
+#: a particular intrinsic. If there's no limit on the number of arguments
+#: then `max_count` will be None.
+ArgDesc = namedtuple('ArgDesc', 'min_count max_count types')
 
 class IntrinsicCall(Call):
     ''' Node representing a call to an intrinsic routine (function or
@@ -71,51 +82,34 @@ class IntrinsicCall(Call):
     #: the constructor (of the parent class).
     _symbol_type = IntrinsicSymbol
 
-    #: The intrinsics that can be represented by this node.
-    Intrinsic = Enum('Intrinsic', [
-        'ALLOCATE', 'DEALLOCATE', 'RANDOM_NUMBER', 'MINVAL', 'MAXVAL', "SUM",
-        "TINY", "HUGE"])
-    #: Named tuple for describing the properties of the required arguments to
-    #: a particular intrinsic. If there's no limit on the number of arguments
-    #: then `max_count` will be None.
-    ArgDesc = namedtuple('ArgDesc', 'min_count max_count types')
-    #: List of ArgDesc objects describing the required arguments, indexed
-    #: by intrinsic name.
-    _required_args = {}
-    #: Dict of optional arguments, indexed by intrinsic name. Each optional
-    #: argument is described by an entry in the Dict.
-    _optional_args = {}
-    # The positional arguments to allocate must all be References (or
-    # ArrayReferences but they are a subclass of Reference).
-    _required_args[Intrinsic.ALLOCATE] = ArgDesc(1, None, Reference)
-    _optional_args[Intrinsic.ALLOCATE] = {
-        # Argument used to specify the shape of the object being allocated.
-        "mold": Reference,
-        # Argument specifying both shape and initial value(s) for the object
-        # being allocated.
-        "source": Reference,
-        # Integer variable given status value upon exit.
-        "stat": Reference,
-        # Variable in which message is stored upon error. (Requires that 'stat'
-        # also be provided otherwise the program will just abort upon error.)
-        "errmsg": Reference}
-    _required_args[Intrinsic.DEALLOCATE] = ArgDesc(1, None, Reference)
-    _optional_args[Intrinsic.DEALLOCATE] = {"stat": Reference}
-    _required_args[Intrinsic.RANDOM_NUMBER] = ArgDesc(1, 1, Reference)
-    _optional_args[Intrinsic.RANDOM_NUMBER] = {}
-    _required_args[Intrinsic.MINVAL] = ArgDesc(1, 1, DataNode)
-    _optional_args[Intrinsic.MINVAL] = {
-        "dim": DataNode, "mask": DataNode}
-    _required_args[Intrinsic.MAXVAL] = ArgDesc(1, 1, DataNode)
-    _optional_args[Intrinsic.MAXVAL] = {
-        "dim": DataNode, "mask": DataNode}
-    _required_args[Intrinsic.SUM] = ArgDesc(1, 1, DataNode)
-    _optional_args[Intrinsic.SUM] = {
-        "dim": DataNode, "mask": DataNode}
-    _required_args[Intrinsic.TINY] = ArgDesc(1, 1, (Reference, Literal))
-    _optional_args[Intrinsic.TINY] = {}
-    _required_args[Intrinsic.HUGE] = ArgDesc(1, 1, (Reference, Literal))
-    _optional_args[Intrinsic.HUGE] = {}
+    class Intrinsic(IAttr, Enum):
+        ''' Enum that lists all intrinsics with the following IAttr as values:
+        IAttr: pure elemental inquiry available_gpu required_args optional_args
+
+        '''
+        # Fortran special-case statements (technically not Fortran intrinsics)
+        ALLOCATE = IAttr('ALLOCATE', False, False, False, False,
+                         ArgDesc(1, None, Reference),
+                         {"mold": Reference, "source": Reference,
+                          "stat": Reference, "errmsg": Reference})
+        DEALLOCATE = IAttr('DEALLOCATE', False, False, False, False,
+                           ArgDesc(1, None, Reference), {"stat": Reference})
+
+        RANDOM_NUMBER = IAttr('RANDOM_NUMBER', False, False, False, False,
+                              ArgDesc(1, 1, Reference), {})
+        MINVAL = IAttr('MINVAL', True, False, False, False,
+                       ArgDesc(1, 1, DataNode),
+                       {"dim": DataNode, "mask": DataNode})
+        MAXVAL = IAttr('MAXVAL', True, False, False, False,
+                       ArgDesc(1, 1, DataNode),
+                       {"dim": DataNode, "mask": DataNode})
+        SUM = IAttr('SUM', True, False, False, False,
+                    ArgDesc(1, 1, DataNode),
+                    {"dim": DataNode, "mask": DataNode})
+        TINY = IAttr('TINY', True, False, False, False,
+                     ArgDesc(1, 1, (Reference, Literal)), {})
+        HUGE = IAttr('HUGE', True, False, False, False,
+                     ArgDesc(1, 1, (Reference, Literal)), {})
 
     def __init__(self, routine, **kwargs):
         if not isinstance(routine, Enum) or routine not in self.Intrinsic:
@@ -128,8 +122,8 @@ class IntrinsicCall(Call):
         super().__init__(
             IntrinsicSymbol(
                 routine.name,
-                is_elemental=(routine in ELEMENTAL_INTRINSICS),
-                is_pure=(routine in PURE_INTRINSICS)),
+                is_elemental=routine.is_elemental,
+                is_pure=routine.is_pure),
             **kwargs)
         self._intrinsic = routine
 
@@ -179,15 +173,12 @@ class IntrinsicCall(Call):
                 f"IntrinsicCall.create() 'arguments' argument should be a "
                 f"list but found '{type(arguments).__name__}'")
 
-        if cls._optional_args[routine]:
-            optional_arg_names = sorted(list(
-                cls._optional_args[routine].keys()))
+        if routine.optional_args:
+            optional_arg_names = sorted(list(routine.optional_args.keys()))
         else:
             optional_arg_names = []
 
         # Validate the supplied arguments.
-        reqd_args = cls._required_args[routine]
-        opt_args = cls._optional_args[routine]
         last_named_arg = None
         pos_arg_count = 0
         for arg in arguments:
@@ -208,33 +199,35 @@ class IntrinsicCall(Call):
                         f"The '{routine.name}' intrinsic supports the "
                         f"optional arguments {optional_arg_names} but got "
                         f"'{name}'")
-                if not isinstance(arg[1], opt_args[name]):
+                if not isinstance(arg[1], routine.optional_args[name]):
                     raise TypeError(
                         f"The optional argument '{name}' to intrinsic "
                         f"'{routine.name}' must be of type "
-                        f"'{opt_args[name].__name__}' but got "
+                        f"'{ routine.optional_args[name].__name__}' but got "
                         f"'{type(arg[1]).__name__}'")
             else:
                 if last_named_arg:
                     raise ValueError(
                         f"Found a positional argument *after* a named "
                         f"argument ('{last_named_arg}'). This is invalid.'")
-                if not isinstance(arg, reqd_args.types):
+                if not isinstance(arg, routine.required_args.types):
                     raise TypeError(
                         f"The '{routine.name}' intrinsic requires that "
-                        f"positional arguments be of type '{reqd_args.types}' "
+                        f"positional arguments be of type "
+                        f"'{routine.required_args.types}' "
                         f"but got a '{type(arg).__name__}'")
                 pos_arg_count += 1
 
-        if ((reqd_args.max_count is not None and
-             pos_arg_count > reqd_args.max_count)
-                or pos_arg_count < reqd_args.min_count):
+        if ((routine.required_args.max_count is not None and
+             pos_arg_count > routine.required_args.max_count)
+                or pos_arg_count < routine.required_args.min_count):
             msg = f"The '{routine.name}' intrinsic requires "
-            if reqd_args.max_count is not None and reqd_args.max_count > 0:
-                msg += (f"between {reqd_args.min_count} and "
-                        f"{reqd_args.max_count} ")
+            if (routine.required_args.max_count is not None and
+                    routine.required_args.max_count > 0):
+                msg += (f"between {routine.required_args.min_count} and "
+                        f"{routine.required_args.max_count} ")
             else:
-                msg += f"at least {reqd_args.min_count} "
+                msg += f"at least {routine.required_args.min_count} "
             msg += f"arguments but got {len(arguments)}."
             raise ValueError(msg)
 
