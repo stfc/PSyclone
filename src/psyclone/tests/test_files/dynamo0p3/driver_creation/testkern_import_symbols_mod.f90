@@ -59,6 +59,9 @@ module testkern_import_symbols_mod
 
 contains
 
+  subroutine local_subroutine()
+  end subroutine local_subroutine
+
   subroutine testkern_import_symbols_code(nlayers, ascalar,        &
                                           fld1, fld2, fld3, fld4,  &
                                           ndf_w1, undf_w1, map_w1, &
@@ -66,6 +69,7 @@ contains
                                           ndf_w3, undf_w3, map_w3)
     use constants_mod, only: eps, i_def, r_def
     use module_with_var_mod, only: module_function, module_var_a
+    use unknown_module
     implicit none
 
     integer(kind=i_def), intent(in) :: nlayers
@@ -87,6 +91,8 @@ contains
     fld1(1) = eps * nlayers + tmp
     dummy_module_variable = 1 + dummy_constant
     call module_function()
+    call local_subroutine()
+    call unknown_subroutine()
     module_var_a = 1
 
   end subroutine testkern_import_symbols_code
