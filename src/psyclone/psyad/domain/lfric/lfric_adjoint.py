@@ -41,16 +41,19 @@ adjoint code.
 
 import logging
 
-from psyclone.domain.lfric import ArgIndexToMetadataIndex
+from psyclone.domain.lfric import ArgIndexToMetadataIndex, LFRicConstants
+from psyclone.domain.lfric.kernel import (
+    ScalarArgMetadata, FieldArgMetadata, OperatorArgMetadata,
+    ColumnwiseOperatorArgMetadata, FieldVectorArgMetadata)
 from psyclone.domain.lfric.transformations import RaisePSyIR2LFRicKernTrans
 from psyclone.domain.lfric.utils import (
     find_container, metadata_name_from_module_name)
-
+from psyclone.errors import InternalError
 from psyclone.psyad import AdjointVisitor
 from psyclone.psyad.domain.common import create_adjoint_name
-from psyclone.errors import InternalError
 from psyclone.psyir.nodes import Routine
 from psyclone.psyir.symbols import RoutineSymbol
+from psyclone.psyir.symbols.symbol import ArgumentInterface, ImportInterface
 
 
 def generate_lfric_adjoint(tl_psyir, active_variables):
@@ -156,7 +159,9 @@ def generate_lfric_adjoint(tl_psyir, active_variables):
     if metadata.procedure_name:
         metadata.procedure_name = create_adjoint_name(metadata.procedure_name)
     else:
-        # TODO: What is the limitation here? issue #xxx. We are not yet able to need to raise interface metadata
+        # TODO: issue #2236. We are not yet able to need to raise
+        # generic PSyIR interface metadata to LFRic-specific interface
+        # metadata.
         return ad_psyir
 
     # Determine the order of the kernel arguments from the
@@ -189,10 +194,6 @@ def generate_lfric_adjoint(tl_psyir, active_variables):
                 f"for this is that the argument list does not conform to the "
                 f"LFRic rules - perhaps it is a PSyKAl-lite kernel?")
         meta_arg = metadata.meta_args[meta_arg_index]
-
-        from psyclone.psyir.symbols.symbol import ArgumentInterface, ImportInterface
-        from psyclone.domain.lfric.kernel import ScalarArgMetadata, FieldArgMetadata, OperatorArgMetadata, ColumnwiseOperatorArgMetadata, FieldVectorArgMetadata
-        from psyclone.domain.lfric import LFRicConstants
 
         # Determine the intent of this variable from its declaration
         # and update the metadata appropriately.

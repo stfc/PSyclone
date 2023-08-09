@@ -36,6 +36,7 @@
 '''Module containing LFRic-specific utility functions.'''
 
 from psyclone.psyir.nodes import Node, Container, FileContainer
+from psyclone.errors import GenerationError
 
 
 def find_container(psyir):
@@ -114,8 +115,6 @@ def metadata_name_from_module_name(module_name):
         the LFRic kernel naming conventions.
 
     '''
-    from psyclone.errors import GenerationError
-
     if module_name.lower().endswith("_mod"):
         root_name = module_name[:(len(module_name)-len("_mod"))]
     else:
