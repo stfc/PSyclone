@@ -35,12 +35,15 @@ module module_with_var_mod
 
   integer :: module_var_a, module_var_b
 
-
 contains
 
-  subroutine module_function()
+  integer function module_function()
+    module_function = module_var_b
+  end function module_function
+
+  subroutine module_subroutine()
     module_var_b = module_var_b + 1
-  end subroutine module_function
+  end subroutine module_subroutine
 
 
 end module module_with_var_mod
