@@ -1,4 +1,4 @@
-! -----------------------------------------------------------------------------
+ ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
 ! Copyright (c) 2017-2023, Science and Technology Facilities Council.
@@ -72,7 +72,9 @@ contains
                                           ndf_w2, undf_w2, map_w2, &
                                           ndf_w3, undf_w3, map_w3)
     use constants_mod, only: eps, i_def, r_def
-    use module_with_var_mod, only: module_function, module_var_a
+    use module_with_var_mod, only: module_subroutine, module_var_a, &
+                                   module_function
+
     implicit none
 
     integer(kind=i_def), intent(in) :: nlayers
@@ -93,7 +95,8 @@ contains
     tmp = fld2(1)*fld3(1)*fld4(1)
     fld1(1) = eps * nlayers + tmp
     dummy_module_variable = 1 + dummy_constant + local_func()
-    call module_function()
+    fld1(1) = module_function()
+    call module_subroutine()
     call local_subroutine()
     call unknown_subroutine()
     module_var_a = 1

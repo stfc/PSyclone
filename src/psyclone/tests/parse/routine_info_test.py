@@ -137,7 +137,7 @@ def test_routine_info_get_used_symbols_from_modules():
     expected = [("unknown", "constants_mod", "eps"),
                 ("reference", "testkern_import_symbols_mod",
                  "dummy_module_variable"),
-                ("routine", "module_with_var_mod", "module_function"),
+                ("routine", "module_with_var_mod", "module_subroutine"),
                 ("unknown", "module_with_var_mod", "module_var_a"),
                 ("routine", "testkern_import_symbols_mod", "local_subroutine"),
                 ("routine", None, "unknown_subroutine"),
