@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2022, Science and Technology Facilities Council
+# Copyright (c) 2020-2023, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,25 +32,24 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: R. W. Ford, STFC Daresbury Laboratory
-# Modified: A. R. Porter and N. Nobre, STFC Daresbury Lab
+# Modified: A. R. Porter, N. Nobre and S. Siso, STFC Daresbury Lab
 
-'''Module providing a transformation from a PSyIR SIGN operator to
-PSyIR code. This could be useful if the SIGN operator is not supported
+'''Module providing a transformation from a PSyIR SIGN intrinsic to
+PSyIR code. This could be useful if the SIGN intrinsic is not supported
 by the back-end or if the performance of the inline code is better
 than the intrinsic.
 
 '''
-from __future__ import absolute_import
-from psyclone.psyir.transformations.intrinsics.operator2code_trans import \
-    Operator2CodeTrans
+from psyclone.psyir.transformations.intrinsics.intrinsic2code_trans import \
+    Intrinsic2CodeTrans
 from psyclone.psyir.transformations import Abs2CodeTrans
 from psyclone.psyir.nodes import UnaryOperation, BinaryOperation, Assignment, \
-    Reference, Literal, IfBlock
+    Reference, Literal, IfBlock, IntrinsicCall
 from psyclone.psyir.symbols import DataSymbol, REAL_TYPE
 
 
-class Sign2CodeTrans(Operator2CodeTrans):
-    '''Provides a transformation from a PSyIR SIGN Operator node to
+class Sign2CodeTrans(Intrinsic2CodeTrans):
+    '''Provides a transformation from a PSyIR SIGN intrinsic node to
     equivalent code in a PSyIR tree. Validity checks are also
     performed.
 
@@ -72,15 +71,13 @@ class Sign2CodeTrans(Operator2CodeTrans):
 
     '''
     def __init__(self):
-        super(Sign2CodeTrans, self).__init__()
-        self._operator_name = "SIGN"
-        self._classes = (BinaryOperation,)
-        self._operators = (BinaryOperation.Operator.SIGN,)
+        super().__init__()
+        self._intrinsic = IntrinsicCall.Intrinsic.SIGN
 
     def apply(self, node, options=None):
         '''Apply the SIGN intrinsic conversion transformation to the specified
-        node. This node must be a SIGN BinaryOperation. The SIGN
-        BinaryOperation is converted to equivalent inline code. This
+        node. This node must be a SIGN IntrinsicCall. The SIGN
+        IntrinsicCall is converted to equivalent inline code. This
         is implemented as a PSyIR transform from:
 
         .. code-block:: python
@@ -107,12 +104,12 @@ class Sign2CodeTrans(Operator2CodeTrans):
         ``ABS`` has been replaced with inline code by the NemoAbsTrans
         transformation.
 
-        This transformation requires the operation node to be a
-        descendent of an assignment and will raise an exception if
+        This transformation requires the IntrinsicCall node to be a
+        children of an assignment and will raise an exception if
         this is not the case.
 
-        :param node: a SIGN BinaryOperation node.
-        :type node: :py:class:`psyclone.psyir.nodes.BinaryOperation`
+        :param node: a SIGN IntrinsicCall node.
+        :type node: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
         :param symbol_table: the symbol table.
         :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
         :param options: a dictionary with options for transformations.
@@ -126,7 +123,7 @@ class Sign2CodeTrans(Operator2CodeTrans):
         assignment = node.ancestor(Assignment)
 
         # Create two temporary variables.  There is an assumption here
-        # that the SIGN Operator returns a PSyIR real type. This might
+        # that the SIGN IntrinsicCall returns a PSyIR real type. This might
         # not be what is wanted (e.g. the args might PSyIR integers),
         # or there may be errors (arguments are of different types)
         # but this can't be checked as we don't have the appropriate
@@ -144,7 +141,7 @@ class Sign2CodeTrans(Operator2CodeTrans):
 
         # res_var=ABS(A)
         lhs = Reference(res_var_symbol)
-        rhs = UnaryOperation.create(UnaryOperation.Operator.ABS, op1)
+        rhs = IntrinsicCall.create(IntrinsicCall.Intrinsic.ABS, [op1])
         new_assignment = Assignment.create(lhs, rhs)
         assignment.parent.children.insert(assignment.position, new_assignment)
 

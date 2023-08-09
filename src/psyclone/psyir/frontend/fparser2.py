@@ -4098,17 +4098,20 @@ class Fparser2Reader():
         try:
             intrinsic = IntrinsicCall.Intrinsic[node.items[0].string.upper()]
 
-            # Fortran intrinsics are (or will be) treated as intrinsic calls.
-            if intrinsic.name.lower() in ["tiny", "huge"]:
+            if not intrinsic.optional_args:
                 # Intrinsics with no optional arguments
                 call = IntrinsicCall(intrinsic, parent=parent)
                 return self._process_args(node, call)
-            if intrinsic.name.lower() in ["minval", "maxval", "sum"]:
+            elif intrinsic.name.lower() in ["minval", "maxval", "sum"]:
                 # Intrinsics with optional arguments require a
                 # canonicalise function
                 call = IntrinsicCall(intrinsic, parent=parent)
                 return self._process_args(
                     node, call, canonicalise=_canonicalise_minmaxsum)
+            else:
+                raise NotImplementedError(
+                    f"Should {node.items[0].string.upper()} be added to"
+                    f"_canonicalise_minmaxsum?")
         except KeyError:
             # Treat all other intrinsics as Operations.
 

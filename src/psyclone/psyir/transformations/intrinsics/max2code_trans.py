@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council
+# Copyright (c) 2021-2023, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,22 +32,23 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: R. W. Ford, STFC Daresbury Laboratory
+# Modified: S. Siso, STFC Daresbury Lab
 
-'''Module providing a transformation from a PSyIR MAX operator to
-PSyIR code. This could be useful if the MAX operator is not supported
+'''Module providing a transformation from a PSyIR MAX intrinsic to
+PSyIR code. This could be useful if the MAX intrinsic is not supported
 by the back-end or if the performance of the inline code is better
 than the intrinsic.
 
 '''
 from __future__ import absolute_import
 
-from psyclone.psyir.nodes import BinaryOperation, NaryOperation
+from psyclone.psyir.nodes import BinaryOperation, IntrinsicCall
 from psyclone.psyir.transformations.intrinsics.minormax2code_trans import \
         MinOrMax2CodeTrans
 
 
 class Max2CodeTrans(MinOrMax2CodeTrans):
-    '''Provides a transformation from a PSyIR MAX Operator node to
+    '''Provides a transformation from a PSyIR MAX Intrinsic node to
     equivalent code in a PSyIR tree. Validity checks are also
     performed (by a parent class).
 
@@ -70,8 +71,6 @@ class Max2CodeTrans(MinOrMax2CodeTrans):
 
     '''
     def __init__(self):
-        super(Max2CodeTrans, self).__init__()
-        self._operator_name = "MAX"
-        self._operators = (BinaryOperation.Operator.MAX,
-                           NaryOperation.Operator.MAX)
+        super().__init__()
+        self._intrinsics = (IntrinsicCall.Intrinsic.MAX, )
         self._compare_operator = BinaryOperation.Operator.GT

@@ -43,9 +43,8 @@ from sympy.parsing.sympy_parser import parse_expr
 
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.backend.visitor import VisitorError
-from psyclone.psyir.nodes import (BinaryOperation, DataNode, NaryOperation,
-                                  Range, Reference, UnaryOperation)
-from psyclone.psyir.symbols import (ArrayType, ScalarType, SymbolTable)
+from psyclone.psyir.nodes import DataNode, Range, Reference, IntrinsicCall
+from psyclone.psyir.symbols import ArrayType, ScalarType, SymbolTable
 
 
 class SymPyWriter(FortranWriter):
@@ -110,20 +109,17 @@ class SymPyWriter(FortranWriter):
         self._intrinsic = set()
         self._op_to_str = {}
 
-        # Create the mapping of special operators/functions to the
-        # name SymPy expects.
-        for operator, op_str in [(NaryOperation.Operator.MAX, "Max"),
-                                 (BinaryOperation.Operator.MAX, "Max"),
-                                 (NaryOperation.Operator.MIN, "Min"),
-                                 (BinaryOperation.Operator.MIN, "Min"),
-                                 (UnaryOperation.Operator.FLOOR, "floor"),
-                                 (UnaryOperation.Operator.TRANSPOSE,
+        # Create the mapping of intrinsics to the name SymPy expects.
+        for operator, op_str in [(IntrinsicCall.Intrinsic.MAX, "Max"),
+                                 (IntrinsicCall.Intrinsic.MIN, "Min"),
+                                 (IntrinsicCall.Intrinsic.FLOOR, "floor"),
+                                 (IntrinsicCall.Intrinsic.TRANSPOSE,
                                   "transpose"),
-                                 (BinaryOperation.Operator.REM, "Mod"),
+                                 (IntrinsicCall.Intrinsic.MOD, "Mod"),
                                  # exp is needed for a test case only, in
                                  # general the maths functions can just be
                                  # handled as unknown sympy functions.
-                                 (UnaryOperation.Operator.EXP, "exp"),
+                                 (IntrinsicCall.Intrinsic.EXP, "exp"),
                                  ]:
             self._intrinsic.add(op_str)
             self._op_to_str[operator] = op_str

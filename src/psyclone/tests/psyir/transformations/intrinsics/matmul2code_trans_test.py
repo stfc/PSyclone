@@ -41,7 +41,7 @@ from psyclone.psyir.transformations import Matmul2CodeTrans, \
 from psyclone.psyir.transformations.intrinsics.matmul2code_trans import \
     _create_matrix_ref, _get_array_bound
 from psyclone.psyir.nodes import BinaryOperation, Literal, ArrayReference, \
-    Assignment, Reference, Range, KernelSchedule
+    Assignment, Reference, Range, KernelSchedule, IntrinsicCall
 from psyclone.psyir.symbols import DataSymbol, SymbolTable, ArrayType, \
     ScalarType, INTEGER_TYPE, REAL_TYPE
 from psyclone.psyir.backend.fortran import FortranWriter
@@ -83,8 +83,8 @@ def create_matmul():
     my_vec_range = Range.create(lbound, ubound, one.copy())
     vector = ArrayReference.create(vec_symbol, [my_vec_range,
                                                 Reference(index), one.copy()])
-    matmul = BinaryOperation.create(
-        BinaryOperation.Operator.MATMUL, matrix, vector)
+    matmul = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.MATMUL, [matrix, vector])
     lhs_type = ArrayType(REAL_TYPE, [10])
     lhs_symbol = DataSymbol("result", lhs_type)
     symbol_table.add(lhs_symbol)
@@ -274,8 +274,8 @@ def test_initialise():
 
     '''
     trans = Matmul2CodeTrans()
-    assert (str(trans) == "Convert the PSyIR MATMUL intrinsic to equivalent "
-            "PSyIR code.")
+    assert (str(trans) == "Convert the PSyIR 'MATMUL' intrinsic to "
+            "equivalent PSyIR code.")
     assert trans.name == "Matmul2CodeTrans"
 
 
@@ -287,8 +287,8 @@ def test_validate1():
     trans = Matmul2CodeTrans()
     with pytest.raises(TransformationError) as excinfo:
         trans.validate(None)
-    assert ("Error in Matmul2CodeTrans transformation. The supplied node "
-            "argument is not a MATMUL operator, found 'NoneType'."
+    assert ("Error in Matmul2CodeTrans transformation. The supplied node must "
+            "be an 'IntrinsicCall', but found 'NoneType'."
             in str(excinfo.value))
 
 
@@ -300,12 +300,11 @@ def test_validate2():
     '''
     trans = Matmul2CodeTrans()
     with pytest.raises(TransformationError) as excinfo:
-        trans.validate(BinaryOperation.create(
-            BinaryOperation.Operator.ADD, Literal("1.0", REAL_TYPE),
-            Literal("1.0", REAL_TYPE)))
+        trans.validate(IntrinsicCall.create(
+            IntrinsicCall.Intrinsic.SUM, [Literal("1.0", REAL_TYPE)]))
     assert ("Transformation Error: Error in Matmul2CodeTrans transformation. "
-            "The supplied node operator is invalid, found 'Operator.ADD', "
-            "but expected one of '['MATMUL']'." in str(excinfo.value))
+            "The supplied IntrinsicCall must be a 'MATMUL' but "
+            "found: 'SUM'." in str(excinfo.value))
 
 
 def test_validate3():
@@ -319,8 +318,8 @@ def test_validate3():
     array_type = ArrayType(REAL_TYPE, [10, 10])
     vector = Reference(DataSymbol("x", vector_type))
     array = Reference(DataSymbol("y", array_type))
-    matmul = BinaryOperation.create(
-        BinaryOperation.Operator.MATMUL, array, vector)
+    matmul = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.MATMUL, [array, vector])
     with pytest.raises(TransformationError) as excinfo:
         trans.validate(matmul)
     assert ("Transformation Error: Error in Matmul2CodeTrans transformation. "
@@ -340,8 +339,8 @@ def test_validate4():
     array_type = ArrayType(REAL_TYPE, [10, 10])
     vector = Reference(DataSymbol("x", vector_type))
     array = Reference(DataSymbol("y", array_type))
-    matmul = BinaryOperation.create(
-        BinaryOperation.Operator.MATMUL, array, vector)
+    matmul = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.MATMUL, [array, vector])
     rhs = BinaryOperation.create(
         BinaryOperation.Operator.MUL, matmul, vector.copy())
     _ = Assignment.create(array.copy(), rhs)
@@ -364,8 +363,8 @@ def test_validate5():
                                   [Literal("10", INTEGER_TYPE)])
     mult = BinaryOperation.create(
         BinaryOperation.Operator.MUL, array.copy(), array.copy())
-    matmul = BinaryOperation.create(
-        BinaryOperation.Operator.MATMUL, mult.copy(), mult.copy())
+    matmul = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.MATMUL, [mult.copy(), mult.copy()])
     _ = Assignment.create(array, matmul)
     with pytest.raises(TransformationError) as excinfo:
         trans.validate(matmul)
@@ -383,8 +382,8 @@ def test_validate6():
     '''
     trans = Matmul2CodeTrans()
     scalar = Reference(DataSymbol("x", REAL_TYPE))
-    matmul = BinaryOperation.create(
-        BinaryOperation.Operator.MATMUL, scalar, scalar.copy())
+    matmul = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.MATMUL, [scalar, scalar.copy()])
     _ = Assignment.create(scalar.copy(), matmul)
     with pytest.raises(TransformationError) as excinfo:
         trans.validate(matmul)
@@ -422,8 +421,8 @@ def test_validate7():
     trans = Matmul2CodeTrans()
     array_type = ArrayType(REAL_TYPE, [10])
     array = Reference(DataSymbol("x", array_type))
-    matmul = BinaryOperation.create(
-        BinaryOperation.Operator.MATMUL, array.copy(), array.copy())
+    matmul = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.MATMUL, [array.copy(), array.copy()])
     _ = Assignment.create(array, matmul)
     with pytest.raises(TransformationError) as excinfo:
         trans.validate(matmul)
@@ -442,8 +441,8 @@ def test_validate8():
     trans = Matmul2CodeTrans()
     array_type = ArrayType(REAL_TYPE, [10, 10, 10])
     array = Reference(DataSymbol("x", array_type))
-    matmul = BinaryOperation.create(
-        BinaryOperation.Operator.MATMUL, array.copy(), array.copy())
+    matmul = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.MATMUL, [array.copy(), array.copy()])
     _ = Assignment.create(array, matmul)
     with pytest.raises(TransformationError) as excinfo:
         trans.validate(matmul)
@@ -463,8 +462,8 @@ def test_validate9():
     array = Reference(DataSymbol("x", array_type))
     vector_type = ArrayType(REAL_TYPE, [10, 10, 10])
     vector = Reference(DataSymbol("y", vector_type))
-    matmul = BinaryOperation.create(
-        BinaryOperation.Operator.MATMUL, array, vector)
+    matmul = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.MATMUL, [array, vector])
     _ = Assignment.create(array.copy(), matmul)
     with pytest.raises(TransformationError) as excinfo:
         trans.validate(matmul)

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council
+# Copyright (c) 2020-2023, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,22 +33,22 @@
 # -----------------------------------------------------------------------------
 # Author: R. W. Ford, STFC Daresbury Laboratory
 # Modified: A. R. Porter, STFC Daresbury Laboratory
+# Modified: S. Siso, STFC Daresbury Laboratory
 
-'''Module providing a transformation from a PSyIR MIN operator to
-PSyIR code. This could be useful if the MIN operator is not supported
+'''Module providing a transformation from a PSyIR MIN intrinsic to
+PSyIR code. This could be useful if the MIN intrinsic is not supported
 by the back-end or if the performance of the inline code is better
 than the intrinsic.
 
 '''
-from __future__ import absolute_import
 
-from psyclone.psyir.nodes import BinaryOperation, NaryOperation
+from psyclone.psyir.nodes import BinaryOperation, IntrinsicCall
 from psyclone.psyir.transformations.intrinsics.minormax2code_trans import \
         MinOrMax2CodeTrans
 
 
 class Min2CodeTrans(MinOrMax2CodeTrans):
-    '''Provides a transformation from a PSyIR MIN Operator node to
+    '''Provides a transformation from a PSyIR MIN Intrinsic node to
     equivalent code in a PSyIR tree. Validity checks are also
     performed (by a parent class).
 
@@ -71,8 +71,6 @@ class Min2CodeTrans(MinOrMax2CodeTrans):
 
     '''
     def __init__(self):
-        super(Min2CodeTrans, self).__init__()
-        self._operator_name = "MIN"
-        self._operators = (BinaryOperation.Operator.MIN,
-                           NaryOperation.Operator.MIN)
+        super().__init__()
+        self._intrinsics = (IntrinsicCall.Intrinsic.MIN,)
         self._compare_operator = BinaryOperation.Operator.LT

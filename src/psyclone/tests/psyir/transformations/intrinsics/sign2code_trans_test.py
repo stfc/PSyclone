@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2022, Science and Technology Facilities Council
+# Copyright (c) 2020-2023, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -35,13 +35,12 @@
 
 '''Module containing tests for the sign2code transformation.'''
 
-from __future__ import absolute_import
 import pytest
 from psyclone.psyir.transformations import Sign2CodeTrans, TransformationError
 from psyclone.psyir.symbols import SymbolTable, DataSymbol, \
     ArgumentInterface, REAL_TYPE
 from psyclone.psyir.nodes import Reference, BinaryOperation, Assignment, \
-    Literal, KernelSchedule
+    Literal, KernelSchedule, IntrinsicCall
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.configuration import Config
 from psyclone.tests.utilities import Compile
@@ -53,23 +52,21 @@ def test_initialise():
 
     '''
     trans = Sign2CodeTrans()
-    assert trans._operator_name == "SIGN"
-    assert trans._classes == (BinaryOperation,)
-    assert trans._operators == (BinaryOperation.Operator.SIGN,)
-    assert (str(trans) == "Convert the PSyIR SIGN intrinsic to equivalent "
+    assert trans._intrinsic == IntrinsicCall.Intrinsic.SIGN
+    assert (str(trans) == "Convert the PSyIR 'SIGN' intrinsic to equivalent "
             "PSyIR code.")
     assert trans.name == "Sign2CodeTrans"
 
 
 def example_psyir(create_expression):
     '''Utility function that creates a PSyIR tree containing a SIGN
-    intrinsic operator and returns the operator.
+    intrinsic and returns it.
 
     :param function create_expression: function used to create the \
-        content of the first argument of the SIGN operator.
+        content of the first argument of the SIGN intrinsic.
 
-    :returns: PSyIR SIGN operator instance.
-    :rtype: :py:class:`psyclone.psyir.nodes.BinaryOperation`
+    :returns: PSyIR SIGN intrinsic instance.
+    :rtype: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
 
     '''
     symbol_table = SymbolTable()
@@ -84,11 +81,11 @@ def example_psyir(create_expression):
     var1 = Reference(arg1)
     var2 = Reference(arg2)
     var3 = Reference(arg3)
-    oper = BinaryOperation.Operator.SIGN
-    operation = BinaryOperation.create(oper, create_expression(var1), var2)
-    assign = Assignment.create(var3, operation)
+    intr = IntrinsicCall.Intrinsic.SIGN
+    intr_call = IntrinsicCall.create(intr, [create_expression(var1), var2])
+    assign = Assignment.create(var3, intr_call)
     _ = KernelSchedule.create("sign_example", symbol_table, [assign])
-    return operation
+    return intr_call
 
 
 @pytest.mark.parametrize("func,output",
@@ -102,9 +99,8 @@ def test_correct(func, output, tmpdir):
     expression.
 
     '''
-    Config.get().api = "nemo"
-    operation = example_psyir(func)
-    root = operation.root
+    intr_call = example_psyir(func)
+    root = intr_call.root
     writer = FortranWriter()
     result = writer(root)
     assert (
@@ -115,7 +111,7 @@ def test_correct(func, output, tmpdir):
         f"  psyir_tmp = SIGN({output}, arg_1)\n\n"
         f"end subroutine sign_example\n") in result
     trans = Sign2CodeTrans()
-    trans.apply(operation, root.symbol_table)
+    trans.apply(intr_call, root.symbol_table)
     result = writer(root)
     assert (
         f"subroutine sign_example(arg, arg_1)\n"
@@ -140,8 +136,6 @@ def test_correct(func, output, tmpdir):
         f"  psyir_tmp = res_sign\n\n"
         f"end subroutine sign_example\n") in result
     assert Compile(tmpdir).string_compiles(result)
-    # Remove the created config instance
-    Config._instance = None
 
 
 def test_correct_expr(tmpdir):
@@ -149,16 +143,15 @@ def test_correct_expr(tmpdir):
     is part of an expression.
 
     '''
-    Config.get().api = "nemo"
-    operation = example_psyir(
+    intr_call = example_psyir(
         lambda arg: BinaryOperation.create(
             BinaryOperation.Operator.MUL, arg,
             Literal("3.14", REAL_TYPE)))
-    root = operation.root
-    assignment = operation.parent
-    operation.detach()
+    root = intr_call.root
+    assignment = intr_call.parent
+    intr_call.detach()
     op1 = BinaryOperation.create(BinaryOperation.Operator.ADD,
-                                 Literal("1.0", REAL_TYPE), operation)
+                                 Literal("1.0", REAL_TYPE), intr_call)
     op2 = BinaryOperation.create(BinaryOperation.Operator.ADD,
                                  op1, Literal("2.0", REAL_TYPE))
     assignment.addchild(op2)
@@ -172,7 +165,7 @@ def test_correct_expr(tmpdir):
         "  psyir_tmp = 1.0 + SIGN(arg * 3.14, arg_1) + 2.0\n\n"
         "end subroutine sign_example\n") in result
     trans = Sign2CodeTrans()
-    trans.apply(operation, root.symbol_table)
+    trans.apply(intr_call, root.symbol_table)
     result = writer(root)
     assert (
         "subroutine sign_example(arg, arg_1)\n"
@@ -197,8 +190,6 @@ def test_correct_expr(tmpdir):
         "  psyir_tmp = 1.0 + res_sign + 2.0\n\n"
         "end subroutine sign_example\n") in result
     assert Compile(tmpdir).string_compiles(result)
-    # Remove the created config instance
-    Config._instance = None
 
 
 def test_correct_2sign(tmpdir):
@@ -206,19 +197,18 @@ def test_correct_2sign(tmpdir):
     is more than one SIGN in an expression.
 
     '''
-    Config.get().api = "nemo"
-    operation = example_psyir(
+    intr_call = example_psyir(
         lambda arg: BinaryOperation.create(
             BinaryOperation.Operator.MUL, arg,
             Literal("3.14", REAL_TYPE)))
-    root = operation.root
-    assignment = operation.parent
-    operation.detach()
-    sign_op = BinaryOperation.create(
-        BinaryOperation.Operator.SIGN, Literal("1.0", REAL_TYPE),
-        Literal("1.0", REAL_TYPE))
+    root = intr_call.root
+    assignment = intr_call.parent
+    intr_call.detach()
+    intr_call2 = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.SIGN,
+        [Literal("1.0", REAL_TYPE), Literal("1.0", REAL_TYPE)])
     op1 = BinaryOperation.create(BinaryOperation.Operator.ADD,
-                                 sign_op, operation)
+                                 intr_call2, intr_call)
     assignment.addchild(op1)
     writer = FortranWriter()
     result = writer(root)
@@ -230,8 +220,8 @@ def test_correct_2sign(tmpdir):
         "  psyir_tmp = SIGN(1.0, 1.0) + SIGN(arg * 3.14, arg_1)\n\n"
         "end subroutine sign_example\n") in result
     trans = Sign2CodeTrans()
-    trans.apply(operation, root.symbol_table)
-    trans.apply(sign_op, root.symbol_table)
+    trans.apply(intr_call, root.symbol_table)
+    trans.apply(intr_call2, root.symbol_table)
     result = writer(root)
     assert (
         "subroutine sign_example(arg, arg_1)\n"
@@ -271,8 +261,6 @@ def test_correct_2sign(tmpdir):
         "  psyir_tmp = res_sign_1 + res_sign\n\n"
         "end subroutine sign_example\n") in result
     assert Compile(tmpdir).string_compiles(result)
-    # Remove the created config instance
-    Config._instance = None
 
 
 def test_invalid():
@@ -282,5 +270,5 @@ def test_invalid():
     with pytest.raises(TransformationError) as excinfo:
         trans.apply(None)
     assert (
-        "Error in Sign2CodeTrans transformation. The supplied node argument "
-        "is not a SIGN operator, found 'NoneType'." in str(excinfo.value))
+        "Error in Sign2CodeTrans transformation. The supplied node must be "
+        "an 'IntrinsicCall', but found 'NoneType'." in str(excinfo.value))

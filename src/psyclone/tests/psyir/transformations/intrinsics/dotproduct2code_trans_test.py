@@ -45,7 +45,7 @@ picked up when creating the PSyIR.
 '''
 import pytest
 
-from psyclone.psyir.nodes import BinaryOperation
+from psyclone.psyir.nodes import IntrinsicCall
 from psyclone.psyir.transformations import TransformationError
 from psyclone.psyir.transformations.intrinsics.dotproduct2code_trans import \
     DotProduct2CodeTrans, _get_array_bound
@@ -67,10 +67,10 @@ def check_validate(code, expected, fortran_reader):
     '''
     psyir = fortran_reader.psyir_from_source(code)
     trans = DotProduct2CodeTrans()
-    for bin_op in psyir.walk(BinaryOperation):
-        if bin_op.operator == BinaryOperation.Operator.DOT_PRODUCT:
+    for intrinsic in psyir.walk(IntrinsicCall):
+        if intrinsic.intrinsic == IntrinsicCall.Intrinsic.DOT_PRODUCT:
             with pytest.raises(TransformationError) as info:
-                trans.validate(bin_op)
+                trans.validate(intrinsic)
             assert expected in str(info.value)
 
 
@@ -93,9 +93,9 @@ def check_trans(code, expected, fortran_reader, fortran_writer, tmpdir):
     '''
     psyir = fortran_reader.psyir_from_source(code)
     trans = DotProduct2CodeTrans()
-    for bin_op in psyir.walk(BinaryOperation):
-        if bin_op.operator == BinaryOperation.Operator.DOT_PRODUCT:
-            trans.apply(bin_op)
+    for intrinsic in psyir.walk(IntrinsicCall):
+        if intrinsic.intrinsic == IntrinsicCall.Intrinsic.DOT_PRODUCT:
+            trans.apply(intrinsic)
     result = fortran_writer(psyir)
     assert expected in result
     assert Compile(tmpdir).string_compiles(result)
@@ -117,8 +117,8 @@ def test_bound_explicit(fortran_reader, dim1, dim2):
         f"result = dot_product(v1,v2)\n"
         f"end subroutine\n")
     psyir = fortran_reader.psyir_from_source(code)
-    dot_product = psyir.walk(BinaryOperation)[0]
-    assert dot_product.operator == BinaryOperation.Operator.DOT_PRODUCT
+    dot_product = psyir.walk(IntrinsicCall)[0]
+    assert dot_product.intrinsic == IntrinsicCall.Intrinsic.DOT_PRODUCT
     lower, upper, step = _get_array_bound(
         dot_product.children[0], dot_product.children[1])
     assert lower.value == '2'
@@ -138,8 +138,8 @@ def test_bound_unknown(fortran_reader, fortran_writer):
         "result = dot_product(v1,v2)\n"
         "end subroutine\n")
     psyir = fortran_reader.psyir_from_source(code)
-    dot_product = psyir.walk(BinaryOperation)[0]
-    assert dot_product.operator == BinaryOperation.Operator.DOT_PRODUCT
+    dot_product = psyir.walk(IntrinsicCall)[0]
+    assert dot_product.intrinsic == IntrinsicCall.Intrinsic.DOT_PRODUCT
     lower, upper, step = _get_array_bound(
         dot_product.children[0], dot_product.children[1])
     assert fortran_writer(lower) == 'LBOUND(v1, 1)'
@@ -157,10 +157,9 @@ def test_initialise():
 
     '''
     trans = DotProduct2CodeTrans()
-    assert trans._operator_name == "DOTPRODUCT"
-    assert (str(trans) == "Convert the PSyIR DOTPRODUCT intrinsic to "
+    assert (str(trans) == "Convert the PSyIR 'DOT_PRODUCT' intrinsic to "
             "equivalent PSyIR code.")
-    assert trans.name == "Dotproduct2CodeTrans"
+    assert trans.name == "DotProduct2CodeTrans"
 
 
 # DotProduct2CodeTrans class validate method
@@ -173,7 +172,7 @@ def test_validate_super():
     trans = DotProduct2CodeTrans()
     with pytest.raises(TransformationError) as info:
         trans.validate(None)
-    assert ("The supplied node argument is not a DOTPRODUCT operator, found "
+    assert ("The supplied node must be an 'IntrinsicCall', but found "
             "'NoneType'." in str(info.value))
 
 
@@ -314,7 +313,7 @@ def test_apply_calls_validate():
     trans = DotProduct2CodeTrans()
     with pytest.raises(TransformationError) as info:
         trans.apply(None)
-    assert ("The supplied node argument is not a DOTPRODUCT operator, found "
+    assert ("The supplied node must be an 'IntrinsicCall', but found "
             "'NoneType'." in str(info.value))
 
 
