@@ -35,10 +35,9 @@
 # Modified I. Kavcic, Met Office
 # Modified by J. Henrichs, Bureau of Meteorology
 
-''' This module contains tests for the multi-grid part of the Dynamo 0.3 API
+''' This module contains tests for the inter-grid part of the LFRic API
     using pytest. '''
 
-from __future__ import absolute_import, print_function
 # Since this is a file containing tests which often have to get in and
 # change the internal state of objects we disable pylint's warning
 # about such accesses
@@ -505,6 +504,29 @@ def test_field_restrict(tmpdir, dist_mem, monkeypatch, annexed):
     if dist_mem:
         set_dirty = "      CALL field1_proxy%set_dirty()\n"
         assert set_dirty in output
+
+
+def test_cont_field_restrict(tmpdir, dist_mem, monkeypatch, annexed):
+    ''' Test that we generate correct code for an invoke containing a
+    single restriction operation (read from fine, write to
+    coarse) when the field is on a continuous function space but has
+    GH_WRITE access (so that there is no need to perform redundant computation
+    to get the correct values for annexed dofs). Check when annexed is False
+    and True as we produce a different number of halo exchanges.
+
+    '''
+
+    config = Config.get()
+    dyn_config = config.api_conf("dynamo0.3")
+    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
+
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "22.1.1_intergrid_cont_restrict.f90"),
+                           api=API)
+    psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
+    output = str(psy.gen)
+    print(output)
+    assert "loop0_stop = mesh_field1%get_last_edge_cell()" in output
 
 
 def test_restrict_prolong_chain(tmpdir, dist_mem):

@@ -8046,14 +8046,15 @@ class DynKern(CodedKern):
     @property
     def all_updates_are_writes(self):
         '''
-        :returns: True if all of the arguments updated by this kernel have \
+        :returns: True if all of the arguments updated by this kernel have
                   'GH_WRITE' access, False otherwise.
         :rtype: bool
 
         '''
-        if self.is_intergrid:
-            # This is not a special kernel
-            return False
+        # ARPDBG
+        #if self.is_intergrid:
+        #    # This is not a special kernel
+        #    return False
         accesses = set(arg.access for arg in self.args)
         all_writes = AccessType.all_write_accesses()
         all_writes.remove(AccessType.WRITE)
