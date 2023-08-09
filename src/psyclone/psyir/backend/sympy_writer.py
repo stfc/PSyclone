@@ -184,11 +184,21 @@ class SymPyWriter(FortranWriter):
     # -------------------------------------------------------------------------
     def _create_sympy_array_function(self, name, sig=None, num_dims=None):
         '''Creates a Function class with the given name to be used for SymPy
-        parsing. This Function overwrite the conversion to string, and will
+        parsing. This Function overwrites the conversion to string, and will
         replace the triplicated array indices back to the normal Fortran
-        syntax.
+        syntax. If the signature Sig and number of dimensions for each
+        component of the signature are given, it will add this information
+        to the object, so that the SymPyReader can recreate the proper
+        access to a user-defined type.
 
         :param str name: name of the function class to create.
+        :param sig: the signature of the variable, which is required
+            to convert user defined types back properly. Only defined for
+            user-defined types.
+        :type sig: Optional[:py:class:`psyclone.core.Signature`]
+        :param num_dims: the number of dimensions for each component of a
+            user defined type.
+        :type num_dims: Options[List[int]]
 
         :returns: a SymPy function, which has a special ``_sympystr`` function
             defined as attribute to print user-defined types..
@@ -204,10 +214,17 @@ class SymPyWriter(FortranWriter):
         # create a derived class based on ``Function`` and define
         # this function there: SymPy tests internally if the type is a
         # Function (not if it is an instance), therefore, SymPy's
-        # behaviour would change if we used a derived class.
+        # behaviour would change if we used a derived class:
+        # https://docs.sympy.org/latest/modules/functions/index.html:
+        # "It [Function class] also serves as a constructor for undefined
+        # function classes."
         new_func = Function(name)
         # pylint: disable=protected-access
         new_func._sympystr = SymPyReader.print_fortran_array
+
+        # Store the signature and the number of dimensions of each
+        # component, so that SymPyReader.print_fortran_array can match
+        # the indices back to the user defined types.
         new_func._sig = sig
         new_func._num_dims = num_dims
         # pylint: enable=protected-access
@@ -258,9 +275,10 @@ class SymPyWriter(FortranWriter):
                     self._sympy_type_map[name] = Symbol(name)
                     continue
 
-                # Now a new Fortran array is used. Declare a special SymPy
-                # function for it. This function will convert array expressions
-                # back into the original Fortran code
+                # A Fortran array is used which has not been seen before.
+                # Declare a new SymPy function for it. This SymPy function
+                # will convert array expressions back into the original
+                # Fortran code.
                 self._sympy_type_map[name] = \
                     self._create_sympy_array_function(name)
 
@@ -441,7 +459,7 @@ class SymPyWriter(FortranWriter):
                 self._create_sympy_array_function(unique_name, sig, num_dims)
             return f"{unique_name}({','.join(indices_str)})"
 
-        # Just a scalar reference. We use the unique name  for the string,
+        # Not an array access. We use the unique name  for the string,
         # but the required symbol is mapped to the original name, which means
         # if the SymPy expression is converted to a string (in order to be
         # parsed), it will use the original structure reference syntax:

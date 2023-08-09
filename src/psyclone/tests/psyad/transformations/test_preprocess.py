@@ -40,7 +40,7 @@ file within the psyad/transformations directory
 '''
 import pytest
 
-from psyclone.psyad.transformations.preprocess import (preprocess_trans)
+from psyclone.psyad.transformations.preprocess import preprocess_trans
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.tests.utilities import Compile
@@ -225,8 +225,7 @@ def test_preprocess_arrayrange2loop(tmpdir, fortran_reader, fortran_writer):
 
 @pytest.mark.parametrize("operation", ["+", "-"])
 def test_preprocess_associativity(operation, fortran_reader, fortran_writer):
-    '''Test that the associativity function is called from the preprocess
-    script.
+    '''Test that associativity is handled correctly.
 
     '''
     code = (
@@ -250,7 +249,7 @@ def test_preprocess_associativity(operation, fortran_reader, fortran_writer):
 
 @pytest.mark.parametrize("operation", ["*", "/"])
 def test_associativity2(operation, fortran_reader, fortran_writer):
-    '''Test that the associativity function works as expected for (a+b)*/x
+    '''Test that associativity  works as expected for (a+b)*/x
     where a and b are active and x is inactive.
 
     '''
@@ -280,8 +279,8 @@ def test_associativity2(operation, fortran_reader, fortran_writer):
 
 
 def test_associativity3(fortran_reader, fortran_writer):
-    '''Test that the associativity function works as expected when the
-    function needs to be applied multiple times in an assignment.
+    '''Test that associativity works as expected when it
+    needs to be applied multiple times in an assignment.
 
     '''
     code = (
@@ -307,7 +306,7 @@ def test_associativity3(fortran_reader, fortran_writer):
 
 
 def test_preprocess_associativity4(fortran_reader, fortran_writer):
-    '''Test that the associativity function works as expected when we have
+    '''Test that associativity works as expected when we have
     array ranges.
 
     '''
@@ -331,7 +330,7 @@ def test_preprocess_associativity4(fortran_reader, fortran_writer):
 
 
 def test_associativity5(tmpdir, fortran_reader, fortran_writer):
-    '''Test that the associativity function works as expected when we have
+    '''Test that associativity works as expected when we have
     a literal as part of the expression that we would like to
     expand.
 
@@ -356,9 +355,8 @@ def test_associativity5(tmpdir, fortran_reader, fortran_writer):
 
 
 def test_associativity6(tmpdir, fortran_reader, fortran_writer):
-    '''Test that the associativity function works as expected when we have
-    a negative literal as part of the expression that we would like to
-    expand.
+    '''Test that associativity works as expected when we have a negative
+    literal as part of the expression that we would like to expand.
 
     '''
     code = (
@@ -381,7 +379,7 @@ def test_associativity6(tmpdir, fortran_reader, fortran_writer):
 
 
 def test_associativity7(fortran_reader, fortran_writer):
-    '''Test that the associativity function works as expected when we have
+    '''Test that associativity works as expected when we have
     user-defined types.
     '''
     code = (
