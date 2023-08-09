@@ -421,14 +421,10 @@ class LFRicExtractDriverCreator:
             # its type. And since they are not imported, they need to be
             # explicitly declared.
             mod_info = mod_man.get_module_info(module_name)
-            try:
-                container_symbol = mod_info.get_symbol(signature[0])
-            except IndexError:
+            container_symbol = mod_info.get_symbol(signature[0])
+            if not container_symbol:
                 # TODO #2120: This typically indicates a problem with parsing
                 # a module: the psyir does not have the full tree structure.
-                # Ignore for now.
-                continue
-            if not container_symbol:
                 continue
 
             symbol_table.find_or_create_tag(tag=f"{signature[0]}@"
