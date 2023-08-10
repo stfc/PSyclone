@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2017-2022, Science and Technology Facilities Council
+.. Copyright (c) 2017-2023, Science and Technology Facilities Council
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -1049,9 +1049,7 @@ PSyclone-generated loops in the PSy layer. PSyclone therefore provides
 the ``ACCRoutineTrans`` transformation which, given a Kernel node in
 the PSyIR, creates a new version of that kernel with the ``routine``
 directive added. See either PSyclone/examples/gocean/eg2 or
-PSyclone/examples/lfric/eg14 for an example (although please note that
-this transformation is not yet fully working for kernels in
-the LFRic (Dynamo0.3) API - see #1724).
+PSyclone/examples/lfric/eg14 for an example.
 
 SIR
 ---
