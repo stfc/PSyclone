@@ -837,3 +837,17 @@ def test_dep_tools_non_local_inout_parameters(capsys):
     out, _ = capsys.readouterr()
     assert "Unknown routine 'unknown_subroutine - ignored." in out
     assert "constants_mod" not in out
+
+    # Test if the internal todo handling cannot find a subroutine in the
+    # module it is supposed to be in. The above test checks if there is no
+    # module information, this code here test if there is a module given,
+    # but the subroutine is actually not in that module:
+    # Create a todo list indicating that the unknown_subroutine is in
+    # "unknown_module", but this module does not exist:
+    todo = [("routine", "unknown_module",Signature("unknown_subroutine"),
+             None)]
+    # rw_info is not actually used in case of a module that is not found,
+    # so just reuse the existing object:
+    dep_tools._resolve_calls_and_unknowns(todo, rw_info)
+    out, _ = capsys.readouterr()
+    assert "Cannot find module 'unknown_module' - ignored." in out

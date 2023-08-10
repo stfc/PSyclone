@@ -974,7 +974,7 @@ class DependencyTools():
 
         :param todo: the information about symbol type, module_name, \
             symbol_name and access information
-        :type todo: List[Tuple[str,str,\
+        :type todo: List[Tuple[str,str, str,\
                               :py:class:`psyclone.core.Signature`,str]]
 
         :param read_write_info: information about all input and output \
