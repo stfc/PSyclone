@@ -36,6 +36,7 @@
 
 ''' Module containing tests for the dependency tools.'''
 
+import os
 import pytest
 
 from fparser.common.readfortran import FortranStringReader
@@ -43,9 +44,10 @@ from fparser.common.readfortran import FortranStringReader
 from psyclone.configuration import Config
 from psyclone.core import Signature, VariablesAccessInfo
 from psyclone.errors import InternalError
+from psyclone.parse import ModuleManager
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.tools import DependencyTools, DTCode, ReadWriteInfo
-from psyclone.tests.utilities import get_invoke
+from psyclone.tests.utilities import get_base_path, get_invoke
 
 
 @pytest.fixture(scope="function", autouse=True)
@@ -779,3 +781,51 @@ def test_da_array_expression(fortran_reader):
     dep_tools = DependencyTools()
     result = dep_tools.can_loop_be_parallelised(loops[0])
     assert result is False
+
+
+# -----------------------------------------------------------------------------
+@pytest.mark.usefixtures("clear_module_manager_instance")
+def test_dep_tools_non_local_inout_parameters(capsys):
+    '''Tests the collection of non-local input and output parameters.
+    '''
+    dep_tools = DependencyTools()
+
+    test_file = os.path.join("driver_creation", "module_with_builtin_mod.f90")
+    psyir, _ = get_invoke(test_file, "dynamo0.3", 0, dist_mem=False)
+    schedule = psyir.invokes.invoke_list[0].schedule
+
+    # First call without setting up the module manager. This will result
+    # in the testkern_import_symbols_mod module not being found:
+    rw_info = dep_tools.get_in_out_parameters(schedule,
+                                              collect_non_local_symbols=True)
+    out, _ = capsys.readouterr()
+    assert ("Could not find module 'testkern_import_symbols_mod' - ignored."
+            in out)
+
+    # Now add the search path of the driver creation tests to the
+    # module manager:
+    test_dir = os.path.join(get_base_path("dynamo0.3"), "driver_creation")
+    mod_man = ModuleManager.get()
+    mod_man.add_search_path(test_dir)
+
+    # The example does contain an unknown subroutine (by design), and the
+    # infrastructure directory has not been added, so constants_mod cannot
+    # be found:
+    rw_info = dep_tools.get_in_out_parameters(schedule,
+                                              collect_non_local_symbols=True)
+    out, _ = capsys.readouterr()
+    assert "Unknown routine 'unknown_subroutine - ignored." in out
+    assert ("Cannot find module 'constants_mod' - ignoring unknown symbol "
+            "'eps'." in out)
+
+    # We don't test the 14 local variables here, this was tested earlier.
+    # Focus on the remote symbols that are read:
+    assert (('module_with_var_mod', Signature("module_var_b"))
+            in rw_info.read_list)
+    # And check the remote symbols that are written:
+    assert (('module_with_var_mod', Signature("module_var_a"))
+            in rw_info.write_list)
+    assert (('module_with_var_mod', Signature("module_var_b"))
+            in rw_info.write_list)
+    assert (('testkern_import_symbols_mod', Signature("dummy_module_variable"))
+            in rw_info.write_list)
