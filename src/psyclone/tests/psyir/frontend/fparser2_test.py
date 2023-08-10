@@ -66,7 +66,8 @@ from psyclone.psyir.symbols import (
     SymbolError, ScalarType, ArrayType, INTEGER_TYPE, REAL_TYPE,
     UnknownFortranType, DeferredType, Symbol, UnresolvedInterface,
     ImportInterface, BOOLEAN_TYPE, StaticInterface, UnknownInterface,
-    AutomaticInterface, DefaultModuleInterface)
+    StructureType, DataTypeSymbol)
+
 
 # pylint: disable=too-many-statements
 
@@ -2939,3 +2940,104 @@ def test_declarations_with_initialisations_errors(parser):
     with pytest.raises(ValueError) as err:
         _ = processor.get_routine_schedules("a", ast)
     assert "error to propagate" in str(err.value)
+
+
+def test_structures(fortran_reader, fortran_writer):
+    '''Test that Fparser2Reader parses Fortran types correctly when there
+    is a type declaration with one of the members being initialised,
+    when there is a type declaration that extends an existing type,
+    when there is a type declaration that contains procedures and when
+    there is a type declaration that both extends an existing type and
+    contains procedures.
+
+    '''
+    # type loses initial value
+    test_code = (
+        "module test_mod\n"
+        "    type :: my_type\n"
+        "      integer :: i = 1\n"
+        "      integer :: j\n"
+        "    end type my_type\n"
+        "end module test_mod\n")
+    psyir = fortran_reader.psyir_from_source(test_code)
+    sym_table = psyir.children[0].symbol_table
+    symbol = sym_table.lookup("my_type")
+    assert isinstance(symbol, DataTypeSymbol)
+    assert isinstance(symbol.datatype, StructureType)
+    result = fortran_writer(psyir)
+    assert (
+        "  type, public :: my_type\n"
+        "    integer, public :: i = 1\n"
+        "    integer, public :: j\n"
+        "  end type my_type\n" in result)
+
+    # type that extends another type (unknown fortran type)
+    test_code = (
+        "module test_mod\n"
+        "    use kernel_mod, only : kernel_type\n"
+        "    type, extends(kernel_type) :: my_type\n"
+        "      integer :: i = 1\n"
+        "    end type my_type\n"
+        "end module test_mod\n")
+    psyir = fortran_reader.psyir_from_source(test_code)
+    sym_table = psyir.children[0].symbol_table
+    symbol = sym_table.lookup("my_type")
+    assert isinstance(symbol, DataTypeSymbol)
+    assert isinstance(symbol.datatype, UnknownFortranType)
+    result = fortran_writer(psyir)
+    assert (
+        "  type, extends(kernel_type), public :: my_type\n"
+        "  INTEGER :: i = 1\n"
+        "END TYPE my_type\n" in result)
+
+    # type that contains a procedure (unknown fortran type)
+    test_code = (
+        "module test_mod\n"
+        "    type :: test_type\n"
+        "      integer :: i = 1\n"
+        "      contains\n"
+        "      procedure, nopass :: test_code\n"
+        "    end type test_type\n"
+        "    contains\n"
+        "    subroutine test_code()\n"
+        "    end subroutine\n"
+        "end module test_mod\n")
+    psyir = fortran_reader.psyir_from_source(test_code)
+    sym_table = psyir.children[0].symbol_table
+    symbol = sym_table.lookup("test_type")
+    assert isinstance(symbol, DataTypeSymbol)
+    assert isinstance(symbol.datatype, UnknownFortranType)
+    result = fortran_writer(psyir)
+    assert (
+        "  type, public :: test_type\n"
+        "  INTEGER :: i = 1\n"
+        "  CONTAINS\n"
+        "  PROCEDURE, NOPASS :: test_code\n"
+        "END TYPE test_type\n" in result)
+
+    # type that extends an existing type and contains a procedure
+    # (unknown fortran type)
+    test_code = (
+        "module test_mod\n"
+        "    use kernel_mod, only : kernel_type\n"
+        "    type, extends(kernel_type) :: test_type\n"
+        "      integer :: i = 1\n"
+        "      contains\n"
+        "      procedure, nopass :: test_code\n"
+        "    end type test_type\n"
+        "    contains\n"
+        "    subroutine test_code()\n"
+        "    end subroutine\n"
+        "end module test_mod\n")
+    psyir = fortran_reader.psyir_from_source(test_code)
+    sym_table = psyir.children[0].symbol_table
+    symbol = sym_table.lookup("test_type")
+    assert isinstance(symbol, DataTypeSymbol)
+    assert isinstance(symbol.datatype, UnknownFortranType)
+    result = fortran_writer(psyir)
+    assert (
+        "  type, extends(kernel_type), public :: test_type\n"
+        "  INTEGER :: i = 1\n"
+        "  CONTAINS\n"
+        "  PROCEDURE, NOPASS :: test_code\n"
+        "END TYPE test_type\n" in result)

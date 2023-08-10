@@ -2083,6 +2083,15 @@ class Fparser2Reader():
         # Populate this StructureType by processing the components of
         # the derived type
         try:
+            # We don't yet support derived-type definitions that
+            # extend an existing type.
+            derived_type_stmt = decl.children[0]
+            for type_attr_spec in walk(
+                    derived_type_stmt, Fortran2003.Type_Attr_Spec):
+                if type_attr_spec.children[0].lower() == "extends":
+                    raise NotImplementedError(
+                        "Derived-type definition extends an existing type.")
+
             # We don't yet support derived-type definitions with a CONTAINS
             # section.
             contains = walk(decl, Fortran2003.Contains_Stmt)
@@ -2097,7 +2106,8 @@ class Fparser2Reader():
                 self._process_decln(parent, local_table, child)
             # Convert from Symbols to type information
             for symbol in local_table.symbols:
-                dtype.add(symbol.name, symbol.datatype, symbol.visibility)
+                dtype.add(symbol.name, symbol.datatype, symbol.visibility,
+                          symbol.initial_value)
 
             # Update its type with the definition we've found
             tsymbol.datatype = dtype

@@ -54,6 +54,8 @@ from psyclone.psyir.symbols import (
     ArgumentInterface, ArrayType, ContainerSymbol, DataSymbol, DataTypeSymbol,
     DeferredType, RoutineSymbol, ScalarType, Symbol, IntrinsicSymbol,
     SymbolTable, UnknownFortranType, UnknownType, UnresolvedInterface)
+from psyclone.psyir.symbols.datatypes import StructureType
+
 
 # The list of Fortran intrinsic functions that we know about (and can
 # therefore distinguish from array accesses). These are taken from
@@ -647,7 +649,10 @@ class FortranWriter(LanguageWriter):
         result += f" :: {symbol.name}"
 
         # Specify initialisation expression
-        if isinstance(symbol, DataSymbol) and symbol.initial_value:
+        if (isinstance(symbol, StructureType.ComponentType) and
+                symbol.initial_value):
+            result += " = " + self._visit(symbol.initial_value)
+        elif isinstance(symbol, DataSymbol) and symbol.initial_value:
             if not symbol.is_static:
                 raise VisitorError(
                     f"{type(symbol).__name__} '{symbol.name}' has an initial "
