@@ -49,7 +49,6 @@ class ACCCopyClause(Clause):
 
     '''
     _children_valid_format = "Reference"
-    _text_name = "CopyClause"
     _clause_string = "copy"
 
     @staticmethod
@@ -76,7 +75,6 @@ class ACCCopyInClause(Clause):
 
     '''
     _children_valid_format = "Reference"
-    _text_name = "CopyInClause"
     _clause_string = "copyin"
 
     @staticmethod
@@ -103,7 +101,6 @@ class ACCCopyOutClause(Clause):
 
     '''
     _children_valid_format = "Reference"
-    _text_name = "CopyOutClause"
     _clause_string = "copyout"
 
     @staticmethod
