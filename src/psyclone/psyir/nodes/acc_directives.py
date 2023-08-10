@@ -622,26 +622,24 @@ class ACCDataDirective(ACCRegionDirective):
     in the PSyIR.
 
     '''
-    def __init__(self, children=None, parent=None):
-        self._disable_tree_update = True
-        super().__init__(children=children, parent=parent)
+    #def __init__(self, children=None, parent=None):
+    #    super().__init__(children=children, parent=parent)
+    #
+    #    self._signal_update()
 
-        self._disable_tree_update = False
-        self.tree_update()
+    #def _refine_copy(self, other):
+    #    '''
+    #    Overrides the base implementation to ensure that tree-updating is
+    #    disabled during this operation (since it is a copy we know we
+    #    don't need to change the tree structure).
 
-    def _refine_copy(self, other):
-        '''
-        Overrides the base implementation to ensure that tree-updating is
-        disabled during this operation (since it is a copy we know we
-        don't need to change the tree structure).
+    #    :param other: the object we are copying from.
+    #    :type other: :py:class:`psyclone.psyir.node.Node`
 
-        :param other: the object we are copying from.
-        :type other: :py:class:`psyclone.psyir.node.Node`
-
-        '''
-        self._disable_tree_update = True
-        super()._refine_copy(other)
-        self._disable_tree_update = False
+    #    '''
+    #    self._disable_tree_update = True
+    #    super()._refine_copy(other)
+    #    self._disable_tree_update = False
 
     def gen_code(self, _):
         '''
@@ -689,18 +687,13 @@ class ACCDataDirective(ACCRegionDirective):
         '''
         return "acc end data"
 
-    def tree_update(self):
+    def update_node(self):
         '''
         Called whenever there is a change in the PSyIR tree below this node.
         This may mean that the various copy[in/out] clauses need updating if
         the contents of the data region have changed.
 
         '''
-        # Ensure that this method does not get called recursively.
-        if self._disable_tree_update:
-            return
-        self._disable_tree_update = True
-
         # Remove the clauses that we will update.
         for child in self.children[:]:
             if isinstance(child,
@@ -741,12 +734,6 @@ class ACCDataDirective(ACCRegionDirective):
                                       nodes_dict)
         if nodes_dict:
             self.addchild(ACCCopyClause(children=list(nodes_dict.values())))
-
-        # Enable updates again now that we're leaving this method.
-        self._disable_tree_update = False
-
-        # Propagate any changes on up the tree.
-        super().tree_update()
 
 
 class ACCUpdateDirective(ACCStandaloneDirective):
