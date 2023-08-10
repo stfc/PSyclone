@@ -40,8 +40,7 @@ module.
 
 from psyclone.core import Signature, VariablesAccessInfo
 from psyclone.psyir.nodes import (Call, Container, Reference)
-from psyclone.psyir.symbols import (ArgumentInterface, ImportInterface,
-                                    RoutineSymbol)
+from psyclone.psyir.symbols import (ArgumentInterface, ImportInterface)
 
 
 # ============================================================================
@@ -199,10 +198,6 @@ class RoutineInfo(RoutineInfoBase):
                 if existing_sym.is_automatic:
                     return None
                 if isinstance(node, Container):
-                    # It is a variable from the module in which the
-                    # current function is, so it is a non-local access
-                    if isinstance(existing_sym, RoutineSymbol):
-                        return ("routine", node.name, sym.name)
                     if sym.is_constant:
                         # Constants don't need to be saved
                         return None
