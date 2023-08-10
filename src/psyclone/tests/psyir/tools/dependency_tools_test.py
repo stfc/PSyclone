@@ -838,16 +838,50 @@ def test_dep_tools_non_local_inout_parameters(capsys):
     assert "Unknown routine 'unknown_subroutine - ignored." in out
     assert "constants_mod" not in out
 
+
+# -----------------------------------------------------------------------------
+@pytest.mark.usefixtures("clear_module_manager_instance")
+def test_dep_tools_resolve_calls_and_unknowns(capsys):
+    '''Tests resolving symbols in case of missing modules, subroutines, and
+    unknown type (e.g. function call or array access).
+    '''
+    # Add the search path of the driver creation tests to the
+    # module manager:
+    test_dir = os.path.join(get_base_path("dynamo0.3"), "driver_creation")
+    mod_man = ModuleManager.get()
+    mod_man.add_search_path(test_dir)
+
     # Test if the internal todo handling cannot find a subroutine in the
-    # module it is supposed to be in. The above test checks if there is no
-    # module information, this code here test if there is a module given,
-    # but the subroutine is actually not in that module:
-    # Create a todo list indicating that the unknown_subroutine is in
-    # "unknown_module", but this module does not exist:
-    todo = [("routine", "unknown_module",Signature("unknown_subroutine"),
+    # module it is supposed to be in. Create a todo list indicating that
+    # the "unknown_subroutine" is in "unknown_module", but this module
+    # does not exist:
+    todo = [("routine", "unknown_module", Signature("unknown_subroutine"),
              None)]
-    # rw_info is not actually used in case of a module that is not found,
-    # so just reuse the existing object:
+    dep_tools = DependencyTools()
+    rw_info = ReadWriteInfo()
     dep_tools._resolve_calls_and_unknowns(todo, rw_info)
     out, _ = capsys.readouterr()
     assert "Cannot find module 'unknown_module' - ignored." in out
+    assert rw_info.read_list == []
+    assert rw_info.write_list == []
+
+    # Now try to find a routine that does not exist in an existing module:
+    todo = [('routine', 'module_with_var_mod', Signature("does-not-exist"),
+             None)]
+    dep_tools._resolve_calls_and_unknowns(todo, rw_info)
+    out, _ = capsys.readouterr()
+    assert ("Cannot find symbol 'does-not-exist' in module "
+            "'module_with_var_mod' - ignored." in out)
+    assert rw_info.read_list == []
+    assert rw_info.write_list == []
+
+    # Now ask for an unknown symbol (in this case a subroutine), it
+    # should be detected to be a subroutine, and the accesses inside
+    # this subroutine should then be reported:
+    todo = [('unknown', 'module_with_var_mod',
+             Signature("module_subroutine"), None)]
+    dep_tools._resolve_calls_and_unknowns(todo, rw_info)
+    assert rw_info.read_list == [('module_with_var_mod',
+                                  Signature("module_var_b"))]
+    assert rw_info.write_list == [('module_with_var_mod',
+                                   Signature("module_var_b"))]
