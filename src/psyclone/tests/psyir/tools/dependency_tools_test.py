@@ -829,3 +829,11 @@ def test_dep_tools_non_local_inout_parameters(capsys):
             in rw_info.write_list)
     assert (('testkern_import_symbols_mod', Signature("dummy_module_variable"))
             in rw_info.write_list)
+
+    # Check that we can ignore a module:
+    mod_man.ignore_module("constants_mod")
+    rw_info = dep_tools.get_in_out_parameters(schedule,
+                                              collect_non_local_symbols=True)
+    out, _ = capsys.readouterr()
+    assert "Unknown routine 'unknown_subroutine - ignored." in out
+    assert "constants_mod" not in out
