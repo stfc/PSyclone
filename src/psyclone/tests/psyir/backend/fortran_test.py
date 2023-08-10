@@ -2196,3 +2196,27 @@ def test_fw_keeps_symbol_renaming(fortran_writer, fortran_reader):
     psyir = fortran_reader.psyir_from_source(code)
     output = fortran_writer(psyir)
     assert "b_mod_name=>a_mod_name" in output
+
+
+def test_componenttype_initialisation(fortran_reader, fortran_writer):
+    '''Test that initial values are output for a StructureType which
+    contains types that have initial values.
+
+    '''
+    test_code = (
+        "module test_mod\n"
+        "    type :: my_type\n"
+        "      integer :: i = 1\n"
+        "      integer :: j\n"
+        "    end type my_type\n"
+        "end module test_mod\n")
+    psyir = fortran_reader.psyir_from_source(test_code)
+    sym_table = psyir.children[0].symbol_table
+    symbol = sym_table.lookup("my_type")
+    assert isinstance(symbol.datatype, StructureType)
+    result = fortran_writer(psyir)
+    assert (
+        "  type, public :: my_type\n"
+        "    integer, public :: i = 1\n"
+        "    integer, public :: j\n"
+        "  end type my_type\n" in result)

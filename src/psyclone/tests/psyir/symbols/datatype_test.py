@@ -337,7 +337,7 @@ def test_arraytype_datatypesymbol_only():
     type of StructureType. (This limitation is the subject of #1031.) '''
     with pytest.raises(NotImplementedError) as err:
         _ = ArrayType(StructureType.create(
-            [("nx", INTEGER_TYPE, Symbol.Visibility.PUBLIC)]),
+            [("nx", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None)]),
                       [5])
     assert ("When creating an array of structures, the type of those "
             "structures must be supplied as a DataTypeSymbol but got a "
@@ -644,26 +644,37 @@ def test_structure_type():
     stype = StructureType()
     assert str(stype) == "StructureType<>"
     assert not stype.components
-    stype.add("flag", INTEGER_TYPE, Symbol.Visibility.PUBLIC)
+    stype.add("flag", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None)
     flag = stype.lookup("flag")
+    assert not flag.initial_value
     assert isinstance(flag, StructureType.ComponentType)
+    stype.add("flag2", INTEGER_TYPE, Symbol.Visibility.PUBLIC,
+              Literal("1", INTEGER_TYPE))
+    flag2 = stype.lookup("flag2")
+    assert isinstance(flag2, StructureType.ComponentType)
+    assert flag2.initial_value.value == "1"
     with pytest.raises(TypeError) as err:
-        stype.add(1, "hello", "hello")
+        stype.add(1, "hello", "hello", None)
     assert ("name of a component of a StructureType must be a 'str' but got "
             "'int'" in str(err.value))
     with pytest.raises(TypeError) as err:
-        stype.add("hello", "hello", "hello")
+        stype.add("hello", "hello", "hello", None)
     assert ("type of a component of a StructureType must be a 'DataType' "
             "or 'DataTypeSymbol' but got 'str'" in str(err.value))
     with pytest.raises(TypeError) as err:
-        stype.add("hello", INTEGER_TYPE, "hello")
+        stype.add("hello", INTEGER_TYPE, "hello", None)
     assert ("visibility of a component of a StructureType must be an instance "
             "of 'Symbol.Visibility' but got 'str'" in str(err.value))
+    with pytest.raises(TypeError) as err:
+        stype.add("hello", INTEGER_TYPE, Symbol.Visibility.PUBLIC, "Hello")
+    assert ("The initial value of a component of a StructureType must be "
+            "None or an instance of 'DataNode', but got 'str'."
+            in str(err.value))
     with pytest.raises(KeyError):
         stype.lookup("missing")
     # Cannot have a recursive type definition
     with pytest.raises(TypeError) as err:
-        stype.add("hello", stype, Symbol.Visibility.PUBLIC)
+        stype.add("hello", stype, Symbol.Visibility.PUBLIC, None)
     assert ("attempting to add component 'hello' - a StructureType definition "
             "cannot be recursive" in str(err.value))
 
@@ -673,52 +684,65 @@ def test_create_structuretype():
     # One member will have its type defined by a DataTypeSymbol
     tsymbol = DataTypeSymbol("my_type", DeferredType())
     stype = StructureType.create([
-        ("fred", INTEGER_TYPE, Symbol.Visibility.PUBLIC),
-        ("george", REAL_TYPE, Symbol.Visibility.PRIVATE),
-        ("barry", tsymbol, Symbol.Visibility.PUBLIC)])
+        ("fred", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None),
+        ("george", REAL_TYPE, Symbol.Visibility.PRIVATE,
+         Literal("1.0", REAL_TYPE)),
+        ("barry", tsymbol, Symbol.Visibility.PUBLIC, None)])
     assert len(stype.components) == 3
     george = stype.lookup("george")
     assert isinstance(george, StructureType.ComponentType)
     assert george.name == "george"
     assert george.datatype == REAL_TYPE
     assert george.visibility == Symbol.Visibility.PRIVATE
+    assert george.initial_value.value == "1.0"
     barry = stype.lookup("barry")
     assert isinstance(barry, StructureType.ComponentType)
     assert barry.datatype is tsymbol
     assert barry.visibility == Symbol.Visibility.PUBLIC
+    assert not barry.initial_value
     with pytest.raises(TypeError) as err:
         StructureType.create([
-            ("fred", INTEGER_TYPE, Symbol.Visibility.PUBLIC),
+            ("fred", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None),
             ("george", Symbol.Visibility.PRIVATE)])
-    assert ("Each component must be specified using a 3-tuple of (name, "
-            "type, visibility) but found a tuple with 2 members: ("
-            "'george', " in str(err.value))
+    assert ("Each component must be specified using a 4-tuple of (name, "
+            "type, visibility, initial_value) but found a tuple with 2 "
+            "members: ('george', " in str(err.value))
 
 
 def test_structuretype_eq():
     '''Test the equality operator of StructureType.'''
     stype = StructureType.create([
-        ("nancy", INTEGER_TYPE, Symbol.Visibility.PUBLIC),
-        ("peggy", REAL_TYPE, Symbol.Visibility.PRIVATE)])
+        ("nancy", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None),
+        ("peggy", REAL_TYPE, Symbol.Visibility.PRIVATE,
+         Literal("1.0", REAL_TYPE))])
     assert stype == StructureType.create([
-        ("nancy", INTEGER_TYPE, Symbol.Visibility.PUBLIC),
-        ("peggy", REAL_TYPE, Symbol.Visibility.PRIVATE)])
+        ("nancy", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None),
+        ("peggy", REAL_TYPE, Symbol.Visibility.PRIVATE,
+         Literal("1.0", REAL_TYPE))])
     # Something that is not a StructureType
     assert stype != NoType()
     # Component with a different name.
     assert stype != StructureType.create([
-        ("nancy", INTEGER_TYPE, Symbol.Visibility.PUBLIC),
-        ("roger", REAL_TYPE, Symbol.Visibility.PRIVATE)])
+        ("nancy", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None),
+        ("roger", REAL_TYPE, Symbol.Visibility.PRIVATE,
+         Literal("1.0", REAL_TYPE))])
     # Component with a different type.
     assert stype != StructureType.create([
-        ("nancy", INTEGER_TYPE, Symbol.Visibility.PUBLIC),
-        ("peggy", INTEGER_TYPE, Symbol.Visibility.PRIVATE)])
+        ("nancy", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None),
+        ("peggy", INTEGER_TYPE, Symbol.Visibility.PRIVATE,
+         Literal("1.0", REAL_TYPE))])
     # Component with a different visibility.
     assert stype != StructureType.create([
-        ("nancy", INTEGER_TYPE, Symbol.Visibility.PUBLIC),
-        ("peggy", REAL_TYPE, Symbol.Visibility.PUBLIC)])
+        ("nancy", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None),
+        ("peggy", REAL_TYPE, Symbol.Visibility.PUBLIC,
+         Literal("1.0", REAL_TYPE))])
+    # Component wth a different initialisation
+    assert stype != StructureType.create([
+        ("nancy", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None),
+        ("peggy", REAL_TYPE, Symbol.Visibility.PRIVATE, None)])
     # Different number of components.
     assert stype != StructureType.create([
-        ("nancy", INTEGER_TYPE, Symbol.Visibility.PUBLIC),
-        ("peggy", REAL_TYPE, Symbol.Visibility.PRIVATE),
-        ("roger", INTEGER_TYPE, Symbol.Visibility.PUBLIC)])
+        ("nancy", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None),
+        ("peggy", REAL_TYPE, Symbol.Visibility.PRIVATE,
+         Literal("1.0", REAL_TYPE)),
+        ("roger", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None)])

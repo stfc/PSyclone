@@ -724,12 +724,13 @@ class StructureType(DataType):
 
         :param str name: the name of the new component.
         :param datatype: the type of the new component.
-        :type datatype: :py:class:`psyclone.psyir.symbols.DataType` or \
-                        :py:class:`psyclone.psyir.symbols.DataTypeSymbol`
+        :type datatype: :py:class:`psyclone.psyir.symbols.DataType` or
+            :py:class:`psyclone.psyir.symbols.DataTypeSymbol`
         :param visibility: whether this component is public or private.
         :type visibility: :py:class:`psyclone.psyir.symbols.Symbol.Visibility`
         :param initial_value: the initial value of the new component.
-        :type initial_value: Optional[:py:class:`psyclone.psyir.nodes.Node`]
+        :type initial_value: Optional[
+            :py:class:`psyclone.psyir.nodes.DataNode`]
 
         :raises TypeError: if any of the supplied values are of the wrong type.
 
@@ -761,7 +762,7 @@ class StructureType(DataType):
         if initial_value and not isinstance(initial_value, DataNode):
             raise TypeError(
                 f"The initial value of a component of a StructureType must "
-                f"be None or an instance of 'Node', but got "
+                f"be None or an instance of 'DataNode', but got "
                 f"'{type(initial_value).__name__}'.")
 
         self._components[name] = self.ComponentType(

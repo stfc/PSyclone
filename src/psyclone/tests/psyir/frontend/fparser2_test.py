@@ -2951,7 +2951,7 @@ def test_structures(fortran_reader, fortran_writer):
     contains procedures.
 
     '''
-    # type loses initial value
+    # structure type with initial value.
     test_code = (
         "module test_mod\n"
         "    type :: my_type\n"
