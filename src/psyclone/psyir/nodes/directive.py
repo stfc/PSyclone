@@ -77,14 +77,14 @@ class RegionDirective(Directive):
     All classes that generate RegionDirective statements (e.g. OpenMP,
     OpenACC, compiler-specific) inherit from this class.
 
-    :param ast: the entry in the fparser2 parse tree representing the code \
+    :param ast: the entry in the fparser2 parse tree representing the code
                 contained within this directive or None.
-    :type ast: :py:class:`fparser.two.Fortran2003.Base` or NoneType
-    :param children: list of PSyIR nodes that will be children of this \
+    :type ast: Optional[:py:class:`fparser.two.Fortran2003.Base`]
+    :param children: the nodes that will be children of this
                      Directive node or None.
-    :type children: list of :py:class:`psyclone.psyir.nodes.Node` or NoneType
+    :type children: Optional[List[:py:class:`psyclone.psyir.nodes.Node`]]
     :param parent: PSyIR node that is the parent of this Directive or None.
-    :type parent: :py:class:`psyclone.psyir.nodes.Node` or NoneType
+    :type parent: Optional[:py:class:`psyclone.psyir.nodes.Node`]
 
     '''
     # Textual description of the node.

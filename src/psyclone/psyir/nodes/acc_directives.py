@@ -74,7 +74,9 @@ class ACCDirective(metaclass=abc.ABCMeta):
 
 
 class ACCRegionDirective(ACCDirective, RegionDirective, metaclass=abc.ABCMeta):
-    ''' Base class for all OpenACC region directive statements. '''
+    ''' Base class for all OpenACC region directive statements.
+
+    '''
     def validate_global_constraints(self):
         '''
         Perform validation checks for any global constraints. This can only
@@ -622,25 +624,6 @@ class ACCDataDirective(ACCRegionDirective):
     in the PSyIR.
 
     '''
-    #def __init__(self, children=None, parent=None):
-    #    super().__init__(children=children, parent=parent)
-    #
-    #    self._signal_update()
-
-    #def _refine_copy(self, other):
-    #    '''
-    #    Overrides the base implementation to ensure that tree-updating is
-    #    disabled during this operation (since it is a copy we know we
-    #    don't need to change the tree structure).
-
-    #    :param other: the object we are copying from.
-    #    :type other: :py:class:`psyclone.psyir.node.Node`
-
-    #    '''
-    #    self._disable_tree_update = True
-    #    super()._refine_copy(other)
-    #    self._disable_tree_update = False
-
     def gen_code(self, _):
         '''
         :raises InternalError: the ACC data directive is currently only \
@@ -687,7 +670,7 @@ class ACCDataDirective(ACCRegionDirective):
         '''
         return "acc end data"
 
-    def update_node(self):
+    def _update_node(self):
         '''
         Called whenever there is a change in the PSyIR tree below this node.
         This may mean that the various copy[in/out] clauses need updating if

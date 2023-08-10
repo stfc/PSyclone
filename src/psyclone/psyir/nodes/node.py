@@ -909,6 +909,10 @@ class Node():
         :returns: the immediate children of this Node.
         :rtype: List[:py:class:`psyclone.psyir.nodes.Node`]
         '''
+        # An incomplete node may not have the _children attribute so return
+        # an empty list in this case.
+        if not hasattr(self, "_children"):
+            return []
         return self._children
 
     @children.setter
@@ -1466,7 +1470,7 @@ class Node():
         '''
         # Disable tree-updating during this operation (since it is a copy we
         # know we don't need to change the tree structure).
-        self._disable_update = True
+        self._disable_tree_update = True
         self._parent = None
         self._has_constructor_parent = False
         self._annotations = other.annotations[:]
@@ -1475,7 +1479,7 @@ class Node():
                                       self._children_valid_format)
         # And make a recursive copy of each child instead
         self.children.extend([child.copy() for child in other.children])
-        self._disable_update = False
+        self._disable_tree_update = False
 
     def copy(self):
         ''' Return a copy of this node. This is a bespoke implementation for
@@ -1526,12 +1530,21 @@ class Node():
     def update_signal(self):
         '''
         Called whenever there is a change in the PSyIR tree below this node.
+        It is responsible for ensuring that this method does not get
+        recursively and then calls the _update_node() method of the current
+        node. Finally, it propagates the update signal up to the parent node
+        (if any).
+
         '''
-        # Ensure that _update_node does not get called recursively.
-        if hasattr(self, "_disable_tree_update") and self._disable_tree_update:
+        # Ensure that update_signal does not get called recursively. If this
+        # node is still under construction then it might not have the
+        # _disable_tree_update attribute. If so, we also skip doing the update.
+        if (not hasattr(self, "_disable_tree_update") or
+                self._disable_tree_update):
             return
 
-        # Perform the update disabling the recursive call
+        # Perform the update, disabling the recursive call of this routine on
+        # this node.
         self._disable_tree_update = True
         self._update_node()
         self._disable_tree_update = False

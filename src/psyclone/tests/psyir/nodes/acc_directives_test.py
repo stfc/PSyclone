@@ -421,9 +421,9 @@ def test_accdatadirective_clauses(fortran_reader, fortran_writer):
     expected = ("!$acc data copyin(sfactor,small_holding,small_holding(3)%grid"
                 ",small_holding(3)%grid(jf)%data), copy(sto_tmp)")
     assert expected in output
-    # Check that calling tree_update explicitly has no effect as the tree has
-    # not changed.
-    loop.tree_update()
+    # Check that calling update_signal() explicitly has no effect as the tree
+    # has not changed.
+    loop.update_signal()
     output = fortran_writer(psyir)
     assert expected in output
     # Now remove the second statement from the loop body.
