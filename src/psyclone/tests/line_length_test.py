@@ -1,18 +1,46 @@
 # -----------------------------------------------------------------------------
-# (c) The copyright relating to this work is owned jointly by the Crown,
-# Met Office and NERC 2015.
-# However, it has been created with the help of the GungHo Consortium,
-# whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
+# BSD 3-Clause License
+#
+# Copyright (c) 2017-2023, Science and Technology Facilities Council.
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# * Redistributions of source code must retain the above copyright notice, this
+#   list of conditions and the following disclaimer.
+#
+# * Redistributions in binary form must reproduce the above copyright notice,
+#   this list of conditions and the following disclaimer in the documentation
+#   and/or other materials provided with the distribution.
+#
+# * Neither the name of the copyright holder nor the names of its
+#   contributors may be used to endorse or promote products derived from
+#   this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author R. Ford STFC Daresbury Lab
+# Modified by A. B. G. Chalk, STFC Daresbury Lab
+# -----------------------------------------------------------------------------
 
 ''' This module tests the line_limit module using pytest. '''
 
 # imports
-from __future__ import absolute_import, print_function
 import os
 import pytest
-from psyclone.line_length import FortLineLength
+from psyclone.line_length import FortLineLength, find_break_point
 from psyclone.generator import generate
 
 # functions
@@ -330,7 +358,7 @@ def test_edge_conditions_comments():
     assert output_string == expected_output
 
 
-def test_lone_lines_allocate(fortran_reader, fortran_writer):
+def test_long_lines_allocate(fortran_reader, fortran_writer):
     '''Test the we get the correct behaviour and never break the
     line before the first statement.'''
     code = '''subroutine test()
@@ -345,7 +373,6 @@ def test_lone_lines_allocate(fortran_reader, fortran_writer):
     '''
 
     psyir = fortran_reader.psyir_from_source(code)
-    from psyclone.line_length import FortLineLength
     output = fortran_writer(psyir)
     line_length = FortLineLength()
     correct = '''  if (.NOT.ALLOCATED(pressure_prsc)) then
@@ -405,3 +432,31 @@ def test_long_line_continuator():
     input_string = str(alg)
     fll = FortLineLength()
     _ = fll.process(input_string)
+
+
+@pytest.mark.parametrize("line,max_index,key_list,index", [
+    ("allocate(x, y, z)", 17, [",", ")"], 14),
+    ("allocate(x, y, z)", 17, ["y,", ")"], 14),
+    ("allocate(x, y, z)", 17, ["allocate", ","], 14),
+    ("x = z + c * y - x + 3", 22, ["x"],  17),
+    ("x = max(35, 16) - 19 + 3", 21, ["+", "-"], 17)
+    ])
+def test_find_break_point(line, max_index, key_list, index):
+    '''Tests the find_break_point routine correctly gives correct
+    line break point.'''
+    print(key_list[:])
+    assert find_break_point(line, max_index, key_list) == index
+
+
+def test_find_break_point_exception():
+    '''Test the fail case of find_break_point raises the exception
+    and expected error message.'''
+    line = "allocate(x, y, z)"
+    key_list = ["+"]
+    max_index = 17
+
+    with pytest.raises(Exception) as excinfo:
+        find_break_point(line, max_index, key_list)
+
+    assert ("Error in find_break_point. No suitable break point found for line"
+            " 'allocate(x, y, z)' and keys '['+']'" in str(excinfo.value))

@@ -1,18 +1,66 @@
 # -----------------------------------------------------------------------------
-# (c) The copyright relating to this work is owned jointly by the Crown,
-# Met Office and NERC 2015.
-# However, it has been created with the help of the GungHo Consortium,
-# whose members are identified at https://puma.nerc.ac.uk/trac/GungHo/wiki
+# BSD 3-Clause License
+#
+# Copyright (c) 2017-2023, Science and Technology Facilities Council.
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# * Redistributions of source code must retain the above copyright notice, this
+#   list of conditions and the following disclaimer.
+#
+# * Redistributions in binary form must reproduce the above copyright notice,
+#   this list of conditions and the following disclaimer in the documentation
+#   and/or other materials provided with the distribution.
+#
+# * Neither the name of the copyright holder nor the names of its
+#   contributors may be used to endorse or promote products derived from
+#   this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author R. Ford STFC Daresbury Lab
+# Modified by A. B. G. Chalk, STFC Daresbury Lab
+# -----------------------------------------------------------------------------
 
 ''' Provides support for breaking long fortran lines into smaller ones
 to allow the code to conform to the maximum line length limits (132
 for f90 free format is the default)'''
 
+import re
+
 
 def find_break_point(line, max_index, key_list):
-    ''' find the most appropriate break point for a fortran line '''
+    ''' Finds the most appropriate line break point for the Fortran code in
+    line.
+
+    :param str line: the Fortran code string to find the line break point for.
+    :param int max_index: the maximum index in line to search for the line
+                          break point.
+    :param key_list: list of potential symbols to break the line at. The
+                     members of the list early in the ordering have priority
+                     for breaking the line, i.e. if the list contains multiple
+                     elements, any possible position of the first element will
+                     be found before trying any other element of the list.
+    :type key_list: list of str.
+
+    :returns: index to break the line into multiple lines.
+    :rtype: int
+
+    :raises Exception: if no suitable break point is found in line.
+    '''
     # We should never break the line before the first element on the
     # line.
     first_non_whitespace = len(line) - len(line.lstrip())
@@ -21,9 +69,8 @@ def find_break_point(line, max_index, key_list):
         if idx > 0:
             return idx+len(key)
     raise Exception(
-        "Error in find_break_point. No suitable break point found"
-        " for line '" + line[:max_index] + "' and keys '" +
-        str(key_list) + "'")
+        f"Error in find_break_point. No suitable break point found"
+        f" for line '{line[:max_index]}' and keys '{str(key_list)}'")
 
 
 class FortLineLength():
@@ -50,7 +97,6 @@ class FortLineLength():
                            "openacc_directive": [" ", ",", ")", "="],
                            "comment": [" ", ".", ","],
                            "unknown": [" ", ",", "=", "+", ")"]}
-        import re
         self._stat = re.compile(r'^\s*(INTEGER|REAL|TYPE|CALL|SUBROUTINE|USE)',
                                 flags=re.I)
         self._omp = re.compile(r'^\s*!\$OMP', flags=re.I)
