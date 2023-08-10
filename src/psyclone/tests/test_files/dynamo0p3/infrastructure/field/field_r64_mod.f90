@@ -746,6 +746,15 @@ contains
     ! do any further work here.
     if ( log_lev < log_level() ) return
 
+    ! Ensure that the local version of this field is up-to-date if we're
+    ! running on GPU.
+    ! TODO #1727 this is just a quick fix. Ideally the whole (stub)
+    ! infrastructure needs extending, probably following the way dl_esm_inf
+    ! does it (abstract interfaces for subroutines that allow the user to
+    ! implement appropriate push/pull functionality for the target
+    ! programming model).
+    !$acc update if_present host(self%data)
+
     undf = function_space%get_last_dof_owned()
     fmin%value = minval( self%data(1:undf) )
     fmax%value = maxval( self%data(1:undf) )

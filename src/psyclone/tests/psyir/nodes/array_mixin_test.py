@@ -290,8 +290,8 @@ def test_get_lbound_expression():
 
     '''
     # Symbol is of ArrayType.
-    lbound = DataSymbol("jmin", INTEGER_TYPE,
-                        constant_value=Literal("3", INTEGER_TYPE))
+    lbound = DataSymbol("jmin", INTEGER_TYPE, is_constant=True,
+                        initial_value=Literal("3", INTEGER_TYPE))
     lbnd_ref = Reference(lbound)
     symbol = DataSymbol("my_symbol", ArrayType(INTEGER_TYPE,
                                                [10, (2, 10), (lbnd_ref, 10)]))

@@ -1993,18 +1993,17 @@ class Dynamo0p3KernelConstTrans(Transformation):
             'arg_position' into a compile-time constant with value
             'value'.
 
-            :param symbol_table: the symbol table for the kernel \
-                         holding the argument that is going to be modified.
+            :param symbol_table: the symbol table for the kernel holding
+                the argument that is going to be modified.
             :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
-            :param int arg_position: the argument's position in the \
-                                     argument list.
-            :param value: the constant value that this argument is \
-                    going to be given. Its type depends on the type of the \
-                    argument.
+            :param int arg_position: the argument's position in the
+                argument list.
+            :param value: the constant value that this argument is going to
+                be given. Its type depends on the type of the argument.
             :type value: int, str or bool
-            :type str function_space: the name of the function space \
-                    if there is a function space associated with this \
-                    argument. Defaults to None.
+            :type str function_space: the name of the function space if there
+                is a function space associated with this argument. Defaults
+                to None.
 
             '''
             arg_index = arg_position - 1
@@ -2038,7 +2037,7 @@ class Dynamo0p3KernelConstTrans(Transformation):
             # #321).
             orig_name = symbol.name
             local_symbol = DataSymbol(orig_name+"_dummy", INTEGER_TYPE,
-                                      constant_value=value)
+                                      is_constant=True, initial_value=value)
             symbol_table.add(local_symbol)
             symbol_table.swap_symbol_properties(symbol, local_symbol)
 
@@ -2806,11 +2805,14 @@ class KernelImportsToArguments(Transformation):
 
             # Convert the symbol to an argument and add it to the argument list
             current_arg_list = symtab.argument_list
-            if updated_sym.is_constant:
+            # An argument does not have an initial value.
+            was_constant = updated_sym.is_constant
+            updated_sym.is_constant = False
+            updated_sym.initial_value = None
+            if was_constant:
                 # Imported constants lose the constant value but are read-only
                 # TODO: When #633 and #11 are implemented, warn the user that
                 # they should transform the constants to literal values first.
-                updated_sym.constant_value = None
                 updated_sym.interface = ArgumentInterface(
                     ArgumentInterface.Access.READ)
             else:
