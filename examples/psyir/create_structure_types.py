@@ -64,8 +64,9 @@ SCALAR_TYPE = ScalarType(ScalarType.Intrinsic.REAL, REAL_KIND)
 
 # Derived-type definition in container
 GRID_TYPE = StructureType.create([
-    ("dx", SCALAR_TYPE, Symbol.Visibility.PUBLIC),
-    ("dy", SCALAR_TYPE, Symbol.Visibility.PUBLIC)])
+    ("dx", SCALAR_TYPE, Symbol.Visibility.PUBLIC, None),
+    ("dy", SCALAR_TYPE, Symbol.Visibility.PUBLIC,
+     Literal("1.0", SCALAR_TYPE))])
 GRID_TYPE_SYMBOL = DataTypeSymbol("grid_type", GRID_TYPE)
 CONTAINER_SYMBOL_TABLE.add(GRID_TYPE_SYMBOL)
 
@@ -81,11 +82,11 @@ SYMBOL_TABLE.add(DTYPE_SYMBOL)
 
 # Create the definition of the 'field_type'
 FIELD_TYPE_DEF = StructureType.create(
-    [("data", ArrayType(SCALAR_TYPE, [10]), Symbol.Visibility.PUBLIC),
-     ("grid", GRID_TYPE_SYMBOL, Symbol.Visibility.PUBLIC),
+    [("data", ArrayType(SCALAR_TYPE, [10]), Symbol.Visibility.PUBLIC, None),
+     ("grid", GRID_TYPE_SYMBOL, Symbol.Visibility.PUBLIC, None),
      ("sub_meshes", ArrayType(GRID_TYPE_SYMBOL, [3]),
-      Symbol.Visibility.PUBLIC),
-     ("flag", INTEGER4_TYPE, Symbol.Visibility.PUBLIC)])
+      Symbol.Visibility.PUBLIC, None),
+     ("flag", INTEGER4_TYPE, Symbol.Visibility.PUBLIC, None)])
 FIELD_TYPE_SYMBOL = DataTypeSymbol("field_type", FIELD_TYPE_DEF)
 CONTAINER_SYMBOL_TABLE.add(FIELD_TYPE_SYMBOL)
 
