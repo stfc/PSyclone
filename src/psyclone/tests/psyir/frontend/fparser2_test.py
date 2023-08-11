@@ -2945,16 +2945,17 @@ def test_declarations_with_initialisations_errors(parser):
 def test_structures(fortran_reader, fortran_writer):
     '''Test that Fparser2Reader parses Fortran types correctly when there
     is a type declaration with one of the members being initialised,
-    when there is a type declaration that extends an existing type,
-    when there is a type declaration that contains procedures and when
-    there is a type declaration that both extends an existing type and
-    contains procedures.
+    when there is a type declaration with an additional attribute
+    (e.g. one that extends an existing type), when there is a type
+    declaration that contains procedures and when there is a type
+    declaration that both has an additional attribute and contains
+    procedures.
 
     '''
-    # structure type with initial value.
+    # derived-type with initial value (StructureType)
     test_code = (
         "module test_mod\n"
-        "    type :: my_type\n"
+        "    type, private :: my_type\n"
         "      integer :: i = 1\n"
         "      integer :: j\n"
         "    end type my_type\n"
@@ -2966,12 +2967,12 @@ def test_structures(fortran_reader, fortran_writer):
     assert isinstance(symbol.datatype, StructureType)
     result = fortran_writer(psyir)
     assert (
-        "  type, public :: my_type\n"
+        "  type, private :: my_type\n"
         "    integer, public :: i = 1\n"
         "    integer, public :: j\n"
         "  end type my_type\n" in result)
 
-    # type that extends another type (unknown fortran type)
+    # type that extends another type (UnknownFortranType)
     test_code = (
         "module test_mod\n"
         "    use kernel_mod, only : kernel_type\n"
@@ -2990,7 +2991,7 @@ def test_structures(fortran_reader, fortran_writer):
         "  INTEGER :: i = 1\n"
         "END TYPE my_type\n" in result)
 
-    # type that contains a procedure (unknown fortran type)
+    # type that contains a procedure (UnknownFortranType)
     test_code = (
         "module test_mod\n"
         "    type :: test_type\n"
@@ -3015,12 +3016,11 @@ def test_structures(fortran_reader, fortran_writer):
         "  PROCEDURE, NOPASS :: test_code\n"
         "END TYPE test_type\n" in result)
 
-    # type that extends an existing type and contains a procedure
-    # (unknown fortran type)
+    # type that creates an abstract type and contains a procedure
+    # (UnknownFortranType)
     test_code = (
         "module test_mod\n"
-        "    use kernel_mod, only : kernel_type\n"
-        "    type, extends(kernel_type) :: test_type\n"
+        "    type, abstract, private :: test_type\n"
         "      integer :: i = 1\n"
         "      contains\n"
         "      procedure, nopass :: test_code\n"
@@ -3036,7 +3036,7 @@ def test_structures(fortran_reader, fortran_writer):
     assert isinstance(symbol.datatype, UnknownFortranType)
     result = fortran_writer(psyir)
     assert (
-        "  type, extends(kernel_type), public :: test_type\n"
+        "  type, abstract, private :: test_type\n"
         "  INTEGER :: i = 1\n"
         "  CONTAINS\n"
         "  PROCEDURE, NOPASS :: test_code\n"

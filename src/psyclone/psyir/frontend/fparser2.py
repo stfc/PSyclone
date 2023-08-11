@@ -2083,14 +2083,14 @@ class Fparser2Reader():
         # Populate this StructureType by processing the components of
         # the derived type
         try:
-            # We don't yet support derived-type definitions that
-            # extend an existing type.
+            # We don't support derived-types with additional
+            # attributes e.g. "extends" or "abstract". Note, we do
+            # support public/private attributes but these are stored
+            # as Access_Spec, not Type_Attr_Spec.
             derived_type_stmt = decl.children[0]
-            for type_attr_spec in walk(
-                    derived_type_stmt, Fortran2003.Type_Attr_Spec):
-                if type_attr_spec.children[0].lower() == "extends":
-                    raise NotImplementedError(
-                        "Derived-type definition extends an existing type.")
+            if walk(derived_type_stmt, Fortran2003.Type_Attr_Spec):
+                raise NotImplementedError(
+                    "Derived-type definition contains unsupported attributes.")
 
             # We don't yet support derived-type definitions with a CONTAINS
             # section.
