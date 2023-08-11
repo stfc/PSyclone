@@ -1320,7 +1320,7 @@ def test_datatypesymbols():
     sym_table = SymbolTable()
     assert sym_table.datatypesymbols == []
     region_type = StructureType.create([
-        ("startx", INTEGER_TYPE, Symbol.Visibility.PUBLIC)])
+        ("startx", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None)])
     region_sym = DataTypeSymbol("region_type", region_type)
     sym_table.add(region_sym)
     # Add other symbol types

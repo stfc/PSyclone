@@ -153,14 +153,15 @@ def test_is_array_assignment():
 
     # Check when lhs consists of various forms of structure access
     grid_type = StructureType.create([
-        ("dx", REAL_SINGLE_TYPE, Symbol.Visibility.PUBLIC),
-        ("dy", REAL_SINGLE_TYPE, Symbol.Visibility.PUBLIC)])
+        ("dx", REAL_SINGLE_TYPE, Symbol.Visibility.PUBLIC, None),
+        ("dy", REAL_SINGLE_TYPE, Symbol.Visibility.PUBLIC, None)])
     grid_type_symbol = DataTypeSymbol("grid_type", grid_type)
     # Create the definition of the 'field_type', contains array of grid_types
     field_type_def = StructureType.create(
-        [("data", ArrayType(REAL_SINGLE_TYPE, [10]), Symbol.Visibility.PUBLIC),
+        [("data", ArrayType(REAL_SINGLE_TYPE, [10]), Symbol.Visibility.PUBLIC,
+          None),
          ("sub_meshes", ArrayType(grid_type_symbol, [3]),
-          Symbol.Visibility.PUBLIC)])
+          Symbol.Visibility.PUBLIC, None)])
     field_type_symbol = DataTypeSymbol("field_type", field_type_def)
     field_symbol = DataSymbol("wind", field_type_symbol)
 
@@ -316,8 +317,8 @@ def test_is_not_array_assignment():
 
     # lhs is a scalar member of a structure
     grid_type = StructureType.create([
-        ("dx", REAL_SINGLE_TYPE, Symbol.Visibility.PUBLIC),
-        ("dy", REAL_SINGLE_TYPE, Symbol.Visibility.PUBLIC)])
+        ("dx", REAL_SINGLE_TYPE, Symbol.Visibility.PUBLIC, None),
+        ("dy", REAL_SINGLE_TYPE, Symbol.Visibility.PUBLIC, None)])
     grid_type_symbol = DataTypeSymbol("grid_type", grid_type)
     grid_sym = DataSymbol("grid", grid_type_symbol)
     assignment = Assignment.create(StructureReference.create(grid_sym, ["dx"]),

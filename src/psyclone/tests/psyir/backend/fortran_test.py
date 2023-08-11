@@ -362,8 +362,8 @@ def test_gen_typedecl_validation(fortran_writer, monkeypatch):
             "'UnknownType'" in str(err.value))
     # Symbol with an invalid visibility
     dtype = StructureType.create([
-        ("flag", INTEGER_TYPE, Symbol.Visibility.PUBLIC),
-        ("secret", INTEGER_TYPE, Symbol.Visibility.PRIVATE)])
+        ("flag", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None),
+        ("secret", INTEGER_TYPE, Symbol.Visibility.PRIVATE, None)])
     tsymbol = DataTypeSymbol("my_type", dtype)
     tsymbol._visibility = "wrong"
     with pytest.raises(InternalError) as err:
@@ -433,15 +433,15 @@ def test_gen_typedecl(fortran_writer):
     tsymbol = DataTypeSymbol("grid_type", DeferredType())
     dtype = StructureType.create([
         # Scalar integer
-        ("flag", INTEGER_TYPE, Symbol.Visibility.PUBLIC),
+        ("flag", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None),
         # Private, scalar integer
-        ("secret", INTEGER_TYPE, Symbol.Visibility.PRIVATE),
+        ("secret", INTEGER_TYPE, Symbol.Visibility.PRIVATE, None),
         # Static array
-        ("matrix", atype, Symbol.Visibility.PUBLIC),
+        ("matrix", atype, Symbol.Visibility.PUBLIC, None),
         # Allocatable array
-        ("data", dynamic_atype, Symbol.Visibility.PUBLIC),
+        ("data", dynamic_atype, Symbol.Visibility.PUBLIC, None),
         # Derived type
-        ("grid", tsymbol, Symbol.Visibility.PRIVATE)])
+        ("grid", tsymbol, Symbol.Visibility.PRIVATE, None)])
     tsymbol = DataTypeSymbol("my_type", dtype)
     assert (fortran_writer.gen_typedecl(tsymbol) ==
             "type, public :: my_type\n"
