@@ -194,7 +194,9 @@ def test_accloopdirective_node_str(monkeypatch):
     directive._sequential = True
     directive._collapse = 2
     directive._independent = False
-    expected = ("ACCLoopDirective[sequential=True,gang=False,vector=False,"
+    directive._gang = True
+    directive._vector = True
+    expected = ("ACCLoopDirective[sequential=True,gang=True,vector=True,"
                 "collapse=2,independent=False]")
     assert directive.node_str() == expected
     assert str(directive) == expected
