@@ -156,8 +156,6 @@ class DependencyTools():
         else:
             self._loop_types_to_parallelise = []
         self._clear_messages()
-        # Cache to hold most recently generated VariablesAccessInfo.
-        self._var_access_info = None
 
     # -------------------------------------------------------------------------
     def _clear_messages(self):
@@ -766,7 +764,7 @@ class DependencyTools():
             # Appropriate messages will have been added already, so just exit
             return False
 
-        self._var_access_info = VariablesAccessInfo(loop)
+        var_accesses = VariablesAccessInfo(loop)
         if not signatures_to_ignore:
             signatures_to_ignore = []
 
@@ -775,7 +773,7 @@ class DependencyTools():
 
         result = True
         # Now check all variables used in the loop
-        for signature in self._var_access_info.all_signatures:
+        for signature in var_accesses.all_signatures:
             # This string contains derived type information, e.g.
             # "a%b"
             var_string = str(signature)
@@ -789,7 +787,7 @@ class DependencyTools():
             # This returns the first component of the signature,
             # i.e. in case of "a%b" it will only return "a"
             var_name = signature.var_name
-            var_info = self._var_access_info[signature]
+            var_info = var_accesses[signature]
             symbol_table = loop.scope.symbol_table
             symbol = symbol_table.lookup(var_name)
             # TODO #1270 - the is_array_access function might be moved
@@ -839,7 +837,6 @@ class DependencyTools():
         # Collect the information about all variables used:
         if not variables_info:
             variables_info = VariablesAccessInfo(node_list, options=options)
-            self._var_access_info = variables_info
 
         for signature in variables_info.all_signatures:
             # If the first access is a write, the variable is not an input
@@ -877,7 +874,6 @@ class DependencyTools():
         # Collect the information about all variables used:
         if not variables_info:
             variables_info = VariablesAccessInfo(node_list, options=options)
-            self._var_access_info = variables_info
 
         for signature in variables_info.all_signatures:
             if variables_info.is_written(signature):
@@ -906,18 +902,8 @@ class DependencyTools():
         :rtype: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
 
         '''
-        self._var_access_info = VariablesAccessInfo(node_list, options=options)
+        variables_info = VariablesAccessInfo(node_list, options=options)
         read_write_info = ReadWriteInfo()
-        self.get_input_parameters(read_write_info, node_list,
-                                  self._var_access_info)
-        self.get_output_parameters(read_write_info, node_list,
-                                   self._var_access_info)
+        self.get_input_parameters(read_write_info, node_list, variables_info)
+        self.get_output_parameters(read_write_info, node_list, variables_info)
         return read_write_info
-
-    @property
-    def variable_access_info(self):
-        '''
-        :returns: the most-recently collected information on variable accesses.
-        :rtype: :py:class:`psyclone.core.VariablesAccessInfo`
-        '''
-        return self._var_access_info
