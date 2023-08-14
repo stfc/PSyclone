@@ -107,14 +107,14 @@ class Directive(Statement, metaclass=abc.ABCMeta):
                 continue
 
             if var_info.has_read_write(sig):
-                if vinfo.is_written_first():
-                    access_dict = reads
-                else:
-                    access_dict = readwrites
+                access_dict = readwrites
             else:
-                if var_info.is_read(sig) and not vinfo.is_written_first():
+                if var_info.is_read(sig):
                     if var_info.is_written(sig):
-                        access_dict = readwrites
+                        if vinfo.is_written_first():
+                            access_dict = writes
+                        else:
+                            access_dict = readwrites
                     else:
                         access_dict = reads
                 else:
@@ -163,8 +163,9 @@ class Directive(Statement, metaclass=abc.ABCMeta):
                     new_lists = []
                     for idx_list in index_lists[1:depth]:
                         new_lists.append([idx.copy() for idx in idx_list])
-                    new_lists.append([])
-                    members = list(zip(sig[1:depth+1], new_lists))
+                    members = list(zip(sig[1:depth], new_lists))
+                    # The last member has no array indexing.
+                    members.append(sig[depth])
                     access_dict[sig[:depth+1]] = base_cls.create(
                         *base_args, members)
         return reads, writes, readwrites

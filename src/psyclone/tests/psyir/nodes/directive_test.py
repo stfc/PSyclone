@@ -40,14 +40,16 @@
 
 import os
 import pytest
+from collections import OrderedDict
+
 from psyclone import f2pygen
+from psyclone.core import Signature
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
-from psyclone.psyir.nodes import (Literal, Schedule, Routine, Loop,
-                                  StandaloneDirective, RegionDirective)
+from psyclone.psyir import nodes
 from psyclone.errors import GenerationError
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
-from psyclone.transformations import DynamoOMPParallelLoopTrans
+from psyclone.transformations import ACCDataTrans, DynamoOMPParallelLoopTrans
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__)))), "test_files", "dynamo0p3")
@@ -111,43 +113,64 @@ program my_prog
   use some_mod
   implicit None
   integer :: ji = 1
-  real :: a_scalar
+  real :: a_scalar = 0.5
   real :: a(10)
   type(my_type) :: b, d(5)
   a(:) = 10.0
-  b%grid(ji)%data(:) = 0.0
+  b%grid(ji)%data(:) = a(:) + a_scalar
   d(ji)%grid(2)%data(:) = 3.0
   a_scalar = 1.0
+  a(:) = a(:) + 1.0
+  call some_sub(d)
 end program my_prog
 ''')
-    sched = psyir.walk(Routine)[0]
+    sched = psyir.walk(nodes.Routine)[0]
+    # Use the ACCDataTrans transformation to insert the directive to test.
+    data_trans = ACCDataTrans()
     # Flat array.
-    accesses = sched[0].lhs.create_data_movement_deep_copy_refs()
-    assert all(isinstance(obj, OrderedDict) for obj in accesses)
+    data_trans.apply(sched[0])
+    reads, writes, readwrites = sched[0].create_data_movement_deep_copy_refs()
+    assert all(isinstance(obj, OrderedDict) for obj in
+               [reads, writes, readwrites])
     sig = Signature('a')
-    assert isinstance(accesses[0][sig], Reference)
-    assert accesses[0][sig].symbol.name == "a"
+    assert isinstance(writes[sig], nodes.Reference)
+    assert writes[sig].symbol.name == "a"
     # Structure access.
-    node = sched[1].lhs
-    sig, _ = node.get_signature_and_indices()
-    sig.create_deep_copy_refs(node, refs)
-    assert isinstance(refs[Signature("b")], Reference)
-    assert isinstance(refs[Signature(("b", "grid"))],
-                      StructureReference)
-    assert isinstance(refs[Signature(("b", "grid", "data"))],
-                      StructureReference)
+    data_trans.apply(sched[1])
+    reads, writes, readwrites = sched[1].create_data_movement_deep_copy_refs()
+    assert isinstance(reads[Signature("a")], nodes.Reference)
+    assert Signature("a_scalar") not in reads
+    assert isinstance(writes[Signature("b")], nodes.Reference)
+    assert isinstance(writes[Signature(("b", "grid"))],
+                      nodes.StructureReference)
+    assert isinstance(writes[Signature(("b", "grid", "data"))],
+                      nodes.StructureReference)
     # Array of structures access.
-    node = sched.children[2].lhs
-    sig, _ = node.get_signature_and_indices()
-    sig.create_deep_copy_refs(node, refs)
-    assert isinstance(refs[Signature("d")], Reference)
-    assert isinstance(refs[Signature(("d", "grid"))],
-                      StructureReference)
-    assert isinstance(refs[Signature(("d", "grid", "data"))],
-                      StructureReference)
+    data_trans.apply(sched[2])
+    reads, writes, readwrites = sched[2].create_data_movement_deep_copy_refs()
+    assert isinstance(writes[Signature("d")], nodes.Reference)
+    assert isinstance(writes[Signature(("d", "grid"))],
+                      nodes.StructureReference)
+    assert isinstance(writes[Signature(("d", "grid", "data"))],
+                      nodes.StructureReference)
     # Scalars are excluded.
-    Signature("a_scalar").create_deep_copy_refs(sched.children[3].lhs, refs)
-    assert Signature("a_scalar") not in refs
+    data_trans.apply(sched[3])
+    reads, writes, readwrites = sched[3].create_data_movement_deep_copy_refs()
+    assert not reads and not writes and not readwrites
+    data_trans.apply(sched[4])
+    # Statement that reads and writes a variable.
+    reads, writes, readwrites = sched[4].create_data_movement_deep_copy_refs()
+    assert not reads and not writes
+    assert isinstance(readwrites[Signature("a")], nodes.Reference)
+    # Subroutine call - the argument is assumed to be read-write.
+    data_trans.apply(sched[5])
+    reads, writes, readwrites = sched[5].create_data_movement_deep_copy_refs()
+    assert not writes
+    # TODO #446 - currently the reference_accesses() method falls through to
+    # the base implementation and so all arguments to a call are marked as
+    # having READ access.
+    if Signature("d") not in readwrites:
+        pytest.xfail("#446 - Call.reference_accesses() needs implementing")
 
 
 def test_regiondirective_children_validation():
@@ -155,9 +178,9 @@ def test_regiondirective_children_validation():
         RegionDirective accepts 1 Schedule as child.
 
     '''
-    directive = RegionDirective()
-    datanode = Literal("1", INTEGER_TYPE)
-    schedule = Schedule()
+    directive = nodes.RegionDirective()
+    datanode = nodes.Literal("1", INTEGER_TYPE)
+    schedule = nodes.Schedule()
 
     # First child
     with pytest.raises(GenerationError) as excinfo:
@@ -180,15 +203,14 @@ def test_regiondirective_gen_post_region_code():
     TODO #1648 - this can be removed when the gen_post_region_code() method is
     removed.'''
     temporary_module = f2pygen.ModuleGen("test")
-    subroutine = Routine("testsub")
-    directive = RegionDirective()
+    subroutine = nodes.Routine("testsub")
+    directive = nodes.RegionDirective()
     sym = subroutine.symbol_table.new_symbol(
             "i", symbol_type=DataSymbol, datatype=INTEGER_TYPE)
-    loop = Loop.create(sym,
-                       Literal("1", INTEGER_TYPE),
-                       Literal("10", INTEGER_TYPE),
-                       Literal("1", INTEGER_TYPE),
-                       [])
+    loop = nodes.Loop.create(sym,
+                             nodes.Literal("1", INTEGER_TYPE),
+                             nodes.Literal("10", INTEGER_TYPE),
+                             nodes.Literal("1", INTEGER_TYPE), [])
     directive.dir_body.addchild(loop)
     subroutine.addchild(directive)
     directive.gen_post_region_code(temporary_module)
@@ -199,8 +221,8 @@ def test_regiondirective_gen_post_region_code():
 
 def test_standalonedirective_children_validation():
     '''Test that children cannot be added to StandaloneDirective.'''
-    cdir = StandaloneDirective()
-    schedule = Schedule()
+    cdir = nodes.StandaloneDirective()
+    schedule = nodes.Schedule()
 
     # test adding child
     with pytest.raises(GenerationError) as excinfo:
