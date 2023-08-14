@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2023, Science and Technology Facilities Council.
+# Copyright (c) 2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -36,14 +36,14 @@
 
 '''This module tests the Signature class.'''
 
-from collections import OrderedDict
+from __future__ import absolute_import
 import pytest
 
 from psyclone.core import ComponentIndices, Signature
 from psyclone.errors import InternalError
 from psyclone.psyir.backend.c import CWriter
 from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.psyir.nodes import Reference, Routine, StructureReference
+from psyclone.psyir.nodes import Reference
 from psyclone.psyir.symbols import DataSymbol, INTEGER_SINGLE_TYPE
 
 
