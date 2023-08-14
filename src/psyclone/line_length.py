@@ -56,12 +56,12 @@ def find_break_point(line, max_index, key_list):
                      for breaking the line, i.e. if the list contains multiple
                      elements, any possible position of the first element will
                      be found before trying any other element of the list.
-    :type key_list: list of str.
+    :type key_list: List[str]
 
     :returns: index to break the line into multiple lines.
     :rtype: int
 
-    :raises Exception: if no suitable break point is found in line.
+    :raises InternalError: if no suitable break point is found in line.
     '''
     # We should never break the line before the first element on the
     # line.
