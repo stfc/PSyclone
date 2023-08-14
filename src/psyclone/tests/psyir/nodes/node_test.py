@@ -1080,6 +1080,63 @@ def test_children_setter():
     assert statement2.parent is None
 
 
+def test_children_trigger_update():
+    '''Test that various modifications of ChildrenList all trigger a tree
+    update. We do this by implementing a sub-class of Schedule that has a
+    bespoke signal handler.
+
+    '''
+    class TestingSched(Schedule):
+        '''
+        Sub-class of Schedule that re-implements update_signal() so that it
+        (configurably) raises a GenerationError when called.
+
+        '''
+        def __init__(self, test_enable=True):
+            # Controls whether or not an exception is raised by update_signal.
+            self._test_enable = test_enable
+            super().__init__()
+
+        def update_signal(self):
+            if self._test_enable:
+                raise GenerationError("signal called OK")
+            super().update_signal()
+
+    # Set-up a Schedule with some children with the exception disabled.
+    sched = TestingSched(test_enable=False)
+    sched.addchild(Return())
+    sched.addchild(Return())
+    # Enable the exception in the test class.
+    sched._test_enable = True
+    # Various ways of adding children.
+    with pytest.raises(GenerationError) as err:
+        sched.addchild(Return())
+    assert "signal called OK" in str(err.value)
+    with pytest.raises(GenerationError) as err:
+        sched.children.extend([Return()])
+    assert "signal called OK" in str(err.value)
+    with pytest.raises(GenerationError) as err:
+        sched.children.insert(1, Return())
+    assert "signal called OK" in str(err.value)
+    # Various ways of removing children.
+    with pytest.raises(GenerationError) as err:
+        sched.children.pop()
+    assert "signal called OK" in str(err.value)
+    with pytest.raises(GenerationError) as err:
+        del sched.children[1]
+    assert "signal called OK" in str(err.value)
+    with pytest.raises(GenerationError) as err:
+        sched.children.remove(sched.children[0])
+    assert "signal called OK" in str(err.value)
+    # Modifying members of the list.
+    with pytest.raises(GenerationError) as err:
+        sched.children[1] = Return()
+    assert "signal called OK" in str(err.value)
+    with pytest.raises(GenerationError) as err:
+        sched.children.reverse()
+    assert "signal called OK" in str(err.value)
+
+
 def test_lower_to_language_level(monkeypatch):
     ''' Test that Node has a lower_to_language_level() method that \
     recurses to the same method of its children. '''

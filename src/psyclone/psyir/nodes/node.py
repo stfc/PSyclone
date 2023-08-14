@@ -38,7 +38,8 @@
 # -----------------------------------------------------------------------------
 
 '''
-This module contains the abstract Node implementation.
+This module contains the abstract Node implementation as well as
+ChildrenList - a custom implementation of list.
 
 '''
 import copy
