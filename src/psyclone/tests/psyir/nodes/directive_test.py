@@ -98,6 +98,58 @@ def test_directive_backward_dependence():
     assert omp2.backward_dependence() == omp1
 
 
+def test_create_data_movement_deep_copy_refs(fortran_reader):
+    '''Tests for the create_data_movement_deep_copy_refs() method. This method
+    is responsible for creating the required list of References for deep-
+    copying any given type of Reference over to a remote address space (in e.g.
+    OpenACC or OpenMP).
+
+    '''
+    psyir = fortran_reader.psyir_from_source(
+        '''
+program my_prog
+  use some_mod
+  implicit None
+  integer :: ji = 1
+  real :: a_scalar
+  real :: a(10)
+  type(my_type) :: b, d(5)
+  a(:) = 10.0
+  b%grid(ji)%data(:) = 0.0
+  d(ji)%grid(2)%data(:) = 3.0
+  a_scalar = 1.0
+end program my_prog
+''')
+    sched = psyir.walk(Routine)[0]
+    # Flat array.
+    accesses = sched[0].lhs.create_data_movement_deep_copy_refs()
+    assert all(isinstance(obj, OrderedDict) for obj in accesses)
+    sig = Signature('a')
+    assert isinstance(accesses[0][sig], Reference)
+    assert accesses[0][sig].symbol.name == "a"
+    # Structure access.
+    node = sched[1].lhs
+    sig, _ = node.get_signature_and_indices()
+    sig.create_deep_copy_refs(node, refs)
+    assert isinstance(refs[Signature("b")], Reference)
+    assert isinstance(refs[Signature(("b", "grid"))],
+                      StructureReference)
+    assert isinstance(refs[Signature(("b", "grid", "data"))],
+                      StructureReference)
+    # Array of structures access.
+    node = sched.children[2].lhs
+    sig, _ = node.get_signature_and_indices()
+    sig.create_deep_copy_refs(node, refs)
+    assert isinstance(refs[Signature("d")], Reference)
+    assert isinstance(refs[Signature(("d", "grid"))],
+                      StructureReference)
+    assert isinstance(refs[Signature(("d", "grid", "data"))],
+                      StructureReference)
+    # Scalars are excluded.
+    Signature("a_scalar").create_deep_copy_refs(sched.children[3].lhs, refs)
+    assert Signature("a_scalar") not in refs
+
+
 def test_regiondirective_children_validation():
     '''Test that children added to RegionDirective are validated.
         RegionDirective accepts 1 Schedule as child.

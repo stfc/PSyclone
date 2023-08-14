@@ -683,40 +683,16 @@ class ACCDataDirective(ACCRegionDirective):
                           (ACCCopyInClause, ACCCopyOutClause, ACCCopyClause)):
                 self.children.remove(child)
 
-        # Identify the inputs and outputs to the region (variables that
-        # are read and written).
-        # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.tools import DependencyTools
-        dtools = DependencyTools()
-        in_outs = dtools.get_in_out_parameters(self.children)
-        var_accesses = dtools.variable_access_info
-        readers = in_outs.signatures_read
-        writers = in_outs.signatures_written
-        readwrites_list = in_outs.signatures_readwrite
-        readwrites = set(readwrites_list)
-        readers_list = sorted(list(set(readers) - readwrites))
-        writers_list = sorted(list(set(writers) - readwrites))
+        reads, writes, readwrites = self.create_data_movement_deep_copy_refs()
 
-        # We now need to create PSyIR references for all of the signatures
-        # and add them as children of the appropriate clauses.
-        nodes_dict = OrderedDict()
-        for sig in readers_list:
-            sig.create_deep_copy_refs(var_accesses[sig].all_accesses[0].node,
-                                      nodes_dict)
-        if nodes_dict:
-            self.addchild(ACCCopyInClause(children=list(nodes_dict.values())))
-        nodes_dict = OrderedDict()
-        for sig in writers_list:
-            sig.create_deep_copy_refs(var_accesses[sig].all_accesses[0].node,
-                                      nodes_dict)
-        if nodes_dict:
-            self.addchild(ACCCopyOutClause(children=list(nodes_dict.values())))
-        nodes_dict = OrderedDict()
-        for sig in readwrites_list:
-            sig.create_deep_copy_refs(var_accesses[sig].all_accesses[0].node,
-                                      nodes_dict)
-        if nodes_dict:
-            self.addchild(ACCCopyClause(children=list(nodes_dict.values())))
+        if reads:
+            self.addchild(ACCCopyInClause(children=list(reads.values())))
+
+        if writes:
+            self.addchild(ACCCopyOutClause(children=list(writes.values())))
+
+        if readwrites:
+            self.addchild(ACCCopyClause(children=list(readwrites.values())))
 
 
 class ACCUpdateDirective(ACCStandaloneDirective):

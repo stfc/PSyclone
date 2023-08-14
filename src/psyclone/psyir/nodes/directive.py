@@ -42,12 +42,20 @@
     node implementation.'''
 
 import abc
+from collections import OrderedDict
+
 from psyclone.configuration import Config
+from psyclone.core import Signature, VariablesAccessInfo
 from psyclone.errors import InternalError
 from psyclone.f2pygen import CommentGen
 from psyclone.psyir.nodes.loop import Loop
-from psyclone.psyir.nodes.statement import Statement
+from psyclone.psyir.nodes.reference import Reference
+from psyclone.psyir.nodes.array_of_structures_reference import (
+    ArrayOfStructuresReference)
 from psyclone.psyir.nodes.schedule import Schedule
+from psyclone.psyir.nodes.statement import Statement
+from psyclone.psyir.nodes.structure_reference import StructureReference
+from psyclone.psyir.symbols.datatypes import ScalarType
 
 
 class Directive(Statement, metaclass=abc.ABCMeta):
@@ -67,6 +75,99 @@ class Directive(Statement, metaclass=abc.ABCMeta):
         :returns: the Clauses associated with this directive.
         :rtype: List of :py:class:`psyclone.psyir.nodes.Clause`
         '''
+
+    def create_data_movement_deep_copy_refs(self):
+        '''
+        Creates the References required to perform a deep copy of this
+        Signature in e.g. OpenACC or OpenMP. These References are added to the
+        returned OrderedDicts in the order in which they must be copied.
+
+        :returns: a 3-tuple containing dicts describing the reads, writes and
+            readwrites. Each dict contains References indexed by Signatures.
+        :rtype: Tuple[OrderedDict[
+            :py:class:`psyclone.core.Signature`,
+            :py:class:`psyclone.psyir.nodes.Reference`]]
+
+        '''
+        readwrites = OrderedDict()
+        reads = OrderedDict()
+        writes = OrderedDict()
+        table = self.scope.symbol_table
+
+        var_info = VariablesAccessInfo()
+        self.reference_accesses(var_info)
+
+        for sig in var_info.all_signatures:
+            vinfo = var_info[sig]
+            node = vinfo.all_accesses[0].node
+            sym = table.lookup(sig.var_name)
+
+            if isinstance(sym.datatype, ScalarType):
+                # We ignore scalars as these are typically copied by value.
+                continue
+
+            if var_info.has_read_write(sig):
+                if vinfo.is_written_first():
+                    access_dict = reads
+                else:
+                    access_dict = readwrites
+            else:
+                if var_info.is_read(sig) and not vinfo.is_written_first():
+                    if var_info.is_written(sig):
+                        access_dict = readwrites
+                    else:
+                        access_dict = reads
+                else:
+                    access_dict = writes
+
+            if not sig.is_structure:
+                # This must be an array.
+                # TODO #1396 - in languages such as C++ it will be necessary to
+                # supply the extent of an array that is being accessed. For now
+                # we only supply a Reference (which is sufficient in Fortran).
+                if sig not in access_dict:
+                    access_dict[sig] = Reference(node.symbol)
+                continue
+
+            # We have a structure access and so we need the list of
+            # references required to do a 'deep copy'. This means that if
+            # we have an access `a%b%c(i)` then we need references to `a`,
+            # `a%b` and then `a%b%c`.
+
+            # A Signature does not contain indexing information so we use
+            # a PSyIR node that corresponds to this access.
+            _, index_lists = node.get_signature_and_indices()
+
+            # First add the root access (`a` in the above example).
+            if Signature(node.symbol.name) not in access_dict:
+                access_dict[Signature(node.symbol.name)] = Reference(
+                    node.symbol)
+
+            # Then work our way down the various members.
+            for depth in range(1, len(sig)):
+                if sig[:depth+1] not in access_dict:
+                    if node.is_array:
+                        base_cls = ArrayOfStructuresReference
+                        # Copy the indices so as not to modify the original
+                        # node.
+                        base_args = [node.symbol,
+                                     [idx.copy() for idx in node.indices]]
+                    else:
+                        base_cls = StructureReference
+                        base_args = [node.symbol]
+                    # Create the new lists of indices, one list for each
+                    # member of the structure access apart from the last
+                    # one where we assume the whole array (if it is an
+                    # array) is accessed. Hence the loop is 1:depth and
+                    # then we set the last one separately.
+                    new_lists = []
+                    for idx_list in index_lists[1:depth]:
+                        new_lists.append([idx.copy() for idx in idx_list])
+                    new_lists.append([])
+                    members = list(zip(sig[1:depth+1], new_lists))
+                    access_dict[sig[:depth+1]] = base_cls.create(
+                        *base_args, members)
+        return reads, writes, readwrites
 
 
 class RegionDirective(Directive):
