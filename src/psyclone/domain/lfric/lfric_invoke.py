@@ -42,7 +42,7 @@
 # Imports
 from psyclone.configuration import Config
 from psyclone.core import AccessType
-from psyclone.domain.lfric import LFRicConstants
+from psyclone.domain.lfric import LFRicConstants, LFRicLoopBounds
 from psyclone.errors import GenerationError, FieldNotFoundError
 from psyclone.f2pygen import (AssignGen, CommentGen, DeclGen, SubroutineGen,
                               UseGen)
@@ -100,8 +100,7 @@ class LFRicInvoke(Invoke):
                                         DynMeshes, DynBoundaryConditions,
                                         DynProxies, LFRicRunTimeChecks,
                                         DynCellIterators, DynReferenceElement,
-                                        LFRicMeshProperties, LFRicLoopBounds,
-                                        DynGlobalSum)
+                                        LFRicMeshProperties, DynGlobalSum)
         self.scalar_args = LFRicScalarArgs(self)
 
         # Initialise our Invoke stencil information

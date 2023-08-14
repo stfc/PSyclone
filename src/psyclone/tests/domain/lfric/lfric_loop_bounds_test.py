@@ -40,7 +40,7 @@ class. '''
 from __future__ import absolute_import
 import os
 
-from psyclone.dynamo0p3 import LFRicLoopBounds
+from psyclone.domain.lfric import LFRicLoopBounds
 from psyclone.f2pygen import SubroutineGen, ModuleGen
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
