@@ -41,6 +41,8 @@ for f90 free format is the default)'''
 
 import re
 
+from psyclone.errors import InternalError
+
 
 def find_break_point(line, max_index, key_list):
     ''' Finds the most appropriate line break point for the Fortran code in
@@ -68,7 +70,7 @@ def find_break_point(line, max_index, key_list):
         idx = line.rfind(key, first_non_whitespace+1, max_index)
         if idx > 0:
             return idx+len(key)
-    raise Exception(
+    raise InternalError(
         f"Error in find_break_point. No suitable break point found"
         f" for line '{line[:max_index]}' and keys '{str(key_list)}'")
 

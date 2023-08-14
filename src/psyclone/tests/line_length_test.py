@@ -42,6 +42,7 @@ import os
 import pytest
 from psyclone.line_length import FortLineLength, find_break_point
 from psyclone.generator import generate
+from psyclone.errors import InternalError
 
 # functions
 
@@ -444,7 +445,6 @@ def test_long_line_continuator():
 def test_find_break_point(line, max_index, key_list, index):
     '''Tests the find_break_point routine correctly gives correct
     line break point.'''
-    print(key_list[:])
     assert find_break_point(line, max_index, key_list) == index
 
 
@@ -455,7 +455,7 @@ def test_find_break_point_exception():
     key_list = ["+"]
     max_index = 17
 
-    with pytest.raises(Exception) as excinfo:
+    with pytest.raises(InternalError) as excinfo:
         find_break_point(line, max_index, key_list)
 
     assert ("Error in find_break_point. No suitable break point found for line"
