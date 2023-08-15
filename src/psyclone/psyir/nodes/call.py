@@ -38,8 +38,10 @@
 
 import re
 
+from psyclone.core import AccessType
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.datanode import DataNode
+from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.symbols import RoutineSymbol
 from psyclone.errors import GenerationError
 
@@ -293,6 +295,44 @@ class Call(Statement, DataNode):
 
         '''
         return isinstance(child, DataNode)
+
+    def reference_accesses(self, var_accesses):
+        '''
+        Updates the supplied var_accesses object with information on the
+        arguments passed to this call.
+
+        TODO #446 - all arguments that are passed by reference are currently
+        marked as having READWRITE access (unless we know that the routine is
+        PURE). We could do better than this if we have the PSyIR of the called
+        Routine.
+
+        :param var_accesses: VariablesAccessInfo instance that stores the
+            information about variable accesses.
+        :type var_accesses:
+            :py:class:`psyclone.core.VariablesAccessInfo`
+
+        '''
+        if self.is_pure:
+            # If the called routine is pure then any arguments are only
+            # read.
+            default_access = AccessType.READ
+        else:
+            # We conservatively default to READWRITE otherwise (TODO #446).
+            default_access = AccessType.READWRITE
+
+        for arg in self.children:
+            if isinstance(arg, Reference):
+                # This argument is pass-by-reference.
+                sig, indices_list = arg.get_signature_and_indices()
+                var_accesses.add_access(sig, default_access, arg)
+                # Any symbols referenced in any index expressions are READ.
+                for indices in indices_list:
+                    for idx in indices:
+                        idx.reference_accesses(var_accesses)
+            else:
+                # This argument is ultimately pass-by-value so any
+                # inputs to it are READ.
+                arg.reference_accesses(var_accesses)
 
     @property
     def routine(self):
