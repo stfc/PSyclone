@@ -61,7 +61,7 @@ from psyclone.domain.lfric import (FunctionSpace, KernCallAccArgList,
                                    LFRicArgDescriptor, KernelInterface,
                                    LFRicCollection, LFRicConstants,
                                    LFRicSymbolTable, LFRicInvoke,
-                                   LFRicKernCallFactory)
+                                   LFRicKernCallFactory, LFRicLoop)
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 from psyclone.f2pygen import (AllocateGen, AssignGen, CallGen, CommentGen,
                               DeallocateGen, DeclGen, DoGen, IfThenGen,
@@ -6519,7 +6519,7 @@ class HaloReadAccess(HaloDepth):
         self._annexed_only = False
         call = halo_check_arg(field, AccessType.all_read_accesses())
 
-        loop = call.ancestor(DynLoop)
+        loop = call.ancestor(LFRicLoop)
 
         # For GH_INC we accumulate contributions into the field being
         # modified. In order to get correct results for owned and
@@ -6710,7 +6710,7 @@ class DynKern(CodedKern):
         :type call: :py:class:`psyclone.parse.algorithm.KernelCall`
         :param parent: The parent node of the kernel call in the AST
                        we are constructing. This will be a loop.
-        :type parent: :py:class:`psyclone.dynamo0p3.DynLoop`
+        :type parent: :py:class:`psyclone.domain.lfric.LFRICLoop`
         '''
         self._setup_basis(call.ktype)
         self._setup(call.ktype, call.module_name, call.args, parent)
@@ -6809,7 +6809,7 @@ class DynKern(CodedKern):
         :type args: list of :py:class:`psyclone.parse.algorithm.Arg` objects
         :param parent: the parent of this kernel call in the generated \
                        AST (will be a loop object).
-        :type parent: :py:class:`psyclone.dynamo0p3.DynLoop`
+        :type parent: :py:class:`psyclone.domain.lfric.LFRicLoop`
         :param bool check: whether to check for consistency between the \
             kernel metadata and the algorithm layer. Defaults to True.
 
@@ -7219,7 +7219,7 @@ class DynKern(CodedKern):
                            kind=api_config.default_kind["integer"],
                            entity_decls=["cell"]))
 
-        parent_loop = self.ancestor(DynLoop)
+        parent_loop = self.ancestor(LFRicLoop)
 
         # Check whether this kernel reads from an operator
         op_args = parent_loop.args_filter(
