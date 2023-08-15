@@ -64,9 +64,13 @@ class VariablesAccessInfo(dict):
         to a True value, arrays used as first parameter to the PSyIR query \
         operators lbound, ubound, or size will be reported as 'read'.
         Otherwise, these accesses will be ignored.
+    :param Any options["USE-ORIGINAL-NAMES"]: if this option is set to a \
+        True value, an imported symbol that is renamed (``use mod, a=>b``)
+        will be reported using the original name (``b`` in the example).
+        Otherwise these symbols will be reported using the renamed name
+        (``a``).
 
     '''
-
     # List of valid options and their default values. Note that only the
     # options method checks this, since it is convenient to pass in options
     # from the DependencyTools that might contain options for these tools.

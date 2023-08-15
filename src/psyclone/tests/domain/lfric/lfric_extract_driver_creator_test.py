@@ -690,7 +690,12 @@ def test_lfric_driver_external_symbols_name_clash():
     with open(filename, "r", encoding='utf-8') as my_file:
         driver = my_file.read()
 
-    # print("DRIVER", driver)
+    assert ("call extract_psy_data%ReadVariable("
+            "'f1@module_with_name_clash_mod', f1_1)" in driver)
+    assert ("call extract_psy_data%ReadVariable("
+            "'f2@module_with_name_clash_mod', f2_1)" in driver)
+    assert ("call extract_psy_data%ReadVariable("
+            "'f2_post@module_with_name_clash_mod', f2_1_post)" in driver)
 
 
 # ----------------------------------------------------------------------------
@@ -738,3 +743,28 @@ def test_lfric_driver_external_symbols_error(capsys):
     # be created for it. The string will still be in the created driver (since
     # the module is still inlined), but no ReadVariable code should be created:
     assert "call extract_psy_data%ReadVariable('non_existent@" not in driver
+
+
+# -----------------------------------------------------------------------------
+@pytest.mark.usefixtures("change_into_tmpdir", "init_module_manager")
+def test_lfric_driver_rename_externals():
+    '''Tests that we get the used non-local symbols from a routine that
+    renames a symbol reported correctly.
+
+    '''
+    # This example calls a subroutine that renames a symbol used from
+    # a different module, i.e.:
+    #     use module_with_var_mod, only: renamed_var => module_var_a
+
+    _, invoke = get_invoke("driver_creation/invoke_kernel_rename_symbols.f90",
+                           API, dist_mem=False, idx=0)
+
+    dep = DependencyTools()
+    read_write_info = dep.get_in_out_parameters(invoke.schedule,
+                                                collect_non_local_symbols=True)
+    driver_creator = LFRicExtractDriverCreator()
+    code = driver_creator.get_driver_as_string(invoke.schedule,
+                                               read_write_info, "extract",
+                                               "_post", ("region", "name"))
+    assert ("call extract_psy_data%ReadVariable("
+            "'module_var_a@module_with_var_mod', module_var_a)" in code)
