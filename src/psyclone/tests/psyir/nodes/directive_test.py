@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -44,10 +44,10 @@ from collections import OrderedDict
 
 from psyclone import f2pygen
 from psyclone.core import Signature
+from psyclone.errors import GenerationError
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir import nodes
-from psyclone.errors import GenerationError
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 from psyclone.transformations import ACCDataTrans, DynamoOMPParallelLoopTrans
 
