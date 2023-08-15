@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2022, Science and Technology Facilities Council.
+# Copyright (c) 2020-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -36,30 +36,43 @@
 
 # The compiler to use may be specified via the F90 and F90FLAGS
 # environment variables. To use the NVIDIA compiler and enable
-# openacc compilation with managed memory, use:
+# openacc compilation, use:
 #
 # export F90=nvfortran
-# export F90FLAGS="-acc=gpu -Minfo=all -gpu=managed"
+# export F90FLAGS="-acc=gpu -Minfo=all"
 
 PSYROOT=../../..
 
 include $(PSYROOT)/examples/common.mk
 
 GENERATED_FILES = *.o *.mod $(EXEC) main_alg.f90 main_psy.f90 \
-                  testkern_w0_kernel_0_mod.f90
+                  other_alg_mod_psy.f90 other_alg_mod_alg.f90 \
+                  testkern_w0_kernel_?_mod.f90
 
 F90 ?= gfortran
 F90FLAGS ?= -Wall -g
 
-OBJ = main_psy.o main_alg.o testkern_w0_kernel_0_mod.o
+OBJ = main_psy.o main_alg.o other_alg_mod_psy.o other_alg_mod_alg.o \
+      testkern_w0_kernel_0_mod.o
 
 EXEC = example_openacc
 
-LFRIC_DIR ?= $(PSYROOT)/src/psyclone/tests/test_files/dynamo0p3/infrastructure
+LFRIC_PATH ?= $(PSYROOT)/src/psyclone/tests/test_files/dynamo0p3/infrastructure
 LFRIC_NAME=lfric
-LFRIC_LIB=$(LFRIC_DIR)/lib$(LFRIC_NAME).a
+LFRIC_LIB=$(LFRIC_PATH)/lib$(LFRIC_NAME).a
+# This sets up LFRIC_INCLUDE_FLAGS
+include $(LFRIC_PATH)/lfric_include_flags.inc
 
-F90FLAGS += -I$(LFRIC_DIR)
+# PSyData profiling wrapper library.
+# Default is to use the 'template' library which simply prints entry and exit
+# messages to stdout.
+PROFILE_PATH=$(PSYROOT)/lib/profiling/template
+PROFILE_LIB=$(PROFILE_PATH)/libdummy.a
+PROFILE_LINK=-ldummy
+# For NVIDIA profiling
+#PROFILE_PATH=$(PSYROOT)/lib/profiling/nvidia
+#PROFILE_LIB=$(PROFILE_PATH)/libnvtx_prof.a
+#PROFILE_LINK="-lnvtx_prof -lnvToolsExt"
 
 .PHONY: transform compile run
 
@@ -68,44 +81,50 @@ F90FLAGS += -I$(LFRIC_DIR)
 # will create 'testkern_..._1_mod.f90' so remove it first.
 transform:
 	rm -f testkern_w0_kernel_0_mod.f90
-	${PSYCLONE} -dm -s ./acc_parallel_dm.py \
-	-opsy main_psy.f90 -oalg main_alg.f90 main.x90
+	${MAKE} main_psy.f90
+	${MAKE} other_alg_mod_psy.f90
 
+# Instruct PSyclone to automatically put profiling calipers around every
+# invoke.
 %_psy.f90: %.x90
-	${PSYCLONE} -s ./acc_parallel_dm.py \
+	${PSYCLONE} -dm -s ./acc_parallel.py  --profile invokes \
 	-opsy $*_psy.f90 -oalg $*_alg.f90 $<
 
 testkern_w0_kernel_0_mod.f90: main_psy.f90
 
-# TODO #1724 - compilation currently fails because module name in use
-# statement needs correcting following ACCRoutineTrans of Kernel.
-compile: transform
-	@echo "No compilation supported for lfric/eg14 due to #1724"
+compile: transform ${EXEC}
 
+$(LFRIC_LIB):
+	$(MAKE) -C $(LFRIC_PATH)
 
 run: compile
 	./$(EXEC)
 
-$(EXEC): $(LFRIC_LIB) $(OBJ)
-	$(F90) $(F90FLAGS) $(OBJ) -o $(EXEC) -L$(LFRIC_DIR) -l$(LFRIC_NAME)
+$(EXEC): $(PROFILE_LIB) $(LFRIC_LIB) $(OBJ)
+	$(F90) $(F90FLAGS) $(LFRIC_INCLUDE_FLAGS) $(OBJ) -o $(EXEC) -L$(LFRIC_PATH) -l$(LFRIC_NAME) -L${PROFILE_PATH} $(PROFILE_LINK)
 
 $(LFRIC_LIB):
-	$(MAKE) -C $(LFRIC_DIR)
+	$(MAKE) -C $(LFRIC_PATH)
+
+$(PROFILE_LIB):
+	$(MAKE) -C $(PROFILE_PATH)
 
 # Dependencies
-main_psy.o:	testkern_w0_kernel_0_mod.o
-main_alg.o:	main_psy.o testkern_w0_kernel_0_mod.o
+main_psy.o:	other_alg_mod_psy.o testkern_w0_kernel_0_mod.o
+main_alg.o:	other_alg_mod_alg.o main_psy.o testkern_w0_kernel_0_mod.o
 
 %.o: %.F90
-	$(F90) $(F90FLAGS) -c $<
+	$(F90) $(F90FLAGS) -I$(PROFILE_PATH) $(LFRIC_INCLUDE_FLAGS) -c $<
 
 %.o: %.f90
-	$(F90) $(F90FLAGS) -c $<
+	$(F90) $(F90FLAGS) -I$(PROFILE_PATH) $(LFRIC_INCLUDE_FLAGS) -c $<
 
 # Keep the generated psy and alg files
 .precious: main_psy.f90 main_alg.f90
 
 main_alg.f90: main_psy.f90
+other_alg_mod_alg.f90: other_alg_mod_psy.f90
 
 allclean: clean
-	$(MAKE) -C $(LFRIC_DIR) allclean
+	$(MAKE) -C $(LFRIC_PATH) allclean
+	$(MAKE) -C $(PROFILE_PATH) allclean
