@@ -65,7 +65,7 @@ run: compile
 
 compile: transform template
 transform: psy.f90
-all: template simple_timing drhook dl_timer lfric
+all: template simple_timing drhook dl_timer lfric tau
 
 template:
 	$(MAKE) WRAPPER_DIR="$(PROFILE_DIR)/template" \
@@ -86,6 +86,16 @@ drhook:
 	        WRAPPER_NAME="drhook_psy"                          \
 			PROFILE_LINK="-L $(DRHOOK_DIR)/build/lib -ldrhook" \
 	        drhook_lib $(NAME).drhook
+
+TAU_DIR?=$(ROOT_DIR)/../tau
+# By adding the dependency to INF_LIB here, we will be invoking the original
+# compiler, not tau_f90.sh (since we don't want to instrument the whole
+# infrastructure library with tau)
+tau: $(INF_LIB)
+	$(MAKE) WRAPPER_DIR="$(PROFILE_DIR)/tau"                \
+	        WRAPPER_NAME="tau_psy"                          \
+			PROFILE_LINK="-L $(TAU_DIR)/build/lib"  \
+	        tau_lib $(NAME).tau
 
 # The dl-timer library is available from:
 # https://bitbucket.org/apeg/dl_timer/src/master/
@@ -112,6 +122,11 @@ lfric:
 # in order to preserve temporary files:
 #.SECONDARY:
 
+$(NAME).tau: $(INF_LIB) $(WRAPPER_DIR)/lib$(WRAPPER_NAME).a $(KERNELS) psy.o alg.o
+	tau_f90.sh $(F90FLAGS) $(KERNELS) psy.o alg.o -o $@                             \
+		   -L $(WRAPPER_DIR) -l $(WRAPPER_NAME)                                 \
+		   $(PROFILE_LINK) $(INF_LIB)
+
 $(NAME).%: $(INF_LIB) $(WRAPPER_DIR)/lib$(WRAPPER_NAME).a $(KERNELS) psy.o alg.o
 	$(F90) $(F90FLAGS) $(KERNELS) psy.o alg.o -o $@                             \
 		   -L $(WRAPPER_DIR) -l $(WRAPPER_NAME)                                 \
@@ -130,6 +145,9 @@ $(INF_LIB):
 
 drhook_lib :
 	$(MAKE) DRHOOK_ROOT=$(DRHOOK_DIR) -C $(WRAPPER_DIR)
+
+tau_lib :
+	$(MAKE) F90=tau_f90.sh TAU_ROOT=$(TAU_DIR) -C $(WRAPPER_DIR)
 
 dl_timer_lib:
 	$(MAKE) DL_TIMER_ROOT=$(DL_TIMER_ROOT) -C $(WRAPPER_DIR)

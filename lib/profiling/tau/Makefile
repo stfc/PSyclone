@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2021, Science and Technology Facilities Council.
+# Copyright (c) 2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,36 +32,32 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author J. Henrichs, Bureau of Meteorology
-# Modified by A. R. Porter, STFC Daresbury Lab,
-#             I. Kavcic, Met Office
 
 # ----------- Default "make" values, can be overwritten by the user -----------
-# Compiler and compiler flags
-F90 ?= gfortran
-F90FLAGS ?= -g
+# Hardcode the ta
+F90 = tau_f90.sh
+F90FLAGS = -optLinkOnly
+
 # -----------------------------------------------------------------------------
 
-# We don't build dl_timer, drhook and nvidia since they require
-# external libraries to be available.
-ALL_LIBS = template simple_timing lfric_timer tau
+F90FLAGS += -I$(DRHOOK_INCLUDE) -I$(DRHOOK_MODULES)
 
-.PHONY: default all $(ALL_LIBS) clean allclean
+PSYDATA_LIB_NAME = tau_psy
+PSYDATA_LIB = lib$(PSYDATA_LIB_NAME).a
 
-default: all
+OBJS = tau_psy.o
 
-all: $(ALL_LIBS)
+default: $(PSYDATA_LIB)
 
-# Invoke make in the corresponding subdirectory
-$(ALL_LIBS):
-		$(MAKE) -C $@
+.PHONY: default clean allclean
+
+$(PSYDATA_LIB): $(OBJS)
+	ar rs $(PSYDATA_LIB) $(OBJS)
+
+%.o: %.f90
+	$(F90) $(F90FLAGS) -c $<
 
 clean:
-	$(foreach lib, $(ALL_LIBS), $(MAKE) -C $(lib) allclean; )
+	rm -f *.o *.mod $(PSYDATA_LIB) *pomp.f90 *opari.inc
 
 allclean: clean
-	# These libs are not cleaned by 'clean' (since they
-	# depend on external libraries)
-	$(MAKE) -C nvidia clean
-	$(MAKE) -C drhook clean
-	$(MAKE) -C dl_timer clean
-	$(MAKE) -C tau clean
