@@ -51,15 +51,18 @@ from psyclone.psyir.symbols import IntrinsicSymbol
 
 # Named tuple for describing the attributes of each intrinsic
 IAttr = namedtuple(
-    'IAttr',
-    'name is_pure is_elemental is_inquiry is_available_gpu '
-    'required_args optional_args'
+    'IAttr', 'name is_pure is_elemental is_inquiry required_args optional_args'
 )
 
+# Alternatively we could use an Enum to decrive the intrinsic types
+# IntrinsicType = Enum('IntrinsicType',
+#    'Atomic Collective Elemental Inquiry Pure Impure Transformational'
+#)
+# And let the IntrinsicCall is_pure, is_elemental, ... do the conversion
 
-#: Named tuple for describing the properties of the required arguments to
-#: a particular intrinsic. If there's no limit on the number of arguments
-#: then `max_count` will be None.
+# Named tuple for describing the properties of the required arguments to
+# a particular intrinsic. If there's no limit on the number of arguments
+# then `max_count` will be None.
 ArgDesc = namedtuple('ArgDesc', 'min_count max_count types')
 
 
@@ -78,7 +81,6 @@ class IntrinsicCall(Call):
     '''
     # Textual description of the node.
     _children_valid_format = "[DataNode]*"
-    _text_name = "IntrinsicCall"
     _colour = "cyan"
 
     #: The type of Symbol this Call must refer to. Used for type checking in
@@ -90,7 +92,7 @@ class IntrinsicCall(Call):
         IAttr namedtuple format:
 
             NAME = IAttr(name, is_pure, is_elemental, is_inquiry,
-                         is_available_gpu, required_args, optional_args)
+                         required_args, optional_args)
 
         Note that name is duplicated inside IAttr because each item in the
         Enum must have a different value, and without the name that would
@@ -99,230 +101,618 @@ class IntrinsicCall(Call):
         '''
         # Fortran special-case statements (technically not Fortran intrinsics
         # but in PSyIR they are represented as Intrinsics)
-        ALLOCATE = IAttr('ALLOCATE', False, False, False, False,
-                         ArgDesc(1, None, Reference),
-                         {"mold": Reference, "source": Reference,
-                          "stat": Reference, "errmsg": Reference})
-        DEALLOCATE = IAttr('DEALLOCATE', False, False, False, False,
-                           ArgDesc(1, None, Reference), {"stat": Reference})
+        ALLOCATE = IAttr(
+            'ALLOCATE', False, False, False,
+            ArgDesc(1, None, Reference),
+            {"mold": Reference, "source": Reference, "stat": Reference,
+             "errmsg": Reference})
+        DEALLOCATE = IAttr(
+            'DEALLOCATE', False, False, False,
+            ArgDesc(1, None, Reference), {"stat": Reference})
+        NULLIFY = IAttr(
+            'NULLIFY', False, False, False,
+            ArgDesc(1, None, Reference), {})
 
         # Fortran Intrinsics (from Fortran 2018 standard table 16.1)
-        ABS = IAttr('ABS', True, True, False, True,
-                    ArgDesc(1, 1, DataNode), {})
-        ACHAR = IAttr('ACHAR', True, True, False, False,
-                      ArgDesc(1, 1, DataNode), {"kind": DataNode})
-        ACOS = IAttr('ACOS', True, True, False, True,
-                     ArgDesc(1, 1, DataNode), {})
-        ACOSH = IAttr('ACOS', True, True, False, True,
-                      ArgDesc(1, 1, DataNode), {})
-        ADJUSTL = IAttr('ADJUSTL', True, True, False, False,
-                        ArgDesc(1, 1, DataNode), {})
-        ADJUSTR = IAttr('ADJUSTR', True, True, False, False,
-                        ArgDesc(1, 1, DataNode), {})
-        AIMAG = IAttr('AIMAG', True, True, False, False,
-                      ArgDesc(1, 1, DataNode), {})
-        AINT = IAttr('AINT', True, True, False, True,
-                     ArgDesc(1, 1, DataNode), {"kind": DataNode})
-        ALL = IAttr('ALL', True, False, False, False,
-                    ArgDesc(1, 1, DataNode), {"dim": DataNode})  # ?
-        ALLOCATED = IAttr('ALLOCATED', True, False, True, False,
-                          ArgDesc(1, 1, DataNode), {})
-        ANINT = IAttr('ANINT', True, True, False, True,
-                      ArgDesc(1, 1, DataNode), {"kind": DataNode})
-        ANY = IAttr('ANY', True, False, False, False,
-                    ArgDesc(1, 1, DataNode), {"dim": DataNode})  # ?
-        ASIN = IAttr('ASIN', True, True, False, True,
-                     ArgDesc(1, 1, DataNode), {})
-        ASINH = IAttr('ASINH', True, True, False, False,
-                      ArgDesc(1, 1, DataNode), {})
-        ASSOCIATED = IAttr('ASSOCIATED', False, False, True, False,
-                           ArgDesc(1, 1, DataNode), {"target": DataNode})
-        ATAN = IAttr('ATAN', True, True, False, True,
-                     ArgDesc(1, 2, DataNode), {})
-        ATAN2 = IAttr('ATAN2', True, True, False, True,
-                      ArgDesc(2, 2, DataNode), {})
-        ATANH = IAttr('ATANH', True, True, False, False,
-                      ArgDesc(1, 1, DataNode), {})
-        # Are atomic elemental? Are they available for GPU?
-        ATOMIC_ADD = IAttr('ATOMIC_ADD', True, True, False, False,
-                           ArgDesc(2, 2, DataNode), {"stat": DataNode})
-        ATOMIC_AND = IAttr('ATOMIC_AND', True, True, False, False,
-                           ArgDesc(2, 2, DataNode), {"stat": DataNode})
-        ATOMIC_CAS = IAttr('ATOMIC_CAS', True, True, False, False,
-                           ArgDesc(2, 2, DataNode), {"stat": DataNode})
-        ATOMIC_DEFINE = IAttr('ATOMIC_DEFINE', True, True, False, False,
-                              ArgDesc(2, 2, DataNode), {"stat": DataNode})
-        ATOMIC_FETCH_ADD = IAttr('ATOMIC_FETCH_ADD', True, True, False, False,
-                                 ArgDesc(3, 3, DataNode), {"stat": DataNode})
-        ATOMIC_FETCH_AND = IAttr('ATOMIC_FETCH_AND', True, True, False, False,
-                                 ArgDesc(3, 3, DataNode), {"stat": DataNode})
-        ATOMIC_FETCH_OR = IAttr('ATOMIC_FETCH_OR', True, True, False, False,
-                                ArgDesc(3, 3, DataNode), {"stat": DataNode})
-        ATOMIC_FETCH_XOR = IAttr('ATOMIC_FETCH_XOR', True, True, False, False,
-                                 ArgDesc(3, 3, DataNode), {"stat": DataNode})
-        ATOMIC_OR = IAttr('ATOMIC_OR', True, True, False, False,
-                          ArgDesc(2, 2, DataNode), {"stat": DataNode})
-        ATOMIC_REF = IAttr('ATOMIC_REF', True, True, False, False,
-                           ArgDesc(2, 2, DataNode), {"stat": DataNode})
-        ATOMIC_XOR = IAttr('ATOMIC_XOR', True, True, False, False,
-                           ArgDesc(2, 2, DataNode), {"stat": DataNode})
-        BESSEL_J0 = IAttr('BESSEL_J0', True, True, False, False,
-                          ArgDesc(1, 1, DataNode), {})
-        BESSEL_J1 = IAttr('BESSEL_J1', True, True, False, False,
-                          ArgDesc(1, 1, DataNode), {})
-        BESSEL_JN = IAttr('BESSEL_JN', True, None, False, False,
-                          ArgDesc(2, 3, DataNode), {})
-        BESSEL_Y0 = IAttr('BESSEL_Y0', True, True, False, False,
-                          ArgDesc(1, 1, DataNode), {})
-        BESSEL_Y1 = IAttr('BESSEL_Y1', True, True, False, False,
-                          ArgDesc(1, 1, DataNode), {})
-        BESSEL_YN = IAttr('BESSEL_YN', True, None, False, False,
-                          ArgDesc(2, 3, DataNode), {})
-        BGE = IAttr('BGE', True, True, False, False,
-                    ArgDesc(2, 2, DataNode), {})
-        BGT = IAttr('BGT', True, True, False, False,
-                    ArgDesc(2, 2, DataNode), {})
-        BIT_SIZE = IAttr('BIT_SIZE', True, False, True, False,
-                         ArgDesc(1, 1, DataNode), {})
-        BLE = IAttr('BLE', True, True, False, False,
-                    ArgDesc(2, 2, DataNode), {})
-        BLT = IAttr('BLT', True, True, False, False,
-                    ArgDesc(2, 2, DataNode), {})
-        BTEST = IAttr('BTEST', True, True, False, False,
-                      ArgDesc(2, 2, DataNode), {})
-        CEILING = IAttr('CEILING', True, True, False, False,
-                        ArgDesc(1, 1, DataNode), {"kind": DataNode})
-        CHAR = IAttr('CHAR', True, True, False, False,
-                     ArgDesc(1, 1, DataNode), {"kind": DataNode})
-        CMPLX = IAttr('CMPLX', True, True, False, False,
-                      ArgDesc(1, 1, DataNode),
-                      {"Y": DataNode, "kind": DataNode})
-        # Collective intrinsics attributes?
-        CO_BROADCAST = IAttr('CO_BROADCAST', True, True, False, False,
-                             ArgDesc(1, 2, DataNode),
-                             {"stat": DataNode, "errmsg": DataNode})
-        CO_MAX = IAttr('CO_MAX', True, True, False, False,
-                       ArgDesc(1, 1, DataNode),
-                       {"result_image": DataNode, "stat": DataNode,
-                        "errmsg": DataNode})
-        CO_MIN = IAttr('CO_MIN', True, True, False, False,
-                       ArgDesc(1, 1, DataNode),
-                       {"result_image": DataNode, "stat": DataNode,
-                        "errmsg": DataNode})
-        CO_REDUCE = IAttr('CO_REDUCE', True, True, False, False,
-                          ArgDesc(1, 2, DataNode),
-                          {"result_image": DataNode, "stat": DataNode,
-                           "errmsg": DataNode})
-        CO_SUM = IAttr('CO_SUM', True, True, False, False,
-                       ArgDesc(1, 1, DataNode),
-                       {"result_image": DataNode, "stat": DataNode,
-                        "errmsg": DataNode})
-        COMMAND_ARGUMENT_COUNT = IAttr('COMMAND_ARGUMENT_COUNT',
-                                       True, False, False, False,
-                                       ArgDesc(0, 0, None), {})
-        CONJG = IAttr('CONJG', True, True, False, False,
-                      ArgDesc(1, 1, DataNode), {})
-        COS = IAttr('COS', True, True, False, True,
-                    ArgDesc(1, 1, DataNode), {})
-        COSH = IAttr('COSH', True, True, False, True,
-                     ArgDesc(1, 1, DataNode), {})
-        COSHAPE = IAttr('COSHAPE', True, False, True, False,
-                        ArgDesc(1, 1, DataNode), {"kind": DataNode})
-        COUNT = IAttr('COUNT', True, False, False, False,
-                      ArgDesc(1, 1, DataNode),
-                      {"dim": DataNode, "kind": DataNode})
-        CPU_TIME = IAttr('CPU_TIME', False, False, False, False,
-                         ArgDesc(1, 1, DataNode), {})
-        CSHIFT = IAttr('CSHIFT', True, False, False, False,
-                       ArgDesc(2, 2, DataNode), {"dim": DataNode})
-        DATE_AND_TIME = IAttr('DATE_AND_TIME', False, False, False, False,
-                              ArgDesc(0, 0, DataNode),
-                              {"date": DataNode, "time": DataNode,
-                               "zone": DataNode, "values": DataNode})
-        DBLE = IAttr('DBLE', True, True, False, True,
-                     ArgDesc(1, 1, DataNode), {})
-        DIGITS = IAttr('DIGITS', True, False, True, False,
-                       ArgDesc(1, 1, DataNode), {})
-        DIM = IAttr('DIM', True, True, False, False,
-                    ArgDesc(2, 2, DataNode), {})
-        DOT_PRODUCT = IAttr('DOT_PRODUCT', True, False, False, False,
-                            ArgDesc(2, 2, DataNode), {})
-        DPROD = IAttr('DPROD', True, True, False, True,
-                      ArgDesc(2, 2, DataNode), {})
-        DSHIFTL = IAttr('DSHIFTL', True, True, False, False,
-                        ArgDesc(3, 3, DataNode), {})
-        DSHIFTR = IAttr('DSHIFTR', True, True, False, False,
-                        ArgDesc(3, 3, DataNode), {})
-        EOSHIFT = IAttr('EOSHIFT', True, False, False, False,
-                        ArgDesc(2, 2, DataNode),
-                        {"boundary": DataNode, "dim": DataNode})
-        EPSILON = IAttr('EPSILON', True, True, False, False,
-                        ArgDesc(1, 1, DataNode), {})
-        ERF = IAttr('ERF', True, True, False, False,
-                    ArgDesc(1, 1, DataNode), {})
-        ERFC = IAttr('ERFC', True, True, False, False,
-                     ArgDesc(1, 1, DataNode), {})
-        ERFC_SCALED = IAttr('ERFC_SCALED', True, True, False, False,
-                            ArgDesc(1, 1, DataNode), {})
-        EVENT_QUERY = IAttr('EVENT_QUERY', False, False, False, False,
-                            ArgDesc(2, 2, DataNode), {"stat": DataNode})
-        EXECUTE_COMMAND_LINE = IAttr('EXECUTE_COMMAND_LINE',
-                                     False, False, False, False,
-                                     ArgDesc(2, 2, DataNode),
-                                     {"wait": DataNode, "exitstat": DataNode,
-                                      "cmdstat": DataNode, "cmdmsg": DataNode})
-        EXP = IAttr('EXP', True, True, False, True,
-                    ArgDesc(1, 1, DataNode), {})
-        EXPONENT = IAttr('EXPONENT', True, True, False, False,
-                         ArgDesc(1, 1, DataNode), {})
-        EXTENDS_TYPE_OF = IAttr('EXTENDS_TYPE_OF', True, False, True, False,
-                                ArgDesc(2, 2, DataNode), {})
-        FAILED_IMAGES = IAttr('FAILED_IMAGES', True, False, False, False,
-                              ArgDesc(0, 0, DataNode),
-                              {"team": DataNode, "kind": DataNode})
-        FINDLOC = IAttr('FINDLOC', True, False, False, False,
-                        ArgDesc(2, 3, DataNode),
-                        {"mask": DataNode, "kind": DataNode,
-                         "back": DataNode})
-        FLOOR = IAttr('FLOOR', True, True, False, False,
-                      ArgDesc(1, 1, DataNode), {"kind": DataNode})
-        FRACTION = IAttr('FRACTION', True, True, False, False,
-                         ArgDesc(1, 1, DataNode), {})
-        GAMMA = IAttr('GAMMA', True, True, False, False,
-                      ArgDesc(1, 1, DataNode), {})
-
-        MIN = IAttr('MIN', True, True, False, True,
-                    ArgDesc(1, None, DataNode), {})
-        MAX = IAttr('MAX', True, True, False, True,
-                    ArgDesc(1, None, DataNode), {})
-        MATMUL = IAttr('MATMUL', True, False, False, False,
-                       ArgDesc(2, 2, DataNode), {})
-        SIGN = IAttr('SIGN', True, True, False, True,
-                     ArgDesc(2, 2, DataNode), {})
-
-        MOD = IAttr('MOD', True, True, False, True,
-                     ArgDesc(2, 2, DataNode), {})
-
-        TRANSPOSE = IAttr('TRANSPOSE', True, False, False, False,
-                     ArgDesc(1, 1, DataNode), {})
-        RANDOM_NUMBER = IAttr('RANDOM_NUMBER', False, False, False, False,
-                              ArgDesc(1, 1, Reference), {})
-        MINVAL = IAttr('MINVAL', True, False, False, False,
-                       ArgDesc(1, 1, DataNode),
-                       {"dim": DataNode, "mask": DataNode})
-        MAXVAL = IAttr('MAXVAL', True, False, False, False,
-                       ArgDesc(1, 1, DataNode),
-                       {"dim": DataNode, "mask": DataNode})
-        SUM = IAttr('SUM', True, False, False, False,
-                    ArgDesc(1, 1, DataNode),
-                    {"dim": DataNode, "mask": DataNode})
-        TINY = IAttr('TINY', True, False, False, False,
-                     ArgDesc(1, 1, (Reference, Literal)), {})
-        HUGE = IAttr('HUGE', True, False, False, False,
-                     ArgDesc(1, 1, (Reference, Literal)), {})
-
-        SQRT = IAttr('SQRT', True, True, False, True,
-                     ArgDesc(1, 1, DataNode), {})
+        ABS = IAttr(
+            'ABS', True, True, False,
+            ArgDesc(1, 1, DataNode), {})
+        ACHAR = IAttr(
+            'ACHAR', True, True, False,
+            ArgDesc(1, 1, DataNode), {"kind": DataNode})
+        ACOS = IAttr(
+            'ACOS', True, True, False,
+            ArgDesc(1, 1, DataNode), {})
+        ACOSH = IAttr(
+            'ACOS', True, True, False,
+            ArgDesc(1, 1, DataNode), {})
+        ADJUSTL = IAttr(
+            'ADJUSTL', True, True, False,
+            ArgDesc(1, 1, DataNode), {})
+        ADJUSTR = IAttr(
+            'ADJUSTR', True, True, False,
+            ArgDesc(1, 1, DataNode), {})
+        AIMAG = IAttr(
+            'AIMAG', True, True, False,
+            ArgDesc(1, 1, DataNode), {})
+        AINT = IAttr(
+            'AINT', True, True, False,
+            ArgDesc(1, 1, DataNode), {"kind": DataNode})
+        ALL = IAttr(
+            'ALL', True, False, False,
+            ArgDesc(1, 1, DataNode), {"dim": DataNode})  # ?
+        ALLOCATED = IAttr(
+            'ALLOCATED', True, False, True,
+            ArgDesc(1, 1, DataNode), {})
+        ANINT = IAttr(
+            'ANINT', True, True, False,
+            ArgDesc(1, 1, DataNode), {"kind": DataNode})
+        ANY = IAttr(
+            'ANY', True, False, False,
+            ArgDesc(1, 1, DataNode), {"dim": DataNode})  # ?
+        ASIN = IAttr(
+            'ASIN', True, True, False,
+            ArgDesc(1, 1, DataNode), {})
+        ASINH = IAttr(
+            'ASINH', True, True, False,
+            ArgDesc(1, 1, DataNode), {})
+        ASSOCIATED = IAttr(
+            'ASSOCIATED', False, False, True,
+            ArgDesc(1, 1, DataNode), {"target": DataNode})
+        ATAN = IAttr(
+            'ATAN', True, True, False,
+            ArgDesc(1, 2, DataNode), {})
+        ATAN2 = IAttr(
+            'ATAN2', True, True, False,
+            ArgDesc(2, 2, DataNode), {})
+        ATANH = IAttr(
+            'ATANH', True, True, False,
+            ArgDesc(1, 1, DataNode), {})
+        ATOMIC_ADD = IAttr(
+            'ATOMIC_ADD', True, True, False,
+            ArgDesc(2, 2, DataNode), {"stat": DataNode})
+        ATOMIC_AND = IAttr(
+            'ATOMIC_AND', True, True, False,
+            ArgDesc(2, 2, DataNode), {"stat": DataNode})
+        ATOMIC_CAS = IAttr(
+            'ATOMIC_CAS', True, True, False,
+            ArgDesc(2, 2, DataNode), {"stat": DataNode})
+        ATOMIC_DEFINE = IAttr(
+            'ATOMIC_DEFINE', True, True, False,
+            ArgDesc(2, 2, DataNode), {"stat": DataNode})
+        ATOMIC_FETCH_ADD = IAttr(
+            'ATOMIC_FETCH_ADD', True, True, False,
+            ArgDesc(3, 3, DataNode), {"stat": DataNode})
+        ATOMIC_FETCH_AND = IAttr(
+            'ATOMIC_FETCH_AND', True, True, False,
+            ArgDesc(3, 3, DataNode), {"stat": DataNode})
+        ATOMIC_FETCH_OR = IAttr(
+            'ATOMIC_FETCH_OR', True, True, False,
+            ArgDesc(3, 3, DataNode), {"stat": DataNode})
+        ATOMIC_FETCH_XOR = IAttr(
+            'ATOMIC_FETCH_XOR', True, True, False,
+            ArgDesc(3, 3, DataNode), {"stat": DataNode})
+        ATOMIC_OR = IAttr(
+            'ATOMIC_OR', True, True, False,
+            ArgDesc(2, 2, DataNode), {"stat": DataNode})
+        ATOMIC_REF = IAttr(
+            'ATOMIC_REF', True, True, False,
+            ArgDesc(2, 2, DataNode), {"stat": DataNode})
+        ATOMIC_XOR = IAttr(
+            'ATOMIC_XOR', True, True, False,
+            ArgDesc(2, 2, DataNode), {"stat": DataNode})
+        BESSEL_J0 = IAttr(
+            'BESSEL_J0', True, True, False,
+            ArgDesc(1, 1, DataNode), {})
+        BESSEL_J1 = IAttr(
+            'BESSEL_J1', True, True, False,
+            ArgDesc(1, 1, DataNode), {})
+        BESSEL_JN = IAttr(
+            'BESSEL_JN', True, None, False,
+            ArgDesc(2, 3, DataNode), {})
+        BESSEL_Y0 = IAttr(
+            'BESSEL_Y0', True, True, False,
+            ArgDesc(1, 1, DataNode), {})
+        BESSEL_Y1 = IAttr(
+            'BESSEL_Y1', True, True, False,
+            ArgDesc(1, 1, DataNode), {})
+        BESSEL_YN = IAttr(
+            'BESSEL_YN', True, None, False,
+            ArgDesc(2, 3, DataNode), {})
+        BGE = IAttr(
+            'BGE', True, True, False,
+            ArgDesc(2, 2, DataNode), {})
+        BGT = IAttr(
+            'BGT', True, True, False,
+            ArgDesc(2, 2, DataNode), {})
+        BIT_SIZE = IAttr(
+            'BIT_SIZE', True, False, True,
+            ArgDesc(1, 1, DataNode), {})
+        BLE = IAttr(
+            'BLE', True, True, False,
+            ArgDesc(2, 2, DataNode), {})
+        BLT = IAttr(
+            'BLT', True, True, False,
+            ArgDesc(2, 2, DataNode), {})
+        BTEST = IAttr(
+            'BTEST', True, True, False,
+            ArgDesc(2, 2, DataNode), {})
+        CEILING = IAttr(
+            'CEILING', True, True, False,
+            ArgDesc(1, 1, DataNode), {"kind": DataNode})
+        CHAR = IAttr(
+            'CHAR', True, True, False,
+            ArgDesc(1, 1, DataNode), {"kind": DataNode})
+        CMPLX = IAttr(
+            'CMPLX', True, True, False,
+            ArgDesc(1, 1, DataNode), {"Y": DataNode, "kind": DataNode})
+        CO_BROADCAST = IAttr(
+            'CO_BROADCAST', True, True, False,
+            ArgDesc(1, 2, DataNode), {"stat": DataNode, "errmsg": DataNode})
+        CO_MAX = IAttr(
+            'CO_MAX', True, True, False,
+            ArgDesc(1, 1, DataNode),
+            {"result_image": DataNode, "stat": DataNode, "errmsg": DataNode})
+        CO_MIN = IAttr(
+            'CO_MIN', True, True, False,
+            ArgDesc(1, 1, DataNode),
+            {"result_image": DataNode, "stat": DataNode, "errmsg": DataNode})
+        CO_REDUCE = IAttr(
+            'CO_REDUCE', True, True, False,
+            ArgDesc(1, 2, DataNode),
+            {"result_image": DataNode, "stat": DataNode, "errmsg": DataNode})
+        CO_SUM = IAttr(
+            'CO_SUM', True, True, False,
+            ArgDesc(1, 1, DataNode),
+            {"result_image": DataNode, "stat": DataNode, "errmsg": DataNode})
+        COMMAND_ARGUMENT_COUNT = IAttr(
+            'COMMAND_ARGUMENT_COUNT', True, False, False,
+            ArgDesc(0, 0, None), {})
+        CONJG = IAttr(
+            'CONJG', True, True, False,
+            ArgDesc(1, 1, DataNode), {})
+        COS = IAttr(
+            'COS', True, True, False,
+            ArgDesc(1, 1, DataNode), {})
+        COSH = IAttr(
+            'COSH', True, True, False,
+            ArgDesc(1, 1, DataNode), {})
+        COSHAPE = IAttr(
+            'COSHAPE', True, False, True,
+            ArgDesc(1, 1, DataNode), {"kind": DataNode})
+        COUNT = IAttr(
+            'COUNT', True, False, False,
+            ArgDesc(1, 1, DataNode), {"dim": DataNode, "kind": DataNode})
+        CPU_TIME = IAttr(
+            'CPU_TIME', False, False, False,
+            ArgDesc(1, 1, DataNode), {})
+        CSHIFT = IAttr(
+            'CSHIFT', True, False, False,
+            ArgDesc(2, 2, DataNode), {"dim": DataNode})
+        DATE_AND_TIME = IAttr(
+            'DATE_AND_TIME', False, False,
+            ArgDesc(0, 0, DataNode),
+            {"date": DataNode, "time": DataNode,
+             "zone": DataNode, "values": DataNode})
+        DBLE = IAttr(
+            'DBLE', True, True, False,
+            ArgDesc(1, 1, DataNode), {})
+        DIGITS = IAttr(
+            'DIGITS', True, False, True,
+            ArgDesc(1, 1, DataNode), {})
+        DIM = IAttr(
+            'DIM', True, True, False,
+            ArgDesc(2, 2, DataNode), {})
+        DOT_PRODUCT = IAttr(
+            'DOT_PRODUCT', True, False, False,
+            ArgDesc(2, 2, DataNode), {})
+        DPROD = IAttr(
+            'DPROD', True, True, False,
+            ArgDesc(2, 2, DataNode), {})
+        DSHIFTL = IAttr(
+            'DSHIFTL', True, True, False,
+            ArgDesc(3, 3, DataNode), {})
+        DSHIFTR = IAttr(
+            'DSHIFTR', True, True, False,
+            ArgDesc(3, 3, DataNode), {})
+        EOSHIFT = IAttr(
+            'EOSHIFT', True, False, False,
+            ArgDesc(2, 2, DataNode), {"boundary": DataNode, "dim": DataNode})
+        EPSILON = IAttr(
+            'EPSILON', True, True, False,
+            ArgDesc(1, 1, DataNode), {})
+        ERF = IAttr(
+            'ERF', True, True, False,
+            ArgDesc(1, 1, DataNode), {})
+        ERFC = IAttr(
+            'ERFC', True, True, False,
+            ArgDesc(1, 1, DataNode), {})
+        ERFC_SCALED = IAttr(
+            'ERFC_SCALED', True, True, False,
+            ArgDesc(1, 1, DataNode), {})
+        EVENT_QUERY = IAttr(
+            'EVENT_QUERY', False, False, False,
+            ArgDesc(2, 2, DataNode), {"stat": DataNode})
+        EXECUTE_COMMAND_LINE = IAttr(
+            'EXECUTE_COMMAND_LINE', False, False, False,
+            ArgDesc(2, 2, DataNode),
+            {"wait": DataNode, "exitstat": DataNode,
+             "cmdstat": DataNode, "cmdmsg": DataNode})
+        EXP = IAttr(
+            'EXP', True, True, False,
+            ArgDesc(1, 1, DataNode), {})
+        EXPONENT = IAttr(
+            'EXPONENT', True, True, False,
+            ArgDesc(1, 1, DataNode), {})
+        EXTENDS_TYPE_OF = IAttr(
+            'EXTENDS_TYPE_OF', True, False, True,
+            ArgDesc(2, 2, DataNode), {})
+        FAILED_IMAGES = IAttr(
+            'FAILED_IMAGES', True, False, False,
+            ArgDesc(0, 0, DataNode), {"team": DataNode, "kind": DataNode})
+        FINDLOC = IAttr(
+            'FINDLOC', True, False, False,
+            ArgDesc(2, 3, DataNode),
+            {"mask": DataNode, "kind": DataNode, "back": DataNode})
+        FLOOR = IAttr(
+            'FLOOR', True, True, False,
+            ArgDesc(1, 1, DataNode), {"kind": DataNode})
+        FRACTION = IAttr(
+            'FRACTION', True, True, False,
+            ArgDesc(1, 1, DataNode), {})
+        GAMMA = IAttr(
+            'GAMMA', True, True, False,
+            ArgDesc(1, 1, DataNode), {})
+        GET_COMMAND = IAttr(
+            'GET_COMMAND', False, False, False,
+            ArgDesc(0, 0, DataNode),
+            {"command": DataNode, "length": DataNode,
+             "status": DataNode, "errmsg": DataNode})
+        GET_COMMAND_ARGUMENT = IAttr(
+            'GET_COMMAND_ARGUMENT', False, False, False,
+            ArgDesc(1, 1, DataNode),
+            {"value": DataNode, "length": DataNode,
+             "status": DataNode, "errmsg": DataNode})
+        GET_ENVIRONMENT_VARIABLE = IAttr(
+            'GET_ENVIRONMENT_VARIABLE', False, False, False,
+            ArgDesc(1, 1, DataNode),
+            {"value": DataNode, "length": DataNode, "status": DataNode,
+             "trim_name": DataNode, "errmsg": DataNode})
+        GET_TEAM = IAttr(
+            'GET_TEAM', True, False, False,
+            ArgDesc(0, 0, DataNode), {"level": DataNode})
+        HUGE = IAttr(
+            'HUGE', True, True, False,
+            ArgDesc(1, 1, (Reference, Literal)), {})
+        HYPOT = IAttr(
+            'HYPOT', True, True, False,
+            ArgDesc(2, 2, (DataNode)), {})
+        IACAHR = IAttr(
+            'IACHAR', True, True, False,
+            ArgDesc(1, 1, (DataNode)), {"kind": DataNode})
+        IEOR = IAttr(
+            'IEOR', True, True, False,
+            ArgDesc(2, 2, (DataNode)), {})
+        IMAGE_INDEX = IAttr(
+            'IMAGE_INDEX', True, False, True,
+            ArgDesc(2, 3, (DataNode)), {})
+        IMAGE_STATUS = IAttr(
+            'IMAGE_STATUS', True, False, False,
+            ArgDesc(1, 1, (DataNode)), {"team": DataNode})
+        INDEX = IAttr(
+            'INDEX', True, True, False,
+            ArgDesc(2, 2, (DataNode)), {"back": DataNode, "kind": DataNode})
+        INT = IAttr(
+            'INT', True, True, False,
+            ArgDesc(1, 1, (DataNode)), {"kind": DataNode})
+        IOR = IAttr(
+            'IOR', True, True, False,
+            ArgDesc(2, 2, (DataNode)), {})
+        IPARITY = IAttr(
+            'IPARITY', True, False, False,
+            ArgDesc(1, 2, (DataNode)), {"mask": DataNode})
+        ISHFT = IAttr(
+            'ISHFT', True, True, False,
+            ArgDesc(2, 2, (DataNode)), {})
+        ISHFTC = IAttr(
+            'ISHFT', True, True, False,
+            ArgDesc(2, 2, (DataNode)), {"size": DataNode})
+        IS_CONTIGUOUS = IAttr(
+            'IS_CONTIGUOUS', True, False, True,
+            ArgDesc(1, 1, (DataNode)), {})
+        IS_IOSTAT_END = IAttr(
+            'IS_IOSTAT_END', True, True, False,
+            ArgDesc(1, 1, (DataNode)), {})
+        IS_IOSTAT_EOR = IAttr(
+            'IS_IOSTAT_EOR', True, True, False,
+            ArgDesc(1, 1, (DataNode)), {})
+        KIND = IAttr(
+            'KIND', True, False, True,
+            ArgDesc(1, 1, (DataNode)), {})
+        LBOUND = IAttr(
+            'LBOUND', True, False, True,
+            ArgDesc(1, 1, (DataNode)), {"back": DataNode, "kind": DataNode})
+        LCOBOUND = IAttr(
+            'LCOBOUND', True, False, True,
+            ArgDesc(1, 1, (DataNode)), {"dim": DataNode, "kind": DataNode})
+        LEADZ = IAttr(
+            'LEADZ', True, True, False,
+            ArgDesc(1, 1, (DataNode)), {})
+        LEN = IAttr(
+            'LEN', True, False, True,
+            ArgDesc(1, 1, (DataNode)), {"kind": DataNode})
+        LEN_TRIM = IAttr(
+            'LEN_TRIM', True, False, True,
+            ArgDesc(1, 1, (DataNode)), {"kind": DataNode})
+        LGE = IAttr(
+            'LGE', True, True, False,
+            ArgDesc(2, 2, (DataNode)), {})
+        LGT = IAttr(
+            'LGT', True, True, False,
+            ArgDesc(2, 2, (DataNode)), {})
+        LLE = IAttr(
+            'LLE', True, True, False,
+            ArgDesc(2, 2, (DataNode)), {})
+        LLT = IAttr(
+            'LLT', True, True, False,
+            ArgDesc(2, 2, (DataNode)), {})
+        LOG = IAttr(
+            'LOG', True, True, False,
+            ArgDesc(1, 1, (DataNode)), {})
+        LOG_GAMMA = IAttr(
+            'LOG_GAMMA', True, True, False,
+            ArgDesc(1, 1, (DataNode)), {})
+        LOG10 = IAttr(
+            'LOG10', True, True, False,
+            ArgDesc(1, 1, (DataNode)), {})
+        LOGICAL = IAttr(
+            'LOGICAL', True, True, False,
+            ArgDesc(1, 1, (DataNode)), {"kind": DataNode})
+        MASKL = IAttr(
+            'MASKL', True, True, False,
+            ArgDesc(1, 1, (DataNode)), {"kind": DataNode})
+        MASKR = IAttr(
+            'MASKR', True, True, False,
+            ArgDesc(1, 1, (DataNode)), {"kind": DataNode})
+        MATMUL = IAttr(
+            'MATMUL', True, False, False,
+            ArgDesc(2, 2, DataNode), {})
+        MAX = IAttr(
+            'MAX', True, True, False,
+            ArgDesc(1, None, DataNode), {})
+        MAXEXPONENT = IAttr(
+            'MAXEXPONENT', True, False, True,
+            ArgDesc(1, 1, DataNode), {})
+        MAXLOC = IAttr(
+            'MAXLOC', True, False, False,
+            ArgDesc(1, 2, DataNode),
+            {"dim": DataNode, "mask": DataNode, "kind": DataNode,
+             "back": DataNode})
+        MAXVAL = IAttr(
+            'MAXVAL', True, False, False,
+            ArgDesc(1, 1, DataNode),
+            {"dim": DataNode, "mask": DataNode})
+        MERGE = IAttr(
+            'MERGE', True, True, False,
+            ArgDesc(1, 3, DataNode), {})
+        MERGE_BITS = IAttr(
+            'MERGE_BITS', True, True, False,
+            ArgDesc(1, 3, DataNode), {})
+        MIN = IAttr(
+            'MIN', True, True, False,
+            ArgDesc(1, None, DataNode), {})
+        MINEXPONENT = IAttr(
+            'MINEXPONENT', True, False, True,
+            ArgDesc(1, 1, DataNode), {})
+        MINLOC = IAttr(
+            'MINLOC', True, False, False,
+            ArgDesc(1, 2, DataNode),
+            {"dim": DataNode, "mask": DataNode, "kind": DataNode,
+             "back": DataNode})
+        MINVAL = IAttr(
+            'MINVAL', True, False, False,
+            ArgDesc(1, 1, DataNode),
+            {"dim": DataNode, "mask": DataNode})
+        MOD = IAttr(
+            'MOD', True, True, False,
+            ArgDesc(2, 2, DataNode), {})
+        MODULO = IAttr(
+            'MODULO', True, True, False,
+            ArgDesc(2, 2, DataNode), {})
+        MOVE_ALLOC = IAttr(
+            'MOVE_ALLOC', False, False, False,
+            ArgDesc(2, 2, DataNode), {"stat": DataNode, "errmsg": DataNode})
+        MVBITS = IAttr(
+            'MVBITS', True, True, False,
+            ArgDesc(5, 5, DataNode), {})
+        NEAREST = IAttr(
+            'NEAREST', True, True, False,
+            ArgDesc(2, 2, DataNode), {})
+        MEW_LINE = IAttr(
+            'NEW_LINE', True, True, False,
+            ArgDesc(1, 1, DataNode), {})
+        NINT = IAttr(
+            'NINT', True, True, False,
+            ArgDesc(1, 1, DataNode), {"kind": DataNode})
+        NORM = IAttr(
+            'NORM', True, False, False,
+            ArgDesc(1, 2, DataNode), {})
+        NOT = IAttr(
+            'NOT', True, True, False,
+            ArgDesc(1, 1, DataNode), {})
+        NULL = IAttr(
+            'NULL', True, False, False,
+            ArgDesc(0, 0, DataNode), {"mold": DataNode})
+        NUM_IMAGES = IAttr(
+            'NUM_IMAGES', True, False, False,
+            ArgDesc(1, 1, DataNode), {})
+        OUT_OF_RANGE = IAttr(
+            'OUT_OF_RANGE', True, True, False,
+            ArgDesc(2, 2, DataNode), {"round": DataNode})
+        PACK = IAttr(
+            'PACK', True, False, False,
+            ArgDesc(2, 2, DataNode), {"vector": DataNode})
+        PARITY = IAttr(
+            'PARITY', True, False, False,
+            ArgDesc(1, 2, DataNode), {})
+        POPCNT = IAttr(
+            'POPCNT', True, True, False,
+            ArgDesc(1, 1, DataNode), {})
+        POPPAR = IAttr(
+            'POPPAR', True, True, False,
+            ArgDesc(1, 1, DataNode), {})
+        PRECISION = IAttr(
+            'PRECISON', True, False, True,
+            ArgDesc(1, 1, DataNode), {})
+        PRESENT = IAttr(
+            'PRESENT', True, False, True,
+            ArgDesc(1, 1, DataNode), {})
+        PRODUCT = IAttr(
+            'PRODUCT', True, False, False,
+            ArgDesc(1, 1, DataNode), {"dim": DataNode, "mask": DataNode})
+        RADIX = IAttr(
+            'RADIX', True, False, True,
+            ArgDesc(1, 1, DataNode), {})
+        RANDOM_INIT = IAttr(
+            'RANDOM_INIT', False, False, False,
+            ArgDesc(2, 2, DataNode), {})
+        RANDOM_NUMBER = IAttr(
+            'RANDOM_NUMBER', False, False, False,
+            ArgDesc(1, 1, Reference), {})
+        RANDOM_SEED = IAttr(
+            'RANDOM_SEED', False, False, False,
+            ArgDesc(0, 0, Reference),
+            {"size": DataNode, "put": DataNode, "Get": DataNode})
+        RANGE = IAttr(
+            'RANGE', True, False, True,
+            ArgDesc(1, 1, Reference), {})
+        RANK = IAttr(
+            'RANK', True, False, True,
+            ArgDesc(1, 1, Reference), {})
+        REAL = IAttr(
+            'REAL', True, True, False,
+            ArgDesc(1, 1, Reference), {"kind": DataNode})
+        REDUCE = IAttr(
+            'REDUCE', True, False, False,
+            ArgDesc(2, 3, Reference),
+            {"mask": DataNode, "identity": DataNode, "ordered": DataNode})
+        REPEAT = IAttr(
+            'REPEAT', True, False, False,
+            ArgDesc(2, 2, Reference), {})
+        RESHAPE = IAttr(
+            'RESHAPE', True, False, False,
+            ArgDesc(2, 2, Reference), {"pad": DataNode, "order": DataNode})
+        RRSPACING = IAttr(
+            'RRSPACING', True, True, False,
+            ArgDesc(1, 1, Reference), {})
+        SAME_TYPE_AS = IAttr(
+            'SAME_TYPE_AS', True, False, True,
+            ArgDesc(2, 2, Reference), {})
+        SCALE = IAttr(
+            'SCALE', True, True, False,
+            ArgDesc(2, 2, Reference), {})
+        SCAN = IAttr(
+            'SCAN', True, True, False,
+            ArgDesc(2, 2, Reference), {"back": DataNode, "kind": DataNode})
+        SELECTED_CHAR_KIND = IAttr(
+            'SELECTED_CHAR_KIND', True, False, False,
+            ArgDesc(1, 1, Reference), {})
+        SELECTED_INT_KIND = IAttr(
+            'SELECTED_INT_KIND', True, False, False,
+            ArgDesc(1, 1, Reference), {})
+        SELECTED_REAL_KIND = IAttr(
+            'SELECTED_REAL_KIND', True, False, False,
+            ArgDesc(0, 0, Reference),
+            {"P": DataNode, "R": DataNode, "radix": DataNode})
+        SET_EXPONENT = IAttr(
+            'SET_EXPONENT', True, True, False,
+            ArgDesc(2, 2, Reference), {})
+        SHAPE = IAttr(
+            'SHAPE', True, False, True,
+            ArgDesc(1, 1, Reference), {"kind": DataNode})
+        SHIFTA = IAttr(
+            'SHIFTA', True, True, False,
+            ArgDesc(2, 2, Reference), {})
+        SHIFTL = IAttr(
+            'SHIFTL', True, True, False,
+            ArgDesc(2, 2, Reference), {})
+        SHIFTR = IAttr(
+            'SHIFTR', True, True, False,
+            ArgDesc(2, 2, Reference), {})
+        SIGN = IAttr(
+            'SIGN', True, True, False,
+            ArgDesc(2, 2, DataNode), {})
+        SIN = IAttr(
+            'SIN', True, True, False,
+            ArgDesc(1, 1, DataNode), {})
+        SINH = IAttr(
+            'SINH', True, True, False,
+            ArgDesc(1, 1, DataNode), {})
+        SIZE = IAttr(
+            'SIZE', True, False, True,
+            ArgDesc(1, 1, DataNode), {"dim": DataNode, "kind": DataNode})
+        SPACING = IAttr(
+            'SPACING', True, True, False,
+            ArgDesc(1, 1, DataNode), {})
+        SPREAD = IAttr(
+            'SPREAD', True, False, False,
+            ArgDesc(3, 3, DataNode), {})
+        SQRT = IAttr(
+            'SQRT', True, True, False,
+            ArgDesc(1, 1, DataNode), {})
+        STOPPED_IMAGES = IAttr(
+            'STOPPED_IMAGES', True, False, False,
+            ArgDesc(0, 0, DataNode), {"team": DataNode, "kind": DataNode})
+        STORAGE_SIZE = IAttr(
+            'STORAGE_SIZE', True, False, True,
+            ArgDesc(1, 1, DataNode), {})
+        SUM = IAttr(
+            'SUM', True, False, False,
+            ArgDesc(1, 1, DataNode), {"dim": DataNode, "mask": DataNode})
+        SYSTEM_CLOCK = IAttr(
+            'SYSTEM_CLOCK', False, False, False,
+            ArgDesc(0, 0, DataNode),
+            {"count": DataNode, "count_rate": DataNode, "count_max": DataNode})
+        TAN = IAttr(
+            'TAN', True, True, False,
+            ArgDesc(1, 1, DataNode), {})
+        TANH = IAttr(
+            'TANH', True, True, False,
+            ArgDesc(1, 1, DataNode), {})
+        TEAM_IMAGE = IAttr(
+            'TEAM_IMAGE', True, False, False,
+            ArgDesc(0, 0, DataNode), {"team": DataNode})
+        THIS_IMAGE = IAttr(
+            'THIS_IMAGE', True, False, False,
+            ArgDesc(0, 0, DataNode),
+            {"coarray": DataNode, "team": DataNode, "dim": DataNode})
+        TINY = IAttr(
+            'TINY', True, False, True,
+            ArgDesc(1, 1, (Reference, Literal)), {})
+        TRAILZ = IAttr(
+            'TRAILZ', True, True, False,
+            ArgDesc(1, 1, DataNode), {})
+        TRANSFER = IAttr(
+            'TRANSFER', True, False, False,
+            ArgDesc(2, 2, DataNode), {"size": DataNode})
+        TRANSPOSE = IAttr(
+            'TRANSPOSE', True, False, False,
+            ArgDesc(1, 1, DataNode), {})
+        TRIM = IAttr(
+            'TRIM', True, False, False,
+            ArgDesc(1, 1, DataNode), {})
+        UBOUND = IAttr(
+            'UBOUND', True, False, True,
+            ArgDesc(1, 1, DataNode), {"dim": DataNode, "kind": DataNode})
+        UCOBOUND = IAttr(
+            'UCOBOUND', True, False, True,
+            ArgDesc(1, 1, DataNode), {"dim": DataNode, "kind": DataNode})
+        UNPACK = IAttr(
+            'UNPACK', True, False, False,
+            ArgDesc(3, 3, DataNode), {})
+        VERIFY = IAttr(
+            'TRIM', True, True, False,
+            ArgDesc(2, 2, DataNode), {"back": DataNode, "kind": DataNode})
 
         def __hash__(self):
             return hash(self.name)
@@ -354,6 +744,17 @@ class IntrinsicCall(Call):
         '''
         return self._intrinsic
 
+    # This is not part of the intrinsic enum, because its value  could change
+    # for different devices, and in the future we may want to pass a device/
+    # arch/compiler parameter or look at the configuration.
+    def is_available_on_device(self):
+        '''
+        :returns: whether this intrinsic is available on an accelerated device.
+        :rtype: :py:class:`psyclone.psyir.nodes.IntrinsicCall.Intrinsic`
+
+        '''
+        return False
+    
     @classmethod
     def create(cls, routine, arguments):
         '''Create an instance of this class given the type of routine and a
