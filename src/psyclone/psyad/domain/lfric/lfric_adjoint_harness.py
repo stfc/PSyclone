@@ -518,9 +518,9 @@ def generate_lfric_adjoint_harness(tl_psyir, coord_arg_idx=None,
     kern = lfalg.kernel_from_metadata(parse_tree, kernel_name)
 
     # Replace generic names for fields. operators etc generated in
-    # DynKern with the scientific names used by the tangent-linear
+    # LFRicKern with the scientific names used by the tangent-linear
     # kernel. This makes the harness code more readable. Changing the
-    # names in-place within DynKern is the neatest solution given that
+    # names in-place within LFRicKern is the neatest solution given that
     # this is a legacy structure.
 
     # First raise the tangent-linear kernel PSyIR to LFRic PSyIR. This
@@ -531,7 +531,7 @@ def generate_lfric_adjoint_harness(tl_psyir, coord_arg_idx=None,
     # Use the metadata to determine the mapping from a metadata
     # meta_arg index to the kernel argument index. Note, the meta_arg
     # index corresponds to the order of the arguments stored in
-    # DynKern.
+    # LFRicKern.
     index_map = ArgIndexToMetadataIndex.mapping(metadata)
     inv_index_map = {value: key for key, value in index_map.items()}
 
