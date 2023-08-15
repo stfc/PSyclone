@@ -40,7 +40,7 @@ transformation.
 '''
 
 from psyclone.domain.lfric import LFRicExtractDriverCreator
-from psyclone.dynamo0p3 import DynLoop
+from psyclone.domain.lfric import LFRicLoop
 from psyclone.psyir.nodes import ExtractNode
 from psyclone.psyir.tools import DependencyTools
 from psyclone.psyir.transformations import ExtractTrans, TransformationError
@@ -96,7 +96,7 @@ class LFRicExtractTrans(ExtractTrans):
             # Check that ExtractNode is not inserted between a Loop
             # over colours and a Loop over cells in a colour when
             # colouring is applied.
-            ancestor = node.ancestor(DynLoop)
+            ancestor = node.ancestor(LFRicLoop)
             if ancestor and ancestor.loop_type == 'colours':
                 raise TransformationError(
                     f"Error in {self.name} for Dynamo0.3 API: Extraction of a "

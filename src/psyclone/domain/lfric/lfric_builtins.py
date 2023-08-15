@@ -129,7 +129,7 @@ class LFRicBuiltInCallFactory():
         # Create the loop over the appropriate entity.
         # Avoid circular import
         # pylint: disable=import-outside-toplevel
-        from psyclone.dynamo0p3 import DynLoop
+        from psyclone.domain.lfric import LFRicLoop
 
         if call.ktype.iterates_over == "dof":
             loop_type = "dof"
@@ -138,7 +138,7 @@ class LFRicBuiltInCallFactory():
                 f"An LFRic built-in must iterate over DoFs but kernel "
                 f"'{call.func_name}' iterates over "
                 f"'{call.ktype.iterates_over}'")
-        dofloop = DynLoop(parent=parent, loop_type=loop_type)
+        dofloop = LFRicLoop(parent=parent, loop_type=loop_type)
 
         # Use the call object (created by the parser) to set-up the state
         # of the infrastructure kernel
@@ -252,7 +252,7 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
         :type call: :py:class:`psyclone.parse.algorithm.BuiltInCall`
         :param parent: The parent node of the kernel call in the PSyIR \
                        we are constructing. This will be a loop.
-        :type parent: :py:class:`psyclone.dynamo0p3.DynLoop`
+        :type parent: :py:class:`psyclone.domain.lfric.LFRicLoop`
 
         '''
         # Avoid circular import
@@ -449,7 +449,7 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
 
         '''
         table = self.scope.symbol_table
-        # The symbol representing the loop index is created in the DynLoop
+        # The symbol representing the loop index is created in the LFRicLoop
         # constructor.
         return table.find_or_create_integer_symbol(
             "df", tag="dof_loop_idx")

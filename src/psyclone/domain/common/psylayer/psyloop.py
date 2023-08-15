@@ -337,7 +337,7 @@ class PSyLoop(Loop):
         nothing.
 
         TODO #1648 - this method should be removed when the corresponding
-        one in DynLoop is removed.
+        one in LFRicLoop is removed.
 
         :param parent: the node in the f2pygen AST to which to add content.
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`

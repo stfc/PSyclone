@@ -78,7 +78,7 @@ class LFRicExtractDriverCreator:
        be extracted, all others are removed. This is required since the kernel
        extraction will not contain the required data for the other kernels to
        be called. The lowering is important to fix the variable names for the
-       loop boundaries of the :py:class:`psyclone.dynamo0p3.DynLoop`: the loop
+       loop boundaries of the :py:class:`psyclone.domain.lfric.LFRicLoop`: the loop
        start/stop expressions (`loop0_start` etc.) depend on the position of
        the loop in the tree. For example, if there are two kernels, they will
        be using `loop0_start` and `loop1_start`. If only the second is

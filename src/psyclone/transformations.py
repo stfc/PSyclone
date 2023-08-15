@@ -965,7 +965,7 @@ class Dynamo0p3ColourTrans(ColourTrans):
         loop is over cells of that colour.
 
         :param node: the loop to transform.
-        :type node: :py:class:`psyclone.dynamo0p3.DynLoop`
+        :type node: :py:class:`psyclone.domain.lfric.LFRicLoop`
         :param options: a dictionary with options for transformations.\
         :type options: Optional[Dict[str, Any]]
 

@@ -49,7 +49,7 @@ from psyclone.core import AccessType
 from psyclone.domain.lfric.lfric_builtins import LFRicBuiltIn
 from psyclone.domain.common.psylayer import PSyLoop
 from psyclone.domain.lfric import LFRicConstants
-from psyclone.dynamo0p3 import (DynHaloExchange, DynKern, HaloWriteAccess)
+from psyclone.dynamo0p3 import (DynKern, HaloWriteAccess, DynHaloExchange)
 from psyclone.errors import GenerationError, InternalError
 from psyclone.f2pygen import (CallGen, CommentGen)
 from psyclone.psyGen import (HaloExchange, InvokeSchedule)

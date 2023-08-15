@@ -72,8 +72,8 @@ class LFRicKernCallFactory():
             loop_type = ""
         # Import here to avoid circular dependency
         # pylint: disable=import-outside-toplevel
-        from psyclone.dynamo0p3 import DynLoop
-        cloop = DynLoop(parent=parent, loop_type=loop_type)
+        from psyclone.domain.lfric import LFRicLoop
+        cloop = LFRicLoop(parent=parent, loop_type=loop_type)
 
         # The kernel itself
         # Import here to avoid circular dependency
