@@ -47,7 +47,8 @@ from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
 from psyclone.domain.lfric.lfric_builtins import LFRicXInnerproductYKern
 from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
-from psyclone.dynamo0p3 import DynLoop, DynHaloExchangeStart, \
+from psyclone.domain.lfric.lfric_loop import LFRicLoop
+from psyclone.dynamo0p3 import DynHaloExchangeStart, \
     DynHaloExchangeEnd, DynHaloExchange
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyGen import InvokeSchedule, GlobalSum, BuiltIn
@@ -99,10 +100,10 @@ def test_colour_trans_create_colours_loop(dist_mem):
     kernel = loop.loop_body[0]
 
     new_loop = ctrans._create_colours_loop(loop)
-    assert isinstance(new_loop, DynLoop)
+    assert isinstance(new_loop, LFRicLoop)
     assert new_loop.loop_type == "colours"
     colour_loop = new_loop.loop_body[0]
-    assert isinstance(colour_loop, DynLoop)
+    assert isinstance(colour_loop, LFRicLoop)
     assert colour_loop.loop_type == "colour"
     assert new_loop.field_space == loop.field_space
     assert colour_loop.field_space == loop.field_space
@@ -121,7 +122,7 @@ def test_colour_trans_create_colours_loop(dist_mem):
     # should have no effect - we still need to loop into the halo if DM
     # is enabled.
     kernel.args[2]._access = AccessType.WRITE
-    new_loop1 = DynLoop(parent=schedule)
+    new_loop1 = LFRicLoop(parent=schedule)
     new_loop1.load(kernel)
     new_cloop = ctrans._create_colours_loop(new_loop1)
     colour_loop = new_cloop.loop_body[0]
@@ -133,7 +134,7 @@ def test_colour_trans_create_colours_loop(dist_mem):
     # Finally, change the remaining GH_INC access to be GH_WRITE. We no
     # longer need to loop into the halo.
     kernel.args[1]._access = AccessType.WRITE
-    new_loop1 = DynLoop(parent=schedule)
+    new_loop1 = LFRicLoop(parent=schedule)
     new_loop1.load(kernel)
     new_cloop = ctrans._create_colours_loop(new_loop1)
     colour_loop = new_cloop.loop_body[0]
@@ -3502,7 +3503,7 @@ def test_repr_3_builtins_2_reductions_do(tmpdir, dist_mem):
     rtrans = OMPParallelTrans()
     otrans = Dynamo0p3OMPLoopTrans()
     for child in schedule.children:
-        if isinstance(child, DynLoop):
+        if isinstance(child, LFRicLoop):
             otrans.apply(child, {"reprod": True})
     for child in schedule.children:
         if isinstance(child, OMPDoDirective):
@@ -3614,7 +3615,7 @@ def test_reprod_view(monkeypatch, annexed, dist_mem):
     rtrans = OMPParallelTrans()
     otrans = Dynamo0p3OMPLoopTrans()
     for child in schedule.children:
-        if isinstance(child, DynLoop):
+        if isinstance(child, LFRicLoop):
             otrans.apply(child, {"reprod": True})
     for child in schedule.children:
         if isinstance(child, OMPDoDirective):
@@ -7005,8 +7006,8 @@ def test_vector_halo_exchange_remove():
     assert len(schedule.children) == 5
     for index in [0, 1, 2]:
         assert isinstance(schedule.children[index], DynHaloExchange)
-    assert isinstance(schedule.children[3], DynLoop)
-    assert isinstance(schedule.children[4], DynLoop)
+    assert isinstance(schedule.children[3], LFRicLoop)
+    assert isinstance(schedule.children[4], LFRicLoop)
 
 
 def test_vector_async_halo_exchange(tmpdir):
@@ -7064,8 +7065,8 @@ def test_vector_async_halo_exchange(tmpdir):
     for index in [0, 2, 4]:
         assert isinstance(schedule.children[index], DynHaloExchangeStart)
         assert isinstance(schedule.children[index+1], DynHaloExchangeEnd)
-    assert isinstance(schedule.children[6], DynLoop)
-    assert isinstance(schedule.children[7], DynLoop)
+    assert isinstance(schedule.children[6], LFRicLoop)
+    assert isinstance(schedule.children[7], LFRicLoop)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 

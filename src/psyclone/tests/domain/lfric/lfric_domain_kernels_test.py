@@ -304,14 +304,14 @@ def test_psy_gen_domain_kernel(dist_mem, tmpdir, fortran_writer):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
     # Also test that the FortranWriter handles domain kernels as expected.
-    # ATM we have a `lower_to_language_level method` for DynLoop which removes
+    # ATM we have a `lower_to_language_level method` for LFRicLoop which removes
     # the loop node for a domain kernel entirely and only leaves the body.
     # So we can't call the FortranWriter directly, since it will first lower
     # the tree, which removes the domain kernel.
     # In order to test the actual writer atm, we have to call the
     # `loop_node` directly. But in order for this to work, we need to
     # lower the actual kernel call. Once #1731 is fixed, the temporary
-    # `lower_to_language_level` method in DynLoop can (likely) be removed,
+    # `lower_to_language_level` method in LFRicLoop can (likely) be removed,
     # and then we can just call `fortran_writer(schedule)` here.
     schedule = psy.invokes.invoke_list[0].schedule
     # Lower the DynKern:

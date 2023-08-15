@@ -152,7 +152,7 @@ def test_loop_gen_code():
                            api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
 
-    # By default DynLoop has step = 1 and it is not printed in the Fortran DO
+    # By default LFRicLoop has step = 1 and it is not printed in the Fortran DO
     gen = str(psy.gen)
     assert "loop0_start = 1" in gen
     assert "loop0_stop = mesh%get_last_halo_cell(1)" in gen
