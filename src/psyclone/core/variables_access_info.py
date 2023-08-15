@@ -67,25 +67,31 @@ class VariablesAccessInfo(dict):
 
     '''
 
-    # List of valid options. Note that only the options method checks this,
-    # since it is convenient to pass in options from the DependencyTools
-    # that might contain options for these tools.
-    _VALID_OPTIONS = ["COLLECT-ARRAY-SHAPE-READS"]
+    # List of valid options and their default values. Note that only the
+    # options method checks this, since it is convenient to pass in options
+    # from the DependencyTools that might contain options for these tools.
+    # COLLECT-ARRAY-SHAPE-READS: controls if access to the shape of an array
+    #     (e.g. ``ubound(a)`` are reported as read or not at all. Defaults
+    #     to True.
+    # USE-ORIGINAL-NAMES: if set this will report the original names of any
+    #     symbol that is being renamed (``use mod, renamed_a=>a``). Defaults
+    #     to False.
+    _DEFAULT_OPTIONS = {"COLLECT-ARRAY-SHAPE-READS": False,
+                        "USE-ORIGINAL-NAMES": False}
 
     def __init__(self, nodes=None, options=None):
         # This dictionary stores the mapping of signatures to the
         # corresponding SingleVariableAccessInfo instance.
         dict.__init__(self)
 
+        self._options = VariablesAccessInfo._DEFAULT_OPTIONS.copy()
         if options:
             if not isinstance(options, dict):
                 raise InternalError(f"The options argument for "
                                     f"VariablesAccessInfo must be a "
                                     f"dictionary or None, but got "
                                     f"'{type(options).__name__}'.")
-            self._options = options.copy()
-        else:
-            self._options = {}
+            self._options.update(options)
 
         # Stores the current location information
         self._location = 0
@@ -161,11 +167,11 @@ class VariablesAccessInfo(dict):
 
         '''
         if key:
-            if key not in VariablesAccessInfo._VALID_OPTIONS:
+            if key not in VariablesAccessInfo._DEFAULT_OPTIONS:
+                valids = list(VariablesAccessInfo._DEFAULT_OPTIONS.keys())
+                valids.sort()
                 raise InternalError(f"Option key '{key}' is invalid, it "
-                                    f"must be one of "
-                                    f"{VariablesAccessInfo._VALID_OPTIONS}"
-                                    f".")
+                                    f"must be one of {valids}.")
             return self._options.get(key, None)
         return self._options
 
