@@ -43,7 +43,7 @@ program main
     use testkern_w0_kernel_mod, only: testkern_w0_kernel_type
     use constants_mod,          only: r_def, i_def
     use log_mod,                only: LOG_LEVEL_ALWAYS
-
+    use other_alg_mod,          only: my_alg
     implicit none
 
     type(global_mesh_base_type), target        :: global_mesh
@@ -58,7 +58,10 @@ program main
     type(field_type)                           :: field1, field2
     integer(kind=i_def)                        :: lfric_fs = W0   ! W0
     integer(kind=i_def)                        :: element_order = 1
-    integer(kind=i_def)                        :: ndata_sz
+    integer(kind=i_def)                        :: ndata_sz, istp
+    real(kind=r_def) :: chksm
+
+    chksm = 0.0_r_def
 
     ! Use the unit-testing constructor:
     global_mesh = global_mesh_base_type()
@@ -88,12 +91,28 @@ program main
     vector_space_ptr => vector_space
     call field1%initialise( vector_space = vector_space_ptr, name="field1" )
     call field2%initialise( vector_space = vector_space_ptr, name="field2" )
-    call invoke( name = 'Initialise fields',        &
-                 setval_c( field1,     0.0_r_def ), &
-                 setval_c( field2,     1.0_r_def )  &
-                 )
-    call invoke( name = 'testkern_w0', testkern_w0_kernel_type(field1, field2) )
+
+    call invoke( name = 'Initialise_fields',        &
+                 setval_c( field1,     0.1_r_def ), &
+                 setval_c( field2,     0.2_r_def )  &
+                )
+
+    do istp = 1, 5
+
+       call invoke( name = 'testkern_w0', &
+                    testkern_w0_kernel_type(field1, field2) )
+
+       ! Call an algorithm in a separate module
+       call my_alg(field1, chksm)
+
+       chksm = 1.0E-6 * chksm
+       write(*,*) "Step ",istp,": chksm = ", chksm
+
+       call invoke(setval_c(field2, chksm))
+
+    end do
 
     call field1%log_minmax(LOG_LEVEL_ALWAYS, "minmax of field1")
+    call field2%log_minmax(LOG_LEVEL_ALWAYS, "minmax of field2")
 
 end program main
