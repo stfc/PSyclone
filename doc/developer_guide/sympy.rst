@@ -166,14 +166,14 @@ guarantees that no Reference to an existing symbol is renamed. In the case of
 ``a_b_1`` for the structure reference to avoid the name clash with the
 reference ``a_b``.
 
-Any array indices are converted into argument of this new function. So an
+Any array indices are converted into arguments of this new function. So an
 expression like ``a(i)%b%c(j,k)`` becomes ``a_b_c(i,i,1,j,j,1,k,k,1)``
 (see :ref:`array_expressions`). The ``SymPyWriter`` creates a custom SymPy
 function, which keeps a list of which reference/member contained how many
 indices. In the example this would be ``[1, 0, 2]``, indicating that the
-first reference had one index, the second one none (i.e. it is a scalar),
-and the last reference had two indices. This allows the function to
-properly re-create the Fortran string.
+first reference had one index, the second one none (i.e. it is not an
+array access), and the last reference had two indices. This allows the
+function to properly re-create the Fortran string.
 
 
 Documentation for SymPyWriter Functions
