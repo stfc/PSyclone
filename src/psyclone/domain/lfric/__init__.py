@@ -63,6 +63,7 @@ from psyclone.domain.lfric.metadata_to_arguments_rules import \
 from psyclone.domain.lfric.arg_index_to_metadata_index import \
     ArgIndexToMetadataIndex
 from psyclone.domain.lfric.lfric_collection import LFRicCollection
+from psyclone.domain.lfric.lfric_stencil import LFRicStencil
 
 
 __all__ = [
@@ -77,4 +78,5 @@ __all__ = [
     'LFRicConstants',
     'LFRicExtractDriverCreator',
     'LFRicInvoke',
+    'LFRicStencil',
     'LFRicSymbolTable']

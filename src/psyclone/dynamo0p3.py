@@ -61,7 +61,7 @@ from psyclone.domain.lfric import (FunctionSpace, KernCallAccArgList,
                                    LFRicArgDescriptor, KernelInterface,
                                    LFRicCollection, LFRicConstants,
                                    LFRicSymbolTable, LFRicInvoke,
-                                   LFRicKernCallFactory)
+                                   LFRicKernCallFactory, LFRicStencil)
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 from psyclone.f2pygen import (AllocateGen, AssignGen, CallGen, CommentGen,
                               DeallocateGen, DeclGen, DoGen, IfThenGen,
@@ -8562,43 +8562,6 @@ def check_args(call):
             f"qr_arguments'")
 
 
-class DynStencil():
-    ''' Provides stencil information about a Dynamo argument '''
-    def __init__(self, name):
-        self._name = name
-        self._extent = None
-        self._extent_arg = None
-        self._direction_arg = None
-
-    @property
-    def extent(self):
-        '''Returns the extent of the stencil if it is known. It will be known
-        if it is specified in the metadata.'''
-        return self._extent
-
-    @property
-    def extent_arg(self):
-        '''Returns the algorithm argument associated with the extent value if
-        extent has not been provided in the metadata.'''
-        return self._extent_arg
-
-    @extent_arg.setter
-    def extent_arg(self, value):
-        ''' sets the extent_arg argument. '''
-        self._extent_arg = value
-
-    @property
-    def direction_arg(self):
-        '''returns the direction argument associated with the direction of
-        the stencil if the direction of the stencil is not known'''
-        return self._direction_arg
-
-    @direction_arg.setter
-    def direction_arg(self, value):
-        ''' sets the direction_arg argument. '''
-        self._direction_arg = value
-
-
 class DynKernelArguments(Arguments):
     '''
     Provides information about Dynamo kernel call arguments
@@ -8636,14 +8599,14 @@ class DynKernelArguments(Arguments):
             if dyn_argument.descriptor.stencil:
                 # Create a stencil object and store a reference to it in our
                 # new DynKernelArgument object.
-                stencil = DynStencil(dyn_argument.descriptor.stencil['type'])
+                stencil = LFRicStencil(dyn_argument.descriptor.stencil['type'])
                 dyn_argument.stencil = stencil
 
                 if dyn_argument.descriptor.stencil['extent']:
                     raise GenerationError("extent metadata not yet supported")
                     # if supported we would add the following
                     # line. However, note there is currently no setter
-                    # for extent in DynStencil so this would need to
+                    # for extent in LFRicStencil so this would need to
                     # be added.  stencil.extent =
                     # dyn_argument.descriptor.stencil['extent']
                 # An extent argument has been added.
@@ -9666,7 +9629,7 @@ class DynKernelArgument(KernelArgument):
     def stencil(self):
         '''
         :returns: stencil information for this argument if it exists.
-        :rtype: :py:class:`psyclone.dynamo0p3.DynStencil`
+        :rtype: :py:class:`psyclone.domain.lfric.LFRicStencil`
         '''
         return self._stencil
 
@@ -9676,7 +9639,7 @@ class DynKernelArgument(KernelArgument):
         Sets stencil information for this kernel argument.
 
         :param value: stencil information for this argument.
-        :type value: :py:class:`psyclone.dynamo0p3.DynStencil`
+        :type value: :py:class:`psyclone.domain.lfric.LFRicStencil`
 
         '''
         self._stencil = value
@@ -9827,7 +9790,6 @@ __all__ = [
     'DynKern',
     'FSDescriptor',
     'FSDescriptors',
-    'DynStencil',
     'DynKernelArguments',
     'DynKernelArgument',
     'DynACCEnterDataDirective']
