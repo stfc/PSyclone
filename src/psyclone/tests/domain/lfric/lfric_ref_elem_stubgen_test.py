@@ -42,8 +42,8 @@ functionality of the LFRic (Dynamo0.3) API.
 
 import os
 from fparser import api as fpapi
-from psyclone.dynamo0p3 import DynKernMetadata
 from psyclone.domain.lfric import LFRicKern
+from psyclone.dynamo0p3 import DynKernMetadata
 
 
 # Constants

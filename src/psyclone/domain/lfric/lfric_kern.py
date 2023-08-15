@@ -62,7 +62,7 @@ from psyclone.psyir.symbols import DataSymbol, ScalarType, ArrayType
 
 
 class LFRicKern(CodedKern):
-    ''' Stores information about Dynamo Kernels as specified by the
+    ''' Stores information about LFRic Kernels as specified by the
     Kernel metadata and associated algorithm call. Uses this
     information to generate appropriate PSy layer code for the Kernel
     instance or to generate a Kernel stub.
@@ -262,7 +262,7 @@ class LFRicKern(CodedKern):
                            KernelCall(module_name, ktype, args),
                            parent, check)
         # Remove "_code" from the name if it exists to determine the
-        # base name which (if dynamo0.3 naming conventions are
+        # base name which (if LFRic naming conventions are
         # followed) is used as the root for the module and subroutine
         # names.
         if self.name.lower().endswith("_code"):
@@ -314,7 +314,7 @@ class LFRicKern(CodedKern):
                 # clashes.
                 qr_name = "qr_"+shape.split("_")[-1]
 
-            # Dynamo 0.3 api kernels require quadrature rule arguments to be
+            # LFRic api kernels require quadrature rule arguments to be
             # passed in if one or more basis functions are used by the kernel
             # and gh_shape == "gh_quadrature_***".
             # if self._eval_shape == "gh_quadrature_xyz":

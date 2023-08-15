@@ -1960,7 +1960,7 @@ class Dynamo0p3KernelConstTrans(Transformation):
         is derived.
 
         :param node: a kernel node.
-        :type node: :py:obj:`psyclone.psygen.LFRicKern`
+        :type node: :py:obj:`psyclone.domain.lfric.LFRicKern`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
         :param str options["cellshape"]: the shape of the cells. This is\
@@ -2117,7 +2117,7 @@ class Dynamo0p3KernelConstTrans(Transformation):
         this transformation.
 
         :param node: a dynamo 0.3 kernel node.
-        :type node: :py:obj:`psyclone.psygen.LFRicKern`
+        :type node: :py:obj:`psyclone.domain.lfric.LFRicKern`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
         :param str options["cellshape"]: the shape of the elements/cells.
