@@ -36,12 +36,8 @@
 # Modified J. Henrichs, Bureau of Meteorology
 # Modified A. B. G. Chalk and N. Nobre, STFC Daresbury Lab
 
-''' This module implements the PSyclone Dynamo 0.3 API by 1)
-    specialising the required base classes in parser.py (KernelType) and
-    adding a new class (DynFuncDescriptor03) to capture function descriptor
-    metadata and 2) specialising the required base classes in psyGen.py
-    (PSy, Invokes, Invoke, InvokeSchedule, Loop, Kern, Inf, Arguments and
-    Argument). '''
+''' This module implements the PSyclone LFRic API by specialising the required
+    base class Kern in psyGen.py '''
 
 # Imports
 from collections import OrderedDict, namedtuple
@@ -127,8 +123,8 @@ class LFRicKern(CodedKern):
             information about variable accesses.
         :type var_accesses: \
             :py:class:`psyclone.core.VariablesAccessInfo`
-        '''
 
+        '''
         # Use the KernelCallArgList class, which can also provide variable
         # access information:
         create_arg_list = KernCallArgList(self)
@@ -246,7 +242,7 @@ class LFRicKern(CodedKern):
                                 the source of this Kernel.
         :param args: list of Arg objects produced by the parser for the \
                      arguments of this kernel call.
-        :type args: list of :py:class:`psyclone.parse.algorithm.Arg` objects
+        :type args: List[:py:class:`psyclone.parse.algorithm.Arg`] objects
         :param parent: the parent of this kernel call in the generated \
                        AST (will be a loop object).
         :type parent: :py:class:`psyclone.dynamo0p3.DynLoop`
@@ -369,15 +365,17 @@ class LFRicKern(CodedKern):
 
     @property
     def cma_operation(self):
-        ''' Returns the type of CMA operation performed by this kernel
-        (one of 'assembly', 'apply' or 'matrix-matrix') or None if the
-        the kernel does not involve CMA operators '''
+        '''
+        :return: the type of CMA operation performed by this kernel
+                 (one of 'assembly', 'apply' or 'matrix-matrix') or None
+                 if the kernel does not involve CMA operators.
+        :rtype: str
+        '''
         return self._cma_operation
 
     @property
     def is_intergrid(self):
         '''
-        Getter for whether or not this is an inter-grid kernel call
         :return: True if it is an inter-grid kernel, False otherwise
         :rtype: bool
         '''
@@ -482,9 +480,13 @@ class LFRicKern(CodedKern):
 
     @property
     def fs_descriptors(self):
-        ''' Returns a list of function space descriptor objects of
-        type FSDescriptor which contain information about the function
-        spaces. '''
+        '''
+        :return: a list of function space descriptor objects of
+                 type FSDescriptor which contain information about
+                 the function spaces.
+        :rtype: list of str
+
+        '''
         return self._fs_descriptors
 
     @property
