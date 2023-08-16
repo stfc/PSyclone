@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified I. Kavcic, A. Coughtrie and L. Turner, Met Office
+# Modified I. Kavcic, A. Coughtrie, L. Turner and O. Brunt, Met Office
 # Modified J. Henrichs, Bureau of Meteorology
 # Modified A. B. G. Chalk and N. Nobre, STFC Daresbury Lab
 
@@ -61,7 +61,7 @@ from psyclone.domain.lfric import (FunctionSpace, KernCallAccArgList,
                                    LFRicArgDescriptor, KernelInterface,
                                    LFRicCollection, LFRicConstants,
                                    LFRicSymbolTable, LFRicInvoke,
-                                   LFRicKernCallFactory)
+                                   LFRicKernCallFactory, LFRicInvokes)
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 from psyclone.f2pygen import (AllocateGen, AssignGen, CallGen, CommentGen,
                               DeallocateGen, DeclGen, DoGen, IfThenGen,
@@ -1118,24 +1118,6 @@ class DynamoPSy(PSy):
 
         # Return the root node of the generated code
         return psy_module.root
-
-
-class LFRicInvokes(Invokes):
-    '''The Dynamo specific invokes class. This passes the Dynamo
-    specific invoke class to the base class so it creates the one we
-    require.
-
-    :param alg_calls: list of objects containing the parsed invoke \
-        information.
-    :type alg_calls: list of \
-        :py:class:`psyclone.parse.algorithm.InvokeCall`
-    :param psy: the PSy object containing this LFRicInvokes object.
-    :type psy: :py:class`psyclone.dynamo0p3.DynamoPSy`
-
-    '''
-    def __init__(self, alg_calls, psy):
-        self._0_to_n = LFRicInvoke(None, None, None)  # for pyreverse
-        Invokes.__init__(self, alg_calls, LFRicInvoke, psy)
 
 
 class DynStencils(LFRicCollection):
@@ -9801,7 +9783,6 @@ __all__ = [
     'DynFuncDescriptor03',
     'DynKernMetadata',
     'DynamoPSy',
-    'LFRicInvokes',
     'DynStencils',
     'DynDofmaps',
     'DynFunctionSpaces',
