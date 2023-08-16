@@ -384,6 +384,20 @@ longstringname2,1:some_type%longstringname3,&
     assert correct in out
 
 
+def test_long_lines_indentation():
+    '''Test that if we have too much initial indentation that we still
+    can output a result.'''
+    long_string = '''                                                     \
+                                                                          \
+    allocate(pressure_prsc(some_type%longstringname1, \
+some_type%longstringname2))'''
+    line_length = FortLineLength()
+    out = line_length.process(long_string)
+    correct = '''allocate(pressure_prsc(some_type%longstringname1, \
+some_type%longstringname2))'''
+    assert correct == out
+
+
 def test_long_lines_true():
     ''' Tests that the long_lines method returns true with fortran
     input which has at least one line longer than the specified
