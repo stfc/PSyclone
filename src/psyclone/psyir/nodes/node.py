@@ -910,10 +910,6 @@ class Node():
         :returns: the immediate children of this Node.
         :rtype: List[:py:class:`psyclone.psyir.nodes.Node`]
         '''
-        # An incomplete node may not have the _children attribute so return
-        # an empty list in this case.
-        if not hasattr(self, "_children"):
-            return []
         return self._children
 
     @children.setter
