@@ -365,6 +365,10 @@ epub_copyright = copyright
 # -- Options for linkcheck -------------------------------------------------
 
 linkcheck_anchors = True
+# We need to ignore this anchor (used a couple of times in examples.rst)
+# because it seems that GitHub's JavaScript-generated page defeats the
+# link checker.
+linkcheck_anchors_ignore = ['user-content-netcdf-library-lfric-examples']
 
 # MyBinder fails on a very regular basis so we skip those links.
 # The puma site no longer exists but the GOcean documentation needs to be
