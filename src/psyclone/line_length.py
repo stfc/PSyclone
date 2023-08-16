@@ -65,7 +65,6 @@ def find_break_point(line, max_index, key_list):
     '''
     # We should never break the line before the first element on the
     # line.
-    print(line)
     first_non_whitespace = len(line) - len(line.lstrip())
     for key in key_list:
         idx = line.rfind(key, first_non_whitespace+1, max_index)
@@ -146,10 +145,9 @@ class FortLineLength():
                     line = lstripped_line
                 # Once we've dedented the line, we need to check it still
                 # needs to be split
-                if len(line) < self._line_length:
+                if len(line) <= self._line_length:
                     fortran_out += line + "\n"
                     continue
-
                 # Otherwise, we continue to break the line as normal.
                 break_point = find_break_point(
                     line, self._line_length-len(c_end), key_list)
