@@ -330,8 +330,10 @@ class Call(Statement, DataNode):
                     for idx in indices:
                         idx.reference_accesses(var_accesses)
             else:
-                # This argument is ultimately pass-by-value so any
-                # inputs to it are READ.
+                # This argument is not a Reference so continue to walk down the
+                # tree. (e.g. it could be/contain a Call to
+                # an impure routine in which case any arguments to that Call
+                # will have READWRITE access.)
                 arg.reference_accesses(var_accesses)
 
     @property
