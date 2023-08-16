@@ -397,6 +397,17 @@ some_type%longstringname2))'''
 some_type%longstringname2))'''
     assert correct == out
 
+    long_string = '''                                                     \
+                                                                          \
+    allocate(pressure_prsc(some_type%longstringname1, \
+some_type%longstringname2, some_type%longstringname3, \
+some_type%longerstringname4))'''
+    out = line_length.process(long_string)
+    correct = '''allocate(pressure_prsc(some_type%longstringname1, \
+some_type%longstringname2, some_type%longstringname3, &
+&some_type%longerstringname4))'''
+    assert correct == out
+
 
 def test_long_lines_true():
     ''' Tests that the long_lines method returns true with fortran
