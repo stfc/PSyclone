@@ -35,6 +35,8 @@
 #         I. Kavcic, A. Coughtrie and L. Turner, Met Office;
 #         C. M. Maynard, Met Office/University of Reading;
 #         J. Henrichs, Bureau of Meteorology.
+#
+# Modified: O. Brunt, Met Office
 
 '''
 Module containing pytest tests for the general LFRic field arguments
@@ -46,8 +48,8 @@ import pytest
 import fparser
 from fparser import api as fpapi
 from psyclone.core.access_type import AccessType
-from psyclone.domain.lfric import LFRicArgDescriptor, LFRicConstants
-from psyclone.dynamo0p3 import DynKernMetadata, LFRicFields
+from psyclone.domain.lfric import LFRicArgDescriptor, LFRicConstants, LFRicFields
+from psyclone.dynamo0p3 import DynKernMetadata
 from psyclone.f2pygen import ModuleGen
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
