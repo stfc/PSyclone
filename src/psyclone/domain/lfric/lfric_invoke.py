@@ -62,7 +62,7 @@ class LFRicInvoke(Invoke):
                     contained in the Algorithm.
     :param invokes: the Invokes object containing this LFRicInvoke \
                     object.
-    :type invokes: :py:class:`psyclone.dynamo0p3.DynamoInvokes`
+    :type invokes: :py:class:`psyclone.dynamo0p3.LFRicInvokes`
 
     :raises GenerationError: if integer reductions are required in the \
                     PSy-layer.

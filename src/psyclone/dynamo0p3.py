@@ -1010,7 +1010,7 @@ class DynamoPSy(PSy):
         # TODO #1954: Remove the protected access using a factory
         ScopingNode._symbol_table_class = LFRicSymbolTable
         PSy.__init__(self, invoke_info)
-        self._invokes = DynamoInvokes(invoke_info.calls, self)
+        self._invokes = LFRicInvokes(invoke_info.calls, self)
         # Initialise the dictionary that holds the names of the required
         # LFRic constants, data structures and data structure proxies for
         # the "use" statements in modules that contain PSy-layer routines.
@@ -1120,7 +1120,7 @@ class DynamoPSy(PSy):
         return psy_module.root
 
 
-class DynamoInvokes(Invokes):
+class LFRicInvokes(Invokes):
     '''The Dynamo specific invokes class. This passes the Dynamo
     specific invoke class to the base class so it creates the one we
     require.
@@ -1129,7 +1129,7 @@ class DynamoInvokes(Invokes):
         information.
     :type alg_calls: list of \
         :py:class:`psyclone.parse.algorithm.InvokeCall`
-    :param psy: the PSy object containing this DynamoInvokes object.
+    :param psy: the PSy object containing this LFRicInvokes object.
     :type psy: :py:class`psyclone.dynamo0p3.DynamoPSy`
 
     '''
@@ -9801,7 +9801,7 @@ __all__ = [
     'DynFuncDescriptor03',
     'DynKernMetadata',
     'DynamoPSy',
-    'DynamoInvokes',
+    'LFRicInvokes',
     'DynStencils',
     'DynDofmaps',
     'DynFunctionSpaces',
