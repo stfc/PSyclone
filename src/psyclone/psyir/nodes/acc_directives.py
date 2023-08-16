@@ -42,7 +42,6 @@
 nodes.'''
 
 import abc
-from collections import OrderedDict
 
 from psyclone.core import Signature
 from psyclone.f2pygen import DirectiveGen, CommentGen
@@ -673,8 +672,18 @@ class ACCDataDirective(ACCRegionDirective):
     def _update_node(self):
         '''
         Called whenever there is a change in the PSyIR tree below this node.
-        This may mean that the various copy[in/out] clauses need updating if
-        the contents of the data region have changed.
+
+        Ensures that the various data-movement clauses are up-to-date.
+
+        '''
+        self._update_data_movement_clauses()
+
+    def _update_data_movement_clauses(self):
+        '''
+        Updates the data-movement clauses on this directive.
+
+        First removes any such clauses and then regenerates them using
+        dependence analysis to determine which variables (if any) need moving.
 
         '''
         # Remove the clauses that we will update.
@@ -683,6 +692,8 @@ class ACCDataDirective(ACCRegionDirective):
                           (ACCCopyInClause, ACCCopyOutClause, ACCCopyClause)):
                 self.children.remove(child)
 
+        # Use dependence analysis to identify the variables that are read,
+        # written and read+written within the tree below this node.
         reads, writes, readwrites = self.create_data_movement_deep_copy_refs()
 
         if reads:

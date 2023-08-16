@@ -62,7 +62,8 @@ class ScopingNode(Node):
     _symbol_table_class = SymbolTable
 
     def __init__(self, children=None, parent=None, symbol_table=None):
-        super().__init__(self, children=children, parent=parent)
+        super(ScopingNode, self).__init__(self, children=children,
+                                          parent=parent)
         self._symbol_table = None
 
         if symbol_table is not None:

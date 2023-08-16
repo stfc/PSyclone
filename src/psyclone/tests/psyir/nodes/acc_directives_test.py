@@ -49,11 +49,16 @@ from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import (ACCKernelsDirective,
                                   ACCLoopDirective,
+                                  ACCRegionDirective,
                                   ACCRoutineDirective,
-                                  ACCUpdateDirective)
+                                  ACCUpdateDirective,
+                                  Assignment,
+                                  Literal,
+                                  Reference,
+                                  Routine)
 from psyclone.psyir.nodes.loop import Loop
 from psyclone.psyir.nodes.schedule import Schedule
-from psyclone.psyir.symbols import SymbolTable
+from psyclone.psyir.symbols import SymbolTable, DataSymbol, INTEGER_TYPE
 from psyclone.transformations import (ACCDataTrans, ACCEnterDataTrans,
                                       ACCParallelTrans, ACCKernelsTrans)
 
@@ -68,6 +73,47 @@ def setup():
     yield
     Config._instance = None
 
+
+# Class ACCRegionDirective
+
+class MyACCRegion(ACCRegionDirective):
+    '''Concreate test class sub-classed from ACCRegionDirective.'''
+
+
+def test_accregiondir_validate_global(fortran_reader):
+    '''Check that the validate_global_constraints() method rejects PSyDataNode
+    and CodeBlock nodes.'''
+    accnode = MyACCRegion()
+    cblock = fortran_reader.psyir_from_statement("write(*,*) 'hello'",
+                                                 SymbolTable())
+    accnode.dir_body.addchild(cblock)
+    with pytest.raises(GenerationError) as err:
+        accnode.validate_global_constraints()
+    assert ("Cannot include CodeBlocks or calls to PSyData routines within "
+            "OpenACC regions but found ['CodeBlock'] within a region enclosed "
+            "by an 'MyACCRegion'" in str(err.value))
+
+
+def test_accregiondir_signatures():
+    '''Test the signatures property of ACCRegionDirective.'''
+    routine = Routine("test_prog")
+    accnode = MyACCRegion()
+    routine.addchild(accnode)
+    bob = DataSymbol("bob", INTEGER_TYPE)
+    richard = DataSymbol("richard", INTEGER_TYPE)
+    routine.symbol_table.add(bob)
+    accnode.dir_body.addchild(
+        Assignment.create(lhs=Reference(bob), rhs=Literal("1", INTEGER_TYPE)))
+    accnode.dir_body.addchild(
+        Assignment.create(lhs=Reference(bob), rhs=Literal("1", INTEGER_TYPE)))
+    accnode.dir_body.addchild(
+        Assignment.create(lhs=Reference(bob), rhs=Literal("1", INTEGER_TYPE)))
+    accnode.dir_body.addchild(
+        Assignment.create(lhs=Reference(bob), rhs=Reference(richard)))
+    # pylint: disable=unbalanced-tuple-unpacking
+    reads, writes = accnode.signatures
+    assert Signature("richard") in reads
+    assert Signature("bob") in writes
 
 # Class ACCEnterDataDirective start
 
