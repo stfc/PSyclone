@@ -551,12 +551,6 @@ class LFRicKern(CodedKern):
         all_writes.remove(AccessType.WRITE)
         return (not accesses.intersection(set(all_writes)))
 
-    def local_vars(self):
-        ''' Returns the names used by the Kernel that vary from one
-        invocation to the next and therefore require privatisation
-        when parallelised. '''
-        return []
-
     @property
     def base_name(self):
         '''

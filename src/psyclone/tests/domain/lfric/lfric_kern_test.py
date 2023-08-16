@@ -453,15 +453,6 @@ def test_kern_all_updates_are_writes():
     assert loop.kernel.all_updates_are_writes
 
 
-def test_kern_local_vars():
-    ''' Check that the LFRicKern.local_vars() method returns the expected
-    names used by the Kernel that vary from one invocation to the next.
-    '''
-    kernel = LFRicKern()
-    output = kernel.local_vars()
-    assert output == []
-
-
 def test_kern_not_coloured_inc(monkeypatch):
     ''' Tests that there is no kernel argument with INC access when OpenMP
     is applied without colouring.
