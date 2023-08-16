@@ -143,7 +143,7 @@ class KernCallAccArgList(KernCallArgList):
         :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
         :param var_accesses: optional VariablesAccessInfo instance to store
             the information about variable accesses.
-        :type var_accesses: [
+        :type var_accesses: Optional[
             :py:class:`psyclone.core.VariablesAccessInfo`]
 
         '''

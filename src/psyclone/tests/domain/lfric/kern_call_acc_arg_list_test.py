@@ -43,8 +43,8 @@ import pytest
 
 from psyclone.core import VariablesAccessInfo
 from psyclone.domain.lfric import FunctionSpace, KernCallAccArgList
-from psyclone.errors import InternalError
 from psyclone.dynamo0p3 import DynKern
+from psyclone.errors import InternalError
 from psyclone.parse.algorithm import parse
 from psyclone import psyGen
 from psyclone.tests.utilities import get_base_path, get_invoke

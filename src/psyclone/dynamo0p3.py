@@ -1860,7 +1860,6 @@ class LFRicMeshProperties(LFRicCollection):
                     cell_name = "cell"
                     if self._kernel.is_coloured():
                         colour_name = "colour"
-                        #cmap_name = "cmap"
                         cmap_name = self._symbol_table.find_or_create_tag(
                             "cmap", root_name="cmap").name
                         adj_face += (f"(:,{cmap_name}({colour_name},"
