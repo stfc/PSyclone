@@ -341,15 +341,15 @@ class ACCLoopDirective(ACCRegionDirective):
     '''
     Class managing the creation of a '!$acc loop' OpenACC directive.
 
-    :param int collapse: Number of nested loops to collapse into a single \
+    :param int collapse: Number of nested loops to collapse into a single
                          iteration space or None.
-    :param bool independent: Whether or not to add the `independent` clause \
+    :param bool independent: Whether or not to add the `independent` clause
                              to the loop directive.
-    :param bool sequential: whether or not to add the `seq` clause to the \
+    :param bool sequential: whether or not to add the `seq` clause to the
                             loop directive.
-    :param bool gang: whether or not to add the `gang` clause to the \
+    :param bool gang: whether or not to add the `gang` clause to the
                       loop directive.
-    :param bool vector: whether or not to add the `vector` clause to the \
+    :param bool vector: whether or not to add the `vector` clause to the
                         loop directive.
     :param kwargs: additional keyword arguments provided to the super class.
     :type kwargs: unwrapped dict.
@@ -439,7 +439,7 @@ class ACCLoopDirective(ACCRegionDirective):
     @property
     def gang(self):
         '''
-        :returns: whether or not the `gang` clause is added to this loop \
+        :returns: whether or not the `gang` clause is added to this loop
                   directive.
         :rtype: bool
         '''
@@ -448,7 +448,7 @@ class ACCLoopDirective(ACCRegionDirective):
     @property
     def vector(self):
         '''
-        :returns: whether or not the `vector` clause is added to this loop \
+        :returns: whether or not the `vector` clause is added to this loop
                   directive.
         :rtype: bool
         '''
