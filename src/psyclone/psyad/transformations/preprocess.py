@@ -40,9 +40,8 @@ translated to adjoint PSyIR.
 
 '''
 from psyclone.core import SymbolicMaths
-from psyclone.psyad.utils import node_is_active, node_is_passive
-from psyclone.psyir.nodes import (BinaryOperation, Assignment, Reference,
-                                  StructureReference)
+from psyclone.psyad.utils import node_is_passive
+from psyclone.psyir.nodes import (Assignment, BinaryOperation, Reference)
 from psyclone.psyir.transformations import (DotProduct2CodeTrans,
                                             Matmul2CodeTrans,
                                             ArrayRange2LoopTrans,
@@ -101,94 +100,5 @@ def preprocess_trans(kernel_psyir, active_variable_names):
     # Deal with any associativity issues here as AssignmentTrans
     # is not able to.
     for assignment in kernel_psyir.walk(Assignment):
-        if assignment.walk(StructureReference):
-            # SymbolicMaths currently does not work if the expression
-            # contains user-defined types, see issue #2166.
-            associativity(assignment, active_variable_names)
-        else:
-            sym_maths = SymbolicMaths.get()
-            sym_maths.expand(assignment.rhs)
-
-
-def associativity(assignment, active_variable_names):
-    '''Repeatedly look for the patterns x * (a +- b) or (a +- b) */ x on
-    the rhs of this assignment where x is an inactive expression and a
-    and b are active expressions, replacing these patterns with x*a +-
-    x*b and a*/x +- b*/x respectively.
-
-    This function can be removed when support for Range nodes is added
-    to the SymbolicMaths expand function, see issue #1655.
-
-    :param assignment: the Assignment Node that we are looking at.
-    :type assignment: :py:class:`psyclone.psyir.nodes.Assignment`
-    :param active_variable_names: list of active variable names.
-    :type active_variable_names: list of str
-
-    '''
-    if node_is_active(assignment.rhs, active_variable_names):
-        while True:
-            for oper in assignment.rhs.walk(BinaryOperation):
-                # pylint: disable=too-many-boolean-expressions
-                if oper.operator == BinaryOperation.Operator.MUL and \
-                       node_is_passive(
-                           oper.children[0], active_variable_names) and \
-                       isinstance(oper.children[1], BinaryOperation) and \
-                       oper.children[1].operator in [
-                           BinaryOperation.Operator.ADD,
-                           BinaryOperation.Operator.SUB] and \
-                       node_is_active(
-                           oper.children[1].children[0],
-                           active_variable_names) and \
-                       node_is_active(
-                           oper.children[1].children[1],
-                           active_variable_names):
-                    # Matched one of the patterns we are looking for
-                    # x * (a +- b)
-                    inactive = oper.children[0]
-                    active0 = oper.children[1].children[0]
-                    active1 = oper.children[1].children[1]
-                    binary_op = oper.children[1]
-                    # Restructure to x*a +- x*b
-                    mult0 = BinaryOperation.create(
-                        BinaryOperation.Operator.MUL, inactive.detach(),
-                        active0.detach())
-                    mult1 = BinaryOperation.create(
-                        BinaryOperation.Operator.MUL, inactive.copy(),
-                        active1.detach())
-                    binary_op.children.extend([mult0, mult1])
-                    oper.replace_with(binary_op.detach())
-                    break
-
-                if oper.operator in [
-                        BinaryOperation.Operator.MUL,
-                        BinaryOperation.Operator.DIV] and \
-                        node_is_passive(
-                            oper.children[1], active_variable_names) and \
-                        isinstance(oper.children[0], BinaryOperation) and \
-                        oper.children[0].operator in [
-                            BinaryOperation.Operator.ADD,
-                            BinaryOperation.Operator.SUB] and \
-                        node_is_active(
-                            oper.children[0].children[0],
-                            active_variable_names) and \
-                        node_is_active(
-                            oper.children[0].children[1],
-                            active_variable_names):
-                    # Matched one of the patterns we are looking
-                    # for: (a +- b) */ x
-                    inactive = oper.children[1]
-                    active0 = oper.children[0].children[0]
-                    active1 = oper.children[0].children[1]
-                    binary_op = oper.children[0]
-                    # Restructure to a */ x +- b */ x
-                    op0 = BinaryOperation.create(
-                        oper.operator, active0.detach(), inactive.detach())
-                    op1 = BinaryOperation.create(
-                        oper.operator, active1.detach(), inactive.copy())
-                    binary_op.children.extend([op0, op1])
-                    oper.replace_with(binary_op.detach())
-                    break
-
-            else:
-                # No matching pattern so break out of while loop
-                break
+        sym_maths = SymbolicMaths.get()
+        sym_maths.expand(assignment.rhs)

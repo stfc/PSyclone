@@ -55,6 +55,11 @@ def test_sympy_reader_constructor():
 
 @pytest.mark.parametrize("expressions", [("a", "a"),
                                          ("b(i)", "b(i)"),
+                                         ("d%e(i)", "d%e(i)"),
+                                         ("e(i)%e", "e(i)%e"),
+                                         ("e(i)%e(j)", "e(i)%e(j)"),
+                                         ("e(1:9:3)%e(i:j:k)",
+                                          "e(1:9:3)%e(i:j:k)"),
                                          ("c(i,j)", "c(i,j)"),
                                          ("b(2:3:4)", "b(2:3:4)"),
                                          ("b(2:3:1)", "b(2:3)"),
