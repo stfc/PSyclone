@@ -39,24 +39,32 @@
 ''' Module containing py.test tests the SymPy writer.'''
 
 import pytest
+
 from sympy import Function, Symbol
 from sympy.parsing.sympy_parser import parse_expr
 
 from psyclone.psyir.backend.sympy_writer import SymPyWriter
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.nodes import Literal
-from psyclone.psyir.symbols import BOOLEAN_TYPE, CHARACTER_TYPE
+from psyclone.psyir.symbols import (ArrayType, BOOLEAN_TYPE, CHARACTER_TYPE,
+                                    INTEGER_TYPE)
 
 
 def test_sym_writer_constructor():
     '''Test that the constructor accepts an optional dictionary.
     '''
-    sympy_writer = SymPyWriter({'some': 'symbol'})
-    assert sympy_writer._sympy_type_map['some'] == 'symbol'
-    # Also test that not specifying a type map as argument works:
     sympy_writer = SymPyWriter()
     assert sympy_writer._sympy_type_map == {}
     assert sympy_writer._DISABLE_LOWERING is True
+
+    # __getitem_ can never be called anyway, since both the SymPy
+    # writer and the visitor base class implement __call__. In order
+    # to test the exception, we need to call it explicitly:
+    with pytest.raises(NotImplementedError) as err:
+        # pylint: disable=unnecessary-dunder-call
+        sympy_writer.__getitem__(None)
+    assert ("__getitem__ for a SymPyWriter should never be called."
+            in str(err.value))
 
 
 def test_sym_writer_lowering_disabled(monkeypatch):
@@ -85,15 +93,15 @@ def test_sym_writer_boolean():
     '''
     sympy_writer = SymPyWriter()
     lit = Literal("true", BOOLEAN_TYPE)
-    assert sympy_writer(lit) == "True"
+    assert sympy_writer._to_str(lit) == "True"
     lit = Literal("false", BOOLEAN_TYPE)
-    assert sympy_writer(lit) == "False"
+    assert sympy_writer._to_str(lit) == "False"
 
 
 def test_sym_writer_character():
     '''Test that characters are rejected.
     '''
-    sympy_writer = SymPyWriter({})
+    sympy_writer = SymPyWriter()
     lit = Literal("bla", CHARACTER_TYPE)
 
     with pytest.raises(TypeError) as err:
@@ -123,9 +131,8 @@ def test_sym_writer_int_constants(fortran_reader, expressions):
     # first child the assignment, of which we take the right hand side
     lit = psyir.children[0].children[0].rhs
 
-    type_map = SymPyWriter.create_type_map([])
-    sympy_writer = SymPyWriter(type_map)
-    assert sympy_writer(lit) == expressions[1]
+    sympy_writer = SymPyWriter()
+    assert sympy_writer._to_str(lit) == expressions[1]
 
 
 @pytest.mark.parametrize("expressions", [("3.1415926535897932384626",
@@ -150,9 +157,7 @@ def test_sym_writer_real_constants(fortran_reader, expressions):
 
     psyir = fortran_reader.psyir_from_source(source)
     lit = psyir.children[0].children[0].rhs
-    type_map = SymPyWriter.create_type_map([])
-    sympy_writer = SymPyWriter(type_map)
-    assert sympy_writer(lit) == expressions[1]
+    assert SymPyWriter()._to_str(lit) == expressions[1]
 
 
 @pytest.mark.parametrize("expressions", [("MAX(1,2)", "Max(1, 2)"),
@@ -177,16 +182,16 @@ def test_sym_writer_functions(fortran_reader, expressions):
 
     psyir = fortran_reader.psyir_from_source(source)
     function = psyir.children[0].children[0].rhs
-    type_map = SymPyWriter.create_type_map([])
-    sympy_writer = SymPyWriter(type_map)
-    assert sympy_writer(function) == expressions[1]
+    assert SymPyWriter()._to_str(function) == expressions[1]
 
 
 @pytest.mark.parametrize("expr, sym_map", [("i", {'i': Symbol('i')}),
                                            ("f(1)", {'f': Function('f')}),
                                            ("f(:)", {'f': Function('f')}),
-                                           ("a%b", {'a': Symbol('a')}),
-                                           ("a%b(1)", {'a': Symbol('a')})
+                                           ("a%b", {'a': Symbol('a'),
+                                                    'a_b': Symbol('a_b')}),
+                                           ("a%b(1)", {'a': Symbol('a'),
+                                                       'a_b': Function('a_b')})
                                            ])
 def test_sympy_writer_create_type_map(expr, sym_map, fortran_reader):
     '''Tests that the static create_type_map creates a dictionary
@@ -205,18 +210,23 @@ def test_sympy_writer_create_type_map(expr, sym_map, fortran_reader):
 
     psyir = fortran_reader.psyir_from_source(source)
     expr = psyir.children[0].children[0].rhs
-    type_map = SymPyWriter.create_type_map([expr])
-    assert type_map == sym_map
+    sympy_writer = SymPyWriter()
+    _ = sympy_writer(expr)
+    assert sympy_writer._sympy_type_map.keys() == sym_map.keys()
 
 
 @pytest.mark.parametrize("expressions", [("a%x", "a%a_x"),
-                                         ("b(i)%x", "b(i)%b_x"),
-                                         ("a%x(i)", "a%a_x(i)"),
-                                         ("b(j)%x(i)", "b(j)%b_x(i)"),
-                                         ("b(i)%c(b_c)", "b(i)%b_c_1(b_c)"),
-                                         ("a_c + a%c(i)", "a_c + a%a_c_1(i)"),
-                                         ("b(b_c)%c(i)", "b(b_c)%b_c_1(i)"),
-                                         ("b(b_c)%c(i)", "b(b_c)%b_c_1(i)"),
+                                         ("b(i)%x", "b(i,i,1)%b_x"),
+                                         ("a%x(i)", "a%a_x(i,i,1)"),
+                                         ("b(j)%x(i)", "b(j,j,1)%b_x(i,i,1)"),
+                                         ("b(i)%c(b_c)",
+                                          "b(i,i,1)%b_c_1(b_c,b_c,1)"),
+                                         ("a_c + a%c(i)",
+                                          "a_c + a%a_c_1(i,i,1)"),
+                                         ("b(b_c)%c(i)",
+                                          "b(b_c,b_c,1)%b_c_1(i,i,1)"),
+                                         ("b(b_c)%c(i)",
+                                          "b(b_c,b_c,1)%b_c_1(i,i,1)"),
                                          ("a_b_c + a_b_c_1 + a%b%c",
                                           "a_b_c + a_b_c_1 + a%a_b%a_b_c_2"),
                                          ])
@@ -236,9 +246,7 @@ def test_sym_writer_rename_members(fortran_reader, expressions):
 
     psyir = fortran_reader.psyir_from_source(source)
     expr = psyir.children[0].children[0].rhs
-    type_map = SymPyWriter.create_type_map([expr])
-    sympy_writer = SymPyWriter(type_map)
-    assert sympy_writer(expr) == expressions[1]
+    assert SymPyWriter()._to_str(expr) == expressions[1]
 
 
 @pytest.mark.parametrize("expr, sym_map", [("a%x", {"a": Symbol("a"),
@@ -274,12 +282,9 @@ def test_sym_writer_symbol_types(fortran_reader, expr, sym_map):
 
     psyir = fortran_reader.psyir_from_source(source)
     expr = psyir.children[0].children[0].rhs
-    type_map = SymPyWriter.create_type_map([expr])
-    sympy_writer = SymPyWriter(type_map)
-    # Note that this call can extend the type_map with type information
-    # about member names.
+    sympy_writer = SymPyWriter()
     _ = sympy_writer(expr)
-    assert sympy_writer._sympy_type_map == sym_map
+    assert sympy_writer.type_map.keys() == sym_map.keys()
 
 
 @pytest.mark.parametrize("expr, sym_map", [("i", {'i': Symbol('i')}),
@@ -307,10 +312,10 @@ def test_sympy_writer_get_symbol_and_map(expr, sym_map, fortran_reader):
     psyir = fortran_reader.psyir_from_source(source)
     expr = psyir.children[0].children[0].rhs
 
+    writer = SymPyWriter()
     # Ignore the converted expressions here, they are tested elsewhere
-    _, type_map = \
-        SymPyWriter.get_sympy_expressions_and_symbol_map([expr])
-    assert type_map == sym_map
+    _ = writer([expr])
+    assert writer._sympy_type_map.keys() == sym_map.keys()
 
 
 def test_sym_writer_convert_to_sympy_expressions(fortran_reader):
@@ -331,9 +336,9 @@ def test_sym_writer_convert_to_sympy_expressions(fortran_reader):
     psyir = fortran_reader.psyir_from_source(source)
     exp1 = psyir.children[0].children[0].rhs
     exp2 = psyir.children[0].children[1].rhs
-    sympy_list = SymPyWriter.convert_to_sympy_expressions([exp1, exp2])
+    sympy_list = SymPyWriter(exp1, exp2)
 
-    expr = parse_expr("a%a_b_1 + a%a_c(1) + i")
+    expr = parse_expr("a%a_b_1 + a%a_c(1,1,1) + i")
     assert sympy_list[0] == expr
     assert sympy_list[1] == parse_expr("a_b + j")
 
@@ -347,13 +352,112 @@ def test_sym_writer_parse_errors(fortran_reader):
     # expressions we need. We just take the RHS of the assignments
     source = '''program test_prog
                 real :: x, a(10), b(10)
-                x = a(:) * b(:)
+                x = a(:) /= b(:)
                 end program test_prog '''
 
     psyir = fortran_reader.psyir_from_source(source)
     exp1 = psyir.children[0].children[0].rhs
 
     with pytest.raises(VisitorError) as err:
-        _ = SymPyWriter.convert_to_sympy_expressions([exp1])
+        _ = SymPyWriter(exp1)
 
-    assert "Visitor Error: Invalid SymPy expression" in str(err.value)
+    assert ("Visitor Error: Invalid SymPy expression: "
+            "'a(sympy_lower,sympy_upper,1) /= b(sympy_lower,sympy_upper,1)'"
+            in str(err.value))
+
+
+@pytest.mark.parametrize("expressions", [("b(i)", "b(i,i,1)"),
+                                         ("b(:)",
+                                          "b(sympy_lower,sympy_upper,1)"),
+                                         ("b(::)",
+                                          "b(sympy_lower,sympy_upper,1)"),
+                                         ("b(5::)", "b(5,sympy_upper,1)"),
+                                         ("b(:5:)", "b(sympy_lower,5,1)"),
+                                         ("b(::5)",
+                                          "b(sympy_lower,sympy_upper,5)"),
+                                         ("b(i::)", "b(i,sympy_upper,1)"),
+                                         ("b(:i:)", "b(sympy_lower,i,1)"),
+                                         ("b(::i)",
+                                          "b(sympy_lower,sympy_upper,i)"),
+                                         ("b(i:5:)", "b(i,5,1)"),
+                                         ("b(i:j:)", "b(i,j,1)"),
+                                         ("b(i::j)", "b(i,sympy_upper,j)"),
+                                         ("b(:i:j)", "b(sympy_lower,i,j)"),
+                                         ("b(i:j:k)", "b(i,j,k)"),
+                                         ("b", "b(sympy_lower,sympy_upper,1)"),
+                                         ("c(i,j)", "c(i,i,1,j,j,1)"),
+                                         ("c(::,::)",
+                                          "c(sympy_lower,sympy_upper,1,"
+                                          "sympy_lower,sympy_upper,1)"),
+                                         ("c", "c(sympy_lower,sympy_upper,1,"
+                                               "sympy_lower,sympy_upper,1)"),
+                                         ("b(i)%x", "b(i,i,1)%b_x"),
+                                         ("b(i)%x(j)", "b(i,i,1)%b_x(j,j,1)"),
+                                         ("c(i,j)%x", "c(i,i,1,j,j,1)%c_x"),
+                                         ("c(i,j)%x(j)",
+                                          "c(i,i,1,j,j,1)%c_x(j,j,1)"),
+                                         ("c(i,j)%d%e",
+                                          "c(i,i,1,j,j,1)%c_d%c_d_e"),
+                                         ("c(i,j)%d%f(i)",
+                                          "c(i,i,1,j,j,1)%c_d%c_d_f(i,i,1)"),
+                                         ("c(i::k,j)%d%f(i:j:k)",
+                                          "c(i,sympy_upper,k,j,j,1)%c_d%"
+                                          "c_d_f(i,j,k)"),
+                                         # Check name clashes, if a user
+                                         # variable is the same as the names
+                                         # for upper/lower bound
+                                         ("sympy_upper(:)",
+                                          "sympy_upper(sympy_lower,"
+                                          "sympy_upper_1,1)"),
+                                         ("sympy_lower(:)",
+                                          "sympy_lower(sympy_lower_1,"
+                                          "sympy_upper,1)"),
+                                         # The +sympy_upper at the end is
+                                         # an array expression, so it gets
+                                         # indices added!
+                                         ("sympy_lower(:)+sympy_upper",
+                                          "sympy_lower(sympy_lower_1,"
+                                          "sympy_upper_1,1) + sympy_upper"
+                                          "(sympy_lower_1,sympy_upper_1,1)"),
+                                         ])
+def test_sym_writer_array_expressions(fortran_reader, expressions):
+    '''Test that array expressions (including ones using user-defined
+    types) are converted correctly. A Fortran range is converted into
+    three arguments for the SymPy function used: lower bound, upper bound,
+    step. If the bounds are not given, +/- sympy_upper(inity) is used. E.g.:
+    `a(:)` --> `a(sympy_lower,sympy_upper,1)`. And to keep the number of
+    arguments the same, an array index access like `b(i,j)` is converted to:
+    `b(i,i,1, j,j,1)`.
+
+    '''
+    # A dummy program to easily create the PSyIR for the
+    # expressions we need. We just take the RHS of the assignments
+    source = f'''program test_prog
+                use my_mod
+                integer :: sympy_upper(10), sympy_lower(10), x
+                type(my_type) :: a, b(10), c(10, 10)
+                x = {expressions[0]}
+                end program test_prog '''
+
+    psyir = fortran_reader.psyir_from_source(source)
+    expr = psyir.children[0].children[0].rhs
+    sympy_writer = SymPyWriter()
+    out = sympy_writer._to_str([expr])
+    assert out[0] == expressions[1]
+
+
+def test_gen_indices():
+    '''This test covers other datatypes that might be passed to `gen_indices`.
+    '''
+
+    sympy_writer = SymPyWriter()
+    # Test using array bounds and DEFERRED:
+    arr_bounds = ArrayType.ArrayBounds(Literal("2", INTEGER_TYPE),
+                                       Literal("5", INTEGER_TYPE))
+    gen_ind = sympy_writer.gen_indices([arr_bounds, ArrayType.Extent.DEFERRED])
+    assert gen_ind == ["2", "5", "1", "sympy_lower", "sympy_upper", "1"]
+
+    # Test invalid type:
+    with pytest.raises(NotImplementedError) as err:
+        _ = sympy_writer.gen_indices([None])
+    assert "unsupported gen_indices index 'None'" in str(err.value)

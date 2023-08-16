@@ -45,8 +45,10 @@ functions.
 
 import os
 import re
+import shutil
 import stat
 from sys import modules
+
 import pytest
 
 from fparser.common.readfortran import FortranStringReader
@@ -365,8 +367,9 @@ def test_script_file_too_short():
         _, _ = generate(os.path.join(BASE_PATH, "dynamo0p3",
                                      "1_single_invoke.f90"),
                         api="dynamo0.3",
-                        script_name=os.path.join(BASE_PATH,
-                                                 "dynamo0p3", "xyz"))
+                        script_name=os.path.join(
+                            BASE_PATH,
+                            "dynamo0p3", "testkern_xyz_mod.f90"))
 
 
 def test_no_script_gocean():
@@ -1274,3 +1277,92 @@ def test_no_invokes_lfric_new(monkeypatch):
             api="dynamo0.3")
     assert ("Algorithm file contains no invoke() calls: refusing to generate "
             "empty PSy code" in str(info.value))
+
+
+def test_generate_unknown_container_lfric(tmpdir, monkeypatch):
+    '''Test that a GenerationError exception in the generate function is
+    raised for the LFRic DSL if one of the functors is not explicitly
+    declared. This can happen in LFRic algorithm code as it is never
+    compiled. The exception is only raised with the new PSyIR approach
+    to modify the algorithm layer which is currently in development so
+    is protected by a switch. This switch is turned on in this test by
+    monkeypatching.
+
+    At the moment this exception is only raised if the functor is
+    declared in a different subroutine or function, as the original
+    parsing approach picks up all other cases. However, the original
+    parsing approach will eventually be removed.
+
+    '''
+    monkeypatch.setattr(generator, "LFRIC_TESTING", True)
+    code = (
+        "module some_kernel_mod\n"
+        "use module_mod, only : module_type\n"
+        "contains\n"
+        "subroutine dummy_kernel()\n"
+        " use testkern_mod, only: testkern_type\n"
+        "end subroutine dummy_kernel\n"
+        "subroutine some_kernel()\n"
+        "  use constants_mod, only: r_def\n"
+        "  use field_mod, only : field_type\n"
+        "  type(field_type) :: field1, field2, field3, field4\n"
+        "  real(kind=r_def) :: scalar\n"
+        "  call invoke(testkern_type(scalar, field1, field2, field3, "
+        "field4))\n"
+        "end subroutine some_kernel\n"
+        "end module some_kernel_mod\n")
+    alg_filename = str(tmpdir.join("alg.f90"))
+    with open(alg_filename, "w", encoding='utf-8') as my_file:
+        my_file.write(code)
+    kern_filename = os.path.join(DYN03_BASE_PATH, "testkern_mod.F90")
+    shutil.copyfile(kern_filename, str(tmpdir.join("testkern_mod.F90")))
+    with pytest.raises(GenerationError) as info:
+        _, _ = generate(alg_filename)
+    assert ("Kernel functor 'testkern_type' in routine 'some_kernel' from "
+            "algorithm file '" in str(info.value))
+    assert ("alg.f90' must be named in a use statement (found ["
+            "'constants_mod', 'field_mod', '_psyclone_builtins', "
+            "'module_mod']) or be a recognised built-in (one of "
+            "['x_plus_y', 'inc_x_plus_y'," in str(info.value))
+
+
+def test_generate_unknown_container_gocean(tmpdir):
+    '''Test that a GenerationError exception in the generate function is
+    raised for the GOcean DSL if one of the functors is not explicitly
+    declared. This can happen in GOcean algorithm code as it is never
+    compiled.
+
+    At the moment this exception is only raised if the functor is
+    declared in a different subroutine or function, as the original
+    parsing approach picks up all other cases. However, the original
+    parsing approach will eventually be removed.
+
+    '''
+    code = (
+        "module some_kernel_mod\n"
+        "use module_mod, only : module_type\n"
+        "contains\n"
+        "subroutine dummy_kernel()\n"
+        "  use compute_cu_mod,  only: compute_cu\n"
+        "end subroutine dummy_kernel\n"
+        "subroutine some_kernel()\n"
+        "  use kind_params_mod\n"
+        "  use grid_mod, only: grid_type\n"
+        "  use field_mod, only: r2d_field\n"
+        "  type(grid_type), target :: model_grid\n"
+        "  type(r2d_field) :: p_fld, u_fld, cu_fld\n"
+        "  call invoke( compute_cu(cu_fld, p_fld, u_fld) )\n"
+        "end subroutine some_kernel\n"
+        "end module some_kernel_mod\n")
+    alg_filename = str(tmpdir.join("alg.f90"))
+    with open(alg_filename, "w", encoding='utf-8') as my_file:
+        my_file.write(code)
+    kern_filename = os.path.join(GOCEAN_BASE_PATH, "compute_cu_mod.f90")
+    shutil.copyfile(kern_filename, str(tmpdir.join("compute_cu_mod.f90")))
+    with pytest.raises(GenerationError) as info:
+        _, _ = generate(alg_filename, api="gocean1.0")
+    assert ("Kernel functor 'compute_cu' in routine 'some_kernel' from "
+            "algorithm file '" in str(info.value))
+    assert ("alg.f90' must be named in a use statement (found "
+            "['kind_params_mod', 'grid_mod', 'field_mod', 'module_mod'])."
+            in str(info.value))

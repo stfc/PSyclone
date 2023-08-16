@@ -216,3 +216,23 @@ def test_commonblock_with_explicit_array_shape_symbol():
     assert ("The symbol interface of a common block variable could not be "
             "updated because of \"Could not find 'a(10, 4)' in the Symbol "
             "Table.\"." in str(err.value))
+
+
+@pytest.mark.usefixtures("f2008_parser")
+def test_commonblock_with_explicit_init_symbol():
+    ''' Test that commonblocks containing a symbol declared with explicit
+    initialisation produce NotImplementedError.'''
+
+    # Create a dummy test routine
+    routine = Routine("test_routine")
+    processor = Fparser2Reader()
+
+    # This is also invalid Fortran, but fparser2 doesn't notice.
+    reader = FortranStringReader('''
+        integer :: a = 10
+        common /name1/ a''')
+    fparser2spec = Specification_Part(reader)
+    with pytest.raises(NotImplementedError) as err:
+        processor.process_declarations(routine, fparser2spec.content, [])
+    assert ("Symbol 'a' has an initial value (10) but appears in a common "
+            "block." in str(err.value))

@@ -1,7 +1,7 @@
 !-------------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2022, Science and Technology Facilities Council
+! Copyright (c) 2017-2023, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -30,7 +30,7 @@
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Author: R. W. Ford, STFC Daresbury Lab
-! Modified: I. Kavcic, Met Office
+! Modified: I. Kavcic and L. Turner, Met Office
 ! Modified: J. Henrichs, Bureau of Meteorology
 
 
@@ -41,7 +41,7 @@ program int_real_literal_scalar
   use constants_mod,       only: r_def, i_def
   use field_mod,           only: field_type
   use quadrature_xyoz_mod, only: quadrature_xyoz_type
-  use testkern_qr,         only: testkern_qr_type
+  use testkern_qr_mod,     only: testkern_qr_type
 
   implicit none
 
