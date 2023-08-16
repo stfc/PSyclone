@@ -308,8 +308,7 @@ class Call(Statement, DataNode):
 
         :param var_accesses: VariablesAccessInfo instance that stores the
             information about variable accesses.
-        :type var_accesses:
-            :py:class:`psyclone.core.VariablesAccessInfo`
+        :type var_accesses: :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
         if self.is_pure:
