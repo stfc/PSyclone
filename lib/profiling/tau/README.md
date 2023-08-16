@@ -6,7 +6,11 @@ to the TAU API.
 
 ## Dependencies
 
-TAU must be installed. 
+TAU must be installed, and the ``tau_f90.sh`` compiler wrapper must
+be available. Since tau can be used with different configurations
+based on the setting of ``TAU_MAKEFILE``, it is recommended to make
+sure that the same configuration is used to compile the TAU wrapper
+and the application later.
 
 This profiling library uses the [PSyData API](
 https://psyclone.readthedocs.io/en/stable/psy_data.html) to interface with
@@ -22,26 +26,23 @@ region.
 
 ## Compilation
 
-The library is compiled with ``make`` using the provided ``Makefile``. The
-environment variables ``$F90`` and ``$F90FLAGS`` can be set to point to the
-[Fortran compiler](./../../README.md#compilation) and flags to use. They
-default to ``gfortran`` and the empty string.
-
-To compile the PSyclone wrapper library for TAU, use tau_f90.sh compiler
-wrapper.
+The library is compiled with ``make`` using the provided ``Makefile``. It
+uses the ``tau_f90.sh`` compiler wrapper as Fortran compiler, so the
+``$F90`` environment variable is ignored here. Additional compiler flags
+can be provided by setting ``$F90FLAGS``.
 
 The compilation process will create the wrapper library ``libtau_psy.a``.
 
 ### Linking the wrapper library
 
-In order to use the wrapper with your application, you must provide the
-location of the wrapper as an ``include`` path (so that the module file is found),
-and link first with the wrapper library, then the DrHook library:
+In order to use the wrapper with your application, at compile time you must
+provide the location of the wrapper as an ``include`` path (so that the
+module file is found). It is not required to use the ``tau_f90.sh``
+compiler wrapper when compiling the application.
 
-In order to use the wrapper with your application, the location of this
-library must be provided as an ``include`` path (so that the module file
-is found), and linked first with the wrapper library, ``tau_psy``,
-and then with the Dr Hook library:
+At link time, you need to link with the wrapper library ``libtau_psy.a``.
+If you use the ``tau_f90.sh`` compiler wrapper, nothing else is required,
+otherwise you need to add the required libraries from TAU at link time.
 
 ```shell
 $(F90) -c  ... -I <PATH-TO-PSYCLONE>/lib/profiling/tau somefile.f90
