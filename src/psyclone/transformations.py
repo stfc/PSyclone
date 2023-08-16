@@ -513,13 +513,6 @@ class ACCLoopTrans(ParallelLoopTrans):
         :type children: list of :py:class:`psyclone.psyir.nodes.Node`
         :param int collapse: number of nested loops to collapse or None if
                              no collapse attribute is required.
-        :param bool independent: whether to add the "independent" clause to
-                                 the directive.
-        :param bool sequential: whether to add the "seq" clause to the
-                                directive.
-        :param bool gang: whether to add the "gang" clause to the directive.
-        :param bool vector: whether to add the "vector" clause to the
-                            directive.
         '''
         directive = ACCLoopDirective(children=children,
                                      collapse=collapse,
