@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+# Modified: J. G. Wallwork, Met Office
 
 '''Module containing py.test tests for the transformation of the PSy
    representation of NEMO code using the OpenACC loop directive.
@@ -162,6 +163,48 @@ def test_seq_loop(parser):
             "\n"
             "  !$acc kernels\n"
             "  !$acc loop seq\n"
+            "  do ji = 1, jpj, 1\n" in code)
+
+
+def test_gang_loop(parser):
+    ''' Check that we can apply the transformation with the 'gang'
+    clause. '''
+    reader = FortranStringReader(SINGLE_LOOP)
+    code = parser(reader)
+    psy = PSyFactory(API, distributed_memory=False).create(code)
+    schedule = psy.invokes.invoke_list[0].schedule
+    acc_trans = TransInfo().get_trans_name('ACCLoopTrans')
+    # An ACC Loop must be within a KERNELS or PARALLEL region
+    kernels_trans = TransInfo().get_trans_name('ACCKernelsTrans')
+    kernels_trans.apply(schedule.children)
+    loops = schedule[0].walk(Loop)
+    acc_trans.apply(loops[0], {"gang": True})
+    code = str(psy.gen).lower()
+    assert ("  real(kind=wp), dimension(jpj) :: sto_tmp\n"
+            "\n"
+            "  !$acc kernels\n"
+            "  !$acc loop gang independent\n"
+            "  do ji = 1, jpj, 1\n" in code)
+
+
+def test_vector_loop(parser):
+    ''' Check that we can apply the transformation with the 'vector'
+    clause. '''
+    reader = FortranStringReader(SINGLE_LOOP)
+    code = parser(reader)
+    psy = PSyFactory(API, distributed_memory=False).create(code)
+    schedule = psy.invokes.invoke_list[0].schedule
+    acc_trans = TransInfo().get_trans_name('ACCLoopTrans')
+    # An ACC Loop must be within a KERNELS or PARALLEL region
+    kernels_trans = TransInfo().get_trans_name('ACCKernelsTrans')
+    kernels_trans.apply(schedule.children)
+    loops = schedule[0].walk(Loop)
+    acc_trans.apply(loops[0], {"vector": True})
+    code = str(psy.gen).lower()
+    assert ("  real(kind=wp), dimension(jpj) :: sto_tmp\n"
+            "\n"
+            "  !$acc kernels\n"
+            "  !$acc loop vector independent\n"
             "  do ji = 1, jpj, 1\n" in code)
 
 
