@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified I. Kavcic, A. Coughtrie and L. Turner, Met Office
+# Modified I. Kavcic, A. Coughtrie, L. Turner and O. Brunt, Met Office
 # Modified J. Henrichs, Bureau of Meteorology
 # Modified A. B. G. Chalk and N. Nobre, STFC Daresbury Lab
 
@@ -5663,7 +5663,7 @@ def _create_depth_list(halo_info_list, sym_table):
     return depth_info_list
 
 
-class DynHaloExchange(HaloExchange):
+class LFRicHaloExchange(HaloExchange):
 
     '''Dynamo specific halo exchange class which can be added to and
     manipulated in a schedule.
@@ -5795,7 +5795,7 @@ class DynHaloExchange(HaloExchange):
         '''
         read_dependencies = self.field.forward_read_dependencies()
         hex_deps = [dep for dep in read_dependencies
-                    if isinstance(dep.call, DynHaloExchange)]
+                    if isinstance(dep.call, LFRicHaloExchange)]
         if hex_deps:
             # There is a field accessed by a halo exchange that is
             # a read dependence. As ignore_hex_dep is True this should
@@ -5817,7 +5817,7 @@ class DynHaloExchange(HaloExchange):
                     f"{self.field.name}.")
             # For sanity, check that the field accessed by the halo
             # exchange is the last dependence in the list.
-            if not isinstance(read_dependencies[-1].call, DynHaloExchange):
+            if not isinstance(read_dependencies[-1].call, LFRicHaloExchange):
                 raise InternalError(
                     "If there is a read dependency associated with a halo "
                     "exchange in the list of read dependencies then it should "
@@ -6080,7 +6080,7 @@ class DynHaloExchange(HaloExchange):
         parent.add(CommentGen(parent, ""))
 
 
-class DynHaloExchangeStart(DynHaloExchange):
+class DynHaloExchangeStart(LFRicHaloExchange):
     '''The start of an asynchronous halo exchange. This is similar to a
     regular halo exchange except that the Fortran name of the call is
     different and the routine only reads the data being transferred
@@ -6115,7 +6115,7 @@ class DynHaloExchangeStart(DynHaloExchange):
 
     def __init__(self, field, check_dirty=True,
                  vector_index=None, parent=None):
-        DynHaloExchange.__init__(self, field, check_dirty=check_dirty,
+        LFRicHaloExchange.__init__(self, field, check_dirty=check_dirty,
                                  vector_index=vector_index, parent=parent)
         # Update the field's access appropriately. Here "gh_read"
         # specifies that the start of a halo exchange only reads
@@ -6182,7 +6182,7 @@ class DynHaloExchangeStart(DynHaloExchange):
         # Look at all nodes following this one in schedule order
         # (which is PSyIRe node order)
         for node in self.following():
-            if self.sameParent(node) and isinstance(node, DynHaloExchange):
+            if self.sameParent(node) and isinstance(node, LFRicHaloExchange):
                 # Found a following `haloexchange`,
                 # `haloexchangestart` or `haloexchangeend` PSyIRe node
                 # that is at the same calling hierarchy level as this
@@ -6203,7 +6203,7 @@ class DynHaloExchangeStart(DynHaloExchange):
             f"matching halo exchange end")
 
 
-class DynHaloExchangeEnd(DynHaloExchange):
+class DynHaloExchangeEnd(LFRicHaloExchange):
     '''The end of an asynchronous halo exchange. This is similar to a
     regular halo exchange except that the Fortran name of the call is
     different and the routine only writes to the data being
@@ -6230,7 +6230,7 @@ class DynHaloExchangeEnd(DynHaloExchange):
 
     def __init__(self, field, check_dirty=True,
                  vector_index=None, parent=None):
-        DynHaloExchange.__init__(self, field, check_dirty=check_dirty,
+        LFRicHaloExchange.__init__(self, field, check_dirty=check_dirty,
                                  vector_index=vector_index, parent=parent)
         # Update field properties appropriately. The associated field is
         # written to. However, a readwrite field access needs to be
@@ -7229,7 +7229,7 @@ class DynLoop(PSyLoop):
             exchanges.
 
         '''
-        exchange = DynHaloExchange(halo_field,
+        exchange = LFRicHaloExchange(halo_field,
                                    parent=self.parent,
                                    vector_index=idx)
         self.parent.children.insert(self.position,
@@ -7305,7 +7305,7 @@ class DynLoop(PSyLoop):
                 if arg.access in AccessType.all_write_accesses():
                     dep_arg_list = arg.forward_read_dependencies()
                     for dep_arg in dep_arg_list:
-                        if isinstance(dep_arg.call, DynHaloExchange):
+                        if isinstance(dep_arg.call, LFRicHaloExchange):
                             # found a halo exchange as a forward dependence
                             # ask the halo exchange if it is required
                             halo_exchange = dep_arg.call
@@ -7355,12 +7355,12 @@ class DynLoop(PSyLoop):
                             f"dependencies is '{halo_field.vector_size}' and "
                             f"the vector size is '{len(prev_arg_list)}'.")
                     for arg in prev_arg_list:
-                        if not isinstance(arg.call, DynHaloExchange):
+                        if not isinstance(arg.call, LFRicHaloExchange):
                             raise GenerationError(
                                 "Error in create_halo_exchanges. Expecting "
                                 "all dependent nodes to be halo exchanges")
                 prev_node = prev_arg_list[0].call
-                if not isinstance(prev_node, DynHaloExchange):
+                if not isinstance(prev_node, LFRicHaloExchange):
                     # previous dependence is not a halo exchange so
                     # call the add halo exchange logic which
                     # determines whether a halo exchange is required
@@ -9817,7 +9817,7 @@ __all__ = [
     'DynBoundaryConditions',
     'DynInvokeSchedule',
     'DynGlobalSum',
-    'DynHaloExchange',
+    'LFRicHaloExchange',
     'DynHaloExchangeStart',
     'DynHaloExchangeEnd',
     'HaloDepth',
