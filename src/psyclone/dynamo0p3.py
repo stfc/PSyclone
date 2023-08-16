@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified I. Kavcic, A. Coughtrie and L. Turner, Met Office
+# Modified I. Kavcic, A. Coughtrie, L. Turner and O. Brunt, Met Office
 # Modified J. Henrichs, Bureau of Meteorology
 # Modified A. B. G. Chalk and N. Nobre, STFC Daresbury Lab
 
@@ -61,7 +61,7 @@ from psyclone.domain.lfric import (FunctionSpace, KernCallAccArgList,
                                    LFRicArgDescriptor, KernelInterface,
                                    LFRicCollection, LFRicConstants,
                                    LFRicSymbolTable, LFRicInvoke,
-                                   LFRicKernCallFactory)
+                                   LFRicKernCallFactory, LFRicFields)
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 from psyclone.f2pygen import (AllocateGen, AssignGen, CallGen, CommentGen,
                               DeallocateGen, DeclGen, DoGen, IfThenGen,
@@ -2771,139 +2771,6 @@ class DynFunctionSpaces(LFRicCollection):
                                          rhs=name + "%" +
                                          arg.ref_name(function_space) +
                                          "%get_undf()"))
-
-
-class LFRicFields(LFRicCollection):
-    '''
-    Manages the declarations for all field arguments required by an Invoke
-    or Kernel stub.
-
-    '''
-    def _invoke_declarations(self, parent):
-        '''
-        Add field-related declarations to the PSy-layer routine.
-        Note: PSy layer in LFRic does not modify the field objects. Hence,
-        their Fortran intents are always in (the data updated in the kernels
-        is only pointed to from the field object and is thus not a part of
-        the object).
-
-        :param parent: the node in the f2pygen AST representing the PSy-layer \
-                       routine to which to add declarations.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
-
-        :raises InternalError: for unsupported intrinsic types of field \
-                               argument data.
-        :raises GenerationError: if the same field has different data \
-                                 types in different kernel calls within \
-                                 the same Invoke.
-
-        '''
-        # Create dict of all field arguments for checks
-        const = LFRicConstants()
-        fld_args = self._invoke.unique_declarations(
-            argument_types=const.VALID_FIELD_NAMES)
-        # Filter field arguments by intent and intrinsic type
-        real_field_args = self._invoke.unique_declarations(
-            argument_types=const.VALID_FIELD_NAMES,
-            intrinsic_type=const.MAPPING_DATA_TYPES["gh_real"])
-        int_field_args = self._invoke.unique_declarations(
-            argument_types=const.VALID_FIELD_NAMES,
-            intrinsic_type=const.MAPPING_DATA_TYPES["gh_integer"])
-
-        # Create lists of field names for real- and integer-valued fields
-        fld_arg_list = [arg.declaration_name for arg in fld_args]
-        real_field_arg_list = [arg.declaration_name for arg in real_field_args]
-        int_field_arg_list = [arg.declaration_name for arg in int_field_args]
-        # Check for unsupported intrinsic types
-        fld_inv = (set(fld_arg_list) -
-                   set(real_field_arg_list).union(set(int_field_arg_list)))
-        if fld_inv:
-            raise InternalError(
-                f"Found unsupported intrinsic types for the field arguments "
-                f"{list(fld_inv)} to Invoke '{self._invoke.name}'. Supported "
-                f"types are {const.VALID_FIELD_INTRINSIC_TYPES}.")
-        # Check that the same field name is not found in both real and
-        # integer field lists (for instance if passed to one kernel as a
-        # real-valued and to another kernel as an integer-valued field)
-        fld_multi_type = \
-            set(real_field_arg_list).intersection(set(int_field_arg_list))
-        if fld_multi_type:
-            raise GenerationError(
-                f"Field argument(s) {list(fld_multi_type)} in Invoke "
-                f"'{self._invoke.name}' have different metadata for data type "
-                f"({const.VALID_FIELD_DATA_TYPES}) in different kernels. "
-                f"This is invalid.")
-
-        # Create a field argument map that splits the (real and
-        # integer) fields into their different datatypes.
-        field_datatype_map = OrderedDict()
-        for arg in real_field_args + int_field_args:
-            try:
-                field_datatype_map[
-                    (arg.data_type, arg.module_name)].append(arg)
-            except KeyError:
-                # This datatype has not been seen before so create a
-                # new entry
-                field_datatype_map[(arg.data_type, arg.module_name)] = [arg]
-
-        # Add the Invoke subroutine argument declarations for the
-        # different fields types. They are declared as intent "in" as
-        # they contain a pointer to the data that is modified.
-        for fld_type, fld_mod in field_datatype_map:
-            args = field_datatype_map[(fld_type, fld_mod)]
-            arg_list = [arg.declaration_name for arg in args]
-            parent.add(TypeDeclGen(parent, datatype=fld_type,
-                                   entity_decls=arg_list,
-                                   intent="in"))
-            (self._invoke.invokes.psy.
-             infrastructure_modules[fld_mod].add(fld_type))
-
-    def _stub_declarations(self, parent):
-        '''
-        Add field-related declarations to a Kernel stub.
-
-        :param parent: the node in the f2pygen AST representing the Kernel \
-                       stub to which to add declarations.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
-
-        :raises InternalError: for an unsupported data type of field \
-                               argument data.
-
-        '''
-        const = LFRicConstants()
-
-        fld_args = psyGen.args_filter(
-            self._kernel.args, arg_types=const.VALID_FIELD_NAMES)
-        for fld in fld_args:
-            undf_name = fld.function_space.undf_name
-            fld_dtype = fld.intrinsic_type
-            fld_kind = fld.precision
-
-            # Check for invalid descriptor data type
-            fld_ad_dtype = fld.descriptor.data_type
-            if fld_ad_dtype not in const.VALID_FIELD_DATA_TYPES:
-                raise InternalError(
-                    f"Found an unsupported data type '{fld_ad_dtype}' in "
-                    f"kernel stub declarations for the field argument "
-                    f"'{fld.declaration_name}'. Supported types are "
-                    f"{const.VALID_FIELD_DATA_TYPES}.")
-
-            if fld.vector_size > 1:
-                for idx in range(1, fld.vector_size+1):
-                    text = (fld.name + "_" +
-                            fld.function_space.mangled_name +
-                            "_v" + str(idx))
-                    parent.add(
-                        DeclGen(parent, datatype=fld_dtype, kind=fld_kind,
-                                dimension=undf_name,
-                                intent=fld.intent, entity_decls=[text]))
-            else:
-                parent.add(
-                    DeclGen(parent, datatype=fld_dtype, kind=fld_kind,
-                            intent=fld.intent,
-                            dimension=undf_name,
-                            entity_decls=[fld.name + "_" +
-                                          fld.function_space.mangled_name]))
 
 
 class LFRicRunTimeChecks(LFRicCollection):
@@ -9805,7 +9672,6 @@ __all__ = [
     'DynStencils',
     'DynDofmaps',
     'DynFunctionSpaces',
-    'LFRicFields',
     'DynProxies',
     'DynCellIterators',
     'LFRicScalarArgs',
