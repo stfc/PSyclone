@@ -48,7 +48,8 @@ from psyclone.core.access_type import AccessType
 from psyclone.domain.lfric.lfric_builtins import LFRicXInnerproductYKern
 from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
 from psyclone.dynamo0p3 import DynLoop, DynHaloExchangeStart, \
-    DynHaloExchangeEnd, LFRicHaloExchange
+    DynHaloExchangeEnd
+from psyclone.domain.lfric import LFRicHaloExchange
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyGen import InvokeSchedule, GlobalSum, BuiltIn
 from psyclone.psyir.nodes import colored, Loop, Schedule, Literal, Directive, \

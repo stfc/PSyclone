@@ -3368,7 +3368,7 @@ def test_HaloReadAccess_field_in_call():
     with pytest.raises(GenerationError) as excinfo:
         _ = HaloReadAccess(field, None)
     assert ("field 'f1' should be from a call but found "
-            "<class 'psyclone.dynamo0p3.LFRicHaloExchange'>"
+            "<class 'psyclone.domain.lfric.LFRicHaloExchange'>"
             in str(excinfo.value))
 
 

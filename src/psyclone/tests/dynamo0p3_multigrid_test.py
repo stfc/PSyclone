@@ -49,8 +49,8 @@ import fparser
 
 from fparser import api as fpapi
 from psyclone.configuration import Config
-from psyclone.domain.lfric import LFRicConstants
-from psyclone.dynamo0p3 import LFRicHaloExchange, DynKernMetadata, HaloReadAccess
+from psyclone.domain.lfric import LFRicConstants, LFRicHaloExchange
+from psyclone.dynamo0p3 import DynKernMetadata, HaloReadAccess
 from psyclone.errors import GenerationError, InternalError
 from psyclone.gen_kernel_stub import generate
 from psyclone.parse.algorithm import parse
