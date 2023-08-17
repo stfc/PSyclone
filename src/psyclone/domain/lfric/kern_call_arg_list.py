@@ -397,7 +397,7 @@ class KernCallArgList(ArgOrdering):
                              [ArrayType.Extent.DEFERRED])
         for idx in range(1, argvect.vector_size + 1):
             cmpt_sym = self._symtab.lookup_with_tag(
-                f"{argvect.name}_{idx}_data")
+                f"{argvect.name}%{idx}_data")
             # Create the accesses to each element of the vector:
             lit_ind = Literal(str(idx), INTEGER_SINGLE_TYPE)
             #ref = ArrayOfStructuresReference.\

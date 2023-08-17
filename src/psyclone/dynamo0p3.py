@@ -3115,7 +3115,7 @@ class DynProxies(LFRicCollection):
                         f"{arg.name}_{idx}_data",
                         symbol_type=DataSymbol,
                         datatype=dtype,
-                        tag=f"{arg.name}_{idx}_data")
+                        tag=f"{arg.name}%{idx}_data")
             else:
                 self._symbol_table.new_symbol(arg.name+"_data",
                                               symbol_type=DataSymbol,
@@ -3188,7 +3188,7 @@ class DynProxies(LFRicCollection):
                 if arg.vector_size > 1:
                     entity_names = []
                     for idx in range(1, arg.vector_size+1):
-                        vsym = table.lookup_with_tag(f"{arg.name}_{idx}_data")
+                        vsym = table.lookup_with_tag(f"{arg.name}%{idx}_data")
                         entity_names.append(vsym.name)
                 else:
                     sym = table.lookup_with_tag(arg.name+"_data")
@@ -3291,7 +3291,7 @@ class DynProxies(LFRicCollection):
                                   lhs=arg.proxy_name+"("+str(idx)+")",
                                   rhs=arg.name+"("+str(idx)+")%get_proxy()"))
                     name = self._symbol_table.lookup_with_tag(
-                        f"{arg.name}_{idx}_data").name
+                        f"{arg.name}%{idx}_data").name
                     parent.add(
                         AssignGen(parent,
                                   lhs=name,

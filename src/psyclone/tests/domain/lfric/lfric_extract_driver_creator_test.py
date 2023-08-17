@@ -480,11 +480,11 @@ def test_lfric_driver_removing_structure_data():
         get_driver_as_string(invoke.schedule, read_write_info, "extract",
                              "_post", region_name=("region", "name"))
 
-    assert "call extract_psy_data%ReadVariable('f1', f1)" in driver
-    assert "call extract_psy_data%ReadVariable('f2_post', f2_post)" in driver
-    assert "ALLOCATE(f2, mold=f2_post)" in driver
-    assert "f2(df) = a + f1(df)" in driver
-    assert "if (ALL(f2 - f2_post == 0.0)) then" in driver
+    assert "call extract_psy_data%ReadVariable('f1_data', f1_data)" in driver
+    assert "call extract_psy_data%ReadVariable('f2_data_post', f2_data_post)" in driver
+    assert "ALLOCATE(f2_data, mold=f2_data_post)" in driver
+    assert "f2_data(df) = a + f1_data(df)" in driver
+    assert "if (ALL(f2_data - f2_data_post == 0.0)) then" in driver
 
     for mod in ["read_kernel_data_mod", "constants_mod"]:
         assert f"module {mod}" in driver
@@ -569,8 +569,8 @@ def test_lfric_driver_field_array_write():
         driver = my_file.read()
 
     for i in range(1, 4):
-        assert f"ReadVariable('coord_post%{i}', coord_{i}_post)" in driver
-        assert f"ALL(coord_{i} - coord_{i}_post == 0.0))" in driver
+        assert f"ReadVariable('coord%{i}_data_post', coord_{i}_data_post)" in driver
+        assert f"ALL(coord_{i}_data - coord_{i}_data_post == 0.0))" in driver
 
     for mod in ["read_kernel_data_mod", "constants_mod", "kernel_mod",
                 "argument_mod", "log_mod", "fs_continuity_mod",
