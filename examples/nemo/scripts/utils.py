@@ -240,9 +240,9 @@ def insert_explicit_loop_parallelism(
         # In addition, they often nest ice linearised loops (npti)
         # which we'd rather parallelise
         if ('ice' in routine_name
-            and isinstance(loop.stop_expr, BinaryOperation)
-            and (loop.stop_expr.operator == BinaryOperation.Operator.UBOUND or
-                 loop.stop_expr.operator == BinaryOperation.Operator.SIZE)
+            and isinstance(loop.stop_expr, IntrinsicCall)
+            and (loop.stop_expr.intrinsic == IntrinsicCall.Intrinsic.UBOUND or
+                 loop.stop_expr.intrinsic == IntrinsicCall.Intrinsic.SIZE)
             and (len(loop.walk(Loop)) > 2
                  or any([ref.symbol.name in ('npti',)
                          for lp in loop.loop_body.walk(Loop)

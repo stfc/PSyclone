@@ -51,7 +51,7 @@ from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.nodes import (
     ArrayMember, ArrayOfStructuresReference, ArrayReference, Assignment,
     BinaryOperation, Call, CodeBlock, Container, Directive, FileContainer,
-    IfBlock, IntrinsicCall, Literal, Loop, Member, NaryOperation, Node, Range,
+    IfBlock, IntrinsicCall, Literal, Loop, Member, Node, Range,
     Reference, Return, Routine, Schedule, StructureReference, UnaryOperation,
     WhileLoop)
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
@@ -120,11 +120,11 @@ def _canonicalise_minmaxsum(arg_nodes, arg_names, node):
     different forms that are allowed in Fortran.
 
     In general Fortran supports all arguments being named, all
-    arguments being positional and everything inbetween, as long as
+    arguments being positional and everything in between, as long as
     all named arguments follow all positional arguments.
 
     For example, both SUM(A, DIM, MASK) and SUM(DIM=DIM, MASK=MASK,
-    ARRAY=A) are equivalant in Fortran.
+    ARRAY=A) are equivalent in Fortran.
 
     The PSyIR canonical form has all required arguments as positional
     arguments and all optional arguments as named arguments, which
@@ -408,7 +408,7 @@ def _check_args(array, dim):
             f"Range type but found '{type(array.indices[dim-1]).__name__}'.")
 
 
-def _is_bound_full_extent(array, dim, operator):
+def _is_bound_full_extent(array, dim, intrinsic):
     '''A Fortran array section with a missing lower bound implies the
     access starts at the first element and a missing upper bound
     implies the access ends at the last element e.g. a(:,:)
@@ -430,12 +430,12 @@ def _is_bound_full_extent(array, dim, operator):
     :param array: the node to check.
     :type array: :py:class:`pysclone.psyir.nodes.ArrayMixin`
     :param int dim: the dimension index to use.
-    :param operator: the operator to check.
-    :type operator: \
-        :py:class:`psyclone.psyir.nodes.binaryoperation.Operator.LBOUND` \
-        or :py:class:`psyclone.psyir.nodes.binaryoperation.Operator.UBOUND`
+    :param intrinsic: the intrinsic to check.
+    :type intrinsic:
+        :py:class:`psyclone.psyir.nodes.IntrinsicCall.Intrinsic.LBOUND` |
+        :py:class:`psyclone.psyir.nodes.IntrinsicCall.Intrinsic.UBOUND`
 
-    :returns: True if the supplied array has the expected properties, \
+    :returns: True if the supplied array has the expected properties,
         otherwise returns False.
     :rtype: bool
 
@@ -444,26 +444,26 @@ def _is_bound_full_extent(array, dim, operator):
     '''
     _check_args(array, dim)
 
-    if operator == BinaryOperation.Operator.LBOUND:
+    if intrinsic == IntrinsicCall.Intrinsic.LBOUND:
         index = 0
-    elif operator == BinaryOperation.Operator.UBOUND:
+    elif intrinsic == IntrinsicCall.Intrinsic.UBOUND:
         index = 1
     else:
         raise TypeError(
-            f"'operator' argument  expected to be LBOUND or UBOUND but "
-            f"found '{type(operator).__name__}'.")
+            f"'intrinsic' argument  expected to be LBOUND or UBOUND but "
+            f"found '{type(intrinsic).__name__}'.")
 
     # The first element of the array (index 0) relates to the first
     # dimension (dim 1), so we need to reduce dim by 1.
     bound = array.indices[dim-1].children[index]
 
-    if not isinstance(bound, BinaryOperation):
+    if not isinstance(bound, IntrinsicCall):
         return False
 
     reference = bound.children[0]
     literal = bound.children[1]
 
-    if bound.operator != operator:
+    if bound.intrinsic != intrinsic:
         return False
 
     if (not isinstance(literal, Literal) or
@@ -563,10 +563,10 @@ def _is_range_full_extent(my_range):
     dim = array.children.index(my_range) + 1
     # Check lower bound
     is_lower = _is_bound_full_extent(
-        array, dim, BinaryOperation.Operator.LBOUND)
+        array, dim, IntrinsicCall.Intrinsic.LBOUND)
     # Check upper bound
     is_upper = _is_bound_full_extent(
-        array, dim, BinaryOperation.Operator.UBOUND)
+        array, dim, IntrinsicCall.Intrinsic.UBOUND)
     # Check step (index 2 is the step index for the range function)
     is_step = _is_array_range_literal(array, dim, 2, 1)
     return is_lower and is_upper and is_step
@@ -1002,24 +1002,8 @@ class Fparser2Reader():
     unary_operators = OrderedDict([
         ('+', UnaryOperation.Operator.PLUS),
         ('-', UnaryOperation.Operator.MINUS),
-        ('.not.', UnaryOperation.Operator.NOT),
-        ('abs', UnaryOperation.Operator.ABS),
-        ('ceiling', UnaryOperation.Operator.CEIL),
-        ('floor', UnaryOperation.Operator.FLOOR),
-        ('transpose', UnaryOperation.Operator.TRANSPOSE),
-        ('exp', UnaryOperation.Operator.EXP),
-        ('log', UnaryOperation.Operator.LOG),
-        ('log10', UnaryOperation.Operator.LOG10),
-        ('sin', UnaryOperation.Operator.SIN),
-        ('asin', UnaryOperation.Operator.ASIN),
-        ('cos', UnaryOperation.Operator.COS),
-        ('acos', UnaryOperation.Operator.ACOS),
-        ('tan', UnaryOperation.Operator.TAN),
-        ('atan', UnaryOperation.Operator.ATAN),
-        ('sqrt', UnaryOperation.Operator.SQRT),
-        ('real', UnaryOperation.Operator.REAL),
-        ('nint', UnaryOperation.Operator.NINT),
-        ('int', UnaryOperation.Operator.INT)])
+        ('.not.', UnaryOperation.Operator.NOT)])
+
 
     binary_operators = OrderedDict([
         ('+', BinaryOperation.Operator.ADD),
@@ -1042,23 +1026,7 @@ class Fparser2Reader():
         ('>', BinaryOperation.Operator.GT),
         ('.gt.', BinaryOperation.Operator.GT),
         ('.and.', BinaryOperation.Operator.AND),
-        ('.or.', BinaryOperation.Operator.OR),
-        ('dot_product', BinaryOperation.Operator.DOT_PRODUCT),
-        ('int', BinaryOperation.Operator.INT),
-        ('real', BinaryOperation.Operator.REAL),
-        ('sign', BinaryOperation.Operator.SIGN),
-        ('size', BinaryOperation.Operator.SIZE),
-        ('lbound', BinaryOperation.Operator.LBOUND),
-        ('ubound', BinaryOperation.Operator.UBOUND),
-        ('max', BinaryOperation.Operator.MAX),
-        ('min', BinaryOperation.Operator.MIN),
-        ('mod', BinaryOperation.Operator.REM),
-        ('matmul', BinaryOperation.Operator.MATMUL),
-        ('transfer', BinaryOperation.Operator.CAST)])
-
-    nary_operators = OrderedDict([
-        ('max', NaryOperation.Operator.MAX),
-        ('min', NaryOperation.Operator.MIN)])
+        ('.or.', BinaryOperation.Operator.OR)])
 
     def __init__(self):
         # Map of fparser2 node types to handlers (which are class methods)
@@ -3633,8 +3601,8 @@ class Fparser2Reader():
             loop.addchild(Literal("1", integer_type))
             # Add loop upper bound - we use the SIZE operator to query the
             # extent of the current array dimension
-            size_node = BinaryOperation(BinaryOperation.Operator.SIZE,
-                                        parent=loop)
+            size_node = IntrinsicCall(IntrinsicCall.Intrinsic.SIZE,
+                                      parent=loop)
             loop.addchild(size_node)
 
             # Create the first argument to the SIZE operator
@@ -3924,6 +3892,13 @@ class Fparser2Reader():
                                expected structure.
 
         '''
+
+        if len(node.items) != 2:
+            # It must have exactly one operator and one operand
+            raise InternalError(
+                f"Operation '{node}' has more than one operand and is "
+                f"therefore not unary!")
+        
         operator_str = str(node.items[0]).lower()
         try:
             operator = Fparser2Reader.unary_operators[operator_str]
@@ -3931,29 +3906,8 @@ class Fparser2Reader():
             # Operator not supported, it will produce a CodeBlock instead
             raise NotImplementedError(operator_str) from err
 
-        if isinstance(node.items[1], Fortran2003.Actual_Arg_Spec_List):
-            if len(node.items[1].items) > 1:
-                # We have more than one argument and therefore this is not a
-                # unary operation!
-                raise InternalError(
-                    f"Operation '{node}' has more than one argument and is "
-                    f"therefore not unary!")
-            node_list = node.items[1].items
-        else:
-            node_list = [node.items[1]]
         unary_op = UnaryOperation(operator, parent=parent)
-
-        # Store the names of any named args
-        arg_nodes, arg_names = _get_arg_names(node_list)
-
-        self.process_nodes(parent=unary_op, nodes=arg_nodes)
-
-        # Detach the child and add it again with the argument
-        # name
-        child = unary_op.children[0]
-        child.detach()
-        unary_op.append_named_arg(arg_names[0], child)
-
+        self.process_nodes(parent=unary_op, nodes=[node.items[1]])
         return unary_op
 
     def _binary_op_handler(self, node, parent):
@@ -3976,22 +3930,8 @@ class Fparser2Reader():
                                expected structure.
 
         '''
-        if isinstance(node, Fortran2003.Intrinsic_Function_Reference):
-            operator_str = node.items[0].string.lower()
-            # Arguments are held in an Actual_Arg_Spec_List
-            if not isinstance(node.items[1], Fortran2003.Actual_Arg_Spec_List):
-                raise InternalError(
-                    f"Unexpected fparser parse tree for binary intrinsic "
-                    f"operation '{node}'. Expected second child to be "
-                    f"Actual_Arg_Spec_List but got '{type(node.items[1])}'.")
-            arg_nodes = node.items[1].items
-            if len(arg_nodes) != 2:
-                raise InternalError(
-                    f"Binary operator should have exactly two arguments but "
-                    f"found {len(arg_nodes)} for '{node}'.")
-        else:
-            operator_str = node.items[1].lower()
-            arg_nodes = [node.items[0], node.items[2]]
+        operator_str = node.items[1].lower()
+        arg_nodes = [node.items[0], node.items[2]]
 
         try:
             operator = Fparser2Reader.binary_operators[operator_str]
@@ -4000,78 +3940,9 @@ class Fparser2Reader():
             raise NotImplementedError(operator_str) from err
 
         binary_op = BinaryOperation(operator, parent=parent)
-
-        # Store the names of any named args
-        new_arg_nodes, arg_names = _get_arg_names(arg_nodes)
-
-        self.process_nodes(parent=binary_op, nodes=[new_arg_nodes[0]])
-        self.process_nodes(parent=binary_op, nodes=[new_arg_nodes[1]])
-
-        # Detach the children and add them again with the argument
-        # names
-        child_list = binary_op.children[:]
-        for child in child_list:
-            child.detach()
-        for idx, child in enumerate(child_list):
-            binary_op.append_named_arg(arg_names[idx], child)
-
+        self.process_nodes(parent=binary_op, nodes=[arg_nodes[0]])
+        self.process_nodes(parent=binary_op, nodes=[arg_nodes[1]])
         return binary_op
-
-    def _nary_op_handler(self, node, parent):
-        '''
-        Transforms an fparser2 Intrinsic_Function_Reference with three or
-        more arguments to the PSyIR representation.
-        :param node: node in fparser2 Parse Tree.
-        :type node: \
-             :py:class:`fparser.two.Fortran2003.Intrinsic_Function_Reference`
-        :param parent: Parent node of the PSyIR node we are constructing.
-        :type parent: :py:class:`psyclone.psyir.nodes.Node`
-
-        :returns: PSyIR representation of node.
-        :rtype: :py:class:`psyclone.psyir.nodes.NaryOperation`
-
-        :raises NotImplementedError: if the supplied Intrinsic is not \
-                                     supported by this handler.
-        :raises InternalError: if the fparser parse tree does not have the \
-                               expected structure.
-
-        '''
-        operator_str = str(node.items[0]).lower()
-        try:
-            operator = Fparser2Reader.nary_operators[operator_str]
-        except KeyError as err:
-            # Intrinsic not supported, it will produce a CodeBlock instead
-            raise NotImplementedError(operator_str) from err
-
-        nary_op = NaryOperation(operator, parent=parent)
-
-        if not isinstance(node.items[1], Fortran2003.Actual_Arg_Spec_List):
-            raise InternalError(
-                f"Expected second 'item' of N-ary intrinsic '{node}' in "
-                f"fparser parse tree to be an Actual_Arg_Spec_List but found "
-                f"'{type(node.items[1])}'.")
-        if len(node.items[1].items) < 3:
-            raise InternalError(
-                f"An N-ary operation must have more than two arguments but "
-                f"found {len(node.items[1].items)} for '{node}'.")
-
-        # node.items[1] is a Fortran2003.Actual_Arg_Spec_List so we have
-        # to process the `items` of that...
-
-        # Store the names of any named args
-        arg_nodes, arg_names = _get_arg_names(node.items[1].items)
-
-        self.process_nodes(parent=nary_op, nodes=arg_nodes)
-
-        # Detach the children and add them again with the argument
-        # names
-        child_list = nary_op.children[:]
-        for child in child_list:
-            child.detach()
-        for idx, child in enumerate(child_list):
-            nary_op.append_named_arg(arg_names[idx], child)
-
-        return nary_op
 
     def _intrinsic_handler(self, node, parent):
         '''Transforms an fparser2 Intrinsic_Function_Reference to the PSyIR
@@ -4088,7 +3959,6 @@ class Fparser2Reader():
         :returns: PSyIR representation of node
         :rtype: :py:class:`psyclone.psyir.nodes.UnaryOperation` or \
                 :py:class:`psyclone.psyir.nodes.BinaryOperation` or \
-                :py:class:`psyclone.psyir.nodes.NaryOperation` or \
                 :py:class:`psyclone.psyir.nodes.IntrinsicCall`
 
         :raises NotImplementedError: if the form of the Fortran is not \
@@ -4109,29 +3979,15 @@ class Fparser2Reader():
                 return self._process_args(
                     node, call, canonicalise=_canonicalise_minmaxsum)
             else:
+                call = IntrinsicCall(intrinsic, parent=parent)
+                return self._process_args(node, call)
+                # TODO: this may still be a problem?
                 raise NotImplementedError(
                     f"Should {node.items[0].string.upper()} be added to"
                     f"_canonicalise_minmaxsum?")
         except KeyError:
-            # Treat all other intrinsics as Operations.
-
-            # Now work out how many arguments it has
-            num_args = 0
-            if len(node.items) > 1:
-                num_args = len(node.items[1].items)
-
-            # We don't handle any intrinsics that don't have arguments
-            if num_args == 1:
-                return self._unary_op_handler(node, parent)
-            if num_args == 2:
-                return self._binary_op_handler(node, parent)
-            if num_args > 2:
-                return self._nary_op_handler(node, parent)
-
-        # Intrinsic is not handled - this will result in a CodeBlock
-        raise NotImplementedError(
-            f"Operator '{node.items[0].string}' has no arguments but operators must "
-            f"have at least one.")
+            raise NotImplementedError(
+                f"Intrinsic '{node.items[0].string}' is not supported")
 
     def _name_handler(self, node, parent):
         '''
@@ -4245,12 +4101,12 @@ class Fparser2Reader():
         else:
             # There is no lower bound, it is implied. This is not
             # supported in the PSyIR so we create the equivalent code
-            # by using the PSyIR lbound function:
+            # by using the PSyIR lbound intrinsic function:
             # a(:...) becomes a(lbound(a,1):...)
-            lbound = BinaryOperation.create(
-                BinaryOperation.Operator.LBOUND,
-                _copy_full_base_reference(parent),
-                Literal(dimension, integer_type))
+            lbound = IntrinsicCall.create(
+                IntrinsicCall.Intrinsic.LBOUND,
+                [_copy_full_base_reference(parent),
+                 ("dim", Literal(dimension, integer_type))])
             my_range.children.append(lbound)
 
         if node.children[1]:
@@ -4258,12 +4114,12 @@ class Fparser2Reader():
         else:
             # There is no upper bound, it is implied. This is not
             # supported in the PSyIR so we create the equivalent code
-            # by using the PSyIR ubound function:
+            # by using the PSyIR ubound intrinsic function:
             # a(...:) becomes a(...:ubound(a,1))
-            ubound = BinaryOperation.create(
-                BinaryOperation.Operator.UBOUND,
-                _copy_full_base_reference(parent),
-                Literal(dimension, integer_type))
+            ubound = IntrinsicCall.create(
+                IntrinsicCall.Intrinsic.UBOUND,
+                [_copy_full_base_reference(parent),
+                 ("dim", Literal(dimension, integer_type))])
             my_range.children.append(ubound)
 
         if node.children[2]:

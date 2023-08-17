@@ -47,7 +47,7 @@ from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
 from psyclone.psyir.nodes import (Routine, Schedule, Reference, Node, Literal,
                                   CodeBlock, BinaryOperation, Assignment,
-                                  IfBlock)
+                                  IfBlock, IntrinsicCall)
 from psyclone.psyir.symbols import ArgumentInterface
 from psyclone.psyir.tools import DependencyTools
 
@@ -292,11 +292,11 @@ class AdjointVisitor(PSyIRVisitor):
             for ref in expr.walk(Reference):
                 if ref.symbol in self._active_variables:
                     # Ignore LBOUND and UBOUND
-                    if not (isinstance(ref.parent, BinaryOperation) and
+                    if not (isinstance(ref.parent, IntrinsicCall) and
                             ref.position == 0 and
                             ref.parent.operator in [
-                                BinaryOperation.Operator.LBOUND,
-                                BinaryOperation.Operator.UBOUND]):
+                                IntrinsicCall.Intrinsic.LBOUND,
+                                IntrinsicCall.Intrinsic.UBOUND]):
                         raise VisitorError(
                             f"The {description} of a loop should not contain "
                             f"active variables, but found '{ref.name}' in "

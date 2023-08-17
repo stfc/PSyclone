@@ -297,15 +297,15 @@ class CWriter(LanguageWriter):
             UnaryOperation.Operator.MINUS: ("-", operator_format),
             UnaryOperation.Operator.PLUS: ("+", operator_format),
             UnaryOperation.Operator.NOT: ("!", operator_format),
-            UnaryOperation.Operator.SIN: ("sin", function_format),
-            UnaryOperation.Operator.COS: ("cos", function_format),
-            UnaryOperation.Operator.TAN: ("tan", function_format),
-            UnaryOperation.Operator.ASIN: ("asin", function_format),
-            UnaryOperation.Operator.ACOS: ("acos", function_format),
-            UnaryOperation.Operator.ATAN: ("atan", function_format),
-            UnaryOperation.Operator.ABS: ("abs", function_format),
-            UnaryOperation.Operator.REAL: ("float", cast_format),
-            UnaryOperation.Operator.SQRT: ("sqrt", function_format),
+            #UnaryOperation.Operator.SIN: ("sin", function_format),
+            #UnaryOperation.Operator.COS: ("cos", function_format),
+            #UnaryOperation.Operator.TAN: ("tan", function_format),
+            #UnaryOperation.Operator.ASIN: ("asin", function_format),
+            #UnaryOperation.Operator.ACOS: ("acos", function_format),
+            #UnaryOperation.Operator.ATAN: ("atan", function_format),
+            #UnaryOperation.Operator.ABS: ("abs", function_format),
+            #UnaryOperation.Operator.REAL: ("float", cast_format),
+            #UnaryOperation.Operator.SQRT: ("sqrt", function_format),
             }
 
         # If the instance operator exists in the map, use its associated
@@ -369,8 +369,8 @@ class CWriter(LanguageWriter):
             BinaryOperation.Operator.SUB: ("-", operator_format),
             BinaryOperation.Operator.MUL: ("*", operator_format),
             BinaryOperation.Operator.DIV: ("/", operator_format),
-            BinaryOperation.Operator.REM: ("%", operator_format),
-            BinaryOperation.Operator.POW: ("pow", function_format),
+            #BinaryOperation.Operator.REM: ("%", operator_format),
+            #BinaryOperation.Operator.POW: ("pow", function_format),
             BinaryOperation.Operator.EQ: ("==", operator_format),
             BinaryOperation.Operator.NE: ("!=", operator_format),
             BinaryOperation.Operator.LT: ("<", operator_format),
@@ -379,7 +379,7 @@ class CWriter(LanguageWriter):
             BinaryOperation.Operator.GE: (">=", operator_format),
             BinaryOperation.Operator.AND: ("&&", operator_format),
             BinaryOperation.Operator.OR: ("||", operator_format),
-            BinaryOperation.Operator.SIGN: ("copysign", function_format),
+            #BinaryOperation.Operator.SIGN: ("copysign", function_format),
             }
 
         # If the instance operator exists in the map, use its associated
@@ -395,6 +395,21 @@ class CWriter(LanguageWriter):
         return formatter(opstring,
                          self._visit(node.children[0]),
                          self._visit(node.children[1]))
+
+    def intrinsiccall_node(self, node):
+        '''This method is called when an IntrinsicCall node is found in
+        the PSyIR tree.
+
+        :param node: An IntrinsicCall PSyIR node.
+        :type node: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
+
+        :returns: The C code as a string.
+        :rtype: str
+
+        '''
+        raise VisitorError(
+            f"The C backend does not support the '{node.intrinsic.name}' "
+            f"intrinsic.")
 
     def return_node(self, _):
         '''This method is called when a Return instance is found in

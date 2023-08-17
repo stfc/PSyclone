@@ -47,7 +47,7 @@ from psyclone.errors import LazyString, InternalError
 from psyclone.nemo import NemoLoop
 from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import Range, Reference, ArrayReference, Call, \
-    Assignment, Operation, CodeBlock, ArrayMember, Routine, BinaryOperation, \
+    Assignment, CodeBlock, ArrayMember, Routine, IntrinsicCall, \
     StructureReference, StructureMember, Node
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, ScalarType
@@ -239,14 +239,14 @@ class NemoArrayRange2LoopTrans(Transformation):
 
         # Does the rhs of the assignment have any operations/calls that are not
         # elemental?
-        for cnode in assignment.rhs.walk((Operation, Call)):
+        for cnode in assignment.rhs.walk(Call):
             # Allow non elemental UBOUND and LBOUND.
             # TODO #2156 - add support for marking routines as being 'inquiry'
             # to improve this special-casing.
-            if isinstance(cnode, Operation):
-                if cnode.operator is BinaryOperation.Operator.LBOUND:
+            if isinstance(cnode, IntrinsicCall):
+                if cnode.intrinsic is IntrinsicCall.Intrinsic.LBOUND:
                     continue
-                if cnode.operator is BinaryOperation.Operator.UBOUND:
+                if cnode.intrinsic is IntrinsicCall.Intrinsic.UBOUND:
                     continue
                 name = cnode.operator.name
                 type_txt = "Operation"
@@ -276,13 +276,13 @@ class NemoArrayRange2LoopTrans(Transformation):
         references = [n for n in nodes_to_check if isinstance(n, Reference)]
         for reference in references:
             # As special case we always allow references to whole arrays as
-            # part of the LBOUND and UBOUND operations, regardless of the
+            # part of the LBOUND and UBOUND intrinsics, regardless of the
             # restrictions below (e.g. is a DeferredType reference).
-            if isinstance(reference.parent, Operation):
-                operator = reference.parent.operator
-                if operator is BinaryOperation.Operator.LBOUND:
+            if isinstance(reference.parent, IntrinsicCall):
+                intrinsic = reference.parent.intrinsic
+                if intrinsic is IntrinsicCall.Intrinsic.LBOUND:
                     continue
-                if operator is BinaryOperation.Operator.UBOUND:
+                if intrinsic is IntrinsicCall.Intrinsic.UBOUND:
                     continue
 
             # We allow any references that are part of a structure syntax - we

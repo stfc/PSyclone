@@ -45,6 +45,7 @@ from psyclone.errors import InternalError
 from psyclone.psyir.nodes.call import Call
 from psyclone.psyir.nodes.codeblock import CodeBlock
 from psyclone.psyir.nodes.datanode import DataNode
+from psyclone.psyir.nodes.intrinsic_call import IntrinsicCall
 from psyclone.psyir.nodes.literal import Literal
 from psyclone.psyir.nodes.member import Member
 from psyclone.psyir.nodes.operation import Operation, BinaryOperation
@@ -130,19 +131,17 @@ class ArrayMixin(metaclass=abc.ABCMeta):
         :param expr: a PSyIR expression.
         :type expr: :py:class:`psyclone.psyir.nodes.Node`
         :param bound_operator: the particular bound operation.
-        :type bound_operator: \
-            :py:class:`psyclone.psyir.nodes.operation.BinaryOperation.\
-            Operator.LBOUND` or :py:class:`psyclone.psyir.nodes.operation.\
-            BinaryOperation.Operator.UBOUND`
+        :type bound_operator:
+            :py:class:`psyclone.psyir.nodes.IntrinsicCall.Intrinsic.LBOUND |
+            :py:class:`psyclone.psyir.nodes.IntrinsicCall.Intrinsic.UBOUND
         :param int index: the bounds index.
 
-        :returns: True if the expr is in the expected form and False \
-            otherwise.
+        :returns: True if the expr is in the expected form and False otherwise.
         :rtype: bool
 
         '''
-        if (isinstance(expr, BinaryOperation) and
-                expr.operator == bound_operator):
+        if (isinstance(expr, IntrinsicCall) and
+                expr.intrinsic == bound_operator):
             # This is the expected bound
             if self.is_same_array(expr.children[0]):
                 # The arrays match
@@ -240,8 +239,9 @@ class ArrayMixin(metaclass=abc.ABCMeta):
             # A simple Reference.
             ref = Reference(root_ref.symbol)
 
-        return BinaryOperation.create(BinaryOperation.Operator.LBOUND, ref,
-                                      Literal(str(pos+1), INTEGER_TYPE))
+        return IntrinsicCall.create(
+            IntrinsicCall.Intrinsic.LBOUND,
+            [ref, ("dim", Literal(str(pos+1), INTEGER_TYPE))])
 
     def is_upper_bound(self, index):
         '''Returns whether this array access includes the upper bound of
@@ -288,16 +288,16 @@ class ArrayMixin(metaclass=abc.ABCMeta):
         access_shape = self.indices[index]
 
         # Determine the appropriate (lower or upper) bound and check
-        # for a bounds operator.
+        # for a bounds intrinsic.
         if isinstance(access_shape, Range):
             if bound_type == "upper":
-                operator = BinaryOperation.Operator.UBOUND
+                intrinsic = IntrinsicCall.Intrinsic.UBOUND
                 access_bound = access_shape.stop
             else:
-                operator = BinaryOperation.Operator.LBOUND
+                intrinsic = IntrinsicCall.Intrinsic.LBOUND
                 access_bound = access_shape.start
             # Is this array access in the form of {UL}BOUND(array, index)?
-            if self._is_bound_op(access_bound, operator, index):
+            if self._is_bound_op(access_bound, intrinsic, index):
                 return True
         else:
             access_bound = access_shape
@@ -341,8 +341,9 @@ class ArrayMixin(metaclass=abc.ABCMeta):
             declaration_bound = datatype.shape[index].lower
 
         # Do the bounds match?
-        sym_maths = SymbolicMaths.get()
-        return sym_maths.equal(declaration_bound, access_bound)
+        #sym_maths = SymbolicMaths.get()
+        #return sym_maths.equal(declaration_bound, access_bound)
+        return declaration_bound == access_bound
 
     def is_same_array(self, node):
         '''

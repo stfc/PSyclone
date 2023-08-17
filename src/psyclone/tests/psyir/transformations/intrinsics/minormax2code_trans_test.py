@@ -41,8 +41,7 @@ directly.
 '''
 import pytest
 
-from psyclone.configuration import Config
-from psyclone.psyir.nodes import Reference, BinaryOperation, NaryOperation, \
+from psyclone.psyir.nodes import Reference, BinaryOperation, \
     Assignment, Literal, KernelSchedule, IntrinsicCall
 from psyclone.psyir.symbols import SymbolTable, DataSymbol, \
     ArgumentInterface, REAL_TYPE

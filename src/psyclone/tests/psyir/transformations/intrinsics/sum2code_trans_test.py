@@ -218,8 +218,9 @@ def test_array_type_arg(fortran_reader):
                          [("10", "20", "1", "10", "1", "20"),
                           ("n", "m", "1", "n", "1", "m"),
                           ("0:n", "2:m", "0", "n", "2", "m"),
-                          (":", ":", "LBOUND(array, 1)", "UBOUND(array, 1)",
-                           "LBOUND(array, 2)", "UBOUND(array, 2)")])
+                          (":", ":", "LBOUND(array, dim=1)",
+                           "UBOUND(array, dim=1)", "LBOUND(array, dim=2)",
+                           "UBOUND(array, dim=2)")])
 def test_apply_sum(idim1, idim2, rdim11, rdim12, rdim21, rdim22,
                    fortran_reader, fortran_writer):
     '''Test that a sum intrinsic as the only term on the rhs of an
@@ -321,7 +322,7 @@ def test_apply_dimension_1d(fortran_reader, fortran_writer):
         "  real :: result\n  real :: sum_var\n"
         "  integer :: i_0\n\n"
         "  sum_var = 0.0\n"
-        "  do i_0 = LBOUND(array, 1), UBOUND(array, 1), 1\n"
+        "  do i_0 = LBOUND(array, dim=1), UBOUND(array, dim=1), 1\n"
         "    sum_var = sum_var + array(i_0)\n"
         "  enddo\n"
         "  result = value1 + sum_var * value2\n\n"
@@ -398,15 +399,15 @@ def test_apply_dimension_multid_unknown(fortran_reader, fortran_writer):
         "  real :: value1\n"
         "  real :: value2\n"
         "  real, dimension(:,:) :: result\n"
-        "  real, dimension(LBOUND(array, 1):UBOUND(array, 1),LBOUND(array, 3):"
-        "UBOUND(array, 3)) :: sum_var\n"
+        "  real, dimension(LBOUND(array, dim=1):UBOUND(array, dim=1),"
+        "LBOUND(array, dim=3):UBOUND(array, dim=3)) :: sum_var\n"
         "  integer :: i_0\n"
         "  integer :: i_1\n"
         "  integer :: i_2\n\n"
         "  sum_var = 0.0\n"
-        "  do i_2 = LBOUND(array, 3), UBOUND(array, 3), 1\n"
-        "    do i_1 = LBOUND(array, 2), UBOUND(array, 2), 1\n"
-        "      do i_0 = LBOUND(array, 1), UBOUND(array, 1), 1\n"
+        "  do i_2 = LBOUND(array, dim=3), UBOUND(array, dim=3), 1\n"
+        "    do i_1 = LBOUND(array, dim=2), UBOUND(array, dim=2), 1\n"
+        "      do i_0 = LBOUND(array, dim=1), UBOUND(array, dim=1), 1\n"
         "        sum_var(i_0,i_2) = sum_var(i_0,i_2) + array(i_0,i_1,i_2)\n"
         "      enddo\n"
         "    enddo\n"

@@ -36,8 +36,6 @@
 ''' Module containing pytest tests for the handling of the U/LBOUND intrinsics
 in the PSyIR. '''
 
-from __future__ import absolute_import
-
 import pytest
 from fparser.common.readfortran import FortranStringReader
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
@@ -57,18 +55,18 @@ def test_bound_intrinsics(bound, expression):
     '''
     from fparser.two.Fortran2003 import Execution_Part
     from psyclone.psyir.nodes import Schedule, Assignment, BinaryOperation, \
-        Reference, Literal
+        Reference, Literal, IntrinsicCall
     fake_parent = Schedule()
     processor = Fparser2Reader()
     reader = FortranStringReader(expression.format(bound))
     fp2intrinsic = Execution_Part(reader).content[0]
     processor.process_nodes(fake_parent, [fp2intrinsic])
     assert isinstance(fake_parent[0], Assignment)
-    assert isinstance(fake_parent[0].rhs, BinaryOperation)
+    assert isinstance(fake_parent[0].rhs, IntrinsicCall)
     if bound == "ubound":
-        assert fake_parent[0].rhs.operator == BinaryOperation.Operator.UBOUND
+        assert fake_parent[0].rhs.intrinsic == IntrinsicCall.Intrinsic.UBOUND
     else:
-        assert fake_parent[0].rhs.operator == BinaryOperation.Operator.LBOUND
+        assert fake_parent[0].rhs.intrinsic == IntrinsicCall.Intrinsic.LBOUND
     assert isinstance(fake_parent[0].rhs.children[0], Reference)
     assert isinstance(fake_parent[0].rhs.children[1],
                       (Literal, BinaryOperation))

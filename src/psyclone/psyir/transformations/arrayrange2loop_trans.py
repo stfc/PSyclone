@@ -46,7 +46,7 @@ from __future__ import absolute_import
 from psyclone.core import SymbolicMaths
 from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import Loop, Range, Reference, ArrayReference, \
-    Assignment, Operation, BinaryOperation
+    Assignment, Call, IntrinsicCall
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
@@ -291,20 +291,15 @@ class ArrayRange2LoopTrans(Transformation):
                 f"least one of its dimensions being a Range, but found None "
                 f"in '{node.lhs}'.")
 
-        # If an operator on the rhs only returns an array then we are
-        # not able to turn the assignment into an explicit loop. At
-        # the moment we do not capture what an operator returns and
-        # therefore can not check this. This will be addressed in
-        # issue #685. For the moment we check with an explicit list
-        # which happens to only contain a single operator (MATMUL)
-        # because at this time all other operators in the PSyIR can be
-        # performed elementwise.
-        if [operation for operation in node.rhs.walk(Operation)
-                if operation.operator in [BinaryOperation.Operator.MATMUL]]:
+        # Currently we don't accept calls (with the exception of L/UBOUND)
+        for call in node.rhs.walk(Call):
+            if isinstance(call, IntrinsicCall) and call.intrinsic in \
+                (IntrinsicCall.Intrinsic.LBOUND,
+                 IntrinsicCall.Intrinsic.UBOUND):
+                continue
             raise TransformationError(
-                f"Error in {self.name} transformation. The rhs of the "
-                f"supplied Assignment node '{node.rhs}' contains the MATMUL "
-                f"operator which can't be performed elementwise.")
+                f"Error in {self.name} transformation. The rhs of the supplied"
+                f" Assignment contains a call '{call.debug_string()}'.")
 
         # Find the outermost range for the array on the lhs of the
         # assignment and save its index.

@@ -50,7 +50,7 @@ from psyclone.errors import InternalError
 from psyclone.psyir.frontend.fparser2 import (
     Fparser2Reader, _get_arg_names, _canonicalise_minmaxsum)
 from psyclone.psyir.nodes import (
-    UnaryOperation, BinaryOperation, NaryOperation, Schedule, Assignment,
+    UnaryOperation, BinaryOperation, Schedule, Assignment,
     Reference, IntrinsicCall, CodeBlock)
 from psyclone.psyir.symbols import (
     REAL_TYPE, DataSymbol, UnknownFortranType, INTEGER_TYPE, SymbolTable,
@@ -243,45 +243,44 @@ end subroutine
 
 
 @pytest.mark.parametrize(
-    "code, expected_type, expected_op",
-    [('x = exp(a)', UnaryOperation, UnaryOperation.Operator.EXP),
-     ('x = sin(a)', UnaryOperation, UnaryOperation.Operator.SIN),
-     ('x = asin(a)', UnaryOperation, UnaryOperation.Operator.ASIN),
-     ('idx = ceiling(a)', UnaryOperation, UnaryOperation.Operator.CEIL),
-     ('x = abs(a)', UnaryOperation, UnaryOperation.Operator.ABS),
-     ('x = cos(a)', UnaryOperation, UnaryOperation.Operator.COS),
-     ('x = acos(a)', UnaryOperation, UnaryOperation.Operator.ACOS),
-     ('x = tan(a)', UnaryOperation, UnaryOperation.Operator.TAN),
-     ('x = atan(a)', UnaryOperation, UnaryOperation.Operator.ATAN),
-     ('x = real(a)', UnaryOperation, UnaryOperation.Operator.REAL),
-     ('x = real(a, 8)', BinaryOperation, BinaryOperation.Operator.REAL),
-     ('x = int(a)', UnaryOperation, UnaryOperation.Operator.INT),
-     ('x = int(a, 8)', BinaryOperation, BinaryOperation.Operator.INT),
-     ('x = log(a)', UnaryOperation, UnaryOperation.Operator.LOG),
-     ('x = log10(a)', UnaryOperation, UnaryOperation.Operator.LOG10),
-     ('x = mod(a, b)', BinaryOperation, BinaryOperation.Operator.REM),
-     ('x = matmul(a, b)', BinaryOperation,
-      BinaryOperation.Operator.MATMUL),
-     ('x = max(a, b)', BinaryOperation, BinaryOperation.Operator.MAX),
-     ('x = mAx(a, b, c)', NaryOperation, NaryOperation.Operator.MAX),
-     ('x = min(a, b)', BinaryOperation, BinaryOperation.Operator.MIN),
-     ('x = min(a, b, c)', NaryOperation, NaryOperation.Operator.MIN),
-     ('x = sign(a, b)', BinaryOperation, BinaryOperation.Operator.SIGN),
-     ('x = sqrt(a)', UnaryOperation, UnaryOperation.Operator.SQRT),
+    "code, expected_intrinsic",
+    [('x = exp(a)', IntrinsicCall.Intrinsic.EXP),
+     ('x = sin(a)', IntrinsicCall.Intrinsic.SIN),
+     ('x = asin(a)', IntrinsicCall.Intrinsic.ASIN),
+     ('idx = ceiling(a)', IntrinsicCall.Intrinsic.CEILING),
+     ('x = abs(a)', IntrinsicCall.Intrinsic.ABS),
+     ('x = cos(a)', IntrinsicCall.Intrinsic.COS),
+     ('x = acos(a)', IntrinsicCall.Intrinsic.ACOS),
+     ('x = tan(a)', IntrinsicCall.Intrinsic.TAN),
+     ('x = atan(a)', IntrinsicCall.Intrinsic.ATAN),
+     ('x = real(a)', IntrinsicCall.Intrinsic.REAL),
+     ('x = real(a, 8)', IntrinsicCall.Intrinsic.REAL),
+     ('x = int(a)', IntrinsicCall.Intrinsic.INT),
+     ('x = int(a, 8)', IntrinsicCall.Intrinsic.INT),
+     ('x = log(a)', IntrinsicCall.Intrinsic.LOG),
+     ('x = log10(a)', IntrinsicCall.Intrinsic.LOG10),
+     ('x = mod(a, b)', IntrinsicCall.Intrinsic.MOD),
+     ('x = matmul(a, b)', IntrinsicCall.Intrinsic.MATMUL),
+     ('x = max(a, b)', IntrinsicCall.Intrinsic.MAX),
+     ('x = mAx(a, b, c)', IntrinsicCall.Intrinsic.MAX),
+     ('x = min(a, b)', IntrinsicCall.Intrinsic.MIN),
+     ('x = min(a, b, c)', IntrinsicCall.Intrinsic.MIN),
+     ('x = sign(a, b)', IntrinsicCall.Intrinsic.SIGN),
+     ('x = sqrt(a)', IntrinsicCall.Intrinsic.SQRT),
      # Check that we get a CodeBlock for an unsupported unary operation
-     ('x = aimag(a)', CodeBlock, None),
+     ('x = aimag(a)', IntrinsicCall.Intrinsic.AIMAG),
      # Check that we get a CodeBlock for an unsupported binary operation
-     ('x = dprod(a, b)', CodeBlock, None),
+     ('x = dprod(a, b)', IntrinsicCall.Intrinsic.DPROD),
      # Check that we get a CodeBlock for an unsupported N-ary operation
-     ('x = reshape(a, b, c)', CodeBlock, None),
+     ('x = reshape(a, b, c)', IntrinsicCall.Intrinsic.RESHAPE),
      # Check when the argument list is not an Actual_Arg_Spec_List for
      # a unary operator
-     ('x = sin(-3.0)', UnaryOperation, UnaryOperation.Operator.SIN)])
+     ('x = sin(-3.0)', IntrinsicCall.Intrinsic.SIN)])
 @pytest.mark.usefixtures("f2008_parser")
-def test_handling_intrinsics(code, expected_type, expected_op, symbol_table):
+def test_handling_intrinsics(code, expected_intrinsic, symbol_table):
     '''Test that the fparser2 _intrinsic_handler method deals with
     Intrinsic_Function_Reference nodes that are translated to PSyIR
-    Operation nodes. Includes tests for unsupported intrinsics that
+    IntrinsicCall nodes. Includes tests for unsupported intrinsics that
     are returned as codeblocks.
 
     '''
@@ -293,37 +292,36 @@ def test_handling_intrinsics(code, expected_type, expected_op, symbol_table):
     processor.process_nodes(fake_parent, [fp2node])
     assign = fake_parent.children[0]
     assert isinstance(assign, Assignment)
-    assert isinstance(assign.rhs, expected_type), \
+    assert isinstance(assign.rhs, IntrinsicCall), \
         "Fails when parsing '" + code + "'"
-    if expected_type is not CodeBlock:
-        assert assign.rhs._operator == expected_op, \
-            "Fails when parsing '" + code + "'"
-        assert len(assign.rhs.children) == len(assign.rhs.argument_names)
-        for named_arg in assign.rhs.argument_names:
-            assert named_arg is None
+    assert assign.rhs._intrinsic == expected_intrinsic, \
+        "Fails when parsing '" + code + "'"
+    assert len(assign.rhs.children) == len(assign.rhs.argument_names)
+    for named_arg in assign.rhs.argument_names:
+        assert named_arg is None
 
 
 @pytest.mark.parametrize(
-    "code, expected_type, expected_op, expected_names",
-    [('x = sin(a)', UnaryOperation,
-      UnaryOperation.Operator.SIN, [None]),
-     ('x = sin(array=a)', UnaryOperation,
-      UnaryOperation.Operator.SIN, ["array"]),
-     ('x = dot_product(a, b)', BinaryOperation,
-      BinaryOperation.Operator.DOT_PRODUCT, [None, None]),
-     ('x = dot_product(a, vector_b=b)', BinaryOperation,
-      BinaryOperation.Operator.DOT_PRODUCT, [None, "vector_b"]),
-     ('x = dot_product(vector_a=a, vector_b=b)', BinaryOperation,
-      BinaryOperation.Operator.DOT_PRODUCT, ["vector_a", "vector_b"]),
-     ('x = max(a, b, c)', NaryOperation,
-      NaryOperation.Operator.MAX, [None, None, None]),
-     ('x = max(a1=a, a2=b, a3=c)', NaryOperation,
-      NaryOperation.Operator.MAX, ["a1", "a2", "a3"]),
-     ('x = max(a, b, a3=c)', NaryOperation,
-      NaryOperation.Operator.MAX, [None, None, "a3"])])
+    "code, expected_intrinsic, expected_names",
+    [('x = sin(a)',
+      IntrinsicCall.Intrinsic.SIN, [None]),
+     ('x = sin(array=a)',
+      IntrinsicCall.Intrinsic.SIN, ["array"]),
+     ('x = dot_product(a, b)',
+      IntrinsicCall.Intrinsic.DOT_PRODUCT, [None, None]),
+     ('x = dot_product(a, vector_b=b)',
+      IntrinsicCall.Intrinsic.DOT_PRODUCT, [None, "vector_b"]),
+     ('x = dot_product(vector_a=a, vector_b=b)',
+      IntrinsicCall.Intrinsic.DOT_PRODUCT, ["vector_a", "vector_b"]),
+     ('x = max(a, b, c)',
+      IntrinsicCall.Intrinsic.MAX, [None, None, None]),
+     ('x = max(a1=a, a2=b, a3=c)',
+      IntrinsicCall.Intrinsic.MAX, ["a1", "a2", "a3"]),
+     ('x = max(a, b, a3=c)',
+      IntrinsicCall.Intrinsic.MAX, [None, None, "a3"])])
 @pytest.mark.usefixtures("f2008_parser")
 def test_handling_intrinsics_named_args(
-        code, expected_type, expected_op, expected_names, symbol_table):
+        code, expected_intrinsic, expected_names, symbol_table):
     '''Test that the fparser2 _intrinsic_handler method deals with
     Intrinsic_Function_Reference nodes that are translated to PSyIR
     Operation nodes and have named arguments.
@@ -336,9 +334,9 @@ def test_handling_intrinsics_named_args(
     processor.process_nodes(fake_parent, [fp2node])
     assign = fake_parent.children[0]
     assert isinstance(assign, Assignment)
-    assert isinstance(assign.rhs, expected_type), \
+    assert isinstance(assign.rhs, IntrinsicCall), \
         "Fails when parsing '" + code + "'"
-    assert assign.rhs._operator == expected_op, \
+    assert assign.rhs._intrinsic == expected_intrinsic, \
         "Fails when parsing '" + code + "'"
     assert len(assign.rhs.children) == len(assign.rhs._argument_names)
     for idx, child in enumerate(assign.rhs.children):
@@ -348,85 +346,17 @@ def test_handling_intrinsics_named_args(
 
 
 @pytest.mark.usefixtures("f2008_parser")
-def test_intrinsic_no_args():
-    ''' Check that an intrinsic with no arguments results in a
-    NotImplementedError. '''
+def test_intrinsic_no_args(symbol_table):
+    ''' Check that an intrinsic with no arguments is parsed correctly. '''
     processor = Fparser2Reader()
-    fake_parent = Schedule()
-    reader = FortranStringReader("x = MAX(a, b)")
-    fp2node = Execution_Part.match(reader)[0][0].items[2]
-    # Manually remove the arguments
-    fp2node.items = (fp2node.items[0],)
-    with pytest.raises(NotImplementedError) as err:
-        processor._intrinsic_handler(fp2node, fake_parent)
-    assert ("Operator 'MAX' has no arguments but operators must have at "
-            "least one." in str(err.value))
-
-
-@pytest.mark.usefixtures("f2008_parser")
-def test_unary_op_handler_error():
-    ''' Check that the unary op handler raises the expected error if the
-    parse tree has an unexpected structure. This is a hard error to
-    provoke since fparser checks that the number of arguments is correct. '''
-    processor = Fparser2Reader()
-    fake_parent = Schedule()
-    reader = FortranStringReader("x = exp(a)")
-    fp2node = Execution_Part.match(reader)[0][0].items[2]
-    # Create an fparser node for a binary operation so that we can steal
-    # its operands
-    reader = FortranStringReader("x = max(a, b)")
-    maxnode = Execution_Part.match(reader)[0][0].items[2]
-    # Break the number of arguments in the fparser node by using those
-    # from the binary operation
-    fp2node.items = (fp2node.items[0], maxnode.items[1])
-    with pytest.raises(InternalError) as err:
-        processor._unary_op_handler(fp2node, fake_parent)
-    assert ("Operation 'EXP(a, b)' has more than one argument and is "
-            "therefore not unary" in str(err.value))
-
-
-@pytest.mark.usefixtures("f2008_parser")
-def test_binary_op_handler_error():
-    ''' Check that the binary op handler raises the expected errors if the
-    parse tree has an unexpected structure. '''
-    processor = Fparser2Reader()
-    fake_parent = Schedule()
-    reader = FortranStringReader("x = MAX(a, b)")
-    fp2node = Execution_Part.match(reader)[0][0].items[2]
-    # Break the number of arguments in the fparser node
-    fp2node.items[1].items = (Name('a'),)
-    with pytest.raises(InternalError) as err:
-        processor._binary_op_handler(fp2node, fake_parent)
-    assert ("Binary operator should have exactly two arguments but found 1 "
-            "for 'MAX(a)'." in str(err.value))
-    # Now break the 'items' tuple of this fparser node
-    fp2node.items = (fp2node.items[0], Name('dummy'))
-    with pytest.raises(InternalError) as err:
-        processor._binary_op_handler(fp2node, fake_parent)
-    assert ("binary intrinsic operation 'MAX(dummy)'. Expected second child "
-            "to be Actual_Arg_Spec_List" in str(err.value))
-
-
-@pytest.mark.usefixtures("f2008_parser")
-def test_nary_op_handler_error():
-    ''' Check that the Nary op handler raises the expected error if the parse
-    tree has an unexpected structure. '''
-    processor = Fparser2Reader()
-    fake_parent = Schedule()
-    reader = FortranStringReader("x = MAX(a, b, c)")
-    fp2node = Execution_Part.match(reader)[0][0].items[2]
-    # Give the node an incorrect number of arguments for the Nary handler
-    fp2node.items[1].items = (Name('a'),)
-    with pytest.raises(InternalError) as err:
-        processor._nary_op_handler(fp2node, fake_parent)
-    assert ("An N-ary operation must have more than two arguments but found 1 "
-            "for 'MAX(a)'" in str(err.value))
-    # Break the 'items' tuple of this fparser node
-    fp2node.items = (fp2node.items[0], Name('dummy'))
-    with pytest.raises(InternalError) as err:
-        processor._nary_op_handler(fp2node, fake_parent)
-    assert ("Expected second 'item' of N-ary intrinsic 'MAX(dummy)' in fparser"
-            " parse tree to be an Actual_Arg_Spec_List" in str(err.value))
+    fake_parent = Schedule(symbol_table=symbol_table)
+    reader = FortranStringReader("x = NULL()")
+    fp2node = Execution_Part.match(reader)[0][0]
+    processor.process_nodes(fake_parent, [fp2node])
+    assign = fake_parent.children[0]
+    assert isinstance(assign.rhs, IntrinsicCall)
+    assert assign.rhs.intrinsic == IntrinsicCall.Intrinsic.NULL
+    assert len(assign.rhs.children) == 0
 
 
 @pytest.mark.usefixtures("f2008_parser")

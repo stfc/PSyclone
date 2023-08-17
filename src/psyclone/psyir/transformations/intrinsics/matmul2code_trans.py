@@ -111,18 +111,21 @@ def _get_array_bound(array, index):
         lower_bound = my_dim.lower.copy()
         if my_dim.upper == ArrayType.Extent.ATTRIBUTE:
             # Assumed-shape array.
-            upper_bound = BinaryOperation.create(
-                BinaryOperation.Operator.UBOUND, Reference(array.symbol),
-                Literal(str(index), INTEGER_TYPE))
+            upper_bound = IntrinsicCall.create(
+                IntrinsicCall.Intrinsic.UBOUND,
+                [Reference(array.symbol),
+                 ("dim", Literal(str(index), INTEGER_TYPE))])
         else:
             upper_bound = my_dim.upper.copy()
     else:
-        lower_bound = BinaryOperation.create(
-            BinaryOperation.Operator.LBOUND, Reference(array.symbol),
-            Literal(str(index), INTEGER_TYPE))
-        upper_bound = BinaryOperation.create(
-            BinaryOperation.Operator.UBOUND, Reference(array.symbol),
-            Literal(str(index), INTEGER_TYPE))
+        lower_bound = IntrinsicCall.create(
+            IntrinsicCall.Intrinsic.LBOUND,
+            [Reference(array.symbol),
+             ("dim", Literal(str(index), INTEGER_TYPE))])
+        upper_bound = IntrinsicCall.create(
+            IntrinsicCall.Intrinsic.UBOUND,
+            [Reference(array.symbol),
+             ("dim", Literal(str(index), INTEGER_TYPE))])
 
     step = Literal("1", INTEGER_TYPE)
     return (lower_bound, upper_bound, step)

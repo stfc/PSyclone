@@ -41,7 +41,8 @@ NEMO Kernel.
 
 from psyclone.errors import LazyString
 from psyclone.nemo import NemoKern
-from psyclone.psyir.nodes import Schedule, Loop, Call, CodeBlock, Assignment
+from psyclone.psyir.nodes import Schedule, Loop, Call, CodeBlock, Assignment, \
+    IntrinsicCall
 from psyclone.transformations import Transformation, TransformationError
 
 
@@ -137,9 +138,11 @@ class CreateNemoKernelTrans(Transformation):
         nodes = node.walk((Assignment, CodeBlock, Loop, Call, NemoKern),
                           stop_type=(CodeBlock, Loop, Call, NemoKern))
         if nodes and isinstance(nodes[-1], (CodeBlock, Loop, Call, NemoKern)):
-            raise TransformationError(
-                f"Error in NemoKernelTrans transformation. A NEMO Kernel "
-                f"cannot contain a node of type: '{type(nodes[-1]).__name__}'")
+            if not isinstance(nodes[-1], IntrinsicCall):
+                raise TransformationError(
+                    f"Error in NemoKernelTrans transformation. A NEMO Kernel "
+                    f"cannot contain a node of type:"
+                    f"'{type(nodes[-1]).__name__}'")
 
         # Check for array assignments
         assigns = [assign for assign in nodes if

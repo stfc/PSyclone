@@ -41,7 +41,7 @@ chunked implementation of the Loop'''
 from psyclone.core import VariablesAccessInfo, Signature, AccessType
 from psyclone.psyir import nodes
 from psyclone.psyir.nodes import Assignment, BinaryOperation, Reference, \
-        Literal, Loop, Schedule, CodeBlock
+        Literal, Loop, Schedule, CodeBlock, IntrinsicCall
 from psyclone.psyir.symbols import DataSymbol, ScalarType
 from psyclone.psyir.transformations.loop_trans import LoopTrans
 from psyclone.psyir.transformations.transformation_error import \
@@ -255,8 +255,8 @@ class ChunkLoopTrans(LoopTrans):
                         BinaryOperation.Operator.SUB,
                         Literal(f"{chunk_size}", node.variable.datatype),
                         Literal("1", node.variable.datatype)))
-            minop = BinaryOperation.create(BinaryOperation.Operator.MIN, add,
-                                           stop.copy())
+            minop = IntrinsicCall.create(IntrinsicCall.Intrinsic.MIN,
+                                         [add, stop.copy()])
             inner_loop_end = Assignment.create(Reference(end_inner_loop),
                                                minop)
         # For negative steps we do:
@@ -269,8 +269,8 @@ class ChunkLoopTrans(LoopTrans):
                         BinaryOperation.Operator.ADD,
                         Literal(f"{chunk_size}", node.variable.datatype),
                         Literal("1", node.variable.datatype)))
-            maxop = BinaryOperation.create(BinaryOperation.Operator.MAX, sub,
-                                           stop.copy())
+            maxop = IntrinsicCall.create(IntrinsicCall.Intrinsic.MAX,
+                                         [sub, stop.copy()])
             inner_loop_end = Assignment.create(Reference(end_inner_loop),
                                                maxop)
             # chunk_size needs to be negative if we're reducing

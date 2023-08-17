@@ -40,7 +40,8 @@ transformation.'''
 import pytest
 
 from psyclone.psyir.nodes import Literal, BinaryOperation, Reference, \
-    Range, ArrayReference, Assignment, Node, DataNode, KernelSchedule
+    Range, ArrayReference, Assignment, Node, DataNode, KernelSchedule, \
+    IntrinsicCall
 from psyclone.psyGen import Transformation
 from psyclone.psyir.symbols import (ArgumentInterface, ArrayType, DataSymbol,
                                     INTEGER_TYPE, REAL_TYPE, SymbolTable)
@@ -66,12 +67,12 @@ def create_range(array_symbol, dim):
 
     '''
     int_dim = Literal(str(dim), INTEGER_TYPE)
-    lbound = BinaryOperation.create(
-        BinaryOperation.Operator.LBOUND,
-        Reference(array_symbol), int_dim)
-    ubound = BinaryOperation.create(
-        BinaryOperation.Operator.UBOUND,
-        Reference(array_symbol), int_dim.copy())
+    lbound = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.LBOUND,
+        [Reference(array_symbol), ("dim", int_dim)])
+    ubound = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.UBOUND,
+        [Reference(array_symbol), ("dim", int_dim.copy())])
     return Range.create(lbound, ubound)
 
 
@@ -370,16 +371,16 @@ def test_same_range():
 # y3(n,2:n:2)=x(2:n:2)*z(1,2:n:2)+a(1)
 @pytest.mark.parametrize("lhs_create,rhs_create,expected",
                          [(create_array_x, create_literal,
-                           "  do idx = LBOUND(x, 1), UBOUND(x, 1), 1\n"
+                           "  do idx = LBOUND(x, dim=1), UBOUND(x, dim=1), 1\n"
                            "    x(idx) = 0.0\n"),
                           (create_array_x, create_array_y,
-                           "  do idx = LBOUND(x, 1), UBOUND(x, 1), 1\n"
+                           "  do idx = LBOUND(x, dim=1), UBOUND(x, dim=1), 1\n"
                            "    x(idx) = y(n,idx)\n"),
                           (create_array_y, create_array_x,
-                           "  do idx = LBOUND(y, 2), UBOUND(y, 2), 1\n"
+                           "  do idx = LBOUND(y, dim=2), UBOUND(y, dim=2), 1\n"
                            "    y(n,idx) = x(idx)\n"),
                           (create_array_y_2d_slice, create_array_z,
-                           "  do idx = LBOUND(y2, 2), UBOUND(y2, 2), 1\n"
+                           "  do idx = LBOUND(y2, dim=2), UBOUND(y2, dim=2), 1\n"
                            "    y2(:,idx) = z(:,n,idx)\n"),
                           (create_array_y_slice_subset, create_expr,
                            "  do idx = 2, n, 2\n"
@@ -425,8 +426,8 @@ def test_transform_multi_apply(tmpdir):
     trans.apply(assignment)
     trans.apply(assignment)
     expected = (
-        "  do idx = LBOUND(y2, 2), UBOUND(y2, 2), 1\n"
-        "    do idx_1 = LBOUND(y2, 1), UBOUND(y2, 1), 1\n"
+        "  do idx = LBOUND(y2, dim=2), UBOUND(y2, dim=2), 1\n"
+        "    do idx_1 = LBOUND(y2, dim=1), UBOUND(y2, dim=1), 1\n"
         "      y2(idx_1,idx) = z(idx_1,n,idx)\n"
         "    enddo\n"
         "  enddo\n")
@@ -461,10 +462,10 @@ def test_transform_apply_insert(tmpdir):
     trans.apply(assignment2)
     writer = FortranWriter()
     expected = (
-        "  do idx = LBOUND(x, 1), UBOUND(x, 1), 1\n"
+        "  do idx = LBOUND(x, dim=1), UBOUND(x, dim=1), 1\n"
         "    x(idx) = y(n,idx)\n"
         "  enddo\n"
-        "  do idx_1 = LBOUND(y2, 2), UBOUND(y2, 2), 1\n"
+        "  do idx_1 = LBOUND(y2, dim=2), UBOUND(y2, dim=2), 1\n"
         "    y2(:,idx_1) = z(:,n,idx_1)\n"
         "  enddo\n")
     result = writer(routine)
@@ -561,8 +562,8 @@ def test_validate_intrinsic():
     symbol_table = SymbolTable()
     array_x = create_array_x(symbol_table)
     array_y_2 = create_array_y_2d_slice(symbol_table)
-    matmul = BinaryOperation.create(BinaryOperation.Operator.MATMUL,
-                                    array_y_2, array_x)
+    matmul = IntrinsicCall.create(IntrinsicCall.Intrinsic.MATMUL,
+                                  [array_y_2, array_x])
     reference = ArrayReference.create(
         symbol_table.lookup("x"), [create_range(symbol_table.lookup("x"), 1)])
     assignment = Assignment.create(reference, matmul)
@@ -571,9 +572,6 @@ def test_validate_intrinsic():
     with pytest.raises(TransformationError) as info:
         trans.validate(assignment)
     assert (
-        "Error in ArrayRange2LoopTrans transformation. The rhs of the "
-        "supplied Assignment node 'BinaryOperation[operator:'MATMUL']\n"
-        "ArrayReference[name:'y2']\nRange[]\nRange[]\n\n"
-        "ArrayReference[name:'x']\nRange[]\n' contains the "
-        "MATMUL operator which can't be performed elementwise." in
-        str(info.value))
+        "Error in ArrayRange2LoopTrans transformation. The rhs of the supplied"
+        " Assignment contains a call 'MATMUL(y2(:,:), x(:))'."
+        in str(info.value))

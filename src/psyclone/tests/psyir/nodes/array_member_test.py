@@ -90,48 +90,48 @@ def test_am_is_lower_upper_bound():
     sym = symbols.DataSymbol("grid_var", grid_type)
     ref = nodes.StructureReference.create(sym, ["data"])
     # Start and stop for the range are binary operators but not the right ones
-    start = nodes.operation.BinaryOperation.create(
-        nodes.operation.BinaryOperation.Operator.UBOUND,
-        ref.copy(), one.copy())
-    stop = nodes.operation.BinaryOperation.create(
-        nodes.operation.BinaryOperation.Operator.LBOUND,
-        ref.copy(), one.copy())
+    start = nodes.IntrinsicCall.create(
+        nodes.IntrinsicCall.Intrinsic.UBOUND,
+        [ref.copy(), ("dim", one.copy())])
+    stop = nodes.IntrinsicCall.create(
+        nodes.IntrinsicCall.Intrinsic.LBOUND,
+        [ref.copy(), ("dim", one.copy())])
     my_range = nodes.Range.create(start, stop)
     sref = nodes.StructureReference.create(sym, [("data", [my_range])])
     amem2 = sref.walk(nodes.ArrayMember)[0]
     assert amem2.is_lower_bound(0) is False
     assert amem2.is_upper_bound(0) is False
     # Correct binary operators but wrong types of operand
-    start = nodes.operation.BinaryOperation.create(
-        nodes.operation.BinaryOperation.Operator.LBOUND,
-        one.copy(), one.copy())
-    stop = nodes.operation.BinaryOperation.create(
-        nodes.operation.BinaryOperation.Operator.UBOUND,
-        one.copy(), one.copy())
+    start = nodes.IntrinsicCall.create(
+        nodes.IntrinsicCall.Intrinsic.LBOUND,
+        [one.copy(), ("dim", one.copy())])
+    stop = nodes.IntrinsicCall.create(
+        nodes.IntrinsicCall.Intrinsic.UBOUND,
+        [one.copy(), ("dim", one.copy())])
     my_range = nodes.Range.create(start, stop)
     sref = nodes.StructureReference.create(sym, [("data", [my_range])])
     amem2 = sref.walk(nodes.ArrayMember)[0]
     assert amem2.is_lower_bound(0) is False
     assert amem2.is_upper_bound(0) is False
     # Correct start and stop arguments to Range
-    start = nodes.operation.BinaryOperation.create(
-        nodes.operation.BinaryOperation.Operator.LBOUND,
-        ref.copy(), one.copy())
-    stop = nodes.operation.BinaryOperation.create(
-        nodes.operation.BinaryOperation.Operator.UBOUND,
-        ref.copy(), one.copy())
+    start = nodes.IntrinsicCall.create(
+        nodes.IntrinsicCall.Intrinsic.LBOUND,
+        [ref.copy(), ("dim", one.copy())])
+    stop = nodes.IntrinsicCall.create(
+        nodes.IntrinsicCall.Intrinsic.UBOUND,
+        [ref.copy(), ("dim", one.copy())])
     my_range = nodes.Range.create(start, stop)
     sref = nodes.StructureReference.create(sym, [("data", [my_range])])
     amem2 = sref.walk(nodes.ArrayMember)[0]
     assert amem2.is_lower_bound(0) is True
     assert amem2.is_upper_bound(0) is True
     # Range in a dimension other than the first
-    start = nodes.operation.BinaryOperation.create(
-        nodes.operation.BinaryOperation.Operator.LBOUND,
-        ref.copy(), two.copy())
-    stop = nodes.operation.BinaryOperation.create(
-        nodes.operation.BinaryOperation.Operator.UBOUND,
-        ref.copy(), two.copy())
+    start = nodes.IntrinsicCall.create(
+        nodes.IntrinsicCall.Intrinsic.LBOUND,
+        [ref.copy(), ("dim", two.copy())])
+    stop = nodes.IntrinsicCall.create(
+        nodes.IntrinsicCall.Intrinsic.UBOUND,
+        [ref.copy(), ("dim", two.copy())])
     my_range = nodes.Range.create(start, stop)
     sref = nodes.StructureReference.create(sym, [("data",
                                                   [one.copy(), my_range])])

@@ -40,7 +40,7 @@ transformation.'''
 import pytest
 
 from psyclone.psyGen import Transformation
-from psyclone.psyir.nodes import Reference, Literal, BinaryOperation
+from psyclone.psyir.nodes import Reference, Literal, IntrinsicCall
 from psyclone.psyir.symbols import DataSymbol, REAL_TYPE
 from psyclone.psyir.transformations import Reference2ArrayRangeTrans, \
     TransformationError
@@ -100,10 +100,10 @@ def test_get_array_bound(fortran_reader):
     symbol = node.symbol
     lower_bound, upper_bound, step = \
         Reference2ArrayRangeTrans._get_array_bound(symbol, 0)
-    assert isinstance(lower_bound, BinaryOperation)
-    assert lower_bound.operator == BinaryOperation.Operator.LBOUND
-    assert isinstance(upper_bound, BinaryOperation)
-    assert upper_bound.operator == BinaryOperation.Operator.UBOUND
+    assert isinstance(lower_bound, IntrinsicCall)
+    assert lower_bound.operator == IntrinsicCall.Intrinsic.LBOUND
+    assert isinstance(upper_bound, IntrinsicCall)
+    assert upper_bound.operator == IntrinsicCall.Intrinsic.UBOUND
     assert isinstance(step, Literal)
     assert step.value == "1"
     reference = lower_bound.children[0]

@@ -99,12 +99,12 @@ def _get_array_bound(vector1, vector2):
     # array so use the LBOUND and UBOUND intrinsics.
     symbol = vector1.symbol
     my_dim = symbol.shape[0]
-    lower_bound = BinaryOperation.create(
-        BinaryOperation.Operator.LBOUND, Reference(symbol),
-        Literal("1", INTEGER_TYPE))
-    upper_bound = BinaryOperation.create(
-        BinaryOperation.Operator.UBOUND, Reference(symbol),
-        Literal("1", INTEGER_TYPE))
+    lower_bound = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.LBOUND,
+        [Reference(symbol), ("dim", Literal("1", INTEGER_TYPE))])
+    upper_bound = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.UBOUND,
+        [Reference(symbol), ("dim", Literal("1", INTEGER_TYPE))])
     step = Literal("1", INTEGER_TYPE)
     return (lower_bound, upper_bound, step)
 

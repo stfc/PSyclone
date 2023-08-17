@@ -81,6 +81,7 @@ class IntrinsicCall(Call):
     '''
     # Textual description of the node.
     _children_valid_format = "[DataNode]*"
+    _text_name = "IntrinsicCall"
     _colour = "cyan"
 
     #: The type of Symbol this Call must refer to. Used for type checking in
@@ -290,7 +291,7 @@ class IntrinsicCall(Call):
             'CSHIFT', True, False, False,
             ArgDesc(2, 2, DataNode), {"dim": DataNode})
         DATE_AND_TIME = IAttr(
-            'DATE_AND_TIME', False, False,
+            'DATE_AND_TIME', False, False, False,
             ArgDesc(0, 0, DataNode),
             {"date": DataNode, "time": DataNode,
              "zone": DataNode, "values": DataNode})
@@ -431,7 +432,7 @@ class IntrinsicCall(Call):
             ArgDesc(1, 1, (DataNode)), {})
         LBOUND = IAttr(
             'LBOUND', True, False, True,
-            ArgDesc(1, 1, (DataNode)), {"back": DataNode, "kind": DataNode})
+            ArgDesc(1, 1, (DataNode)), {"dim": DataNode, "kind": DataNode})
         LCOBOUND = IAttr(
             'LCOBOUND', True, False, True,
             ArgDesc(1, 1, (DataNode)), {"dim": DataNode, "kind": DataNode})
@@ -860,6 +861,47 @@ class IntrinsicCall(Call):
 
         return call
 
+    def reference_accesses(self, var_accesses):
+        '''Get all reference access information from this node.
+        If the 'COLLECT-ARRAY-SHAPE-READS' options is set, it
+        will not report array accesses used as first parameter
+        in `lbound`, `ubound`, or `size` as 'read' accesses.
+
+        :param var_accesses: VariablesAccessInfo instance that stores the \
+            information about variable accesses.
+        :type var_accesses: \
+            :py:class:`psyclone.core.VariablesAccessInfo`
+
+        '''
+        if not var_accesses.options("COLLECT-ARRAY-SHAPE-READS"):
+            if self.intrinsic.is_inquiry:
+                for child in self._children[1:]:
+                    child.reference_accesses(var_accesses)
+        else:
+            for child in self._children:
+                child.reference_accesses(var_accesses)
+
+    # Maybe the two properties above can be removed if intrinsic is a symbol
+    @property
+    def is_elemental(self):
+        '''
+        :returns: whether the routine being called is elemental (provided with
+            an input array it will apply the operation individually to each of
+            the array elements and return an array with the results). If this
+            information is not known then it returns None.
+        :rtype: NoneType | bool
+        '''
+        return self.intrinsic.is_elemental
+
+    @property
+    def is_pure(self):
+        '''
+        :returns: whether the routine being called is pure (guaranteed to
+            return the same result when provided with the same argument
+            values).  If this information is not known then it returns None.
+        :rtype: NoneType | bool
+        '''
+        return self.intrinsic.is_pure
 
 # TODO #658 this can be removed once we have support for determining the
 # type of a PSyIR expression.

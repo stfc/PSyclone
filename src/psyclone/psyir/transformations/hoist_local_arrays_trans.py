@@ -198,10 +198,10 @@ then
                 if not isinstance(dim.lower, Literal):
                     expr = BinaryOperation.create(
                             BinaryOperation.Operator.NE,
-                            BinaryOperation.create(
-                                BinaryOperation.Operator.LBOUND,
-                                Reference(sym),
-                                Literal(str(idx+1), INTEGER_TYPE)),
+                            IntrinsicCall.create(
+                                IntrinsicCall.Intrinsic.LBOUND,
+                                [Reference(sym),
+                                 ("dim", Literal(str(idx+1), INTEGER_TYPE))]),
                             dim.lower.copy())
                     # We chain the new check to the already existing cond_expr
                     # which starts with the 'not allocated' condition added
@@ -213,10 +213,10 @@ then
                 if not isinstance(dim.upper, Literal):
                     expr = BinaryOperation.create(
                             BinaryOperation.Operator.NE,
-                            BinaryOperation.create(
-                                BinaryOperation.Operator.UBOUND,
-                                Reference(sym),
-                                Literal(str(idx+1), INTEGER_TYPE)),
+                            IntrinsicCall.create(
+                                IntrinsicCall.Intrinsic.UBOUND,
+                                [Reference(sym),
+                                 ("dim", Literal(str(idx+1), INTEGER_TYPE))]),
                             dim.upper.copy())
                     # We chain the new check to the already existing cond_expr
                     # which starts with the 'not allocated' condition added

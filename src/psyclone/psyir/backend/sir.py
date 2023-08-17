@@ -42,7 +42,7 @@ gen() method to generate Fortran.
 from psyclone.nemo import NemoLoop, NemoKern
 from psyclone.psyir.backend.visitor import PSyIRVisitor, VisitorError
 from psyclone.psyir.nodes import ArrayReference, BinaryOperation, Literal, \
-    Reference, UnaryOperation, NaryOperation
+    Reference, UnaryOperation, IntrinsicCall
 from psyclone.psyir.symbols import ScalarType
 
 # Mapping from PSyIR data types to SIR types.
@@ -314,13 +314,6 @@ class SIRWriter(PSyIRVisitor):
         operator to SIR.
 
         '''
-        # Specify any PSyIR intrinsic operators as these are typically
-        # mapped to SIR functions and are therefore treated
-        # differently to other operators.
-        intrinsic_operators = [
-            BinaryOperation.Operator.MIN, BinaryOperation.Operator.MAX,
-            BinaryOperation.Operator.SIGN]
-
         # Specify the mapping of PSyIR binary operators to SIR binary
         # operators.
         binary_operators = {
@@ -336,10 +329,7 @@ class SIRWriter(PSyIRVisitor):
             BinaryOperation.Operator.GE: '>=',
             BinaryOperation.Operator.GT: '>',
             BinaryOperation.Operator.AND: '&&',
-            BinaryOperation.Operator.OR: '||',
-            BinaryOperation.Operator.MIN: 'math::min',
-            BinaryOperation.Operator.MAX: 'math::max',
-            BinaryOperation.Operator.SIGN: 'math::sign'}
+            BinaryOperation.Operator.OR: '||'}
 
         self._depth += 1
         lhs = self._visit(node.children[0])
@@ -352,28 +342,11 @@ class SIRWriter(PSyIRVisitor):
         rhs = self._visit(node.children[1])
         self._depth -= 1
 
-        if node.operator in intrinsic_operators:
-            if node.operator is BinaryOperation.Operator.SIGN:
-                # This is a special case as the implementation of SIGN
-                # in the PSyIR (which uses the Fortran implementation)
-                # is different to that in SIR (which uses the C
-                # implementation).
-                # [F] SIGN(A,B) == [C] FABS(A)*SIGN(B)
-                c_abs_fun = (f"make_fun_call_expr(\"math::fabs\", "
-                             f"[{lhs.strip()}])")
-                c_sign_fun = (f"make_fun_call_expr(\"math::sign\", "
-                              f"[{rhs.strip()}])")
-                result = (f"make_binary_operator({c_abs_fun}, "
-                          f"\"*\", {c_sign_fun})")
-            else:
-                result = (f"{self._nindent}{self._indent}make_fun_call_expr("
-                          f"\"{oper}\", [{lhs.strip()}], [{rhs.strip()}])")
-        else:
-            result = f"{self._nindent}make_binary_operator(\n{lhs}"
-            # For better formatting, remove the newline if one exists.
-            result = result.rstrip("\n") + ",\n"
-            result += f"{self._nindent}{self._indent}\"{oper}\",\n{rhs}\n"\
-                f"{self._nindent}{self._indent})\n"
+        result = f"{self._nindent}make_binary_operator(\n{lhs}"
+        # For better formatting, remove the newline if one exists.
+        result = result.rstrip("\n") + ",\n"
+        result += f"{self._nindent}{self._indent}\"{oper}\",\n{rhs}\n"\
+            f"{self._nindent}{self._indent})\n"
         return result
 
     def reference_node(self, node):
@@ -461,23 +434,15 @@ class SIRWriter(PSyIRVisitor):
 
         '''
         # Currently only '-' and intrinsics are supported in the SIR mapping.
-        intrinsic_operators = [UnaryOperation.Operator.ABS]
-
         unary_operators = {
             UnaryOperation.Operator.MINUS: '-',
-            UnaryOperation.Operator.ABS: 'math::fabs'}
+        }
         try:
             oper = unary_operators[node.operator]
         except KeyError as err:
             raise VisitorError(
                 f"Method unaryoperation_node in class SIRWriter, unsupported "
                 f"operator '{node.operator}' found.") from err
-
-        if node.operator in intrinsic_operators:
-            rhs = self._visit(node.children[0])
-            result = (f"{self._nindent}{self._indent}make_fun_call_expr("
-                      f"\"{oper}\", [{rhs.strip()}])")
-            return result
 
         if isinstance(node.children[0], Literal):
             # The unary minus operator is being applied to a
@@ -558,12 +523,12 @@ class SIRWriter(PSyIRVisitor):
             result += self._visit(child)
         return result
 
-    def naryoperation_node(self, node):
-        '''This method is called when an NaryOperation instance is found in
+    def intrinsiccall_node(self, node):
+        '''This method is called when an Intrinsic node is found in
         the PSyIR tree.
 
-        :param node: a NaryOperation PSyIR node.
-        :type node: :py:class:`psyclone.psyir.nodes.NaryOperation`
+        :param node: an IntrinsicCall PSyIR node.
+        :type node: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
 
         :returns: the SIR Python code.
         :rtype: str
@@ -575,26 +540,43 @@ class SIRWriter(PSyIRVisitor):
         # Specify the mapping of PSyIR nary operators to SIR nary
         # operators. The assumption here is that the nary operators
         # are SIR intrinsics.
-        nary_operators = {
-            NaryOperation.Operator.MIN: 'math::min',
-            NaryOperation.Operator.MAX: 'math::max'}
+        supported_intrinsics = {
+            IntrinsicCall.Intrinsic.ABS: 'math::fabs',
+            IntrinsicCall.Intrinsic.MIN: 'math::min',
+            IntrinsicCall.Intrinsic.MAX: 'math::max',
+            IntrinsicCall.Intrinsic.SIGN: 'math::sign'}
 
         try:
-            oper = nary_operators[node.operator]
+            intrinsic = supported_intrinsics[node.intrinsic]
         except KeyError as err:
-            oper_names = [operator.name for operator in nary_operators]
+            intr_names = [intr.name for intr in supported_intrinsics]
             raise VisitorError(
-                f"Method naryoperation_node in class SIRWriter, unsupported "
-                f"operator '{node.operator}' found. Expected one of "
-                f"'{oper_names}'.") from err
+                f"Method intrinsiccall_node in class SIRWriter, unsupported "
+                f"intrinsic '{node.intrinsic.name}' found. Expected one of "
+                f"'{intr_names}'.") from err
 
-        arg_list = []
         self._depth += 1
-        for child in node.children:
-            arg_list.append(f"[{self._visit(child).strip()}]")
+
+        if node.intrinsic is IntrinsicCall.Intrinsic.SIGN:
+            # This is a special case as the implementation of SIGN
+            # in the PSyIR (which uses the Fortran implementation)
+            # is different to that in SIR (which uses the C
+            # implementation).
+            # [F] SIGN(A,B) == [C] FABS(A)*SIGN(B)
+            c_abs_fun = (f"make_fun_call_expr(\"math::fabs\", "
+                         f"[{self._visit(node.children[0]).strip()}])")
+            c_sign_fun = (f"make_fun_call_expr(\"math::sign\", "
+                          f"[{self._visit(node.children[1]).strip()}])")
+            result = (f"make_binary_operator({c_abs_fun}, "
+                      f"\"*\", {c_sign_fun})")
+        else:
+            # Everything else it is a SIR intrinsics
+            arg_list = []
+            for child in node.children:
+                arg_list.append(f"[{self._visit(child).strip()}]")
+            arg_str = ", ".join(arg_list)
+            result = (f"{self._nindent}{self._indent}make_fun_call_expr("
+                      f"\"{intrinsic}\", {arg_str})")
+
         self._depth -= 1
-        arg_str = ", ".join(arg_list)
-        # The assumption here is that the supported operators are intrinsics
-        result = (f"{self._nindent}{self._indent}make_fun_call_expr("
-                  f"\"{oper}\", {arg_str})")
         return result

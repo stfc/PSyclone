@@ -61,25 +61,31 @@ def create_matmul():
     array_type = ArrayType(REAL_TYPE, [5, 10, 15])
     mat_symbol = DataSymbol("x", array_type)
     symbol_table.add(mat_symbol)
-    lbound1 = BinaryOperation.create(
-        BinaryOperation.Operator.LBOUND, Reference(mat_symbol), one.copy())
-    ubound1 = BinaryOperation.create(
-        BinaryOperation.Operator.UBOUND, Reference(mat_symbol), one.copy())
+    lbound1 = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.LBOUND,
+        [Reference(mat_symbol), ("dim", one.copy())])
+    ubound1 = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.UBOUND,
+        [Reference(mat_symbol), ("dim", one.copy())])
     my_mat_range1 = Range.create(lbound1, ubound1, one.copy())
-    lbound2 = BinaryOperation.create(
-        BinaryOperation.Operator.LBOUND, Reference(mat_symbol), two.copy())
-    ubound2 = BinaryOperation.create(
-        BinaryOperation.Operator.UBOUND, Reference(mat_symbol), two.copy())
+    lbound2 = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.LBOUND,
+        [Reference(mat_symbol), ("dim", two.copy())])
+    ubound2 = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.UBOUND,
+        [Reference(mat_symbol), ("dim", two.copy())])
     my_mat_range2 = Range.create(lbound2, ubound2, one.copy())
     matrix = ArrayReference.create(mat_symbol, [my_mat_range1, my_mat_range2,
                                                 Reference(index)])
     array_type = ArrayType(REAL_TYPE, [10, 20, 10])
     vec_symbol = DataSymbol("y", array_type)
     symbol_table.add(vec_symbol)
-    lbound = BinaryOperation.create(
-        BinaryOperation.Operator.LBOUND, Reference(vec_symbol), one.copy())
-    ubound = BinaryOperation.create(
-        BinaryOperation.Operator.UBOUND, Reference(vec_symbol), one.copy())
+    lbound = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.LBOUND,
+        [Reference(vec_symbol), ("dim", one.copy())])
+    ubound = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.UBOUND,
+        [Reference(vec_symbol), ("dim", one.copy())])
     my_vec_range = Range.create(lbound, ubound, one.copy())
     vector = ArrayReference.create(vec_symbol, [my_vec_range,
                                                 Reference(index), one.copy()])
@@ -210,16 +216,16 @@ def test_get_array_bound():
         respectively.
 
         '''
-        assert isinstance(lower_bound, BinaryOperation)
-        assert lower_bound.operator == BinaryOperation.Operator.LBOUND
+        assert isinstance(lower_bound, IntrinsicCall)
+        assert lower_bound.intrinsic == IntrinsicCall.Intrinsic.LBOUND
         assert isinstance(lower_bound.children[0], Reference)
         assert lower_bound.children[0].symbol is array_symbol
         assert isinstance(lower_bound.children[1], Literal)
         assert (lower_bound.children[1].datatype.intrinsic ==
                 ScalarType.Intrinsic.INTEGER)
         assert lower_bound.children[1].value == str(index)
-        assert isinstance(upper_bound, BinaryOperation)
-        assert upper_bound.operator == BinaryOperation.Operator.UBOUND
+        assert isinstance(upper_bound, IntrinsicCall)
+        assert upper_bound.intrinsic == IntrinsicCall.Intrinsic.UBOUND
         assert isinstance(upper_bound.children[0], Reference)
         assert upper_bound.children[0].symbol is array_symbol
         assert isinstance(upper_bound.children[1], Literal)
@@ -262,7 +268,7 @@ def test_get_array_bound():
     reference = Reference(array_symbol)
     (lower_bound, upper_bound, step) = _get_array_bound(reference, 0)
     assert isinstance(lower_bound, Literal)
-    assert isinstance(upper_bound, BinaryOperation)
+    assert isinstance(upper_bound, IntrinsicCall)
     (lower_bound2, upper_bound2, step2) = _get_array_bound(reference, 1)
     assert lower_bound2 is not lower_bound
     assert upper_bound2 is not upper_bound

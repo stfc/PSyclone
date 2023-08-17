@@ -295,14 +295,14 @@ class Sum2CodeTrans(Transformation):
                 if shape in [ArrayType.Extent.DEFERRED,
                              ArrayType.Extent.ATTRIBUTE]:
                     # runtime extent using LBOUND and UBOUND required
-                    lbound = BinaryOperation.create(
-                        BinaryOperation.Operator.LBOUND,
-                        Reference(array_ref.symbol),
-                        Literal(str(idx+1), INTEGER_TYPE))
-                    ubound = BinaryOperation.create(
-                        BinaryOperation.Operator.UBOUND,
-                        Reference(array_ref.symbol),
-                        Literal(str(idx+1), INTEGER_TYPE))
+                    lbound = IntrinsicCall.create(
+                        IntrinsicCall.Intrinsic.LBOUND,
+                        [Reference(array_ref.symbol),
+                         ("dim", Literal(str(idx+1), INTEGER_TYPE))])
+                    ubound = IntrinsicCall.create(
+                        IntrinsicCall.Intrinsic.UBOUND,
+                        [Reference(array_ref.symbol),
+                         ("dim", Literal(str(idx+1), INTEGER_TYPE))])
                     loop_bounds.append((lbound, ubound))
                 elif isinstance(shape, ArrayType.ArrayBounds):
                     # array extent is defined in the array declaration

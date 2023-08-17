@@ -69,7 +69,7 @@ from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Literal, Schedule, KernelSchedule, \
-    StructureReference, BinaryOperation, Reference, Call, Assignment, \
+    StructureReference, IntrinsicCall, Reference, Call, Assignment, \
     ACCEnterDataDirective, ACCParallelDirective, \
     ACCKernelsDirective, Container, ACCUpdateDirective, Routine
 from psyclone.psyir.symbols import ScalarType, INTEGER_TYPE, \
@@ -852,7 +852,7 @@ class GOLoop(PSyLoop):
             # Bounds are independent of the grid-offset convention in use
             # We look-up the upper bounds by enquiring about the SIZE of
             # the array itself
-            stop = BinaryOperation(BinaryOperation.Operator.SIZE)
+            stop = IntrinsicCall(IntrinsicCall.Intrinsic.SIZE)
             # Use the data property to access the member of the field that
             # contains the actual grid points.
             api_config = Config.get().api_conf("gocean1.0")

@@ -43,7 +43,8 @@ from sympy.parsing.sympy_parser import parse_expr
 
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.backend.visitor import VisitorError
-from psyclone.psyir.nodes import DataNode, Range, Reference, IntrinsicCall
+from psyclone.psyir.nodes import DataNode, Range, Reference, IntrinsicCall, \
+    Schedule
 from psyclone.psyir.symbols import ArrayType, ScalarType, SymbolTable
 
 
@@ -107,22 +108,22 @@ class SymPyWriter(FortranWriter):
 
         self._sympy_type_map = {}
         self._intrinsic = set()
-        self._op_to_str = {}
+        self._intrinsic_to_str = {}
 
         # Create the mapping of intrinsics to the name SymPy expects.
-        for operator, op_str in [(IntrinsicCall.Intrinsic.MAX, "Max"),
-                                 (IntrinsicCall.Intrinsic.MIN, "Min"),
-                                 (IntrinsicCall.Intrinsic.FLOOR, "floor"),
-                                 (IntrinsicCall.Intrinsic.TRANSPOSE,
-                                  "transpose"),
-                                 (IntrinsicCall.Intrinsic.MOD, "Mod"),
-                                 # exp is needed for a test case only, in
-                                 # general the maths functions can just be
-                                 # handled as unknown sympy functions.
-                                 (IntrinsicCall.Intrinsic.EXP, "exp"),
-                                 ]:
-            self._intrinsic.add(op_str)
-            self._op_to_str[operator] = op_str
+        for intr, intr_str in [(IntrinsicCall.Intrinsic.MAX, "Max"),
+                               (IntrinsicCall.Intrinsic.MIN, "Min"),
+                               (IntrinsicCall.Intrinsic.FLOOR, "floor"),
+                               (IntrinsicCall.Intrinsic.TRANSPOSE,
+                                "transpose"),
+                               (IntrinsicCall.Intrinsic.MOD, "Mod"),
+                               # exp is needed for a test case only, in
+                               # general the maths functions can just be
+                               # handled as unknown sympy functions.
+                               (IntrinsicCall.Intrinsic.EXP, "exp"),
+                               ]:
+            self._intrinsic.add(intr_str)
+            self._intrinsic_to_str[intr] = intr_str
 
     # -------------------------------------------------------------------------
     def __new__(cls, *expressions):
@@ -436,30 +437,21 @@ class SymPyWriter(FortranWriter):
         # information can be ignored.
         return node.value
 
-    # -------------------------------------------------------------------------
-    def get_operator(self, operator):
-        '''Determine the operator that is equivalent to the provided
-        PSyIR operator. This implementation checks for certain functions
-        that SymPy supports: Max, Min, Mod, etc. These functions must be
-        spelled with a capital first letter, otherwise SymPy will handle
-        them as unknown functions. If none of these special operators
-        are given, the base implementation is called (which will return
-        the Fortran syntax).
-
-        :param operator: a PSyIR operator.
-        :type operator: :py:class:`psyclone.psyir.nodes.Operation.Operator`
-
-        :returns: the operator as string.
-        :rtype: str
-
-        :raises KeyError: if the supplied operator is not known.
-
-        '''
-
+    def intrinsiccall_node(self, node):
+        # Sympy does not support argument names, remove them for now
+        if any(node.argument_names):
+            VisitorError(
+                f"Named arguments are not supported by SymPy but found: "
+                f"'{node.debug_string()}'.")
         try:
-            return self._op_to_str[operator]
+            name = self._intrinsic_to_str[node.intrinsic]
+            args = self._gen_arguments(node)
+            if not node.parent or isinstance(node.parent, Schedule):
+                return f"{self._nindent}call {name}({args})\n"
+            else:
+                return f"{self._nindent}{name}({args})"
         except KeyError:
-            return super().get_operator(operator)
+            return super().call_node(node)
 
     # -------------------------------------------------------------------------
     def is_intrinsic(self, operator):

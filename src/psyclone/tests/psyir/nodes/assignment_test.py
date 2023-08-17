@@ -165,12 +165,14 @@ def test_is_array_assignment():
     field_symbol = DataSymbol("wind", field_type_symbol)
 
     # Array reference to component of derived type using a range
-    lbound = BinaryOperation.create(
-        BinaryOperation.Operator.LBOUND,
-        StructureReference.create(field_symbol, ["data"]), int_one.copy())
-    ubound = BinaryOperation.create(
-        BinaryOperation.Operator.UBOUND,
-        StructureReference.create(field_symbol, ["data"]), int_one.copy())
+    lbound = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.LBOUND,
+        [StructureReference.create(field_symbol, ["data"]),
+         ("dim", int_one.copy())])
+    ubound = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.UBOUND,
+        [StructureReference.create(field_symbol, ["data"]),
+         ("dim", int_one.copy())])
     my_range = Range.create(lbound, ubound)
 
     data_ref = StructureReference.create(field_symbol, [("data", [my_range])])
@@ -198,18 +200,17 @@ def test_is_array_assignment():
     # e.g y(1, INT(ABS(map(:, 1)))) = 1.0
     int_array_type = ArrayType(INTEGER_SINGLE_TYPE, [10, 10])
     map_sym = DataSymbol("map", int_array_type)
-    lbound1 = BinaryOperation.create(
-        BinaryOperation.Operator.LBOUND,
-        Reference(map_sym), int_one.copy())
-    ubound1 = BinaryOperation.create(
-        BinaryOperation.Operator.UBOUND,
-        Reference(map_sym), int_one.copy())
+    lbound1 = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.LBOUND,
+        [Reference(map_sym), ("dim", int_one.copy())])
+    ubound1 = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.UBOUND,
+        [Reference(map_sym), ("dim", int_one.copy())])
     my_range1 = Range.create(lbound1, ubound1)
-    abs_op = UnaryOperation.create(UnaryOperation.Operator.ABS,
-                                   ArrayReference.create(map_sym,
-                                                         [my_range1,
-                                                          int_one.copy()]))
-    int_op = UnaryOperation.create(UnaryOperation.Operator.INT, abs_op)
+    abs_op = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.ABS,
+        [ArrayReference.create(map_sym, [my_range1, int_one.copy()])])
+    int_op = IntrinsicCall.create(IntrinsicCall.Intrinsic.INT, [abs_op])
     assignment = Assignment.create(
         ArrayReference.create(symbol, [int_one.copy(), int_op]),
         one.copy())
@@ -235,19 +236,19 @@ def test_array_assignment_with_reduction(monkeypatch):
     map_sym = DataSymbol("map", int_array_type)
     array_type = ArrayType(REAL_TYPE, [10, 10])
     symbol = DataSymbol("x", array_type)
-    lbound1 = BinaryOperation.create(
-        BinaryOperation.Operator.LBOUND,
-        Reference(map_sym), int_one.copy())
-    ubound1 = BinaryOperation.create(
-        BinaryOperation.Operator.UBOUND,
-        Reference(map_sym), int_one.copy())
+    lbound1 = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.LBOUND,
+        [Reference(map_sym), ("dim", int_one.copy())])
+    ubound1 = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.UBOUND,
+        [Reference(map_sym), ("dim", int_one.copy())])
     my_range1 = Range.create(lbound1, ubound1)
-    lbound2 = BinaryOperation.create(
-        BinaryOperation.Operator.LBOUND,
-        Reference(map_sym), int_two.copy())
-    ubound2 = BinaryOperation.create(
-        BinaryOperation.Operator.UBOUND,
-        Reference(map_sym), int_two.copy())
+    lbound2 = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.LBOUND,
+        [Reference(map_sym), ("dim", int_two.copy())])
+    ubound2 = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.UBOUND,
+        [Reference(map_sym), ("dim", int_two.copy())])
     my_range2 = Range.create(lbound2, ubound2)
     bsum_op = IntrinsicCall.create(
         IntrinsicCall.Intrinsic.SUM,
@@ -289,10 +290,10 @@ def test_is_not_array_assignment():
     # using an array range, y(1, SUM(map(:), 1)) = 1.0
     int_array_type = ArrayType(INTEGER_SINGLE_TYPE, [10])
     map_sym = DataSymbol("map", int_array_type)
-    start = BinaryOperation.create(BinaryOperation.Operator.LBOUND,
-                                   Reference(map_sym), int_one.copy())
-    stop = BinaryOperation.create(BinaryOperation.Operator.UBOUND,
-                                  Reference(map_sym), int_one.copy())
+    start = IntrinsicCall.create(IntrinsicCall.Intrinsic.LBOUND,
+                                 [Reference(map_sym), ("dim", int_one.copy())])
+    stop = IntrinsicCall.create(IntrinsicCall.Intrinsic.UBOUND,
+                                [Reference(map_sym), ("dim", int_one.copy())])
     my_range = Range.create(start, stop)
     sum_op = IntrinsicCall.create(
         IntrinsicCall.Intrinsic.SUM,
@@ -304,9 +305,9 @@ def test_is_not_array_assignment():
 
     # When the slice has two operator ancestors, one of which is a reduction
     # e.g y(1, SUM(ABS(map(:)), 1)) = 1.0
-    abs_op = UnaryOperation.create(UnaryOperation.Operator.ABS,
-                                   ArrayReference.create(map_sym,
-                                                         [my_range.copy()]))
+    abs_op = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.ABS,
+        [ArrayReference.create(map_sym, [my_range.copy()])])
     sum_op2 = IntrinsicCall.create(
         IntrinsicCall.Intrinsic.SUM, [abs_op, ("dim", int_one.copy())])
     assignment = Assignment.create(

@@ -36,11 +36,12 @@
 ''' Module containing pytest tests for the handling of the SIZE intrinsic
 in the PSyIR. '''
 
-from __future__ import absolute_import
-
 import pytest
 from fparser.common.readfortran import FortranStringReader
+from fparser.two.Fortran2003 import Execution_Part
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
+from psyclone.psyir.nodes import Schedule, Assignment, IntrinsicCall, \
+    Reference, Literal
 
 
 @pytest.mark.parametrize("expression", ["n = SIZE(a, 3)",
@@ -53,15 +54,13 @@ def test_size(expression):
     TODO #754 fix test so that 'disable_declaration_check' fixture is not
     required.
     '''
-    from fparser.two.Fortran2003 import Execution_Part
-    from psyclone.psyir.nodes import Schedule, Assignment, BinaryOperation, \
-        Reference, Literal
     fake_parent = Schedule()
     processor = Fparser2Reader()
     reader = FortranStringReader(expression)
     fp2intrinsic = Execution_Part(reader).content[0]
     processor.process_nodes(fake_parent, [fp2intrinsic])
     assert isinstance(fake_parent[0], Assignment)
-    assert isinstance(fake_parent[0].rhs, BinaryOperation)
+    assert isinstance(fake_parent[0].rhs, IntrinsicCall)
+    assert fake_parent[0].rhs.intrinsic == IntrinsicCall.Intrinsic.SIZE
     assert isinstance(fake_parent[0].rhs.children[0], Reference)
     assert isinstance(fake_parent[0].rhs.children[1], Literal)

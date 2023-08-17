@@ -55,11 +55,6 @@ from psyclone.psyir.symbols import (
     DeferredType, RoutineSymbol, ScalarType, Symbol, IntrinsicSymbol,
     SymbolTable, UnknownFortranType, UnknownType, UnresolvedInterface)
 
-# The list of Fortran intrinsic functions that we know about (and can
-# therefore distinguish from array accesses). These are taken from
-# fparser.
-FORTRAN_INTRINSICS = Fortran2003.Intrinsic_Name.function_names
-
 # Mapping from PSyIR types to Fortran data types. Simply reverse the
 # map from the frontend, removing the special case of "double
 # precision", which is captured as a REAL intrinsic in the PSyIR.
@@ -364,8 +359,6 @@ class FortranWriter(LanguageWriter):
                           Fparser2Reader.unary_operators)
         self._reverse_map(self._operator_2_str,
                           Fparser2Reader.binary_operators)
-        self._reverse_map(self._operator_2_str,
-                          Fparser2Reader.nary_operators)
 
         # Create and store a DependencyTools instance for use when ordering
         # parameter declarations. Have to import it here as DependencyTools
@@ -400,19 +393,6 @@ class FortranWriter(LanguageWriter):
             # than one.
             if mapping_key not in reverse_dict:
                 reverse_dict[mapping_key] = mapping_value.upper()
-
-    def is_intrinsic(self, operator):
-        '''Determine whether the supplied operator is an intrinsic
-        Fortran function or not.
-
-        :param str fortran_operator: the supplied Fortran operator.
-
-        :returns: True if the supplied Fortran operator is a Fortran \
-            intrinsic and False otherwise.
-        :rtype: bool
-
-        '''
-        return operator in FORTRAN_INTRINSICS
 
     def get_operator(self, operator):
         '''Determine the Fortran operator that is equivalent to the provided
@@ -1234,72 +1214,32 @@ class FortranWriter(LanguageWriter):
         :rtype: str
 
         '''
-        _validate_named_args(node)
-
         lhs = self._visit(node.children[0])
         rhs = self._visit(node.children[1])
-        if node.argument_names[0]:
-            lhs = f"{node.argument_names[0]}={lhs}"
-        if node.argument_names[1]:
-            rhs = f"{node.argument_names[1]}={rhs}"
         try:
             fort_oper = self.get_operator(node.operator)
-            if self.is_intrinsic(fort_oper):
-                # This is a binary intrinsic function.
-                return f"{fort_oper}({lhs}, {rhs})"
             parent = node.parent
             if isinstance(parent, Operation):
                 # We may need to enforce precedence
                 parent_fort_oper = self.get_operator(parent.operator)
-                if not self.is_intrinsic(parent_fort_oper):
+                if precedence(fort_oper) < precedence(parent_fort_oper):
+                    # We need brackets to enforce precedence
+                    return f"({lhs} {fort_oper} {rhs})"
+                if precedence(fort_oper) == precedence(parent_fort_oper):
                     # We still may need to enforce precedence
-                    if precedence(fort_oper) < precedence(parent_fort_oper):
+                    if (isinstance(parent, UnaryOperation) or
+                            (isinstance(parent, BinaryOperation) and
+                             parent.children[1] == node)):
                         # We need brackets to enforce precedence
+                        # as a) a unary operator is performed
+                        # before a binary operator and b) floating
+                        # point operations are not actually
+                        # associative due to rounding errors.
                         return f"({lhs} {fort_oper} {rhs})"
-                    if precedence(fort_oper) == precedence(parent_fort_oper):
-                        # We still may need to enforce precedence
-                        if (isinstance(parent, UnaryOperation) or
-                                (isinstance(parent, BinaryOperation) and
-                                 parent.children[1] == node)):
-                            # We need brackets to enforce precedence
-                            # as a) a unary operator is performed
-                            # before a binary operator and b) floating
-                            # point operations are not actually
-                            # associative due to rounding errors.
-                            return f"({lhs} {fort_oper} {rhs})"
             return f"{lhs} {fort_oper} {rhs}"
         except KeyError as error:
             raise VisitorError(
                 f"Unexpected binary op '{node.operator}'.") from error
-
-    def naryoperation_node(self, node):
-        '''This method is called when an NaryOperation instance is found in
-        the PSyIR tree.
-
-        :param node: an NaryOperation PSyIR node.
-        :type node: :py:class:`psyclone.psyir.nodes.NaryOperation`
-
-        :returns: the Fortran code as a string.
-        :rtype: str
-
-        :raises VisitorError: if an unexpected N-ary operator is found.
-
-        '''
-        _validate_named_args(node)
-
-        arg_list = []
-        for idx, child in enumerate(node.children):
-            if node.argument_names[idx]:
-                arg_list.append(
-                    f"{node.argument_names[idx]}={self._visit(child)}")
-            else:
-                arg_list.append(self._visit(child))
-        try:
-            fort_oper = self.get_operator(node.operator)
-            return f"{fort_oper}(" + ", ".join(arg_list) + ")"
-        except KeyError as error:
-            raise VisitorError(
-                f"Unexpected N-ary op '{node.operator}'") from error
 
     def range_node(self, node):
         '''This method is called when a Range instance is found in the PSyIR
@@ -1517,26 +1457,15 @@ class FortranWriter(LanguageWriter):
         content = self._visit(node.children[0])
         try:
             fort_oper = self.get_operator(node.operator)
-            if self.is_intrinsic(fort_oper):
-                # This is a unary intrinsic function.
-                if node.argument_names[0]:
-                    result = f"{fort_oper}({node.argument_names[0]}={content})"
-                else:
-                    result = f"{fort_oper}({content})"
-                return result
             # It's not an intrinsic function so we need to consider the
             # parent node. If that is a UnaryOperation or a BinaryOperation
             # such as '-' or '**' then we need parentheses. This ensures we
             # don't generate invalid Fortran such as 'a ** -b' or 'a - -b'.
             parent = node.parent
             if isinstance(parent, UnaryOperation):
-                parent_fort_oper = self.get_operator(parent.operator)
-                if not self.is_intrinsic(parent_fort_oper):
-                    return f"({fort_oper}{content})"
+                return f"({fort_oper}{content})"
             if isinstance(parent, BinaryOperation):
-                parent_fort_oper = self.get_operator(parent.operator)
-                if (not self.is_intrinsic(parent_fort_oper) and
-                        node is parent.children[1]):
+                if node is parent.children[1]:
                     return f"({fort_oper}{content})"
             return f"{fort_oper}{content}"
 
@@ -1690,6 +1619,18 @@ class FortranWriter(LanguageWriter):
 
         return result
 
+    def _gen_arguments(self, node):
+        _validate_named_args(node)  # Maybe inline
+
+        result_list = []
+        for idx, child in enumerate(node.children):
+            if node.argument_names[idx]:
+                result_list.append(
+                    f"{node.argument_names[idx]}={self._visit(child)}")
+            else:
+                result_list.append(self._visit(child))
+        return ", ".join(result_list)
+
     def call_node(self, node):
         '''Translate the PSyIR call node to Fortran.
 
@@ -1700,22 +1641,14 @@ class FortranWriter(LanguageWriter):
         :rtype: str
 
         '''
-        _validate_named_args(node)
-
-        result_list = []
-        for idx, child in enumerate(node.children):
-            if node.argument_names[idx]:
-                result_list.append(
-                    f"{node.argument_names[idx]}={self._visit(child)}")
-            else:
-                result_list.append(self._visit(child))
-        args = ", ".join(result_list)
+        args = self._gen_arguments(node)
         if isinstance(node, IntrinsicCall) and node.routine.name in [
                 "ALLOCATE", "DEALLOCATE"]:
             # An allocate/deallocate doesn't have 'call'.
             return f"{self._nindent}{node.routine.name}({args})\n"
         if not node.parent or isinstance(node.parent, Schedule):
             return f"{self._nindent}call {node.routine.name}({args})\n"
+
         # Otherwise it is inside-expression function call
         return f"{node.routine.name}({args})"
 
