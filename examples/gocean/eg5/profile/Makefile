@@ -164,10 +164,10 @@ $(DEP_LIB):
 # Special rule to create psy_LIBNAME.o for each wrapper library (required
 # since PSyDataType will differ from one wrapper library to the next)
 psy.o: psy.f90 $(KERNELS)
-	$(F90) -o $@ $(F90FLAGS) -I $(INF_INC) -I $(WRAPPER_DIR) -c $<
+	$(F90) -o $@ $(F90FLAGS) -I$(INF_INC) -I$(WRAPPER_DIR) -c $<
 
 %.o: %.f90
-	$(F90) $(F90FLAGS) -I $(INF_INC) -I $(WRAPPER_DIR) -c $<
+	$(F90) $(F90FLAGS) -I$(INF_INC) -I$(WRAPPER_DIR) -c $<
 
 allclean: clean
 	${MAKE} -C $(PROFILE_DIR) allclean
