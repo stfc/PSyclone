@@ -558,6 +558,9 @@
 	188) PR #2259 for #1932. Adds support for the 'gang' and 'vector'
 	clauses on OpenACC Loop directives.
 
+	189) PR #2276 for #2274. Small fixes for various complaints
+	produced by latest version of pycodestyle.
+
 release 2.3.1 17th of June 2022
 
 	1) PR #1747 for #1720. Adds support for If blocks to PSyAD.
