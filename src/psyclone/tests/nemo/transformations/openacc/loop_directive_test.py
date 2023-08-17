@@ -166,9 +166,10 @@ def test_seq_loop(parser):
             "  do ji = 1, jpj, 1\n" in code)
 
 
-def test_gang_loop(parser):
-    ''' Check that we can apply the transformation with the 'gang'
-    clause. '''
+@pytest.mark.parametrize("clause", ["gang", "vector"])
+def test_loop_clauses(parser, clause):
+    ''' Check that we can apply the transformation with different
+    clauses for independent loops. '''
     reader = FortranStringReader(SINGLE_LOOP)
     code = parser(reader)
     psy = PSyFactory(API, distributed_memory=False).create(code)
@@ -178,33 +179,12 @@ def test_gang_loop(parser):
     kernels_trans = TransInfo().get_trans_name('ACCKernelsTrans')
     kernels_trans.apply(schedule.children)
     loops = schedule[0].walk(Loop)
-    acc_trans.apply(loops[0], {"gang": True})
+    acc_trans.apply(loops[0], {clause: True})
     code = str(psy.gen).lower()
     assert ("  real(kind=wp), dimension(jpj) :: sto_tmp\n"
             "\n"
             "  !$acc kernels\n"
-            "  !$acc loop gang independent\n"
-            "  do ji = 1, jpj, 1\n" in code)
-
-
-def test_vector_loop(parser):
-    ''' Check that we can apply the transformation with the 'vector'
-    clause. '''
-    reader = FortranStringReader(SINGLE_LOOP)
-    code = parser(reader)
-    psy = PSyFactory(API, distributed_memory=False).create(code)
-    schedule = psy.invokes.invoke_list[0].schedule
-    acc_trans = TransInfo().get_trans_name('ACCLoopTrans')
-    # An ACC Loop must be within a KERNELS or PARALLEL region
-    kernels_trans = TransInfo().get_trans_name('ACCKernelsTrans')
-    kernels_trans.apply(schedule.children)
-    loops = schedule[0].walk(Loop)
-    acc_trans.apply(loops[0], {"vector": True})
-    code = str(psy.gen).lower()
-    assert ("  real(kind=wp), dimension(jpj) :: sto_tmp\n"
-            "\n"
-            "  !$acc kernels\n"
-            "  !$acc loop vector independent\n"
+            f"  !$acc loop {clause} independent\n"
             "  do ji = 1, jpj, 1\n" in code)
 
 
