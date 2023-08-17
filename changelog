@@ -555,6 +555,9 @@
 	187) PR #2270 for #1575. Fixes the line-length limiter for code that
 	has an indent greater than the max. line length.
 
+	188) PR #2259 for #1932. Adds support for the 'gang' and 'vector'
+	clauses on OpenACC Loop directives.
+
 release 2.3.1 17th of June 2022
 
 	1) PR #1747 for #1720. Adds support for If blocks to PSyAD.
