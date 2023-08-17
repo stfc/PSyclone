@@ -42,6 +42,7 @@
 # there are various dependencies between the modules (e.g.
 # KernCallAccArgList imports KernCallArgList, ArgOrdering
 # imports LFRicArgDescriptor, ...).
+from psyclone.domain.lfric.lfric_halo_exchange import LFRicHaloExchange
 from psyclone.domain.lfric.function_space import FunctionSpace
 from psyclone.domain.lfric.lfric_arg_descriptor import LFRicArgDescriptor
 from psyclone.domain.lfric.lfric_constants import LFRicConstants
@@ -76,5 +77,6 @@ __all__ = [
     'LFRicCollection',
     'LFRicConstants',
     'LFRicExtractDriverCreator',
+    'LFRicHaloExchange',
     'LFRicInvoke',
     'LFRicSymbolTable']
