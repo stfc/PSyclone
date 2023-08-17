@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors: R. Ford, A. R. Porter and S. Siso, STFC Daresbury Laboratory
+# Modified: O. Brunt, Met Office
 
 '''File containing a PSyclone transformation script for the Dynamo0p3
 API to make asynchronous halo exchanges and overlap their
@@ -40,10 +41,10 @@ in the generator.py script.
 
 '''
 
-from psyclone.dynamo0p3 import DynHaloExchange, DynHaloExchangeStart
+from psyclone.dynamo0p3 import DynHaloExchangeStart
 from psyclone.transformations import Dynamo0p3AsyncHaloExchangeTrans, \
     MoveTrans, TransformationError
-
+from psyclone.domain.lfric import LFRicHaloExchange
 
 def trans(psy):
     '''A transformation script to use asynchronous halo exchanges with
@@ -54,7 +55,7 @@ def trans(psy):
 
         # This transformation splits the three synchronous halo exchanges
         ahex_trans = Dynamo0p3AsyncHaloExchangeTrans()
-        for h_ex in schedule.walk(DynHaloExchange):
+        for h_ex in schedule.walk(LFRicHaloExchange):
             ahex_trans.apply(h_ex)
 
         # This transformation moves the start of the halo exchanges as far

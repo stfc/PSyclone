@@ -34,14 +34,15 @@
 # Authors: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 #          I. Kavcic, Met Office
 #          J. Henrichs, Bureau of Meteorology
+# Modified: O. Brunt, Met Office
 
 '''PSyclone transformation script for the LFRic API to apply all the
 DistibutedMemory, OpenMP coloring and serial transformations possible.
 
 '''
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
-from psyclone.domain.lfric import LFRicConstants
-from psyclone.dynamo0p3 import DynHaloExchange, DynHaloExchangeStart
+from psyclone.domain.lfric import LFRicConstants, LFRicHaloExchange
+from psyclone.dynamo0p3 import DynHaloExchangeStart
 from psyclone.psyir.transformations import Matmul2CodeTrans
 from psyclone.psyir.nodes import BinaryOperation, Container, KernelSchedule
 from psyclone.transformations import Dynamo0p3ColourTrans, \
@@ -87,7 +88,7 @@ def trans(psy):
 
         if ENABLE_ASYNC_HALOS:
             # This transformation splits all synchronous halo exchanges
-            for h_ex in schedule.walk(DynHaloExchange):
+            for h_ex in schedule.walk(LFRicHaloExchange):
                 ahex_trans.apply(h_ex)
 
             # This transformation moves the start of the halo exchanges as
