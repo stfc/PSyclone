@@ -261,7 +261,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         ):
             raise GenerationError(
                 f"Binary Operator of type {node.operator} used "
-                f"as an array index {node.debug_string()} inside an "
+                f"as an array index '{node.debug_string()}' inside an "
                 f"OMPTaskDirective which is not "
                 f"supported"
             )
@@ -563,10 +563,10 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         else:
             # Have a shared variable, which we're not currently supporting
             raise GenerationError(
-                f"Shared variable {ref.debug_string()} access used "
-                f"as an index inside an "
+                f"Shared variable '{ref.debug_string()}' used "
+                f"as an array index inside an "
                 f"OMPTaskDirective which is not "
-                f"supported. The full access is {node.debug_string()}."
+                f"supported. The full access is '{node.debug_string()}'."
             )
 
     def _evaluate_readonly_arrayref(
@@ -715,8 +715,8 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
             else:
                 # Not allowed type appears
                 raise GenerationError(
-                    f"'{type(index).__name__}' object is not allowed to b'"
-                    f"appear in an Array Index "
+                    f"'{type(index).__name__}' object is not allowed to "
+                    f"appear in an array index "
                     f"expression inside an "
                     f"OMPTaskDirective."
                 )
@@ -879,7 +879,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                     raise GenerationError(
                         f"PSyclone doesn't support an OMPTaskDirective "
                         f"containing a StructureReference with multiple array"
-                        f" accessing members. Found {ref.debug_string()}."
+                        f" accessing members. Found '{ref.debug_string()}'."
                     )
                 self._evaluate_structure_with_array_reference_read(
                     ref,
@@ -1039,7 +1039,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                 else:
                     raise GenerationError(
                         f"Shared variable access used "
-                        f"as an index inside an "
+                        f"as an array index inside an "
                         f"OMPTaskDirective which is not "
                         f"supported. Variable name is '{index}'."
                     )
@@ -1057,7 +1057,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                 # Not allowed type appears
                 raise GenerationError(
                     f"'{type(index).__name__}' object is not allowed to "
-                    f"appear in an Array Index "
+                    f"appear in an array index "
                     f"expression inside an "
                     f"OMPTaskDirective."
                 )
@@ -1283,7 +1283,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                 else:
                     raise GenerationError(
                         f"Shared variable access used "
-                        f"as an index inside an "
+                        f"as an array index inside an "
                         f"OMPTaskDirective which is not "
                         f"supported. Variable name is '{index}'."
                     )
@@ -1393,7 +1393,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                     raise GenerationError(
                         f"PSyclone doesn't support an OMPTaskDirective "
                         f"containing a StructureReference with multiple array"
-                        f" accessing members. Found {ref.debug_string()}."
+                        f" accessing members. Found '{ref.debug_string()}'."
                     )
                 self._evaluate_structure_with_array_reference_write(
                     ref,

@@ -147,7 +147,7 @@ def test_omp_task_directive_2(fortran_reader):
     ptrans.apply(parent.children)
     with pytest.raises(GenerationError) as excinfo:
         tree.lower_to_language_level()
-    assert ("ArrayReference object is not allowed to appear in an Array Index "
+    assert ("'ArrayReference' object is not allowed to appear in an array index "
             "expression inside an OMPTaskDirective.") in str(excinfo.value)
 
 
@@ -812,8 +812,9 @@ def test_omp_task_directive_mul_index_fail(fortran_reader):
     ptrans.apply(loops[0].parent.parent)
     with pytest.raises(GenerationError) as excinfo:
         tree.lower_to_language_level()
-    assert ("Binary Operator of type Operator.MUL used as in index inside an "
-            "OMPTaskDirective which is not supported" in str(excinfo.value))
+    assert ("Binary Operator of type Operator.MUL used as an array index "
+            "'ii * 3' inside an OMPTaskDirective which is not supported"
+            in str(excinfo.value))
 
 
 def test_omp_task_directive_refref_index_fail(fortran_reader):
@@ -854,8 +855,8 @@ def test_omp_task_directive_refref_index_fail(fortran_reader):
     with pytest.raises(GenerationError) as excinfo:
         tree.lower_to_language_level()
     assert ("Children of BinaryOperation are of types Reference and Reference,"
-            " expected one Reference and one Literal when used as an index "
-            "inside an OMPTaskDirective." in str(excinfo.value))
+            " expected one Reference and one Literal when used as an array "
+            "index inside an OMPTaskDirective." in str(excinfo.value))
 
 
 def test_omp_task_directive_13(fortran_reader, fortran_writer):
@@ -953,9 +954,9 @@ def test_omp_task_directive_write_index_shared(fortran_reader):
 
     with pytest.raises(GenerationError) as excinfo:
         tree.lower_to_language_level()
-    assert ("Shared variable access used as an index inside an "
+    assert ("Shared variable access used as an array index inside an "
             "OMPTaskDirective which is not supported. Variable name is "
-            "Reference[name:'k']" in str(excinfo.value))
+            "'Reference[name:'k']'" in str(excinfo.value))
 
 
 def test_omp_task_directive_read_index_shared(fortran_reader):
@@ -994,9 +995,9 @@ def test_omp_task_directive_read_index_shared(fortran_reader):
 
     with pytest.raises(GenerationError) as excinfo:
         tree.lower_to_language_level()
-    assert ("Shared variable access used as an index inside an "
+    assert ("Shared variable access used as an array index inside an "
             "OMPTaskDirective which is not supported. Variable name is "
-            "Reference[name:'k']" in str(excinfo.value))
+            "'Reference[name:'k']'" in str(excinfo.value))
 
 
 def test_omp_task_directive_14(fortran_reader, fortran_writer):
@@ -1538,9 +1539,9 @@ def test_omp_task_directive_shared_index(fortran_reader):
     ptrans.apply(tree.children[0].children[:])
     with pytest.raises(GenerationError) as excinfo:
         tree.lower_to_language_level()
-    assert ("Shared variable access used as an index inside an "
+    assert ("Shared variable access used as an array index inside an "
             "OMPTaskDirective which is not supported. Variable name is "
-            "Reference[name:'k']" in str(excinfo.value))
+            "'Reference[name:'k']'" in str(excinfo.value))
 
 
 def test_omp_task_directive_non_loop(fortran_reader):
@@ -2009,8 +2010,9 @@ def test_omp_task_directive_26(fortran_reader):
     ptrans.apply(tree.children[0].children[:])
     with pytest.raises(GenerationError) as excinfo:
         tree.lower_to_language_level()
-    assert ("Shared variable access used as an index inside an "
-            "OMPTaskDirective which is not supported." in str(excinfo.value))
+    assert ("Shared variable 'j' used as an array index inside an "
+            "OMPTaskDirective which is not supported. The full access is "
+            "'j + 1'" in str(excinfo.value))
 
 
 def test_omp_task_directive_27(fortran_reader):
@@ -2395,8 +2397,10 @@ ty%y(3)%jp(ii+1))
     ptrans.apply(tree.children[0].children[:])
     with pytest.raises(GenerationError) as excinfo:
         tree.lower_to_language_level()
-    assert("Doesn't support a StructureReference child with multiple "
-           "array accessing members." in str(excinfo.value))
+    assert("PSyclone doesn't support an OMPTaskDirective containing a "
+           "StructureReference with multiple "
+           "array accessing members. Found 'ty%y(2)%jp(ii + 1)'"
+           in str(excinfo.value))
 
 
 def test_omp_task_directive_write_index_shared_type(fortran_reader):
@@ -2438,9 +2442,9 @@ def test_omp_task_directive_write_index_shared_type(fortran_reader):
 
     with pytest.raises(GenerationError) as excinfo:
         tree.lower_to_language_level()
-    assert ("Shared variable access used as an index inside an "
+    assert ("Shared variable access used as an array index inside an "
             "OMPTaskDirective which is not supported. Variable name is "
-            "Reference[name:'k']" in str(excinfo.value))
+            "'Reference[name:'k']'" in str(excinfo.value))
 
 
 def test_omp_task_directive_read_index_shared_type(fortran_reader):
@@ -2481,9 +2485,9 @@ def test_omp_task_directive_read_index_shared_type(fortran_reader):
     ptrans.apply(loops[0].parent.parent)
     with pytest.raises(GenerationError) as excinfo:
         tree.lower_to_language_level()
-    assert ("Shared variable access used as an index inside an "
+    assert ("Shared variable access used as an array index inside an "
             "OMPTaskDirective which is not supported. Variable name is "
-            "Reference[name:'k']" in str(excinfo.value))
+            "'Reference[name:'k']'" in str(excinfo.value))
 
 
 def test_omp_task_directive_33(fortran_reader):
@@ -2524,8 +2528,9 @@ def test_omp_task_directive_33(fortran_reader):
     ptrans.apply(parent.children)
     with pytest.raises(GenerationError) as excinfo:
         tree.lower_to_language_level()
-    assert ("ArrayReference object is not allowed to appear in an Array Index "
-            "expression inside an OMPTaskDirective.") in str(excinfo.value)
+    assert ("'ArrayReference' object is not allowed to appear in an array "
+            "index expression inside an OMPTaskDirective."
+            in str(excinfo.value))
 
 
 def test_omp_task_directive_34(fortran_reader):
@@ -2570,8 +2575,9 @@ def test_omp_task_directive_34(fortran_reader):
     ptrans.apply(tree.children[0].children[:])
     with pytest.raises(GenerationError) as excinfo:
         tree.lower_to_language_level()
-    assert("Doesn't support a StructureReference child with multiple "
-           "array accessing members." in str(excinfo.value))
+    assert("PSyclone doesn't support an OMPTaskDirective containing a "
+           "StructureReference with multiple array accessing members. "
+           "Found 'ty%y(1)%jp(ii + 1)'." in str(excinfo.value))
 
 
 def test_omp_task_directive_35(fortran_reader, fortran_writer):
