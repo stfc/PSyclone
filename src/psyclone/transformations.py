@@ -35,6 +35,7 @@
 #         A. B. G. Chalk STFC Daresbury Lab
 #         J. Henrichs, Bureau of Meteorology
 # Modified I. Kavcic, Met Office
+# Modified J. G. Wallwork, Met Office
 
 ''' This module provides the various transformations that can be applied to
     PSyIR nodes. There are both general and API-specific transformation
@@ -496,6 +497,8 @@ class ACCLoopTrans(ParallelLoopTrans):
         # to the loop directive.
         self._independent = True
         self._sequential = False
+        self._gang = False
+        self._vector = False
         super().__init__()
 
     def __str__(self):
@@ -508,13 +511,15 @@ class ACCLoopTrans(ParallelLoopTrans):
 
         :param children: list of child nodes of the new directive Node.
         :type children: list of :py:class:`psyclone.psyir.nodes.Node`
-        :param int collapse: number of nested loops to collapse or None if \
+        :param int collapse: number of nested loops to collapse or None if
                              no collapse attribute is required.
         '''
         directive = ACCLoopDirective(children=children,
                                      collapse=collapse,
                                      independent=self._independent,
-                                     sequential=self._sequential)
+                                     sequential=self._sequential,
+                                     gang=self._gang,
+                                     vector=self._vector)
         return directive
 
     def apply(self, node, options=None):
@@ -534,15 +539,21 @@ class ACCLoopTrans(ParallelLoopTrans):
         :py:meth:`psyclone.psyir.nodes.ACCLoopDirective.gen_code` is called),
         this node must be within (i.e. a child of) a PARALLEL region.
 
-        :param node: the supplied node to which we will apply the \
+        :param node: the supplied node to which we will apply the
                      Loop transformation.
         :type node: :py:class:`psyclone.psyir.nodes.Loop`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
         :param int options["collapse"]: number of nested loops to collapse.
-        :param bool options["independent"]: whether to add the "independent" \
-                clause to the directive (not strictly necessary within \
+        :param bool options["independent"]: whether to add the "independent"
+                clause to the directive (not strictly necessary within
                 PARALLEL regions).
+        :param bool options["sequential"]: whether to add the "seq" clause to
+                the directive.
+        :param bool options["gang"]: whether to add the "gang" clause to the
+                directive.
+        :param bool options["vector"]: whether to add the "vector" clause to
+                the directive.
 
         '''
         # Store sub-class specific options. These are used when
@@ -551,6 +562,8 @@ class ACCLoopTrans(ParallelLoopTrans):
             options = {}
         self._independent = options.get("independent", True)
         self._sequential = options.get("sequential", False)
+        self._gang = options.get("gang", False)
+        self._vector = options.get("vector", False)
 
         # Call the apply() method of the base class
         super().apply(node, options)
