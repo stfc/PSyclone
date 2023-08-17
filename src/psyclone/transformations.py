@@ -539,20 +539,20 @@ class ACCLoopTrans(ParallelLoopTrans):
         :py:meth:`psyclone.psyir.nodes.ACCLoopDirective.gen_code` is called),
         this node must be within (i.e. a child of) a PARALLEL region.
 
-        :param node: the supplied node to which we will apply the \
+        :param node: the supplied node to which we will apply the
                      Loop transformation.
         :type node: :py:class:`psyclone.psyir.nodes.Loop`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
         :param int options["collapse"]: number of nested loops to collapse.
-        :param bool options["independent"]: whether to add the "independent" \
-                clause to the directive (not strictly necessary within \
+        :param bool options["independent"]: whether to add the "independent"
+                clause to the directive (not strictly necessary within
                 PARALLEL regions).
-        :param bool options["sequential"]: whether to add the "seq" clause to \
+        :param bool options["sequential"]: whether to add the "seq" clause to
                 the directive.
-        :param bool options["gang"]: whether to add the "gang" clause to the \
+        :param bool options["gang"]: whether to add the "gang" clause to the
                 directive.
-        :param bool options["vector"]: whether to add the "vector" clause to \
+        :param bool options["vector"]: whether to add the "vector" clause to
                 the directive.
 
         '''
