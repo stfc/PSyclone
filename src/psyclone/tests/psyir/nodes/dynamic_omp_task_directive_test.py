@@ -40,8 +40,9 @@
 
 import os
 import pytest
-from psyclone.psyir.nodes import DynamicOMPTaskDirective, Loop
-from psyclone.errors import GenerationError
+from psyclone.errors import GenerationError, InternalError
+from psyclone.psyir.nodes import DynamicOMPTaskDirective, Literal, Loop
+from psyclone.psyir.symbols import INTEGER_TYPE
 from psyclone.transformations import OMPSingleTrans, \
     OMPParallelTrans
 
@@ -3709,3 +3710,79 @@ depend(in: boundary(i,:),k,b(i + 32,:),b(i,:)), depend(out: a(i,:))
 
 end subroutine my_subroutine\n'''
     assert fortran_writer(tree) == correct
+
+
+def test_omp_task_directive_48(fortran_reader, fortran_writer):
+    ''' Test the code generation correctly generates the correct depend clause
+    when a loop variable is then used as a value outside of the loop to access
+    an array. Worst case is assumed (use full-range)
+    '''
+    code = '''
+    subroutine my_subroutine()
+        integer, dimension(321, 10) :: A
+        integer, dimension(32, 10) :: B
+        integer :: i, ii
+        integer :: j
+        integer, parameter :: k = 1
+        do i = 1, 320, 32
+            do ii=i, i+32
+                do j = 1, 32
+                    A(ii, j) = B(ii, j) + k
+                end do
+                j = 3
+                a(j,3) = 1
+            end do
+        end do
+    end subroutine
+    '''
+    tree = fortran_reader.psyir_from_source(code)
+    ptrans = OMPParallelTrans()
+    strans = OMPSingleTrans()
+    tdir = DynamicOMPTaskDirective()
+    loops = tree.walk(Loop, stop_type=Loop)
+    loop = loops[0].children[3].children[0]
+    parent = loop.parent
+    loop.detach()
+    tdir.children[0].addchild(loop)
+    parent.addchild(tdir, index=0)
+    strans.apply(loops[0])
+    ptrans.apply(loops[0].parent.parent)
+    correct = '''subroutine my_subroutine()
+  integer, parameter :: k = 1
+  integer, dimension(321,10) :: a
+  integer, dimension(32,10) :: b
+  integer :: i
+  integer :: ii
+  integer :: j
+
+  !$omp parallel default(shared), private(i,ii,j)
+  !$omp single
+  do i = 1, 320, 32
+    !$omp task private(ii,j), firstprivate(i), shared(a,b), \
+depend(in: b(i,:)), depend(out: a(i,:),a(:,3))
+    do ii = i, i + 32, 1
+      do j = 1, 32, 1
+        a(ii,j) = b(ii,j) + k
+      enddo
+      j = 3
+      a(j,3) = 1
+    enddo
+    !$omp end task
+  enddo
+  !$omp end single
+  !$omp end parallel
+
+end subroutine my_subroutine\n'''
+    assert fortran_writer(tree) == correct
+
+
+def test_evaluate_write_reference_failcase():
+    ''' Tests that the _evaluate_write_reference function throws an
+    InternalError if provided a non-reference value for the ref argument.
+    '''
+    tdir = DynamicOMPTaskDirective()
+    one = Literal("1", INTEGER_TYPE)
+    with pytest.raises(InternalError) as excinfo:
+        tdir._evaluate_write_reference(one, [], [], [], [])
+    assert ("PSyclone can't handle an OMPTaskDirective containing an "
+            "assignment with a LHS that is not a Reference. Found '1'")

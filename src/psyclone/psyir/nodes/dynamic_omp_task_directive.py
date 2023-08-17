@@ -39,7 +39,7 @@ Directive node, which is used pre-lowering to represent Task Directives."""
 import itertools
 import math
 
-from psyclone.errors import GenerationError
+from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.nodes import (
     ArrayMember,
     ArrayOfStructuresReference,
@@ -109,6 +109,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         self._parent_loop_vars = []
         self._parent_loops = []
         self._proxy_loop_vars = {}
+        self._child_loop_vars = []
         self._parent_parallel = None
         self._parallel_private = None
         self._parallel_firstprivate = None
@@ -300,19 +301,16 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         # ref_index stores which child the reference is from the BinOp
         ref_index = None
         if isinstance(node.children[0], Reference):
-            index_symbol = node.children[0].symbol
-            index_private = self._is_reference_private(node.children[0])
-            is_proxy = index_symbol in self._proxy_loop_vars
-            ref = node.children[0]
             ref_index = 0
-            literal = node.children[1]
-        if isinstance(node.children[1], Reference):
-            index_symbol = node.children[1].symbol
-            index_private = self._is_reference_private(node.children[1])
-            is_proxy = index_symbol in self._proxy_loop_vars
-            ref = node.children[1]
+        else:
             ref_index = 1
-            literal = node.children[0]
+
+        index_symbol = node.children[ref_index].symbol
+        index_private = self._is_reference_private(node.children[ref_index])
+        is_proxy = index_symbol in self._proxy_loop_vars
+        ref = node.children[ref_index]
+        # 1-ref_index inverts 1 or 0 value so we can find the literal as well
+        literal = node.children[1-ref_index]
 
         # We have some array access which is of the format:
         # array( Reference +/- Literal).
@@ -326,10 +324,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         # All other situations are treated as a constant.
 
         # Find the child loops that are not proxy loop variables.
-        child_loop_vars = []
-        for child_loop in self.walk(Loop):
-            if child_loop.variable not in self._proxy_loop_vars:
-                child_loop_vars.append(child_loop.variable)
+        child_loop_vars = self._child_loop_vars
 
         # Handle the proxy_loop case
         if is_proxy:
@@ -380,36 +375,38 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                 binop2 = None
                 if ref_index == 0:
                     # We have Ref OP Literal
-                    binop = BinaryOperation.create(
-                        node.operator, real_ref.copy(), step
-                    )
-                    # If modulo is non-zero then we need a second binop
-                    # dependency to handle the modulus, so we have two
-                    # dependency clauses, one which handles each of the
-                    # step-sized array chunks that overlaps with this access.
-                    if modulo != 0:
-                        if step2 is not None:
-                            binop2 = BinaryOperation.create(
-                                node.operator, real_ref.copy(), step2
-                            )
-                        else:
-                            binop2 = real_ref.copy()
+                    # Setup lambdas to do ref OP step when we then
+                    # create the BinaryOperations to represent this
+                    # access
+                    first_arg = lambda: real_ref.copy()
+                    alt_first_arg = first_arg
+                    second_arg = lambda : step
+                    alt_second_arg = lambda : step2
                 else:
                     # We have Literal OP Ref
-                    binop = BinaryOperation.create(
-                        node.operator, step, real_ref.copy()
-                    )
-                    # If modulo is non-zero then we need a second binop
-                    # dependency to handle the modulus, so we have two
-                    # dependency clauses, one which handles each of the
-                    # step-sized array chunks that overlaps with this access.
-                    if modulo != 0:
-                        if step2 is not None:
-                            binop2 = BinaryOperation.create(
-                                node.operator, step2, real_ref.copy()
-                            )
-                        else:
-                            binop2 = real_ref.copy()
+                    # Setup lambdas to do step OP ref when we then
+                    # create the BinaryOperations to represent this
+                    # access
+                    first_arg = lambda : step
+                    alt_first_arg = lambda : step2
+                    second_arg = lambda: real_ref.copy()
+                    alt_second_arg = second_arg
+                # Create the BinaryOperations for this access according to the
+                # lambdas we set up.
+                binop = BinaryOperation.create(
+                    node.operator, first_arg(), second_arg()
+                )
+                # If modulo is non-zero then we need a second binop
+                # dependency to handle the modulus, so we have two
+                # dependency clauses, one which handles each of the
+                # step-sized array chunks that overlaps with this access.
+                if modulo != 0:
+                    if step2 is not None:
+                        binop2 = BinaryOperation.create(
+                            node.operator, alt_first_arg(), alt_second_arg()
+                        )
+                    else:
+                        binop2 = real_ref.copy()
                 # Add this to the list of indexes
                 if binop2 is not None:
                     index_list.append([binop, binop2])
@@ -631,10 +628,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                 # Check whether the Reference is private
                 index_private = self._is_reference_private(index)
                 # Check whether the reference is to a child loop variable.
-                child_loop_vars = []
-                for child_loop in self.walk(Loop):
-                    if child_loop.variable not in self._proxy_loop_vars:
-                        child_loop_vars.append(child_loop.variable)
+                child_loop_vars = self._child_loop_vars
 
                 if index_private:
                     if (
@@ -648,16 +642,16 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                     # of the loop is used.
                     if index.symbol in child_loop_vars:
                         # Append a full Range (i.e., :)
-                        one = Literal(str(dim + 1), INTEGER_TYPE)
+                        dim_lit = Literal(str(dim + 1), INTEGER_TYPE)
                         lbound = BinaryOperation.create(
                             BinaryOperation.Operator.LBOUND,
                             Reference(ref.symbol),
-                            one.copy(),
+                            dim_lit.copy(),
                         )
                         ubound = BinaryOperation.create(
                             BinaryOperation.Operator.UBOUND,
                             Reference(ref.symbol),
-                            one.copy(),
+                            dim_lit.copy(),
                         )
                         full_range = Range.create(lbound, ubound)
                         index_list.append(full_range)
@@ -864,6 +858,19 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                                  children is found.
         """
         if isinstance(ref, (ArrayReference, ArrayOfStructuresReference)):
+            # If ref is an ArrayOfStructuresReference and contains an
+            # ArrayMember then we can't handle this case.
+            if isinstance(ref, ArrayOfStructuresReference):
+                array_children = ref.walk((ArrayOfStructuresMember,
+                                           ArrayMember))
+                if len(array_children) > 0:
+                    raise GenerationError(
+                        f"PSyclone doesn't support an OMPTaskDirective "
+                        f"containing an ArrayOfStructuresReference with "
+                        f"an array accessing member. Found "
+                        f"'{ref.debug_string()}'."
+                    )
+
             # Resolve ArrayReference or ArrayOfStructuresReference
             self._evaluate_readonly_arrayref(
                 ref, private_list, firstprivate_list, shared_list, in_list
@@ -955,10 +962,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                 # Check whether the Reference is private
                 index_private = self._is_reference_private(index)
                 # Check whether the reference is to a child loop variable.
-                child_loop_vars = []
-                for child_loop in self.walk(Loop):
-                    if child_loop.variable not in self._proxy_loop_vars:
-                        child_loop_vars.append(child_loop.variable)
+                child_loop_vars = self._child_loop_vars
 
                 if index_private:
                     if (
@@ -1151,11 +1155,8 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                 array_access_member.name, list(final_list)
             )
             sref_copy = sref_base.copy()
-            if len(sref_copy.children) > 0:
-                sref_children = sref_copy
-                while isinstance(sref_children.children[0], Member):
-                    sref_children = sref_children.children[0]
-                sref_children.parent.children[0] = final_member
+            members = sref_copy.walk(Member)
+            members[-1].replace_with(final_member)
             # Add dclause into the out_list if required
             if sref_copy not in out_list:
                 out_list.append(sref_copy)
@@ -1218,11 +1219,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
             elif isinstance(index, Reference):
                 index_private = self._is_reference_private(index)
                 # Check whether the reference is to a child loop variable.
-                child_loop_vars = []
-                for child_loop in self.walk(Loop):
-                    if child_loop.variable not in self._proxy_loop_vars:
-                        child_loop_vars.append(child_loop.variable)
-
+                child_loop_vars = self._child_loop_vars
                 if index_private:
                     if (
                         index not in private_list
@@ -1235,16 +1232,16 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                     # of the loop is used.
                     if index.symbol in child_loop_vars:
                         # Return a :
-                        one = Literal(str(dim + 1), INTEGER_TYPE)
+                        dim_lit = Literal(str(dim + 1), INTEGER_TYPE)
                         lbound = BinaryOperation.create(
                             BinaryOperation.Operator.LBOUND,
                             Reference(ref.symbol),
-                            one.copy(),
+                            dim_lit.copy(),
                         )
                         ubound = BinaryOperation.create(
                             BinaryOperation.Operator.UBOUND,
                             Reference(ref.symbol),
-                            one.copy(),
+                            dim_lit.copy(),
                         )
                         full_range = Range.create(lbound, ubound)
                         index_list.append(full_range)
@@ -1278,8 +1275,27 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                                 index_list[dim].append(parent_ref)
                     else:
                         # Final case is just a generic Reference, in which case
-                        # just copy the Reference
-                        index_list.append(index.copy())
+                        # just copy the Reference if its firstprivate.
+                        if index in firstprivate_list:
+                            index_list.append(index.copy())
+                        else:
+                            # If its general private, then we don't know what
+                            # the value of this is at the time we evaluate the
+                            # depend clause, so we can only generate a full
+                            # range (:)
+                            dim_lit = Literal(str(dim + 1), INTEGER_TYPE)
+                            lbound = BinaryOperation.create(
+                                BinaryOperation.Operator.LBOUND,
+                                Reference(ref.symbol),
+                                dim_lit.copy(),
+                            )
+                            ubound = BinaryOperation.create(
+                                BinaryOperation.Operator.UBOUND,
+                                Reference(ref.symbol),
+                                dim_lit.copy(),
+                            )
+                            full_range = Range.create(lbound, ubound)
+                            index_list.append(full_range)
                 else:
                     raise GenerationError(
                         f"Shared variable access used "
@@ -1314,7 +1330,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
             # Add dclause into the out_list if required
             if dclause not in out_list:
                 out_list.append(dclause)
-        # Add to shared_list (for explicity)
+        # Add to shared_list
         sclause = Reference(ref.symbol)
         if sclause not in shared_list:
             shared_list.append(sclause)
@@ -1379,6 +1395,20 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                                  children is found.
         """
         if isinstance(ref, (ArrayReference, ArrayOfStructuresReference)):
+            # If ref is an ArrayOfStructuresReference and contains an
+            # ArrayMember then we can't handle this case.
+            if isinstance(ref, ArrayOfStructuresReference):
+                array_children = ref.walk((ArrayOfStructuresMember,
+                                           ArrayMember))
+                if len(array_children) > 0:
+                    raise GenerationError(
+                        f"PSyclone doesn't support an OMPTaskDirective "
+                        f"containing an ArrayOfStructuresReference with "
+                        f"an array accessing member. Found "
+                        f"'{ref.debug_string()}'."
+                    )
+
+            # Resolve ArrayReference or ArrayOfStructuresReference
             self._evaluate_write_arrayref(
                 ref, private_list, firstprivate_list, shared_list, out_list
             )
@@ -1414,6 +1444,11 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
             self._evaluate_write_baseref(
                 ref, private_list, shared_list, out_list
             )
+        else:
+            raise InternalError(f"PSyclone can't handle a OMPTaskDirective "
+                                f"containing an assignment with a LHS that "
+                                f"is not a Reference. Found "
+                                f"'{ref.debug_string()}'.")
 
     def _evaluate_assignment(
         self,
@@ -1472,26 +1507,27 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
             if isinstance(ref.parent, ArrayMixin):
                 continue
             for index, parent_var in enumerate(self._parent_loop_vars):
-                if ref.symbol == parent_var:
-                    if lhs.symbol in self._proxy_loop_vars:
-                        if (
-                            rhs
-                            not in self._proxy_loop_vars[lhs.symbol][
-                                "parent_node"
-                            ]
-                        ):
-                            self._proxy_loop_vars[lhs.symbol][
-                                "parent_node"
-                            ].append(rhs.copy())
-                    else:
-                        subdict = {}
-                        subdict["parent_var"] = parent_var
-                        subdict["parent_node"] = [rhs.copy()]
-                        subdict["loop"] = node
-                        subdict["parent_loop"] = self._parent_loops[index]
+                if ref.symbol != parent_var:
+                    continue
+                if lhs.symbol in self._proxy_loop_vars:
+                    if (
+                        rhs
+                        not in self._proxy_loop_vars[lhs.symbol][
+                            "parent_node"
+                        ]
+                    ):
+                        self._proxy_loop_vars[lhs.symbol][
+                            "parent_node"
+                        ].append(rhs.copy())
+                else:
+                    subdict = {}
+                    subdict["parent_var"] = parent_var
+                    subdict["parent_node"] = [rhs.copy()]
+                    subdict["loop"] = node
+                    subdict["parent_loop"] = self._parent_loops[index]
 
-                        self._proxy_loop_vars[lhs.symbol] = subdict
-                    added = True
+                    self._proxy_loop_vars[lhs.symbol] = subdict
+                added = True
             if added:
                 break
 
@@ -1616,6 +1652,12 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                     self._proxy_loop_vars[to_remove] = subdict
                     break
 
+        remove_child_var = None
+        if to_remove is None:
+            # If this loop is not a proxy_loop, then it is a child_loop
+            remove_child_var = loop_var
+            self._child_loop_vars.append(loop_var)
+
         # Loop variable is private unless already set as firstprivate.
         # Throw exception if shared
         loop_var_ref = Reference(loop_var)
@@ -1733,9 +1775,12 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                 out_list,
             )
 
-        # Remove any stuff added to proxy_loop_vars etc. if needed
+        # Remove any stuff added to proxy_loop_vars if needed
         if to_remove is not None:
             self._proxy_loop_vars.pop(to_remove)
+        # Remove from child_loop_vars if needed
+        if remove_child_var is not None:
+            self._child_loop_vars.remove(remove_child_var)
 
     def _evaluate_ifblock(
         self,
@@ -1893,6 +1938,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         # Reset this in case we already computed clauses before but are
         # recomputing them (usually due to a code change or multiple outputs).
         self._proxy_loop_vars = {}
+        self._child_loop_vars = []
 
         # Find all the parent loop variables
         self._find_parent_loop_vars()
