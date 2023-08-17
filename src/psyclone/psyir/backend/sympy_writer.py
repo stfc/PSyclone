@@ -233,7 +233,7 @@ class SymPyWriter(FortranWriter):
         :type sig: Optional[:py:class:`psyclone.core.Signature`]
         :param num_dims: the number of dimensions for each component of a
             user defined type.
-        :type num_dims: Options[List[int]]
+        :type num_dims: Optional[List[int]]
 
         :returns: a SymPy function, which has a special ``_sympystr`` function
             defined as attribute to print user-defined types..
