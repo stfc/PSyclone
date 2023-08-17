@@ -2754,7 +2754,7 @@ class KernelImportsToArguments(Transformation):
 
             # Resolve the data type information if it is not available
             # pylint: disable=unidiomatic-typecheck
-            if (type(imported_var) == Symbol or
+            if (type(imported_var) is Symbol or
                     isinstance(imported_var.datatype, DeferredType)):
                 updated_sym = imported_var.resolve_deferred()
                 # If we have a new symbol then we must update the symbol table
