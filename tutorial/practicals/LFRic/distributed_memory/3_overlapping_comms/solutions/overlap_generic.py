@@ -32,7 +32,6 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: R. W. Ford, STFC Daresbury Lab
-# Modified: O. Brunt, Met Office
 
 '''A PSyclone transformation script that transforms all synchronous
 halo exchanges into asynchronous halo exchanges and moves the halo
@@ -50,8 +49,7 @@ PSyclone, it is not designed to be run directly from python.
 '''
 from psyclone.transformations import Dynamo0p3AsyncHaloExchangeTrans, \
     MoveTrans, TransformationError
-from psyclone.dynamo0p3 import DynHaloExchangeStart
-from psyclone.domain.lfric import LFRicHaloExchange
+from psyclone.dynamo0p3 import DynHaloExchange, DynHaloExchangeStart
 
 
 def trans(psy):
@@ -78,7 +76,7 @@ def trans(psy):
         # Get the schedule (the PSyIR representation of the PSy-layer)
         schedule = invoke.schedule
         # Split any synchronous halo exchanges into asynchronous halo exchanges
-        for hex_node in schedule.walk(LFRicHaloExchange):
+        for hex_node in schedule.walk(DynHaloExchange):
             async_hex.apply(hex_node)
 
         # Move any halo exchange starts as early as possible in the

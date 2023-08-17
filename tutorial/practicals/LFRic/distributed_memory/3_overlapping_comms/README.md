@@ -90,19 +90,19 @@ variable in the `schedule.py` script then all nodes will be visited.
 ```
 
 We only want to return HaloExchange nodes. In the LFRic API
-HaloExchange nodes are instances of the `LFRicHaloExchange` class.
+HaloExchange nodes are instances of the `DynHaloExchange` class.
 
-We therefore need to import the `LFRicHaloExchange` class which is found
-in `psyclone/domain/lfric`
+We therefore need to import the `DynHaloExchange` class which is found
+in `psyclone/dynamo0p3`
 
 ```python
-from psyclone.domain.lfric import LFRicHaloExchange
+from psyclone.dynamo0p3 import DynHaloExchange
 ```
 
 and use it in the walk method:
 
 ```python
-    hex_nodes = schedule.walk(LFRicHaloExchange)
+    hex_nodes = schedule.walk(DynHaloExchange)
 ```
 
 We now want to transform each of these halo exchange nodes. The
@@ -119,12 +119,12 @@ Your script should look something like this:
 
 ```python
 from psyclone.transformations import Dynamo0p3AsyncHaloExchangeTrans
-from psyclone.dynamo0p3 import LFRicHaloExchange
+from psyclone.dynamo0p3 import DynHaloExchange
 def trans(psy):
     async_hex = Dynamo0p3AsyncHaloExchangeTrans()
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    for hex_node in schedule.walk(LFRicHaloExchange):
+    for hex_node in schedule.walk(DynHaloExchange):
         async_hex.apply(hex_node)
     print(schedule.view())
 ```
