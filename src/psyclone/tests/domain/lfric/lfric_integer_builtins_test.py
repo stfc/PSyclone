@@ -96,6 +96,12 @@ def test_int_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem):
         "      TYPE(integer_field_type), intent(in) :: f3, f1, f2\n"
         "      INTEGER df\n"
         "      INTEGER(KIND=i_def) loop0_start, loop0_stop\n"
+        "      INTEGER(KIND=i_def), pointer, dimension(:) :: f2_data => "
+        "null()\n"
+        "      INTEGER(KIND=i_def), pointer, dimension(:) :: f1_data => "
+        "null()\n"
+        "      INTEGER(KIND=i_def), pointer, dimension(:) :: f3_data => "
+        "null()\n"
         "      TYPE(integer_field_proxy_type) f3_proxy, f1_proxy, f2_proxy\n")
     assert output in code
 
@@ -103,8 +109,11 @@ def test_int_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem):
         # The value of _compute_annexed_dofs should make no difference
         output = (
             "      f3_proxy = f3%get_proxy()\n"
+            "      f3_data => f3_proxy%data\n"
             "      f1_proxy = f1%get_proxy()\n"
+            "      f1_data => f1_proxy%data\n"
             "      f2_proxy = f2%get_proxy()\n"
+            "      f2_data => f2_proxy%data\n"
             "      !\n"
             "      ! Initialise number of DoFs for aspc1_f3\n"
             "      !\n"
@@ -118,8 +127,7 @@ def test_int_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem):
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f3_proxy%data(df) = f1_proxy%data(df) + "
-            "f2_proxy%data(df)\n"
+            "        f3_data(df) = f1_data(df) + f2_data(df)\n"
             "      END DO")
         assert output in code
     else:
@@ -129,8 +137,7 @@ def test_int_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem):
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f3_proxy%data(df) = f1_proxy%data(df) + "
-            "f2_proxy%data(df)\n"
+            "        f3_data(df) = f1_data(df) + f2_data(df)\n"
             "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
@@ -180,8 +187,8 @@ def test_int_inc_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem):
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f1_proxy%data(df) = f1_proxy%data(df) + "
-            "f2_proxy%data(df)\n"
+            "        f1_data(df) = f1_data(df) + "
+            "f2_data(df)\n"
             "      END DO\n")
         assert output in code
     else:
@@ -191,8 +198,8 @@ def test_int_inc_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem):
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f1_proxy%data(df) = f1_proxy%data(df) + "
-            "f2_proxy%data(df)\n"
+            "        f1_data(df) = f1_data(df) + "
+            "f2_data(df)\n"
             "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
@@ -235,7 +242,7 @@ def test_int_a_plus_X(tmpdir, monkeypatch, annexed, dist_mem):
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f2_proxy%data(df) = a + f1_proxy%data(df)\n"
+            "        f2_data(df) = a + f1_data(df)\n"
             "      END DO\n"
             "      !\n"
             "    END SUBROUTINE invoke_0\n")
@@ -247,7 +254,7 @@ def test_int_a_plus_X(tmpdir, monkeypatch, annexed, dist_mem):
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f2_proxy%data(df) = a + f1_proxy%data(df)\n"
+            "        f2_data(df) = a + f1_data(df)\n"
             "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
@@ -289,7 +296,7 @@ def test_int_inc_a_plus_X(tmpdir, monkeypatch, annexed, dist_mem):
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f1_proxy%data(df) = a + f1_proxy%data(df)\n"
+            "        f1_data(df) = a + f1_data(df)\n"
             "      END DO\n"
             "      !\n"
             "    END SUBROUTINE invoke_0")
@@ -301,7 +308,7 @@ def test_int_inc_a_plus_X(tmpdir, monkeypatch, annexed, dist_mem):
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f1_proxy%data(df) = a + f1_proxy%data(df)\n"
+            "        f1_data(df) = a + f1_data(df)\n"
             "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
@@ -344,8 +351,11 @@ def test_int_X_minus_Y(tmpdir, monkeypatch, annexed, dist_mem):
     if not dist_mem:
         output = (
             "      f3_proxy = f3%get_proxy()\n"
+            "      f3_data => f3_proxy%data\n"
             "      f1_proxy = f1%get_proxy()\n"
+            "      f1_data => f1_proxy%data\n"
             "      f2_proxy = f2%get_proxy()\n"
+            "      f2_data => f2_proxy%data\n"
             "      !\n"
             "      ! Initialise number of DoFs for aspc1_f3\n"
             "      !\n"
@@ -359,8 +369,7 @@ def test_int_X_minus_Y(tmpdir, monkeypatch, annexed, dist_mem):
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f3_proxy%data(df) = f1_proxy%data(df) - "
-            "f2_proxy%data(df)\n"
+            "        f3_data(df) = f1_data(df) - f2_data(df)\n"
             "      END DO")
         assert output in code
     else:
@@ -370,8 +379,7 @@ def test_int_X_minus_Y(tmpdir, monkeypatch, annexed, dist_mem):
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f3_proxy%data(df) = f1_proxy%data(df) - "
-            "f2_proxy%data(df)\n"
+            "        f3_data(df) = f1_data(df) - f2_data(df)\n"
             "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
@@ -411,7 +419,9 @@ def test_int_inc_X_minus_Y(tmpdir, monkeypatch, annexed, dist_mem):
     if not dist_mem:
         output = (
             "      f1_proxy = f1%get_proxy()\n"
+            "      f1_data => f1_proxy%data\n"
             "      f2_proxy = f2%get_proxy()\n"
+            "      f2_data => f2_proxy%data\n"
             "      !\n"
             "      ! Initialise number of DoFs for aspc1_f1\n"
             "      !\n"
@@ -425,8 +435,7 @@ def test_int_inc_X_minus_Y(tmpdir, monkeypatch, annexed, dist_mem):
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f1_proxy%data(df) = f1_proxy%data(df) - "
-            "f2_proxy%data(df)\n"
+            "        f1_data(df) = f1_data(df) - f2_data(df)\n"
             "      END DO\n")
         assert output in code
     else:
@@ -436,8 +445,8 @@ def test_int_inc_X_minus_Y(tmpdir, monkeypatch, annexed, dist_mem):
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f1_proxy%data(df) = f1_proxy%data(df) - "
-            "f2_proxy%data(df)\n"
+            "        f1_data(df) = f1_data(df) - "
+            "f2_data(df)\n"
             "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
@@ -487,7 +496,7 @@ def test_int_a_minus_X(tmpdir, monkeypatch, annexed, dist_mem):
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f2_proxy%data(df) = a - f1_proxy%data(df)\n"
+            "        f2_data(df) = a - f1_data(df)\n"
             "      END DO\n"
             "      !\n"
             "    END SUBROUTINE invoke_0\n")
@@ -499,7 +508,7 @@ def test_int_a_minus_X(tmpdir, monkeypatch, annexed, dist_mem):
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f2_proxy%data(df) = a - f1_proxy%data(df)\n"
+            "        f2_data(df) = a - f1_data(df)\n"
             "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
@@ -541,7 +550,7 @@ def test_int_inc_a_minus_X(tmpdir, monkeypatch, annexed, dist_mem):
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f1_proxy%data(df) = a - f1_proxy%data(df)\n"
+            "        f1_data(df) = a - f1_data(df)\n"
             "      END DO\n"
             "      !\n"
             "    END SUBROUTINE invoke_0")
@@ -553,7 +562,7 @@ def test_int_inc_a_minus_X(tmpdir, monkeypatch, annexed, dist_mem):
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f1_proxy%data(df) = a - f1_proxy%data(df)\n"
+            "        f1_data(df) = a - f1_data(df)\n"
             "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
@@ -597,7 +606,7 @@ def test_int_X_minus_a(tmpdir, monkeypatch, annexed, dist_mem):
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f2_proxy%data(df) = f1_proxy%data(df) - a\n"
+            "        f2_data(df) = f1_data(df) - a\n"
             "      END DO\n"
             "      !\n"
             "    END SUBROUTINE invoke_0\n")
@@ -609,7 +618,7 @@ def test_int_X_minus_a(tmpdir, monkeypatch, annexed, dist_mem):
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f2_proxy%data(df) = f1_proxy%data(df) - a\n"
+            "        f2_data(df) = f1_data(df) - a\n"
             "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
@@ -651,7 +660,7 @@ def test_int_inc_X_minus_a(tmpdir, monkeypatch, annexed, dist_mem):
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f1_proxy%data(df) = f1_proxy%data(df) - a\n"
+            "        f1_data(df) = f1_data(df) - a\n"
             "      END DO\n"
             "      !\n"
             "    END SUBROUTINE invoke_0")
@@ -663,7 +672,7 @@ def test_int_inc_X_minus_a(tmpdir, monkeypatch, annexed, dist_mem):
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f1_proxy%data(df) = f1_proxy%data(df) - a\n"
+            "        f1_data(df) = f1_data(df) - a\n"
             "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
@@ -709,6 +718,12 @@ def test_int_X_times_Y(tmpdir, monkeypatch, annexed, dist_mem):
             "      TYPE(integer_field_type), intent(in) :: f3, f1, f2\n"
             "      INTEGER df\n"
             "      INTEGER(KIND=i_def) loop0_start, loop0_stop\n"
+            "      INTEGER(KIND=i_def), pointer, dimension(:) :: f2_data => "
+            "null()\n"
+            "      INTEGER(KIND=i_def), pointer, dimension(:) :: f1_data => "
+            "null()\n"
+            "      INTEGER(KIND=i_def), pointer, dimension(:) :: f3_data => "
+            "null()\n"
             "      TYPE(integer_field_proxy_type) f3_proxy, f1_proxy, "
             "f2_proxy\n"
             "      INTEGER(KIND=i_def) undf_aspc1_f3\n"
@@ -716,8 +731,11 @@ def test_int_X_times_Y(tmpdir, monkeypatch, annexed, dist_mem):
             "      ! Initialise field and/or operator proxies\n"
             "      !\n"
             "      f3_proxy = f3%get_proxy()\n"
+            "      f3_data => f3_proxy%data\n"
             "      f1_proxy = f1%get_proxy()\n"
+            "      f1_data => f1_proxy%data\n"
             "      f2_proxy = f2%get_proxy()\n"
+            "      f2_data => f2_proxy%data\n"
             "      !\n"
             "      ! Initialise number of DoFs for aspc1_f3\n"
             "      !\n"
@@ -731,8 +749,7 @@ def test_int_X_times_Y(tmpdir, monkeypatch, annexed, dist_mem):
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f3_proxy%data(df) = f1_proxy%data(df) * "
-            "f2_proxy%data(df)\n"
+            "        f3_data(df) = f1_data(df) * f2_data(df)\n"
             "      END DO\n")
         assert output in code
     else:
@@ -742,8 +759,7 @@ def test_int_X_times_Y(tmpdir, monkeypatch, annexed, dist_mem):
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f3_proxy%data(df) = f1_proxy%data(df) * "
-            "f2_proxy%data(df)\n"
+            "        f3_data(df) = f1_data(df) * f2_data(df)\n"
             "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
@@ -797,8 +813,7 @@ def test_int_inc_X_times_Y(tmpdir, monkeypatch, annexed, dist_mem):
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f1_proxy%data(df) = f1_proxy%data(df) * "
-            "f2_proxy%data(df)\n"
+            "        f1_data(df) = f1_data(df) * f2_data(df)\n"
             "      END DO")
         assert output in code
     else:
@@ -808,8 +823,8 @@ def test_int_inc_X_times_Y(tmpdir, monkeypatch, annexed, dist_mem):
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f1_proxy%data(df) = f1_proxy%data(df) * "
-            "f2_proxy%data(df)\n"
+            "        f1_data(df) = f1_data(df) * "
+            "f2_data(df)\n"
             "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
@@ -867,7 +882,7 @@ def test_int_a_times_X(tmpdir, monkeypatch, annexed, dist_mem):
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f2_proxy%data(df) = a_scalar * f1_proxy%data(df)\n"
+            "        f2_data(df) = a_scalar * f1_data(df)\n"
             "      END DO")
         assert output in code
     else:
@@ -877,7 +892,7 @@ def test_int_a_times_X(tmpdir, monkeypatch, annexed, dist_mem):
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f2_proxy%data(df) = a_scalar * f1_proxy%data(df)\n"
+            "        f2_data(df) = a_scalar * f1_data(df)\n"
             "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
@@ -941,7 +956,7 @@ def test_int_inc_a_times_X(tmpdir, monkeypatch, annexed, dist_mem):
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f1_proxy%data(df) = a_scalar * f1_proxy%data(df)\n"
+            "        f1_data(df) = a_scalar * f1_data(df)\n"
             "      END DO\n"
             "      !\n")
         assert output in code
@@ -952,7 +967,7 @@ def test_int_inc_a_times_X(tmpdir, monkeypatch, annexed, dist_mem):
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f1_proxy%data(df) = a_scalar * f1_proxy%data(df)\n"
+            "        f1_data(df) = a_scalar * f1_data(df)\n"
             "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
@@ -1017,7 +1032,7 @@ def test_int_setval_c(tmpdir, monkeypatch, annexed, dist_mem):
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f1_proxy%data(df) = c\n"
+            "        f1_data(df) = c\n"
             "      END DO")
         assert output in code
     else:
@@ -1027,7 +1042,7 @@ def test_int_setval_c(tmpdir, monkeypatch, annexed, dist_mem):
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f1_proxy%data(df) = c\n"
+            "        f1_data(df) = c\n"
             "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
@@ -1090,7 +1105,7 @@ def test_int_setval_X(tmpdir, monkeypatch, annexed, dist_mem):
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f2_proxy%data(df) = f1_proxy%data(df)\n"
+            "        f2_data(df) = f1_data(df)\n"
             "      END DO")
         assert output in code
     else:
@@ -1100,7 +1115,7 @@ def test_int_setval_X(tmpdir, monkeypatch, annexed, dist_mem):
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f2_proxy%data(df) = f1_proxy%data(df)\n"
+            "        f2_data(df) = f1_data(df)\n"
             "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
@@ -1147,7 +1162,7 @@ def test_int_sign_X(tmpdir, monkeypatch, annexed, dist_mem):
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f2_proxy%data(df) = SIGN(a, f1_proxy%data(df))\n"
+            "        f2_data(df) = SIGN(a, f1_data(df))\n"
             "      END DO\n"
             "      !\n"
             "    END SUBROUTINE invoke_0\n")
@@ -1159,7 +1174,7 @@ def test_int_sign_X(tmpdir, monkeypatch, annexed, dist_mem):
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f2_proxy%data(df) = SIGN(a, f1_proxy%data(df))\n"
+            "        f2_data(df) = SIGN(a, f1_data(df))\n"
             "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
@@ -1215,7 +1230,7 @@ def test_int_max_aX(tmpdir, monkeypatch, annexed, dist_mem):
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f2_proxy%data(df) = MAX(a, f1_proxy%data(df))\n"
+            "        f2_data(df) = MAX(a, f1_data(df))\n"
             "      END DO\n"
             "      !\n"
             "    END SUBROUTINE invoke_0\n")
@@ -1228,7 +1243,7 @@ def test_int_max_aX(tmpdir, monkeypatch, annexed, dist_mem):
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f2_proxy%data(df) = MAX(a, f1_proxy%data(df))\n"
+            "        f2_data(df) = MAX(a, f1_data(df))\n"
             "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
@@ -1280,7 +1295,7 @@ def test_int_inc_max_aX(tmpdir, monkeypatch, annexed, dist_mem):
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f1_proxy%data(df) = MAX(a, f1_proxy%data(df))\n"
+            "        f1_data(df) = MAX(a, f1_data(df))\n"
             "      END DO\n"
             "      !\n"
             "    END SUBROUTINE invoke_0\n")
@@ -1292,7 +1307,7 @@ def test_int_inc_max_aX(tmpdir, monkeypatch, annexed, dist_mem):
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f1_proxy%data(df) = MAX(a, f1_proxy%data(df))\n"
+            "        f1_data(df) = MAX(a, f1_data(df))\n"
             "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
@@ -1338,7 +1353,7 @@ def test_int_min_aX(tmpdir, monkeypatch, annexed, dist_mem):
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f2_proxy%data(df) = MIN(a, f1_proxy%data(df))\n"
+            "        f2_data(df) = MIN(a, f1_data(df))\n"
             "      END DO\n"
             "      !\n"
             "    END SUBROUTINE invoke_0\n")
@@ -1350,7 +1365,7 @@ def test_int_min_aX(tmpdir, monkeypatch, annexed, dist_mem):
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f2_proxy%data(df) = MIN(a, f1_proxy%data(df))\n"
+            "        f2_data(df) = MIN(a, f1_data(df))\n"
             "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
@@ -1393,7 +1408,7 @@ def test_int_inc_min_aX(tmpdir, monkeypatch, annexed, dist_mem):
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f1_proxy%data(df) = MIN(a, f1_proxy%data(df))\n"
+            "        f1_data(df) = MIN(a, f1_data(df))\n"
             "      END DO\n"
             "      !\n"
             "    END SUBROUTINE invoke_0\n")
@@ -1405,7 +1420,7 @@ def test_int_inc_min_aX(tmpdir, monkeypatch, annexed, dist_mem):
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f1_proxy%data(df) = MIN(a, f1_proxy%data(df))\n"
+            "        f1_data(df) = MIN(a, f1_data(df))\n"
             "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
@@ -1485,7 +1500,7 @@ def test_real_X(tmpdir, monkeypatch, annexed, dist_mem):
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f2_proxy%data(df) = real(f1_proxy%data(df), r_def)\n"
+            "        f2_data(df) = real(f1_data(df), r_def)\n"
             "      END DO\n"
             "      !\n"
             "    END SUBROUTINE invoke_0\n")
@@ -1497,7 +1512,7 @@ def test_real_X(tmpdir, monkeypatch, annexed, dist_mem):
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f2_proxy%data(df) = real(f1_proxy%data(df), r_def)\n"
+            "        f2_data(df) = real(f1_data(df), r_def)\n"
             "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
@@ -1527,6 +1542,6 @@ def test_real_X_precision(tmpdir, monkeypatch, kind_name):
     monkeypatch.setattr(kern.args[0], "_precision", kind_name)
     code = str(psy.gen)
     assert f"USE constants_mod, ONLY: {kind_name}, i_def" in code
-    assert f"f2_proxy%data(df) = real(f1_proxy%data(df), {kind_name})" in code
+    assert f"f2_data(df) = real(f1_data(df), {kind_name})" in code
     # Test code generation
     assert LFRicBuild(tmpdir).code_compiles(psy)
