@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author S. Siso, STFC Daresbury Lab
 # Modified: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Modified: A. B. G. Chalk, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' Performs py.test tests of the ArrayMixin PSyIR nodes trait. '''
@@ -59,26 +60,25 @@ def test_is_bound_op():
     class.
 
     '''
-    one = Literal("1", INTEGER_TYPE)
     array = DataSymbol("my_symbol", ArrayType(INTEGER_TYPE, [10]))
     array2 = DataSymbol("my_symbol2", ArrayType(INTEGER_TYPE, [10]))
     scalar = DataSymbol("tmp", INTEGER_TYPE)
     ubound = BinaryOperation.create(
-        BinaryOperation.Operator.UBOUND, Reference(array), one)
-    my_range = Range.create(one.copy(), ubound)
+        BinaryOperation.Operator.UBOUND, Reference(array), _ONE.copy())
+    my_range = Range.create(_ONE.copy(), ubound)
     array_ref = ArrayReference.create(array, [my_range])
     array2_ref = ArrayReference.create(array2, [my_range.copy()])
     # not a binary operation
     oper = None
     assert not array_ref._is_bound_op(
-        oper, BinaryOperation.Operator.UBOUND, one)
+        oper, BinaryOperation.Operator.UBOUND, _ONE)
     # not a match with the binary operator
     oper = BinaryOperation.create(
-        BinaryOperation.Operator.LBOUND, array_ref, one.copy())
+        BinaryOperation.Operator.LBOUND, array_ref, _ONE.copy())
     assert not array_ref._is_bound_op(oper, BinaryOperation.Operator.UBOUND, 0)
     # 1st dimension of the bound is not the same array
     oper = BinaryOperation.create(
-        BinaryOperation.Operator.UBOUND, array2_ref, one.copy())
+        BinaryOperation.Operator.UBOUND, array2_ref, _ONE.copy())
     assert not array_ref._is_bound_op(oper, BinaryOperation.Operator.UBOUND, 0)
     # 2nd dimension of the bound not a literal
     oper = BinaryOperation.create(
@@ -96,7 +96,7 @@ def test_is_bound_op():
     assert not array_ref._is_bound_op(oper, BinaryOperation.Operator.UBOUND, 0)
     # OK
     oper = BinaryOperation.create(
-        BinaryOperation.Operator.UBOUND, array_ref.copy(), one.copy())
+        BinaryOperation.Operator.UBOUND, array_ref.copy(), _ONE.copy())
     assert array_ref._is_bound_op(oper, BinaryOperation.Operator.UBOUND, 0)
 
 
@@ -318,6 +318,40 @@ def test_get_lbound_expression():
     assert lbnd.children[1] == Literal("2", INTEGER_TYPE)
 
 
+def test_get_ubound_expression():
+    '''
+    Tests for the get_ubound_expression method on an ArrayReference defined
+    by an ArrayType.
+
+    '''
+    # Symbol is of ArrayType.
+    ubound = DataSymbol("jmin", INTEGER_TYPE, is_constant=True,
+                        initial_value=Literal("10", INTEGER_TYPE))
+    ubnd_ref = Reference(ubound)
+    symbol = DataSymbol("my_symbol", ArrayType(INTEGER_TYPE,
+                                               [1, (1, 2), (1, ubnd_ref)]))
+    aref = ArrayReference.create(symbol,
+                                 [_ONE.copy(), _ONE.copy(), _ONE.copy()])
+    assert aref.get_ubound_expression(0) == _ONE
+    assert aref.get_ubound_expression(1) == _TWO
+    ub2 = aref.get_ubound_expression(2)
+    assert isinstance(ub2, Reference)
+    # Returned lower bound should be a *copy* of the original.
+    assert ub2 is not ubnd_ref
+    assert ub2 == ubnd_ref
+
+    # Symbol is of DeferredType so the result should be an instance of the
+    # UBOUND intrinsic.
+    dtsym = DataSymbol("oops", DeferredType())
+    dtref = ArrayReference.create(dtsym,
+                                  [_ONE.copy(), _ONE.copy(), _ONE.copy()])
+    ubnd = dtref.get_ubound_expression(1)
+    assert isinstance(ubnd, BinaryOperation)
+    assert ubnd.operator == BinaryOperation.Operator.UBOUND
+    assert ubnd.children[0].symbol is dtsym
+    assert ubnd.children[1] == Literal("2", INTEGER_TYPE)
+
+
 @pytest.mark.parametrize("extent", [ArrayType.Extent.DEFERRED,
                                     ArrayType.Extent.ATTRIBUTE])
 def test_get_lbound_expression_unknown_size(extent):
@@ -335,6 +369,23 @@ def test_get_lbound_expression_unknown_size(extent):
     assert lbnd.children[0].symbol is symbol
 
 
+@pytest.mark.parametrize("extent", [ArrayType.Extent.DEFERRED,
+                                    ArrayType.Extent.ATTRIBUTE])
+def test_get_ubound_expression_unknown_size(extent):
+    '''
+    Test the get_ubound_expression when we have the definition of the
+    array type but its dimensions are unknown.
+
+    '''
+    symbol = DataSymbol("my_symbol", ArrayType(INTEGER_TYPE,
+                                               [extent, extent]))
+    aref = ArrayReference.create(symbol, [_ONE.copy(), _ONE.copy()])
+    ubnd = aref.get_ubound_expression(1)
+    assert isinstance(ubnd, BinaryOperation)
+    assert ubnd.operator == BinaryOperation.Operator.UBOUND
+    assert ubnd.children[0].symbol is symbol
+
+
 def test_aref_to_aos_lbound_expression():
     '''
     Test the get_lbound_expression() method for an ArrayReference to an array
@@ -345,14 +396,32 @@ def test_aref_to_aos_lbound_expression():
         [("id", INTEGER_TYPE, Symbol.Visibility.PUBLIC)])
     sgrid_type_sym = DataTypeSymbol("subgrid_type", sgrid_type)
     sym = DataSymbol("subgrids", ArrayType(sgrid_type_sym, [(3, 10)]))
-    one = Literal("1", INTEGER_TYPE)
     lbound = BinaryOperation.create(BinaryOperation.Operator.LBOUND,
-                                    Reference(sym), one)
+                                    Reference(sym), _ONE.copy())
     ubound = BinaryOperation.create(BinaryOperation.Operator.UBOUND,
-                                    Reference(sym), one.copy())
+                                    Reference(sym), _ONE.copy())
     array = ArrayReference.create(sym, [Range.create(lbound, ubound)])
     lbnd = array.get_lbound_expression(0)
     assert lbnd.value == "3"
+
+
+def test_aref_to_aos_ubound_expression():
+    '''
+    Test the get_ubound_expression method for an ArrayReference to an array
+    of structures.
+
+    '''
+    sgrid_type = StructureType.create(
+        [("id", INTEGER_TYPE, Symbol.Visibility.PUBLIC)])
+    sgrid_type_sym = DataTypeSymbol("subgrid_type", sgrid_type)
+    sym = DataSymbol("subgrids", ArrayType(sgrid_type_sym, [(3, 10)]))
+    lbound = BinaryOperation.create(BinaryOperation.Operator.LBOUND,
+                                    Reference(sym), _ONE.copy())
+    ubound = BinaryOperation.create(BinaryOperation.Operator.UBOUND,
+                                    Reference(sym), _ONE.copy())
+    array = ArrayReference.create(sym, [Range.create(lbound, ubound)])
+    ubnd = array.get_ubound_expression(0)
+    assert ubnd.value == "10"
 
 
 def test_member_get_lbound_expression(fortran_writer):
@@ -361,21 +430,19 @@ def test_member_get_lbound_expression(fortran_writer):
     sub-class of Member.
 
     '''
-    one = Literal("1", INTEGER_TYPE)
-    two = Literal("2", INTEGER_TYPE)
     # First, test when we don't have type information.
     grid_type = DataTypeSymbol("grid_type", DeferredType())
     sym = DataSymbol("grid_var", grid_type)
-    ref = StructureReference.create(sym, [("data", [one.copy()])])
+    ref = StructureReference.create(sym, [("data", [_ONE.copy()])])
     lbnd = ref.member.get_lbound_expression(0)
     assert isinstance(lbnd, BinaryOperation)
     out = fortran_writer(lbnd).lower()
     assert out == "lbound(grid_var%data, 1)"
     usym = DataSymbol("uvar", DeferredType())
     ref = ArrayOfStructuresReference.create(
-        usym, [one.copy()],
-        [("map", [one.copy(), two.copy()]),
-         ("data", [one.copy()])])
+        usym, [_ONE.copy()],
+        [("map", [_ONE.copy(), _TWO.copy()]),
+         ("data", [_ONE.copy()])])
     lbnd = ref.member.member.get_lbound_expression(0)
     assert isinstance(lbnd, BinaryOperation)
     out = fortran_writer(lbnd).lower()
@@ -395,14 +462,62 @@ def test_member_get_lbound_expression(fortran_writer):
     ssym = DataSymbol("var", stypedef2)
     sref = StructureReference.create(ssym,
                                      ["grid",
-                                      ("map", [two.copy(), two.copy()])])
-    assert sref.member.member.get_lbound_expression(0) == one
-    assert sref.member.member.get_lbound_expression(1) == two
+                                      ("map", [_TWO.copy(), _TWO.copy()])])
+    assert sref.member.member.get_lbound_expression(0) == _ONE
+    assert sref.member.member.get_lbound_expression(1) == _TWO
     sref2 = StructureReference.create(
-        ssym, [("subgrids", [two.copy(), two.copy()]),
-               ("map", [two.copy(), two.copy()])])
-    assert sref2.member.get_lbound_expression(1) == two
-    assert sref2.member.member.get_lbound_expression(1) == two
+        ssym, [("subgrids", [_TWO.copy(), _TWO.copy()]),
+               ("map", [_TWO.copy(), _TWO.copy()])])
+    assert sref2.member.get_lbound_expression(1) == _TWO
+    assert sref2.member.member.get_lbound_expression(1) == _TWO
+
+
+def test_member_get_ubound_expression(fortran_writer):
+    '''
+    Tests for the get_ubound_expression method when used with a
+    sub-class of Member.
+
+    '''
+    # First, test when we don't have type information.
+    grid_type = DataTypeSymbol("grid_type", DeferredType())
+    sym = DataSymbol("grid_var", grid_type)
+    ref = StructureReference.create(sym, [("data", [_ONE.copy()])])
+    ubnd = ref.member.get_ubound_expression(0)
+    assert isinstance(ubnd, BinaryOperation)
+    out = fortran_writer(ubnd).lower()
+    assert out == "ubound(grid_var%data, 1)"
+    usym = DataSymbol("uvar", DeferredType())
+    ref = ArrayOfStructuresReference.create(
+        usym, [_ONE.copy()],
+        [("map", [_ONE.copy(), _TWO.copy()]),
+         ("data", [_ONE.copy()])])
+    ubnd = ref.member.member.get_ubound_expression(0)
+    assert isinstance(ubnd, BinaryOperation)
+    out = fortran_writer(ubnd).lower()
+    assert out == "ubound(uvar(1)%map(1,2)%data, 1)"
+    # Second, test when we do have type information.
+    a2d = ArrayType(REAL_TYPE, [2, (2, 8)])
+    # Structure that contains "map" which is a 2D array.
+    stypedef = StructureType.create(
+        [("map", a2d, Symbol.Visibility.PUBLIC)])
+    stypedefsym = DataTypeSymbol("map_type", stypedef)
+    # Structure containing a structure of stypedef and an array of such
+    # structures.
+    stypedef2 = StructureType.create(
+        [("grid", stypedef, Symbol.Visibility.PUBLIC),
+         ("subgrids", ArrayType(stypedefsym, [3, (2, 6)]),
+          Symbol.Visibility.PUBLIC)])
+    ssym = DataSymbol("var", stypedef2)
+    sref = StructureReference.create(ssym,
+                                     ["grid",
+                                      ("map", [_TWO.copy(), _TWO.copy()])])
+    assert sref.member.member.get_ubound_expression(0).value == "2"
+    assert sref.member.member.get_ubound_expression(1).value == "8"
+    sref2 = StructureReference.create(
+        ssym, [("subgrids", [_TWO.copy(), _TWO.copy()]),
+               ("map", [_TWO.copy(), _TWO.copy()])])
+    assert sref2.member.get_ubound_expression(1).value == "6"
+    assert sref2.member.member.get_ubound_expression(1).value == "8"
 
 
 # _get_effective_shape
