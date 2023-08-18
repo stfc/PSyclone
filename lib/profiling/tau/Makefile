@@ -34,13 +34,10 @@
 # Author J. Henrichs, Bureau of Meteorology
 
 # ----------- Default "make" values, can be overwritten by the user -----------
-# Hardcode the ta
-F90 = tau_f90.sh
-F90FLAGS = -optLinkOnly
+F90 ?= gfortran
+F90FLAGS ?=
 
 # -----------------------------------------------------------------------------
-
-F90FLAGS += -I$(DRHOOK_INCLUDE) -I$(DRHOOK_MODULES)
 
 PSYDATA_LIB_NAME = tau_psy
 PSYDATA_LIB = lib$(PSYDATA_LIB_NAME).a

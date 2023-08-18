@@ -6,11 +6,8 @@ to the TAU API.
 
 ## Dependencies
 
-TAU must be installed, and the ``tau_f90.sh`` compiler wrapper must
-be available. Since tau can be used with different configurations
-based on the setting of ``TAU_MAKEFILE``, it is recommended to make
-sure that the same configuration is used to compile the TAU wrapper
-and the application later.
+TAU must be installed at link time, though not when compiling the
+PSyData wrapper.
 
 This profiling library uses the [PSyData API](
 https://psyclone.readthedocs.io/en/stable/psy_data.html) to interface with
@@ -26,10 +23,15 @@ region.
 
 ## Compilation
 
-The library is compiled with ``make`` using the provided ``Makefile``. It
-uses the ``tau_f90.sh`` compiler wrapper as Fortran compiler, so the
-``$F90`` environment variable is ignored here. Additional compiler flags
-can be provided by setting ``$F90FLAGS``.
+The library is compiled with ``make`` using the provided ``Makefile``. The
+environment variables ``$F90`` and ``$F90FLAGS`` can be set to point to the
+[Fortran compiler](./../../README.md#compilation) and flags to use. They
+default to ``gfortran`` and the empty string.
+
+The compiler used here should be the same that was used to compile TAU. You
+can use ``tau_f90.sh -optVerbose`` to see which compiler will be invoked
+by TAU's compiler wrapper.
+
 
 The compilation process will create the wrapper library ``libtau_psy.a``.
 
@@ -63,7 +65,7 @@ tau_f90.sh -o a.out ... -L <PATH-TO-PSYCLONE>/lib/profiling/tau -ltau_psy
 
 BSD 3-Clause License
 
-Copyright (c) 2019-2021, Science and Technology Facilities Council.
+Copyright (c) 2019-2023, Science and Technology Facilities Council.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -95,5 +97,4 @@ POSSIBILITY OF SUCH DAMAGE.
 
 -------------------------------------------------------------------------------
 Authors: J. Henrichs, Bureau of Meteorology,
-         I. Kavcic, Met Office
 -->
