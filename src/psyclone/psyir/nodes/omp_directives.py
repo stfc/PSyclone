@@ -65,7 +65,7 @@ from psyclone.psyir.nodes.while_loop import WhileLoop
 from psyclone.psyir.nodes.literal import Literal
 from psyclone.psyir.nodes.member import Member
 from psyclone.psyir.nodes.omp_clauses import OMPGrainsizeClause, \
-    OMPNowaitClause, OMPNogroupClause, OMPNumTasksClause, OMPPrivateClause,\
+    OMPNowaitClause, OMPNogroupClause, OMPNumTasksClause, OMPPrivateClause, \
     OMPDefaultClause, OMPReductionClause, OMPScheduleClause, \
     OMPFirstprivateClause, OMPDependClause
 from psyclone.psyir.nodes.operation import BinaryOperation

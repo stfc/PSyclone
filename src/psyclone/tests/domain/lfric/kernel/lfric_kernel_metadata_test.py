@@ -1499,14 +1499,14 @@ def test_field_utility():
     metadata.validate()
     result = metadata.field_meta_args_on_fs(FieldArgMetadata, "w0")
     assert len(result) == 1
-    assert type(result[0]) == FieldArgMetadata
+    assert type(result[0]) is FieldArgMetadata
     result = metadata.field_meta_args_on_fs(FieldArgMetadata, "w1")
     assert len(result) == 0
     result = metadata.field_meta_args_on_fs(
         [FieldArgMetadata, FieldVectorArgMetadata], "w0")
     assert len(result) == 2
-    assert type(result[0]) == FieldArgMetadata
-    assert type(result[1]) == FieldVectorArgMetadata
+    assert type(result[0]) is FieldArgMetadata
+    assert type(result[1]) is FieldVectorArgMetadata
 
 
 def test_operator_utility():
@@ -1523,14 +1523,14 @@ def test_operator_utility():
     result = metadata.operator_meta_args_on_fs(
         ColumnwiseOperatorArgMetadata, "w0")
     assert len(result) == 1
-    assert type(result[0]) == ColumnwiseOperatorArgMetadata
+    assert type(result[0]) is ColumnwiseOperatorArgMetadata
     result = metadata.operator_meta_args_on_fs(OperatorArgMetadata, "w1")
     assert len(result) == 1
-    assert type(result[0]) == OperatorArgMetadata
+    assert type(result[0]) is OperatorArgMetadata
     result = metadata.operator_meta_args_on_fs(FieldArgMetadata, "w2")
     assert len(result) == 0
     result = metadata.operator_meta_args_on_fs(
         [OperatorArgMetadata, ColumnwiseOperatorArgMetadata], "w0")
     assert len(result) == 2
-    assert type(result[0]) == ColumnwiseOperatorArgMetadata
-    assert type(result[1]) == OperatorArgMetadata
+    assert type(result[0]) is ColumnwiseOperatorArgMetadata
+    assert type(result[1]) is OperatorArgMetadata
