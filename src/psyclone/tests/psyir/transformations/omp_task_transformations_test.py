@@ -149,7 +149,7 @@ def test_omptask_apply_kern(fortran_reader, fortran_writer):
     contains
       subroutine test_kernel(i, j, array)
         integer :: i, j
-        integer, dimension(:,:) :: array
+        integer, dimension(:,:), intent(out) :: array
 
         array(i, j) = 1
       end subroutine test_kernel
@@ -179,6 +179,8 @@ def test_omptask_apply_kern(fortran_reader, fortran_writer):
     trans = OMPTaskTrans()
     master = OMPSingleTrans()
     parallel = OMPParallelTrans()
+    calls = my_test.walk(Call)
+    calls[0].routine.is_pure = True
     loops = my_test.walk(Loop)
     trans.apply(loops[1])
     master.apply(my_test.children[:])
