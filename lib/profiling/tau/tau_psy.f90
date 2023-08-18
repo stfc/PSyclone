@@ -62,7 +62,6 @@ contains
 
   subroutine profile_PSyDataInit()
     implicit none
-    print *,"profile-psydatainit"
     call TAU_PROFILE_INIT();
   end subroutine profile_PSyDataInit
 
@@ -92,10 +91,8 @@ contains
     if (.not. this%initialised) then
       call TAU_PROFILE_TIMER(this%profiler, module_name//":"//region_name)
       this%initialised = .true.
-      print *,"prestart1", module_name//":"//region_name
     endif
     call TAU_PROFILE_START(this%profiler)
-    print *,"prestart0", module_name//":"//region_name
 
   end subroutine PreStart
 
