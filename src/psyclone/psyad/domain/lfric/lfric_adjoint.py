@@ -48,7 +48,7 @@ from psyclone.domain.lfric.kernel import (
 from psyclone.domain.lfric.transformations import RaisePSyIR2LFRicKernTrans
 from psyclone.domain.lfric.utils import (
     find_container, metadata_name_from_module_name)
-from psyclone.errors import InternalError
+from psyclone.errors import InternalError, GenerationError
 from psyclone.psyad import AdjointVisitor
 from psyclone.psyad.domain.common import create_adjoint_name
 from psyclone.psyir.nodes import Routine
@@ -164,68 +164,84 @@ def generate_lfric_adjoint(tl_psyir, active_variables):
         # metadata.
         return ad_psyir
 
+    # Change the meta_args access metadata
+    for var_name in active_variables:
+        access = update_access_metadata(var_name, arg_symbols, metadata)
+        if access:
+            check_or_add_access(ad_container, access)
+
+    return ad_psyir
+
+def update_access_metadata(var_name, arg_symbols, metadata):
+    ''' xxx '''
     # Determine the order of the kernel arguments from the
     # metadata. This is needed to find the metadata associated with
     # the specified active variables.
     meta_arg_index_from_arg_index = ArgIndexToMetadataIndex.mapping(metadata)
 
-    # Change the meta_args access metadata
-    for var_name in active_variables:
-        # Determine whether this active variable is passed by argument.
-        found_symbol = None
-        for arg_symbol in arg_symbols:
-            if arg_symbol.name.lower() == var_name.lower():
-                found_symbol = arg_symbol
-                break
+    # Determine whether this active variable is passed by argument.
+    found_symbol = None
+    for arg_symbol in arg_symbols:
+        if arg_symbol.name.lower() == var_name.lower():
+            found_symbol = arg_symbol
+            break
+    else:
+        # No, the active variable is not passed by argument.
+        return None
+
+    arg_index = arg_symbols.index(found_symbol)
+    try:
+        meta_arg_index = meta_arg_index_from_arg_index[arg_index]
+    except:
+        raise GenerationError(
+            f"The argument position '{arg_index}' of the active variable "
+            f"'{found_symbol.name}' does not match any position as "
+            f"specified by the metadata. The expected meta_arg positions "
+            f"from argument positions are "
+            f"'{meta_arg_index_from_arg_index}'. The most likely reason "
+            f"for this is that the argument list does not conform to the "
+            f"LFRic rules - perhaps it is a PSyKAl-lite kernel?")
+    meta_arg = metadata.meta_args[meta_arg_index]
+
+    # Determine the intent of this variable from its declaration
+    # and update the metadata appropriately.
+    var_access = found_symbol.interface.access
+    const = LFRicConstants()
+    access = None
+    if var_access == ArgumentInterface.Access.READWRITE:
+        if type(meta_arg) == ScalarArgMetadata:
+            access = "gh_sum"
+        elif type(meta_arg) in [OperatorArgMetadata, ColumnwiseOperatorArgMetadata]:
+            access = "gh_readwrite"
+        elif type(meta_arg) in [FieldArgMetadata, FieldVectorArgMetadata] and meta_arg.function_space in const.VALID_DISCONTINUOUS_NAMES:
+            access = "gh_readwrite"
+        elif type(meta_arg) in [FieldArgMetadata, FieldVectorArgMetadata]:
+            access = "gh_inc"
         else:
-            # No, the active variable is not passed by argument.
-            continue
+            raise InternalError(
+                f"Found unexpected meta arg class "
+                f"'{type(meta_arg).__name__}'.")
+    elif var_access == ArgumentInterface.Access.WRITE:
+        access = "gh_write"
+    elif var_access == ArgumentInterface.Access.READ:
+        access = "gh_read"
+    else:
+        raise InternalError(f"Found unexpected access '{var_access}' for '{found_symbol.name}'.")
+    meta_arg.access = access
+    return access
 
-        arg_index = arg_symbols.index(found_symbol)
-        try:
-            meta_arg_index = meta_arg_index_from_arg_index[arg_index]
-        except:
-            raise GenerationError(
-                f"The argument position '{arg_index}' of the active variable "
-                f"'{found_symbol.name}' does not match any position as "
-                f"specified by the metadata. The expected meta_arg positions "
-                f"from argument positions are "
-                f"'{meta_arg_index_from_arg_index}'. The most likely reason "
-                f"for this is that the argument list does not conform to the "
-                f"LFRic rules - perhaps it is a PSyKAl-lite kernel?")
-        meta_arg = metadata.meta_args[meta_arg_index]
+def check_or_add_access(container, access):
+    '''Check whether the LFRic metadata name provided in argument 'access'
+    is already declared in the symbol table and if not add it.
 
-        # Determine the intent of this variable from its declaration
-        # and update the metadata appropriately.
-        var_access = found_symbol.interface.access
-        const = LFRicConstants()
-        access = None
-        if var_access == ArgumentInterface.Access.READWRITE:
-            if type(meta_arg) == ScalarArgMetadata:
-                access = "gh_sum"
-            elif type(meta_arg) in [OperatorArgMetadata, ColumnwiseOperatorArgMetadata]:
-                access = "gh_readwrite"
-            elif type(meta_arg) in [FieldArgMetadata, FieldVectorArgMetadata] and meta_arg.function_space in const.VALID_DISCONTINUOUS_NAMES:
-                access = "gh_readwrite"
-            elif type(meta_arg) in [FieldArgMetadata, FieldVectorArgMetadata]:
-                access = "gh_inc"
-            else:
-                raise NotImplementedError(f"'{type(meta_arg).__name__}' '{[arg.function_space for arg in [meta_arg] if isinstance(arg, FieldArgMetadata)]}' not implemented")
-        if var_access == ArgumentInterface.Access.WRITE:
-            access = "gh_write"
-        if var_access == ArgumentInterface.Access.READ:
-            access = "gh_read"
-
-        # Check that access name exists in symbol table and if not add it.
-        kernel = ad_container.children[0]
-        symbol_table = kernel.symbol_table
-        try:
-            argument_mod_symbol = symbol_table.lookup(access)
-            # TODO, check it is imported from argument_mod
-        except:
-            arg_mod_symbol = symbol_table.lookup("argument_mod")
-            symbol_table = arg_mod_symbol.find_symbol_table(kernel)
-            symbol_table.new_symbol(root_name=access, interface=ImportInterface(arg_mod_symbol))
-        meta_arg.access = access
-
-    return ad_psyir
+    '''
+    kernel = container.children[0]
+    symbol_table = kernel.symbol_table
+    try:
+        argument_mod_symbol = symbol_table.lookup(access)
+        # TODO, check it is imported from argument_mod
+    except:
+        arg_mod_symbol = symbol_table.lookup("argument_mod")
+        symbol_table = arg_mod_symbol.find_symbol_table(kernel)
+        symbol_table.new_symbol(
+            root_name=access, interface=ImportInterface(arg_mod_symbol))
