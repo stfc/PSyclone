@@ -40,8 +40,16 @@ psyad/domain/lfric/lfric_adjoint.py file.
 '''
 import pytest
 
+from psyclone.domain.lfric import ArgIndexToMetadataIndex
+from psyclone.domain.lfric.kernel import (
+    LFRicKernelMetadata, FieldArgMetadata, ScalarArgMetadata,
+    OperatorArgMetadata)
+from psyclone.domain.lfric.lfric_types import LFRicTypes
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyad.domain.lfric import generate_lfric_adjoint
+from psyclone.psyad.domain.lfric.lfric_adjoint import update_access_metadata
+from psyclone.psyir.symbols import (
+    ScalarType, DataSymbol, ArgumentInterface, INTEGER_TYPE, REAL_TYPE)
 from psyclone.psyir.transformations import TransformationError
 
 
@@ -116,7 +124,7 @@ def test_generate_lfric_adjoint_no_metadata(fortran_reader):
 
 def test_generate_lfric_adjoint_multi_precision(fortran_reader, fortran_writer):
     '''Check that generate_lfric_adjoint makes no changes to the metadata
-    if the this is a multi-precision kernel (due to issue #2236). We
+    if this is a multi-precision kernel (due to issue #2236). We
     can't yet parse multi-precision metadata (again due to issue
     #2236) so modify the PSyIR directly (removing the procedure part
     of the metadata).
@@ -166,113 +174,6 @@ def test_generate_lfric_adjoint_multi_precision(fortran_reader, fortran_writer):
         "  type(ARG_TYPE) :: META_ARGS(2) = (/ &\n"
         "    arg_type(gh_field, gh_real, gh_inc, w0), &\n"
         "    arg_type(gh_field, gh_real, gh_read, w0)/)\n" in result)
-
-
-def test_generate_lfric_adjoint_local_active(fortran_reader, fortran_writer):
-    '''Check that changes to the kernel metadata, when translating from
-    tangent-linear to adjoint, work correctly with a mixture of active
-    variables that are locally declared (so have no associated
-    metadata) and ones that are passed by argument (so do have
-    associated metadata).
-
-    '''
-    tl_fortran_str = (
-        "module test_mod\n"
-        "  use kernel_mod\n"
-        "  use argument_mod\n"
-        "  type, extends(kernel_type) :: test_type\n"
-        "     type(arg_type), dimension(2) :: meta_args = (/  &\n"
-        "          arg_type(gh_field,  gh_real, gh_inc, w0),  &\n"
-        "          arg_type(gh_field,  gh_real, gh_read, w0)  &\n"
-        "          /)\n"
-        "     integer :: operates_on = cell_column\n"
-        "   contains\n"
-        "     procedure, nopass :: code => kern_code\n"
-        "  end type test_type\n"
-        "contains\n"
-        "  SUBROUTINE kern_code(nlayers, field_1_w0, field_2_w0, ndf_w0, "
-        "undf_w0, map_w0)\n"
-        "    USE constants_mod\n"
-        "    IMPLICIT NONE\n"
-        "    INTEGER(KIND=i_def), intent(in) :: nlayers\n"
-        "    INTEGER(KIND=i_def), intent(in) :: ndf_w0\n"
-        "    INTEGER(KIND=i_def), intent(in), dimension(ndf_w0) :: map_w0\n"
-        "    INTEGER(KIND=i_def), intent(in) :: undf_w0\n"
-        "    REAL(KIND=r_def), intent(inout), dimension(undf_w0) :: "
-        "field_1_w0\n"
-        "    REAL(KIND=r_def), intent(in), dimension(undf_w0) :: field_2_w0\n"
-        "    REAL(KIND=r_def), dimension(undf_w0) :: field_3\n"
-        "    field_1_w0(:) = field_1_w0(:)*2.0_r_def + field_2_w0(:)\n"
-        "    field_3(:) = field_2_w0(:) + field_1_w0(:)\n"
-        "  END SUBROUTINE kern_code\n"
-        "end module test_mod")
-
-    psyir = fortran_reader.psyir_from_source(tl_fortran_str)
-    ad_psyir = generate_lfric_adjoint(psyir, [
-        "field_1_w0", "field_2_w0", "field_3"])
-    ad_fortran_str = fortran_writer(ad_psyir)
-
-    expected_adjoint_code = (
-        "    field_3 = 0.0_r_def\n"
-        "    field_2_w0(:) = field_2_w0(:) + field_3(:)\n"
-        "    field_1_w0(:) = field_1_w0(:) + field_3(:)\n"
-        "    field_3(:) = 0.0\n"
-        "    field_2_w0(:) = field_2_w0(:) + field_1_w0(:)\n"
-        "    field_1_w0(:) = field_1_w0(:) * 2.0_r_def\n")
-    assert expected_adjoint_code in ad_fortran_str
-    expected_meta_args = (
-        "  type(ARG_TYPE) :: META_ARGS(2) = (/ &\n"
-        "    arg_type(gh_field, gh_real, gh_inc, w0), &\n"
-        "    arg_type(gh_field, gh_real, gh_inc, w0)/)\n")
-    assert expected_meta_args in ad_fortran_str
-
-
-def test_generate_lfric_adjoint_unmatched(fortran_reader):
-    '''Check that an exception is raised if the actual arguments do not
-    match those expected by the metadata. This is a problem as we need
-    to associate the metadata with the arguments so we can update the
-    metadata intents. Arguments may not match the metadata if there is
-    a coding error or if the code is PSyKAl-lite. In this example we
-    remove the 'nlayers' argument from the kernel code.
-
-    '''
-    tl_fortran_str = (
-        "module test_mod\n"
-        "  use kernel_mod\n"
-        "  use argument_mod\n"
-        "  type, extends(kernel_type) :: test_type\n"
-        "     type(arg_type), dimension(2) :: meta_args = (/  &\n"
-        "          arg_type(gh_field,  gh_real, gh_inc, w0),  &\n"
-        "          arg_type(gh_field,  gh_real, gh_read, w0)  &\n"
-        "          /)\n"
-        "     integer :: operates_on = cell_column\n"
-        "   contains\n"
-        "     procedure, nopass :: code => kern_code\n"
-        "  end type test_type\n"
-        "contains\n"
-        "  SUBROUTINE kern_code(field_1_w0, field_2_w0, ndf_w0, "
-        "undf_w0, map_w0)\n"
-        "    USE constants_mod\n"
-        "    IMPLICIT NONE\n"
-        "    INTEGER(KIND=i_def), intent(in) :: ndf_w0\n"
-        "    INTEGER(KIND=i_def), intent(in), dimension(ndf_w0) :: map_w0\n"
-        "    INTEGER(KIND=i_def), intent(in) :: undf_w0\n"
-        "    REAL(KIND=r_def), intent(inout), dimension(undf_w0) :: "
-        "field_1_w0\n"
-        "    REAL(KIND=r_def), intent(in), dimension(undf_w0) :: field_2_w0\n"
-        "    field_1_w0(:) = field_1_w0(:)*2.0_r_def + field_2_w0(:)\n"
-        "  END SUBROUTINE kern_code\n"
-        "end module test_mod")
-
-    psyir = fortran_reader.psyir_from_source(tl_fortran_str)
-    with pytest.raises(GenerationError) as info:
-        _ = generate_lfric_adjoint(psyir, ["field_1_w0", "field_2_w0"])
-    assert ("The argument position '0' of the active variable 'field_1_w0' "
-            "does not match any position as specified by the metadata. "
-            "The expected meta_arg positions from argument positions are "
-            "'{1: 0, 2: 1}'. The most likely reason for this is that the "
-            "argument list does not conform to the LFRic rules - perhaps "
-            "it is a PSyKAl-lite kernel?" in str(info.value))
 
 
 def test_generate_lfric_adjoint_unmatched(fortran_reader, fortran_writer):
@@ -328,7 +229,205 @@ def test_generate_lfric_adjoint_unmatched(fortran_reader, fortran_writer):
         in ad_fortran_str)
 
 
-# not implemented exception
+def get_metadata_args():
+    '''Utility method to create metadata and symbols for testing the
+    update_access_metadata method.
+
+    :returns: a 7-tuple containing metadata describing a kernel and 6
+        kernel arguments which reflect the metadata description.
+    :rtype: Tuple[
+        :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`,
+        :py:class:`psyclone.psyir.symbols.datasymbol.DataSymbol`,
+        :py:class:`psyclone.psyir.symbols.datasymbol.DataSymbol`,
+        :py:class:`psyclone.psyir.symbols.datasymbol.DataSymbol`,
+        :py:class:`psyclone.psyir.symbols.datasymbol.DataSymbol`,
+        :py:class:`psyclone.psyir.symbols.datasymbol.DataSymbol`,
+        :py:class:`psyclone.psyir.symbols.datasymbol.DataSymbol`]
+
+    '''
+    metadata = LFRicKernelMetadata(
+        meta_args=[FieldArgMetadata("gh_real", "gh_write", "w3"),
+                   FieldArgMetadata("gh_real", "gh_read", "w3"),
+                   FieldArgMetadata("gh_real", "gh_read", "w0"),
+                   ScalarArgMetadata("gh_real", "gh_read"),
+                   OperatorArgMetadata("gh_real", "gh_read", "w0", "w3")],
+        operates_on="cell_column",
+        procedure_name="kern_code",
+        name="kern_type")
+    metadata.validate()
+    # This can be used for any additional arguments as we don't use
+    # these in our tests.
+    dummy = DataSymbol("dummy", INTEGER_TYPE,
+                         interface=ArgumentInterface(
+                             ArgumentInterface.Access.READ))
+    # It doesn't matter that field_1, field_2, field_3 and operator
+    # are the wrong type as we only care about their intent.
+    field_1 = DataSymbol("field_1", REAL_TYPE,
+                         interface=ArgumentInterface(
+                             ArgumentInterface.Access.READWRITE))
+    field_2 = DataSymbol("field_2", REAL_TYPE,
+                         interface=ArgumentInterface(
+                             ArgumentInterface.Access.READWRITE))
+    field_3 = DataSymbol("field_3", REAL_TYPE,
+                         interface=ArgumentInterface(
+                             ArgumentInterface.Access.READWRITE))
+    scalar = DataSymbol("scalar", REAL_TYPE,
+                        interface=ArgumentInterface(
+                            ArgumentInterface.Access.READWRITE))
+    operator = DataSymbol("operator", REAL_TYPE,
+                         interface=ArgumentInterface(
+                             ArgumentInterface.Access.READWRITE))
+    return (metadata, dummy, field_1, field_2, field_3, scalar, operator)
+
+
+def test_update_access_metadata_none():
+    '''Test that the update_access_metadata method returns None and does
+    not modify the metadata if the supplied symbol name is not an
+    argument.
+
+    '''
+    metadata, dummy, field_1, field_2, field_3, scalar, operator = get_metadata_args()
+    assert metadata.meta_args[0].access.lower() == "gh_write"
+    assert metadata.meta_args[1].access.lower() == "gh_read"
+    assert metadata.meta_args[2].access.lower() == "gh_read"
+    assert metadata.meta_args[3].access.lower() == "gh_read"
+    assert metadata.meta_args[4].access.lower() == "gh_read"
+    arguments = [dummy, dummy, field_1, field_2, field_3, scalar, dummy, operator]
+    access = update_access_metadata("internal", arguments, metadata)
+    assert access is None
+    assert metadata.meta_args[0].access.lower() == "gh_write"
+    assert metadata.meta_args[1].access.lower() == "gh_read"
+    assert metadata.meta_args[2].access.lower() == "gh_read"
+    assert metadata.meta_args[3].access.lower() == "gh_read"
+    assert metadata.meta_args[4].access.lower() == "gh_read"
+
+
+def test_update_access_metadata_index_error():
+    '''Test that the update_access_metadata method raises the expected
+    exception if the position of the active variable does not match
+    the position expected by the metadata.
+
+    '''
+    metadata, dummy, field_1, field_2, field_3, scalar, operator = get_metadata_args()
+    arguments = [field_1]
+    with pytest.raises(GenerationError) as info:
+        _ = update_access_metadata("field_1", arguments, metadata)
+    print(str(info.value))
+    assert ("The argument position '0' of the active variable 'field_1' "
+            "does not match any position as specified by the metadata. "
+            "The expected meta_arg positions from argument positions are "
+            "'{2: 0, 3: 1, 4: 2, 5: 3, 7: 4}'. The most likely reason for "
+            "this is that the argument list does not conform to the LFRic "
+            "rules - perhaps it is a PSyKAl-lite kernel?" in str(info.value))
+
+
+def test_update_access_metadata_field_inc():
+    '''Test that a continuous field with intent inout results in metadata with
+    access gh_inc.
+
+    '''
+    metadata, dummy, field_1, field_2, field_3, scalar, operator = get_metadata_args()
+    assert metadata.meta_args[2].access.lower() == "gh_read"
+    arguments = [dummy, dummy, field_1, field_2, field_3, scalar, dummy, operator]
+    access = update_access_metadata("field_3", arguments, metadata)
+    assert access.lower() == "gh_inc"
+    assert metadata.meta_args[2].access.lower() == access.lower()
+    
+
+def test_update_access_metadata_scalar_sum():
+    '''Test that a scalar with intent inout results in metadata with
+    access gh_sum.
+
+    '''
+    metadata, dummy, field_1, field_2, field_3, scalar, operator = get_metadata_args()
+    assert metadata.meta_args[3].access.lower() == "gh_read"
+    arguments = [dummy, dummy, field_1, field_2, field_3, scalar, dummy, operator]
+    access = update_access_metadata("scalar", arguments, metadata)
+    assert access.lower() == "gh_sum"
+    assert metadata.meta_args[3].access.lower() == access.lower()
+
+# ROODO discontinuous field
+
+def test_update_access_metadata_operator_readwrite():
+    '''Test that an operator with intent inout results in metadata with
+    access gh_readwrite.
+
+    '''
+    metadata, dummy, field_1, field_2, field_3, scalar, operator = get_metadata_args()
+    assert metadata.meta_args[4].access.lower() == "gh_read"
+    arguments = [dummy, dummy, field_1, field_2, field_3, scalar, dummy, operator]
+    access = update_access_metadata("operator", arguments, metadata)
+    assert access.lower() == "gh_readwrite"
+    assert metadata.meta_args[4].access.lower() == access.lower()
+
+
+def test_update_access_metadata_metaarg(monkeypatch):
+    '''Test that the update_access_metadata method raises the expected
+    exception when an unsupported metaarg is found. We need to
+    monkeypatch to force this exception.
+
+    '''
+    metadata, dummy, field_1, field_2, field_3, scalar, operator = get_metadata_args()
+    monkeypatch.setattr(metadata._meta_args, "_meta_args_args",
+                        [metadata.meta_args[0], None])
+    # Avoid validity checks
+    monkeypatch.setattr(ArgIndexToMetadataIndex, "mapping", lambda _: {1:0, 2:1})
+    arguments = [dummy, field_1, field_2]
+    with pytest.raises(InternalError) as info:
+        _ = update_access_metadata("field_2", arguments, metadata)
+    assert ("Found unexpected meta arg class 'NoneType'." in str(info.value))
+
+
+def test_update_access_metadata_write(monkeypatch):
+    '''Test that a field with intent out results in metadata with access
+    gh_write. We need to monkeypatch the field to create this case.
+
+    '''
+    metadata, dummy, field_1, field_2, field_3, scalar, operator = get_metadata_args()
+    assert metadata.meta_args[1].access.lower() == "gh_read"
+    monkeypatch.setattr(field_2.interface, "_access", ArgumentInterface.Access.WRITE)
+    arguments = [dummy, dummy, field_1, field_2, field_3, scalar, dummy, operator]
+    access = update_access_metadata("field_2", arguments, metadata)
+    assert access.lower() == "gh_write"
+    assert metadata.meta_args[1].access.lower() == access.lower()
+
+
+def test_update_access_metadata_read(monkeypatch):
+    '''Test that a field with intent out results in metadata with access
+    gh_read. We need to monkeypatch the field to create this case.
+
+    '''
+    metadata, dummy, field_1, field_2, field_3, scalar, operator = get_metadata_args()
+    assert metadata.meta_args[0].access.lower() == "gh_write"
+    monkeypatch.setattr(field_1.interface, "_access", ArgumentInterface.Access.READ)
+    arguments = [dummy, dummy, field_1, field_2, field_3, scalar, dummy, operator]
+    access = update_access_metadata("field_1", arguments, metadata)
+    assert access.lower() == "gh_read"
+    assert metadata.meta_args[1].access.lower() == access.lower()
+
+
+# ROODO: unexpected access - could use readinc?
+
+    
+@pytest.mark.parametrize("meta_index,arg_name,orig_access,new_access",
+                         [(0, "field_1", "gh_write", "gh_readwrite"),
+                          (1, "field_2", "gh_read", "gh_readwrite"),
+                          (2, "field_3", "gh_read", "gh_inc"),
+                          (3, "scalar", "gh_read", "gh_sum"),
+                          (4, "operator", "gh_read", "gh_readwrite")])
+def test_update_access_metadata_ok(meta_index, arg_name, orig_access, new_access):
+    '''Test that the update_access_metadata method works as expected when
+    given valid input values.
+
+    '''
+    metadata, dummy, field_1, field_2, field_3, scalar, operator = get_metadata_args()
+    arguments = [dummy, dummy, field_1, field_2, field_3, scalar, dummy, operator]
+
+    assert metadata.meta_args[meta_index].access.lower() == orig_access
+    access = update_access_metadata(arg_name, arguments, metadata)
+    assert access.lower() == new_access
+    assert metadata.meta_args[meta_index].access.lower() == access.lower()
+
 
 # Above also check for access names being added
 # Check access name imported from argument_mod?
