@@ -41,8 +41,8 @@
 import os
 import pytest
 from psyclone.errors import GenerationError, InternalError
-from psyclone.psyir.nodes import BinaryOperation, DynamicOMPTaskDirective,\
-        Literal, Loop, Reference
+from psyclone.psyir.nodes import Assignment, BinaryOperation, \
+        DynamicOMPTaskDirective, Literal, Loop, Reference
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 from psyclone.transformations import OMPSingleTrans, \
     OMPParallelTrans
@@ -149,8 +149,9 @@ def test_omp_task_directive_2(fortran_reader):
     ptrans.apply(parent.children)
     with pytest.raises(GenerationError) as excinfo:
         tree.lower_to_language_level()
-    assert ("'ArrayReference' object is not allowed to appear in an array index "
-            "expression inside an OMPTaskDirective.") in str(excinfo.value)
+    assert ("'ArrayReference' object is not allowed to appear in an array "
+            "index expression inside an OMPTaskDirective."
+            in str(excinfo.value))
 
 
 def test_omp_task_directive_3(fortran_reader, fortran_writer):
@@ -3786,7 +3787,9 @@ def test_evaluate_write_reference_failcase():
     with pytest.raises(InternalError) as excinfo:
         tdir._evaluate_write_reference(one, [], [], [], [])
     assert ("PSyclone can't handle an OMPTaskDirective containing an "
-            "assignment with a LHS that is not a Reference. Found '1'")
+            "assignment with a LHS that is not a Reference. Found '1'"
+            in str(excinfo.value))
+
 
 def test_create_binops_from_step_and_divisors():
     ''' Tests the _create_binops_from_step_and_divisors function.
@@ -3796,10 +3799,11 @@ def test_create_binops_from_step_and_divisors():
     ref = Reference(tmp)
     one = Literal("1", INTEGER_TYPE)
     binop1 = BinaryOperation.create(BinaryOperation.Operator.ADD, ref.copy(),
-                             one.copy())
-    
-    res, res2 = tdir._create_binops_from_step_and_divisors(binop1,
-            ref, 32, 1, 1, 0)
+                                    one.copy())
+
+    res, res2 = tdir._create_binops_from_step_and_divisors(
+            binop1, ref, 32, 1, 1, 0
+    )
     assert isinstance(res, BinaryOperation)
     assert isinstance(res.children[0], Reference)
     assert isinstance(res.children[1], Literal)
@@ -3810,8 +3814,9 @@ def test_create_binops_from_step_and_divisors():
     val = Literal("33", INTEGER_TYPE)
     binop2 = BinaryOperation.create(BinaryOperation.Operator.ADD, ref.copy(),
                                     val.copy())
-    res, res2 = tdir._create_binops_from_step_and_divisors(binop2,
-            ref, 32, 2, 1, 0)
+    res, res2 = tdir._create_binops_from_step_and_divisors(
+            binop2, ref, 32, 2, 1, 0
+    )
     assert isinstance(res, BinaryOperation)
     assert isinstance(res.children[0], Reference)
     assert isinstance(res.children[1], BinaryOperation)
@@ -3824,14 +3829,15 @@ def test_create_binops_from_step_and_divisors():
     assert isinstance(res2.children[0], Reference)
     assert isinstance(res2.children[1], Literal)
     assert res2.children[1].value == "32"
-    
+
     # Test case where x + lit is an exact multiple of the step and the
     # multiple is > 1
     val = Literal("64", INTEGER_TYPE)
     binop2 = BinaryOperation.create(BinaryOperation.Operator.ADD, ref.copy(),
                                     val.copy())
-    res, res2 = tdir._create_binops_from_step_and_divisors(binop2,
-            ref, 32, 2, 0, 0)
+    res, res2 = tdir._create_binops_from_step_and_divisors(
+            binop2, ref, 32, 2, 0, 0
+    )
 
     assert res2 is None
     assert isinstance(res, BinaryOperation)
@@ -3842,3 +3848,68 @@ def test_create_binops_from_step_and_divisors():
     assert res.children[1].operator == BinaryOperation.Operator.MUL
     assert res.children[1].children[0].value == "2"
     assert res.children[1].children[1].value == "32"
+
+
+def test_find_parent_loop_vars_fail():
+    '''Tests the _find_parent_loop_vars throws an exception
+    if there is no parent OMPParallelDirective.'''
+    tdir = DynamicOMPTaskDirective()
+    with pytest.raises(GenerationError) as excinfo:
+        tdir._find_parent_loop_vars()
+    assert ("Failed to find an ancestor OMPParallelDirective "
+            "which is required to compute dependencies of a "
+            "(Dynamic)OMPTaskDirective" in str(excinfo.value))
+
+
+def test_evaluate_readonly_ref_failcase(fortran_reader):
+    '''Tests that the _evaluate_readonly_reference function fails
+    when it is passed an ArrayOfStructureReference with an ArrayMember
+    child.'''
+
+    code = '''subroutine test
+    type c
+        integer, dimension(5) :: b
+    end type
+    type(c), dimension(5) :: a
+    integer :: x
+    x = a(3)%b(1)
+    end subroutine test
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    # Find the AoS
+    assign = psyir.walk(Assignment)[0]
+    rhs = assign.rhs
+
+    tdir = DynamicOMPTaskDirective()
+    with pytest.raises(GenerationError) as excinfo:
+        tdir._evaluate_readonly_reference(rhs, [], [], [], [])
+    assert ("PSyclone doesn't support an OMPTaskDirective containing "
+            "an ArrayOfStructuresReference with an array accessing member. "
+            "Found 'a(3)%b(1)'." in str(excinfo.value))
+
+
+def test_evaluate_write_ref_failcase(fortran_reader):
+    '''Tests that the _evaluate_write_reference function fails
+    when it is passed an ArrayOfStructureReference with an ArrayMember
+    child.'''
+
+    code = '''subroutine test
+    type c
+        integer, dimension(5) :: b
+    end type
+    type(c), dimension(5) :: a
+    integer :: x
+    x = a(3)%b(1)
+    end subroutine test
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    # Find the AoS
+    assign = psyir.walk(Assignment)[0]
+    rhs = assign.rhs
+
+    tdir = DynamicOMPTaskDirective()
+    with pytest.raises(GenerationError) as excinfo:
+        tdir._evaluate_write_reference(rhs, [], [], [], [])
+    assert ("PSyclone doesn't support an OMPTaskDirective containing "
+            "an ArrayOfStructuresReference with an array accessing member. "
+            "Found 'a(3)%b(1)'." in str(excinfo.value))

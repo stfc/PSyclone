@@ -162,7 +162,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         :rtype: bool
         """
         for parent_sym in self._parallel_private:
-            if (ref.symbol.name == parent_sym.name):
+            if ref.symbol.name == parent_sym.name:
                 return True
         return False
 
@@ -249,7 +249,6 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         # modulo == 0
         step = None
         step2 = None
-        print(divisor)
         if divisor > 1:
             step = BinaryOperation.create(
                 BinaryOperation.Operator.MUL,
@@ -277,15 +276,15 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
             # access
             first_arg = lambda: ref.copy()
             alt_first_arg = first_arg
-            second_arg = lambda : step
-            alt_second_arg = lambda : step2
+            second_arg = lambda: step
+            alt_second_arg = lambda: step2
         else:
             # We have Literal OP Ref
             # Setup lambdas to do step OP ref when we then
             # create the BinaryOperations to represent this
             # access
-            first_arg = lambda : step
-            alt_first_arg = lambda : step2
+            first_arg = lambda: step
+            alt_first_arg = lambda: step2
             second_arg = lambda: ref.copy()
             alt_second_arg = second_arg
         # Create the BinaryOperations for this access according to the
@@ -354,7 +353,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         # Binary Operation operator check, must be ADD or SUB.
         if (
             node.operator not in [BinaryOperation.Operator.ADD,
-            BinaryOperation.Operator.SUB]
+                                  BinaryOperation.Operator.SUB]
         ):
             raise GenerationError(
                 f"Binary Operator of type {node.operator} used "
@@ -845,6 +844,9 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         :raises GenerationError: If a StructureReference containing multiple
                                  ArrayMember or ArrayOfStructuresMember as
                                  children is found.
+        :raises GenerationError: If an ArrayOfStructuresReference containing
+                                 an ArrayMember of ArrayOfStructuresMember as
+                                 a child if found.
         """
         if isinstance(ref, (ArrayReference, ArrayOfStructuresReference)):
             # If ref is an ArrayOfStructuresReference and contains an
@@ -1382,6 +1384,9 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         :raises GenerationError: If a StructureReference containing multiple
                                  ArrayMember or ArrayOfStructuresMember as
                                  children is found.
+        :raises GenerationError: If an ArrayOfStructuresReference containing
+                                 an ArrayMember of ArrayOfStructuresMember as
+                                 a child if found.
         """
         if isinstance(ref, (ArrayReference, ArrayOfStructuresReference)):
             # If ref is an ArrayOfStructuresReference and contains an
@@ -1434,7 +1439,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                 ref, private_list, shared_list, out_list
             )
         else:
-            raise InternalError(f"PSyclone can't handle a OMPTaskDirective "
+            raise InternalError(f"PSyclone can't handle an OMPTaskDirective "
                                 f"containing an assignment with a LHS that "
                                 f"is not a Reference. Found "
                                 f"'{ref.debug_string()}'.")
