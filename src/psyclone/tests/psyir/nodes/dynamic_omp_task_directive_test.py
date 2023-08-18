@@ -41,8 +41,9 @@
 import os
 import pytest
 from psyclone.errors import GenerationError, InternalError
-from psyclone.psyir.nodes import DynamicOMPTaskDirective, Literal, Loop
-from psyclone.psyir.symbols import INTEGER_TYPE
+from psyclone.psyir.nodes import BinaryOperation, DynamicOMPTaskDirective,\
+        Literal, Loop, Reference
+from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 from psyclone.transformations import OMPSingleTrans, \
     OMPParallelTrans
 
@@ -3786,3 +3787,58 @@ def test_evaluate_write_reference_failcase():
         tdir._evaluate_write_reference(one, [], [], [], [])
     assert ("PSyclone can't handle an OMPTaskDirective containing an "
             "assignment with a LHS that is not a Reference. Found '1'")
+
+def test_create_binops_from_step_and_divisors():
+    ''' Tests the _create_binops_from_step_and_divisors function.
+    '''
+    tdir = DynamicOMPTaskDirective()
+    tmp = DataSymbol("tmp", INTEGER_TYPE)
+    ref = Reference(tmp)
+    one = Literal("1", INTEGER_TYPE)
+    binop1 = BinaryOperation.create(BinaryOperation.Operator.ADD, ref.copy(),
+                             one.copy())
+    
+    res, res2 = tdir._create_binops_from_step_and_divisors(binop1,
+            ref, 32, 1, 1, 0)
+    assert isinstance(res, BinaryOperation)
+    assert isinstance(res.children[0], Reference)
+    assert isinstance(res.children[1], Literal)
+    assert res.children[1].value == "32"
+    assert isinstance(res2, Reference)
+
+    # Test case where literal is > step but literal % step != 0
+    val = Literal("33", INTEGER_TYPE)
+    binop2 = BinaryOperation.create(BinaryOperation.Operator.ADD, ref.copy(),
+                                    val.copy())
+    res, res2 = tdir._create_binops_from_step_and_divisors(binop2,
+            ref, 32, 2, 1, 0)
+    assert isinstance(res, BinaryOperation)
+    assert isinstance(res.children[0], Reference)
+    assert isinstance(res.children[1], BinaryOperation)
+    assert isinstance(res.children[1].children[0], Literal)
+    assert isinstance(res.children[1].children[1], Literal)
+    assert res.children[1].operator == BinaryOperation.Operator.MUL
+    assert res.children[1].children[0].value == "2"
+    assert res.children[1].children[1].value == "32"
+    assert isinstance(res2, BinaryOperation)
+    assert isinstance(res2.children[0], Reference)
+    assert isinstance(res2.children[1], Literal)
+    assert res2.children[1].value == "32"
+    
+    # Test case where x + lit is an exact multiple of the step and the
+    # multiple is > 1
+    val = Literal("64", INTEGER_TYPE)
+    binop2 = BinaryOperation.create(BinaryOperation.Operator.ADD, ref.copy(),
+                                    val.copy())
+    res, res2 = tdir._create_binops_from_step_and_divisors(binop2,
+            ref, 32, 2, 0, 0)
+
+    assert res2 is None
+    assert isinstance(res, BinaryOperation)
+    assert isinstance(res.children[0], Reference)
+    assert isinstance(res.children[1], BinaryOperation)
+    assert isinstance(res.children[1].children[0], Literal)
+    assert isinstance(res.children[1].children[1], Literal)
+    assert res.children[1].operator == BinaryOperation.Operator.MUL
+    assert res.children[1].children[0].value == "2"
+    assert res.children[1].children[1].value == "32"

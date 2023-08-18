@@ -211,6 +211,102 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
             if ref not in in_list:
                 in_list.append(ref.copy())
 
+    def _create_binops_from_step_and_divisors(self, node, ref,
+                                              step_val, divisor,
+                                              modulo, ref_index):
+        """
+        Takes a node, step_val, divisor, modulo and ref_index from
+        _handle_index_binop and computes the BinaryOperation(s)
+        required for them to be handled in a depend clause.
+
+        :param node: the BinaryOperation being evaluated.
+        :type node: :py:class:`psyclone.psyir.nodes.BinaryOperation`
+        :param ref: the Reference representing the loop variable inside node
+        :type ref: :py:class:`psyclone.psyir.nodes.Reference`
+        :param int step_val: the step of the loop containing the node in
+                         _handle_index_binop.
+        :param int divisor: the ceiling result of literal_val / step, where
+                            literal_val is the int value of the Literal child
+                            of the node in _handle_index_binop.
+        :param int modulo: the result of literal_val % step in
+                           _handle_index_binop.
+        :param int ref_index: The index of the Reference child of node from
+                              _handle_index_binop.
+
+        :returns: the BinaryOperation(s) required to be added to the
+                  index_list in _handle_index_binop to satisfy the
+                  dependencies.
+        :rtype: Tuple[:py:class`psyclone.psyir.nodes.BinaryOperation`,
+                      Union[:py:class`psyclone.psyir.nodes.BinaryOperation`,
+                            NoneType]]
+
+        """
+        # If the divisor is > 1, then we need to do
+        # divisor*step_val
+        # We also need to add divisor-1*step_val to cover the case
+        # where e.g. array(i+1) is inside a larger loop, as we
+        # need dependencies to array(i) and array(i+step), unless
+        # modulo == 0
+        step = None
+        step2 = None
+        print(divisor)
+        if divisor > 1:
+            step = BinaryOperation.create(
+                BinaryOperation.Operator.MUL,
+                Literal(f"{divisor}", INTEGER_TYPE),
+                Literal(f"{step_val}", INTEGER_TYPE),
+            )
+            if divisor > 2:
+                step2 = BinaryOperation.create(
+                    BinaryOperation.Operator.MUL,
+                    Literal(f"{divisor-1}", INTEGER_TYPE),
+                    Literal(f"{step_val}", INTEGER_TYPE),
+                )
+            else:
+                step2 = Literal(f"{step_val}", INTEGER_TYPE)
+        else:
+            step = Literal(f"{step_val}", INTEGER_TYPE)
+
+        # Create a Binary Operation of the correct format.
+        binop = None
+        binop2 = None
+        if ref_index == 0:
+            # We have Ref OP Literal
+            # Setup lambdas to do ref OP step when we then
+            # create the BinaryOperations to represent this
+            # access
+            first_arg = lambda: ref.copy()
+            alt_first_arg = first_arg
+            second_arg = lambda : step
+            alt_second_arg = lambda : step2
+        else:
+            # We have Literal OP Ref
+            # Setup lambdas to do step OP ref when we then
+            # create the BinaryOperations to represent this
+            # access
+            first_arg = lambda : step
+            alt_first_arg = lambda : step2
+            second_arg = lambda: ref.copy()
+            alt_second_arg = second_arg
+        # Create the BinaryOperations for this access according to the
+        # lambdas we set up.
+        binop = BinaryOperation.create(
+            node.operator, first_arg(), second_arg()
+        )
+        # If modulo is non-zero then we need a second binop
+        # dependency to handle the modulus, so we have two
+        # dependency clauses, one which handles each of the
+        # step-sized array chunks that overlaps with this access.
+        if modulo != 0:
+            if step2 is not None:
+                binop2 = BinaryOperation.create(
+                    node.operator, alt_first_arg(), alt_second_arg()
+                )
+            else:
+                binop2 = ref.copy()
+
+        return binop, binop2
+
     def _handle_index_binop(
         self, node, index_list, firstprivate_list, private_list
     ):
@@ -345,68 +441,9 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                 literal_val = int(literal.value)
                 divisor = math.ceil(literal_val / step_val)
                 modulo = literal_val % step_val
-                # If the divisor is > 1, then we need to do
-                # divisor*step_val
-                # We also need to add divisor-1*step_val to cover the case
-                # where e.g. array(i+1) is inside a larger loop, as we
-                # need dependencies to array(i) and array(i+step), unless
-                # modulo == 0
-                step = None
-                step2 = None
-                if divisor > 1:
-                    step = BinaryOperation.create(
-                        BinaryOperation.Operator.MUL,
-                        Literal(f"{divisor}", INTEGER_TYPE),
-                        Literal(f"{step_val}", INTEGER_TYPE),
-                    )
-                    if divisor > 2:
-                        step2 = BinaryOperation.create(
-                            BinaryOperation.Operator.MUL,
-                            Literal(f"{divisor-1}", INTEGER_TYPE),
-                            Literal(f"{step_val}", INTEGER_TYPE),
-                        )
-                    else:
-                        step2 = Literal(f"{step_val}", INTEGER_TYPE)
-                else:
-                    step = Literal(f"{step_val}", INTEGER_TYPE)
-
-                # Create a Binary Operation of the correct format.
-                binop = None
-                binop2 = None
-                if ref_index == 0:
-                    # We have Ref OP Literal
-                    # Setup lambdas to do ref OP step when we then
-                    # create the BinaryOperations to represent this
-                    # access
-                    first_arg = lambda: real_ref.copy()
-                    alt_first_arg = first_arg
-                    second_arg = lambda : step
-                    alt_second_arg = lambda : step2
-                else:
-                    # We have Literal OP Ref
-                    # Setup lambdas to do step OP ref when we then
-                    # create the BinaryOperations to represent this
-                    # access
-                    first_arg = lambda : step
-                    alt_first_arg = lambda : step2
-                    second_arg = lambda: real_ref.copy()
-                    alt_second_arg = second_arg
-                # Create the BinaryOperations for this access according to the
-                # lambdas we set up.
-                binop = BinaryOperation.create(
-                    node.operator, first_arg(), second_arg()
+                binop, binop2 = self._create_binops_from_step_and_divisors(
+                        node, real_ref, step_val, divisor, modulo, ref_index
                 )
-                # If modulo is non-zero then we need a second binop
-                # dependency to handle the modulus, so we have two
-                # dependency clauses, one which handles each of the
-                # step-sized array chunks that overlaps with this access.
-                if modulo != 0:
-                    if step2 is not None:
-                        binop2 = BinaryOperation.create(
-                            node.operator, alt_first_arg(), alt_second_arg()
-                        )
-                    else:
-                        binop2 = real_ref.copy()
                 # Add this to the list of indexes
                 if binop2 is not None:
                     index_list.append([binop, binop2])
@@ -495,58 +532,10 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                     literal_val = int(literal.value)
                     divisor = math.ceil(literal_val / step_val)
                     modulo = literal_val % step_val
-                    # If the divisor is > 1, then we need to do
-                    # divisor*step_val
-                    # We also need to add divisor-1*step_val to cover the case
-                    # where e.g. array(i+1) is inside a larger loop, as we
-                    # need dependencies to array(i) and array(i+step), unless
-                    # modulo == 0
-                    step = None
-                    step2 = None
-                    if divisor > 1:
-                        step = BinaryOperation.create(
-                            BinaryOperation.Operator.MUL,
-                            Literal(f"{divisor}", INTEGER_TYPE),
-                            Literal(f"{step_val}", INTEGER_TYPE),
-                        )
-                        if divisor > 2:
-                            step2 = BinaryOperation.create(
-                                BinaryOperation.Operator.MUL,
-                                Literal(f"{divisor-1}", INTEGER_TYPE),
-                                Literal(f"{step_val}", INTEGER_TYPE),
-                            )
-                        else:
-                            step2 = Literal(f"{step_val}", INTEGER_TYPE)
-                    else:
-                        step = Literal(f"{step_val}", INTEGER_TYPE)
-
-                    # Create a Binary Operation of the correct format.
-                    binop = None
-                    binop2 = None
-                    if ref_index == 0:
-                        # We have Ref OP Literal
-                        binop = BinaryOperation.create(
-                            node.operator, ref.copy(), step
-                        )
-                        if modulo != 0:
-                            if step2 is not None:
-                                binop2 = BinaryOperation.create(
-                                    node.operator, ref.copy(), step2
-                                )
-                            else:
-                                binop2 = ref.copy()
-                    else:
-                        # We have Literal OP Ref
-                        binop = BinaryOperation.create(
-                            node.operator, step, ref.copy()
-                        )
-                        if modulo != 0:
-                            if step2 is not None:
-                                binop2 = BinaryOperation.create(
-                                    node.operator, step2, ref.copy()
-                                )
-                            else:
-                                binop2 = ref.copy()
+                    binop, binop2 = self._create_binops_from_step_and_divisors(
+                            node, ref, step_val, divisor,
+                            modulo, ref_index
+                    )
                     # Add this to the list of indexes
                     if binop2 is not None:
                         index_list.append([binop, binop2])
