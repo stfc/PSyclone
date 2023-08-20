@@ -3041,3 +3041,86 @@ def test_structures(fortran_reader, fortran_writer):
         "  CONTAINS\n"
         "  PROCEDURE, NOPASS :: test_code\n"
         "END TYPE test_type\n" in result)
+
+
+def test_structures_constants(fortran_reader, fortran_writer):
+    '''Test that Fparser2Reader parses Fortran types correctly when there
+    is a type declaration with one of the members being initialised
+    with constants that are declared outside of the type.
+
+    '''
+    test_code = (
+        "module test_mod\n"
+        "    integer, parameter :: N = 1, M = 2\n"
+        "    type, private :: my_type\n"
+        "      integer :: i = N + M\n"
+        "      integer :: j\n"
+        "    end type my_type\n"
+        "end module test_mod\n")
+    psyir = fortran_reader.psyir_from_source(test_code)
+    sym_table = psyir.children[0].symbol_table
+    n_symbol = sym_table.lookup("n")
+    m_symbol = sym_table.lookup("m")
+    symbol = sym_table.lookup("my_type")
+    assert isinstance(symbol, DataTypeSymbol)
+    assert isinstance(symbol.datatype, StructureType)
+    i_symbol = symbol.datatype.lookup("i")
+    n_reference = i_symbol.initial_value.children[0]
+    assert n_reference.symbol is n_symbol
+    m_reference = i_symbol.initial_value.children[1]
+    assert m_reference.symbol is m_symbol
+    result = fortran_writer(psyir)
+    assert("  integer, parameter, public :: N = 1\n"
+           "  integer, parameter, public :: M = 2\n"
+           "  type, private :: my_type\n"
+           "    integer, public :: i = N + M\n"
+           "    integer, public :: j\n"
+           "  end type my_type\n" in result)
+
+
+def test_structures_constant_scope(fortran_reader, fortran_writer):
+    '''Test that Fparser2Reader parses Fortran types correctly when there
+    is a type declaration with one of the members being initialised
+    with constants that are declared outside of the type within a
+    different symbol table.
+
+    '''
+    test_code = (
+        "module test_mod\n"
+        "  integer, parameter :: N = 1, M = 2\n"
+        "  contains\n"
+        "  subroutine test_code()\n"
+        "    type, private :: my_type\n"
+        "      integer :: i = N + M\n"
+        "      integer :: j\n"
+        "    end type my_type\n"
+        "  end subroutine\n"
+        "end module test_mod\n")
+    psyir = fortran_reader.psyir_from_source(test_code)
+    sym_table = psyir.children[0].symbol_table
+    n_symbol = sym_table.lookup("n")
+    m_symbol = sym_table.lookup("m")
+    sym_table = psyir.children[0].children[0].symbol_table
+    symbol = sym_table.lookup("my_type")
+    assert isinstance(symbol, DataTypeSymbol)
+    assert isinstance(symbol.datatype, StructureType)
+    i_symbol = symbol.datatype.lookup("i")
+    n_reference = i_symbol.initial_value.children[0]
+    assert n_reference.symbol is n_symbol
+    m_reference = i_symbol.initial_value.children[1]
+    assert m_reference.symbol is m_symbol
+    result = fortran_writer(psyir)
+    assert (
+        "module test_mod\n"
+        "  implicit none\n"
+        "  integer, parameter, public :: n = 1\n"
+        "  integer, parameter, public :: m = 2\n"
+        "  public\n\n"
+        "  contains\n"
+        "  subroutine test_code()\n"
+        "    type :: my_type\n"
+        "      integer :: i = n + m\n"
+        "      integer :: j\n"
+        "    end type my_type\n\n\n"
+        "  end subroutine test_code\n\n"
+        "end module test_mod" in result)

@@ -358,7 +358,9 @@ def _find_or_create_unresolved_symbol(location, name, scope_limit=None,
     # All requested Nodes have been checked but there has been no
     # match and there are no wildcard imports or unknown interfaces so
     # raise an exception.
-    raise SymbolError(f"No Symbol found for name '{name}'.")
+    # raise SymbolError(f"No Symbol found for name '{name}'.")
+    return symbol_table.new_symbol(
+        name, interface=UnresolvedInterface(), **kargs)
 
 
 def _check_args(array, dim):
@@ -1964,19 +1966,30 @@ class Fparser2Reader():
             tag = None
             try:
                 sym = symbol_table.lookup(sym_name, scope_limit=scope)
-                if sym is symbol_table.lookup_with_tag("own_routine_symbol"):
-                    # In case it is its own function routine symbol, Fortran
-                    # will declare it inside the function as a DataSymbol.
-                    # Remove the RoutineSymbol in order to free the exact name
-                    # for the DataSymbol.
-                    symbol_table.remove(sym)
-                    # And trigger the exception path but keeping the same tag
-                    tag = "own_routine_symbol"
-                    raise KeyError
-                if not sym.is_unresolved:
-                    raise SymbolError(
-                        f"Symbol '{sym_name}' already present in SymbolTable "
-                        f"with a defined interface ({sym.interface}).")
+                if type(sym) == Symbol:
+                    # This was a generic symbol. We now know what it is
+                    sym.specialise(DataSymbol, datatype=datatype,
+                                   visibility=visibility,
+                                   is_constant=has_constant_value,
+                                   initial_value=init_expr)
+                else:
+                    if sym is symbol_table.lookup_with_tag(
+                            "own_routine_symbol"):
+                        # In case it is its own function routine
+                        # symbol, Fortran will declare it inside the
+                        # function as a DataSymbol.  Remove the
+                        # RoutineSymbol in order to free the exact
+                        # name for the DataSymbol.
+                        symbol_table.remove(sym)
+                        # And trigger the exception path but keeping
+                        # the same tag
+                        tag = "own_routine_symbol"
+                        raise KeyError
+                    if not sym.is_unresolved:
+                        raise SymbolError(
+                            f"Symbol '{sym_name}' already present in "
+                            f"SymbolTable with a defined interface "
+                            f"({sym.interface}).")
             except KeyError:
                 try:
                     sym = DataSymbol(sym_name, datatype,

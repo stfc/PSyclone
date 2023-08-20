@@ -706,7 +706,7 @@ class StructureType(DataType):
                     f"Each component must be specified using a 4-tuple of "
                     f"(name, type, visibility, initial_value) but found a "
                     f"tuple with {len(component)} members: {component}")
-            stype.add(component[0], component[1], component[2], component[3])
+            stype.add(*component)
         return stype
 
     @property
@@ -724,7 +724,7 @@ class StructureType(DataType):
 
         :param str name: the name of the new component.
         :param datatype: the type of the new component.
-        :type datatype: :py:class:`psyclone.psyir.symbols.DataType` or
+        :type datatype: :py:class:`psyclone.psyir.symbols.DataType` |
             :py:class:`psyclone.psyir.symbols.DataTypeSymbol`
         :param visibility: whether this component is public or private.
         :type visibility: :py:class:`psyclone.psyir.symbols.Symbol.Visibility`
@@ -759,7 +759,8 @@ class StructureType(DataType):
                 f"Error attempting to add component '{name}' - a "
                 f"StructureType definition cannot be recursive - i.e. it "
                 f"cannot contain components with the same type as itself.")
-        if initial_value and not isinstance(initial_value, DataNode):
+        if (initial_value is not None and
+                not isinstance(initial_value, DataNode)):
             raise TypeError(
                 f"The initial value of a component of a StructureType must "
                 f"be None or an instance of 'DataNode', but got "
