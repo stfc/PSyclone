@@ -1706,7 +1706,7 @@ def test_new_symbol():
     sym = symtab.new_symbol("generic")
     assert sym.name == "generic"
     assert symtab.lookup("generic") is sym
-    assert type(sym) == Symbol
+    assert type(sym) is Symbol
     assert not symtab.tags_dict
 
     # Doing it again it will find a new name
@@ -1733,8 +1733,8 @@ def test_new_symbol():
                              datatype=INTEGER_TYPE)
     assert sym1.name == "routine"
     assert sym2.name == "data"
-    assert type(sym1) == RoutineSymbol
-    assert type(sym2) == DataSymbol
+    assert type(sym1) is RoutineSymbol
+    assert type(sym2) is DataSymbol
     assert symtab.lookup("routine") is sym1
     assert symtab.lookup("data") is sym2
     # which will be initialised with default values
@@ -1759,8 +1759,8 @@ def test_new_symbol():
                              initial_value=3)
     assert sym1.name == "routine_1"
     assert sym2.name == "data_1"
-    assert type(sym1) == RoutineSymbol
-    assert type(sym2) == DataSymbol
+    assert type(sym1) is RoutineSymbol
+    assert type(sym2) is DataSymbol
     assert symtab.lookup("routine_1") is sym1
     assert symtab.lookup("data_1") is sym2
     assert sym1.visibility is Symbol.Visibility.PRIVATE
@@ -1854,7 +1854,7 @@ def test_find_or_create_tag():
     assert isinstance(tag2, Symbol)
     assert symtab.lookup_with_tag("tag2") is tag2
     # By default it is a generic symbol with the same name as the tag
-    assert type(tag2) == Symbol
+    assert type(tag2) is Symbol
     assert tag2.name == "tag2"
 
     # If the operation is repeated it returns the already created symbol
@@ -1869,7 +1869,7 @@ def test_find_or_create_tag():
                                      is_constant=True,
                                      initial_value=3)
     assert symtab.lookup_with_tag("tag3") is tag3
-    assert type(tag3) == DataSymbol
+    assert type(tag3) is DataSymbol
     assert tag3.visibility is Symbol.Visibility.PRIVATE
     assert tag3.datatype is INTEGER_TYPE
     assert tag3.is_constant is True
@@ -2323,7 +2323,7 @@ def test_resolve_imports_private_symbols(fortran_reader, tmpdir, monkeypatch):
     # is mentioned by the accessibility statement
     public1 = symtab.lookup("name_public1")
     # pylint: disable=unidiomatic-typecheck
-    assert type(public1) == Symbol
+    assert type(public1) is Symbol
 
     # This should succeed because all name clashes are protected by proper
     # private accessibility

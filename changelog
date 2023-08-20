@@ -544,6 +544,23 @@
 	183) PR #2182 for #2179. Fix LFRic eg14 nvfortran compilation and add
 	nvfortran examples and tutorials steps in the Integration tests. 
 
+	184) PR #2250 for #2248 and #1575. Fixes bug in line-length limiter
+	to prevent it breaking a line before the first non-whitepsace
+	character.
+
+	185) PR #2262 towards #446. Implement reference_access for Call nodes.
+
+	186) PR #2184 for #2166. Adds Sympy support for user-defined types.
+
+	187) PR #2270 for #1575. Fixes the line-length limiter for code that
+	has an indent greater than the max. line length.
+
+	188) PR #2259 for #1932. Adds support for the 'gang' and 'vector'
+	clauses on OpenACC Loop directives.
+
+	189) PR #2276 for #2274. Small fixes for various complaints
+	produced by latest version of pycodestyle.
+
 release 2.3.1 17th of June 2022
 
 	1) PR #1747 for #1720. Adds support for If blocks to PSyAD.
