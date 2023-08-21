@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -38,14 +38,11 @@ function via the -s option. It adds kernel extraction code to
 all invokes.
 '''
 
-from __future__ import print_function
-
+from psyclone.domain.common.transformations import KernelModuleInlineTrans
+from psyclone.gocean1p0 import GOKern, GOLoop
 from psyclone.transformations import (OMPLoopTrans, OMPParallelLoopTrans, 
                                       OMPParallelTrans,
                                       GOceanOMPParallelLoopTrans)
-from psyclone.transformations import KernelModuleInlineTrans
-
-from psyclone.gocean1p0 import GOKern, GOLoop
 
 from fuse_loops import trans as fuse_trans
 

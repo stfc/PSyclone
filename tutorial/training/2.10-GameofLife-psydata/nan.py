@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022, Science and Technology Facilities Council.
+# Copyright (c) 2022-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -38,10 +38,8 @@ function via the -s option. It adds NAN verification for all
 kernels.
 '''
 
-from __future__ import print_function
-
-from psyclone.psyir.transformations import NanTestTrans
 from psyclone.gocean1p0 import GOKern
+from psyclone.psyir.transformations import NanTestTrans
 
 
 def trans(psy):
