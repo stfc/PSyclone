@@ -511,8 +511,7 @@ def test_cont_field_restrict(tmpdir, dist_mem, monkeypatch, annexed):
     single restriction operation (read from fine, write to
     coarse) when the field is on a continuous function space but has
     GH_WRITE access (so that there is no need to perform redundant computation
-    to get the correct values for annexed dofs). Check when annexed is False
-    and True as we produce a different number of halo exchanges.
+    to get the correct values for annexed dofs).
 
     '''
 
@@ -525,8 +524,10 @@ def test_cont_field_restrict(tmpdir, dist_mem, monkeypatch, annexed):
                            api=API)
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
     output = str(psy.gen)
-    print(output)
-    assert "loop0_stop = mesh_field1%get_last_edge_cell()" in output
+    if dist_mem:
+        assert "loop0_stop = mesh_field1%get_last_edge_cell()" in output
+    else:
+        assert "loop0_stop = field1_proxy%vspace%get_ncell()" in output
 
 
 def test_restrict_prolong_chain(tmpdir, dist_mem):
