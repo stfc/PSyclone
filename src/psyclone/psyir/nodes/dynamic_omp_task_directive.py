@@ -149,6 +149,32 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         self._parallel_private = self._parallel_private.union(
                 self._parallel_firstprivate)
 
+    def _create_full_range_for_array(self, ref, index):
+        """
+        Create a Range object that covers the full range for a given
+        ArrayMixin and index.
+
+        :param ref: The ArrayMixin object to create a full range for.
+        :type ref: Union[:py:class:`psyclone.psyir.nodes.ArrayMixin`
+        :param int index: The index of ref (or a child of ref) to create
+                          the Range for
+
+        :returns: A Range representing the full range for ref.
+        :rtype: :py:class:`psyclone.psyir.nodes.Range`
+        """
+        lbound = ref.get_lbound_expression(index)
+
+        # TODO Waiting on #2282
+        # ubound = ref.get_ubound_expression(index)
+        
+        root_ref = ref.ancestor(Reference, include_self=True).copy()
+        ubound = BinaryOperation.create(BinaryOperation.Operator.UBOUND,
+                                        root_ref, Literal(str(index+1),
+                                                          INTEGER_TYPE)
+                                        )
+
+        return Range.create(lbound, ubound)
+
     def _is_reference_private(self, ref):
         """
         Determines whether the provided reference is private or shared in the
@@ -461,35 +487,13 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                     dim_lit = Literal(str(dim + 1), INTEGER_TYPE)
                     # Find the arrayref
                     array_access_member = ref.ancestor(ArrayMember)
-                    # If there is an ArrayMember ancestor of this index, then
-                    # this is a StructureReference. For that case we need
-                    # to find the StructureReference parent, and recreate
-                    # the full a%b%c(...) style structure.
                     if array_access_member is not None:
-                        start = ref.ancestor(StructureReference)
-                        sub_ref = StructureReference(start.symbol)
-                        sub_ref.addchild(start.member.copy())
-                        array_member = sub_ref.walk(Member)[-1]
-                        num_child = len(array_member.children)
-                        array_member.pop_all_children()
-                        for _ in range(num_child):
-                            array_member.addchild(dim_lit.copy())
+                        full_range = self._create_full_range_for_array(
+                                array_access_member, dim
+                        )
                     else:
                         arrayref = ref.parent.parent
-                        sub_ref = Reference(arrayref.symbol)
-                    # Create a full range object for this symbol and
-                    # children
-                    lbound = BinaryOperation.create(
-                        BinaryOperation.Operator.LBOUND,
-                        sub_ref.copy(),
-                        dim_lit.copy(),
-                    )
-                    ubound = BinaryOperation.create(
-                        BinaryOperation.Operator.UBOUND,
-                        sub_ref.copy(),
-                        dim_lit.copy(),
-                    )
-                    full_range = Range.create(lbound, ubound)
+                        full_range = self._create_full_range_for_array(arrayref, dim)
                     index_list.append(full_range)
                 else:
                     # We have a private constant, written to inside
@@ -498,19 +502,10 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                     # the value is/how it changes.
                     # Return a full range (:)
                     dim = len(index_list)
-                    dim_lit = Literal(str(dim + 1), INTEGER_TYPE)
                     arrayref = ref.parent.parent
-                    lbound = BinaryOperation.create(
-                        BinaryOperation.Operator.LBOUND,
-                        Reference(arrayref.symbol),
-                        dim_lit.copy(),
+                    full_range = self._create_full_range_for_array(
+                            arrayref, dim
                     )
-                    ubound = BinaryOperation.create(
-                        BinaryOperation.Operator.UBOUND,
-                        Reference(arrayref.symbol),
-                        dim_lit.copy(),
-                    )
-                    full_range = Range.create(lbound, ubound)
                     index_list.append(full_range)
             else:
                 if ref not in firstprivate_list:
@@ -630,18 +625,9 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                     # of the loop is used.
                     if index.symbol in child_loop_vars:
                         # Append a full Range (i.e., :)
-                        dim_lit = Literal(str(dim + 1), INTEGER_TYPE)
-                        lbound = BinaryOperation.create(
-                            BinaryOperation.Operator.LBOUND,
-                            Reference(ref.symbol),
-                            dim_lit.copy(),
+                        full_range = self._create_full_range_for_array(
+                                ref, dim
                         )
-                        ubound = BinaryOperation.create(
-                            BinaryOperation.Operator.UBOUND,
-                            Reference(ref.symbol),
-                            dim_lit.copy(),
-                        )
-                        full_range = Range.create(lbound, ubound)
                         index_list.append(full_range)
                     elif index.symbol in self._proxy_loop_vars:
                         # Special case 2. the index is a proxy for a parent
@@ -996,6 +982,9 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                             BinaryOperation.Operator.UBOUND,
                             ubound_sref,
                             dim_lit.copy(),
+                        )
+                        full_range = self._create_full_range_for_array(
+                                sref_base.walk(ArrayMember)[0], dim
                         )
                         full_range = Range.create(lbound, ubound)
                         index_list.append(full_range)
