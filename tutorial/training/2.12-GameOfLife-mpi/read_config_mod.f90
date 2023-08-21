@@ -57,6 +57,7 @@ subroutine read_config(grid, initial, time_steps)
     ! Now we can use the grid to create the field that stores the
     ! initial data.
     allocate(initial_state(n_cols, n_rows))
+    initial_state = 0.0
 
     call get_initial_state(initial_state, n_rows, n_cols)
 
@@ -78,7 +79,6 @@ subroutine get_initial_state(initial_state, n_rows, n_cols)
 
     line_count = 0
 
-    initial_state = 0.0
     do
         read(15, *, iostat=ios) x, y
         ! Read till end of file
