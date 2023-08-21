@@ -88,7 +88,7 @@ read_kernel_data_mod.f90:	read_kernel_data_mod.jinja Makefile
 	$(F90) $(F90FLAGS) -c $<
 
 clean:
-	rm -f extract_standalone_base.f90 psy_data_base.f90 read_kernel_data_mod.f90
+	rm -f extract_standalone_base.f90 psy_data_base.f90
 	rm -f *.o *.mod
 
 allclean:

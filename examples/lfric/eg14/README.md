@@ -2,17 +2,13 @@
 
 This directory contains a runnable example of an LFRic mini-app that
 uses OpenACC. The framework for this stand-alone example is explained in
-more details in the directory
+more detail in the directory
 ``<PSYCLONEHOME>/examples/lfric/eg17/full_example``.
 
-The script ``acc_parallel_dm.py`` applies various OpenACC transformations
+The script ``acc_parallel.py`` applies various OpenACC transformations
 to all kernels. See the PSyclone User Guide for [details](https://psyclone.readthedocs.io/en/stable/examples.html#example-14-openacc).
 
 ## Compilation
-
-Note that due to #1724 compilation will currently fail. A temporary workaround
-is to edit the generated Alg file (``main_alg.f90``) and remove the
-``use testkern_w0_kernel_mod, only: ...`` line.
 
 A simple Makefile is provided to compile the example. It needs:
 - the infrastructure library ``liblfric.a`` provided in
@@ -20,12 +16,12 @@ A simple Makefile is provided to compile the example. It needs:
 
 The infrastructure library will be compiled if it is not available.
 
-The following environment variables can be set to define the compiler
-you want to use:
+The ``F90`` and ``F90FLAGS`` environment variables can be set to define the
+compiler you want to use. For instance, to use NVIDIA's nvfortran with OpenACC
+enabled:
+
 ```shell
-export F90=gfortran
-export F90FLAGS="-Wall -g -fopenacc"
-make
+F90=nvfortran F90FLAGS="-acc -Minfo=all" make compile
 ```
 
 ## Running
@@ -34,7 +30,16 @@ The binary can be executed using ``example_openacc`` without additional paramete
 ```shell
 ./example_openacc
  Mesh has           5 layers.
-20210318131720.135+1100:INFO : Min/max minmax of field1 =   0.10000000E+01  0.80000000E+01
+ profile_PSyDataInit called
+ PreStart called for module 'main_psy' region 'invoke_initialise_fields:r0'
+ PostEnd called for module 'main_psy' region 'invoke_initialise_fields:r0'
+ PreStart called for module 'main_psy' region '
+ invoke_testkern_w0:testkern_w0_code:r1'
+ PostEnd called for module 'main_psy' region '
+ invoke_testkern_w0:testkern_w0_code:r1'
+ ...
+20230807214504.374+0100:INFO : Min/max minmax of field1 =   0.30084014E+00  0.17067212E+01
+20230807214504.374+0100:INFO : Min/max minmax of field2 =   0.21098316E-03  0.21098316E-03
 ```
 
 If you are using NVIDIA hardware, you can specify NV_ACC_NOTIFY=3

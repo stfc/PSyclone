@@ -153,63 +153,27 @@ is case sensitive.
 
 User-defined Types
 ~~~~~~~~~~~~~~~~~~
-SymPy has no concept of user-defined types like
-``a(i)%b`` in Fortran. But this case is not handled especially, the
-PSyIR is converted to Fortran syntax and is provided unmodified to SymPy.
-SymPy interprets the ``%`` symbol
-as modulo function, so the expression above is read as ``Mod(a(i), b)``.
-This interpretation achieves the expected outcome when comparing structures
-and array references.
-For example, ``a(i+2*j-1)%b(k-i)`` and ``a(j*2-1+i)%b(-i+k)`` will be
-considered to be equal:
-
-1. Converting the two expressions to SymPy internally results in
-   ``Mod(a(i+2*j-1), b(k-i))`` and ``Mod(a(j*2-1+i, b(-i+k))``.
-2. Since nothing is known about the arguments of any of the ``Mod``
-   functions, SymPy will first detect that the same function is called
-   in both expression, and then continue to compare the arguments of
-   this function.
-3. The first arguments are ``a(i+2*j-1)`` and ``a(j*2-1+i)``.
-   The name ``a`` is considered an unknown function. SymPy detects
-   that both expressions appear to call the same function, and it
-   will therefore compare the arguments.
-4. SymPy compares ``i+2*j-1`` and ``j*2-1+i`` symbolically, and
-   evaluate these expressions to be identical. Therefore, the
-   two expressions ``a(...)`` are identical, so the first arguments
-   of the ``Mod`` function are identical.
-5. Similarly, it will then continue to evaluate the second argument
-   of the ``Mod`` function (``b(...)``), and evaluate them to be
-   identical.
-6. Since all arguments of the ``Mod`` function are identical,
-   SymPy will report these two functions to be the same, which
-   is the expected outcome.
-
-A member of a structure in Fortran becomes a stand-alone symbol (or
-function if it is an array) in SymPy. The SymPy
-writer will rename members to better indicate that they are members:
-an expression like ``a%b%c`` will be written as ``a%a_b%a_b_c``, which
-SymPy then parses as ``MOD(a, MOD(a_b, a_b_c))``. This convention
-makes it easier to identify what the various expressions in SymPy are.
-
-This handling of member variables can result in name clashes. Consider
-the expression ``a%b + a_b + b``. The structure access will be using
-two symbols ``a`` and ``a_b`` - but now there are two different symbols
-with the same name. Note that the renaming of the member from ``b`` to
-``a_b`` is not the reason for this - without renaming the same clash would
-happen with the symbol ``b``.
-
-The SymPy writer uses a symbol table to make sure it creates unique symbols.
+SymPy has no concept of user-defined types like ``a(i)%b`` in Fortran.
+A structure reference like this is converted to a single new symbol
+(scalar) or function (if an array index is involved). The default name
+will be the name of the reference and members concatenated using ``_``,
+e.g. ``a%b%c`` becomes ``a_b_c``, which will be declared as a new SymPy
+symbol or function (if it is an array access). The SymPy writer uses a
+symbol table to make sure it creates unique symbols.
 It first adds all References in the expression to the symbol table, which
-guarantees that no Reference to an existing symbol is renamed. The writer
-then renames all members and makes sure it uses a unique name. In the case of
-``a%b + a_b + b``, it would create ``a%a_b_1 + a_b + b``, using the name
-``a_b_1`` for the member to avoid the name clash with the reference
-``a_b`` - so an existing Reference will not be renamed, only members.
+guarantees that no Reference to an existing symbol is renamed. In the case of
+``a%b + a_b + b``, it would create ``a_b_1 + a_b + b``, using the name
+``a_b_1`` for the structure reference to avoid the name clash with the
+reference ``a_b``.
 
-.. note:: At this stage an expression using user-defined types cannot be
-    converted back to a PSyIR (which is what
-    `psyclone.core.SymbolicMaths.expand` does as a final step). This is
-    tracked as issue #2166.
+Any array indices are converted into arguments of this new function. So an
+expression like ``a(i)%b%c(j,k)`` becomes ``a_b_c(i,i,1,j,j,1,k,k,1)``
+(see :ref:`array_expressions`). The ``SymPyWriter`` creates a custom SymPy
+function, which keeps a list of which reference/member contained how many
+indices. In the example this would be ``[1, 0, 2]``, indicating that the
+first reference had one index, the second one none (i.e. it is not an
+array access), and the last reference had two indices. This allows the
+function to properly re-create the Fortran string.
 
 
 Documentation for SymPyWriter Functions

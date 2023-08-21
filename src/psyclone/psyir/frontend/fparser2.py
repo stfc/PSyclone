@@ -367,6 +367,8 @@ def _find_or_create_psyclone_internal_cmp(node):
     interface. If the interface does not exist in the scope it first adds
     the necessary code to the parent module.
 
+    :param node: location where the comparison interface is needed.
+    :type node: :py:class:`psyclone.psyir.nodes.Node`
     :returns: the comparison interface symbol.
     :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
 
@@ -378,6 +380,7 @@ def _find_or_create_psyclone_internal_cmp(node):
     except KeyError:
         container = node.ancestor(Container)
         if container and not isinstance(container, FileContainer):
+            # pylint: disable=import-outside-toplevel
             from psyclone.psyir.frontend.fortran import FortranReader
             name_interface = node.scope.symbol_table.next_available_name(
                                                        "psyclone_internal_cmp")
@@ -729,7 +732,7 @@ def _kind_find_or_create(name, symbol_table):
     try:
         kind_symbol = symbol_table.lookup(lower_name)
         # pylint: disable=unidiomatic-typecheck
-        if type(kind_symbol) == Symbol:
+        if type(kind_symbol) is Symbol:
             # There is an existing entry but it's only a generic Symbol
             # so we need to replace it with a DataSymbol of integer type.
             # Since the lookup() above looks through *all* ancestor symbol
@@ -1422,7 +1425,7 @@ class Fparser2Reader():
                 try:
                     sym = symbol_table.lookup(dim_name)
                     # pylint: disable=unidiomatic-typecheck
-                    if type(sym) == Symbol:
+                    if type(sym) is Symbol:
                         # An entry for this symbol exists but it's only a
                         # generic Symbol and we now know it must be a
                         # DataSymbol.
@@ -1803,7 +1806,7 @@ class Fparser2Reader():
             # Do we already have a Symbol for this derived type?
             type_symbol = _find_or_create_unresolved_symbol(parent, type_name)
             # pylint: disable=unidiomatic-typecheck
-            if type(type_symbol) == Symbol:
+            if type(type_symbol) is Symbol:
                 # We do but we didn't know what kind of symbol it was. Create
                 # a DataTypeSymbol to replace it.
                 new_symbol = DataTypeSymbol(type_name, DeferredType(),
@@ -3414,9 +3417,11 @@ class Fparser2Reader():
             self.process_nodes(parent=fake_parent, nodes=[selector])
             self.process_nodes(parent=fake_parent, nodes=[node])
 
-            for op in fake_parent.lhs, fake_parent.rhs:
-                if hasattr(op, "datatype") and isinstance(op.datatype, ScalarType):
-                    if op.datatype.intrinsic == ScalarType.Intrinsic.BOOLEAN:
+            for operand in fake_parent.lhs, fake_parent.rhs:
+                if (hasattr(operand, "datatype") and
+                        isinstance(operand.datatype, ScalarType)):
+                    if (operand.datatype.intrinsic ==
+                            ScalarType.Intrinsic.BOOLEAN):
                         bop = BinaryOperation(BinaryOperation.Operator.EQV,
                                               parent=parent)
                     else:
@@ -3432,7 +3437,6 @@ class Fparser2Reader():
                 call = Call(cmp_symbol, parent=parent)
                 parent.addchild(call)
                 call.children.extend(fake_parent.pop_all_children())
-
 
     @staticmethod
     def _array_notation_rank(node):
