@@ -426,8 +426,8 @@ def _find_or_create_psyclone_internal_cmp(node):
             return symbol
 
     raise NotImplementedError(
-        "Could not find the generic comparison interface nor an ancestor "
-        "container on which to add it.")
+        "Could not find the generic comparison interface and the scope does "
+        "not have an ancestor container in which to add it.")
 
 
 def _check_args(array, dim):
@@ -3418,6 +3418,9 @@ class Fparser2Reader():
             self.process_nodes(parent=fake_parent, nodes=[node])
 
             for operand in fake_parent.lhs, fake_parent.rhs:
+                # If any of the operands has a datatype we can distinguish
+                # between boolean (which in Fortran and PSyIR uses the EQV
+                # operator) or not-boolean (which uses the EQ operator)
                 if (hasattr(operand, "datatype") and
                         isinstance(operand.datatype, ScalarType)):
                     if (operand.datatype.intrinsic ==

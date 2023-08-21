@@ -121,7 +121,7 @@ class FortLineLength():
     def process(self, fortran_in):
         ''' Processes unlimited line-length Fortran code into Fortran
         code with long lines wrapped appropriately.
-        
+
         :param str fortran_in: Fortran code to be line wrapped.
 
         :returns: line wrapped Fortran code.

@@ -505,8 +505,9 @@ def test_find_or_create_psyclone_internal_cmp(fortran_writer):
     # If it is not inside a Container it producess a NotImplementedError
     with pytest.raises(NotImplementedError) as error:
         _ = _find_or_create_psyclone_internal_cmp(node_in_subroutine)
-    assert ("Could not find the generic comparison interface nor an ancestor "
-            "container on which to add it." in str(error.value))
+    assert ("Could not find the generic comparison interface and the scope "
+            "does not have an ancestor container in which to add it."
+            in str(error.value))
 
     container = Container("test", children=[subroutine])
     symbol = _find_or_create_psyclone_internal_cmp(node_in_subroutine)
@@ -518,12 +519,12 @@ def test_find_or_create_psyclone_internal_cmp(fortran_writer):
             "psyclone_internal_cmp")
     assert symbol.visibility == Symbol.Visibility.PRIVATE
     assert len(container.children) == 4
-    assert container.symbol_table.lookup("psyclone_cmp_int").visibility \
-            == Symbol.Visibility.PRIVATE
-    assert container.symbol_table.lookup("psyclone_cmp_logical").visibility \
-            == Symbol.Visibility.PRIVATE
-    assert container.symbol_table.lookup("psyclone_cmp_char").visibility \
-            == Symbol.Visibility.PRIVATE
+    assert (container.symbol_table.lookup("psyclone_cmp_int").visibility
+            == Symbol.Visibility.PRIVATE)
+    assert (container.symbol_table.lookup("psyclone_cmp_logical").visibility
+            == Symbol.Visibility.PRIVATE)
+    assert (container.symbol_table.lookup("psyclone_cmp_char").visibility
+            == Symbol.Visibility.PRIVATE)
 
     # Check the generated code matches the expected code
     has_cmp_interface(fortran_writer(container))
@@ -551,7 +552,7 @@ def test_find_or_create_psyclone_internal_cmp(fortran_writer):
   procedure psyclone_cmp_char_1
 end interface psyclone_internal_cmp_1''' in fortran_writer(container)
 
-    # And that from now on the tag referes to the new symbol
+    # And that from now on the tag refers to the new symbol
     assert container.symbol_table.lookup_with_tag(
             "psyclone_internal_cmp").name == "psyclone_internal_cmp_1"
 
@@ -616,7 +617,7 @@ def test_unknown_types_case(fortran_reader, fortran_writer):
     # Check that the interface implementation has been inserted
     has_cmp_interface(output)
 
-    # Check that the cannonicalised comparisons use the interface method
+    # Check that the canonicalised comparisons use the interface method
     assert "if (psyclone_internal_cmp(a, b)) then" in output
     assert "if (psyclone_internal_cmp(a, c)) then" in output
 
@@ -668,7 +669,6 @@ def test_derived_types_case(fortran_reader, fortran_writer):
     assert "if (a%field == 1) then" in output
     assert "if (a%field == 2) then" in output
 
-
     # And then the datatype information is unknown
     code = '''
     module test
@@ -692,6 +692,6 @@ def test_derived_types_case(fortran_reader, fortran_writer):
     # Check that the interface implementation has been inserted
     has_cmp_interface(output)
 
-    # Check that the cannonicalised comparisons use the interface method
+    # Check that the canonicalised comparisons use the interface method
     assert "if (psyclone_internal_cmp(a%b(i)%c, b%d)) then" in output
     assert "if (psyclone_internal_cmp(a%b(i)%c, c%a)) then" in output
