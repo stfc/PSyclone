@@ -40,7 +40,7 @@ module profile_psy_data_mod
 
   type :: profile_PSyDataType
      ! The TAU profiling handler
-     integer, dimension(2) :: profiler
+     integer, dimension(2) :: profiler = (/0,0/)
 
      ! True if this instance of PSyDataType has the name already
      ! initialised. This way the copy of subroutine name is only
