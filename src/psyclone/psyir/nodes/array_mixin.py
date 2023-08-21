@@ -201,9 +201,9 @@ class ArrayMixin(metaclass=abc.ABCMeta):
             # Collect member information.
             if isinstance(cursor, ArrayMixin):
                 new_indices = [idx.copy() for idx in cursor.indices]
-                cnames.append((cursor.name, new_indices))
+                cnames.append((cursor.name.lower(), new_indices))
             else:
-                cnames.append(cursor.name)
+                cnames.append(cursor.name.lower())
             # Continue to resolve datatype unless we hit an
             # UnknownType or DeferredType.
             if isinstance(cursor_type, ArrayType):
@@ -212,7 +212,7 @@ class ArrayMixin(metaclass=abc.ABCMeta):
                 cursor_type = cursor_type.datatype
             if isinstance(cursor_type, (UnknownType, DeferredType)):
                 continue
-            cursor_type = cursor_type.components[cursor.name].datatype
+            cursor_type = cursor_type.components[cursor.name.lower()].datatype
 
         if (isinstance(cursor_type, ArrayType) and
                 cursor_type.shape[pos] not in [ArrayType.Extent.DEFERRED,
@@ -275,9 +275,9 @@ class ArrayMixin(metaclass=abc.ABCMeta):
             # Collect member information.
             if isinstance(cursor, ArrayMixin):
                 new_indices = [idx.copy() for idx in cursor.indices]
-                cnames.append((cursor.name, new_indices))
+                cnames.append((cursor.name.lower(), new_indices))
             else:
-                cnames.append(cursor.name)
+                cnames.append(cursor.name.lower())
             # Continue to resolve datatype unless we hit an
             # UnknownType or DeferredType.
             if isinstance(cursor_type, ArrayType):
@@ -286,7 +286,7 @@ class ArrayMixin(metaclass=abc.ABCMeta):
                 cursor_type = cursor_type.datatype
             if isinstance(cursor_type, (UnknownType, DeferredType)):
                 continue
-            cursor_type = cursor_type.components[cursor.name].datatype
+            cursor_type = cursor_type.components[cursor.name.lower()].datatype
 
         if (isinstance(cursor_type, ArrayType) and
                 cursor_type.shape[pos] not in [ArrayType.Extent.DEFERRED,

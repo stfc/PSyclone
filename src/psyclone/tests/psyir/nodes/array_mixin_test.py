@@ -393,7 +393,7 @@ def test_aref_to_aos_lbound_expression():
 
     '''
     sgrid_type = StructureType.create(
-        [("id", INTEGER_TYPE, Symbol.Visibility.PUBLIC)])
+        [("ID", INTEGER_TYPE, Symbol.Visibility.PUBLIC)])
     sgrid_type_sym = DataTypeSymbol("subgrid_type", sgrid_type)
     sym = DataSymbol("subgrids", ArrayType(sgrid_type_sym, [(3, 10)]))
     lbound = BinaryOperation.create(BinaryOperation.Operator.LBOUND,
@@ -412,7 +412,7 @@ def test_aref_to_aos_ubound_expression():
 
     '''
     sgrid_type = StructureType.create(
-        [("id", INTEGER_TYPE, Symbol.Visibility.PUBLIC)])
+        [("ID", INTEGER_TYPE, Symbol.Visibility.PUBLIC)])
     sgrid_type_sym = DataTypeSymbol("subgrid_type", sgrid_type)
     sym = DataSymbol("subgrids", ArrayType(sgrid_type_sym, [(3, 10)]))
     lbound = BinaryOperation.create(BinaryOperation.Operator.LBOUND,
@@ -433,7 +433,7 @@ def test_member_get_lbound_expression(fortran_writer):
     # First, test when we don't have type information.
     grid_type = DataTypeSymbol("grid_type", DeferredType())
     sym = DataSymbol("grid_var", grid_type)
-    ref = StructureReference.create(sym, [("data", [_ONE.copy()])])
+    ref = StructureReference.create(sym, [("DATA", [_ONE.copy()])])
     lbnd = ref.member.get_lbound_expression(0)
     assert isinstance(lbnd, BinaryOperation)
     out = fortran_writer(lbnd).lower()
