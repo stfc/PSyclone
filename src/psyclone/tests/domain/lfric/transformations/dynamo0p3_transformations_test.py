@@ -4084,7 +4084,6 @@ def test_rc_discontinuous_depth(tmpdir, monkeypatch, annexed):
     loop = schedule.children[index]
     rc_trans.apply(loop, {"depth": 3})
     result = str(psy.gen)
-    print(result)
     for field_name in ["f1", "f2", "m1"]:
         assert (f"      IF ({field_name}_proxy%is_dirty(depth=3)) THEN\n"
                 f"        CALL {field_name}_proxy%halo_exchange(depth=3)"
@@ -4146,7 +4145,6 @@ def test_rc_all_discontinuous_depth(tmpdir):
     loop = schedule.children[0]
     rc_trans.apply(loop, {"depth": 3})
     result = str(psy.gen)
-    print(result)
     assert "IF (f2_proxy%is_dirty(depth=3)) THEN" in result
     assert "CALL f2_proxy%halo_exchange(depth=3)" in result
     assert "loop0_stop = mesh%get_last_halo_cell(3)" in result
@@ -4367,6 +4365,17 @@ def test_rc_all_disc_prev_dep_no_depth_vect_readwrite(tmpdir):
         assert f"CALL f3_proxy({idx})%set_clean(max_halo_depth_mesh)" in result
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
+
+
+def test_colour_continuous_writer():
+    '''Test the loop-colouring transformation for a kernel that has a
+    GH_WRITE access to a field on a continuous space.'''
+    psy, invoke = get_invoke("22.1.1_intergrid_cont_restrict.f90",
+                             TEST_API, idx=0, dist_mem=True)
+    loop = invoke.schedule[0]
+    ctrans = Dynamo0p3ColourTrans()
+    ctrans.apply(loop)
+    result = str(psy.gen)
 
 
 def test_rc_dofs_depth():

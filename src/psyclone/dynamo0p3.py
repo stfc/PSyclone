@@ -7938,19 +7938,23 @@ class DynKern(CodedKern):
         if not self.is_coloured():
             raise InternalError(f"Kernel '{self.name}' is not inside a "
                                 f"coloured loop.")
+
+        ubnd_name = self.ancestor(Loop).upper_bound_name
+
         if self._is_intergrid:
+            #import pdb; pdb.set_trace()
             invoke = self.ancestor(InvokeSchedule).invoke
             if id(self) not in invoke.meshes.intergrid_kernels:
                 raise InternalError(
                     f"Colourmap information for kernel '{self.name}' has "
                     f"not yet been initialised")
+            # Why not just `self.last_cell_var_symbol`?
             return invoke.meshes.intergrid_kernels[id(self)].\
                 last_cell_var_symbol
 
         const = LFRicConstants()
 
-        if (self.ancestor(Loop).upper_bound_name in
-                const.HALO_ACCESS_LOOP_BOUNDS):
+        if (ubnd_name in const.HALO_ACCESS_LOOP_BOUNDS):
             return self.scope.symbol_table.find_or_create_array(
                 "last_halo_cell_all_colours", 2,
                 ScalarType.Intrinsic.INTEGER,
@@ -8052,6 +8056,8 @@ class DynKern(CodedKern):
 
         '''
         # ARPDBG
+        #if self.name == "restrict_masked_w2_kernel_code":
+        #    import pdb; pdb.set_trace()
         #if self.is_intergrid:
         #    # This is not a special kernel
         #    return False
