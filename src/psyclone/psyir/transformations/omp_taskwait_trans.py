@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,9 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author A. B. G. Chalk STFC Daresbury Lab
+# Author: A. B. G. Chalk, STFC Daresbury Lab
+# Modified: R. W. Ford, N. Nobre and S. Siso, STFC Daresbury Lab
+
 ''' This module provides the OMPTaskwaitTrans transformation that can be
 applied to an OMPParallelDirective to satisfy any task-based dependencies
 created by OpenMP Taskloops.'''
@@ -41,7 +43,6 @@ from psyclone.core import VariablesAccessInfo
 from psyclone.errors import LazyString, InternalError
 from psyclone.psyGen import Transformation
 from psyclone.psyir import nodes
-from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import Loop, Schedule, \
     OMPDoDirective, OMPTaskloopDirective, OMPSerialDirective, \
     OMPTaskwaitDirective, OMPSingleDirective, OMPParallelDirective
@@ -75,7 +76,7 @@ class OMPTaskwaitTrans(Transformation):
     >>> taskwaittrans = OMPTaskwaitTrans()
     >>>
     >>> schedule = psy.invokes.get('invoke_0').schedule
-    >>> schedule.view()
+    >>> print(schedule.view())
     >>>
     >>> # Apply the OpenMP Taskloop transformation to *every* loop
     >>> # in the schedule.
@@ -90,7 +91,8 @@ class OMPTaskwaitTrans(Transformation):
     >>> # PARALLEL region
     >>> paralleltrans.apply(schedule.children)
     >>> taskwaittrans.apply(schedule.children)
-    >>> schedule.view()
+    >>> print(schedule.view())
+
     '''
     def __str__(self):
         rval = ("Adds 'OpenMP TASKWAIT' directives to an OpenMP parallel "
@@ -104,7 +106,7 @@ class OMPTaskwaitTrans(Transformation):
         :param node: the OMPParallelDirective node to validate.
         :type node: :py:class:`psyclone.psyir.nodes.OMPParallelDirective`
         :param options: a dictionary with options for transformations.
-        :type options: dict of string:values or None
+        :type options: Optional[Dict[str, Any]]
         :param bool options["fail_on_no_taskloop"]:
                 indicating whether this should throw an error if no \
                 OMPTaskloop nodes are found in this tree. This can be \
@@ -125,10 +127,10 @@ class OMPTaskwaitTrans(Transformation):
             fail_on_no_taskloop = options.get("fail_on_no_taskloop", True)
         # Check the supplied node is an OMPParallelDirective
         if not isinstance(node, nodes.OMPParallelDirective):
-            raise TransformationError("OMPTaskwaitTrans was supplied a '{0}'"
-                                      " node, but expected an "
-                                      "OMPParallelDirective".format(
-                                        node.__class__.__name__))
+            raise TransformationError(f"OMPTaskwaitTrans was supplied a "
+                                      f"'{node.__class__.__name__}'"
+                                      f" node, but expected an "
+                                      f"OMPParallelDirective")
 
         # Find all the taskloops
         taskloops = node.walk(OMPTaskloopDirective)
@@ -158,22 +160,19 @@ class OMPTaskwaitTrans(Transformation):
                     valid = not ancestor.nowait
                 # If not valid, then we're in a Master Directive or a
                 # Single Directive with nowait. In this case we can't
-                # safely guarantee our forward dependency so throw an
-                # error
+                # safely guarantee our forward dependency so throw an error
                 if not valid:
-                    fwriter = FortranWriter()
                     # pylint: disable=cell-var-from-loop
-                    raise TransformationError(
-                                LazyString(lambda: "Couldn't satisfy the "
-                                                   "dependencies due to "
-                                                   "taskloop dependencies "
-                                                   "across barrierless OMP "
-                                                   "serial regions. Dependency"
-                                                   " is from\n{0}\nto\n{1}"
-                                           .format(
-                                               fwriter(taskloop).rstrip("\n"),
-                                               fwriter(forward_dep)
-                                                   .rstrip("\n"))))
+                    # Since "Backslashes may not appear inside the expression
+                    # portions of f-strings" via PEP 498, use chr(10) for '\n'
+                    raise TransformationError(LazyString(
+                        lambda: f"Couldn't satisfy the dependencies due to "
+                                f"taskloop dependencies across barrierless "
+                                f"OMP serial regions. Dependency is from\n"
+                                f"{taskloop.debug_string().rstrip(chr(10))}"
+                                f"\nto\n"
+                                f"{forward_dep.debug_string().rstrip(chr(10))}"
+                        ))
 
     @staticmethod
     def get_forward_dependence(taskloop, root):
@@ -216,11 +215,11 @@ class OMPTaskwaitTrans(Transformation):
         '''
         # Check supplied the correct type for root
         if not isinstance(root, OMPParallelDirective):
-            raise TransformationError("Expected the root of the tree in which "
-                                      "to search for a forward dependence to "
-                                      "be an instance of OMPParallelDirective,"
-                                      " but was supplied an instance of '{0}'"
-                                      .format(type(root).__name__))
+            raise TransformationError(f"Expected the root of the tree in which"
+                                      f" to look for a forward dependence to "
+                                      f"be an instance of OMPParallelDirective"
+                                      f", but was supplied an instance of "
+                                      f"'{type(root).__name__}'")
         # We only look for specific types
         node_list = root.walk((Loop, OMPDoDirective, OMPTaskloopDirective,
                                OMPTaskwaitDirective))
@@ -248,11 +247,12 @@ class OMPTaskwaitTrans(Transformation):
         parent_parallel = taskloop.ancestor(OMPParallelDirective)
         # Raise an error if there is no parent_parallel region
         if parent_parallel is None:
-            fwriter = FortranWriter()
-            raise InternalError(
-                    LazyString(lambda: "No parent parallel directive was "
-                                       "found for the taskloop region: {0}"
-                               .format(fwriter(taskloop).rstrip("\n"))))
+            # Since "Backslashes may not appear inside the expression
+            # portions of f-strings" via PEP 498, use chr(10) for '\n'
+            raise InternalError(LazyString(
+                lambda: f"No parent parallel directive was found for the "
+                        f"taskloop region: "
+                        f"{taskloop.debug_string().rstrip(chr(10))}"))
 
         for node in node_list:
             if node.abs_position <= taskloop.abs_position:
@@ -389,7 +389,7 @@ class OMPTaskwaitTrans(Transformation):
         :type node: :py:class:`psyclone.psyir.nodes.OMPParallelDirective`
         :param options: a dictionary with options for transformations\
                         and validation.
-        :type options: dict of string:values or None
+        :type options: Optional[Dict[str, Any]]
         :param bool options["fail_on_no_taskloop"]:
                 indicating whether this should throw an error if no \
                 OMPTaskloop nodes are found in this tree. This can be \
@@ -470,7 +470,7 @@ class OMPTaskwaitTrans(Transformation):
                     fdep_parent = forward_dep.parent
                     # Find the position of the forward_dep in its parent's
                     # children list
-                    loc = fdep_parent.children.index(forward_dep)
+                    loc = forward_dep.position
                     # We've found the position, so we now insert an
                     # OMPTaskwaitDirective in that location instead
                     fdep_parent.addchild(OMPTaskwaitDirective(), loc)

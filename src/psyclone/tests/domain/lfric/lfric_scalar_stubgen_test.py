@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+# Copyright (c) 2017-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,8 +31,8 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab;
-#          I. Kavcic and A. Coughtrie, Met Office;
+# Authors: R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab;
+#          I. Kavcic, A. Coughtrie and L. Turner, Met Office;
 #          C. M. Maynard, Met Office/University of Reading;
 #          J. Henrichs, Bureau of Meteorology.
 
@@ -79,10 +79,9 @@ def test_lfricscalars_stub_err():
     with pytest.raises(InternalError) as err:
         LFRicScalarArgs(kernel)._stub_declarations(ModuleGen(name="my_mod"))
     const = LFRicConstants()
-    assert ("Found an unsupported data type 'gh_invalid_scalar' for the "
-            "scalar argument 'iscalar_2'. Supported types are {0}.".
-            format(const.VALID_SCALAR_DATA_TYPES)
-            in str(err.value))
+    assert (f"Found an unsupported data type 'gh_invalid_scalar' for the "
+            f"scalar argument 'iscalar_2'. Supported types are "
+            f"{const.VALID_SCALAR_DATA_TYPES}." in str(err.value))
 
 
 def test_stub_generate_with_scalars():
@@ -132,7 +131,7 @@ def test_stub_generate_with_scalar_sums_err():
     a reduction (since these are not permitted for user-supplied kernels). '''
     with pytest.raises(ParseError) as err:
         _ = generate(
-            os.path.join(BASE_PATH, "simple_with_reduction.f90"),
+            os.path.join(BASE_PATH, "testkern_simple_with_reduction_mod.f90"),
             api=TEST_API)
     assert (
         "A user-supplied LFRic kernel must not write/update a scalar "

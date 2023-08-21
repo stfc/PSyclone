@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,16 +31,18 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors: R. W. Ford, A. R. Porter and N. Nobre, STFC Daresbury Lab
+# Modified by J. Henrichs, Bureau of Meteorology
 
 '''A module to perform pytest tests on the code in the main.py file
 within the psyad directory.
 
 '''
-from __future__ import print_function, absolute_import
 import logging
-import six
+import os
+
 import pytest
+
 from psyclone.psyad import main
 
 
@@ -60,45 +62,45 @@ TEST_MOD = (
     "end module my_mod\n"
 )
 
-EXPECTED_HARNESS_CODE = ('''program adj_test
+EXPECTED_HARNESS_CODE = '''program adj_test
   use my_mod, only : kern
-  use my_mod_adj, only : kern_adj
+  use adj_my_mod, only : adj_kern
   integer, parameter :: array_extent = 20
   real, parameter :: overall_tolerance = 1500.0
   real :: inner1
   real :: inner2
   real :: field
   real :: field_input
-  real :: MachineTol
+  real :: machinetol
   real :: relative_diff
 
-  ! Initialise the kernel arguments and keep copies of them
-  CALL random_number(field)
+  ! initialise the kernel arguments and keep copies of them
+  call random_number(field)
   field_input = field
-  ! Call the tangent-linear kernel
+  ! call the tangent-linear kernel
   call kern(field)
-  ! Compute the inner product of the results of the tangent-linear kernel
+  ! compute the inner product of the results of the tangent-linear kernel
   inner1 = 0.0
   inner1 = inner1 + field * field
-  ! Call the adjoint of the kernel
-  call kern_adj(field)
-  ! Compute inner product of results of adjoint kernel with the original \
+  ! call the adjoint of the kernel
+  call adj_kern(field)
+  ! compute inner product of results of adjoint kernel with the original \
 inputs to the tangent-linear kernel
   inner2 = 0.0
   inner2 = inner2 + field * field_input
-  ! Test the inner-product values for equality, allowing for the precision \
+  ! test the inner-product values for equality, allowing for the precision \
 of the active variables
-  MachineTol = SPACING(MAX(ABS(inner1), ABS(inner2)))
-  relative_diff = ABS(inner1 - inner2) / MachineTol
+  machinetol = spacing(max(abs(inner1), abs(inner2)))
+  relative_diff = abs(inner1 - inner2) / machinetol
   if (relative_diff < overall_tolerance) then
-    WRITE(*, *) 'Test of adjoint of ''kern'' PASSED: ', inner1, inner2, \
+    write(*, *) 'test of adjoint of ''kern'' passed: ', inner1, inner2, \
 relative_diff
   else
-    WRITE(*, *) 'Test of adjoint of ''kern'' FAILED: ', inner1, inner2, \
+    write(*, *) 'test of adjoint of ''kern'' failed: ', inner1, inner2, \
 relative_diff
   end if
 
-end program adj_test''')
+end program adj_test'''
 
 # main function
 
@@ -107,6 +109,9 @@ end program adj_test''')
 def test_main_h_option(capsys):
     '''Test that the -h script option works as expected'''
 
+    # This line avoids test failures caused by different wrapping of help
+    # messages depending on terminal width.
+    os.environ["COLUMNS"] = "79"
     with pytest.raises(SystemExit) as info:
         main(["-h", "filename"])
     assert str(info.value) == "0"
@@ -116,12 +121,13 @@ def test_main_h_option(capsys):
     # when using pytest, therefore we split this test into sections.
     assert "usage: " in output
     expected2 = (
-        "[-h] [-oad OAD] [-v] [-t] [-otest TEST_FILENAME] "
+        "[-h] [-oad OAD] [-v] [-t] [-api API] [-coord-arg COORD_ARG] "
+        "[-panel-id-arg PANEL_ID_ARG] [-otest TEST_FILENAME] "
         "-a ACTIVE [ACTIVE ...] -- filename\n\n"
-        "Run the PSyclone adjoint code generator on an LFRic tangent-linear "
+        "Run the PSyclone adjoint code generator on a tangent-linear "
         "kernel file\n\n"
         "positional arguments:\n"
-        "  filename              LFRic tangent-linear kernel source\n\n")
+        "  filename              tangent-linear kernel source\n\n")
     assert expected2 in output
     expected3 = (
         "  -h, --help            show this help message and exit\n"
@@ -130,9 +136,25 @@ def test_main_h_option(capsys):
         "  -v, --verbose         increase the verbosity of the output\n"
         "  -t, --gen-test        generate a standalone unit test for the "
         "adjoint code\n"
+        "  -api API              the PSyclone API that the TL kernel conforms "
+        "to (if\n"
+        "                        any)\n"
+        "  -coord-arg COORD_ARG  the position of the coordinate (chi) field "
+        "in the\n"
+        "                        meta_args list of arguments in the kernel "
+        "metadata\n"
+        "                        (LFRic only)\n"
+        "  -panel-id-arg PANEL_ID_ARG\n"
+        "                        the position of the panel-ID field in the "
+        "meta_args\n"
+        "                        list of arguments in the kernel metadata "
+        "(LFRic only)\n"
         "  -otest TEST_FILENAME  filename for the unit test (implies -t)\n"
         "  -oad OAD              filename for the transformed code\n")
     assert expected3 in output
+    assert ("-otest TEST_FILENAME  filename for the unit test (implies -t)"
+            in output)
+    assert "-oad OAD              filename for the transformed code" in output
 
 
 # no args
@@ -146,17 +168,12 @@ def test_main_no_args(capsys):
     assert str(info.value) == "2"
     output, error = capsys.readouterr()
     assert output == ""
-    # Python2 returns a different message to Python3. Also, the name
-    # of the executable is replaced with either pytest or -c when
-    # using pytest, therefore we split the test into sections.
     expected1 = "usage: "
-    expected2 = ("[-h] [-oad OAD] [-v] [-t] [-otest TEST_FILENAME] "
+    expected2 = ("[-h] [-oad OAD] [-v] [-t] [-api API] [-coord-arg COORD_ARG] "
+                 "[-panel-id-arg PANEL_ID_ARG] [-otest TEST_FILENAME] "
                  "-a ACTIVE [ACTIVE ...] -- filename")
-    if six.PY2:
-        expected3 = "error: too few arguments\n"
-    else:
-        expected3 = ("error: the following arguments are required: "
-                     "-a/--active, filename\n")
+    expected3 = ("error: the following arguments are required: "
+                 "-a/--active, filename\n")
     assert expected1 in error
     assert expected2 in error
     assert expected3 in error
@@ -174,8 +191,6 @@ def test_main_no_a_arg(capsys):
     assert output == ""
     expected = ("error: the following arguments are required: "
                 "-a/--active")
-    if six.PY2:
-        expected = "argument -a/--active is required"
     assert expected in error
 
 
@@ -205,8 +220,6 @@ def test_main_no_filename(capsys):
     output, error = capsys.readouterr()
     assert output == ""
     expected = "error: the following arguments are required: filename\n"
-    if six.PY2:
-        expected = "error: too few arguments\n"
     assert expected in error
 
 
@@ -222,25 +235,27 @@ def test_main_no_separator(capsys):
     output, error = capsys.readouterr()
     assert output == ""
     expected = "error: the following arguments are required: filename\n"
-    if six.PY2:
-        expected = "error: too few arguments\n"
     assert expected in error
 
 
 # invalid filename
-@pytest.mark.xfail(reason="issue #1235: caplog returns an empty string in "
-                   "github actions.", strict=False)
 def test_main_invalid_filename(capsys, caplog):
     '''Test that the the main() function raises an exception if the
     file specified by filename does not exist.
 
     '''
-    with pytest.raises(SystemExit) as info:
-        main(["-a", "var", "--", "does_not_exist.f90"])
+    logger = logging.getLogger("psyclone.psyad.main")
+    logger.propagate = True
+    with caplog.at_level(logging.ERROR, "psyclone.psyad.main"):
+        with pytest.raises(SystemExit) as info:
+            main(["-a", "var", "--", "does_not_exist.f90"])
     assert str(info.value) == "1"
     output, error = capsys.readouterr()
     assert output == ""
     assert error == ""
+    if not caplog.text:
+        pytest.xfail("#1235: caplog returns an empty string in "
+                     "github actions.")
     assert "file 'does_not_exist.f90', not found." in caplog.text
 
 
@@ -262,7 +277,7 @@ def test_main_tangentlinearerror(tmpdir, capsys):
         "real :: a, b\n"
         "a = b\n"
         "end program test\n")
-    filename = six.text_type(tmpdir.join("tl.f90"))
+    filename = str(tmpdir.join("tl.f90"))
     with open(filename, "w", encoding='utf-8') as my_file:
         my_file.write(test_prog)
     with pytest.raises(SystemExit) as info:
@@ -282,7 +297,7 @@ def test_main_keyerror(tmpdir, capsys):
     code.
 
     '''
-    filename = six.text_type(tmpdir.join("tl.f90"))
+    filename = str(tmpdir.join("tl.f90"))
     with open(filename, "w", encoding='utf-8') as my_file:
         my_file.write(TEST_PROG)
     with pytest.raises(SystemExit) as info:
@@ -307,7 +322,7 @@ def test_main_not_implemented_error(tmpdir, capsys):
         "a = b\n"
         "end subroutine test\n"
         "end module my_mod\n")
-    filename = six.text_type(tmpdir.join("tl.f90"))
+    filename = str(tmpdir.join("tl.f90"))
     with open(filename, "w", encoding='utf-8') as my_file:
         my_file.write(test_prog)
     with pytest.raises(SystemExit) as info:
@@ -343,12 +358,12 @@ def test_main_stdout(tmpdir, capsys):
 
     '''
     expected = (
-        "program test_adj\n"
+        "program adj_test\n"
         "  real :: a\n\n"
         "  a = 0.0\n"
         "  a = 0.0\n\n"
-        "end program test_adj\n")
-    filename = six.text_type(tmpdir.join("tl.f90"))
+        "end program adj_test\n")
+    filename = str(tmpdir.join("tl.f90"))
     with open(filename, "w", encoding='utf-8') as my_file:
         my_file.write(TEST_PROG)
     main(["-a", "a", "--", filename])
@@ -364,11 +379,11 @@ def test_main_fileout(tmpdir, capsys):
 
     '''
     expected = (
-        "program test_adj\n"
+        "program adj_test\n"
         "  real :: a\n\n"
         "  a = 0.0\n"
         "  a = 0.0\n\n"
-        "end program test_adj\n")
+        "end program adj_test\n")
     filename_in = str(tmpdir.join("tl.f90"))
     filename_out = str(tmpdir.join("ad.f90"))
     with open(filename_in, "w", encoding='utf-8') as my_file:
@@ -391,7 +406,7 @@ def test_main_t_option(tmpdir, capsys):
     main([filename_in, "-oad", filename_out, "-t", "-a", "field"])
     output, error = capsys.readouterr()
     assert error == ""
-    assert EXPECTED_HARNESS_CODE in output
+    assert EXPECTED_HARNESS_CODE in output.lower()
 
 
 @pytest.mark.parametrize("extra_args", [[], ["-t"]])
@@ -411,12 +426,36 @@ def test_main_otest_option(tmpdir, capsys, extra_args):
     assert output == ""
     with open(harness_out, 'r', encoding='utf-8') as my_file:
         data = my_file.read()
-    assert EXPECTED_HARNESS_CODE in data
+    assert EXPECTED_HARNESS_CODE in data.lower()
+
+
+@pytest.mark.parametrize("geom_arg", ["-coord-arg", "-panel-id-arg"])
+def test_main_geom_args_api(tmpdir, geom_arg, capsys, caplog):
+    '''
+    Test that the main() function rejects attempts to specify any geometry
+    arguments if the API != dynamo0.3 (LFRic).
+
+    '''
+    filename_in = str(tmpdir.join("tl.f90"))
+    with open(filename_in, "w", encoding='utf-8') as my_file:
+        my_file.write(TEST_MOD)
+    logger = logging.getLogger("psyclone.psyad.main")
+    logger.propagate = True
+    with caplog.at_level(logging.ERROR, "psyclone.psyad.main"):
+        with pytest.raises(SystemExit) as err:
+            main([filename_in, "-a", "field", geom_arg, "0"])
+    assert str(err.value) == "1"
+    output, error = capsys.readouterr()
+    assert error == ""
+    assert output == ""
+    if not caplog.text:
+        pytest.xfail("issue #1235: caplog returns an empty string in "
+                     "github actions.")
+    assert (f"The '{geom_arg}' argument is only applicable to the LFRic "
+            f"('dynamo0.3') API" in caplog.text)
 
 
 # -v output
-@pytest.mark.xfail(reason="issue #1235: caplog returns an empty string in "
-                   "github actions.", strict=False)
 def test_main_verbose(tmpdir, capsys, caplog):
     '''Test that the the main() function outputs additional information if
     the -v flag is set. Actually -v seems to have no effect here as
@@ -433,20 +472,23 @@ def test_main_verbose(tmpdir, capsys, caplog):
     filename_out = str(tmpdir.join("ad.f90"))
     with open(filename_in, "w", encoding='utf-8') as my_file:
         my_file.write(tl_code)
-    with caplog.at_level(logging.DEBUG):
+    logger = logging.getLogger("psyclone.psyad.main")
+    logger.propagate = True
+    with caplog.at_level(logging.INFO, "psyclone.psyad.main"):
         main([filename_in, "-v", "-a", "a", "-oad", filename_out])
 
     output, error = capsys.readouterr()
     assert error == ""
     assert output == ""
+    if not caplog.text:
+        pytest.xfail("issue #1235: caplog returns an empty string in "
+                     "github actions.")
     assert "Reading kernel file" in caplog.text
     assert "/tl.f90" in caplog.text
     assert "Writing adjoint of kernel to file /" in caplog.text
     assert "/ad.f90" in caplog.text
 
 
-@pytest.mark.xfail(reason="issue #1235: caplog returns an empty string in "
-                   "github actions.", strict=False)
 def test_main_otest_verbose(tmpdir, caplog):
     ''' Test that the -otest option combined with -v generates the expected
     logging output. '''
@@ -455,11 +497,13 @@ def test_main_otest_verbose(tmpdir, caplog):
     harness_out = str(tmpdir.join("harness.f90"))
     with open(filename_in, "w", encoding='utf-8') as my_file:
         my_file.write(TEST_MOD)
-    with caplog.at_level(logging.DEBUG):
-        main([filename_in, "-v", "-oad", filename_out, "-otest", harness_out])
-    assert ("Creating test harness for TL kernel 'kern' and AD kernel "
-            "'kern_adj'" in caplog.text)
-    assert "Created test-harness program named 'adj_test'" in caplog.text
-    assert "end program adj_test" in caplog.text
+    logger = logging.getLogger("psyclone.psyad.main")
+    logger.propagate = True
+    with caplog.at_level(logging.INFO, "psyclone.psyad.main"):
+        main([filename_in, "-v", "-a", "field", "-oad", filename_out, "-otest",
+              harness_out])
+    if not caplog.text:
+        pytest.xfail("issue #1235: caplog returns an empty string in "
+                     "github actions.")
     assert "Writing test harness for adjoint kernel to file" in caplog.text
     assert "/harness.f90" in caplog.text

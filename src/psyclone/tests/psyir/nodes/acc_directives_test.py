@@ -31,9 +31,10 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+# Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 # Modified I. Kavcic, Met Office
 # Modified A. B. G. Chalk, STFC Daresbury Lab
+# Modified J. G. Wallwork, Met Office
 # -----------------------------------------------------------------------------
 
 ''' Performs py.test tests on the OpenACC PSyIR Directive nodes. '''
@@ -43,13 +44,14 @@ import os
 import pytest
 
 from psyclone.configuration import Config
+from psyclone.core import Signature
 from psyclone.errors import GenerationError
 from psyclone.f2pygen import ModuleGen
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import ACCRoutineDirective, \
     ACCKernelsDirective, Schedule, ACCUpdateDirective, ACCLoopDirective
-from psyclone.psyir.symbols import DataSymbol, REAL_TYPE
+from psyclone.psyir.symbols import SymbolTable
 from psyclone.transformations import ACCEnterDataTrans, ACCParallelTrans, \
     ACCKernelsTrans
 
@@ -61,7 +63,7 @@ BASE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
 def setup():
     '''Make sure that all tests here use a new Config instance.'''
     Config._instance = None
-    yield()
+    yield
     Config._instance = None
 
 
@@ -85,7 +87,7 @@ def test_accenterdatadirective_gencode_1():
         str(psy.gen)
     assert ("ACCEnterData directive did not find any data to copyin. Perhaps "
             "there are no ACCParallel or ACCKernels directives within the "
-            "region." in str(excinfo.value))
+            "region?" in str(excinfo.value))
 
     # Test that the same error is produced by the begin_string() which is used
     # by the PSyIR backend
@@ -94,7 +96,7 @@ def test_accenterdatadirective_gencode_1():
         sched[0].begin_string()
     assert ("ACCEnterData directive did not find any data to copyin. Perhaps "
             "there are no ACCParallel or ACCKernels directives within the "
-            "region." in str(excinfo.value))
+            "region?" in str(excinfo.value))
 
 
 # (2/4) Method gen_code
@@ -114,7 +116,7 @@ def test_accenterdatadirective_gencode_2():
         str(psy.gen)
     assert ("ACCEnterData directive did not find any data to copyin. Perhaps "
             "there are no ACCParallel or ACCKernels directives within the "
-            "region." in str(excinfo.value))
+            "region?" in str(excinfo.value))
 
 
 # (3/4) Method gen_code
@@ -135,10 +137,10 @@ def test_accenterdatadirective_gencode_3(trans):
     acc_enter_trans.apply(sched)
     code = str(psy.gen)
     assert (
-        "      !$acc enter data copyin(nlayers,a,f1_proxy,f1_proxy%data,"
+        "      !$acc enter data copyin(f1_proxy,f1_proxy%data,"
         "f2_proxy,f2_proxy%data,m1_proxy,m1_proxy%data,m2_proxy,"
-        "m2_proxy%data,ndf_w1,undf_w1,map_w1,ndf_w2,undf_w2,map_w2,"
-        "ndf_w3,undf_w3,map_w3)\n" in code)
+        "m2_proxy%data,map_w1,map_w2,map_w3,ndf_w1,ndf_w2,ndf_w3,nlayers,"
+        "undf_w1,undf_w2,undf_w3)\n" in code)
 
 
 # (4/4) Method gen_code
@@ -166,15 +168,14 @@ def test_accenterdatadirective_gencode_4(trans1, trans2):
     acc_enter_trans.apply(sched)
     code = str(psy.gen)
     assert (
-        "      !$acc enter data copyin(nlayers,a,f1_proxy,f1_proxy%data,"
-        "f2_proxy,f2_proxy%data,m1_proxy,m1_proxy%data,m2_proxy,m2_proxy%data,"
-        "ndf_w1,undf_w1,map_w1,ndf_w2,undf_w2,map_w2,ndf_w3,undf_w3,map_w3,"
-        "f3_proxy,f3_proxy%data)\n" in code)
+        "      !$acc enter data copyin(f1_proxy,f1_proxy%data,"
+        "f2_proxy,f2_proxy%data,f3_proxy,f3_proxy%data,m1_proxy,m1_proxy%data,"
+        "m2_proxy,m2_proxy%data,map_w1,map_w2,map_w3,ndf_w1,ndf_w2,ndf_w3,"
+        "nlayers,undf_w1,undf_w2,undf_w3)\n" in code)
 
 
 # Class ACCLoopDirective start
 
-# (1/1) Method node_str
 def test_accloopdirective_node_str(monkeypatch):
     ''' Test the node_str() method of ACCLoopDirective node '''
     directive = ACCLoopDirective()
@@ -184,8 +185,8 @@ def test_accloopdirective_node_str(monkeypatch):
                         lambda x: "ACCLoopDirective")
 
     # Default value output
-    expected = ("ACCLoopDirective[sequential=False,collapse=None,"
-                "independent=True]")
+    expected = ("ACCLoopDirective[sequential=False,gang=False,vector=False,"
+                "collapse=None,independent=True]")
     assert directive.node_str() == expected
     assert str(directive) == expected
 
@@ -193,10 +194,68 @@ def test_accloopdirective_node_str(monkeypatch):
     directive._sequential = True
     directive._collapse = 2
     directive._independent = False
-    expected = ("ACCLoopDirective[sequential=True,collapse=2,"
-                "independent=False]")
+    directive._gang = True
+    directive._vector = True
+    expected = ("ACCLoopDirective[sequential=True,gang=True,vector=True,"
+                "collapse=2,independent=False]")
     assert directive.node_str() == expected
     assert str(directive) == expected
+
+
+def test_accloopdirective_collapse_getter_and_setter():
+    ''' Test the ACCLoopDirective collapse property setter and getter.'''
+    target = ACCLoopDirective()
+    assert target.collapse is None
+    target.collapse = 3
+    assert target.collapse == 3
+    target.collapse = None
+    assert target.collapse is None
+
+    with pytest.raises(ValueError) as err:
+        target.collapse = 0
+    assert ("The ACCLoopDirective collapse clause must be a positive integer "
+            "or None, but value '0' has been given." in str(err.value))
+
+    with pytest.raises(TypeError) as err:
+        target.collapse = 'a'
+    assert ("The ACCLoopDirective collapse clause must be a positive integer "
+            "or None, but value 'a' has been given." in str(err.value))
+
+
+def test_accloopdirective_equality():
+    ''' Test the __eq__ method of ACCLoopDirective node. '''
+    # We need to manually set the same SymbolTable instance in both directives
+    # for their equality to be True
+    symboltable = SymbolTable()
+    directive1 = ACCLoopDirective()
+    directive2 = ACCLoopDirective()
+    directive1.children[0]._symbol_table = symboltable
+    directive2.children[0]._symbol_table = symboltable
+    assert directive1 == directive2
+
+    # Check equality fails when collapse is different
+    directive2._collapse = 2
+    assert directive1 != directive2
+
+    # Check equality fails when independent is different
+    directive2._collapse = directive1.collapse
+    directive2._independent = False
+    assert directive1 != directive2
+
+    # Check equality fails when sequential is different
+    directive2._independent = directive1.independent
+    directive2._sequential = not directive1._sequential
+    assert directive1 != directive2
+
+    # Check equality fails when gang is different
+    directive2._sequential = directive1.sequential
+    directive2._gang = not directive1._gang
+    assert directive1 != directive2
+
+    # Check equality fails when vector is different
+    directive2._gang = directive1.gang
+    directive2._vector = not directive1._vector
+    assert directive1 != directive2
 
 # Class ACCLoopDirective end
 
@@ -244,7 +303,23 @@ def test_acckernelsdirective_gencode(default_present):
         "      !$acc end kernels\n" in code)
 
 
+def test_acckerneldirective_equality():
+    ''' Test the __eq__ method of ACCKernelsDirective node. '''
+    # We need to manually set the same SymbolTable instance in both directives
+    # for their equality to be True
+    symboltable = SymbolTable()
+    directive1 = ACCKernelsDirective()
+    directive2 = ACCKernelsDirective()
+    directive1.children[0]._symbol_table = symboltable
+    directive2.children[0]._symbol_table = symboltable
+    assert directive1 == directive2
+
+    # Check equality fails when default_present is different
+    directive2._default_present = not directive1._default_present
+    assert directive1 != directive2
+
 # Class ACCRoutineDirective
+
 
 def test_acc_routine_directive_constructor_and_strings():
     ''' Test the ACCRoutineDirective constructor and its output
@@ -261,33 +336,70 @@ def test_acc_routine_directive_constructor_and_strings():
 # Class ACCUpdateDirective
 
 def test_accupdatedirective_init():
-    ''' Test the constructor of ACCUpdateDirective node'''
+    ''' Test the constructor of ACCUpdateDirective node. '''
 
     # Check argument validations
     with pytest.raises(TypeError) as err:
-        _ = ACCUpdateDirective("invalid", "host")
-    assert ("The ACCUpdateDirective symbol argument must be a 'DataSymbol' "
-            "but found 'str'." in str(err.value))
+        _ = ACCUpdateDirective({"invalid"}, "host")
+    assert ("The ACCUpdateDirective signatures argument must be a "
+            "set of signatures but got {'str'}"
+            in str(err.value))
 
-    symbol = DataSymbol("x", REAL_TYPE)
+    sig = {Signature("x")}
     with pytest.raises(ValueError) as err:
-        _ = ACCUpdateDirective(symbol, "invalid")
+        _ = ACCUpdateDirective(sig, "invalid")
     assert ("The ACCUpdateDirective direction argument must be a string with "
-            "any of the values in '('host', 'device')' but found 'invalid'."
+            "any of the values in '('self', 'host', 'device')' but found "
+            "'invalid'." in str(err.value))
+
+    with pytest.raises(TypeError) as err:
+        _ = ACCUpdateDirective(sig, "host", if_present=1)
+    assert ("The ACCUpdateDirective if_present argument must be a "
+            "boolean but got int"
             in str(err.value))
 
     # Successful init
-    directive = ACCUpdateDirective(symbol, "host")
-    assert directive._symbol is symbol
-    assert directive._direction == "host"
+    directive = ACCUpdateDirective(sig, "host")
+    assert directive.sig_set == sig
+    assert directive.direction == "host"
+    assert directive.if_present is True
+
+    directive = ACCUpdateDirective(sig, "host", if_present=False)
+    assert directive.if_present is False
 
 
 def test_accupdatedirective_begin_string():
-    ''' Test the begin_string method of ACCUpdateDirective'''
+    ''' Test the begin_string method of ACCUpdateDirective. '''
 
-    symbol = DataSymbol("x", REAL_TYPE)
-    directive1 = ACCUpdateDirective(symbol, "host")
-    directive2 = ACCUpdateDirective(symbol, "device")
+    sig = {Signature("x")}
+    directive_host = ACCUpdateDirective(sig, "host", if_present=False)
+    directive_device = ACCUpdateDirective(sig, "device")
+    directive_empty = ACCUpdateDirective(set(), "host", if_present=False)
 
-    assert directive1.begin_string() == "acc update host(x)"
-    assert directive2.begin_string() == "acc update device(x)"
+    assert directive_host.begin_string() == "acc update host(x)"
+    assert directive_device.begin_string() == "acc update if_present device(x)"
+
+    with pytest.raises(GenerationError) as err:
+        directive_empty.begin_string()
+    assert ("ACCUpdate directive did not find any data to update."
+            in str(err.value))
+
+
+def test_accupdatedirective_equality():
+    ''' Test the __eq__ method of ACCUpdateDirective node. '''
+    sig = {Signature("x")}
+    directive1 = ACCUpdateDirective(sig, "device")
+    directive2 = ACCUpdateDirective(sig, "device")
+    assert directive1 == directive2
+
+    # Check equality fails when different signatures
+    directive3 = ACCUpdateDirective({Signature("t")}, "device")
+    assert directive1 != directive3
+
+    # Check equality fails when different directions
+    directive4 = ACCUpdateDirective(sig, "host")
+    assert directive1 != directive4
+
+    # Check equality fails when different if_present settings
+    directive5 = ACCUpdateDirective(sig, "device", if_present=False)
+    assert directive1 != directive5

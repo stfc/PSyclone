@@ -1,0 +1,141 @@
+# This file is automatically created using the fparser script
+# create_dependencies.py.
+#
+# $ create_dependencies.py */*.f90 */*.F90 > dependency
+#
+# It stores all dependencies between the F90/f90 files in the infrastructure
+# directory, and it is included by the Makefile to make sure files are
+# compiled in the proper order.
+# TODO #1842: Once PSyclone is updated to use the latest fparser version,
+# this script can be auto-generated as part of the Makefile.
+
+
+configuration/domain_size_config_mod.o: utilities/constants_mod.o \
+	utilities/log_mod.o
+field/field_mod.o: field/field_r32_mod.o field/field_r64_mod.o
+field/field_parent_mod.o: field/pure_abstract_field_mod.o \
+	function_space/function_space_mod.o mesh/mesh_mod.o utilities/constants_mod.o \
+	utilities/log_mod.o
+field/field_r32_mod.o: field/field_parent_mod.o field/pure_abstract_field_mod.o \
+	function_space/function_space_mod.o scalar/scalar_r32_mod.o \
+	utilities/constants_mod.o utilities/count_mod.o \
+	utilities/log_mod.o utilities/mpi_mod.o
+field/field_r64_mod.o: field/field_parent_mod.o field/pure_abstract_field_mod.o \
+	function_space/function_space_mod.o scalar/scalar_r64_mod.o \
+	utilities/constants_mod.o utilities/count_mod.o \
+	utilities/log_mod.o utilities/mpi_mod.o
+field/integer_field_mod.o: field/field_parent_mod.o \
+	field/pure_abstract_field_mod.o function_space/function_space_mod.o \
+	mesh/mesh_mod.o utilities/constants_mod.o utilities/count_mod.o \
+	utilities/log_mod.o utilities/mpi_mod.o
+field/master_dofmap_mod.o: utilities/constants_mod.o
+field/polynomial_mod.o: utilities/constants_mod.o
+field/pure_abstract_field_mod.o: utilities/linked_list_data_mod.o
+field/quadrature_edge_mod.o: field/quadrature_mod.o field/quadrature_rule_mod.o \
+	function_space/function_space_mod.o mesh/reference_element_mod.o \
+	utilities/constants_mod.o utilities/log_mod.o
+field/quadrature_face_mod.o: field/quadrature_mod.o field/quadrature_rule_mod.o \
+	function_space/function_space_mod.o mesh/reference_element_mod.o \
+	utilities/constants_mod.o utilities/log_mod.o
+field/quadrature_rule_mod.o: utilities/constants_mod.o
+field/quadrature_xoyoz_mod.o: field/quadrature_mod.o field/quadrature_rule_mod.o \
+	function_space/function_space_mod.o utilities/constants_mod.o \
+	utilities/log_mod.o
+field/quadrature_xyoz_mod.o: field/quadrature_mod.o field/quadrature_rule_mod.o \
+	function_space/function_space_mod.o utilities/constants_mod.o \
+	utilities/log_mod.o
+field/quadrature_xyz_mod.o: field/quadrature_mod.o field/quadrature_rule_mod.o \
+	function_space/function_space_mod.o utilities/constants_mod.o \
+	utilities/log_mod.o
+field/r_solver_field_mod.o: field/field_r32_mod.o field/field_r64_mod.o
+field/r_tran_field_mod.o: field/field_r32_mod.o field/field_r64_mod.o
+field/r_bl_field_mod.o: field/field_r32_mod.o field/field_r64_mod.o
+field/r_phys_field_mod.o: field/field_r32_mod.o field/field_r64_mod.o
+field/stencil_2d_dofmap_mod.o: field/master_dofmap_mod.o \
+	field/stencil_dofmap_helper_functions_mod.o mesh/mesh_mod.o \
+	mesh/reference_element_mod.o utilities/constants_mod.o \
+	utilities/linked_list_data_mod.o utilities/log_mod.o
+field/stencil_dofmap_helper_functions_mod.o: field/master_dofmap_mod.o \
+	mesh/mesh_mod.o mesh/reference_element_mod.o utilities/constants_mod.o \
+	utilities/log_mod.o
+field/stencil_dofmap_mod.o: field/master_dofmap_mod.o \
+	field/stencil_dofmap_helper_functions_mod.o mesh/mesh_mod.o \
+	mesh/reference_element_mod.o utilities/constants_mod.o \
+	utilities/linked_list_data_mod.o utilities/log_mod.o
+function_space/fs_continuity_mod.o: utilities/constants_mod.o \
+	utilities/log_mod.o
+function_space/function_space_constructor_helper_functions_mod.o: \
+	function_space/fs_continuity_mod.o mesh/mesh_mod.o mesh/reference_element_mod.o \
+	utilities/constants_mod.o
+function_space/function_space_mod.o: field/master_dofmap_mod.o \
+	field/polynomial_mod.o field/stencil_2d_dofmap_mod.o \
+	field/stencil_dofmap_helper_functions_mod.o field/stencil_dofmap_mod.o \
+	function_space/fs_continuity_mod.o \
+	function_space/function_space_constructor_helper_functions_mod.o mesh/mesh_mod.o \
+	mesh/reference_element_mod.o utilities/constants_mod.o \
+	utilities/linked_list_data_mod.o utilities/linked_list_mod.o utilities/log_mod.o
+initialisation/flux_direction_mod.o: utilities/constants_mod.o
+io/file_mod.o: utilities/constants_mod.o utilities/linked_list_data_mod.o
+io/io_utility_mod.o: utilities/constants_mod.o utilities/log_mod.o
+io/ncdf_quad_mod.o: io/ugrid_file_mod.o utilities/constants_mod.o \
+	utilities/log_mod.o
+io/ugrid_2d_mod.o: io/ugrid_file_mod.o io/ugrid_generator_mod.o \
+	utilities/constants_mod.o
+io/ugrid_file_mod.o: io/file_mod.o utilities/constants_mod.o
+io/ugrid_generator_mod.o: utilities/constants_mod.o
+mesh/extrusion_mod.o: mesh/global_mesh_base_mod.o mesh/reference_element_mod.o \
+	utilities/constants_mod.o utilities/log_mod.o
+mesh/global_mesh_base_mod.o: mesh/reference_element_mod.o \
+	utilities/constants_mod.o utilities/linked_list_data_mod.o utilities/log_mod.o
+mesh/global_mesh_netcdf_mod.o: io/ncdf_quad_mod.o io/ugrid_2d_mod.o \
+	io/ugrid_file_mod.o mesh/global_mesh_base_mod.o utilities/constants_mod.o \
+	utilities/linked_list_data_mod.o utilities/log_mod.o
+mesh/mesh_colouring_mod.o: mesh/reference_element_mod.o \
+	utilities/constants_mod.o utilities/log_mod.o
+mesh/mesh_constructor_helper_functions_mod.o: \
+	configuration/domain_size_config_mod.o mesh/reference_element_mod.o \
+	utilities/constants_mod.o utilities/coord_transform_mod.o utilities/log_mod.o
+mesh/mesh_map_mod.o: utilities/constants_mod.o utilities/linked_list_data_mod.o \
+	utilities/log_mod.o
+mesh/mesh_mod.o: mesh/extrusion_mod.o mesh/global_mesh_base_mod.o \
+	mesh/mesh_colouring_mod.o mesh/mesh_constructor_helper_functions_mod.o \
+	mesh/mesh_map_mod.o mesh/partition_mod.o mesh/reference_element_mod.o \
+	utilities/constants_mod.o utilities/linked_list_data_mod.o \
+	utilities/linked_list_mod.o utilities/log_mod.o
+mesh/partition_mod.o: mesh/global_mesh_base_mod.o mesh/reference_element_mod.o \
+	utilities/constants_mod.o utilities/linked_list_int_mod.o \
+	utilities/linked_list_mod.o utilities/log_mod.o utilities/mpi_mod.o
+mesh/reference_element_mod.o: utilities/constants_mod.o
+operator/columnwise_operator_mod.o: function_space/function_space_mod.o \
+	mesh/mesh_mod.o operator/operator_parent_mod.o utilities/constants_mod.o \
+	utilities/log_mod.o
+operator/operator_mod.o: operator/operator_r32_mod.o \
+	operator/operator_r64_mod.o operator/r_solver_operator_mod.o \
+	operator/r_tran_operator_mod.o
+operator/operator_parent_mod.o: function_space/function_space_mod.o \
+	mesh/mesh_mod.o utilities/constants_mod.o
+operator/operator_r32_mod.o: function_space/function_space_mod.o \
+	mesh/mesh_mod.o utilities/constants_mod.o operator/operator_parent_mod.o
+operator/operator_r64_mod.o: function_space/function_space_mod.o \
+	mesh/mesh_mod.o utilities/constants_mod.o operator/operator_parent_mod.o
+operator/r_solver_operator_mod.o: operator/operator_r32_mod.o \
+	operator/operator_r64_mod.o
+operator/r_tran_operator_mod.o: operator/operator_r32_mod.o \
+	operator/operator_r64_mod.o
+scalar/scalar_mod.o: scalar/scalar_r32_mod.o scalar/scalar_r64_mod.o
+scalar/scalar_r32_mod.o: utilities/constants_mod.o utilities/mpi_mod.o
+scalar/scalar_r64_mod.o: utilities/constants_mod.o utilities/mpi_mod.o
+utilities/coord_transform_mod.o: utilities/constants_mod.o \
+	utilities/cross_product_mod.o utilities/matrix_invert_mod.o
+utilities/count_mod.o: utilities/constants_mod.o utilities/log_mod.o \
+	utilities/mpi_mod.o
+utilities/cross_product_mod.o: utilities/constants_mod.o
+utilities/linked_list_data_mod.o: utilities/constants_mod.o
+utilities/linked_list_int_mod.o: utilities/linked_list_data_mod.o
+utilities/linked_list_mod.o: utilities/constants_mod.o \
+	utilities/linked_list_data_mod.o
+utilities/log_mod.o: utilities/constants_mod.o
+utilities/matrix_invert_mod.o: utilities/constants_mod.o
+utilities/mpi_mod.o: utilities/constants_mod.o utilities/log_mod.o
+utilities/timer_mod.o: io/io_utility_mod.o scalar/scalar_mod.o \
+	utilities/constants_mod.o utilities/log_mod.o utilities/mpi_mod.o

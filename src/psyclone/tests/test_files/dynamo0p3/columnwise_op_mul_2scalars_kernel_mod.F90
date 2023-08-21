@@ -8,7 +8,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2017-2021, Science and Technology Facilities Council
+! Modifications copyright (c) 2017-2022, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -38,11 +38,10 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 !------------------------------------------------------------------------------
-! Modified by I. Kavcic, Met Office
+! Modified: I. Kavcic, Met Office
 
 !> @brief Kernel which calculates the linear combination of two columnwise
-!>        operators
-!> @details Calculates op_C = alpha*op_C + beta*op_A * op_B
+!!        operators: op_C = alpha*op_C + beta*op_A * op_B.
 
 module columnwise_op_mul_2scalars_kernel_mod
 
@@ -53,7 +52,7 @@ use argument_mod,            only : arg_type,                                   
                                     ANY_SPACE_1, ANY_SPACE_2, ANY_SPACE_3,      &
                                     CELL_COLUMN
 
-use constants_mod,           only : r_def, i_def
+use constants_mod,           only : r_def, r_solver, i_def
 
 implicit none
 
@@ -84,8 +83,8 @@ public columnwise_op_mul_2scalars_kernel_code
 
 contains
 
-  !> @brief The subroutine which is called directly from the PSY layer and
-  !> calculates op_C = op_C + op_A * op_B 
+  !> @brief The subroutine which is called directly from the PSy layer and
+  !!        calculates op_C = op_C + op_A * op_B.
   !>
   !> @param [in] cell The horizontal cell index
   !> @param [in] ncell_2d Total number of cells in 2d grid
@@ -149,9 +148,9 @@ contains
     integer(kind=i_def), intent(in) :: nrow_C, ncol_C
     integer(kind=i_def), intent(in) :: bandwidth_A, bandwidth_B, bandwidth_C
     real(kind=r_def),    intent(in) :: alpha, beta
-    real(kind=r_def), dimension(bandwidth_A,nrow_A,ncell_2d), intent(in) :: columnwise_matrix_A
-    real(kind=r_def), dimension(bandwidth_B,nrow_B,ncell_2d), intent(in) :: columnwise_matrix_B
-    real(kind=r_def), dimension(bandwidth_C,nrow_C,ncell_2d), intent(inout) :: columnwise_matrix_C
+    real(kind=r_solver), dimension(bandwidth_A,nrow_A,ncell_2d), intent(in) :: columnwise_matrix_A
+    real(kind=r_solver), dimension(bandwidth_B,nrow_B,ncell_2d), intent(in) :: columnwise_matrix_B
+    real(kind=r_solver), dimension(bandwidth_C,nrow_C,ncell_2d), intent(inout) :: columnwise_matrix_C
 
     integer(kind=i_def), intent(in) :: alpha_A, beta_A, gamma_m_A, gamma_p_A
     integer(kind=i_def), intent(in) :: alpha_B, beta_B, gamma_m_B, gamma_p_B

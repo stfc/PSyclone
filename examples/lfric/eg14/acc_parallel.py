@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019, Science and Technology Facilities Council
+# Copyright (c) 2019-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,36 +31,64 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: R. W. Ford, STFC Daresbury Laboratory
+# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Laboratory
 
-'''File containing a PSyclone transformation script for the Dynamo0p3
-API to apply OpenACC Loop, Parallel and Enter Data directives
-generically. This can be applied via the -s option in the psyclone
-script.
+'''File containing a PSyclone transformation script for the LFRic
+API to apply OpenACC Kernels and Enter Data directives generically. Any
+user-supplied kernels are also transformed through the addition of an OpenACC
+Routine directive. PSyclone can apply this transformation script via its
+ -s option.
 
 '''
-from __future__ import print_function
-from psyclone.transformations import ACCEnterDataTrans, ACCParallelTrans, \
-    ACCLoopTrans
+from psyclone.domain.lfric import LFRicConstants
+from psyclone.psyGen import CodedKern
+from psyclone.transformations import (
+    ACCEnterDataTrans, ACCKernelsTrans, ACCRoutineTrans, Dynamo0p3ColourTrans)
 
 
 def trans(psy):
-    '''PSyclone transformation script for the dynamo0p3 api to apply
-    OpenACC loop, parallel and enter data directives generically.
+    '''PSyclone transformation script for the LFRic API to apply OpenACC
+    kernels and enter data directives generically. User-supplied kernels are
+    transformed through the addition of a routine directive.
+
+    :param psy: the PSy object containing the invokes to transform.
+    :type psy: :py:class:`psyclone.dynamo0p3.DynamoPSy`
+
+    :returns: the transformed PSy object.
+    :rtype: :py:class:`psyclone.dynamo0p3.DynamoPSy`
 
     '''
-    loop_trans = ACCLoopTrans()
-    parallel_trans = ACCParallelTrans()
+    const = LFRicConstants()
+
+    ctrans = Dynamo0p3ColourTrans()
     enter_data_trans = ACCEnterDataTrans()
+    kernel_trans = ACCKernelsTrans()
+    rtrans = ACCRoutineTrans()
 
     # Loop over all of the Invokes in the PSy object
     for invoke in psy.invokes.invoke_list:
 
         print("Transforming invoke '"+invoke.name+"'...")
         schedule = invoke.schedule
+
+        # Colour loops over cells unless they are on discontinuous
+        # spaces or over dofs
         for loop in schedule.loops():
-            loop_trans.apply(loop)
-        parallel_trans.apply(schedule.children)
+            if loop.iteration_space == "cell_column":
+                if (loop.field_space.orig_name not in
+                        const.VALID_DISCONTINUOUS_NAMES):
+                    ctrans.apply(loop)
+
+        for loop in schedule.loops():
+            if loop.loop_type not in ["colours", "null"]:
+                kernel_trans.apply(loop)
+
         enter_data_trans.apply(schedule)
+
+        # We transform every user-supplied kernel using ACCRoutineTrans. This
+        # adds '!$acc routine' which ensures the kernel is compiled for the
+        # OpenACC device.
+        for kernel in schedule.walk(CodedKern):
+            rtrans.apply(kernel)
 
     return psy

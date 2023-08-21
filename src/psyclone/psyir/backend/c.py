@@ -33,7 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author S. Siso, STFC Daresbury Lab.
 # Modified by: J. Henrichs, Bureau of Meteorology
-#              A. R. Porter and R. W. Ford, STFC Daresbury Lab
+#              A. R. Porter, R. W. Ford and N. Nobre, STFC Daresbury Lab
 #              A. B. G. Chalk, STFC Daresbury Lab
 
 
@@ -42,8 +42,6 @@ Currently limited to just a few PSyIR nodes to support the OpenCL generation,
 it needs to be extended for generating pure C code.
 
 '''
-import six
-
 from psyclone.psyir.backend.language_writer import LanguageWriter
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.nodes import BinaryOperation, UnaryOperation
@@ -109,7 +107,7 @@ class CWriter(LanguageWriter):
 
         for dimension, child in enumerate(indices):
             expression = self._visit(child)
-            dim_str = "{0}LEN{1}".format(var_name, dimension+1)
+            dim_str = f"{var_name}LEN{dimension+1}"
             if multiplicator:
                 summands.append(expression + " * " + multiplicator)
                 multiplicator = multiplicator + " * " + dim_str
@@ -121,7 +119,6 @@ class CWriter(LanguageWriter):
         return [" + ".join(summands)]
 
     def gen_declaration(self, symbol):
-        # pylint: disable=no-self-use
         '''
         Generates string representing the C declaration of the symbol. In C
         declarations can be found inside the argument list or with the
@@ -141,10 +138,9 @@ class CWriter(LanguageWriter):
             intrinsic = symbol.datatype.intrinsic
             code = code + TYPE_MAP_TO_C[intrinsic] + " "
         except (AttributeError, KeyError) as err:
-            raise six.raise_from(NotImplementedError(
-                "Could not generate the C definition for the variable '{0}', "
-                "type '{1}' is currently not supported."
-                "".format(symbol.name, symbol.datatype)), err)
+            raise NotImplementedError(
+                f"Could not generate C definition for variable '{symbol.name}'"
+                f", type '{symbol.datatype}' is not yet supported.") from err
 
         # If the argument is an array, in C language we define it
         # as an unaliased pointer.
@@ -164,7 +160,7 @@ class CWriter(LanguageWriter):
         :returns: C languague declaration of a local variable.
         :rtype: str
         '''
-        return "{0}{1};\n".format(self._nindent, self.gen_declaration(symbol))
+        return f"{self._nindent}{self.gen_declaration(symbol)};\n"
 
     def assignment_node(self, node):
         '''This method is called when an Assignment instance is found in the
@@ -180,11 +176,10 @@ class CWriter(LanguageWriter):
         lhs = self._visit(node.lhs)
         rhs = self._visit(node.rhs)
 
-        result = "{0}{1} = {2};\n".format(self._nindent, lhs, rhs)
+        result = f"{self._nindent}{lhs} = {rhs};\n"
         return result
 
     def literal_node(self, node):
-        # pylint: disable=no-self-use
         '''This method is called when a Literal instance is found in the PSyIR
         tree.
 
@@ -216,8 +211,8 @@ class CWriter(LanguageWriter):
         '''
         if len(node.children) < 2:
             raise VisitorError(
-                "IfBlock malformed or incomplete. It should have at least "
-                "2 children, but found {0}.".format(len(node.children)))
+                f"IfBlock malformed or incomplete. It should have at least "
+                f"2 children, but found {len(node.children)}.")
 
         condition = self._visit(node.condition)
 
@@ -234,18 +229,16 @@ class CWriter(LanguageWriter):
 
         if else_body:
             result = (
-                "{0}if ({1}) {{\n"
-                "{2}"
-                "{0}}} else {{\n"
-                "{3}"
-                "{0}}}\n"
-                "".format(self._nindent, condition, if_body, else_body))
+                f"{self._nindent}if ({condition}) {{\n"
+                f"{if_body}"
+                f"{self._nindent}}} else {{\n"
+                f"{else_body}"
+                f"{self._nindent}}}\n")
         else:
             result = (
-                "{0}if ({1}) {{\n"
-                "{2}"
-                "{0}}}\n"
-                "".format(self._nindent, condition, if_body))
+                f"{self._nindent}if ({condition}) {{\n"
+                f"{if_body}"
+                f"{self._nindent}}}\n")
         return result
 
     def unaryoperation_node(self, node):
@@ -265,9 +258,8 @@ class CWriter(LanguageWriter):
         '''
         if len(node.children) != 1:
             raise VisitorError(
-                "UnaryOperation malformed or incomplete. It "
-                "should have exactly 1 child, but found {0}."
-                "".format(len(node.children)))
+                f"UnaryOperation malformed or incomplete. It should "
+                f"have exactly 1 child, but found {len(node.children)}.")
 
         def operator_format(operator_str, expr_str):
             '''
@@ -322,9 +314,9 @@ class CWriter(LanguageWriter):
         try:
             opstring, formatter = opmap[node.operator]
         except KeyError as err:
-            raise six.raise_from(NotImplementedError(
-                "The C backend does not support the '{0}' operator."
-                "".format(node.operator)), err)
+            raise NotImplementedError(
+                f"The C backend does not support the '{node.operator}' "
+                f"operator.") from err
 
         return formatter(opstring, self._visit(node.children[0]))
 
@@ -345,9 +337,8 @@ class CWriter(LanguageWriter):
         '''
         if len(node.children) != 2:
             raise VisitorError(
-                "BinaryOperation malformed or incomplete. It "
-                "should have exactly 2 children, but found {0}."
-                "".format(len(node.children)))
+                f"BinaryOperation malformed or incomplete. It should "
+                f"have exactly 2 children, but found {len(node.children)}.")
 
         def operator_format(operator_str, expr1, expr2):
             '''
@@ -397,9 +388,9 @@ class CWriter(LanguageWriter):
         try:
             opstring, formatter = opmap[node.operator]
         except KeyError as err:
-            raise six.raise_from(VisitorError(
-                "The C backend does not support the '{0}' operator."
-                "".format(node.operator)), err)
+            raise VisitorError(
+                f"The C backend does not support the '{node.operator}' "
+                f"operator.") from err
 
         return formatter(opstring,
                          self._visit(node.children[0]),
@@ -416,10 +407,9 @@ class CWriter(LanguageWriter):
         :rtype: str
 
         '''
-        return "{0}return;\n".format(self._nindent)
+        return f"{self._nindent}return;\n"
 
     def codeblock_node(self, _):
-        # pylint: disable=no-self-use
         '''This method is called when a CodeBlock instance is found in the
         PSyIR tree. At the moment all CodeBlocks contain Fortran fparser
         code.
@@ -451,11 +441,9 @@ class CWriter(LanguageWriter):
             body += self._visit(child)
         self._depth -= 1
 
-        return "{0}for({1}={2}; {1}<={3}; {1}+={4})\n"\
-               "{0}{{\n"\
-               "{5}"\
-               "{0}}}\n".format(self._nindent, variable_name,
-                                start, stop, step, body)
+        return f"{self._nindent}for({variable_name}={start}; "\
+               f"{variable_name}<={stop}; {variable_name}+={step})\n"\
+               f"{self._nindent}{{\n{body}{self._nindent}}}\n"
 
     def regiondirective_node(self, node):
         '''This method is called when an RegionDirective instance is found in
@@ -470,14 +458,27 @@ class CWriter(LanguageWriter):
 
         '''
         # Note that {{ is replaced with a single { in the format call
-        result_list = ["{0}#pragma {1}\n{{\n".format(self._nindent,
-                                                     node.begin_string())]
+        result_list = [f"{self._nindent}#pragma {node.begin_string()}"]
+
+        clause_list = []
+        for clause in node.clauses:
+            val = self._visit(clause)
+            # Some clauses return empty strings if they should not
+            # generate any output (e.g. private clause with no children).
+            if val != "":
+                clause_list.append(val)
+        # Add a space only if there are clauses
+        if len(clause_list) > 0:
+            result_list.append(" ")
+        result_list.append(", ".join(clause_list))
+        result_list.append(f"\n{self._nindent}{{\n")
+
         self._depth += 1
         for child in node.dir_body:
             result_list.append(self._visit(child))
         self._depth -= 1
         # Note that }} is replaced with a single } in the format call
-        result_list.append("{0}}}\n".format(self._nindent))
+        result_list.append(f"{self._nindent}}}\n")
         return "".join(result_list)
 
     def standalonedirective_node(self, node):
@@ -492,9 +493,7 @@ class CWriter(LanguageWriter):
         :rtype: str
 
         '''
-        # pylint: disable=no-self-use
-        result_list = ["{0}#pragma {1}\n".format(self._nindent,
-                                                 node.begin_string())]
+        result_list = [f"{self._nindent}#pragma {node.begin_string()}\n"]
         return "".join(result_list)
 
     def filecontainer_node(self, node):

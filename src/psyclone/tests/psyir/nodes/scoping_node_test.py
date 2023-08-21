@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -36,7 +36,7 @@
 
 ''' Performs py.test tests on the ScopingNode PSyIR node. '''
 
-from __future__ import absolute_import
+import pytest
 from psyclone.psyir.nodes import (Schedule, Assignment, Reference, Container,
                                   Loop, Literal, Routine, ArrayReference)
 from psyclone.psyir.symbols import (DataSymbol, ArrayType, INTEGER_TYPE,
@@ -52,10 +52,17 @@ def test_scoping_node_symbol_table():
     assert container.symbol_table is container._symbol_table
     assert isinstance(container.symbol_table, SymbolTable)
 
-    # An existing symbol table can be given to the constructor
+    # A provided symbol table instance is used if it is still unlinked
+    # to a scope, otherwise it produces an error
     symtab = SymbolTable()
     container = Container("test", symbol_table=symtab)
     assert container.symbol_table is symtab
+
+    with pytest.raises(ValueError) as err:
+        container = Container("test", symbol_table=symtab)
+    assert ("The symbol table is already bound to another scope "
+            "(Container[test]). Consider detaching or deepcopying "
+            "the symbol table first." in str(err.value))
 
 
 def test_scoping_node_copy():
@@ -139,8 +146,11 @@ def test_scoping_node_copy_hierarchy(fortran_writer):
     assert new_schedule[0].rhs.children[0].symbol in \
         new_schedule.symbol_table.symbols
 
-    # Add the "_new" suffix to all symbol in the copied schedule
+    # Add the "_new" suffix to all Symbols in the copied schedule
     for symbol in new_schedule.symbol_table.symbols:
+        if symbol.is_argument:
+            # Can't rename a routine argument.
+            continue
         new_schedule.symbol_table.rename_symbol(symbol, symbol.name+"_new")
 
     # An update to a symbol in the outer scope must affect both copies of the
@@ -166,11 +176,11 @@ module module
     a = b_global(i)
 
   end subroutine routine
-  subroutine routine(a_new)
-    integer, intent(inout) :: a_new
+  subroutine routine(a)
+    integer, intent(inout) :: a
     integer :: i_new
 
-    a_new = b_global(i_new)
+    a = b_global(i_new)
 
   end subroutine routine
 
@@ -223,3 +233,20 @@ def test_scoping_node_copy_loop(fortran_writer, tmpdir):
     new_schedule2 = schedule.copy()
     new_loop_var = new_schedule2.symbol_table.lookup("idx")
     assert new_loop_var is not loop_var
+
+
+def test_scoping_node_equality():
+    ''' Test the __eq__ method of ScopingNode. '''
+
+    symboltable = SymbolTable()
+    symboltable2 = SymbolTable()
+    # We need to manually set the same SymbolTable instance in both directives
+    # for their equality to be True
+    sched1 = Schedule()
+    sched1._symbol_table = symboltable
+    sched2 = Schedule()
+    sched2._symbol_table = symboltable
+    sched3 = Schedule(symbol_table=symboltable2)
+
+    assert sched1 == sched2
+    assert sched1 != sched3

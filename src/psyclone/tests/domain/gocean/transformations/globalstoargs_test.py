@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council.
+# Copyright (c) 2017-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -37,7 +37,6 @@
 ''' Tests the KernelImportsToArguments Transformation for the GOcean
 1.0 API.'''
 
-from __future__ import absolute_import, print_function
 import os
 import pytest
 from psyclone.parse.algorithm import parse
@@ -210,7 +209,8 @@ def test_kernelimportstoargumentstrans_constant(monkeypatch):
     def create_data_symbol(arg):
         symbol = DataSymbol(arg.name, INTEGER_TYPE,
                             interface=arg.interface,
-                            constant_value=Literal("1", INTEGER_TYPE))
+                            is_constant=True,
+                            initial_value=Literal("1", INTEGER_TYPE))
         return symbol
 
     monkeypatch.setattr(DataSymbol, "resolve_deferred", create_data_symbol)
@@ -378,6 +378,6 @@ def test_kernelimportstoargumentstrans_clash_symboltable(monkeypatch):
     # Test transforming a single kernel
     with pytest.raises(KeyError) as err:
         trans.apply(kernel)
-    assert ("Couldn't copy 'rdt: <Scalar<REAL, UNDEFINED>, "
+    assert ("Couldn't copy 'rdt: DataSymbol<Scalar<REAL, UNDEFINED>, "
             "Import(container='model_mod')>' into the SymbolTable. The name "
             "'rdt' is already used by another symbol." in str(err.value))

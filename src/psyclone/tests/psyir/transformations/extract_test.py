@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2020, Science and Technology Facilities Council.
+# Copyright (c) 2019-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,21 +33,25 @@
 # -----------------------------------------------------------------------------
 # Author I. Kavcic, Met Office
 # Modified by A. R. Porter, STFC Daresbury Lab
+# Modified by J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
 ''' Module containing tests for PSyclone ExtractTrans
 and ExtractNode.
 '''
 
-from __future__ import absolute_import
-
 import pytest
 
 from psyclone.core import Signature
 from psyclone.domain.lfric.transformations import LFRicExtractTrans
 from psyclone.errors import InternalError
-from psyclone.psyir.nodes import ExtractNode, Node
-from psyclone.psyir.transformations import ExtractTrans
+from psyclone.psyir.nodes import ExtractNode, Loop, Node
+from psyclone.psyir.tools import ReadWriteInfo
+from psyclone.psyir.transformations import ExtractTrans, TransformationError
+from psyclone.tests.utilities import get_invoke
+from psyclone.transformations import (ACCParallelTrans, ACCLoopTrans,
+                                      DynamoOMPParallelLoopTrans)
+
 
 # --------------------------------------------------------------------------- #
 # ================== Extract Transformation tests =========================== #
@@ -72,43 +76,47 @@ def test_determine_postfix():
     '''
 
     # Test if there is no clash that the specified postfix is returned as is:
-    postfix = ExtractTrans.determine_postfix([], [])
+    read_write_info = ReadWriteInfo()
+    postfix = ExtractTrans.determine_postfix(read_write_info)
     assert postfix == "_post"
-    postfix = ExtractTrans.determine_postfix([], [], postfix="_new_postfix")
+    postfix = ExtractTrans.determine_postfix(read_write_info,
+                                             postfix="_new_postfix")
     assert postfix == "_new_postfix"
 
     # Clash between input variable and a created output variable:
-    postfix = ExtractTrans.determine_postfix([Signature("var_post")],
-                                             [Signature("var")])
+    read_write_info = ReadWriteInfo()
+    read_write_info.add_read(Signature("var_post"))
+    read_write_info.add_write(Signature("var"))
+    postfix = ExtractTrans.determine_postfix(read_write_info)
     assert postfix == "_post0"
 
     # Two clashes between input variable and a created output variable:
-    postfix = ExtractTrans.determine_postfix([Signature("var_post"),
-                                              Signature("var_post0")],
-                                             [Signature("var")])
+    read_write_info.add_read(Signature("var_post0"))
+    postfix = ExtractTrans.determine_postfix(read_write_info)
     assert postfix == "_post1"
 
     # Two clashes between different input variables and created output
     # variables: 'var1' prevents the '_post' to be used, 'var2'
     # prevents "_post0" to be used, 'var3' prevents "_post1":
-    postfix = ExtractTrans.determine_postfix([Signature("var1_post"),
-                                              Signature("var2_post0"),
-                                              Signature("var3_post1")],
-                                             [Signature("var1"),
-                                              Signature("var2"),
-                                              Signature("var3")])
+    read_write_info = ReadWriteInfo()
+    read_write_info.add_read(Signature("var1_post"))
+    read_write_info.add_read(Signature("var2_post0"))
+    read_write_info.add_read(Signature("var3_post1"))
+    read_write_info.add_write(Signature("var1"))
+    read_write_info.add_write(Signature("var2"))
+    read_write_info.add_write(Signature("var3"))
+    postfix = ExtractTrans.determine_postfix(read_write_info)
     assert postfix == "_post2"
 
     # Handle clash between output variables: the first variable will
     # create "var" and var_post", the second "var_post" and "var_post_post".
-    postfix = ExtractTrans.determine_postfix([],
-                                             [Signature("var"),
-                                              Signature("var_post")])
+    read_write_info = ReadWriteInfo()
+    read_write_info. add_write(Signature("var"))
+    read_write_info. add_write(Signature("var_post"))
+    postfix = ExtractTrans.determine_postfix(read_write_info)
     assert postfix == "_post0"
-    postfix = ExtractTrans.determine_postfix([],
-                                             [Signature("var"),
-                                              Signature("var_post"),
-                                              Signature("var_post0")])
+    read_write_info.add_write(Signature("var_post0"))
+    postfix = ExtractTrans.determine_postfix(read_write_info)
     assert postfix == "_post1"
 
 
@@ -125,3 +133,103 @@ def test_malformed_extract_node(monkeypatch):
     with pytest.raises(InternalError) as err:
         _ = enode.extract_body
     assert "malformed or incomplete. It should have a " in str(err.value)
+
+
+# --------------------------------------------------------------------------- #
+def test_get_default_options():
+    '''Check the default options.'''
+
+    etrans = ExtractTrans()
+    assert etrans.get_default_options() == {"COLLECT-ARRAY-SHAPE-READS": True}
+
+
+# -----------------------------------------------------------------------------
+def test_extract_validate():
+    '''Test that the validate function can successfully finish.'''
+
+    _, invoke = get_invoke("single_invoke_three_kernels.f90",
+                           "gocean1.0", idx=0, dist_mem=False)
+    etrans = ExtractTrans()
+    etrans.validate(invoke.schedule.children)
+
+
+# -----------------------------------------------------------------------------
+def test_extract_distributed_memory():
+    '''Test that distributed memory must be disabled.'''
+
+    _, invoke = get_invoke("single_invoke_three_kernels.f90",
+                           "gocean1.0", idx=0, dist_mem=True)
+    etrans = ExtractTrans()
+    with pytest.raises(TransformationError) as excinfo:
+        etrans.validate(invoke.schedule.children[3])
+    assert ("Error in ExtractTrans: Distributed memory is "
+            "not supported.") in str(excinfo.value)
+
+
+# -----------------------------------------------------------------------------
+def test_extract_kern_builtin_no_loop():
+    ''' Test that applying Extract Transformation on a Kernel or Built-in
+    call without its parent Loop raises a TransformationError. '''
+
+    gocetrans = ExtractTrans()
+    _, invoke = get_invoke("single_invoke_three_kernels.f90",
+                           "gocean1.0", idx=0, dist_mem=False)
+    schedule = invoke.schedule
+    # Test Kernel call
+    kernel_call = schedule.children[0].loop_body[0].loop_body[0]
+    with pytest.raises(TransformationError) as excinfo:
+        gocetrans.validate([kernel_call])
+    assert "Error in ExtractTrans: Application to a Kernel or a " \
+           "Built-in call without its parent Loop is not allowed." \
+           in str(excinfo.value)
+
+
+# -----------------------------------------------------------------------------
+def test_extract_loop_no_directive_dynamo0p3():
+    ''' Test that applying Extract Transformation on a Loop without its
+    parent Directive when optimisations are applied in Dynamo0.3 API
+    raises a TransformationError. '''
+    etrans = LFRicExtractTrans()
+
+    # Test a Loop nested within the OMP Parallel DO Directive
+    _, invoke = get_invoke("4.13_multikernel_invokes_w3_anyd.f90",
+                           "dynamo0.3", idx=0, dist_mem=False)
+    schedule = invoke.schedule
+    # Apply DynamoOMPParallelLoopTrans to the second Loop
+    otrans = DynamoOMPParallelLoopTrans()
+    otrans.apply(schedule[1])
+    loop = schedule.children[1].dir_body[0]
+    # Try extracting the Loop inside the OMP Parallel DO region
+    with pytest.raises(TransformationError) as excinfo:
+        etrans.validate([loop])
+    assert "Error in LFRicExtractTrans: Application to a Loop without its " \
+           "parent Directive is not allowed." in str(excinfo.value)
+
+
+# -----------------------------------------------------------------------------
+def test_extract_directive_no_loop():
+    ''' Test that applying Extract Transformation on an orphaned
+    ACCLoopDirective without its ancestor ACCParallelDirective
+    when optimisations are applied raises a TransformationError. '''
+
+    etrans = ExtractTrans()
+    acclpt = ACCLoopTrans()
+    accpara = ACCParallelTrans()
+
+    _, invoke = get_invoke("single_invoke_three_kernels.f90",
+                           "gocean1.0", idx=0, dist_mem=False)
+    schedule = invoke.schedule
+
+    # Apply the OpenACC Loop transformation to every loop in the Schedule
+    for child in schedule.children:
+        if isinstance(child, Loop):
+            acclpt.apply(child)
+    # Enclose all of these loops within a single ACC Parallel region
+    accpara.apply(schedule.children)
+
+    orphaned_directive = schedule.children[0].children[0]
+    with pytest.raises(TransformationError) as excinfo:
+        etrans.validate(orphaned_directive)
+    assert "Error in ExtractTrans: Application to Nodes enclosed " \
+           "within a thread-parallel region is not allowed." \
+           in str(excinfo.value)

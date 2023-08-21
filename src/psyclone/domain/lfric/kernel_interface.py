@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council.
+# Copyright (c) 2020-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,22 +31,22 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford STFC Daresbury Lab
+# Author R. W. Ford, STFC Daresbury Lab
 # Modified: I. Kavcic, Met Office
+#           A. R. Porter and N. Nobre, STFC Daresbury Lab
+# Modified: J. Henrichs, Bureau of Meteorology
 
 '''This module creates the expected arguments for an LFRic coded
 kernel based on the kernel metadata.
 
 '''
-from __future__ import absolute_import
-import six
-from psyclone.domain.lfric import ArgOrdering, LFRicConstants
-from psyclone.domain.lfric import psyir as lfric_psyir
-from psyclone.psyir.symbols import SymbolTable, ArgumentInterface
-from psyclone.psyir.nodes import Reference
-from psyclone.psyir.frontend.fparser2 import INTENT_MAPPING
-from psyclone.errors import InternalError
 from psyclone.core import AccessType
+from psyclone.domain.lfric import ArgOrdering, LFRicConstants
+from psyclone.domain.lfric.lfric_types import LFRicTypes
+from psyclone.errors import InternalError
+from psyclone.psyir.frontend.fparser2 import INTENT_MAPPING
+from psyclone.psyir.nodes import Reference
+from psyclone.psyir.symbols import SymbolTable, ArgumentInterface
 
 
 # pylint: disable=too-many-public-methods, no-member
@@ -66,8 +66,8 @@ class KernelInterface(ArgOrdering):
     space names. It is not yet clear whether this would be useful or
     not.
 
-    TBD: This class should replace the current kernel stub generation
-    code when all of its methods are implemented, see issue #928.
+    TODO #928: This class should replace the current kernel stub generation
+    code when all of its methods are implemented.
 
     :param kern: the kernel for which to create arguments.
     :type kern: :py:class:`psyclone.dynamo0p3.DynKern`
@@ -76,31 +76,31 @@ class KernelInterface(ArgOrdering):
     #: Mapping from a generic PSyIR datatype to the equivalent
     #: LFRic-specific field datasymbol.
     field_mapping = {
-        "integer": lfric_psyir.IntegerFieldDataDataSymbol,
-        "real": lfric_psyir.RealFieldDataDataSymbol,
-        "logical": lfric_psyir.LogicalFieldDataDataSymbol}
+        "integer": "IntegerFieldDataSymbol",
+        "real": "RealFieldDataSymbol",
+        "logical": "LogicalFieldDataSymbol"}
     #: Mapping from a generic PSyIR datatype to the equivalent
     #: LFRic-specific vector field datasymbol.
     vector_field_mapping = {
-        "integer": lfric_psyir.IntegerVectorFieldDataDataSymbol,
-        "real": lfric_psyir.RealVectorFieldDataDataSymbol,
-        "logical": lfric_psyir.LogicalVectorFieldDataDataSymbol}
+        "integer": "IntegerVectorFieldDataSymbol",
+        "real": "RealVectorFieldDataSymbol",
+        "logical": "LogicalVectorFieldDataSymbol"}
     #: Mapping from the LFRic metadata description of quadrature to the
     #: associated LFRic-specific basis function datasymbol.
     basis_mapping = {
-        "gh_quadrature_xyoz": lfric_psyir.BasisFunctionQrXyozDataSymbol,
-        "gh_quadrature_face": lfric_psyir.BasisFunctionQrFaceDataSymbol,
-        "gh_quadrature_edge": lfric_psyir.BasisFunctionQrEdgeDataSymbol}
+        "gh_quadrature_xyoz": "BasisFunctionQrXyozDataSymbol",
+        "gh_quadrature_face": "BasisFunctionQrFaceDataSymbol",
+        "gh_quadrature_edge": "BasisFunctionQrEdgeDataSymbol"}
     #: Mapping from the LFRic metadata description of quadrature to the
     #: associated LFRic-specific differential basis function datasymbol.
     diff_basis_mapping = {
-        "gh_quadrature_xyoz": lfric_psyir.DiffBasisFunctionQrXyozDataSymbol,
-        "gh_quadrature_face": lfric_psyir.DiffBasisFunctionQrFaceDataSymbol,
-        "gh_quadrature_edge": lfric_psyir.DiffBasisFunctionQrEdgeDataSymbol}
+        "gh_quadrature_xyoz": "DiffBasisFunctionQrXyozDataSymbol",
+        "gh_quadrature_face": "DiffBasisFunctionQrFaceDataSymbol",
+        "gh_quadrature_edge": "DiffBasisFunctionQrEdgeDataSymbol"}
     _read_access = ArgumentInterface(ArgumentInterface.Access.READ)
 
     def __init__(self, kern):
-        super(KernelInterface, self).__init__(kern)
+        super().__init__(kern)
         self._symbol_table = SymbolTable()
         self._arglist = []
 
@@ -111,10 +111,10 @@ class KernelInterface(ArgOrdering):
         :param var_accesses: an unused optional argument that stores \
             information about variable accesses.
         :type var_accesses: :\
-            py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
-        super(KernelInterface, self).generate(var_accesses=var_accesses)
+        super().generate(var_accesses=var_accesses)
         # Set the argument list for the symbol table. This is done at
         # the end after incrementally adding symbols to the _args
         # list, as it is not possible to incrementally add symbols to
@@ -144,11 +144,11 @@ class KernelInterface(ArgOrdering):
         :param var_accesses: an unused optional argument that stores \
             information about variable accesses.
         :type var_accesses: :\
-            py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
         symbol = self._symbol_table.find_or_create_tag(
-            "cell", symbol_type=lfric_psyir.CellPositionDataSymbol,
+            "cell", symbol_type=LFRicTypes("CellPositionDataSymbol"),
             interface=self._read_access)
         self._arglist.append(symbol)
 
@@ -159,11 +159,11 @@ class KernelInterface(ArgOrdering):
         :param var_accesses: an unused optional argument that stores \
             information about variable accesses.
         :type var_accesses: :\
-            py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
         symbol = self._symbol_table.find_or_create_tag(
-            "nlayers", symbol_type=lfric_psyir.MeshHeightDataSymbol,
+            "nlayers", symbol_type=LFRicTypes("MeshHeightDataSymbol"),
             interface=self._read_access)
         self._arglist.append(symbol)
 
@@ -173,12 +173,12 @@ class KernelInterface(ArgOrdering):
         :param var_accesses: an unused optional argument that stores \
             information about variable accesses.
         :type var_accesses: :\
-            py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            py:class:`psyclone.core.VariablesAccessInfo`
 
         :raises NotImplementedError: as this method is not implemented.
 
         '''
-        raise NotImplementedError("_mesh_ncell2d not implemented")
+        raise NotImplementedError("TODO #928: _mesh_ncell2d not implemented")
 
     def _mesh_ncell2d_no_halos(self, var_accesses=None):
         '''Not implemented.
@@ -186,12 +186,13 @@ class KernelInterface(ArgOrdering):
         :param var_accesses: an unused optional argument that stores \
             information about variable accesses.
         :type var_accesses: :\
-            py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            py:class:`psyclone.core.VariablesAccessInfo`
 
         :raises NotImplementedError: as this method is not implemented.
 
         '''
-        raise NotImplementedError("_mesh_ncell2d_no_halos not implemented")
+        raise NotImplementedError(
+            "TODO #928: _mesh_ncell2d_no_halos not implemented")
 
     def cell_map(self, var_accesses=None):
         '''Not implemented.
@@ -199,12 +200,12 @@ class KernelInterface(ArgOrdering):
         :param var_accesses: an unused optional argument that stores \
             information about variable accesses.
         :type var_accesses: :\
-            py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            py:class:`psyclone.core.VariablesAccessInfo`
 
         :raises NotImplementedError: as this method is not implemented.
 
         '''
-        raise NotImplementedError("cell_map not implemented")
+        raise NotImplementedError("TODO #928: cell_map not implemented")
 
     def field_vector(self, argvect, var_accesses=None):
         '''Create LFRic field vector arguments and add them to the symbol
@@ -217,7 +218,7 @@ class KernelInterface(ArgOrdering):
         :param var_accesses: an unused optional argument that stores \
             information about variable accesses.
         :type var_accesses: :\
-            py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            py:class:`psyclone.core.VariablesAccessInfo`
 
         :raises NotImplementedError: if the datatype of the vector \
             field is not supported.
@@ -225,23 +226,26 @@ class KernelInterface(ArgOrdering):
         '''
         fs_name = argvect.function_space.orig_name
         undf_symbol = self._symbol_table.find_or_create_tag(
-            "undf_{0}".format(fs_name), fs=fs_name,
-            symbol_type=lfric_psyir.NumberOfUniqueDofsDataSymbol,
+            f"undf_{fs_name}", fs=fs_name,
+            symbol_type=LFRicTypes("NumberOfUniqueDofsDataSymbol"),
             interface=self._read_access)
 
         interface = ArgumentInterface(INTENT_MAPPING[argvect.intent])
         try:
-            field_class = self.vector_field_mapping[
-                argvect.intrinsic_type]
+            type_name = self.vector_field_mapping[argvect.intrinsic_type]
+            field_class = LFRicTypes(type_name)
         except KeyError as info:
-            message = ("kernel interface does not support a vector field of "
-                       "type '{0}'.".format(argvect.intrinsic_type))
-            six.raise_from(NotImplementedError(message), info)
+            message = (f"kernel interface does not support a vector field of "
+                       f"type '{argvect.intrinsic_type}'.")
+            raise NotImplementedError(message) from info
         for idx in range(argvect.vector_size):
-            tag = "{0}_v{1}".format(argvect.name, idx)
+            tag = f"{argvect.name}_v{idx}"
             field_data_symbol = self._symbol_table.find_or_create_tag(
                 tag, symbol_type=field_class, dims=[Reference(undf_symbol)],
                 fs=fs_name, interface=interface)
+
+            self._arg_index_to_metadata_index[len(self._arglist)] = (
+                argvect.metadata_index)
             self._arglist.append(field_data_symbol)
 
     def field(self, arg, var_accesses=None):
@@ -255,27 +259,32 @@ class KernelInterface(ArgOrdering):
         :param var_accesses: an unused optional argument that stores \
             information about variable accesses.
         :type var_accesses: :\
-            py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            py:class:`psyclone.core.VariablesAccessInfo`
 
         :raises NotImplementedError: if the datatype of the field is \
             not supported.
 
         '''
         fs_name = arg.function_space.orig_name
+
         undf_symbol = self._symbol_table.find_or_create_tag(
-            "undf_{0}".format(fs_name),
-            symbol_type=lfric_psyir.NumberOfUniqueDofsDataSymbol,
+            f"undf_{fs_name}",
+            symbol_type=LFRicTypes("NumberOfUniqueDofsDataSymbol"),
             fs=fs_name, interface=self._read_access)
 
         try:
-            field_class = self.field_mapping[arg.intrinsic_type]
+            type_name = self.field_mapping[arg.intrinsic_type]
+            field_class = LFRicTypes(type_name)
         except KeyError as info:
-            message = ("kernel interface does not support a field of type "
-                       "'{0}'.".format(arg.intrinsic_type))
-            six.raise_from(NotImplementedError(message), info)
+            message = (f"kernel interface does not support a field of type "
+                       f"'{arg.intrinsic_type}'.")
+            raise NotImplementedError(message) from info
         field_data_symbol = self._symbol_table.find_or_create_tag(
             arg.name, interface=ArgumentInterface(INTENT_MAPPING[arg.intent]),
             symbol_type=field_class, dims=[Reference(undf_symbol)], fs=fs_name)
+
+        self._arg_index_to_metadata_index[len(self._arglist)] = (
+            arg.metadata_index)
         self._arglist.append(field_data_symbol)
 
     def stencil_unknown_extent(self, arg, var_accesses=None):
@@ -286,12 +295,13 @@ class KernelInterface(ArgOrdering):
         :param var_accesses: an unused optional argument that stores \
             information about variable accesses.
         :type var_accesses: :\
-            py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            py:class:`psyclone.core.VariablesAccessInfo`
 
         :raises NotImplementedError: as this method is not implemented.
 
         '''
-        raise NotImplementedError("stencil_unknown_extent not implemented")
+        raise NotImplementedError(
+            "TODO #928: stencil_unknown_extent not implemented")
 
     def stencil_unknown_direction(self, arg, var_accesses=None):
         '''Not implemented.
@@ -301,12 +311,13 @@ class KernelInterface(ArgOrdering):
         :param var_accesses: an unused optional argument that stores \
             information about variable accesses.
         :type var_accesses: :\
-            py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            py:class:`psyclone.core.VariablesAccessInfo`
 
         :raises NotImplementedError: as this method is not implemented.
 
         '''
-        raise NotImplementedError("stencil_unknown_direction not implemented")
+        raise NotImplementedError(
+            "TODO #928: stencil_unknown_direction not implemented")
 
     def stencil(self, arg, var_accesses=None):
         '''Not implemented.
@@ -316,12 +327,12 @@ class KernelInterface(ArgOrdering):
         :param var_accesses: an unused optional argument that stores \
             information about variable accesses.
         :type var_accesses: :\
-            py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            py:class:`psyclone.core.VariablesAccessInfo`
 
         :raises NotImplementedError: as this method is not implemented.
 
         '''
-        raise NotImplementedError("stencil not implemented")
+        raise NotImplementedError("TODO #928: stencil not implemented")
 
     def operator(self, arg, var_accesses=None):
         '''Create an LFRic operator argument and an ncells argument and add
@@ -335,34 +346,38 @@ class KernelInterface(ArgOrdering):
         :param var_accesses: an unused optional argument that stores \
             information about variable accesses.
         :type var_accesses: :\
-            py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            py:class:`psyclone.core.VariablesAccessInfo`
 
         :raises NotImplementedError: if the datatype of the field is \
             not supported.
 
         '''
         fs_from_name = arg.function_space_from.orig_name
+
         ndf_symbol_from = self._symbol_table.find_or_create_tag(
-            "ndf_{0}".format(fs_from_name), fs=fs_from_name,
-            symbol_type=lfric_psyir.NumberOfDofsDataSymbol,
+            f"ndf_{fs_from_name}", fs=fs_from_name,
+            symbol_type=LFRicTypes("NumberOfDofsDataSymbol"),
             interface=self._read_access)
         fs_to_name = arg.function_space_to.orig_name
         ndf_symbol_to = self._symbol_table.find_or_create_tag(
-            "ndf_{0}".format(fs_to_name), fs=fs_to_name,
-            symbol_type=lfric_psyir.NumberOfDofsDataSymbol,
+            f"ndf_{fs_to_name}", fs=fs_to_name,
+            symbol_type=LFRicTypes("NumberOfDofsDataSymbol"),
             interface=self._read_access)
 
-        ncells = lfric_psyir.NumberOfCellsDataSymbol(
+        ncells = LFRicTypes("NumberOfCellsDataSymbol")(
             "ncell_3d", interface=self._read_access)
         self._symbol_table.add(ncells)
         self._arglist.append(ncells)
 
         op_arg_symbol = self._symbol_table.find_or_create_tag(
-            arg.name, symbol_type=lfric_psyir.OperatorDataSymbol,
+            arg.name, symbol_type=LFRicTypes("OperatorDataSymbol"),
             dims=[Reference(ndf_symbol_from), Reference(ndf_symbol_to),
                   Reference(ncells)],
             fs_from=fs_from_name, fs_to=fs_to_name,
             interface=ArgumentInterface(INTENT_MAPPING[arg.intent]))
+
+        self._arg_index_to_metadata_index[len(self._arglist)] = (
+            arg.metadata_index)
         self._arglist.append(op_arg_symbol)
 
     def cma_operator(self, arg, var_accesses=None):
@@ -373,12 +388,12 @@ class KernelInterface(ArgOrdering):
         :param var_accesses: an unused optional argument that stores \
             information about variable accesses.
         :type var_accesses: :\
-            py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            py:class:`psyclone.core.VariablesAccessInfo`
 
         :raises NotImplementedError: as this method is not implemented.
 
         '''
-        raise NotImplementedError("cma_operator not implemented")
+        raise NotImplementedError("TODO #928: cma_operator not implemented")
 
     def scalar(self, scalar_arg, var_accesses=None):
         '''Create an LFRic scalar argument and add it to the symbol table and
@@ -389,16 +404,16 @@ class KernelInterface(ArgOrdering):
         :param var_accesses: an unused optional argument that stores \
             information about variable accesses.
         :type var_accesses: :\
-            py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            py:class:`psyclone.core.VariablesAccessInfo`
 
         :raises NotImplementedError: if the datatype of the scalar is \
             not supported.
 
         '''
         mapping = {
-            "integer": lfric_psyir.LfricIntegerScalarDataSymbol,
-            "real": lfric_psyir.LfricRealScalarDataSymbol,
-            "logical": lfric_psyir.LfricLogicalScalarDataSymbol}
+            "integer": LFRicTypes("LFRicIntegerScalarDataSymbol"),
+            "real": LFRicTypes("LFRicRealScalarDataSymbol"),
+            "logical": LFRicTypes("LFRicLogicalScalarDataSymbol")}
         try:
             symbol = self._symbol_table.find_or_create_tag(
                 scalar_arg.name,
@@ -406,9 +421,11 @@ class KernelInterface(ArgOrdering):
                 interface=ArgumentInterface(INTENT_MAPPING[scalar_arg.intent]))
         except KeyError as info:
             message = (
-                "scalar of type '{0}' not implemented in KernelInterface "
-                "class.".format(scalar_arg.intrinsic_type))
-            six.raise_from(NotImplementedError(message), info)
+                f"scalar of type '{scalar_arg.intrinsic_type}' not implemented"
+                f" in KernelInterface class.")
+            raise NotImplementedError(message) from info
+        self._arg_index_to_metadata_index[len(self._arglist)] = (
+            scalar_arg.metadata_index)
         self._arglist.append(symbol)
 
     def fs_common(self, function_space, var_accesses=None):
@@ -422,13 +439,13 @@ class KernelInterface(ArgOrdering):
         :param var_accesses: an unused optional argument that stores \
             information about variable accesses.
         :type var_accesses: :\
-            py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
         fs_name = function_space.orig_name
         ndf_symbol = self._symbol_table.find_or_create_tag(
-            "ndf_{0}".format(fs_name), fs=fs_name,
-            symbol_type=lfric_psyir.NumberOfDofsDataSymbol,
+            f"ndf_{fs_name}", fs=fs_name,
+            symbol_type=LFRicTypes("NumberOfDofsDataSymbol"),
             interface=self._read_access)
         self._arglist.append(ndf_symbol)
 
@@ -440,12 +457,12 @@ class KernelInterface(ArgOrdering):
         :param var_accesses: an unused optional argument that stores \
             information about variable accesses.
         :type var_accesses: :\
-            py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            py:class:`psyclone.core.VariablesAccessInfo`
 
         :raises NotImplementedError: as this method is not implemented.
 
         '''
-        raise NotImplementedError("fs_intergrid not implemented")
+        raise NotImplementedError("TODO #928: fs_intergrid not implemented")
 
     def fs_compulsory_field(self, function_space, var_accesses=None):
         '''Create any arguments that are compulsory for a field on a
@@ -461,25 +478,25 @@ class KernelInterface(ArgOrdering):
         :param var_accesses: an unused optional argument that stores \
             information about variable accesses.
         :type var_accesses: :\
-            py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
         fs_name = function_space.orig_name
         undf_symbol = self._symbol_table.find_or_create_tag(
-            "undf_{0}".format(fs_name), fs=fs_name,
-            symbol_type=lfric_psyir.NumberOfUniqueDofsDataSymbol,
+            f"undf_{fs_name}", fs=fs_name,
+            symbol_type=LFRicTypes("NumberOfUniqueDofsDataSymbol"),
             interface=self._read_access)
         self._arglist.append(undf_symbol)
 
         fs_name = function_space.orig_name
         ndf_symbol = self._symbol_table.find_or_create_tag(
-            "ndf_{0}".format(fs_name), fs=fs_name,
-            symbol_type=lfric_psyir.NumberOfDofsDataSymbol,
+            f"ndf_{fs_name}", fs=fs_name,
+            symbol_type=LFRicTypes("NumberOfDofsDataSymbol"),
             interface=self._read_access)
 
         dofmap_symbol = self._symbol_table.find_or_create_tag(
-            "dofmap_{0}".format(fs_name), fs=fs_name,
-            symbol_type=lfric_psyir.DofMapDataSymbol,
+            f"dofmap_{fs_name}", fs=fs_name,
+            symbol_type=LFRicTypes("DofMapDataSymbol"),
             dims=[Reference(ndf_symbol)], interface=self._read_access)
         self._arglist.append(dofmap_symbol)
 
@@ -491,12 +508,12 @@ class KernelInterface(ArgOrdering):
         :param var_accesses: an unused optional argument that stores \
             information about variable accesses.
         :type var_accesses: :\
-            py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            py:class:`psyclone.core.VariablesAccessInfo`
 
         :raises NotImplementedError: as this method is not implemented.
 
         '''
-        raise NotImplementedError("banded_dofmap not implemented")
+        raise NotImplementedError("TODO #928: banded_dofmap not implemented")
 
     def indirection_dofmap(self, function_space, operator=None,
                            var_accesses=None):
@@ -509,12 +526,13 @@ class KernelInterface(ArgOrdering):
         :param var_accesses: an unused optional argument that stores \
             information about variable accesses.
         :type var_accesses: :\
-            py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            py:class:`psyclone.core.VariablesAccessInfo`
 
         :raises NotImplementedError: as this method is not implemented.
 
         '''
-        raise NotImplementedError("indirection_dofmap not implemented")
+        raise NotImplementedError(
+            "TODO #928: indirection_dofmap not implemented")
 
     def basis(self, function_space, var_accesses=None):
         '''Create an LFRic basis function argument and add it to the symbol
@@ -525,7 +543,7 @@ class KernelInterface(ArgOrdering):
         :param var_accesses: an unused optional argument that stores \
             information about variable accesses.
         :type var_accesses: :\
-            py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
         basis_name_func = function_space.get_basis_name
@@ -546,7 +564,7 @@ class KernelInterface(ArgOrdering):
         :param var_accesses: an unused optional argument that stores \
             information about variable accesses.
         :type var_accesses: :\
-            py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
         basis_name_func = function_space.get_diff_basis_name
@@ -565,12 +583,13 @@ class KernelInterface(ArgOrdering):
         :param var_accesses: an unused optional argument that stores \
             information about variable accesses.
         :type var_accesses: :\
-            py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            py:class:`psyclone.core.VariablesAccessInfo`
 
         :raises NotImplementedError: as this method is not implemented.
 
         '''
-        raise NotImplementedError("field_bcs_kernel not implemented")
+        raise NotImplementedError(
+            "TODO #928: field_bcs_kernel not implemented")
 
     def operator_bcs_kernel(self, function_space, var_accesses=None):
         '''Not implemented.
@@ -580,12 +599,13 @@ class KernelInterface(ArgOrdering):
         :param var_accesses: an unused optional argument that stores \
             information about variable accesses.
         :type var_accesses: :\
-            py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            py:class:`psyclone.core.VariablesAccessInfo`
 
         :raises NotImplementedError: as this method is not implemented.
 
         '''
-        raise NotImplementedError("operator_bcs_kernel not implemented")
+        raise NotImplementedError(
+            "TODO #928: operator_bcs_kernel not implemented")
 
     def ref_element_properties(self, var_accesses=None):
         ''' Properties associated with the reference element
@@ -593,7 +613,7 @@ class KernelInterface(ArgOrdering):
         :param var_accesses: an unused optional argument that stores \
             information about variable accesses.
         :type var_accesses: :\
-            py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
         # This callback does not contribute any kernel arguments
@@ -604,7 +624,7 @@ class KernelInterface(ArgOrdering):
         :param var_accesses: an unused optional argument that stores \
             information about variable accesses.
         :type var_accesses: :\
-            py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
         # This callback does not contribute any kernel arguments
@@ -618,7 +638,7 @@ class KernelInterface(ArgOrdering):
         :param var_accesses: an unused optional argument that stores \
             information about variable accesses.
         :type var_accesses: :\
-            py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            py:class:`psyclone.core.VariablesAccessInfo`
 
         :raises InternalError: if an unsupported quadrature shape is \
             found.
@@ -629,52 +649,54 @@ class KernelInterface(ArgOrdering):
             if shape == "gh_quadrature_xyoz":
                 nqp_xy = self._symbol_table.find_or_create_tag(
                     "nqp_xy",
-                    symbol_type=lfric_psyir.NumberOfQrPointsInXyDataSymbol,
+                    symbol_type=LFRicTypes("NumberOfQrPointsInXyDataSymbol"),
                     interface=self._read_access)
                 nqp_z = self._symbol_table.find_or_create_tag(
                     "nqp_z",
-                    symbol_type=lfric_psyir.NumberOfQrPointsInZDataSymbol,
+                    symbol_type=LFRicTypes("NumberOfQrPointsInZDataSymbol"),
                     interface=self._read_access)
                 weights_xy = self._symbol_table.find_or_create_tag(
                     "weights_xy",
-                    symbol_type=lfric_psyir.QrWeightsInXyDataSymbol,
+                    symbol_type=LFRicTypes("QrWeightsInXyDataSymbol"),
                     dims=[Reference(nqp_xy)], interface=self._read_access)
                 weights_z = self._symbol_table.find_or_create_tag(
                     "weights_z",
-                    symbol_type=lfric_psyir.QrWeightsInZDataSymbol,
+                    symbol_type=LFRicTypes("QrWeightsInZDataSymbol"),
                     dims=[Reference(nqp_z)], interface=self._read_access)
                 self._arglist.extend([nqp_xy, nqp_z, weights_xy, weights_z])
             elif shape == "gh_quadrature_face":
                 nfaces = self._symbol_table.find_or_create_tag(
                     "nfaces",
-                    symbol_type=lfric_psyir.NumberOfFacesDataSymbol,
+                    symbol_type=LFRicTypes("NumberOfFacesDataSymbol"),
                     interface=self._read_access)
                 nqp = self._symbol_table.find_or_create_tag(
                     "nqp_faces",
-                    symbol_type=lfric_psyir.NumberOfQrPointsInFacesDataSymbol,
+                    symbol_type=LFRicTypes(
+                        "NumberOfQrPointsInFacesDataSymbol"),
                     interface=self._read_access)
                 weights = self._symbol_table.find_or_create_tag(
                     "weights_faces",
-                    symbol_type=lfric_psyir.QrWeightsInFacesDataSymbol,
+                    symbol_type=LFRicTypes("QrWeightsInFacesDataSymbol"),
                     dims=[Reference(nqp)], interface=self._read_access)
                 self._arglist.extend([nfaces, nqp, weights])
             elif shape == "gh_quadrature_edge":
                 nedges = self._symbol_table.find_or_create_tag(
                     "nedges",
-                    symbol_type=lfric_psyir.NumberOfEdgesDataSymbol,
+                    symbol_type=LFRicTypes("NumberOfEdgesDataSymbol"),
                     interface=self._read_access)
                 nqp = self._symbol_table.find_or_create_tag(
                     "nqp_edges",
-                    symbol_type=lfric_psyir.NumberOfQrPointsInEdgesDataSymbol,
+                    symbol_type=LFRicTypes(
+                        "NumberOfQrPointsInEdgesDataSymbol"),
                     interface=self._read_access)
                 weights = self._symbol_table.find_or_create_tag(
                     "weights_edges",
-                    symbol_type=lfric_psyir.QrWeightsInEdgesDataSymbol,
+                    symbol_type=LFRicTypes("QrWeightsInEdgesDataSymbol"),
                     dims=[Reference(nqp)], interface=self._read_access)
                 self._arglist.extend([nedges, nqp, weights])
             else:
-                raise InternalError("Unsupported quadrature shape '{0}' "
-                                    "found in kernel_interface.".format(shape))
+                raise InternalError(f"Unsupported quadrature shape '{shape}' "
+                                    f"found in kernel_interface.")
 
     def _create_basis(self, function_space, mapping, basis_name_func,
                       first_dim_value_func):
@@ -715,8 +737,8 @@ class KernelInterface(ArgOrdering):
         for shape in self._kern.eval_shapes:
             fs_name = function_space.orig_name
             ndf_symbol = self._symbol_table.find_or_create_tag(
-                "ndf_{0}".format(fs_name),
-                symbol_type=lfric_psyir.NumberOfDofsDataSymbol,
+                f"ndf_{fs_name}",
+                symbol_type=LFRicTypes("NumberOfDofsDataSymbol"),
                 fs=fs_name, interface=self._read_access)
 
             # Create the qr tag by appending the last part of the shape
@@ -726,13 +748,14 @@ class KernelInterface(ArgOrdering):
             if shape == "gh_quadrature_xyoz":
                 nqp_xy = self._symbol_table.find_or_create_tag(
                     "nqp_xy",
-                    symbol_type=lfric_psyir.NumberOfQrPointsInXyDataSymbol,
+                    symbol_type=LFRicTypes("NumberOfQrPointsInXyDataSymbol"),
                     interface=self._read_access)
                 nqp_z = self._symbol_table.find_or_create_tag(
                     "nqp_z",
-                    symbol_type=lfric_psyir.NumberOfQrPointsInZDataSymbol,
+                    symbol_type=LFRicTypes("NumberOfQrPointsInZDataSymbol"),
                     interface=self._read_access)
-                arg = mapping["gh_quadrature_xyoz"](
+                type_name = mapping["gh_quadrature_xyoz"]
+                arg = LFRicTypes(type_name)(
                     basis_tag, [int(first_dim_value_func(function_space)),
                                 Reference(ndf_symbol), Reference(nqp_xy),
                                 Reference(nqp_z)],
@@ -740,13 +763,15 @@ class KernelInterface(ArgOrdering):
             elif shape == "gh_quadrature_face":
                 nfaces = self._symbol_table.find_or_create_tag(
                     "nfaces",
-                    symbol_type=lfric_psyir.NumberOfFacesDataSymbol,
+                    symbol_type=LFRicTypes("NumberOfFacesDataSymbol"),
                     interface=self._read_access)
                 nqp = self._symbol_table.find_or_create_tag(
                     "nqp_faces",
-                    symbol_type=lfric_psyir.NumberOfQrPointsInFacesDataSymbol,
+                    symbol_type=LFRicTypes(
+                        "NumberOfQrPointsInFacesDataSymbol"),
                     interface=self._read_access)
-                arg = mapping["gh_quadrature_face"](
+                type_name = mapping["gh_quadrature_face"]
+                arg = LFRicTypes(type_name)(
                     basis_tag, [int(first_dim_value_func(function_space)),
                                 Reference(ndf_symbol), Reference(nqp),
                                 Reference(nfaces)],
@@ -754,13 +779,15 @@ class KernelInterface(ArgOrdering):
             elif shape == "gh_quadrature_edge":
                 nedges = self._symbol_table.find_or_create_tag(
                     "nedges",
-                    symbol_type=lfric_psyir.NumberOfEdgesDataSymbol,
+                    symbol_type=LFRicTypes("NumberOfEdgesDataSymbol"),
                     interface=self._read_access)
                 nqp = self._symbol_table.find_or_create_tag(
                     "nqp_edges",
-                    symbol_type=lfric_psyir.NumberOfQrPointsInEdgesDataSymbol,
+                    symbol_type=LFRicTypes(
+                        "NumberOfQrPointsInEdgesDataSymbol"),
                     interface=self._read_access)
-                arg = mapping["gh_quadrature_edge"](
+                type_name = mapping["gh_quadrature_edge"]
+                arg = LFRicTypes(type_name)(
                     basis_tag, [int(first_dim_value_func(function_space)),
                                 Reference(ndf_symbol), Reference(nqp),
                                 Reference(nedges)],
@@ -772,12 +799,11 @@ class KernelInterface(ArgOrdering):
                 # values are 2-tuples of (FunctionSpace, argument).
                 for _, _ in self._kern.eval_targets.items():
                     raise NotImplementedError(
-                        "Evaluator shapes not implemented in kernel_interface "
-                        "class.")
+                        "TODO #928: Evaluator shapes not implemented in "
+                        "kernel_interface class.")
             else:
                 raise InternalError(
-                    "Unrecognised quadrature or evaluator shape '{0}'. "
-                    "Expected one of: {1}.".format(
-                        shape, const.VALID_EVALUATOR_SHAPES))
+                    f"Unrecognised quadrature or evaluator shape '{shape}'. "
+                    f"Expected one of: {const.VALID_EVALUATOR_SHAPES}.")
             self._symbol_table.add(arg)
             self._arglist.append(arg)

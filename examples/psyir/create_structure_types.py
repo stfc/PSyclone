@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council
+# Copyright (c) 2020-2023, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
+# Modified: R. W. Ford, STFC Daresbury Lab
 
 '''A Python script showing how to create and manipulate symbols of structure
 type within the PSyIR. In order to use it you must first install PSyclone.
@@ -42,7 +43,6 @@ Once you have psyclone installed, this script may be run by doing:
 >>> python create_structure_types.py
 
 '''
-from __future__ import print_function
 from psyclone.psyir.nodes import Literal, KernelSchedule, Container, \
     StructureReference, ArrayOfStructuresReference, Assignment, \
     BinaryOperation, Range
@@ -57,7 +57,7 @@ from psyclone.psyir.backend.fortran import FortranWriter
 CONTAINER_SYMBOL_TABLE = SymbolTable()
 REAL_KIND = CONTAINER_SYMBOL_TABLE.new_symbol(
         root_name="RKIND", symbol_type=DataSymbol, datatype=INTEGER_TYPE,
-        constant_value=8)
+        is_constant=True, initial_value=8)
 
 # Shorthand for a scalar type with REAL_KIND precision
 SCALAR_TYPE = ScalarType(ScalarType.Intrinsic.REAL, REAL_KIND)
@@ -160,7 +160,7 @@ KERNEL_SCHEDULE = KernelSchedule.create("work", SYMBOL_TABLE, ASSIGNMENTS)
 # Container
 CONTAINER = Container.create("CONTAINER", CONTAINER_SYMBOL_TABLE,
                              [KERNEL_SCHEDULE])
-CONTAINER.view()
+print(CONTAINER.view())
 
 # Write out the code as Fortran.
 WRITER = FortranWriter()

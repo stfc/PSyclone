@@ -45,7 +45,7 @@ implementation of any Built-in operations used. Its
 functional responsibilities are to
 
 
-1. map the arguments supplied by an Algorithm ``invoke`` call to the arguments required by a Built-in or Kernel call (as these will not have a one-to-one correspondance).
+1. map the arguments supplied by an Algorithm ``invoke`` call to the arguments required by a Built-in or Kernel call (as these will not have a one-to-one correspondence).
 2. call any Kernel routines such that they cover the required iteration space and
 3. perform any Built-in operations (either by including the necessary code
    directly in the PSy layer or by e.g. calling a maths library) and
@@ -153,7 +153,7 @@ the contents of a PSyIR node. If we were to look at the LFRic eg6 example
 we would see the following output:
 ::
 
-   >>> schedule.view()
+   >>> print(schedule.view())
    InvokeSchedule[invoke='invoke_0', dm=True]
        0: Directive[OMP parallel do]
            Schedule[]

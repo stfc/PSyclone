@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council
+# Copyright (c) 2020-2023, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -42,11 +42,9 @@ be verified may be a single kernel, multiple occurrences of a
 kernel in an invoke, nodes in an invoke or the entire invoke.
 
 There is currently only one class in this module: ReadOnlyVerifyNode.
+
 '''
 
-from __future__ import absolute_import, print_function
-
-from psyclone.core import VariablesAccessInfo
 from psyclone.f2pygen import CommentGen
 from psyclone.psyir.nodes.psy_data_node import PSyDataNode
 
@@ -71,7 +69,7 @@ class ReadOnlyVerifyNode(PSyDataNode):
         :rtype: :py:class:`psyclone.psyir.nodes.Schedule`
 
         '''
-        return super(ReadOnlyVerifyNode, self).psy_data_body
+        return super().psy_data_body
 
     def gen_code(self, parent):
         # pylint: disable=arguments-differ
@@ -83,42 +81,51 @@ class ReadOnlyVerifyNode(PSyDataNode):
 
         :param parent: the parent of this Node in the PSyIR.
         :type parent: :py:class:`psyclone.psyir.nodes.Node`.
+
         '''
+        # Avoid circular dependency
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.tools import DependencyTools, ReadWriteInfo
+        # Determine the variables to write:
+        dep = DependencyTools()
+        read_write_info = ReadWriteInfo()
+        dep.get_input_parameters(read_write_info, self, options=self.options)
 
-        # Determine the variables to validate:
-        variables_info = VariablesAccessInfo(self)
-        read_only = []
-        for var_name in variables_info:
-            if variables_info[var_name].is_read_only():
-                read_only.append(var_name)
-
-        options = {'pre_var_list': read_only,
-                   'post_var_list': read_only}
+        options = {'pre_var_list': read_write_info.read_list,
+                   'post_var_list': read_write_info.read_list}
 
         parent.add(CommentGen(parent, ""))
         parent.add(CommentGen(parent, " ReadOnlyVerifyStart"))
         parent.add(CommentGen(parent, ""))
-        super(ReadOnlyVerifyNode, self).gen_code(parent, options)
+        super().gen_code(parent, options)
         parent.add(CommentGen(parent, ""))
         parent.add(CommentGen(parent, " ReadOnlyVerifyEnd"))
         parent.add(CommentGen(parent, ""))
 
     def lower_to_language_level(self):
+        # pylint: disable=arguments-differ
         '''
         Lowers this node (and all children) to language-level PSyIR. The
         PSyIR tree is modified in-place.
+
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
+
         '''
-        # Determine the variables to validate:
-        variables_info = VariablesAccessInfo(self)
-        read_only = []
-        for var_name in variables_info:
-            if variables_info[var_name].is_read_only():
-                read_only.append(var_name)
+        # Avoid circular dependency
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.tools.dependency_tools import DependencyTools
+        # Determine the variables to write:
+        # Avoid circular dependency
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.tools import ReadWriteInfo
+        dep = DependencyTools()
+        read_write_info = ReadWriteInfo()
+        dep.get_input_parameters(read_write_info, self, options=self.options)
+        options = {'pre_var_list': read_write_info.read_list,
+                   'post_var_list': read_write_info.read_list}
 
-        options = {'pre_var_list': read_only,
-                   'post_var_list': read_only}
-
-        super(ReadOnlyVerifyNode, self).lower_to_language_level(options)
+        return super().lower_to_language_level(options)
 
 
 # ============================================================================

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2021, Science and Technology Facilities Council.
+# Copyright (c) 2018-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,13 +31,12 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+# Authors: R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 
 ''' Module containing py.test tests for the construction of a PSy
     representation of NEMO code '''
 
 
-from __future__ import print_function, absolute_import
 import os
 import pytest
 from fparser.common.readfortran import FortranStringReader
@@ -45,8 +44,8 @@ from psyclone.psyGen import PSyFactory, InlinedKern
 from psyclone.errors import InternalError
 from psyclone.tests.utilities import get_invoke
 from psyclone import nemo
-from psyclone.psyir.nodes import Assignment, CodeBlock, IfBlock, Loop, \
-    Schedule, Literal, Reference
+from psyclone.psyir.nodes import Assignment, IfBlock, Literal, Loop, \
+    Reference, Schedule
 from psyclone.psyir.nodes.node import colored
 
 
@@ -116,20 +115,6 @@ def test_array_valued_function():
     assert not kernels
 
 
-def test_do_while():
-    ''' Check that do-while loops are put into CodeBlocks. Eventually we
-    will need to recognise them as Nodes in the Schedule in their
-    own right. '''
-
-    _, invoke_info = get_invoke("do_while.f90", api=API, idx=0)
-    sched = invoke_info.schedule
-    # Do while loops are not currently handled and thus are put into
-    # CodeBlocks.
-    assert isinstance(sched[1], CodeBlock)
-    assert isinstance(sched[2], Assignment)
-    assert isinstance(sched[4], CodeBlock)
-
-
 def test_multi_kern():
     ''' Test that having multiple kernels within a single loop raises
     the expected error. '''
@@ -172,6 +157,7 @@ def test_fn_call_no_kernel(parser):
     ''' Check that we don't create a kernel if the loop body contains a
     function call. '''
     reader = FortranStringReader("program fn_call\n"
+                                 "integer, parameter :: wp = kind(1.0)\n"
                                  "integer :: ji, jpj\n"
                                  "real(kind=wp) :: sto_tmp(5)\n"
                                  "do ji = 1,jpj\n"
@@ -187,16 +173,15 @@ def test_fn_call_no_kernel(parser):
     assert isinstance(loop.loop_body[0], Assignment)
 
 
-def test_schedule_view(capsys):
+def test_schedule_view():
     ''' Check the schedule view/str methods work as expected '''
     _, invoke_info = get_invoke("io_in_loop.f90", api=API, idx=0)
     sched = invoke_info.schedule
     sched_str = str(sched)
-    assert "NemoLoop[id:'', variable:'ji', loop_type:'lon']" in sched_str
-    assert "NemoLoop[id:'', variable:'jj', loop_type:'lat']" in sched_str
-    assert "NemoLoop[id:'', variable:'jk', loop_type:'levels']" in sched_str
-    sched.view()
-    output, _ = capsys.readouterr()
+    assert "NemoLoop[variable:'ji', loop_type:'lon']" in sched_str
+    assert "NemoLoop[variable:'jj', loop_type:'lat']" in sched_str
+    assert "NemoLoop[variable:'jk', loop_type:'levels']" in sched_str
+    output = sched.view()
 
     # Have to allow for colouring of output text
     loop_str = colored("Loop", Loop._colour)
@@ -254,6 +239,7 @@ def test_kern_sched_parents(parser):
     ''' Check that the children of a Kernel schedule have that schedule
     as their parent. '''
     reader = FortranStringReader("program fake_kern\n"
+                                 "integer, parameter :: wp = kind(1.0)\n"
                                  "integer :: ji, jj, jpi, jpj\n"
                                  "real(kind=wp) :: sto_tmp(5,5)\n"
                                  "do ji = 1,jpi\n"

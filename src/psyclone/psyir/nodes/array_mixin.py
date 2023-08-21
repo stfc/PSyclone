@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,30 +31,31 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+# Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 #         I. Kavcic, Met Office
 #         J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
 ''' This module contains the implementation of the abstract ArrayMixin. '''
 
-from __future__ import absolute_import
-
 import abc
-import six
 
+from psyclone.core import SymbolicMaths
 from psyclone.errors import InternalError
+from psyclone.psyir.nodes.call import Call
+from psyclone.psyir.nodes.codeblock import CodeBlock
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.literal import Literal
 from psyclone.psyir.nodes.member import Member
-from psyclone.psyir.nodes.operation import BinaryOperation
+from psyclone.psyir.nodes.operation import Operation, BinaryOperation
 from psyclone.psyir.nodes.ranges import Range
 from psyclone.psyir.nodes.reference import Reference
-from psyclone.psyir.symbols.datatypes import ScalarType
+from psyclone.psyir.symbols import DataSymbol, DataTypeSymbol
+from psyclone.psyir.symbols.datatypes import (
+    ScalarType, ArrayType, DeferredType, UnknownType, INTEGER_TYPE)
 
 
-@six.add_metaclass(abc.ABCMeta)
-class ArrayMixin(object):
+class ArrayMixin(metaclass=abc.ABCMeta):
     '''
     Abstract class used to add functionality common to Nodes that represent
     Array accesses.
@@ -80,7 +81,6 @@ class ArrayMixin(object):
         :rtype: bool
 
         '''
-        # pylint: disable=no-self-use
         return True
 
     def get_signature_and_indices(self):
@@ -96,7 +96,7 @@ class ArrayMixin(object):
         :rtype: tuple(:py:class:`psyclone.core.Signature`, list of \
             lists of indices)
         '''
-        sig, _ = super(ArrayMixin, self).get_signature_and_indices()
+        sig, _ = super().get_signature_and_indices()
         return (sig, [self.indices[:]])
 
     def _validate_index(self, index):
@@ -120,87 +120,229 @@ class ArrayMixin(object):
                 f"'{index}' must be less than the number of dimensions "
                 f"'{len(self.indices)}'.")
 
-    def is_lower_bound(self, index):
-        '''Returns True if the specified array index contains a Range node
-        which has a starting value given by the 'LBOUND(name,index)'
-        intrinsic where 'name' is the name of the current Array and
-        'index' matches the specified array index. Otherwise False is
-        returned.
+    def _is_bound_op(self, expr, bound_operator, index):
+        '''Utility function that checks that the provided 'expr' argument is
+        in the form '[UL]BOUND(array_name, index)', where the type of
+        bound operation is determined by the 'bound_operator'
+        argument, array_name is the name of this array and the 'index'
+        argument provides the index value.
 
-        For example, if a Fortran array A was declared as
-        A(10) then the starting value is 1 and LBOUND(A,1) would
-        return that value.
+        :param expr: a PSyIR expression.
+        :type expr: :py:class:`psyclone.psyir.nodes.Node`
+        :param bound_operator: the particular bound operation.
+        :type bound_operator: \
+            :py:class:`psyclone.psyir.nodes.operation.BinaryOperation.\
+            Operator.LBOUND` or :py:class:`psyclone.psyir.nodes.operation.\
+            BinaryOperation.Operator.UBOUND`
+        :param int index: the bounds index.
 
-        :param int index: the array index to check.
-
-        :returns: True if the array index is a range with its start \
-            value being LBOUND(array,index) and False otherwise.
+        :returns: True if the expr is in the expected form and False \
+            otherwise.
         :rtype: bool
 
         '''
-        self._validate_index(index)
+        if (isinstance(expr, BinaryOperation) and
+                expr.operator == bound_operator):
+            # This is the expected bound
+            if self.is_same_array(expr.children[0]):
+                # The arrays match
+                if (isinstance(expr.children[1], Literal) and
+                        expr.children[1].datatype.intrinsic ==
+                        ScalarType.Intrinsic.INTEGER
+                        and expr.children[1].value == str(index+1)):
+                    # This is the correct index
+                    return True
+        return False
 
-        array_dimension = self.indices[index]
-        if not isinstance(array_dimension, Range):
-            return False
+    def is_lower_bound(self, index):
+        '''Returns whether this array access includes the lower bound of the
+        array for the specified index. Returns True if it is and False
+        if it is not or if it could not be determined.
 
-        lower = array_dimension.start
-        if not (isinstance(lower, BinaryOperation) and
-                lower.operator == BinaryOperation.Operator.LBOUND):
-            return False
+        :param int index: the array index to check.
 
-        if not isinstance(lower.children[0], Reference):
-            return False
+        :returns: True if it can be determined that the lower bound of \
+            the array is accessed in this array reference for the \
+            specified index.
+        :rtype: bool
 
-        if not self.is_same_array(lower.children[0]):
-            return False
+        '''
+        return self._is_bound(index, "lower")
 
-        if not (isinstance(lower.children[1], Literal) and
-                lower.children[1].datatype.intrinsic ==
-                ScalarType.Intrinsic.INTEGER
-                and lower.children[1].value == str(index+1)):
-            return False
-        return True
+    def get_lbound_expression(self, pos):
+        '''
+        Lookup the lower bound of this ArrayMixin. If we don't have the
+        necessary type information then a call to the LBOUND intrinsic is
+        constructed and returned.
+
+        :param int pos: the dimension of the array for which to lookup the \
+                        lower bound.
+
+        :returns: the declared lower bound for the specified dimension of \
+            the array accesed or a call to the LBOUND intrinsic if it is \
+            unknown.
+        :rtype: :py:class:`psyclone.psyir.nodes.Node`
+
+        '''
+        # First, walk up to the parent reference and get its type. For a simple
+        # ArrayReference this will just be self.
+        root_ref = self.ancestor(Reference, include_self=True)
+        cursor_type = root_ref.symbol.datatype
+
+        # Walk back down the structure, looking up the type information as we
+        # go. We also collect the necessary information for creating a new
+        # Reference as argument to the LBOUND intrinsic in case the type
+        # information is not available.
+        cnames = []
+        cursor = root_ref
+        while cursor is not self:
+            cursor = cursor.member
+            # Collect member information.
+            if isinstance(cursor, ArrayMixin):
+                new_indices = [idx.copy() for idx in cursor.indices]
+                cnames.append((cursor.name, new_indices))
+            else:
+                cnames.append(cursor.name)
+            # Continue to resolve datatype unless we hit an
+            # UnknownType or DeferredType.
+            if isinstance(cursor_type, ArrayType):
+                cursor_type = cursor_type.intrinsic
+            if isinstance(cursor_type, DataTypeSymbol):
+                cursor_type = cursor_type.datatype
+            if isinstance(cursor_type, (UnknownType, DeferredType)):
+                continue
+            cursor_type = cursor_type.components[cursor.name].datatype
+
+        if (isinstance(cursor_type, ArrayType) and
+                cursor_type.shape[pos] not in [ArrayType.Extent.DEFERRED,
+                                               ArrayType.Extent.ATTRIBUTE]):
+            # We have the full type information and the lower bound is known.
+            return cursor_type.shape[pos].lower.copy()
+
+        # We've either failed to resolve the type or we don't know the extent
+        # of the array dimension so construct a call to the LBOUND intrinsic.
+        if cnames:
+            # We have some sort of structure access - remove any indexing
+            # information from the ultimate member of the structure access.
+            if len(cnames[-1]) == 2:
+                cnames[-1] = cnames[-1][0]
+            # Have to import here to avoid circular dependencies.
+            # pylint: disable=import-outside-toplevel
+            from psyclone.psyir.nodes import (ArrayOfStructuresReference,
+                                              StructureReference)
+            if isinstance(root_ref, ArrayMixin):
+                new_indices = [idx.copy() for idx in root_ref.indices]
+                ref = ArrayOfStructuresReference.create(
+                    root_ref.symbol, new_indices, cnames)
+            else:
+                ref = StructureReference.create(root_ref.symbol, cnames)
+        else:
+            # A simple Reference.
+            ref = Reference(root_ref.symbol)
+
+        return BinaryOperation.create(BinaryOperation.Operator.LBOUND, ref,
+                                      Literal(str(pos+1), INTEGER_TYPE))
 
     def is_upper_bound(self, index):
-        '''Returns True if the specified array index contains a Range node
-        which has a stopping value given by the 'UBOUND(name,index)'
-        intrinsic where 'name' is the name of the current ArrayReference and
-        'index' matches the specified array index. Otherwise False is
-        returned.
-
-        For example, if a Fortran array A was declared as
-        A(10) then the stopping value is 10 and UBOUND(A,1) would
-        return that value.
+        '''Returns whether this array access includes the upper bound of
+        the array for the specified index. Returns True if it is and False
+        if it is not or if it could not be determined.
 
         :param int index: the array index to check.
 
-        :returns: True if the array index is a range with its stop \
-            value being UBOUND(array,index) and False otherwise.
+        :returns: True if it can be determined that the upper bound of \
+            the array is accessed in this array reference for the \
+            specified index.
+        :rtype: bool
+
+        '''
+        return self._is_bound(index, "upper")
+
+    def _is_bound(self, index, bound_type):
+        '''Attempts to determines whether this array access includes the lower
+        or upper bound (as specified by the bound_type argument).
+
+        Checks whether the specified array index contains a Range node
+        which has a starting/stopping value given by the
+        '{LU}BOUND(name,index)' intrinsic where 'name' is the name of
+        the current ArrayReference and 'index' matches the specified
+        array index. Also checks if the starting/stopping value of the
+        access matches the lower/upper value of the declaration.
+
+        For example, if a Fortran array A was declared as A(n) then
+        the stopping value is n and A(:UBOUND(A,1)), A(:n) or A(n)
+        would access that value. The starting value is 1 and
+        A(LBOUND(A,1):), A(1:) or A(1) would access that value.
+
+        :param int index: the array index to check.
+        :param str bound_type: the type of bound ("lower" or "upper")
+
+        :returns: True if the array index access includes the \
+            lower/upper bound of the array declaration and False if it \
+            does not or if it can't be determined.
         :rtype: bool
 
         '''
         self._validate_index(index)
 
-        array_dimension = self.indices[index]
-        if not isinstance(array_dimension, Range):
+        access_shape = self.indices[index]
+
+        # Determine the appropriate (lower or upper) bound and check
+        # for a bounds operator.
+        if isinstance(access_shape, Range):
+            if bound_type == "upper":
+                operator = BinaryOperation.Operator.UBOUND
+                access_bound = access_shape.stop
+            else:
+                operator = BinaryOperation.Operator.LBOUND
+                access_bound = access_shape.start
+            # Is this array access in the form of {UL}BOUND(array, index)?
+            if self._is_bound_op(access_bound, operator, index):
+                return True
+        else:
+            access_bound = access_shape
+
+        # Try to compare the upper/lower bound of the array access
+        # with the upper/lower bound of the array declaration.
+
+        # Finding the array declaration is only supported for an
+        # ArrayReference at the moment.
+        # Import here to avoid circular dependence.
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.nodes.array_reference import ArrayReference
+        if not isinstance(self, ArrayReference):
+            return False
+        # pylint: enable=import-outside-toplevel
+
+        symbol = self.symbol
+        if not isinstance(symbol, DataSymbol):
+            # There is no type information for this symbol
+            # (probably because it originates from a wildcard import).
+            return False
+        datatype = symbol.datatype
+
+        if not isinstance(datatype, ArrayType):
+            # The declaration datatype could be of UnknownFortranType
+            # if the symbol is of e.g. character type.
             return False
 
-        upper = array_dimension.stop
-        if not (isinstance(upper, BinaryOperation) and
-                upper.operator == BinaryOperation.Operator.UBOUND):
+        # The bound of the declaration is available.
+
+        if isinstance(datatype.shape[index], ArrayType.Extent):
+            # The size is unspecified at compile-time (but is
+            # available at run-time e.g. when the size is allocated by
+            # an allocate statement.
             return False
 
-        if not isinstance(upper.children[0], Reference):
-            return False
+        # The size of the bound is available.
+        if bound_type == "upper":
+            declaration_bound = datatype.shape[index].upper
+        else:
+            declaration_bound = datatype.shape[index].lower
 
-        if not self.is_same_array(upper.children[0]):
-            return False
-
-        return (isinstance(upper.children[1], Literal) and
-                upper.children[1].datatype.intrinsic ==
-                ScalarType.Intrinsic.INTEGER
-                and upper.children[1].value == str(index+1))
+        # Do the bounds match?
+        sym_maths = SymbolicMaths.get()
+        return sym_maths.equal(declaration_bound, access_bound)
 
     def is_same_array(self, node):
         '''
@@ -246,23 +388,10 @@ class ArrayMixin(object):
         if self_sig[:depth+1] != node_sig[:]:
             return False
 
-        # We use the FortranWriter to simplify the job of comparing array-index
-        # expressions but have to import it here to avoid circular dependencies
-        # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.backend.fortran import FortranWriter
-        fwriter = FortranWriter()
-
         # Examine the indices, ignoring any on the innermost accesses (hence
         # the slice to `depth` rather than `depth + 1` below).
-        for indices in zip(self_indices[:depth], node_indices[:depth]):
-            # TODO #1424. We need to be able to compare PSyIR fragments
-            # natively rather than using a visitor. We use the `_visit` method
-            # directly here so as to avoid the deep-copying of the complete
-            # tree which is performed when using fwriter(). (This operation
-            # can become very, very costly for large trees.)
-            # pylint: disable=protected-access
-            if ("".join(fwriter._visit(idx) for idx in indices[0]) !=
-                    "".join(fwriter._visit(idx) for idx in indices[1])):
+        for idx1, idx2 in zip(self_indices[:depth], node_indices[:depth]):
+            if idx1 != idx2:
                 return False
         return True
 
@@ -319,6 +448,73 @@ class ArrayMixin(object):
                     f"DataNode or Range representing an array-index "
                     f"expression but found '{type(child).__name__}'")
         return self.children
+
+    def _get_effective_shape(self):
+        '''
+        :returns: the shape of the array access represented by this node.
+        :rtype: List[:py:class:`psyclone.psyir.nodes.DataNode`]
+
+        :raises NotImplementedError: if any of the array-indices involve a
+                                     function call or an expression.
+        '''
+        def _num_elements(expr):
+            '''
+            Create PSyIR for the number of elements in this range. It
+            is given by (stop - start)/step + 1.
+
+            :param expr: the range for which to compute the number of elements.
+            :type expr: :py:class:`psyclone.psyir.nodes.Range` or \
+                :py:class:`psyclone.psyir.symbols.ArrayType.ArrayBounds`
+
+            :returns: the PSyIR expression for the number of elements in the \
+                      supplied range.
+            :rtype: :py:class:`psyclone.psyir.nodes.BinaryOperation`
+
+            '''
+            if isinstance(expr, Range):
+                start = expr.start
+                stop = expr.stop
+                step = expr.step
+            elif isinstance(expr, ArrayType.ArrayBounds):
+                start = expr.lower
+                stop = expr.upper
+                step = Literal("1", INTEGER_TYPE)
+            minus = BinaryOperation.create(BinaryOperation.Operator.SUB,
+                                           stop.copy(), start.copy())
+            div = BinaryOperation.create(BinaryOperation.Operator.DIV,
+                                         minus, step.copy())
+            plus = BinaryOperation.create(BinaryOperation.Operator.ADD,
+                                          div, Literal("1", INTEGER_TYPE))
+            return plus
+
+        shape = []
+        for idx_expr in self.indices:
+            if isinstance(idx_expr, Range):
+                shape.append(_num_elements(idx_expr))
+
+            elif isinstance(idx_expr, Reference):
+                dtype = idx_expr.datatype
+                if isinstance(dtype, ArrayType):
+                    # An array slice can be defined by a 1D slice of another
+                    # array, e.g. `a(b(1:4))`.
+                    indirect_array_shape = dtype.shape
+                    if len(indirect_array_shape) > 1:
+                        raise InternalError(
+                            f"An array defining a slice of a dimension of "
+                            f"another array must be 1D but '{idx_expr.name}' "
+                            f"used to index into '{self.name}' has "
+                            f"{len(indirect_array_shape)} dimensions.")
+                    shape.append(_num_elements(dtype.shape[0]))
+            elif isinstance(idx_expr, (Call, Operation, CodeBlock)):
+                # We can't yet straightforwardly query the type of a function
+                # call or Operation - TODO #1799.
+                raise NotImplementedError(
+                    f"The array index expressions for access "
+                    f"'{self.debug_string()}' include a function call or "
+                    f"expression. Querying the return type of "
+                    f"such things is yet to be implemented.")
+
+        return shape
 
     def get_outer_range_index(self):
         ''' Return the index of the child that represents the outermost

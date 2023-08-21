@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter, and S. Siso STFC Daresbury Lab
+# Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 #         A. B. G. Chalk STFC Daresbury Lab
 #         J. Henrichs, Bureau of Meteorology
 # Modified I. Kavcic, Met Office
@@ -67,13 +67,13 @@ class LoopSwapTrans(LoopTrans):
      >>> psy = PSyFactory("gocean1.0").create(invokeInfo)
      >>> schedule = psy.invokes.get('invoke_0').schedule
      >>> # Uncomment the following line to see a text view of the schedule
-     >>> # schedule.view()
+     >>> # print(schedule.view())
      >>>
      >>> from psyclone.transformations import LoopSwapTrans
      >>> swap = LoopSwapTrans()
      >>> swap.apply(schedule.children[0])
      >>> # Uncomment the following line to see a text view of the schedule
-     >>> # schedule.view()
+     >>> # print(schedule.view())
 
     '''
 
@@ -92,7 +92,7 @@ class LoopSwapTrans(LoopTrans):
         :param node_outer: a Loop node from an AST.
         :type node_outer: py:class:`psyclone.psyir.nodes.Loop`
         :param options: a dictionary with options for transformations.
-        :type options: dict of string:values or None
+        :type options: Optional[Dict[str, Any]]
 
         :raises TransformationError: if the supplied node does not \
                                      allow a loop swap to be done.
@@ -173,7 +173,7 @@ class LoopSwapTrans(LoopTrans):
         :param outer: the node representing the outer loop.
         :type outer: :py:class:`psyclone.psyir.nodes.Loop`
         :param options: a dictionary with options for transformations.
-        :type options: dictionary of string:values or None
+        :type options: Optional[Dict[str, Any]]
 
         :raises TransformationError: if the supplied node does not \
                                      allow a loop swap to be done.

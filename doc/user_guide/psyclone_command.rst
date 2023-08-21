@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2017-2022, Science and Technology Facilities Council.
+.. Copyright (c) 2017-2023, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -62,11 +62,10 @@ by the command:
 .. parsed-literal::
 
   > psyclone -h
-
   usage: psyclone [-h] [-oalg OALG] [-opsy OPSY] [-okern OKERN] [-api API]
                   [-s SCRIPT] [-d DIRECTORY] [-I INCLUDE] [-l {off,all,output}]
                   [-dm] [-nodm] [--kernel-renaming {multiple,single}]
-                  [--profile {invokes,kernels}] [--config CONFIG] [-v]
+                  [--profile {invokes,kernels}] [--config CONFIG] [--version]
                   filename
 
   Run the PSyclone code generator on a particular file
@@ -78,7 +77,8 @@ by the command:
     -h, --help            show this help message and exit
     -oalg OALG            filename of transformed algorithm code
     -opsy OPSY            filename of generated PSy code
-    -okern OKERN          directory in which to put transformed kernels
+    -okern OKERN          directory in which to put transformed kernels,
+                          default is the current working directory.
     -api API              choose a particular api from ['dynamo0.3',
                           'gocean1.0', 'nemo'], default 'dynamo0.3'.
     -s SCRIPT, --script SCRIPT
@@ -88,21 +88,21 @@ by the command:
                           source code. Multiple roots can be specified by using
                           multiple -d arguments.
     -I INCLUDE, --include INCLUDE
-                          path to Fortran INCLUDE files (nemo API only)
+                          path to Fortran INCLUDE or module files
     -l {off,all,output}, --limit {off,all,output}
                           limit the Fortran line length to 132 characters
-                          (default 'off'). Use 'on' to apply limit to both input
-                          and output Fortran. Use 'output' to apply line-length
-                          limit to output Fortran only.
+                          (default 'off'). Use 'all' to apply limit to both
+                          input and output Fortran. Use 'output' to apply
+                          line-length limit to output Fortran only.
     -dm, --dist_mem       generate distributed memory code
     -nodm, --no_dist_mem  do not generate distributed memory code
-    --kernel-renaming {single,multiple}
+    --kernel-renaming {multiple,single}
                           Naming scheme to use when re-naming transformed
-                          kernels.
+                          kernels
     --profile {invokes,kernels}, -p {invokes,kernels}
                           Add profiling hooks for either 'kernels' or 'invokes'
     --config CONFIG       Config file with PSyclone specific options.
-    -v, --version         Display version information (\ |release|\ )
+    --version, -v         Display version information (\ |release|\ )
 
 Basic Use
 ---------
@@ -340,27 +340,51 @@ version of that kernel is already present then that will be
 used. Note, if the kernel file on disk does not match with what would
 be generated then PSyclone will raise an exception.
 
-Fortran INCLUDE Files
----------------------
+Fortran INCLUDE Files and Modules
+---------------------------------
 
 For the NEMO API, if the source code to be processed by PSyclone
-contains INCLUDE statements (other than those for libraries such as
-MPI) then the location of any INCLUDE'd files must be supplied to
-PSyclone via the ``-I`` or ``--include`` option. (This is necessary
-because INCLUDE lines are a part of the Fortran language and must
-therefore be parsed - they are not handled by any pre-processing
-step.) Multiple locations may be specified by using multiple ``-I``
-flags, e.g.::
+contains INCLUDE statements then the location of any INCLUDE'd files
+*must* be supplied to PSyclone via the ``-I`` or ``--include``
+option. (This is necessary because INCLUDE lines are a part of the
+Fortran language and must therefore be parsed - they are not handled
+by any pre-processing step.) Multiple locations may be specified by
+using multiple ``-I`` flags, e.g.::
 
     > psyclone api "nemo" -I /some/path -I /some/other/path alg.f90
 
 If no include paths are specified then the directory containing the
 source file currently being parsed is searched by default. If the
-specified include file is not found then ideally the INCLUDE line
-would be left unchanged. However, fparser currently treats any such
-INCLUDE lines as comments which results in them being lost (fparser
-issue #138). The workaround for this is to ensure that the location
-of *all* INCLUDE files is supplied to PSyclone.
+specified INCLUDE file is not found then PSyclone will abort with
+an appropriate error.
 
 Attempting to specify ``-I``/``--include`` for any API other than NEMO
 will be rejected by PSyclone.
+
+Currently, the PSyKAl-based APIs (LFRic and GOcean) will ignore (but
+preserve) INCLUDE statements in algorithm-layer code. However, INCLUDE
+statements in kernels will, in general, cause the kernel parsing to fail
+unless the file(s) referenced in such statements are in the same directory
+as the kernel file. Once kernel parsing has been re-implemented to use
+fparser2 (issue #239) and the PSyclone Internal Representation then the
+behaviour will be the same as for the NEMO API.
+
+Since PSyclone does not attempt to be a full compiler, it does not require
+that the code be available for any Fortran modules referred to by ``use``
+statements. However, certain transformations *do* require that e.g. type
+information be determined for all variables in the code being transformed.
+In this case PSyclone *will* need to be able to find and process any
+referenced modules. To do this it searches in the directories specified
+by the ``-I``/``--include`` flags. (Currently this search assumes that a
+module named e.g. "my_mod" will be in a file named "my_mod.*90" - see issue
+#1895.)
+
+C Pre-processor #include Files
+------------------------------
+
+PSyclone currently only supports Fortran input. As such, if a file to
+be processed contains CPP ``#include`` statements then it must first be
+processed by a suitable pre-processor before being passed to PSyclone.
+PSyclone will abort with an appropriate error if it encounters a
+``#include`` in any code being processed. This is true of all of the
+PSyclone APIs.

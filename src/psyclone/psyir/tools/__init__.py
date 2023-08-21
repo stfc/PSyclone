@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -36,10 +36,10 @@
 '''Tool module, containing all generic (API independent) tools.
 '''
 
-from psyclone.psyir.tools.dependency_tools import DependencyTools
+from psyclone.psyir.tools.dependency_tools import DTCode, DependencyTools
+from psyclone.psyir.tools.read_write_info import ReadWriteInfo
 
-# The entities in the __all__ list are made available to import directly from
-# this package e.g.:
-# from psyclone.psyir.tools import DependencyTools
-
-__all__ = ['DependencyTools']
+# For AutoAPI documentation generation.
+__all__ = ['DTCode',
+           'DependencyTools',
+           'ReadWriteInfo']

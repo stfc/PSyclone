@@ -3,7 +3,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council
+# Copyright (c) 2017-2023, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,6 +33,9 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
+# Authors: R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
+#          I. Kavcic and P. Elson, Met Office
+#          J. Henrichs, Bureau of Meteorology
 
 """Setup script. Used by easy_install and pip."""
 
@@ -158,16 +161,15 @@ if __name__ == '__main__':
         packages=PACKAGES,
         package_dir={"": "src"},
         # TODO #1193: Pinned jsonschema to support older versions of python
-        # TODO #1507: remove dependence on 'six'
-        install_requires=['pyparsing', 'fparser==0.0.14', 'configparser',
-                          'six', 'jsonschema==3.0.2', 'sympy'],
+        install_requires=['pyparsing', 'fparser==0.1.1', 'configparser',
+                          'jsonschema==3.0.2', 'sympy'],
         extras_require={
             'dag': ["graphviz"],
             'doc': ["sphinx", "sphinxcontrib.bibtex",
                     "sphinx_rtd_theme", "autoapi"],
             'psydata': ["Jinja2"],
-            'test': ["pep8", "pylint", "pytest-cov", "pytest-pep8",
-                     "pytest-pylint", "pytest-flakes", "pytest-pep257"],
+            'test': ["pep8", "flake8", "pylint", "pytest-cov", "pytest-pep8",
+                     "pytest-pylint", "pytest-flakes", "pytest-xdist"],
         },
         include_package_data=True,
         scripts=['bin/psyclone', 'bin/psyclone-kern', 'bin/psyad'],

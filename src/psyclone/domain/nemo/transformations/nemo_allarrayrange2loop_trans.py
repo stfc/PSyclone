@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council.
+# Copyright (c) 2020-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,8 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford, STFC Daresbury Lab
-#          A. R. Porter, STFC Daresbury Lab
+# Authors: R. W. Ford, A. R. Porter and N. Nobre, STFC Daresbury Lab
 
 '''Module providing a transformation from an Assignment node
 containing an Array Reference node in its left-hand-side which in turn
@@ -68,11 +67,11 @@ class NemoAllArrayRange2LoopTrans(Transformation):
     >>> from psyclone.domain.nemo.transformations import \
             NemoAllArrayRange2LoopTrans
     >>>
-    >>> schedule.view()
+    >>> print(schedule.view())
     >>> trans = NemoAllArrayRange2LoopTrans()
     >>> for assignment in schedule.walk(Assignment):
     >>>     trans.apply(assignment)
-    >>> schedule.view()
+    >>> print(schedule.view())
 
     '''
     def apply(self, node, options=None):
@@ -99,11 +98,15 @@ class NemoAllArrayRange2LoopTrans(Transformation):
 
         :param node: an Assignment node.
         :type node: :py:class:`psyclone.psyir.nodes.Assignment`
-        :param options: a dictionary with options for \
-            transformations. No options are used in this \
-            transformation. This is an optional argument that defaults \
-            to None.
-        :type options: dict of string:values or None
+        :param options: a dictionary with options for transformations. No
+            options are used in this transformation. This is an optional
+            argument that defaults to None.
+        :param bool options["verbose"]: whether to print out the reason
+            why the inner transformation was not applied. This is useful
+            because this transfomation succeeds even if one of the inner
+            transformations fails, and therefor the reason why the inner
+            transformation failed is not propagated.
+        :type options: Optional[Dict[str, Any]]
 
         '''
         self.validate(node)
@@ -112,8 +115,17 @@ class NemoAllArrayRange2LoopTrans(Transformation):
         try:
             while True:
                 trans.apply(node)
-        except TransformationError:
-            pass
+        except TransformationError as err:
+            # TODO #11: Instead we could use proper logging
+            if options and options.get("verbose", False):
+                errmsg = str(err)
+                # Skip the errors that are obious and are generated for any
+                # statement that is not an array expression
+                if "assignment node should be an expression with an array " \
+                   "that has a Range node" not in errmsg and \
+                   "be a Reference that contains an array access somewhere" \
+                   not in errmsg:
+                    print(errmsg)
 
     def __str__(self):
         return ("Convert all array ranges in a PSyIR assignment into "
@@ -138,7 +150,7 @@ class NemoAllArrayRange2LoopTrans(Transformation):
             transformations. No options are used in this \
             transformation. This is an optional argument that defaults \
             to None.
-        :type options: dict of string:values or None
+        :type options: Optional[Dict[str, Any]]
 
         :raises TransformationError: if the supplied node is not an \
             Assignment.
@@ -147,9 +159,9 @@ class NemoAllArrayRange2LoopTrans(Transformation):
         # Am I an assignment node?
         if not isinstance(node, Assignment):
             raise TransformationError(
-                "Error in NemoAllArrayRange2LoopTrans transformation. The "
-                "supplied node argument should be a PSyIR Assignment, but "
-                "found '{0}'.".format(type(node).__name__))
+                f"Error in NemoAllArrayRange2LoopTrans transformation. The "
+                f"supplied node argument should be a PSyIR Assignment, but "
+                f"found '{type(node).__name__}'.")
 
 
 # For automatic document generation

@@ -34,16 +34,15 @@
 # Author: A. R. Porter, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
-''' Performs py.test tests for the _find_or_create_imported_symbol routine
+''' Performs py.test tests for the _find_or_create_unresolved_symbol routine
 of the fparser2 frontend. '''
 
 
-from __future__ import absolute_import
 import os
 import pytest
 from fparser.common.readfortran import FortranFileReader
-from psyclone.psyir.frontend.fparser2 import _find_or_create_imported_symbol
 from psyclone.psyGen import PSyFactory, Kern
+from psyclone.psyir.frontend.fparser2 import _find_or_create_unresolved_symbol
 from psyclone.psyir.nodes import Reference, Container, Assignment, Literal, \
     KernelSchedule, BinaryOperation
 from psyclone.psyir.symbols import Symbol, DataSymbol, SymbolError, \
@@ -52,7 +51,7 @@ from psyclone.psyir.symbols import Symbol, DataSymbol, SymbolError, \
 from psyclone.tests.utilities import get_invoke
 
 
-def test_find_or_create_imported_symbol():
+def test_find_or_create_unresolved_symbol():
     '''Test that the find_or_create_imported_symbol method in a Node instance
     returns the associated symbol if there is one and raises an exception if
     not. Also test for an incorrect scope argument.'''
@@ -71,7 +70,7 @@ def test_find_or_create_imported_symbol():
     assert field_old.symbol in kernel_schedule.symbol_table.symbols
 
     # Symbol in KernelSchedule SymbolTable with KernelSchedule scope
-    assert isinstance(_find_or_create_imported_symbol(
+    assert isinstance(_find_or_create_unresolved_symbol(
         field_old, field_old.name, scope_limit=kernel_schedule), DataSymbol)
     assert field_old.symbol.name == field_old.name
 
@@ -79,66 +78,66 @@ def test_find_or_create_imported_symbol():
     # the symbol should not be found as we limit the scope to the
     # immediate parent of the reference
     with pytest.raises(SymbolError) as excinfo:
-        _ = _find_or_create_imported_symbol(field_old, field_old.name,
-                                            scope_limit=field_old.parent)
+        _ = _find_or_create_unresolved_symbol(field_old, field_old.name,
+                                              scope_limit=field_old.parent)
     assert "No Symbol found for name 'field_old'." in str(excinfo.value)
 
     # Symbol in Container SymbolTable
     alpha = references[6]
     assert alpha.name == "alpha"
-    assert isinstance(_find_or_create_imported_symbol(alpha, alpha.name),
+    assert isinstance(_find_or_create_unresolved_symbol(alpha, alpha.name),
                       DataSymbol)
-    container = kernel_schedule.root
+    container = kernel_schedule.ancestor(Container)
     assert isinstance(container, Container)
-    assert (_find_or_create_imported_symbol(alpha, alpha.name) in
+    assert (_find_or_create_unresolved_symbol(alpha, alpha.name) in
             container.symbol_table.symbols)
 
     # Symbol in Container SymbolTable with KernelSchedule scope, so
     # the symbol should not be found as we limit the scope to the
     # kernel so do not search the container symbol table.
     with pytest.raises(SymbolError) as excinfo:
-        _ = _find_or_create_imported_symbol(alpha, alpha.name,
-                                            scope_limit=kernel_schedule)
+        _ = _find_or_create_unresolved_symbol(alpha, alpha.name,
+                                              scope_limit=kernel_schedule)
     assert "No Symbol found for name 'alpha'." in str(excinfo.value)
 
     # Symbol in Container SymbolTable with Container scope
-    assert (_find_or_create_imported_symbol(
+    assert (_find_or_create_unresolved_symbol(
         alpha, alpha.name, scope_limit=container).name == alpha.name)
 
-    # Test _find_or_create_impored_symbol with invalid location
+    # Test _find_or_create_unresolved_symbol with invalid location
     with pytest.raises(TypeError) as excinfo:
-        _ = _find_or_create_imported_symbol("hello", alpha.name)
+        _ = _find_or_create_unresolved_symbol("hello", alpha.name)
     assert ("The location argument 'hello' provided to "
-            "_find_or_create_imported_symbol() is not of type `Node`."
+            "_find_or_create_unresolved_symbol() is not of type `Node`."
             in str(excinfo.value))
 
-    # Test _find_or_create_impored_symbol with invalid scope type
+    # Test _find_or_create_unresolved_symbol with invalid scope type
     with pytest.raises(TypeError) as excinfo:
-        _ = _find_or_create_imported_symbol(alpha, alpha.name,
-                                            scope_limit="hello")
+        _ = _find_or_create_unresolved_symbol(alpha, alpha.name,
+                                              scope_limit="hello")
     assert ("The scope_limit argument 'hello' provided to "
-            "_find_or_create_imported_symbol() is not of type `Node`."
+            "_find_or_create_unresolved_symbol() is not of type `Node`."
             in str(excinfo.value))
 
     # find_or_create_symbol method with invalid scope location
     with pytest.raises(ValueError) as excinfo:
-        _ = _find_or_create_imported_symbol(alpha, alpha.name,
-                                            scope_limit=alpha)
+        _ = _find_or_create_unresolved_symbol(alpha, alpha.name,
+                                              scope_limit=alpha)
     assert ("The scope_limit node 'Reference[name:'alpha']' provided to "
-            "_find_or_create_imported_symbol() is not an ancestor of this "
+            "_find_or_create_unresolved_symbol() is not an ancestor of this "
             "node 'Reference[name:'alpha']'." in str(excinfo.value))
 
     # With a visibility parameter
-    sym = _find_or_create_imported_symbol(alpha, "very_private",
-                                          visibility=Symbol.Visibility.PRIVATE)
+    sym = _find_or_create_unresolved_symbol(
+        alpha, "very_private", visibility=Symbol.Visibility.PRIVATE)
     assert sym.name == "very_private"
     assert sym.visibility == Symbol.Visibility.PRIVATE
     assert sym is container.symbol_table.lookup("very_private",
                                                 scope_limit=container)
 
 
-def test_find_or_create_imported_symbol_2():
-    ''' Check that the _find_or_create_imported_symbol() method creates new
+def test_find_or_create_unresolved_symbol_2():
+    ''' Check that the _find_or_create_unresolved_symbol() method creates new
     symbols when appropriate. '''
     # Create some suitable PSyIR from scratch
     symbol_table = SymbolTable()
@@ -152,10 +151,10 @@ def test_find_or_create_imported_symbol_2():
     kernel1.addchild(assign)
     # We have no wildcard imports so there can be no symbol named 'undefined'
     with pytest.raises(SymbolError) as err:
-        _ = _find_or_create_imported_symbol(assign, "undefined")
+        _ = _find_or_create_unresolved_symbol(assign, "undefined")
     assert "No Symbol found for name 'undefined'" in str(err.value)
     # We should be able to find the 'tmp' symbol in the parent Container
-    sym = _find_or_create_imported_symbol(assign, "tmp")
+    sym = _find_or_create_unresolved_symbol(assign, "tmp")
     assert sym.datatype.intrinsic == ScalarType.Intrinsic.REAL
     # Add a wildcard import to the SymbolTable of the KernelSchedule
     new_container = ContainerSymbol("some_mod")
@@ -163,11 +162,11 @@ def test_find_or_create_imported_symbol_2():
     kernel1.symbol_table.add(new_container)
     # Symbol not in any container but we do have wildcard imports so we
     # get a new symbol back
-    new_symbol = _find_or_create_imported_symbol(assign, "undefined")
+    new_symbol = _find_or_create_unresolved_symbol(assign, "undefined")
     assert new_symbol.name == "undefined"
     assert isinstance(new_symbol.interface, UnresolvedInterface)
     # pylint: disable=unidiomatic-typecheck
-    assert type(new_symbol) == Symbol
+    assert type(new_symbol) is Symbol
     assert "undefined" not in container.symbol_table
     assert kernel1.symbol_table.lookup("undefined") is new_symbol
 
@@ -185,12 +184,12 @@ def test_nemo_find_container_symbol(parser):
     # Get a node from the schedule
     bops = psy._invokes.invoke_list[0].schedule.walk(BinaryOperation)
     # Use it as the starting point for the search
-    symbol = _find_or_create_imported_symbol(bops[0], "alpha")
+    symbol = _find_or_create_unresolved_symbol(bops[0], "alpha")
     assert symbol.datatype.intrinsic == ScalarType.Intrinsic.REAL
 
 
 def test_find_or_create_change_symbol_type():
-    ''' Check that the _find_or_create_imported_symbol routine correctly
+    ''' Check that the _find_or_create_unresolved_symbol routine correctly
     updates the class of the located symbol if it is not an instance of
     the requested symbol type.
     '''
@@ -204,19 +203,45 @@ def test_find_or_create_change_symbol_type():
     assign = Assignment.create(Reference(tmp_sym), Literal("1.0", REAL_TYPE))
     kernel1.addchild(assign)
     # Search for the 'tmp' symbol
-    sym = _find_or_create_imported_symbol(assign, "tmp")
+    sym = _find_or_create_unresolved_symbol(assign, "tmp")
     assert sym is tmp_sym
-    assert type(sym) == Symbol
+    assert type(sym) is Symbol
     # Repeat but this time specify that we're expecting a DataSymbol
-    sym = _find_or_create_imported_symbol(assign, "tmp",
-                                          symbol_type=DataSymbol,
-                                          datatype=REAL_TYPE)
+    sym = _find_or_create_unresolved_symbol(assign, "tmp",
+                                            symbol_type=DataSymbol,
+                                            datatype=REAL_TYPE)
     assert sym is tmp_sym
-    assert type(sym) == DataSymbol
+    assert type(sym) is DataSymbol
     assert sym.datatype == REAL_TYPE
     # Search for 'my_sub' and specify that it should be a RoutineSymbol
-    sym2 = _find_or_create_imported_symbol(assign, "my_sub",
-                                           symbol_type=RoutineSymbol)
+    sym2 = _find_or_create_unresolved_symbol(assign, "my_sub",
+                                             symbol_type=RoutineSymbol)
     assert sym2 is sub_sym
-    assert type(sym2) == RoutineSymbol
+    assert type(sym2) is RoutineSymbol
     assert isinstance(sym2.datatype, NoType)
+
+
+@pytest.mark.parametrize("visibility", [
+    Symbol.Visibility.PUBLIC, Symbol.Visibility.PRIVATE])
+def test_visibility_interface(fortran_reader, visibility):
+    '''Test that PSyclone successfully parses public/private symbols where
+    their declaration is hidden in an abstract interface. This support
+    is implemented in _find_or_create_unresolved_symbol.
+
+    '''
+    code = (
+        f"module test\n"
+        f"  abstract interface\n"
+        f"     subroutine update_interface()\n"
+        f"     end subroutine update_interface\n"
+        f"  end interface\n"
+        f"  {visibility.name} :: update_interface\n"
+        f"contains\n"
+        f"  subroutine alg()\n"
+        f"  end subroutine alg\n"
+        f"end module test\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    symbol_table = psyir.children[0].symbol_table
+    assert symbol_table.lookup("_psyclone_internal_interface")
+    symbol = symbol_table.lookup("update_interface")
+    assert symbol.visibility is visibility

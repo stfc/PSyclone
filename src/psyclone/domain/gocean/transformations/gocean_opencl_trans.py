@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,6 +40,7 @@ import os
 
 from fparser.two import Fortran2003
 from psyclone.configuration import Config
+from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.errors import GenerationError
 from psyclone.gocean1p0 import GOInvokeSchedule, GOLoop
 from psyclone.psyGen import Transformation, args_filter, InvokeSchedule, \
@@ -49,10 +50,10 @@ from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Routine, Call, Reference, Literal, \
     Assignment, IfBlock, ArrayReference, Schedule, BinaryOperation, \
     StructureReference, FileContainer, CodeBlock
-from psyclone.psyir.symbols import DataSymbol, RoutineSymbol, \
+from psyclone.psyir.symbols import ArrayType, DataSymbol, RoutineSymbol, \
     ContainerSymbol, UnknownFortranType, ArgumentInterface, ImportInterface, \
-    INTEGER_TYPE, CHARACTER_TYPE, ArrayType, BOOLEAN_TYPE, ScalarType
-from psyclone.transformations import TransformationError, KernelTrans
+    INTEGER_TYPE, CHARACTER_TYPE, BOOLEAN_TYPE, ScalarType
+from psyclone.transformations import TransformationError
 
 
 class GOOpenCLTrans(Transformation):
@@ -70,10 +71,9 @@ class GOOpenCLTrans(Transformation):
     >>> schedule = psy.invokes.get('invoke_0').schedule
     >>> ocl_trans = GOOpenCLTrans()
     >>> ocl_trans.apply(schedule)
-    >>> schedule.view()
+    >>> print(schedule.view())
 
     '''
-
     # Specify which OpenCL command queue to use for management operations like
     # data transfers when generating an OpenCL PSy-layer
     _OCL_MANAGEMENT_QUEUE = 1
@@ -190,7 +190,7 @@ class GOOpenCLTrans(Transformation):
         # the kernels in this Schedule. Also check that none of them access
         # any form of global data (that is not a routine argument).
         for kern in node.kernels():
-            KernelTrans.validate(kern)
+            KernelModuleInlineTrans().validate(kern)
             ksched = kern.get_kernel_schedule()
             global_variables = ksched.symbol_table.imported_symbols
             if global_variables:
@@ -1151,6 +1151,7 @@ class GOOpenCLTrans(Transformation):
         code = f'''
         subroutine initialise_device_grid(field)
             USE fortcl, ONLY: create_ronly_buffer
+            USE iso_c_binding, only: c_size_t
             use field_mod
             type(r2d_field), intent(inout), target :: field
             integer(kind=c_size_t) size_in_bytes
@@ -1508,6 +1509,7 @@ class GOOpenCLTrans(Transformation):
         code = f'''
         subroutine initialise_device_buffer(field)
             USE fortcl, ONLY: create_rw_buffer
+            USE iso_c_binding, only: c_size_t
             use field_mod
             type(r2d_field), intent(inout), target :: field
             integer(kind=c_size_t) size_in_bytes

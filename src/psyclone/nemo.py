@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council.
+# Copyright (c) 2017-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # ----------------------------------------------------------------------------
-# Authors: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+# Authors: R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 # Modified work Copyright (c) 2019 by J. Henrichs, Bureau of Meteorology
 
 '''This module implements the PSyclone NEMO API by specialising
@@ -44,14 +44,15 @@ from __future__ import print_function, absolute_import
 from fparser.two.utils import walk
 from fparser.two import Fortran2003
 from psyclone.configuration import Config
+from psyclone.core import Signature
+from psyclone.domain.common.psylayer import PSyLoop
 from psyclone.domain.nemo import NemoConstants
-from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, \
-    InlinedKern
-from psyclone.errors import InternalError
+from psyclone.errors import GenerationError, InternalError
+from psyclone.psyGen import PSy, Invokes, Invoke, InvokeSchedule, InlinedKern
 from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.psyir.nodes import Loop, Schedule, Routine
+from psyclone.psyir.nodes import (ACCEnterDataDirective, ACCUpdateDirective,
+                                  Schedule, Routine)
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
-from psyclone.errors import GenerationError
 
 
 class NemoInvoke(Invoke):
@@ -163,12 +164,14 @@ class NemoInvokeSchedule(InvokeSchedule):
     :param str name: the name of this NemoInvokeSchedule (Routine).
     :param invoke: the Invoke to which this NemoInvokeSchedule belongs.
     :type invoke: :py:class:`psyclone.nemo.NemoInvoke`
+    :param kwargs: additional keyword arguments provided to the super class.
+    :type kwargs: unwrapped dict.
 
     '''
     _text_name = "NemoInvokeSchedule"
 
-    def __init__(self, name, invoke=None):
-        super(NemoInvokeSchedule, self).__init__(name, None, None)
+    def __init__(self, name, invoke=None, **kwargs):
+        super().__init__(name, None, None, **kwargs)
 
         self._invoke = invoke
 
@@ -186,8 +189,7 @@ class NemoInvokeSchedule(InvokeSchedule):
 
 class NemoKern(InlinedKern):
     ''' Stores information about NEMO kernels as extracted from the
-    NEMO code. As an inlined kernel it contains a Schedule as first
-    child.
+    NEMO code. As an inlined kernel it contains a Schedule as first child.
 
     :param psyir_nodes: the list of PSyIR nodes that represent the body \
                         of this kernel.
@@ -198,7 +200,7 @@ class NemoKern(InlinedKern):
 
     '''
     def __init__(self, psyir_nodes, parent=None):
-        super(NemoKern, self).__init__(psyir_nodes, parent=parent)
+        super().__init__(psyir_nodes, parent=parent)
         self._name = ""
 
         # Whether this kernel performs a reduction. Not currently supported
@@ -230,7 +232,7 @@ class NemoKern(InlinedKern):
         :param var_accesses: VariablesAccessInfo that stores the information\
             about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
         '''
         self.children[0].reference_accesses(var_accesses)
 
@@ -248,21 +250,17 @@ class NemoKern(InlinedKern):
                             "have been called.")
 
 
-class NemoLoop(Loop):
+class NemoLoop(PSyLoop):
     '''
-    Class representing a Loop in NEMO.
+    Class representing a PSyLoop in NEMO.
 
-    :param parent: parent of this NemoLoop in the PSyclone AST.
-    :type parent: :py:class:`psyclone.psyir.nodes.Node`
-    :param str variable_name: optional name of the loop iterator \
-        variable. Defaults to an empty string.
+    :param kwargs: additional keyword arguments provided to the PSyIR node.
+    :type kwargs: unwrapped dict.
 
     '''
-    def __init__(self, parent=None, variable=None):
+    def __init__(self, **kwargs):
         const = NemoConstants()
-        Loop.__init__(self, parent=parent,
-                      variable=variable,
-                      valid_loop_types=const.VALID_LOOP_TYPES)
+        super().__init__(valid_loop_types=const.VALID_LOOP_TYPES, **kwargs)
 
     @staticmethod
     def create(variable, start, stop, step, children):
@@ -293,13 +291,12 @@ class NemoLoop(Loop):
             are not of the expected type.
 
         '''
-        Loop._check_variable(variable)
+        NemoLoop._check_variable(variable)
 
         if not isinstance(children, list):
             raise GenerationError(
-                "children argument in create method of NemoLoop class "
-                "should be a list but found '{0}'."
-                "".format(type(children).__name__))
+                f"children argument in create method of NemoLoop class "
+                f"should be a list but found '{type(children).__name__}'.")
 
         # Create the loop
         loop = NemoLoop(variable=variable)
@@ -327,8 +324,55 @@ class NemoLoop(Loop):
             # following loop fusion)
             if len(kernels) > 1:
                 raise NotImplementedError(
-                    "Kernel getter method does not yet support a loop "
-                    "containing more than one kernel but this loop contains "
-                    "{0}".format(len(kernels)))
+                    f"Kernel getter method does not yet support a loop "
+                    f"containing more than one kernel but this loop contains "
+                    f"{len(kernels)}")
             return kernels[0]
         return None
+
+
+# TODO #1872: Avoid the duplication below and move to src/psyclone/domain/nemo.
+# Alternatively, bring removal of loop variables to the transformation using
+# lifetime analysis and remove these sub-classes.
+class NemoACCEnterDataDirective(ACCEnterDataDirective):
+    '''
+    NEMO-specific support for the OpenACC enter data directive.
+
+    '''
+    def lower_to_language_level(self):
+        '''
+        In-place replacement of this directive concept into language-level
+        PSyIR constructs.
+
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
+
+        '''
+        lowered = super().lower_to_language_level()
+
+        # Remove known loop variables from the set of variables to transfer
+        loop_var = Config.get().api_conf("nemo").get_loop_type_mapping().keys()
+        self._sig_set.difference_update({Signature(var) for var in loop_var})
+        return lowered
+
+
+class NemoACCUpdateDirective(ACCUpdateDirective):
+    '''
+    NEMO-specific support for the OpenACC update directive.
+
+    '''
+    def lower_to_language_level(self):
+        '''
+        In-place replacement of this directive concept into language-level
+        PSyIR constructs.
+
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
+
+        '''
+        lowered = super().lower_to_language_level()
+
+        # Remove known loop variables from the set of variables to transfer
+        loop_var = Config.get().api_conf("nemo").get_loop_type_mapping().keys()
+        self._sig_set.difference_update({Signature(var) for var in loop_var})
+        return lowered

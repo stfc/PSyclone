@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+# Copyright (c) 2017-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,8 +31,8 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified I. Kavcic, Met Office
+# Authors: R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
+# Modified I. Kavcic and L. Turner, Met Office
 # -----------------------------------------------------------------------------
 
 ''' Performs py.test tests on the psyGen module '''
@@ -43,7 +43,6 @@
 
 # user classes requiring tests
 # PSyFactory, TransInfo, Transformation
-from __future__ import absolute_import, print_function
 import os
 import pytest
 
@@ -52,7 +51,8 @@ from fparser.two import Fortran2003
 
 from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
-from psyclone.domain.lfric import lfric_builtins, LFRicConstants
+from psyclone.domain.common.psylayer import PSyLoop
+from psyclone.domain.lfric import lfric_builtins
 from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
 from psyclone.dynamo0p3 import DynKern, DynKernMetadata, DynInvokeSchedule, \
     DynKernelArguments, DynGlobalSum
@@ -67,7 +67,7 @@ from psyclone.psyGen import TransInfo, Transformation, PSyFactory, \
 from psyclone.psyir.backend.c import CWriter
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import Assignment, BinaryOperation, Container, \
-    Literal, Node, KernelSchedule, Call, Loop, colored
+    Literal, Node, KernelSchedule, Call, colored
 from psyclone.psyir.symbols import DataSymbol, RoutineSymbol, REAL_TYPE, \
     ImportInterface, ContainerSymbol, Symbol, INTEGER_TYPE, DeferredType, \
     SymbolTable
@@ -92,7 +92,7 @@ GOCEAN_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 def setup():
     '''Make sure that all tests here use dynamo0.3 as API.'''
     Config.get().api = "dynamo0.3"
-    yield()
+    yield
     Config._instance = None
 
 
@@ -167,10 +167,7 @@ def test_base_class_not_callable():
 
 
 def test_transformation_init_name():
-    '''Make sure a FortranWriter is created by default, is stored by the
-    base class, can be changed if required and an exception is raised
-    if the wrong argument type is supplied. Also test that the name()
-    method behaves in the expected way.
+    '''Test that the name() method behaves in the expected way.
 
     '''
     class TestTrans(Transformation):
@@ -179,19 +176,12 @@ def test_transformation_init_name():
         transformation methods.
 
         '''
-        def apply(self, _1, _2=None):
+        def apply(self, _1):
             '''Dummy apply method to ensure this transformation is not
             abstract.'''
 
     trans = TestTrans()
     assert trans.name == "TestTrans"
-    assert isinstance(trans._writer, FortranWriter)
-    with pytest.raises(TypeError) as info:
-        _ = TestTrans(writer=None)
-    assert ("The writer argument to a transformation should be a "
-            "PSyIRVisitor, but found 'NoneType'." in str(info.value))
-    trans = TestTrans(writer=CWriter())
-    assert isinstance(trans._writer, CWriter)
 
 
 # TransInfo class unit tests
@@ -270,7 +260,7 @@ def test_invalid_name():
 def test_valid_return_object_from_name():
     ''' check get_trans_name method return the correct object type '''
     trans = TransInfo()
-    transform = trans.get_trans_name("KernelModuleInline")
+    transform = trans.get_trans_name("ColourTrans")
     assert isinstance(transform, Transformation)
 
 
@@ -501,10 +491,21 @@ def test_codedkern_module_inline_getter_and_setter():
     assert "module_inline=True" in coded_kern_1.node_str()
     assert "module_inline=True" in coded_kern_2.node_str()
 
-    # It can be turned off (and both kernels change)
-    coded_kern_2.module_inline = False
-    assert not coded_kern_1.module_inline
-    assert not coded_kern_2.module_inline
+    # It can not be turned off
+    with pytest.raises(TypeError) as err:
+        coded_kern_2.module_inline = False
+    assert ("The module inline parameter only accepts the type boolean "
+            "'True' since module-inlining is irreversible. But found: 'False'"
+            in str(err.value))
+    assert coded_kern_1.module_inline
+    assert coded_kern_2.module_inline
+
+    # And it doesn't accept other types
+    with pytest.raises(TypeError) as err:
+        coded_kern_2.module_inline = 3
+    assert ("The module inline parameter only accepts the type boolean "
+            "'True' since module-inlining is irreversible. But found: '3'"
+            in str(err.value))
 
 
 def test_codedkern_module_inline_gen_code(tmpdir):
@@ -524,63 +525,63 @@ def test_codedkern_module_inline_gen_code(tmpdir):
     assert "USE ru_kernel_mod, ONLY: ru_code" in gen
     assert "SUBROUTINE ru_code(" not in gen
 
-    # With module-inline the subroutine is copied locally only once
-    # even though this kernel has 2 callees.
+    # With module-inline the subroutine does not need to be imported
     coded_kern.module_inline = True
+
+    # Fail if local routine symbol does not already exist
+    with pytest.raises(GenerationError) as err:
+        gen = str(psy.gen)
+    assert ("Cannot generate this kernel call to 'ru_code' because it "
+            "is marked as module-inline but no such subroutine exist in "
+            "this module." in str(err.value))
+
+    # Create the symbol and try again, it now must succeed
+    schedule.ancestor(Container).symbol_table.new_symbol(
+            "ru_code", symbol_type=RoutineSymbol)
+
     gen = str(psy.gen)
     assert "USE ru_kernel_mod, ONLY: ru_code" not in gen
-    assert "SUBROUTINE ru_code(" in gen
-    assert gen.count("SUBROUTINE ru_code(") == 1
-    # And the generated code is valid
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
-    # Check that name clashes which are not subroutines are detected
-    schedule.symbol_table.add(DataSymbol("ru_code", REAL_TYPE))
-    with pytest.raises(NotImplementedError) as err:
-        gen = str(psy.gen)
-    assert ("Can not module-inline subroutine 'ru_code' because symbol"
-            "'ru_code: <Scalar<REAL, UNDEFINED>, Local>' with the same name "
-            "already exists and changing names of module-inlined subroutines "
-            "is not implemented yet.") in str(err.value)
 
-    # TODO # 898. Manually force removal of previous symbol as
-    # symbol_table.remove() for DataSymbols is not implemented yet.
-    schedule.symbol_table._symbols.pop("ru_code")
-
-    # Check that if a subroutine with the same name already exists and it is
-    # not identical, it fails.
-    schedule.symbol_table.add(RoutineSymbol("ru_code"))
-    with pytest.raises(NotImplementedError) as err:
-        gen = str(psy.gen)
-    assert ("Can not inline subroutine 'ru_code' because another, different, "
-            "subroutine with the same name already exists and versioning of "
-            "module-inlined subroutines is not implemented "
-            "yet.") in str(err.value)
-
-
-@pytest.mark.usefixtures("kernel_outputdir")
-def test_codedkern_module_inline_gen_code_modified_kernels(tmpdir):
-    ''' Check that a CodedKern marked as modified can still be
-    module-inlined. '''
-    # Use LFRic example with a repeated CodedKern
+def test_codedkern_module_inline_kernel_in_multiple_invokes(tmpdir):
+    ''' Check that module-inline works as expected when the same kernel
+    is provided in different invokes'''
+    # Use LFRic example with the kernel 'testkern_qr_mod' repeated once in
+    # the first invoke and 3 times in the second invoke.
     _, invoke_info = parse(
-        os.path.join(BASE_PATH, "4.6_multikernel_invokes.f90"),
+        os.path.join(BASE_PATH, "3.1_multi_functions_multi_invokes.f90"),
         api="dynamo0.3")
     psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke_info)
-    invoke = psy.invokes.invoke_list[0]
-    schedule = invoke.schedule
-    coded_kern = schedule.children[0].loop_body[0]
 
-    # Set modified and module-inline at the same time
-    coded_kern.modified = True
-    coded_kern.module_inline = True
-
-    # In this case the code generation still works but ...
+    # By default the kernel is imported once per invoke
     gen = str(psy.gen)
-    assert "USE ru_kernel_mod, ONLY: ru_code" not in gen
-    # ... since this subroutine is modified the kernel has now a new suffix
-    assert "SUBROUTINE ru_0_code(" in gen
+    assert gen.count("USE testkern_qr_mod, ONLY: testkern_qr_code") == 2
 
+    # Module inline kernel in invoke 1
+    schedule = psy.invokes.invoke_list[0].schedule
+    for coded_kern in schedule.walk(CodedKern):
+        if coded_kern.name == "testkern_qr_code":
+            coded_kern.module_inline = True
+    # A top-level RoutineSymbol must now exist
+    schedule.ancestor(Container).symbol_table.new_symbol(
+            "testkern_qr_code", symbol_type=RoutineSymbol)
+    gen = str(psy.gen)
+
+    # After this, one invoke uses the inlined top-level subroutine
+    # and the other imports it (shadowing the top-level symbol)
+    assert gen.count("USE testkern_qr_mod, ONLY: testkern_qr_code") == 1
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+    # Module inline kernel in invoke 2
+    schedule = psy.invokes.invoke_list[1].schedule
+    for coded_kern in schedule.walk(CodedKern):
+        if coded_kern.name == "testkern_qr_code":
+            coded_kern.module_inline = True
+    gen = str(psy.gen)
+    # After this, no imports are remaining and both use the same
+    # top-level implementation
+    assert gen.count("USE testkern_qr_mod, ONLY: testkern_qr_code") == 0
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
@@ -620,10 +621,11 @@ def test_codedkern_lower_to_language_level(monkeypatch):
     assert len(kern.children) == 0
     number_of_arguments = len(kern.arguments.psyir_expressions())
 
-    kern.lower_to_language_level()
+    lowered = kern.lower_to_language_level()
 
     # In language-level it is a Call with arguments as children
     call = schedule.children[0].loop_body[0]
+    assert call is lowered
     assert not isinstance(call, CodedKern)
     assert isinstance(call, Call)
     assert call.routine.name == 'testkern_code'
@@ -695,13 +697,13 @@ def test_call_abstract_methods():
     ''' Check that calling the abstract methods of Kern raises
     the expected exceptions '''
 
-    class KernType(object):
+    class KernType:
         ''' temporary dummy class '''
         def __init__(self):
             self.iterates_over = "stuff"
     my_ktype = KernType()
 
-    class DummyClass(object):
+    class DummyClass:
         ''' temporary dummy class '''
         def __init__(self, ktype):
             self.module_name = "dummy_module"
@@ -709,6 +711,8 @@ def test_call_abstract_methods():
 
     class DummyArguments(Arguments):
         ''' temporary dummy class '''
+        # This is a mock class, we can disable expected pylint warnings
+        # pylint: disable=abstract-method, unused-argument
         def __init__(self, call, parent_call, check):
             Arguments.__init__(self, parent_call)
 
@@ -791,19 +795,22 @@ def test_kern_is_coloured2():
     table = SymbolTable()
     # Create the loop variables
     for idx in range(3):
-        table.new_symbol("cell{0}".format(idx), symbol_type=DataSymbol,
+        table.new_symbol(f"cell{idx}", symbol_type=DataSymbol,
                          datatype=INTEGER_TYPE)
     # Create a loop nest of depth 3 containing the kernel, innermost first
     my_kern = DynKern()
-    loops = [Loop.create(table.lookup("cell0"), Literal("1", INTEGER_TYPE),
-                         Literal("10", INTEGER_TYPE),
-                         Literal("1", INTEGER_TYPE), [my_kern])]
-    loops.append(Loop.create(table.lookup("cell1"), Literal("1", INTEGER_TYPE),
-                             Literal("10", INTEGER_TYPE),
-                             Literal("1", INTEGER_TYPE), [loops[-1]]))
-    loops.append(Loop.create(table.lookup("cell2"), Literal("1", INTEGER_TYPE),
-                             Literal("10", INTEGER_TYPE),
-                             Literal("1", INTEGER_TYPE), [loops[-1]]))
+    loops = [PSyLoop.create(table.lookup("cell0"),
+                            Literal("1", INTEGER_TYPE),
+                            Literal("10", INTEGER_TYPE),
+                            Literal("1", INTEGER_TYPE), [my_kern])]
+    loops.append(PSyLoop.create(table.lookup("cell1"),
+                                Literal("1", INTEGER_TYPE),
+                                Literal("10", INTEGER_TYPE),
+                                Literal("1", INTEGER_TYPE), [loops[-1]]))
+    loops.append(PSyLoop.create(table.lookup("cell2"),
+                                Literal("1", INTEGER_TYPE),
+                                Literal("10", INTEGER_TYPE),
+                                Literal("1", INTEGER_TYPE), [loops[-1]]))
     # As we're using the generic Loop class, we have to manually set the list
     # of valid Loop types
     for loop in loops:
@@ -936,8 +943,8 @@ def test_reduction_var_error(dist_mem):
     call._reduction_arg = call.arguments.args[1]
     with pytest.raises(GenerationError) as err:
         call.zero_reduction_variable(None)
-    assert("Kern.zero_reduction_variable() should be a scalar but "
-           "found 'gh_field'." in str(err.value))
+    assert ("Kern.zero_reduction_variable() should be a scalar but "
+            "found 'gh_field'." in str(err.value))
 
 
 def test_reduction_var_invalid_scalar_error(dist_mem):
@@ -957,9 +964,9 @@ def test_reduction_var_invalid_scalar_error(dist_mem):
     call._reduction_arg = call.arguments.args[5]
     with pytest.raises(GenerationError) as err:
         call.zero_reduction_variable(None)
-    assert("Kern.zero_reduction_variable() should be either a 'real' "
-           "or an 'integer' scalar but found scalar of type 'logical'."
-           in str(err.value))
+    assert ("Kern.zero_reduction_variable() should be either a 'real' "
+            "or an 'integer' scalar but found scalar of type 'logical'."
+            in str(err.value))
 
 
 def test_reduction_sum_error(dist_mem):
@@ -975,10 +982,9 @@ def test_reduction_sum_error(dist_mem):
     call._reduction_arg = call.arguments.args[1]
     with pytest.raises(GenerationError) as err:
         call.reduction_sum_loop(None)
-    assert(
-        "Unsupported reduction access 'gh_inc' found in LFRicBuiltIn:"
-        "reduction_sum_loop(). Expected one of ['gh_sum']."
-        in str(err.value))
+    assert ("Unsupported reduction access 'gh_inc' found in LFRicBuiltIn:"
+            "reduction_sum_loop(). Expected one of ['gh_sum']."
+            in str(err.value))
 
 
 def test_call_multi_reduction_error(monkeypatch, dist_mem):
@@ -997,12 +1003,11 @@ def test_call_multi_reduction_error(monkeypatch, dist_mem):
     with pytest.raises(GenerationError) as err:
         _ = PSyFactory("dynamo0.3",
                        distributed_memory=dist_mem).create(invoke_info)
-    assert(
-        "PSyclone currently only supports a single reduction in a kernel "
-        "or builtin" in str(err.value))
+    assert ("PSyclone currently only supports a single reduction in a kernel "
+            "or builtin" in str(err.value))
 
 
-def test_reduction_no_set_precision(monkeypatch, dist_mem):
+def test_reduction_no_set_precision(dist_mem):
     '''Test that the zero_reduction_variable() method generates correct
     code when a reduction argument does not have a defined
     precision. Only a zero value (without precision i.e. 0.0 not
@@ -1021,7 +1026,7 @@ def test_reduction_no_set_precision(monkeypatch, dist_mem):
     builtin = schedule.walk(BuiltIn)[0]
     arg = builtin.arguments.args[0]
     arg._precision = ""
-    
+
     generated_code = str(psy.gen)
 
     if dist_mem:
@@ -1142,8 +1147,8 @@ def test_invalid_reprod_pad_size(monkeypatch, dist_mem):
     with pytest.raises(GenerationError) as excinfo:
         _ = str(psy.gen)
     assert (
-        "REPROD_PAD_SIZE in {0} should be a positive "
-        "integer".format(Config.get().filename) in str(excinfo.value))
+        f"REPROD_PAD_SIZE in {Config.get().filename} should be a positive "
+        f"integer" in str(excinfo.value))
 
 
 def test_argument_properties():
@@ -2177,7 +2182,8 @@ def test_modified_kern_line_length(kernel_outputdir, monkeypatch):
     assert os.path.isfile(filepath)
     # Check that the argument list is line wrapped as it is longer
     # than 132 characters.
-    assert "map_w2, &\n&ndf_w3" in open(filepath).read()
+    with open(filepath, encoding="utf-8") as testfile:
+        assert "map_w2, &\n&ndf_w3" in testfile.read()
 
 
 def test_walk():

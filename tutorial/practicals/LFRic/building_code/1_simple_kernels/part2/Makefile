@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
 # Author: I. Kavcic, Met Office
+# Modified J. Henrichs, Bureau of Meteorology
 
 # Compiler settings
 F90 ?= gfortran
@@ -55,7 +56,9 @@ PSYCLONE_RELPATH = ../../../../../..
 LFRIC_PATH = $(PSYCLONE_RELPATH)/src/psyclone/tests/test_files/dynamo0p3/infrastructure
 LFRIC_NAME=lfric
 LFRIC_LIB=$(LFRIC_PATH)/lib$(LFRIC_NAME).a
-F90FLAGS += -I$(LFRIC_PATH)
+
+# This will add the required include flags to LFRIC_INCLUDE_FLAGS
+include $(LFRIC_PATH)/lfric_include_flags.inc
 
 # Object rules
 DRIVER_OBJ = $(filter %.o,$(DRIVER_SRC:.f90=.o))
@@ -69,35 +72,37 @@ EXAMPLE_OBJ = $(DRIVER_OBJ) $(ALGORITHM_OBJ) $(PSY_OBJ) $(KERNEL_OBJ)
 
 .PHONY: transform compile run clean allclean
 
+# Test PSyclone target for continuous integration
+transform: $(PSY_SRC) $(ALGORITHM_SRC)
+
 compile: transform $(EXEC)
 
 run: compile
 	$(EXEC)
 
 $(EXEC): $(LFRIC_LIB) $(EXAMPLE_OBJ)
-	$(F90) $(F90FLAGS) $(EXAMPLE_OBJ) -o $(EXEC) -L$(LFRIC_PATH) -l$(LFRIC_NAME)
+	$(F90) $(F90FLAGS) $(LFRIC_INCLUDE_FLAGS) $(EXAMPLE_OBJ) \
+	-o $(EXEC) -L$(LFRIC_PATH) -l$(LFRIC_NAME)
 
 $(LFRIC_LIB):
 	$(MAKE) -C $(LFRIC_PATH)
 
 # Dependencies
-$(DRIVER_OBJ): $(ALGORITHM_OBJ) $(PSY_OBJ) $(KERNEL_OBJ)
-$(ALGORITHM_OBJ): $(PSY_OBJ) $(KERNEL_OBJ)
+$(DRIVER_OBJ): $(ALGORITHM_OBJ)
+$(ALGORITHM_OBJ): $(PSY_OBJ)
 $(PSY_OBJ): $(KERNEL_OBJ)
+$(KERNEL_OBJ): $(LFRIC_LIB)
 
 %.o %.mod: %.F90
-	$(F90) $(F90FLAGS) -c $<
+	$(F90) $(F90FLAGS) $(LFRIC_INCLUDE_FLAGS) -c $<
 
 %.o %.mod: %.f90
-	$(F90) $(F90FLAGS) -c $<
+	$(F90) $(F90FLAGS) $(LFRIC_INCLUDE_FLAGS) -c $<
 
 $(ALGORITHM_SRC): $(PSY_SRC)
 
 # Keep the generated Alg and PSy files
 .precious: $(ALGORITHM_SRC) $(PSY_SRC)
-
-# Transform: PSyclone target for continuous integration
-transform: $(PSY_SRC) $(ALGORITHM_SRC)
 
 %_psy.f90: %.x90
 	psyclone $(PSYCLONE_CMD) --config $(PSYCLONE_RELPATH)/config/psyclone.cfg \

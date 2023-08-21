@@ -215,16 +215,10 @@ subroutine tl_hydrostatic_code(nlayers,          &
       exner_e(df) = exner( map_w3(df) + k )
     end do
     do df = 1, ndf_wt
-      !*** Issue #1491 Unsupported form of rhs expression (multiple
-      !*** active terms multiplied by an inactive term, as PSyclone sees
-      !*** this as a single term).
-      !***    theta_v_e(df) = ls_theta_v_e(df) * &
-      !***       ( theta( map_wt(df) + k ) /  ls_theta( map_wt(df) + k )  +               &
-      !***         moist_dyn_gas( map_wt(df) + k ) / ls_moist_dyn_gas( map_wt(df) + k ) - &
-      !***         moist_dyn_tot( map_wt(df) + k ) / ls_moist_dyn_tot( map_wt(df) + k ) )
-      theta_v_e(df) = ls_theta_v_e(df) * theta( map_wt(df) + k ) /  ls_theta( map_wt(df) + k )  + &
-           ls_theta_v_e(df) * moist_dyn_gas( map_wt(df) + k ) / ls_moist_dyn_gas( map_wt(df) + k ) - &
-           ls_theta_v_e(df) * moist_dyn_tot( map_wt(df) + k ) / ls_moist_dyn_tot( map_wt(df) + k )
+      theta_v_e(df) = ls_theta_v_e(df) * &
+         ( theta( map_wt(df) + k ) /  ls_theta( map_wt(df) + k )  +               &
+           moist_dyn_gas( map_wt(df) + k ) / ls_moist_dyn_gas( map_wt(df) + k ) - &
+           moist_dyn_tot( map_wt(df) + k ) / ls_moist_dyn_tot( map_wt(df) + k ) )
     end do
     ! Compute the RHS integrated over one cell
     do qp2 = 1, nqp_v
@@ -260,20 +254,12 @@ subroutine tl_hydrostatic_code(nlayers,          &
           v  = w2_basis(:,df,qp1,qp2)
           dv = w2_diff_basis(1,df,qp1,qp2)
           ! Pressure gradient term
-          
-          !*** Issue #1491 Unsupported form of rhs expression (multiple
-          !*** active terms multiplied by an inactive term, as PSyclone sees
-          !*** this as a single term).
-          !*** grad_term = cp * ls_exner_at_quad * (                        &
-          !***             theta_v_at_quad * dv                             &
-          !***           + dot_product( grad_theta_v_at_quad(:),v) ) +      &
-          !***             cp * exner_at_quad * (                           &
-          !***             ls_theta_v_at_quad * dv                          &
-          !***           + dot_product( ls_grad_theta_v_at_quad(:),v) )
-          grad_term = cp * ls_exner_at_quad * theta_v_at_quad * dv                           &
-                    + cp * ls_exner_at_quad * dot_product( grad_theta_v_at_quad(:),v)        &
-                    + cp * exner_at_quad * ls_theta_v_at_quad * dv                           &
-                    + cp * exner_at_quad * dot_product( ls_grad_theta_v_at_quad(:),v)
+          grad_term = cp * ls_exner_at_quad * (                        &
+                      theta_v_at_quad * dv                             &
+                    + dot_product( grad_theta_v_at_quad(:),v) ) +      &
+                      cp * exner_at_quad * (                           &
+                      ls_theta_v_at_quad * dv                          &
+                    + dot_product( ls_grad_theta_v_at_quad(:),v) )
           r_u( map_w2(df) + k ) = r_u( map_w2(df) + k ) &
                                 + wqp_h(qp1)*wqp_v(qp2)*grad_term
         end do

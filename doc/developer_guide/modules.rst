@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2019, Science and Technology Facilities Council.
+.. Copyright (c) 2019-2023, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 .. POSSIBILITY OF SUCH DAMAGE.
 .. -----------------------------------------------------------------------------
 .. Written by R. W. Ford and A. R. Porter, STFC Daresbury Lab
+.. Modified by L. Turner, Met Office
 
 Modules
 #######
@@ -41,6 +42,10 @@ that make up PSyclone.
 
 Module: f2pygen
 ===============
+
+.. warning::
+   The f2pygen functionality has been superseded by the development of
+   the PSyIR and will be removed entirely in a future release.
 
 `f2pygen` provides functionality for generating Fortran code from
 scratch and supports the addition of a use statement to an existing
@@ -96,17 +101,6 @@ Adding code
 .. autofunction:: psyclone.f2pygen.adduse
 
 
-The PSyclone code where the `adduse` function was used has recently
-been migrated from using `fparser1` to using `fparser2`. In
-recognition of this change a new version of `adduse` has been
-developed which adds use statements to an existing `fparser2` parse
-tree. For the timebeing this new version is located in the same file
-it is used - `alg_gen.py` - but will be migrated to `f2pygen` (or
-equivalent) in the future:
-
-.. autofunction:: psyclone.alg_gen.adduse
-
-
 .. _dev_configuration:
 
 Module: configuration
@@ -137,7 +131,7 @@ is specified in either a config file or the command line
 consistency checks on the values it obtains from the configuration file.
 
 Since the PSyclone API to use can be read from the configuration
-file, it is not possible to have API-specifc sub-classes of ``Config``
+file, it is not possible to have API-specific sub-classes of ``Config``
 as we don't know which API is in use before we read the file. However, the
 configuration file can contain API-specific settings. These are placed in
 separate sections, named for the API to which they apply, e.g.::
@@ -150,7 +144,7 @@ configuration file, the ``Config`` constructor then creates a
 dictionary using the list of supported APIs to provide the keys. The
 configuration file is then checked for API-specific sections (again
 using the API names from the default section) and, if any are found,
-an API-specifc sub-class is created using the parsed entries from the
+an API-specific sub-class is created using the parsed entries from the
 corresponding section. The resulting object is stored in the
 dictionary under the appropriate key. The API-specific values may then
 be accessed as, e.g.::
@@ -249,14 +243,6 @@ multiple kernel calls within an OpenMP region) must sub-class the
     :private-members:
     :noindex:
 
-Finally, those transformations that act on a Kernel must sub-class the
-``KernelTrans`` class:
-
-.. autoclass:: psyclone.transformations.KernelTrans
-   :members:
-   :private-members:
-   :noindex:
-
 In all cases, the `apply` method of any sub-class *must* ensure that
 the `validate` method of the parent class is called.
 
@@ -275,16 +261,16 @@ When constructing the Fortran subroutine for either an Invoke or
 Kernel stub (see :ref:`stub-generation`), there are various groups of
 related quantities for which variables must be declared and
 (for Invokes) initialised. Each of these groupings is managed by a distinct
-sub-class of the ``DynCollection`` abstract class:
+sub-class of the ``LFRicCollection`` abstract class:
 
-.. autoclass:: psyclone.dynamo0p3.DynCollection
+.. autoclass:: psyclone.domain.lfric.LFRicCollection
    :members:
    :private-members:
    :noindex:
 
 (A single base class is used for both Invokes and Kernel stubs since it
 allows the code dealing with variable declarations to be shared.)
-A concrete sub-class of ``DynCollection`` must provide an
+A concrete sub-class of ``LFRicCollection`` must provide an
 implementation of the ``_invoke_declarations`` method. If the
 quantities associated with the collection require initialisation
 within the PSy layer then the ``initialise`` method must also be
@@ -292,10 +278,10 @@ implemented. If stub-generation is to be supported for kernels that
 make use of the collection type then an implementation must also be
 provided for ``_stub_declarations.``
 
-Although instances of (sub-classes of) ``DynCollection`` handle all
+Although instances of (sub-classes of) ``LFRicCollection`` handle all
 declarations and initialisation, there remains the problem of
 constructing the list of arguments for a kernel (or kernel stub). The
-``psyclone.dynamo0p3.ArgOrdering`` base class provides support for
+``psyclone.domain.lfric.ArgOrdering`` base class provides support for
 this:
 
 .. autoclass:: psyclone.domain.lfric.ArgOrdering
@@ -308,5 +294,5 @@ argument lists when *calling* kernels (``KernCallArgList``) and when
 *creating* kernel stubs (``KernStubArgList``).  ``KernCallArgList`` is
 only used in ``DynKernelArguments.raw_arg_list()``.
 ``KernStubArgList`` is only used in ``DynKern.gen_stub()``. These
-classes make use of ``DynCollection`` sub-classes in order
+classes make use of ``LFRicCollection`` sub-classes in order
 to ensure that argument naming is consistent.

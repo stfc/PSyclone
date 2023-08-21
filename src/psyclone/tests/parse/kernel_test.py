@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2021, Science and Technology Facilities Council.
+# Copyright (c) 2019-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -39,7 +39,6 @@
 file. Some tests for this file are in parse_test.py. This file adds
 tests for code that is not covered there.'''
 
-from __future__ import absolute_import
 import os
 import pytest
 from fparser.api import parse
@@ -49,7 +48,7 @@ from fparser.two import Fortran2003
 from psyclone.domain.lfric.lfric_builtins import BUILTIN_MAP as builtins
 from psyclone.domain.lfric.lfric_builtins import \
     BUILTIN_DEFINITIONS_FILE as fname
-from psyclone.parse.kernel import KernelType, get_kernel_metadata,\
+from psyclone.parse.kernel import KernelType, get_kernel_metadata, \
     get_kernel_interface, KernelProcedure, Descriptor, \
     BuiltInKernelTypeFactory, get_kernel_filepath, get_kernel_ast
 from psyclone.parse.utils import ParseError
@@ -417,12 +416,28 @@ def test_builtinfactory_metadataerror(monkeypatch):
 # class Descriptor() test
 
 
+def test_descriptor_constructor():
+    '''
+    Test the constructor of the Descriptor() class.
+
+    '''
+    obj = Descriptor("gh_write", "w3", 4)
+    assert isinstance(obj, Descriptor)
+    assert obj.access == "gh_write"
+    assert obj.function_space == "w3"
+    assert obj.metadata_index == 4
+    with pytest.raises(InternalError) as err:
+        Descriptor("gh_write", "w2", -1)
+    assert ("metadata index must be an integer and greater than or equal to "
+            "zero but got: -1" in str(err.value))
+
+
 def test_descriptor_repr():
     '''Test that the __repr__ method in Descriptor() behaves as expected.
 
     '''
-    tmp = Descriptor("gh_inc", "w1")
-    assert repr(tmp) == "Descriptor(gh_inc, w1)"
+    tmp = Descriptor("gh_inc", "w1", 2)
+    assert repr(tmp) == "Descriptor(gh_inc, w1, 2)"
 
 
 # class KernelProcedure() test utility

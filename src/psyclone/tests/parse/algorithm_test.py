@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2022, Science and Technology Facilities Council.
+# Copyright (c) 2019-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,8 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors R. W. Ford, A. R. Porter and N. Nobre, STFC Daresbury Lab
+# Modified I. Kavcic, Met Office
 
 '''A module to perform pytest unit tests on the parse/algorithm.py
 file. Some tests for this file are in parse_test.py. This file adds
@@ -242,28 +243,40 @@ def test_parser_invokeinfo_datatypes():
 
 
 def test_parser_invokeinfo_datatypes_mixed():
-    '''Test that the invoke_info method in the Parser class captures the
-    required datatype information with mixed-precision fields, and
-    scalars e.g. defined as r_solver_field_type and r_solver
-    respectively.
+    '''Test that the 'invoke_info' method in the Parser class captures the
+    required datatype information with mixed-precision fields, scalars
+    and operators, e.g. defined as 'r_solver_field_type', 'r_solver'
+    and 'r_solver_operator_type' respectively.
 
     Also tests that the datatype information is always lower case
     irrespective of the case of the declaration and argument. This
     covers the situation where the variable is declared and used with
-    different case e.g. real a\n call invoke(kern(A)).
+    different case e.g. 'real a\n call invoke(kern(A))'.
 
     '''
     alg_filename = os.path.join(
-        LFRIC_BASE_PATH, "26.1_mixed_precision.f90")
+        LFRIC_BASE_PATH, "26.8_mixed_precision_args.f90")
     parser = Parser(kernel_paths=[LFRIC_BASE_PATH])
     alg_parse_tree = parse_fp2(alg_filename)
     info = parser.invoke_info(alg_parse_tree)
-    args = info.calls[0].kcalls[0].args
-    assert args[0]._datatype == ("real", "r_solver")
-    assert args[1]._datatype == ("r_solver_field_type", None)
-    assert args[2]._datatype == ("r_solver_field_type", None)
-    assert args[3]._datatype == ("field_type", None)
-    assert args[4]._datatype == ("field_type", None)
+    args0 = info.calls[0].kcalls[0].args
+    args1 = info.calls[0].kcalls[1].args
+    args2 = info.calls[0].kcalls[2].args
+    args3 = info.calls[0].kcalls[3].args
+    args4 = info.calls[0].kcalls[4].args
+    assert args0[0]._datatype == ("real", "r_def")
+    assert args0[1]._datatype == ("field_type", None)
+    assert args0[2]._datatype == ("operator_type", None)
+    assert args1[0]._datatype == ("real", "r_solver")
+    assert args1[1]._datatype == ("r_solver_field_type", None)
+    assert args1[2]._datatype == ("r_solver_operator_type", None)
+    assert args2[0]._datatype == ("real", "r_tran")
+    assert args2[1]._datatype == ("r_tran_field_type", None)
+    assert args2[2]._datatype == ("r_tran_operator_type", None)
+    assert args3[0]._datatype == ("real", "r_bl")
+    assert args3[1]._datatype == ("r_bl_field_type", None)
+    assert args4[0]._datatype == ("real", "r_phys")
+    assert args4[1]._datatype == ("r_phys_field_type", None)
 
 
 def test_parser_invokeinfo_datatypes_self():
@@ -578,7 +591,7 @@ def test_getkernel_isliteral(content, datatype):
     literal argument and returns them correctly.
 
     '''
-    tree = Structure_Constructor("sub({0})".format(content))
+    tree = Structure_Constructor(f"sub({content})")
     kern_name, args = get_kernel(tree, "dummy.f90", {})
     assert kern_name == "sub"
     assert len(args) == 1
@@ -595,13 +608,14 @@ def test_getkernel_isliteral(content, datatype):
     ("1.0 * 1.0", ("real", None)),
     ("(1_i_def * 1_i_def)", ("integer", "i_def")),
     ("(1.0_r_solver * 1.0_r_solver)", ("real", "r_solver")),
+    ("(1.0_r_tran * 1.0_r_tran)", ("real", "r_tran")),
     ("(1.0_r_def + 2.0_r_def) * 2.0_r_def", ("real", "r_def"))])
 def test_getkernel_isliteral_expr(content, datatype):
     '''Test that the get_kernel function recognises the possible forms of
     literal expression and returns them correctly.
 
     '''
-    tree = Structure_Constructor("sub({0})".format(content))
+    tree = Structure_Constructor(f"sub({content})")
     kern_name, args = get_kernel(tree, "dummy.f90", {})
     assert kern_name == "sub"
     assert len(args) == 1
@@ -640,7 +654,7 @@ def test_getkernel_isarg(content):
     separately in test_getkernel_proc_component.
 
     '''
-    tree = Part_Ref("sub({0})".format(content))
+    tree = Part_Ref(f"sub({content})")
     kern_name, args = get_kernel(tree, "dummy.f90", {})
     assert kern_name == "sub"
     assert len(args) == 1
@@ -670,7 +684,7 @@ def test_getkernel_proc_component(content):
     longer treats it as a structure constructor.
 
     '''
-    tree = Call_Stmt("call x(y({0}, 1.0))".format(content))
+    tree = Call_Stmt(f"call x(y({content}, 1.0))")
     kernel = tree.children[1].children[0]
     kern_name, args = get_kernel(kernel, "dummy.f90", {})
     assert kern_name == "y"
@@ -769,7 +783,7 @@ def test_getkernel_noexpr(content):
     currently supported).
 
     '''
-    tree = Part_Ref("sub({0})".format(content))
+    tree = Part_Ref(f"sub({content})")
     with pytest.raises(NotImplementedError) as excinfo:
         _, _ = get_kernel(tree, "dummy.f90", None)
     assert "Expressions containing variables are not yet supported" \
@@ -799,8 +813,8 @@ def test_createvarname_error1():
     name = "class"
     with pytest.raises(InternalError) as excinfo:
         _ = create_var_name("invalid")
-    assert ("algorithm.py:create_var_name unrecognised structure "
-            "'<{0} 'str'>'".format(name) in str(excinfo.value))
+    assert (f"algorithm.py:create_var_name unrecognised structure "
+            f"'<{name} 'str'>'" in str(excinfo.value))
 
 
 def test_createvarname_error2(monkeypatch):
@@ -814,9 +828,9 @@ def test_createvarname_error2(monkeypatch):
     monkeypatch.setattr(content, "items", ["invalid", "invalid"])
     with pytest.raises(InternalError) as excinfo:
         _ = create_var_name(content)
-    assert ("algorithm.py:create_var_name unrecognised structure "
-            "'<{0} 'str'>' in '<class 'fparser.two.Fortran2003."
-            "Data_Ref'>'".format(name) in str(excinfo.value))
+    assert (f"algorithm.py:create_var_name unrecognised structure "
+            f"'<{name} 'str'>' in '<class 'fparser.two.Fortran2003."
+            f"Data_Ref'>'" in str(excinfo.value))
 
 
 @pytest.mark.parametrize("expression,expected", [
@@ -839,7 +853,7 @@ def test_kernelcall_repr():
 
     '''
 
-    class KtypeDummy(object):
+    class KtypeDummy():
         '''A fake KernelType class which provides the required variables to
         allow the BuiltInCall class to be instantiated and __repr__
         called.
@@ -862,7 +876,7 @@ def test_builtincall_repr():
 
     '''
 
-    class KtypeDummy(object):
+    class KtypeDummy():
         '''A fake KernelType class which provides the required variables to
         allow the BuiltInCall class to be instantiated and __repr__
         called.

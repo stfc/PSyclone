@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2021, Science and Technology Facilities Council
+! Copyright (c) 2021-2022, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,8 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author A. R. Porter, STFC Daresbury Lab
+! Author: A. R. Porter, STFC Daresbury Lab
+! Modified: I. Kavcic, Met Office
 
 program single_invoke
 
@@ -40,7 +41,7 @@ program single_invoke
   ! cell-column and the last of which is a CMA kernel.
   use constants_mod,                only: r_def
   use field_mod,                    only: field_type
-  use operator_mod,                 only: columnwise_operator_type
+  use columnwise_operator_mod,      only: columnwise_operator_type
   use columnwise_op_asm_kernel_mod, only: columnwise_op_asm_kernel_type
   use testkern_domain_mod,          only: testkern_domain_type
   use testkern_mod,                 only: testkern_type

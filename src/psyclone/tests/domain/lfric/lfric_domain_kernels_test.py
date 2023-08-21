@@ -33,19 +33,19 @@
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
 # Modified: I. Kavcic, Met Office
+# Modified: J. Henrichs, Bureau of Meteorology
+
 
 ''' This module contains pytest tests for LFRic kernels which operate on
     the 'domain'. '''
 
-from __future__ import absolute_import
 import os
 import pytest
 from fparser import api as fpapi
+from psyclone.dynamo0p3 import DynKernMetadata, DynKern
 from psyclone.parse.algorithm import parse
-from psyclone.psyGen import PSyFactory
-from psyclone.configuration import Config
-from psyclone.dynamo0p3 import DynKernMetadata
 from psyclone.parse.utils import ParseError
+from psyclone.psyGen import PSyFactory
 from psyclone.tests.lfric_build import LFRicBuild
 
 BASE_PATH = os.path.join(
@@ -53,14 +53,6 @@ BASE_PATH = os.path.join(
         os.path.abspath(__file__)))),
     "test_files", "dynamo0p3")
 TEST_API = "dynamo0.3"
-
-
-@pytest.fixture(scope="module", autouse=True)
-def setup():
-    '''Make sure that all tests here use dynamo0.3 as API.'''
-    Config.get().api = TEST_API
-    yield()
-    Config._instance = None
 
 
 def test_domain_kernel():
@@ -284,7 +276,7 @@ end module restrict_mod
             "different mesh resolutions" in str(err.value))
 
 
-def test_psy_gen_domain_kernel(dist_mem, tmpdir):
+def test_psy_gen_domain_kernel(dist_mem, tmpdir, fortran_writer):
     ''' Check the generation of the PSy layer for an invoke consisting of a
     single kernel with operates_on=domain. '''
     _, info = parse(os.path.join(BASE_PATH, "25.0_domain.f90"),
@@ -310,6 +302,25 @@ def test_psy_gen_domain_kernel(dist_mem, tmpdir):
             "f1_proxy%data, ndf_w3, undf_w3, map_w3)" in gen_code)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
+
+    # Also test that the FortranWriter handles domain kernels as expected.
+    # ATM we have a `lower_to_language_level method` for DynLoop which removes
+    # the loop node for a domain kernel entirely and only leaves the body.
+    # So we can't call the FortranWriter directly, since it will first lower
+    # the tree, which removes the domain kernel.
+    # In order to test the actual writer atm, we have to call the
+    # `loop_node` directly. But in order for this to work, we need to
+    # lower the actual kernel call. Once #1731 is fixed, the temporary
+    # `lower_to_language_level` method in DynLoop can (likely) be removed,
+    # and then we can just call `fortran_writer(schedule)` here.
+    schedule = psy.invokes.invoke_list[0].schedule
+    # Lower the DynKern:
+    for kern in schedule.walk(DynKern):
+        kern.lower_to_language_level()
+    # Now call the loop handling method directly.
+    out = fortran_writer.loop_node(schedule.children[0])
+    assert ("call testkern_domain_code(nlayers, ncell_2d_no_halos, b, "
+            "f1_proxy%data, ndf_w3, undf_w3, map_w3)" in out)
 
 
 def test_psy_gen_domain_two_kernel(dist_mem, tmpdir):

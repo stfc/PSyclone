@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+# Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 #         I. Kavcic, Met Office
 #         J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
@@ -42,13 +42,11 @@
 
 from __future__ import absolute_import
 import abc
-import six
 from psyclone.psyir.symbols.data_type_symbol import DataTypeSymbol
 from psyclone.psyir.symbols.symbol import Symbol
 
 
-@six.add_metaclass(abc.ABCMeta)
-class TypedSymbol(Symbol):
+class TypedSymbol(Symbol, metaclass=abc.ABCMeta):
     '''
     Abstract base class for those Symbols that have an associated datatype.
 
@@ -82,8 +80,8 @@ class TypedSymbol(Symbol):
         if "datatype" in kwargs:
             self.datatype = kwargs.pop("datatype")
         elif not hasattr(self, '_datatype'):
-            raise AttributeError("Missing mandatory 'datatype' attribute for "
-                                 "symbol '{0}'.".format(self.name))
+            raise AttributeError(f"Missing mandatory 'datatype' attribute for "
+                                 f"symbol '{self.name}'.")
 
         super(TypedSymbol, self)._process_arguments(**kwargs)
 
@@ -95,7 +93,8 @@ class TypedSymbol(Symbol):
     def datatype(self):
         '''
         :returns: datatype of the TypedSymbol.
-        :rtype: str
+        :rtype: :py:class:`psyclone.psyir.symbols.DataType` or \
+                :py:class:`psyclone.psyir.symbols.DataTypeSymbol`
         '''
         return self._datatype
 
@@ -116,9 +115,9 @@ class TypedSymbol(Symbol):
         from psyclone.psyir.symbols.datatypes import DataType
         if not isinstance(value, (DataType, DataTypeSymbol)):
             raise TypeError(
-                "The datatype of a {0} must be specified using either "
-                "a DataType or a DataTypeSymbol but got: '{1}'".format(
-                    type(self).__name__, type(value).__name__))
+                f"The datatype of a {type(self).__name__} must be specified "
+                f"using either a DataType or a DataTypeSymbol but got: "
+                f"'{type(value).__name__}'")
         self._datatype = value
 
     def copy(self):
@@ -147,8 +146,8 @@ class TypedSymbol(Symbol):
 
         '''
         if not isinstance(symbol_in, TypedSymbol):
-            raise TypeError("Argument should be of type 'TypedSymbol' but "
-                            "found '{0}'.".format(type(symbol_in).__name__))
+            raise TypeError(f"Argument should be of type 'TypedSymbol' but "
+                            f"found '{type(symbol_in).__name__}'.")
         super(TypedSymbol, self).copy_properties(symbol_in)
         self._datatype = symbol_in.datatype
 

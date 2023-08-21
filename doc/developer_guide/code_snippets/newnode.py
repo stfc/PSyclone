@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: S. Siso, STFC Daresbury Lab
-# Modified by: R. W. Ford, STFC Daresbuty Lab
+# Modified by: R. W. Ford, STFC Daresbury Lab
 
 '''A simple Python script showing how to create new PSyIR nodes and
 provide them with the basic functionality. In order to use it you must
@@ -79,7 +79,7 @@ def example():
     # assignment = Assignment()
     # assignment.addchild(mynode)
 
-    psyir_schedule.view()
+    print(psyir_schedule.view())
 
 
 if __name__ == "__main__":

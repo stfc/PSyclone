@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,11 +31,78 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: R. W. Ford, STFC Daresbury Lab
+# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Laboratory.
+# Modified by J. Henrichs, Bureau of Meteorology
 
-'''This module tests the contents of the lfric_constants.py file.'''
+'''
+Module containing tests for the LFRic (Dynamo0.3) constants class.
+'''
 
+import pytest
+
+from psyclone.configuration import Config
 from psyclone.domain.lfric import LFRicConstants
+from psyclone.errors import InternalError
+from psyclone import generator
+
+
+def test_config_loaded_before_constants_created(monkeypatch):
+    '''This tests that we get an error message if the config object
+    is not loaded when creating an LFRicConst instance. '''
+    monkeypatch.setattr(Config, "_HAS_CONFIG_BEEN_INITIALISED", False)
+    monkeypatch.setattr(LFRicConstants, "HAS_BEEN_INITIALISED", False)
+
+    with pytest.raises(InternalError) as err:
+        LFRicConstants()
+    assert ("LFRicConstants is being created before the config file is loaded"
+            in str(err.value))
+
+    # If the psyclone command is executed, the flag should be set. The
+    # parameters specified here will immediately abort, but still the
+    # flag must be set at the end, since the command has to set this flag:
+    with pytest.raises(SystemExit) as err:
+        generator.main(["some_file.f90"])
+    assert Config.has_config_been_initialised() is True
+
+
+def test_specific_function_space():
+    ''' Check that the lookup of a specific function space for a valid
+    wildcard name works as expected.
+
+    '''
+    name = LFRicConstants().specific_function_space("ANY_W2")
+    assert name == "w2"
+    name = LFRicConstants().specific_function_space("ANY_space_3")
+    assert name == "w0"
+    name = LFRicConstants().specific_function_space(
+        "ANY_disCONTINUOUS_space_3")
+    assert name == "w3"
+    name = LFRicConstants().specific_function_space("wtheta")
+    assert name == "wtheta"
+
+
+def test_specific_function_space_invalid():
+    ''' Check that the specific_function_space() method rejects an invalid
+    function-space name. '''
+    with pytest.raises(ValueError) as err:
+        LFRicConstants().specific_function_space("wrong")
+    assert ("'wrong' is not a recognised LFRic function space (one of"
+            in str(err.value))
+
+
+def test_specific_function_space_internal_error(monkeypatch):
+    ''' Check that the lookup of a specific function space raises the expected
+    internal error if an unhandled case is found.
+    '''
+    const = LFRicConstants()
+    # We have to monkeypatch the list of valid FS names to get to the bit
+    # of code we want to test.
+    monkeypatch.setattr(LFRicConstants,
+                        "VALID_FUNCTION_SPACE_NAMES", ["any_wrong"])
+    with pytest.raises(InternalError) as err:
+        const.specific_function_space("any_wrong")
+    assert ("Error mapping from meta-data function space to actual space: "
+            "cannot handle 'any_wrong'" in str(err.value))
 
 
 def test_quadrature_type_map():

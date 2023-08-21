@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council.
+# Copyright (c) 2017-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+# Authors: R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 
 ''' Module containing py.test tests for the transformation of
     the PSy representation of NEMO code '''
@@ -42,8 +42,7 @@ from fparser.common.readfortran import FortranStringReader
 from psyclone import nemo
 from psyclone.errors import GenerationError
 from psyclone.psyGen import TransInfo, PSyFactory
-from psyclone.psyir.nodes import Return, OMPDoDirective, \
-    OMPParallelDirective, OMPParallelDoDirective
+from psyclone.psyir.nodes import OMPDoDirective, OMPParallelDirective
 from psyclone.tests.utilities import get_invoke
 from psyclone.transformations import OMPLoopTrans, OMPParallelTrans, \
     OMPParallelLoopTrans
@@ -77,7 +76,7 @@ def test_omp_explicit_gen():
         "  real, dimension(jpi,jpj,jpk) :: umask\n"
         "\n"
         "  !$omp parallel do default(shared), private(ji,jj,jk), "
-        "schedule(static)\n"
+        "schedule(auto)\n"
         "  do jk = 1, jpk, 1\n"
         "    do jj = 1, jpj, 1\n"
         "      do ji = 1, jpi, 1\n"
@@ -206,7 +205,7 @@ def test_omp_do_code_gen():
                      .else_body[0].else_body[0].dir_body[0])
     gen_code = str(psy.gen).lower()
     correct = '''        !$omp parallel default(shared), private(ji,jj)
-        !$omp do schedule(static)
+        !$omp do schedule(auto)
         do jj = 1, jpj, 1
           do ji = 1, jpi, 1
             zdkt(ji,jj) = (ptb(ji,jj,jk - 1,jn) - ptb(ji,jj,jk,jn)) * \
@@ -233,7 +232,7 @@ def test_omp_do_within_if():
     expected = (
         "      else\n"
         "        !$omp parallel do default(shared), private(ji,jj), "
-        "schedule(static)\n"
+        "schedule(auto)\n"
         "        do jj = 1, jpj, 1\n"
         "          do ji = 1, jpi, 1\n"
         "            zdkt(ji,jj) = (ptb(ji,jj,jk - 1,jn) - "

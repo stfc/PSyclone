@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022, Science and Technology Facilities Council.
+# Copyright (c) 2022-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -47,14 +47,15 @@ GENERATED_FILES = helmholtz_solver_alg_psy.f90 helmholtz_solver_alg_mod.f90 *.o 
 F90 ?= gfortran
 F90FLAGS ?= -g -O0
 
-OBJ = helmholtz_solver_alg_psy.o helmholtz_solver_alg_mod.o scaled_matrix_vector_kernel_mod.o
+OBJ = helmholtz_solver_alg_psy.o helmholtz_solver_alg_mod.o scaled_matrix_vector_kernel_mod.o driver.o
 
 EXEC = will_not_run.exe
 LFRIC_PATH = ../../../src/psyclone/tests/test_files/dynamo0p3/infrastructure
 LFRIC_NAME=lfric
 LFRIC_LIB=$(LFRIC_PATH)/lib$(LFRIC_NAME).a
 
-F90FLAGS += -I$(LFRIC_PATH)
+# This will create LFRIC_INCLUDE_FLAGS
+include $(LFRIC_PATH)/lfric_include_flags.inc
 
 # This example will not run as no mesh is set up and the data is not
 # initialised in the algorithm layer. The example was simply designed
@@ -70,21 +71,22 @@ helmholtz_solver_alg_psy.f90 helmholtz_solver_alg_mod.f90: helmholtz_solver_alg_
 	${PSYCLONE} -s ./async_script.py -opsy helmholtz_solver_alg_psy.f90 -oalg helmholtz_solver_alg_mod.f90 $<
 
 $(EXEC): $(LFRIC_LIB) $(OBJ)
-	$(F90) $(F90FLAGS) $(OBJ) -o $(EXEC) -L$(LFRIC_PATH) -l$(LFRIC_NAME)
+	$(F90) $(F90FLAGS) $(LFRIC_INCLUDE_FLAGS) $(OBJ) -o $(EXEC) -L$(LFRIC_PATH) -l$(LFRIC_NAME)
 
 $(LFRIC_LIB):
 	$(MAKE) -C $(LFRIC_PATH)
 
 # Dependencies
+driver.o:			helmholtz_solver_alg_mod.o
 helmholtz_solver_alg_psy.o:	scaled_matrix_vector_kernel_mod.o
 helmholtz_solver_alg_mod.o:	helmholtz_solver_alg_psy.o
 scaled_matrix_vector_kernel_mod.o: $(LFRIC_LIB)
 
 %.o: %.F90
-	$(F90) $(F90FLAGS) -c $<
+	$(F90) $(F90FLAGS) $(LFRIC_INCLUDE_FLAGS) -c $<
 
 %.o: %.f90
-	$(F90) $(F90FLAGS) -c $<
+	$(F90) $(F90FLAGS) $(LFRIC_INCLUDE_FLAGS) -c $<
 
 allclean: clean
 	make -C $(LFRIC_PATH) allclean

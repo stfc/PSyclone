@@ -83,7 +83,7 @@ contains
   !>
   integer(i_native) function cellshape_from_key( key )
 
-    use constants_mod, only: emdi, imdi
+    use constants_mod, only: unset_key, imdi
 
     implicit none
 
@@ -91,7 +91,7 @@ contains
 
     integer(i_native) :: key_index
 
-    if (key == emdi) then
+    if (key == unset_key) then
       write( log_scratch_space, '(A)') &
           'Missing key for cellshape enumeration in finite_element namelist.'
       cellshape_from_key = int(imdi,i_native)
@@ -124,7 +124,7 @@ contains
   !>
   character(str_def) function key_from_cellshape( value )
 
-    use constants_mod, only: emdi, imdi
+    use constants_mod, only: unset_key, imdi
 
     implicit none
 
@@ -135,7 +135,7 @@ contains
     value_index = 1
     do
       if (cellshape_value(value_index) == int(imdi,i_native)) then
-        key_from_cellshape = emdi
+        key_from_cellshape = unset_key
         return
       else if (cellshape_value(value_index) == value) then
         key_from_cellshape = cellshape_key(value_index)
@@ -176,7 +176,7 @@ contains
   subroutine read_namelist( file_unit, local_rank, &
                             dummy_cellshape )
 
-    use constants_mod, only: cmdi, emdi, imdi, rmdi
+    use constants_mod, only: cmdi, unset_key, imdi, rmdi
 
     implicit none
 
@@ -198,7 +198,7 @@ contains
 
     integer(i_native) :: condition
 
-    cellshape = emdi
+    cellshape = unset_key
     coordinate_order = imdi
     element_order = imdi
     nqp_exact = imdi

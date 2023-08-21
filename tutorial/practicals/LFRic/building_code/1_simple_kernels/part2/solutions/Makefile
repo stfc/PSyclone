@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020, Science and Technology Facilities Council.
+# Copyright (c) 2020-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -58,9 +58,11 @@ EXEC = ./simple_kernels_part2
 # LFRic infrastructure library
 PSYCLONE_RELPATH = ../../../../../../..
 LFRIC_PATH = $(PSYCLONE_RELPATH)/src/psyclone/tests/test_files/dynamo0p3/infrastructure
-LFRIC_NAME=lfric
-LFRIC_LIB=$(LFRIC_PATH)/lib$(LFRIC_NAME).a
-F90FLAGS += -I$(LFRIC_PATH)
+LFRIC_NAME = lfric
+LFRIC_LIB = $(LFRIC_PATH)/lib$(LFRIC_NAME).a
+
+# This will add the required include flags to LFRIC_INCLUDE_FLAGS
+include $(LFRIC_PATH)/lfric_include_flags.inc
 
 # Object rules
 DRIVER_OBJ = $(notdir $(filter %.o,$(DRIVER_SRC:.f90=.o)))
@@ -83,22 +85,23 @@ run: compile
 	$(EXEC)
 
 $(EXEC): $(LFRIC_LIB) $(EXAMPLE_OBJ)
-	$(F90) $(F90FLAGS) $(EXAMPLE_OBJ) -o $(EXEC) -L$(LFRIC_PATH) -l$(LFRIC_NAME)
+	$(F90) $(F90FLAGS) $(LFRIC_INCLUDE_FLAGS) $(EXAMPLE_OBJ) \
+	-o $(EXEC) -L$(LFRIC_PATH) -l$(LFRIC_NAME)
 
 $(LFRIC_LIB):
 	$(MAKE) -C $(LFRIC_PATH)
 
 # Dependencies
-$(DRIVER_OBJ): $(ALGORITHM_OBJ) $(PSY_OBJ) $(KERNEL_OBJ) $(LFRIC_LIB)
-$(ALGORITHM_OBJ): $(PSY_OBJ) $(KERNEL_OBJ) $(LFRIC_LIB)
-$(PSY_OBJ): $(KERNEL_OBJ) $(LFRIC_LIB)
+$(DRIVER_OBJ): $(ALGORITHM_OBJ) $(PSY_OBJ) $(KERNEL_OBJ)
+$(ALGORITHM_OBJ): $(PSY_OBJ) $(KERNEL_OBJ)
+$(PSY_OBJ): $(KERNEL_OBJ)
 $(KERNEL_OBJ): $(LFRIC_LIB)
 
 %.o %.mod: %.F90
-	$(F90) $(F90FLAGS) -c $<
+	$(F90) $(F90FLAGS) $(LFRIC_INCLUDE_FLAGS) -c $<
 
 %.o %.mod: %.f90
-	$(F90) $(F90FLAGS) -c $<
+	$(F90) $(F90FLAGS) $(LFRIC_INCLUDE_FLAGS) -c $<
 
 $(ALGORITHM_SRC): $(PSY_SRC)
 
@@ -110,6 +113,9 @@ $(ALGORITHM_SRC): $(PSY_SRC)
 	-opsy $*_psy.f90 -oalg $*.f90 $<
 
 clean:
+	# We need to clean the base directory, otherwise invalid files in there
+	# will interfere with compiling the solution properly.
+	$(MAKE) -C .. clean
 	rm -f *.o *.mod $(EXEC) $(ALGORITHM_SRC) $(PSY_SRC)
 
 allclean: clean

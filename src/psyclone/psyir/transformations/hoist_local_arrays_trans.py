@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022, Science and Technology Facilities Council.
+# Copyright (c) 2022-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,19 +32,22 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
+# Modified: S. Siso, STFC Daresbury Lab
 
 '''
 This module contains the HoistLocalArraysTrans transformation.
 
 '''
 
+import copy
+
 from psyclone.psyGen import Transformation
 from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import (Routine, Container, ArrayReference, Range,
                                   FileContainer, IfBlock, UnaryOperation,
-                                  CodeBlock)
-from psyclone.psyir.symbols import ArrayType, Symbol
+                                  CodeBlock, ACCRoutineDirective, Literal,
+                                  IntrinsicCall, BinaryOperation, Reference)
+from psyclone.psyir.symbols import ArrayType, Symbol, INTEGER_TYPE
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
 
@@ -88,7 +91,11 @@ class HoistLocalArraysTrans(Transformation):
         integer :: j
         real :: value = 1.0
     <BLANKLINE>
-        if (.not.allocated(a)) then
+        if (.not.allocated(a) .or. ubound(a, 1) /= n .or. ubound(a, 2) /= n) \
+then
+          if (allocated(a)) then
+            deallocate(a)
+          end if
           allocate(a(1 : n, 1 : n))
         end if
         do i = 1, n, 1
@@ -102,6 +109,11 @@ class HoistLocalArraysTrans(Transformation):
     end module test_mod
     <BLANKLINE>
 
+    By default, the target routine will be rejected if it is found to contain
+    an ACCRoutineDirective since this usually implies that the routine will be
+    launched in parallel on the OpenACC device. This check can be disabled
+    by setting 'allow_accroutine' to True in the `options` dictionary.
+
     '''
     def apply(self, node, options=None):
         '''Applies the transformation to the supplied Routine node,
@@ -111,9 +123,13 @@ class HoistLocalArraysTrans(Transformation):
         this method does nothing.
 
         :param node: target PSyIR node.
-        :type node: subclass of :py:class:`psyclone.psyir.nodes.Routine`
+        :type node: :py:class:`psyclone.psyir.nodes.Routine`
         :param options: a dictionary with options for transformations.
-        :type options: dict of str:values or None
+        :param bool options["allow_accroutine"]: permit the target routine \
+            to contain an ACCRoutineDirective. These are forbidden by default \
+            because their presence usually indicates that the routine will be \
+            run in parallel on the OpenACC device.
+        :type options: Optional[Dict[str, Any]]
 
         '''
         self.validate(node, options)
@@ -133,20 +149,21 @@ class HoistLocalArraysTrans(Transformation):
             # No automatic arrays found so nothing to do.
             return
 
-        # arefs will hold the list of array references to be allocated.
-        arefs = []
         # Get the reversed tags map so that we can lookup the tag (if any)
         # associated with the symbol being hoisted.
         tags_dict = node.symbol_table.get_reverse_tags_dict()
+
+        # Fortran reader needed to create Codeblocks in the following loop
+        freader = FortranReader()
 
         for sym in automatic_arrays:
             # Keep a copy of the original shape of the array.
             orig_shape = sym.datatype.shape[:]
             # Modify the *existing* symbol so that any references to it
             # remain valid.
-            # pylint: disable=consider-using-enumerate
-            for idx in range(len(sym.shape)):
-                sym.shape[idx] = ArrayType.Extent.DEFERRED
+            new_type = copy.copy(sym.datatype)
+            new_type._shape = len(orig_shape)*[ArrayType.Extent.DEFERRED]
+            sym.datatype = new_type
             # Ensure that the promoted symbol is private to the container.
             sym.visibility = Symbol.Visibility.PRIVATE
             # We must allow for the situation where there's a clash with a
@@ -164,27 +181,70 @@ class HoistLocalArraysTrans(Transformation):
             # new memory allocation statement.
             dim_list = [Range.create(dim.lower.copy(), dim.upper.copy())
                         for dim in orig_shape]
-            arefs.append(ArrayReference.create(sym, dim_list))
+            aref = ArrayReference.create(sym, dim_list)
 
-        freader = FortranReader()
-        fwriter = FortranWriter()
-        # TODO #1366: we have to use a CodeBlock in order to query whether or
-        # not the array has been allocated already.
-        code = f"allocated({automatic_arrays[0].name})"
-        expr = freader.psyir_from_expression(code, node.symbol_table)
-        if_expr = UnaryOperation.create(UnaryOperation.Operator.NOT, expr)
-        # TODO #1366: we also have to use a CodeBlock for the allocate().
-        alloc_arg = ",".join(fwriter(aref) for aref in arefs)
-        body = [freader.psyir_from_statement(f"allocate({alloc_arg})",
-                                             node.symbol_table)]
-        # Insert the conditional allocation at the start of the supplied
-        # routine.
-        node.children.insert(0, IfBlock.create(if_expr, body))
+            # TODO #1366: we have to use a CodeBlock in order to query whether
+            # or not the array has been allocated already.
+            code = f"allocated({sym.name})"
+            allocated_expr = freader.psyir_from_expression(
+                                code, node.symbol_table)
+            cond_expr = UnaryOperation.create(
+                            UnaryOperation.Operator.NOT, allocated_expr)
+
+            # Add runtime checks to verify that the boundaries haven't changed
+            # (we skip literals as we know they can't have changed)
+            check_added = False
+            for idx, dim in enumerate(orig_shape):
+                if not isinstance(dim.lower, Literal):
+                    expr = BinaryOperation.create(
+                            BinaryOperation.Operator.NE,
+                            BinaryOperation.create(
+                                BinaryOperation.Operator.LBOUND,
+                                Reference(sym),
+                                Literal(str(idx+1), INTEGER_TYPE)),
+                            dim.lower.copy())
+                    # We chain the new check to the already existing cond_expr
+                    # which starts with the 'not allocated' condition added
+                    # before this loop.
+                    cond_expr = BinaryOperation.create(
+                                    BinaryOperation.Operator.OR,
+                                    cond_expr, expr)
+                    check_added = True
+                if not isinstance(dim.upper, Literal):
+                    expr = BinaryOperation.create(
+                            BinaryOperation.Operator.NE,
+                            BinaryOperation.create(
+                                BinaryOperation.Operator.UBOUND,
+                                Reference(sym),
+                                Literal(str(idx+1), INTEGER_TYPE)),
+                            dim.upper.copy())
+                    # We chain the new check to the already existing cond_expr
+                    # which starts with the 'not allocated' condition added
+                    # before this loop.
+                    cond_expr = BinaryOperation.create(
+                                    BinaryOperation.Operator.OR,
+                                    cond_expr, expr)
+                    check_added = True
+
+            body = []
+            if check_added:
+                body.append(
+                    IfBlock.create(
+                        allocated_expr.copy(),
+                        [IntrinsicCall.create(
+                            IntrinsicCall.Intrinsic.DEALLOCATE,
+                            [Reference(sym)])]))
+            body.append(
+                IntrinsicCall.create(IntrinsicCall.Intrinsic.ALLOCATE,
+                                     [aref]))
+            # Insert the conditional allocation at the start of the supplied
+            # routine.
+            node.children.insert(0, IfBlock.create(cond_expr, body))
 
         # Finally, remove the hoisted symbols (and any associated tags)
         # from the routine scope.
         for sym in automatic_arrays:
-            # TODO #898:Currently the SymbolTable.remove() method does not
+            # TODO #898: Currently the SymbolTable.remove() method does not
             # support DataSymbols.
             # pylint: disable=protected-access
             del node.symbol_table._symbols[sym.name]
@@ -196,9 +256,9 @@ class HoistLocalArraysTrans(Transformation):
     def _get_local_arrays(node):
         '''
         Identify all arrays that are local to the target routine, do not
-        represent its return value and do not explicitly use dynamic memory
-        allocation. Also excludes any such arrays that are accessed within
-        CodeBlocks.
+        represent its return value, are not constant and do not explicitly use
+        dynamic memory allocation. Also excludes any such arrays that are
+        accessed within CodeBlocks.
 
         :param node: target PSyIR node.
         :type node: subclass of :py:class:`psyclone.psyir.nodes.Routine`
@@ -208,8 +268,9 @@ class HoistLocalArraysTrans(Transformation):
 
         '''
         local_arrays = {}
-        for sym in node.symbol_table.local_datasymbols:
-            if sym is node.return_symbol or not sym.is_array:
+        for sym in node.symbol_table.automatic_datasymbols:
+            if (sym is node.return_symbol or not sym.is_array or
+                    sym.is_constant):
                 continue
             # Check whether all of the bounds of the array are defined - an
             # allocatable array will have array dimensions of
@@ -239,12 +300,14 @@ class HoistLocalArraysTrans(Transformation):
 
         :param node: target PSyIR node.
         :type node: subclass of :py:class:`psyclone.psyir.nodes.Routine`
-        :param options: a dictionary with options for transformations.
-        :type options: dict of str:values or None
+        :param options: any options for the transformation.
+        :type options: Optional[Dict[str, Any]]
 
         :raises TransformationError: if the supplied node is not a Routine.
         :raises TransformationError: if the Routine is not within a Container \
             (that is not a FileContainer).
+        :raises TransformationError: if the routine contains an OpenACC \
+            routine directive and options['allow_accroutine'] is not True.
         :raises TransformationError: if any symbols corresponding to local \
             arrays have a tag that already exists in the table of the parent \
             Container.
@@ -275,6 +338,17 @@ class HoistLocalArraysTrans(Transformation):
                 f"The supplied routine '{node.name}' should be within a "
                 f"Container but the enclosing container is a "
                 f"FileContainer (named '{container.name}').")
+
+        if not (options and options.get("allow_accroutine")):
+            if node.walk(ACCRoutineDirective):
+                raise TransformationError(
+                    f"The supplied routine '{node.name}' contains an ACC "
+                    f"Routine directive which implies it will be run in "
+                    f"parallel. Hoisting local arrays to global scope may "
+                    f"create race conditions in this case. If this routine "
+                    f"will be run in serial on the device then this check can "
+                    f"be disabled by setting 'allow_accroutine' to "
+                    f"True in the transformation options.")
 
         # Check for clashing tags in the container scope.
         auto_arrays = self._get_local_arrays(node)

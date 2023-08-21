@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,8 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
-# Modified by: S. Siso, STFC Daresbury Lab
+# Modified by: S. Siso and N. Nobre, STFC Daresbury Lab
+# Modified by: J. G. Wallwork, Met Office
 # -----------------------------------------------------------------------------
 
 '''Performs pytest tests on the support for OpenACC directives in the
@@ -166,13 +167,13 @@ def test_nemo_acc_kernels(default_present, expected, parser, fortran_writer):
     ktrans.apply(nemo_sched[0], options)
 
     result = fortran_writer(nemo_sched)
-    correct = '''  !$acc kernels{0}
+    correct = f'''  !$acc kernels{expected}
   do i = 1, 20, 2
     a = 2 * i + d(i)
     c(i) = a
     b(i) = b(i) + a + c(i)
   enddo
-  !$acc end kernels'''.format(expected)
+  !$acc end kernels'''
     assert correct in result
 
     cvisitor = CWriter()
@@ -256,6 +257,16 @@ def test_acc_loop(parser, fortran_writer):
     result = fortran_writer(schedule)
     assert ("  !$acc kernels\n"
             "  !$acc loop\n"
+            "  do jj = 1, jpj, 1\n" in result)
+    loop_dir._gang = True
+    result = fortran_writer(schedule)
+    assert ("  !$acc kernels\n"
+            "  !$acc loop gang\n"
+            "  do jj = 1, jpj, 1\n" in result)
+    loop_dir._vector = True
+    result = fortran_writer(schedule)
+    assert ("  !$acc kernels\n"
+            "  !$acc loop gang vector\n"
             "  do jj = 1, jpj, 1\n" in result)
 
 

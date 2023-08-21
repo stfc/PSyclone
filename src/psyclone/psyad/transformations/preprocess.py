@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022, Science and Technology Facilities Council
+# Copyright (c) 2022-2023, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,34 +32,55 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Modified: J. Henrichs, Bureau of Meteorology
 
 '''Module containing a PSyAD kernel transformation script that applies
-any required tranformations to the tangent linear PSyIR before it is
+any required transformations to the tangent linear PSyIR before it is
 translated to adjoint PSyIR.
 
 '''
-from psyclone.psyir.nodes import BinaryOperation, Assignment
-from psyclone.psyir.transformations import DotProduct2CodeTrans, \
-    Matmul2CodeTrans, ArrayRange2LoopTrans, TransformationError
+from psyclone.core import SymbolicMaths
+from psyclone.psyad.utils import node_is_passive
+from psyclone.psyir.nodes import (Assignment, BinaryOperation, Reference)
+from psyclone.psyir.transformations import (DotProduct2CodeTrans,
+                                            Matmul2CodeTrans,
+                                            ArrayRange2LoopTrans,
+                                            TransformationError,
+                                            Reference2ArrayRangeTrans)
 
 
-def preprocess_trans(kernel_psyir):
-    '''PSyclone kernel transformation script which replaces dotproduct and
-    matmul intrinsics with equivalent code and returns the modified
-    psyir. This is called internally by the PSyAD script before
-    transforming the code to its adjoint form.
+def preprocess_trans(kernel_psyir, active_variable_names):
+    '''PSyclone kernel transformation script which modifies the supplied
+    kernel psyir by replacing array-ranges with explicit loops,
+    dotproduct and matmul intrinsics with equivalent code and
+    performing symbolic expansion (e.g. x(a+b) => x*a+x*b). This is
+    called internally by the PSyAD script before transforming the code
+    to its adjoint form.
 
     :param kernel_psyir: PSyIR representation of the tangent linear \
         kernel code.
     :type kernel_psyir: :py:class:`psyclone.psyir.nodes.Node`
+    :param active_variable_names: list of active variable names.
+    :type active_variable_names: list of str
 
     '''
     dot_product_trans = DotProduct2CodeTrans()
     matmul_trans = Matmul2CodeTrans()
     arrayrange2loop_trans = ArrayRange2LoopTrans()
+    reference2arrayrange_trans = Reference2ArrayRangeTrans()
+
+    # Replace references to arrays (array notation) with array-ranges
+    for reference in kernel_psyir.walk(Reference):
+        try:
+            reference2arrayrange_trans.apply(reference)
+        except TransformationError:
+            pass
 
     # Replace array-ranges with explicit loops
     for assignment in kernel_psyir.walk(Assignment):
+        if node_is_passive(assignment, active_variable_names):
+            # No need to modify passive assignments
+            continue
         # Repeatedly apply the transformation until there are no more
         # array ranges in this assignment.
         while True:
@@ -75,3 +96,9 @@ def preprocess_trans(kernel_psyir):
         elif oper.operator == BinaryOperation.Operator.MATMUL:
             # Apply MATMUL transformation
             matmul_trans.apply(oper)
+
+    # Deal with any associativity issues here as AssignmentTrans
+    # is not able to.
+    for assignment in kernel_psyir.walk(Assignment):
+        sym_maths = SymbolicMaths.get()
+        sym_maths.expand(assignment.rhs)
