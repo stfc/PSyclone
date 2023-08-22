@@ -414,7 +414,7 @@ def test_colour_trans_continuous_write(dist_mem, tmpdir):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
-def test_colour_continuous_writer_intergrid(tmpdir):
+def test_colour_continuous_writer_intergrid(tmpdir, dist_mem):
     '''Test the loop-colouring transformation for an intergrid kernel that has
     a GH_WRITE access to a field on a continuous space. Since it has GH_WRITE
     it does not need to iterate into the halos (to get clean annexed dofs) and
@@ -422,7 +422,7 @@ def test_colour_continuous_writer_intergrid(tmpdir):
 
     '''
     psy, invoke = get_invoke("22.1.1_intergrid_cont_restrict.f90",
-                             TEST_API, idx=0, dist_mem=True)
+                             TEST_API, idx=0, dist_mem=dist_mem)
     loop = invoke.schedule[0]
     ctrans = Dynamo0p3ColourTrans()
     ctrans.apply(loop)
@@ -437,12 +437,13 @@ def test_colour_continuous_writer_intergrid(tmpdir):
             "get_last_halo_cell_all_colours()" in result)
     assert ("last_edge_cell_all_colours_field1 = mesh_field1%"
             "get_last_edge_cell_all_colours()" in result)
-    # Usage.
-    assert ("      do colour=loop0_start,loop0_stop\n"
-            "        do cell=loop1_start,"
-            "last_edge_cell_all_colours_field1(colour)\n"
-            "          !\n"
-            "          call restrict_w2_code(nlayers" in result)
+    # Usage. Since there is no need to loop into the halo, the upper loop
+    # bound should be independent of whether or not DM is enabled.
+    upper_bound = "last_edge_cell_all_colours_field1(colour)"
+    assert (f"      do colour=loop0_start,loop0_stop\n"
+            f"        do cell=loop1_start,{upper_bound}\n"
+            f"          !\n"
+            f"          call restrict_w2_code(nlayers" in result)
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
