@@ -35,7 +35,6 @@
 #
 '''Module to test the psyad assignment transformation.'''
 
-from __future__ import absolute_import
 import pytest
 
 from psyclone.psyad.transformations import AssignmentTrans, TangentLinearError
@@ -43,7 +42,7 @@ from psyclone.psyad.transformations import AssignmentTrans, TangentLinearError
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import BinaryOperation, Reference, Assignment, \
-    Literal, UnaryOperation, ArrayReference, Range
+    Literal, UnaryOperation, ArrayReference, Range, IntrinsicCall
 from psyclone.psyir.symbols import DataSymbol, REAL_TYPE, INTEGER_TYPE, \
     ScalarType, ArrayType
 from psyclone.psyir.transformations import TransformationError
@@ -1277,8 +1276,8 @@ def test_validate_unaryop():
     '''
     lhs_symbol = DataSymbol("a", REAL_TYPE)
     rhs_symbol = DataSymbol("b", REAL_TYPE)
-    sqrt = UnaryOperation.create(
-        UnaryOperation.Operator.SQRT, Reference(rhs_symbol))
+    sqrt = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.SQRT, [Reference(rhs_symbol)])
     assignment = Assignment.create(Reference(lhs_symbol), sqrt)
     trans = AssignmentTrans(active_variables=[
         lhs_symbol, rhs_symbol])

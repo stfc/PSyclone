@@ -101,9 +101,9 @@ def test_get_array_bound(fortran_reader):
     lower_bound, upper_bound, step = \
         Reference2ArrayRangeTrans._get_array_bound(symbol, 0)
     assert isinstance(lower_bound, IntrinsicCall)
-    assert lower_bound.operator == IntrinsicCall.Intrinsic.LBOUND
+    assert lower_bound.intrinsic == IntrinsicCall.Intrinsic.LBOUND
     assert isinstance(upper_bound, IntrinsicCall)
-    assert upper_bound.operator == IntrinsicCall.Intrinsic.UBOUND
+    assert upper_bound.intrinsic == IntrinsicCall.Intrinsic.UBOUND
     assert isinstance(step, Literal)
     assert step.value == "1"
     reference = lower_bound.children[0]
@@ -192,8 +192,8 @@ def test_multid(fortran_reader, fortran_writer):
     assert "a(:,:,:) = b(:,:,:) * c(:,:,:)\n" in result
 
 
-def test_operators(fortran_reader, fortran_writer):
-    '''Test that references to arrays within operators are transformed to
+def test_intrinsics(fortran_reader, fortran_writer):
+    '''Test that references to arrays within intrinsics are transformed to
     array slice notation, using dotproduct as the example.
 
     '''
@@ -269,10 +269,10 @@ def test_validate_query(fortran_reader):
             with pytest.raises(TransformationError) as info:
                 trans.validate(reference)
             assert ("References to arrays within LBOUND, UBOUND or SIZE "
-                    "operators should not be transformed." in str(info.value))
+                    "intrinsics should not be transformed." in str(info.value))
 
     # Check the references to 'b' in the hidden lbound and ubound
-    # operators within 'b(:)' do not get modified.
+    # intrinsics within 'b(:)' do not get modified.
     assignment = psyir.children[0].children[1]
     for reference in assignment.walk(Reference):
         # We want to avoid subclasses such as ArrayReference
@@ -281,15 +281,15 @@ def test_validate_query(fortran_reader):
             with pytest.raises(TransformationError) as info:
                 trans.validate(reference)
             assert ("References to arrays within LBOUND, UBOUND or SIZE "
-                    "operators should not be transformed." in str(info.value))
+                    "intrinsics should not be transformed." in str(info.value))
 
-    # Check the reference to 'b' in the size operator does not get modified
+    # Check the reference to 'b' in the size intrinsics does not get modified
     assignment = psyir.children[0].children[2]
     reference = assignment.children[1].children[0]
     with pytest.raises(TransformationError) as info:
         trans.validate(reference)
     assert ("References to arrays within LBOUND, UBOUND or SIZE "
-            "operators should not be transformed." in str(info.value))
+            "intrinsics should not be transformed." in str(info.value))
 
 
 def test_validate_structure(fortran_reader):

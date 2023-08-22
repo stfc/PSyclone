@@ -440,9 +440,14 @@ class SymPyWriter(FortranWriter):
     def intrinsiccall_node(self, node):
         # Sympy does not support argument names, remove them for now
         if any(node.argument_names):
-            VisitorError(
-                f"Named arguments are not supported by SymPy but found: "
-                f"'{node.debug_string()}'.")
+            # FIXME: Do this inside Call?
+            # TODO: This is not totally right without canonical intrinsic
+            # positions?
+            for idx in range(len(node.argument_names)):
+                node._argument_names[idx] = (node._argument_names[idx][0], None)
+            # raise VisitorError(
+            #     f"Named arguments are not supported by SymPy but found: "
+            #     f"'{node.debug_string()}'.")
         try:
             name = self._intrinsic_to_str[node.intrinsic]
             args = self._gen_arguments(node)

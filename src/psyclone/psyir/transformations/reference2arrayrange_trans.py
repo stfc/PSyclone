@@ -157,7 +157,7 @@ class Reference2ArrayRangeTrans(Transformation):
                     IntrinsicCall.Intrinsic.SIZE]):
             raise TransformationError(
                 "References to arrays within LBOUND, UBOUND or SIZE "
-                "operators should not be transformed.")
+                "intrinsics should not be transformed.")
         if (isinstance(node.parent, IntrinsicCall) and
                 node.parent.routine.name in ["DEALLOCATE"]):
             raise TransformationError(LazyString(

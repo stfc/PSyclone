@@ -38,7 +38,7 @@
 
 from psyclone.errors import InternalError
 from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyir.nodes import (UnaryOperation, BinaryOperation,
+from psyclone.psyir.nodes import (IntrinsicCall, BinaryOperation,
                                   Reference, Assignment, IfBlock,
                                   Container, FileContainer, Node)
 from psyclone.psyir.symbols import DataSymbol
@@ -112,7 +112,7 @@ def create_real_comparison(sym_table, kernel, var1, var2):
         "precision of the active variables")
     sub_op = BinaryOperation.create(BinaryOperation.Operator.SUB,
                                     Reference(var1), Reference(var2))
-    abs_op = UnaryOperation.create(UnaryOperation.Operator.ABS, sub_op)
+    abs_op = IntrinsicCall.create(IntrinsicCall.Intrinsic.ABS, [sub_op])
     div_op = BinaryOperation.create(BinaryOperation.Operator.DIV,
                                     abs_op, Reference(mtol))
     statements.append(Assignment.create(Reference(rel_diff), div_op))

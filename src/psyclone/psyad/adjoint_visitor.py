@@ -294,7 +294,7 @@ class AdjointVisitor(PSyIRVisitor):
                     # Ignore LBOUND and UBOUND
                     if not (isinstance(ref.parent, IntrinsicCall) and
                             ref.position == 0 and
-                            ref.parent.operator in [
+                            ref.parent.intrinsic in [
                                 IntrinsicCall.Intrinsic.LBOUND,
                                 IntrinsicCall.Intrinsic.UBOUND]):
                         raise VisitorError(

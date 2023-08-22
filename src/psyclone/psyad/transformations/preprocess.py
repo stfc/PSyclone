@@ -42,7 +42,7 @@ translated to adjoint PSyIR.
 from psyclone.core import SymbolicMaths
 from psyclone.psyad.utils import node_is_active, node_is_passive
 from psyclone.psyir.nodes import (BinaryOperation, Assignment, Reference,
-                                  StructureReference)
+                                  StructureReference, IntrinsicCall)
 from psyclone.psyir.transformations import (DotProduct2CodeTrans,
                                             Matmul2CodeTrans,
                                             ArrayRange2LoopTrans,
@@ -90,13 +90,13 @@ def preprocess_trans(kernel_psyir, active_variable_names):
             except TransformationError:
                 break
 
-    for oper in kernel_psyir.walk(BinaryOperation):
-        if oper.operator == BinaryOperation.Operator.DOT_PRODUCT:
+    for call in kernel_psyir.walk(IntrinsicCall):
+        if call.intrinsic == IntrinsicCall.Intrinsic.DOT_PRODUCT:
             # Apply DOT_PRODUCT transformation
-            dot_product_trans.apply(oper)
-        elif oper.operator == BinaryOperation.Operator.MATMUL:
+            dot_product_trans.apply(call)
+        elif call.intrinsic == IntrinsicCall.Intrinsic.MATMUL:
             # Apply MATMUL transformation
-            matmul_trans.apply(oper)
+            matmul_trans.apply(call)
 
     # Deal with any associativity issues here as AssignmentTrans
     # is not able to.
