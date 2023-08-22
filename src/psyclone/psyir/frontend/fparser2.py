@@ -225,22 +225,21 @@ def _first_type_match(nodelist, typekind):
 def _find_or_create_unresolved_symbol(location, name, scope_limit=None,
                                       **kargs):
     '''Returns the symbol with the name 'name' from a symbol table
-    associated with this node or one of its ancestors.  If a symbol is found
-    and the `symbol_type` keyword argument is supplied then the type of the
-    existing symbol is compared with the specified type. If it is not already
-    an instance of this type, then the symbol is specialised (in place).
+    associated with this node or one of its ancestors.  If a symbol is
+    found and the `symbol_type` keyword argument is supplied then the
+    type of the existing symbol is compared with the specified
+    type. If it is not already an instance of this type, then the
+    symbol is specialised (in place).
 
-    If the symbol is not found and there are no ContainerSymbols with
-    wildcard imports and no interfaces with unknown content then an
-    exception is raised. However, if there are one or more
-    ContainerSymbols with wildcard imports (which could therefore be
-    bringing the symbol into scope) or one or more interfaces with
-    unknown content then a new Symbol with the specified visibility
-    but of unknown interface is created and inserted in the most local
-    SymbolTable that has such an import. The scope_limit variable
-    further limits the symbol table search so that the search through
-    ancestor nodes stops when the scope_limit node is reached
-    i.e. ancestors of the scope_limit node are not searched.
+    If the symbol is not found then a new Symbol with the specified
+    visibility but of unknown interface is created and inserted in the
+    most local SymbolTable that has a Routin or Container node as
+    parent.
+
+    The scope_limit variable further limits the symbol table search so
+    that the search through ancestor nodes stops when the scope_limit
+    node is reached i.e. ancestors of the scope_limit node are not
+    searched.
 
     :param location: PSyIR node from which to operate.
     :type location: :py:class:`psyclone.psyir.nodes.Node`
@@ -260,9 +259,6 @@ def _find_or_create_unresolved_symbol(location, name, scope_limit=None,
     :raises TypeError: if the supplied scope_limit is not a Node.
     :raises ValueError: if the supplied scope_limit node is not an
         ancestor of the supplied node.
-    :raises SymbolError: if no matching symbol is found and there are
-        no ContainerSymbols from which it might be brought into scope
-        or unknown interfaces which might contain its declaration.
 
     '''
     if not isinstance(location, Node):
@@ -294,11 +290,7 @@ def _find_or_create_unresolved_symbol(location, name, scope_limit=None,
                 f"_find_or_create_unresolved_symbol() is not an ancestor of "
                 f"this node '{location}'.")
 
-    # Keep a reference to the most local SymbolTable with a wildcard
-    # import in case we need to create a Symbol.
-    first_symbol_table = None
     test_node = location
-
     # Iterate over ancestor Nodes of this Node.
     while test_node:
         # For simplicity, test every Node for the existence of a
@@ -319,14 +311,7 @@ def _find_or_create_unresolved_symbol(location, name, scope_limit=None,
                         sym.specialise(expected_type, **kargs)
                 return sym
             except KeyError:
-                # The supplied name does not match any Symbols in
-                # this SymbolTable. Does this SymbolTable have any
-                # wildcard imports?
-                if first_symbol_table is None:
-                    for csym in symbol_table.containersymbols:
-                        if csym.wildcard_import:
-                            first_symbol_table = symbol_table
-                            break
+                pass
 
         if test_node is scope_limit:
             # The ancestor scope/top-level Node has been reached and
@@ -336,29 +321,23 @@ def _find_or_create_unresolved_symbol(location, name, scope_limit=None,
         # Move on to the next ancestor.
         test_node = test_node.parent
 
-    if first_symbol_table:
-        # No symbol found but there are one or more Containers from which
-        # it may be being brought into scope. Therefore create a generic
-        # Symbol with a UnresolvedInterface and add it to the most
-        # local SymbolTable with a wildcard import.
-        return first_symbol_table.new_symbol(
-                name, interface=UnresolvedInterface(), **kargs)
-
-    # Are there any interfaces that might be hiding the symbol declaration?
+    # find the closest ancestor symbol table attached to a Routine or
+    # Container node. We don't want to add to a Schedule node as in
+    # some situations PSyclone assumes symbols are declared within
+    # Routine or Container symbol tables due to its Fortran provenance
+    # (but should probably not!). We also have cases when the whole
+    # tree has not been built so the symbol table is not connected to
+    # a node.
     symbol_table = location.scope.symbol_table
-    try:
-        _ = symbol_table.lookup(
-            "_psyclone_internal_interface", scope_limit=scope_limit)
-        # There is an unknown interface so add this symbol.
-        return location.scope.symbol_table.new_symbol(
-            name, interface=UnresolvedInterface(), **kargs)
-    except KeyError:
-        pass
+    while symbol_table.node and not isinstance(
+            symbol_table.node, (Routine, Container)):
+        symbol_table = symbol_table.parent_symbol_table()
 
     # All requested Nodes have been checked but there has been no
-    # match and there are no wildcard imports or unknown interfaces so
-    # raise an exception.
-    # raise SymbolError(f"No Symbol found for name '{name}'.")
+    # match. Add it to the symbol table as an unresolved symbol in any
+    # case as, for example, it might be declared later, or the
+    # declaration may be hidden (perhaps in a codeblock), or it may be
+    # imported with a wildcard import.
     return symbol_table.new_symbol(
         name, interface=UnresolvedInterface(), **kargs)
 
@@ -1966,6 +1945,7 @@ class Fparser2Reader():
             tag = None
             try:
                 sym = symbol_table.lookup(sym_name, scope_limit=scope)
+                # pylint: disable=unidiomatic-typecheck
                 if type(sym) == Symbol:
                     # This was a generic symbol. We now know what it is
                     sym.specialise(DataSymbol, datatype=datatype,

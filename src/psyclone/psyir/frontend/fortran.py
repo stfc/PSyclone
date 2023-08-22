@@ -1,6 +1,6 @@
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: S. Siso, STFC Daresbury Lab
-# Modifications: A. R. Porter and N. Nobre, STFC Daresbury Lab
+# Modifications: A. R. Porter, N. Nobre and R. W. Ford, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' This module provides the PSyIR Fortran front-end.'''
@@ -43,7 +43,7 @@ from fparser.two.parser import ParserFactory
 from fparser.two.symbol_table import SYMBOL_TABLES
 from fparser.two.utils import NoMatchError
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
-from psyclone.psyir.nodes import Schedule, Assignment
+from psyclone.psyir.nodes import Schedule, Assignment, Routine
 from psyclone.psyir.symbols import SymbolError, SymbolTable
 
 
@@ -164,10 +164,16 @@ class FortranReader():
         # Create a fake sub-tree connected to the supplied symbol table so
         # that we can process the statement and lookup any symbols that it
         # references.
-        fake_parent = Schedule(symbol_table=symbol_table.deep_copy())
+        try:
+            routine_symbol = symbol_table.lookup_with_tag("own_routine_symbol")
+            routine_name = routine_symbol.name
+        except KeyError:
+            routine_name = "dummy"
+        fake_parent = Routine.create(
+            routine_name, symbol_table.deep_copy(), [])
 
         try:
-            # Process the statement, giving the Schedule we've just
+            # Process the statement, giving the Routine we've just
             # created as the parent.
             self._processor.process_nodes(fake_parent, exec_part.children)
         except SymbolError as err:
@@ -197,7 +203,7 @@ class FortranReader():
         # place to implement caching in order to avoid repeating parsing steps
         # that have already been done before.
 
-        with open(file_path, "r") as source:
+        with open(file_path, "r", encoding="utf8") as source:
             return self.psyir_from_source(source.read(), free_form=free_form)
 
 

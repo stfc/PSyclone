@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2022, Science and Technology Facilities Council.
+# Copyright (c) 2020-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors: A. R. Porter and N. Nobre, STFC Daresbury Lab
+# Modified: R. W. Ford, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' Performs py.test tests on the fparser2 PSyIR front-end support for
@@ -125,17 +126,16 @@ def test_deferred_derived_type(type_name):
 
 @pytest.mark.usefixtures("f2008_parser")
 def test_missing_derived_type():
-    ''' Check that the fronted raises an error if it encounters a variable
-    of a derived type that cannot be resolved. '''
+    '''Check that the fronted does not raise an error if it encounters a
+    variable of a derived type that cannot be resolved. This is the
+    back-end's responsibility.
+
+    '''
     fake_parent = KernelSchedule("dummy_schedule")
     processor = Fparser2Reader()
     reader = FortranStringReader("type(my_type) :: var")
     fparser2spec = Fortran2003.Specification_Part(reader)
-    # This should raise an error because there's no Container from which
-    # the definition of 'my_type' can be brought into scope.
-    with pytest.raises(SymbolError) as err:
-        processor.process_declarations(fake_parent, fparser2spec.content, [])
-    assert "No Symbol found for name 'my_type'" in str(err.value)
+    processor.process_declarations(fake_parent, fparser2spec.content, [])
 
 
 @pytest.mark.parametrize("type_name", ["my_type", "MY_TYPE", "mY_type"])

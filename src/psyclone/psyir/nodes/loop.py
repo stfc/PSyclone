@@ -131,17 +131,30 @@ class Loop(Statement):
 
         '''
         if not isinstance(variable, DataSymbol):
+            try:
+                variable_name = f"'{variable.name}'"
+            except AttributeError:
+                variable_name = "property"
             raise GenerationError(
-                f"variable property in Loop class should be a DataSymbol but "
-                f"found '{type(variable).__name__}'.")
+                f"variable {variable_name} in Loop class should be a "
+                f"DataSymbol but found '{type(variable).__name__}'.")
         if not isinstance(variable.datatype, ScalarType):
+            try:
+                variable_name = f"'{variable.name}'"
+            except AttributeError:
+                variable_name = "property"
             raise GenerationError(
-                f"variable property in Loop class should be a ScalarType but "
-                f"found '{type(variable.datatype).__name__}'.")
+                f"variable {variable_name} in Loop class should be a "
+                f"ScalarType but found '{type(variable.datatype).__name__}'.")
         if variable.datatype.intrinsic != ScalarType.Intrinsic.INTEGER:
+            try:
+                variable_name = f"'{variable.name}'"
+            except AttributeError:
+                variable_name = "property"
             raise GenerationError(
-                f"variable property in Loop class should be a scalar integer "
-                f"but found '{variable.datatype.intrinsic.name}'.")
+                f"variable {variable_name} in Loop class should be a "
+                f"scalar integer but found "
+                f"'{variable.datatype.intrinsic.name}'.")
 
     @staticmethod
     def _validate_child(position, child):

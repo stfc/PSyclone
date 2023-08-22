@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council.
+# Copyright (c) 2020-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,8 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors: A. R. Porter and N. Nobre, STFC Daresbury Lab
-# Modified A. B. G. Chalk, STFC Datesbury Lab
+# Modified A. B. G. Chalk, STFC Daresbury Lab
+# Modified R. W. Ford, STFC Daresbury Lab
 
 ''' Module containing pytest tests for the handling of the DO
 construct in the PSyIR fparser2 frontend. '''
@@ -41,7 +42,7 @@ construct in the PSyIR fparser2 frontend. '''
 import pytest
 from fparser.two import Fortran2003
 
-from psyclone.errors import InternalError
+from psyclone.errors import GenerationError
 from psyclone.psyir.nodes import Assignment, BinaryOperation, CodeBlock, \
                                  Literal, Loop, Routine, Schedule, WhileLoop
 from psyclone.tests.utilities import Compile
@@ -179,10 +180,10 @@ def test_undeclared_loop_var(fortran_reader):
         end do
       end subroutine test
     '''
-    with pytest.raises(InternalError) as err:
+    with pytest.raises(GenerationError) as err:
         _ = fortran_reader.psyir_from_source(code)
-    assert ("Loop-variable name 'i' is not declared and there are no "
-            "unqualified use statements" in str(err.value))
+    assert ("variable 'i' in Loop class should be a ScalarType but found "
+            "'DeferredType'" in str(err.value))
 
 
 def test_do_inside_while(fortran_reader, fortran_writer, tmpdir):

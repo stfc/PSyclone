@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2022, Science and Technology Facilities Council.
+# Copyright (c) 2019-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -303,13 +303,13 @@ def test_where_within_loop(fortran_reader):
     # Check that we have symbols for the two arrays
     mymod = psyir.children[0]
     assert isinstance(mymod, Container)
-    assert "var" in mymod.symbol_table
-    assert "var2" in mymod.symbol_table
-    assert isinstance(mymod.symbol_table.lookup("var").interface,
-                      UnresolvedInterface)
-    assert isinstance(mymod.symbol_table.lookup("var2").interface,
-                      UnresolvedInterface)
     sub = mymod.children[0]
+    assert "var" in sub.symbol_table
+    assert "var2" in sub.symbol_table
+    assert isinstance(sub.symbol_table.lookup("var").interface,
+                      UnresolvedInterface)
+    assert isinstance(sub.symbol_table.lookup("var2").interface,
+                      UnresolvedInterface)
     assert isinstance(sub, Routine)
     assert isinstance(sub[0], Loop)
     assert sub[0].variable.name == "jl"

@@ -511,8 +511,9 @@ def test_kerncallarglist_scalar_literal(fortran_writer):
     args[3]._intrinsic_type = "invalid"
     with pytest.raises(InternalError) as err:
         create_arg_list.scalar(args[3])
-    assert ("Unexpected literal expression 'invalid' when "
-            "processing kernel 'testkern_qr_code'" in str(err.value))
+    assert ("Expected argument 'invalid' to kernel 'testkern_qr_code' "
+            "to be a literal but the created PSyIR contains one or more "
+            "References." in str(err.value))
 
 
 def test_indirect_dofmap(fortran_writer):

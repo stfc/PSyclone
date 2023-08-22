@@ -318,13 +318,13 @@ def test_check_variable():
     array_symbol = DataSymbol("my_array", array_type)
     with pytest.raises(GenerationError) as info:
         Loop._check_variable(array_symbol)
-    assert ("variable property in Loop class should be a ScalarType but "
+    assert ("variable 'my_array' in Loop class should be a ScalarType but "
             "found 'ArrayType'." in str(info.value))
 
     scalar_symbol = DataSymbol("my_array", REAL_TYPE)
     with pytest.raises(GenerationError) as info:
         Loop._check_variable(scalar_symbol)
-    assert ("variable property in Loop class should be a scalar integer but "
+    assert ("variable 'my_array' in Loop class should be a scalar integer but "
             "found 'REAL'." in str(info.value))
 
     scalar_symbol = DataSymbol("my_array", INTEGER_TYPE)

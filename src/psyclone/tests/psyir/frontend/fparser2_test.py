@@ -2042,12 +2042,6 @@ def test_handling_name():
     fake_parent = KernelSchedule('kernel')
     processor = Fparser2Reader()
 
-    # If one of the ancestors has a symbol table then process_nodes()
-    # checks that the symbol is declared.
-    with pytest.raises(SymbolError) as error:
-        processor.process_nodes(fake_parent, [fparser2name])
-    assert "No Symbol found for name 'x'." in str(error.value)
-
     fake_parent.symbol_table.add(DataSymbol('x', INTEGER_TYPE))
     processor.process_nodes(fake_parent, [fparser2name])
     assert len(fake_parent.children) == 1
@@ -2768,22 +2762,24 @@ def test_named_and_wildcard_use_var(f2008_parser):
         ''')
     prog = f2008_parser(reader)
     psy = PSyFactory(api="nemo").create(prog)
-    # We should have an entry for "a_var" in the Container symbol table
-    # due to the access in "test_sub1". The Container is the first child
-    # of the FileContainer node.
+    # We should not have an entry for "a_var" in the Container symbol
+    # table as we don't know whether the access in "test_sub1" comes
+    # from the wildcard import ("some_mod"). The Container is the
+    # first child of the FileContainer node.
     container = psy.container.children[0]
-    avar1 = container.symbol_table.lookup("a_var")
+    assert "a_var" not in container.symbol_table
+    # There should be an entry for "a_var" in the symbol table for the
+    # "test_sub1" routine as we do not yet know where it is declared.
+    routine = container.children[0]
+    avar1 = routine.symbol_table.lookup("a_var")
     # It must be a generic Symbol since we don't know anything about it
     # pylint: disable=unidiomatic-typecheck
     assert type(avar1) is Symbol
-    # There should be no entry for "a_var" in the symbol table for the
-    # "test_sub1" routine as it is not declared there.
-    schedule = psy.invokes.invoke_list[0].schedule
-    assert "a_var" not in schedule.symbol_table
+
     # There should be another, distinct entry for "a_var" in the symbol table
     # for "test_sub2" as it has a use statement that imports it.
-    schedule = psy.invokes.invoke_list[1].schedule
-    avar2 = schedule.symbol_table.lookup("a_var")
+    routine = container.children[1]
+    avar2 = routine.symbol_table.lookup("a_var")
     assert type(avar2) is Symbol
     assert avar2 is not avar1
 
@@ -3124,3 +3120,44 @@ def test_structures_constant_scope(fortran_reader, fortran_writer):
         "    end type my_type\n\n\n"
         "  end subroutine test_code\n\n"
         "end module test_mod" in result)
+
+
+def test_structures_constant_use(fortran_reader, fortran_writer):
+    '''Test that Fparser2Reader parses Fortran types correctly when there
+    is a type declaration with one of the members being initialised
+    with constants that are declared outside of the type within a
+    different symbol table and there is a wildcard use statement.
+
+    '''
+    test_code = (
+        "module test_mod\n"
+        "  use wildcard\n"
+        "  contains\n"
+        "  subroutine test_code()\n"
+        "    integer, parameter :: N = 1, M = 2\n"
+        "    type, private :: my_type\n"
+        "      integer :: i = N + M\n"
+        "      integer :: j\n"
+        "    end type my_type\n"
+        "  end subroutine\n"
+        "end module test_mod\n")
+    psyir = fortran_reader.psyir_from_source(test_code)
+    sym_table = psyir.children[0].children[0].symbol_table
+    n_symbol = sym_table.lookup("n")
+    m_symbol = sym_table.lookup("m")
+    symbol = sym_table.lookup("my_type")
+    assert isinstance(symbol, DataTypeSymbol)
+    assert isinstance(symbol.datatype, StructureType)
+    i_symbol = symbol.datatype.lookup("i")
+    n_reference = i_symbol.initial_value.children[0]
+    assert n_reference.symbol is n_symbol
+    m_reference = i_symbol.initial_value.children[1]
+    assert m_reference.symbol is m_symbol
+    result = fortran_writer(psyir)
+    assert(
+        "    integer, parameter :: N = 1\n"
+        "    integer, parameter :: M = 2\n"
+        "    type :: my_type\n"
+        "      integer :: i = N + M\n"
+        "      integer :: j\n"
+        "    end type my_type\n" in result)

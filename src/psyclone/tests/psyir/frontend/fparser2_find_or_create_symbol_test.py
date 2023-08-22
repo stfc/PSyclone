@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
+# Modified: R. W. Ford, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' Performs py.test tests for the _find_or_create_unresolved_symbol routine
@@ -43,11 +44,12 @@ import pytest
 from fparser.common.readfortran import FortranFileReader
 from psyclone.psyGen import PSyFactory, Kern
 from psyclone.psyir.frontend.fparser2 import _find_or_create_unresolved_symbol
-from psyclone.psyir.nodes import Reference, Container, Assignment, Literal, \
-    KernelSchedule, BinaryOperation
-from psyclone.psyir.symbols import Symbol, DataSymbol, SymbolError, \
-    SymbolTable, REAL_TYPE, ContainerSymbol, ScalarType, UnresolvedInterface, \
-    RoutineSymbol, NoType
+from psyclone.psyir.nodes import (
+    Reference, Container, Assignment, Literal, KernelSchedule,
+    BinaryOperation)
+from psyclone.psyir.symbols import (
+    Symbol, DataSymbol, SymbolTable, REAL_TYPE, ScalarType,
+    UnresolvedInterface, RoutineSymbol, NoType)
 from psyclone.tests.utilities import get_invoke
 
 
@@ -74,14 +76,6 @@ def test_find_or_create_unresolved_symbol():
         field_old, field_old.name, scope_limit=kernel_schedule), DataSymbol)
     assert field_old.symbol.name == field_old.name
 
-    # Symbol in KernelSchedule SymbolTable with parent scope, so
-    # the symbol should not be found as we limit the scope to the
-    # immediate parent of the reference
-    with pytest.raises(SymbolError) as excinfo:
-        _ = _find_or_create_unresolved_symbol(field_old, field_old.name,
-                                              scope_limit=field_old.parent)
-    assert "No Symbol found for name 'field_old'." in str(excinfo.value)
-
     # Symbol in Container SymbolTable
     alpha = references[6]
     assert alpha.name == "alpha"
@@ -91,14 +85,6 @@ def test_find_or_create_unresolved_symbol():
     assert isinstance(container, Container)
     assert (_find_or_create_unresolved_symbol(alpha, alpha.name) in
             container.symbol_table.symbols)
-
-    # Symbol in Container SymbolTable with KernelSchedule scope, so
-    # the symbol should not be found as we limit the scope to the
-    # kernel so do not search the container symbol table.
-    with pytest.raises(SymbolError) as excinfo:
-        _ = _find_or_create_unresolved_symbol(alpha, alpha.name,
-                                              scope_limit=kernel_schedule)
-    assert "No Symbol found for name 'alpha'." in str(excinfo.value)
 
     # Symbol in Container SymbolTable with Container scope
     assert (_find_or_create_unresolved_symbol(
@@ -132,8 +118,8 @@ def test_find_or_create_unresolved_symbol():
         alpha, "very_private", visibility=Symbol.Visibility.PRIVATE)
     assert sym.name == "very_private"
     assert sym.visibility == Symbol.Visibility.PRIVATE
-    assert sym is container.symbol_table.lookup("very_private",
-                                                scope_limit=container)
+    assert sym is container.children[0].symbol_table.lookup(
+        "very_private", scope_limit=container)
 
 
 def test_find_or_create_unresolved_symbol_2():
@@ -149,20 +135,14 @@ def test_find_or_create_unresolved_symbol_2():
     xref = Reference(xvar)
     assign = Assignment.create(xref, Literal("1.0", REAL_TYPE))
     kernel1.addchild(assign)
-    # We have no wildcard imports so there can be no symbol named 'undefined'
-    with pytest.raises(SymbolError) as err:
-        _ = _find_or_create_unresolved_symbol(assign, "undefined")
-    assert "No Symbol found for name 'undefined'" in str(err.value)
+    # OK to add
+    orig_symbol = _find_or_create_unresolved_symbol(assign, "undefined")
     # We should be able to find the 'tmp' symbol in the parent Container
     sym = _find_or_create_unresolved_symbol(assign, "tmp")
     assert sym.datatype.intrinsic == ScalarType.Intrinsic.REAL
-    # Add a wildcard import to the SymbolTable of the KernelSchedule
-    new_container = ContainerSymbol("some_mod")
-    new_container.wildcard_import = True
-    kernel1.symbol_table.add(new_container)
-    # Symbol not in any container but we do have wildcard imports so we
-    # get a new symbol back
+    # OK to find
     new_symbol = _find_or_create_unresolved_symbol(assign, "undefined")
+    assert orig_symbol is new_symbol
     assert new_symbol.name == "undefined"
     assert isinstance(new_symbol.interface, UnresolvedInterface)
     # pylint: disable=unidiomatic-typecheck
