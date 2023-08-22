@@ -44,7 +44,7 @@ it needs to be extended for generating pure C code.
 '''
 from psyclone.psyir.backend.language_writer import LanguageWriter
 from psyclone.psyir.backend.visitor import VisitorError
-from psyclone.psyir.nodes import BinaryOperation, UnaryOperation
+from psyclone.psyir.nodes import BinaryOperation, UnaryOperation, IntrinsicCall
 from psyclone.psyir.symbols import ScalarType
 
 
@@ -76,10 +76,10 @@ class CWriter(LanguageWriter):
     def __init__(self, skip_nodes=False, indent_string="  ",
                  initial_indent_depth=0, check_global_constraints=True):
 
-        super(CWriter, self).__init__(("[", "]"), ".", skip_nodes,
-                                      indent_string,
-                                      initial_indent_depth,
-                                      check_global_constraints)
+        super().__init__(("[", "]"), ".", skip_nodes,
+                         indent_string,
+                         initial_indent_depth,
+                         check_global_constraints)
 
     def gen_indices(self, indices, var_name=None):
         '''Given a list of PSyIR nodes representing the dimensions of an
@@ -271,41 +271,12 @@ class CWriter(LanguageWriter):
             '''
             return "(" + operator_str + expr_str + ")"
 
-        def function_format(function_str, expr_str):
-            '''
-            :param str function_str: Name of the function.
-            :param str expr_str: String representation of the operand.
-
-            :returns: C language unary function expression.
-            :rtype: str
-            '''
-            return function_str + "(" + expr_str + ")"
-
-        def cast_format(type_str, expr_str):
-            '''
-            :param str type_str: Name of the new type.
-            :param str expr_str: String representation of the operand.
-
-            :returns: C language unary casting expression.
-            :rtype: str
-            '''
-            return "(" + type_str + ")" + expr_str
-
         # Define a map with the operator string and the formatter function
         # associated with each UnaryOperation.Operator
         opmap = {
             UnaryOperation.Operator.MINUS: ("-", operator_format),
             UnaryOperation.Operator.PLUS: ("+", operator_format),
             UnaryOperation.Operator.NOT: ("!", operator_format),
-            #UnaryOperation.Operator.SIN: ("sin", function_format),
-            #UnaryOperation.Operator.COS: ("cos", function_format),
-            #UnaryOperation.Operator.TAN: ("tan", function_format),
-            #UnaryOperation.Operator.ASIN: ("asin", function_format),
-            #UnaryOperation.Operator.ACOS: ("acos", function_format),
-            #UnaryOperation.Operator.ATAN: ("atan", function_format),
-            #UnaryOperation.Operator.ABS: ("abs", function_format),
-            #UnaryOperation.Operator.REAL: ("float", cast_format),
-            #UnaryOperation.Operator.SQRT: ("sqrt", function_format),
             }
 
         # If the instance operator exists in the map, use its associated
@@ -369,8 +340,7 @@ class CWriter(LanguageWriter):
             BinaryOperation.Operator.SUB: ("-", operator_format),
             BinaryOperation.Operator.MUL: ("*", operator_format),
             BinaryOperation.Operator.DIV: ("/", operator_format),
-            #BinaryOperation.Operator.REM: ("%", operator_format),
-            #BinaryOperation.Operator.POW: ("pow", function_format),
+            BinaryOperation.Operator.POW: ("pow", function_format),
             BinaryOperation.Operator.EQ: ("==", operator_format),
             BinaryOperation.Operator.NE: ("!=", operator_format),
             BinaryOperation.Operator.LT: ("<", operator_format),
@@ -379,7 +349,6 @@ class CWriter(LanguageWriter):
             BinaryOperation.Operator.GE: (">=", operator_format),
             BinaryOperation.Operator.AND: ("&&", operator_format),
             BinaryOperation.Operator.OR: ("||", operator_format),
-            #BinaryOperation.Operator.SIGN: ("copysign", function_format),
             }
 
         # If the instance operator exists in the map, use its associated
@@ -407,9 +376,64 @@ class CWriter(LanguageWriter):
         :rtype: str
 
         '''
-        raise VisitorError(
-            f"The C backend does not support the '{node.intrinsic.name}' "
-            f"intrinsic.")
+        def operator_format(operator_str, expr_str):
+            '''
+            :param str operator_str: String representing the operator.
+            :param str expr_str: String representation of the operand.
+
+            :returns: C language operator expression.
+            :rtype: str
+            '''
+            return "(" + operator_str + expr_str + ")"
+
+        def function_format(function_str, expr_str):
+            '''
+            :param str function_str: Name of the function.
+            :param str expr_str: String representation of the operand.
+
+            :returns: C language unary function expression.
+            :rtype: str
+            '''
+            return function_str + "(" + expr_str + ")"
+
+        def cast_format(type_str, expr_str):
+            '''
+            :param str type_str: Name of the new type.
+            :param str expr_str: String representation of the operand.
+
+            :returns: C language unary casting expression.
+            :rtype: str
+            '''
+            return "(" + type_str + ")" + expr_str
+
+        # Define a map with the intrinsic string and the formatter function
+        # associated with each Intrinsic
+        intrinsic_map = {
+            IntrinsicCall.Intrinsic.MOD: ("%", operator_format),
+            IntrinsicCall.Intrinsic.SIGN: ("copysign", function_format),
+            IntrinsicCall.Intrinsic.SIN: ("sin", function_format),
+            IntrinsicCall.Intrinsic.COS: ("cos", function_format),
+            IntrinsicCall.Intrinsic.TAN: ("tan", function_format),
+            IntrinsicCall.Intrinsic.ASIN: ("asin", function_format),
+            IntrinsicCall.Intrinsic.ACOS: ("acos", function_format),
+            IntrinsicCall.Intrinsic.ATAN: ("atan", function_format),
+            IntrinsicCall.Intrinsic.ABS: ("abs", function_format),
+            IntrinsicCall.Intrinsic.REAL: ("float", cast_format),
+            IntrinsicCall.Intrinsic.INT: ("int", cast_format),
+            IntrinsicCall.Intrinsic.SQRT: ("sqrt", function_format),
+            }
+
+        # If the intrinsic exists in the map, use its associated
+        # operator and formatter to generate the code, otherwise raise
+        # an Error.
+        try:
+            opstring, formatter = intrinsic_map[node.intrinsic]
+        except KeyError as err:
+            raise NotImplementedError(
+                f"The C backend does not support the '{node.intrinsic.name}' "
+                f"intrinsic.") from err
+
+        return formatter(opstring, self._visit(node.children[0]))
 
     def return_node(self, _):
         '''This method is called when a Return instance is found in

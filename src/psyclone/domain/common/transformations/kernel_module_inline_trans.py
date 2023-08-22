@@ -44,7 +44,7 @@ from psyclone.psyir.transformations import TransformationError
 from psyclone.psyir.symbols import RoutineSymbol, DataSymbol, \
     DataTypeSymbol, Symbol, ContainerSymbol
 from psyclone.psyir.nodes import Container, ScopingNode, Reference, Routine, \
-    Literal, CodeBlock, Call
+    Literal, CodeBlock, Call, IntrinsicCall
 
 
 class KernelModuleInlineTrans(Transformation):
@@ -119,7 +119,7 @@ class KernelModuleInlineTrans(Transformation):
         for var in kernel_schedule.walk((Reference, Call)):
             if isinstance(var, Reference):
                 symbol = var.symbol
-            elif isinstance(var, Call):
+            elif isinstance(var, Call) and not isinstance(var, IntrinsicCall):
                 symbol = var.routine
             if not symbol.is_import:
                 try:
