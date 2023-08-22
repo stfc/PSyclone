@@ -32,7 +32,7 @@ LIBS = $(GOL_LIB) $(INF_LIB)
 LDFLAGS += $(LIBS)
 F90FLAGS += $(INCL)
 
-# Limit output to 132 charactere
+# Limit output to 132 characters
 ifeq ($(MPI), yes)
 	PSYCLONE=psyclone --config $(ROOT_DIR)/config/psyclone.cfg \
 			-l output -dm -d $(GOL_DIR)
