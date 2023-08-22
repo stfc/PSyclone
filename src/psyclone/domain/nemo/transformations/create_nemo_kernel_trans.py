@@ -141,7 +141,7 @@ class CreateNemoKernelTrans(Transformation):
             if not isinstance(nodes[-1], IntrinsicCall):
                 raise TransformationError(
                     f"Error in NemoKernelTrans transformation. A NEMO Kernel "
-                    f"cannot contain a node of type:"
+                    f"cannot contain a node of type: "
                     f"'{type(nodes[-1]).__name__}'")
 
         # Check for array assignments
@@ -156,7 +156,7 @@ class CreateNemoKernelTrans(Transformation):
             raise TransformationError(LazyString(
                 lambda: "A NEMO Kernel cannot contain array assignments but "
                 f"found: "
-                f"{[node.debug_string().rstrip(chr(10)) for node in nodes]}"))
+                f"{[n.debug_string().rstrip(chr(10)) for n in assigns]}"))
 
     def apply(self, sched, options=None):
         '''

@@ -429,7 +429,7 @@ class CWriter(LanguageWriter):
         try:
             opstring, formatter = intrinsic_map[node.intrinsic]
         except KeyError as err:
-            raise NotImplementedError(
+            raise VisitorError(
                 f"The C backend does not support the '{node.intrinsic.name}' "
                 f"intrinsic.") from err
 

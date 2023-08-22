@@ -79,7 +79,7 @@ def test_transform_apply_mixed_implicit_do(tmpdir):
     result = writer(schedule)
     expected = (
         "  do jk = 1, jpk, 1\n"
-        "    do idx = LBOUND(umask, 2), UBOUND(umask, 2), 1\n"
+        "    do idx = LBOUND(umask, dim=2), UBOUND(umask, dim=2), 1\n"
         "      umask(:,idx,jk) = vmask(:,idx,jk) + 1.0\n"
         "    enddo\n"
         "  enddo")
@@ -88,8 +88,8 @@ def test_transform_apply_mixed_implicit_do(tmpdir):
     result = writer(schedule)
     expected = (
         "  do jk = 1, jpk, 1\n"
-        "    do idx = LBOUND(umask, 2), UBOUND(umask, 2), 1\n"
-        "      do idx_1 = LBOUND(umask, 1), UBOUND(umask, 1), 1\n"
+        "    do idx = LBOUND(umask, dim=2), UBOUND(umask, dim=2), 1\n"
+        "      do idx_1 = LBOUND(umask, dim=1), UBOUND(umask, dim=1), 1\n"
         "        umask(idx_1,idx,jk) = vmask(idx_1,idx,jk) + 1.0\n"
         "      enddo\n"
         "    enddo\n"

@@ -248,8 +248,8 @@ class NemoArrayRange2LoopTrans(Transformation):
                     continue
                 if cnode.intrinsic is IntrinsicCall.Intrinsic.UBOUND:
                     continue
-                name = cnode.operator.name
-                type_txt = "Operation"
+                name = cnode.intrinsic.name
+                type_txt = "IntrinsicCall"
             else:
                 name = cnode.routine.name
                 type_txt = "Call"

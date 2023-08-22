@@ -226,7 +226,7 @@ end SUBROUTINE tra_ldf_iso
             "  call dia_ptr_hst(jn, 'ldf', zftv(:,:,:))\n"
             "  !$acc update if_present host(checksum,zftv)\n"
             "  checksum = SUM(zftv)\n"
-            "  !$acc update if_present device(checksum)\n" in code)
+            "  !$acc update if_present device(checksum)\n" == code)
 
 
 def test_call_within_if(parser, fortran_writer):
