@@ -953,40 +953,9 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                     # of the loop is used.
                     if index.symbol in child_loop_vars:
                         # Append a full Range (i.e., :)
-                        dim_lit = Literal(str(dim + 1), INTEGER_TYPE)
-                        members = sref_base.walk(Member)
-                        new_member = members[0].copy()
-                        final_member = new_member.walk(Member)[-1]
-                        num_child = len(final_member.children)
-                        final_member.pop_all_children()
-                        for _ in range(num_child):
-                            final_member.addchild(dim_lit.copy())
-
-                        # Need a copy of the members for ubound as well
-                        new_member2 = new_member.copy()
-
-                        # Similar to StructureReference._create but we already
-                        # have member objects.
-                        lbound_sref = StructureReference(sref_base.symbol)
-                        lbound_sref.addchild(new_member)
-                        lbound = BinaryOperation.create(
-                            BinaryOperation.Operator.LBOUND,
-                            lbound_sref,
-                            dim_lit.copy(),
-                        )
-                        # Similar to StructureReference._create but we already
-                        # have member objects.
-                        ubound_sref = StructureReference(sref_base.symbol)
-                        ubound_sref.addchild(new_member2)
-                        ubound = BinaryOperation.create(
-                            BinaryOperation.Operator.UBOUND,
-                            ubound_sref,
-                            dim_lit.copy(),
-                        )
                         full_range = self._create_full_range_for_array(
                                 sref_base.walk(ArrayMember)[0], dim
                         )
-                        full_range = Range.create(lbound, ubound)
                         index_list.append(full_range)
                     elif index.symbol in self._proxy_loop_vars:
                         # Special case 2. the index is a proxy for a parent
@@ -1211,19 +1180,10 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                     # can only do as well as guessing the entire range
                     # of the loop is used.
                     if index.symbol in child_loop_vars:
-                        # Return a :
-                        dim_lit = Literal(str(dim + 1), INTEGER_TYPE)
-                        lbound = BinaryOperation.create(
-                            BinaryOperation.Operator.LBOUND,
-                            Reference(ref.symbol),
-                            dim_lit.copy(),
+                        # Return a Full Range (i.e. :)
+                        full_range = self._create_full_range_for_array(
+                                ref.walk(ArrayMixin)[0], dim
                         )
-                        ubound = BinaryOperation.create(
-                            BinaryOperation.Operator.UBOUND,
-                            Reference(ref.symbol),
-                            dim_lit.copy(),
-                        )
-                        full_range = Range.create(lbound, ubound)
                         index_list.append(full_range)
                     elif index.symbol in self._proxy_loop_vars:
                         # Special case 2. the index is a proxy for a parent
@@ -1263,18 +1223,9 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                             # the value of this is at the time we evaluate the
                             # depend clause, so we can only generate a full
                             # range (:)
-                            dim_lit = Literal(str(dim + 1), INTEGER_TYPE)
-                            lbound = BinaryOperation.create(
-                                BinaryOperation.Operator.LBOUND,
-                                Reference(ref.symbol),
-                                dim_lit.copy(),
+                            full_range = self._create_full_range_for_array(
+                                    ref.walk(ArrayMixin)[0], dim
                             )
-                            ubound = BinaryOperation.create(
-                                BinaryOperation.Operator.UBOUND,
-                                Reference(ref.symbol),
-                                dim_lit.copy(),
-                            )
-                            full_range = Range.create(lbound, ubound)
                             index_list.append(full_range)
                 else:
                     raise GenerationError(
