@@ -4367,15 +4367,36 @@ def test_rc_all_disc_prev_dep_no_depth_vect_readwrite(tmpdir):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
-def test_colour_continuous_writer():
+def test_colour_continuous_writer(tmpdir):
     '''Test the loop-colouring transformation for a kernel that has a
-    GH_WRITE access to a field on a continuous space.'''
+    GH_WRITE access to a field on a continuous space. Since it has GH_WRITE
+    it does not need to iterate into the halos (to get clean annexed dofs) and
+    therefore should use the 'last_edge_cell' colour map.
+
+    '''
     psy, invoke = get_invoke("22.1.1_intergrid_cont_restrict.f90",
                              TEST_API, idx=0, dist_mem=True)
     loop = invoke.schedule[0]
     ctrans = Dynamo0p3ColourTrans()
     ctrans.apply(loop)
-    result = str(psy.gen)
+    result = str(psy.gen).lower()
+    # Declarations.
+    assert ("integer(kind=i_def), allocatable :: "
+            "last_edge_cell_all_colours_field1(:)" in result)
+    assert ("integer(kind=i_def), allocatable :: "
+            "last_halo_cell_all_colours_field1(:,:)" in result)
+    # Initialisation.
+    assert ("last_halo_cell_all_colours_field1 = mesh_field1%"
+            "get_last_halo_cell_all_colours()" in result)
+    assert ("last_edge_cell_all_colours_field1 = mesh_field1%"
+            "get_last_edge_cell_all_colours()" in result)
+    # Usage.
+    assert ("      do colour=loop0_start,loop0_stop\n"
+            "        do cell=loop1_start,"
+            "last_edge_cell_all_colours_field1(colour)\n"
+            "          !\n"
+            "          call restrict_w2_code(nlayers" in result)
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_rc_dofs_depth():

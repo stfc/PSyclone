@@ -93,7 +93,6 @@ class ArrayReference(ArrayMixin, Reference):
                     f" found '{symbol.datatype}'.")
         if symbol.is_array:
             if len(symbol.shape) != len(indices):
-                import pdb; pdb.set_trace()
                 raise GenerationError(
                     f"the symbol '{symbol.name}' should have the same number "
                     f"of dimensions as indices (provided in the 'indices' "
