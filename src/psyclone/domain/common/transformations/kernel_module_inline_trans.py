@@ -277,8 +277,9 @@ class KernelModuleInlineTrans(Transformation):
         if not existing_symbol:
             # If it doesn't exist already, module-inline the subroutine by:
             # 1) Registering the subroutine symbol in the Container
-            node.ancestor(Container).symbol_table.add(RoutineSymbol(name,
-                    interface=DefaultModuleInterface()))
+            node.ancestor(Container).symbol_table.add(RoutineSymbol(
+                    name, interface=DefaultModuleInterface()
+            ))
             # 2) Insert the relevant code into the tree.
             node.ancestor(Container).addchild(code_to_inline.detach())
         else:
