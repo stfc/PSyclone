@@ -36,6 +36,7 @@
 #         C.M. Maynard, Met Office / University of Reading
 #         J. Henrichs, Bureau of Meteorology
 # Modified A. B. G. Chalk, STFC Daresbury Lab
+# Modified J. G. Wallwork, Met Office
 # -----------------------------------------------------------------------------
 
 ''' This module contains the implementation of the various OpenACC Directive
@@ -345,26 +346,33 @@ class ACCLoopDirective(ACCRegionDirective):
     '''
     Class managing the creation of a '!$acc loop' OpenACC directive.
 
-    :param int collapse: Number of nested loops to collapse into a single \
+    :param int collapse: Number of nested loops to collapse into a single
                          iteration space or None.
-    :param bool independent: Whether or not to add the `independent` clause \
+    :param bool independent: Whether or not to add the `independent` clause
                              to the loop directive.
-    :param bool sequential: whether or not to add the `seq` clause to the \
+    :param bool sequential: whether or not to add the `seq` clause to the
                             loop directive.
+    :param bool gang: whether or not to add the `gang` clause to the
+                      loop directive.
+    :param bool vector: whether or not to add the `vector` clause to the
+                        loop directive.
     :param kwargs: additional keyword arguments provided to the super class.
     :type kwargs: unwrapped dict.
     '''
     def __init__(self, collapse=None, independent=True, sequential=False,
-                 **kwargs):
+                 gang=False, vector=False, **kwargs):
         self.collapse = collapse
         self._independent = independent
         self._sequential = sequential
+        self._gang = gang
+        self._vector = vector
         super().__init__(**kwargs)
 
     def __eq__(self, other):
         '''
         Checks whether two nodes are equal. Two ACCLoopDirective nodes are
-        equal if their collapse, independent and sequential members are equal.
+        equal if their collapse, independent, sequential, gang, and vector
+        members are equal.
 
         :param object other: the object to check equality to.
 
@@ -375,6 +383,8 @@ class ACCLoopDirective(ACCRegionDirective):
         is_eq = is_eq and self.collapse == other.collapse
         is_eq = is_eq and self.independent == other.independent
         is_eq = is_eq and self.sequential == other.sequential
+        is_eq = is_eq and self.gang == other.gang
+        is_eq = is_eq and self.vector == other.vector
 
         return is_eq
 
@@ -431,6 +441,24 @@ class ACCLoopDirective(ACCRegionDirective):
         '''
         return self._sequential
 
+    @property
+    def gang(self):
+        '''
+        :returns: whether or not the `gang` clause is added to this loop
+                  directive.
+        :rtype: bool
+        '''
+        return self._gang
+
+    @property
+    def vector(self):
+        '''
+        :returns: whether or not the `vector` clause is added to this loop
+                  directive.
+        :rtype: bool
+        '''
+        return self._vector
+
     def node_str(self, colour=True):
         '''
         Returns the name of this node with (optional) control codes
@@ -443,6 +471,8 @@ class ACCLoopDirective(ACCRegionDirective):
         '''
         text = self.coloured_name(colour)
         text += f"[sequential={self._sequential},"
+        text += f"gang={self._gang},"
+        text += f"vector={self._vector},"
         text += f"collapse={self._collapse},"
         text += f"independent={self._independent}]"
         return text
@@ -508,6 +538,10 @@ class ACCLoopDirective(ACCRegionDirective):
         if self._sequential:
             clauses += ["seq"]
         else:
+            if self._gang:
+                clauses += ["gang"]
+            if self._vector:
+                clauses += ["vector"]
             if self._independent:
                 clauses += ["independent"]
             if self._collapse:

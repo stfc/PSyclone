@@ -34,6 +34,7 @@
 # Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 # Modified I. Kavcic, Met Office
 # Modified A. B. G. Chalk, STFC Daresbury Lab
+# Modified J. G. Wallwork, Met Office
 # -----------------------------------------------------------------------------
 
 ''' Performs py.test tests on the OpenACC PSyIR Directive nodes. '''
@@ -233,8 +234,8 @@ def test_accloopdirective_node_str(monkeypatch):
                         lambda x: "ACCLoopDirective")
 
     # Default value output
-    expected = ("ACCLoopDirective[sequential=False,collapse=None,"
-                "independent=True]")
+    expected = ("ACCLoopDirective[sequential=False,gang=False,vector=False,"
+                "collapse=None,independent=True]")
     assert directive.node_str() == expected
     assert str(directive) == expected
 
@@ -242,8 +243,10 @@ def test_accloopdirective_node_str(monkeypatch):
     directive._sequential = True
     directive._collapse = 2
     directive._independent = False
-    expected = ("ACCLoopDirective[sequential=True,collapse=2,"
-                "independent=False]")
+    directive._gang = True
+    directive._vector = True
+    expected = ("ACCLoopDirective[sequential=True,gang=True,vector=True,"
+                "collapse=2,independent=False]")
     assert directive.node_str() == expected
     assert str(directive) == expected
 
@@ -291,6 +294,16 @@ def test_accloopdirective_equality():
     # Check equality fails when sequential is different
     directive2._independent = directive1.independent
     directive2._sequential = not directive1._sequential
+    assert directive1 != directive2
+
+    # Check equality fails when gang is different
+    directive2._sequential = directive1.sequential
+    directive2._gang = not directive1._gang
+    assert directive1 != directive2
+
+    # Check equality fails when vector is different
+    directive2._gang = directive1.gang
+    directive2._vector = not directive1._vector
     assert directive1 != directive2
 
 # Class ACCLoopDirective end

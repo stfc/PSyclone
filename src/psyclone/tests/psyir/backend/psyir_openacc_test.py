@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
 # Modified by: S. Siso and N. Nobre, STFC Daresbury Lab
+# Modified by: J. G. Wallwork, Met Office
 # -----------------------------------------------------------------------------
 
 '''Performs pytest tests on the support for OpenACC directives in the
@@ -252,6 +253,16 @@ def test_acc_loop(parser, fortran_writer):
     result = fortran_writer(schedule)
     assert ("  !$acc kernels\n"
             "  !$acc loop\n"
+            "  do jj = 1, jpj, 1\n" in result)
+    loop_dir._gang = True
+    result = fortran_writer(schedule)
+    assert ("  !$acc kernels\n"
+            "  !$acc loop gang\n"
+            "  do jj = 1, jpj, 1\n" in result)
+    loop_dir._vector = True
+    result = fortran_writer(schedule)
+    assert ("  !$acc kernels\n"
+            "  !$acc loop gang vector\n"
             "  do jj = 1, jpj, 1\n" in result)
 
 

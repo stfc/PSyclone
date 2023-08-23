@@ -119,9 +119,15 @@ class FortLineLength():
         return self._line_length
 
     def process(self, fortran_in):
-        ''' takes fortran code as a string as input and output fortran
-        code as a string with any long lines wrapped appropriately '''
+        ''' Processes unlimited line-length Fortran code into Fortran
+        code with long lines wrapped appropriately.
+        
+        :param str fortran_in: Fortran code to be line wrapped.
 
+        :returns: line wrapped Fortran code.
+        :rtype: str
+
+        '''
         fortran_out = ""
         for line in fortran_in.split('\n'):
             if len(line) > self._line_length:
@@ -131,8 +137,19 @@ class FortLineLength():
                 c_end = self._cont_end[line_type]
                 key_list = self._key_lists[line_type]
 
-                break_point = find_break_point(
-                    line, self._line_length-len(c_end), key_list)
+                try:
+                    break_point = find_break_point(
+                        line, self._line_length-len(c_end), key_list)
+                except InternalError:
+                    # Couldn't find a valid point to break the line.
+                    # Remove indentation and try again.
+                    line = line.lstrip()
+                    if len(line) < self._line_length:
+                        fortran_out += line + "\n"
+                        continue
+                    break_point = find_break_point(
+                        line, self._line_length-len(c_end), key_list)
+
                 fortran_out += line[:break_point] + c_end + "\n"
                 line = line[break_point:]
                 while len(line) + len(c_start) > self._line_length:
