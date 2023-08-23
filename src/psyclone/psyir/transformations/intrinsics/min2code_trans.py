@@ -72,5 +72,5 @@ class Min2CodeTrans(MinOrMax2CodeTrans):
     '''
     def __init__(self):
         super().__init__()
-        self._intrinsics = (IntrinsicCall.Intrinsic.MIN,)
+        self._intrinsic = IntrinsicCall.Intrinsic.MIN
         self._compare_operator = BinaryOperation.Operator.LT

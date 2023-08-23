@@ -873,10 +873,13 @@ class IntrinsicCall(Call):
             :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
-        if not var_accesses.options("COLLECT-ARRAY-SHAPE-READS"):
-            if self.intrinsic.is_inquiry:
-                for child in self._children[1:]:
-                    child.reference_accesses(var_accesses)
+        if (self.intrinsic.is_inquiry and not
+                var_accesses.options("COLLECT-ARRAY-SHAPE-READS")):
+            # If this is an inquiry access (which doesn't actually access the
+            # value) and we haven't explicitly requested them, ignore the
+            # inquired variables, which are always the first argument.
+            for child in self._children[1:]:
+                child.reference_accesses(var_accesses)
         else:
             for child in self._children:
                 child.reference_accesses(var_accesses)

@@ -72,5 +72,5 @@ class Max2CodeTrans(MinOrMax2CodeTrans):
     '''
     def __init__(self):
         super().__init__()
-        self._intrinsics = (IntrinsicCall.Intrinsic.MAX, )
+        self._intrinsic = IntrinsicCall.Intrinsic.MAX
         self._compare_operator = BinaryOperation.Operator.GT

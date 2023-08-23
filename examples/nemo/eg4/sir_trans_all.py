@@ -52,8 +52,7 @@ from __future__ import print_function
 from psyclone.psyir.backend.sir import SIRWriter
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.nemo import NemoKern
-from psyclone.psyir.nodes import (UnaryOperation, BinaryOperation,
-                                  NaryOperation, Operation, Assignment)
+from psyclone.psyir.nodes import IntrinsicCall, Assignment
 from psyclone.psyir.transformations import Abs2CodeTrans, Sign2CodeTrans, \
     Min2CodeTrans, Max2CodeTrans, HoistTrans
 from psyclone.domain.nemo.transformations import NemoAllArrayRange2LoopTrans, \
@@ -101,21 +100,19 @@ def trans(psy):
         for kernel in schedule.walk(NemoKern):
 
             kernel_schedule = kernel.get_kernel_schedule()
-            for oper in kernel_schedule.walk(Operation):
-                if oper.operator == UnaryOperation.Operator.ABS:
+            for intr in kernel_schedule.walk(IntrinsicCall):
+                if intr.intrinsic == IntrinsicCall.Intrinsic.ABS:
                     # Apply ABS transformation
-                    abs_trans.apply(oper)
-                elif oper.operator == BinaryOperation.Operator.SIGN:
+                    abs_trans.apply(intr)
+                elif intr.intrinsic == IntrinsicCall.Intrinsic.SIGN:
                     # Apply SIGN transformation
-                    sign_trans.apply(oper)
-                elif oper.operator in [BinaryOperation.Operator.MIN,
-                                       NaryOperation.Operator.MIN]:
+                    sign_trans.apply(intr)
+                elif intr.intrinsic == IntrinsicCall.Intrinsic.MIN:
                     # Apply (2-n arg) MIN transformation
-                    min_trans.apply(oper)
-                elif oper.operator in [BinaryOperation.Operator.MAX,
-                                       NaryOperation.Operator.MAX]:
+                    min_trans.apply(intr)
+                elif intr.intrinsic in IntrinsicCall.Intrinsic.MAX:
                     # Apply (2-n arg) MAX transformation
-                    max_trans.apply(oper)
+                    max_trans.apply(intr)
 
         # Remove any loop invariant assignments inside k-loops to make
         # them perfectly nested. At the moment this transformation

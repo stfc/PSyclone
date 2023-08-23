@@ -148,11 +148,14 @@ class ReplaceInductionVariablesTrans(Transformation):
         :rtype: bool
 
         '''
-        # Check if there is an unknown construct or a function call on the
-        # RHS (note that a function call appears as a code block atm when
-        # parsed). If so, this variable cannot be replaced (since the function
-        # value might depend on the number of times it is called).
-        if any(assignment.rhs.walk((CodeBlock, Call))):
+        # If there is any unknown construct it can not be guaranteed to be
+        # invariant
+        if any(assignment.rhs.walk(CodeBlock)):
+            return False
+
+        # If there is any function call, unless its pure, we can not guarantee
+        # the same inputs will always return the same output
+        if any(not call.is_pure for call in assignment.rhs.walk(Call)):
             return False
 
         # Collect all variables used on the rhs of assignment:

@@ -43,7 +43,7 @@ from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.dynamo0p3 import DynHaloExchange, DynHaloExchangeStart
 from psyclone.psyir.transformations import Matmul2CodeTrans
-from psyclone.psyir.nodes import BinaryOperation, Container, KernelSchedule
+from psyclone.psyir.nodes import IntrinsicCall, Container, KernelSchedule
 from psyclone.transformations import Dynamo0p3ColourTrans, \
                                      Dynamo0p3OMPLoopTrans, \
                                      OMPParallelTrans, \
@@ -133,10 +133,10 @@ def trans(psy):
         for kschedule in root.walk(KernelSchedule):
             if ENABLE_INTRINSIC_INLINING:
                 # Expand MATMUL intrinsic
-                for bop in kschedule.walk(BinaryOperation):
-                    if bop.operator == BinaryOperation.Operator.MATMUL:
+                for intrinsic in kschedule.walk(IntrinsicCall):
+                    if intrinsic.intrinsic == IntrinsicCall.Intrinsic.MATMUL:
                         try:
-                            matmul_trans.apply(bop)
+                            matmul_trans.apply(intrinsic)
                         except TransformationError:
                             pass
 

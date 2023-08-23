@@ -70,7 +70,7 @@ $ psyclone -s ./matvec_opt.py \
 '''
 from __future__ import print_function
 import sys
-from psyclone.psyir.nodes import BinaryOperation
+from psyclone.psyir.nodes import IntrinsicCall
 from psyclone.psyir.transformations import Matmul2CodeTrans
 from psyclone.psyir.backend.fortran import FortranWriter
 
@@ -93,9 +93,9 @@ def trans(psy):
             if kernel.name.lower() == "matrix_vector_kernel_code":
                 kernel_schedule = kernel.get_kernel_schedule()
                 # Replace matmul with inline code
-                for bin_op in kernel_schedule.walk(BinaryOperation):
-                    if bin_op.operator is BinaryOperation.Operator.MATMUL:
-                        matmul2code_trans.apply(bin_op)
+                for intrinsic in kernel_schedule.walk(IntrinsicCall):
+                    if intrinsic.intrinsic is IntrinsicCall.Intrinsic.MATMUL:
+                        matmul2code_trans.apply(intrinsic)
                 # Future optimisations will go here.
                 print(kernel_schedule.view())
                 result = fortran_writer(kernel_schedule)
