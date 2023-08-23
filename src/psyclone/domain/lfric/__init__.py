@@ -67,12 +67,10 @@ from psyclone.domain.lfric.lfric_loop_bounds import LFRicLoopBounds
 
 
 __all__ = [
-    'ArgIndexToMetadataIndex',
     'ArgOrdering',
     'FunctionSpace',
     'KernCallAccArgList',
     'KernCallArgList',
-    'KernCallInvokeArgList',
     'KernelInterface',
     'KernStubArgList',
     'LFRicArgDescriptor',
@@ -80,8 +78,5 @@ __all__ = [
     'LFRicConstants',
     'LFRicExtractDriverCreator',
     'LFRicInvoke',
-    'LFRicKernCallFactory',
     'LFRicLoopBounds',
-    'LFRicSymbolTable',
-    'LFRicTypes',
-    'MetadataToArgumentsRules']
+    'LFRicSymbolTable']
