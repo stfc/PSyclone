@@ -1950,6 +1950,7 @@ class Fparser2Reader():
                     # This was a generic symbol. We now know what it is
                     sym.specialise(DataSymbol, datatype=datatype,
                                    visibility=visibility,
+                                   interface=interface,
                                    is_constant=has_constant_value,
                                    initial_value=init_expr)
                 else:
