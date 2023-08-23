@@ -42,7 +42,7 @@
 from psyclone.psyGen import Transformation, CodedKern
 from psyclone.psyir.transformations import TransformationError
 from psyclone.psyir.symbols import RoutineSymbol, DataSymbol, \
-    DataTypeSymbol, Symbol, ContainerSymbol
+    DataTypeSymbol, Symbol, ContainerSymbol, DefaultModuleInterface
 from psyclone.psyir.nodes import Container, ScopingNode, Reference, Routine, \
     Literal, CodeBlock, Call
 
@@ -277,7 +277,9 @@ class KernelModuleInlineTrans(Transformation):
         if not existing_symbol:
             # If it doesn't exist already, module-inline the subroutine by:
             # 1) Registering the subroutine symbol in the Container
-            node.ancestor(Container).symbol_table.add(RoutineSymbol(name))
+            node.ancestor(Container).symbol_table.add(RoutineSymbol(
+                    name, interface=DefaultModuleInterface()
+            ))
             # 2) Insert the relevant code into the tree.
             node.ancestor(Container).addchild(code_to_inline.detach())
         else:
