@@ -4043,8 +4043,7 @@ class DynMeshes():
             base_name = "ncolour_" + carg_name
             ncolours = sym_tab.find_or_create_integer_symbol(
                 base_name, tag=base_name)
-            # Array holding the last halo cell of a given colour
-            # and halo depth.
+            # Array holding the last cell of a given colour.
             if (Config.get().distributed_memory and
                     not call.all_updates_are_writes):
                 # This will require a loop into the halo and so the array is
@@ -4428,7 +4427,7 @@ class DynInterGrid():
 
     def set_colour_info(self, colour_map, ncolours, last_cell):
         '''Sets the colour_map, number of colours, and
-        last halo and edge cells of a particular colour.
+        last cell of a particular colour.
 
         :param colour_map: the colour map symbol.
         :type: colour_map:py:class:`psyclone.psyir.symbols.Symbol`
@@ -4436,8 +4435,6 @@ class DynInterGrid():
         :type: ncolours: :py:class:`psyclone.psyir.symbols.Symbol`
         :param last_cell: the last halo cell of a particular colour.
         :type last_cell: :py:class:`psyclone.psyir.symbols.Symbol`
-        :param last_edge_cell: the last edge cell of a particular colour.
-        :type last_edge_cell: :py:class:`psyclone.psyir.symbols.Symbol`
 
         '''
         self._colourmap_symbol = colour_map
@@ -4460,7 +4457,7 @@ class DynInterGrid():
 
     @property
     def last_cell_var_symbol(self):
-        ''':returns: the last halo cell variable.
+        ''':returns: the last halo/edge cell variable.
         :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
         '''
         return self._last_cell_var_symbol
@@ -7949,9 +7946,6 @@ class DynKern(CodedKern):
             raise InternalError(f"Kernel '{self.name}' is not inside a "
                                 f"coloured loop.")
 
-        ubnd_name = self.ancestor(Loop).upper_bound_name
-        const = LFRicConstants()
-
         if self._is_intergrid:
             invoke = self.ancestor(InvokeSchedule).invoke
             if id(self) not in invoke.meshes.intergrid_kernels:
@@ -7960,6 +7954,9 @@ class DynKern(CodedKern):
                     f"not yet been initialised")
             return (invoke.meshes.intergrid_kernels[id(self)].
                     last_cell_var_symbol)
+
+        ubnd_name = self.ancestor(Loop).upper_bound_name
+        const = LFRicConstants()
 
         if (ubnd_name in const.HALO_ACCESS_LOOP_BOUNDS):
             return self.scope.symbol_table.find_or_create_array(
