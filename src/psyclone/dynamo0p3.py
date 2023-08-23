@@ -4045,17 +4045,23 @@ class DynMeshes():
                 base_name, tag=base_name)
             # Array holding the last halo cell of a given colour
             # and halo depth.
-            base_name = "last_halo_cell_all_colours_" + carg_name
-            last_halo_cell = self._schedule.symbol_table.find_or_create_array(
-                base_name, 2, ScalarType.Intrinsic.INTEGER, tag=base_name)
-            # Array holding the last edge cell of a given colour.
-            base_name = "last_edge_cell_all_colours_" + carg_name
-            last_edge_cell = self._schedule.symbol_table.find_or_create_array(
-                base_name, 1, ScalarType.Intrinsic.INTEGER, tag=base_name)
+            if (Config.get().distributed_memory and
+                    not call.all_updates_are_writes):
+                # This will require a loop into the halo and so the array is
+                # 2D (indexed by colour *and* halo depth).
+                base_name = "last_halo_cell_all_colours_" + carg_name
+                last_cell = self._schedule.symbol_table.find_or_create_array(
+                    base_name, 2, ScalarType.Intrinsic.INTEGER, tag=base_name)
+            else:
+                # Array holding the last edge cell of a given colour. Just 1D
+                # as indexed by colour only.
+                base_name = "last_edge_cell_all_colours_" + carg_name
+                last_cell = self._schedule.symbol_table.find_or_create_array(
+                    base_name, 1, ScalarType.Intrinsic.INTEGER, tag=base_name)
             # Add these symbols into the dictionary entry for this
             # inter-grid kernel
             self._ig_kernels[id(call)].set_colour_info(
-                colour_map, ncolours, last_halo_cell, last_edge_cell)
+                colour_map, ncolours, last_cell)
 
         if have_non_intergrid and (self._needs_colourmap or
                                    self._needs_colourmap_halo):
@@ -4147,15 +4153,12 @@ class DynMeshes():
                     DeclGen(parent, datatype="integer",
                             kind=api_config.default_kind["integer"],
                             entity_decls=[kern.ncolours_var_symbol.name]))
-                # The cell-count array is 2D because it has a halo-depth
-                # dimension.
-                decln = f"{kern.last_cell_var_symbol.name}(:,:)"
-                parent.add(
-                    DeclGen(parent, datatype="integer", allocatable=True,
-                            kind=api_config.default_kind["integer"],
-                            entity_decls=[decln]))
-                # Last edge cell is just 1D because has no halo depth.
-                decln = f"{kern.last_edge_cell_symbol.name}(:)"
+                # The cell-count array is 2D if we go into the halo and 1D
+                # otherwise (i.e. no DM or this kernel is GH_WRITE only and
+                # does not access the halo).
+                dim_list = len(kern.last_cell_var_symbol.datatype.shape)*":"
+                decln = (f"{kern.last_cell_var_symbol.name}("
+                         f"{','.join(dim_list)})")
                 parent.add(
                     DeclGen(parent, datatype="integer", allocatable=True,
                             kind=api_config.default_kind["integer"],
@@ -4351,15 +4354,16 @@ class DynMeshes():
                 parent.add(AssignGen(parent, lhs=dig.colourmap_symbol.name,
                                      pointer=True,
                                      rhs=coarse_mesh + "%get_colour_map()"))
-                # Last halo cell per colour.
-                name = "%get_last_halo_cell_all_colours()"
-                parent.add(AssignGen(parent, lhs=dig.last_cell_var_symbol.name,
+                # Last halo/edge cell per colour.
+                sym = dig.last_cell_var_symbol
+                if len(sym.datatype.shape) == 2:
+                    # Array is 2D so is a halo access.
+                    name = "%get_last_halo_cell_all_colours()"
+                else:
+                    # Array is just 1D so go to the last edge cell.
+                    name = "%get_last_edge_cell_all_colours()"
+                parent.add(AssignGen(parent, lhs=sym.name,
                                      rhs=coarse_mesh + name))
-                # Last edge cell per colour.
-                name = "%get_last_edge_cell_all_colours()"
-                parent.add(
-                    AssignGen(parent, lhs=dig.last_edge_cell_symbol.name,
-                              rhs=coarse_mesh + name))
 
     @property
     def intergrid_kernels(self):
@@ -4417,13 +4421,12 @@ class DynInterGrid():
         self._colourmap_symbol = None
         # Symbol for the variable holding the number of colours
         self._ncolours_var_symbol = None
-        # Symbol of the variable holding the last cell of a particular colour
+        # Symbol of the variable holding the last cell of a particular colour.
+        # Will be a 2D array if the kernel iteration space includes the halo
+        # and 1D otherwise.
         self._last_cell_var_symbol = None
-        # Symbol of the variable holding the last edge cell of a particular
-        # colour
-        self._last_edge_cell_symbol = None
 
-    def set_colour_info(self, colour_map, ncolours, last_cell, last_edge_cell):
+    def set_colour_info(self, colour_map, ncolours, last_cell):
         '''Sets the colour_map, number of colours, and
         last halo and edge cells of a particular colour.
 
@@ -4440,7 +4443,6 @@ class DynInterGrid():
         self._colourmap_symbol = colour_map
         self._ncolours_var_symbol = ncolours
         self._last_cell_var_symbol = last_cell
-        self._last_edge_cell_symbol = last_edge_cell
 
     @property
     def colourmap_symbol(self):
@@ -4462,13 +4464,6 @@ class DynInterGrid():
         :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
         '''
         return self._last_cell_var_symbol
-
-    @property
-    def last_edge_cell_symbol(self):
-        ''':returns: the last edge cell variable.
-        :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
-        '''
-        return self._last_edge_cell_symbol
 
 
 class DynBasisFunctions(LFRicCollection):
@@ -7963,13 +7958,8 @@ class DynKern(CodedKern):
                 raise InternalError(
                     f"Colourmap information for kernel '{self.name}' has "
                     f"not yet been initialised")
-            # Why not just `self.last_cell_var_symbol`?
-            if (ubnd_name in const.HALO_ACCESS_LOOP_BOUNDS):
-                return (invoke.meshes.intergrid_kernels[id(self)].
-                        last_cell_var_symbol)
-            else:
-                return (invoke.meshes.intergrid_kernels[id(self)].
-                        last_edge_cell_symbol)
+            return (invoke.meshes.intergrid_kernels[id(self)].
+                    last_cell_var_symbol)
 
         if (ubnd_name in const.HALO_ACCESS_LOOP_BOUNDS):
             return self.scope.symbol_table.find_or_create_array(

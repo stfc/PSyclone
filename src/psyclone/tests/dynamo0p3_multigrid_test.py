@@ -268,18 +268,15 @@ def test_dynintergrid():
     # values should be None initially:
     assert dyn_intergrid.colourmap_symbol is None
     assert dyn_intergrid.last_cell_var_symbol is None
-    assert dyn_intergrid.last_edge_cell_symbol is None
     assert dyn_intergrid.ncolours_var_symbol is None
     # Now set some symbols and check that they are correct (note that
     # there is no individual setter for these attributes).
     dyn_intergrid.set_colour_info(Symbol("cmap"),
                                   Symbol("ncolours"),
-                                  Symbol("last_cell"),
-                                  Symbol("last_edge_cell"))
+                                  Symbol("last_cell"))
     assert dyn_intergrid.colourmap_symbol.name == "cmap"
     assert dyn_intergrid.ncolours_var_symbol.name == "ncolours"
     assert dyn_intergrid.last_cell_var_symbol.name == "last_cell"
-    assert dyn_intergrid.last_edge_cell_symbol.name == "last_edge_cell"
 
 
 def test_field_prolong(tmpdir, dist_mem):

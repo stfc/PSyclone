@@ -430,11 +430,7 @@ def test_colour_continuous_writer_intergrid(tmpdir, dist_mem):
     # Declarations.
     assert ("integer(kind=i_def), allocatable :: "
             "last_edge_cell_all_colours_field1(:)" in result)
-    assert ("integer(kind=i_def), allocatable :: "
-            "last_halo_cell_all_colours_field1(:,:)" in result)
     # Initialisation.
-    assert ("last_halo_cell_all_colours_field1 = mesh_field1%"
-            "get_last_halo_cell_all_colours()" in result)
     assert ("last_edge_cell_all_colours_field1 = mesh_field1%"
             "get_last_edge_cell_all_colours()" in result)
     # Usage. Since there is no need to loop into the halo, the upper loop
