@@ -1080,6 +1080,25 @@ def test_children_setter():
     assert statement2.parent is None
 
 
+def test_children_clear():
+    '''Test that the clear() method works correctly for a ChildrenList.'''
+    testnode = Schedule()
+    testnode.addchild(Statement())
+    testnode.addchild(Statement())
+    assert len(testnode.children) == 2
+    testnode.children.clear()
+    assert len(testnode.children) == 0
+
+
+def test_children_sort():
+    '''Check that the sort() method of ChildrenList has been overridden and
+    raises an appropriate error.'''
+    testnode = Schedule()
+    with pytest.raises(NotImplementedError) as err:
+        testnode.children.sort()
+    assert "Sorting the Children of a Node is not supported" in str(err.value)
+
+
 def test_children_trigger_update():
     '''Test that various modifications of ChildrenList all trigger a tree
     update. We do this by implementing a sub-class of Schedule that has a
@@ -1134,6 +1153,9 @@ def test_children_trigger_update():
     assert "signal called OK" in str(err.value)
     with pytest.raises(GenerationError) as err:
         sched.children.reverse()
+    assert "signal called OK" in str(err.value)
+    with pytest.raises(GenerationError) as err:
+        sched.children.clear()
     assert "signal called OK" in str(err.value)
 
 

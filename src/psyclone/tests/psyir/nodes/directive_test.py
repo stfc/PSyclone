@@ -162,15 +162,12 @@ end program my_prog
     reads, writes, readwrites = sched[4].create_data_movement_deep_copy_refs()
     assert not reads and not writes
     assert isinstance(readwrites[Signature("a")], nodes.Reference)
-    # Subroutine call - the argument is assumed to be read-write.
+    # Subroutine call - the arg. is conservatively assumed to be read-write.
     data_trans.apply(sched[5])
     reads, writes, readwrites = sched[5].create_data_movement_deep_copy_refs()
     assert not writes
-    # TODO #446 - currently the reference_accesses() method falls through to
-    # the base implementation and so all arguments to a call are marked as
-    # having READ access.
-    if Signature("d") not in readwrites:
-        pytest.xfail("#446 - Call.reference_accesses() needs implementing")
+    assert not reads
+    assert Signature("d") in readwrites
 
 
 def test_regiondirective_children_validation():

@@ -316,6 +316,24 @@ class ChildrenList(list):
         # properties of any References.
         self._node_reference.update_signal()
 
+    def clear(self):
+        ''' Wipes the list. '''
+        for item in self:
+            self._del_parent_link(item)
+        super().clear()
+        # Signal that the tree has changed.
+        self._node_reference.update_signal()
+
+    def sort(self, reverse=False, key=None):
+        '''Override the default sort() implementation as this is not supported
+        for a ChildrenList.
+
+        :raises NotImplementedError: it makes no sense to sort the Children of
+                                     a Node.
+        '''
+        raise NotImplementedError("Sorting the Children of a Node is not "
+                                  "supported.")
+
 
 class Node():
     '''
@@ -1527,17 +1545,15 @@ class Node():
     def update_signal(self):
         '''
         Called whenever there is a change in the PSyIR tree below this node.
-        It is responsible for ensuring that this method does not get
+        It is responsible for ensuring that this method does not get called
         recursively and then calls the _update_node() method of the current
-        node. Finally, it propagates the update signal up to the parent node
+        node (which is the only part that subclasses should specialise).
+        Finally, it propagates the update signal up to the parent node
         (if any).
 
         '''
-        # Ensure that update_signal does not get called recursively. If this
-        # node is still under construction then it might not have the
-        # _disable_tree_update attribute. If so, we also skip doing the update.
-        if (not hasattr(self, "_disable_tree_update") or
-                self._disable_tree_update):
+        # Ensure that update_signal does not get called recursively.
+        if self._disable_tree_update:
             return
 
         # Perform the update, disabling the recursive call of this routine on
@@ -1546,9 +1562,8 @@ class Node():
         self._update_node()
         self._disable_tree_update = False
 
-        # If we're in the middle of constructing a Node then it's
-        # possible that it doesn't yet even have the _parent attribute.
-        if hasattr(self, "_parent") and self._parent:
+        # Propagate the signal up the tree.
+        if self._parent:
             self._parent.update_signal()
 
     def _update_node(self):

@@ -441,9 +441,13 @@ def test_accupdatedirective_equality():
     assert directive1 != directive5
 
 
-def test_accdatadirective_clauses(fortran_reader, fortran_writer):
+def test_accdatadirective_update_data_movement_clauses(fortran_reader,
+                                                       fortran_writer):
     '''Test that the data movement clauses are constructed correctly for the
-    ACCDataDirective class.'''
+    ACCDataDirective class and that they are updated appropriately when the
+    tree beneath them is changed.
+
+    '''
     psyir = fortran_reader.psyir_from_source(
         "program dtype_read\n"
         "use field_mod, only: fld_type\n"

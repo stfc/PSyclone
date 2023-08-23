@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -48,10 +48,10 @@ from psyclone.configuration import Config
 from psyclone.core import Signature, VariablesAccessInfo
 from psyclone.errors import InternalError
 from psyclone.f2pygen import CommentGen
-from psyclone.psyir.nodes.loop import Loop
-from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.nodes.array_of_structures_reference import (
     ArrayOfStructuresReference)
+from psyclone.psyir.nodes.loop import Loop
+from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.nodes.schedule import Schedule
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.structure_reference import StructureReference
@@ -78,20 +78,23 @@ class Directive(Statement, metaclass=abc.ABCMeta):
 
     def create_data_movement_deep_copy_refs(self):
         '''
-        Creates the References required to perform a deep copy of this
-        Signature in e.g. OpenACC or OpenMP. These References are added to the
-        returned OrderedDicts in the order in which they must be copied.
+        Creates the References required to perform a deep copy (in e.g.
+        OpenACC or OpenMP) of all of the quantities accessed in Nodes below
+        this one in the tree. It distringuishes between those quantities that
+        are only read, only written or are both read and written. The necessary
+        References are added to the returned OrderedDicts in the order in which
+        they must be copied.
 
-        :returns: a 3-tuple containing dicts describing the reads, writes and
-            readwrites. Each dict contains References indexed by Signatures.
-        :rtype: Tuple[OrderedDict[
-            :py:class:`psyclone.core.Signature`,
-            :py:class:`psyclone.psyir.nodes.Reference`]]
+        :returns: a 3-tuple containing dicts describing the quantities that
+            are read-only, write-only and readwrite. Each dict contains
+            References indexed by Signatures.
+        :rtype: Tuple[OrderedDict[:py:class:`psyclone.core.Signature`,
+                                  :py:class:`psyclone.psyir.nodes.Reference`]]
 
         '''
         readwrites = OrderedDict()
-        reads = OrderedDict()
-        writes = OrderedDict()
+        read_only = OrderedDict()
+        write_only = OrderedDict()
         table = self.scope.symbol_table
 
         var_info = VariablesAccessInfo()
@@ -112,13 +115,13 @@ class Directive(Statement, metaclass=abc.ABCMeta):
                 if var_info.is_read(sig):
                     if var_info.is_written(sig):
                         if vinfo.is_written_first():
-                            access_dict = writes
+                            access_dict = write_only
                         else:
                             access_dict = readwrites
                     else:
-                        access_dict = reads
+                        access_dict = read_only
                 else:
-                    access_dict = writes
+                    access_dict = write_only
 
             if not sig.is_structure:
                 # This must be an array.
@@ -168,7 +171,7 @@ class Directive(Statement, metaclass=abc.ABCMeta):
                     members.append(sig[depth])
                     access_dict[sig[:depth+1]] = base_cls.create(
                         *base_args, members)
-        return reads, writes, readwrites
+        return read_only, write_only, readwrites
 
 
 class RegionDirective(Directive):
@@ -194,8 +197,10 @@ class RegionDirective(Directive):
 
     def __init__(self, ast=None, children=None, parent=None):
         # A Directive always contains a Schedule
-        sched = Schedule(children=children, parent=self)
-        super().__init__(ast, children=[sched], parent=parent)
+        #sched = Schedule(children=children, parent=self)
+        #super().__init__(ast, children=[sched], parent=parent)
+        super().__init__(ast, parent=parent)
+        self.addchild(Schedule(children=children))
 
     @staticmethod
     def _validate_child(position, child):

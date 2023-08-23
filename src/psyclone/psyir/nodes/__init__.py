@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2022, Science and Technology Facilities Council.
+# Copyright (c) 2020-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -39,6 +39,8 @@
 
 ''' PSyIR nodes package module '''
 
+from psyclone.psyir.nodes.acc_clauses import (ACCCopyClause, ACCCopyInClause,
+                                              ACCCopyOutClause)
 from psyclone.psyir.nodes.array_reference import ArrayReference
 from psyclone.psyir.nodes.array_of_structures_reference import (
     ArrayOfStructuresReference)
@@ -98,6 +100,9 @@ from psyclone.psyir.nodes.while_loop import WhileLoop
 # this package e.g. 'from psyclone.psyir.nodes import Literal'
 __all__ = [
         'colored',
+        'ACCCopyClause',
+        'ACCCopyInClause',
+        'ACCCopyOutClause',
         'ArrayMember',
         'ArrayReference',
         'ArrayOfStructuresMember',
