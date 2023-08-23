@@ -295,7 +295,7 @@ def test_multi_array_derived_type(fortran_reader, fortran_writer):
             "copyout(sto_tmp)" in gen_code)
 
 
-def test_multi_array_derived_type_error(fortran_reader, fortran_writer):
+def test_multi_array_derived_type_error(fortran_reader):
     '''
     Check that we raise the expected error if the derived-type contains
     more than one array access and they are both iterated over.
