@@ -1,27 +1,20 @@
 EXE = gol
 API = gocean
 
-include ../common.mk
 
+# We need to compile and link the PSyData libraries:
 PSY_DATA_DIR = $(ROOT_DIR)/lib/profiling/simple_timing
 PSY_DATA_LIB = $(PSY_DATA_DIR)/libsimple_timing.a
 PSY_DATA_INCLUDE = -I $(PSY_DATA_DIR)
 
 F90FLAGS += $(PSY_DATA_INCLUDE)
 
-SRC = gol.f90
-PSY_SRC = time_step_alg_mod.x90 
+OBJ = gol.o time_step_alg_mod.o time_step_alg_mod_psy.o
 
-OBJ = $(SRC:%.f90=%.o) $(PSY_SRC:%.x90=%.o) $(PSY_SRC:%.x90=%_psy.o)
-EXE = gol
+include ../common.mk
 
-.PHONY: run test clean
-
-LDFLAGS += $(PSY_DATA_LIB)
-
-$(EXE): $(INF_LIB) $(PSY_DATA_LIB) $(GOL_LIB) $(OBJ)
-	echo OBJ $(OBJ)
-	$(F90) $(F90FLAGS) $(OBJ) $(LDFLAGS) -o $(EXE)
+$(EXE): $(PSY_DATA_LIB) $(OBJ)
+	$(F90) $(F90FLAGS) $(OBJ) $(PSY_DATA_LIB) $(LDFLAGS) -o $(EXE)
 
 run: $(EXE)
 	./$(EXE) config.glider
@@ -31,23 +24,15 @@ test: $(EXE)
 
 # Dependencies:
 # -------------
-gol.o: time_step_alg_mod.o
-
-time_step_alg_mod.o:time_step_alg_mod_psy.o
+# Ensure that PSyclone has finished (which will also create the psy file)
+time_step_alg_mod_psy.f90: time_step_alg_mod.f90
+time_step_alg_mod.o: time_step_alg_mod_psy.o
 
 # External libs
 # -------------
-$(PSY_DATA_LIB):
+$(PSY_DATA_LIB): $(INF_LIB)
 	$(MAKE) -C $(PSY_DATA_DIR)
-
-.precious: time_step_alg_mod.f90 time_step_alg_mod_psy.f90
 
 %.f90: %.x90 Makefile
 	$(PSYCLONE) --profile invokes -api gocean1.0 -oalg $*.f90 \
 		-opsy $*_psy.f90 $<
-
-# Clean
-# -----
-
-clean:
-	rm -f $(OBJ) $(EXE) *.mod time_step_alg_mod.f90 time_step_alg_mod_psy.f90

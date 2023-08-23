@@ -13,7 +13,8 @@ this_file := $(abspath $(lastword $(MAKEFILE_LIST)))
 ROOT_DIR := $(abspath $(dir $(this_file))../..)
 
 ifeq ($(API), gocean)
-	#INF_DIR ?= $(ROOT_DIR)/external/dl_esm_inf/finite_difference
+	# For now till MPI support is merged into dl_esm_info and PSyclone is updated.
+	# INF_DIR ?= $(ROOT_DIR)/external/dl_esm_inf/finite_difference
 	INF_DIR ?= $(HOME)/work/dl_esm_inf/finite_difference
 	INF_INC = $(INF_DIR)/src
 	ifeq ($(MPI), yes)
@@ -32,37 +33,40 @@ LIBS = $(GOL_LIB) $(INF_LIB)
 LDFLAGS += $(LIBS)
 F90FLAGS += $(INCL)
 
-# Limit output to 132 characters
-ifeq ($(MPI), yes)
-	PSYCLONE=psyclone --config $(ROOT_DIR)/config/psyclone.cfg \
-			-l output -dm -d $(GOL_DIR)
-else
-	PSYCLONE=psyclone --config $(ROOT_DIR)/config/psyclone.cfg \
-			-l output -nodm -d $(GOL_DIR)
-endif
+PSYCLONE=psyclone --config $(ROOT_DIR)/config/psyclone.cfg \
+		-l output -d $(GOL_DIR)
 
 default: $(EXE)
 
+.precious: time_step_alg_mod.f90 time_step_alg_mod_psy.f90
+
+$(OBJ): $(GOL_LIB)
+
 # External libs
 # -------------
-$(GOL_LIB):
+$(GOL_LIB): $(INF_LIB)
 	$(MAKE) F90FLAGS="$(F90FLAGS)" -C $(GOL_DIR)
 
 $(INF_LIB):
-	$(MAKE) F90FLAGS="$(F90FLAGS)" -C $(INF_DIR)/src
+	echo "NOOOOO " $(MPI)
+	$(MAKE) MPI=$(MPI) F90FLAGS="$(F90FLAGS)" -C $(INF_DIR)/src
 
-$(INF_DIR)/src/lib_dm.a:
-	$(MAKE) MPI=yes F90FLAGS="$(F90FLAGS)" -C $(INF_DIR)/src
+#$(INF_DIR)/src/lib_dm_fd.a:
+#	echo "YESSSS"
+#	# Specialisation to provide the MPI=yes flag
+#	$(MAKE) MPI=yes F90FLAGS="$(F90FLAGS)" -C $(INF_DIR)/src
 
-# Compilation rules
-# -----------------
+# Generic compilation rule
+# ------------------------
 %.o: %.f90
 	$(F90) -c $(F90FLAGS) $<
 
-.PHONY: allclean
+.PHONY: clean allclean run test
 
-# Allclean target
-# ---------------
+clean:
+	rm -f *.o $(EXE) *.mod time_step_alg_mod.f90 time_step_alg_mod_psy.f90
+
+# The target allclean cleans all also all remote dependencies
 allclean: clean
 	$(MAKE) F90FLAGS="$(F90FLAGS)" -C $(INF_INC) clean
 	$(MAKE) F90FLAGS="$(F90FLAGS)" -C $(GOL_DIR) clean

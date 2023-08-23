@@ -54,7 +54,6 @@ def trans(psy):
     '''
     inline = KernelModuleInlineTrans()
 
-    #print(psy.invokes.names)
     for name in psy.invokes.names:
         invoke = psy.invokes.get(name)
         inline.apply(invoke.schedule[0].loop_body[0].loop_body[0])

@@ -21,15 +21,7 @@ test: $(EXE)
 
 # Dependencies:
 # -------------
+$(OBJ): $(INF_LIB)
 gol.o: read_config_mod.o time_step_mod.o
 time_step_mod.o: combine_mod.o compute_born_mod.o compute_die_mod.o \
 	count_neighbours_mod.o output_field_mod.o
-
-# Clean
-# -----
-
-clean:
-	rm -f $(OBJ) $(EXE) *.mod
-
-allclean: clean
-	$(MAKE) F90FLAGS="$(F90FLAGS)" -C $(INF_INC) clean
