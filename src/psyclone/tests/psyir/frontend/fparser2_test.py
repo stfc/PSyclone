@@ -690,6 +690,79 @@ def test_get_routine_schedules_interface(interface_code, parser):
 
 
 @pytest.mark.usefixtures("f2008_parser")
+def test_get_partial_datatype():
+    '''Test that the _get_partial_datatype method of Fparser2Reader
+    works as expected.
+
+    '''
+    fake_parent = KernelSchedule("dummy_schedule")
+    processor = Fparser2Reader()
+
+    # Entry in symbol table with unmodified properties.
+    reader = FortranStringReader("integer :: l1=2")
+    node = Specification_Part(reader).content[0]
+    ids = [id(entry) for entry in walk(node)]
+    datatype, init = processor._get_partial_datatype(node, fake_parent, {})
+    assert isinstance(datatype, ScalarType)
+    assert isinstance(init, Literal)
+    assert datatype.intrinsic is ScalarType.Intrinsic.INTEGER
+    # Check fparser2 tree is unmodified
+    assert ids == [id(entry) for entry in walk(node)]
+
+    # Entry in symbol table with partial information. Example has one
+    # unsupported attribute (and no others) and an unsupported assignment.
+    reader = FortranStringReader("integer, pointer :: l1 => null()")
+    node = Specification_Part(reader).content[0]
+    ids = [id(entry) for entry in walk(node)]
+    datatype, init = processor._get_partial_datatype(node, fake_parent, {})
+    assert isinstance(datatype, ScalarType)
+    assert isinstance(init, CodeBlock)
+    assert datatype.intrinsic is ScalarType.Intrinsic.INTEGER
+    # Check fparser2 tree is unmodified
+    assert ids == [id(entry) for entry in walk(node)]
+
+    # Entry in symbol table with partial information. Example has one
+    # unsupported attribute and one supported attribute.
+    reader = FortranStringReader("real*4, target, dimension(10,20) :: l1")
+    node = Specification_Part(reader).content[0]
+    ids = [id(entry) for entry in walk(node)]
+    datatype, init = processor._get_partial_datatype(node, fake_parent, {})
+    assert isinstance(datatype, ArrayType)
+    assert init is None
+    assert datatype.intrinsic is ScalarType.Intrinsic.REAL
+    assert datatype.precision == 4
+    assert datatype.shape[0].upper.value == '10'
+    assert datatype.shape[1].upper.value == '20'
+    # Check fparser2 tree is unmodified
+    assert ids == [id(entry) for entry in walk(node)]
+
+    # No entry in symbol table.
+    # Notice the space before complex keyword. This avoids it being
+    # treated as a comment.
+    reader = FortranStringReader(" complex :: c\n")
+    node = Specification_Part(reader).content[0]
+    ids = [id(entry) for entry in walk(node)]
+    dtype, init = processor._get_partial_datatype(node, fake_parent, {})
+    assert dtype is None
+    assert init is None
+    # Check fparser2 tree is unmodified
+    assert ids == [id(entry) for entry in walk(node)]
+
+    # Multiple variables in the declaration are also supported but are
+    # not used by PSyclone at the moment.
+    reader = FortranStringReader(
+        "integer, pointer :: l1 => null(), l2 => null()")
+    node = Specification_Part(reader).content[0]
+    ids = [id(entry) for entry in walk(node)]
+    datatype, init = processor._get_partial_datatype(node, fake_parent, {})
+    assert isinstance(datatype, ScalarType)
+    assert isinstance(init, CodeBlock)
+    assert datatype.intrinsic is ScalarType.Intrinsic.INTEGER
+    # Check fparser2 tree is unmodified
+    assert ids == [id(entry) for entry in walk(node)]
+
+
+@pytest.mark.usefixtures("f2008_parser")
 def test_process_declarations():
     '''Test that process_declarations method of Fparser2Reader
     converts the fparser2 declarations to symbols in the provided
@@ -750,42 +823,55 @@ def test_process_declarations():
     processor.process_declarations(fake_parent, [fparser2spec], [])
     newsymbol = symtab.lookup("i1")
     assert newsymbol.is_constant
-    assert isinstance(newsymbol.constant_value, Literal)
-    assert newsymbol.constant_value.value == "1"
+    assert isinstance(newsymbol.initial_value, Literal)
+    assert newsymbol.initial_value.value == "1"
 
     reader = FortranStringReader("real, parameter :: i2 = 2.2, i3 = 3.3")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert symtab.lookup("i2").constant_value.value == "2.2"
-    assert symtab.lookup("i3").constant_value.value == "3.3"
+    assert symtab.lookup("i2").initial_value.value == "2.2"
+    assert symtab.lookup("i3").initial_value.value == "3.3"
 
     # Initialisation with constant expressions
     reader = FortranStringReader("real, parameter :: i4 = 1.1, i5 = i4 * 2")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert symtab.lookup("i4").constant_value.value == "1.1"
-    assert isinstance(symtab.lookup("i5").constant_value, BinaryOperation)
+    assert symtab.lookup("i4").initial_value.value == "1.1"
+    assert isinstance(symtab.lookup("i5").initial_value, BinaryOperation)
 
     # Initialisation with a constant expression (1) and with a symbol (val1)
     reader = FortranStringReader("integer, parameter :: val1 = 1, val2 = val1")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
-    assert fake_parent.symbol_table.lookup("val1").constant_value.value == "1"
+    assert fake_parent.symbol_table.lookup("val1").initial_value.value == "1"
     assert isinstance(
-        fake_parent.symbol_table.lookup("val2").constant_value, Reference)
-    assert fake_parent.symbol_table.lookup("val2").constant_value.symbol == \
+        fake_parent.symbol_table.lookup("val2").initial_value, Reference)
+    assert fake_parent.symbol_table.lookup("val2").initial_value.symbol == \
         fake_parent.symbol_table.lookup("val1")
 
     # Initialisation with a complex constant expression
-    symtab.add(DataSymbol("precisionkind", INTEGER_TYPE, constant_value=4))
+    symtab.add(DataSymbol("precisionkind", INTEGER_TYPE, is_constant=True,
+                          initial_value=4))
     reader = FortranStringReader(
         "integer, parameter :: val3 = 2 * (val1 + val2) + 2_precisionkind")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
-    # Val3 has been given a constant expression
-    assert fake_parent.symbol_table.lookup("val3").constant_value
+    # Val3 has been given an initial_value expression
+    val3 = fake_parent.symbol_table.lookup("val3")
+    assert isinstance(val3.initial_value, BinaryOperation)
+    assert val3.is_constant
     # The new symbol (precisionkind) has been added to the parent Symbol Table
     assert fake_parent.symbol_table.lookup("precisionkind")
+
+    # Initialisation of a variable
+    reader = FortranStringReader(
+        "integer :: val4 = 2 * (val1 + val2) + 2_precisionkind")
+    fparser2spec = Specification_Part(reader).content[0]
+    processor.process_declarations(fake_parent, [fparser2spec], [])
+    val4 = fake_parent.symbol_table.lookup("val4")
+    assert val4.initial_value
+    assert isinstance(val4.initial_value, BinaryOperation)
+    assert val4.is_constant is False
 
     # Check we catch duplicated symbols
     reader = FortranStringReader("integer :: i2")
@@ -794,6 +880,38 @@ def test_process_declarations():
         processor.process_declarations(fake_parent, [fparser2spec], [])
     assert ("Symbol 'i2' already present in SymbolTable with a defined "
             "interface" in str(error.value))
+
+    # Initialisation of a pointer.
+    reader = FortranStringReader(
+        "real, dimension(:), pointer :: dptr => null()")
+    fparser2spec = Specification_Part(reader).content[0]
+    processor.process_declarations(fake_parent, [fparser2spec], [])
+    ptr_sym = fake_parent.symbol_table.lookup("dptr")
+    assert isinstance(ptr_sym, DataSymbol)
+    assert isinstance(ptr_sym.datatype, UnknownFortranType)
+    assert isinstance(ptr_sym.initial_value, CodeBlock)
+
+
+@pytest.mark.usefixtures("f2008_parser")
+def test_process_declarations_unknownfortrantype():
+    '''Test that process_declarations method of Fparser2Reader adds
+    datatype information to an UnknownFortranType by calling the
+    get_partial_datatype method, also from Fparser2Reader.
+
+    '''
+    fake_parent = KernelSchedule("dummy_schedule")
+    symtab = fake_parent.symbol_table
+    processor = Fparser2Reader()
+    reader = FortranStringReader(
+        "integer, pointer :: l1 => null(), l2 => null()")
+    fparser2spec = Specification_Part(reader).content[0]
+    processor.process_declarations(fake_parent, [fparser2spec], [])
+    for varname in ("l1", "l2"):
+        var_symbol = symtab.lookup(varname)
+        assert isinstance(var_symbol.datatype, UnknownFortranType)
+        assert isinstance(var_symbol.datatype.partial_datatype, ScalarType)
+        assert (var_symbol.datatype.partial_datatype.intrinsic is
+                ScalarType.Intrinsic.INTEGER)
 
 
 @pytest.mark.usefixtures("f2008_parser")
@@ -850,15 +968,13 @@ def test_process_declarations_errors():
 @pytest.mark.usefixtures("f2008_parser")
 def test_declarations_with_initialisations(fortran_reader):
     '''Test that Fparser2Reader keeps all the variable initialisation
-    expressions, even though some may end up in UnknownTypes for now
-    because we don't support variable initialisations that are not
-    parameters.
+    expressions.
     '''
 
     psyir = fortran_reader.psyir_from_source(
         """
         module test
-            integer :: a = 1
+            integer :: a = 1, aa = 4
             integer, save :: b = 1
             integer, parameter :: c = 1
             contains
@@ -871,32 +987,33 @@ def test_declarations_with_initialisations(fortran_reader):
         """)
 
     inner_st = psyir.walk(Routine)[0].symbol_table
+    asym = inner_st.lookup('a')
+    aasym = inner_st.lookup('aa')
+    bsym = inner_st.lookup('b')
+    csym = inner_st.lookup('c')
+    dsym = inner_st.lookup('d')
+    esym = inner_st.lookup('e')
+    fsym = inner_st.lookup('f')
+    all_syms = [asym, aasym, bsym, csym, dsym, esym, fsym]
+
     # All initialisation variables are DataSymbols
-    assert isinstance(inner_st.lookup('a'), DataSymbol)
-    assert isinstance(inner_st.lookup('b'), DataSymbol)
-    assert isinstance(inner_st.lookup('c'), DataSymbol)
-    assert isinstance(inner_st.lookup('d'), DataSymbol)
-    assert isinstance(inner_st.lookup('e'), DataSymbol)
-    assert isinstance(inner_st.lookup('f'), DataSymbol)
+    assert all(isinstance(sym, DataSymbol) for sym in all_syms)
 
-    # When it is not a parameter they are unknown interface and datatype
-    assert isinstance(inner_st.lookup('a').interface, UnknownInterface)
-    assert isinstance(inner_st.lookup('b').interface, UnknownInterface)
-    assert isinstance(inner_st.lookup('d').interface, UnknownInterface)
-    assert isinstance(inner_st.lookup('e').interface, UnknownInterface)
-    assert isinstance(inner_st.lookup('a').datatype, UnknownFortranType)
-    assert isinstance(inner_st.lookup('b').datatype, UnknownFortranType)
-    assert isinstance(inner_st.lookup('d').datatype, UnknownFortranType)
-    assert isinstance(inner_st.lookup('e').datatype, UnknownFortranType)
+    # All of the data symbols should have a StaticInterface (because they
+    # either have an explicit 'save' or 'parameter' or are given an
+    # initial_value with then implies 'save').
+    assert all(isinstance(sym.interface, StaticInterface) for sym in all_syms)
 
-    # When it is a parameter the interface, type and constant_value is defined
-    assert isinstance(inner_st.lookup('c').interface, DefaultModuleInterface)
-    assert isinstance(inner_st.lookup('c').datatype, ScalarType)
-    assert isinstance(inner_st.lookup('c').constant_value, Literal)
-    assert isinstance(inner_st.lookup('f').interface, AutomaticInterface)
-    assert isinstance(inner_st.lookup('f').datatype, ScalarType)
-    assert isinstance(inner_st.lookup('f').constant_value, Literal)
-    assert isinstance(inner_st.lookup('f').interface, AutomaticInterface)
+    # All symbols should have a known data type.
+    assert all(isinstance(sym.datatype, ScalarType) for sym in all_syms)
+
+    # When it is a parameter the initial_value is defined and is_constant
+    # is True.
+    assert isinstance(csym.initial_value, Literal)
+    assert csym.is_constant is True
+
+    assert isinstance(fsym.initial_value, Literal)
+    assert fsym.is_constant is True
 
 
 @pytest.mark.usefixtures("f2008_parser")
@@ -954,49 +1071,30 @@ def test_process_unsupported_declarations(fortran_reader):
     fake_parent = KernelSchedule("dummy_schedule")
     processor = Fparser2Reader()
 
-    # Initial values for variables are not supported so we should get a symbol
-    # with unknown type.
-    reader = FortranStringReader("real:: a = 1.1")
-    fparser2spec = Specification_Part(reader).content[0]
-    processor.process_declarations(fake_parent, [fparser2spec], [])
-    asym = fake_parent.symbol_table.lookup("a")
-    assert isinstance(asym.datatype, UnknownFortranType)
-    assert asym.datatype.declaration == "REAL :: a = 1.1"
-
-    reader = FortranStringReader("real:: b = 1.1, c = 2.2")
-    fparser2spec = Specification_Part(reader).content[0]
-    processor.process_declarations(fake_parent, [fparser2spec], [])
-    bsym = fake_parent.symbol_table.lookup("b")
-    assert isinstance(bsym.datatype, UnknownFortranType)
-    assert bsym.datatype.declaration == "REAL :: b = 1.1"
-    csym = fake_parent.symbol_table.lookup("c")
-    assert isinstance(csym.datatype, UnknownFortranType)
-    assert csym.datatype.declaration == "REAL :: c = 2.2"
-
     # Multiple symbols with a single attribute
-    reader = FortranStringReader("integer, private :: d = 1, e = 2")
+    reader = FortranStringReader("integer, private, pointer :: d, e")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
     dsym = fake_parent.symbol_table.lookup("d")
     assert isinstance(dsym.datatype, UnknownFortranType)
-    assert dsym.datatype.declaration == "INTEGER, PRIVATE :: d = 1"
+    assert dsym.datatype.declaration == "INTEGER, PRIVATE, POINTER :: d"
     esym = fake_parent.symbol_table.lookup("e")
     assert isinstance(esym.datatype, UnknownFortranType)
-    assert esym.datatype.declaration == "INTEGER, PRIVATE :: e = 2"
+    assert esym.datatype.declaration == "INTEGER, PRIVATE, POINTER :: e"
 
     # Multiple attributes
     reader = FortranStringReader(
-        "INTEGER, PRIVATE, DIMENSION(3) :: f = 2, g = 3")
+        "INTEGER, PRIVATE, DIMENSION(3), POINTER :: f, g")
     fparser2spec = Specification_Part(reader).content[0]
     processor.process_declarations(fake_parent, [fparser2spec], [])
     fsym = fake_parent.symbol_table.lookup("f")
     assert isinstance(fsym.datatype, UnknownFortranType)
     assert (fsym.datatype.declaration ==
-            "INTEGER, PRIVATE, DIMENSION(3) :: f = 2")
+            "INTEGER, PRIVATE, DIMENSION(3), POINTER :: f")
     gsym = fake_parent.symbol_table.lookup("g")
     assert isinstance(gsym.datatype, UnknownFortranType)
     assert (gsym.datatype.declaration ==
-            "INTEGER, PRIVATE, DIMENSION(3) :: g = 3")
+            "INTEGER, PRIVATE, DIMENSION(3), POINTER :: g")
 
     # Test with unsupported intrinsic type. Note the space before complex
     # below which stops the line being treated as a comment.
@@ -1029,16 +1127,16 @@ def test_process_unsupported_declarations(fortran_reader):
     processor.process_declarations(fake_parent, [fparser2spec], [])
     fbsym = fake_parent.symbol_table.lookup("fbsp")
     assert fbsym.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
-    assert isinstance(fbsym.constant_value, CodeBlock)
+    assert isinstance(fbsym.initial_value, CodeBlock)
     # The first parameter should have been handled correctly
     hsym = fake_parent.symbol_table.lookup("happy")
     assert hsym.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
-    assert hsym.constant_value.value == "1"
+    assert hsym.initial_value.value == "1"
     # As should the third
     ssym = fake_parent.symbol_table.lookup("sad")
     assert ssym.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
-    assert isinstance(ssym.constant_value, Reference)
-    assert ssym.constant_value.symbol.name == "fbsp"
+    assert isinstance(ssym.initial_value, Reference)
+    assert ssym.initial_value.symbol.name == "fbsp"
 
 
 @pytest.mark.usefixtures("f2008_parser")
@@ -1055,16 +1153,16 @@ def test_unsupported_decln_initial_value(monkeypatch):
     # for anything other than a Literal.
 
     class BrokenDataSymbol(DataSymbol):
-        ''' Sub-class of DataSymbol with `constant_value` setter patched
+        ''' Sub-class of DataSymbol with `initial_value` setter patched
         so that it raises a ValueError for anything other than a Literal. '''
         @property
-        def constant_value(self):
-            return self._constant_value
+        def initial_value(self):
+            return self._initial_value
 
-        @constant_value.setter
-        def constant_value(self, value):
+        @initial_value.setter
+        def initial_value(self, value):
             if isinstance(value, Literal):
-                self._constant_value = value
+                self._initial_value = value
             else:
                 raise ValueError("")
 
@@ -1079,7 +1177,7 @@ def test_unsupported_decln_initial_value(monkeypatch):
     processor.process_declarations(fake_parent, [fparser2spec], [])
     hsym = fake_parent.symbol_table.lookup("happy")
     assert hsym.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
-    assert hsym.constant_value.value == "1"
+    assert hsym.initial_value.value == "1"
     fbsym = fake_parent.symbol_table.lookup("fbsp")
     assert isinstance(fbsym.datatype, UnknownFortranType)
     assert (fbsym.datatype.declaration == "INTEGER, PRIVATE, PARAMETER :: "
@@ -1686,7 +1784,7 @@ def test_parse_array_dimensions_attributes():
     csym = sym_table.new_symbol("some_mod", symbol_type=ContainerSymbol)
     vsym = sym_table.new_symbol("var3", interface=ImportInterface(csym))
     # pylint: disable=unidiomatic-typecheck
-    assert type(vsym) == Symbol
+    assert type(vsym) is Symbol
     shape = Fparser2Reader._parse_dimensions(fparser2spec, sym_table)
     assert len(shape) == 1
     assert shape[0][0].value == "1"
@@ -2676,7 +2774,7 @@ def test_named_and_wildcard_use_var(f2008_parser):
     avar1 = container.symbol_table.lookup("a_var")
     # It must be a generic Symbol since we don't know anything about it
     # pylint: disable=unidiomatic-typecheck
-    assert type(avar1) == Symbol
+    assert type(avar1) is Symbol
     # There should be no entry for "a_var" in the symbol table for the
     # "test_sub1" routine as it is not declared there.
     schedule = psy.invokes.invoke_list[0].schedule
@@ -2685,7 +2783,7 @@ def test_named_and_wildcard_use_var(f2008_parser):
     # for "test_sub2" as it has a use statement that imports it.
     schedule = psy.invokes.invoke_list[1].schedule
     avar2 = schedule.symbol_table.lookup("a_var")
-    assert type(avar2) == Symbol
+    assert type(avar2) is Symbol
     assert avar2 is not avar1
 
 

@@ -1166,7 +1166,7 @@ def test_stub_file_content_not_fortran():
 def test_stub_file_fortran_invalid():
     ''' fail if the fortran in the kernel is not valid '''
     with pytest.raises(ParseError) as excinfo:
-        generate(os.path.join(BASE_PATH, "testkern_invalid_fortran.F90"),
+        generate(os.path.join(BASE_PATH, "testkern_invalid_fortran_mod.f90"),
                  api=TEST_API)
     assert 'contain <== no parse pattern found' in str(excinfo.value)
 
@@ -1183,7 +1183,7 @@ def test_file_fortran_not_kernel():
 def test_module_name_too_short():
     ''' fail if length of kernel module name is too short '''
     with pytest.raises(ParseError) as excinfo:
-        generate(os.path.join(BASE_PATH, "testkern_short_name.F90"),
+        generate(os.path.join(BASE_PATH, "testkern_short_name_mod.f90"),
                  api=TEST_API)
     assert "too short to have '_mod' as an extension" in str(excinfo.value)
 
@@ -1199,7 +1199,7 @@ def test_module_name_convention():
 def test_kernel_datatype_not_found():
     ''' fail if kernel datatype is not found '''
     with pytest.raises(ParseError) as excinfo:
-        generate(os.path.join(BASE_PATH, "testkern_no_datatype.F90"),
+        generate(os.path.join(BASE_PATH, "testkern_no_datatype_mod.f90"),
                  api=TEST_API)
     assert 'Kernel type testkern_type does not exist' in str(excinfo.value)
 

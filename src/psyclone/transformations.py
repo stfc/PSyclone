@@ -35,6 +35,7 @@
 #         A. B. G. Chalk STFC Daresbury Lab
 #         J. Henrichs, Bureau of Meteorology
 # Modified I. Kavcic, Met Office
+# Modified J. G. Wallwork, Met Office
 
 ''' This module provides the various transformations that can be applied to
     PSyIR nodes. There are both general and API-specific transformation
@@ -496,6 +497,8 @@ class ACCLoopTrans(ParallelLoopTrans):
         # to the loop directive.
         self._independent = True
         self._sequential = False
+        self._gang = False
+        self._vector = False
         super().__init__()
 
     def __str__(self):
@@ -508,13 +511,15 @@ class ACCLoopTrans(ParallelLoopTrans):
 
         :param children: list of child nodes of the new directive Node.
         :type children: list of :py:class:`psyclone.psyir.nodes.Node`
-        :param int collapse: number of nested loops to collapse or None if \
+        :param int collapse: number of nested loops to collapse or None if
                              no collapse attribute is required.
         '''
         directive = ACCLoopDirective(children=children,
                                      collapse=collapse,
                                      independent=self._independent,
-                                     sequential=self._sequential)
+                                     sequential=self._sequential,
+                                     gang=self._gang,
+                                     vector=self._vector)
         return directive
 
     def apply(self, node, options=None):
@@ -534,15 +539,21 @@ class ACCLoopTrans(ParallelLoopTrans):
         :py:meth:`psyclone.psyir.nodes.ACCLoopDirective.gen_code` is called),
         this node must be within (i.e. a child of) a PARALLEL region.
 
-        :param node: the supplied node to which we will apply the \
+        :param node: the supplied node to which we will apply the
                      Loop transformation.
         :type node: :py:class:`psyclone.psyir.nodes.Loop`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
         :param int options["collapse"]: number of nested loops to collapse.
-        :param bool options["independent"]: whether to add the "independent" \
-                clause to the directive (not strictly necessary within \
+        :param bool options["independent"]: whether to add the "independent"
+                clause to the directive (not strictly necessary within
                 PARALLEL regions).
+        :param bool options["sequential"]: whether to add the "seq" clause to
+                the directive.
+        :param bool options["gang"]: whether to add the "gang" clause to the
+                directive.
+        :param bool options["vector"]: whether to add the "vector" clause to
+                the directive.
 
         '''
         # Store sub-class specific options. These are used when
@@ -551,6 +562,8 @@ class ACCLoopTrans(ParallelLoopTrans):
             options = {}
         self._independent = options.get("independent", True)
         self._sequential = options.get("sequential", False)
+        self._gang = options.get("gang", False)
+        self._vector = options.get("vector", False)
 
         # Call the apply() method of the base class
         super().apply(node, options)
@@ -1988,18 +2001,17 @@ class Dynamo0p3KernelConstTrans(Transformation):
             'arg_position' into a compile-time constant with value
             'value'.
 
-            :param symbol_table: the symbol table for the kernel \
-                         holding the argument that is going to be modified.
+            :param symbol_table: the symbol table for the kernel holding
+                the argument that is going to be modified.
             :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
-            :param int arg_position: the argument's position in the \
-                                     argument list.
-            :param value: the constant value that this argument is \
-                    going to be given. Its type depends on the type of the \
-                    argument.
+            :param int arg_position: the argument's position in the
+                argument list.
+            :param value: the constant value that this argument is going to
+                be given. Its type depends on the type of the argument.
             :type value: int, str or bool
-            :type str function_space: the name of the function space \
-                    if there is a function space associated with this \
-                    argument. Defaults to None.
+            :type str function_space: the name of the function space if there
+                is a function space associated with this argument. Defaults
+                to None.
 
             '''
             arg_index = arg_position - 1
@@ -2033,7 +2045,7 @@ class Dynamo0p3KernelConstTrans(Transformation):
             # #321).
             orig_name = symbol.name
             local_symbol = DataSymbol(orig_name+"_dummy", INTEGER_TYPE,
-                                      constant_value=value)
+                                      is_constant=True, initial_value=value)
             symbol_table.add(local_symbol)
             symbol_table.swap_symbol_properties(symbol, local_symbol)
 
@@ -2742,7 +2754,7 @@ class KernelImportsToArguments(Transformation):
 
             # Resolve the data type information if it is not available
             # pylint: disable=unidiomatic-typecheck
-            if (type(imported_var) == Symbol or
+            if (type(imported_var) is Symbol or
                     isinstance(imported_var.datatype, DeferredType)):
                 updated_sym = imported_var.resolve_deferred()
                 # If we have a new symbol then we must update the symbol table
@@ -2760,11 +2772,14 @@ class KernelImportsToArguments(Transformation):
 
             # Convert the symbol to an argument and add it to the argument list
             current_arg_list = symtab.argument_list
-            if updated_sym.is_constant:
+            # An argument does not have an initial value.
+            was_constant = updated_sym.is_constant
+            updated_sym.is_constant = False
+            updated_sym.initial_value = None
+            if was_constant:
                 # Imported constants lose the constant value but are read-only
                 # TODO: When #633 and #11 are implemented, warn the user that
                 # they should transform the constants to literal values first.
-                updated_sym.constant_value = None
                 updated_sym.interface = ArgumentInterface(
                     ArgumentInterface.Access.READ)
             else:

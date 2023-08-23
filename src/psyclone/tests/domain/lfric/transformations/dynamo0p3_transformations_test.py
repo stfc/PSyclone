@@ -7479,7 +7479,8 @@ def test_kern_const_invalid_make_constant2():
     # Expecting scalar integer. Set to constant.
     symbol._datatype = ScalarType(ScalarType.Intrinsic.INTEGER,
                                   ScalarType.Precision.UNDEFINED)
-    symbol._constant_value = 10
+    symbol._initial_value = Literal("10", INTEGER_TYPE)
+    symbol._is_constant = True
     with pytest.raises(TransformationError) as excinfo:
         kctrans.apply(kernel, {"element_order": 0})
     assert ("Expected entry to be a scalar integer argument but found "

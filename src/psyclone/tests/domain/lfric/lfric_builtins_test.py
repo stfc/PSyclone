@@ -691,15 +691,15 @@ def test_X_plus_Y(
     assert metadata.name == "X_plus_Y"
     assert metadata.procedure_name == "X_plus_Y_code"
     assert len(metadata.meta_args) == 3
-    assert type(metadata.meta_args[0]) == FieldArgMetadata
+    assert type(metadata.meta_args[0]) is FieldArgMetadata
     assert metadata.meta_args[0].datatype == "gh_real"
     assert metadata.meta_args[0].access == "gh_write"
     assert metadata.meta_args[0].function_space == "any_space_1"
-    assert type(metadata.meta_args[1]) == FieldArgMetadata
+    assert type(metadata.meta_args[1]) is FieldArgMetadata
     assert metadata.meta_args[1].datatype == "gh_real"
     assert metadata.meta_args[1].access == "gh_read"
     assert metadata.meta_args[1].function_space == "any_space_1"
-    assert type(metadata.meta_args[2]) == FieldArgMetadata
+    assert type(metadata.meta_args[2]) is FieldArgMetadata
     assert metadata.meta_args[2].datatype == "gh_real"
     assert metadata.meta_args[2].access == "gh_read"
     assert metadata.meta_args[2].function_space == "any_space_1"
