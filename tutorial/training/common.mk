@@ -61,12 +61,17 @@ $(INF_LIB):
 %.o: %.f90
 	$(F90) -c $(F90FLAGS) $<
 
-.PHONY: clean allclean run test
+.PHONY: run test allclean-default clean-default
 
-clean:
+clean-default:
 	rm -f *.o $(EXE) *.mod time_step_alg_mod.f90 time_step_alg_mod_psy.f90
 
 # The target allclean cleans all also all remote dependencies
-allclean: clean
+allclean-default: clean
 	$(MAKE) F90FLAGS="$(F90FLAGS)" -C $(INF_INC) clean
 	$(MAKE) F90FLAGS="$(F90FLAGS)" -C $(GOL_DIR) clean
+
+# A sneaky way to allow a Makefile including this one to override
+# 'clean' without a warning (overriding recipe)
+%:  %-default
+	@  true
