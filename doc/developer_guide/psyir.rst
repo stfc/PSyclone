@@ -507,6 +507,16 @@ var2, var3)` would be represented by a
 The PSyIR supports the concept of named arguments for operation
 nodes, see the :ref:`named_arguments-label` section for more details.
 
+.. note:: Similar to Fortran, the PSyIR has two comparison operators, one for
+        booleans (EQV) and one for non-booleans (EQ). These are not
+        interchangeable because they have different precedence priorities and
+        some compilers will not compile with the wrong operator. In some cases
+        we need to insert a comparison of two expressions and we don't know the
+        datatype of the operands (e.g. in the select-case canonicalisation).
+        A solution to this is to create an abstract interface with appropriate
+        implementations for each possible datatype.
+            
+
 IntrinsicCall Nodes
 -------------------
 
