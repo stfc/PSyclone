@@ -1,5 +1,5 @@
 EXE = gol
-API = gocean
+API = gocean1.0
 
 OBJ = time_step_alg_mod.o time_step_alg_mod_psy.o
 
@@ -22,6 +22,6 @@ time_step_alg_mod.o: time_step_alg_mod_psy.o
 
 # PSyclone: create alg and psy layer files:
 time_step_alg_mod.f90: time_step_alg_mod.x90
-	$(PSYCLONE) -nodm -api gocean1.0 -oalg time_step_alg_mod.f90     \
-								     -opsy time_step_alg_mod_psy.f90 \
+	$(PSYCLONE) -api gocean1.0 -oalg time_step_alg_mod.f90     \
+						       -opsy time_step_alg_mod_psy.f90 \
 								     time_step_alg_mod.x90

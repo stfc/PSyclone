@@ -1,5 +1,5 @@
 EXE = gol
-API = gocean
+API = gocean1.0
 
 
 # We need to compile and link the PSyData libraries:
@@ -33,6 +33,5 @@ time_step_alg_mod.o: time_step_alg_mod_psy.o
 $(PSY_DATA_LIB): $(INF_LIB)
 	$(MAKE) -C $(PSY_DATA_DIR)
 
-%.f90: %.x90 Makefile
-	$(PSYCLONE) --profile invokes -api gocean1.0 -oalg $*.f90 \
-		-opsy $*_psy.f90 $<
+%.f90: %.x90
+	$(PSYCLONE) --profile invokes -oalg $*.f90 -opsy $*_psy.f90 $<

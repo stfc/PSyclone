@@ -1,14 +1,9 @@
-#MPI=yes F90=mpif90 $(MAKE) MPI=yes default
-
 EXE = gol
-API = gocean
+API = gocean1.0
 MPI = yes
 F90 = mpif90
 
-SRC = read_config_mod.f90
-PSY_SRC = time_step_alg_mod.x90 
-
-OBJ = $(SRC:%.f90=%.o) $(PSY_SRC:%.x90=%.o) $(PSY_SRC:%.x90=%_psy.o)
+OBJ = time_step_alg_mod.o time_step_alg_mod_psy.o
 
 include ../common.mk
 
@@ -27,6 +22,6 @@ test: $(EXE)
 time_step_alg_mod_psy.f90: time_step_alg_mod.f90
 time_step_alg_mod.o: time_step_alg_mod_psy.o
 
-time_step_alg_mod.f90: time_step_alg_mod.x90
-	$(PSYCLONE) -api gocean1.0 -oalg time_step_alg_mod.f90 \
-							   -opsy time_step_alg_mod_psy.f90 $<
+# PSyclone: create alg and psy layer files:
+%.f90: %.x90
+	$(PSYCLONE) -oalg $*.f90 -opsy $*_psy.f90 $<
