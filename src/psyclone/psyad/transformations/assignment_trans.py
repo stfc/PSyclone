@@ -212,7 +212,7 @@ class AssignmentTrans(AdjointTransformation):
             # TODO #1537. This is a workaround until the SymbolicMaths
             # class supports the comparison of array ranges.
             # pylint: disable=unidiomatic-typecheck
-            if not (type(idx) == type(lhs_idx) and
+            if not (type(idx) is type(lhs_idx) and
                     sym_maths.equal(idx.start,
                                     lhs_idx.start) and
                     sym_maths.equal(idx.stop,

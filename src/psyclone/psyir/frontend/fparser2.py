@@ -663,7 +663,7 @@ def _kind_find_or_create(name, symbol_table):
     try:
         kind_symbol = symbol_table.lookup(lower_name)
         # pylint: disable=unidiomatic-typecheck
-        if type(kind_symbol) == Symbol:
+        if type(kind_symbol) is Symbol:
             # There is an existing entry but it's only a generic Symbol
             # so we need to replace it with a DataSymbol of integer type.
             # Since the lookup() above looks through *all* ancestor symbol
@@ -1314,7 +1314,7 @@ class Fparser2Reader():
                 try:
                     sym = symbol_table.lookup(dim_name)
                     # pylint: disable=unidiomatic-typecheck
-                    if type(sym) == Symbol:
+                    if type(sym) is Symbol:
                         # An entry for this symbol exists but it's only a
                         # generic Symbol and we now know it must be a
                         # DataSymbol.
@@ -1695,7 +1695,7 @@ class Fparser2Reader():
             # Do we already have a Symbol for this derived type?
             type_symbol = _find_or_create_unresolved_symbol(parent, type_name)
             # pylint: disable=unidiomatic-typecheck
-            if type(type_symbol) == Symbol:
+            if type(type_symbol) is Symbol:
                 # We do but we didn't know what kind of symbol it was. Create
                 # a DataTypeSymbol to replace it.
                 new_symbol = DataTypeSymbol(type_name, DeferredType(),
