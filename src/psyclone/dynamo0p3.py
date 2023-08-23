@@ -8062,12 +8062,6 @@ class DynKern(CodedKern):
         :rtype: bool
 
         '''
-        # ARPDBG
-        #if self.name == "restrict_masked_w2_kernel_code":
-        #    import pdb; pdb.set_trace()
-        #if self.is_intergrid:
-        #    # This is not a special kernel
-        #    return False
         accesses = set(arg.access for arg in self.args)
         all_writes = AccessType.all_write_accesses()
         all_writes.remove(AccessType.WRITE)
