@@ -45,17 +45,16 @@ subroutine read_config(grid, initial, time_steps)
                      (/GO_BC_EXTERNAL,GO_BC_EXTERNAL,GO_BC_EXTERNAL/),  &
                      GO_OFFSET_SW)
 
-    ! 3) Create the domain decomposition - we are using 4 process,
-    !    allow for a boundary size of 1
-    call grid%decompose(n_cols, n_rows, ndomains=1, &
-                        halo_width=1)
+    ! 3) Create the domain decomposition - dl_esm_inf will pick a
+    !    suitable domain decomposition (depending on number of MPI processes)
+    call grid%decompose(n_cols, n_rows, halo_width=1)
 
     ! 4) Grid init
     call grid_init(grid, dxarg=1.0_8, dyarg=1.0_8)
 
     ! Now we can use the grid to create the field that stores the
     ! initial data.
-    allocate(initial_state(n_rows, n_cols))
+    allocate(initial_state(n_cols, n_rows))
     initial_state = 0.0
 
     call get_initial_state(initial_state, n_rows, n_cols)
