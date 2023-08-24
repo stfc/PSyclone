@@ -16,9 +16,6 @@ $(EXE): $(OBJ)
 run: $(INF_LIB) $(EXE)
 	./$(EXE) config.glider
 
-test: $(EXE)
-	./$(EXE) config.glider | tail -n 12 | diff - ./glider.correct
-
 # Dependencies:
 # -------------
 $(OBJ): $(INF_LIB)

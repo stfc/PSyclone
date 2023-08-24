@@ -20,7 +20,9 @@ run: $(EXE)
 	./$(EXE) config.glider
 
 test: $(EXE)
-	./$(EXE) config.glider | tail -n 18  | head -n 12| diff - ./glider.correct
+	@# Due to the additional debug output, we need to take a different
+	@# section of the output file:
+	make run | tail -n 19  | head -n 12| diff - ./glider.correct
 
 # Dependencies:
 # -------------

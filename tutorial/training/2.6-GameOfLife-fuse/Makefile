@@ -11,9 +11,6 @@ $(EXE): $(OBJ)
 run: $(EXE)
 	./$(EXE) config.glider
 
-test: $(EXE)
-	./$(EXE) config.glider | tail -n 12 | diff - ./glider.correct
-
 # Dependencies:
 # -------------
 # Ensure that PSyclone has finished (which will also create the psy file)

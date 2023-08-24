@@ -45,8 +45,6 @@ default: $(EXE)
 
 .precious: time_step_alg_mod.f90 time_step_alg_mod_psy.f90
 
-$(OBJ): $(GOL_LIB)
-
 # External libs
 # -------------
 $(GOL_LIB): $(INF_LIB)
@@ -61,7 +59,13 @@ $(INF_LIB):
 %.o: %.f90
 	$(F90) -c $(F90FLAGS) $<
 
-.PHONY: run test allclean-default clean-default
+# Dependencies - sources need golib
+$(OBJ): $(GOL_LIB)
+
+.PHONY: run allclean-default clean-default test-default
+
+test-default: $(EXE)
+	make run | tail -n 13 | head -n 12 | diff - ./glider.correct
 
 clean-default:
 	rm -f *.o $(EXE) *.mod time_step_alg_mod.f90 time_step_alg_mod_psy.f90
