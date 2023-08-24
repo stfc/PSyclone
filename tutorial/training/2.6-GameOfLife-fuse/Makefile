@@ -8,9 +8,6 @@ include ../common.mk
 $(EXE): $(OBJ)
 	$(F90) $(F90FLAGS) $(OBJ) $(LDFLAGS) -o $(EXE)
 
-run: $(EXE)
-	./$(EXE) config.glider
-
 # Dependencies:
 # -------------
 # Ensure that PSyclone has finished (which will also create the psy file)

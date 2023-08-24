@@ -13,9 +13,6 @@ OBJ = $(SRC:%.f90=%.o)
 $(EXE): $(OBJ)
 	$(F90) $(F90FLAGS) $(OBJ) $(LDFLAGS) -o $(EXE)
 
-run: $(INF_LIB) $(EXE)
-	./$(EXE) config.glider
-
 # Dependencies:
 # -------------
 $(OBJ): $(INF_LIB)

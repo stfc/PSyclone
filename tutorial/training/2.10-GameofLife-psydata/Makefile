@@ -16,9 +16,6 @@ include ../common.mk
 $(EXE): $(PSY_DATA_LIB) $(OBJ)
 	$(F90) $(F90FLAGS) $(OBJ) $(PSY_DATA_LIB) $(LDFLAGS) -o $(EXE)
 
-run: $(EXE)
-	./$(EXE) config.glider
-
 test: $(EXE)
 	@# Due to the additional debug output, we need to take a different
 	@# section of the output file:
