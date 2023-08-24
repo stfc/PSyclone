@@ -1920,6 +1920,14 @@ class Fparser2Reader():
                 raise GenerationError(
                     f"SAVE and PARAMETER attributes are not compatible but "
                     f"found:\n {decl}")
+
+            # Now we've checked for save and parameter existing
+            # together, we can allow parameter without save and set it
+            # to the same interface as save.
+            if has_constant_value and interface is None:
+                # We have a parameter so should set its interface to static.
+                interface = StaticInterface()
+
             if allocatable and has_constant_value:
                 raise GenerationError(
                     f"ALLOCATABLE and PARAMETER attributes are not compatible "

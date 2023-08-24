@@ -3056,7 +3056,9 @@ def test_structures_constants(fortran_reader, fortran_writer):
     psyir = fortran_reader.psyir_from_source(test_code)
     sym_table = psyir.children[0].symbol_table
     n_symbol = sym_table.lookup("n")
+    assert isinstance(n_symbol.interface, StaticInterface)
     m_symbol = sym_table.lookup("m")
+    assert isinstance(m_symbol.interface, StaticInterface)
     symbol = sym_table.lookup("my_type")
     assert isinstance(symbol, DataTypeSymbol)
     assert isinstance(symbol.datatype, StructureType)
@@ -3095,7 +3097,9 @@ def test_structures_constant_scope(fortran_reader, fortran_writer):
     psyir = fortran_reader.psyir_from_source(test_code)
     sym_table = psyir.children[0].symbol_table
     n_symbol = sym_table.lookup("n")
+    assert isinstance(n_symbol.interface, StaticInterface)
     m_symbol = sym_table.lookup("m")
+    assert isinstance(m_symbol.interface, StaticInterface)
     sym_table = psyir.children[0].children[0].symbol_table
     symbol = sym_table.lookup("my_type")
     assert isinstance(symbol, DataTypeSymbol)
@@ -3135,7 +3139,7 @@ def test_structures_constant_use(fortran_reader, fortran_writer):
         "  contains\n"
         "  subroutine test_code()\n"
         "    integer, parameter :: N = 1, M = 2\n"
-        "    type, private :: my_type\n"
+        "    type :: my_type\n"
         "      integer :: i = N + M\n"
         "      integer :: j\n"
         "    end type my_type\n"
@@ -3144,7 +3148,9 @@ def test_structures_constant_use(fortran_reader, fortran_writer):
     psyir = fortran_reader.psyir_from_source(test_code)
     sym_table = psyir.children[0].children[0].symbol_table
     n_symbol = sym_table.lookup("n")
+    assert isinstance(n_symbol.interface, StaticInterface)
     m_symbol = sym_table.lookup("m")
+    assert isinstance(m_symbol.interface, StaticInterface)
     symbol = sym_table.lookup("my_type")
     assert isinstance(symbol, DataTypeSymbol)
     assert isinstance(symbol.datatype, StructureType)
