@@ -17,9 +17,9 @@ $(EXE): $(PSY_DATA_LIB) $(OBJ)
 	$(F90) $(F90FLAGS) $(OBJ) $(PSY_DATA_LIB) $(LDFLAGS) -o $(EXE)
 
 test: $(EXE)
-	@# Due to the additional debug output, we need to take a different
+	@# Due to the additional profiling output, we need to take a different
 	@# section of the output file:
-	make run | tail -n 19  | head -n 12| diff - ./glider.correct
+	make run | tail -n 21  | head -n 12| diff - ../gol-lib/glider.correct
 
 # Dependencies:
 # -------------
@@ -33,4 +33,4 @@ $(PSY_DATA_LIB): $(INF_LIB)
 	$(MAKE) -C $(PSY_DATA_DIR)
 
 %.f90: %.x90 Makefile
-	$(PSYCLONE) --profile invokes -oalg $*.f90 -opsy $*_psy.f90 $<
+	$(PSYCLONE) --profile kernels -oalg $*.f90 -opsy $*_psy.f90 $<

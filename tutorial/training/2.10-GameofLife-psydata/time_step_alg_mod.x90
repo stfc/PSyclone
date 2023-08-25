@@ -39,8 +39,8 @@ contains
             call invoke(count_neighbours(neighbours, current),   &
                         compute_born(born, current, neighbours), &
                         compute_die(die, current, neighbours),   &
+                        combine(current, die, born),             &
                         name="compute"    )
-            call invoke(combine(current, die, born), name="combine")
             if(time_steps<=20) call output_field(current)
         enddo
 
