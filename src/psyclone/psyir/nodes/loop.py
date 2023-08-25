@@ -130,27 +130,19 @@ class Loop(Statement):
             scalar integer.
 
         '''
+        try:
+            variable_name = f"'{variable.name}'"
+        except AttributeError:
+            variable_name = "property"
         if not isinstance(variable, DataSymbol):
-            try:
-                variable_name = f"'{variable.name}'"
-            except AttributeError:
-                variable_name = "property"
             raise GenerationError(
                 f"variable {variable_name} in Loop class should be a "
                 f"DataSymbol but found '{type(variable).__name__}'.")
         if not isinstance(variable.datatype, ScalarType):
-            try:
-                variable_name = f"'{variable.name}'"
-            except AttributeError:
-                variable_name = "property"
             raise GenerationError(
                 f"variable {variable_name} in Loop class should be a "
                 f"ScalarType but found '{type(variable.datatype).__name__}'.")
         if variable.datatype.intrinsic != ScalarType.Intrinsic.INTEGER:
-            try:
-                variable_name = f"'{variable.name}'"
-            except AttributeError:
-                variable_name = "property"
             raise GenerationError(
                 f"variable {variable_name} in Loop class should be a "
                 f"scalar integer but found "
