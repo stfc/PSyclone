@@ -151,9 +151,49 @@ def test_find_or_create_unresolved_symbol_2():
     assert kernel1.symbol_table.lookup("undefined") is new_symbol
 
 
+def test_find_or_create_unresolved_scope_limit():
+    '''Test that the implemented works as expected when scope_limit is
+    provided.
+
+    '''
+    kernel = KernelSchedule.create("mod_1", SymbolTable(), [])
+    container = Container.create("container_name", SymbolTable(),
+                                 [kernel])
+    xvar = DataSymbol("x", REAL_TYPE)
+    xref = Reference(xvar)
+    assign = Assignment.create(xref, Literal("1.0", REAL_TYPE))
+    kernel.addchild(assign)
+
+    # Add x to the kernel symbol table as no symbol exists
+    xsymbol = _find_or_create_unresolved_symbol(assign, "x")
+    assert "x" in kernel.symbol_table
+    xsymbol = kernel.symbol_table.lookup("x")
+    # pylint: disable=unidiomatic-typecheck
+    assert type(xsymbol) is Symbol
+
+    # Move x to the container symbol table
+    kernel.symbol_table.remove(xsymbol)
+    container.symbol_table.add(xsymbol)
+    assert "x" in container.symbol_table
+    assert "x" not in kernel.symbol_table
+
+    # Add "x" ("x_1") to the kernel symbol table as we limit the scope to
+    # kernel. However, to avoid conficts with the pre-existing
+    # variables "x_1" in created.
+    xsymbol = _find_or_create_unresolved_symbol(
+        assign, "x", scope_limit=kernel)
+    assert "x" in container.symbol_table
+    assert "x_1" in kernel.symbol_table
+    assert (container.symbol_table.lookup("x") !=
+            kernel.symbol_table.lookup("x_1"))
+    assert kernel.symbol_table.lookup("x_1") == xsymbol
+
+
 def test_nemo_find_container_symbol(parser):
-    ''' Check that find_or_create_symbol() works for the NEMO API when the
-    searched-for symbol is declared in the parent module. '''
+    '''Check that find_or_create_symbol() works for the NEMO API when the
+    searched-for symbol is declared in the parent module.
+
+    '''
     reader = FortranFileReader(
         os.path.join(
             os.path.dirname(os.path.dirname(os.path.dirname(

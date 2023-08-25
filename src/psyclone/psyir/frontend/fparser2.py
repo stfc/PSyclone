@@ -226,14 +226,13 @@ def _find_or_create_unresolved_symbol(location, name, scope_limit=None,
                                       **kargs):
     '''Returns the symbol with the name 'name' from a symbol table
     associated with this node or one of its ancestors.  If a symbol is
-    found and the `symbol_type` keyword argument is supplied then the
-    type of the existing symbol is compared with the specified
-    type. If it is not already an instance of this type, then the
-    symbol is specialised (in place).
+    found then the type of the existing symbol is compared with the
+    specified type. If it is not already an instance of this type,
+    then the symbol is specialised (in place).
 
     If the symbol is not found then a new Symbol with the specified
     visibility but of unknown interface is created and inserted in the
-    most local SymbolTable that has a Routin or Container node as
+    most local SymbolTable that has a Routine or Container node as
     parent.
 
     The scope_limit variable further limits the symbol table search so
