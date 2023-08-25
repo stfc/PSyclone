@@ -16,6 +16,7 @@ contains
         real(go_wp), dimension(:,:), allocatable :: global_data
         integer                                  :: j
 
+!$acc update self(field, field%data)
         ! Gather the (potentially distributed) arrays into a
         ! 2d Fortran array
         call field%gather_inner_data(global_data)

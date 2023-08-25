@@ -29,7 +29,6 @@ contains
         die        = r2d_field(grid, GO_T_POINTS)
         born       = r2d_field(grid, GO_T_POINTS)
 
-        if(time_steps<=20) call output_field(current)
         ! In each time step:
         ! 1. Count neighbours
         ! 2. Compute newly born cells
@@ -42,7 +41,6 @@ contains
                         combine(current, die, born),             &
                         name="compute"    )
             if(time_steps<=20) then
-!$acc update self(current%data)
              call output_field(current)
             endif
         enddo

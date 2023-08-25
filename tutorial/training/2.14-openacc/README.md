@@ -91,25 +91,11 @@ The modified, module-inlined kernels are now:
 ## Copying GPU data back to CPU
 This is required with GPU computing if the data is currently
 on the GPU, but it is needed on the CPU (e.g. to output it).
-The following directive is required in the algorithm code:
+But this directive has already been added to `output_field_mod.f90`
+in gol-lib. Which means the data is only copied back from GPU
+if actually required for outputting the result.
 
-    do time = 1, time_steps, 1
-      call invoke_compute(neighbours, current, born, die)
-      if (time_steps <= 20) then
-!$acc update self(current%data)
-        call output_field(current)
-      end if
-    enddo
 
-Without the update clause the output will write the unmodified
-current status field.
-
-TODO: ATM you need to manually modify the created alg layer :(
-Adding it to the .x90 files doesn't work, since the directive is lsot.
-ADding it to output_field does not work:
-FATAL ERROR: data in update host clause was not found on device 1: name=field%data(:,:)
-Even if I renamed 'field' in 'current' in output_field, I get
-the same message :(
-
+TODO:
 Additional issue, nvfortran does not support iargc(), so gol.f90 needs to
 be modified as well :(
