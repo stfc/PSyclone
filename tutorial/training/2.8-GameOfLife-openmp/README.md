@@ -41,8 +41,6 @@ This will generate the following Fortran code:
     !$omp end parallel do
 
 Now extend the script to apply parallel loop directive to all kernels.
-Be aware that the fourth kernel is in a different invoke statement,
-which should also be parallelised.
 
 You can run the parallel version using:
 

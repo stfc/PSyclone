@@ -34,13 +34,14 @@
 # Author: J. Henrichs, Bureau of Meteorology
 
 '''Python script intended to be passed to PSyclone's generate()
-function via the -s option. It adds a generic OpenMP parallelisation
-to the code.
+function via the -s option. It adds optimised OpenMP statements.
 '''
 
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.gocean1p0 import GOKern, GOLoop
-from psyclone.transformations import OMPParallelLoopTrans
+from psyclone.transformations import OMPLoopTrans, OMPParallelTrans
+
+from fuse_loops import trans as fuse_trans
 
 
 def trans(psy):
@@ -54,7 +55,8 @@ def trans(psy):
     :rtype: :py:class:`psyclone.psyGen.PSy`
 
     '''
-    omp_parallel = OMPParallelLoopTrans()
+    omp_parallel = OMPParallelTrans()
+    omp_do = OMPLoopTrans()
     inline = KernelModuleInlineTrans()
 
     invoke = psy.invokes.get("invoke_compute")
@@ -64,8 +66,16 @@ def trans(psy):
     for kern in schedule.walk(GOKern):
         inline.apply(kern)
 
+    fuse_trans(psy)
+
+    # Both ways work - either specify the default in
+    # the constructor, or change the schedule
+    omp_do.omp_schedule = "static"
     for loop in schedule.walk(GOLoop):
         if loop.loop_type == "outer":
-            omp_parallel.apply(loop)
+            omp_do.apply(loop)
+
+    # Now add the OMP PARALLEL around all loops:
+    omp_parallel.apply(schedule)
 
     print(schedule.view())
