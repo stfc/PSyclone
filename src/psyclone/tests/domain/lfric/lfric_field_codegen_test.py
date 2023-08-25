@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+# Copyright (c) 2017-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -41,7 +41,6 @@ Module containing pytest tests for PSy-layer code generation for the
 LFRic field arguments.
 '''
 
-from __future__ import absolute_import, print_function
 import os
 import pytest
 
@@ -86,6 +85,10 @@ def test_field(tmpdir):
         "      INTEGER(KIND=i_def) cell\n"
         "      INTEGER(KIND=i_def) loop0_start, loop0_stop\n"
         "      INTEGER(KIND=i_def) nlayers\n"
+        "      REAL(KIND=r_def), pointer, dimension(:) :: m2_data => null()\n"
+        "      REAL(KIND=r_def), pointer, dimension(:) :: m1_data => null()\n"
+        "      REAL(KIND=r_def), pointer, dimension(:) :: f2_data => null()\n"
+        "      REAL(KIND=r_def), pointer, dimension(:) :: f1_data => null()\n"
         "      TYPE(field_proxy_type) f1_proxy, f2_proxy, m1_proxy, m2_proxy\n"
         "      INTEGER(KIND=i_def), pointer :: map_w1(:,:) => null(), "
         "map_w2(:,:) => null(), map_w3(:,:) => null()\n"
@@ -95,9 +98,13 @@ def test_field(tmpdir):
         "      ! Initialise field and/or operator proxies\n"
         "      !\n"
         "      f1_proxy = f1%get_proxy()\n"
+        "      f1_data => f1_proxy%data\n"
         "      f2_proxy = f2%get_proxy()\n"
+        "      f2_data => f2_proxy%data\n"
         "      m1_proxy = m1%get_proxy()\n"
+        "      m1_data => m1_proxy%data\n"
         "      m2_proxy = m2%get_proxy()\n"
+        "      m2_data => m2_proxy%data\n"
         "      !\n"
         "      ! Initialise number of layers\n"
         "      !\n"
@@ -133,8 +140,8 @@ def test_field(tmpdir):
         "      !\n"
         "      DO cell=loop0_start,loop0_stop\n"
         "        !\n"
-        "        CALL testkern_code(nlayers, a, f1_proxy%data, f2_proxy%data, "
-        "m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, map_w1(:,cell), "
+        "        CALL testkern_code(nlayers, a, f1_data, f2_data, "
+        "m1_data, m2_data, ndf_w1, undf_w1, map_w1(:,cell), "
         "ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3, map_w3(:,cell))\n"
         "      END DO\n"
         "      !\n"
@@ -172,6 +179,12 @@ def test_field_deref(tmpdir, dist_mem):
         "      INTEGER(KIND=i_def) cell\n"
         "      INTEGER(KIND=i_def) loop0_start, loop0_stop\n"
         "      INTEGER(KIND=i_def) nlayers\n"
+        "      REAL(KIND=r_def), pointer, dimension(:) :: est_m2_data => "
+        "null()\n"
+        "      REAL(KIND=r_def), pointer, dimension(:) :: m1_data => null()\n"
+        "      REAL(KIND=r_def), pointer, dimension(:) :: est_f2_data => "
+        "null()\n"
+        "      REAL(KIND=r_def), pointer, dimension(:) :: f1_data => null()\n"
         "      TYPE(field_proxy_type) f1_proxy, est_f2_proxy, m1_proxy, "
         "est_m2_proxy\n"
         "      INTEGER(KIND=i_def), pointer :: map_w1(:,:) => null(), "
@@ -187,9 +200,13 @@ def test_field_deref(tmpdir, dist_mem):
         "      ! Initialise field and/or operator proxies\n"
         "      !\n"
         "      f1_proxy = f1%get_proxy()\n"
+        "      f1_data => f1_proxy%data\n"
         "      est_f2_proxy = est_f2%get_proxy()\n"
+        "      est_f2_data => est_f2_proxy%data\n"
         "      m1_proxy = m1%get_proxy()\n"
+        "      m1_data => m1_proxy%data\n"
         "      est_m2_proxy = est_m2%get_proxy()\n"
+        "      est_m2_data => est_m2_proxy%data\n"
         "      !\n"
         "      ! Initialise number of layers\n"
         "      !\n"
@@ -261,10 +278,9 @@ def test_field_deref(tmpdir, dist_mem):
         assert output in generated_code
     output = (
         "        !\n"
-        "        CALL testkern_code(nlayers, a, f1_proxy%data, "
-        "est_f2_proxy%data, m1_proxy%data, est_m2_proxy%data, ndf_w1, "
-        "undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), "
-        "ndf_w3, undf_w3, map_w3(:,cell))\n"
+        "        CALL testkern_code(nlayers, a, f1_data, est_f2_data, m1_data,"
+        " est_m2_data, ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, "
+        "map_w2(:,cell), ndf_w3, undf_w3, map_w3(:,cell))\n"
         "      END DO\n")
     assert output in generated_code
     if dist_mem:
@@ -305,6 +321,19 @@ def test_field_fs(tmpdir):
         "      INTEGER(KIND=i_def) cell\n"
         "      INTEGER(KIND=i_def) loop0_start, loop0_stop\n"
         "      INTEGER(KIND=i_def) nlayers\n"
+        "      REAL(KIND=r_def), pointer, dimension(:) :: m7_data => null()\n"
+        "      REAL(KIND=r_def), pointer, dimension(:) :: m6_data => null()\n"
+        "      REAL(KIND=r_def), pointer, dimension(:) :: m5_data => null()\n"
+        "      REAL(KIND=r_def), pointer, dimension(:) :: f6_data => null()\n"
+        "      REAL(KIND=r_def), pointer, dimension(:) :: f5_data => null()\n"
+        "      REAL(KIND=r_def), pointer, dimension(:) :: m4_data => null()\n"
+        "      REAL(KIND=r_def), pointer, dimension(:) :: m3_data => null()\n"
+        "      REAL(KIND=r_def), pointer, dimension(:) :: f4_data => null()\n"
+        "      REAL(KIND=r_def), pointer, dimension(:) :: f3_data => null()\n"
+        "      REAL(KIND=r_def), pointer, dimension(:) :: m2_data => null()\n"
+        "      REAL(KIND=r_def), pointer, dimension(:) :: m1_data => null()\n"
+        "      REAL(KIND=r_def), pointer, dimension(:) :: f2_data => null()\n"
+        "      REAL(KIND=r_def), pointer, dimension(:) :: f1_data => null()\n"
         "      TYPE(field_proxy_type) f1_proxy, f2_proxy, m1_proxy, "
         "m2_proxy, f3_proxy, f4_proxy, m3_proxy, m4_proxy, f5_proxy, "
         "f6_proxy, m5_proxy, m6_proxy, m7_proxy\n"
@@ -327,18 +356,31 @@ def test_field_fs(tmpdir):
         "      ! Initialise field and/or operator proxies\n"
         "      !\n"
         "      f1_proxy = f1%get_proxy()\n"
+        "      f1_data => f1_proxy%data\n"
         "      f2_proxy = f2%get_proxy()\n"
+        "      f2_data => f2_proxy%data\n"
         "      m1_proxy = m1%get_proxy()\n"
+        "      m1_data => m1_proxy%data\n"
         "      m2_proxy = m2%get_proxy()\n"
+        "      m2_data => m2_proxy%data\n"
         "      f3_proxy = f3%get_proxy()\n"
+        "      f3_data => f3_proxy%data\n"
         "      f4_proxy = f4%get_proxy()\n"
+        "      f4_data => f4_proxy%data\n"
         "      m3_proxy = m3%get_proxy()\n"
+        "      m3_data => m3_proxy%data\n"
         "      m4_proxy = m4%get_proxy()\n"
+        "      m4_data => m4_proxy%data\n"
         "      f5_proxy = f5%get_proxy()\n"
+        "      f5_data => f5_proxy%data\n"
         "      f6_proxy = f6%get_proxy()\n"
+        "      f6_data => f6_proxy%data\n"
         "      m5_proxy = m5%get_proxy()\n"
+        "      m5_data => m5_proxy%data\n"
         "      m6_proxy = m6%get_proxy()\n"
+        "      m6_data => m6_proxy%data\n"
         "      m7_proxy = m7%get_proxy()\n"
+        "      m7_data => m7_proxy%data\n"
         "      !\n"
         "      ! Initialise number of layers\n"
         "      !\n"
@@ -487,10 +529,10 @@ def test_field_fs(tmpdir):
         "      !\n"
         "      DO cell=loop0_start,loop0_stop\n"
         "        !\n"
-        "        CALL testkern_fs_code(nlayers, f1_proxy%data, f2_proxy%data, "
-        "m1_proxy%data, m2_proxy%data, f3_proxy%data, f4_proxy%data, "
-        "m3_proxy%data, m4_proxy%data, f5_proxy%data, f6_proxy%data, "
-        "m5_proxy%data, m6_proxy%data, m7_proxy%data, ndf_w1, undf_w1, "
+        "        CALL testkern_fs_code(nlayers, f1_data, f2_data, "
+        "m1_data, m2_data, f3_data, f4_data, "
+        "m3_data, m4_data, f5_data, f6_data, "
+        "m5_data, m6_data, m7_data, ndf_w1, undf_w1, "
         "map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w0, undf_w0, "
         "map_w0(:,cell), ndf_w3, undf_w3, map_w3(:,cell), ndf_wtheta, "
         "undf_wtheta, map_wtheta(:,cell), ndf_w2h, undf_w2h, "
@@ -542,7 +584,7 @@ def test_vector_field_2(tmpdir):
     assert "chi_proxy%" not in generated_code
     assert generated_code.count("chi_proxy(1)%vspace") == 5
     # Use each chi field individually in the kernel
-    assert ("chi_proxy(1)%data, chi_proxy(2)%data, chi_proxy(3)%data" in
+    assert ("chi_1_data, chi_2_data, chi_3_data" in
             generated_code)
 
 
@@ -594,6 +636,36 @@ def test_int_field_fs(tmpdir):
         "      INTEGER(KIND=i_def) cell\n"
         "      INTEGER(KIND=i_def) loop0_start, loop0_stop\n"
         "      INTEGER(KIND=i_def) nlayers\n"
+        "      INTEGER(KIND=i_def), pointer, dimension(:) :: m7_data => "
+        "null()\n"
+        "      INTEGER(KIND=i_def), pointer, dimension(:) :: f8_data => "
+        "null()\n"
+        "      INTEGER(KIND=i_def), pointer, dimension(:) :: f7_data => "
+        "null()\n"
+        "      INTEGER(KIND=i_def), pointer, dimension(:) :: m6_data => "
+        "null()\n"
+        "      INTEGER(KIND=i_def), pointer, dimension(:) :: m5_data => "
+        "null()\n"
+        "      INTEGER(KIND=i_def), pointer, dimension(:) :: f6_data => "
+        "null()\n"
+        "      INTEGER(KIND=i_def), pointer, dimension(:) :: f5_data => "
+        "null()\n"
+        "      INTEGER(KIND=i_def), pointer, dimension(:) :: m4_data => "
+        "null()\n"
+        "      INTEGER(KIND=i_def), pointer, dimension(:) :: m3_data => "
+        "null()\n"
+        "      INTEGER(KIND=i_def), pointer, dimension(:) :: f4_data => "
+        "null()\n"
+        "      INTEGER(KIND=i_def), pointer, dimension(:) :: f3_data => "
+        "null()\n"
+        "      INTEGER(KIND=i_def), pointer, dimension(:) :: m2_data => "
+        "null()\n"
+        "      INTEGER(KIND=i_def), pointer, dimension(:) :: m1_data => "
+        "null()\n"
+        "      INTEGER(KIND=i_def), pointer, dimension(:) :: f2_data => "
+        "null()\n"
+        "      INTEGER(KIND=i_def), pointer, dimension(:) :: f1_data => "
+        "null()\n"
         "      TYPE(integer_field_proxy_type) f1_proxy, f2_proxy, m1_proxy, "
         "m2_proxy, f3_proxy, f4_proxy, m3_proxy, m4_proxy, f5_proxy, "
         "f6_proxy, m5_proxy, m6_proxy, f7_proxy, f8_proxy, m7_proxy\n"
@@ -618,20 +690,35 @@ def test_int_field_fs(tmpdir):
         "      ! Initialise field and/or operator proxies\n"
         "      !\n"
         "      f1_proxy = f1%get_proxy()\n"
+        "      f1_data => f1_proxy%data\n"
         "      f2_proxy = f2%get_proxy()\n"
+        "      f2_data => f2_proxy%data\n"
         "      m1_proxy = m1%get_proxy()\n"
+        "      m1_data => m1_proxy%data\n"
         "      m2_proxy = m2%get_proxy()\n"
+        "      m2_data => m2_proxy%data\n"
         "      f3_proxy = f3%get_proxy()\n"
+        "      f3_data => f3_proxy%data\n"
         "      f4_proxy = f4%get_proxy()\n"
+        "      f4_data => f4_proxy%data\n"
         "      m3_proxy = m3%get_proxy()\n"
+        "      m3_data => m3_proxy%data\n"
         "      m4_proxy = m4%get_proxy()\n"
+        "      m4_data => m4_proxy%data\n"
         "      f5_proxy = f5%get_proxy()\n"
+        "      f5_data => f5_proxy%data\n"
         "      f6_proxy = f6%get_proxy()\n"
+        "      f6_data => f6_proxy%data\n"
         "      m5_proxy = m5%get_proxy()\n"
+        "      m5_data => m5_proxy%data\n"
         "      m6_proxy = m6%get_proxy()\n"
+        "      m6_data => m6_proxy%data\n"
         "      f7_proxy = f7%get_proxy()\n"
+        "      f7_data => f7_proxy%data\n"
         "      f8_proxy = f8%get_proxy()\n"
+        "      f8_data => f8_proxy%data\n"
         "      m7_proxy = m7%get_proxy()\n"
+        "      m7_data => m7_proxy%data\n"
         "      !\n"
         "      ! Initialise number of layers\n"
         "      !\n"
@@ -800,11 +887,11 @@ def test_int_field_fs(tmpdir):
         "      !\n"
         "      DO cell=loop0_start,loop0_stop\n"
         "        !\n"
-        "        CALL testkern_fs_int_field_code(nlayers, f1_proxy%data, "
-        "f2_proxy%data, m1_proxy%data, m2_proxy%data, f3_proxy%data, "
-        "f4_proxy%data, m3_proxy%data, m4_proxy%data, f5_proxy%data, "
-        "f6_proxy%data, m5_proxy%data, m6_proxy%data, f7_proxy%data, "
-        "f8_proxy%data, m7_proxy%data, ndf_w1, undf_w1, map_w1(:,cell), "
+        "        CALL testkern_fs_int_field_code(nlayers, f1_data, "
+        "f2_data, m1_data, m2_data, f3_data, "
+        "f4_data, m3_data, m4_data, f5_data, "
+        "f6_data, m5_data, m6_data, f7_data, "
+        "f8_data, m7_data, ndf_w1, undf_w1, map_w1(:,cell), "
         "ndf_w2, undf_w2, map_w2(:,cell), ndf_w0, undf_w0, map_w0(:,cell), "
         "ndf_w3, undf_w3, map_w3(:,cell), ndf_wtheta, undf_wtheta, "
         "map_wtheta(:,cell), ndf_w2h, undf_w2h, map_w2h(:,cell), ndf_w2v, "
@@ -892,8 +979,8 @@ def test_int_field_2qr_shapes(dist_mem, tmpdir):
             "diff_basis_adspc1_f3_qr_face)\n" in gen_code)
     # Check that the kernel call itself is correct
     assert (
-        "testkern_2qr_int_field_code(nlayers, f1_proxy%data, "
-        "f2_proxy(1)%data, f2_proxy(2)%data, f2_proxy(3)%data, f3_proxy%data, "
+        "testkern_2qr_int_field_code(nlayers, f1_data, "
+        "f2_1_data, f2_2_data, f2_3_data, f3_data, "
         "istp, ndf_w2, undf_w2, map_w2(:,cell), basis_w2_qr_xyoz, "
         "basis_w2_qr_face, ndf_wchi, undf_wchi, map_wchi(:,cell), "
         "diff_basis_wchi_qr_xyoz, diff_basis_wchi_qr_face, ndf_adspc1_f3, "
@@ -906,44 +993,6 @@ def test_int_field_2qr_shapes(dist_mem, tmpdir):
 
 # Tests for Invokes calling kernels that contain real- and
 # integer-valued fields
-
-
-def test_int_real_field_invalid(monkeypatch):
-    '''Tests that the same field cannot have different data types in
-    different kernels within the same Invoke. It is not possible to
-    get to this exception in PSyclone as we require all fields to have
-    a known datatype and we check for consistency with the metadata
-    and therefore raise an earlier exception. We therefore need to
-    monkeypatch.
-
-    '''
-    def dummy_func(self, _1, _2=True):
-        '''Dummy routine that replaces _init_data_type_properties when used
-        with monkeypatch and sets the minimum needed values to return
-        without error for the associated example.
-
-        '''
-        self._data_type = "dummy1"
-        self._precision = "dummy2"
-        self._proxy_data_type = "dummy3"
-        self._module_name = "dummy4"
-
-    monkeypatch.setattr(
-        DynKernelArgument, "_init_data_type_properties", dummy_func)
-
-    _, invoke_info = parse(
-        os.path.join(BASE_PATH,
-                     "4.15_multikernel_invokes_real_int_field_invalid.f90"),
-        api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
-
-    const = LFRicConstants()
-    with pytest.raises(GenerationError) as err:
-        _ = psy.gen
-    assert (f"Field argument(s) ['n1'] in Invoke "
-            f"'invoke_integer_and_real_field' have different metadata for "
-            f"data type ({const.VALID_FIELD_DATA_TYPES}) in different "
-            f"kernels. This is invalid." in str(err.value))
 
 
 def test_int_real_field_fs(dist_mem, tmpdir):
@@ -983,9 +1032,52 @@ def test_int_real_field_fs(dist_mem, tmpdir):
         "      INTEGER(KIND=i_def) loop1_start, loop1_stop\n"
         "      INTEGER(KIND=i_def) loop0_start, loop0_stop\n"
         "      INTEGER(KIND=i_def) nlayers\n"
+        "      INTEGER(KIND=i_def), pointer, dimension(:) :: n7_data => "
+        "null()\n"
+        "      INTEGER(KIND=i_def), pointer, dimension(:) :: i8_data => "
+        "null()\n"
+        "      INTEGER(KIND=i_def), pointer, dimension(:) :: i7_data => "
+        "null()\n"
+        "      INTEGER(KIND=i_def), pointer, dimension(:) :: n6_data => "
+        "null()\n"
+        "      INTEGER(KIND=i_def), pointer, dimension(:) :: n5_data => "
+        "null()\n"
+        "      INTEGER(KIND=i_def), pointer, dimension(:) :: i6_data => "
+        "null()\n"
+        "      INTEGER(KIND=i_def), pointer, dimension(:) :: i5_data => "
+        "null()\n"
+        "      INTEGER(KIND=i_def), pointer, dimension(:) :: n4_data => "
+        "null()\n"
+        "      INTEGER(KIND=i_def), pointer, dimension(:) :: n3_data => "
+        "null()\n"
+        "      INTEGER(KIND=i_def), pointer, dimension(:) :: i4_data => "
+        "null()\n"
+        "      INTEGER(KIND=i_def), pointer, dimension(:) :: i3_data => "
+        "null()\n"
+        "      INTEGER(KIND=i_def), pointer, dimension(:) :: n2_data => "
+        "null()\n"
+        "      INTEGER(KIND=i_def), pointer, dimension(:) :: n1_data => "
+        "null()\n"
+        "      INTEGER(KIND=i_def), pointer, dimension(:) :: i2_data => "
+        "null()\n"
+        "      INTEGER(KIND=i_def), pointer, dimension(:) :: i1_data => "
+        "null()\n"
         "      TYPE(integer_field_proxy_type) i1_proxy, i2_proxy, n1_proxy, "
         "n2_proxy, i3_proxy, i4_proxy, n3_proxy, n4_proxy, i5_proxy, "
         "i6_proxy, n5_proxy, n6_proxy, i7_proxy, i8_proxy, n7_proxy\n"
+        "      REAL(KIND=r_def), pointer, dimension(:) :: m7_data => null()\n"
+        "      REAL(KIND=r_def), pointer, dimension(:) :: m6_data => null()\n"
+        "      REAL(KIND=r_def), pointer, dimension(:) :: m5_data => null()\n"
+        "      REAL(KIND=r_def), pointer, dimension(:) :: f6_data => null()\n"
+        "      REAL(KIND=r_def), pointer, dimension(:) :: f5_data => null()\n"
+        "      REAL(KIND=r_def), pointer, dimension(:) :: m4_data => null()\n"
+        "      REAL(KIND=r_def), pointer, dimension(:) :: m3_data => null()\n"
+        "      REAL(KIND=r_def), pointer, dimension(:) :: f4_data => null()\n"
+        "      REAL(KIND=r_def), pointer, dimension(:) :: f3_data => null()\n"
+        "      REAL(KIND=r_def), pointer, dimension(:) :: m2_data => null()\n"
+        "      REAL(KIND=r_def), pointer, dimension(:) :: m1_data => null()\n"
+        "      REAL(KIND=r_def), pointer, dimension(:) :: f2_data => null()\n"
+        "      REAL(KIND=r_def), pointer, dimension(:) :: f1_data => null()\n"
         "      TYPE(field_proxy_type) f1_proxy, f2_proxy, m1_proxy, "
         "m2_proxy, f3_proxy, f4_proxy, m3_proxy, m4_proxy, f5_proxy, "
         "f6_proxy, m5_proxy, m6_proxy, m7_proxy\n")
@@ -1026,11 +1118,11 @@ def test_int_real_field_fs(dist_mem, tmpdir):
     assert output in generated_code
     # Kernel calls are the same regardless of distributed memory
     kern1_call = (
-        "        CALL testkern_fs_int_field_code(nlayers, i1_proxy%data, "
-        "i2_proxy%data, n1_proxy%data, n2_proxy%data, i3_proxy%data, "
-        "i4_proxy%data, n3_proxy%data, n4_proxy%data, i5_proxy%data, "
-        "i6_proxy%data, n5_proxy%data, n6_proxy%data, i7_proxy%data, "
-        "i8_proxy%data, n7_proxy%data, ndf_w1, undf_w1, map_w1(:,cell), "
+        "        CALL testkern_fs_int_field_code(nlayers, i1_data, "
+        "i2_data, n1_data, n2_data, i3_data, "
+        "i4_data, n3_data, n4_data, i5_data, "
+        "i6_data, n5_data, n6_data, i7_data, "
+        "i8_data, n7_data, ndf_w1, undf_w1, map_w1(:,cell), "
         "ndf_w2, undf_w2, map_w2(:,cell), ndf_w0, undf_w0, "
         "map_w0(:,cell), ndf_w3, undf_w3, map_w3(:,cell), ndf_wtheta, "
         "undf_wtheta, map_wtheta(:,cell), ndf_w2h, undf_w2h, "
@@ -1044,10 +1136,10 @@ def test_int_real_field_fs(dist_mem, tmpdir):
         "undf_adspc1_n7, map_adspc1_n7(:,cell))\n")
     assert kern1_call in generated_code
     kern2_call = (
-        "        CALL testkern_fs_code(nlayers, f1_proxy%data, f2_proxy%data, "
-        "m1_proxy%data, m2_proxy%data, f3_proxy%data, f4_proxy%data, "
-        "m3_proxy%data, m4_proxy%data, f5_proxy%data, f6_proxy%data, "
-        "m5_proxy%data, m6_proxy%data, m7_proxy%data, ndf_w1, undf_w1, "
+        "        CALL testkern_fs_code(nlayers, f1_data, f2_data, "
+        "m1_data, m2_data, f3_data, f4_data, "
+        "m3_data, m4_data, f5_data, f6_data, "
+        "m5_data, m6_data, m7_data, ndf_w1, undf_w1, "
         "map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w0, undf_w0, "
         "map_w0(:,cell), ndf_w3, undf_w3, map_w3(:,cell), ndf_wtheta, "
         "undf_wtheta, map_wtheta(:,cell), ndf_w2h, undf_w2h, map_w2h(:,cell), "
