@@ -2500,19 +2500,11 @@ class Fparser2Reader():
             # into scope by an unqualified use statement.
             for name, vis in visibility_map.items():
                 if name not in parent.symbol_table:
-                    try:
-                        # If a suitable unqualified use statement is found then
-                        # this call creates a Symbol and inserts it in the
-                        # appropriate symbol table.
-                        _find_or_create_unresolved_symbol(parent, name,
-                                                          visibility=vis)
-                    except SymbolError as err:
-                        # Improve the error message with context-specific info
-                        raise SymbolError(
-                            f"'{name}' is listed in an accessibility "
-                            f"statement as being '{vis}' but failed to find a "
-                            f"declaration or possible import (use) of this "
-                            f"symbol.") from err
+                    # If a suitable unqualified use statement is found then
+                    # this call creates a Symbol and inserts it in the
+                    # appropriate symbol table.
+                    _find_or_create_unresolved_symbol(parent, name,
+                                                      visibility=vis)
         try:
             arg_symbols = []
             # Ensure each associated symbol has the correct interface info.
@@ -3037,15 +3029,9 @@ class Fparser2Reader():
         # Loop variable will be an instance of Fortran2003.Name
         loop_var = str(ctrl[0].items[1][0])
         variable_name = str(loop_var)
-        try:
-            data_symbol = _find_or_create_unresolved_symbol(
-                parent, variable_name, symbol_type=DataSymbol,
-                datatype=DeferredType())
-        except SymbolError as err:
-            raise InternalError(
-                f"Loop-variable name '{variable_name}' is not declared and "
-                f"there are no unqualified use statements. This is currently "
-                f"unsupported.") from err
+        data_symbol = _find_or_create_unresolved_symbol(
+            parent, variable_name, symbol_type=DataSymbol,
+            datatype=DeferredType())
         # The loop node is created with the _create_loop factory method as some
         # APIs require a specialised loop node type.
         loop = self._create_loop(parent, data_symbol)
