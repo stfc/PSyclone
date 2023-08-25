@@ -110,3 +110,6 @@ ADding it to output_field does not work:
 FATAL ERROR: data in update host clause was not found on device 1: name=field%data(:,:)
 Even if I renamed 'field' in 'current' in output_field, I get
 the same message :(
+
+Additional issue, nvfortran does not support iargc(), so gol.f90 needs to
+be modified as well :(
