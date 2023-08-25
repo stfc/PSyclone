@@ -29,5 +29,5 @@ time_step_alg_mod_psy.f90: time_step_alg_mod.f90
 time_step_alg_mod.o: time_step_alg_mod_psy.o
 
 # PSyclone: create alg and psy layer files:
-%.f90: %.x90
+%.f90: %.x90 Makefile
 	$(PSYCLONE) -oalg $*.f90 -opsy $*_psy.f90 $<

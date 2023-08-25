@@ -32,5 +32,5 @@ time_step_alg_mod.o: time_step_alg_mod_psy.o
 $(PSY_DATA_LIB): $(INF_LIB)
 	$(MAKE) -C $(PSY_DATA_DIR)
 
-%.f90: %.x90
+%.f90: %.x90 Makefile
 	$(PSYCLONE) --profile invokes -oalg $*.f90 -opsy $*_psy.f90 $<

@@ -15,6 +15,6 @@ time_step_alg_mod_psy.f90: time_step_alg_mod.f90
 time_step_alg_mod.o: time_step_alg_mod_psy.o
 
 # PSyclone: create alg and psy layer files:
-%.f90: %.x90 Makefile
+%.f90: %.x90 Makefile fuse_loops.py
 	$(PSYCLONE) -s ./fuse_loops.py -api gocean1.0 -oalg $*.f90 \
 		        -opsy $*_psy.f90 $<
