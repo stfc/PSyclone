@@ -57,37 +57,46 @@ def trans(psy):
     fuse = GOceanLoopFuseTrans()
     inline = KernelModuleInlineTrans()
 
-
     invoke = psy.invokes.get("invoke_compute")
     schedule = invoke.schedule
 
-    # schedule.view()
+    print(schedule.view())
     # Inline all kernels to help gfortran with inlining.
     for kern in schedule.walk(GOKern):
         inline.apply(kern)
 
-    # This schedule has four loops, corresponding to
-    # count_neighbours, compute_born, compute_die, combine kernels
+    # do j do i count
+    # do j do i born
+    # do j do i die
+    # do j do i combine
 
-    # First merge the first two loops
+    # First merge the first two j loops
     fuse.apply(schedule[0], schedule[1])
-    # fuse.apply(schedule[0].loop_body[0], schedule[0].loop_body[1])
-    schedule.view()
-    return
+    # do j do i count
+    #      do i born
+    # do j do i die
+    # do j do i combine
 
     # Then merge the (previous third, now second) loop to the
     # fused loop
     fuse.apply(schedule[0], schedule[1])
-    # Now we have:
-    # do j
-    #   do i
-    #   do i
-    #   do i
-    # do j combine
+    # do j do i count
+    #      do i born
+    #      do i die
+    # do j do i combine
+
+    # You cannot fuse the two remaining outer loops!
+
     # Fuse the three inner loops: first the first two
     fuse.apply(schedule[0].loop_body[0], schedule[0].loop_body[1])
+    # do j do i count born
+    #      do i die
+    # do j do i combine
+
     # Then merge in the previous third, now second) loop
     fuse.apply(schedule[0].loop_body[0], schedule[0].loop_body[1])
-    invoke.schedule.view()
+    # do j do i count born die
+    # do j do i combine
+    print(schedule.view())
 
     return psy

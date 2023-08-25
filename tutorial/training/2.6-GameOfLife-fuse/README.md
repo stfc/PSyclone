@@ -186,12 +186,12 @@ to the fuse transformation to combine the loops:
     schedule = invoke.schedule
 
     # To see the schedule before it is transformed:
-    # schedule.view()
+    # print(schedule.view())
 
     # Now merge the first two loops
     fuse.apply(schedule[0], schedule[1])
 
-    # schedule.view()
+    # print(schedule.view())
 
 This results in the following schedule:
 
