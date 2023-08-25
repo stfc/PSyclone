@@ -40,7 +40,7 @@ contains
                         compute_born(born, current, neighbours), &
                         compute_die(die, current, neighbours),   &
                         combine(current, die, born),             &
-                        name="compute")
+                        name="compute"    )
             if(time_steps<=20) call output_field(current)
         enddo
 
