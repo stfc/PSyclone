@@ -1267,13 +1267,8 @@ class Fparser2Reader():
         # Parse the declarations if it has any
         for child in module.children:
             if isinstance(child, Fortran2003.Specification_Part):
-                try:
-                    self.process_declarations(new_container, child.children,
-                                              [], visibility_map)
-                except SymbolError as err:
-                    raise SymbolError(
-                        f"Error when generating Container for module "
-                        f"'{mod_name}': {err.args[0]}") from err
+                self.process_declarations(new_container, child.children,
+                                          [], visibility_map)
                 break
 
         return new_container
