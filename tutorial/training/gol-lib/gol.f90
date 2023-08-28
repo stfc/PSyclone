@@ -13,7 +13,7 @@ program GameOfLife
 
     integer                    :: time_steps
 
-    if (iargc() .ne. 1) then
+    if (command_argument_count() .ne. 1) then
         print *, "Usage: gol config_file"
         stop
     endif
