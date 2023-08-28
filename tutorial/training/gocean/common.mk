@@ -10,7 +10,7 @@ F90FLAGS ?= -Wall -g -O0
 # in this list is the current file.
 this_file := $(abspath $(lastword $(MAKEFILE_LIST)))
 # PSyclone directory is up two from this file
-ROOT_DIR := $(abspath $(dir $(this_file))../..)
+ROOT_DIR := $(abspath $(dir $(this_file))../../..)
 
 ifeq ($(API), gocean1.0)
 	# For now till MPI support is merged into dl_esm_info and PSyclone is updated.
@@ -26,7 +26,7 @@ ifeq ($(API), gocean1.0)
 	endif
 endif
 
-GOL_DIR = $(ROOT_DIR)/tutorial/training/gol-lib
+GOL_DIR = $(ROOT_DIR)/tutorial/training/gocean/gol-lib
 GOL_LIB = $(GOL_DIR)/libgol.a
 
 # For examples that do not use golib, but want to use
