@@ -45,8 +45,10 @@ functions.
 
 import os
 import re
+import shutil
 import stat
 from sys import modules
+
 import pytest
 
 from fparser.common.readfortran import FortranStringReader
@@ -365,8 +367,9 @@ def test_script_file_too_short():
         _, _ = generate(os.path.join(BASE_PATH, "dynamo0p3",
                                      "1_single_invoke.f90"),
                         api="dynamo0.3",
-                        script_name=os.path.join(BASE_PATH,
-                                                 "dynamo0p3", "xyz"))
+                        script_name=os.path.join(
+                            BASE_PATH,
+                            "dynamo0p3", "testkern_xyz_mod.f90"))
 
 
 def test_no_script_gocean():
@@ -746,6 +749,71 @@ def test_main_expected_fatal_error(capsys):
     assert output == expected_output
 
 
+def test_generate_trans_error(tmpdir, capsys, monkeypatch):
+    '''Test that a TransformationError exception in the generate function
+    is caught and output as expected by the main function.  The
+    exception is only raised with the new PSyIR approach to modify the
+    algorithm layer which is currently in development so is protected
+    by a switch. This switch is turned on in this test by
+    monkeypatching.
+
+    '''
+    monkeypatch.setattr(generator, "LFRIC_TESTING", True)
+    code = (
+        "module setval_c_mod\n"
+        "contains\n"
+        "subroutine setval_c()\n"
+        "  use psyclone_builtins\n"
+        "  use constants_mod, only: r_def\n"
+        "  use field_mod, only : field_type\n"
+        "  type(field_type) :: field\n"
+        "  real(kind=r_def) :: value\n"
+        "  call invoke(setval_c(field, value))\n"
+        "end subroutine setval_c\n"
+        "end module setval_c_mod\n")
+    filename = str(tmpdir.join("alg.f90"))
+    with open(filename, "w", encoding='utf-8') as my_file:
+        my_file.write(code)
+    with pytest.raises(SystemExit) as excinfo:
+        main([filename])
+    # the error code should be 1
+    assert str(excinfo.value) == "1"
+    _, output = capsys.readouterr()
+    # The output is split as the location of the algorithm file varies
+    # due to it being stored in a temporary directory by pytest.
+    expected_output1 = "Generation Error: In algorithm file '"
+    expected_output2 = (
+        "alg.f90':\nTransformation Error: Error in RaisePSyIR2LFRicAlgTrans "
+        "transformation. The invoke call argument 'setval_c' has been used as"
+        " a routine name. This is not allowed.\n")
+    assert expected_output1 in output
+    assert expected_output2 in output
+
+
+def test_generate_no_builtin_container(tmpdir, monkeypatch):
+    '''Test that a builtin use statement is removed if it has been added
+    to a Container (a module). Also tests that everything works OK if
+    no use statement is found in a symbol table (as FileContainer does
+    not contain one).
+
+    '''
+    monkeypatch.setattr(generator, "LFRIC_TESTING", True)
+    code = (
+        "module test_mod\n"
+        "  contains\n"
+        "  subroutine test()\n"
+        "    use field_mod, only : field_type\n"
+        "    type(field_type) :: field\n"
+        "    call invoke(setval_c(field, 0.0))\n"
+        "  end subroutine test\n"
+        "end module\n")
+    filename = str(tmpdir.join("alg.f90"))
+    with open(filename, "w", encoding='utf-8') as my_file:
+        my_file.write(code)
+    alg, _ = generate(filename, api="dynamo0.3")
+    assert "use _psyclone_builtins" not in alg
+
+
 def test_main_unexpected_fatal_error(capsys, monkeypatch):
     '''Tests that we get the expected output and the code exits with an
     error when an unexpected fatal error is returned from the generate
@@ -1089,8 +1157,8 @@ def test_add_builtins_use():
     parser = ParserFactory().create(std="f2008")
     reader = FortranStringReader(code)
     fp2_tree = parser(reader)
-    add_builtins_use(fp2_tree)
-    assert "USE builtins" in str(fp2_tree)
+    add_builtins_use(fp2_tree, "my_name")
+    assert "USE my_name" in str(fp2_tree)
     # spec_part
     code = (
         "program test_prog\n"
@@ -1098,8 +1166,8 @@ def test_add_builtins_use():
         "end program\n")
     reader = FortranStringReader(code)
     fp2_tree = parser(reader)
-    add_builtins_use(fp2_tree)
-    assert "USE builtins" in str(fp2_tree)
+    add_builtins_use(fp2_tree, "ANOTHER_NAME")
+    assert "USE ANOTHER_NAME" in str(fp2_tree)
     # multiple modules/programs
     code = (
         "program test_prog\n"
@@ -1110,7 +1178,7 @@ def test_add_builtins_use():
         "end module\n")
     reader = FortranStringReader(code)
     fp2_tree = parser(reader)
-    add_builtins_use(fp2_tree)
+    add_builtins_use(fp2_tree, "builtins")
     assert str(fp2_tree) == (
         "PROGRAM test_prog\n  USE builtins\nEND PROGRAM\n"
         "MODULE test_mod1\n  USE builtins\nEND MODULE\n"
@@ -1136,9 +1204,8 @@ def test_no_script_lfric_new(monkeypatch):
     assert " testkern_type" not in alg
     # module symbol is removed
     assert "testkern_mod" not in alg
-    # TODO issue #1618. The builtins statement should be removed from
-    # the processed source code.
-    assert "use builtins" in alg
+    # _psyclone_builtins symbol (that was added by PSyclone) is removed
+    assert "use _psyclone_builtins" not in alg
 
 
 def test_script_lfric_new(monkeypatch):
@@ -1162,9 +1229,8 @@ def test_script_lfric_new(monkeypatch):
     assert " testkern_type" not in alg
     # module symbol is removed
     assert "testkern_mod" not in alg
-    # TODO issue #1618. The builtins statement should be removed from
-    # the processed source code.
-    assert "use builtins" in alg
+    # _psyclone_builtins symbol (that was added by PSyclone) is removed
+    assert "use _psyclone_builtins" not in alg
 
 
 def test_builtins_lfric_new(monkeypatch):
@@ -1192,9 +1258,8 @@ def test_builtins_lfric_new(monkeypatch):
     assert " testkern_mod" not in alg
     assert " testkern_wtheta_mod" not in alg
     assert " testkern_w2_only_mod" not in alg
-    # TODO issue #1618. The builtins statement should be removed from
-    # the processed source code.
-    assert "use builtins" in alg
+    # _psyclone_builtins symbol (that was added by PSyclone) is removed
+    assert "use _psyclone_builtins" not in alg
 
 
 def test_no_invokes_lfric_new(monkeypatch):
@@ -1253,3 +1318,92 @@ def test_createarginfo_unknownfortrantype():
     assert(not arg_info.is_literal())
     if arg_info._datatype != ("integer", "i_def"):
         pytest.xfail("issue #2151. datatype information is required when there is an UnknownFortranType")
+
+
+def test_generate_unknown_container_lfric(tmpdir, monkeypatch):
+    '''Test that a GenerationError exception in the generate function is
+    raised for the LFRic DSL if one of the functors is not explicitly
+    declared. This can happen in LFRic algorithm code as it is never
+    compiled. The exception is only raised with the new PSyIR approach
+    to modify the algorithm layer which is currently in development so
+    is protected by a switch. This switch is turned on in this test by
+    monkeypatching.
+
+    At the moment this exception is only raised if the functor is
+    declared in a different subroutine or function, as the original
+    parsing approach picks up all other cases. However, the original
+    parsing approach will eventually be removed.
+
+    '''
+    monkeypatch.setattr(generator, "LFRIC_TESTING", True)
+    code = (
+        "module some_kernel_mod\n"
+        "use module_mod, only : module_type\n"
+        "contains\n"
+        "subroutine dummy_kernel()\n"
+        " use testkern_mod, only: testkern_type\n"
+        "end subroutine dummy_kernel\n"
+        "subroutine some_kernel()\n"
+        "  use constants_mod, only: r_def\n"
+        "  use field_mod, only : field_type\n"
+        "  type(field_type) :: field1, field2, field3, field4\n"
+        "  real(kind=r_def) :: scalar\n"
+        "  call invoke(testkern_type(scalar, field1, field2, field3, "
+        "field4))\n"
+        "end subroutine some_kernel\n"
+        "end module some_kernel_mod\n")
+    alg_filename = str(tmpdir.join("alg.f90"))
+    with open(alg_filename, "w", encoding='utf-8') as my_file:
+        my_file.write(code)
+    kern_filename = os.path.join(DYN03_BASE_PATH, "testkern_mod.F90")
+    shutil.copyfile(kern_filename, str(tmpdir.join("testkern_mod.F90")))
+    with pytest.raises(GenerationError) as info:
+        _, _ = generate(alg_filename)
+    assert ("Kernel functor 'testkern_type' in routine 'some_kernel' from "
+            "algorithm file '" in str(info.value))
+    assert ("alg.f90' must be named in a use statement (found ["
+            "'constants_mod', 'field_mod', '_psyclone_builtins', "
+            "'module_mod']) or be a recognised built-in (one of "
+            "['x_plus_y', 'inc_x_plus_y'," in str(info.value))
+
+
+def test_generate_unknown_container_gocean(tmpdir):
+    '''Test that a GenerationError exception in the generate function is
+    raised for the GOcean DSL if one of the functors is not explicitly
+    declared. This can happen in GOcean algorithm code as it is never
+    compiled.
+
+    At the moment this exception is only raised if the functor is
+    declared in a different subroutine or function, as the original
+    parsing approach picks up all other cases. However, the original
+    parsing approach will eventually be removed.
+
+    '''
+    code = (
+        "module some_kernel_mod\n"
+        "use module_mod, only : module_type\n"
+        "contains\n"
+        "subroutine dummy_kernel()\n"
+        "  use compute_cu_mod,  only: compute_cu\n"
+        "end subroutine dummy_kernel\n"
+        "subroutine some_kernel()\n"
+        "  use kind_params_mod\n"
+        "  use grid_mod, only: grid_type\n"
+        "  use field_mod, only: r2d_field\n"
+        "  type(grid_type), target :: model_grid\n"
+        "  type(r2d_field) :: p_fld, u_fld, cu_fld\n"
+        "  call invoke( compute_cu(cu_fld, p_fld, u_fld) )\n"
+        "end subroutine some_kernel\n"
+        "end module some_kernel_mod\n")
+    alg_filename = str(tmpdir.join("alg.f90"))
+    with open(alg_filename, "w", encoding='utf-8') as my_file:
+        my_file.write(code)
+    kern_filename = os.path.join(GOCEAN_BASE_PATH, "compute_cu_mod.f90")
+    shutil.copyfile(kern_filename, str(tmpdir.join("compute_cu_mod.f90")))
+    with pytest.raises(GenerationError) as info:
+        _, _ = generate(alg_filename, api="gocean1.0")
+    assert ("Kernel functor 'compute_cu' in routine 'some_kernel' from "
+            "algorithm file '" in str(info.value))
+    assert ("alg.f90' must be named in a use statement (found "
+            "['kind_params_mod', 'grid_mod', 'field_mod', 'module_mod'])."
+            in str(info.value))

@@ -222,7 +222,7 @@ class Sum2CodeTrans(Transformation):
 
         # pylint: disable=unidiomatic-typecheck
         if not (isinstance(array_ref, ArrayReference) or
-                type(array_ref) == Reference):
+                type(array_ref) is Reference):
             raise TransformationError(
                 f"Sum2CodeTrans only support arrays for the first argument, "
                 f"but found '{type(array_ref).__name__}'.")
@@ -280,7 +280,7 @@ class Sum2CodeTrans(Transformation):
             dimension_literal = dimension_ref
         elif (isinstance(dimension_ref, Reference) and
               dimension_ref.symbol.is_constant):
-            dimension_literal = dimension_ref.symbol.constant_value
+            dimension_literal = dimension_ref.symbol.initial_value
         # else exception is handled by the validate method.
 
         # Determine the dimension and extent of the array

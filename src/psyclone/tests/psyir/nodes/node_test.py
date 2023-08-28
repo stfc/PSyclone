@@ -624,6 +624,62 @@ def test_node_ancestor():
     assert kern.ancestor(Loop, limit=sched) is kern.parent.parent
 
 
+def test_node_ancestor_shared_with(fortran_reader):
+    ''' Test the shared_with parameter of the Node.ancestor() method. '''
+    code = '''Subroutine test()
+    integer :: x
+    x = 1 + 2 * 3
+    End Subroutine test
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    assignment = psyir.children[0].children[0]
+    add_binop = assignment.rhs
+    one_lit = add_binop.children[0]
+    mul_binop = add_binop.children[1]
+    two_lit = mul_binop.children[0]
+    three_lit = mul_binop.children[1]
+
+    assert (two_lit.ancestor(BinaryOperation, shared_with=three_lit) is
+            mul_binop)
+    assert (two_lit.ancestor(BinaryOperation, shared_with=mul_binop,
+                             include_self=True) is mul_binop)
+    assert (two_lit.ancestor(BinaryOperation, shared_with=mul_binop,
+                             include_self=False) is add_binop)
+    assert (two_lit.ancestor(Node, shared_with=one_lit,
+                             excluding=(BinaryOperation)) is assignment)
+    # Check the inverse of previous statements is the same.
+    assert (three_lit.ancestor(BinaryOperation, shared_with=two_lit) is
+            mul_binop)
+    assert (mul_binop.ancestor(BinaryOperation, shared_with=two_lit,
+                               include_self=True) is mul_binop)
+    assert (mul_binop.ancestor(BinaryOperation, shared_with=two_lit,
+                               include_self=False) is add_binop)
+    assert (one_lit.ancestor(Node, shared_with=two_lit,
+                             excluding=(BinaryOperation)) is assignment)
+
+    # Check cases where we don't find a valid ancestor
+    assert (two_lit.ancestor(BinaryOperation, shared_with=one_lit,
+                             limit=mul_binop) is None)
+    assert (assignment.ancestor(BinaryOperation, shared_with=one_lit)
+            is None)
+
+    code2 = '''Subroutine test2()
+    integer :: x
+    x = 1 + 2
+    End Subroutine test2
+    '''
+    psyir2 = fortran_reader.psyir_from_source(code2)
+    assignment2 = psyir2.children[0].children[0]
+
+    # Tests where node (one_list) and the shared_with argument are
+    # from separate psyir trees, i.e. they have no shared ancestors.
+    assert one_lit.ancestor(Node, shared_with=assignment2) is None
+    # Test when supplied a limit argument that is not an ancestor of
+    # the node (one_lit) but is an ancestor of the shared_with parameter.
+    assert one_lit.ancestor(Node, shared_with=assignment2,
+                            limit=assignment2.parent) is None
+
+
 def test_dag_names():
     ''' Test that the dag_name method returns the correct value for the
     node class and its specialisations. '''
@@ -853,11 +909,11 @@ def test_scope():
     assert kernel_schedule.scope is kernel_schedule
     assert container.scope is container
 
-    anode = Literal("x", INTEGER_TYPE)
+    anode = Literal("1", INTEGER_TYPE)
     with pytest.raises(SymbolError) as excinfo:
         _ = anode.scope
     assert ("Unable to find the scope of node "
-            "'Literal[value:'x', Scalar<INTEGER, UNDEFINED>]' as "
+            "'Literal[value:'1', Scalar<INTEGER, UNDEFINED>]' as "
             "none of its ancestors are Container or Schedule nodes."
             in str(excinfo.value))
 
@@ -1399,3 +1455,35 @@ def test_debug_string(monkeypatch):
     monkeypatch.setattr(DebugWriter, "__call__", lambda x, y: "CORRECT STRING")
     tnode = Node()
     assert tnode.debug_string() == "CORRECT STRING"
+
+
+def test_path_from(fortran_reader):
+    ''' Test the path_from method of the Node class.'''
+
+    code = '''subroutine test_sub()
+    integer :: i, j, k, l
+    k = 12
+    do i = 1, 128
+      do j = 2, 256
+        k = k + 32
+      end do
+    end do
+    l = k
+    end subroutine'''
+
+    psyir = fortran_reader.psyir_from_source(code)
+    assigns = psyir.walk(Assignment)
+    routine = psyir.walk(Routine)[0]
+    result = assigns[1].path_from(routine)
+    start = routine
+    for index in result:
+        start = start.children[index]
+    assert start is assigns[1]
+
+    assert len(assigns[1].path_from(assigns[1])) == 0
+
+    loops = psyir.walk(Loop)
+    with pytest.raises(ValueError) as excinfo:
+        assigns[0].path_from(loops[0])
+    assert ("Attempted to find path_from a non-ancestor 'Loop' "
+            "node." in str(excinfo.value))

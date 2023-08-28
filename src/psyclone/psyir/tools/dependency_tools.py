@@ -38,7 +38,6 @@
 ''' This module provides tools that are based on the code
     dependency analysis.'''
 
-from __future__ import absolute_import, print_function
 from enum import IntEnum
 
 import sympy
@@ -48,9 +47,9 @@ from psyclone.core import (AccessType, SymbolicMaths,
                            VariablesAccessInfo)
 from psyclone.errors import InternalError, LazyString
 from psyclone.psyir.nodes import Loop
-from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.backend.sympy_writer import SymPyWriter
 from psyclone.psyir.backend.visitor import VisitorError
+from psyclone.psyir.tools.read_write_info import ReadWriteInfo
 
 
 class DTCode(IntEnum):
@@ -136,17 +135,11 @@ class DependencyTools():
         specified in the PSyclone config file. This can be used to\
         exclude for example 1-dimensional loops.
     :type loop_types_to_parallelise: Optional[List[str]]
-    :param language_writer: a backend visitor to convert PSyIR expressions \
-        to a representation in the selected language. This is used for \
-        creating error and warning messages.
-    :type language_writer: \
-        Optional[:py:class:`psyclone.psyir.backend.visitor.PSyIRVisitor`]
 
     :raises TypeError: if an invalid loop type is specified.
 
     '''
-    def __init__(self, loop_types_to_parallelise=None,
-                 language_writer=None):
+    def __init__(self, loop_types_to_parallelise=None):
         if loop_types_to_parallelise:
             # Verify that all loop types specified are valid:
             config = Config.get()
@@ -162,10 +155,6 @@ class DependencyTools():
             self._loop_types_to_parallelise = loop_types_to_parallelise[:]
         else:
             self._loop_types_to_parallelise = []
-        if not language_writer:
-            self._language_writer = FortranWriter()
-        else:
-            self._language_writer = language_writer
         self._clear_messages()
 
     # -------------------------------------------------------------------------
@@ -379,20 +368,28 @@ class DependencyTools():
 
         '''
         # pylint: disable=too-many-return-statements
-        sym_maths = SymbolicMaths.get()
+        sympy_writer = SymPyWriter()
         try:
-            sympy_expressions, symbol_map = SymPyWriter.\
-                get_sympy_expressions_and_symbol_map([index_read,
-                                                     index_written])
+            sympy_expressions = sympy_writer([index_read, index_written])
         except VisitorError:
             return None
+
+        if isinstance(sympy_expressions[0], tuple) or \
+                isinstance(sympy_expressions[1], tuple):
+            # TODO 2168: the SymPy expressions represent a range, so we
+            # need to analyse this in more detail, i.e. evaluate the
+            # start/stop/step tuple. For now it is safe to flag this
+            # array range as a (potential) overlap.
+            return None
+
+        symbol_map = sympy_writer.type_map
         # If the subscripts do not even depend on the specified variable,
         # any dependency distance is possible (e.g. `do i ... a(j)=a(j)+1`)
         if var_name not in symbol_map:
             return None
 
         var = symbol_map[var_name]
-        # Create a unique 'dx' variable name if 'x' is the variable.
+        # Create a unique 'd_x' variable name if 'x' is the variable.
         d_var_name = "d_"+var_name
         idx = 1
         while d_var_name in symbol_map:
@@ -406,6 +403,7 @@ class DependencyTools():
         sympy_expressions[1] = sympy_expressions[1].subs({var: (var+d_var)})
 
         # Now solve for `d_var` to identify the distance
+        sym_maths = SymbolicMaths.get()
         solutions = sym_maths.solve_equal_for(sympy_expressions[0],
                                               sympy_expressions[1],
                                               d_var)
@@ -650,26 +648,26 @@ class DependencyTools():
                         self._add_message(LazyString(
                             lambda node=write_access.node:
                                 (f"The write access to '"
-                                 f"{self._language_writer(node)}' causes "
+                                 f"{node.debug_string()}' causes "
                                  f"a write-write race condition.")),
                             DTCode.ERROR_WRITE_WRITE_RACE,
                             [LazyString(lambda node=node:
-                                        f"{self._language_writer(node)}")])
+                                        f"{node.debug_string()}")])
                     else:
                         self._add_message(LazyString(
                             lambda wnode=write_access.node,
                             onode=other_access.node:
                                 (f"The write access to "
-                                 f"'{self._language_writer(wnode)}' "
-                                 f"and to '{self._language_writer(onode)}"
+                                 f"'{wnode.debug_string()}' "
+                                 f"and to '{onode.debug_string()}"
                                  f"' are dependent and cannot be "
                                  f"parallelised.")),
                             DTCode.ERROR_DEPENDENCY,
                             [LazyString(lambda wnode=write_access.node:
-                                        f"{self._language_writer(wnode)}"
+                                        f"{wnode.debug_string()}"
                                         ),
                              LazyString(lambda onode=other_access.node:
-                                        f"{self._language_writer(onode)}")])
+                                        f"{onode.debug_string()}")])
 
                     return False
         return True
@@ -812,11 +810,14 @@ class DependencyTools():
         return result
 
     # -------------------------------------------------------------------------
-    def get_input_parameters(self, node_list, variables_info=None,
-                             options=None):
-        '''Return all variables that are input parameters, i.e. are
-        read (before potentially being written).
+    def get_input_parameters(self, read_write_info, node_list,
+                             variables_info=None, options=None):
+        '''Adds all variables that are input parameters (i.e. are read before
+        potentially being written) to the read_write_info object.
 
+        :param read_write_info: this object stores the information about \
+            all input parameters.
+        :type read_write_info: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
         :param node_list: list of PSyIR nodes to be analysed.
         :type node_list: List[:py:class:`psyclone.psyir.nodes.Node`]
         :param variables_info: optional variable usage information, \
@@ -832,33 +833,28 @@ class DependencyTools():
             PSyIR operators lbound, ubound, or size will be reported as \
             'read'. Otherwise, these accesses will be ignored.
 
-        :returns: a list of all variable signatures that are read.
-        :rtype: List[:py:class:`psyclone.core.Signature`]
-
         '''
         # Collect the information about all variables used:
         if not variables_info:
             variables_info = VariablesAccessInfo(node_list, options=options)
 
-        input_list = []
         for signature in variables_info.all_signatures:
-            # Take the first access (index 0) of this variable. Note that
-            # loop variables have a WRITE before a READ access, so they
-            # will be ignored
-            first_access = variables_info[signature][0]
             # If the first access is a write, the variable is not an input
-            # parameter and does not need to be saved.
-            if first_access.access_type != AccessType.WRITE:
-                input_list.append(signature)
-
-        return input_list
+            # parameter and does not need to be saved. Note that loop variables
+            # have a WRITE before a READ access, so they will be ignored
+            # automatically.
+            if not variables_info[signature].is_written_first():
+                read_write_info.add_read(signature)
 
     # -------------------------------------------------------------------------
-    def get_output_parameters(self, node_list, variables_info=None,
-                              options=None):
-        '''Return all variables that are output parameters, i.e. are
-        written.
+    def get_output_parameters(self, read_write_info, node_list,
+                              variables_info=None, options=None):
+        '''Adds all variables that are output parameters (i.e. are written)
+        to the read_write_info object.
 
+        :param read_write_info: this object stores the information about \
+            output parameters.
+        :type read_write_info: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
         :param node_list: list of PSyIR nodes to be analysed.
         :type node_list: List[:py:class:`psyclone.psyir.nodes.Node`]
         :param variables_info: optional variable usage information, \
@@ -874,23 +870,21 @@ class DependencyTools():
             PSyIR operators lbound, ubound, or size will be reported as \
             'read'. Otherwise, these accesses will be ignored.
 
-        :returns: a list of all variable signatures that are written.
-        :rtype: List[:py:class:`psyclone.core.Signature`]
-
         '''
         # Collect the information about all variables used:
         if not variables_info:
             variables_info = VariablesAccessInfo(node_list, options=options)
 
-        return [signature for signature in variables_info.all_signatures
-                if variables_info.is_written(signature)]
+        for signature in variables_info.all_signatures:
+            if variables_info.is_written(signature):
+                read_write_info.add_write(signature)
 
     # -------------------------------------------------------------------------
     def get_in_out_parameters(self, node_list, options=None):
-        '''Return a 2-tuple of lists that contains all variables that are input
-        parameters (first entry) and output parameters (second entry).
-        This function calls get_input_parameter and get_output_parameter,
-        but avoids the repeated computation of the variable usage.
+        '''Returns a ReadWriteInfo object that contains all variables that are
+        input and output parameters to the specified node list. This function
+        calls `get_input_parameter` and `get_output_parameter`, but avoids the
+        repeated computation of the variable usage.
 
         :param node_list: list of PSyIR nodes to be analysed.
         :type node_list: List[:py:class:`psyclone.psyir.nodes.Node`]
@@ -903,12 +897,13 @@ class DependencyTools():
             PSyIR operators lbound, ubound, or size will be reported as \
             'read'. Otherwise, these accesses will be ignored.
 
-        :returns: a 2-tuple of two lists, the first one containing \
-            the input parameters, the second the output parameters.
-        :rtype: Tuple[List[:py:class:`psyclone.core.Signature`],
-                      List[:py:class:`psyclone.core.Signature`]]
+        :returns: a ReadWriteInfo object with the information about input- \
+            and output parameters.
+        :rtype: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
 
         '''
         variables_info = VariablesAccessInfo(node_list, options=options)
-        return (self.get_input_parameters(node_list, variables_info),
-                self.get_output_parameters(node_list, variables_info))
+        read_write_info = ReadWriteInfo()
+        self.get_input_parameters(read_write_info, node_list, variables_info)
+        self.get_output_parameters(read_write_info, node_list, variables_info)
+        return read_write_info

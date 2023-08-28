@@ -278,19 +278,17 @@ psyclone -s ./kernel_constants.py \
 ## Example 14: OpenACC
 
 This example shows how OpenACC directives can be added to the LFRic
-PSy-layer. It adds OpenACC enter data, parallel and loop directives in the
+PSy-layer. It adds OpenACC enter data and kernels directives in the
 presence of halo exchanges. It also transforms the (one) user-supplied
 kernel with the addition of an `ACC routine` directive.
 
 ```sh
 cd eg14/
-psyclone -s ./acc_parallel_dm.py main.x90
+psyclone -s ./acc_parallel.py main.x90
 ```
 
 The supplied Makefile defines a `compile` target that will build the
-transformed code. Currently the compilation will fail because the
-generated PSy-layer code does not contain the correct name for the
-transformed kernel module (issue #1724).
+transformed code.
 
 ## Example 15: Optimise matvec Kernel for CPU
 
@@ -356,7 +354,7 @@ psyclone advection_alg_mod.x90
 # 'true' in the config file and re-run psyclone.
 ```
 
-## Example 19: Mixed precision
+## Example 19: Mixed Precision
 
 This example shows the use of the LFRic mixed-precision support to
 call a kernel with scalars, fields and operators of different

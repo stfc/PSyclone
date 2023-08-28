@@ -525,9 +525,9 @@ def test_binaryoperation_is_elemental():
     for binary_operator in BinaryOperation.Operator:
         operation = BinaryOperation(binary_operator)
         if binary_operator in not_elemental:
-            assert not operation.is_elemental()
+            assert operation.is_elemental is False
         else:
-            assert operation.is_elemental()
+            assert operation.is_elemental is True
 
 
 # Test UnaryOperation class
@@ -543,13 +543,19 @@ def test_unaryoperation_initialization():
     assert uop._operator is UnaryOperation.Operator.MINUS
 
 
-def test_unaryoperation_operator():
+@pytest.mark.parametrize("operator_name", ['MINUS', 'MINUS', 'PLUS', 'SQRT',
+                                           'EXP', 'LOG', 'LOG10', 'NOT',
+                                           'COS', 'SIN', 'TAN', 'ACOS',
+                                           'ASIN', 'ATAN', 'ABS', 'CEIL',
+                                           'FLOOR', 'REAL', 'INT', 'NINT'])
+def test_unaryoperation_operator(operator_name):
     '''Test that the operator property returns the unaryoperator in the
     unaryoperation.
 
     '''
-    unary_operation = UnaryOperation(UnaryOperation.Operator.MINUS)
-    assert unary_operation.operator == UnaryOperation.Operator.MINUS
+    operator = getattr(UnaryOperation.Operator, operator_name)
+    unary_operation = UnaryOperation(operator)
+    assert unary_operation.operator == operator
 
 
 def test_unaryoperation_node_str():
@@ -691,7 +697,7 @@ def test_unaryoperation_is_elemental():
     # All unary operators are elemental
     for unary_operator in UnaryOperation.Operator:
         operation = UnaryOperation(unary_operator)
-        assert operation.is_elemental()
+        assert operation.is_elemental is True
 
 
 # Test NaryOperation class
@@ -824,7 +830,7 @@ def test_naryoperation_is_elemental():
     # All nary operations are elemental
     for nary_operator in NaryOperation.Operator:
         operation = NaryOperation(nary_operator)
-        assert operation.is_elemental()
+        assert operation.is_elemental is True
 
 
 def test_operations_can_be_copied():

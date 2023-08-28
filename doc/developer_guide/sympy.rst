@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2021-2022, Science and Technology Facilities Council.
+.. Copyright (c) 2021-2023, Science and Technology Facilities Council.
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -52,6 +52,7 @@
          a(i,j) = 3
     enddo
 
+    i = (j+1) * k
     end subroutine sub
     '''
     psyir = FortranReader().psyir_from_source(code)
@@ -63,6 +64,8 @@
     # Take the two loops
     loop1 = psyir.children[0].children[2]
     loop2 = psyir.children[0].children[3]
+
+    expr = psyir.children[0].children[4].rhs
 
 .. _sympy:
 
@@ -102,94 +105,135 @@ be fused have the same loop boundaries using code like this:
     '1' equals '5 + k - 4 - k'
     'k' does not equal '2 * k - k - 1'
 
-
-Handling of PSyIR Structures and Arrays
+SymPyWriter - Converting PSyIR to SymPy
 ---------------------------------------
-SymPy has no concept of structure references or array syntax like
-``a(i)%b`` in Fortran. But this case is not handled especially, the
-PSyIR is converted to Fortran syntax and is provided unmodified to SymPy.
-SymPy interprets the ``%`` symbol
-as modulo function, so the expression above is read as ``Mod(a(i), b)``.
-This interpretation achieves the expected outcome when comparing structures
-and array references.
-For example, ``a(i+2*j-1)%b(k-i)`` and ``a(j*2-1+i)%b(-i+k)`` will be
-considered to be equal:
+The methods of the SymbolicMaths class expect to be passed PSyIR nodes.
+They convert these expressions first into strings before parsing
+them as SymPy expressions. The conversion is done with the ``SymPyWriter``
+class, and it is the task of the ``SymPyWriter`` to convert the PSyIR
+into a form that can be understood by SymPy. Several Fortran constructs
+need to be converted in order to work with SymPy. The SymPy writer mostly
+uses the Fortran writer for creating a string for the PSyIR, but implements
+the following features to allow the parsing of the expressions by SymPy:
 
-1. Converting the two expressions to SymPy internally results in
-   ``Mod(a(i+2*j-1), b(k-i))`` and ``Mod(a(j*2-1+i, b(-i+k))``.
-2. Since nothing is known about the arguments of any of the ``Mod``
-   functions, SymPy will first detect that the same function is called
-   in both expression, and then continue to compare the arguments of
-   this function.
-3. The first arguments are ``a(i+2*j-1)`` and ``a(j*2-1+i)``.
-   The name ``a`` is considered an unknown function. SymPy detects
-   that both expressions appear to call the same function, and it
-   will therefore compare the arguments.
-4. SymPy compares ``i+2*j-1`` and ``j*2-1+i`` symbolically, and
-   evaluate these expressions to be identical. Therefore, the
-   two expressions ``a(...)`` are identical, so the first arguments
-   of the ``Mod`` function are identical.
-5. Similarly, it will then continue to evaluate the second argument
-   of the ``Mod`` function (``b(...)``), and evaluate them to be
-   identical.
-6. Since all arguments of the ``Mod`` function are identical,
-   SymPy will report these two functions to be the same, which
-   is the expected outcome.
+Array Accesses
+~~~~~~~~~~~~~~
+Any array access is declared as a SymPy unknown function and any scalar
+access as a SymPy symbol. These declarations are stored in a
+dictionary, which is used by the parser of SymPy to ensure the correct
+interpretation of any names found in the expression. Note that while
+SymPy has the concept of ``Indexed`` expressions, they do not work well
+when solving equations that requires the comparison of indices (which is
+frequently needed for the dependency analysis). For example,
+``M[x] - M[1] == 0`` does not result in the solution ``x=1`` when ``M``
+is an indexed SymPy type. Using an unknown function on the other hand
+handles this as expected.
 
-Converting PSyIR to Sympy - SymPyWriter
----------------------------------------
-The method ``equal`` of the SymbolicMaths class expects two PSyIR
-nodes. It converts these expression first into strings before parsing
-them as SymPy expressions. The conversion is done with the SymPyWriter
-class. As described in the previous section, a member of a structure
-in Fortran becomes a stand alone symbol or function in sympy. The SymPy
-writer will rename members to better indicate that they are members:
-an expression like ``a%b%c`` will be written as ``a%a_b%a_b_c``, which
-SymPy then parses as ``MOD(a, MOD(a_b, a_b_c))``. This convention
-makes it easier to identify what the various expressions in SymPy are.
+.. _array_expressions:
 
-This handling of member variables can result in name clashes. Consider
-the expression ``a%b + a_b + b``. The structure access will be using
-two symbols ``a`` and ``a_b`` - but now there are two different symbols
-with the same name. Note that the renaming of the member from ``b`` to
-``a_b`` is not the reason for this - without renaming the same clash would
-happen with the symbol ``b``.
+Array Expressions
+~~~~~~~~~~~~~~~~~
+Each array index will be converted into three arguments for the corresponding
+unknown SymPy function that represents the array access. For example, an array
+expression ``a(i:j:k)`` will become
+``a(i, j, k)``, and to then maintain the same number of arguments for
+each use of an array/function, ``a(i)`` will become ``a(i,i,1)``, and
+``b(i,j)`` becomes ``b(i,i,1,j,j,1)`` etc. Array expressions like ``a(:)``
+will be using specific names for the lower and upper bound, defaulting
+to ``sympy_lower`` and ``sympy_upper``. So the previous expression
+becomes ``a(sympy_lower, sympy_upper, 1)``. Note that in case of a name
+clash SymPyWriter will change the names of the boundaries to be unique.
 
-The SymPy writer uses a symbol table to make sure it creates unique symbols.
+Fortran-specific Syntax
+~~~~~~~~~~~~~~~~~~~~~~~
+No precision or kind information is added to a constant (e.g. a Fortran
+value like ``2_4`` will be written just as ``2``). The intrinsic functions
+``Max``, ``Min``, ``Mod`` are capitalised to be recognised by SymPy which
+is case sensitive.
+
+User-defined Types
+~~~~~~~~~~~~~~~~~~
+SymPy has no concept of user-defined types like ``a(i)%b`` in Fortran.
+A structure reference like this is converted to a single new symbol
+(scalar) or function (if an array index is involved). The default name
+will be the name of the reference and members concatenated using ``_``,
+e.g. ``a%b%c`` becomes ``a_b_c``, which will be declared as a new SymPy
+symbol or function (if it is an array access). The SymPy writer uses a
+symbol table to make sure it creates unique symbols.
 It first adds all References in the expression to the symbol table, which
-guarantees that no Reference to an existing symbol is renamed. The writer
-then renames all members and makes sure it uses a unique name. In the case of
-``a%b + a_b + b``, it would create ``a%a_b_1 + a_b + b``, using the name
-``a_b_1`` for the member to avoid the name clash with the reference
-``a_b`` - so an existing Symbol Reference will not be renamed, only
-members.
+guarantees that no Reference to an existing symbol is renamed. In the case of
+``a%b + a_b + b``, it would create ``a_b_1 + a_b + b``, using the name
+``a_b_1`` for the structure reference to avoid the name clash with the
+reference ``a_b``.
 
-The SymPy writer mostly uses the Fortran writer, but implements the
-following, SymPy specific features:
+Any array indices are converted into arguments of this new function. So an
+expression like ``a(i)%b%c(j,k)`` becomes ``a_b_c(i,i,1,j,j,1,k,k,1)``
+(see :ref:`array_expressions`). The ``SymPyWriter`` creates a custom SymPy
+function, which keeps a list of which reference/member contained how many
+indices. In the example this would be ``[1, 0, 2]``, indicating that the
+first reference had one index, the second one none (i.e. it is not an
+array access), and the last reference had two indices. This allows the
+function to properly re-create the Fortran string.
 
-1. It will declare any array access as a SymPy unknown function, and any
-   scalar access as a SymPy symbol. These declarations are stored in a
-   dictionary, which can be queried. This dictionary is parsed into the
-   SymPy writer to ensure the correct interpretation of any names found
-   in the expression. Declaring arrays as functions results in the correct
-   behaviour of SymPy: in case of an unknown function SymPy will compare
-   all arguments, which are the array indices.
-2. It renames members as described above. So a structure reference like
-   ``a%b`` (in Fortran syntax) will create two SymPy symbols: ``a`` and
-   ``a_b`` (or a similar name if a name clash was detected).
-3. No precision or kind information is added to a constant (e.g. a Fortran
-   value like ``2_4`` will be written just as ``2``).
-4. The intrinsic functions ``Max``, ``Min``, ``Mod`` are returned with a
-   capitalised first letter. The Fortran writer would write them
-   as ``MAX`` etc., which SymPy does not recognise and would then handle
-   as unknown functions.
+
+Documentation for SymPyWriter Functions
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The SymPyWriter provides the following functions:
 
 .. autoclass:: psyclone.psyir.backend.sympy_writer.SymPyWriter
     :members:
+    :special-members: __new__
 
-.. note::
-    The SymPyWriter class provides the static function
-    ``convert_to_sympy_expressions`` which hides the complexities of the
-    conversion from PSyIR expressions to SymPy expressions. It is
-    strongly recommended to only use this function when this functionality
-    is needed.
+SymPyReader - Converting SymPy to PSyIr
+---------------------------------------
+The ``SymPyReader`` converts a SymPy expression back to PSyIR. Together
+with the SymPyWriter it allows to take a PSyIR expression, manipulate
+it with SymPy, and creating a new PSyIR that can be used.
+The SymPyReader is closely connected to the SymPyWriter: as explained
+in :ref:`array_expressions` the SymPyWriter creates special symbols
+to indicate the lower- and upper-bound of an array expression. In order
+to convert these arguments back to the corresponding Fortran representation,
+the SymPyReader needs to know the actual names (which might have been
+changed from their default because of a name clash with a user variable).
+The SymPyReader constructor therefore takes a SymPyWriter as argument,
+and it is the responsibility of the user to make sure the provided
+SymPyWriter instance is indeed the one used to create the SymPy expressions
+in the first place.
+
+An example of converting an expression `expr` from PSyIR to SymPy and back:
+
+.. testcode::
+
+    from sympy import expand
+    from psyclone.psyir.backend.fortran import FortranWriter
+    from psyclone.psyir.backend.sympy_writer import SymPyWriter
+    from psyclone.psyir.frontend.sympy_reader import SymPyReader
+
+    sympy_writer = SymPyWriter()
+    sympy_expr = sympy_writer(expr)
+
+    # Use SymPy to modify the expression ...
+    new_expr = expand(sympy_expr)
+
+    # Find the required symbol table in the original PSyIR
+    symbol_table = expr.scope.symbol_table
+
+    sympy_reader = SymPyReader(sympy_writer)
+    # Convert the new sympy expression to PSyIR
+    new_psyir_expr = sympy_reader.psyir_from_expression(new_expr, symbol_table)
+
+    writer = FortranWriter()
+    print(f"{writer(expr)} = {writer(new_psyir_expr)}")
+
+.. testoutput::
+
+     (j + 1) * k = j * k + k
+
+Documentation for SymPyReader Functions
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The SymPyReader provides the following functions:
+
+.. autoclass:: psyclone.psyir.frontend.sympy_reader.SymPyReader
+    :members:

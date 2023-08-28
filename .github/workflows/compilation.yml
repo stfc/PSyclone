@@ -38,17 +38,28 @@
 # Modified by N. M. Nobre, STFC Daresbury Lab
 
 # This workflow will use a self-hosted runner to perform the more expensive
-# integrations tests that are not run on GHA systems. At the moment it only
-# runs the test suite with compilation enabled (using gfortran).
+# compilation tests that are not run on GHA systems. At the moment it:
+#
+#  * Runs the test suite with compilation with gfortran and nvfortran;
+#  * Builds the examples with gfortran and nvfortran (the latter with
+#    OpenACC enabled).
+#  * Builds the tutorials with gfortran and nvfortran.
 
 name: Compilation tests
 
 on:
   push
 
+env:
+  PYTHON_VERSION: 3.11.4
+  GFORTRAN_VERSION: 13.2.0
+  NVFORTRAN_VERSION: 23.7
+  CUDA_VERSION: 12.2
+
 jobs:
   run_if_on_mirror:
-    if: ${{ github.repository == 'arporter/PSyclone-mirror' }}
+    # Only PSyclone-mirror has the necessary self-hosted runner.
+    if: ${{ github.repository == 'stfc/PSyclone-mirror' }}
     runs-on: self-hosted
     steps:
     - uses: actions/checkout@v3
@@ -65,6 +76,7 @@ jobs:
         commit-filter: '[skip ci]'
     - name: Install dependencies
       run: |
+        module load python/${PYTHON_VERSION}
         python -m venv .runner_venv
         . .runner_venv/bin/activate
         python -m pip install --upgrade pip
@@ -72,8 +84,52 @@ jobs:
         # submodule instead of the released version (from PyPI) then
         # uncomment the following line:
         pip install external/fparser
-        pip install .[test]
-    - name: Test with pytest and compilation
+        pip install .[test,psydata]
+    - name: Unit tests with compilation - gfortran
       run: |
+        module load python/${PYTHON_VERSION}
         . .runner_venv/bin/activate
-        pytest -n 2 --f90=gfortran --compile src/psyclone/tests
+        module load gcc/${GFORTRAN_VERSION} openmpi netcdf_fortran
+        pytest -n 2 --f90=gfortran --compile --compileopencl src/psyclone/tests
+        module rm netcdf_fortran gcc
+    - name: Unit tests with compilation - nvfortran
+      run: |
+        module load python/${PYTHON_VERSION}
+        . .runner_venv/bin/activate
+        module load nvidia-hpcsdk/${NVFORTRAN_VERSION} netcdf_fortran
+        # We have to tell nvfortran where to find the OpenCL library.
+        pytest -n 2 --f90=nvfortran --f90flags="-L/apps/packages/compilers/nvidia-hpcsdk/Linux_x86_64/${NVFORTRAN_VERSION}/cuda/${CUDA_VERSION}/targets/x86_64-linux/lib" --compile --compileopencl src/psyclone/tests
+        module rm netcdf_fortran nvidia-hpcsdk
+    - name: Examples with compilation - gfortran
+      run: |
+        module load python/${PYTHON_VERSION}
+        . .runner_venv/bin/activate
+        module load gcc/${GFORTRAN_VERSION} openmpi netcdf_fortran
+        # Although we're using gfortran, we link with the OpenCL lib that comes
+        # with CUDA.
+        make -C examples allclean
+        F90=gfortran F90FLAGS="-L/apps/packages/compilers/nvidia-hpcsdk/Linux_x86_64/${NVFORTRAN_VERSION}/cuda/${CUDA_VERSION}/targets/x86_64-linux/lib" make -C examples compile
+    - name: Tutorials with compilation - gfortran
+      run: |
+        module load python/${PYTHON_VERSION}
+        . .runner_venv/bin/activate
+        make -C tutorial/practicals allclean
+        module load gcc/${GFORTRAN_VERSION} openmpi netcdf_fortran
+        make -C tutorial/practicals compile
+    - name: Examples with compilation - nvfortran
+      run: |
+        module load python/${PYTHON_VERSION}
+        . .runner_venv/bin/activate
+        make -C examples allclean
+        module load nvidia-hpcsdk/${NVFORTRAN_VERSION} netcdf_fortran
+        # We have to tell nvfortran where to find the OpenCL library.
+        F90=nvfortran F90FLAGS="-acc -Minfo=all -L/apps/packages/compilers/nvidia-hpcsdk/Linux_x86_64/${NVFORTRAN_VERSION}/cuda/${CUDA_VERSION}/targets/x86_64-linux/lib" make -C examples compile
+    - name: Tutorials with compilation - nvfortran
+      run: |
+        module load python/${PYTHON_VERSION}
+        . .runner_venv/bin/activate
+        make -C tutorial/practicals allclean
+        module load nvidia-hpcsdk/${NVFORTRAN_VERSION} netcdf_fortran
+        # TODO #2251. Cannot build the LFRic practicals with 23.5/7 of nvfortran
+        # because the compilation of nan_test.f90 gives an ICE.
+        F90=nvfortran F90FLAGS="-acc -Minfo=all" make -C tutorial/practicals/nemo compile

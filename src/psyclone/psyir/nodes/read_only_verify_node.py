@@ -85,13 +85,14 @@ class ReadOnlyVerifyNode(PSyDataNode):
         '''
         # Avoid circular dependency
         # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.tools.dependency_tools import DependencyTools
+        from psyclone.psyir.tools import DependencyTools, ReadWriteInfo
         # Determine the variables to write:
         dep = DependencyTools()
-        input_list = dep.get_input_parameters(self, options=self.options)
+        read_write_info = ReadWriteInfo()
+        dep.get_input_parameters(read_write_info, self, options=self.options)
 
-        options = {'pre_var_list': input_list,
-                   'post_var_list': input_list}
+        options = {'pre_var_list': read_write_info.read_list,
+                   'post_var_list': read_write_info.read_list}
 
         parent.add(CommentGen(parent, ""))
         parent.add(CommentGen(parent, " ReadOnlyVerifyStart"))
@@ -115,11 +116,14 @@ class ReadOnlyVerifyNode(PSyDataNode):
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.tools.dependency_tools import DependencyTools
         # Determine the variables to write:
+        # Avoid circular dependency
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.tools import ReadWriteInfo
         dep = DependencyTools()
-        input_list = dep.get_input_parameters(self, options=self.options)
-
-        options = {'pre_var_list': input_list,
-                   'post_var_list': input_list}
+        read_write_info = ReadWriteInfo()
+        dep.get_input_parameters(read_write_info, self, options=self.options)
+        options = {'pre_var_list': read_write_info.read_list,
+                   'post_var_list': read_write_info.read_list}
 
         return super().lower_to_language_level(options)
 

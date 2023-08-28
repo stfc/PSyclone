@@ -442,6 +442,136 @@
 	149) PR #2135 towards #1618. Adds (limited) PSyIR support for Fortran
 	interfaces without a name.
 
+	150) PR #2152 for #2149. Adds checks in Literal constructor that
+	supplied string is a valid format.
+
+	151) PR #2143 for #2043. Adds basic PSyIR support for Fortran COMMON
+	blocks.
+
+	152) PR #2150 towards #2132. Improve self-hosted CI workflow.
+
+	153) PR #2090 for #1545. Split off and rename DynCollection to
+	LFRicCollection.
+
+	154) PR #2140 for #2139. Encapsulates the result of the dependency-
+	analysis' get_in_out_parameters() in a single class.
+
+	155) PR #2160 for #2159. Adds support for LFRic kernel arguments with two
+	new precision names (r_bl and r_phys).
+
+	156) PR #2170 for #2169. Correct import of fparser2
+	Declaration_Construct.
+
+	157) PR #2131 towards #1618. Improves the error handling when we find
+	a Routine with the same name as an LFRic Builtin.
+
+	158) PR #2147 for #2119. Add elemental and pure routine attributes.
+
+	159) PR #2181 for #2175. Bug fixes for processing of Fortran
+	declarations and integer literals.
+
+	160) PR #2107 for #2106. Improvements to NEMO processing scripts and
+	inclusion in Integration Testing.
+
+	161) PR #2198 for #2194. Fixes handling of a function where the
+	precision of the result is only defined within the function.
+
+	162) PR #2187 towards #1618. Remove builtin use statements when
+	lowering.
+
+	163) PR #2191 for #2185. Fix element order used in PSyAD test
+	harness.
+
+	164) PR #2208 towards #2205. Ensures that functions or subroutines
+	that CONTAIN other functions/subroutines are put into a CodeBlock.
+
+	165) PR #2124 fir #2101. Refactors OpenMP inference of private/first-
+	private variables and those requiring synchronisation.
+
+	166) PR #2210 for #2206. Ensure symbol renaming included when deep-
+	copying a symbol table.
+
+	167) PR #2209 for #2204. Add support for EQV and NEQV and fix select
+	case bug with logical comparisons.
+
+	168) PR #2211 for #2183. Change PSyAD test-harness generation to use
+	the same variable names as the TL kernel being tested.
+
+	169) PR #2212 for #2203. Fix bug in PSyIR fparser2 frontend when
+	DO WHILE contains normal DO loops.
+
+	170) PR #2220 for #2219. Adds 'shared_with' argument to the
+	node.ancestor() method.
+
+	171) PR #2174 for #2171. Add support for obtaining the partial datatype
+	of an UnknownFortranType.
+
+	172) PR #2163 for #1537. Support array-slicing notation in SymPy
+	comparisons.
+
+	173) PR #2221 for #2214. Fix names of invokes containing a single
+	kernel in the PSyIR of the LFRic Alg layer.
+
+	174) PR #2225 for #2224. Fix erroneous CI link check error by
+	omitting test for the particular link.
+
+	175) PR #2172 for #1833. Fixes the LFRic tutorials so that they
+	build correctly.
+
+	176) PR #2227 for #2226. Adds new Node.path_from(ancestor) method.
+
+	177) PR #2158 for #81. Ensures all example/test Fortran code for
+	LFRic follows the LFRic naming convention.
+
+	178) PR #2218 towards #2132. Adds LFRic integration tests and
+	new, associated optimisation scripts. Includes bug fixes for
+	matmul inlining transformation.
+
+	179) PR #2230 for #2228. Improve reporting of errors due to kernel
+	functors not explicitly included in algorithm use statements.
+
+	180) PR #2207 for #1419. Split the DataSymbol constant_value attribute
+	into is_constant (bool) and initial_value (PSyIR Node). This allows
+	parsing Fortran declarations with initial_value that are not constant.
+
+	181) PR #2231 for #2213. The Fortran frontend and backend now also
+	consider that UnresolvedInterface symbols can come from the body of
+	a Fortran Interface.
+
+	182) PR #2240 for #2234. Fix WhileLoop issue in the NEMO OpenACC kernels
+	script.
+
+	183) PR #2182 for #2179. Fix LFRic eg14 nvfortran compilation and add
+	nvfortran examples and tutorials steps in the Integration tests. 
+
+	184) PR #2250 for #2248 and #1575. Fixes bug in line-length limiter
+	to prevent it breaking a line before the first non-whitepsace
+	character.
+
+	185) PR #2262 towards #446. Implement reference_access for Call nodes.
+
+	186) PR #2184 for #2166. Adds Sympy support for user-defined types.
+
+	187) PR #2270 for #1575. Fixes the line-length limiter for code that
+	has an indent greater than the max. line length.
+
+	188) PR #2259 for #1932. Adds support for the 'gang' and 'vector'
+	clauses on OpenACC Loop directives.
+
+	189) PR #2276 for #2274. Small fixes for various complaints
+	produced by latest version of pycodestyle.
+
+	190) PR #2291 for #2290. Bug fix to KernelModuleInlineTrans -
+	ensures that the new RoutineSymbol added to the Container is given
+	a DefaultModuleInterface.
+
+	191) PR #2238 for #2234. Adds support for a generic interface to
+	perform variable comparison when the datatype is unknown. (Required
+	for canonicalising SELECT CASE constructs.)
+
+	192) PR #2292 for #2288. Workaround for Sphinx-doctest bug by
+	building html dev guide before running the doctests.
+
 release 2.3.1 17th of June 2022
 
 	1) PR #1747 for #1720. Adds support for If blocks to PSyAD.

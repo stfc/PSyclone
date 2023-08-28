@@ -51,11 +51,12 @@ from psyclone.psyir.nodes import (
     Schedule, Routine, Return, FileContainer, IfBlock, OMPTaskloopDirective,
     OMPMasterDirective, OMPParallelDirective, Loop, OMPNumTasksClause,
     OMPDependClause, IntrinsicCall)
-from psyclone.psyir.symbols import DataSymbol, SymbolTable, ContainerSymbol, \
-    ImportInterface, ArgumentInterface, UnresolvedInterface, ScalarType, \
-    ArrayType, INTEGER_TYPE, REAL_TYPE, CHARACTER_TYPE, BOOLEAN_TYPE, \
-    REAL_DOUBLE_TYPE, DeferredType, RoutineSymbol, Symbol, UnknownType, \
-    UnknownFortranType, DataTypeSymbol, StructureType
+from psyclone.psyir.symbols import (
+    DataSymbol, SymbolTable, ContainerSymbol, RoutineSymbol, Symbol,
+    ImportInterface, ArgumentInterface, UnresolvedInterface, StaticInterface,
+    ScalarType, ArrayType, INTEGER_TYPE, REAL_TYPE, CHARACTER_TYPE,
+    BOOLEAN_TYPE, REAL_DOUBLE_TYPE, DeferredType,
+    UnknownType, UnknownFortranType, DataTypeSymbol, StructureType)
 from psyclone.errors import InternalError
 from psyclone.tests.utilities import Compile
 from psyclone.psyGen import PSyFactory
@@ -124,7 +125,7 @@ def test_gen_indices(fortran_writer):
     assert fortran_writer.gen_indices(bray_type.shape) == [":", ":"]
 
 
-def test_gen_indices_error(monkeypatch, fortran_writer):
+def test_gen_indices_error(fortran_writer):
     '''Check the _gen_indices method raises an exception if a symbol shape
     entry is not supported.
 
@@ -530,6 +531,7 @@ def test_precedence():
     assert precedence('*') < precedence('**')
     assert precedence('.EQ.') == precedence('==')
     assert precedence('*') == precedence('/')
+    assert precedence('.EQV.') == precedence('.NEQV.')
 
 
 def test_precedence_error():
@@ -677,13 +679,27 @@ def test_fw_gen_vardecl(fortran_writer):
                         interface=ArgumentInterface(
                             ArgumentInterface.Access.READWRITE))
     result = fortran_writer.gen_vardecl(symbol)
-    assert result == \
-        "real, allocatable, dimension(:,:), intent(inout) :: dummy2\n"
+    assert (result ==
+            "real, allocatable, dimension(:,:), intent(inout) :: dummy2\n")
 
-    # Constant
-    symbol = DataSymbol("dummy3", INTEGER_TYPE, constant_value=10)
+    # Constant.
+    symbol = DataSymbol("dummy3", INTEGER_TYPE, is_constant=True,
+                        initial_value=10)
     result = fortran_writer.gen_vardecl(symbol)
     assert result == "integer, parameter :: dummy3 = 10\n"
+
+    # Symbol has initial value but is not constant (static). This is a property
+    # of the Fortran language and therefore is only checked for when we attempt
+    # to generate Fortran.
+    symbol = DataSymbol("dummy3a", INTEGER_TYPE, initial_value=10)
+    with pytest.raises(VisitorError) as err:
+        _ = fortran_writer.gen_vardecl(symbol)
+    assert ("'dummy3a' has an initial value (10) and therefore (in Fortran) "
+            "must have a StaticInterface. However it has an interface of "
+            "'Automatic'" in str(err.value))
+    symbol.interface = StaticInterface()
+    result = fortran_writer.gen_vardecl(symbol)
+    assert result == "integer, save :: dummy3a = 10\n"
 
     # Use statement
     symbol = DataSymbol("dummy1", DeferredType(),
@@ -707,7 +723,8 @@ def test_fw_gen_vardecl_visibility(fortran_writer):
     ''' Test the include_visibility argument to gen_vardecl(). '''
     # Simple constant
     symbol = DataSymbol("dummy3", INTEGER_TYPE,
-                        visibility=Symbol.Visibility.PUBLIC, constant_value=10)
+                        visibility=Symbol.Visibility.PUBLIC, is_constant=True,
+                        initial_value=10)
     # Expect include_visibility to default to False
     result = fortran_writer.gen_vardecl(symbol)
     assert result == "integer, parameter :: dummy3 = 10\n"
@@ -1174,6 +1191,8 @@ def test_fw_binaryoperator_precedence(fortran_reader, fortran_writer, tmpdir):
         "    a = -(a + b)\n"
         "    e = .not.(e .and. (f .or. g))\n"
         "    e = (((.not.e) .and. f) .or. g)\n"
+        "    e = (e .and. (f .eqv. g))\n"
+        "    e = (e .and. f .neqv. g)\n"
         "end subroutine tmp\n"
         "end module test")
     schedule = fortran_reader.psyir_from_source(code)
@@ -1188,7 +1207,9 @@ def test_fw_binaryoperator_precedence(fortran_reader, fortran_writer, tmpdir):
         "    a = b * (c * (d * a))\n"
         "    a = -(a + b)\n"
         "    e = .NOT.(e .AND. (f .OR. g))\n"
-        "    e = .NOT.e .AND. f .OR. g\n")
+        "    e = .NOT.e .AND. f .OR. g\n"
+        "    e = e .AND. (f .EQV. g)\n"
+        "    e = e .AND. f .NEQV. g\n")
     assert expected in result
     assert Compile(tmpdir).string_compiles(result)
 
@@ -2155,3 +2176,23 @@ def test_fw_operand_clause(fortran_writer):
     ref_a = Reference(symbol_a)
     op_clause.addchild(ref_a)
     assert "depend(inout: a)" in fortran_writer(op_clause)
+
+
+def test_fw_keeps_symbol_renaming(fortran_writer, fortran_reader):
+    '''Test that the FortranWriter correctly keeps => in Use statements to
+    ensure variable renaming is handle correctly.'''
+    code = '''
+    module a
+    integer, parameter :: a_mod_name = 2
+    end module a
+    module b
+    use a, only: b_mod_name => a_mod_name
+    contains
+    subroutine X()
+       print *, b_mod_name
+    end subroutine X
+    end module b
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    output = fortran_writer(psyir)
+    assert "b_mod_name=>a_mod_name" in output

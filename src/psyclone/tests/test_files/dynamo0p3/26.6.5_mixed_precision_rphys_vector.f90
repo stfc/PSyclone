@@ -1,7 +1,7 @@
-! -----------------------------------------------------------------------------
+!-------------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2021, Science and Technology Facilities Council
+! Copyright (c) 2023, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -29,31 +29,37 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author A. R. Porter, STFC Daresbury Lab
-! Modified I. Kavcic, Met Office
+! Authors: R. W. Ford, STFC Daresbury Lab,
+!          I. Kavcic, Met Office
+!
+! Example where the field is dereferenced from an 'r_phys_field_vector_type'
+! and therefore has no type information. The LFRic rules state that an
+! 'r_phys_field_vector_type' can only contain fields of type
+! 'r_phys_field_type' in LFRic code. This is checked at runtime in the
+! LFRic model by using a 'select' statement in the algorithm code.
 
-module simple_with_reduction_mod
+module vector_type
 
-  use argument_mod
-  use fs_continuity_mod
-  use kernel_mod
-  use constants_mod
+  use constants_mod,           only : r_phys
+  use vector_mod,              only : abstract_vector_type
+  use r_phys_field_vector_mod, only : r_phys_field_vector_type
+  use r_phys_field_mod,        only : r_phys_field_type
+  use testkern_mod,            only : testkern_type
 
-  implicit none
+  type :: some_type
+     type(r_phys_field_vector_type) :: vec_type(10)
+   contains
+     procedure, public :: my_sub
+  end type some_type
 
-  type, extends(kernel_type) :: simple_with_reduction_type
-    type(arg_type), dimension(3) :: meta_args =           &
-         (/ arg_type(gh_scalar, gh_real,    gh_sum),      &
-            arg_type(gh_field,  gh_real,    gh_read, w1), &
-            arg_type(gh_scalar, gh_integer, gh_read) /)
-    integer :: operates_on = cell_column
   contains
-    procedure, nopass :: code => simple_with_reduction_code
-  end type simple_with_reduction_type
 
-contains
+  subroutine my_sub(self, x, m1, m2)
+    class(some_type), intent(inout) :: self
+    type(r_phys_field_vector_type), intent(inout) :: x
+    type(r_phys_field_type), intent(inout) :: m1, m2
+    real(r_phys) :: a
+    call invoke(testkern_type(a, x%vector(1), self%vec_type(1)%vector(1), m1, m2))
+  end subroutine my_sub
 
-  subroutine simple_with_reduction_code()
-  end subroutine simple_with_reduction_code
-
-end module simple_with_reduction_mod
+end module vector_type

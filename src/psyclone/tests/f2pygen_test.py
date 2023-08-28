@@ -38,7 +38,7 @@
 from __future__ import absolute_import, print_function
 import pytest
 from psyclone.f2pygen import ModuleGen, CommentGen, SubroutineGen, DoGen, \
-    CallGen, AllocateGen, DeallocateGen, IfThenGen, DeclGen, TypeDeclGen,\
+    CallGen, AllocateGen, DeallocateGen, IfThenGen, DeclGen, TypeDeclGen, \
     CharDeclGen, ImplicitNoneGen, UseGen, DirectiveGen, AssignGen, PSyIRGen
 from psyclone.errors import InternalError
 from psyclone.psyir.nodes import Node, Return
