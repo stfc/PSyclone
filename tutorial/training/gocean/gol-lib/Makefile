@@ -22,6 +22,6 @@ time_step_alg_mod_psy.o: combine_mod.o compute_born_mod.o compute_die_mod.o \
 	count_neighbours_mod.o
 
 clean:
-	# We can't call the clean target in common.mk, since this would delete
-	# time_step_alg_mod*, which we need to compile gol.f
+	@# We cannot call the clean target in common.mk, since this would delete
+	@# time_step_alg_mod*, which we need to compile gol.f
 	rm -f *.o *.mod libgol.a
