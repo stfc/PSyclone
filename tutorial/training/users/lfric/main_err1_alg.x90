@@ -89,9 +89,9 @@ program main
     call field2%initialise( vector_space = vector_space_ptr, name="field2" )
     call invoke( name = 'Initialise fields',        &
                  no_setval_c( field1,     0.0_r_def ), &
-                 no_setval_c( field2,     1.0_r_def )  &
+                 setval_c( field2,     1.0_r_def )  &
                  )
-    call invoke( name = 'error_w0', error_w0_kernel_type(field1, field2) )
+    call invoke( name = 'error_w0', error_w0_kernel_type(field1) )
     call field1%log_minmax(LOG_LEVEL_ALWAYS, "minmax of field1")
 
 end program main
