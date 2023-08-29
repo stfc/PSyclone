@@ -54,7 +54,7 @@ F90FLAGS += $(LFRIC_INCLUDE_FLAGS)
 
 # Various targets
 # ---------------
-.PHONY: transform compile run clean allclean omp dm
+.PHONY: transform compile run clean allclean omp dm error1 error2
 
 transform: main_alg_psy.f90
 
@@ -62,7 +62,13 @@ dm:
 	psyclone -dm -l output -opsy main_dm_psy.f90 -oalg main_dm_alg.f90 main_alg.x90
 
 omp:
-	psyclone -s omp.py -nodm -l output -opsy main_omp_psy.f90 -oalg main_omp_alg.f90 main_alg.x90
+	psyclone -s ./omp.py -nodm -l output -opsy main_omp_psy.f90 -oalg main_omp_alg.f90 main_alg.x90
+
+error1:
+	psyclone -nodm -l output -opsy main_err1_psy.f90 -oalg main_err1_alg.f90 main_err1_alg.x90
+
+error2:
+	psyclone -s ./omp.py -nodm -l output -opsy main_err1_psy.f90 -oalg main_err2_alg.f90 main_err2_alg.x90
 
 compile: transform $(EXEC)
 
