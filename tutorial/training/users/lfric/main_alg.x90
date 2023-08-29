@@ -56,7 +56,6 @@ program main
     type(function_space_type), pointer         :: vector_space_ptr
     procedure (partitioner_interface), pointer :: partitioner_ptr
     type(field_type)                           :: field1, field2
-    integer(kind=i_def)                        :: lfric_fs = W3
     integer(kind=i_def)                        :: element_order = 1
     integer(kind=i_def)                        :: ndata_sz
 
@@ -70,7 +69,7 @@ program main
                                1, 1,  &    ! # procs in x and y direction
                                0,     &    ! max stencil size
                                0,     &    ! local rank
-                               1)          ! number of proceses
+                               1)          ! number of processes
 
     ! Creating a vertical mesh of height 100 m with 5 layers
     ! It is important to use 0.0_r_def, otherwise:
@@ -83,7 +82,7 @@ program main
     ndata_sz = 1
     vector_space = function_space_type( mesh,          &
                                         element_order, &
-                                        lfric_fs,      &
+                                        W3,            &
                                         ndata_sz)
     vector_space_ptr => vector_space
     call field1%initialise( vector_space = vector_space_ptr, name="field1" )
