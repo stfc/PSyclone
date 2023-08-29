@@ -32,11 +32,11 @@
 ! Modified by J. Henrichs, Bureau of Meteorology
 ! Modified by I. Kavcic, Met Office
 
-module testkern_w0_kernel_mod
+module testkern_w3_kernel_mod
 
   use argument_mod
   use kernel_mod
-  use fs_continuity_mod, only: W0
+  use fs_continuity_mod, only: W3
 
   use constants_mod
 
@@ -44,39 +44,39 @@ module testkern_w0_kernel_mod
 
   private
 
-  type, public, extends(kernel_type) :: testkern_w0_kernel_type
+  type, public, extends(kernel_type) :: testkern_w3_kernel_type
      private
-     type(arg_type), dimension(2) :: meta_args =       &
-          (/ arg_type(gh_field, gh_real, gh_inc,  w0), &
-             arg_type(gh_field, gh_real, gh_read, w0)  &
+     type(arg_type), dimension(2) :: meta_args =            &
+          (/ arg_type(gh_field, gh_real, gh_readwrite, w3), &
+             arg_type(gh_field, gh_real, gh_read,      w3)  &
            /)
      integer :: operates_on = cell_column
    contains
-     procedure, nopass :: code => testkern_w0_code
-  end type testkern_w0_kernel_type
+     procedure, nopass :: code => testkern_w3_code
+  end type testkern_w3_kernel_type
 
-  public :: testkern_w0_code
+  public :: testkern_w3_code
 
 contains
 
-  subroutine testkern_w0_code(nlayers, fld1, fld2, ndf_w0, undf_w0, map_w0)
+  subroutine testkern_w3_code(nlayers, fld1, fld2, ndf_w3, undf_w3, map_w3)
 
     implicit none
 
     integer(kind=i_def), intent(in)                     :: nlayers
-    integer(kind=i_def)                                 :: ndf_w0, undf_w0
-    real(kind=r_def), dimension(undf_w0), intent(inout) :: fld1
-    real(kind=r_def), dimension(undf_w0), intent(in)    :: fld2
-    integer(kind=i_def), dimension(ndf_w0)              :: map_w0
+    integer(kind=i_def)                                 :: ndf_w3, undf_w3
+    real(kind=r_def), dimension(undf_w3), intent(inout) :: fld1
+    real(kind=r_def), dimension(undf_w3), intent(in)    :: fld2
+    integer(kind=i_def), dimension(ndf_w3)              :: map_w3
 
     integer(kind=i_def)                                 :: i, k
 
     do k=0, nlayers-1
-      do i=1, ndf_w0
-        fld1(map_w0(i)+k) = fld1(map_w0(i)+k) + fld2(map_w0(i)+k)
+      do i=1, ndf_w3
+        fld1(map_w3(i)+k) = fld1(map_w3(i)+k) + fld2(map_w3(i)+k)
       end do
     end do
 
-  end subroutine testkern_w0_code
+  end subroutine testkern_w3_code
 
-end module testkern_w0_kernel_mod
+end module testkern_w3_kernel_mod
