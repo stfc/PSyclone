@@ -40,7 +40,7 @@
 F90 ?= gfortran
 F90FLAGS ?= -Wall -g -fcheck=bound
 
-OBJ = main_alg_psy.o main_alg.o testkern_w3_kernel_mod.o testkern_w0_kernel_mod.o
+OBJ = main_alg_psy.o main_alg.o testkern_w3_kernel_mod.o
 
 EXEC = example
 # Path of the included simplified LFRic infrastructure files:
@@ -86,10 +86,9 @@ $(LFRIC_LIB):
 # Dependencies
 # ------------
 main_alg.f90: main_alg_psy.f90
-main_alg_psy.o:	testkern_w3_kernel_mod.o testkern_w0_kernel_mod.o
+main_alg_psy.o:	testkern_w3_kernel_mod.o
 main_alg.o:	main_alg_psy.o
 testkern_w3_kernel_mod.o: $(LFRIC_LIB)
-testkern_w0_kernel_mod.o: $(LFRIC_LIB)
 
 # File creation rules
 # -------------------

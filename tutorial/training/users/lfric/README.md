@@ -19,6 +19,14 @@ The same command can be triggered by `make transform`. This will create
 two new output files, `main_alg.f90`, the rewritten algorithm layer `main_alg.x90`,
 and `main_alg_psy.f90`.
 
+You can even compile and execute the script: `make compile` will create a binary for
+you (including compilation of the required LFRic infrastructure if required).
+Executing the binary with `./example` will print:
+
+     Mesh has           5 layers.
+    20230829165343.079+1000:INFO : Min/max minmax of field1 =   0.10000000E+01  0.10000000E+01
+The minimum and maximum of the field is as expected now 1.
+
 1. Look at the files. You don't need to try to understand the details, since PSyclone
    is creating quite a bit of code, but identify how the main program, the algorithm
    layer, calls the PSylayer, and how the PSy-layer calls the kernel in a loop. Focus
@@ -34,20 +42,11 @@ and `main_alg_psy.f90`.
    Can you find the builtins in the PSy-layer file `main_alg_psy.f90`? And
    the call to the testkern_w3 kernel?
 
-2. What changes if you use distributed memory? Replace the command line flag
-   `-nodm` with `-dm` and change the output filename for the algorithm and
-   PSy-layer files (or use `make dm`, which uses different names).
-   While a lot of internal code has changed (since with distributed memory
-   only the local portion of the data is accessed), the important changes are
-   that fields are now marked as 'dirty', indicating that the values of these
-   fields need to be updated on other processors. This is used in the second
-   kernel call to `testkern_w0`, which now adds a halo exchange call (if required):
-
-       IF (field1_proxy%is_dirty(depth=1)) THEN
-         CALL field1_proxy%halo_exchange(depth=1)
-       END IF
-
-
+2. Apply the `omp.py` optimisation script, which will do some loop fusion, and
+   also applies OpenMP parallelisation. You have to specify the full name of
+   the script including path with the `-s` command line options, e.g.
+   `-s ./omp.py` (or use `make omp`). Compare the PSy-layer files with
+   the previously created files.
 
 # Solution
 1. The file `main_alg.f90` contains two calls to a PSy layer:
@@ -74,20 +73,6 @@ and `main_alg_psy.f90`.
    Note that PSyclone will automatically provide additional required parameters to
    the kernel.
 
-2. The following code is added:
-   
-       CALL field1_proxy%set_dirty()
-       ...
-       IF (field1_proxy%is_dirty(depth=1)) THEN
-         CALL field1_proxy%halo_exchange(depth=1)
-       END IF
-       !
-       IF (field2_proxy%is_dirty(depth=1)) THEN
-         CALL field2_proxy%halo_exchange(depth=1)
-       END IF
-   The first lines marked that `field1` has been modified. The if-statement
-   later will then trigger a halo exchange, meaning the newly computed values
-   will be sent to the other processes.
 
 
 
