@@ -40,7 +40,6 @@ program main
     use function_space_mod,     only: function_space_type
     use fs_continuity_mod,      only: W3
     use field_mod,              only: field_type
-    use testkern_w0_kernel_mod, only: testkern_w0_kernel_type
     use testkern_w3_kernel_mod, only: testkern_w3_kernel_type
     use constants_mod,          only: r_def, i_def
     use log_mod,                only: LOG_LEVEL_ALWAYS
@@ -95,9 +94,5 @@ program main
                  )
     call invoke( name = 'testkern_w3', testkern_w3_kernel_type(field1, field2) )
     call field1%log_minmax(LOG_LEVEL_ALWAYS, "minmax of field1")
-
-    ! Here an example that accesses the points of a FE mesh.
-    call invoke( name = 'testkern_w0', testkern_w0_kernel_type(field1, field2) )
-
 
 end program main
