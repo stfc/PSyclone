@@ -48,6 +48,25 @@ The minimum and maximum of the field is as expected now 1.
    `-s ./omp.py` (or use `make omp`). Compare the PSy-layer files with
    the previously created files. What has changed?
 
+3. Now let's have a look at some typical errors. Ideally they should not happen
+   for a user of a stable LFRic release, but if you for example should select
+   a untested set of options some of these problems could still happen. The
+   first example `main_err1_alg.x90` contains an invalid PSyclone builtin name,
+   though of course PSyclone cannot know what exactly the user meant. Does
+   PSyclone's error message make sense?
+
+4. Fix the above error by modifying `main_err1_alg.x90` and putting the correct
+   names of the builtins in (`setval_c`, i.e. just remove the 'no_'). Run
+   PSyclone again.
+
+5. Now use the file `main_error2.x90`, and try to apply the `omp.py` script,
+   i.e. add the paramter `-s ./omp.py` to the PSyclone command line (or use
+   `make error2`). This kernel is very similar to the test kernel used originally,
+   but it operates on a different function space, and as a result it cannot be
+   be parallelised by simply applying OpenMP directives, it would lead to a race
+   condition. What is PSyclone's behaviour?
+
+
 # Solution
 1. The file `main_alg.f90` contains two calls to a PSy layer:
        CALL invoke_initialise_fields(field1, field2)
@@ -90,3 +109,39 @@ The minimum and maximum of the field is as expected now 1.
        END DO
        !$omp end parallel do
  
+3. PSylone will print the following error message (or a variation of it, since depending
+   on version the list of builtins might change):
+
+        Parse Error: kernel call 'no_setval_c' must either be named in a use statement (found
+        ['global_mesh_base_mod', 'mesh_mod', 'mesh_mod', 'partition_mod', 'partition_mod', 
+        'partition_mod', 'extrusion_mod', 'function_space_mod', 'fs_continuity_mod',
+        'field_mod', 'testkern_w3_kernel_mod', 'constants_mod', 'constants_mod', 'log_mod'])
+        or be a recognised built-in (one of '['x_plus_y', 'inc_x_plus_y',..., 'int_inc_min_ax', 
+        'real_x']' for this API)
+
+4. PSyclone will detect that a parameter is missing for the kernel:
+
+       Parse Error: Kernel 'testkern_w3_kernel_type' called from the algorithm layer with an
+       insufficient number of arguments as specified by the metadata. Expected at least '2'
+       but found '1'.
+
+5. PSyclone internally verifies transformation to make sure it will always create valid
+   code. In this case, it will recognise that the kernel cannot simply be parallelised.
+   It would need an additional transformation (called colouring) in order to allow
+   threading-based parallelisation:
+
+       Generation Error: generator: specified PSyclone transformation module 'omp'
+       raised the following exception during execution...
+       {
+            File "/home/joerg/work/psyclone/tutorial/training/users/lfric/./omp.py", line 64, 
+          in trans otrans.apply(loop)
+            File "/home/joerg/work/psyclone/src/psyclone/transformations.py", line 676, in apply
+          raise TransformationError(
+        psyclone.psyir.transformations.transformation_error.TransformationError:
+        Transformation Error: Error in DynamoOMPParallelLoopTrans transformation. The kernel
+        has an argument with INC access. Colouring is required.
+       }
+      please check your script
+
+   This error should be reported to the developers of the optimisation script.
+   
