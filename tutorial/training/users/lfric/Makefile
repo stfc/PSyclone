@@ -61,7 +61,6 @@ transform: main_psy.f90
 omp:
 	psyclone -s omp.py -nodm -l output -opsy main_omp_psy.f90 -oalg main_omp_alg.f90 main.x90
 
-
 compile: transform $(EXEC)
 
 run: compile
@@ -71,7 +70,7 @@ $(EXEC): $(LFRIC_LIB) $(OBJ)
 	$(F90) $(F90FLAGS) $(OBJ) -o $(EXEC) -L$(LFRIC_PATH) -l$(LFRIC_NAME)
 
 clean:
-	rm -f $(EXEC) $(OBJ) *.mod main_alg.f90 main_psy.f90
+	rm -f $(EXEC) $(OBJ) *.mod main_*alg.f90 main_*psy.f90
 
 allclean: clean
 	make -C $(LFRIC_PATH) allclean
