@@ -38,8 +38,7 @@
 '''PSyIR backend to create expressions that are handled by SymPy.
 '''
 
-from io import StringIO
-import sys
+import keyword
 
 from sympy import Function, Symbol
 from sympy.parsing.sympy_parser import parse_expr
@@ -95,7 +94,8 @@ class SymPyWriter(FortranWriter):
     _DISABLE_LOWERING = True
 
     # A list of all reserved Python keywords (Fortran variables that are the
-    # same as a reserved name must be renamed, otherwise parsing will fail):
+    # same as a reserved name must be renamed, otherwise parsing will fail).
+    # This class attribute will get initialised in __init__:
     _RESERVED_NAMES = set()
 
     def __init__(self):
@@ -115,30 +115,13 @@ class SymPyWriter(FortranWriter):
         self._upper_bound = "sympy_upper"
 
         if not SymPyWriter._RESERVED_NAMES:
-            # Get the list of all reserved Python words from the 'help'
-            # command. If a symbol should be the same as a Python reserved
-            # words, SymPy parsing (which relies on Python's ``eval``) will
-            # fail, so any variable that is a reserved word needs to be
-            # renamed.
-
-            # The output of help is on stdout only, so modify sys.stdout to
-            # catch the output into a string buffer:
-            buffer = StringIO()
-            old_stdout = sys.stdout
-            sys.stdout = buffer
-            help("keywords")
-            out_text = buffer.getvalue()
-            sys.stdout = old_stdout
-            # The output contains some help text before the list of keywords.
-            # It ends with:
-            # ... Enter any keyword to get more help.
-            # So only take the text after 'help.', and then split it:
-            keywords = out_text[out_text.index("help.")+5:].split()
-
-            for reserved in keywords:
+            # Get the list of all reserved Python words from the
+            # keyword module:
+            for reserved in keyword.kwlist:
                 # Some Python keywords are capitalised (True, False, None).
                 # Since all symbols in PSyclone are lowercase, these can
-                # never clash. So only take keywords that are in lowercase:
+                # never clash when using SymPy. So only take keywords that
+                # are in lowercase:
                 if reserved.lower() == reserved:
                     SymPyWriter._RESERVED_NAMES.add(reserved)
 
