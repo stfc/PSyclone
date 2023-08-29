@@ -285,7 +285,7 @@ class SymPyWriter(FortranWriter):
         # create guaranteed unique names for lower and upper bounds.
         self._symbol_table = SymbolTable()
         for reserved in SymPyWriter._RESERVED_NAMES:
-            self._symbol_table.find_or_create(reserved)
+            self._symbol_table.new_symbol(reserved)
 
         # Find each reference in each of the expression, and declare this name
         # as either a SymPy Symbol (scalar reference), or a SymPy Function
@@ -293,9 +293,17 @@ class SymPyWriter(FortranWriter):
         for expr in list_of_expressions:
             for ref in expr.walk(Reference):
                 name = ref.name
+                # The reserved Python keywords do not have tags, so they
+                # will not be found.
                 if name in self._symbol_table.tags_dict:
                     continue
 
+                # Any symbol from the list of expressions to be handled
+                # will be created with a tag, so if the same symbol is
+                # used more than once, the previous test will prevent
+                # calling new_symbol again. If the name is a Python
+                # reserved symbol, a new unique name will be created by
+                # the symbol table.
                 unique_sym = self._symbol_table.new_symbol(name, tag=name)
                 # Test if an array or an array expression is used:
                 if not ref.is_array:

@@ -368,7 +368,8 @@ def test_symbolic_math_functions_with_constants(fortran_reader, expressions):
 def test_symbolic_math_use_reserved_names(fortran_reader, expressions):
     '''Test that reserved names are handled as expected. The SymPy parser
     uses 'eval' internally, so if a Fortran variable name should be the
-    same as a SymPy function (e.g. 'field'), parsing will fail.
+    same as a SymPy function (e.g. 'field'), parsing will fail. Similarly,
+    a Python reserved name (like 'lambda') would cause a parsing error.
 
     '''
     # A dummy program to easily create the PSyIR for the

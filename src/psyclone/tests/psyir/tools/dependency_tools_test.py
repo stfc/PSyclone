@@ -220,7 +220,7 @@ def test_arrays_parallelise(fortran_reader):
     loops = psyir.children[0].children[0:4]
     dep_tools = DependencyTools()
 
-    # Write to array that does not depend on parallel loop variable
+    # Write to array that does not depend on the parallel loop variable
     # Test that right default variable name (outer loop jj) is used.
     parallel = dep_tools.can_loop_be_parallelised(loops[0])
     assert parallel is False
@@ -230,12 +230,12 @@ def test_arrays_parallelise(fortran_reader):
     assert msg.code == DTCode.ERROR_WRITE_WRITE_RACE
     assert msg.var_names == ["mask(jk,jk)"]
 
-    # Write to array that does not depend on parallel loop variable
+    # Write to array that does not depend on the parallel loop variable
     parallel = dep_tools.can_loop_be_parallelised(loops[1])
     assert parallel is True
     assert dep_tools.get_all_messages() == []
 
-    # Use parallel loop variable in more than one dimension
+    # Use the parallel loop variable in more than one dimension
     parallel = dep_tools.can_loop_be_parallelised(loops[2])
     assert parallel is True
 
@@ -783,9 +783,9 @@ def test_da_array_expression(fortran_reader):
 
 # -----------------------------------------------------------------------------
 def test_reserved_words(fortran_reader):
-    '''Tests that using a reserved Python word ('lambda' here') as loop
+    '''Tests that using a reserved Python word ('lambda' here') as a loop
     variable, which will be renamed when converting to SymPy, works as
-    expected. It also makes sure that name clashes are handled as expected by
+    expected. Also make sure that name clashes are handled as expected by
     declaring local symbols lambda_1 (which will clash with the renamed
     lambda) and lambda_1_1 (which will clash with the renamed lambda_1).
     Otherwise this test is identical to test_arrays_parallelise.
@@ -820,7 +820,7 @@ def test_reserved_words(fortran_reader):
     loops = psyir.children[0].children[0:4]
     dep_tools = DependencyTools()
 
-    # Write to array that does not depend on parallel loop variable
+    # Write to array that does not depend on the parallel loop variable
     # Test that right default variable name (outer loop lambda) is used.
     parallel = dep_tools.can_loop_be_parallelised(loops[0])
     assert parallel is False
@@ -830,12 +830,12 @@ def test_reserved_words(fortran_reader):
     assert msg.code == DTCode.ERROR_WRITE_WRITE_RACE
     assert msg.var_names == ["mask(jk,jk)"]
 
-    # Write to array that does not depend on parallel loop variable
+    # Write to array that does not depend on the parallel loop variable
     parallel = dep_tools.can_loop_be_parallelised(loops[1])
     assert parallel is True
     assert dep_tools.get_all_messages() == []
 
-    # Use parallel loop variable in more than one dimension
+    # Use the parallel loop variable in more than one dimension
     parallel = dep_tools.can_loop_be_parallelised(loops[2])
     assert parallel is True
 
