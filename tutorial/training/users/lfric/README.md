@@ -137,11 +137,11 @@ The minimum and maximum of the field is as expected now 1.
           in trans otrans.apply(loop)
             File "/home/joerg/work/psyclone/src/psyclone/transformations.py", line 676, in apply
           raise TransformationError(
-        psyclone.psyir.transformations.transformation_error.TransformationError:
-        Transformation Error: Error in DynamoOMPParallelLoopTrans transformation. The kernel
-        has an argument with INC access. Colouring is required.
+          psyclone.psyir.transformations.transformation_error.TransformationError:
+          Transformation Error: Error in DynamoOMPParallelLoopTrans transformation. The kernel
+          has an argument with INC access. Colouring is required.
        }
-      please check your script
+       please check your script
 
    This error should be reported to the developers of the optimisation script.
-   
+  
