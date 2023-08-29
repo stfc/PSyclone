@@ -40,7 +40,7 @@
 F90 ?= gfortran
 F90FLAGS ?= -Wall -g -fcheck=bound
 
-OBJ = main_alg_psy.o main_alg.o testkern_w3_kernel_mod.o
+OBJ = main_alg_psy.o main_alg.o testkern_w3_kernel_mod.o testkern_w0_kernel_mod.o
 
 EXEC = example
 # Path of the included simplified LFRic infrastructure files:
@@ -54,9 +54,12 @@ F90FLAGS += $(LFRIC_INCLUDE_FLAGS)
 
 # Various targets
 # ---------------
-.PHONY: transform compile run clean allclean
+.PHONY: transform compile run clean allclean omp dm
 
 transform: main_alg_psy.f90
+
+dm:
+	psyclone -dm -l output -opsy main_dm_psy.f90 -oalg main_dm_alg.f90 main_alg.x90
 
 omp:
 	psyclone -s omp.py -nodm -l output -opsy main_omp_psy.f90 -oalg main_omp_alg.f90 main_alg.x90
@@ -83,9 +86,10 @@ $(LFRIC_LIB):
 # Dependencies
 # ------------
 main_alg.f90: main_alg_psy.f90
-main_alg_psy.o:	testkern_w3_kernel_mod.o
+main_alg_psy.o:	testkern_w3_kernel_mod.o testkern_w0_kernel_mod.o
 main_alg.o:	main_alg_psy.o
 testkern_w3_kernel_mod.o: $(LFRIC_LIB)
+testkern_w0_kernel_mod.o: $(LFRIC_LIB)
 
 # File creation rules
 # -------------------
