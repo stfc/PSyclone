@@ -149,8 +149,9 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
         dep_tools = DependencyTools()
 
         try:
-            if not dep_tools.can_loop_be_parallelised(node,
-                                                      only_nested_loops=False):
+            if not node.can_be_parallelised(only_nested_loops=False):
+            #if not dep_tools.can_loop_be_parallelised(node,
+            #                                          only_nested_loops=False):
                 # The DependencyTools also returns False for things that are
                 # not an issue, so we ignore specific messages.
                 for message in dep_tools.get_all_messages():

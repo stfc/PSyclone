@@ -379,6 +379,259 @@ class Loop(Statement):
             child.reference_accesses(var_accesses)
             var_accesses.next_location()
 
+    # -------------------------------------------------------------------------
+    def _is_loop_suitable_for_parallel(self, only_nested_loops=True):
+        '''Simple first test to see if a loop should even be considered to
+        be parallelised. The default implementation tests whether the loop
+        has a certain type (e.g. 'latitude'), and optional tests for
+        nested loops (to avoid parallelising single loops which will likely
+        result in a slowdown due to thread synchronisation costs). This
+        function is used by can_loop_be_parallelised() and can of course be
+        overwritten by the user to implement different suitability criteria.
+
+        :param loop: the loop to test.
+        :type loop: :py:class:`psyclone.psyir.nodes.Loop`
+        :param bool only_nested_loops: true (default) if only nested loops\
+                                        should be considered.
+
+        :returns: true if the loop fulfills the requirements.
+        :rtype: bool
+        '''
+        if only_nested_loops:
+            all_loops = self.walk(Loop)
+            if len(all_loops) == 1:
+                self._add_message("Not a nested loop.",
+                                  DTCode.INFO_NOT_NESTED_LOOP)
+                return False
+
+        if self._loop_types_to_parallelise:
+            if self.loop_type not in self._loop_types_to_parallelise:
+                self._add_message(f"Loop has wrong loop type '"
+                                  f"{self.loop_type}'.",
+                                  DTCode.INFO_WRONG_LOOP_TYPE)
+                return False
+        return True
+
+    def _array_access_parallelisable(self, loop_variables, var_info):
+        '''Tries to determine if the access pattern for an array
+        given in `var_info` allows parallelisation along the first variable
+        in `loop_variables`. The other elements of `loop_variables` specify
+        the loop variables of any inner loops. This implementation follows:
+
+        "Optimizing compilers for modern architectures -
+        a dependence-based approach
+        Ken Kennedy and John R. Allen. 2001.
+        Morgan Kaufmann Publishers Inc., San Francisco, CA, USA."
+
+        Chapter 3.6 "Dependency Testing - Putting it all Together"
+        But many of the more advanced tests (e.g. multi-variable ones)
+        are not (yet) implemented, since it appears unlikely that they
+        will occur in 'real' code. But the outline of this testing follows
+        the full structure  When we use the same function for other tests
+        (loop fusion etc), the subroutines here can be generalised to use
+        the dependency direction (i.e. "<", "=", ">") and instead of
+        checking for distance 0 then check for direction being only "="").
+
+        De-facto all that is happening atm is to try to find one subscript
+        that is guaranteed to be independent, which is all that is needed
+        for parallelisation.
+
+        :param loop_variables: the list of all loop variables in the code to \
+            be parallelised. The first one must be the loop to be \
+            parallelised (a possible outer loop does not matter, the value of \
+            the loop variable is a constant within the loop to be parallelised.
+        :type loop_variables: List[str]
+        :param var_info: access information for this variable.
+        :type var_info: \
+            :py:class:`psyclone.core.SingleVariableAccessInfo`
+
+        :return: whether the variable can be used in parallel.
+        :rtype: bool
+
+        '''
+        # pylint: disable=too-many-locals
+        # If a variable is read-only, it can be parallelised
+        if var_info.is_read_only():
+            return True
+
+        all_write_accesses = var_info.all_write_accesses
+
+        for write_access in all_write_accesses:
+            # We need to compare each write access with any other access,
+            # including itself (to detect write-write race conditions:
+            # a((i-2)**2) = b(i): i=1 and i=3 would write to a(1))
+            for other_access in var_info:
+                if not self._is_loop_carried_dependency(loop_variables,
+                                                        write_access,
+                                                        other_access):
+                    # There is a dependency. Try to give precise error
+                    # messages:
+                    # We need to use default parameters, since otherwise
+                    # the value of a variable might be different when
+                    # the message is actually evaluated.
+                    # Some pylint version complain here (because of the
+                    # above). The code is correct, so disable this
+                    # message:
+                    # pylint: disable=cell-var-from-loop
+                    if write_access is other_access:
+                        # The write access has a dependency on itself, e.g.
+                        # a(3) = ...    or a((i-2)**2) = ...
+                        # Both would result in a write-write conflict
+                        node = write_access.node
+                        self._add_message(LazyString(
+                            lambda node=write_access.node:
+                                (f"The write access to '"
+                                 f"{node.debug_string()}' causes "
+                                 f"a write-write race condition.")),
+                            DTCode.ERROR_WRITE_WRITE_RACE,
+                            [LazyString(lambda node=node:
+                                        f"{node.debug_string()}")])
+                    else:
+                        self._add_message(LazyString(
+                            lambda wnode=write_access.node,
+                            onode=other_access.node:
+                                (f"The write access to "
+                                 f"'{wnode.debug_string()}' "
+                                 f"and to '{onode.debug_string()}"
+                                 f"' are dependent and cannot be "
+                                 f"parallelised.")),
+                            DTCode.ERROR_DEPENDENCY,
+                            [LazyString(lambda wnode=write_access.node:
+                                        f"{wnode.debug_string()}"
+                                        ),
+                             LazyString(lambda onode=other_access.node:
+                                        f"{onode.debug_string()}")])
+
+                    return False
+        return True
+
+    # -------------------------------------------------------------------------
+    def _is_scalar_parallelisable(self, var_info):
+        '''Checks if the accesses to the given scalar variable can be
+        parallelised, i.e. it is not a reduction.
+
+        :param var_info: the access information for the variable to test.
+        :type var_info: :py:class:`psyclone.core.var_info.VariableInfo`
+        :return: True if the scalar variable is not a reduction, i.e. it \
+            can be parallelised.
+        :rtype: bool
+        '''
+
+        # Read only scalar variables can be parallelised
+        if var_info.is_read_only():
+            return True
+
+        all_accesses = var_info.all_accesses
+        if len(all_accesses) == 1:
+            # The variable is used only once. Either it is a read-only
+            # variable, or it is supposed to store the result from the loop to
+            # be used outside of the loop (or it is bad code). Read-only access
+            # has already been tested above, so it must be a write access here,
+            # which prohibits parallelisation.
+            # We could potentially use lastprivate here?
+            self._add_message(f"Scalar variable '{var_info.var_name}' is "
+                              f"only written once.",
+                              DTCode.WARN_SCALAR_WRITTEN_ONCE,
+                              [f"{var_info.var_name}"])
+            return False
+
+        # Now we have at least two accesses. If the first access is a WRITE,
+        # then the variable is not used in a reduction. This relies on sorting
+        # the accesses by location. Note that an argument to a kernel can have
+        # a 'READWRITE' access because, in that case, all we know is what the
+        # kernel metadata tells us. However, we do know that such an access is
+        # *not* a reduction because that would have 'SUM' access.
+        if all_accesses[0].access_type in (AccessType.WRITE,
+                                           AccessType.READWRITE):
+            return True
+
+        # Otherwise there is a read first, which would indicate that this loop
+        # is a reduction, which is not supported atm.
+        self._add_message(f"Variable '{var_info.var_name}' is read first, "
+                          f"which indicates a reduction.",
+                          DTCode.WARN_SCALAR_REDUCTION,
+                          [var_info.var_name])
+        return False
+
+    def can_be_parallelised(self,
+                            only_nested_loops=True,
+                            test_all_variables=False,
+                            signatures_to_ignore=None):
+        # pylint: disable=too-many-branches,too-many-locals
+        '''This function analyses a loop in the PsyIR to see if
+        it can be safely parallelised over the specified variable.
+
+        :param bool only_nested_loops: if True, a loop must have an inner\
+                                       loop in order to be considered\
+                                       parallelisable (default: True).
+        :param bool test_all_variables: if True, it will test if all variable\
+                                        accesses can be parallelised,\
+                                        otherwise it will stop after the first\
+                                        variable is found that can not be\
+                                        parallelised.
+        :param signatures_to_ignore: list of signatures for which to skip \
+                                     the access checks.
+        :type signatures_to_ignore: list of :py:class:`psyclone.core.Signature`
+
+        :returns: True if the loop can be parallelised.
+        :rtype: bool
+
+        '''
+        #self._clear_messages()
+
+        # Check if the loop type should be parallelised, e.g. to avoid
+        # parallelising inner loops which might not have enough work. This
+        # is supposed to be a fast first check to avoid collecting variable
+        # accesses in some unsuitable loops.
+        if not self._is_loop_suitable_for_parallel(only_nested_loops):
+            # Appropriate messages will have been added already, so just exit
+            return False
+
+        var_accesses = VariablesAccessInfo(self)
+        if not signatures_to_ignore:
+            signatures_to_ignore = []
+
+        # Collect all variables used as loop variable:
+        loop_vars = [loop.variable.name for loop in self.walk(Loop)]
+
+        result = True
+        # Now check all variables used in the loop
+        for signature in var_accesses.all_signatures:
+            # This string contains derived type information, e.g.
+            # "a%b"
+            var_string = str(signature)
+            # Ignore all loop variables - they look like reductions because of
+            # the write-read access in the loop:
+            if var_string in loop_vars:
+                continue
+            if signature in signatures_to_ignore:
+                continue
+
+            # This returns the first component of the signature,
+            # i.e. in case of "a%b" it will only return "a"
+            var_name = signature.var_name
+            var_info = var_accesses[signature]
+            symbol_table = self.scope.symbol_table
+            symbol = symbol_table.lookup(var_name)
+            # TODO #1270 - the is_array_access function might be moved
+            is_array = symbol.is_array_access(access_info=var_info)
+            if is_array:
+                # Handle arrays
+                par_able = self._array_access_parallelisable(loop_vars,
+                                                             var_info)
+            else:
+                # Handle scalar variable
+                par_able = self._is_scalar_parallelisable(var_info)
+            if not par_able:
+                if not test_all_variables:
+                    return False
+                # The user might have requested to continue in order to get
+                # all messages for all variables preventing parallelisation,
+                # not just the first one
+                result = False
+
+        return result
+
     def gen_code(self, parent):
         '''
         Generate the Fortran Loop and any associated code.
