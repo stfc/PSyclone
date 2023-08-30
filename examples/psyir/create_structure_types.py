@@ -132,7 +132,7 @@ DX_REF = StructureReference.create(FIELD_SYMBOL, ["grid", "dx"])
 LBOUND = IntrinsicCall.create(
     IntrinsicCall.Intrinsic.LBOUND,
     [StructureReference.create(FIELD_SYMBOL, ["data"]), ("dim", int_one())])
-UBOUND = IntrinsicCall.Intrinsic.create(
+UBOUND = IntrinsicCall.create(
     IntrinsicCall.Intrinsic.UBOUND,
     [StructureReference.create(FIELD_SYMBOL, ["data"]), ("dim", int_one())])
 MY_RANGE = Range.create(LBOUND, UBOUND)

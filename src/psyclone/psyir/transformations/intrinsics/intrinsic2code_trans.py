@@ -85,7 +85,6 @@ class Intrinsic2CodeTrans(Transformation, metaclass=abc.ABCMeta):
                 f"Error in {self.name} transformation. The supplied node must "
                 f"be an 'IntrinsicCall', but found '{type(node).__name__}'.")
         if node.intrinsic != self._intrinsic:
-            import pdb; pdb.set_trace()
             raise TransformationError(
                 f"Error in {self.name} transformation. The supplied "
                 f"IntrinsicCall must be a '{self._intrinsic.name}' but found: "

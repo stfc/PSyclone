@@ -792,10 +792,10 @@ class IntrinsicCall(Call):
                 f"IntrinsicCall.create() 'arguments' argument should be a "
                 f"list but found '{type(arguments).__name__}'")
 
-        if routine.optional_args:
-            optional_arg_names = sorted(list(routine.optional_args.keys()))
-        else:
-            optional_arg_names = []
+        # if routine.optional_args:
+        #     optional_arg_names = sorted(list(routine.optional_args.keys()))
+        # else:
+        #     optional_arg_names = []
 
         # Validate the supplied arguments.
         last_named_arg = None
@@ -809,21 +809,27 @@ class IntrinsicCall(Call):
                         f"a {type(arg[0]).__name__} instead of a str.")
                 name = arg[0].lower()
                 last_named_arg = name
-                if not optional_arg_names:
-                    raise ValueError(
-                        f"The '{routine.name}' intrinsic does not support "
-                        f"any optional arguments but got '{name}'.")
-                if name not in optional_arg_names:
-                    raise ValueError(
-                        f"The '{routine.name}' intrinsic supports the "
-                        f"optional arguments {optional_arg_names} but got "
-                        f"'{name}'")
-                if not isinstance(arg[1], routine.optional_args[name]):
-                    raise TypeError(
-                        f"The optional argument '{name}' to intrinsic "
-                        f"'{routine.name}' must be of type "
-                        f"'{ routine.optional_args[name].__name__}' but got "
-                        f"'{type(arg[1]).__name__}'")
+                # if not optional_arg_names:
+                #     raise ValueError(
+                #         f"The '{routine.name}' intrinsic does not support "
+                #         f"any optional arguments but got '{name}'.")
+                # if name not in optional_arg_names:
+                #     raise ValueError(
+                #         f"The '{routine.name}' intrinsic supports the "
+                #         f"optional arguments {optional_arg_names} but got "
+                #         f"'{name}'")
+                if name in routine.optional_args:
+                    if not isinstance(arg[1], routine.optional_args[name]):
+                        raise TypeError(
+                            f"The optional argument '{name}' to intrinsic "
+                            f"'{routine.name}' must be of type "
+                            f"'{routine.optional_args[name].__name__}' but got"
+                            f" '{type(arg[1]).__name__}'")
+                else:
+                    # This may be a positional argument given by name
+                    pos_arg_count += 1
+                    # ... or an invalid named argument, but we can not
+                    # distiguish them unless we list their name.
             else:
                 if last_named_arg:
                     raise ValueError(

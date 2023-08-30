@@ -49,5 +49,5 @@ def test_initialise():
     '''
     assert issubclass(Max2CodeTrans, MinOrMax2CodeTrans)
     trans = Max2CodeTrans()
-    assert trans._intrinsics == (IntrinsicCall.Intrinsic.MAX,)
+    assert trans._intrinsic == IntrinsicCall.Intrinsic.MAX
     assert trans._compare_operator == BinaryOperation.Operator.GT

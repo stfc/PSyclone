@@ -549,7 +549,7 @@ def test_apply_struct_local_limits_caller_decln(fortran_reader, fortran_writer,
     assert "varat2(3:8)%local%nx = 3\n" in output
     assert "varat2(5 - 1 + 3:6 + 1 - 1 + 3)%local%nx = -2" in output
     assert "varat3(1 - 1 + 5:2 - 1 + 5) = 4.0\n" in output
-    assert "varat3(:2 - 1 + 4) = 4.0\n" in output
+    assert "varat3(1 - 1 + 4:2 - 1 + 4) = 4.0\n" in output
     assert Compile(tmpdir).string_compiles(output)
 
 
