@@ -124,69 +124,6 @@ def test_loop_parallelise_errors():
 
 
 # -----------------------------------------------------------------------------
-def test_nested_loop_detection(parser):
-    '''Tests if nested loop are handled correctly.
-    '''
-    reader = FortranStringReader('''program test
-                                 integer :: ji, jk
-                                 integer, parameter :: jpi=10, jpk=10
-                                 real, dimension(jpi,jpi,jpk) :: umask, xmask
-                                 do jk = 1, jpk   ! loop 0
-                                   umask(1,1,jk) = -1.0d0
-                                 end do
-                                 do ji = 1, jpi   ! loop 1
-                                   xmask(ji,1,1) = -1.0d0
-                                 end do
-                                 end program test''')
-    prog = parser(reader)
-    psy = PSyFactory("nemo", distributed_memory=False).create(prog)
-    loops = psy.invokes.get("test").schedule
-    dep_tools = DependencyTools(["levels", "lat"])
-
-    # Not a nested loop
-    parallel = dep_tools.can_loop_be_parallelised(loops[0])
-    assert parallel is False
-    msg = dep_tools.get_all_messages()[0]
-    assert "Not a nested loop" in str(msg)
-    assert msg.code == DTCode.INFO_NOT_NESTED_LOOP
-    assert msg.var_names == []
-
-    # Now disable the test for nested loops:
-    parallel = dep_tools.can_loop_be_parallelised(loops[0],
-                                                  only_nested_loops=False)
-    assert parallel is True
-    # Make sure can_loop_be_parallelised clears old messages automatically
-    assert dep_tools.get_all_messages() == []
-
-
-# -----------------------------------------------------------------------------
-def test_loop_type(parser):
-    '''Tests general functionality of can_loop_be_parallelised.
-    '''
-    reader = FortranStringReader('''program test
-                                 integer ji
-                                 integer, parameter :: jpi=10
-                                 real, dimension(jpi,1,1) :: xmask
-                                 do ji = 1, jpi
-                                   xmask(ji,1,1) = -1.0d0
-                                 end do
-                                 end program test''')
-    prog = parser(reader)
-    psy = PSyFactory("nemo", distributed_memory=False).create(prog)
-    loop = psy.invokes.get("test").schedule[0]
-    dep_tools = DependencyTools(["levels", "lat"])
-
-    # Check a loop that has the wrong loop type
-    parallel = dep_tools.can_loop_be_parallelised(loop,
-                                                  only_nested_loops=False)
-    assert parallel is False
-    msg = dep_tools.get_all_messages()[0]
-    assert "wrong loop type 'lon'" in str(msg)
-    assert msg.code == DTCode.INFO_WRONG_LOOP_TYPE
-    assert msg.var_names == []
-
-
-# -----------------------------------------------------------------------------
 def test_arrays_parallelise(fortran_reader):
     '''Tests the array checks of can_loop_be_parallelised.
     '''

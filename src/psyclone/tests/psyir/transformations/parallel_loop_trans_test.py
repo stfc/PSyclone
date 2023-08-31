@@ -169,29 +169,6 @@ end subroutine my_sub'''
     trans.validate(loop)
 
 
-def test_paralooptrans_validate_ignore_key_error(fortran_reader, monkeypatch):
-    '''
-    Test that a KeyError in the dependence analysis is ignored.
-    (This is required because LFRic still has symbols that don't exist in the
-    symbol_table until the gen_code() step, so the dependency analysis raises
-    KeyErrors in some cases.
-
-    '''
-    psyir = fortran_reader.psyir_from_source(CODE)
-    loop = psyir.walk(Loop)[0]
-    trans = ParaTrans()
-
-    # Create a fake routine that just raises a KeyError.
-    def fake(_1, _2, only_nested_loops=False):
-        raise KeyError()
-
-    # Replace the `can_loop_be_parallelised` method of DependencyTools with
-    # our fake routine.
-    monkeypatch.setattr(DependencyTools, "can_loop_be_parallelised", fake)
-    # `validate` should still complete successfully.
-    trans.validate(loop)
-
-
 def test_paralooptrans_apply_calls_validate(fortran_reader, monkeypatch):
     '''
     Check that the apply() method calls the validate() method.

@@ -149,7 +149,8 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
         dep_tools = DependencyTools()
 
         try:
-            if not node.can_be_parallelised(only_nested_loops=False):
+            if not node.can_be_parallelised(only_nested_loops=False,
+                                            dep_tools=dep_tools):
             #if not dep_tools.can_loop_be_parallelised(node,
             #                                          only_nested_loops=False):
                 # The DependencyTools also returns False for things that are
@@ -164,12 +165,12 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
                         f"Dependency analysis failed with the following "
                         f"messages:\n{messages}")
 
-        except (KeyError, InternalError):
-            # LFRic still has symbols that don't exist in the symbol_table
-            # until the gen_code() step, so the dependency analysis raises
-            # KeyErrors in some cases.
-            # Also, the dependence analysis doesn't yet use PSyIR consistently
-            # and that causes failures - TOD0 #845.
+        except InternalError:
+        #    # LFRic still has symbols that don't exist in the symbol_table
+        #    # until the gen_code() step, so the dependency analysis raises
+        #    # KeyErrors in some cases.
+            # Also, the dependence analysis in GOcean doesn't yet use PSyIR
+            # consistently and that causes failures - TODO #845.
             pass
 
     def apply(self, node, options=None):

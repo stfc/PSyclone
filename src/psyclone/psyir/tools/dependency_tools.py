@@ -760,9 +760,10 @@ class DependencyTools():
         # parallelising inner loops which might not have enough work. This
         # is supposed to be a fast first check to avoid collecting variable
         # accesses in some unsuitable loops.
-        if not self._is_loop_suitable_for_parallel(loop, only_nested_loops):
-            # Appropriate messages will have been added already, so just exit
-            return False
+        # TODO, this should be in the Transformation itself.
+        #if not self._is_loop_suitable_for_parallel(loop, only_nested_loops):
+        #    # Appropriate messages will have been added already, so just exit
+        #    return False
 
         var_accesses = VariablesAccessInfo(loop)
         if not signatures_to_ignore:
