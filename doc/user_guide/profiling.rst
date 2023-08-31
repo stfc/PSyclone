@@ -150,7 +150,7 @@ the developer's guide (:ref:`dev_guide:psy_data`).
 
 Most libraries in ``lib/profiling`` need to be linked in
 with the corresponding 3rd party profiling tool, or use a compiler
-wrapper provided by the tool which will provided the required additional
+wrapper provided by the tool which will provide the required additional
 compiler parameters. The exceptions are the template and simple_timing
 libraries, which are stand alone. The profiling example in
 ``examples/gocean/eg5/profile`` can be used with any of the

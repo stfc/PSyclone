@@ -6,7 +6,7 @@ to the TAU API.
 
 ## Dependencies
 
-TAU must be installed at link time, though not when compiling the
+TAU must be available at link time but is not actually required when compiling the
 PSyData wrapper.
 
 This profiling library uses the [PSyData API](
@@ -40,21 +40,24 @@ The compilation process will create the wrapper library ``libtau_psy.a``.
 In order to use the wrapper with your application, at compile time you must
 provide the location of the wrapper as an ``include`` path (so that the
 module file is found). It is not required to use the ``tau_f90.sh``
-compiler wrapper when compiling the application.
+compiler wrapper when compiling the application, e.g.:
+
+```shell
+$(F90) -c  ... -I <PATH-TO-PSYCLONE>/lib/profiling/tau somefile.f90
+```
 
 At link time, you need to link with the wrapper library ``libtau_psy.a``.
 If you use the ``tau_f90.sh`` compiler wrapper, nothing else is required,
 otherwise you need to add the required libraries from TAU at link time.
 
 ```shell
-$(F90) -c  ... -I <PATH-TO-PSYCLONE>/lib/profiling/tau somefile.f90
 tau_f90.sh -o a.out ... -L <PATH-TO-PSYCLONE>/lib/profiling/tau -ltau_psy
 ```
 
 **Note:**
 
 - The ``<PATH-TO-PSYCLONE>`` differs depending on whether the wrapper
-  library is compiled in a clone of PSyclone repository or in a PSyclone
+  library is compiled in a clone of the PSyclone repository or in a PSyclone
   [installation](./../../README.md#installation).
 
 
@@ -65,7 +68,7 @@ tau_f90.sh -o a.out ... -L <PATH-TO-PSYCLONE>/lib/profiling/tau -ltau_psy
 
 BSD 3-Clause License
 
-Copyright (c) 2019-2023, Science and Technology Facilities Council.
+Copyright (c) 2023, Science and Technology Facilities Council.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
