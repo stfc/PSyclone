@@ -575,6 +575,9 @@
 	193) PR #2260 for #2245. Splits LFRicLoopBounds class from
 	dynamo0.3.py.
 
+	194) PR #2295 for #2294. Extends the PSyData extraction library
+	to support character variables.
+
 release 2.3.1 17th of June 2022
 
 	1) PR #1747 for #1720. Adds support for If blocks to PSyAD.
