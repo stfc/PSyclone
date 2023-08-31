@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2022, Science and Technology Facilities Council
+# Copyright (c) 2019-2023, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -379,32 +379,46 @@ class CWriter(LanguageWriter):
         def operator_format(operator_str, expr_str):
             '''
             :param str operator_str: String representing the operator.
-            :param str expr_str: String representation of the operand.
+            :param List[str] expr_str: String representation of the operands.
 
             :returns: C language operator expression.
             :rtype: str
+
+            :raise VisitorError: unexpected number of children.
             '''
-            return "(" + operator_str + expr_str + ")"
+            if len(expr_str) != 2:
+                raise VisitorError(
+                    f"The C Writer IntrinsicCall operator-style formatter "
+                    f"only supports intrinsics with 2 children, but found "
+                    f"'{operator_str}' with '{len(expr_str)}' children.")
+            return f"({expr_str[0]} {operator_str} {expr_str[1]})"
 
         def function_format(function_str, expr_str):
             '''
             :param str function_str: Name of the function.
-            :param str expr_str: String representation of the operand.
+            :param List[str] expr_str: String representation of the operands.
 
             :returns: C language unary function expression.
             :rtype: str
             '''
-            return function_str + "(" + expr_str + ")"
+            return function_str + "(" + ", ".join(expr_str) + ")"
 
         def cast_format(type_str, expr_str):
             '''
             :param str type_str: Name of the new type.
-            :param str expr_str: String representation of the operand.
+            :param List[str] expr_str: String representation of the operands.
 
             :returns: C language unary casting expression.
             :rtype: str
+
+            :raise VisitorError: unexpected number of children.
             '''
-            return "(" + type_str + ")" + expr_str
+            if len(expr_str) != 1:
+                raise VisitorError(
+                    f"The C Writer IntrinsicCall cast-style formatter "
+                    f"only supports intrinsics with 1 child, but found "
+                    f"'{type_str}' with '{len(expr_str)}' children.")
+            return "(" + type_str + ")" + expr_str[0]
 
         # Define a map with the intrinsic string and the formatter function
         # associated with each Intrinsic
@@ -433,7 +447,7 @@ class CWriter(LanguageWriter):
                 f"The C backend does not support the '{node.intrinsic.name}' "
                 f"intrinsic.") from err
 
-        return formatter(opstring, self._visit(node.children[0]))
+        return formatter(opstring, [self._visit(ch) for ch in node.children])
 
     def return_node(self, _):
         '''This method is called when a Return instance is found in
