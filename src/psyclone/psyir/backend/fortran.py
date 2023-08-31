@@ -294,36 +294,6 @@ def add_accessibility_to_unknown_declaration(symbol):
     return "::".join([first_part]+parts[1:])
 
 
-def _validate_named_args(node):
-    '''Utility function that check that all named args occur after all
-    positional args. The check is applicable to Call and Operation
-    nodes. This is a Fortran restriction, not a PSyIR restriction.
-
-    :param node: the node to check.
-    :type node: :py:class:`psyclone.psyir.nodes.Call` or subclass of \
-    :py:class:`psyclone.psyir.nodes.Operation`
-
-    raises TypeError: if the node is not a Call or Operation.
-    raises VisitorError: if the all of the positional arguments are \
-        not before all of the named arguments.
-
-    '''
-    if not isinstance(node, (Call, Operation)):
-        raise TypeError(
-            f"The _validate_named_args utility function expects either a "
-            f"Call or Operation node, but found '{type(node).__name__}'.")
-
-    found_named_arg = False
-    for name in node.argument_names:
-        if found_named_arg and not name:
-            raise VisitorError(
-                f"Fortran expects all named arguments to occur after all "
-                f"positional arguments but this is not the case for "
-                f"{str(node)}")
-        if name:
-            found_named_arg = True
-
-
 class FortranWriter(LanguageWriter):
     # pylint: disable=too-many-public-methods
     '''Implements a PSyIR-to-Fortran back end for PSyIR kernel code (not
@@ -1620,8 +1590,37 @@ class FortranWriter(LanguageWriter):
         return result
 
     def _gen_arguments(self, node):
-        _validate_named_args(node)  # Maybe inline
+        '''Utility function that check that all named args occur after all
+        positional args. This is a Fortran restriction, not a PSyIR
+        restriction. And if they are valid, it returns the whole list of
+        arguments.
 
+        :param node: the node to check.
+        :type node: :py:class:`psyclone.psyir.nodes.Call`
+        :returns: string representation of the complete list of arguments.
+        :rtype: str
+
+        raises TypeError: if the provided node is not a Call.
+        raises VisitorError: if the all of the positional arguments are \
+            not before all of the named arguments.
+
+        '''
+        if not isinstance(node, Call):
+            raise TypeError(
+                f"The _gen_arguments utility function expects a "
+                f"Call node, but found '{type(node).__name__}'.")
+
+        found_named_arg = False
+        for name in node.argument_names:
+            if found_named_arg and not name:
+                raise VisitorError(
+                    f"Fortran expects all named arguments to occur after all "
+                    f"positional arguments but this is not the case for "
+                    f"{str(node)}")
+            if name:
+                found_named_arg = True
+
+        # All arguments have been validated, proceed to generate them
         result_list = []
         for idx, child in enumerate(node.children):
             if node.argument_names[idx]:

@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
-
+# Modified: S. Siso, STFC Daresbury Lab
 
 ''' Performs pytest tests on the support for allocate statements in the
     fparser2 PSyIR front-end. '''

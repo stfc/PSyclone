@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2022, Science and Technology Facilities Council
+# Copyright (c) 2019-2023, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: R. W. Ford, STFC Daresbury Lab
-# Modified by: A. R. Porter and N. Nobre, STFC Daresbury Lab
+# Modified by: A. R. Porter, N. Nobre and S. Siso, STFC Daresbury Lab
 
 '''SIR PSyIR backend. Generates SIR code from PSyIR nodes. Currently
 limited to PSyIR Kernel schedules as PSy-layer PSyIR already has a

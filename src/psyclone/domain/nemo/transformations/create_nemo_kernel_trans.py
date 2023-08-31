@@ -156,7 +156,7 @@ class CreateNemoKernelTrans(Transformation):
             raise TransformationError(LazyString(
                 lambda: "A NEMO Kernel cannot contain array assignments but "
                 f"found: "
-                f"{[n.debug_string().rstrip(chr(10)) for n in assigns]}"))
+                f"{[ass.debug_string().rstrip(chr(10)) for ass in assigns]}"))
 
     def apply(self, sched, options=None):
         '''

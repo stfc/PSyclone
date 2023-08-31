@@ -133,10 +133,10 @@ def trans(psy):
         for kschedule in root.walk(KernelSchedule):
             if ENABLE_INTRINSIC_INLINING:
                 # Expand MATMUL intrinsic
-                for intrinsic in kschedule.walk(IntrinsicCall):
-                    if intrinsic.intrinsic == IntrinsicCall.Intrinsic.MATMUL:
+                for icall in kschedule.walk(IntrinsicCall):
+                    if icall.intrinsic == IntrinsicCall.Intrinsic.MATMUL:
                         try:
-                            matmul_trans.apply(intrinsic)
+                            matmul_trans.apply(icall)
                         except TransformationError:
                             pass
 

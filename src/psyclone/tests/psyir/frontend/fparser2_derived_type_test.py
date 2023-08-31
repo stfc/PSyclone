@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2022, Science and Technology Facilities Council.
+# Copyright (c) 2020-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: A. R. Porter and N. Nobre, STFC Daresbury Lab
+# Authors: A. R. Porter, N. Nobre and S. Siso, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' Performs py.test tests on the fparser2 PSyIR front-end support for
@@ -47,7 +47,7 @@ from psyclone.errors import InternalError
 from psyclone.psyir.nodes import KernelSchedule, CodeBlock, Assignment, \
     ArrayOfStructuresReference, StructureReference, Member, StructureMember, \
     ArrayOfStructuresMember, ArrayMember, Literal, Reference, Range, \
-    BinaryOperation, IntrinsicCall
+    IntrinsicCall
 from psyclone.psyir.symbols import SymbolError, DeferredType, StructureType, \
     DataTypeSymbol, ScalarType, RoutineSymbol, Symbol, ArrayType, \
     UnknownFortranType, DataSymbol, INTEGER_TYPE, ContainerSymbol, \

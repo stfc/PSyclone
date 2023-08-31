@@ -70,10 +70,10 @@ def trans(psy):
         root = psy.invokes.invoke_list[0].schedule.ancestor(Container)
         for kschedule in root.walk(KernelSchedule):
             # Expand MATMUL intrinsic
-            for intrinsic in kschedule.walk(IntrinsicCall):
-                if intrinsic.intrinsic == IntrinsicCall.Intrinsic.MATMUL:
+            for icall in kschedule.walk(IntrinsicCall):
+                if icall.intrinsic == IntrinsicCall.Intrinsic.MATMUL:
                     try:
-                        matmul_trans.apply(intrinsic)
+                        matmul_trans.apply(icall)
                     except TransformationError as err:
                         print(f"Inline MATMUL failed for '{kschedule.name}' "
                                "because:")

@@ -267,28 +267,21 @@ end subroutine
      ('x = min(a, b, c)', IntrinsicCall.Intrinsic.MIN),
      ('x = sign(a, b)', IntrinsicCall.Intrinsic.SIGN),
      ('x = sqrt(a)', IntrinsicCall.Intrinsic.SQRT),
-     # Check that we get a CodeBlock for an unsupported unary operation
      ('x = aimag(a)', IntrinsicCall.Intrinsic.AIMAG),
-     # Check that we get a CodeBlock for an unsupported binary operation
      ('x = dprod(a, b)', IntrinsicCall.Intrinsic.DPROD),
-     # Check that we get a CodeBlock for an unsupported N-ary operation
      ('x = reshape(a, b, c)', IntrinsicCall.Intrinsic.RESHAPE),
-     # Check when the argument list is not an Actual_Arg_Spec_List for
-     # a unary operator
      ('x = sin(-3.0)', IntrinsicCall.Intrinsic.SIN)])
 @pytest.mark.usefixtures("f2008_parser")
 def test_handling_intrinsics(code, expected_intrinsic, symbol_table):
     '''Test that the fparser2 _intrinsic_handler method deals with
     Intrinsic_Function_Reference nodes that are translated to PSyIR
-    IntrinsicCall nodes. Includes tests for unsupported intrinsics that
-    are returned as codeblocks.
+    IntrinsicCall nodes.
 
     '''
     processor = Fparser2Reader()
     fake_parent = Schedule(symbol_table=symbol_table)
     reader = FortranStringReader(code)
     fp2node = Execution_Part.match(reader)[0][0]
-    print(type(fp2node.children[2]))
     processor.process_nodes(fake_parent, [fp2node])
     assign = fake_parent.children[0]
     assert isinstance(assign, Assignment)
@@ -299,6 +292,23 @@ def test_handling_intrinsics(code, expected_intrinsic, symbol_table):
     assert len(assign.rhs.children) == len(assign.rhs.argument_names)
     for named_arg in assign.rhs.argument_names:
         assert named_arg is None
+
+
+def test_handling_unsupported_intrinsics(symbol_table):
+    '''Test that unsupported intrinsics are converted to codeblock.
+    (Note that all Fortran 2018 intrinsics are supported but there
+    are specific-type intrinsics and specific-compiler intrinsics
+    that may not be supported). This are returned as CodeBlocks.
+    '''
+    processor = Fparser2Reader()
+    fake_parent = Schedule(symbol_table=symbol_table)
+    code = "x = sin(a)"
+    reader = FortranStringReader(code)
+    fp2node = Execution_Part.match(reader)[0][0]
+    fp2node.children[2].items[0].string = "Unsupported"
+    processor.process_nodes(fake_parent, [fp2node])
+    assert not fake_parent.walk(IntrinsicCall)
+    assert isinstance(fake_parent.children[0].rhs, CodeBlock)
 
 
 @pytest.mark.parametrize(

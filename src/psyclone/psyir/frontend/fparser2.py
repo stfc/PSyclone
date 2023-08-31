@@ -120,7 +120,7 @@ def _canonicalise_minmaxsum(arg_nodes, arg_names, node):
     different forms that are allowed in Fortran.
 
     In general Fortran supports all arguments being named, all
-    arguments being positional and everything in between, as long as
+    arguments being positional and everything in-between, as long as
     all named arguments follow all positional arguments.
 
     For example, both SUM(A, DIM, MASK) and SUM(DIM=DIM, MASK=MASK,
@@ -3937,17 +3937,8 @@ class Fparser2Reader():
 
         :raises NotImplementedError: if the supplied operator is not \
                                      supported by this handler.
-        :raises InternalError: if the fparser parse tree does not have the \
-                               expected structure.
 
         '''
-
-        if len(node.items) != 2:
-            # It must have exactly one operator and one operand
-            raise InternalError(
-                f"Operation '{node}' has more than one operand and is "
-                f"therefore not unary!")
-        
         operator_str = str(node.items[0]).lower()
         try:
             operator = Fparser2Reader.unary_operators[operator_str]
@@ -4021,22 +4012,21 @@ class Fparser2Reader():
                 # Intrinsics with no optional arguments
                 call = IntrinsicCall(intrinsic, parent=parent)
                 return self._process_args(node, call)
-            elif intrinsic.name.lower() in ["minval", "maxval", "sum"]:
+            if intrinsic.name.lower() in ["minval", "maxval", "sum"]:
                 # Intrinsics with optional arguments require a
                 # canonicalise function
                 call = IntrinsicCall(intrinsic, parent=parent)
                 return self._process_args(
                     node, call, canonicalise=_canonicalise_minmaxsum)
-            else:
-                call = IntrinsicCall(intrinsic, parent=parent)
-                return self._process_args(node, call)
-                # TODO: this may still be a problem?
-                raise NotImplementedError(
-                    f"Should {node.items[0].string.upper()} be added to"
-                    f"_canonicalise_minmaxsum?")
-        except KeyError:
+            # TODO #1987: We do not canonicalise the order of the
+            # arguments of the remaining intrinsics, but this means
+            # PSyIR won't be able to guarantee what each child is.
+            call = IntrinsicCall(intrinsic, parent=parent)
+            return self._process_args(node, call)
+        except KeyError as err:
             raise NotImplementedError(
-                f"Intrinsic '{node.items[0].string}' is not supported")
+                f"Intrinsic '{node.items[0].string}' is not supported"
+            ) from err
 
     def _name_handler(self, node, parent):
         '''

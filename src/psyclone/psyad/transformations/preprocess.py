@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 # Modified: J. Henrichs, Bureau of Meteorology
+# Modified: S. Siso, STFC Daresbury Lab
 
 '''Module containing a PSyAD kernel transformation script that applies
 any required transformations to the tangent linear PSyIR before it is

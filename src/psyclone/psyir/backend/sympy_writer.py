@@ -495,43 +495,36 @@ class SymPyWriter(FortranWriter):
         return node.value
 
     def intrinsiccall_node(self, node):
+        ''' This method is called when an IntrinsicCall instance is found in
+        the PSyIR tree. The Sympy backend will use the exact sympy name for
+        some math intrinsics (listed in _intrinsic_to_str) and will remove
+        named arguments.
+        '''
         # Sympy does not support argument names, remove them for now
         if any(node.argument_names):
-            # FIXME: Do this inside Call?
-            # TODO: This is not totally right without canonical intrinsic
-            # positions?
-            for idx in range(len(node.argument_names)):
-                node._argument_names[idx] = (node._argument_names[idx][0], None)
+            # TODO #1987: This is not totally right without canonical intrinsic
+            # positions for arguments. One alternative it to refuse it with:
             # raise VisitorError(
             #     f"Named arguments are not supported by SymPy but found: "
             #     f"'{node.debug_string()}'.")
+            # but this leaves sympy comparisons almost always giving false when
+            # out of order arguments are rare, so instead we ignore it for now.
+
+            # It makes a copy (of the parent because if matters to the call
+            # visitor) because we don't want to delete the original arg names
+            parent = node.parent.copy()
+            node = parent.children[node.position]
+            for idx in range(len(node.argument_names)):
+                node._argument_names[idx] = (node._argument_names[idx][0],
+                                             None)
         try:
             name = self._intrinsic_to_str[node.intrinsic]
             args = self._gen_arguments(node)
             if not node.parent or isinstance(node.parent, Schedule):
                 return f"{self._nindent}call {name}({args})\n"
-            else:
-                return f"{self._nindent}{name}({args})"
+            return f"{self._nindent}{name}({args})"
         except KeyError:
             return super().call_node(node)
-
-    # -------------------------------------------------------------------------
-    def is_intrinsic(self, operator):
-        '''Determine whether the supplied operator is an intrinsic
-        function (i.e. needs to be used as `f(a,b)`) or not (i.e. used
-        as `a + b`). This tests for known SymPy names of these functions
-        (e.g. Max), and otherwise calls the function in the base class.
-
-        :param str operator: the supplied operator.
-
-        :returns: true if the supplied operator is an
-            intrinsic and false otherwise.
-
-        '''
-        if operator in self._intrinsic:
-            return True
-
-        return super().is_intrinsic(operator)
 
     # -------------------------------------------------------------------------
     def reference_node(self, node):

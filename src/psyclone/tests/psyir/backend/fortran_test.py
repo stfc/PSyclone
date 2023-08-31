@@ -43,7 +43,7 @@ import pytest
 from fparser.common.readfortran import FortranStringReader
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.backend.fortran import gen_intent, gen_datatype, \
-    FortranWriter, precedence, _validate_named_args
+    FortranWriter, precedence
 from psyclone.psyir.nodes import (
     Assignment, Node, CodeBlock, Container, Literal, UnaryOperation,
     BinaryOperation, Reference, Call, KernelSchedule,
@@ -530,28 +530,30 @@ def test_precedence_error():
         _ = precedence('invalid')
 
 
-def test_validate_named_args():
-    '''Check that the _validate_named_args utility function works as
-    expected
+def test_gen_arguments_validateion():
+    '''Check that the _gen_arguments validation function works as
+    expected.
 
     '''
+    fw = FortranWriter()
+    
     # type error
     with pytest.raises(TypeError) as info:
-        _validate_named_args(None)
-    assert ("The _validate_named_args utility function expects either a "
-            "Call or Operation node, but found 'NoneType'." in str(info.value))
+        fw._gen_arguments(None)
+    assert ("The _gen_arguments utility function expects a "
+            "Call node, but found 'NoneType'." in str(info.value))
     # visitor error
     call = Call.create(RoutineSymbol("hello"), [
         ("name", Literal("1.0", REAL_TYPE)), Literal("2.0", REAL_TYPE)])
     with pytest.raises(VisitorError) as info:
-        _validate_named_args(call)
+        fw._gen_arguments(call)
     assert ("Fortran expects all named arguments to occur after all "
             "positional arguments but this is not the case for "
             "Call[name='hello']" in str(info.value))
     # ok
     call = Call.create(RoutineSymbol("hello"), [
         Literal("1.0", REAL_TYPE), ("name", Literal("2.0", REAL_TYPE))])
-    _validate_named_args(call)
+    fw._gen_arguments(call)
 
 
 def test_fw_gen_use(fortran_writer):
@@ -1506,7 +1508,7 @@ def test_fw_unaryoperator_unknown(fortran_reader, fortran_writer, monkeypatch):
         "end subroutine tmp\n"
         "end module test")
     schedule = fortran_reader.psyir_from_source(code)
-    # Remove sin() from the dict of unary operators
+    # Remove MINUS from the dict of unary operators
     monkeypatch.delitem(fortran_writer._operator_2_str,
                         UnaryOperation.Operator.MINUS)
     # Generate Fortran from the PSyIR schedule

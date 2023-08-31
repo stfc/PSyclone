@@ -870,9 +870,9 @@ class GOOpenCLTrans(Transformation):
                 symbol = symtab.lookup_with_tag(arg.name + "_cl_mem")
                 source = StructureReference.create(field, ['device_ptr'])
                 dest = Reference(symbol)
-                bop = IntrinsicCall.create(IntrinsicCall.Intrinsic.TRANSFER,
-                                           [source, dest])
-                assig = Assignment.create(dest.copy(), bop)
+                icall = IntrinsicCall.create(IntrinsicCall.Intrinsic.TRANSFER,
+                                             [source, dest])
+                assig = Assignment.create(dest.copy(), icall)
                 call_block.addchild(assig)
                 arguments.append(Reference(symbol))
             elif arg.argument_type == "grid_property":
@@ -892,10 +892,10 @@ class GOOpenCLTrans(Transformation):
                                 field, ['grid', device_grid_property])
                     symbol = symtab.lookup_with_tag(arg.name + "_cl_mem")
                     dest = Reference(symbol)
-                    bop = IntrinsicCall.create(
+                    icall = IntrinsicCall.create(
                         IntrinsicCall.Intrinsic.TRANSFER,
                         [source, dest])
-                    assig = Assignment.create(dest.copy(), bop)
+                    assig = Assignment.create(dest.copy(), icall)
                     call_block.addchild(assig)
                     arguments.append(Reference(symbol))
 
