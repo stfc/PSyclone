@@ -1291,7 +1291,7 @@ def test_createarginfo_literal_precision():
     has a specified precison.
 
     '''
-    real_kind = DataSymbol("RKIND", INTEGER_TYPE, constant_value=8)
+    real_kind = DataSymbol("RKIND", INTEGER_TYPE, is_constant=True, initial_value=8)
     scalar_type = ScalarType(ScalarType.Intrinsic.REAL, real_kind)
     psyir_arg = Literal("1.0", scalar_type)
     arg_info = create_arg_info(psyir_arg)
@@ -1308,7 +1308,7 @@ def test_createarginfo_unknownfortrantype():
 
     '''
     code = "integer :: extent=1"
-    real_kind = DataSymbol("RKIND", INTEGER_TYPE, constant_value=8)
+    real_kind = DataSymbol("RKIND", INTEGER_TYPE, is_constant=True, initial_value=8)
     scalar_type = ScalarType(ScalarType.Intrinsic.REAL, real_kind)
     psyir_arg = Reference(DataSymbol("extent", UnknownFortranType("integer(kind=i_def)::extent=1")))
     arg_info = create_arg_info(psyir_arg)

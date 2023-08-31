@@ -290,7 +290,7 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
             # layer.
             builtins_module_name = "_psyclone_builtins"
             add_builtins_use(fp2_tree, builtins_module_name)
-            psyir = Fparser2Reader().generate_psyir(fp2_tree)
+            alg_psyir = Fparser2Reader().generate_psyir(fp2_tree)
             # Check that there is only one module/program per file.
             check_psyir(alg_psyir, filename)
         else:
@@ -302,7 +302,7 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
         else:  # api == "dynamo0.3"
             alg_trans = LFRicAlgTrans()
         try:
-            alg_trans.apply(psyir)
+            alg_trans.apply(alg_psyir)
         except TransformationError as info:
             raise GenerationError(
                 f"In algorithm file '{filename}':\n{info.value}") from info
@@ -396,7 +396,7 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
             # Remove any use statements that were temporarily added to
             # avoid the PSyIR complaining about undeclared builtin
             # names.
-            for node in psyir.walk((Routine, Container)):
+            for node in alg_psyir.walk((Routine, Container)):
                 symbol_table = node.symbol_table
                 if builtins_module_name in symbol_table:
                     symbol = symbol_table.lookup(builtins_module_name)
@@ -566,11 +566,33 @@ def create_arg_info(arg, orig_arg=None):
                     print(arg.symbol.datatype.datatype)
                     exit(1)
             elif isinstance(arg.symbol.datatype, UnknownFortranType):
-                # we have no information for this
-                print("decl ", arg.symbol.datatype.declaration)
-                print("text", arg.symbol.datatype.type_text)
-                unknown_fortran_type = True
-                datatype = None
+                partial_datatype_info = arg.symbol.datatype.partial_datatype
+                print("UNKNOWN FORTRAN TYPE")
+                print(arg.symbol.datatype.declaration)
+                print(partial_datatype_info)
+                if partial_datatype_info:
+                    # Some partial datatype information has been determined.
+                    if isinstance(partial_datatype_info, DataTypeSymbol):
+                        datatype = (partial_datatype_info.name, None)
+                    elif isinstance(partial_datatype_info, ArrayType):
+                        # array
+                        if isinstance(partial_datatype_info.datatype, DataTypeSymbol):
+                            # derived type
+                            if partial_datatype_info.datatype.name in ["operator_type", "field_type"]:
+                                datatype = (partial_datatype_info.datatype.name, None)
+                            else:
+                                print(f"unsupported derived type {arg.symbol.datatype.datatype.name}")
+                                exit(1)
+                    else:
+                        print(type(partial_datatype_info))
+                        print("Not sure what we should be expecting here?")
+                        exit(1)
+                else:
+                    # We have no datatype information for this
+                    print("decl ", arg.symbol.datatype.declaration)
+                    print("text", arg.symbol.datatype.type_text)
+                    unknown_fortran_type = True
+                    datatype = None
             else:
                 print(dir(arg.symbol.datatype))
                 print(type(arg.symbol.datatype))
