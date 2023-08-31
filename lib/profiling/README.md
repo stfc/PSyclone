@@ -169,7 +169,7 @@ it should already exist. For example:
 This wrapper library uses the [TAU profiling library](https://www.cs.uoregon.edu/research/tau).
 Detailed linking instructions are in [``tau/README.md``](./tau/README.md).
 
-The output is written several files called ``profile.x.y.z``, one for each process and thread.
+The output is written to several files called ``profile.x.y.z``, one for each process and thread.
 Simple textual output can be seen by using ``pprof``:
 
 ```
