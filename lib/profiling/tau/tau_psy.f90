@@ -123,6 +123,7 @@ contains
   subroutine profile_PSyDataStart()
 
     implicit none
+    call TAU_ENABLE_INSTRUMENTATION()
   end subroutine profile_PSyDataStart
 
   ! ---------------------------------------------------------------------------
@@ -130,6 +131,7 @@ contains
   subroutine profile_PSyDataStop()
 
     implicit none
+    call TAU_DISABLE_INSTRUMENTATION()
 
   end subroutine profile_PSyDataStop
 
