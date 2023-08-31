@@ -26,7 +26,9 @@ region.
 The library is compiled with ``make`` using the provided ``Makefile``. The
 environment variables ``$F90`` and ``$F90FLAGS`` can be set to point to the
 [Fortran compiler](./../../README.md#compilation) and flags to use. They
-default to ``gfortran`` and the empty string.
+default to ``gfortran`` and the empty string. Do not set ``$F90`` to
+``tau_f90.sh``, since then the PSydata wrapper would be instrumented as well
+and you end up with additional entries in your profiling results.
 
 The compiler used here should be the same that was used to compile TAU. You
 can use ``tau_f90.sh -optVerbose`` to see which compiler will be invoked
