@@ -1596,7 +1596,18 @@ class SymbolTable():
         header += ":"
         header += "\n" + "-" * len(header) + "\n"
 
-        return header + "\n".join(map(str, self._symbols.values())) + "\n"
+        # Unique types of symbols, alpha-sorted.
+        symbol_types = list({type(symbol) for symbol in self._symbols.values()})
+        symbol_types.sort(key = lambda t : t.__name__)
+        for symbol_type in symbol_types:
+            header += symbol_type.__name__ + ":\n"
+            # _symbols is an OrderDict so these are alpha-sorted.
+            for symbol in self._symbols.values():
+                # pylint: disable=unidiomatic-typecheck
+                if type(symbol) is symbol_type:
+                    header += f"  {str(symbol)}\n"
+
+        return header
 
     @property
     def scope(self):

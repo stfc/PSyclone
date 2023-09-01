@@ -1082,15 +1082,25 @@ def test_has_wildcard_imports():
 
 def test_view():
     '''Test the view method of the SymbolTable class, it should return a
-    representation of the full SymbolTable.'''
+    representation of the full SymbolTable, grouped by symbol type and
+    sorted alphabetically.'''
     sym_table = SymbolTable()
     sym_table.add(DataSymbol("var1", REAL_TYPE))
     sym_table.add(DataSymbol("var2", INTEGER_TYPE))
     output = sym_table.view()
     assert "Symbol Table:\n" in output
+    assert "DataSymbol:\n" in output
     assert "var1" in output
     assert "var2" in output
 
+    sym_table.add(RoutineSymbol("func", REAL_TYPE))
+    output = sym_table.view()
+    assert "Symbol Table:\n" in output
+    assert "DataSymbol:\n" in output
+    assert "var1" in output
+    assert "var2" in output
+    assert "RoutineSymbol:\n" in output
+    assert "func" in output
 
 def test_can_be_printed():
     '''Test that a SymbolTable instance can always be printed. (i.e. is
