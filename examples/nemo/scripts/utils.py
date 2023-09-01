@@ -56,12 +56,6 @@ PROFILING_IGNORE = ["_init", "_rst", "alloc", "agrif", "flo_dom",
                     "interp1", "interp2", "interp3", "integ_spline", "sbc_dcy",
                     "sum", "sign_", "ddpdd"]
 
-# From: https://docs.nvidia.com/hpc-sdk/compilers/hpc-compilers-user-guide/
-# index.html#acc-fort-intrin-sum
-NVIDIA_GPU_SUPPORTED_INTRINSICS = [
-    IntrinsicCall.Intrinsic.SUM,
-]
-
 VERBOSE = False
 
 
@@ -164,6 +158,10 @@ def normalise_loops(
     if convert_array_notation:
         # Make sure all array dimensions are explicit
         for reference in schedule.walk(Reference, stop_type=Reference):
+            part_of_the_call = reference.ancestor(Call)
+            if part_of_the_call:
+                if not part_of_the_call.is_elemental:
+                    continue
             if isinstance(reference.symbol, DataSymbol):
                 try:
                     Reference2ArrayRangeTrans().apply(reference)
@@ -265,9 +263,9 @@ def insert_explicit_loop_parallelism(
                     print(f"Loop not parallelised because it has a call to "
                           f"{call.routine.name}")
                     return True
-                if call.intrinsic not in NVIDIA_GPU_SUPPORTED_INTRINSICS:
+                if not call.is_available_on_device():
                     print(f"Loop not parallelised because it has a "
-                          f"{call.intrinsic.name}")
+                          f"{call.intrinsic.name} not available on GPUs.")
                     return True
             if loop.walk(CodeBlock):
                 print(f"Loop not parallelised because it has a CodeBlock")

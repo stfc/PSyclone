@@ -107,9 +107,11 @@ def trans(psy):
 
         # For performance in lib_fortran, mark serial routines as GPU-enabled
         if psy.name == "psy_lib_fortran_psy":
-            if not invoke.schedule.walk((Loop, Call)):
-                OMPDeclareTargetTrans().apply(invoke.schedule)
-                continue
+            if not invoke.schedule.walk(Loop):
+                calls = invoke.schedule.walk(Call)
+                if all([call.is_available_on_device() for call in calls]):
+                    OMPDeclareTargetTrans().apply(invoke.schedule)
+                    continue
 
         insert_explicit_loop_parallelism(
                 invoke.schedule,

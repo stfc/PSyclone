@@ -770,8 +770,9 @@ class IntrinsicCall(Call):
     # This is not part of the intrinsic enum, because its ValueError could
     # change for different devices, and in the future we may want to pass
     # a device/arch/compiler parameter or look at the configuration file.
-    # Currently it is implemented as: https://docs.nvidia.com/hpc-sdk/
+    # Currently it is inspired from: https://docs.nvidia.com/hpc-sdk/
     # compilers/hpc-compilers-user-guide/#acc-fort-intrin-sum
+    # But that list is incomplete (e.g. SUM is supported and not listed)
     def is_available_on_device(self):
         '''
         :returns: whether this intrinsic is available on an accelerated device.
@@ -793,7 +794,8 @@ class IntrinsicCall(Call):
             IntrinsicCall.Intrinsic.NOT, IntrinsicCall.Intrinsic.REAL,
             IntrinsicCall.Intrinsic.SIGN, IntrinsicCall.Intrinsic.SIN,
             IntrinsicCall.Intrinsic.SINH, IntrinsicCall.Intrinsic.SQRT,
-            IntrinsicCall.Intrinsic.TAN, IntrinsicCall.Intrinsic.TANH)
+            IntrinsicCall.Intrinsic.TAN, IntrinsicCall.Intrinsic.TANH,
+            IntrinsicCall.Intrinsic.SUM)
 
     @classmethod
     def create(cls, routine, arguments):

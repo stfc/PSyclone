@@ -42,7 +42,6 @@ This module contains the HoistLocalArraysTrans transformation.
 import copy
 
 from psyclone.psyGen import Transformation
-from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (Routine, Container, ArrayReference, Range,
                                   FileContainer, IfBlock, UnaryOperation,
                                   CodeBlock, ACCRoutineDirective, Literal,
@@ -153,9 +152,6 @@ then
         # associated with the symbol being hoisted.
         tags_dict = node.symbol_table.get_reverse_tags_dict()
 
-        # Fortran reader needed to create Codeblocks in the following loop
-        freader = FortranReader()
-
         for sym in automatic_arrays:
             # Keep a copy of the original shape of the array.
             orig_shape = sym.datatype.shape[:]
@@ -183,11 +179,11 @@ then
                         for dim in orig_shape]
             aref = ArrayReference.create(sym, dim_list)
 
-            # TODO #1366: we have to use a CodeBlock in order to query whether
-            # or not the array has been allocated already.
-            code = f"allocated({sym.name})"
-            allocated_expr = freader.psyir_from_expression(
-                                code, node.symbol_table)
+            # And a conditional expression to avoid repeating the allocation
+            # if its already done
+            allocated_expr = IntrinsicCall.create(
+                    IntrinsicCall.Intrinsic.ALLOCATED,
+                    [Reference(sym)])
             cond_expr = UnaryOperation.create(
                             UnaryOperation.Operator.NOT, allocated_expr)
 
