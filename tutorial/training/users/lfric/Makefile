@@ -54,12 +54,10 @@ F90FLAGS += $(LFRIC_INCLUDE_FLAGS)
 
 # Various targets
 # ---------------
-.PHONY: transform compile run clean allclean omp dm error1 error2
+.PHONY: transform compile run clean allclean omp error1 error2 mpi test
 
-transform: main_alg_psy.f90
-
-dm:
-	psyclone -dm -l output -opsy main_dm_psy.f90 -oalg main_dm_alg.f90 main_alg.x90
+transform:
+	psyclone -nodm -l output -opsy main_alg_psy.f90 -oalg main_alg.f90 main_alg.x90
 
 omp:
 	psyclone -s ./omp.py -nodm -l output -opsy main_omp_psy.f90 -oalg main_omp_alg.f90 main_alg.x90
@@ -70,7 +68,13 @@ error1:
 error2:
 	psyclone -s ./omp.py -nodm -l output -opsy main_err1_psy.f90 -oalg main_err2_alg.f90 main_err2_alg.x90
 
-compile: transform $(EXEC)
+mpi:
+	psyclone -dm -l output -opsy main_mpi_psy.f90 -oalg main_mpi_alg.f90 main_err2_alg.x90
+
+main_alg_psy.f90: main_alg.x90
+	psyclone -nodm -l output -opsy main_alg_psy.f90 -oalg main_alg.f90 main_alg.x90
+
+compile: main_alg_psy.f90 $(EXEC)
 
 run: compile
 	./example
@@ -83,6 +87,9 @@ clean:
 
 allclean: clean
 	make -C $(LFRIC_PATH) allclean
+
+# For PSyclone's CI:
+test: transform omp mpi
 
 # External libraries - LFRic infrastructure
 # -----------------------------------------
@@ -103,6 +110,3 @@ testkern_w3_kernel_mod.o: $(LFRIC_LIB)
 
 # Keep the generated psy and alg files
 .precious: main_alg_psy.f90 main_alg.f90
-
-%_psy.f90:	%.x90
-	psyclone -nodm -l output -opsy $*_psy.f90 -oalg $*.f90 $<
