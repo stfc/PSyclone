@@ -124,7 +124,7 @@ class SymPyReader():
         return reader.psyir_from_expression(str(sympy_expr), symbol_table)
 
     # -------------------------------------------------------------------------
-    # pylint: disable=no-self-argument
+    # pylint: disable=no-self-argument, too-many-branches
     def print_fortran_array(function, printer):
         '''A custom print function to convert a modified Fortran array access
         back to standard Fortran. This function is set as ``_sympystr_`` method
@@ -188,4 +188,29 @@ class SymPyReader():
                     # a(i,j,k) --> a(i:j:k)
                     new_args.append(f"{args[i]}:{args[i+1]}:"
                                     f"{args[i+2]}")
-        return f"{name}({','.join(new_args)})"
+
+        if function._sig is None:
+            # It's not a user defined type, just create the array access:
+            return f"{name}({','.join(new_args)})"
+
+        # It is a user defined type. Re-assemble the original call by
+        # putting the corresponding indices to the individual members,
+        # based on the information of the stored signature and number
+        # of array indices for each member:
+
+        result = []
+        # This points at the next index to use from new_args, which
+        # contains the indices converted back into Fortran:
+        index_cursor = 0
+        for i, member in enumerate(function._sig):
+            # Get the number of indices this member had:
+            num_dims = function._num_dims[i]
+            indx = []
+            for i in range(num_dims):
+                indx.append(new_args[index_cursor])
+                index_cursor += 1
+            if indx:
+                result.append(f"{member}({','.join(indx)})")
+            else:
+                result.append(member)
+        return "%".join(result)
