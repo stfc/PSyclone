@@ -864,6 +864,9 @@ class IntrinsicCall(Call):
                             f"'{routine.name}' must be of type "
                             f"'{routine.optional_args[name].__name__}' but got"
                             f" '{type(arg[1]).__name__}'")
+                else:
+                    # If it not in the optional_args list it must be positional
+                    pos_arg_count += 1
             else:
                 if last_named_arg:
                     raise ValueError(

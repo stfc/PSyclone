@@ -323,6 +323,29 @@ def test_intrinsiccall_create_errors():
             "of type 'Reference' but got 'DataSymbol'" in str(err.value))
 
 
+def test_create_positional_arguments_with_names():
+    ''' Test the create method when given named positional arguments.'''
+    sym = DataSymbol("my_array",
+                     ArrayType(INTEGER_TYPE, [ArrayType.Extent.DEFERRED]))
+    aref = ArrayReference.create(sym, [Literal("20", INTEGER_TYPE)])
+    bref = ArrayReference.create(sym, [Literal("20", INTEGER_TYPE)])
+
+    # All of these are valid
+    IntrinsicCall.create(IntrinsicCall.Intrinsic.DOT_PRODUCT,
+                         [aref.copy(), bref.copy()])
+
+    IntrinsicCall.create(IntrinsicCall.Intrinsic.DOT_PRODUCT,
+                         [aref.copy(), ("vector_b", bref.copy())])
+
+    IntrinsicCall.create(IntrinsicCall.Intrinsic.DOT_PRODUCT,
+                         [("vector_a", aref.copy()),
+                          ("vector_b", bref.copy())])
+
+    IntrinsicCall.create(IntrinsicCall.Intrinsic.DOT_PRODUCT,
+                         [("vector_b", bref.copy()),
+                          ("vector_a", aref.copy())])
+
+
 @pytest.mark.parametrize("operator", ["lbound", "ubound", "size"])
 def test_reference_accesses_bounds(operator, fortran_reader):
     '''Test that the reference_accesses method behaves as expected when
