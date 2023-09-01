@@ -734,21 +734,22 @@ class DependencyTools():
                                  signatures_to_ignore=None):
         # pylint: disable=too-many-branches,too-many-locals
         '''This function analyses a loop in the PsyIR to see if
-        it can be safely parallelised over the specified variable.
+        it can be safely parallelised.
 
         :param loop: the loop node to be analysed.
         :type loop: :py:class:`psyclone.psyir.nodes.Loop`
-        :param bool only_nested_loops: if True, a loop must have an inner\
-                                       loop in order to be considered\
+        :param bool only_nested_loops: if True, a loop must have an inner
+                                       loop in order to be considered
                                        parallelisable (default: True).
-        :param bool test_all_variables: if True, it will test if all variable\
-                                        accesses can be parallelised,\
-                                        otherwise it will stop after the first\
-                                        variable is found that can not be\
+        :param bool test_all_variables: if True, it will test if all variable
+                                        accesses can be parallelised,
+                                        otherwise it will stop after the first
+                                        variable is found that can not be
                                         parallelised.
-        :param signatures_to_ignore: list of signatures for which to skip \
+        :param signatures_to_ignore: list of signatures for which to skip
                                      the access checks.
-        :type signatures_to_ignore: list of :py:class:`psyclone.core.Signature`
+        :type signatures_to_ignore: Optional[
+            List[:py:class:`psyclone.core.Signature`]]
 
         :returns: True if the loop can be parallelised.
         :rtype: bool
@@ -762,15 +763,6 @@ class DependencyTools():
             raise TypeError(f"can_loop_be_parallelised: node must be an "
                             f"instance of class Loop but got "
                             f"'{type(loop).__name__}'")
-
-        # Check if the loop type should be parallelised, e.g. to avoid
-        # parallelising inner loops which might not have enough work. This
-        # is supposed to be a fast first check to avoid collecting variable
-        # accesses in some unsuitable loops.
-        # TODO, this should be in the Transformation itself.
-        #if not self._is_loop_suitable_for_parallel(loop, only_nested_loops):
-        #    # Appropriate messages will have been added already, so just exit
-        #    return False
 
         var_accesses = VariablesAccessInfo(loop)
         if not signatures_to_ignore:
