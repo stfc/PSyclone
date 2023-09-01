@@ -7514,6 +7514,54 @@ class DynLoop(PSyLoop):
                                    f"set_clean({halo_depth})")
                     parent.add(call)
 
+    def independent_iterations(self,
+                               test_all_variables=False,
+                               signatures_to_ignore=None,
+                               dep_tools=None):
+        '''
+        This function is an LFRic-specific override of the default method
+        in the Loop class. It allows domain-specific rules to be applied when
+        determining whether or not loop iterations are independent.
+
+        :param bool test_all_variables: if True, it will test if all variable
+            accesses are independent, otherwise it will stop after the first
+            variable access is found that isn't.
+        :param signatures_to_ignore: list of signatures for which to skip
+            the access checks.
+        :type signatures_to_ignore: Optional[
+            List[:py:class:`psyclone.core.Signature`]]
+        :param dep_tools: an optional instance of DependencyTools so that the
+            caller can access any diagnostic messages detailing why the loop
+            iterations are not independent.
+        :type dep_tools: Optional[
+            :py:class:`psyclone.psyir.tools.DependencyTools]
+
+        :returns: True if the loop iterations are independent, False otherwise.
+        :rtype: bool
+
+        '''
+        if not dep_tools:
+            from psyclone.psyir.tools import DependencyTools
+            dtools = DependencyTools()
+        else:
+            dtools = dep_tools
+
+        try:
+            stat = dtools.can_loop_be_parallelised(
+                self, test_all_variables=test_all_variables,
+                signatures_to_ignore=signatures_to_ignore)
+        except InternalError:
+            # LFRic still has symbols that don't exist in the symbol_table
+            # until the gen_code() step, so the dependency analysis raises
+            # errors in some cases.
+            return True
+        if stat:
+            return True
+        # The generic DA says that this loop cannot be parallelised.
+        # TODO #2197 this will need refining using information from the kernel
+        # metadata.
+        return False
+
 
 class DynKern(CodedKern):
     ''' Stores information about Dynamo Kernels as specified by the

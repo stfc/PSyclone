@@ -379,70 +379,35 @@ class Loop(Statement):
             child.reference_accesses(var_accesses)
             var_accesses.next_location()
 
-    # -------------------------------------------------------------------------
-    def _is_loop_suitable_for_parallel(self, only_nested_loops=True):
-        '''Simple first test to see if a loop should even be considered to
-        be parallelised. The default implementation tests whether the loop
-        has a certain type (e.g. 'latitude'), and optional tests for
-        nested loops (to avoid parallelising single loops which will likely
-        result in a slowdown due to thread synchronisation costs). This
-        function is used by can_loop_be_parallelised() and can of course be
-        overwritten by the user to implement different suitability criteria.
+    def independent_iterations(self,
+                               test_all_variables=False,
+                               signatures_to_ignore=None,
+                               dep_tools=None):
+        '''This function analyses a loop in the PSyIR to see whether
+        its iterations are independent.
 
-        :param loop: the loop to test.
-        :type loop: :py:class:`psyclone.psyir.nodes.Loop`
-        :param bool only_nested_loops: true (default) if only nested loops\
-                                        should be considered.
+        :param bool test_all_variables: if True, it will test if all variable
+            accesses are independent, otherwise it will stop after the first
+            variable access is found that isn't.
+        :param signatures_to_ignore: list of signatures for which to skip
+            the access checks.
+        :type signatures_to_ignore: Optional[
+            List[:py:class:`psyclone.core.Signature`]]
+        :param dep_tools: an optional instance of DependencyTools so that the
+            caller can access any diagnostic messages detailing why the loop
+            iterations are not independent.
+        :type dep_tools: Optional[
+            :py:class:`psyclone.psyir.tools.DependencyTools]
 
-        :returns: true if the loop fulfills the requirements.
-        :rtype: bool
-        '''
-        if only_nested_loops:
-            all_loops = self.walk(Loop)
-            if len(all_loops) == 1:
-                self._add_message("Not a nested loop.",
-                                  DTCode.INFO_NOT_NESTED_LOOP)
-                return False
-
-        if self._loop_types_to_parallelise:
-            if self.loop_type not in self._loop_types_to_parallelise:
-                self._add_message(f"Loop has wrong loop type '"
-                                  f"{self.loop_type}'.",
-                                  DTCode.INFO_WRONG_LOOP_TYPE)
-                return False
-        return True
-
-    def can_be_parallelised(self,
-                            only_nested_loops=True,
-                            test_all_variables=False,
-                            signatures_to_ignore=None,
-                            dep_tools=None):
-        # pylint: disable=too-many-branches,too-many-locals
-        '''This function analyses a loop in the PsyIR to see if
-        it can be safely parallelised over the specified variable.
-
-        :param bool only_nested_loops: if True, a loop must have an inner\
-                                       loop in order to be considered\
-                                       parallelisable (default: True).
-        :param bool test_all_variables: if True, it will test if all variable\
-                                        accesses can be parallelised,\
-                                        otherwise it will stop after the first\
-                                        variable is found that can not be\
-                                        parallelised.
-        :param signatures_to_ignore: list of signatures for which to skip \
-                                     the access checks.
-        :type signatures_to_ignore: list of :py:class:`psyclone.core.Signature`
-
-        :returns: True if the loop can be parallelised.
+        :returns: True if the loop iterations are independent, False otherwise.
         :rtype: bool
 
         '''
-        from psyclone.psyir.tools import DependencyTools
         if not dep_tools:
+            from psyclone.psyir.tools import DependencyTools
             dtools = DependencyTools()
         else:
             dtools = dep_tools
-        # TODO pass back any messages
         return dtools.can_loop_be_parallelised(
             self, test_all_variables=test_all_variables,
             signatures_to_ignore=signatures_to_ignore)
