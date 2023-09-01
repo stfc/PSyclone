@@ -166,7 +166,7 @@ def test_find_or_create_unresolved_symbol_2():
     assert new_symbol.name == "undefined"
     assert isinstance(new_symbol.interface, UnresolvedInterface)
     # pylint: disable=unidiomatic-typecheck
-    assert type(new_symbol) == Symbol
+    assert type(new_symbol) is Symbol
     assert "undefined" not in container.symbol_table
     assert kernel1.symbol_table.lookup("undefined") is new_symbol
 
@@ -205,19 +205,19 @@ def test_find_or_create_change_symbol_type():
     # Search for the 'tmp' symbol
     sym = _find_or_create_unresolved_symbol(assign, "tmp")
     assert sym is tmp_sym
-    assert type(sym) == Symbol
+    assert type(sym) is Symbol
     # Repeat but this time specify that we're expecting a DataSymbol
     sym = _find_or_create_unresolved_symbol(assign, "tmp",
                                             symbol_type=DataSymbol,
                                             datatype=REAL_TYPE)
     assert sym is tmp_sym
-    assert type(sym) == DataSymbol
+    assert type(sym) is DataSymbol
     assert sym.datatype == REAL_TYPE
     # Search for 'my_sub' and specify that it should be a RoutineSymbol
     sym2 = _find_or_create_unresolved_symbol(assign, "my_sub",
                                              symbol_type=RoutineSymbol)
     assert sym2 is sub_sym
-    assert type(sym2) == RoutineSymbol
+    assert type(sym2) is RoutineSymbol
     assert isinstance(sym2.datatype, NoType)
 
 

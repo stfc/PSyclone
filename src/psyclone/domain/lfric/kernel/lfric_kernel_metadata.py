@@ -477,7 +477,7 @@ class LFRicKernelMetadata(CommonMetadata):
         # All arguments except the CMA argument must be read-only.
         # pylint: disable=unidiomatic-typecheck
         for meta_arg in self.meta_args:
-            if type(meta_arg) != ColumnwiseOperatorArgMetadata:
+            if type(meta_arg) is not ColumnwiseOperatorArgMetadata:
                 if meta_arg.access != "gh_read":
                     raise ParseError(self._validation_error_str(
                         f"A CMA assembly kernel should have all arguments as "
@@ -590,7 +590,7 @@ class LFRicKernelMetadata(CommonMetadata):
         # Exactly one of the CMA arguments must be written to.
         # pylint: disable=unidiomatic-typecheck
         cma_writers = [meta_arg for meta_arg in self.meta_args if
-                       type(meta_arg) == ColumnwiseOperatorArgMetadata
+                       type(meta_arg) is ColumnwiseOperatorArgMetadata
                        and meta_arg.access in lfric_constants.WRITE_ACCESSES]
         # pylint: enable=unidiomatic-typecheck
         if len(cma_writers) != 1:
