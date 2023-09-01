@@ -32,7 +32,8 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
-# Modified by A. R. Porter and S. Siso, STFC Daresbury Lab
+# Modified by A. R. Porter and S. Siso, STFC Daresbury Lab,
+# Modified by J. Remy, Université Grenoble Alpes, Inria
 # -----------------------------------------------------------------------------
 
 '''Performs pytest tests on the psyclone.psyir.backend.fortran module'''
@@ -1127,6 +1128,8 @@ def test_fw_mixed_operator_precedence(fortran_reader, fortran_writer, tmpdir):
         "    a = b**(-b + c)\n"
         "    a = (-b)**c\n"
         "    a = -(-b)\n"
+        "    a = b * (-c) + d\n"
+        "    a = b + (-c) * d\n"
         "end subroutine tmp\n"
         "end module test")
     schedule = fortran_reader.psyir_from_source(code)
@@ -1143,8 +1146,10 @@ def test_fw_mixed_operator_precedence(fortran_reader, fortran_writer, tmpdir):
         "    a = LOG(b * c)\n"
         "    a = b ** (-c)\n"
         "    a = b ** (-b + c)\n"
-        "    a = -b ** c\n"
-        "    a = -(-b)\n")
+        "    a = (-b) ** c\n"
+        "    a = -(-b)\n"
+        "    a = b * (-c) + d\n"
+        "    a = b + (-c) * d\n")
     assert expected in result
     assert Compile(tmpdir).string_compiles(result)
 
