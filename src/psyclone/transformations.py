@@ -648,22 +648,6 @@ class DynamoOMPParallelLoopTrans(OMPParallelLoopTrans):
     def __str__(self):
         return "Add an OpenMP Parallel Do directive to a Dynamo loop"
 
-    def validate(self, node, options=None):
-        '''
-        Overrides the default validate() method to allow for KeyErrors which
-        result from the need to move the LFRic PSy layer fully into the PSyIR.
-        (In particular, Symbols associated with the bounds of colour loops
-        are not created until code-generation time.)
-
-        '''
-        try:
-            super().validate(node, options=options)
-        except KeyError:
-            # Some symbols in the LFRic API are not created until code-
-            # generation time. This is particularly true of the bounds for
-            # coloured loops introduced by transformations.
-            pass
-
     def apply(self, node, options=None):
 
         '''Perform Dynamo specific loop validity checks then call the
