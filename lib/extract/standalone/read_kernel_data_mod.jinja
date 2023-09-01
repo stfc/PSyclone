@@ -28,6 +28,8 @@
 {% if ALL_TYPES is not defined -%}
    {% set ALL_TYPES = [ ("Double", "real(kind=real64)",   64),
                         ("Real",   "real(kind=real32)",   32),
+                        ("Char",   "character(*)",         8),
+                        ("Logical","integer(kind=real32)",32),
                         ("Int",    "integer(kind=int32)", 32) ] %}
 {% endif -%}
 
@@ -215,14 +217,22 @@ contains
             stop
         endif
 
-        ! Initialise it with 0, so that an array comparison will work
-        ! even though e.g. boundary areas or so might not be set at all.
-        ! The compiler will convert the double precision value to the right
-        ! type (e.g. int or single precision).
         {% if name == "Logical" %}
+        ! Initialise it with false, so that an array comparison will work
+        ! even though e.g. boundary areas or so might not be set at all.
         value = .false.
         {% else %}
+        {% if name == "Char" %}
+        ! Initialise it with "", so that an array comparison will work
+        ! even though e.g. boundary areas or so might not be set at all.
+        value = ""
+        {% else %}
+        ! Initialise it with 0.0d0, so that an array comparison will work
+        ! even though e.g. boundary areas or so might not be set at all. Note
+        ! that the compiler will convert the double precision value to the right
+        ! type (e.g. int or single precision).
         value = 0.0d0
+        {% endif %}
         {% endif %}
         read(this%unit_number) value
 
