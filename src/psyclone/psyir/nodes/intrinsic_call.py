@@ -795,7 +795,9 @@ class IntrinsicCall(Call):
             IntrinsicCall.Intrinsic.SIGN, IntrinsicCall.Intrinsic.SIN,
             IntrinsicCall.Intrinsic.SINH, IntrinsicCall.Intrinsic.SQRT,
             IntrinsicCall.Intrinsic.TAN, IntrinsicCall.Intrinsic.TANH,
-            IntrinsicCall.Intrinsic.SUM)
+            # The one below are not documented on nvidia compiler
+            IntrinsicCall.Intrinsic.SUM, IntrinsicCall.Intrinsic.LBOUND,
+            IntrinsicCall.Intrinsic.UBOUND)
 
     @classmethod
     def create(cls, routine, arguments):
