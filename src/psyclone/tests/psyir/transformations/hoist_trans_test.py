@@ -161,11 +161,10 @@ def test_validate_error_read_and_write(fortran_reader, assignment_str):
             end subroutine test''')
     assignment = psyir.children[0][0].loop_body[0]
     hoist_trans = HoistTrans()
-    # TODO: Maybe fixed after bringing to master?
-    # with pytest.raises(TransformationError) as info:
-    #     hoist_trans.validate(assignment)
-    # assert ("The statement can't be hoisted as it contains a variable ('a') "
-    #         "that is both read and written." in str(info.value))
+    with pytest.raises(TransformationError) as info:
+        hoist_trans.validate(assignment)
+    assert ("The statement can't be hoisted as it contains a variable ('a') "
+            "that is both read and written." in str(info.value))
 
 
 @pytest.mark.parametrize("assignment_str", ["a = 1",

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2022, Science and Technology Facilities Council.
+# Copyright (c) 2020-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford and N. Nobre, STFC Daresbury Lab
+# Author R. W. Ford, N. Nobre and S. Siso, STFC Daresbury Lab
 # Modified by J. Henrichs, Bureau of Meteorology
 
 '''Module providing a transformation from a PSyIR Array Range to a
@@ -40,8 +40,6 @@ allow further transformations e.g. loop fusion or if the back-end does
 not support array ranges.
 
 '''
-
-from __future__ import absolute_import
 
 from psyclone.core import SymbolicMaths
 from psyclone.psyGen import Transformation

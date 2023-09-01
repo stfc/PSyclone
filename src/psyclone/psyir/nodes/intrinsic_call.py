@@ -53,11 +53,10 @@ from psyclone.psyir.symbols import IntrinsicSymbol
 IAttr = namedtuple(
     'IAttr', 'name is_pure is_elemental is_inquiry required_args optional_args'
 )
-
 # Alternatively we could use an Enum to decrive the intrinsic types
 # IntrinsicType = Enum('IntrinsicType',
 #    'Atomic Collective Elemental Inquiry Pure Impure Transformational'
-#)
+# )
 # And let the IntrinsicCall is_pure, is_elemental, ... do the conversion
 
 # Named tuple for describing the properties of the required arguments to
@@ -355,6 +354,9 @@ class IntrinsicCall(Call):
             'FINDLOC', True, False, False,
             ArgDesc(2, 3, DataNode),
             {"mask": DataNode, "kind": DataNode, "back": DataNode})
+        FLOAT = IAttr(
+            'FLOAT', True, True, False,
+            ArgDesc(1, 1, DataNode), {})
         FLOOR = IAttr(
             'FLOOR', True, True, False,
             ArgDesc(1, 1, DataNode), {"kind": DataNode})
@@ -390,6 +392,27 @@ class IntrinsicCall(Call):
             ArgDesc(2, 2, (DataNode)), {})
         IACAHR = IAttr(
             'IACHAR', True, True, False,
+            ArgDesc(1, 1, (DataNode)), {"kind": DataNode})
+        IALL = IAttr(
+            'IALL', True, False, False,
+            ArgDesc(1, 1, (DataNode)), {"dim": DataNode, "kind": DataNode})
+        IAND = IAttr(
+            'IAND', True, True, False,
+            ArgDesc(2, 2, (DataNode)), {})
+        IANY = IAttr(
+            'IANY', True, False, False,
+            ArgDesc(1, 1, (DataNode)), {"dim": DataNode, "kind": DataNode})
+        IBCLR = IAttr(
+            'IBCLR', True, True, False,
+            ArgDesc(2, 2, (DataNode)), {})
+        IBITS = IAttr(
+            'IBITS', True, True, False,
+            ArgDesc(3, 3, (DataNode)), {})
+        ISET = IAttr(
+            'ISET', True, True, False,
+            ArgDesc(2, 2, (DataNode)), {})
+        ICHAR = IAttr(
+            'ICHAR', True, False, False,
             ArgDesc(1, 1, (DataNode)), {"kind": DataNode})
         IEOR = IAttr(
             'IEOR', True, True, False,
@@ -745,16 +768,33 @@ class IntrinsicCall(Call):
         '''
         return self._intrinsic
 
-    # This is not part of the intrinsic enum, because its value  could change
+    # This is not part of the intrinsic enum, because its ValueError could change
     # for different devices, and in the future we may want to pass a device/
-    # arch/compiler parameter or look at the configuration.
+    # arch/compiler parameter or look at the configuration file.
+    # Currently it is implemented as: https://docs.nvidia.com/hpc-sdk/compilers/
+    # hpc-compilers-user-guide/#acc-fort-intrin-sum
     def is_available_on_device(self):
         '''
         :returns: whether this intrinsic is available on an accelerated device.
         :rtype: :py:class:`psyclone.psyir.nodes.IntrinsicCall.Intrinsic`
 
         '''
-        return False
+        return self.intrinsic in (
+            IntrinsicCall.Intrinsic.ABS,  IntrinsicCall.Intrinsic.ACOS,
+            IntrinsicCall.Intrinsic.AINT, IntrinsicCall.Intrinsic.ANINT,
+            IntrinsicCall.Intrinsic.ASIN, IntrinsicCall.Intrinsic.ATAN,
+            IntrinsicCall.Intrinsic.ATAN2, IntrinsicCall.Intrinsic.COS,
+            IntrinsicCall.Intrinsic.COSH, IntrinsicCall.Intrinsic.DBLE,
+            IntrinsicCall.Intrinsic.DPROD, IntrinsicCall.Intrinsic.EXP,
+            IntrinsicCall.Intrinsic.IAND, IntrinsicCall.Intrinsic.IEOR,
+            IntrinsicCall.Intrinsic.INT, IntrinsicCall.Intrinsic.IOR,
+            IntrinsicCall.Intrinsic.LOG, IntrinsicCall.Intrinsic.LOG10,
+            IntrinsicCall.Intrinsic.MAX, IntrinsicCall.Intrinsic.MIN,
+            IntrinsicCall.Intrinsic.MOD, IntrinsicCall.Intrinsic.NINT,
+            IntrinsicCall.Intrinsic.NOT, IntrinsicCall.Intrinsic.REAL,
+            IntrinsicCall.Intrinsic.SIGN, IntrinsicCall.Intrinsic.SIN,
+            IntrinsicCall.Intrinsic.SINH, IntrinsicCall.Intrinsic.SQRT,
+            IntrinsicCall.Intrinsic.TAN, IntrinsicCall.Intrinsic.TANH)
     
     @classmethod
     def create(cls, routine, arguments):
@@ -792,11 +832,6 @@ class IntrinsicCall(Call):
                 f"IntrinsicCall.create() 'arguments' argument should be a "
                 f"list but found '{type(arguments).__name__}'")
 
-        # if routine.optional_args:
-        #     optional_arg_names = sorted(list(routine.optional_args.keys()))
-        # else:
-        #     optional_arg_names = []
-
         # Validate the supplied arguments.
         last_named_arg = None
         pos_arg_count = 0
@@ -809,6 +844,10 @@ class IntrinsicCall(Call):
                         f"a {type(arg[0]).__name__} instead of a str.")
                 name = arg[0].lower()
                 last_named_arg = name
+                # TODO #1987: For now we disable the positional arguments checks
+                # because this does not consider that positional arguments can be
+                # also found by name, and we don't have sufficient information to
+                # validate them.
                 # if not optional_arg_names:
                 #     raise ValueError(
                 #         f"The '{routine.name}' intrinsic does not support "
@@ -825,11 +864,6 @@ class IntrinsicCall(Call):
                             f"'{routine.name}' must be of type "
                             f"'{routine.optional_args[name].__name__}' but got"
                             f" '{type(arg[1]).__name__}'")
-                else:
-                    # This may be a positional argument given by name
-                    pos_arg_count += 1
-                    # ... or an invalid named argument, but we can not
-                    # distiguish them unless we list their name.
             else:
                 if last_named_arg:
                     raise ValueError(
@@ -890,7 +924,8 @@ class IntrinsicCall(Call):
             for child in self._children:
                 child.reference_accesses(var_accesses)
 
-    # Maybe the two properties above can be removed if intrinsic is a symbol
+    # TODO #2102: Maybe the two properties below can be removed if intrinsic
+    # is a symbol, as they would act as the super() implementation.
     @property
     def is_elemental(self):
         '''

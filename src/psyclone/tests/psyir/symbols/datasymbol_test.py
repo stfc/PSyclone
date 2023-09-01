@@ -265,8 +265,8 @@ def test_datasymbol_initial_value_setter_invalid():
     with pytest.raises(ValueError) as error:
         _ = DataSymbol('a', INTEGER_SINGLE_TYPE, initial_value=ct_expr)
     assert ("Error setting initial value for symbol 'a'. PSyIR static "
-            "expressions can only contain PSyIR Literal, Operation, Reference "
-            "or CodeBlock nodes but found:" in str(error.value))
+            "expressions can only contain PSyIR Literal, Operation, Reference,"
+            " IntrinsicCall or CodeBlock nodes but found:" in str(error.value))
 
     with pytest.raises(ValueError) as error:
         DataSymbol('a', INTEGER_SINGLE_TYPE, interface=ArgumentInterface(),

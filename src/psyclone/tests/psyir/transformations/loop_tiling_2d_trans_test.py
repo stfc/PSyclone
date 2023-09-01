@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -36,7 +36,6 @@
 
 '''This module contains the unit tests for the LoopTiling2DTrans module'''
 
-from __future__ import absolute_import, print_function
 import pytest
 
 from psyclone.psyir.nodes import Loop

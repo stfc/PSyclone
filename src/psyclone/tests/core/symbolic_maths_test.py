@@ -352,9 +352,6 @@ def test_symbolic_math_functions_with_constants(fortran_reader, expressions):
     psyir = fortran_reader.psyir_from_source(source)
     schedule = psyir.children[0]
     sym_maths = SymbolicMaths.get()
-    print(expressions)
-    print(sym_maths)
-    print(schedule[0].view())
     assert sym_maths.equal(schedule[0].rhs, schedule[1].rhs) is True
 
 

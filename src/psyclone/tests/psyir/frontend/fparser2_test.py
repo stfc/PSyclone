@@ -1119,26 +1119,27 @@ def test_process_unsupported_declarations(fortran_reader):
     assert isinstance(psyir.children[0].symbol_table.lookup("l").datatype,
                       UnknownFortranType)
 
-    # Unsupported initialisation of a parameter which comes after a valid
-    # initialisation and is then followed by another, valid initialisation
-    # which references the second one.
-    # reader = FortranStringReader(
-    #     "INTEGER, PARAMETER :: happy=1, fbsp=<NEEDS A CODEBLOCK>, "
-    #     " sad=fbsp")
-    # fparser2spec = Specification_Part(reader).content[0]
-    # processor.process_declarations(fake_parent, [fparser2spec], [])
-    # fbsym = fake_parent.symbol_table.lookup("fbsp")
-    # assert fbsym.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
-    # assert isinstance(fbsym.initial_value, CodeBlock)
-    # # The first parameter should have been handled correctly
-    # hsym = fake_parent.symbol_table.lookup("happy")
-    # assert hsym.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
-    # assert hsym.initial_value.value == "1"
-    # # As should the third
-    # ssym = fake_parent.symbol_table.lookup("sad")
-    # assert ssym.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
-    # assert isinstance(ssym.initial_value, Reference)
-    # assert ssym.initial_value.symbol.name == "fbsp"
+    # Test that CodeBlocks and refernces to variables initialised with a
+    # CodeBlock are handled correctly
+    reader = FortranStringReader(
+        "INTEGER, PARAMETER :: happy=1, fbsp=sin(1), "
+        " sad=fbsp")
+    fparser2spec = Specification_Part(reader).content[0]
+    # We change SIN for something that creates a CodeBlock
+    fparser2spec.items[2].items[1].items[3].items[1].items[0].string = "CBLOCK"
+    processor.process_declarations(fake_parent, [fparser2spec], [])
+    fbsym = fake_parent.symbol_table.lookup("fbsp")
+    assert fbsym.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
+    assert isinstance(fbsym.initial_value, CodeBlock)
+    # The first parameter should have been handled correctly
+    hsym = fake_parent.symbol_table.lookup("happy")
+    assert hsym.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
+    assert hsym.initial_value.value == "1"
+    # As should the third
+    ssym = fake_parent.symbol_table.lookup("sad")
+    assert ssym.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
+    assert isinstance(ssym.initial_value, Reference)
+    assert ssym.initial_value.symbol.name == "fbsp"
 
 
 @pytest.mark.usefixtures("f2008_parser")

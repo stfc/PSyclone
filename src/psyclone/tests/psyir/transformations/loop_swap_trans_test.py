@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -37,10 +37,7 @@
 
 ''' Module containing tests of loop swap transformation.'''
 
-from __future__ import absolute_import
-
 import re
-
 import pytest
 
 from psyclone.domain.gocean.transformations import GOceanLoopFuseTrans
@@ -202,12 +199,17 @@ def test_loop_swap_validate_loop_type():
 
 def test_loop_swap_validate_nodes_in_loop(fortran_reader):
     '''
-    Tests that loops containing codeblocks are not swapped.
+    Tests that loops containing impure calls or codeblocks are not swapped.
     '''
     # A dummy program to easily create the PSyIR for the
     # test cases we need.
     source = '''program test_prog
                  integer :: i, j
+                 do j=1, 10
+                    do i=1, 10
+                       call sub()
+                    enddo
+                 enddo
                  do j=1, 10
                     do i=1, 10
                        write(*,*) i,j
@@ -219,10 +221,17 @@ def test_loop_swap_validate_nodes_in_loop(fortran_reader):
     schedule = psyir.children[0]
     swap = LoopSwapTrans()
 
-    # Make sure the write statement is stored as a code block
-    assert isinstance(schedule[0].loop_body[0].loop_body[0], CodeBlock)
+    # Check with a subroutine which is not guaranteed to be pure
     with pytest.raises(TransformationError) as err:
         swap.apply(schedule[0])
+    assert ("Nodes of type 'Call' cannot be enclosed by a LoopSwapTrans "
+            "unless they can be guaranteed to be pure, but found:"
+            in str(err.value))
+
+    # Make sure the write statement is stored as a code block
+    assert isinstance(schedule[1].loop_body[0].loop_body[0], CodeBlock)
+    with pytest.raises(TransformationError) as err:
+        swap.apply(schedule[1])
     assert ("Nodes of type 'CodeBlock' cannot be enclosed by a LoopSwapTrans "
             "transformation" in str(err.value))
 

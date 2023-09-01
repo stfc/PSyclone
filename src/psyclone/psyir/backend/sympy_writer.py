@@ -520,8 +520,6 @@ class SymPyWriter(FortranWriter):
         try:
             name = self._intrinsic_to_str[node.intrinsic]
             args = self._gen_arguments(node)
-            if not node.parent or isinstance(node.parent, Schedule):
-                return f"{self._nindent}call {name}({args})\n"
             return f"{self._nindent}{name}({args})"
         except KeyError:
             return super().call_node(node)

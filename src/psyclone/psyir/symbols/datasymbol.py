@@ -238,8 +238,9 @@ class DataSymbol(TypedSymbol):
                         raise ValueError(
                             f"Error setting initial value for symbol "
                             f"'{self.name}'. PSyIR static expressions can only"
-                            f" contain PSyIR Literal, Operation, Reference or "
-                            f"CodeBlock nodes but found: {node}")
+                            f" contain PSyIR Literal, Operation, Reference,"
+                            f" IntrinsicCall or CodeBlock nodes but found: "
+                            f"{node}")
                 self._initial_value = new_value
             else:
                 from psyclone.psyir.symbols.datatypes import TYPE_MAP_TO_PYTHON

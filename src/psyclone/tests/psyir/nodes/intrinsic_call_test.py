@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
-# Modified: R. W. Ford, STFC Daresbury Lab
+# Modified: R. W. Ford and S. Siso, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 '''This module contains pytest tests for the IntrinsicCall node.'''
@@ -92,6 +92,19 @@ def test_intrinsiccall_is_pure():
     assert intrinsic.is_pure is True
     intrinsic = IntrinsicCall(IntrinsicCall.Intrinsic.ALLOCATE)
     assert intrinsic.is_pure is False
+
+
+@pytest.mark.parametrize("intrinsic, result", [
+                (IntrinsicCall.Intrinsic.ABS, True),
+                (IntrinsicCall.Intrinsic.MIN, True),
+                (IntrinsicCall.Intrinsic.MAX, True),
+                (IntrinsicCall.Intrinsic.MAXVAL, False),
+                (IntrinsicCall.Intrinsic.ALLOCATE, False),
+                (IntrinsicCall.Intrinsic.MATMUL, False)])
+def test_intrinsiccall_is_available_on_device(intrinsic, result):
+    '''Tests that the is_available_on_device() method works as expected.'''
+    intrinsic_call = IntrinsicCall(intrinsic)
+    assert intrinsic_call.is_available_on_device() is result
 
 
 def test_intrinsiccall_alloc_create():
@@ -276,7 +289,12 @@ def test_intrinsiccall_create_errors():
                              [Reference(sym), ("stat", aref), aref])
     assert ("Found a positional argument *after* a named argument ('stat'). "
             "This is invalid." in str(err.value))
-    # 'random' does not have any optional arguments
+
+    # TODO #1987: We can not enable the validation of positional parameters
+    # unless we store their name, otherwise when we parse a positional argument
+    # by name, which is valid fortran, it will fail.
+    # (e.g. RANDOM_NUMBER(harvest=4)
+    
     # with pytest.raises(ValueError) as err:
     #     IntrinsicCall.create(IntrinsicCall.Intrinsic.RANDOM_NUMBER,
     #                          [aref, ("willow", sym)])
@@ -289,6 +307,7 @@ def test_intrinsiccall_create_errors():
     # assert ("The 'ALLOCATE' intrinsic supports the optional arguments "
     #         "['errmsg', 'mold', 'source', 'stat'] but got 'yacht'"
     #         in str(err.value))
+
     # Wrong type for the name of an optional argument.
     with pytest.raises(TypeError) as err:
         IntrinsicCall.create(IntrinsicCall.Intrinsic.ALLOCATE,

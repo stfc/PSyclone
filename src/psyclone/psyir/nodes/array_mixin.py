@@ -343,7 +343,6 @@ class ArrayMixin(metaclass=abc.ABCMeta):
         # Do the bounds match?
         sym_maths = SymbolicMaths.get()
         return sym_maths.equal(declaration_bound, access_bound)
-        #return declaration_bound == access_bound
 
     def is_same_array(self, node):
         '''
