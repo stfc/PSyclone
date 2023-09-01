@@ -148,6 +148,7 @@ jobs:
       run: |
         ( make -C tutorial/practicals transform > /dev/null )
         ( make -C tutorial/notebooks notebook )
+        ( make -C tutorial/training test)
     - name: Test with pytest
       if: ${{ !(matrix.python-version == 3.8) }}
       run: |

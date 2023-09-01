@@ -116,6 +116,7 @@ jobs:
         make -C tutorial/practicals allclean
         module load gcc/${GFORTRAN_VERSION} openmpi netcdf_fortran
         make -C tutorial/practicals compile
+        make -C tutorial/training/users compile
     - name: Examples with compilation - nvfortran
       run: |
         module load python/${PYTHON_VERSION}
