@@ -241,7 +241,7 @@ class DataSymbol(TypedSymbol):
                             f" contain PSyIR Literal, Operation, Reference,"
                             f" IntrinsicCall or CodeBlock nodes but found: "
                             f"{node}")
-                self._initial_value = new_value
+                new_initial_value = new_value
             else:
                 from psyclone.psyir.symbols.datatypes import TYPE_MAP_TO_PYTHON
                 # No need to check that self.datatype has an intrinsic
@@ -258,14 +258,23 @@ class DataSymbol(TypedSymbol):
                     # In this case we know new_value is a Python boolean as it
                     # has passed the isinstance(new_value, lookup) check.
                     if new_value:
-                        self._initial_value = Literal('true', self.datatype)
+                        new_initial_value = Literal('true', self.datatype)
                     else:
-                        self._initial_value = Literal('false', self.datatype)
+                        new_initial_value = Literal('false', self.datatype)
                 else:
                     # Otherwise we convert the Python intrinsic to a PSyIR
                     # Literal using its string representation.
-                    self._initial_value = Literal(str(new_value),
-                                                  self.datatype)
+                    new_initial_value = Literal(str(new_value), self.datatype)
+
+            # Add it to a properly formed Assignment parent, this implicitly
+            # guarantees that the node is not attached anywhere else (and is
+            # unexpectedly modified) and also makes it similar to any other RHS
+            # expression, enabling some functionality without special cases
+            from psyclone.psyir.nodes import Assignment
+            parent = Assignment()
+            parent.addchild(Reference(self))
+            parent.addchild(new_initial_value)
+            self._initial_value = new_initial_value
         else:
             if self.is_constant and not self.is_import:
                 raise ValueError(
@@ -291,10 +300,14 @@ class DataSymbol(TypedSymbol):
         :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol`
 
         '''
+        if self.initial_value is not None:
+            new_init_value = self.initial_value.copy()
+        else:
+            new_init_value = None
         return DataSymbol(self.name, self.datatype, visibility=self.visibility,
                           interface=self.interface,
                           is_constant=self.is_constant,
-                          initial_value=self.initial_value)
+                          initial_value=new_init_value)
 
     def copy_properties(self, symbol_in):
         '''Replace all properties in this object with the properties from

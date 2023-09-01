@@ -741,7 +741,6 @@ class IntrinsicCall(Call):
         def __hash__(self):
             return hash(self.name)
 
-
     def __init__(self, routine, **kwargs):
         if not isinstance(routine, Enum) or routine not in self.Intrinsic:
             raise TypeError(
@@ -768,11 +767,11 @@ class IntrinsicCall(Call):
         '''
         return self._intrinsic
 
-    # This is not part of the intrinsic enum, because its ValueError could change
-    # for different devices, and in the future we may want to pass a device/
-    # arch/compiler parameter or look at the configuration file.
-    # Currently it is implemented as: https://docs.nvidia.com/hpc-sdk/compilers/
-    # hpc-compilers-user-guide/#acc-fort-intrin-sum
+    # This is not part of the intrinsic enum, because its ValueError could
+    # change for different devices, and in the future we may want to pass
+    # a device/arch/compiler parameter or look at the configuration file.
+    # Currently it is implemented as: https://docs.nvidia.com/hpc-sdk/
+    # compilers/hpc-compilers-user-guide/#acc-fort-intrin-sum
     def is_available_on_device(self):
         '''
         :returns: whether this intrinsic is available on an accelerated device.
@@ -795,7 +794,7 @@ class IntrinsicCall(Call):
             IntrinsicCall.Intrinsic.SIGN, IntrinsicCall.Intrinsic.SIN,
             IntrinsicCall.Intrinsic.SINH, IntrinsicCall.Intrinsic.SQRT,
             IntrinsicCall.Intrinsic.TAN, IntrinsicCall.Intrinsic.TANH)
-    
+
     @classmethod
     def create(cls, routine, arguments):
         '''Create an instance of this class given the type of routine and a
@@ -844,10 +843,10 @@ class IntrinsicCall(Call):
                         f"a {type(arg[0]).__name__} instead of a str.")
                 name = arg[0].lower()
                 last_named_arg = name
-                # TODO #1987: For now we disable the positional arguments checks
-                # because this does not consider that positional arguments can be
-                # also found by name, and we don't have sufficient information to
-                # validate them.
+                # TODO #1987: For now we disable the positional arguments
+                # checks because this does not consider that positional
+                # arguments can be also found by name, and we don't have
+                # sufficient information to validate them.
                 # if not optional_arg_names:
                 #     raise ValueError(
                 #         f"The '{routine.name}' intrinsic does not support "
@@ -949,6 +948,7 @@ class IntrinsicCall(Call):
         :rtype: NoneType | bool
         '''
         return self.intrinsic.is_pure
+
 
 # TODO #658 this can be removed once we have support for determining the
 # type of a PSyIR expression.

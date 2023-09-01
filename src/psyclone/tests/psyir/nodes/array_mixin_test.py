@@ -259,8 +259,8 @@ def test_is_bound_extent(fortran_reader):
 @pytest.mark.parametrize("bounds,access,lower,upper", [
     ("10", "1", True, False), ("10", "10", False, True),
     ("10", "5", False, False), ("n", "1", True, False),
-    ("n", "n", False, True), ("n", "n-4", False, False)])
-   # ("10", "5+5", False, True)])
+    ("n", "n", False, True), ("n", "n-4", False, False),
+    ("10", "5+5", False, True)])
 def test_is_bound_access(fortran_reader, bounds, access, lower, upper):
     '''Test the _is_bound method returns True when the array access
     matches the array declaration and False if not. Note, the method

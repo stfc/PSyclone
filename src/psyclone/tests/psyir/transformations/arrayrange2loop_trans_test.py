@@ -380,7 +380,8 @@ def test_same_range():
                            "  do idx = LBOUND(y, dim=2), UBOUND(y, dim=2), 1\n"
                            "    y(n,idx) = x(idx)\n"),
                           (create_array_y_2d_slice, create_array_z,
-                           "  do idx = LBOUND(y2, dim=2), UBOUND(y2, dim=2), 1\n"
+                           "  do idx = LBOUND(y2, dim=2), UBOUND(y2, dim=2),"
+                           " 1\n"
                            "    y2(:,idx) = z(:,n,idx)\n"),
                           (create_array_y_slice_subset, create_expr,
                            "  do idx = 2, n, 2\n"

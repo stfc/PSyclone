@@ -287,8 +287,7 @@ def test_cw_unaryoperator():
     # Test all supported Operators
     test_list = ((UnaryOperation.Operator.PLUS, '(+a)'),
                  (UnaryOperation.Operator.MINUS, '(-a)'),
-                 (UnaryOperation.Operator.NOT, '(!a)'),
-    )
+                 (UnaryOperation.Operator.NOT, '(!a)'))
 
     for operator, expected in test_list:
         unary_operation._operator = operator
@@ -339,8 +338,7 @@ def test_cw_binaryoperator():
                  (BinaryOperation.Operator.LT, '(a < b)'),
                  (BinaryOperation.Operator.LE, '(a <= b)'),
                  (BinaryOperation.Operator.OR, '(a || b)'),
-                 (BinaryOperation.Operator.AND, '(a && b)'),
-    )
+                 (BinaryOperation.Operator.AND, '(a && b)'))
 
     for operator, expected in test_list:
         binary_operation._operator = operator
@@ -374,8 +372,7 @@ def test_cw_intrinsiccall(fortran_reader):
                  (IntrinsicCall.Intrinsic.ASIN, 'asin(a)'),
                  (IntrinsicCall.Intrinsic.ATAN, 'atan(a)'),
                  (IntrinsicCall.Intrinsic.ABS, 'abs(a)'),
-                 (IntrinsicCall.Intrinsic.REAL, '(float)a'),
-    )
+                 (IntrinsicCall.Intrinsic.REAL, '(float)a'))
     ref1 = Reference(DataSymbol("a", REAL_TYPE))
     icall = IntrinsicCall.create(IntrinsicCall.Intrinsic.SQRT, [ref1])
     for intrinsic, expected in test_list:
@@ -387,8 +384,8 @@ def test_cw_intrinsiccall(fortran_reader):
     with pytest.raises(VisitorError) as err:
         icall._intrinsic = IntrinsicCall.Intrinsic.MOD
         _ = cwriter(icall)
-    assert ("The C Writer IntrinsicCall operator-style formatter only supports "
-            "intrinsics with 2 children, but found '%' with '1' children."
+    assert ("The C Writer IntrinsicCall operator-style formatter only supports"
+            " intrinsics with 2 children, but found '%' with '1' children."
             in str(err.value))
 
     # Test all supported Intrinsics with 2 arguments
@@ -410,6 +407,7 @@ def test_cw_intrinsiccall(fortran_reader):
     assert ("The C Writer IntrinsicCall cast-style formatter only supports "
             "intrinsics with 1 child, but found 'float' with '2' children."
             in str(err.value))
+
 
 def test_cw_loop(fortran_reader):
     '''Tests writing out a Loop node in C. It parses Fortran code

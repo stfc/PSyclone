@@ -294,7 +294,7 @@ def test_intrinsiccall_create_errors():
     # unless we store their name, otherwise when we parse a positional argument
     # by name, which is valid fortran, it will fail.
     # (e.g. RANDOM_NUMBER(harvest=4)
-    
+
     # with pytest.raises(ValueError) as err:
     #     IntrinsicCall.create(IntrinsicCall.Intrinsic.RANDOM_NUMBER,
     #                          [aref, ("willow", sym)])

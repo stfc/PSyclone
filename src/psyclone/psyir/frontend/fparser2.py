@@ -1073,7 +1073,6 @@ class Fparser2Reader():
         ('-', UnaryOperation.Operator.MINUS),
         ('.not.', UnaryOperation.Operator.NOT)])
 
-
     binary_operators = OrderedDict([
         ('+', BinaryOperation.Operator.ADD),
         ('-', BinaryOperation.Operator.SUB),
@@ -2358,6 +2357,7 @@ class Fparser2Reader():
                         # Try to extract partial datatype information.
                         datatype, init = self._get_partial_datatype(
                             node, parent, visibility_map)
+                        init = init.copy() if init is not None else None
 
                         # If a declaration declares multiple entities, it's
                         # possible that some may have already been processed

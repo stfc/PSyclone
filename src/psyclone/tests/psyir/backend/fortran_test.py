@@ -536,7 +536,7 @@ def test_gen_arguments_validateion():
 
     '''
     fw = FortranWriter()
-    
+
     # type error
     with pytest.raises(TypeError) as info:
         fw._gen_arguments(None)
@@ -676,6 +676,14 @@ def test_fw_gen_vardecl(fortran_writer):
                         initial_value=10)
     result = fortran_writer.gen_vardecl(symbol)
     assert result == "integer, parameter :: dummy3 = 10\n"
+
+    # Constant with top level intrinsic
+    initval = IntrinsicCall.create(IntrinsicCall.Intrinsic.SIN,
+                                   [Literal("10", INTEGER_TYPE)])
+    symbol = DataSymbol("dummy3i", INTEGER_TYPE, is_constant=True,
+                        initial_value=initval)
+    result = fortran_writer.gen_vardecl(symbol)
+    assert result == "integer, parameter :: dummy3i = SIN(10)\n"
 
     # Symbol has initial value but is not constant (static). This is a property
     # of the Fortran language and therefore is only checked for when we attempt
