@@ -578,6 +578,9 @@
 	194 PR #2241 for #2215. Adds support for Fortran names being the
 	same as Python keywords when using sympy within PSyclone, e.g. in
 	comparisons between expressions.
+  
+  195) PR #2295 for #2294. Extends the PSyData extraction library
+  to support character variables
 
 release 2.3.1 17th of June 2022
 
