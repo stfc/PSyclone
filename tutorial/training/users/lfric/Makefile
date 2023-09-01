@@ -88,8 +88,12 @@ clean:
 allclean: clean
 	make -C $(LFRIC_PATH) allclean
 
-# For PSyclone's CI:
+# For PSyclone's CI. Test the three working transformations,
+# and check that the error ones produce the expected errors:
 test: transform omp mpi
+	$(MAKE) error1 2>&1 | grep "kernel call '"\
+	"no_setval_c' must either be named in a use statement" >/dev/null
+	$(MAKE) error2 2>&1 | grep "The kernel has an argument with INC access" >/dev/null
 
 # External libraries - LFRic infrastructure
 # -----------------------------------------
