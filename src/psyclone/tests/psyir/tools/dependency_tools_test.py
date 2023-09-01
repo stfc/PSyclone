@@ -157,7 +157,7 @@ def test_arrays_parallelise(fortran_reader):
     loops = psyir.children[0].children[0:4]
     dep_tools = DependencyTools()
 
-    # Write to array that does not depend on parallel loop variable
+    # Write to array that does not depend on the parallel loop variable
     # Test that right default variable name (outer loop jj) is used.
     parallel = dep_tools.can_loop_be_parallelised(loops[0])
     assert parallel is False
@@ -167,12 +167,12 @@ def test_arrays_parallelise(fortran_reader):
     assert msg.code == DTCode.ERROR_WRITE_WRITE_RACE
     assert msg.var_names == ["mask(jk,jk)"]
 
-    # Write to array that does not depend on parallel loop variable
+    # Write to array that does not depend on the parallel loop variable
     parallel = dep_tools.can_loop_be_parallelised(loops[1])
     assert parallel is True
     assert dep_tools.get_all_messages() == []
 
-    # Use parallel loop variable in more than one dimension
+    # Use the parallel loop variable in more than one dimension
     parallel = dep_tools.can_loop_be_parallelised(loops[2])
     assert parallel is True
 
@@ -716,3 +716,72 @@ def test_da_array_expression(fortran_reader):
     dep_tools = DependencyTools()
     result = dep_tools.can_loop_be_parallelised(loops[0])
     assert result is False
+
+
+# -----------------------------------------------------------------------------
+def test_reserved_words(fortran_reader):
+    '''Tests that using a reserved Python word ('lambda' here') as a loop
+    variable, which will be renamed when converting to SymPy, works as
+    expected. Also make sure that name clashes are handled as expected by
+    declaring local symbols lambda_1 (which will clash with the renamed
+    lambda) and lambda_1_1 (which will clash with the renamed lambda_1).
+    Otherwise this test is identical to test_arrays_parallelise.
+    '''
+    source = '''program test
+                integer ji, lambda, jk
+                integer, parameter :: jpi=5, jpj=10
+                real, dimension(jpi,jpi) :: mask, umask, lambda_1, lambda_1_1
+                do lambda = 1, jpj   ! loop 0
+                   do ji = 1, jpi
+                      mask(jk, jk) = -1.0d0
+                    end do
+                end do
+                do lambda = 1, jpj   ! loop 1
+                   do ji = 1, jpi
+                      mask(ji, lambda+lambda_1+lambda_1_1) = umask(jk, jk)
+                    end do
+                end do
+                do lambda = 1, jpj   ! loop 2
+                   do ji = 1, jpi
+                      mask(lambda, lambda) = umask(ji, lambda)
+                    end do
+                end do
+                do lambda = 1, jpj   ! loop 3
+                   do ji = 1, jpi
+                      mask(ji, lambda) = mask(ji, lambda+1)
+                    end do
+                end do
+                end program test'''
+
+    psyir = fortran_reader.psyir_from_source(source)
+    loops = psyir.children[0].children[0:4]
+    dep_tools = DependencyTools()
+
+    # Write to array that does not depend on the parallel loop variable
+    # Test that right default variable name (outer loop lambda) is used.
+    parallel = dep_tools.can_loop_be_parallelised(loops[0])
+    assert parallel is False
+    msg = dep_tools.get_all_messages()[0]
+    assert ("The write access to 'mask(jk,jk)' causes a write-write race "
+            "condition" in str(msg))
+    assert msg.code == DTCode.ERROR_WRITE_WRITE_RACE
+    assert msg.var_names == ["mask(jk,jk)"]
+
+    # Write to array that does not depend on the parallel loop variable
+    parallel = dep_tools.can_loop_be_parallelised(loops[1])
+    assert parallel is True
+    assert dep_tools.get_all_messages() == []
+
+    # Use the parallel loop variable in more than one dimension
+    parallel = dep_tools.can_loop_be_parallelised(loops[2])
+    assert parallel is True
+
+    # Use a stencil access (with write), which prevents parallelisation
+    parallel = dep_tools.can_loop_be_parallelised(loops[3])
+    assert parallel is False
+    msg = dep_tools.get_all_messages()[0]
+    assert ("The write access to 'mask(ji,lambda)' and to "
+            "'mask(ji,lambda + 1)' are dependent and cannot be parallelised."
+            in str(msg))
+    assert msg.code == DTCode.ERROR_DEPENDENCY
+    assert msg.var_names == ["mask(ji,lambda)", "mask(ji,lambda + 1)"]
