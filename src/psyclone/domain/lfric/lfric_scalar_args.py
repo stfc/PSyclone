@@ -36,12 +36,11 @@
 # Modified J. Henrichs, Bureau of Meteorology
 # Modified A. B. G. Chalk and N. Nobre, STFC Daresbury Lab
 
-''' This module implements the PSyclone Dynamo 0.3 API by 1)
-    specialising the required base classes in parser.py (KernelType) and
-    adding a new class (DynFuncDescriptor03) to capture function descriptor
-    metadata and 2) specialising the required base classes in psyGen.py
-    (PSy, Invokes, Invoke, InvokeSchedule, Loop, Kern, Inf, Arguments and
-    Argument). '''
+''' 
+This module contains the LFRicScalarArgs class which handles the
+declarations of scalar arguments to the kernel found in either 
+an Invoke or a Kernel stub.
+'''
 
 # Imports
 from collections import OrderedDict, Counter
@@ -62,7 +61,7 @@ class LFRicScalarArgs(LFRicCollection):
     :param node: the Invoke or Kernel stub for which to manage the scalar \
                  arguments.
     :type node: :py:class:`psyclone.dynamo0p3.DynKern` or \
-                :py:class:`psyclone.dynamo0p3.LFRicInvoke`
+                :py:class:`psyclone.domain.lfric.LFRicInvoke`
 
     '''
     def __init__(self, node):
