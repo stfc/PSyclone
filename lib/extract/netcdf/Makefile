@@ -53,7 +53,7 @@ F90FLAGS += $$(nf-config --fflags)
 
 # The extract library is implemented for int, real and
 # double scalars and 1- to 4-dimensional arrays
-PROCESS_ARGS = -prefix=extract_ -types=int,long,logical,real,double \
+PROCESS_ARGS = -prefix=extract_ -types=char,int,long,logical,real,double \
 		       -dims=1,2,3,4
 PROCESS = $$($(PSYDATA_LIB_DIR)/get_python.sh) $(PSYDATA_LIB_DIR)/process.py
 
