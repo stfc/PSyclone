@@ -654,6 +654,8 @@ takes the following parameters:
         64-bit integer value
     ``logical``:
         32-bit logical value
+    ``char``:
+        A default string value
 
     Default value is ``real,double,int``.
 

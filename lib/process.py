@@ -3,7 +3,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2022, Science and Technology Facilities Council.
+# Copyright (c) 2020-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -46,7 +46,6 @@ in DIMENSIONS and each type listed in ALL_TYPES. PREFIX can be
 used to add a prefix to static functions defined in the template.
 
 '''
-from __future__ import print_function
 import argparse
 import sys
 from jinja2 import Environment
@@ -59,7 +58,8 @@ parser = argparse.ArgumentParser(
 parser.add_argument('template_name',
                     help="Name of the template file to process.")
 parser.add_argument('-types', help="Comma-separated list of types, "
-                                   "e.g. real,int,double (no spaces).",
+                                   "e.g. real,int,double,char,logical,long "
+                                   "(no spaces).",
                     default="real,int,double")
 parser.add_argument("-dims", help="Comma-separated list of dimensions, "
                                   "e.g. 1,2,4 (no spaces)",
@@ -105,6 +105,7 @@ args = parser.parse_args()
 TYPE_DATA = {"real": ("Real", "real(kind=real32)", 32),
              "double": ("Double", "real(kind=real64)", 64),
              "int": ("Int", "integer(kind=int32)", 32),
+             "char": ("Char", "character(*)", 8),
              "logical": ("Logical", "Logical(kind=4)", 4),
              "long": ("Long", "integer(kind=int64)", 64)}
 
