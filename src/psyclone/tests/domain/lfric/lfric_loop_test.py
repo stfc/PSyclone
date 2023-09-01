@@ -288,9 +288,9 @@ def test_lower_to_language_domain_loop():
     sched.lower_to_language_level()
     assert isinstance(sched[0], Call)
     assert sched.children[0].children[2].name == "a"
-    assert sched.children[0].children[3].name == "f1_proxy"
+    assert sched.children[0].children[3].name == "f1_data"
     assert sched.children[1].children[2].name == "b"
-    assert sched.children[1].children[3].name == "f2_proxy"
+    assert sched.children[1].children[3].name == "f2_data"
 
 
 def test_upper_bound_fortran_1():
