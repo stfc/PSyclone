@@ -104,7 +104,7 @@ INTENT_MAPPING = {"in": ArgumentInterface.Access.READ,
 SUPPORTED_ROUTINE_PREFIXES = ["ELEMENTAL", "PURE", "IMPURE"]
 
 
-# TODO #1987. It may be that this method could be made more general so
+# TODO #2302: It may be that this method could be made more general so
 # that it works for more intrinsics, to help minimise the number of
 # canonicalise_* functions.
 def _canonicalise_minmaxsum(arg_nodes, arg_names, node):
@@ -4018,7 +4018,7 @@ class Fparser2Reader():
                 call = IntrinsicCall(intrinsic, parent=parent)
                 return self._process_args(
                     node, call, canonicalise=_canonicalise_minmaxsum)
-            # TODO #1987: We do not canonicalise the order of the
+            # TODO #2302: We do not canonicalise the order of the
             # arguments of the remaining intrinsics, but this means
             # PSyIR won't be able to guarantee what each child is.
             call = IntrinsicCall(intrinsic, parent=parent)

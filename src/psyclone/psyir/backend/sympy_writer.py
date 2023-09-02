@@ -552,7 +552,7 @@ class SymPyWriter(FortranWriter):
         '''
         # Sympy does not support argument names, remove them for now
         if any(node.argument_names):
-            # TODO #1987: This is not totally right without canonical intrinsic
+            # TODO #2302: This is not totally right without canonical intrinsic
             # positions for arguments. One alternative it to refuse it with:
             # raise VisitorError(
             #     f"Named arguments are not supported by SymPy but found: "

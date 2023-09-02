@@ -221,12 +221,8 @@ def test_array_assignment_with_reduction(monkeypatch):
     '''Test that we correctly identify an array assignment when it is the
     result of a reduction from an array that returns an array. Test
     when we need to look up the PSyIR tree through multiple intrinsics
-    from the array access to find the reduction. We have to
-    monkeypatch SUM in this example to stop it being a reduction as
-    all IntrinsicCalls that are valid within an assignment are
-    currently reductions. When additional intrinsics are added (see
-    issue #1987) this test can be modified and monkeypatch
-    removed. The example is: x(1, MAXVAL(SUM(map(:, :), dim=1))) = 1.0
+    from the array access to find the reduction.
+    The example is: x(1, MAXVAL(SIN(map(:, :)))) = 1.0
 
     '''
     one = Literal("1.0", REAL_TYPE)
@@ -251,15 +247,12 @@ def test_array_assignment_with_reduction(monkeypatch):
         [Reference(map_sym), ("dim", int_two.copy())])
     my_range2 = Range.create(lbound2, ubound2)
     bsum_op = IntrinsicCall.create(
-        IntrinsicCall.Intrinsic.SUM,
-        [ArrayReference.create(map_sym, [my_range1, my_range2]),
-         ("dim", int_one.copy())])
+        IntrinsicCall.Intrinsic.SIN,
+        [ArrayReference.create(map_sym, [my_range1, my_range2])])
     maxval_op = IntrinsicCall.create(IntrinsicCall.Intrinsic.MAXVAL, [bsum_op])
     assignment = Assignment.create(
         ArrayReference.create(symbol, [int_one.copy(), maxval_op]),
         one.copy())
-    monkeypatch.setattr(
-        bsum_op, "_intrinsic", IntrinsicCall.Intrinsic.ALLOCATE)
     if not assignment.is_array_assignment:
         # is_array_assignment should return True
         pytest.xfail(reason="#658 needs typing of PSyIR expressions")

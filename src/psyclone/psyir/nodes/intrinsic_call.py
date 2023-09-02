@@ -847,7 +847,7 @@ class IntrinsicCall(Call):
                         f"a {type(arg[0]).__name__} instead of a str.")
                 name = arg[0].lower()
                 last_named_arg = name
-                # TODO #1987: For now we disable the positional arguments
+                # TODO #2302: For now we disable the positional arguments
                 # checks because this does not consider that positional
                 # arguments can be also found by name, and we don't have
                 # sufficient information to validate them.

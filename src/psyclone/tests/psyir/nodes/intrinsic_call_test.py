@@ -290,7 +290,7 @@ def test_intrinsiccall_create_errors():
     assert ("Found a positional argument *after* a named argument ('stat'). "
             "This is invalid." in str(err.value))
 
-    # TODO #1987: We can not enable the validation of positional parameters
+    # TODO #2303: We can not enable the validation of positional parameters
     # unless we store their name, otherwise when we parse a positional argument
     # by name, which is valid fortran, it will fail.
     # (e.g. RANDOM_NUMBER(harvest=4)
