@@ -223,7 +223,7 @@ def test_get_array_bound():
         assert isinstance(lower_bound.children[1], Literal)
         assert (lower_bound.children[1].datatype.intrinsic ==
                 ScalarType.Intrinsic.INTEGER)
-        assert lower_bound.children[1].value == str(index)
+        assert lower_bound.children[1].value == str(index+1)
         assert isinstance(upper_bound, IntrinsicCall)
         assert upper_bound.intrinsic == IntrinsicCall.Intrinsic.UBOUND
         assert isinstance(upper_bound.children[0], Reference)
@@ -231,7 +231,7 @@ def test_get_array_bound():
         assert isinstance(upper_bound.children[1], Literal)
         assert (upper_bound.children[1].datatype.intrinsic ==
                 ScalarType.Intrinsic.INTEGER)
-        assert upper_bound.children[1].value == str(index)
+        assert upper_bound.children[1].value == str(index+1)
         assert isinstance(step, Literal)
         assert step.value == "1"
         assert step.datatype.intrinsic == ScalarType.Intrinsic.INTEGER

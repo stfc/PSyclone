@@ -188,6 +188,9 @@ def valid_acc_kernel(node):
     excluded_nodes = node.walk(excluded_types)
 
     for enode in excluded_nodes:
+        if isinstance(enode, Call) and enode.is_available_on_device():
+            continue
+
         if isinstance(enode, (CodeBlock, Return, Call, WhileLoop)):
             log_msg(routine_name,
                     f"region contains {type(enode).__name__}", enode)
@@ -406,10 +409,12 @@ def trans(psy):
 
         # In the lib_fortran file we annotate each routine that does not
         # have a Loop or a Call with the OpenACC Routine Directive
-        if psy.name == "psy_lib_fortran_psy" and not sched.walk((Loop, Call)):
-            print(f"Transforming {invoke.name} with acc routine")
-            ACC_ROUTINE_TRANS.apply(sched)
-            continue
+        if psy.name == "psy_lib_fortran_psy":
+            if not invoke.schedule.walk(Loop):
+                calls = invoke.schedule.walk(Call)
+                if all([call.is_available_on_device() for call in calls]):
+                    ACC_ROUTINE_TRANS.apply(sched)
+                    continue
 
         # Attempt to add OpenACC directives unless we are ignoring this routine
         if invoke.name.lower() not in ACC_IGNORE:

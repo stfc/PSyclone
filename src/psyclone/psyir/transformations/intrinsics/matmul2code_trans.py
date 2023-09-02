@@ -106,6 +106,7 @@ def _get_array_bound(array, index):
             f"Unsupported index type found for array '{array.name}': "
             f"{err}") from err
 
+    dim_index = index + 1  # The Fortran dim argument is 1-indexed
     if isinstance(my_dim, ArrayType.ArrayBounds):
         # Use .copy() to ensure we return new nodes.
         lower_bound = my_dim.lower.copy()
@@ -114,18 +115,18 @@ def _get_array_bound(array, index):
             upper_bound = IntrinsicCall.create(
                 IntrinsicCall.Intrinsic.UBOUND,
                 [Reference(array.symbol),
-                 ("dim", Literal(str(index), INTEGER_TYPE))])
+                 ("dim", Literal(str(dim_index), INTEGER_TYPE))])
         else:
             upper_bound = my_dim.upper.copy()
     else:
         lower_bound = IntrinsicCall.create(
             IntrinsicCall.Intrinsic.LBOUND,
             [Reference(array.symbol),
-             ("dim", Literal(str(index), INTEGER_TYPE))])
+             ("dim", Literal(str(dim_index), INTEGER_TYPE))])
         upper_bound = IntrinsicCall.create(
             IntrinsicCall.Intrinsic.UBOUND,
             [Reference(array.symbol),
-             ("dim", Literal(str(index), INTEGER_TYPE))])
+             ("dim", Literal(str(dim_index), INTEGER_TYPE))])
 
     step = Literal("1", INTEGER_TYPE)
     return (lower_bound, upper_bound, step)
