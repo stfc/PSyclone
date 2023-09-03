@@ -80,17 +80,20 @@ class FortranReader():
         return psyir
 
     def psyir_from_expression(self, source_code, symbol_table):
-        '''
-        Generate the PSyIR tree for the supplied Fortran expression.
+        '''Generate the PSyIR tree for the supplied Fortran statement. The
+        symbol table is expected to provide all symbols found in the
+        expression.
 
         :param str source_code: text of the expression to be parsed.
-        :param symbol_table: the SymbolTable in which to search for any \
-                             symbols that are encountered.
+        :param symbol_table: the SymbolTable in which to search for any
+            symbols that are encountered.
+        :type symbol_table: :py.class:`psyclone.psyir.symbols.SymbolTable`
+
         :returns: PSyIR representing the provided Fortran expression.
         :rtype: :py:class:`psyclone.psyir.nodes.Node`
 
         :raises TypeError: if no valid SymbolTable is supplied.
-        :raises ValueError: if the supplied source does not represent a \
+        :raises ValueError: if the supplied source does not represent a
             Fortran expression.
 
         '''
@@ -112,23 +115,27 @@ class FortranReader():
         # new Schedule and therefore stealing it from its original scope.
         # pylint: disable=protected-access
         fake_parent = Schedule()
+        # pylint: disable=protected-access
         fake_parent._symbol_table = symbol_table
         fake_parent.addchild(Assignment())
         self._processor.process_nodes(fake_parent[0], [parse_tree])
         return fake_parent[0].children[0].detach()
 
     def psyir_from_statement(self, source_code, symbol_table):
-        '''
-        Generate the PSyIR tree for the supplied Fortran statement.
+        '''Generate the PSyIR tree for the supplied Fortran statement. The
+        symbolt table is expected to provide all symbols found in the
+        statement.
 
         :param str source_code: text of the statement to be parsed.
-        :param symbol_table: the SymbolTable in which to search for any \
-                             symbols that are encountered.
+        :param symbol_table: the SymbolTable in which to search for any
+            symbols that are encountered.
+        :type symbol_table: :py.class:`psyclone.psyir.symbols.SymbolTable`
+
         :returns: PSyIR representing the provided Fortran statement.
         :rtype: :py:class:`psyclone.psyir.nodes.Node`
 
         :raises TypeError: if no valid SymbolTable is supplied.
-        :raises ValueError: if the supplied source does not represent a \
+        :raises ValueError: if the supplied source does not represent a
             Fortran statement.
 
         '''
@@ -153,7 +160,9 @@ class FortranReader():
         except KeyError:
             routine_name = "dummy"
         fake_parent = Routine.create(
-            routine_name, symbol_table.deep_copy(), [])
+            routine_name, SymbolTable(), [])
+        # pylint: disable=protected-access
+        fake_parent._symbol_table = symbol_table
 
         # Process the statement, giving the Routine we've just
         # created as the parent.

@@ -224,14 +224,15 @@ def _first_type_match(nodelist, typekind):
 
 def _find_or_create_unresolved_symbol(location, name, scope_limit=None,
                                       **kargs):
-    '''Returns the symbol with the name 'name' from a symbol table
-    associated with this node or one of its ancestors.  If a symbol is
-    found then the type of the existing symbol is compared with the
-    specified type. If it is not already an instance of this type,
-    then the symbol is specialised (in place).
+    '''Returns the symbol with the given 'name' from a symbol table
+    associated with the 'location' node or one of its ancestors. If a
+    symbol is found then the type of the existing symbol is compared
+    with the specified 'symbol_type' parameter (passed as part of
+    '**kargs'). If it is not already an instance of this type, then
+    the symbol is specialised (in place).
 
     If the symbol is not found then a new Symbol with the specified
-    visibility but of unknown interface is created and inserted in the
+    visibility but of unresolved interface is created and inserted in the
     most local SymbolTable that has a Routine or Container node as
     parent.
 
@@ -289,36 +290,17 @@ def _find_or_create_unresolved_symbol(location, name, scope_limit=None,
                 f"_find_or_create_unresolved_symbol() is not an ancestor of "
                 f"this node '{location}'.")
 
-    test_node = location
-    # Iterate over ancestor Nodes of this Node.
-    while test_node:
-        # For simplicity, test every Node for the existence of a
-        # SymbolTable (rather than checking for the particular
-        # Node types which we know to have SymbolTables).
-        if hasattr(test_node, 'symbol_table'):
-            # This Node does have a SymbolTable.
-            symbol_table = test_node.symbol_table
-            try:
-                # If the name matches a Symbol in this SymbolTable then
-                # return the Symbol (after specialising it, if necessary).
-                sym = symbol_table.lookup(name, scope_limit=test_node)
-                if "symbol_type" in kargs:
-                    expected_type = kargs.pop("symbol_type")
-                    if not isinstance(sym, expected_type):
-                        # The caller specified a sub-class so we need to
-                        # specialise the existing symbol.
-                        sym.specialise(expected_type, **kargs)
-                return sym
-            except KeyError:
-                pass
-
-        if test_node is scope_limit:
-            # The ancestor scope/top-level Node has been reached and
-            # nothing has matched.
-            break
-
-        # Move on to the next ancestor.
-        test_node = test_node.parent
+    try:
+        sym = location.scope.symbol_table.lookup(name, scope_limit=scope_limit)
+        if "symbol_type" in kargs:
+            expected_type = kargs.pop("symbol_type")
+            if not isinstance(sym, expected_type):
+                # The caller specified a sub-class so we need to
+                # specialise the existing symbol.
+                sym.specialise(expected_type, **kargs)
+        return sym
+    except KeyError:
+        pass
 
     # find the closest ancestor symbol table attached to a Routine or
     # Container node. We don't want to add to a Schedule node as in
@@ -2495,8 +2477,7 @@ class Fparser2Reader():
             # into scope by an unqualified use statement.
             for name, vis in visibility_map.items():
                 if name not in parent.symbol_table:
-                    # If a suitable unqualified use statement is found then
-                    # this call creates a Symbol and inserts it in the
+                    # This call creates a Symbol and inserts it in the
                     # appropriate symbol table.
                     _find_or_create_unresolved_symbol(parent, name,
                                                       visibility=vis)
@@ -3017,16 +2998,15 @@ class Fparser2Reader():
             self.process_nodes(parent=loop_body, nodes=node.content[1:-1])
             return loop
 
-        # Second element of items member of Loop Control is itself a tuple
-        # containing:
-        #   Loop variable, [start value expression, end value expression, step
-        #   expression]
-        # Loop variable will be an instance of Fortran2003.Name
+        # Second element of items member of Loop Control is itself a
+        # tuple containing: Loop variable, [start value expression,
+        # end value expression, step expression] Loop variable will be
+        # an instance of Fortran2003.Name and will be an integer.
         loop_var = str(ctrl[0].items[1][0])
         variable_name = str(loop_var)
         data_symbol = _find_or_create_unresolved_symbol(
             parent, variable_name, symbol_type=DataSymbol,
-            datatype=DeferredType())
+            datatype=default_integer_type())
         # The loop node is created with the _create_loop factory method as some
         # APIs require a specialised loop node type.
         loop = self._create_loop(parent, data_symbol)
