@@ -326,7 +326,7 @@ def insert_explicit_loop_parallelism(
                     break
 
                 # Check that the next loop has no loop-carried dependencies
-                if not next_loop.can_be_parallelised():
+                if not next_loop.independent_iterations():
                     break
 
             # Add collapse clause to the parent directive

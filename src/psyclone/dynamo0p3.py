@@ -7550,7 +7550,7 @@ class DynLoop(PSyLoop):
             stat = dtools.can_loop_be_parallelised(
                 self, test_all_variables=test_all_variables,
                 signatures_to_ignore=signatures_to_ignore)
-        except InternalError:
+        except (InternalError, KeyError):
             # LFRic still has symbols that don't exist in the symbol_table
             # until the gen_code() step, so the dependency analysis raises
             # errors in some cases.
