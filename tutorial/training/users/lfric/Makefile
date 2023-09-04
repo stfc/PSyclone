@@ -66,7 +66,7 @@ error1:
 	psyclone -nodm -l output -opsy main_err1_psy.f90 -oalg main_err1_alg.f90 main_err1_alg.x90
 
 error2:
-	psyclone -s ./omp.py -nodm -l output -opsy main_err1_psy.f90 -oalg main_err2_alg.f90 main_err2_alg.x90
+	psyclone -s ./omp.py -nodm -l output -opsy main_err2_psy.f90 -oalg main_err2_alg.f90 main_err2_alg.x90
 
 mpi:
 	psyclone -dm -l output -opsy main_mpi_psy.f90 -oalg main_mpi_alg.f90 main_err2_alg.x90
