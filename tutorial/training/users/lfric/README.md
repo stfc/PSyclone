@@ -14,7 +14,7 @@ for this, but we are using an explicit kernel here for training purposes).
 
 To create the required PSy-layer, use the following command:
 
-    psyclone -nodm -l output -opsy main_alg_psy.f90 -oalg main_alg.f90 main.x90
+    psyclone -nodm -l output -opsy main_alg_psy.f90 -oalg main_alg.f90 main_alg.x90
 
 The same command can be triggered by `make transform`. This will create
 two new output files, `main_alg.f90`, the rewritten algorithm layer `main_alg.x90`,
