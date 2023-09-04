@@ -47,6 +47,8 @@ The minimum and maximum of `field1` are printed, and they are as expected 1.
    check the loop over all columns that will then  call `testkern_w3 kernel` for
    each column.
 
+   The solution and explanation can be found [here](#solution)
+
 2. Apply the `omp.py` optimisation script, which will do some loop fusion, and
    also applies OpenMP parallelisation. You have to specify the full name of
    the script including path with the `-s` command line options, e.g.
@@ -57,16 +59,22 @@ The minimum and maximum of `field1` are printed, and they are as expected 1.
    for a user of a stable LFRic release, but if you for example should select
    a untested set of options some of these problems could still happen. The
    first example `main_err1_alg.x90` contains an invalid PSyclone builtin name,
-   though of course PSyclone cannot know what exactly the user meant. Does
-   PSyclone's error message make sense?
+   though of course PSyclone cannot know what exactly the user meant. Use:
+
+       psyclone -nodm -l output -opsy main_err1_psy.f90 -oalg main_err1_alg.f90 main_err1_alg.x90
+
+   (or `make error1`). Does PSyclone's error message make sense?
 
 4. Fix the above error by modifying `main_err1_alg.x90` and putting the correct
    names of the builtins in (`setval_c`, i.e. just remove the 'no_'). Run
-   PSyclone again.
+   PSyclone again (with the same parameter as above).
 
 5. Now use the file `main_error2.x90`, and try to apply the `omp.py` script,
-   i.e. add the paramter `-s ./omp.py` to the PSyclone command line (or use
-   `make error2`). This kernel is very similar to the test kernel used originally,
+   i.e. add the paramter `-s ./omp.py` to the PSyclone command line:
+
+       psyclone -s ./omp.py -nodm -l output -opsy main_err1_psy.f90 -oalg main_err2_alg.f90 main_err2_alg.x90
+
+   (or use `make error2`). This kernel is very similar to the test kernel used originally,
    but it operates on a different function space, and as a result it cannot be
    be parallelised by simply applying OpenMP directives it would lead to a race
    condition. What is PSyclone's behaviour? Note that LFRic provides a more
@@ -175,6 +183,7 @@ The minimum and maximum of `field1` are printed, and they are as expected 1.
    This error should be reported to the developers of the optimisation script.
   
 6. After initialising a field, it is marked to be modified (or 'dirty'):
+
        !
        DO df=loop0_start,loop0_stop
          field1_proxy%data(df) = 0.0_r_def
