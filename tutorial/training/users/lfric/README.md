@@ -106,7 +106,7 @@ MPI and OpenMP at the same time. In this example we will enable both kind of
 parallelisation at the same time. In order to do this, you need to invoke PSyclone
 with the `-dm` flag, but also apply the OpenMP transformation:
 
-    psyclone -s ./omp.py -dm -l output -opsy main_al_psy.f90 -oalg main_alg.f90 main_alg.x90
+    psyclone -s ./omp_transformation.py -dm -l output -opsy main_al_psy.f90 -oalg main_alg.f90 main_alg.x90
 
 
 Again, check the created PSy-layer file `main_alg_psy.f90` for the calls to halo-exchanges
@@ -131,7 +131,7 @@ The solution and explanation can be found [here](#solution-for-error-in-algorith
 
 
 ## Missing Parameter (`6_missing_parameter`)
-This example misses a kernel parameter. Again running PSyclone as:
+This example misses a kernel parameter. Run PSyclone, i.e.:
 
     psyclone -nodm -l output -opsy main_alg_psy.f90 -oalg main_alg.f90 main_alg.x90
 
@@ -140,18 +140,21 @@ What happens?
 The solution and explanation can be found [here](#solution-for-missing-parameter).
 
 
-## Invalid Transformation
-Now use the file `main_error2.x90`, and try to apply the `omp.py` script,
-i.e. add the paramter `-s ./omp.py` to the PSyclone command line:
+## Invalid OpenMP Transformation (`7_invalid_openmp`)
+This example has a slightly different kernel: this kernel adds a field on the W0
+space (vertices) to another field on the W0 space. The difference to the kernel used
+previously is that the vertices are shared between neighbouring columns, which is
+not the case for a field on the W3 space. Therefore, the loop over all columns
+cannot be parallelised, since the shared vertices could be read and written by
+different threads at the same time.
 
-    psyclone -s ./omp.py -nodm -l output -opsy main_err1_psy.f90 -oalg main_err2_alg.f90 main_err2_alg.x90
+Running PSyclone with the OpenMP transformation script:
 
-(or use `make error2`). This kernel is very similar to the test kernel used originally,
-but it operates on a different function space, and as a result it cannot be
-be parallelised by simply applying OpenMP directives it would lead to a race
-condition. What is PSyclone's behaviour? Note that LFRic provides a more
-sophisticated version of the `omp.py` script, which will change the single
-loop into a nested loop using a transformation called coluring. This in turn
+    psyclone -s ./omp_transformation.py -dm -l output -opsy main_alg_psy.f90 -oalg main_alg.f90 main_alg.x90
+
+What is PSyclone's behaviour? Note that LFRic provides a more
+sophisticated version of the `omp_transformation.py` script, which will change the single
+loop into a nested loop using a transformation called colouring. This in turn
 then allows PSyclone to apply OpenMP parallelisation. PSyclone will always
 internally verify if it is safe to apply a certain transformation, to make
 sure it does not create incorrect code.
@@ -292,9 +295,12 @@ a `use` statement).
 ## Solution for Missing Parameter
 PSyclone will detect that a parameter is missing for the kernel:
 
-    Parse Error: Kernel 'error_w0_kernel_type' called from the algorithm layer with an
-    insufficient number of arguments as specified by the metadata. Expected at least '2'
+    Parse Error: Kernel 'summation_w0_to_w3_kernel_type' called from the algorithm layer with
+    an insufficient number of arguments as specified by the metadata. Expected at least '2'
     but found '1'.
+
+PSyclone will verify the code the user asked to be created as much as possible and raise
+any issues early on, i.e. before even compiling the code.
 
 
 ## Solution for Invalid Transformation
@@ -303,17 +309,18 @@ code. In this case, it will recognise that the kernel cannot simply be paralleli
 It would need an additional transformation (called colouring) in order to allow
 threading-based parallelisation:
 
-    Generation Error: generator: specified PSyclone transformation module 'omp'
+    Generation Error: generator: specified PSyclone transformation module 'omp_transformation'
     raised the following exception during execution...
     {
-         File "/home/joerg/work/psyclone/tutorial/training/users/lfric/./omp.py", line 64, 
-       in trans otrans.apply(loop)
-         File "/home/joerg/work/psyclone/src/psyclone/transformations.py", line 676, in apply
-       raise TransformationError(
-       psyclone.psyir.transformations.transformation_error.TransformationError:
-       Transformation Error: Error in DynamoOMPParallelLoopTrans transformation. The kernel
-       has an argument with INC access. Colouring is required.
+          File ".../7_invalid_openmp/./omp_transformation.py", line 55, in trans
+        otrans.apply(loop)
+          File ".../psyclone/src/psyclone/transformations.py", line 676, in apply
+        raise TransformationError(
+        psyclone.psyir.transformations.transformation_error.TransformationError: Transformation Error:
+            Error in DynamoOMPParallelLoopTrans transformation. The kernel has an argument with INC
+            access.Colouring is required.
     }
     please check your script
+
 This error should be reported to the developers of the optimisation script.
   
