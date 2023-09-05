@@ -9,9 +9,9 @@ There is no need to fully understand the program, but as a quick explanation:
 the program creates two fields on a 3x3 mesh with 5 layers. The field `field_0`
 is on the vertices of the finite element (W0 function space), and is initialised
 with 1. The field `field_3` is on the W3 function space and represents the actual
-element, it is initialised with 0. Then the kernel `testkern_w3_kernel_type` is called,
-which adds the 8 neighbouring vertices of an element up (resulting in 8 for all
-the finite elements).
+element, it is initialised with 0. Then the kernel `summation_w0_to_w3_kernel`
+is called, which adds the 8 neighbouring vertices of an element up (resulting in
+8 for all the finite elements).
 
 ## Using PSyclone
 In this example we use PSyclone to process the algorithm file and create the new
@@ -30,16 +30,16 @@ PSyclone is creating quite a bit of code. Identify how the main program, the alg
 layer, calls the PSylayer, and how the PSy-layer calls the kernel in a loop. Focus
 on the first two invokes in `main_alg.x90`:
 
-    call invoke( name = 'Initialise fields',        &
-                 setval_c( field1,     0.0_r_def ), &
-                 setval_c( field2,     1.0_r_def )  &
+    call invoke( name = 'Initialise fields',         &
+                 setval_c( field_3,     0.0_r_def ), &
+                 setval_c( field_0,     1.0_r_def )  &
                  )
-    call invoke( name = 'testkern_w3', testkern_w3_kernel_type(field1, field2) )
+    call invoke( name = 'summation', summation_w0_to_w3_kernel_type(field_3, field_0) )
 
 How are these lines rewritten in the algorithm file `main_alg.f90`? Then check the
 PSy-layer file `main_alg_psy.f90` to find the two subroutines called from the
 algorithm file. Can you find the builtins in the PSy-layer file `main_alg_psy.f90`? And
-check the loop over all columns that will then  call `testkern_w3 kernel` for
+check the loop over all columns that will then  call `summation_w0_to_w3_kernel_code` for
 each column.
 
 You can even compile and execute the script: `make compile` will create a binary for
@@ -54,7 +54,7 @@ The minimum and maximum of `field1` are printed, and they are as expected 8.
 The solution and explanation can be found [here](#solution-for-using-psyclone).
 
 
-## Using MPI
+## Supporting MPI
 As explained, PSyclone has the ability to support MPI parallelisation of the code. This
 is simply done by using the command line option `-dm` (instead of `-nodm`):
 
@@ -75,7 +75,7 @@ no domain-decomposition done! So each copy would run the same code (each one
 computing the full field), since the fields are not distributed. This requires
 additional setup, which is beyond the scope of this tutorial.
 
-The solution and explanation can be found [here](#solution-for-using-mpi).
+The solution and explanation can be found [here](#solution-for-supporting-mpi).
 
 ## Applying OpenMP
 In this example you will add transformation script to the PSyclone command line.
@@ -89,6 +89,22 @@ calls into a single loop, and then apply OpenMP parallelisation to all loops.
 Compare the PSy-layer files with the previously created files. What has changed?
 
 The solution and explanation can be found [here](#solution-for-applying-openmp).
+
+## MPI and OpenMP
+This is an optional task and you can skip it if you are in a rush.
+
+Especially for large models you would want to utilise hybrid parallelism, i.e. using
+MPI and OpenMP at the same time. In this example we will enable both kind of
+parallelisation at the same time. In order to do this, you need to invoke PSyclone
+with the `-dm` flag, but also apply the OpenMP transformation:
+
+    psyclone -s ./omp.py -dm -l output -opsy main_al_psy.f90 -oalg main_alg.f90 main_alg.x90
+
+
+Again, check the created PSy-layer file `main_alg_psy.f90` for the calls to halo-exchanges
+and OpenMP directives around loops.
+
+The solution and explanation can be found [here](#solution-for-mpi-and-openmp).
 
 ## Error in Algorithm Layer
 Now let's have a look at some typical errors. Ideally they should not happen
@@ -138,56 +154,64 @@ This section contains the solutions and explanations for all hands-on tasks.
 
 ## Solution for Using PSyclone
 The file `main_alg.f90` contains two calls to a PSy layer:
-    CALL invoke_initialise_fields(field1, field2)
-    CALL invoke_testkern_w3(field1, field2)
-
+    CALL invoke_initialise_fields(field_3, field_0)
+    CALL invoke_summation(field_3, field_0)
+    
 In turn the `main_alg_psy.f90` files contains these two subroutines. The first
 one contains the implementation of the builtins, i.e. the code is inlined:
 
+    !
     ! Call our kernels
     !
     DO df=loop0_start,loop0_stop
-      field1_proxy%data(df) = 0.0_r_def
+      field_3_proxy%data(df) = 0.0_r_def
     END DO
     DO df=loop1_start,loop1_stop
-      field2_proxy%data(df) = 1.0_r_def
+      field_0_proxy%data(df) = 1.0_r_def
     END DO
+
 The second subroutine contains the call of the test kernel:
 
+    !
+    ! Call our kernels
+    !
     DO cell=loop0_start,loop0_stop
-      !
-      CALL testkern_w3_code(nlayers, field1_proxy%data, field2_proxy%data, ndf_w3, undf_w3, map_w3(:,cell))
+       !
+       CALL summation_w0_to_w3_kernel_code(nlayers, field_3_proxy%data, field_0_proxy%data, &
+                                           ndf_w3, undf_w3, map_w3(:,cell), ndf_w0, undf_w0, map_w0(:,cell))
     END DO
+
 Note that PSyclone will automatically provide additional required parameters to
 the kernel.
 
-## Solution for Using MPI
+## Solution for Supporting MPI
 After initialising a field, it is marked to be modified (or 'dirty'):
 
-    !
     DO df=loop0_start,loop0_stop
-      field1_proxy%data(df) = 0.0_r_def
+        field_3_proxy%data(df) = 0.0_r_def
     END DO
     !
     ! Set halos dirty/clean for fields modified in the above loop
     !
-    CALL field1_proxy%set_dirty()
+    CALL field_3_proxy%set_dirty()
+
 Next time the fields are read, we need to get the newly computed values which
 might be on neighbouring processes. So the second subroutine in the PSy-layer
 contains:
 
-    !
-    ! Call kernels and communication routines
-    !
     IF (field_0_proxy%is_dirty(depth=1)) THEN
        CALL field_0_proxy%halo_exchange(depth=1)
     END IF
     !
     DO cell=loop0_start,loop0_stop
-    !
-       CALL testkern_w3_code(nlayers, field_3_proxy%data, field_0_proxy%data, ndf_w3, undf_w3, &
-                             map_w3(:,cell), ndf_w0, undf_w0, map_w0(:,cell))
+       !
+       CALL summation_w0_to_w3_kernel_code(nlayers, field_3_proxy%data, field_0_proxy%data, &
+                                           ndf_w3, undf_w3, map_w3(:,cell), ndf_w0, undf_w0, map_w0(:,cell))
     END DO
+    !
+    ! Set halos dirty/clean for fields modified in the above loop
+    !
+    CALL field_3_proxy%set_dirty()
 
 The halo-exchange uses an if-statement so that the communication functions are
 only called if the values of a field have actually changed. While in our case this is
@@ -207,12 +231,34 @@ For the first invoke, you should see that the two separate loops (see
 
 Additionally, OpenMP parallelisation is applied to all loops (including the builtins):
 
-    $omp parallel do default(shared), private(cell), schedule(static)
+    !$omp parallel do default(shared), private(cell), schedule(static)
     DO cell=loop0_start,loop0_stop
-    !
-       CALL testkern_w3_code(nlayers, field1_proxy%data, field2_proxy%data, ndf_w3, undf_w3, map_w3(:,cell))
+       !
+       CALL summation_w0_to_w3_kernel_code(nlayers, field_3_proxy%data, field_0_proxy%data, &
+                                           ndf_w3, undf_w3, map_w3(:,cell), &ndf_w0, undf_w0, map_w0(:,cell))
     END DO
     !$omp end parallel do
+
+## Solution for MPI and OpenMP
+Implementing hybrid parallelism is easy once a script was written to add the required OpenMP statements.
+The output file contains first the halo exchange, followed by the loop with OpenMP directives:
+
+    IF (field_0_proxy%is_dirty(depth=1)) THEN
+       CALL field_0_proxy%halo_exchange(depth=1)
+    END IF
+    !
+    !$omp parallel do default(shared), private(cell), schedule(static)
+    DO cell=loop0_start,loop0_stop
+       !
+       CALL summation_w0_to_w3_kernel_code(nlayers, field_3_proxy%data, field_0_proxy%data, &
+                                           ndf_w3, undf_w3, map_w3(:,cell), ndf_w0, undf_w0, map_w0(:,cell))
+    END DO
+    !$omp end parallel do
+    !
+    ! Set halos dirty/clean for fields modified in the above loop(s)
+    !
+    CALL field_3_proxy%set_dirty()
+
  
 ## Solution for Error in Algorithm Layer
 
@@ -220,11 +266,12 @@ PSylone will print the following error message (or a variation of it, since depe
 on version the list of builtins might change):
 
     Parse Error: kernel call 'no_setval_c' must either be named in a use statement (found
-    ['global_mesh_base_mod', 'mesh_mod', 'mesh_mod', 'partition_mod', 'partition_mod', 
-    'partition_mod', 'extrusion_mod', 'function_space_mod', 'fs_continuity_mod',
-    'field_mod', 'testkern_w3_kernel_mod', 'constants_mod', 'constants_mod', 'log_mod'])
-    or be a recognised built-in (one of '['x_plus_y', 'inc_x_plus_y',..., 'int_inc_min_ax', 
-    'real_x']' for this API)
+        ['global_mesh_base_mod', 'mesh_mod', 'mesh_mod', 'partition_mod', 'partition_mod',
+        'partition_mod', 'extrusion_mod', 'function_space_mod', 'fs_continuity_mod', 'field_mod',
+        'error_w0_kernel_mod', 'constants_mod', 'constants_mod', 'log_mod']) or be a recognised
+        built-in (one of '['x_plus_y', 'inc_x_plus_y', 'a_plus_x', 'inc_a_plus_x', 'ax_plus_y',
+        'inc_ax_plus_y', 'inc_x_plus_by', ...
+        'real_x']' for this API)
 PSyclone cannot know if `no_setval_c` is supposed to be a builtin (for which no `use` statement
 would be required), or if it is supposed to be a user-defined kernel (which requires
 a `use` statement).
@@ -232,9 +279,10 @@ a `use` statement).
 ## Solution for Missing Parameter
 PSyclone will detect that a parameter is missing for the kernel:
 
-    Parse Error: Kernel 'testkern_w3_kernel_type' called from the algorithm layer with an
+    Parse Error: Kernel 'error_w0_kernel_type' called from the algorithm layer with an
     insufficient number of arguments as specified by the metadata. Expected at least '2'
     but found '1'.
+
 
 ## Solution for Invalid Transformation
 PSyclone internally verifies transformation to make sure it will always create valid
