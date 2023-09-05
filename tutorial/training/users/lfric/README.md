@@ -13,7 +13,11 @@ element, it is initialised with 0. Then the kernel `summation_w0_to_w3_kernel`
 is called, which adds the 8 neighbouring vertices of an element up (resulting in
 8 for all the finite elements).
 
-## Using PSyclone
+Each of the following examples has its own subdirectories with the required files.
+In order to run the tests, change into the subdirectory specified in the heading.
+
+
+## Using PSyclone (`1_using_psylone`)
 In this example we use PSyclone to process the algorithm file and create the new
 algorithm layer and PSY-layer file.
 
@@ -54,7 +58,7 @@ The minimum and maximum of `field1` are printed, and they are as expected 8.
 The solution and explanation can be found [here](#solution-for-using-psyclone).
 
 
-## Supporting MPI
+## Supporting MPI (`2_supporting_mpi/`)
 As explained, PSyclone has the ability to support MPI parallelisation of the code. This
 is simply done by using the command line option `-dm` (instead of `-nodm`):
 
@@ -77,7 +81,8 @@ additional setup, which is beyond the scope of this tutorial.
 
 The solution and explanation can be found [here](#solution-for-supporting-mpi).
 
-## Applying OpenMP
+
+## Applying OpenMP (`3_applying_openmp/`)
 In this example you will add transformation script to the PSyclone command line.
 This script will apply OpenMP transformation to the loops. Add the option
 `-s omp.py` to the PSyclone command, i.e.:
@@ -89,6 +94,7 @@ calls into a single loop, and then apply OpenMP parallelisation to all loops.
 Compare the PSy-layer files with the previously created files. What has changed?
 
 The solution and explanation can be found [here](#solution-for-applying-openmp).
+
 
 ## MPI and OpenMP
 This is an optional task and you can skip it if you are in a rush.
@@ -106,6 +112,7 @@ and OpenMP directives around loops.
 
 The solution and explanation can be found [here](#solution-for-mpi-and-openmp).
 
+
 ## Error in Algorithm Layer
 Now let's have a look at some typical errors. Ideally they should not happen
 for a user of a stable LFRic release, but if you for example should select
@@ -120,6 +127,7 @@ Use:
 
 The solution and explanation can be found [here](#solution-for-error-in-algorithm-layer).
 
+
 ## Missing Parameter
 Fix the above error by modifying `main_err1_alg.x90` and putting the correct
 name of the builtins in (`setval_c`, i.e. just remove the 'no_'). Run PSyclone
@@ -130,6 +138,7 @@ again (with the same parameter as above):
 (or `make error1`). What happens now?
 
 The solution and explanation can be found [here](#solution-for-missing-parameter).
+
 
 ## Invalid Transformation
 Now use the file `main_error2.x90`, and try to apply the `omp.py` script,
@@ -149,8 +158,10 @@ sure it does not create incorrect code.
 
 The solution and explanation can be found [here](#solution-for-invalid-transformation).
 
+
 # Solutions
 This section contains the solutions and explanations for all hands-on tasks.
+
 
 ## Solution for Using PSyclone
 The file `main_alg.f90` contains two calls to a PSy layer:
@@ -183,6 +194,7 @@ The second subroutine contains the call of the test kernel:
 
 Note that PSyclone will automatically provide additional required parameters to
 the kernel.
+
 
 ## Solution for Supporting MPI
 After initialising a field, it is marked to be modified (or 'dirty'):
@@ -220,6 +232,7 @@ has not been updated since the last time the halo-values were exchanged. So this
 is an automatically applied optimisation that can significantly reduce the number of MPI
 calls required.
 
+
 ## Solution for Applying OpenMP
 For the first invoke, you should see that the two separate loops (see
 [above](#solution-for-using-psyclone)) are now fused into a single loop:
@@ -238,6 +251,7 @@ Additionally, OpenMP parallelisation is applied to all loops (including the buil
                                            ndf_w3, undf_w3, map_w3(:,cell), &ndf_w0, undf_w0, map_w0(:,cell))
     END DO
     !$omp end parallel do
+
 
 ## Solution for MPI and OpenMP
 Implementing hybrid parallelism is easy once a script was written to add the required OpenMP statements.
@@ -275,6 +289,7 @@ on version the list of builtins might change):
 PSyclone cannot know if `no_setval_c` is supposed to be a builtin (for which no `use` statement
 would be required), or if it is supposed to be a user-defined kernel (which requires
 a `use` statement).
+
 
 ## Solution for Missing Parameter
 PSyclone will detect that a parameter is missing for the kernel:
