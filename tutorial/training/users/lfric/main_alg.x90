@@ -38,7 +38,7 @@ program main
     use partition_mod,          only: partition_type, partitioner_planar, partitioner_interface
     use extrusion_mod,          only: uniform_extrusion_type
     use function_space_mod,     only: function_space_type
-    use fs_continuity_mod,      only: W3
+    use fs_continuity_mod,      only: W0, W3
     use field_mod,              only: field_type
     use testkern_w3_kernel_mod, only: testkern_w3_kernel_type
     use constants_mod,          only: r_def, i_def
@@ -52,11 +52,11 @@ program main
     type(mesh_type), target                    :: mesh
     type(uniform_extrusion_type), target       :: extrusion
     type(uniform_extrusion_type), pointer      :: extrusion_ptr
-    type(function_space_type), target          :: vector_space
-    type(function_space_type), pointer         :: vector_space_ptr
+    type(function_space_type), target          :: vector_space_0, vector_space_3
+    type(function_space_type), pointer         :: vector_space_ptr_0, vector_space_ptr_3
     procedure (partitioner_interface), pointer :: partitioner_ptr
-    type(field_type)                           :: field1, field2
-    integer(kind=i_def)                        :: element_order = 1
+    type(field_type)                           :: field_0, field_3
+    integer(kind=i_def)                        :: element_order = 0
     integer(kind=i_def)                        :: ndata_sz
 
     ! Use the unit-testing constructor:
@@ -80,18 +80,18 @@ program main
     mesh = mesh_type(global_mesh_ptr, partition, extrusion_ptr)
     write (*,*) "Mesh has", mesh%get_nlayers(), "layers."
     ndata_sz = 1
-    vector_space = function_space_type( mesh,          &
-                                        element_order, &
-                                        W3,            &
-                                        ndata_sz)
-    vector_space_ptr => vector_space
-    call field1%initialise( vector_space = vector_space_ptr, name="field1" )
-    call field2%initialise( vector_space = vector_space_ptr, name="field2" )
+    vector_space_0 = function_space_type( mesh, element_order, W0, ndata_sz)
+    vector_space_3 = function_space_type( mesh, element_order, W3, ndata_sz)
+
+    vector_space_ptr_0 => vector_space_0
+    vector_space_ptr_3 => vector_space_3
+    call field_0%initialise( vector_space = vector_space_ptr_0, name="field_3" )
+    call field_3%initialise( vector_space = vector_space_ptr_3, name="field_0" )
     call invoke( name = 'Initialise fields',        &
-                 setval_c( field1,     0.0_r_def ), &
-                 setval_c( field2,     1.0_r_def )  &
+                 setval_c( field_3,     0.0_r_def ), &
+                 setval_c( field_0,     1.0_r_def )  &
                  )
-    call invoke( name = 'testkern_w3', testkern_w3_kernel_type(field1, field2) )
-    call field1%log_minmax(LOG_LEVEL_ALWAYS, "minmax of field1")
+    call invoke( name = 'testkern_w3', testkern_w3_kernel_type(field_3, field_0) )
+    call field_3%log_minmax(LOG_LEVEL_ALWAYS, "minmax of field_3")
 
 end program main
