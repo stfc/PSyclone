@@ -15,6 +15,8 @@ is called, which adds the 8 neighbouring vertices of an element up (resulting in
 
 Each of the following examples has its own subdirectories with the required files.
 In order to run the tests, change into the subdirectory specified in the heading.
+The required PSyclone command is specified in this document, but in all cases
+you can also just run `make` in order to run PSyclone with the required parameters.
 
 
 ## Using PSyclone (`1_using_psylone`)
@@ -25,7 +27,7 @@ To create the required PSy-layer, use the following command:
 
     psyclone -nodm -l output -opsy main_alg_psy.f90 -oalg main_alg.f90 main_alg.x90
 
-The same command can be triggered by `make transform`. This will create
+The same command can be triggered by `make`. This will create
 two new output files, `main_alg.f90`, the rewritten algorithm layer `main_alg.x90`,
 and `main_alg_psy.f90`, the created PSy-layer.
 
@@ -58,13 +60,13 @@ The minimum and maximum of `field1` are printed, and they are as expected 8.
 The solution and explanation can be found [here](#solution-for-using-psyclone).
 
 
-## Supporting MPI (`2_supporting_mpi/`)
+## Supporting MPI (`2_supporting_mpi`)
 As explained, PSyclone has the ability to support MPI parallelisation of the code. This
 is simply done by using the command line option `-dm` (instead of `-nodm`):
 
     psyclone -dm -l output -opsy main_mpi_psy.f90 -oalg main_mpi_alg.f90 main_alg.x90
 
-(or use `make mpi`). Use this option, and look at the PSy-layer. Some of the setup code
+Use this option, and look at the PSy-layer. Some of the setup code
 has changed (which is related to getting the loop sizes based on a distributed field),
 and additionally there is now code that marks if the value of an array has changed,
 called `dirty`. This indicates that the neighbouring processes might not have the correct
@@ -82,21 +84,21 @@ additional setup, which is beyond the scope of this tutorial.
 The solution and explanation can be found [here](#solution-for-supporting-mpi).
 
 
-## Applying OpenMP (`3_applying_openmp/`)
+## Applying OpenMP (`3_applying_openmp`)
 In this example you will add transformation script to the PSyclone command line.
 This script will apply OpenMP transformation to the loops. Add the option
 `-s omp.py` to the PSyclone command, i.e.:
 
     psyclone -s ./omp.py -nodm -l output -opsy main_alg_psy.f90 -oalg main_alg.f90 main_alg.x90
 
-(or use `make omp`). The script will combine the two loops for the two `setval_c`
+The script will combine the two loops for the two `setval_c`
 calls into a single loop, and then apply OpenMP parallelisation to all loops.
 Compare the PSy-layer files with the previously created files. What has changed?
 
 The solution and explanation can be found [here](#solution-for-applying-openmp).
 
 
-## MPI and OpenMP
+## MPI and OpenMP (`4_mpi_and_openmp`)
 This is an optional task and you can skip it if you are in a rush.
 
 Especially for large models you would want to utilise hybrid parallelism, i.e. using
@@ -113,29 +115,27 @@ and OpenMP directives around loops.
 The solution and explanation can be found [here](#solution-for-mpi-and-openmp).
 
 
-## Error in Algorithm Layer
+## Error in Algorithm Layer (`5_alg_layer_error`)
 Now let's have a look at some typical errors. Ideally they should not happen
 for a user of a stable LFRic release, but if you for example should select
 an untested set of options some of these problems could still happen. The
-first example `main_err1_alg.x90` contains an invalid PSyclone builtin name,
+first example `main_alg.x90` contains an invalid PSyclone builtin name,
 though of course PSyclone cannot know what exactly the user meant.
 Use:
 
-    psyclone -nodm -l output -opsy main_err1_psy.f90 -oalg main_err1_alg.f90 main_err1_alg.x90
+    psyclone -nodm -l output -opsy main_alg_psy.f90 -oalg main_alg.f90 main_alg.x90
 
-(or `make error1`). Does PSyclone's error message make sense?
+Does PSyclone's error message make sense?
 
 The solution and explanation can be found [here](#solution-for-error-in-algorithm-layer).
 
 
-## Missing Parameter
-Fix the above error by modifying `main_err1_alg.x90` and putting the correct
-name of the builtins in (`setval_c`, i.e. just remove the 'no_'). Run PSyclone
-again (with the same parameter as above):
+## Missing Parameter (`6_missing_parameter`)
+This example misses a kernel parameter. Again running PSyclone as:
 
-    psyclone -nodm -l output -opsy main_err1_psy.f90 -oalg main_err1_alg.f90 main_err1_alg.x90
+    psyclone -nodm -l output -opsy main_alg_psy.f90 -oalg main_alg.f90 main_alg.x90
 
-(or `make error1`). What happens now?
+What happens?
 
 The solution and explanation can be found [here](#solution-for-missing-parameter).
 
@@ -280,12 +280,10 @@ PSylone will print the following error message (or a variation of it, since depe
 on version the list of builtins might change):
 
     Parse Error: kernel call 'no_setval_c' must either be named in a use statement (found
-        ['global_mesh_base_mod', 'mesh_mod', 'mesh_mod', 'partition_mod', 'partition_mod',
-        'partition_mod', 'extrusion_mod', 'function_space_mod', 'fs_continuity_mod', 'field_mod',
-        'error_w0_kernel_mod', 'constants_mod', 'constants_mod', 'log_mod']) or be a recognised
-        built-in (one of '['x_plus_y', 'inc_x_plus_y', 'a_plus_x', 'inc_a_plus_x', 'ax_plus_y',
-        'inc_ax_plus_y', 'inc_x_plus_by', ...
-        'real_x']' for this API)
+    ['global_mesh_base_mod', 'mesh_mod', 'mesh_mod', 'partition_mod', ..., 'log_mod',
+    'summation_w0_to_w3_kernel_mod']) or be a recognised built-in (one of '['x_plus_y',
+    'inc_x_plus_y', 'a_plus_x', 'inc_a_plus_x',... , 'real_x']' for this API)
+
 PSyclone cannot know if `no_setval_c` is supposed to be a builtin (for which no `use` statement
 would be required), or if it is supposed to be a user-defined kernel (which requires
 a `use` statement).
