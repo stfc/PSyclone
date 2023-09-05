@@ -36,7 +36,7 @@ module testkern_w3_kernel_mod
 
   use argument_mod
   use kernel_mod
-  use fs_continuity_mod, only: W3
+  use fs_continuity_mod, only: w0, W3
 
   use constants_mod
 
@@ -48,7 +48,7 @@ module testkern_w3_kernel_mod
      private
      type(arg_type), dimension(2) :: meta_args =            &
           (/ arg_type(gh_field, gh_real, gh_readwrite, w3), &
-             arg_type(gh_field, gh_real, gh_read,      w3)  &
+             arg_type(gh_field, gh_real, gh_read,      w0)  &
            /)
      integer :: operates_on = cell_column
    contains
@@ -59,24 +59,30 @@ module testkern_w3_kernel_mod
 
 contains
 
-  subroutine testkern_w3_code(nlayers, fld1, fld2, ndf_w3, undf_w3, map_w3)
+    ! This kernel adds all 8 values from the field on W0 to the corresponding
+    ! element in W3. It assumes lowest order finite elements.
 
-    implicit none
+    SUBROUTINE testkern_w3_code(nlayers, field_w3, field_w0, ndf_w3, &
+                                undf_w3, map_w3, ndf_w0, undf_w0, map_w0)
+      USE constants_mod
+      IMPLICIT NONE
+      INTEGER(KIND=i_def), intent(in)                     :: nlayers
+      INTEGER(KIND=i_def), intent(in)                     :: ndf_w0
+      INTEGER(KIND=i_def), intent(in), dimension(ndf_w0)  :: map_w0
+      INTEGER(KIND=i_def), intent(in)                     :: ndf_w3
+      INTEGER(KIND=i_def), intent(in), dimension(ndf_w3)  :: map_w3
+      INTEGER(KIND=i_def), intent(in)                     :: undf_w3, undf_w0
+      REAL(KIND=r_def), intent(inout), dimension(undf_w3) :: field_w3
+      REAL(KIND=r_def), intent(in), dimension(undf_w0)    :: field_w0
 
-    integer(kind=i_def), intent(in)                     :: nlayers
-    integer(kind=i_def)                                 :: ndf_w3, undf_w3
-    real(kind=r_def), dimension(undf_w3), intent(inout) :: fld1
-    real(kind=r_def), dimension(undf_w3), intent(in)    :: fld2
-    integer(kind=i_def), dimension(ndf_w3)              :: map_w3
+      integer(kind=i_def)                                 :: i, k
 
-    integer(kind=i_def)                                 :: i, k
-
-    do k=0, nlayers-1
-      do i=1, ndf_w3
-        fld1(map_w3(i)+k) = fld1(map_w3(i)+k) + fld2(map_w3(i)+k)
+      do k=0, nlayers-1
+        do i=1, ndf_w0
+          field_w3(map_w3(1)+k) = field_w3(map_w3(1)+k) + field_w0(map_w0(i)+k)
+        end do
       end do
-    end do
 
-  end subroutine testkern_w3_code
+    END SUBROUTINE testkern_w3_code
 
 end module testkern_w3_kernel_mod
