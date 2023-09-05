@@ -40,9 +40,9 @@ program main
     use function_space_mod,     only: function_space_type
     use fs_continuity_mod,      only: W0, W3
     use field_mod,              only: field_type
-    use testkern_w3_kernel_mod, only: testkern_w3_kernel_type
     use constants_mod,          only: r_def, i_def
     use log_mod,                only: LOG_LEVEL_ALWAYS
+    use summation_w0_to_w3_kernel_mod, only: summation_w0_to_w3_kernel_type
 
     implicit none
 
@@ -87,11 +87,11 @@ program main
     vector_space_ptr_3 => vector_space_3
     call field_0%initialise( vector_space = vector_space_ptr_0, name="field_3" )
     call field_3%initialise( vector_space = vector_space_ptr_3, name="field_0" )
-    call invoke( name = 'Initialise fields',        &
+    call invoke( name = 'Initialise fields',         &
                  setval_c( field_3,     0.0_r_def ), &
                  setval_c( field_0,     1.0_r_def )  &
                  )
-    call invoke( name = 'testkern_w3', testkern_w3_kernel_type(field_3, field_0) )
+    call invoke( name = 'summation', summation_w0_to_w3_kernel_type(field_3, field_0) )
     call field_3%log_minmax(LOG_LEVEL_ALWAYS, "minmax of field_3")
 
 end program main

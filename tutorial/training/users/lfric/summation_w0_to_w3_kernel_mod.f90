@@ -32,7 +32,7 @@
 ! Modified by J. Henrichs, Bureau of Meteorology
 ! Modified by I. Kavcic, Met Office
 
-module testkern_w3_kernel_mod
+module summation_w0_to_w3_kernel_mod
 
   use argument_mod
   use kernel_mod
@@ -44,7 +44,7 @@ module testkern_w3_kernel_mod
 
   private
 
-  type, public, extends(kernel_type) :: testkern_w3_kernel_type
+  type, public, extends(kernel_type) :: summation_w0_to_w3_kernel_type
      private
      type(arg_type), dimension(2) :: meta_args =            &
           (/ arg_type(gh_field, gh_real, gh_readwrite, w3), &
@@ -52,18 +52,18 @@ module testkern_w3_kernel_mod
            /)
      integer :: operates_on = cell_column
    contains
-     procedure, nopass :: code => testkern_w3_code
-  end type testkern_w3_kernel_type
+     procedure, nopass :: code => summation_w0_to_w3_kernel_code
+  end type summation_w0_to_w3_kernel_type
 
-  public :: testkern_w3_code
+  public :: summation_w0_to_w3_kernel_code
 
 contains
 
     ! This kernel adds all 8 values from the field on W0 to the corresponding
     ! element in W3. It assumes lowest order finite elements.
 
-    SUBROUTINE testkern_w3_code(nlayers, field_w3, field_w0, ndf_w3, &
-                                undf_w3, map_w3, ndf_w0, undf_w0, map_w0)
+    SUBROUTINE summation_w0_to_w3_kernel_code(nlayers, field_w3, field_w0, ndf_w3, &
+                                              undf_w3, map_w3, ndf_w0, undf_w0, map_w0)
       USE constants_mod
       IMPLICIT NONE
       INTEGER(KIND=i_def), intent(in)                     :: nlayers
@@ -83,6 +83,6 @@ contains
         end do
       end do
 
-    END SUBROUTINE testkern_w3_code
+    END SUBROUTINE summation_w0_to_w3_kernel_code
 
-end module testkern_w3_kernel_mod
+end module summation_w0_to_w3_kernel_mod
