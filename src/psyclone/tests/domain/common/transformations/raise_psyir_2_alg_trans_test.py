@@ -322,25 +322,33 @@ def test_array_reference(fortran_reader):
     invoke_trans.validate(subroutine[0])
 
 
-def test_arg_error(fortran_reader):
+@pytest.mark.parametrize("arg", ["0", "'hello'", "alg(field)"])
+def test_arg_error(fortran_reader, arg):
     '''Test that the validate method raises an exception if unexpected
     content is found as an argument to an invoke.
 
     '''
     code = (
-        "subroutine alg()\n"
-        "  use kern_mod\n"
-        "  use field_mod, only : r2d_field\n"
-        "  type(r2d_field) :: field\n"
-        "  call invoke('hello')\n"
-        "end subroutine alg\n")
+        f"subroutine alg()\n"
+        f"  use kern_mod\n"
+        f"  use field_mod, only : r2d_field\n"
+        f"  type(r2d_field) :: field\n"
+        f"  call invoke({arg})\n"
+        f"end subroutine alg\n")
 
     psyir = fortran_reader.psyir_from_source(code)
     invoke_trans = RaisePSyIR2AlgTrans()
     with pytest.raises(TransformationError) as info:
         invoke_trans.validate(psyir.children[0][0])
-    assert ("The arguments to this invoke call are expected to be a "
-            "CodeBlock or an ArrayReference, but found 'Literal'."
+    if arg == "alg(field)":
+        assert ("Error in RaisePSyIR2AlgTrans transformation. The invoke "
+                "call argument 'alg' has been used as a routine name. This "
+                "is not allowed." in str(info.value))
+    else:
+        assert (
+            f"The arguments to this invoke call are expected to be kernel "
+            f"calls which are represented in generic PSyIR as CodeBlocks "
+            f"or ArrayReferences, but '{arg}' is of type 'Literal'."
             in str(info.value))
 
 

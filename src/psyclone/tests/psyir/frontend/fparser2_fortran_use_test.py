@@ -34,6 +34,7 @@
 # Author: A. R. Porter, STFC Daresbury Lab
 # Modified: R. W. Ford, STFC Daresbury Lab
 # Modified: S. Siso, STFC Daresbury Lab
+# Modified: A. B. G. Chalk, STFC Daresbury Lab
 
 ''' Performs py.test tests on the support for use statements in the fparser2
     PSyIR front-end '''
@@ -46,7 +47,68 @@ from psyclone.psyGen import GenerationError
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import KernelSchedule, Container
 from psyclone.psyir.symbols import ContainerSymbol, SymbolError, Symbol, \
-    DataSymbol, AutomaticInterface, INTEGER_SINGLE_TYPE
+    DataSymbol, AutomaticInterface, INTEGER_SINGLE_TYPE, ScalarType, \
+    RoutineSymbol
+
+
+def test_use_return(fortran_reader):
+    ''' Check the the Fparser frontend correctly handles when a function uses
+    a return variable with a kind defined inside the function.'''
+    code = '''real(rkind) function x()
+    use my_mod, only: rkind
+    x = 1.0_rkind
+    end function x'''
+    psyir = fortran_reader.psyir_from_source(code)
+    sym = psyir.children[0].symbol_table.lookup("x")
+    assert isinstance(sym, DataSymbol)
+    assert isinstance(sym.datatype, ScalarType)
+    assert sym.datatype.intrinsic == ScalarType.Intrinsic.REAL
+    assert isinstance(sym.datatype.precision, DataSymbol)
+    assert sym.datatype.precision.name == "rkind"
+
+
+def test_use_return2(fortran_reader):
+    ''' Check the the Fparser frontend correctly handles when a function uses
+    a return variable with a kind defined inside the parent module.'''
+    code = '''module mymod
+    use my_mod, only: rkind
+    contains
+    real(rkind) function x()
+      x = 1.0_rkind
+    end function x
+    end module mymod'''
+    psyir = fortran_reader.psyir_from_source(code)
+    sym = psyir.children[0].symbol_table.lookup("x")
+    assert isinstance(sym, RoutineSymbol)
+    assert isinstance(sym.datatype, ScalarType)
+    assert sym.datatype.intrinsic == ScalarType.Intrinsic.REAL
+    sym = psyir.children[0].children[0].symbol_table.lookup("x")
+    assert isinstance(sym, DataSymbol)
+    assert isinstance(sym.datatype, ScalarType)
+    assert sym.datatype.intrinsic == ScalarType.Intrinsic.REAL
+    assert isinstance(sym.datatype.precision, DataSymbol)
+    assert sym.datatype.precision.name == "rkind"
+
+    code = '''module mymod
+    use my_mod, only: rkind
+    private
+    contains
+    real(rkind) function x()
+      x = 1.0_rkind
+    end function x
+    end module mymod'''
+    psyir = fortran_reader.psyir_from_source(code)
+    sym = psyir.children[0].symbol_table.lookup("x")
+    assert isinstance(sym, RoutineSymbol)
+    assert sym.visibility == Symbol.Visibility.PRIVATE
+    assert isinstance(sym.datatype, ScalarType)
+    assert sym.datatype.intrinsic == ScalarType.Intrinsic.REAL
+    sym = psyir.children[0].children[0].symbol_table.lookup("x")
+    assert isinstance(sym, DataSymbol)
+    assert isinstance(sym.datatype, ScalarType)
+    assert sym.datatype.intrinsic == ScalarType.Intrinsic.REAL
+    assert isinstance(sym.datatype.precision, DataSymbol)
+    assert sym.datatype.precision.name == "rkind"
 
 
 @pytest.mark.usefixtures("f2008_parser")

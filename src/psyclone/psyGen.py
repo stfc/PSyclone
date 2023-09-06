@@ -51,12 +51,10 @@ from psyclone.f2pygen import (AllocateGen, AssignGen, CallGen, CommentGen,
                               DeclGen, DeallocateGen, DoGen, UseGen)
 from psyclone.parse.algorithm import BuiltInCall
 from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.psyir.backend.visitor import PSyIRVisitor
 from psyclone.psyir.nodes import (Node, Schedule, Loop, Statement, Container,
                                   Routine, Call, OMPDoDirective)
 from psyclone.psyir.symbols import (ArrayType, DataSymbol, RoutineSymbol,
                                     Symbol, ContainerSymbol, ImportInterface,
-                                    ContainerSymbol, ImportInterface,
                                     ArgumentInterface, DeferredType)
 from psyclone.psyir.symbols.datatypes import UnknownFortranType
 
@@ -1761,9 +1759,13 @@ class CodedKern(Kern):
         container_table = container.symbol_table
         for sym in container_table.datatypesymbols:
             if isinstance(sym.datatype, UnknownFortranType):
-                orig_declaration = sym.datatype.declaration
-                sym.datatype.declaration = orig_declaration.replace(
+                new_declaration = sym.datatype.declaration.replace(
                     orig_kern_name, new_kern_name)
+                # pylint: disable=protected-access
+                sym._datatype = UnknownFortranType(
+                    new_declaration,
+                    partial_datatype=sym.datatype.partial_datatype)
+                # pylint: enable=protected-access
 
     @property
     def modified(self):

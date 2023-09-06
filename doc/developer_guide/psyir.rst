@@ -507,6 +507,16 @@ var2, var3)` would be represented by a
 The PSyIR supports the concept of named arguments for operation
 nodes, see the :ref:`named_arguments-label` section for more details.
 
+.. note:: Similar to Fortran, the PSyIR has two comparison operators, one for
+        booleans (EQV) and one for non-booleans (EQ). These are not
+        interchangeable because they have different precedence priorities and
+        some compilers will not compile with the wrong operator. In some cases
+        we need to insert a comparison of two expressions and we don't know the
+        datatype of the operands (e.g. in the select-case canonicalisation).
+        A solution to this is to create an abstract interface with appropriate
+        implementations for each possible datatype.
+            
+
 IntrinsicCall Nodes
 -------------------
 
@@ -1055,7 +1065,7 @@ output strings).
 The logic and declaration of kernel variables is handled separately by
 the ``gen_stub`` method in ``DynKern`` and the ``gen_code`` method in
 ``LFRicInvoke``. In both cases these methods make use of the subclasses
-of ``DynCollection`` to declare variables.
+of ``LFRicCollection`` to declare variables.
 
 When using the symbol table in the LFRic PSyIR we naturally capture
 arguments and datatypes together. The ``KernelInterface`` class is
@@ -1068,7 +1078,7 @@ clear what the limitations are for ``KernStubArgList``.
 
 Eventually the definition of lfric datatypes should be moved to the
 LFRic PSyIR, but at the moment there is a lot of information defined
-in the ``DynCollection`` subclasses. This will need to be addressed
+in the ``LFRicCollection`` subclasses. This will need to be addressed
 over time.
 
 The GOcean PSyIR

@@ -61,11 +61,6 @@ class LFRicAlg:
     layer from Kernel metadata.
 
     '''
-
-    #: The order of the finite-element scheme that will be used by any
-    #: generated algorithm layer.
-    _ELEMENT_ORDER = "1"
-
     def create_from_kernel(self, name, kernel_path):
         '''
         Generates LFRic algorithm PSyIR that calls the supplied kernel through
@@ -240,9 +235,10 @@ class LFRicAlg:
 
     def _create_function_spaces(self, prog, fspaces):
         '''
-        Adds PSyIR to the supplied Routine that declares and intialises the
-        specified function spaces. The order of these spaces is set by the
-        `_ELEMENT_ORDER` class constant.
+        Adds PSyIR to the supplied Routine that declares and intialises
+        the specified function spaces. The order of these spaces is
+        set by the element_order variable which is provided by the
+        LFRic finite_element_config_mod module.
 
         :param prog: the routine to which to add declarations and \
                      initialisation.
@@ -252,20 +248,19 @@ class LFRicAlg:
 
         :raises InternalError: if a function space is supplied that is not a \
                                recognised LFRic function space.
+
         '''
         table = prog.symbol_table
 
         reader = FortranReader()
 
         # The order of the finite-element scheme.
-        table.add_lfric_precision_symbol("i_def")
-        data_type_class = LFRicTypes("LFRicIntegerScalarDataType")
-        order = table.new_symbol("element_order", tag="element_order",
-                                 symbol_type=DataSymbol,
-                                 datatype=data_type_class(),
-                                 constant_value=Literal(
-                                     self._ELEMENT_ORDER,
-                                     data_type_class()))
+        fe_config_mod = table.new_symbol(
+            "finite_element_config_mod", symbol_type=ContainerSymbol)
+        order = table.new_symbol(
+            "element_order", tag="element_order",
+            symbol_type=DataSymbol, datatype=DeferredType(),
+            interface=ImportInterface(fe_config_mod))
 
         fs_cont_mod = table.new_symbol("fs_continuity_mod",
                                        symbol_type=ContainerSymbol)

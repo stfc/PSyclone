@@ -208,10 +208,19 @@ class RaisePSyIR2AlgTrans(Transformation):
                 for fp2_node in arg._fp2_nodes:
                     self._validate_fp2_node(fp2_node)
             else:
+                if isinstance(arg, Call):
+                    info = (
+                        f"The invoke call argument '{arg.routine.name}' has "
+                        f"been used as a routine name. This is not allowed.")
+                else:
+                    info = (
+                        f"The arguments to this invoke call are expected to "
+                        f"be kernel calls which are represented in generic "
+                        f"PSyIR as CodeBlocks or ArrayReferences, but "
+                        f"'{arg.debug_string()}' is of type "
+                        f"'{type(arg).__name__}'.")
                 raise TransformationError(
-                    f"Error in {self.name} transformation. The arguments to "
-                    f"this invoke call are expected to be a CodeBlock or an "
-                    f"ArrayReference, but found '{type(arg).__name__}'.")
+                    f"Error in {self.name} transformation. {info}")
 
     def apply(self, call, index, options=None):
         ''' Apply the transformation to the supplied node.

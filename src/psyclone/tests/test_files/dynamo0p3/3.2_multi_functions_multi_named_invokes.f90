@@ -32,7 +32,7 @@
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Author R. W. Ford, STFC Daresbury Lab
-! Modified I. Kavcic, Met Office
+! Modified I. Kavcic and L. Turner, Met Office
 
 program multi_functions_multi_invokes
 
@@ -41,7 +41,7 @@ program multi_functions_multi_invokes
   use field_mod,           only: field_type
   use quadrature_xyoz_mod, only: quadrature_xyoz_type
   use testkern_mod,        only: testkern_type
-  use testkern_qr,         only: testkern_qr_type
+  use testkern_qr_mod,     only: testkern_qr_type
 
   implicit none
 

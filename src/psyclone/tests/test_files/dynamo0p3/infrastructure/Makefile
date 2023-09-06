@@ -53,8 +53,10 @@ LFRIC_PATH := $(dir $(this_file))
 BUILD_PATH := $(shell pwd)
 include $(LFRIC_PATH)/lfric_include_flags.inc
 
+# Since the repo includes the pre-processed files (.f90), we only
+# need to search for those here.
 ALL_SRC := $(subst $(LFRIC_PATH),,\
-		    $(shell find $(LFRIC_PATH) -name '*.[Ff]90' -print))
+		    $(shell find $(LFRIC_PATH) -name '*.f90' -print))
 ALL_OBJ = $(subst .F90,.o,$(subst .f90,.o,$(ALL_SRC)))
 
 # Additional object files required for netcdf support

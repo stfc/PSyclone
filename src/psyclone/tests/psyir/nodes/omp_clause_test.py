@@ -39,9 +39,9 @@
 
 import pytest
 from psyclone.psyir.nodes.node import colored
-from psyclone.psyir.nodes.omp_clauses import OMPGrainsizeClause,\
-    OMPNowaitClause, OMPNogroupClause, OMPNumTasksClause, OMPSharedClause,\
-    OMPDependClause, OMPPrivateClause, OMPFirstprivateClause,\
+from psyclone.psyir.nodes.omp_clauses import OMPGrainsizeClause, \
+    OMPNowaitClause, OMPNogroupClause, OMPNumTasksClause, OMPSharedClause, \
+    OMPDependClause, OMPPrivateClause, OMPFirstprivateClause, \
     OMPDefaultClause, OMPScheduleClause
 from psyclone.psyir.nodes.literal import Literal
 from psyclone.psyir.nodes.reference import Reference

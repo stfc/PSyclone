@@ -277,7 +277,7 @@ def test_validate_query(fortran_reader):
     for reference in assignment.walk(Reference):
         # We want to avoid subclasses such as ArrayReference
         # pylint: disable=unidiomatic-typecheck
-        if type(reference) == Reference:
+        if type(reference) is Reference:
             with pytest.raises(TransformationError) as info:
                 trans.validate(reference)
             assert ("References to arrays within LBOUND, UBOUND or SIZE "

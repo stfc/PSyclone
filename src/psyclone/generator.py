@@ -61,6 +61,7 @@ from psyclone.domain.common.transformations import AlgTrans
 from psyclone.domain.gocean.transformations import (
     RaisePSyIR2GOceanKernTrans, GOceanAlgInvoke2PSyCallTrans)
 from psyclone.domain.lfric.algorithm import LFRicBuiltinFunctor
+from psyclone.domain.lfric.lfric_builtins import BUILTIN_MAP
 from psyclone.domain.lfric.transformations import (
     LFRicAlgTrans, RaisePSyIR2LFRicKernTrans, LFRicAlgInvoke2PSyCallTrans)
 from psyclone.errors import GenerationError, InternalError
@@ -73,7 +74,10 @@ from psyclone.profiler import Profiler
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
+from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import Loop, Container, Routine
+from psyclone.psyir.symbols import UnresolvedInterface
+from psyclone.psyir.transformations import TransformationError
 from psyclone.version import __VERSION__
 
 # Those APIs that do not have a separate Algorithm layer
@@ -90,7 +94,6 @@ LFRIC_TESTING = False
 
 
 def handle_script(script_name, info, function_name, is_optional=False):
-    # pylint: disable=too-many-locals
     '''Loads and applies the specified script to the given algorithm or
     psy layer. The relevant script function (in 'function_name') is
     called with 'info' as the argument.
@@ -186,34 +189,39 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
 
     :param str filename: the file containing the algorithm specification.
     :param str api: the name of the API to use. Defaults to empty string.
-    :param kernel_paths: the directories from which to recursively \
-        search for the files containing the kernel source (if \
-        different from the location of the algorithm specification). \
+    :param kernel_paths: the directories from which to recursively
+        search for the files containing the kernel source (if
+        different from the location of the algorithm specification).
         Defaults to None.
     :type kernel_paths: Optional[List[str]]
-    :param str script_name: a script file that can apply optimisations \
-        to the PSy layer (can be a path to a file or a filename that \
+    :param str script_name: a script file that can apply optimisations
+        to the PSy layer (can be a path to a file or a filename that
         relies on the PYTHONPATH to find the module). Defaults to None.
-    :param bool line_length: a logical flag specifying whether we care \
-        about line lengths being longer than 132 characters. If so, \
-        the input (algorithm and kernel) code is checked to make sure \
+    :param bool line_length: a logical flag specifying whether we care
+        about line lengths being longer than 132 characters. If so,
+        the input (algorithm and kernel) code is checked to make sure
         that it conforms. The default is False.
-    :param bool distributed_memory: a logical flag specifying whether \
-        to generate distributed memory code. The default is set in the \
+    :param bool distributed_memory: a logical flag specifying whether
+        to generate distributed memory code. The default is set in the
         'config.py' file.
-    :param str kern_out_path: directory to which to write transformed \
+    :param str kern_out_path: directory to which to write transformed
         kernel code. Defaults to empty string.
-    :param bool kern_naming: the scheme to use when re-naming transformed \
+    :param bool kern_naming: the scheme to use when re-naming transformed
         kernels. Defaults to "multiple".
-    :return: 2-tuple containing the fparser1 AST for the algorithm code and \
+    :return: 2-tuple containing the fparser1 AST for the algorithm code and
         the fparser1 AST or a string (for NEMO) of the psy code.
-    :rtype: Tuple[:py:class:`fparser.one.block_statements.BeginSource`, \
-            :py:class:`fparser.one.block_statements.Module`] | \
-            Tuple[:py:class:`fparser.one.block_statements.BeginSource`, str]
+    :rtype: Tuple[:py:class:`fparser.one.block_statements.BeginSource`,
+        :py:class:`fparser.one.block_statements.Module`] |
+        Tuple[:py:class:`fparser.one.block_statements.BeginSource`, str]
 
     :raises GenerationError: if an invalid API is specified.
     :raises GenerationError: if an invalid kernel-renaming scheme is specified.
+    :raises GenerationError: if there is an error raising the PSyIR to
+        domain-specific PSyIR.
+    :raises GenerationError: if a kernel functor is not named in a use
+        statement.
     :raises IOError: if the filename or search path do not exist.
+    :raises NoInvokesError: if no invokes are found in the algorithm file.
 
     For example:
 
@@ -274,12 +282,15 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
         # Create language-level PSyIR from the Algorithm file
         reader = FortranReader()
         if api == "dynamo0.3":
-            # avoid undeclared builtin errors in PSyIR by adding "use
-            # builtins". TODO issue #1618. This symbol needs to be
-            # removed when lowering.
+            # avoid undeclared builtin errors in PSyIR by adding a
+            # wildcard use statement.
             fp2_tree = parse_fp2(filename)
-            add_builtins_use(fp2_tree)
-            psyir = reader.psyir_from_source(str(fp2_tree))
+            # Choose a module name that is invalid Fortran so that it
+            # does not clash with any existing names in the algorithm
+            # layer.
+            builtins_module_name = "_psyclone_builtins"
+            add_builtins_use(fp2_tree, builtins_module_name)
+            psyir = Fparser2Reader().generate_psyir(fp2_tree)
             # Check that there is only one module/program per file.
             check_psyir(psyir, filename)
         else:
@@ -290,7 +301,11 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
             alg_trans = AlgTrans()
         else:  # api == "dynamo0.3"
             alg_trans = LFRicAlgTrans()
-        alg_trans.apply(psyir)
+        try:
+            alg_trans.apply(psyir)
+        except TransformationError as info:
+            raise GenerationError(
+                f"In algorithm file '{filename}':\n{info.value}") from info
 
         if not psyir.walk(AlgorithmInvokeCall):
             raise NoInvokesError(
@@ -309,6 +324,27 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
                 if isinstance(kern, LFRicBuiltinFunctor):
                     # Skip builtins
                     continue
+                if isinstance(kern.symbol.interface, UnresolvedInterface):
+                    # This kernel functor is not specified in a use statement.
+                    # Find all container symbols that are in scope.
+                    st_ref = kern.scope.symbol_table
+                    container_symbols = [
+                        symbol.name for symbol in st_ref.containersymbols]
+                    while st_ref.parent_symbol_table():
+                        st_ref = st_ref.parent_symbol_table()
+                        container_symbols += [
+                            symbol.name for symbol in st_ref.containersymbols]
+                    message = (
+                        f"Kernel functor '{kern.symbol.name}' in routine "
+                        f"'{kern.scope.name}' from algorithm file "
+                        f"'{filename}' must be named in a use "
+                        f"statement (found {container_symbols})")
+                    if api == "dynamo0.3":
+                        message += (
+                            f" or be a recognised built-in (one of "
+                            f"{list(BUILTIN_MAP.keys())})")
+                    message += "."
+                    raise GenerationError(message)
                 container_symbol = kern.symbol.interface.container_symbol
 
                 # Find the kernel file containing the container
@@ -344,6 +380,15 @@ def generate(filename, api="", kernel_paths=None, script_name=None,
         for invoke in psyir.walk(AlgorithmInvokeCall):
             invoke_trans.apply(
                 invoke, options={"kernels": kernels[id(invoke)]})
+        if api == "dynamo0.3":
+            # Remove any use statements that were temporarily added to
+            # avoid the PSyIR complaining about undeclared builtin
+            # names.
+            for node in psyir.walk((Routine, Container)):
+                symbol_table = node.symbol_table
+                if builtins_module_name in symbol_table:
+                    symbol = symbol_table.lookup(builtins_module_name)
+                    symbol_table.remove(symbol)
 
         # Create Fortran from Algorithm PSyIR
         writer = FortranWriter()
@@ -576,23 +621,36 @@ def check_psyir(psyir, filename):
             f"found '{type(psyir.children[0]).__name__}'.")
 
 
-def add_builtins_use(fp2_tree):
-    '''Modify the fparser2 tree adding a 'use builtins' so that builtin kernel
+def add_builtins_use(fp2_tree, name):
+    '''Modify the fparser2 tree adding a 'use <name>' so that builtin kernel
     functors do not appear to be undeclared.
 
     :param fp2_tree: the fparser2 tree to modify.
     :type fp2_tree: py:class:`fparser.two.Program`
+    :param str name: the name of the module imported by the use
+        statement.
 
     '''
     for node in fp2_tree.children:
         if isinstance(node, (Fortran2003.Module, Fortran2003.Main_Program)):
-            # add "use builtins" to the module or program
+            # add "use <name>" to the module or program
             if not isinstance(
                     node.children[1], Fortran2003.Specification_Part):
-                fp2_reader = get_reader("use builtins")
-                node.children.insert(
-                    1, Fortran2003.Specification_Part(fp2_reader))
+                # Create a valid use statement then modify its name as
+                # the supplied name may be invalid Fortran to avoid
+                # clashes with existing Fortran names.
+                fp2_reader = get_reader("use dummy")
+                spec_part = Fortran2003.Specification_Part(fp2_reader)
+                use_stmt = spec_part.children[0]
+                use_name = use_stmt.children[2]
+                use_name.string = name
+                node.children.insert(1, spec_part)
             else:
                 spec_part = node.children[1]
-                spec_part.children.insert(
-                    0, Fortran2003.Use_Stmt("use builtins"))
+                # Create a valid use statement then modify its name as
+                # the supplied name may be invalid Fortran to avoid
+                # clashes with existing Fortran names.
+                use_stmt = Fortran2003.Use_Stmt("use dummy")
+                use_name = use_stmt.children[2]
+                use_name.string = name
+                spec_part.children.insert(0, use_stmt)

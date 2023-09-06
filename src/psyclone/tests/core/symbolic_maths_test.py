@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -36,8 +36,6 @@
 
 
 ''' Module containing py.test tests for the symbolic maths class.'''
-
-from __future__ import print_function, absolute_import
 
 import pytest
 from sympy import solvers, Symbol
@@ -124,6 +122,7 @@ def test_symbolic_math_equal(fortran_reader, expressions):
 
 
 @pytest.mark.parametrize("expressions", [("a%b", "a%b"),
+                                         ("c", "c(::,::)"),
                                          ("a%b(i)", "a%b(i)"),
                                          ("a%b(2*i)", "a%b(3*i-i)"),
                                          ("a%b(i-1)%c(j+1)",
@@ -220,7 +219,8 @@ def test_symbolic_math_not_equal_structures(fortran_reader, expressions):
                                                 ("i+j", "j+i+1", True),
                                                 ("i-j", "j-i", False),
                                                 ("max(1, 2)",
-                                                 "max(1, 2, 3)", True)
+                                                 "max(1, 2, 3)", True),
+                                                ("a(:)", "b(:)", False),
                                                 ])
 def test_symbolic_math_never_equal(fortran_reader, exp1, exp2, result):
     '''Test that the sympy based comparison handles complex
@@ -244,25 +244,19 @@ def test_symbolic_math_never_equal(fortran_reader, exp1, exp2, result):
     assert sym_maths.never_equal(schedule[0].rhs, schedule[1].rhs) is result
 
 
-def test_symbolic_math_never_equal_error(fortran_reader):
-    '''Test that the sympy based comparison raises exceptions as expected.
-
-    '''
-    # A dummy program to easily create the PSyIR for the
-    # expressions we need. We just take the RHS of the assignments
-    source = '''program test_prog
-                use some_mod
-                type(my_mod_type) :: a, b
-                a(:) = b(:)
-                end program test_prog
-                '''
+def test_symbolic_maths_never_equal_error(fortran_reader):
+    '''Test the never_equal method with an invalid SymPy expression, to make
+    sure it hides any exception. We use an array assignment using (/ ... /),
+    which is not valid in SymPy.'''
+    source = (
+        "program test_prog\n"
+        "  integer :: a(2)\n"
+        "  a(:) = (/1, 2/)\n"
+        "end program test_prog\n")
     psyir = fortran_reader.psyir_from_source(source)
-    schedule = psyir.children[0]
-
+    assignment = psyir.children[0][0]
     sym_maths = SymbolicMaths.get()
-    # The array ranges will cause an exception in the sympy writer,
-    # which the `never_equal` function hides from the application.
-    assert sym_maths.never_equal(schedule[0].rhs, schedule[0].lhs) is False
+    assert sym_maths.never_equal(assignment.lhs, assignment.rhs) is False
 
 
 @pytest.mark.parametrize("exp1, exp2, result", [("i", "2*i+1", set([-1])),
@@ -306,9 +300,9 @@ def test_symbolic_math_solve(fortran_reader, exp1, exp2, result):
     schedule = psyir.children[0]
 
     sym_maths = SymbolicMaths.get()
-    sympy_expressions, symbol_map = SymPyWriter.\
-        get_sympy_expressions_and_symbol_map([schedule[0].rhs,
-                                              schedule[1].rhs])
+    writer = SymPyWriter()
+    sympy_expressions = writer([schedule[0].rhs, schedule[1].rhs])
+    symbol_map = writer.type_map
     # Get the symbol used for 'i', so we can solve for 'i'
     i = symbol_map["i"]
     solution = sym_maths.solve_equal_for(sympy_expressions[0],
@@ -335,7 +329,9 @@ def test_solve_equal_for_error(monkeypatch):
                                          ("min(1, 3)", "min(1, 2, 3)"),
                                          ("min(1, 2, 3)", "1"),
                                          ("MOD(7,2)", "1"),
-                                         ("MOD(i,j)", "mod(2+i-2, j)")
+                                         ("MOD(i,j)", "mod(2+i-2, j)"),
+                                         ("FLOOR(1.1)", "1"),
+                                         ("FLOOR(-1.1)", "-2")
                                          ])
 def test_symbolic_math_functions_with_constants(fortran_reader, expressions):
     '''Test that recognised functions with constant values as arguments are
@@ -360,6 +356,8 @@ def test_symbolic_math_functions_with_constants(fortran_reader, expressions):
 
 
 @pytest.mark.parametrize("expressions", [("field(1+i)", "field(i+1)"),
+                                         ("lambda", "lambda"),
+                                         ("lambda(1+i)", "lambda(i+1)"),
                                          ("a%field(b+1)", "a%field(1+b)"),
                                          ("a%b%c(a_b+1)", "a%b%c(1+a_b)"),
                                          ("a%field(field+1)",
@@ -370,7 +368,43 @@ def test_symbolic_math_functions_with_constants(fortran_reader, expressions):
 def test_symbolic_math_use_reserved_names(fortran_reader, expressions):
     '''Test that reserved names are handled as expected. The SymPy parser
     uses 'eval' internally, so if a Fortran variable name should be the
-    same as a SymPy function (e.g. 'field'), parsing will fail.
+    same as a SymPy function (e.g. 'field'), parsing will fail. Similarly,
+    a Python reserved name (like 'lambda') would cause a parsing error.
+
+    '''
+    # A dummy program to easily create the PSyIR for the
+    # expressions we need. We just take the RHS of the assignments
+    source = f'''program test_prog
+                 use some_mod
+                 integer :: field(10)
+                 integer :: i, x
+                 type(my_mod_type) :: a, b
+                 x = {expressions[0]}
+                 x = {expressions[1]}
+                 end program test_prog
+             '''
+    psyir = fortran_reader.psyir_from_source(source)
+    schedule = psyir.children[0]
+    sym_maths = SymbolicMaths.get()
+    assert sym_maths.equal(schedule[0].rhs, schedule[1].rhs) is True
+
+
+@pytest.mark.parametrize("expressions", [("field(:)", "field(::)", True),
+                                         ("field(1:2:3)",
+                                          "field(1:2:3)", True),
+                                         ("field(1:2:1)",
+                                          "field(1:2)", True),
+                                         ("field(1:2:3)",
+                                          "field(2:2:3)", False),
+                                         ("field(1:2:3)",
+                                          "field(1:3:3)", False),
+                                         ("field(1:2:3)",
+                                          "field(1:2:4)", False),
+                                         ])
+def test_symbolic_math_use_range(fortran_reader, expressions):
+    '''Test that ranges are handled correctly. A `Range` is converted
+    to a SymPy three-tuple (start, stop, step), which means all components
+    need to be handled individually
 
     '''
     # A dummy program to easily create the PSyIR for the
@@ -386,10 +420,13 @@ def test_symbolic_math_use_reserved_names(fortran_reader, expressions):
     psyir = fortran_reader.psyir_from_source(source)
     schedule = psyir.children[0]
     sym_maths = SymbolicMaths.get()
-    assert sym_maths.equal(schedule[0].rhs, schedule[1].rhs) is True
+    # The child of the ArrayReference is the Range
+    assert sym_maths.equal(schedule[0].rhs.children[0],
+                           schedule[1].rhs.children[0]) is expressions[2]
 
 
 @pytest.mark.parametrize("expr,expected", [
+    ("lambda + 1", "lambda + 1"),
     ("1.0", "1.0"),
     ("a", "a"),
     ("a*b+c", "a * b + c"),
@@ -397,7 +434,8 @@ def test_symbolic_math_use_reserved_names(fortran_reader, expressions):
     ("(a*b)+c", "a * b + c"),
     ("a*(b+c)", "a * b + a * c"),
     ("a*((b+c)/d)", "a * b / d + a * c / d"),
-    ("a(i)*((b(i,j)+c(j))/d)", "a(i) * b(i,j) / d + a(i) * c(j) / d")])
+    ("a(i)*((b(i,j)+c(j))/d)",
+     "a(i) * b(i,j) / d + a(i) * c(j) / d")])
 def test_symbolic_maths_expand(fortran_reader, fortran_writer, expr, expected):
     '''Test the expand method works as expected.'''
     # A dummy program to easily create the PSyIR for the
@@ -414,14 +452,23 @@ def test_symbolic_maths_expand(fortran_reader, fortran_writer, expr, expected):
     assert result == expected
 
 
-@pytest.mark.xfail(reason="issue 1655, array notation is not yet supported")
-def test_symbolic_maths_expand_error(fortran_reader):
-    '''Test the expand method with array notation.'''
-    source = (
-        "program test_prog\n"
-        "  use some_mod\n"
-        "  x = a(:)*b(:)\n"
-        "end program test_prog\n")
+def test_symbolic_maths_array_and_array_index(fortran_reader):
+    '''Test having an expression that uses a whole array and
+    the same array with an index, e.g. : `a(i) + a`.
+    '''
+    source = '''program test_prog
+          use some_mod
+          real :: x, y, a(10)
+          x = a(i)
+          y = a
+        end program test_prog'''
     psyir = fortran_reader.psyir_from_source(source)
     sym_maths = SymbolicMaths.get()
-    sym_maths.expand(psyir.children[0][0].rhs)
+    assert not sym_maths.equal(psyir.children[0][0].rhs,
+                               psyir.children[0][1].rhs)
+
+    assert sym_maths.equal(psyir.children[0][0].rhs,
+                           psyir.children[0][0].rhs)
+
+    assert sym_maths.equal(psyir.children[0][1].rhs,
+                           psyir.children[0][1].rhs)
