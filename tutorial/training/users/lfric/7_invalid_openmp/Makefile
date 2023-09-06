@@ -83,7 +83,10 @@ main_alg_psy.f90: main_alg.x90 omp_transformation.py
 	psyclone -s ./omp_transformation.py -dm -l output -opsy main_alg_psy.f90 -oalg main_alg.f90 main_alg.x90
 
 # For PSyclone CI:
-test: transform
+# For PSyclone CI:
+test:
+	$(MAKE) transform 2>&1 | grep " The kernel has an argument with INC "\
+	"access. Colouring is required." >/dev/null
 
 # External libraries - LFRic infrastructure
 # -----------------------------------------

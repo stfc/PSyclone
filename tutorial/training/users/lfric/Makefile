@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2023, Science and Technology Facilities Council.
+# Copyright (c) 2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,84 +33,26 @@
 # ------------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
 
-# The compiler to use may be specified via the F90 environment
-#
-# export F90=gfortran
-# export F90FLAGS="-Wall -g -fcheck=bound"
-F90 ?= gfortran
-F90FLAGS ?= -Wall -g -fcheck=bound
+# Get all directories with a Makefile, which will be in all examples,
+# and then remove the Makefile from the list to get the list of all
+# directories (otherwise we would also get __pycache__)
+EXAMPLES=$(sort $(patsubst %/Makefile,%,$(wildcard */Makefile)))
 
-OBJ = main_alg_psy.o main_alg.o summation_w0_to_w3_kernel_mod.o
+test_EXAMPLES=$(addprefix test_,$(EXAMPLES))
+clean_EXAMPLES=$(addprefix clean_,$(EXAMPLES))
+allclean_EXAMPLES=$(addprefix allclean_,$(EXAMPLES))
 
-EXEC = example
-# Path of the included simplified LFRic infrastructure files:
-LFRIC_PATH = ../../../../src/psyclone/tests/test_files/dynamo0p3/infrastructure
-LFRIC_NAME=lfric
-LFRIC_LIB=$(LFRIC_PATH)/lib$(LFRIC_NAME).a
+.PHONY: $(test_EXAMPLES) $(clean_EXAMPLES) $(allclean_EXAMPLES)
 
-# This sets up LFRIC_INCLUDE_FLAGS
-include $(LFRIC_PATH)/lfric_include_flags.inc
-F90FLAGS += $(LFRIC_INCLUDE_FLAGS)
+test: $(test_EXAMPLES)
+clean: $(clean_EXAMPLES)
+allclean: $(allclean_EXAMPLES)
 
-# Various targets
-# ---------------
-.PHONY: transform compile run clean allclean omp error1 error2 mpi test
+$(test_EXAMPLES):
+	$(MAKE) -C $(patsubst test_%,%,$@) test
 
-transform:
-	psyclone -nodm -l output -opsy main_alg_psy.f90 -oalg main_alg.f90 main_alg.x90
+$(clean_EXAMPLES):
+	$(MAKE) -C $(patsubst clean_%,%,$@) clean
 
-omp:
-	psyclone -s ./omp.py -nodm -l output -opsy main_omp_psy.f90 -oalg main_omp_alg.f90 main_alg.x90
-
-error1:
-	psyclone -nodm -l output -opsy main_err1_psy.f90 -oalg main_err1_alg.f90 main_err1_alg.x90
-
-error2:
-	psyclone -s ./omp.py -nodm -l output -opsy main_err2_psy.f90 -oalg main_err2_alg.f90 main_err2_alg.x90
-
-mpi:
-	psyclone -dm -l output -opsy main_mpi_psy.f90 -oalg main_mpi_alg.f90 main_alg.x90
-
-main_alg_psy.f90: main_alg.x90
-	psyclone -nodm -l output -opsy main_alg_psy.f90 -oalg main_alg.f90 main_alg.x90
-
-compile: main_alg_psy.f90 $(EXEC)
-
-run: compile
-	./example
-
-$(EXEC): $(LFRIC_LIB) $(OBJ)
-	$(F90) $(F90FLAGS) $(OBJ) -o $(EXEC) -L$(LFRIC_PATH) -l$(LFRIC_NAME)
-
-clean:
-	rm -f $(EXEC) $(OBJ) *.mod main_*alg.f90 main_*psy.f90
-
-allclean: clean
-	make -C $(LFRIC_PATH) allclean
-
-# For PSyclone's CI. Test the three working transformations,
-# and check that the error ones produce the expected errors:
-test: transform omp mpi
-	$(MAKE) error1 2>&1 | grep "kernel call '"\
-	"no_setval_c' must either be named in a use statement" >/dev/null
-	$(MAKE) error2 2>&1 | grep "The kernel has an argument with INC access" >/dev/null
-
-# External libraries - LFRic infrastructure
-# -----------------------------------------
-$(LFRIC_LIB):
-	$(MAKE) -C $(LFRIC_PATH)
-
-# Dependencies
-# ------------
-main_alg.f90: main_alg_psy.f90
-main_alg_psy.o:	summation_w0_to_w3_kernel_mod.o
-main_alg.o:	main_alg_psy.o
-summation_w0_to_w3_kernel_mod.o: $(LFRIC_LIB)
-
-# File creation rules
-# -------------------
-%.o: %.f90
-	$(F90) $(F90FLAGS) $(LFRIC_INCLUDE_FLAGS) -c $<
-
-# Keep the generated psy and alg files
-.precious: main_alg_psy.f90 main_alg.f90
+$(allclean_EXAMPLES):
+	$(MAKE) -C $(patsubst allclean_%,%,$@) allclean
