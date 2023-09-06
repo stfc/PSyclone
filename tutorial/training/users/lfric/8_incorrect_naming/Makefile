@@ -85,7 +85,9 @@ main_alg_psy.f90: main_alg.x90
 	psyclone -nodm -l output -opsy main_alg_psy.f90 -oalg main_alg.f90 main_alg.x90
 
 # For PSyclone CI:
-test: transform
+test:
+	$(MAKE) transform 2>&1 | grep "Kernel file 'summation_w0_to_w3_kernel_mod\."\
+	"\[fF\]90' not found in" >/dev/null
 
 # External libraries - LFRic infrastructure
 # -----------------------------------------

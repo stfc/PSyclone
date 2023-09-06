@@ -60,7 +60,6 @@ F90FLAGS += $(LFRIC_INCLUDE_FLAGS)
 transform:
 	psyclone -nodm -l output -opsy main_alg_psy.f90 -oalg main_alg.f90 main_alg.x90
 
-
 compile: main_alg_psy.f90 $(EXEC)
 
 run: compile
@@ -85,7 +84,11 @@ main_alg_psy.f90: main_alg.x90
 	psyclone -nodm -l output -opsy main_alg_psy.f90 -oalg main_alg.f90 main_alg.x90
 
 # For PSyclone CI:
-test: transform
+test:
+	$(MAKE) transform 2>&1 | grep "Parse Error: Kernel 'summation_w0_to_w3_kernel_type' "\
+	"called from the algorithm layer with an insufficient number of arguments as specified "\
+	"by the metadata. Expected at least '2' but found '1'" >/dev/null
+
 
 # External libraries - LFRic infrastructure
 # -----------------------------------------
