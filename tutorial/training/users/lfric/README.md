@@ -161,6 +161,30 @@ sure it does not create incorrect code.
 
 The solution and explanation can be found [here](#solution-for-invalid-transformation).
 
+## Incorrect Naming Scheme (`8_incorrect_naming`)
+This example shows the importance of naming the files correctly. It is basically the same code
+as in the very first PSyclone example, but the kernel file has been renamed to
+`summation_w0_to_w3_mod.f90`, but the module name is still summation_w0_to_w3_kernel_mod and
+the `use` statement in the algorithm layer is unchanged as well:
+
+    use summation_w0_to_w3_kernel_mod, only: summation_w0_to_w3_kernel_type
+
+This works with a compiler (assuming that the kernel is compiled before the algorithm
+file), since the compiler will create a compiler-specific file
+`summation_w0_to_w3_kernel_mod`, which stores the required information about this
+module. PSyclone does not have this information, and as such rely on the naming scheme
+for finding the source files for modules. Therefore, PSyclone cannot find the source
+file for the kernel, and since the data in this kernel specify which kind of loop
+to create, it cannot process the algorithm layer.
+
+Run PSyclone with the standard command:
+
+    psyclone -s ./omp_transformation.py -dm -l output -opsy main_alg_psy.f90 -oalg main_alg.f90 main_alg.x90
+
+and look at the error message provided by PSyclone.
+
+The solution and explanation can be found [here](#solution-for-invalid-transformation).
+
 
 # Solutions
 This section contains the solutions and explanations for all hands-on tasks.
@@ -324,3 +348,16 @@ threading-based parallelisation:
 
 This error should be reported to the developers of the optimisation script.
   
+
+## Solution for Incorrect Naming Scheme
+
+PSyclone will print the error message:
+
+    Parse Error: Kernel file 'summation_w0_to_w3_kernel_mod.[fF]90' not found in
+    .../training/users/lfric/8_incorrect_naming
+
+Notice that the error message exactly specifies the file name PSyclone is looking for,
+and also in which directory it is searching. PSyclone provides the command line
+parameter `-d` to specify a directory in which kernels will be searched. In this
+case you could add ` -d ../1_using_psyclone` and the kernel would be found in the
+first example.
