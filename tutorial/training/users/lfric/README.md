@@ -147,8 +147,9 @@ The solution and explanation can be found [here](#solution-for-missing-parameter
 
 ## Invalid OpenMP Transformation (`7_invalid_openmp`)
 This example has a slightly different kernel: this kernel adds a field on the W0
-space (vertices) to another field on the W0 space. The difference to the kernel used
-previously is that the vertices are shared between neighbouring columns, which is
+space (vertices) to another field on the W0 space, i.e. it is adding the blue dots
+in the diagram above for two fields. The difference to the kernel used previously
+is that the vertices (blue dots) are shared between neighbouring columns, which is
 not the case for a field on the W3 space. Therefore, the loop over all columns
 cannot be parallelised, since the shared vertices could be read and written by
 different threads at the same time.
