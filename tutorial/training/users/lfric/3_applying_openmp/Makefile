@@ -58,7 +58,7 @@ F90FLAGS += $(LFRIC_INCLUDE_FLAGS)
 
 # Default target: run PSyclone (even if the output file should already exist)
 transform:
-	psyclone -s ./omp_transformation.py -dm -l output -opsy main_alg_psy.f90 -oalg main_alg.f90 main_alg.x90
+	psyclone -s ./omp_transformation.py -nodm -l output -opsy main_alg_psy.f90 -oalg main_alg.f90 main_alg.x90
 
 compile: $(EXEC)
 
@@ -80,7 +80,7 @@ allclean: clean
 # This rule invokes the same PSyclone command, but it won't run if
 # the output file already exist, which is useful to avoid recompilation.
 main_alg_psy.f90: main_alg.x90 omp_transformation.py
-	psyclone -s ./omp_transformation.py -dm -l output -opsy main_alg_psy.f90 -oalg main_alg.f90 main_alg.x90
+	psyclone -s ./omp_transformation.py -nodm -l output -opsy main_alg_psy.f90 -oalg main_alg.f90 main_alg.x90
 
 # For PSyclone CI:
 test: transform
