@@ -1083,11 +1083,17 @@ def test_children_setter():
 def test_children_clear():
     '''Test that the clear() method works correctly for a ChildrenList.'''
     testnode = Schedule()
-    testnode.addchild(Statement())
-    testnode.addchild(Statement())
+    stmt1 = Statement()
+    stmt2 = Statement()
+    testnode.addchild(stmt1)
+    testnode.addchild(stmt2)
     assert len(testnode.children) == 2
+    assert stmt1.parent is testnode
+    assert stmt2.parent is testnode
     testnode.children.clear()
     assert len(testnode.children) == 0
+    assert stmt1.parent is None
+    assert stmt2.parent is None
 
 
 def test_children_sort():

@@ -100,9 +100,6 @@ from psyclone.psyir.nodes.while_loop import WhileLoop
 # this package e.g. 'from psyclone.psyir.nodes import Literal'
 __all__ = [
         'colored',
-        'ACCCopyClause',
-        'ACCCopyInClause',
-        'ACCCopyOutClause',
         'ArrayMember',
         'ArrayReference',
         'ArrayOfStructuresMember',
@@ -147,6 +144,7 @@ __all__ = [
         'Directive',
         'RegionDirective',
         'StandaloneDirective',
+        # OpenACC Directive Nodes
         'ACCDirective',
         'ACCRegionDirective',
         'ACCStandaloneDirective',
@@ -157,6 +155,11 @@ __all__ = [
         'ACCKernelsDirective',
         'ACCUpdateDirective',
         'ACCRoutineDirective',
+        # OpenACC Clause Nodes
+        'ACCCopyClause',
+        'ACCCopyInClause',
+        'ACCCopyOutClause',
+        # OpenMP Directive Nodes
         'OMPDirective',
         'OMPRegionDirective',
         'OMPStandaloneDirective',
