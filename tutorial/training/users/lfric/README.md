@@ -267,15 +267,25 @@ calls required.
 
 
 ## Solution for Applying OpenMP
-For the first invoke, you should see that the two separate loops (see
-[above](#solution-for-using-psyclone)) are now fused into a single loop:
+You will see `omp parallel do` statements around each individual loop:
 
+    !$omp parallel do default(shared), private(df), schedule(static)
     DO df=loop0_start,loop0_stop
-      field1_proxy%data(df) = 0.0_r_def
-      field2_proxy%data(df) = 1.0_r_def
+      field_3_proxy%data(df) = 0.0_r_def
     END DO
+    !$omp end parallel do
+    !$omp parallel do default(shared), private(df), schedule(static)
+    DO df=loop1_start,loop1_stop
+      field_0_proxy%data(df) = 1.0_r_def
+    END DO
+    !$omp end parallel do
 
-Additionally, OpenMP parallelisation is applied to all loops (including the builtins):
+While this example works, it is obviously very inefficient: the two loops should be
+in one `omp parallel` region, to avoid the overhead of stopping and starting the
+threads. This can be done in PSyclone, but would require a slightly more complicated
+script.
+
+For the user kernel you will see:
 
     !$omp parallel do default(shared), private(cell), schedule(static)
     DO cell=loop0_start,loop0_stop
