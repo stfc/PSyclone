@@ -6,8 +6,8 @@ https://psyclone.readthedocs.io/en/stable/profiling.html#profiling). All
 profiling-library interfaces use the the [PSyData API](
 https://psyclone.readthedocs.io/en/stable/psy_data.html). The profiling
 wrappers included in PSyclone are: ``template``,
-``simple_timing``, ``dl_timer``, ``drhook``, ``nvidia`` and
-``lfric_timer``. the overview is given below (for more information please
+``simple_timing``, ``dl_timer``, ``drhook``, ``nvidia``, ``tau`` and
+``lfric_timer``. The overview is given below (for more information please
 refer to the linked individual ``README.md`` documents).
 
 ## Profiling Wrappers
@@ -194,18 +194,10 @@ In general is recommended to first pack the profiling output files into one file
 The top level ``Makefile`` can be used to compile the profiling-library
 interfaces included in PSyclone. The command ``make TARGET`` where ``TARGET``
 is one of ``template``, ``simple_timing``, ``dl_timer``, ``drhook``, ``nvidia``,
-``lfric_timer``, or ``tau``, will only compile the corresponding library interface.
-
-**Note** that compilation currently does not include ``dl_timer``, ``drhook``,
-``tau``, and ``nvidia`` profiling-library interfaces since they require external
-libraries to be available. For the same reason, the ``all`` target
-
-```shell
-make all
-```
-
-will only compile ``template``, ``simple_timing`` and ``lfric_timer``
-libraries.
+``lfric_timer`` or ``tau``, will only compile the corresponding library interface.
+The target ``make all``, which is also the default, will compile all libraries
+that do not need additional software or libraries to be installed, i.e.
+``lfric_timer``, ``simple_timing`` and ``template``.
 
 The following ``Makefile`` variables are used and can be overwritten on the
 command line (e.g. ``F90=mpif90 make``):
