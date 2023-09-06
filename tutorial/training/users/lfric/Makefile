@@ -48,6 +48,14 @@ test: $(test_EXAMPLES)
 clean: $(clean_EXAMPLES)
 allclean: $(allclean_EXAMPLES)
 
+# Only some of the examples can be compiled:
+compile:
+	$(MAKE) -C 1_using_psyclone compile
+	$(MAKE) -C 2_supporting_mpi compile
+	$(MAKE) -C 3_applying_openmp compile
+	$(MAKE) -C 4_mpi_and_openmp compile
+
+
 $(test_EXAMPLES):
 	$(MAKE) -C $(patsubst test_%,%,$@) test
 

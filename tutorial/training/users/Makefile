@@ -34,8 +34,16 @@
 # Author: J. Henrichs, Bureau of Meteorology
 
 
+.PHONY: test compile clean allclean
+
 test:
 	$(MAKE) -C lfric test
 
 compile:
 	$(MAKE) -C lfric compile
+
+clean:
+	$(MAKE) -C lfric clean
+
+allclean:
+	$(MAKE) -C lfric allclean
