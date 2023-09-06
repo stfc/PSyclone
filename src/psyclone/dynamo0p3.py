@@ -7540,27 +7540,63 @@ class DynLoop(PSyLoop):
         :rtype: bool
 
         '''
+        from psyclone.psyir.tools import DependencyTools, DTCode
         if not dep_tools:
-            from psyclone.psyir.tools import DependencyTools
             dtools = DependencyTools()
         else:
             dtools = dep_tools
+
+        if self.loop_type in ["null", "colours"]:
+            # We know we can't parallelise these loops.
+            return False
 
         try:
             stat = dtools.can_loop_be_parallelised(
                 self, test_all_variables=test_all_variables,
                 signatures_to_ignore=signatures_to_ignore)
+            if stat:
+                return True
         except (InternalError, KeyError):
             # LFRic still has symbols that don't exist in the symbol_table
             # until the gen_code() step, so the dependency analysis raises
             # errors in some cases.
+            # TODO #1648 - "last_[halo]_cell_all_colours" for a coloured loop.
             return True
-        if stat:
-            return True
-        # The generic DA says that this loop cannot be parallelised.
-        # TODO #2197 this will need refining using information from the kernel
-        # metadata.
-        return False
+
+        # The generic DA says that this loop cannot be parallelised. However,
+        # that is often because it wrongly identifies field/operator array
+        # accesses (e.g. fld_proxy%data) as being scalars that are written to.
+        if self.loop_type in ["colour", "dof"]:
+            # This loop is either over cells of a single colour or DoFs. So
+            # long as the symbols that the DA is complaining about are fields
+            # or operators then this is safe to parallelise.
+            table = self.scope.symbol_table
+            all_fld_names = []
+            for type_desc in LFRicConstants().DATA_TYPE_MAP.values():
+                all_fld_names.append(type_desc["type"])
+
+            for msg in dtools.get_all_messages():
+                if msg.code != DTCode.WARN_SCALAR_WRITTEN_ONCE:
+                    return False
+                for name in msg.var_names:
+                    sym = table.lookup(name)
+                    # Ideally at this point we would compare sym.datatype with
+                    # LFRicTypes("RealFieldDataType") etc. but the LFRic PSy
+                    # layer doesn't use those types yet.
+                    if not (isinstance(sym.datatype, DataTypeSymbol) and
+                            sym.datatype.name in all_fld_names):
+                        # The Symbol is not a field or operator.
+                        return False
+                # It is safe to ignore this warning.
+                return True
+
+        elif self.loop_type == "":
+            # We can parallelise a non-coloured loop if it only updates
+            # quantities on discontinuous function spaces.
+            return not self.has_inc_arg()
+
+        raise InternalError(f"independent_iterations: loop of type "
+                            f"'{self.loop_type}' is not supported.")
 
 
 class DynKern(CodedKern):
