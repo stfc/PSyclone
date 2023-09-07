@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2021, Science and Technology Facilities Council
+! Copyright (c) 2017-2023, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -29,10 +29,10 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author R. W. Ford, STFC Daresbury Lab
-! Modified I. Kavcic, Met Office
+! Author A. R. Porter, STFC Daresbury Lab
+! Modified I. Kavcic and L. Turner, Met Office
 
-module simple_mod
+module simple_with_reduction_mod
 
   use argument_mod
   use fs_continuity_mod
@@ -41,17 +41,19 @@ module simple_mod
 
   implicit none
 
-  type, extends(kernel_type) :: simple_type
-    type(arg_type), dimension(1) :: meta_args = &
-         (/ arg_type(gh_field, gh_real, gh_inc, w1) /)
+  type, extends(kernel_type) :: simple_with_reduction_type
+    type(arg_type), dimension(3) :: meta_args =           &
+         (/ arg_type(gh_scalar, gh_real,    gh_sum),      &
+            arg_type(gh_field,  gh_real,    gh_read, w1), &
+            arg_type(gh_scalar, gh_integer, gh_read) /)
     integer :: operates_on = cell_column
   contains
-    procedure, nopass :: code => simple_code
-  end type simple_type
+    procedure, nopass :: code => simple_with_reduction_code
+  end type simple_with_reduction_type
 
 contains
 
-  subroutine simple_code()
-  end subroutine
+  subroutine simple_with_reduction_code()
+  end subroutine simple_with_reduction_code
 
-end module simple_mod
+end module simple_with_reduction_mod

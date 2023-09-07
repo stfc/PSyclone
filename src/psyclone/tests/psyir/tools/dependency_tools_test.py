@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author J. Henrichs, Bureau of Meteorology
-# Modifications: A. R. Porter and R. W. Ford, STFC Daresbury Lab
+# Modifications: A. R. Porter, R. W. Ford and S.Siso, STFC Daresbury Lab
 
 ''' Module containing tests for the dependency tools.'''
 
@@ -44,7 +44,6 @@ from psyclone.configuration import Config
 from psyclone.core import Signature, VariablesAccessInfo
 from psyclone.errors import InternalError
 from psyclone.psyGen import PSyFactory
-from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.tools import DependencyTools, DTCode, ReadWriteInfo
 from psyclone.tests.utilities import get_invoke
 
@@ -221,7 +220,7 @@ def test_arrays_parallelise(fortran_reader):
     loops = psyir.children[0].children[0:4]
     dep_tools = DependencyTools()
 
-    # Write to array that does not depend on parallel loop variable
+    # Write to array that does not depend on the parallel loop variable
     # Test that right default variable name (outer loop jj) is used.
     parallel = dep_tools.can_loop_be_parallelised(loops[0])
     assert parallel is False
@@ -231,12 +230,12 @@ def test_arrays_parallelise(fortran_reader):
     assert msg.code == DTCode.ERROR_WRITE_WRITE_RACE
     assert msg.var_names == ["mask(jk,jk)"]
 
-    # Write to array that does not depend on parallel loop variable
+    # Write to array that does not depend on the parallel loop variable
     parallel = dep_tools.can_loop_be_parallelised(loops[1])
     assert parallel is True
     assert dep_tools.get_all_messages() == []
 
-    # Use parallel loop variable in more than one dimension
+    # Use the parallel loop variable in more than one dimension
     parallel = dep_tools.can_loop_be_parallelised(loops[2])
     assert parallel is True
 
@@ -392,22 +391,33 @@ def test_array_access_pairs_0_vars(lhs, rhs, is_dependent, fortran_reader):
                           ("a1(2*i)", "a1(2*i+1)", None),
                           ("a1(i*i)", "a1(-1)", None),
                           ("a1(i-i+2)", "a1(2)", None),
-                          # An array range raises an exception
-                          # TODO: 1655 - if this is fixed we might
-                          # need a different example that is valid
-                          # Fortran but causes the sympy writer to fail
-                          ("a1(:)", "a1(:)+1", None),
+                          # Test the handling of array ranges. This is not
+                          # yet supported (TODO #2168), so it will always
+                          # return None, indicating an overlap.
+                          ("a1(:)", "a1(:)", None),
+                          # TODO #2168 A more complex case of distance
+                          # computation with a range - this needs to compare
+                          # the lower value of the left expression (i) with
+                          # the upper value of the right expression (i-1) etc
+                          ("a1(i:i+2)", "a1(i-3:i-1)", None),
+                          # The /= is parsed as valid Fortran,
+                          # but not converted into valid SymPy.
+                          # It will therefore raise an exception,
+                          # which we want to test:
+                          ("a1(:)", "a1(mt%x(:) /= 1)+1", None),
                           ])
 def test_array_access_pairs_1_var(lhs, rhs, distance, fortran_reader):
     '''Tests the array checks of can_loop_be_parallelised.
     '''
     source = f'''program test
+                 use my_type_mod
                  integer i, j, k, d_i
                  integer, parameter :: n=10, m=10
                  integer, dimension(10, 10) :: indx
                  real, dimension(n) :: a1
                  real, dimension(n, m) :: a2
                  real, dimension(n, m, n) :: a3
+                 type(my_type) :: mt
                  {lhs} = {rhs}
                  end program test'''
     psyir = fortran_reader.psyir_from_source(source)
@@ -573,7 +583,7 @@ def test_scalar_parallelise(declaration, variable, fortran_reader):
                  end program test'''
     psyir = fortran_reader.psyir_from_source(source)
     loops = psyir.children[0].children
-    dep_tools = DependencyTools(language_writer=FortranWriter())
+    dep_tools = DependencyTools()
 
     jj_symbol = psyir.children[0].scope.symbol_table.lookup("jj")
 
@@ -769,3 +779,72 @@ def test_da_array_expression(fortran_reader):
     dep_tools = DependencyTools()
     result = dep_tools.can_loop_be_parallelised(loops[0])
     assert result is False
+
+
+# -----------------------------------------------------------------------------
+def test_reserved_words(fortran_reader):
+    '''Tests that using a reserved Python word ('lambda' here') as a loop
+    variable, which will be renamed when converting to SymPy, works as
+    expected. Also make sure that name clashes are handled as expected by
+    declaring local symbols lambda_1 (which will clash with the renamed
+    lambda) and lambda_1_1 (which will clash with the renamed lambda_1).
+    Otherwise this test is identical to test_arrays_parallelise.
+    '''
+    source = '''program test
+                integer ji, lambda, jk
+                integer, parameter :: jpi=5, jpj=10
+                real, dimension(jpi,jpi) :: mask, umask, lambda_1, lambda_1_1
+                do lambda = 1, jpj   ! loop 0
+                   do ji = 1, jpi
+                      mask(jk, jk) = -1.0d0
+                    end do
+                end do
+                do lambda = 1, jpj   ! loop 1
+                   do ji = 1, jpi
+                      mask(ji, lambda+lambda_1+lambda_1_1) = umask(jk, jk)
+                    end do
+                end do
+                do lambda = 1, jpj   ! loop 2
+                   do ji = 1, jpi
+                      mask(lambda, lambda) = umask(ji, lambda)
+                    end do
+                end do
+                do lambda = 1, jpj   ! loop 3
+                   do ji = 1, jpi
+                      mask(ji, lambda) = mask(ji, lambda+1)
+                    end do
+                end do
+                end program test'''
+
+    psyir = fortran_reader.psyir_from_source(source)
+    loops = psyir.children[0].children[0:4]
+    dep_tools = DependencyTools()
+
+    # Write to array that does not depend on the parallel loop variable
+    # Test that right default variable name (outer loop lambda) is used.
+    parallel = dep_tools.can_loop_be_parallelised(loops[0])
+    assert parallel is False
+    msg = dep_tools.get_all_messages()[0]
+    assert ("The write access to 'mask(jk,jk)' causes a write-write race "
+            "condition" in str(msg))
+    assert msg.code == DTCode.ERROR_WRITE_WRITE_RACE
+    assert msg.var_names == ["mask(jk,jk)"]
+
+    # Write to array that does not depend on the parallel loop variable
+    parallel = dep_tools.can_loop_be_parallelised(loops[1])
+    assert parallel is True
+    assert dep_tools.get_all_messages() == []
+
+    # Use the parallel loop variable in more than one dimension
+    parallel = dep_tools.can_loop_be_parallelised(loops[2])
+    assert parallel is True
+
+    # Use a stencil access (with write), which prevents parallelisation
+    parallel = dep_tools.can_loop_be_parallelised(loops[3])
+    assert parallel is False
+    msg = dep_tools.get_all_messages()[0]
+    assert ("The write access to 'mask(ji,lambda)' and to "
+            "'mask(ji,lambda + 1)' are dependent and cannot be parallelised."
+            in str(msg))
+    assert msg.code == DTCode.ERROR_DEPENDENCY
+    assert msg.var_names == ["mask(ji,lambda)", "mask(ji,lambda + 1)"]

@@ -61,7 +61,7 @@ INF_INC = $(LFRIC_INF_DIR)
 INF_LIB_NAME = lfric
 INF_LIB = $(LFRIC_INF_DIR)/lib$(INF_LIB_NAME).a
 
-F90FLAGS += -I$(INF_INC)/field
+F90FLAGS += -I$(INF_INC)/field -I$(INF_INC)/function_space -I$(INF_INC)/mesh -I$(INF_INC)/utilities -I$(INF_INC)/scalar -I$(INF_INC)/configuration
 PSYDATA_LIB_NAME = _nan_test
 PSYDATA_LIB = lib$(PSYDATA_LIB_NAME).a
 

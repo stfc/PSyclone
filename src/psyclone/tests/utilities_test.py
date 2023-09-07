@@ -152,7 +152,7 @@ def test_compiler_with_flags(monkeypatch):
     with open("hello_world.f90", "w", encoding="utf-8") as ffile:
         ffile.write(HELLO_CODE)
     _compile = Compile()
-    _compile._f90flags = "not-a-flag"
+    _compile._f90flags = "-not-a-flag"
     with pytest.raises(CompileError) as excinfo:
         _compile.compile_file("hello_world.f90")
 
