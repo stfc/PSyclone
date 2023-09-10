@@ -87,6 +87,10 @@ class Sum2CodeTrans(MMSBaseTrans):
           DO I=LBOUND(ARRAY,1),UBOUND(ARRAY,1)
             R(I) = R(I) + ARRAY(I,J)
 
+    A restriction is that the value of dimension must be able to be
+    determined by PSyclone, either being a literal or a reference to
+    something with a known value.
+
     If the mask argument is provided then the mask is used to
     determine whether the sum is applied:
 
@@ -104,6 +108,18 @@ class Sum2CodeTrans(MMSBaseTrans):
           DO I=LBOUND(ARRAY,1),UBOUND(ARRAY,1)
             IF (MOD(ARRAY(I,J), 2.0)==1) THEN
               R = R + ARRAY(I,J)
+
+    The array passed to SUM may use array syntax, array notation or
+    array sections (or a mixture of the two), but scalar bounds are
+    not allowed:
+
+    .. code-block:: fortran
+
+    R = SUM(ARRAY) ! array syntax
+    R = SUM(ARRAY(:,:)) ! array notation
+    R = SUM(ARRAY(1:10,lo:hi) ! array sections
+    R = SUM(ARRAY(1:10,:) ! mixture of array sections and array notation
+    R = SUM(ARRAY(1:10,2) ! NOT SUPPORTED as 2 is a scalar bound
 
     For example:
 

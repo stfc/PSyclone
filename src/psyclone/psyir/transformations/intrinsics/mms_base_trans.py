@@ -84,17 +84,13 @@ class MMSBaseTrans(Transformation, ABC):
                 # named arg
                 name = node.argument_names[idx].lower()
                 args[arg_names_map[name]] = child
-        # RF TODO WORKS?????
         return tuple(args)
-        #array_ref = args[0]
-        #dimension_ref = args[1]
-        #mask_ref = args[2]
-        #return (array_ref, dimension_ref, mask_ref)
 
     def __str__(self):
         return (f"Convert the PSyIR {self._INTRINSIC_NAME} intrinsic "
                 "to equivalent PSyIR code.")
 
+    # pylint: disable=too-many-branches
     def validate(self, node, options=None):
         '''Check that the input node is valid before applying the
         transformation.
@@ -130,24 +126,43 @@ class MMSBaseTrans(Transformation, ABC):
                 f"intrinsic, found '{node.routine.name}'.")
 
         array_ref, dim_ref, _ = self._get_args(node)
-        if dim_ref and not isinstance(dim_ref, (Literal, Reference)):
+
+        # If there is a dim argument then PSyclone curently needs to
+        # be able to determine the literal value.
+        # pylint: disable=unidiomatic-typecheck
+        if dim_ref and not (
+                isinstance(dim_ref, Literal)
+                or (type(dim_ref) == Reference and
+                    dim_ref.symbol.is_constant and
+                    isinstance(dim_ref.symbol.initial_value, Literal))):
+            if isinstance(dim_ref, Reference):
+                info = f"a reference to a '{type(dim_ref.symbol).__name__}'"
+            else:
+                info = f"type '{type(dim_ref).__name__}'"
             raise TransformationError(
                 f"Can't find the value of the dimension argument. Expected "
-                f"it to be a literal or a reference but found "
-                f"'{dim_ref.debug_string()}' which is a "
-                f"'{type(dim_ref).__name__}'.")
+                f"it to be a literal or a reference to a known constant "
+                f"value, but found '{dim_ref.debug_string()}' which is "
+                f"{info}.")
 
         # pylint: disable=unidiomatic-typecheck
         if not (isinstance(array_ref, ArrayReference) or
-                type(array_ref) == Reference):
+                (type(array_ref) == Reference)):
             raise TransformationError(
-                f"{self.name} only support arrays for the first argument, "
-                f"but found '{type(array_ref).__name__}'.")
+                f"{self.name} only supports arrays or plain references for "
+                f"the first argument, but found '{type(array_ref).__name__}'.")
 
         if len(array_ref.children) == 0:
             if not array_ref.symbol.is_array:
                 raise TransformationError(
                     f"Expected '{array_ref.name}' to be an array.")
+            for shape in array_ref.symbol.shape:
+                if not (shape in [
+                        ArrayType.Extent.DEFERRED, ArrayType.Extent.ATTRIBUTE]
+                        or isinstance(shape, ArrayType.ArrayBounds)):
+                    raise TransformationError(
+                        f"Unexpected shape for array. Expecting one of "
+                        f"Deferred, Attribute or Bounds but found '{shape}'.")
 
         for shape in array_ref.children:
             if not isinstance(shape, Range):
@@ -155,14 +170,6 @@ class MMSBaseTrans(Transformation, ABC):
                     f"{self.name} only supports arrays with array ranges, "
                     f"but found a fixed dimension in "
                     f"'{array_ref.debug_string()}'.")
-
-        for shape in array_ref.symbol.shape:
-            if not (shape in [
-                    ArrayType.Extent.DEFERRED, ArrayType.Extent.ATTRIBUTE]
-                    or isinstance(shape, ArrayType.ArrayBounds)):
-                raise TransformationError(
-                    f"Unexpected shape for array. Expecting one of Deferred, "
-                    f"Attribute or Bounds but found '{shape}'.")
 
         array_intrinsic = array_ref.symbol.datatype.intrinsic
         if array_intrinsic not in [ScalarType.Intrinsic.REAL,
@@ -192,27 +199,33 @@ class MMSBaseTrans(Transformation, ABC):
 
         # Determine the literal value of the dimension argument
         dimension_literal = None
+        # pylint: disable=unidiomatic-typecheck
         if not dimension_ref:
             # there is no dimension argument
             pass
         elif isinstance(dimension_ref, Literal):
             dimension_literal = dimension_ref
-        elif (isinstance(dimension_ref, Reference) and
+        elif ((type(dimension_ref) == Reference) and
               dimension_ref.symbol.is_constant):
             dimension_literal = dimension_ref.symbol.initial_value
         # else exception is handled by the validate method.
 
         # Determine the dimension and extent of the array
         ndims = None
+        allocatable = False
         if len(array_ref.children) == 0:
+            # There is no bounds information in the array reference,
+            # so look at the declaration.
             # Note, the potential 'if not array_ref.symbol.is_array:'
             # exception is already handled by the validate method.
-            ndims = len(array_ref.symbol.shape)
+            ndims = len(array_ref.datatype.shape)
 
             loop_bounds = []
-            for idx, shape in enumerate(array_ref.symbol.shape):
+            for idx, shape in enumerate(array_ref.datatype.shape):
                 if shape in [ArrayType.Extent.DEFERRED,
                              ArrayType.Extent.ATTRIBUTE]:
+                    if shape == ArrayType.Extent.DEFERRED:
+                        allocatable = True
                     # runtime extent using LBOUND and UBOUND required
                     lbound = BinaryOperation.create(
                         BinaryOperation.Operator.LBOUND,
@@ -238,8 +251,8 @@ class MMSBaseTrans(Transformation, ABC):
 
         # Determine the datatype of the array's values and create a
         # scalar of that type
-        array_intrinsic = array_ref.symbol.datatype.intrinsic
-        array_precision = array_ref.symbol.datatype.precision
+        array_intrinsic = array_ref.datatype.intrinsic
+        array_precision = array_ref.datatype.precision
         scalar_type = ScalarType(array_intrinsic, array_precision)
 
         symbol_table = node.scope.symbol_table
@@ -252,12 +265,26 @@ class MMSBaseTrans(Transformation, ABC):
             # We are reducing from one array to another
             shape = []
             for idx, bounds in enumerate(loop_bounds):
+                # The validation constrains the transformation to only
+                # allow cases where the literal value for dimension
+                # is known.
                 if int(dimension_literal.value)-1 == idx:
+                    # This is the dimension we are performing the
+                    # reduction over so do not loop over it.
                     pass
                 else:
                     shape.append(bounds)
-            datatype = ArrayType(scalar_type, shape)
+            if allocatable:
+                # Reduction and allocatable means we need to make the
+                # reduction array allocatable. We keep the bounds in
+                # datatype_keep for allocating the array.
+                datatype = ArrayType(
+                    scalar_type, len(shape)*[ArrayType.Extent.DEFERRED])
+            else:
+                datatype = ArrayType(scalar_type, shape)
 
+        # Detach the intrinsics array-reference argument to the
+        # intrinsic as it will be used later within a loop nest.
         array_ref = node.children[0].detach()
 
         # Create temporary variable based on the name of the intrinsic.
@@ -266,13 +293,24 @@ class MMSBaseTrans(Transformation, ABC):
             datatype=datatype)
         # Replace operation with a temporary variable.
         if array_reduction:
-            array_indices = []
-            for idx in range(ndims-1):
-                array_indices.append(":")
+            # This is a reduction so the number of array dimensions is
+            # reduced by 1 cf. the original array.
+            array_indices = (ndims - 1)*[":"]
             reference = ArrayReference.create(var_symbol, array_indices)
         else:
             reference = Reference(var_symbol)
         node.replace_with(reference)
+
+        if allocatable and array_reduction:
+            range_list = [
+                Range.create(lbound, ubound) for (lbound, ubound) in shape]
+            # Allocate the reduction and place it just before it is
+            # initialised.
+            allocate = IntrinsicCall.create(
+                IntrinsicCall.Intrinsic.ALLOCATE,
+                [ArrayReference.create(var_symbol, range_list)])
+            assignment = reference.parent
+            assignment.parent.children.insert(assignment.position, allocate)
 
         # Create the loop iterators
         loop_iterators = []
@@ -298,11 +336,13 @@ class MMSBaseTrans(Transformation, ABC):
         statement = self._loop_body(
             array_reduction, array_iterators, var_symbol, array_ref)
 
+        # pylint: disable=unidiomatic-typecheck
         if mask_ref:
             # A mask argument has been provided
             for ref in mask_ref.walk(Reference):
-                if ref.name == array_ref.name:
-                    # The array needs indexing
+                if ref.name == array_ref.name and type(ref) == Reference:
+                    # The array is not indexed so it needs indexing
+                    # for the loop nest.
                     shape = [Reference(obj) for obj in loop_iterators]
                     reference = ArrayReference.create(ref.symbol, shape)
                     ref.replace_with(reference)

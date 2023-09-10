@@ -88,6 +88,10 @@ class Minval2CodeTrans(MMSBaseTrans):
             IF (R(I) > ARRAY(I,J)) THEN
               R(I) = ARRAY(I,J)
 
+    A restriction is that the value of dimension must be able to be
+    determined by PSyclone, either being a literal or a reference to
+    something with a known value.
+
     If the mask argument is provided then the mask is used to
     determine whether the minval is applied:
 
@@ -106,6 +110,18 @@ class Minval2CodeTrans(MMSBaseTrans):
             IF (MOD(ARRAY(I,J), 2.0)==1) THEN
               IF (R > ARRAY(I,J)) THEN
                 R = ARRAY(I,J)
+
+    The array passed to MINVAL may use array syntax, array notation or
+    array sections (or a mixture of the two), but scalar bounds are
+    not allowed:
+
+    .. code-block:: fortran
+
+    R = MINVAL(ARRAY) ! array syntax
+    R = MINVAL(ARRAY(:,:)) ! array notation
+    R = MINVAL(ARRAY(1:10,lo:hi) ! array sections
+    R = MINVAL(ARRAY(1:10,:) ! mixture of array sections and array notation
+    R = MINVAL(ARRAY(1:10,2) ! NOT SUPPORTED as 2 is a scalar bound
 
     For example:
 

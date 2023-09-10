@@ -43,7 +43,7 @@ import pytest
 from psyclone.psyir.nodes import IntrinsicCall, Reference, Literal, Assignment
 from psyclone.psyir.symbols import (
     Symbol, BOOLEAN_TYPE, INTEGER_TYPE, DataSymbol, REAL_TYPE)
-from psyclone.psyir.transformations import TransformationError
+from psyclone.psyir.transformations import TransformationError, Sum2CodeTrans
 from psyclone.psyir.transformations.intrinsics.mms_base_trans import (
     MMSBaseTrans)
 
@@ -73,6 +73,7 @@ class NamedTestTrans(TestTrans):
 
 def test_init_exception():
     '''Check that this class can't be created as it is abstract.'''
+    # pylint: disable=abstract-class-instantiated
     with pytest.raises(TypeError) as info:
         _ = MMSBaseTrans()
     assert ("Can't instantiate abstract class MMSBaseTrans with abstract "
@@ -146,8 +147,9 @@ def test_structure_error(fortran_reader):
     trans = NamedTestTrans()
     with pytest.raises(TransformationError) as info:
         trans.validate(node)
-    assert ("NamedTestTrans only support arrays for the first argument, but "
-            "found 'StructureReference'." in str(info.value))
+    assert ("NamedTestTrans only supports arrays or plain references for "
+            "the first argument, but found 'StructureReference'."
+            in str(info.value))
 
 
 def test_indexed_array_error(fortran_reader):
@@ -186,14 +188,103 @@ def test_dimension_arg(fortran_reader):
         "  result = sum(array, dim=dimension*2)\n"
         "end subroutine\n")
     psyir = fortran_reader.psyir_from_source(code)
-    # FileContainer/Routine/Assignment/UnaryOperation
+    # FileContainer/Routine/Assignment/IntrinsicCall
     node = psyir.children[0].children[0].children[1]
     trans = NamedTestTrans()
     with pytest.raises(TransformationError) as info:
         trans.validate(node)
     assert ("Can't find the value of the dimension argument. Expected it to "
-            "be a literal or a reference but found 'dimension * 2' which is "
-            "a 'BinaryOperation'." in str(info.value))
+            "be a literal or a reference to a known constant value, but "
+            "found 'dimension * 2' which is type 'BinaryOperation'."
+            in str(info.value))
+
+
+def test_non_constant_dim_value_binop(fortran_reader):
+    '''Test that the expected exception is raised if the literal value of
+    the dim arg can not be determined (as it is a binary
+    operation). Use the Sum2CodeTrans transformations (a subclass of
+    MMSBaseTrans), as it makes it easier to raise this exception.
+
+    '''
+    code = (
+        "subroutine test(array,a,b)\n"
+        "  integer :: a,b\n"
+        "  real :: array(10)\n"
+        "  real :: result\n"
+        "  result = sum(array, dim=a+b)\n"
+        "end subroutine\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    trans = Sum2CodeTrans()
+    # FileContainer/Routine/Assignment/IntrinsicCall
+    node = psyir.children[0].children[0].children[1]
+    with pytest.raises(TransformationError) as info:
+        trans.validate(node)
+    assert ("Can't find the value of the dimension argument. Expected it to "
+            "be a literal or a reference to a known constant value, but "
+            "found 'a + b' which is type 'BinaryOperation'."
+            in str(info.value))
+
+
+def test_non_constant_dim_value_ref(fortran_reader):
+    '''Test that the expected exception is raised if the literal value of
+    the dim arg can not be determined (as it references an unknown
+    value). Use the Sum2CodeTrans transformations (a subclass of
+    MMSBaseTrans), as it makes it easier to raise this exception.
+
+    '''
+    code = (
+        "subroutine test(array)\n"
+        "  use my_mod, only : y\n"
+        "  integer :: x=y\n"
+        "  real :: array(10)\n"
+        "  real :: result\n"
+        "  result = sum(array, dim=x)\n"
+        "end subroutine\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    trans = Sum2CodeTrans()
+    # FileContainer/Routine/Assignment/IntrinsicCall
+    node = psyir.children[0].children[0].children[1]
+    with pytest.raises(TransformationError) as info:
+        trans.validate(node)
+    assert ("Can't find the value of the dimension argument. Expected it to "
+            "be a literal or a reference to a known constant value, but "
+            "found 'x' which is a reference to a 'DataSymbol'."
+            in str(info.value))
+
+
+def test_lhs(fortran_reader, fortran_writer):
+    '''Test that the correct code is produced when the minval, maxval or
+    sum is on the LHS of an asssignment. Use the value). Use the
+    Sum2CodeTrans transformations (a subclass of MMSBaseTrans), as it
+    is easier to test.
+
+    '''
+    code = (
+        "subroutine test(array)\n"
+        "  real :: array(10)\n"
+        "  real :: result\n"
+        "  result(sum(array)) = 0.0\n"
+        "end subroutine\n")
+    expected = (
+        "subroutine test(array)\n"
+        "  real, dimension(10) :: array\n"
+        "  real :: result\n"
+        "  real :: sum_var\n"
+        "  integer :: i_0\n\n"
+        "  sum_var = 0.0\n"
+        "  do i_0 = 1, 10, 1\n"
+        "    sum_var = sum_var + array(i_0)\n"
+        "  enddo\n"
+        "  result(sum_var) = 0.0\n\n"
+        "end subroutine test\n")
+
+    psyir = fortran_reader.psyir_from_source(code)
+    trans = Sum2CodeTrans()
+    # FileContainer/Routine/Assignment/IntrinsicCall
+    node = psyir.children[0].children[0].children[0].children[0]
+    trans.apply(node)
+    result = fortran_writer(psyir)
+    assert result == expected
 
 
 def test_array_arg(fortran_reader):
@@ -209,7 +300,7 @@ def test_array_arg(fortran_reader):
         "  result = sum(array)\n"
         "end subroutine\n")
     psyir = fortran_reader.psyir_from_source(code)
-    # FileContainer/Routine/Assignment/UnaryOperation
+    # FileContainer/Routine/Assignment/IntrinsicCall
     node = psyir.children[0].children[0].children[1]
     trans = NamedTestTrans()
     with pytest.raises(TransformationError) as info:
@@ -230,7 +321,7 @@ def test_array_shape(fortran_reader, monkeypatch):
         "  result = sum(array)\n"
         "end subroutine\n")
     psyir = fortran_reader.psyir_from_source(code)
-    # FileContainer/Routine/Assignment/UnaryOperation
+    # FileContainer/Routine/Assignment/IntrinsicCall
     node = psyir.children[0].children[0].children[1]
 
     # Modify array shape from node to create exception
@@ -254,12 +345,12 @@ def test_unexpected_shape(fortran_reader, monkeypatch):
     code = (
         "subroutine test(array,n,m)\n"
         "  integer :: n, m\n"
-        "  real :: array(:)\n"
+        "  real :: array(1)\n"
         "  real :: result\n"
-        "  result = sum(array(:))\n"
+        "  result = sum(array)\n"
         "end subroutine\n")
     psyir = fortran_reader.psyir_from_source(code)
-    # FileContainer/Routine/Assignment/UnaryOperation
+    # FileContainer/Routine/Assignment/IntrinsicCall
     node = psyir.children[0].children[0].children[1]
     array_ref = node.children[0]
     # Modify the shape of the array reference shape to create an
@@ -286,7 +377,7 @@ def test_array_type_arg(fortran_reader):
         "  result = sum(array)\n"
         "end subroutine\n")
     psyir = fortran_reader.psyir_from_source(code)
-    # FileContainer/Routine/Assignment/UnaryOperation
+    # FileContainer/Routine/Assignment/IntrinsicCall
     node = psyir.children[0].children[0].children[1]
     trans = NamedTestTrans()
     with pytest.raises(TransformationError) as info:
@@ -332,7 +423,7 @@ def test_apply(idim1, idim2, rdim11, rdim12, rdim21, rdim22,
         f"  result = sum_var\n\n"
         f"end subroutine test\n")
     psyir = fortran_reader.psyir_from_source(code)
-    # FileContainer/Routine/Assignment/UnaryOperation
+    # FileContainer/Routine/Assignment/IntrinsicCall
     node = psyir.children[0].children[0].children[1]
     trans = NamedTestTrans()
     trans.apply(node)
@@ -373,7 +464,7 @@ def test_apply_multi(fortran_reader, fortran_writer):
         "end subroutine test\n")
     psyir = fortran_reader.psyir_from_source(code)
     # FileContainer/Routine/Assignment/BinaryOperation(ADD)/
-    # BinaryOperation(MUL)/UnaryOperation
+    # BinaryOperation(MUL)/IntrinsicCall
     node = psyir.children[0].children[0].children[1].children[1]. \
         children[0]
     trans = NamedTestTrans()
@@ -409,7 +500,7 @@ def test_apply_dimension_1d(fortran_reader, fortran_writer):
         "end subroutine test\n")
     psyir = fortran_reader.psyir_from_source(code)
     # FileContainer/Routine/Assignment/BinaryOperation(ADD)/
-    # BinaryOperation(MUL)/UnaryOperation
+    # BinaryOperation(MUL)/IntrinsicCall
     node = psyir.children[0].children[0].children[1].children[1]. \
         children[0]
     trans = NamedTestTrans()
@@ -451,7 +542,7 @@ def test_apply_dimension_multid(fortran_reader, fortran_writer):
         "end subroutine test\n")
     psyir = fortran_reader.psyir_from_source(code)
     # FileContainer/Routine/Assignment/BinaryOperation(ADD)/
-    # BinaryOperation(MUL)/UnaryOperation
+    # BinaryOperation(MUL)/IntrinsicCall
     node = psyir.children[0].children[0].children[1].children[1]. \
         children[0]
     trans = NamedTestTrans()
@@ -495,7 +586,7 @@ def test_apply_dimension_multid_unknown(fortran_reader, fortran_writer):
         "end subroutine test\n")
     psyir = fortran_reader.psyir_from_source(code)
     # FileContainer/Routine/Assignment/BinaryOperation(ADD)/
-    # BinaryOperation(MUL)/UnaryOperation
+    # BinaryOperation(MUL)/IntrinsicCall
     node = psyir.children[0].children[0].children[1].children[1]. \
         children[0]
     trans = NamedTestTrans()
@@ -539,7 +630,7 @@ def test_apply_dimension_multid_range(fortran_reader, fortran_writer):
         "end subroutine test\n")
     psyir = fortran_reader.psyir_from_source(code)
     # FileContainer/Routine/Assignment/BinaryOperation(ADD)/
-    # BinaryOperation(MUL)/UnaryOperation
+    # BinaryOperation(MUL)/IntrinsicCall
     node = psyir.children[0].children[0].children[1].children[1]. \
         children[0]
     trans = NamedTestTrans()
@@ -576,7 +667,7 @@ def test_mask(fortran_reader, fortran_writer):
         "  result = sum_var\n\n"
         "end program test")
     psyir = fortran_reader.psyir_from_source(code)
-    # FileContainer/Routine/Assignment/UnaryOperation
+    # FileContainer/Routine/Assignment/IntrinsicCall
     node = psyir.children[0].children[0].children[1]
     trans = NamedTestTrans()
     trans.apply(node)
@@ -615,9 +706,99 @@ def test_mask_dimension(fortran_reader, fortran_writer):
         "  result = sum_var(:)\n\n"
         "end program test")
     psyir = fortran_reader.psyir_from_source(code)
-    # FileContainer/Routine/Assignment/UnaryOperation
+    # FileContainer/Routine/Assignment/IntrinsicCall
     node = psyir.children[0].children[0].children[1]
     trans = NamedTestTrans()
     trans.apply(node)
     result = fortran_writer(psyir)
     assert expected in result
+
+
+def test_mask_array_indexed(fortran_reader, fortran_writer):
+    '''Test that the mask code works if the array iself it used as part of
+    the mask. In this case it will already be indexed. Use the
+    Sum2CodeTrans transformations (a subclass of MMSBaseTrans), as it
+    is easier to test.
+
+    '''
+    code = (
+        "program sum_test\n"
+        "  integer :: a(4)\n"
+        "  integer :: result\n"
+        "  a(1) = 2\n"
+        "  a(2) = 1\n"
+        "  a(3) = 2\n"
+        "  a(4) = 1\n"
+        "  result = sum(a, mask=a(1)>a)\n"
+        "end program\n")
+    expected = (
+        "program sum_test\n"
+        "  integer, dimension(4) :: a\n"
+        "  integer :: result\n"
+        "  integer :: sum_var\n"
+        "  integer :: i_0\n\n"
+        "  a(1) = 2\n"
+        "  a(2) = 1\n"
+        "  a(3) = 2\n"
+        "  a(4) = 1\n"
+        "  sum_var = 0\n"
+        "  do i_0 = 1, 4, 1\n"
+        "    if (a(1) > a(i_0)) then\n"
+        "      sum_var = sum_var + a(i_0)\n"
+        "    end if\n"
+        "  enddo\n"
+        "  result = sum_var\n\n"
+        "end program sum_test\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    trans = Sum2CodeTrans()
+    # FileContainer/Routine/Assignment/IntrinsicCall
+    node = psyir.children[0].children[4].children[1]
+    trans.apply(node)
+    result = fortran_writer(psyir)
+    assert result == expected
+
+
+def test_allocate_dim(fortran_reader, fortran_writer):
+    '''Test that a newly created array is allocated after the original
+    array is allocated (if the original array is allocated). Use the
+    Sum2CodeTrans transformations (a subclass of MMSBaseTrans), as it
+    is easier to test.
+
+    '''
+    code = (
+        "program sum_test\n"
+        "  integer, allocatable :: a(:,:,:)\n"
+        "  integer :: result\n"
+        "  allocate(a(4,4,4))\n"
+        "  result = sum(a, dim=2)\n"
+        "  deallocate(a)\n"
+        "end program\n")
+    expected = (
+        "program sum_test\n"
+        "  integer, allocatable, dimension(:,:,:) :: a\n"
+        "  integer :: result\n"
+        "  integer, allocatable, dimension(:,:) :: sum_var\n"
+        "  integer :: i_0\n"
+        "  integer :: i_1\n"
+        "  integer :: i_2\n\n"
+        "  ALLOCATE(a(1:4,1:4,1:4))\n"
+        "  ALLOCATE(sum_var(LBOUND(a, 1):UBOUND(a, 1),"
+        "LBOUND(a, 3):UBOUND(a, 3)))\n"
+        "  sum_var(:,:) = 0\n"
+        "  do i_2 = LBOUND(a, 3), UBOUND(a, 3), 1\n"
+        "    do i_1 = LBOUND(a, 2), UBOUND(a, 2), 1\n"
+        "      do i_0 = LBOUND(a, 1), UBOUND(a, 1), 1\n"
+        "        sum_var(i_0,i_2) = sum_var(i_0,i_2) + a(i_0,i_1,i_2)\n"
+        "      enddo\n"
+        "    enddo\n"
+        "  enddo\n"
+        "  result = sum_var(:,:)\n"
+        "  DEALLOCATE(a)\n\n"
+        "end program sum_test\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    trans = Sum2CodeTrans()
+    # FileContainer/Routine/Assignment/IntrinsicCall
+    node = psyir.children[0].children[1].children[1]
+    trans.apply(node)
+    result = fortran_writer(psyir)
+    assert result == expected
