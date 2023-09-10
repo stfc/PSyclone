@@ -7540,6 +7540,7 @@ class DynLoop(PSyLoop):
         :rtype: bool
 
         '''
+        # pylint: disable=import-outside-toplevel
         from psyclone.psyir.tools import DependencyTools, DTCode
         if not dep_tools:
             dtools = DependencyTools()
@@ -7547,7 +7548,10 @@ class DynLoop(PSyLoop):
             dtools = dep_tools
 
         if self.loop_type in ["null", "colours"]:
-            # We know we can't parallelise these loops.
+            # We know we can't parallelise these loops. ("null" means there
+            # is no actual loop and "colours" is the *outer* loop over the
+            # different colours used - it is the inner, "colour" loop over
+            # cells of a single colour which can be parallelised.)
             return False
 
         try:
@@ -7560,7 +7564,9 @@ class DynLoop(PSyLoop):
             # LFRic still has symbols that don't exist in the symbol_table
             # until the gen_code() step, so the dependency analysis raises
             # errors in some cases.
-            # TODO #1648 - "last_[halo]_cell_all_colours" for a coloured loop.
+            # TODO #1648 - when a transformation colours a loop we must
+            # ensure "last_[halo]_cell_all_colours" is added to the symbol
+            # table.
             return True
 
         # The generic DA says that this loop cannot be parallelised. However,
@@ -7571,13 +7577,25 @@ class DynLoop(PSyLoop):
             # long as the symbols that the DA is complaining about are fields
             # or operators then this is safe to parallelise.
             table = self.scope.symbol_table
-            all_fld_names = []
-            for type_desc in LFRicConstants().DATA_TYPE_MAP.values():
-                all_fld_names.append(type_desc["type"])
+            # Create the set of all LFRic field types.
+            all_fld_names = set(desc["type"] for desc in
+                                LFRicConstants().DATA_TYPE_MAP.values())
 
             for msg in dtools.get_all_messages():
                 if msg.code != DTCode.WARN_SCALAR_WRITTEN_ONCE:
+                    # The DA is complaining about something other than writing
+                    # to (what it thinks is) a scalar.  Therefore the loop
+                    # cannot be parallelised.
                     return False
+                # Currently the DA (wrongly) identifies things like
+                # 'fld_proxy%data' as being scalar accesses. We therefore need
+                # to check that the argument it says is a scalar is in fact a
+                # field. If it is, this is safe to parallelise (because an
+                # LFRic Kernel is constrained to write to dofs in the 'owned'
+                # column).
+                # TODO #2197 - when we change the PSy layer to pass field
+                # pointers to kernels, the DA will identify that they are
+                # arrays and this logic will need to be changed.
                 for name in msg.var_names:
                     sym = table.lookup(name)
                     # Ideally at this point we would compare sym.datatype with
@@ -7587,12 +7605,17 @@ class DynLoop(PSyLoop):
                             sym.datatype.name in all_fld_names):
                         # The Symbol is not a field or operator.
                         return False
-                # It is safe to ignore this warning.
-                return True
+            # All of the variables referred to in all of the messages are
+            # actuall fields - it is safe to ignore this warning.
+            return True
 
-        elif self.loop_type == "":
+        if self.loop_type == "":
             # We can parallelise a non-coloured loop if it only updates
-            # quantities on discontinuous function spaces.
+            # quantities on discontinuous function spaces. If an LFRic kernel
+            # updates quantities on a continuous function space then it must
+            # have at least one argument with GH_INC access. Therefore, we
+            # can simply check whether or not it has such an argument in order
+            # to infer the continuity of the space.
             return not self.has_inc_arg()
 
         raise InternalError(f"independent_iterations: loop of type "

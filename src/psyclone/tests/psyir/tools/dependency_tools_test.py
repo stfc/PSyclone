@@ -38,12 +38,9 @@
 
 import pytest
 
-from fparser.common.readfortran import FortranStringReader
-
 from psyclone.configuration import Config
 from psyclone.core import Signature, VariablesAccessInfo
 from psyclone.errors import InternalError
-from psyclone.psyGen import PSyFactory
 from psyclone.psyir.tools import DependencyTools, DTCode, ReadWriteInfo
 from psyclone.tests.utilities import get_invoke
 
@@ -60,11 +57,14 @@ def test_messages():
 
     dep_tools = DependencyTools()
     assert dep_tools.get_all_messages() == []
-    dep_tools._add_message("info-test", DTCode.INFO_NOT_NESTED_LOOP,
+
+    # There aren't currently any INFO messages so we invent one by simply
+    # adding one to the minimum INFO error code.
+    dep_tools._add_message("info-test", DTCode.INFO_MIN+1,
                            ["a", "b"])
     msg = dep_tools.get_all_messages()[0]
     assert str(msg) == "Info: info-test"
-    assert msg.code == DTCode.INFO_NOT_NESTED_LOOP
+    assert msg.code == DTCode.INFO_MIN + 1
     assert msg.var_names == ["a", "b"]
 
     dep_tools._add_message("warning-test", DTCode.WARN_SCALAR_REDUCTION,

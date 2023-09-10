@@ -351,9 +351,10 @@ def test_independent_iterations(monkeypatch):
     # by monkeypatching the can_loop_be_parallelised() method so that it adds
     # a message.
 
-    def fake1(_1, _2, test_all_variables=False, signatures_to_ignore=None):
+    def fake1(deptools, _2, test_all_variables=False,
+              signatures_to_ignore=None):
         # pylint: disable=unused-argument
-        _1._add_message("just a test", DTCode.WARN_SCALAR_WRITTEN_ONCE)
+        deptools._add_message("just a test", DTCode.WARN_SCALAR_WRITTEN_ONCE)
         return True
 
     monkeypatch.setattr(DependencyTools, "can_loop_be_parallelised", fake1)
@@ -361,7 +362,9 @@ def test_independent_iterations(monkeypatch):
     assert goloop.independent_iterations(dep_tools=dtools)
     assert dtools.get_all_messages()[0].code == DTCode.WARN_SCALAR_WRITTEN_ONCE
 
-    # Test when the DA raises an exception.
+    # Test when the DA raises an exception (typically because of missing
+    # variables in the PSyIR - TODO #845) that this is handled by the
+    # independent_iterations method.
 
     def fake2(_1, _2, test_all_variables=False, signatures_to_ignore=None):
         # pylint: disable=unused-argument
