@@ -579,8 +579,11 @@
 	same as Python keywords when using sympy within PSyclone, e.g. in
 	comparisons between expressions.
   
-  195) PR #2295 for #2294. Extends the PSyData extraction library
-  to support character variables
+    195) PR #2295 for #2294. Extends the PSyData extraction library
+    to support character variables
+
+	196) PR #2157 for #1396. Add tree-update mechanism and new ACCClause
+	nodes for data movement.
 
 release 2.3.1 17th of June 2022
 
