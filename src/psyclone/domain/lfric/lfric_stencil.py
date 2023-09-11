@@ -36,12 +36,10 @@
 # Modified J. Henrichs, Bureau of Meteorology
 # Modified A. B. G. Chalk and N. Nobre, STFC Daresbury Lab
 
-''' This module implements the PSyclone Dynamo 0.3 API by 1)
-    specialising the required base classes in parser.py (KernelType) and
-    adding a new class (DynFuncDescriptor03) to capture function descriptor
-    metadata and 2) specialising the required base classes in psyGen.py
-    (PSy, Invokes, Invoke, InvokeSchedule, Loop, Kern, Inf, Arguments and
-    Argument). '''
+''' This module contains the LFRicStencil class which provides stencil
+information about a Dynamo agrument. LFRicStencil can provide the extent, 
+algorithm argument for the extent, and the direction argument of a 
+stencil or set any of these properties.'''
 
 # pylint: disable=too-many-lines
 
