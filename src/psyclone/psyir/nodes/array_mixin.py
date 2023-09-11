@@ -170,21 +170,24 @@ class ArrayMixin(metaclass=abc.ABCMeta):
         '''
         return self._is_bound(index, "lower")
 
-    def get_lbound_expression(self, pos):
+    def _get_bound_expression(self, pos, bound):
         '''
-        Lookup the lower bound of this ArrayMixin. If we don't have the
-        necessary type information then a call to the LBOUND intrinsic is
-        constructed and returned.
+        Lookup the upper or lower bound of this ArrayMixin.
 
-        :param int pos: the dimension of the array for which to lookup the \
+        :param int pos: the dimension of the array for which to lookup the
                         lower bound.
+        :param str bound: "upper" or "lower" - the bound which to lookup.
 
-        :returns: the declared lower bound for the specified dimension of \
-            the array accesed or a call to the LBOUND intrinsic if it is \
-            unknown.
+        :returns: the declared bound for the specified dimension of this array
+                  or a call to the {U/L}BOUND intrinsic if it is unknown.
         :rtype: :py:class:`psyclone.psyir.nodes.Node`
 
+        :raises InternalError: if bound is neither upper or lower.
         '''
+        if bound not in ("upper", "lower"):
+            raise InternalError(f"'bound' argument must be 'lower' or 'upper. "
+                                f"Found '{bound}'.")
+
         # First, walk up to the parent reference and get its type. For a simple
         # ArrayReference this will just be self.
         root_ref = self.ancestor(Reference, include_self=True)
@@ -192,7 +195,7 @@ class ArrayMixin(metaclass=abc.ABCMeta):
 
         # Walk back down the structure, looking up the type information as we
         # go. We also collect the necessary information for creating a new
-        # Reference as argument to the LBOUND intrinsic in case the type
+        # Reference as argument to the {U/L}BOUND intrinsic in case the type
         # information is not available.
         cnames = []
         cursor = root_ref
@@ -217,11 +220,13 @@ class ArrayMixin(metaclass=abc.ABCMeta):
         if (isinstance(cursor_type, ArrayType) and
                 cursor_type.shape[pos] not in [ArrayType.Extent.DEFERRED,
                                                ArrayType.Extent.ATTRIBUTE]):
-            # We have the full type information and the lower bound is known.
-            return cursor_type.shape[pos].lower.copy()
+            # We have the full type information and the bound is known.
+            if bound == "lower":
+                return cursor_type.shape[pos].lower.copy()
+            return cursor_type.shape[pos].upper.copy()
 
         # We've either failed to resolve the type or we don't know the extent
-        # of the array dimension so construct a call to the LBOUND intrinsic.
+        # of the array dimension so construct a call to the BOUND intrinsic.
         if cnames:
             # We have some sort of structure access - remove any indexing
             # information from the ultimate member of the structure access.
@@ -241,8 +246,29 @@ class ArrayMixin(metaclass=abc.ABCMeta):
             # A simple Reference.
             ref = Reference(root_ref.symbol)
 
-        return BinaryOperation.create(BinaryOperation.Operator.LBOUND, ref,
+        if bound == "lower":
+            return BinaryOperation.create(BinaryOperation.Operator.LBOUND, ref,
+                                          Literal(str(pos+1), INTEGER_TYPE))
+        return BinaryOperation.create(BinaryOperation.Operator.UBOUND, ref,
                                       Literal(str(pos+1), INTEGER_TYPE))
+
+    def get_lbound_expression(self, pos):
+        '''
+        Lookup the lower bound of this ArrayMixin. If we don't have the
+        necessary type information then a call to the LBOUND intrinsic is
+        constructed and returned.
+
+        :param int pos: the dimension of the array for which to lookup the
+                        lower bound.
+
+        :returns: the declared lower bound for the specified dimension of
+            the array accesed or a call to the LBOUND intrinsic if it is
+            unknown.
+        :rtype: :py:class:`psyclone.psyir.nodes.Node`
+
+        '''
+        # Call the helper function
+        return self._get_bound_expression(pos, "lower")
 
     def get_ubound_expression(self, pos):
         '''
@@ -250,73 +276,17 @@ class ArrayMixin(metaclass=abc.ABCMeta):
         necessary type information then a call to the UBOUND intrinsic is
         constructed and returned.
 
-        :param int pos: the dimension of the array for which to lookup the \
+        :param int pos: the dimension of the array for which to lookup the
                         upper bound.
 
-        :returns: the declared upper bound for the specified dimension of \
-            the array accesed or a call to the UBOUND intrinsic if it is \
+        :returns: the declared upper bound for the specified dimension of
+            the array accesed or a call to the UBOUND intrinsic if it is
             unknown.
         :rtype: :py:class:`psyclone.psyir.nodes.Node`
 
         '''
-        # First, walk up to the parent reference and get its type. For a simple
-        # ArrayReference this will just be self.
-        root_ref = self.ancestor(Reference, include_self=True)
-        cursor_type = root_ref.symbol.datatype
-
-        # Walk back down the structure, looking up the type information as we
-        # go. We also collect the necessary information for creating a new
-        # Reference as argument to the UBOUND intrinsic in case the type
-        # information is not available.
-        cnames = []
-        cursor = root_ref
-        while cursor is not self:
-            cursor = cursor.member
-            # Collect member information.
-            if isinstance(cursor, ArrayMixin):
-                new_indices = [idx.copy() for idx in cursor.indices]
-                cnames.append((cursor.name.lower(), new_indices))
-            else:
-                cnames.append(cursor.name.lower())
-            # Continue to resolve datatype unless we hit an
-            # UnknownType or DeferredType.
-            if isinstance(cursor_type, ArrayType):
-                cursor_type = cursor_type.intrinsic
-            if isinstance(cursor_type, DataTypeSymbol):
-                cursor_type = cursor_type.datatype
-            if isinstance(cursor_type, (UnknownType, DeferredType)):
-                continue
-            cursor_type = cursor_type.components[cursor.name.lower()].datatype
-
-        if (isinstance(cursor_type, ArrayType) and
-                cursor_type.shape[pos] not in [ArrayType.Extent.DEFERRED,
-                                               ArrayType.Extent.ATTRIBUTE]):
-            # We have the full type information and the upper bound is known.
-            return cursor_type.shape[pos].upper.copy()
-
-        # We've either failed to resolve the type or we don't know the extent
-        # of the array dimension so construct a call to the UBOUND intrinsic.
-        if cnames:
-            # We have some sort of structure access - remove any indexing
-            # information from the ultimate member of the structure access.
-            if len(cnames[-1]) == 2:
-                cnames[-1] = cnames[-1][0]
-            # Have to import here to avoid circular dependencies.
-            # pylint: disable=import-outside-toplevel
-            from psyclone.psyir.nodes import (ArrayOfStructuresReference,
-                                              StructureReference)
-            if isinstance(root_ref, ArrayMixin):
-                new_indices = [idx.copy() for idx in root_ref.indices]
-                ref = ArrayOfStructuresReference.create(
-                    root_ref.symbol, new_indices, cnames)
-            else:
-                ref = StructureReference.create(root_ref.symbol, cnames)
-        else:
-            # A simple Reference.
-            ref = Reference(root_ref.symbol)
-
-        return BinaryOperation.create(BinaryOperation.Operator.UBOUND, ref,
-                                      Literal(str(pos+1), INTEGER_TYPE))
+        # Call the helper function
+        return self._get_bound_expression(pos, "upper")
 
     def is_upper_bound(self, index):
         '''Returns whether this array access includes the upper bound of
