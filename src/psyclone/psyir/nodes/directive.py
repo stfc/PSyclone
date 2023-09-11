@@ -125,7 +125,7 @@ class Directive(Statement, metaclass=abc.ABCMeta):
 
             if not sig.is_structure:
                 # This must be an array.
-                # TODO #1396 - in languages such as C++ it will be necessary to
+                # TODO #2304 - in languages such as C++ it will be necessary to
                 # supply the extent of an array that is being accessed. For now
                 # we only supply a Reference (which is sufficient in Fortran).
                 if sig not in access_dict:
