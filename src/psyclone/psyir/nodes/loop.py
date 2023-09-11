@@ -294,8 +294,15 @@ class Loop(Statement):
         :returns: Return the dag name for this loop
         :rtype: string
 
+        :raises InternalError: if this Loop has no ancestor Routine.
+
         '''
-        _, position = self._find_position(self.ancestor(Routine))
+        routine = self.ancestor(Routine)
+        if not routine:
+            raise InternalError(f"Cannot generate DAG name for loop node "
+                                f"'{self}' because it is not contained within "
+                                f"a Routine.")
+        _, position = self._find_position(routine)
 
         return "loop_" + str(position)
 
@@ -404,6 +411,7 @@ class Loop(Statement):
 
         '''
         if not dep_tools:
+            # pylint: disable=import-outside-toplevel
             from psyclone.psyir.tools import DependencyTools
             dtools = DependencyTools()
         else:
