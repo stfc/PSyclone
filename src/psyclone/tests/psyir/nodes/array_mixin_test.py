@@ -363,9 +363,6 @@ def test_get_bound_expression_unknown_size(extent):
     assert lbnd.operator == BinaryOperation.Operator.LBOUND
     assert lbnd.children[0].symbol is symbol
 
-    symbol = DataSymbol("my_symbol", ArrayType(INTEGER_TYPE,
-                                               [extent, extent]))
-    aref = ArrayReference.create(symbol, [_ONE.copy(), _ONE.copy()])
     ubnd = aref._get_bound_expression(1, "upper")
     assert isinstance(ubnd, BinaryOperation)
     assert ubnd.operator == BinaryOperation.Operator.UBOUND
@@ -389,16 +386,6 @@ def test_aref_to_aos_bound_expression():
     array = ArrayReference.create(sym, [Range.create(lbound, ubound)])
     lbnd = array._get_bound_expression(0, "lower")
     assert lbnd.value == "3"
-
-    sgrid_type = StructureType.create(
-        [("ID", INTEGER_TYPE, Symbol.Visibility.PUBLIC)])
-    sgrid_type_sym = DataTypeSymbol("subgrid_type", sgrid_type)
-    sym = DataSymbol("subgrids", ArrayType(sgrid_type_sym, [(3, 10)]))
-    lbound = BinaryOperation.create(BinaryOperation.Operator.LBOUND,
-                                    Reference(sym), _ONE.copy())
-    ubound = BinaryOperation.create(BinaryOperation.Operator.UBOUND,
-                                    Reference(sym), _ONE.copy())
-    array = ArrayReference.create(sym, [Range.create(lbound, ubound)])
     ubnd = array._get_bound_expression(0, "upper")
     assert ubnd.value == "10"
 
@@ -433,6 +420,11 @@ def test_member_get_bound_expression(fortran_writer):
     assert isinstance(lbnd, BinaryOperation)
     out = fortran_writer(lbnd).lower()
     assert out == "lbound(uvar(1)%map(1,2)%data, 1)"
+
+    ubnd = ref.member._get_bound_expression(0, "upper")
+    assert isinstance(ubnd, BinaryOperation)
+    out = fortran_writer(ubnd).lower()
+    assert out == "ubound(uvar(1)%map, 1)"
     # Second, test when we do have type information.
     a2d = ArrayType(REAL_TYPE, [2, (2, 8)])
     # Structure that contains "map" which is a 2D array.
@@ -451,58 +443,20 @@ def test_member_get_bound_expression(fortran_writer):
                                       ("map", [_TWO.copy(), _TWO.copy()])])
     assert sref.member.member._get_bound_expression(0, "lower") == _ONE
     assert sref.member.member._get_bound_expression(1, "lower") == _TWO
+    assert sref.member.member._get_bound_expression(0, "upper").value == "2"
+    assert sref.member.member._get_bound_expression(1, "upper").value == "8"
     sref2 = StructureReference.create(
         ssym, [("subgrids", [_TWO.copy(), _TWO.copy()]),
                ("map", [_TWO.copy(), _TWO.copy()])])
     assert sref2.member._get_bound_expression(1, "lower") == _TWO
     assert sref2.member.member._get_bound_expression(1, "lower") == _TWO
 
-    # Check that get_lbound_expression gives the same result
-    assert (sref2.member.member._get_bound_expression(1, "lower") ==
-            sref2.member.member.get_lbound_expression(1))
-
-    # Tests for upper argument
-    # First, test when we don't have type information.
-    grid_type = DataTypeSymbol("grid_type", DeferredType())
-    sym = DataSymbol("grid_var", grid_type)
-    ref = StructureReference.create(sym, [("data", [_ONE.copy()])])
-    ubnd = ref.member._get_bound_expression(0, "upper")
-    assert isinstance(ubnd, BinaryOperation)
-    out = fortran_writer(ubnd).lower()
-    assert out == "ubound(grid_var%data, 1)"
-    usym = DataSymbol("uvar", DeferredType())
-    ref = ArrayOfStructuresReference.create(
-        usym, [_ONE.copy()],
-        [("map", [_ONE.copy(), _TWO.copy()]),
-         ("data", [_ONE.copy()])])
-    ubnd = ref.member.member._get_bound_expression(0, "upper")
-    assert isinstance(ubnd, BinaryOperation)
-    out = fortran_writer(ubnd).lower()
-    assert out == "ubound(uvar(1)%map(1,2)%data, 1)"
-    # Second, test when we do have type information.
-    a2d = ArrayType(REAL_TYPE, [2, (2, 8)])
-    # Structure that contains "map" which is a 2D array.
-    stypedef = StructureType.create(
-        [("map", a2d, Symbol.Visibility.PUBLIC)])
-    stypedefsym = DataTypeSymbol("map_type", stypedef)
-    # Structure containing a structure of stypedef and an array of such
-    # structures.
-    stypedef2 = StructureType.create(
-        [("grid", stypedef, Symbol.Visibility.PUBLIC),
-         ("subgrids", ArrayType(stypedefsym, [3, (2, 6)]),
-          Symbol.Visibility.PUBLIC)])
-    ssym = DataSymbol("var", stypedef2)
-    sref = StructureReference.create(ssym,
-                                     ["grid",
-                                      ("map", [_TWO.copy(), _TWO.copy()])])
-    assert sref.member.member._get_bound_expression(0, "upper").value == "2"
-    assert sref.member.member._get_bound_expression(1, "upper").value == "8"
-    sref2 = StructureReference.create(
-        ssym, [("subgrids", [_TWO.copy(), _TWO.copy()]),
-               ("map", [_TWO.copy(), _TWO.copy()])])
     assert sref2.member._get_bound_expression(1, "upper").value == "6"
     assert sref2.member.member._get_bound_expression(1, "upper").value == "8"
 
+    # Check that get_lbound_expression gives the same result
+    assert (sref2.member.member._get_bound_expression(1, "lower") ==
+            sref2.member.member.get_lbound_expression(1))
     # Check that get_ubound_expression gives the same result
     assert (sref2.member.member._get_bound_expression(1, "upper") ==
             sref2.member.member.get_ubound_expression(1))
