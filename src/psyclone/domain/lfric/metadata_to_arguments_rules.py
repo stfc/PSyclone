@@ -464,11 +464,11 @@ class MetadataToArgumentsRules():
                         cls._stencil_cross2d(meta_arg)
                     else:
                         cls._stencil(meta_arg)
-            elif type(meta_arg) == OperatorArgMetadata:
+            elif type(meta_arg) is OperatorArgMetadata:
                 cls._operator(meta_arg)
-            elif type(meta_arg) == ColumnwiseOperatorArgMetadata:
+            elif type(meta_arg) is ColumnwiseOperatorArgMetadata:
                 cls._cma_operator(meta_arg)
-            elif type(meta_arg) == ScalarArgMetadata:
+            elif type(meta_arg) is ScalarArgMetadata:
                 cls._scalar(meta_arg)
             else:
                 raise InternalError(

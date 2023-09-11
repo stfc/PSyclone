@@ -1784,7 +1784,7 @@ def test_parse_array_dimensions_attributes():
     csym = sym_table.new_symbol("some_mod", symbol_type=ContainerSymbol)
     vsym = sym_table.new_symbol("var3", interface=ImportInterface(csym))
     # pylint: disable=unidiomatic-typecheck
-    assert type(vsym) == Symbol
+    assert type(vsym) is Symbol
     shape = Fparser2Reader._parse_dimensions(fparser2spec, sym_table)
     assert len(shape) == 1
     assert shape[0][0].value == "1"
@@ -2774,7 +2774,7 @@ def test_named_and_wildcard_use_var(f2008_parser):
     avar1 = container.symbol_table.lookup("a_var")
     # It must be a generic Symbol since we don't know anything about it
     # pylint: disable=unidiomatic-typecheck
-    assert type(avar1) == Symbol
+    assert type(avar1) is Symbol
     # There should be no entry for "a_var" in the symbol table for the
     # "test_sub1" routine as it is not declared there.
     schedule = psy.invokes.invoke_list[0].schedule
@@ -2783,7 +2783,7 @@ def test_named_and_wildcard_use_var(f2008_parser):
     # for "test_sub2" as it has a use statement that imports it.
     schedule = psy.invokes.invoke_list[1].schedule
     avar2 = schedule.symbol_table.lookup("a_var")
-    assert type(avar2) == Symbol
+    assert type(avar2) is Symbol
     assert avar2 is not avar1
 
 

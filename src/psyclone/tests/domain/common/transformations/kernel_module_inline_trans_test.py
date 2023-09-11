@@ -278,6 +278,8 @@ def test_module_inline_apply_transformation(tmpdir, fortran_writer):
     # The new inlined routine must now exist
     assert kern_call.ancestor(Container).symbol_table.lookup("compute_cv_code")
     assert kern_call.ancestor(Container).children[1].name == "compute_cv_code"
+    assert (kern_call.ancestor(Container).symbol_table.
+            lookup("compute_cv_code").is_modulevar)
 
     # We should see it in the output of both:
     # - the backend
