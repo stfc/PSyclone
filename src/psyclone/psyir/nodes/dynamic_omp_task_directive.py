@@ -38,6 +38,7 @@ Directive node, which is used pre-lowering to represent Task Directives."""
 
 import itertools
 import math
+from collections import namedtuple
 
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.nodes import (
@@ -166,7 +167,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
 
         # TODO Waiting on #2282
         # ubound = ref.get_ubound_expression(index)
-        
+
         root_ref = ref.ancestor(Reference, include_self=True).copy()
         ubound = BinaryOperation.create(BinaryOperation.Operator.UBOUND,
                                         root_ref, Literal(str(index+1),
@@ -450,13 +451,11 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         # Handle the proxy_loop case
         if is_proxy:
             # Treat it as though we came across the parent loop variable.
-            parent_loop = self._proxy_loop_vars[index_symbol]["parent_loop"]
+            parent_loop = self._proxy_loop_vars[index_symbol].parent_loop
 
             # Create a Reference to the real variable
-            real_ref = self._proxy_loop_vars[index_symbol][
-                "parent_node"
-            ].copy()
-            for temp_ref in self._proxy_loop_vars[index_symbol]["parent_node"]:
+            real_ref = self._proxy_loop_vars[index_symbol].parent_node.copy()
+            for temp_ref in self._proxy_loop_vars[index_symbol].parent_node:
                 real_ref = temp_ref.copy()
                 # We have a Literal step value, and a Literal in
                 # the Binary Operation. These Literals must both be
@@ -484,7 +483,6 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                 if ref.symbol in child_loop_vars:
                     # Return a full range (:)
                     dim = len(index_list)
-                    dim_lit = Literal(str(dim + 1), INTEGER_TYPE)
                     # Find the arrayref
                     array_access_member = ref.ancestor(ArrayMember)
                     if array_access_member is not None:
@@ -493,7 +491,9 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                         )
                     else:
                         arrayref = ref.parent.parent
-                        full_range = self._create_full_range_for_array(arrayref, dim)
+                        full_range = self._create_full_range_for_array(
+                                arrayref, dim
+                        )
                     index_list.append(full_range)
                 else:
                     # We have a private constant, written to inside
@@ -638,9 +638,8 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                         # statement.
                         if len(index_list) <= dim:
                             index_list.append([])
-                        for temp_ref in self._proxy_loop_vars[index.symbol][
-                            "parent_node"
-                        ]:
+                        for temp_ref in self._proxy_loop_vars[index.symbol].\
+                                parent_node:
                             parent_ref = temp_ref.copy()
                             if isinstance(parent_ref, BinaryOperation):
                                 quick_list = []
@@ -966,9 +965,8 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                         # statement.
                         if len(index_list) <= dim:
                             index_list.append([])
-                        for temp_ref in self._proxy_loop_vars[index.symbol][
-                            "parent_node"
-                        ]:
+                        for temp_ref in self._proxy_loop_vars[index.symbol].\
+                                parent_node:
                             parent_ref = temp_ref.copy()
                             if isinstance(parent_ref, BinaryOperation):
                                 quick_list = []
@@ -1194,9 +1192,8 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                         # statement.
                         if len(index_list) <= dim:
                             index_list.append([])
-                        for temp_ref in self._proxy_loop_vars[index.symbol][
-                            "parent_node"
-                        ]:
+                        for temp_ref in self._proxy_loop_vars[index.symbol].\
+                                parent_node:
                             parent_ref = temp_ref.copy()
                             if isinstance(parent_ref, BinaryOperation):
                                 quick_list = []
@@ -1446,19 +1443,20 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                 if lhs.symbol in self._proxy_loop_vars:
                     if (
                         rhs
-                        not in self._proxy_loop_vars[lhs.symbol][
-                            "parent_node"
-                        ]
+                        not in self._proxy_loop_vars[lhs.symbol].parent_node
                     ):
-                        self._proxy_loop_vars[lhs.symbol][
-                            "parent_node"
-                        ].append(rhs.copy())
+                        self._proxy_loop_vars[lhs.symbol].parent_node.append(
+                                rhs.copy()
+                        )
                 else:
-                    subdict = {}
-                    subdict["parent_var"] = parent_var
-                    subdict["parent_node"] = [rhs.copy()]
-                    subdict["loop"] = node
-                    subdict["parent_loop"] = self._parent_loops[index]
+                    ProxyVars = namedtuple(
+                            'ProxyVars', ['parent_var', 'parent_node',
+                                          'loop', 'parent_loop']
+                    )
+                    subdict = ProxyVars(
+                            parent_var, [rhs.copy()], node,
+                            self._parent_loops[index]
+                    )
 
                     self._proxy_loop_vars[lhs.symbol] = subdict
                 added = True
@@ -1488,23 +1486,24 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                     if lhs.symbol in self._proxy_loop_vars:
                         if (
                             rhs
-                            not in self._proxy_loop_vars[lhs.symbol][
-                                "parent_node"
-                            ]
+                            not in self._proxy_loop_vars[lhs.symbol].
+                            parent_node
                         ):
-                            self._proxy_loop_vars[lhs.symbol][
-                                "parent_node"
-                            ].append(rhs.copy())
+                            self._proxy_loop_vars[lhs.symbol].parent_node.\
+                                    append(rhs.copy())
                     else:
-                        subdict = {}
-                        subdict["parent_var"] = \
-                            self._proxy_loop_vars[proxy_var]["parent_var"]
-                        subdict["parent_node"] = [rhs.copy()]
-                        subdict["loop"] = node
-                        subdict["parent_loop"] = self._parent_loops[index]
+                        ProxyVars = namedtuple(
+                                'ProxyVars', ['parent_var', 'parent_node',
+                                              'loop', 'parent_loop']
+                        )
+                        subdict = ProxyVars(
+                                self._proxy_loop_vars[proxy_var].parent_var,
+                                [rhs.copy()], node, self._parent_loops[index]
+                        )
                         self._parent_loops.append(self._parent_loops[index])
                         self._proxy_loop_vars[lhs.symbol] = subdict
                     added = True
+            # If we find any proxy loop variable on the RHS then we stop.
             if added:
                 break
 
@@ -1577,12 +1576,14 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                 if start_val_refs[0].symbol == parent_var:
                     to_remove = loop_var
                     # Store the loop and parent_var
-                    subdict = {}
-                    subdict["parent_var"] = parent_var
-                    subdict["parent_node"] = [Reference(parent_var)]
-                    subdict["loop"] = node
-                    subdict["parent_loop"] = self._parent_loops[index]
-
+                    ProxyVars = namedtuple(
+                            'ProxyVars', ['parent_var', 'parent_node',
+                                          'loop', 'parent_loop']
+                    )
+                    subdict = ProxyVars(
+                            parent_var, [Reference(parent_var)], node,
+                            self._parent_loops[index]
+                    )
                     self._proxy_loop_vars[to_remove] = subdict
                     break
 
@@ -1609,7 +1610,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         # firstprivate
         if to_remove is not None:
             parent_var_ref = Reference(
-                self._proxy_loop_vars[to_remove]["parent_var"]
+                self._proxy_loop_vars[to_remove].parent_var
             )
             if parent_var_ref not in firstprivate_list:
                 firstprivate_list.append(parent_var_ref.copy())
