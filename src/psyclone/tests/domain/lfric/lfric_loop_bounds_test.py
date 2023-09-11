@@ -37,7 +37,6 @@
 ''' This module contains pytest tests for the LFRicLoopBounds collection
 class. '''
 
-from __future__ import absolute_import
 import os
 
 from psyclone.domain.lfric import LFRicLoopBounds

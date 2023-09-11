@@ -68,12 +68,10 @@ from psyclone.domain.lfric.lfric_loop import LFRicLoop
 
 
 __all__ = [
-    'ArgIndexToMetadataIndex',
     'ArgOrdering',
     'FunctionSpace',
     'KernCallAccArgList',
     'KernCallArgList',
-    'KernCallInvokeArgList',
     'KernelInterface',
     'KernStubArgList',
     'LFRicArgDescriptor',
@@ -84,6 +82,4 @@ __all__ = [
     'LFRicKernCallFactory',
     'LFRicLoop',
     'LFRicLoopBounds',
-    'LFRicSymbolTable',
-    'LFRicTypes',
-    'MetadataToArgumentsRules']
+    'LFRicSymbolTable']

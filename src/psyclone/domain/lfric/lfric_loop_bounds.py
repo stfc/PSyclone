@@ -36,25 +36,22 @@
 # Modified J. Henrichs, Bureau of Meteorology
 # Modified A. B. G. Chalk and N. Nobre, STFC Daresbury Lab
 
-''' This module implements the PSyclone Dynamo 0.3 API by 1)
-    specialising the required base classes in parser.py (KernelType) and
-    adding a new class (DynFuncDescriptor03) to capture function descriptor
-    metadata and 2) specialising the required base classes in psyGen.py
-    (PSy, Invokes, Invoke, InvokeSchedule, Loop, Kern, Inf, Arguments and
-    Argument). '''
+''' This module provides the LFRicLoopBounds Class that handles all variables 
+    required for specifying loop limits within an LFRic PSy-layer routine.'''
 
 # Imports
 from psyclone.configuration import Config
-from psyclone.domain.lfric import (LFRicCollection)
-from psyclone.f2pygen import (AssignGen, CommentGen, DeclGen)
+from psyclone.domain.lfric import LFRicCollection
+from psyclone.f2pygen import AssignGen, CommentGen, DeclGen
 
 
 class LFRicLoopBounds(LFRicCollection):
-    '''
-    Handles all variables required for specifying loop limits within a
-    PSy-layer routine.
 
+    ''' 
+    Handles all variables required for specifying loop limits within 
+    an LFRic PSy-layer routine.
     '''
+
     def _invoke_declarations(self, parent):
         '''
         Only needed because method is virtual in parent class.
