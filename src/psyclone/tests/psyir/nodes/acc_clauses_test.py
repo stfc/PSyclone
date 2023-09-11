@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2022, Science and Technology Facilities Council.
+# Copyright (c) 2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,46 +31,30 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: A. B. G. Chalk, STFC Daresbury Lab
-# Modified: A. R. Porter, STFC Daresbury Lab
+# Author: A. R. Porter, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
-''' This module contains the Clause abstract node implementation. '''
+''' This module contains the pytest test battery for the various OpenACC
+ Directive Clause nodes.'''
 
-import abc
-from psyclone.psyir.nodes.node import Node
+import pytest
+
+from psyclone.psyir.nodes import (ACCCopyClause, ACCCopyInClause,
+                                  ACCCopyOutClause, Literal, Reference)
+from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 
 
-class Clause(Node, metaclass=abc.ABCMeta):
+@pytest.mark.parametrize("cls, string", [(ACCCopyClause, "copy"),
+                                         (ACCCopyInClause, "copyin"),
+                                         (ACCCopyOutClause, "copyout")])
+def test_acccopyclause(cls, string):
     '''
-    Base abstract class for all clauses.
+    Test the various ACCCopyXXXX clause nodes.
     '''
-    _children_valid_format = None
-    _colour = "green"
-    # The base string for this clause, e.g. nowait or private
-    _clause_string = None
-
-    @property
-    def clause_string(self):
-        '''
-        :returns: the base clause string for this Clause.
-        :rtype: str
-        '''
-        return self._clause_string
-
-
-class OperandClause(Clause, metaclass=abc.ABCMeta):
-    '''
-    Base abstract class for all clauses that have an operand.
-    '''
-
-    _operand = None
-
-    @property
-    def operand(self):
-        '''
-        Returns the operand string for this Clause.
-
-        :rtype: str
-        '''
-        return self._operand
+    clause = cls()
+    assert clause._children_valid_format == "Reference"
+    assert clause.clause_string == string
+    # The only permitted child type is Reference.
+    assert not clause._validate_child(0, Literal("1", INTEGER_TYPE))
+    assert clause._validate_child(0, Reference(DataSymbol("var",
+                                                          INTEGER_TYPE)))
