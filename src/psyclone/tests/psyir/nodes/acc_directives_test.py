@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -39,7 +39,6 @@
 
 ''' Performs py.test tests on the OpenACC PSyIR Directive nodes. '''
 
-from __future__ import absolute_import
 import os
 import pytest
 
@@ -49,11 +48,20 @@ from psyclone.errors import GenerationError
 from psyclone.f2pygen import ModuleGen
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
-from psyclone.psyir.nodes import ACCRoutineDirective, \
-    ACCKernelsDirective, Schedule, ACCUpdateDirective, ACCLoopDirective
-from psyclone.psyir.symbols import SymbolTable
-from psyclone.transformations import ACCEnterDataTrans, ACCParallelTrans, \
-    ACCKernelsTrans
+from psyclone.psyir.nodes import (ACCKernelsDirective,
+                                  ACCLoopDirective,
+                                  ACCRegionDirective,
+                                  ACCRoutineDirective,
+                                  ACCUpdateDirective,
+                                  Assignment,
+                                  Literal,
+                                  Reference,
+                                  Routine)
+from psyclone.psyir.nodes.loop import Loop
+from psyclone.psyir.nodes.schedule import Schedule
+from psyclone.psyir.symbols import SymbolTable, DataSymbol, INTEGER_TYPE
+from psyclone.transformations import (ACCDataTrans, ACCEnterDataTrans,
+                                      ACCParallelTrans, ACCKernelsTrans)
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__)))), "test_files", "dynamo0p3")
@@ -66,6 +74,47 @@ def setup():
     yield
     Config._instance = None
 
+
+# Class ACCRegionDirective
+
+class MyACCRegion(ACCRegionDirective):
+    '''Concreate test class sub-classed from ACCRegionDirective.'''
+
+
+def test_accregiondir_validate_global(fortran_reader):
+    '''Check that the validate_global_constraints() method rejects PSyDataNode
+    and CodeBlock nodes.'''
+    accnode = MyACCRegion()
+    cblock = fortran_reader.psyir_from_statement("write(*,*) 'hello'",
+                                                 SymbolTable())
+    accnode.dir_body.addchild(cblock)
+    with pytest.raises(GenerationError) as err:
+        accnode.validate_global_constraints()
+    assert ("Cannot include CodeBlocks or calls to PSyData routines within "
+            "OpenACC regions but found ['CodeBlock'] within a region enclosed "
+            "by an 'MyACCRegion'" in str(err.value))
+
+
+def test_accregiondir_signatures():
+    '''Test the signatures property of ACCRegionDirective.'''
+    routine = Routine("test_prog")
+    accnode = MyACCRegion()
+    routine.addchild(accnode)
+    bob = DataSymbol("bob", INTEGER_TYPE)
+    richard = DataSymbol("richard", INTEGER_TYPE)
+    routine.symbol_table.add(bob)
+    accnode.dir_body.addchild(
+        Assignment.create(lhs=Reference(bob), rhs=Literal("1", INTEGER_TYPE)))
+    accnode.dir_body.addchild(
+        Assignment.create(lhs=Reference(bob), rhs=Literal("1", INTEGER_TYPE)))
+    accnode.dir_body.addchild(
+        Assignment.create(lhs=Reference(bob), rhs=Literal("1", INTEGER_TYPE)))
+    accnode.dir_body.addchild(
+        Assignment.create(lhs=Reference(bob), rhs=Reference(richard)))
+    # pylint: disable=unbalanced-tuple-unpacking
+    reads, writes = accnode.signatures
+    assert Signature("richard") in reads
+    assert Signature("bob") in writes
 
 # Class ACCEnterDataDirective start
 
@@ -403,3 +452,46 @@ def test_accupdatedirective_equality():
     # Check equality fails when different if_present settings
     directive5 = ACCUpdateDirective(sig, "device", if_present=False)
     assert directive1 != directive5
+
+
+def test_accdatadirective_update_data_movement_clauses(fortran_reader,
+                                                       fortran_writer):
+    '''Test that the data movement clauses are constructed correctly for the
+    ACCDataDirective class and that they are updated appropriately when the
+    tree beneath them is changed.
+
+    '''
+    psyir = fortran_reader.psyir_from_source(
+        "program dtype_read\n"
+        "use field_mod, only: fld_type\n"
+        "integer, parameter :: jpj = 10\n"
+        "type(fld_type), dimension(5) :: small_holding\n"
+        "real, dimension(jpj) :: sto_tmp\n"
+        "integer :: ji, jf\n"
+        "real, dimension(jpj) :: sfactor\n"
+        "sfactor(:) = 0.1\n"
+        "sto_tmp(:) = 0.0\n"
+        "jf = 3\n"
+        "do ji = 1,jpj\n"
+        "  sto_tmp(ji) = sto_tmp(ji) + small_holding(3)%grid(jf)%data(ji)\n"
+        "  sto_tmp(ji) = sfactor * sto_tmp(ji)\n"
+        "end do\n"
+        "end program dtype_read\n")
+    loop = psyir.walk(Loop)[0]
+    dtrans = ACCDataTrans()
+    dtrans.apply(loop)
+    output = fortran_writer(psyir)
+    expected = ("!$acc data copyin(sfactor,small_holding,small_holding(3)%grid"
+                ",small_holding(3)%grid(jf)%data), copy(sto_tmp)")
+    assert expected in output
+    # Check that calling update_signal() explicitly has no effect as the tree
+    # has not changed.
+    loop.update_signal()
+    output = fortran_writer(psyir)
+    assert expected in output
+    # Now remove the second statement from the loop body.
+    del loop.loop_body.children[1]
+    output = fortran_writer(psyir)
+    # 'sfactor' should have been removed from the copyin()
+    assert ("!$acc data copyin(small_holding,small_holding(3)%grid,"
+            "small_holding(3)%grid(jf)%data), copy(sto_tmp)" in output)

@@ -646,7 +646,7 @@ def test_node_ancestor_shared_with(fortran_reader):
     assert (two_lit.ancestor(BinaryOperation, shared_with=mul_binop,
                              include_self=False) is add_binop)
     assert (two_lit.ancestor(Node, shared_with=one_lit,
-                             excluding=(BinaryOperation)) is assignment)
+                             excluding=BinaryOperation) is assignment)
     # Check the inverse of previous statements is the same.
     assert (three_lit.ancestor(BinaryOperation, shared_with=two_lit) is
             mul_binop)
@@ -655,7 +655,7 @@ def test_node_ancestor_shared_with(fortran_reader):
     assert (mul_binop.ancestor(BinaryOperation, shared_with=two_lit,
                                include_self=False) is add_binop)
     assert (one_lit.ancestor(Node, shared_with=two_lit,
-                             excluding=(BinaryOperation)) is assignment)
+                             excluding=BinaryOperation) is assignment)
 
     # Check cases where we don't find a valid ancestor
     assert (two_lit.ancestor(BinaryOperation, shared_with=one_lit,
@@ -1078,6 +1078,99 @@ def test_children_setter():
     testnode.children = []
     assert statement1.parent is None
     assert statement2.parent is None
+
+
+def test_children_clear():
+    '''Test that the clear() method works correctly for a ChildrenList.'''
+    testnode = Schedule()
+    stmt1 = Statement()
+    stmt2 = Statement()
+    testnode.addchild(stmt1)
+    testnode.addchild(stmt2)
+    assert len(testnode.children) == 2
+    assert stmt1.parent is testnode
+    assert stmt2.parent is testnode
+    testnode.children.clear()
+    assert len(testnode.children) == 0
+    assert stmt1.parent is None
+    assert stmt2.parent is None
+
+
+def test_children_sort():
+    '''Check that the sort() method of ChildrenList has been overridden and
+    raises an appropriate error.'''
+    testnode = Schedule()
+    with pytest.raises(NotImplementedError) as err:
+        testnode.children.sort()
+    assert "Sorting the Children of a Node is not supported" in str(err.value)
+
+
+def test_children_trigger_update():
+    '''Test that various modifications of ChildrenList all trigger a tree
+    update. We do this by implementing a sub-class of Schedule that has a
+    bespoke update handler.
+
+    '''
+    class TestingSched(Schedule):
+        '''
+        Sub-class of Schedule that re-implements _update_node() so that it
+        (configurably) raises a GenerationError when called.
+
+        '''
+        def __init__(self, test_enable=True):
+            # Controls whether or not an exception is raised by _update_node.
+            self._test_enable = test_enable
+            super().__init__()
+
+        def _update_node(self):
+            if self._test_enable:
+                # Manually unset this flag here as we're about to break out
+                # of the updating code which would otherwise leave this flag
+                # set to True and would mean we couldn't use the same object
+                # in subsequent tests.
+                self._disable_tree_update = False
+                raise GenerationError("update called OK")
+
+    # Set-up a Schedule with some children with the exception disabled.
+    sched = TestingSched(test_enable=False)
+    sched.addchild(Return())
+    sched.addchild(Return())
+    # Enable the exception in the test class.
+    sched._test_enable = True
+    # Various ways of adding children.
+    with pytest.raises(GenerationError) as err:
+        sched.addchild(Return())
+    assert "update called OK" in str(err.value)
+    with pytest.raises(GenerationError) as err:
+        sched.children.extend([Return()])
+    assert "update called OK" in str(err.value)
+    with pytest.raises(GenerationError) as err:
+        sched.children.insert(1, Return())
+    assert "update called OK" in str(err.value)
+    # Various ways of removing children.
+    with pytest.raises(GenerationError) as err:
+        sched.children.pop()
+    assert "update called OK" in str(err.value)
+    with pytest.raises(GenerationError) as err:
+        del sched.children[1]
+    assert "update called OK" in str(err.value)
+    with pytest.raises(GenerationError) as err:
+        sched.children.remove(sched.children[0])
+    assert "update called OK" in str(err.value)
+    # Modifying members of the list.
+    with pytest.raises(GenerationError) as err:
+        sched.children[1] = Return()
+    assert "update called OK" in str(err.value)
+    with pytest.raises(GenerationError) as err:
+        sched.children.reverse()
+    assert "update called OK" in str(err.value)
+    with pytest.raises(GenerationError) as err:
+        sched.children.clear()
+    assert "update called OK" in str(err.value)
+    # Check that disabling the tree update in the sched class means that
+    # the update method is no longer called.
+    sched._disable_tree_update = True
+    sched.children.clear()
 
 
 def test_lower_to_language_level(monkeypatch):

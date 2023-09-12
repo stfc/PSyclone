@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2022, Science and Technology Facilities Council.
+# Copyright (c) 2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,46 +31,30 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: A. B. G. Chalk, STFC Daresbury Lab
-# Modified: A. R. Porter, STFC Daresbury Lab
+# Author J. Henrichs, Bureau of Meteorology
+
+# ----------- Default "make" values, can be overwritten by the user -----------
+F90 ?= gfortran
+F90FLAGS ?=
+
 # -----------------------------------------------------------------------------
 
-''' This module contains the Clause abstract node implementation. '''
+PSYDATA_LIB_NAME = tau_psy
+PSYDATA_LIB = lib$(PSYDATA_LIB_NAME).a
 
-import abc
-from psyclone.psyir.nodes.node import Node
+OBJS = tau_psy.o
 
+default: $(PSYDATA_LIB)
 
-class Clause(Node, metaclass=abc.ABCMeta):
-    '''
-    Base abstract class for all clauses.
-    '''
-    _children_valid_format = None
-    _colour = "green"
-    # The base string for this clause, e.g. nowait or private
-    _clause_string = None
+.PHONY: default clean allclean
 
-    @property
-    def clause_string(self):
-        '''
-        :returns: the base clause string for this Clause.
-        :rtype: str
-        '''
-        return self._clause_string
+$(PSYDATA_LIB): $(OBJS)
+	ar rs $(PSYDATA_LIB) $(OBJS)
 
+%.o: %.f90
+	$(F90) $(F90FLAGS) -c $<
 
-class OperandClause(Clause, metaclass=abc.ABCMeta):
-    '''
-    Base abstract class for all clauses that have an operand.
-    '''
+clean:
+	rm -f *.o *.mod $(PSYDATA_LIB) *pomp.f90 *opari.inc
 
-    _operand = None
-
-    @property
-    def operand(self):
-        '''
-        Returns the operand string for this Clause.
-
-        :rtype: str
-        '''
-        return self._operand
+allclean: clean

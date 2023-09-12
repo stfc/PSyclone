@@ -192,7 +192,8 @@ For a full list of methods available in any PSyIR node see the
     To achieve this, we sub-classed the Python list and redefined all
     methods that modify the list by calling first the PSyIR provided
     validation method and subsequently, if valid, calling the associated
-    list method.
+    list method and triggering an 'update' signal (see
+    :ref:`update_signals_label`).
 
 .. _nodesinfo-label:
 
@@ -256,6 +257,26 @@ relationship.
 Methods like ``node.detach()``, ``node.copy()`` and ``node.pop_all_children()``
 can be used to move or replicate existing children into different nodes. 
 
+.. _update_signals_label:
+
+Dynamic Tree Updates
+====================
+
+Certain modifications to a PSyIR tree will require that parent nodes
+also be updated. For instance, if nodes are added to or removed from
+an OpenACC data region, then the clauses describing the
+necessary data movement (to/from the accelerator device) may have to
+change. To support such use cases, the PSyIR Node has the
+``update_signal`` method which is used to signal that the tree has
+been modified. This signal is propagated up the tree (i.e. from parent
+to parent). The default handler for this signal, ``Node._update_node``, does
+nothing. If a sub-class must take action when the tree below it is
+modified then it must override the ``_update_node`` method as appropriate.
+
+Note that the signalling mechanism is fully contained within the ``Node``
+class and takes care of avoiding recursive updates to the same Node instance.
+It should therefore only be necessary for a class to implement the
+``_update_node`` handler.
 
 Selected Node Descriptions
 ==========================
