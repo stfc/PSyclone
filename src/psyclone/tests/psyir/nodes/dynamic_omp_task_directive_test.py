@@ -2833,7 +2833,7 @@ def test_omp_task_directive_38(fortran_reader, fortran_writer):
 
   !$omp parallel default(shared), private(i,j)
   !$omp single
-  !$omp task private(i,j), shared(b,aa), depend(in: aa%A(:,:)), \
+  !$omp task private(i,j), shared(b,aa), depend(in: aa%A(1:320,1:10)), \
 depend(out: b(:,:))
   do i = 1, 10, 1
     do j = 1, 10, 1
@@ -3106,8 +3106,8 @@ def test_omp_task_directive_42(fortran_reader, fortran_writer):
   !$omp single
   do i = 1, 320, 32
     !$omp task private(j), firstprivate(i,iplusone), shared(boundary,b,aa), \
-depend(in: boundary(i,:),aa%A(i + 32,:),aa%A(i - 32,:),aa%A(i,:)), \
-depend(out: b(i,:))
+depend(in: boundary(i,:),aa%A(i + 32,1:10),aa%A(i - 32,1:10),aa%A(i,1:10))\
+, depend(out: b(i,:))
     do j = 1, 10, 1
       if (boundary(i,j) > 1) then
         iplusone = i + 32
@@ -3180,7 +3180,7 @@ def test_omp_task_directive_43(fortran_reader, fortran_writer):
   do i = 1, 320, 32
     !$omp task private(j), firstprivate(i,iplusone), shared(boundary,aa,b), \
 depend(in: boundary(i,:),b(i,:)), \
-depend(out: aa%A(i + 32,:),aa%A(i - 32,:),aa%A(i,:))
+depend(out: aa%A(i + 32,1:10),aa%A(i - 32,1:10),aa%A(i,1:10))
     do j = 1, 10, 1
       if (boundary(i,j) > 1) then
         iplusone = i + 32
@@ -3442,8 +3442,8 @@ def test_omp_task_directive_46(fortran_reader, fortran_writer):
 
   !$omp parallel default(shared), private(i,j)
   !$omp single
-  !$omp task private(i,j), shared(k,ty), depend(in: k,ty%y%jp(:),ty%y%jp(1)), \
-depend(out: k,ty%y%jp(:),ty%y%jp(1))
+  !$omp task private(i,j), shared(k,ty), depend(in: k,ty%y%jp(1:321),\
+ty%y%jp(1)), depend(out: k,ty%y%jp(1:321),ty%y%jp(1))
   do i = 1, 320, 32
     do j = 1, 320, 32
       k = k + ty%y%jp(i) + i

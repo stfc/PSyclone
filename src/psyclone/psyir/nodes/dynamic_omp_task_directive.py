@@ -164,15 +164,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         :rtype: :py:class:`psyclone.psyir.nodes.Range`
         """
         lbound = ref.get_lbound_expression(index)
-
-        # TODO Waiting on #2282
-        # ubound = ref.get_ubound_expression(index)
-
-        root_ref = ref.ancestor(Reference, include_self=True).copy()
-        ubound = BinaryOperation.create(BinaryOperation.Operator.UBOUND,
-                                        root_ref, Literal(str(index+1),
-                                                          INTEGER_TYPE)
-                                        )
+        ubound = ref.get_ubound_expression(index)
 
         return Range.create(lbound, ubound)
 
