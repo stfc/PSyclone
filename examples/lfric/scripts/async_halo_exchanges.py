@@ -40,7 +40,7 @@ in the generator.py script.
 
 '''
 
-from psyclone.dynamo0p3 import DynHaloExchange, DynHaloExchangeStart
+from psyclone.dynamo0p3 import LFRicHaloExchange, DynHaloExchangeStart
 from psyclone.transformations import Dynamo0p3AsyncHaloExchangeTrans, \
     MoveTrans, TransformationError
 
@@ -54,7 +54,7 @@ def trans(psy):
 
         # This transformation splits the three synchronous halo exchanges
         ahex_trans = Dynamo0p3AsyncHaloExchangeTrans()
-        for h_ex in schedule.walk(DynHaloExchange):
+        for h_ex in schedule.walk(LFRicHaloExchange):
             ahex_trans.apply(h_ex)
 
         # This transformation moves the start of the halo exchanges as far

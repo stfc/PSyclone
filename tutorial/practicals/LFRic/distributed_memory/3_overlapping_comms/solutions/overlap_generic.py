@@ -49,7 +49,7 @@ PSyclone, it is not designed to be run directly from python.
 '''
 from psyclone.transformations import Dynamo0p3AsyncHaloExchangeTrans, \
     MoveTrans, TransformationError
-from psyclone.dynamo0p3 import DynHaloExchange, DynHaloExchangeStart
+from psyclone.dynamo0p3 import LFRicHaloExchange, DynHaloExchangeStart
 
 
 def trans(psy):
@@ -76,7 +76,7 @@ def trans(psy):
         # Get the schedule (the PSyIR representation of the PSy-layer)
         schedule = invoke.schedule
         # Split any synchronous halo exchanges into asynchronous halo exchanges
-        for hex_node in schedule.walk(DynHaloExchange):
+        for hex_node in schedule.walk(LFRicHaloExchange):
             async_hex.apply(hex_node)
 
         # Move any halo exchange starts as early as possible in the

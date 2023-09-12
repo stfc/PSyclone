@@ -722,7 +722,7 @@ are multiple dependencies and 3) there is one dependence.
    exchange is added for each component. The internal helper method
    ``_add_halo_exchange`` itself uses the internal helper method
    ``_add_halo_exchange_code()``. This method creates an instance of the
-   ``DynHaloExchange`` class for the field in question and adds it to
+   ``LFRicHaloExchange`` class for the field in question and adds it to
    the schedule before the loop. You might notice that this method
    then checks that the halo exchange is actually required and removes
    it again if not. In our current situation the halo exchange will
@@ -818,7 +818,7 @@ disabled. This is achieved by the ``ignore_hex_dep`` argument being
 set to ``True`` in the ``_add_halo_exchange_code`` function within the
 ``DynLoop`` class and the actual check that is skipped is implemented
 in the ``_compute_halo_read_info`` function within the
-``DynHaloExchange`` class.
+``LFRicHaloExchange`` class.
 
 Asynchronous Halo Exchanges
 +++++++++++++++++++++++++++

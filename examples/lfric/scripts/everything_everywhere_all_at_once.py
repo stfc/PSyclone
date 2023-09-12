@@ -41,7 +41,7 @@ DistibutedMemory, OpenMP coloring and serial transformations possible.
 '''
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.domain.lfric import LFRicConstants
-from psyclone.dynamo0p3 import DynHaloExchange, DynHaloExchangeStart
+from psyclone.dynamo0p3 import LFRicHaloExchange, DynHaloExchangeStart
 from psyclone.psyir.transformations import Matmul2CodeTrans
 from psyclone.psyir.nodes import BinaryOperation, Container, KernelSchedule
 from psyclone.transformations import Dynamo0p3ColourTrans, \
@@ -87,7 +87,7 @@ def trans(psy):
 
         if ENABLE_ASYNC_HALOS:
             # This transformation splits all synchronous halo exchanges
-            for h_ex in schedule.walk(DynHaloExchange):
+            for h_ex in schedule.walk(LFRicHaloExchange):
                 ahex_trans.apply(h_ex)
 
             # This transformation moves the start of the halo exchanges as
