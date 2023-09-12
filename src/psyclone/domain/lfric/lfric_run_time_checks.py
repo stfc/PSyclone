@@ -36,12 +36,11 @@
 # Modified J. Henrichs, Bureau of Meteorology
 # Modified A. B. G. Chalk and N. Nobre, STFC Daresbury Lab
 
-''' This module implements the PSyclone Dynamo 0.3 API by 1)
-    specialising the required base classes in parser.py (KernelType) and
-    adding a new class (DynFuncDescriptor03) to capture function descriptor
-    metadata and 2) specialising the required base classes in psyGen.py
-    (PSy, Invokes, Invoke, InvokeSchedule, Loop, Kern, Inf, Arguments and
-    Argument). '''
+''' This module contians the LFRicRunTimeChecks class which handles
+declarations and code generation for run-time checks. The methods
+checks fields' function spaces and read-only fields against kernel 
+function-space metadata on initialisation. The class inherits from 
+the LFRicCollection class.'''
 
 # Imports
 from psyclone.configuration import Config
