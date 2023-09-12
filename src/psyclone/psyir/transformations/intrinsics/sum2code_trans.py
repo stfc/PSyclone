@@ -222,7 +222,7 @@ class Sum2CodeTrans(Transformation):
 
         # pylint: disable=unidiomatic-typecheck
         if not (isinstance(array_ref, ArrayReference) or
-                type(array_ref) == Reference):
+                type(array_ref) is Reference):
             raise TransformationError(
                 f"Sum2CodeTrans only support arrays for the first argument, "
                 f"but found '{type(array_ref).__name__}'.")
