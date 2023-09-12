@@ -70,7 +70,7 @@ Profiling
 ^^^^^^^^^
 
 PSyclone provides wrapper libraries for some common performance profiling
-tools, such as dl_timer and Dr Hook. More information can be found in
+tools, such as dl_timer, TAU, and Dr Hook. More information can be found in
 the :ref:`Profiling <profiling>` section.
 
 Profiling libraries are located in the ``lib/profiling`` `directory
