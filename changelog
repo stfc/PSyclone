@@ -578,12 +578,17 @@
 	194 PR #2241 for #2215. Adds support for Fortran names being the
 	same as Python keywords when using sympy within PSyclone, e.g. in
 	comparisons between expressions.
-  
-    195) PR #2295 for #2294. Extends the PSyData extraction library
-    to support character variables
+
+	195) PR #2295 for #2294. Extends the PSyData extraction library
+	to support character variables
 
 	196) PR #2157 for #1396. Add tree-update mechanism and new ACCClause
 	nodes for data movement.
+
+	197) PR #2281 for #2258. Adds a PSyData wrapper for the TAU profiler.
+
+	198) PR #2283 for #2282 and #2286. Adds a get_ubound_expression
+	method to ArrayMixin (analagous to get_lbound_expression).
 
 release 2.3.1 17th of June 2022
 
