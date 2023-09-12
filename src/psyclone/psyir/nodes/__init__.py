@@ -39,6 +39,8 @@
 
 ''' PSyIR nodes package module '''
 
+from psyclone.psyir.nodes.acc_clauses import (ACCCopyClause, ACCCopyInClause,
+                                              ACCCopyOutClause)
 from psyclone.psyir.nodes.array_reference import ArrayReference
 from psyclone.psyir.nodes.array_of_structures_reference import (
     ArrayOfStructuresReference)
@@ -145,6 +147,7 @@ __all__ = [
         'Directive',
         'RegionDirective',
         'StandaloneDirective',
+        # OpenACC Directive Nodes
         'ACCDirective',
         'ACCRegionDirective',
         'ACCStandaloneDirective',
@@ -155,6 +158,11 @@ __all__ = [
         'ACCKernelsDirective',
         'ACCUpdateDirective',
         'ACCRoutineDirective',
+        # OpenACC Clause Nodes
+        'ACCCopyClause',
+        'ACCCopyInClause',
+        'ACCCopyOutClause',
+        # OpenMP Directive Nodes
         'OMPDirective',
         'OMPRegionDirective',
         'OMPStandaloneDirective',
