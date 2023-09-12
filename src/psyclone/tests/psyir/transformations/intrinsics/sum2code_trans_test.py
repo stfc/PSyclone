@@ -41,6 +41,7 @@ from psyclone.psyir.nodes import Reference, ArrayReference
 from psyclone.psyir.symbols import (
     REAL_TYPE, DataSymbol, INTEGER_TYPE, ArrayType, ScalarType)
 from psyclone.psyir.transformations import Sum2CodeTrans, TransformationError
+from psyclone.tests.utilities import Compile
 
 
 def test_initialise():
@@ -138,7 +139,7 @@ def test_validate():
             in str(info.value))
 
 
-def test_apply(fortran_reader, fortran_writer):
+def test_apply(fortran_reader, fortran_writer, tmpdir):
     '''Test that the apply method, implemented in the parent class, works
     as expected.
 
@@ -171,3 +172,4 @@ def test_apply(fortran_reader, fortran_writer):
     trans.apply(intrinsic_node)
     result = fortran_writer(psyir)
     assert result == expected
+    assert Compile(tmpdir).string_compiles(result)

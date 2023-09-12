@@ -53,7 +53,7 @@ class Sum2CodeTrans(MMSBaseTrans):
     performed.
 
     If SUM contains a single positional argument which is an array,
-    all element on that array are summed and the result returned in
+    all elements of that array are summed and the result returned in
     the scalar R.
 
     .. code-block:: fortran
@@ -115,11 +115,11 @@ class Sum2CodeTrans(MMSBaseTrans):
 
     .. code-block:: fortran
 
-    R = SUM(ARRAY) ! array syntax
-    R = SUM(ARRAY(:,:)) ! array notation
-    R = SUM(ARRAY(1:10,lo:hi) ! array sections
-    R = SUM(ARRAY(1:10,:) ! mixture of array sections and array notation
-    R = SUM(ARRAY(1:10,2) ! NOT SUPPORTED as 2 is a scalar bound
+        R = SUM(ARRAY) ! array syntax
+        R = SUM(ARRAY(:,:)) ! array notation
+        R = SUM(ARRAY(1:10,lo:hi)) ! array sections
+        R = SUM(ARRAY(1:10,:)) ! mix of array sections and array notation
+        R = SUM(ARRAY(1:10,2)) ! NOT SUPPORTED as 2 is a scalar bound
 
     For example:
 
@@ -174,7 +174,7 @@ class Sum2CodeTrans(MMSBaseTrans):
             List[:py:class:`psyclone.psyir.symbols.DataSymbol`]
         :param var_symbol: the symbol used to store the final result.
         :type var_symbol: :py:class:`psyclone.psyir.symbols.DataSymbol`
-        :param array_ref: a reference to the array from which the
+        :param array_ref: a reference to the array for which the
             sum is being determined.
         :type array_ref: :py:class:`psyclone.psyir.nodes.ArrayReference`
 

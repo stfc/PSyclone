@@ -111,6 +111,8 @@ class MMSBaseTrans(Transformation, ABC):
             supported.
         :raises TransformationError: if the array datatype is not
             supported.
+        :raises TransformationError: if the intrinsic is not part of
+            an assignment.
 
         '''
         if not isinstance(node, IntrinsicCall):
@@ -140,7 +142,8 @@ class MMSBaseTrans(Transformation, ABC):
             else:
                 info = f"type '{type(dim_ref).__name__}'"
             raise TransformationError(
-                f"Can't find the value of the dimension argument. Expected "
+                f"Can't find the value of the 'dim' argument to the "
+                f"{self._INTRINSIC_NAME} intrinsic. Expected "
                 f"it to be a literal or a reference to a known constant "
                 f"value, but found '{dim_ref.debug_string()}' which is "
                 f"{info}.")
@@ -177,6 +180,11 @@ class MMSBaseTrans(Transformation, ABC):
             raise TransformationError(
                 f"Only real and integer types supported for array "
                 f"'{array_ref.name}', but found '{array_intrinsic.name}'.")
+
+        if not node.ancestor(Assignment):
+            raise TransformationError(
+                f"{self.name} only works when the intrinsic is part "
+                f"of an Assignment.")
 
     # pylint: disable=too-many-locals
     # pylint: disable=too-many-branches
@@ -336,10 +344,10 @@ class MMSBaseTrans(Transformation, ABC):
         statement = self._loop_body(
             array_reduction, array_iterators, var_symbol, array_ref)
 
-        # pylint: disable=unidiomatic-typecheck
         if mask_ref:
             # A mask argument has been provided
             for ref in mask_ref.walk(Reference):
+                # pylint: disable=unidiomatic-typecheck
                 if ref.name == array_ref.name and type(ref) == Reference:
                     # The array is not indexed so it needs indexing
                     # for the loop nest.

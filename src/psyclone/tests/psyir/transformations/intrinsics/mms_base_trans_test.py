@@ -46,6 +46,7 @@ from psyclone.psyir.symbols import (
 from psyclone.psyir.transformations import TransformationError, Sum2CodeTrans
 from psyclone.psyir.transformations.intrinsics.mms_base_trans import (
     MMSBaseTrans)
+from psyclone.tests.utilities import Compile
 
 
 class TestTrans(MMSBaseTrans):
@@ -193,10 +194,10 @@ def test_dimension_arg(fortran_reader):
     trans = NamedTestTrans()
     with pytest.raises(TransformationError) as info:
         trans.validate(node)
-    assert ("Can't find the value of the dimension argument. Expected it to "
-            "be a literal or a reference to a known constant value, but "
-            "found 'dimension * 2' which is type 'BinaryOperation'."
-            in str(info.value))
+    assert ("Can't find the value of the 'dim' argument to the SUM "
+            "intrinsic. Expected it to be a literal or a reference to "
+            "a known constant value, but found 'dimension * 2' which "
+            "is type 'BinaryOperation'." in str(info.value))
 
 
 def test_non_constant_dim_value_binop(fortran_reader):
@@ -219,10 +220,10 @@ def test_non_constant_dim_value_binop(fortran_reader):
     node = psyir.children[0].children[0].children[1]
     with pytest.raises(TransformationError) as info:
         trans.validate(node)
-    assert ("Can't find the value of the dimension argument. Expected it to "
-            "be a literal or a reference to a known constant value, but "
-            "found 'a + b' which is type 'BinaryOperation'."
-            in str(info.value))
+    assert ("Can't find the value of the 'dim' argument to the SUM "
+            "intrinsic. Expected it to be a literal or a reference to "
+            "a known constant value, but found 'a + b' which is type "
+            "'BinaryOperation'." in str(info.value))
 
 
 def test_non_constant_dim_value_ref(fortran_reader):
@@ -246,29 +247,29 @@ def test_non_constant_dim_value_ref(fortran_reader):
     node = psyir.children[0].children[0].children[1]
     with pytest.raises(TransformationError) as info:
         trans.validate(node)
-    assert ("Can't find the value of the dimension argument. Expected it to "
-            "be a literal or a reference to a known constant value, but "
-            "found 'x' which is a reference to a 'DataSymbol'."
-            in str(info.value))
+    assert ("Can't find the value of the 'dim' argument to the SUM "
+            "intrinsic. Expected it to be a literal or a reference to "
+            "a known constant value, but found 'x' which is a reference "
+            "to a 'DataSymbol'." in str(info.value))
 
 
-def test_lhs(fortran_reader, fortran_writer):
+def test_lhs(fortran_reader, fortran_writer, tmpdir):
     '''Test that the correct code is produced when the minval, maxval or
-    sum is on the LHS of an asssignment. Use the value). Use the
-    Sum2CodeTrans transformations (a subclass of MMSBaseTrans), as it
-    is easier to test.
+    sum is on the LHS of an asssignment. Uses the Sum2CodeTrans
+    transformation (a subclass of MMSBaseTrans), as it is easier to
+    test.
 
     '''
     code = (
         "subroutine test(array)\n"
         "  real :: array(10)\n"
-        "  real :: result\n"
+        "  real :: result(10)\n"
         "  result(sum(array)) = 0.0\n"
         "end subroutine\n")
     expected = (
         "subroutine test(array)\n"
         "  real, dimension(10) :: array\n"
-        "  real :: result\n"
+        "  real, dimension(10) :: result\n"
         "  real :: sum_var\n"
         "  integer :: i_0\n\n"
         "  sum_var = 0.0\n"
@@ -285,6 +286,7 @@ def test_lhs(fortran_reader, fortran_writer):
     trans.apply(node)
     result = fortran_writer(psyir)
     assert result == expected
+    assert Compile(tmpdir).string_compiles(result)
 
 
 def test_array_arg(fortran_reader):
@@ -386,6 +388,27 @@ def test_array_type_arg(fortran_reader):
             "but found 'BOOLEAN'." in str(info.value))
 
 
+def test_not_assignment(fortran_reader):
+    '''Test that the expected exception is raised if the intrinsic call is
+    not part of an assignment (e.g. is an argument to a subroutine),
+    as this is not currently supported.
+
+    '''
+    code = (
+        "subroutine test(array)\n"
+        "  integer :: array(10)\n"
+        "  call routine(sum(array))\n"
+        "end subroutine\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    # FileContainer/Routine/Call/IntrinsicCall
+    node = psyir.children[0].children[0].children[0]
+    trans = NamedTestTrans()
+    with pytest.raises(TransformationError) as info:
+        trans.validate(node)
+    assert ("NamedTestTrans only works when the intrinsic is part "
+            "of an Assignment" in str(info.value))
+
+
 # apply
 
 @pytest.mark.parametrize("idim1,idim2,rdim11,rdim12,rdim21,rdim22",
@@ -395,10 +418,11 @@ def test_array_type_arg(fortran_reader):
                           (":", ":", "LBOUND(array, 1)", "UBOUND(array, 1)",
                            "LBOUND(array, 2)", "UBOUND(array, 2)")])
 def test_apply(idim1, idim2, rdim11, rdim12, rdim21, rdim22,
-               fortran_reader, fortran_writer):
+               fortran_reader, fortran_writer, tmpdir):
     '''Test that a sum intrinsic as the only term on the rhs of an
     assignment with a single array argument gets transformed as
-    expected. Test with known and unknown array sizes.
+    expected. Test with known and unknown array sizes. What we care
+    about here are the sum_var array and the generated loop bounds.
 
     '''
     code = (
@@ -408,75 +432,62 @@ def test_apply(idim1, idim2, rdim11, rdim12, rdim21, rdim22,
         f"  real :: result\n"
         f"  result = sum(array)\n"
         f"end subroutine\n")
-    expected = (
-        f"subroutine test(array, n, m)\n"
-        f"  integer :: n\n  integer :: m\n"
-        f"  real, dimension({idim1},{idim2}) :: array\n"
-        f"  real :: result\n  real :: sum_var\n"
-        f"  integer :: i_0\n  integer :: i_1\n\n"
-        f"  sum_var = 99.0\n"
+    expected_decl = "  real :: sum_var\n"
+    expected_bounds = (
         f"  do i_1 = {rdim21}, {rdim22}, 1\n"
-        f"    do i_0 = {rdim11}, {rdim12}, 1\n"
-        f"      array(i_0,i_1) = 33.0\n"
-        f"    enddo\n"
-        f"  enddo\n"
-        f"  result = sum_var\n\n"
-        f"end subroutine test\n")
+        f"    do i_0 = {rdim11}, {rdim12}, 1\n")
+    expected_result = "  result = sum_var\n"
     psyir = fortran_reader.psyir_from_source(code)
     # FileContainer/Routine/Assignment/IntrinsicCall
-    node = psyir.children[0].children[0].children[1]
+    node = psyir.walk(IntrinsicCall)[0]
     trans = NamedTestTrans()
     trans.apply(node)
     result = fortran_writer(psyir)
-    assert result == expected
+    assert expected_decl in result
+    assert expected_bounds in result
+    assert expected_result in result
+    assert Compile(tmpdir).string_compiles(result)
 
 
-def test_apply_multi(fortran_reader, fortran_writer):
+def test_apply_multi(fortran_reader, fortran_writer, tmpdir):
     '''Test that a sum intrinsic as part of multiple term on the rhs of an
     assignment with a single array argument gets transformed as
-    expected.
+    expected. What we care about here are the sum_var array and the
+    generated loop bounds.
 
     '''
     code = (
         "subroutine test(array,n,m,value1,value2)\n"
-        "  use precision\n"
         "  integer :: n, m\n"
         "  real :: array(n,m)\n"
         "  real :: value1, value2\n"
         "  real :: result\n"
         "  result = value1 + sum(array) * value2\n"
         "end subroutine\n")
-    expected = (
-        "subroutine test(array, n, m, value1, value2)\n"
-        "  use precision\n"
-        "  integer :: n\n  integer :: m\n"
-        "  real, dimension(n,m) :: array\n"
-        "  real :: value1\n  real :: value2\n"
-        "  real :: result\n  real :: sum_var\n"
-        "  integer :: i_0\n  integer :: i_1\n\n"
-        "  sum_var = 99.0\n"
+    expected_decl = "  real :: sum_var\n"
+    expected_bounds = (
         "  do i_1 = 1, m, 1\n"
-        "    do i_0 = 1, n, 1\n"
-        "      array(i_0,i_1) = 33.0\n"
-        "    enddo\n"
-        "  enddo\n"
-        "  result = value1 + sum_var * value2\n\n"
-        "end subroutine test\n")
+        "    do i_0 = 1, n, 1\n")
+    expected_result = "  result = value1 + sum_var * value2\n"
     psyir = fortran_reader.psyir_from_source(code)
     # FileContainer/Routine/Assignment/BinaryOperation(ADD)/
     # BinaryOperation(MUL)/IntrinsicCall
-    node = psyir.children[0].children[0].children[1].children[1]. \
-        children[0]
+    node = psyir.walk(IntrinsicCall)[0]
     trans = NamedTestTrans()
     trans.apply(node)
     result = fortran_writer(psyir)
-    assert result == expected
+    assert expected_decl in result
+    assert expected_bounds in result
+    assert expected_result in result
+    assert Compile(tmpdir).string_compiles(result)
 
 
-def test_apply_dimension_1d(fortran_reader, fortran_writer):
+def test_apply_dimension_1d(fortran_reader, fortran_writer, tmpdir):
     '''Test that the apply method works as expected when a dimension
     argument is specified and the array is one dimensional. This
     should be the same as if dimension were not specified at all.
+    What we care about here are the sum_var array and the generated
+    loop bounds.
 
     '''
     code = (
@@ -486,32 +497,27 @@ def test_apply_dimension_1d(fortran_reader, fortran_writer):
         "  real :: result\n"
         "  result = value1 + sum(array,dim=1) * value2\n"
         "end subroutine\n")
-    expected = (
-        "subroutine test(array, value1, value2)\n"
-        "  real, dimension(:) :: array\n"
-        "  real :: value1\n  real :: value2\n"
-        "  real :: result\n  real :: sum_var\n"
-        "  integer :: i_0\n\n"
-        "  sum_var = 99.0\n"
-        "  do i_0 = LBOUND(array, 1), UBOUND(array, 1), 1\n"
-        "    array(i_0) = 33.0\n"
-        "  enddo\n"
-        "  result = value1 + sum_var * value2\n\n"
-        "end subroutine test\n")
+    expected_decl = "  real :: sum_var\n"
+    expected_bounds = "  do i_0 = LBOUND(array, 1), UBOUND(array, 1), 1\n"
+    expected_result = "  result = value1 + sum_var * value2\n"
     psyir = fortran_reader.psyir_from_source(code)
     # FileContainer/Routine/Assignment/BinaryOperation(ADD)/
     # BinaryOperation(MUL)/IntrinsicCall
-    node = psyir.children[0].children[0].children[1].children[1]. \
-        children[0]
+    node = psyir.walk(IntrinsicCall)[0]
     trans = NamedTestTrans()
     trans.apply(node)
     result = fortran_writer(psyir)
-    assert result == expected
+    assert expected_decl in result
+    assert expected_bounds in result
+    assert expected_result in result
+    assert Compile(tmpdir).string_compiles(result)
 
 
-def test_apply_dimension_multid(fortran_reader, fortran_writer):
+def test_apply_dimension_multid(fortran_reader, fortran_writer, tmpdir):
     '''Test that the apply method works as expected when a dimension
-    argument is specified and the array is multi-dimensional.
+    argument is specified and the array is multi-dimensional. What we
+    care about here are the sum_var array and the generated loop
+    bounds.
 
     '''
     code = (
@@ -522,37 +528,29 @@ def test_apply_dimension_multid(fortran_reader, fortran_writer):
         "  real :: result(n,p)\n"
         "  result(:,:) = value1 + sum(array,dim=2) * value2\n"
         "end subroutine\n")
-    expected = (
-        "subroutine test(array, value1, value2, n, m, p)\n"
-        "  integer :: n\n  integer :: m\n  integer :: p\n"
-        "  real, dimension(n,m,p) :: array\n"
-        "  real :: value1\n  real :: value2\n"
-        "  real, dimension(n,p) :: result\n"
-        "  real, dimension(n,p) :: sum_var\n"
-        "  integer :: i_0\n  integer :: i_1\n  integer :: i_2\n\n"
-        "  sum_var(:,:) = 99.0\n"
+    expected_decl = "  real, dimension(n,p) :: sum_var\n"
+    expected_bounds = (
         "  do i_2 = 1, p, 1\n"
         "    do i_1 = 1, m, 1\n"
-        "      do i_0 = 1, n, 1\n"
-        "        array(i_0,i_1,i_2) = 33.0\n"
-        "      enddo\n"
-        "    enddo\n"
-        "  enddo\n"
-        "  result(:,:) = value1 + sum_var(:,:) * value2\n\n"
-        "end subroutine test\n")
+        "      do i_0 = 1, n, 1\n")
+    expected_result = "  result(:,:) = value1 + sum_var(:,:) * value2\n\n"
     psyir = fortran_reader.psyir_from_source(code)
     # FileContainer/Routine/Assignment/BinaryOperation(ADD)/
     # BinaryOperation(MUL)/IntrinsicCall
-    node = psyir.children[0].children[0].children[1].children[1]. \
-        children[0]
+    node = psyir.walk(IntrinsicCall)[0]
     trans = NamedTestTrans()
     trans.apply(node)
     result = fortran_writer(psyir)
-    assert result == expected
+    assert expected_decl in result
+    assert expected_bounds in result
+    assert expected_result in result
+    assert Compile(tmpdir).string_compiles(result)
 
 
-def test_apply_dimension_multid_unknown(fortran_reader, fortran_writer):
-    '''Test that lbound and ubound are used if the bounds of the array are
+def test_apply_dimension_multid_unknown(
+        fortran_reader, fortran_writer, tmpdir):
+    '''Test that lbound and ubound are used to declare the sum_var
+    variable and for the loop bounds if the bounds of the array are
     not known.
 
     '''
@@ -563,42 +561,32 @@ def test_apply_dimension_multid_unknown(fortran_reader, fortran_writer):
         "  real :: result(:,:)\n"
         "  result(:,:) = value1 + sum(array,dim=2) * value2\n"
         "end subroutine\n")
-    expected = (
-        "subroutine test(array, value1, value2, result)\n"
-        "  real, dimension(:,:,:) :: array\n"
-        "  real :: value1\n"
-        "  real :: value2\n"
-        "  real, dimension(:,:) :: result\n"
+    expected_decl = (
         "  real, dimension(LBOUND(array, 1):UBOUND(array, 1),LBOUND(array, 3):"
-        "UBOUND(array, 3)) :: sum_var\n"
-        "  integer :: i_0\n"
-        "  integer :: i_1\n"
-        "  integer :: i_2\n\n"
-        "  sum_var(:,:) = 99.0\n"
+        "UBOUND(array, 3)) :: sum_var\n")
+    expected_bounds = (
         "  do i_2 = LBOUND(array, 3), UBOUND(array, 3), 1\n"
         "    do i_1 = LBOUND(array, 2), UBOUND(array, 2), 1\n"
-        "      do i_0 = LBOUND(array, 1), UBOUND(array, 1), 1\n"
-        "        array(i_0,i_1,i_2) = 33.0\n"
-        "      enddo\n"
-        "    enddo\n"
-        "  enddo\n"
-        "  result(:,:) = value1 + sum_var(:,:) * value2\n\n"
-        "end subroutine test\n")
+        "      do i_0 = LBOUND(array, 1), UBOUND(array, 1), 1\n")
+    expected_result = "  result(:,:) = value1 + sum_var(:,:) * value2\n\n"
     psyir = fortran_reader.psyir_from_source(code)
     # FileContainer/Routine/Assignment/BinaryOperation(ADD)/
     # BinaryOperation(MUL)/IntrinsicCall
-    node = psyir.children[0].children[0].children[1].children[1]. \
-        children[0]
+    node = psyir.walk(IntrinsicCall)[0]
     trans = NamedTestTrans()
     trans.apply(node)
     result = fortran_writer(psyir)
-    assert result == expected
+    assert expected_decl in result
+    assert expected_bounds in result
+    assert expected_result in result
+    assert Compile(tmpdir).string_compiles(result)
 
 
-# specified array range
-def test_apply_dimension_multid_range(fortran_reader, fortran_writer):
+def test_apply_dimension_multid_range(fortran_reader, fortran_writer, tmpdir):
     '''Test that the apply method works as expected when an array range is
-    specified and the array is multi-dimensional.
+    specified and the array is multi-dimensional. What we
+    care about here are the sum_var array and the generated loop
+    bounds.
 
     '''
     code = (
@@ -610,37 +598,29 @@ def test_apply_dimension_multid_range(fortran_reader, fortran_writer):
         "  result(:,:) = value1 + sum(array(1:n,m-1:m,1:p),dim=2) * "
         "value2\n"
         "end subroutine\n")
-    expected = (
-        "subroutine test(array, value1, value2, n, m, p)\n"
-        "  integer :: n\n  integer :: m\n  integer :: p\n"
-        "  real, dimension(:,:,:) :: array\n"
-        "  real :: value1\n  real :: value2\n"
-        "  real, dimension(n,p) :: result\n"
-        "  real, dimension(n,p) :: sum_var\n"
-        "  integer :: i_0\n  integer :: i_1\n  integer :: i_2\n\n"
-        "  sum_var(:,:) = 99.0\n"
+    expected_decl = "  real, dimension(n,p) :: sum_var\n"
+    expected_bounds = (
         "  do i_2 = 1, p, 1\n"
         "    do i_1 = m - 1, m, 1\n"
-        "      do i_0 = 1, n, 1\n"
-        "        array(i_0,i_1,i_2) = 33.0\n"
-        "      enddo\n"
-        "    enddo\n"
-        "  enddo\n"
-        "  result(:,:) = value1 + sum_var(:,:) * value2\n\n"
-        "end subroutine test\n")
+        "      do i_0 = 1, n, 1\n")
+    expected_result = "  result(:,:) = value1 + sum_var(:,:) * value2\n\n"
     psyir = fortran_reader.psyir_from_source(code)
     # FileContainer/Routine/Assignment/BinaryOperation(ADD)/
     # BinaryOperation(MUL)/IntrinsicCall
-    node = psyir.children[0].children[0].children[1].children[1]. \
-        children[0]
+    node = psyir.walk(IntrinsicCall)[0]
     trans = NamedTestTrans()
     trans.apply(node)
     result = fortran_writer(psyir)
-    assert result == expected
+    assert expected_decl in result
+    assert expected_bounds in result
+    assert expected_result in result
+    assert Compile(tmpdir).string_compiles(result)
 
 
-def test_mask(fortran_reader, fortran_writer):
+def test_mask(fortran_reader, fortran_writer, tmpdir):
     '''Test that the transformation works when there is a mask specified.
+    What we care about here are the sum_var array, the generated loop
+    bounds and the mask.
 
     '''
     code = (
@@ -649,35 +629,30 @@ def test_mask(fortran_reader, fortran_writer):
         "  real :: result\n"
         "  result = sum(array, mask=MOD(array, 2.0)==1)\n"
         "end program\n")
+    # We are using the NamedTestTrans subclass here which simply sets
+    # the value of the array to 33.
     expected = (
-        "program test\n"
-        "  real, dimension(10,10) :: array\n"
-        "  real :: result\n"
-        "  real :: sum_var\n"
-        "  integer :: i_0\n"
-        "  integer :: i_1\n\n"
-        "  sum_var = 99.0\n"
         "  do i_1 = 1, 10, 1\n"
         "    do i_0 = 1, 10, 1\n"
         "      if (MOD(array(i_0,i_1), 2.0) == 1) then\n"
         "        array(i_0,i_1) = 33.0\n"
         "      end if\n"
         "    enddo\n"
-        "  enddo\n"
-        "  result = sum_var\n\n"
-        "end program test")
+        "  enddo\n")
     psyir = fortran_reader.psyir_from_source(code)
     # FileContainer/Routine/Assignment/IntrinsicCall
-    node = psyir.children[0].children[0].children[1]
+    node = psyir.walk(IntrinsicCall)[0]
     trans = NamedTestTrans()
     trans.apply(node)
     result = fortran_writer(psyir)
     assert expected in result
+    assert Compile(tmpdir).string_compiles(result)
 
 
-def test_mask_dimension(fortran_reader, fortran_writer):
+def test_mask_dimension(fortran_reader, fortran_writer, tmpdir):
     '''Test that the transformation works when there is a mask and a
-    dimension specified.
+    dimension specified. What we care about here are the sum_var
+    array, the generated loop bounds and the mask.
 
     '''
     code = (
@@ -687,37 +662,32 @@ def test_mask_dimension(fortran_reader, fortran_writer):
         "  integer, parameter :: dimension=2\n"
         "  result = sum(array, dimension, mask=MOD(array, 2.0)==1)\n"
         "end program\n")
-    expected = (
-        "program test\n"
-        "  integer, parameter :: dimension = 2\n"
-        "  real, dimension(10,10) :: array\n"
-        "  real, dimension(10) :: result\n"
-        "  real, dimension(10) :: sum_var\n"
-        "  integer :: i_0\n"
-        "  integer :: i_1\n\n"
-        "  sum_var(:) = 99.0\n"
+    expected_decl = "  real, dimension(10) :: sum_var\n"
+    # We are using the NamedTestTrans subclass here which simply sets
+    # the value of the array to 33.
+    expected_bounds = (
         "  do i_1 = 1, 10, 1\n"
         "    do i_0 = 1, 10, 1\n"
         "      if (MOD(array(i_0,i_1), 2.0) == 1) then\n"
         "        array(i_0,i_1) = 33.0\n"
-        "      end if\n"
-        "    enddo\n"
-        "  enddo\n"
-        "  result = sum_var(:)\n\n"
-        "end program test")
+        "      end if\n")
+    expected_result = "  result = sum_var(:)\n"
     psyir = fortran_reader.psyir_from_source(code)
     # FileContainer/Routine/Assignment/IntrinsicCall
-    node = psyir.children[0].children[0].children[1]
+    node = psyir.walk(IntrinsicCall)[0]
     trans = NamedTestTrans()
     trans.apply(node)
     result = fortran_writer(psyir)
-    assert expected in result
+    assert expected_decl in result
+    assert expected_bounds in result
+    assert expected_result in result
+    assert Compile(tmpdir).string_compiles(result)
 
 
-def test_mask_array_indexed(fortran_reader, fortran_writer):
+def test_mask_array_indexed(fortran_reader, fortran_writer, tmpdir):
     '''Test that the mask code works if the array iself it used as part of
     the mask. In this case it will already be indexed. Use the
-    Sum2CodeTrans transformations (a subclass of MMSBaseTrans), as it
+    Sum2CodeTrans transformation (a subclass of MMSBaseTrans), as it
     is easier to test.
 
     '''
@@ -752,13 +722,14 @@ def test_mask_array_indexed(fortran_reader, fortran_writer):
     psyir = fortran_reader.psyir_from_source(code)
     trans = Sum2CodeTrans()
     # FileContainer/Routine/Assignment/IntrinsicCall
-    node = psyir.children[0].children[4].children[1]
+    node = psyir.walk(IntrinsicCall)[0]
     trans.apply(node)
     result = fortran_writer(psyir)
     assert result == expected
+    assert Compile(tmpdir).string_compiles(result)
 
 
-def test_allocate_dim(fortran_reader, fortran_writer):
+def test_allocate_dim(fortran_reader, fortran_writer, tmpdir):
     '''Test that a newly created array is allocated after the original
     array is allocated (if the original array is allocated). Use the
     Sum2CodeTrans transformations (a subclass of MMSBaseTrans), as it
@@ -768,7 +739,7 @@ def test_allocate_dim(fortran_reader, fortran_writer):
     code = (
         "program sum_test\n"
         "  integer, allocatable :: a(:,:,:)\n"
-        "  integer :: result\n"
+        "  integer :: result(4,4)\n"
         "  allocate(a(4,4,4))\n"
         "  result = sum(a, dim=2)\n"
         "  deallocate(a)\n"
@@ -776,7 +747,7 @@ def test_allocate_dim(fortran_reader, fortran_writer):
     expected = (
         "program sum_test\n"
         "  integer, allocatable, dimension(:,:,:) :: a\n"
-        "  integer :: result\n"
+        "  integer, dimension(4,4) :: result\n"
         "  integer, allocatable, dimension(:,:) :: sum_var\n"
         "  integer :: i_0\n"
         "  integer :: i_1\n"
@@ -798,7 +769,8 @@ def test_allocate_dim(fortran_reader, fortran_writer):
     psyir = fortran_reader.psyir_from_source(code)
     trans = Sum2CodeTrans()
     # FileContainer/Routine/Assignment/IntrinsicCall
-    node = psyir.children[0].children[1].children[1]
+    node = psyir.walk(IntrinsicCall)[1]
     trans.apply(node)
     result = fortran_writer(psyir)
     assert result == expected
+    assert Compile(tmpdir).string_compiles(result)
