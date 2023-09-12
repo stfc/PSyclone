@@ -1551,7 +1551,7 @@ def test_haloexchange_node_str():
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     # We have to manually call the correct node_str() method as the one we want
-    # to test is overridden in DynHaloExchange.
+    # to test is overridden in LFRicHaloExchange.
     out = HaloExchange.node_str(schedule.children[2])
     assert (colored("HaloExchange", HaloExchange._colour) +
             "[field='m1', type='None', depth=None, check_dirty=True]" in out)

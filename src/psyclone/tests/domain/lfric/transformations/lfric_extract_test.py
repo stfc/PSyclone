@@ -139,7 +139,7 @@ def test_distmem_error(monkeypatch):
     monkeypatch.setattr(config, "distributed_memory", False)
     with pytest.raises(TransformationError) as excinfo:
         etrans.apply(schedule.children[2:4])
-    assert ("Nodes of type 'DynHaloExchange' cannot be enclosed by a "
+    assert ("Nodes of type 'LFRicHaloExchange' cannot be enclosed by a "
             "LFRicExtractTrans transformation") in str(excinfo.value)
 
     # Try applying Extract transformation to Node(s) containing GlobalSum

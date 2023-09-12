@@ -2872,7 +2872,7 @@ def test_multiple_derived_type_args(dist_mem, tmpdir):
 
 def test_haloexchange_unknown_halo_depth():
     ''' If a stencil extent is provided in the kernel metadata then the
-    value is stored in an instance of the DynHaloExchange class. This test
+    value is stored in an instance of the LFRicHaloExchange class. This test
     checks that the value is stored as expected (although stencil extents
     in metadata are not currently supported in PSyclone).
 
@@ -3279,7 +3279,7 @@ def test_halo_different_stencils_no_red_comp(tmpdir):
 
 def test_comp_halo_intern_err(monkeypatch):
     '''Check that we raise an exception if the compute_halo_read_info method in
-    dynhaloexchange does not find any read dependencies. This should
+    LFRicHaloExchange does not find any read dependencies. This should
     never be the case. We use monkeypatch to force the exception to be
     raised'''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
@@ -3368,7 +3368,7 @@ def test_HaloReadAccess_field_in_call():
     with pytest.raises(GenerationError) as excinfo:
         _ = HaloReadAccess(field, None)
     assert ("field 'f1' should be from a call but found "
-            "<class 'psyclone.dynamo0p3.DynHaloExchange'>"
+            "<class 'psyclone.dynamo0p3.LFRicHaloExchange'>"
             in str(excinfo.value))
 
 

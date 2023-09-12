@@ -42,7 +42,7 @@ import pytest
 from psyclone.configuration import Config
 from psyclone.core import AccessType
 from psyclone.dynamo0p3 import (
-    DynLoop, DynHaloExchange, HaloDepth, _create_depth_list)
+    DynLoop, LFRicHaloExchange, HaloDepth, _create_depth_list)
 from psyclone.errors import InternalError
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory, GenerationError
@@ -98,7 +98,7 @@ def test_gh_inc_nohex_1(tmpdir, monkeypatch):
         haloex = schedule.children[1]
         loop2 = schedule.children[2]
         assert isinstance(loop1, DynLoop)
-        assert isinstance(haloex, DynHaloExchange)
+        assert isinstance(haloex, LFRicHaloExchange)
         assert haloex.field.name == "f2"
         assert haloex.required() == (True, False)
         assert isinstance(loop2, DynLoop)
@@ -153,10 +153,10 @@ def test_gh_inc_nohex_2(tmpdir, monkeypatch):
     assert len(schedule.children) == 4
     assert isinstance(loop1, DynLoop)
     assert loop1.upper_bound_name == "ndofs"
-    assert isinstance(haloex1, DynHaloExchange)
+    assert isinstance(haloex1, LFRicHaloExchange)
     assert haloex1.field.name == "f1"
     assert haloex1.required() == (True, True)
-    assert isinstance(haloex2, DynHaloExchange)
+    assert isinstance(haloex2, LFRicHaloExchange)
     assert haloex2.field.name == "f2"
     assert haloex2.required() == (True, False)
     assert isinstance(loop2, DynLoop)
@@ -176,7 +176,7 @@ def test_gh_inc_nohex_2(tmpdir, monkeypatch):
     assert isinstance(loop1, DynLoop)
     assert loop1.upper_bound_name == "dof_halo"
     assert loop1.upper_bound_halo_depth == 1
-    assert isinstance(haloex, DynHaloExchange)
+    assert isinstance(haloex, LFRicHaloExchange)
     assert haloex.field.name == "f2"
     assert haloex.required() == (True, False)
     assert isinstance(loop2, DynLoop)
@@ -191,7 +191,7 @@ def test_gh_inc_nohex_2(tmpdir, monkeypatch):
     assert isinstance(loop1, DynLoop)
     assert loop1.upper_bound_name == "dof_halo"
     assert not loop1.upper_bound_halo_depth
-    assert isinstance(haloex, DynHaloExchange)
+    assert isinstance(haloex, LFRicHaloExchange)
     assert haloex.field.name == "f2"
     assert haloex.required() == (True, False)
     assert isinstance(loop2, DynLoop)
@@ -226,7 +226,7 @@ def test_gh_inc_nohex_3(tmpdir, monkeypatch):
     haloex = schedule.children[0]
     loop1 = schedule.children[1]
     loop2 = schedule.children[2]
-    assert isinstance(haloex, DynHaloExchange)
+    assert isinstance(haloex, LFRicHaloExchange)
     assert haloex.field.name == "f2"
     assert haloex.required() == (True, False)
     assert haloex._compute_halo_depth() == "1"
@@ -259,11 +259,11 @@ def test_gh_inc_nohex_3(tmpdir, monkeypatch):
         haloex2 = schedule.children[1]
         loop1 = schedule.children[2]
         loop2 = schedule.children[3]
-        assert isinstance(haloex1, DynHaloExchange)
+        assert isinstance(haloex1, LFRicHaloExchange)
         assert haloex1.field.name == "f2"
         assert haloex1._compute_halo_depth() == f2depth
         assert haloex1.required() == (True, False)
-        assert isinstance(haloex2, DynHaloExchange)
+        assert isinstance(haloex2, LFRicHaloExchange)
         assert haloex2.field.name == "f1"
         assert haloex2._compute_halo_depth() == f1depth
         assert haloex2.required() == (True, False)
@@ -325,11 +325,11 @@ def test_gh_inc_nohex_4(tmpdir, monkeypatch):
         haloex2 = schedule.children[1]
         loop1 = schedule.children[2]
         loop2 = schedule.children[3]
-        assert isinstance(haloex1, DynHaloExchange)
+        assert isinstance(haloex1, LFRicHaloExchange)
         assert haloex1.field.name == "f1"
         assert haloex1._compute_halo_depth() == f1depth
         assert haloex1.required() == (True, False)
-        assert isinstance(haloex2, DynHaloExchange)
+        assert isinstance(haloex2, LFRicHaloExchange)
         assert haloex2.field.name == "f2"
         assert haloex2._compute_halo_depth() == f2depth
         assert haloex2.required() == (True, False)
@@ -384,13 +384,13 @@ def test_gh_inc_max(tmpdir, monkeypatch, annexed):
         '''check the halo exchange has the expected properties
 
         :param haloex: a dynamo0.3 API halo-exchange object
-        :type haloex: :py:class:`psyclone.dynamo0p3.DynHaloExchange`.
+        :type haloex: :py:class:`psyclone.dynamo0p3.LFRicHaloExchange`.
         :param int depth: The expected depth of the halo exchange \
         passed in as the first argument
 
         '''
 
-        assert isinstance(haloex, DynHaloExchange)
+        assert isinstance(haloex, LFRicHaloExchange)
         assert haloex.field.name == "f1"
         assert haloex.required() == (True, True)
         assert haloex._compute_halo_depth() == depth
@@ -440,7 +440,7 @@ def test_write_cont_dirty(tmpdir, monkeypatch, annexed):
     schedule = psy.invokes.invoke_list[0].schedule
     # We should have no halo exchange since this kernel is a special case
     # and does not read from annexed dofs.
-    hexchs = schedule.walk(DynHaloExchange)
+    hexchs = schedule.walk(LFRicHaloExchange)
     assert len(hexchs) == 0
     # The field that is written to should be marked as dirty.
     code = str(psy.gen)
@@ -465,7 +465,7 @@ def test_setval_x_then_user(tmpdir, monkeypatch):
     assert isinstance(first_invoke.schedule[0], DynLoop)
     # There should be a halo exchange for field f1 before the second
     # kernel call
-    assert isinstance(first_invoke.schedule[1], DynHaloExchange)
+    assert isinstance(first_invoke.schedule[1], LFRicHaloExchange)
     assert first_invoke.schedule[1].field.name == "f1"
     # Now transform the first loop to perform redundant computation out to
     # the level-1 halo
@@ -473,19 +473,19 @@ def test_setval_x_then_user(tmpdir, monkeypatch):
     rtrans.apply(first_invoke.schedule[0], options={"depth": 1})
     # There should now be a halo exchange for f1 before the first
     # (builtin) kernel call
-    assert isinstance(first_invoke.schedule[0], DynHaloExchange)
+    assert isinstance(first_invoke.schedule[0], LFRicHaloExchange)
     assert first_invoke.schedule[0].field.name == "f1"
     assert isinstance(first_invoke.schedule[1], DynLoop)
     # There should only be one halo exchange for field f1
-    assert len([node for node in first_invoke.schedule.walk(DynHaloExchange)
+    assert len([node for node in first_invoke.schedule.walk(LFRicHaloExchange)
                 if node.field.name == "f1"]) == 1
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
-# Tests for DynHaloExchange
-# Tests for _compute_halo_read_info() within DynHaloExchange
+# Tests for LFRicHaloExchange
+# Tests for _compute_halo_read_info() within LFRicHaloExchange
 def test_compute_halo_read_info_read_dep(monkeypatch):
-    '''Check that _compute_halo_read_info() in DynHaloExchange raises the
+    '''Check that _compute_halo_read_info() in LFRicHaloExchange raises the
     expected exception when there is more than one read dependence
     associated with a halo exchange in the read dependence list. This
     should never happen as the field access for a halo exchange is
@@ -528,7 +528,7 @@ def test_compute_halo_read_info_read_dep(monkeypatch):
 
 
 def test_compute_halo_read_info_async(monkeypatch):
-    '''Check that _compute_halo_read_info() in DynHaloExchange raises the
+    '''Check that _compute_halo_read_info() in LFRicHaloExchange raises the
     expected exception when there is a read dependence associated with
     an asynchronous halo exchange in the read dependence list.
 
@@ -602,7 +602,7 @@ def test_gh_readinc(tmpdir):
     # Also check that 'check_dirty == False' and 'depth == 1' in the
     # halo exchange.
     f1_hex = schedule[3]
-    assert isinstance(f1_hex, DynHaloExchange)
+    assert isinstance(f1_hex, LFRicHaloExchange)
     assert f1_hex.field.name == "f1"
     _, known = f1_hex.required()
     check_dirty = not known
@@ -649,7 +649,7 @@ def test_stencil_then_w3_read(tmpdir):
     psy = PSyFactory(API, distributed_memory=True).create(info)
     schedule = psy.invokes.invoke_list[0].schedule
     f4_hex = schedule.children[1]
-    assert isinstance(f4_hex, DynHaloExchange)
+    assert isinstance(f4_hex, LFRicHaloExchange)
     assert f4_hex.field.name == "f4"
 
     result = str(psy.gen)
