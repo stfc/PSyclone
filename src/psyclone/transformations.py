@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+# Copyright (c) 2017-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -48,6 +48,7 @@ import abc
 
 from psyclone import psyGen
 from psyclone.configuration import Config
+from psyclone.core import Signature, VariablesAccessInfo
 from psyclone.domain.lfric import KernCallArgList, LFRicConstants
 from psyclone.dynamo0p3 import DynHaloExchangeEnd, DynHaloExchangeStart, \
     DynInvokeSchedule, DynKern
@@ -64,6 +65,9 @@ from psyclone.psyir.nodes import ACCDataDirective, ACCDirective, \
     OMPParallelDirective, OMPParallelDoDirective, OMPSerialDirective, \
     OMPSingleDirective, OMPTaskloopDirective, PSyDataNode, Reference, \
     Return, Routine, Schedule
+from psyclone.psyir.nodes.array_mixin import ArrayMixin
+from psyclone.psyir.nodes.structure_member import StructureMember
+from psyclone.psyir.nodes.structure_reference import StructureReference
 from psyclone.psyir.symbols import ArgumentInterface, DataSymbol, \
     DeferredType, INTEGER_TYPE, ScalarType, Symbol, SymbolError
 from psyclone.psyir.transformations.loop_trans import LoopTrans
@@ -2623,7 +2627,7 @@ class ACCDataTrans(RegionTrans):
 
         # Create a directive containing the nodes in node_list and insert it.
         directive = ACCDataDirective(
-            parent=parent, children=[node.detach() for node in node_list])
+                parent=parent, children=[node.detach() for node in node_list])
 
         parent.children.insert(start_index, directive)
 
@@ -2634,15 +2638,18 @@ class ACCDataTrans(RegionTrans):
         of nodes.
 
         :param nodes: the proposed node(s) to enclose in a data region.
-        :type nodes: (list of) subclasses of \
-                     :py:class:`psyclone.psyir.nodes.Node`
+        :type nodes: List[:py:class:`psyclone.psyir.nodes.Node`] |
+            :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
 
-        :raises TransformationError: if the Schedule to which the nodes \
-                                belong already has an 'enter data' directive.
-        :raises TransformationError: if any of the nodes are themselves \
-                                     data directives.
+        :raises TransformationError: if the Schedule to which the nodes
+            belong already has an 'enter data' directive.
+        :raises TransformationError: if any of the nodes are themselves
+            data directives.
+        :raises TransformationError: if an array of structures needs to be
+            deep copied (this is not currently supported).
+
         '''
         # Ensure we are always working with a list of nodes, even if only
         # one was supplied via the `nodes` argument.
@@ -2658,6 +2665,44 @@ class ACCDataTrans(RegionTrans):
             raise TransformationError(
                 "Cannot add an OpenACC data region to a schedule that "
                 "already contains an 'enter data' directive.")
+        # Check that we don't have any accesses to arrays of derived types
+        # that we can't yet deep copy.
+        for node in node_list:
+            for sref in node.walk(StructureReference):
+
+                # Find the loop variables for all Loops that contain this
+                # access and are themselves within the data region.
+                loop_vars = []
+                cursor = sref.ancestor(Loop, limit=node)
+                while cursor:
+                    loop_vars.append(Signature(cursor.variable.name))
+                    cursor = cursor.ancestor(Loop)
+
+                # Now check whether any of these loop variables appear within
+                # the structure reference.
+                # Loop over each component of the structure reference that is
+                # an array access.
+                array_accesses = sref.walk(ArrayMixin)
+                for access in array_accesses:
+                    if not isinstance(access, StructureMember):
+                        continue
+                    var_accesses = VariablesAccessInfo(access.indices)
+                    for var in loop_vars:
+                        if var not in var_accesses.all_signatures:
+                            continue
+                        # For an access such as my_struct(ii)%my_array(ji)
+                        # then if we're inside a loop over it we would actually
+                        # need a loop to do the deep copy:
+                        #   do ii = 1, N
+                        #   !$acc data copyin(my_struct(ii)%my_array)
+                        #   end do
+                        raise TransformationError(
+                            f"Data region contains a structure access "
+                            f"'{sref.debug_string()}' where component "
+                            f"'{access.name}' is an array and is iterated over"
+                            f" (variable '{var}'). Deep copying of data for "
+                            f"structures is only supported where the deepest "
+                            f"component is the one being iterated over.")
 
 
 class KernelImportsToArguments(Transformation):
@@ -2754,7 +2799,7 @@ class KernelImportsToArguments(Transformation):
 
             # Resolve the data type information if it is not available
             # pylint: disable=unidiomatic-typecheck
-            if (type(imported_var) == Symbol or
+            if (type(imported_var) is Symbol or
                     isinstance(imported_var.datatype, DeferredType)):
                 updated_sym = imported_var.resolve_deferred()
                 # If we have a new symbol then we must update the symbol table

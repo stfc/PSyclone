@@ -56,7 +56,7 @@ from psyclone.psyir.nodes.if_block import IfBlock
 from psyclone.psyir.nodes.while_loop import WhileLoop
 from psyclone.psyir.nodes.literal import Literal
 from psyclone.psyir.nodes.omp_clauses import OMPGrainsizeClause, \
-    OMPNowaitClause, OMPNogroupClause, OMPNumTasksClause, OMPPrivateClause,\
+    OMPNowaitClause, OMPNogroupClause, OMPNumTasksClause, OMPPrivateClause, \
     OMPDefaultClause, OMPReductionClause, OMPScheduleClause, \
     OMPFirstprivateClause
 from psyclone.psyir.nodes.reference import Reference

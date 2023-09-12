@@ -418,7 +418,7 @@ def test_long_lines_true():
         "! " + "line2"*6 + "\n"
         "! line3\n")
     fll = FortLineLength(line_length=30)
-    assert fll.long_lines(input_string),\
+    assert fll.long_lines(input_string), \
         "long_lines_true test should return True"
 
 
@@ -430,7 +430,7 @@ def test_long_lines_false():
         "! " + "line2"*5 + "\n" +
         "! line3\n")
     fll = FortLineLength(line_length=30)
-    assert not fll.long_lines(input_string),\
+    assert not fll.long_lines(input_string), \
         "long_lines_false test should return False"
 
 
@@ -439,7 +439,7 @@ def test_length():
     input_length = 20
     fll = FortLineLength(line_length=input_length)
     output_length = fll.length
-    assert output_length == input_length,\
+    assert output_length == input_length, \
         "test_length expecting length method to be the same as the length" +\
         "provided on input"
 
