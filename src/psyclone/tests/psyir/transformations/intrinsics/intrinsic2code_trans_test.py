@@ -40,11 +40,11 @@ ABS and SIGN).'''
 
 import pytest
 from psyclone.psyir.transformations import TransformationError
-from psyclone.psyir.transformations.intrinsics.intrinsic2code_trans import \
-    Intrinsic2CodeTrans
+from psyclone.psyir.transformations.intrinsics.intrinsic2code_trans import (
+    Intrinsic2CodeTrans)
 from psyclone.psyir.symbols import DataSymbol, REAL_TYPE
-from psyclone.psyir.nodes import Reference, UnaryOperation, Assignment, \
-    Literal, IntrinsicCall
+from psyclone.psyir.nodes import (
+    Reference, Assignment, Literal, IntrinsicCall)
 
 
 def test_create():

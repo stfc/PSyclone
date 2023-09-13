@@ -878,6 +878,7 @@ class GOOpenCLTrans(Transformation):
             elif arg.argument_type == "grid_property":
                 garg = kernel.arguments.find_grid_access()
                 if arg.is_scalar:
+                    # pylint: disable=protected-access
                     arguments.append(
                         StructureReference.create(
                             symtab.lookup(garg.name),

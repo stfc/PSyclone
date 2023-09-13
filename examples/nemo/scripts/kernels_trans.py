@@ -408,11 +408,11 @@ def trans(psy):
             continue
 
         # In the lib_fortran file we annotate each routine that does not
-        # have a Loop or a Call with the OpenACC Routine Directive
+        # have a Loop or unsupported Calls with the OpenACC Routine Directive
         if psy.name == "psy_lib_fortran_psy":
             if not invoke.schedule.walk(Loop):
                 calls = invoke.schedule.walk(Call)
-                if all([call.is_available_on_device() for call in calls]):
+                if all(call.is_available_on_device() for call in calls):
                     ACC_ROUTINE_TRANS.apply(sched)
                     continue
 

@@ -41,8 +41,8 @@ NEMO Kernel.
 
 from psyclone.errors import LazyString
 from psyclone.nemo import NemoKern
-from psyclone.psyir.nodes import Schedule, Loop, Call, CodeBlock, Assignment, \
-    IntrinsicCall
+from psyclone.psyir.nodes import (Schedule, Loop, Call, CodeBlock, Assignment,
+                                  IntrinsicCall)
 from psyclone.transformations import Transformation, TransformationError
 
 
@@ -115,7 +115,7 @@ class CreateNemoKernelTrans(Transformation):
             is not within a loop or cannot be represented as a Kernel.
 
         '''
-        super(CreateNemoKernelTrans, self).validate(node, options=options)
+        super().validate(node, options=options)
 
         if not isinstance(node, Schedule):
             raise TransformationError(
@@ -158,7 +158,7 @@ class CreateNemoKernelTrans(Transformation):
                 f"found: "
                 f"{[ass.debug_string().rstrip(chr(10)) for ass in assigns]}"))
 
-    def apply(self, sched, options=None):
+    def apply(self, node, options=None):
         '''
         Takes a generic PSyIR Schedule and replaces it with a NEMO Kernel.
 
@@ -171,10 +171,10 @@ class CreateNemoKernelTrans(Transformation):
         :type options: Optional[Dict[str, Any]]
 
         '''
-        self.validate(sched, options=options)
+        self.validate(node, options=options)
 
-        nemokern = NemoKern(sched.pop_all_children(), parent=sched)
-        sched.addchild(nemokern)
+        nemokern = NemoKern(node.pop_all_children(), parent=node)
+        node.addchild(nemokern)
 
 
 # For AutoAPI documentation generation

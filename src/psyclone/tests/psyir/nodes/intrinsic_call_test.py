@@ -331,19 +331,35 @@ def test_create_positional_arguments_with_names():
     bref = ArrayReference.create(sym, [Literal("20", INTEGER_TYPE)])
 
     # All of these are valid
-    IntrinsicCall.create(IntrinsicCall.Intrinsic.DOT_PRODUCT,
-                         [aref.copy(), bref.copy()])
+    intr = IntrinsicCall.create(IntrinsicCall.Intrinsic.DOT_PRODUCT,
+                                [aref.copy(), bref.copy()])
+    assert isinstance(intr, IntrinsicCall)
+    assert intr.children[0] == aref
+    assert intr.children[1] == bref
+    assert intr.argument_names == [None, None]
 
-    IntrinsicCall.create(IntrinsicCall.Intrinsic.DOT_PRODUCT,
-                         [aref.copy(), ("vector_b", bref.copy())])
+    intr = IntrinsicCall.create(IntrinsicCall.Intrinsic.DOT_PRODUCT,
+                                [aref.copy(), ("vector_b", bref.copy())])
+    assert isinstance(intr, IntrinsicCall)
+    assert intr.children[0] == aref
+    assert intr.children[1] == bref
+    assert intr.argument_names == [None, "vector_b"]
 
-    IntrinsicCall.create(IntrinsicCall.Intrinsic.DOT_PRODUCT,
-                         [("vector_a", aref.copy()),
-                          ("vector_b", bref.copy())])
+    intr = IntrinsicCall.create(IntrinsicCall.Intrinsic.DOT_PRODUCT,
+                                [("vector_a", aref.copy()),
+                                 ("vector_b", bref.copy())])
+    assert isinstance(intr, IntrinsicCall)
+    assert intr.children[0] == aref
+    assert intr.children[1] == bref
+    assert intr.argument_names == ["vector_a", "vector_b"]
 
-    IntrinsicCall.create(IntrinsicCall.Intrinsic.DOT_PRODUCT,
-                         [("vector_b", bref.copy()),
-                          ("vector_a", aref.copy())])
+    intr = IntrinsicCall.create(IntrinsicCall.Intrinsic.DOT_PRODUCT,
+                                [("vector_b", bref.copy()),
+                                 ("vector_a", aref.copy())])
+    assert isinstance(intr, IntrinsicCall)
+    assert intr.children[0] == bref
+    assert intr.children[1] == aref
+    assert intr.argument_names == ["vector_b", "vector_a"]
 
 
 @pytest.mark.parametrize("operator", ["lbound", "ubound", "size"])

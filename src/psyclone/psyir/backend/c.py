@@ -376,7 +376,7 @@ class CWriter(LanguageWriter):
         :rtype: str
 
         '''
-        def operator_format(operator_str, expr_str):
+        def binary_operator_format(operator_str, expr_str):
             '''
             :param str operator_str: String representing the operator.
             :param List[str] expr_str: String representation of the operands.
@@ -388,8 +388,8 @@ class CWriter(LanguageWriter):
             '''
             if len(expr_str) != 2:
                 raise VisitorError(
-                    f"The C Writer IntrinsicCall operator-style formatter "
-                    f"only supports intrinsics with 2 children, but found "
+                    f"The C Writer binary_operator formatter for IntrinsicCall"
+                    f" only supports intrinsics with 2 children, but found "
                     f"'{operator_str}' with '{len(expr_str)}' children.")
             return f"({expr_str[0]} {operator_str} {expr_str[1]})"
 
@@ -423,7 +423,7 @@ class CWriter(LanguageWriter):
         # Define a map with the intrinsic string and the formatter function
         # associated with each Intrinsic
         intrinsic_map = {
-            IntrinsicCall.Intrinsic.MOD: ("%", operator_format),
+            IntrinsicCall.Intrinsic.MOD: ("%", binary_operator_format),
             IntrinsicCall.Intrinsic.SIGN: ("copysign", function_format),
             IntrinsicCall.Intrinsic.SIN: ("sin", function_format),
             IntrinsicCall.Intrinsic.COS: ("cos", function_format),

@@ -707,6 +707,7 @@ def test_get_partial_datatype():
     datatype, init = processor._get_partial_datatype(node, fake_parent, {})
     assert isinstance(datatype, ScalarType)
     assert isinstance(init, Literal)
+    assert init.parent is None
     assert datatype.intrinsic is ScalarType.Intrinsic.INTEGER
     # Check fparser2 tree is unmodified
     assert ids == [id(entry) for entry in walk(node)]
@@ -719,6 +720,7 @@ def test_get_partial_datatype():
     datatype, init = processor._get_partial_datatype(node, fake_parent, {})
     assert isinstance(datatype, ScalarType)
     assert isinstance(init, CodeBlock)
+    assert init.parent is None
     assert datatype.intrinsic is ScalarType.Intrinsic.INTEGER
     # Check fparser2 tree is unmodified
     assert ids == [id(entry) for entry in walk(node)]
@@ -759,6 +761,7 @@ def test_get_partial_datatype():
     datatype, init = processor._get_partial_datatype(node, fake_parent, {})
     assert isinstance(datatype, ScalarType)
     assert isinstance(init, CodeBlock)
+    assert init.parent is None
     assert datatype.intrinsic is ScalarType.Intrinsic.INTEGER
     # Check fparser2 tree is unmodified
     assert ids == [id(entry) for entry in walk(node)]

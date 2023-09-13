@@ -69,7 +69,7 @@ def example_psyir_binary(create_expression):
     :param function create_expression: function used to create the \
         content of the first argument of the MIN intrinsic.
 
-    :returns: PSyIR MIN instance instance.
+    :returns: PSyIR MIN intrinsic instance.
     :rtype: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
 
     '''

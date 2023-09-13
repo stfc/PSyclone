@@ -40,11 +40,11 @@ by the back-end or if the performance of the inline code is better
 than the intrinsic.
 
 '''
-from psyclone.psyir.transformations.intrinsics.intrinsic2code_trans import \
-    Intrinsic2CodeTrans
+from psyclone.psyir.transformations.intrinsics.intrinsic2code_trans import (
+    Intrinsic2CodeTrans)
 from psyclone.psyir.transformations import Abs2CodeTrans
-from psyclone.psyir.nodes import UnaryOperation, BinaryOperation, Assignment, \
-    Reference, Literal, IfBlock, IntrinsicCall
+from psyclone.psyir.nodes import (
+    BinaryOperation, Assignment, Reference, Literal, IfBlock, IntrinsicCall)
 from psyclone.psyir.symbols import DataSymbol, REAL_TYPE
 
 
@@ -104,9 +104,8 @@ class Sign2CodeTrans(Intrinsic2CodeTrans):
         ``ABS`` has been replaced with inline code by the NemoAbsTrans
         transformation.
 
-        This transformation requires the IntrinsicCall node to be a
-        children of an assignment and will raise an exception if
-        this is not the case.
+        This transformation requires the IntrinsicCall node to be a child of
+        an assignment and will raise an exception if this is not the case.
 
         :param node: a SIGN IntrinsicCall node.
         :type node: :py:class:`psyclone.psyir.nodes.IntrinsicCall`

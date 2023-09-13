@@ -269,7 +269,9 @@ class DataSymbol(TypedSymbol):
             # Add it to a properly formed Assignment parent, this implicitly
             # guarantees that the node is not attached anywhere else (and is
             # unexpectedly modified) and also makes it similar to any other RHS
-            # expression, enabling some functionality without special cases
+            # expression, enabling some functionality without special cases.
+            # Note that the parent dangles on top of the init value, and is not
+            # referenced directly from anywhere else.
             from psyclone.psyir.nodes import Assignment
             parent = Assignment()
             parent.addchild(Reference(self))

@@ -158,7 +158,9 @@ then
             # Modify the *existing* symbol so that any references to it
             # remain valid.
             new_type = copy.copy(sym.datatype)
+            # pylint: disable=protected-access
             new_type._shape = len(orig_shape)*[ArrayType.Extent.DEFERRED]
+            # pylint: enable=protected-access
             sym.datatype = new_type
             # Ensure that the promoted symbol is private to the container.
             sym.visibility = Symbol.Visibility.PRIVATE
@@ -179,7 +181,7 @@ then
                         for dim in orig_shape]
             aref = ArrayReference.create(sym, dim_list)
 
-            # And a conditional expression to avoid repeating the allocation
+            # Add a conditional expression to avoid repeating the allocation
             # if its already done
             allocated_expr = IntrinsicCall.create(
                     IntrinsicCall.Intrinsic.ALLOCATED,

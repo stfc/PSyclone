@@ -289,6 +289,12 @@ class ArrayRange2LoopTrans(Transformation):
                 f"least one of its dimensions being a Range, but found None "
                 f"in '{node.lhs}'.")
 
+        # TODO #2004: Note that the NEMOArrayRange2Loop transforamtion has
+        # a different implementation that accepts many more statemetns (e.g.
+        # elemental function calls) but lacks in the use of symbolics. Both
+        # implementation should be merged (as well as their tests) to one
+        # combining the advantages of both.
+
         # Currently we don't accept calls (with the exception of L/UBOUND)
         for call in node.rhs.walk(Call):
             if isinstance(call, IntrinsicCall) and call.intrinsic in \

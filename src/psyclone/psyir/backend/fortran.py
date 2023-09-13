@@ -39,17 +39,15 @@
 from a PSyIR tree. '''
 
 # pylint: disable=too-many-lines
-from fparser.two import Fortran2003
-
 from psyclone.core import Signature
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.backend.language_writer import LanguageWriter
 from psyclone.psyir.backend.visitor import VisitorError
-from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
-    TYPE_MAP_FROM_FORTRAN
-from psyclone.psyir.nodes import BinaryOperation, Call, CodeBlock, DataNode, \
-    IntrinsicCall, Literal, Operation, Range, Routine, Schedule, \
-    UnaryOperation
+from psyclone.psyir.frontend.fparser2 import (
+    Fparser2Reader, TYPE_MAP_FROM_FORTRAN)
+from psyclone.psyir.nodes import (
+    BinaryOperation, Call, CodeBlock, DataNode, IntrinsicCall, Literal,
+    Operation, Range, Routine, Schedule, UnaryOperation)
 from psyclone.psyir.symbols import (
     ArgumentInterface, ArrayType, ContainerSymbol, DataSymbol, DataTypeSymbol,
     DeferredType, RoutineSymbol, ScalarType, Symbol, IntrinsicSymbol,
@@ -1427,8 +1425,7 @@ class FortranWriter(LanguageWriter):
         content = self._visit(node.children[0])
         try:
             fort_oper = self.get_operator(node.operator)
-            # It's not an intrinsic function so we need to consider the
-            # parent node. If that is a UnaryOperation or a BinaryOperation
+            # If the parent node is a UnaryOperation or a BinaryOperation
             # such as '-' or '**' then we need parentheses. This ensures we
             # don't generate invalid Fortran such as 'a ** -b' or 'a - -b'.
             parent = node.parent
@@ -1601,7 +1598,7 @@ class FortranWriter(LanguageWriter):
         :rtype: str
 
         raises TypeError: if the provided node is not a Call.
-        raises VisitorError: if the all of the positional arguments are \
+        raises VisitorError: if the all of the positional arguments are
             not before all of the named arguments.
 
         '''

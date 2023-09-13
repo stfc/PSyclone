@@ -367,7 +367,7 @@ class Call(Statement, DataNode):
     def is_available_on_device(self):
         '''
         :returns: whether this intrinsic is available on an accelerated device.
-        :rtype: :py:class:`psyclone.psyir.nodes.IntrinsicCall.Intrinsic`
+        :rtype: bool
 
         '''
         return False

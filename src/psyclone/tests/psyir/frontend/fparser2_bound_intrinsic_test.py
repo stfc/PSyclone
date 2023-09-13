@@ -39,6 +39,9 @@ in the PSyIR. '''
 
 import pytest
 from fparser.common.readfortran import FortranStringReader
+from fparser.two.Fortran2003 import Execution_Part
+from psyclone.psyir.nodes import (
+    Schedule, Assignment, BinaryOperation, Reference, Literal, IntrinsicCall)
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 
 
@@ -54,9 +57,6 @@ def test_bound_intrinsics(bound, expression):
     TODO #754 fix test so that 'disable_declaration_check' fixture is not
     required.
     '''
-    from fparser.two.Fortran2003 import Execution_Part
-    from psyclone.psyir.nodes import Schedule, Assignment, BinaryOperation, \
-        Reference, Literal, IntrinsicCall
     fake_parent = Schedule()
     processor = Fparser2Reader()
     reader = FortranStringReader(expression.format(bound))

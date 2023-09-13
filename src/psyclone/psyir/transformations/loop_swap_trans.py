@@ -77,7 +77,7 @@ class LoopSwapTrans(LoopTrans):
 
     '''
 
-    excluded_node_types = (CodeBlock)
+    excluded_node_types = (CodeBlock, )
 
     def __str__(self):
         return "Exchange the order of two nested loops: inner becomes " + \

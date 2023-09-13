@@ -42,13 +42,13 @@ import pytest
 from psyclone.errors import InternalError, GenerationError
 from psyclone.f2pygen import ModuleGen
 from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.psyir.nodes import Assignment, Reference, Literal, \
-    ArrayReference, Range, BinaryOperation, StructureReference, \
-    ArrayOfStructuresReference, UnaryOperation, IntrinsicCall
+from psyclone.psyir.nodes import (
+    Assignment, Reference, Literal, ArrayReference, Range, StructureReference,
+    ArrayOfStructuresReference, IntrinsicCall)
 from psyclone.psyir.nodes.node import colored
-from psyclone.psyir.symbols import DataSymbol, REAL_SINGLE_TYPE, Symbol, \
-    INTEGER_SINGLE_TYPE, REAL_TYPE, ArrayType, INTEGER_TYPE, StructureType, \
-    DataTypeSymbol
+from psyclone.psyir.symbols import (
+    DataSymbol, REAL_SINGLE_TYPE, Symbol, INTEGER_SINGLE_TYPE, REAL_TYPE,
+    ArrayType, INTEGER_TYPE, StructureType, DataTypeSymbol)
 from psyclone.tests.utilities import check_links
 
 
@@ -217,7 +217,7 @@ def test_is_array_assignment():
     assert assignment.is_array_assignment is True
 
 
-def test_array_assignment_with_reduction(monkeypatch):
+def test_array_assignment_with_reduction():
     '''Test that we correctly identify an array assignment when it is the
     result of a reduction from an array that returns an array. Test
     when we need to look up the PSyIR tree through multiple intrinsics

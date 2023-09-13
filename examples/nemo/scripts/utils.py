@@ -36,7 +36,7 @@
 ''' Utilities file to parallelise Nemo code. '''
 
 from psyclone.psyir.nodes import Loop, Assignment, Directive, Container, \
-    Reference, CodeBlock, Call, Return, IfBlock, Routine, BinaryOperation, \
+    Reference, CodeBlock, Call, Return, IfBlock, Routine, \
     IntrinsicCall
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, REAL_TYPE, \
     ArrayType, ScalarType, RoutineSymbol, ImportInterface
@@ -239,25 +239,25 @@ def insert_explicit_loop_parallelism(
         # which we'd rather parallelise
         if ('ice' in routine_name
             and isinstance(loop.stop_expr, IntrinsicCall)
-            and (loop.stop_expr.intrinsic == IntrinsicCall.Intrinsic.UBOUND or
-                 loop.stop_expr.intrinsic == IntrinsicCall.Intrinsic.SIZE)
+            and (loop.stop_expr.intrinsic == (IntrinsicCall.Intrinsic.UBOUND,
+                                              IntrinsicCall.Intrinsic.SIZE))
             and (len(loop.walk(Loop)) > 2
-                 or any([ref.symbol.name in ('npti',)
-                         for lp in loop.loop_body.walk(Loop)
-                         for ref in lp.stop_expr.walk(Reference)])
+                 or any(ref.symbol.name in ('npti',)
+                        for lp in loop.loop_body.walk(Loop)
+                        for ref in lp.stop_expr.walk(Reference))
                  or (str(len(loop.walk(Loop))) !=
                      loop.stop_expr.children[1].value))):
             print("ICE Loop not parallelised for performance reasons")
             continue
         # Skip if looping over ice categories, ice or snow layers
         # as these have only 5, 4, and 1 iterations, respectively
-        if (any([ref.symbol.name in ('jpl', 'nlay_i', 'nlay_s')
-                 for ref in loop.stop_expr.walk(Reference)])):
+        if (any(ref.symbol.name in ('jpl', 'nlay_i', 'nlay_s')
+                for ref in loop.stop_expr.walk(Reference))):
             print("Loop not parallelised because stops at 'jpl', 'nlay_i' "
                   "or 'nlay_s'.")
             continue
 
-        def skip_for_correctness():
+        def skip_for_correctness(loop):
             for call in loop.walk(Call):
                 if not isinstance(call, IntrinsicCall):
                     print(f"Loop not parallelised because it has a call to "
@@ -268,19 +268,19 @@ def insert_explicit_loop_parallelism(
                           f"{call.intrinsic.name} not available on GPUs.")
                     return True
             if loop.walk(CodeBlock):
-                print(f"Loop not parallelised because it has a CodeBlock")
+                print("Loop not parallelised because it has a CodeBlock")
                 return True
             return False
 
         # If we see one such ice linearised loop, we assume
         # calls/codeblocks are not a problem (they are not)
-        if not any([ref.symbol.name in ('npti',)
-                    for ref in loop.stop_expr.walk(Reference)]):
-            if skip_for_correctness():
+        if not any(ref.symbol.name in ('npti',)
+                   for ref in loop.stop_expr.walk(Reference)):
+            if skip_for_correctness(loop):
                 continue
 
         # pnd_lev requires manual privatisation of ztmp
-        if any([name in routine_name for name in ('tab_', 'pnd_')]):
+        if any(name in routine_name for name in ('tab_', 'pnd_')):
             opts = {"force": True}
 
         try:

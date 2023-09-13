@@ -40,11 +40,9 @@ by the back-end or if the performance of the inline code is better
 than the intrinsic.
 
 '''
-from __future__ import absolute_import
-
 from psyclone.psyir.nodes import BinaryOperation, IntrinsicCall
-from psyclone.psyir.transformations.intrinsics.minormax2code_trans import \
-        MinOrMax2CodeTrans
+from psyclone.psyir.transformations.intrinsics.minormax2code_trans import (
+    MinOrMax2CodeTrans)
 
 
 class Max2CodeTrans(MinOrMax2CodeTrans):

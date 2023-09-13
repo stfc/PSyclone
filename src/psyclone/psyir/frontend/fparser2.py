@@ -2203,6 +2203,8 @@ class Fparser2Reader():
         node.children[2].items = tuple(orig_entity_decl_list)
         node.children[2].children[0].items = tuple(orig_entity_decl_children)
 
+        # Return the init_expr detached from the temporal symbol
+        init_expr = init_expr.detach() if init_expr is not None else None
         return datatype, init_expr
 
     def process_declarations(self, parent, nodes, arg_list,
@@ -2357,7 +2359,6 @@ class Fparser2Reader():
                         # Try to extract partial datatype information.
                         datatype, init = self._get_partial_datatype(
                             node, parent, visibility_map)
-                        init = init.copy() if init is not None else None
 
                         # If a declaration declares multiple entities, it's
                         # possible that some may have already been processed
@@ -3923,20 +3924,18 @@ class Fparser2Reader():
 
     def _unary_op_handler(self, node, parent):
         '''
-        Transforms an fparser2 UnaryOpBase or Intrinsic_Function_Reference
-        to the PSyIR representation.
+        Transforms an fparser2 UnaryOpBase to its PSyIR representation.
 
         :param node: node in fparser2 AST.
-        :type node: :py:class:`fparser.two.utils.UnaryOpBase` or \
-               :py:class:`fparser.two.Fortran2003.Intrinsic_Function_Reference`
+        :type node: :py:class:`fparser.two.utils.UnaryOpBase`
         :param parent: Parent node of the PSyIR node we are constructing.
         :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
         :return: PSyIR representation of node
         :rtype: :py:class:`psyclone.psyir.nodes.UnaryOperation`
 
-        :raises NotImplementedError: if the supplied operator is not \
-                                     supported by this handler.
+        :raises NotImplementedError: if the supplied operator is not
+            supported by this handler.
 
         '''
         operator_str = str(node.items[0]).lower()
@@ -3952,22 +3951,18 @@ class Fparser2Reader():
 
     def _binary_op_handler(self, node, parent):
         '''
-        Transforms an fparser2 BinaryOp or Intrinsic_Function_Reference to
-        the PSyIR representation.
+        Transforms an fparser2 BinaryOp to its PSyIR representation.
 
         :param node: node in fparser2 AST.
-        :type node: :py:class:`fparser.two.utils.BinaryOpBase` or \
-               :py:class:`fparser.two.Fortran2003.Intrinsic_Function_Reference`
+        :type node: :py:class:`fparser.two.utils.BinaryOpBase`
         :param parent: Parent node of the PSyIR node we are constructing.
         :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
         :returns: PSyIR representation of node
         :rtype: :py:class:`psyclone.psyir.nodes.BinaryOperation`
 
-        :raises NotImplementedError: if the supplied operator/intrinsic is \
-                                     not supported by this handler.
-        :raises InternalError: if the fparser parse tree does not have the \
-                               expected structure.
+        :raises NotImplementedError: if the supplied operator is not supported
+            by this handler.
 
         '''
         operator_str = node.items[1].lower()
@@ -3986,23 +3981,18 @@ class Fparser2Reader():
 
     def _intrinsic_handler(self, node, parent):
         '''Transforms an fparser2 Intrinsic_Function_Reference to the PSyIR
-        representation. Since Fortran Intrinsics can be unary, binary or
-        nary this handler identifies the appropriate 'sub handler' by
-        examining the number of arguments present.
+        representation.
 
         :param node: node in fparser2 Parse Tree.
-        :type node: \
+        :type node:
             :py:class:`fparser.two.Fortran2003.Intrinsic_Function_Reference`
         :param parent: Parent node of the PSyIR node we are constructing.
         :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
         :returns: PSyIR representation of node
-        :rtype: :py:class:`psyclone.psyir.nodes.UnaryOperation` or \
-                :py:class:`psyclone.psyir.nodes.BinaryOperation` or \
-                :py:class:`psyclone.psyir.nodes.IntrinsicCall`
+        :rtype: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
 
-        :raises NotImplementedError: if the form of the Fortran is not \
-            supported.
+        :raises NotImplementedError: if an unsupported intrinsic is found.
 
         '''
         try:

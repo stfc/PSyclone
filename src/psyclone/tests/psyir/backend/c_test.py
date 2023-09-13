@@ -356,7 +356,7 @@ def test_cw_binaryoperator():
     assert "' operator." in str(err.value)
 
 
-def test_cw_intrinsiccall(fortran_reader):
+def test_cw_intrinsiccall():
     '''Check the CWriter class intrinsiccall method correctly prints out
     the C representation of any given Intrinsic.
 
@@ -379,14 +379,14 @@ def test_cw_intrinsiccall(fortran_reader):
         icall._intrinsic = intrinsic
         assert cwriter(icall) == expected
 
-    # Check that operator-style formatting with more than other than 2
-    # children produce an error
+    # Check that operator-style formatting with a number of children different
+    # than 2 produces an error
     with pytest.raises(VisitorError) as err:
         icall._intrinsic = IntrinsicCall.Intrinsic.MOD
         _ = cwriter(icall)
-    assert ("The C Writer IntrinsicCall operator-style formatter only supports"
-            " intrinsics with 2 children, but found '%' with '1' children."
-            in str(err.value))
+    assert ("The C Writer binary_operator formatter for IntrinsicCall only "
+            "supports intrinsics with 2 children, but found '%' with '1' "
+            "children." in str(err.value))
 
     # Test all supported Intrinsics with 2 arguments
     test_list = (

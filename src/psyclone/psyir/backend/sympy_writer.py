@@ -46,8 +46,7 @@ from sympy.parsing.sympy_parser import parse_expr
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.frontend.sympy_reader import SymPyReader
-from psyclone.psyir.nodes import DataNode, Range, Reference, IntrinsicCall, \
-    Schedule
+from psyclone.psyir.nodes import DataNode, Range, Reference, IntrinsicCall
 from psyclone.psyir.symbols import (ArrayType, ScalarType, SymbolTable)
 
 
@@ -549,11 +548,18 @@ class SymPyWriter(FortranWriter):
         the PSyIR tree. The Sympy backend will use the exact sympy name for
         some math intrinsics (listed in _intrinsic_to_str) and will remove
         named arguments.
+
+        :param node: an IntrinsicCall PSyIR node.
+        :type node: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
+
+        :returns: the SymPy representation for the Intrinsic.
+        :rtype: str
+
         '''
         # Sympy does not support argument names, remove them for now
         if any(node.argument_names):
             # TODO #2302: This is not totally right without canonical intrinsic
-            # positions for arguments. One alternative it to refuse it with:
+            # positions for arguments. One alternative is to refuse it with:
             # raise VisitorError(
             #     f"Named arguments are not supported by SymPy but found: "
             #     f"'{node.debug_string()}'.")
@@ -565,6 +571,7 @@ class SymPyWriter(FortranWriter):
             parent = node.parent.copy()
             node = parent.children[node.position]
             for idx in range(len(node.argument_names)):
+                # pylint: disable=protected-access
                 node._argument_names[idx] = (node._argument_names[idx][0],
                                              None)
         try:

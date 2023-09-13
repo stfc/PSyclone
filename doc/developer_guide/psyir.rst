@@ -509,8 +509,8 @@ PSyIR `IntrinsicCall` nodes (see :ref_guide:`IntrinsicCall
 psyclone.psyir.nodes.html#psyclone.psyir.nodes.IntrinsicCall`) capture
 all PSyIR intrinsics that are not expressed as language symbols (`+`,`-`,`*`
 etc). The latter are captured as `Operation` nodes. At the moment the
-available PSyIR `IntrinsicCall` match those of the Fortran 2018 standard:
-`https://fortranwiki.org/fortran/show/Intrinsic+procedures`_
+available PSyIR `IntrinsicCall` match those of the `Fortran 2018 standard
+<https://fortranwiki.org/fortran/show/Intrinsic+procedures>`_
 In addition to Fortran Intrinsics, special Fortran statements such as:
 `ALLOCATE`, `DEALLOCATE` and `NULLIFY` are also PSyIR IntrinsicCalls.
 

@@ -42,7 +42,6 @@ from psyclone.psyir.symbols import SymbolTable, DataSymbol, \
 from psyclone.psyir.nodes import Reference, BinaryOperation, Assignment, \
     Literal, KernelSchedule, IntrinsicCall
 from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.configuration import Config
 from psyclone.tests.utilities import Compile
 
 

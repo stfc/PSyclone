@@ -45,7 +45,9 @@ from psyclone.nemo import NemoKern
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.backend.sir import gen_stencil, SIRWriter
 from psyclone.psyir.backend.visitor import VisitorError
-from psyclone.psyir.nodes import Schedule, Assignment, Node
+from psyclone.psyir.nodes import (
+    Schedule, Assignment, Node, BinaryOperation, UnaryOperation, Literal)
+from psyclone.psyir.symbols import INTEGER_TYPE
 
 
 # pylint: disable=redefined-outer-name
@@ -586,6 +588,18 @@ def test_sirwriter_binaryoperation_node_3(parser, sir_writer):
         "  )" in result)
 
 
+def test_sirwriter_binaryoperator_not_supported(sir_writer):
+    ''' Check that unsupported BinaryOperators produce a relevant error. '''
+    operation = BinaryOperation.create(
+        BinaryOperation.Operator.REM,
+        Literal("1", INTEGER_TYPE),
+        Literal("2", INTEGER_TYPE))
+    with pytest.raises(VisitorError) as excinfo:
+        sir_writer.binaryoperation_node(operation)
+    assert ("Method binaryoperation_node in class SIRWriter, unsupported "
+            "operator 'Operator.REM' found." in str(excinfo.value))
+
+
 def test_sirwriter_intrinsiccall_node(parser, sir_writer):
     '''Check the intrinsiccall_node method of the SIRWriter class raises
     the expected exception if an unsupported intrinsic is found.
@@ -754,6 +768,17 @@ def test_sirwriter_unary_node_5(parser, sir_writer):
         "    make_field_access_expr(\"b\", [0, 0, 0])\n"
         "    )\n"
         ")\n")
+
+
+def test_sirwriter_unaryoperator_not_supported(sir_writer):
+    ''' Check that unsupported UnaryOperators produce a relevant error. '''
+    operation = UnaryOperation.create(
+        UnaryOperation.Operator.NOT,
+        Literal("1", INTEGER_TYPE))
+    with pytest.raises(VisitorError) as excinfo:
+        sir_writer.unaryoperation_node(operation)
+    assert ("Method unaryoperation_node in class SIRWriter, unsupported "
+            "operator 'Operator.NOT' found." in str(excinfo.value))
 
 
 # (1/4) Method ifblock_node

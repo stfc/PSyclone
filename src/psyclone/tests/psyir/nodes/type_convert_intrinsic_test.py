@@ -81,7 +81,7 @@ def test_type_convert_intrinsic_create(intrinsic, intr_str, fortran_writer):
     assert intr_str + "(tmp1, kind=wp + 2)" in result.lower()
 
 
-@pytest.mark.xfail(reason="Only limited checking is performed on the "
+@pytest.mark.xfail(reason="No PSyIR symbol type checking is performed on the "
                    "arguments supplied to the BinaryOperation.create() "
                    "method - TODO #658.")
 def test_real_intrinsic_invalid():

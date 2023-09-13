@@ -44,14 +44,13 @@ import pytest
 
 from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
-from fparser.two.Fortran2003 import Execution_Part, Name
+from fparser.two.Fortran2003 import Execution_Part
 
 from psyclone.errors import InternalError
 from psyclone.psyir.frontend.fparser2 import (
     Fparser2Reader, _get_arg_names, _canonicalise_minmaxsum)
 from psyclone.psyir.nodes import (
-    UnaryOperation, BinaryOperation, Schedule, Assignment,
-    Reference, IntrinsicCall, CodeBlock)
+    Schedule, Assignment, Reference, IntrinsicCall, CodeBlock)
 from psyclone.psyir.symbols import (
     REAL_TYPE, DataSymbol, UnknownFortranType, INTEGER_TYPE, SymbolTable,
     ArrayType, RoutineSymbol, AutomaticInterface)
@@ -305,6 +304,8 @@ def test_handling_unsupported_intrinsics(symbol_table):
     code = "x = sin(a)"
     reader = FortranStringReader(code)
     fp2node = Execution_Part.match(reader)[0][0]
+    # Change the instrinsic string name in order to create a new
+    # intrinsic which is not recognised by the PSyIR parser
     fp2node.children[2].items[0].string = "Unsupported"
     processor.process_nodes(fake_parent, [fp2node])
     assert not fake_parent.walk(IntrinsicCall)

@@ -124,7 +124,7 @@ class IntrinsicCall(Call):
             'ACOS', True, True, False,
             ArgDesc(1, 1, DataNode), {})
         ACOSH = IAttr(
-            'ACOS', True, True, False,
+            'ACOSH', True, True, False,
             ArgDesc(1, 1, DataNode), {})
         ADJUSTL = IAttr(
             'ADJUSTL', True, True, False,
@@ -247,22 +247,22 @@ class IntrinsicCall(Call):
             'CMPLX', True, True, False,
             ArgDesc(1, 1, DataNode), {"Y": DataNode, "kind": DataNode})
         CO_BROADCAST = IAttr(
-            'CO_BROADCAST', True, True, False,
+            'CO_BROADCAST', True, False, False,
             ArgDesc(1, 2, DataNode), {"stat": DataNode, "errmsg": DataNode})
         CO_MAX = IAttr(
-            'CO_MAX', True, True, False,
+            'CO_MAX', True, False, False,
             ArgDesc(1, 1, DataNode),
             {"result_image": DataNode, "stat": DataNode, "errmsg": DataNode})
         CO_MIN = IAttr(
-            'CO_MIN', True, True, False,
+            'CO_MIN', True, False, False,
             ArgDesc(1, 1, DataNode),
             {"result_image": DataNode, "stat": DataNode, "errmsg": DataNode})
         CO_REDUCE = IAttr(
-            'CO_REDUCE', True, True, False,
+            'CO_REDUCE', True, False, False,
             ArgDesc(1, 2, DataNode),
             {"result_image": DataNode, "stat": DataNode, "errmsg": DataNode})
         CO_SUM = IAttr(
-            'CO_SUM', True, True, False,
+            'CO_SUM', True, False, False,
             ArgDesc(1, 1, DataNode),
             {"result_image": DataNode, "stat": DataNode, "errmsg": DataNode})
         COMMAND_ARGUMENT_COUNT = IAttr(
@@ -319,7 +319,7 @@ class IntrinsicCall(Call):
             'EOSHIFT', True, False, False,
             ArgDesc(2, 2, DataNode), {"boundary": DataNode, "dim": DataNode})
         EPSILON = IAttr(
-            'EPSILON', True, True, False,
+            'EPSILON', True, False, True,
             ArgDesc(1, 1, DataNode), {})
         ERF = IAttr(
             'ERF', True, True, False,
@@ -348,7 +348,7 @@ class IntrinsicCall(Call):
             'EXTENDS_TYPE_OF', True, False, True,
             ArgDesc(2, 2, DataNode), {})
         FAILED_IMAGES = IAttr(
-            'FAILED_IMAGES', True, False, False,
+            'FAILED_IMAGES', False, False, False,
             ArgDesc(0, 0, DataNode), {"team": DataNode, "kind": DataNode})
         FINDLOC = IAttr(
             'FINDLOC', True, False, False,
@@ -385,12 +385,12 @@ class IntrinsicCall(Call):
             'GET_TEAM', True, False, False,
             ArgDesc(0, 0, DataNode), {"level": DataNode})
         HUGE = IAttr(
-            'HUGE', True, True, False,
+            'HUGE', True, False, True,
             ArgDesc(1, 1, (Reference, Literal)), {})
         HYPOT = IAttr(
             'HYPOT', True, True, False,
             ArgDesc(2, 2, (DataNode)), {})
-        IACAHR = IAttr(
+        IACHAR = IAttr(
             'IACHAR', True, True, False,
             ArgDesc(1, 1, (DataNode)), {"kind": DataNode})
         IALL = IAttr(
@@ -408,11 +408,11 @@ class IntrinsicCall(Call):
         IBITS = IAttr(
             'IBITS', True, True, False,
             ArgDesc(3, 3, (DataNode)), {})
-        ISET = IAttr(
-            'ISET', True, True, False,
+        IBSET = IAttr(
+            'IBSET', True, True, False,
             ArgDesc(2, 2, (DataNode)), {})
         ICHAR = IAttr(
-            'ICHAR', True, False, False,
+            'ICHAR', True, True, False,
             ArgDesc(1, 1, (DataNode)), {"kind": DataNode})
         IEOR = IAttr(
             'IEOR', True, True, False,
@@ -466,7 +466,7 @@ class IntrinsicCall(Call):
             'LEN', True, False, True,
             ArgDesc(1, 1, (DataNode)), {"kind": DataNode})
         LEN_TRIM = IAttr(
-            'LEN_TRIM', True, False, True,
+            'LEN_TRIM', True, True, False,
             ArgDesc(1, 1, (DataNode)), {"kind": DataNode})
         LGE = IAttr(
             'LGE', True, True, False,
@@ -503,7 +503,7 @@ class IntrinsicCall(Call):
             ArgDesc(2, 2, DataNode), {})
         MAX = IAttr(
             'MAX', True, True, False,
-            ArgDesc(1, None, DataNode), {})
+            ArgDesc(2, None, DataNode), {})
         MAXEXPONENT = IAttr(
             'MAXEXPONENT', True, False, True,
             ArgDesc(1, 1, DataNode), {})
@@ -518,10 +518,10 @@ class IntrinsicCall(Call):
             {"dim": DataNode, "mask": DataNode})
         MERGE = IAttr(
             'MERGE', True, True, False,
-            ArgDesc(1, 3, DataNode), {})
+            ArgDesc(3, 3, DataNode), {})
         MERGE_BITS = IAttr(
             'MERGE_BITS', True, True, False,
-            ArgDesc(1, 3, DataNode), {})
+            ArgDesc(3, 3, DataNode), {})
         MIN = IAttr(
             'MIN', True, True, False,
             ArgDesc(1, None, DataNode), {})
@@ -552,14 +552,14 @@ class IntrinsicCall(Call):
         NEAREST = IAttr(
             'NEAREST', True, True, False,
             ArgDesc(2, 2, DataNode), {})
-        MEW_LINE = IAttr(
+        NEW_LINE = IAttr(
             'NEW_LINE', True, True, False,
             ArgDesc(1, 1, DataNode), {})
         NINT = IAttr(
             'NINT', True, True, False,
             ArgDesc(1, 1, DataNode), {"kind": DataNode})
-        NORM = IAttr(
-            'NORM', True, False, False,
+        NORM2 = IAttr(
+            'NORM2', True, False, False,
             ArgDesc(1, 2, DataNode), {})
         NOT = IAttr(
             'NOT', True, True, False,
@@ -569,7 +569,7 @@ class IntrinsicCall(Call):
             ArgDesc(0, 0, DataNode), {"mold": DataNode})
         NUM_IMAGES = IAttr(
             'NUM_IMAGES', True, False, False,
-            ArgDesc(1, 1, DataNode), {})
+            ArgDesc(0, 1, DataNode), {})
         OUT_OF_RANGE = IAttr(
             'OUT_OF_RANGE', True, True, False,
             ArgDesc(2, 2, DataNode), {"round": DataNode})
@@ -685,11 +685,11 @@ class IntrinsicCall(Call):
             'SQRT', True, True, False,
             ArgDesc(1, 1, DataNode), {})
         STOPPED_IMAGES = IAttr(
-            'STOPPED_IMAGES', True, False, False,
+            'STOPPED_IMAGES', False, False, False,
             ArgDesc(0, 0, DataNode), {"team": DataNode, "kind": DataNode})
         STORAGE_SIZE = IAttr(
             'STORAGE_SIZE', True, False, True,
-            ArgDesc(1, 1, DataNode), {})
+            ArgDesc(1, 1, DataNode), {"kind": DataNode})
         SUM = IAttr(
             'SUM', True, False, False,
             ArgDesc(1, 1, DataNode), {"dim": DataNode, "mask": DataNode})
@@ -776,7 +776,7 @@ class IntrinsicCall(Call):
     def is_available_on_device(self):
         '''
         :returns: whether this intrinsic is available on an accelerated device.
-        :rtype: :py:class:`psyclone.psyir.nodes.IntrinsicCall.Intrinsic`
+        :rtype: bool
 
         '''
         return self.intrinsic in (
@@ -909,14 +909,13 @@ class IntrinsicCall(Call):
 
     def reference_accesses(self, var_accesses):
         '''Get all reference access information from this node.
-        If the 'COLLECT-ARRAY-SHAPE-READS' options is set, it
-        will not report array accesses used as first parameter
-        in `lbound`, `ubound`, or `size` as 'read' accesses.
+        If the 'COLLECT-ARRAY-SHAPE-READS' options is set, it will report array
+        accesses used as first parameter in 'inquiry intrinsics' like
+        `lbound`, `ubound`, or `size` as 'read' accesses.
 
-        :param var_accesses: VariablesAccessInfo instance that stores the \
+        :param var_accesses: VariablesAccessInfo instance that stores the
             information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+        :type var_accesses: :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
         if (self.intrinsic.is_inquiry and not

@@ -530,30 +530,30 @@ def test_precedence_error():
         _ = precedence('invalid')
 
 
-def test_gen_arguments_validateion():
+def test_gen_arguments_validation(fortran_writer):
     '''Check that the _gen_arguments validation function works as
     expected.
 
     '''
-    fw = FortranWriter()
-
     # type error
     with pytest.raises(TypeError) as info:
-        fw._gen_arguments(None)
+        fortran_writer._gen_arguments(None)
     assert ("The _gen_arguments utility function expects a "
             "Call node, but found 'NoneType'." in str(info.value))
     # visitor error
     call = Call.create(RoutineSymbol("hello"), [
         ("name", Literal("1.0", REAL_TYPE)), Literal("2.0", REAL_TYPE)])
     with pytest.raises(VisitorError) as info:
-        fw._gen_arguments(call)
+        fortran_writer._gen_arguments(call)
     assert ("Fortran expects all named arguments to occur after all "
             "positional arguments but this is not the case for "
             "Call[name='hello']" in str(info.value))
     # ok
     call = Call.create(RoutineSymbol("hello"), [
         Literal("1.0", REAL_TYPE), ("name", Literal("2.0", REAL_TYPE))])
-    fw._gen_arguments(call)
+    output = fortran_writer._gen_arguments(call)
+    assert isinstance(output, str)
+    assert output == "1.0, name=2.0"
 
 
 def test_fw_gen_use(fortran_writer):
@@ -1028,38 +1028,6 @@ def test_fw_container_4(fortran_writer):
         "  contains\n\n"
         "end module test\n" in fortran_writer(container))
 
-# assignment and binaryoperation (not intrinsics) are already checked
-# within previous tests
-
-
-@pytest.mark.parametrize("binary_intrinsic", ["mod", "max", "min",
-                                              "sign"])
-def test_fw_binaryoperator(fortran_writer, binary_intrinsic, tmpdir,
-                           fortran_reader):
-    '''Check the FortranWriter class binary_operation method correctly
-    prints out the Fortran representation of an intrinsic. Tests all
-    of the binary operators, apart from sum (as it requires different
-    data types so is tested separately) and matmul ( as it requires
-    its arguments to be arrays).
-
-    '''
-    # Generate fparser2 parse tree from Fortran code.
-    code = (
-        f"module test\n"
-        f"contains\n"
-        f"subroutine tmp(a, n)\n"
-        f"  integer, intent(in) :: n\n"
-        f"  real, intent(out) :: a(n)\n"
-        f"    a = {binary_intrinsic}(1.0,1.0)\n"
-        f"end subroutine tmp\n"
-        f"end module test")
-    schedule = fortran_reader.psyir_from_source(code)
-
-    # Generate Fortran from the PSyIR schedule
-    result = fortran_writer(schedule)
-    assert f"a = {binary_intrinsic.upper()}(1.0, 1.0)" in result
-    assert Compile(tmpdir).string_compiles(result)
-
 
 def test_fw_binaryoperator_unknown(fortran_reader, fortran_writer,
                                    monkeypatch):
@@ -1078,7 +1046,7 @@ def test_fw_binaryoperator_unknown(fortran_reader, fortran_writer,
         "end subroutine tmp\n"
         "end module test")
     schedule = fortran_reader.psyir_from_source(code)
-    # Remove sign() from the list of supported binary operators
+    # Remove MUL from the list of supported binary operators
     monkeypatch.delitem(fortran_writer._operator_2_str,
                         BinaryOperation.Operator.MUL)
     # Generate Fortran from the PSyIR schedule
@@ -1255,13 +1223,13 @@ def test_fw_range(fortran_writer):
         [Reference(symbol), ("dim", one.copy())])
     dim2_bound_start = IntrinsicCall.create(
         IntrinsicCall.Intrinsic.LBOUND,
-        [Reference(symbol), ("dim", Literal("2", INTEGER_TYPE))])
+        [Reference(symbol), ("dim", two.copy())])
     dim3_bound_start = IntrinsicCall.create(
         IntrinsicCall.Intrinsic.LBOUND,
-        [Reference(symbol), ("dim", Literal("3", INTEGER_TYPE))])
+        [Reference(symbol), ("dim", three.copy())])
     dim3_bound_stop = IntrinsicCall.create(
         IntrinsicCall.Intrinsic.UBOUND,
-        [Reference(symbol), ("dim", Literal("3", INTEGER_TYPE))])
+        [Reference(symbol), ("dim", three.copy())])
     plus = BinaryOperation.create(
         BinaryOperation.Operator.ADD,
         Reference(DataSymbol("b", REAL_TYPE)),

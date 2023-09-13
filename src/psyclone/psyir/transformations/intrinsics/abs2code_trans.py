@@ -40,10 +40,10 @@ by the back-end or if the performance in the inline code is better
 than the intrinsic.
 
 '''
-from psyclone.psyir.transformations.intrinsics.intrinsic2code_trans import \
-    Intrinsic2CodeTrans
-from psyclone.psyir.nodes import BinaryOperation, Assignment, \
-    Reference, Literal, IfBlock, IntrinsicCall
+from psyclone.psyir.transformations.intrinsics.intrinsic2code_trans import (
+    Intrinsic2CodeTrans)
+from psyclone.psyir.nodes import (
+    BinaryOperation, Assignment, Reference, Literal, IfBlock, IntrinsicCall)
 from psyclone.psyir.symbols import DataSymbol, REAL_TYPE
 
 

@@ -40,7 +40,6 @@ functionality required by transformations of PSyIR intrinsic
 (such as MIN and MAX) to code.
 
 '''
-from __future__ import absolute_import
 import abc
 from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import Assignment, IntrinsicCall

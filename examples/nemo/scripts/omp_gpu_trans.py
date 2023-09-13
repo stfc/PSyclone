@@ -2,7 +2,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -37,12 +37,13 @@
 ''' PSyclone transformation script showing the introduction of OpenMP for GPU
 directives into Nemo code. '''
 
+from utils import insert_explicit_loop_parallelism, normalise_loops, \
+    enhance_tree_information, add_profiling
+
 from psyclone.psyGen import TransInfo
 from psyclone.psyir.nodes import Call, Loop
 from psyclone.psyir.transformations import OMPTargetTrans
 from psyclone.transformations import OMPDeclareTargetTrans
-from utils import insert_explicit_loop_parallelism, normalise_loops, \
-    enhance_tree_information, add_profiling
 
 PROFILING_ENABLED = True
 
@@ -109,7 +110,7 @@ def trans(psy):
         if psy.name == "psy_lib_fortran_psy":
             if not invoke.schedule.walk(Loop):
                 calls = invoke.schedule.walk(Call)
-                if all([call.is_available_on_device() for call in calls]):
+                if all(call.is_available_on_device() for call in calls):
                     OMPDeclareTargetTrans().apply(invoke.schedule)
                     continue
 
