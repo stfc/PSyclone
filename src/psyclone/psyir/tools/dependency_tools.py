@@ -694,7 +694,6 @@ class DependencyTools():
 
     # -------------------------------------------------------------------------
     def can_loop_be_parallelised(self, loop,
-                                 only_nested_loops=True,
                                  test_all_variables=False,
                                  signatures_to_ignore=None):
         # pylint: disable=too-many-branches,too-many-locals
@@ -703,9 +702,6 @@ class DependencyTools():
 
         :param loop: the loop node to be analysed.
         :type loop: :py:class:`psyclone.psyir.nodes.Loop`
-        :param bool only_nested_loops: if True, a loop must have an inner
-                                       loop in order to be considered
-                                       parallelisable (default: True).
         :param bool test_all_variables: if True, it will test if all variable
                                         accesses can be parallelised,
                                         otherwise it will stop after the first

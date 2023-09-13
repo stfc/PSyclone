@@ -158,8 +158,7 @@ end subroutine my_sub'''
     trans = ParaTrans()
     # Check that the dependency tools will raise the expected warning.
     dep_tools = DependencyTools()
-    dep_tools.can_loop_be_parallelised(loop,
-                                       only_nested_loops=False)
+    dep_tools.can_loop_be_parallelised(loop)
     for message in dep_tools.get_all_messages():
         if message.code == DTCode.WARN_SCALAR_WRITTEN_ONCE:
             break

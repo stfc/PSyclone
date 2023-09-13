@@ -7606,7 +7606,7 @@ class DynLoop(PSyLoop):
                         # The Symbol is not a field or operator.
                         return False
             # All of the variables referred to in all of the messages are
-            # actuall fields - it is safe to ignore this warning.
+            # actually fields - it is safe to ignore this warning.
             return True
 
         if self.loop_type == "":
