@@ -430,20 +430,14 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
             first_arg = ref.copy()
             alt_first_arg = first_arg.copy()
             second_arg = step.copy()
-            if step2:
-                alt_second_arg = step2.copy()
-            else:
-                alt_second_arg = None
+            alt_second_arg = step2.copy() if step2 else None
         else:
             # We have Literal OP Ref
             # Setup vars to do step OP ref when we then
             # create the BinaryOperations to represent this
             # access
             first_arg = step.copy()
-            if step2:
-                alt_first_arg = step2.copy()
-            else:
-                alt_first_arg = None
+            alt_first_arg = step2.copy() if step2 else None
             second_arg = ref.copy()
             alt_second_arg = second_arg.copy()
         # Create the BinaryOperations for this access according to the
