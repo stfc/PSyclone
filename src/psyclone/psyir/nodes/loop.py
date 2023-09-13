@@ -322,7 +322,7 @@ class Loop(Statement):
     @property
     def variable(self):
         '''
-        :returns: a reference to the control variable for this loop.
+        :returns: the control variable for this loop.
         :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol`
         '''
         self._check_variable(self._variable)
