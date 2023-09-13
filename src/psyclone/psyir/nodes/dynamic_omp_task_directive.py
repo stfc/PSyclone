@@ -89,6 +89,10 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         "OMPFirstprivateClause, OMPSharedClause"
         "OMPDependClause, OMPDependClause"
     )
+    _proxy_vars = namedtuple(
+            'ProxyVars', ['parent_var', 'parent_node',
+                          'loop', 'parent_loop']
+    )
 
     def __init__(self, children=None, parent=None):
         super().__init__(
@@ -118,6 +122,105 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         # We need to do extra steps when inside a Kern to correctly identify
         # symbols.
         self._in_kern = False
+
+    def _array_reference_for_clause_combination_helper(self, ref, temp_list):
+        '''
+        Helper function for creating an ArrayReference to place into the
+        relevant in or out dependency list when computing index combinations.
+
+        :param ref: The reference whose symbol the created ArrayReference is
+                    to reference.
+        :type ref: :py:class:`psyclone.psyir.nodes.Reference`
+        :param temp_list: The current list of indices to add to the created
+                          ArrayReference
+        :type temp_list: List[:py:class:`psyclone.psyir.nodes.Node`]
+
+        :returns: an ArrayReference to the provided symbol and with the
+                  provided indices.
+        :rtype: :py:class:`psyclone.psyir.nodes.ArrayReference
+
+        '''
+        final_list = [element.copy() for element in temp_list]
+        dclause = ArrayReference.create(ref.symbol, final_list)
+        return dclause
+
+    def _array_member_for_clause_combination_helper(self, sref, temp_list,
+                                                    base_member):
+        '''
+        Helper function for create a StructureReference containing an
+        ArrayMember to place into the relevant in or out dependency list
+        when computing index combinations.
+
+        :param sref: The structure reference to copy to contain the new
+                     ArrayMember.
+        :type sref: :py:class:`psyclone.psyir.nodes.StructureReference`
+        :param temp_list: The current list of indices to add to the created
+                          ArrayReference
+        :type temp_list: List[:py:class:`psyclone.psyir.nodes.Node`]
+        :param base_member: The array member child of sref to duplicate with
+                            the indices specified by temp_list
+        :type base_member: :py:class:`psyclone.psyir.nodes.ArrayMember`
+
+        :returns: a StructureReference containing the created ArrayMember.
+        :rtype: :py:class:`psyclone.psyir.nodes.StructureReference
+
+        '''
+        final_list = [element.copy() for element in temp_list]
+        final_member = ArrayMember.create(base_member.name, final_list)
+        sref_copy = sref.copy()
+        # Copying the StructureReference includes the Members
+        members = sref_copy.walk(Member)
+        # Replace the last one with the new ArrayMember
+        members[-1].replace_with(final_member)
+        return sref_copy
+
+    def _add_dependencies_from_index_list(self, index_list, dependency_list,
+                                          reference, array_access_member=None):
+        '''
+        Computes all of the dependency combinations for an array access and
+        adds them to the provided dependency_list.
+        If array_access_member is None, then ArrayReferences will be added,
+        otherwise StructureReferences containing ArrayMembers will be added.
+
+        :param index_list: A list of (lists of) indices to turn into
+                           dependencies.
+        :type index_list: List[Union[List[
+                               :py:class:`psyclone.psyir.nodes.Reference]],
+                               :py:class:`psyclone.psyir.nodes.Reference]
+        :param dependency_list: The dependency list to add the newly created
+                                dependencies to.
+        :type dependency_list: List[:py:class`psyclone.psyir.nodes.Reference]
+        :param reference: The reference containing the array access to create
+                          new dependencies to.
+        :type reference: Union[:py:class:`psyclone.psyir.nodes.ArrayReference`,
+                         :py:class:`psyclone.psyir.nodes.StructureReference`]
+        :param array_access_member: optional argument provided if reference
+                                    is a StructureReference to the ArrayMember
+                                    containing the dependencies.
+        '''
+        # So we have a list of (lists of) indices
+        # [ [index1, index4], index2, index3] so convert these
+        # to an ArrayReference again.
+        # To create all combinations, we use itertools.product
+        # We have to create a new list which only contains lists.
+        new_index_list = [element if isinstance(element, list) else [element]
+                          for element in index_list]
+
+        combinations = itertools.product(*new_index_list)
+        for temp_list in combinations:
+            # We need to make copies of the members as each
+            # member can only be the child of one ArrayRef
+            if array_access_member:
+                new_ref = self._array_member_for_clause_combination_helper(
+                        reference, temp_list, array_access_member
+                )
+            else:
+                new_ref = self._array_reference_for_clause_combination_helper(
+                        reference, temp_list
+                )
+
+            if new_ref not in dependency_list:
+                dependency_list.append(new_ref)
 
     def _find_parent_loop_vars(self):
         """
@@ -150,13 +253,62 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         self._parallel_private = self._parallel_private.union(
                 self._parallel_firstprivate)
 
+    def _handle_proxy_loop_index(self, index_list, dim, index,
+                                 firstprivate_list, private_list):
+        '''
+        Handles the special case where an index is a proxy loop variable
+        to a parent of the node. In this case, we add a reference to the
+        parent's loop value to the index_list, and create a list of all
+        possible variants, as we might have multiple values set for the
+        reference, e.g. for a boundary condition if statement.
+
+        :param index_list: The list to contain the new indices.
+        :type index_list: List[:py:class:`psyclone.psyir.nodes.Reference`]
+        :param int dim: The dimension of the index in the containing
+                        ArrayReference
+        :param index: The index that is a proxy to a parent loop variable.
+        :type index: :py:class:`psyclone.psyir.nodes.Reference`
+        :type private_list: List[:py:class:`psyclone.psyir.nodes.Reference`]
+        :param firstprivate_list: The firstprivate References for this
+                                  task.
+        :type firstprivate_list: List[
+                                 :py:class:`psyclone.psyir.nodes.Reference`]
+        :param in_list: The input References for this task.
+
+        '''
+        # Ensure we have the correct number of entries in index_list
+        while len(index_list) <= dim:
+            index_list.append([])
+        # For each reference our index proxies add the appropriate
+        # set of indices to the index_list
+        for temp_ref in self._proxy_loop_vars[index.symbol].\
+                parent_node:
+            parent_ref = temp_ref.copy()
+            if isinstance(parent_ref, BinaryOperation):
+                quick_list = []
+                self._handle_index_binop(
+                    parent_ref,
+                    quick_list,
+                    firstprivate_list,
+                    private_list,
+                )
+                for element in quick_list:
+                    if isinstance(element, list):
+                        index_list[dim].extend(element)
+                    else:
+                        index_list[dim].append(element)
+            else:
+                # parent_ref is a Reference, so we just append
+                # the index.
+                index_list[dim].append(parent_ref)
+
     def _create_full_range_for_array(self, ref, index):
         """
         Create a Range object that covers the full range for a given
         ArrayMixin and index.
 
         :param ref: The ArrayMixin object to create a full range for.
-        :type ref: Union[:py:class:`psyclone.psyir.nodes.ArrayMixin`
+        :type ref: :py:class:`psyclone.psyir.nodes.ArrayMixin`
         :param int index: The index of ref (or a child of ref) to create
                           the Range for
 
@@ -290,26 +442,32 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         binop2 = None
         if ref_index == 0:
             # We have Ref OP Literal
-            # Setup lambdas to do ref OP step when we then
+            # Setup vars to do ref OP step when we then
             # create the BinaryOperations to represent this
             # access
-            first_arg = lambda: ref.copy()
-            alt_first_arg = first_arg
-            second_arg = lambda: step
-            alt_second_arg = lambda: step2
+            first_arg = ref.copy()
+            alt_first_arg = first_arg.copy()
+            second_arg = step.copy()
+            if step2:
+                alt_second_arg = step2.copy()
+            else:
+                alt_second_arg = None
         else:
             # We have Literal OP Ref
-            # Setup lambdas to do step OP ref when we then
+            # Setup vars to do step OP ref when we then
             # create the BinaryOperations to represent this
             # access
-            first_arg = lambda: step
-            alt_first_arg = lambda: step2
-            second_arg = lambda: ref.copy()
-            alt_second_arg = second_arg
+            first_arg = step.copy()
+            if step2:
+                alt_first_arg = step2.copy()
+            else:
+                alt_first_arg = None
+            second_arg = ref.copy()
+            alt_second_arg = second_arg.copy()
         # Create the BinaryOperations for this access according to the
-        # lambdas we set up.
+        # vars we set up.
         binop = BinaryOperation.create(
-            node.operator, first_arg(), second_arg()
+            node.operator, first_arg, second_arg
         )
         # If modulo is non-zero then we need a second binop
         # dependency to handle the modulus, so we have two
@@ -318,7 +476,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         if modulo != 0:
             if step2 is not None:
                 binop2 = BinaryOperation.create(
-                    node.operator, alt_first_arg(), alt_second_arg()
+                    node.operator, alt_first_arg, alt_second_arg
                 )
             else:
                 binop2 = ref.copy()
@@ -628,28 +786,9 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                         # possible variants, as we might have multiple values
                         # set for a value, e.g. for a boundary condition if
                         # statement.
-                        if len(index_list) <= dim:
-                            index_list.append([])
-                        for temp_ref in self._proxy_loop_vars[index.symbol].\
-                                parent_node:
-                            parent_ref = temp_ref.copy()
-                            if isinstance(parent_ref, BinaryOperation):
-                                quick_list = []
-                                self._handle_index_binop(
-                                    parent_ref,
-                                    quick_list,
-                                    firstprivate_list,
-                                    private_list,
-                                )
-                                for element in quick_list:
-                                    if isinstance(element, list):
-                                        index_list[dim].extend(element)
-                                    else:
-                                        index_list[dim].append(element)
-                            else:
-                                # parent_ref is a Reference, so we just append
-                                # the index.
-                                index_list[dim].append(parent_ref)
+                        self._handle_proxy_loop_index(index_list, dim, index,
+                                                      firstprivate_list,
+                                                      private_list)
                     else:
                         # Final case is just a generic Reference, in which case
                         # just copy the Reference
@@ -679,26 +818,11 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                     f"expression inside an "
                     f"OMPTaskDirective."
                 )
-        # So we have a list of (lists of) indices
-        # [ [index1, index4], index2, index3] so convert these
-        # to an ArrayReference again.
-        # To create all combinations, we use itertools.product
-        # We have to create a new list which only contains lists.
-        new_index_list = []
-        for element in index_list:
-            if isinstance(element, list):
-                new_index_list.append(element)
-            else:
-                new_index_list.append([element])
-        combinations = itertools.product(*new_index_list)
-        for temp_list in combinations:
-            # We need to make copies of the members as each
-            # member can only be the child of one ArrayRef
-            final_list = [element.copy() for element in temp_list]
-            dclause = ArrayReference.create(ref.symbol, final_list)
-            # Add dclause into the in_list if required
-            if dclause not in in_list:
-                in_list.append(dclause)
+
+        # Add all combinations of dependencies from the computed index_list
+        # into in_list
+        self._add_dependencies_from_index_list(index_list, in_list, ref)
+
         # Add to shared_list
         sclause = Reference(ref.symbol)
         if sclause not in shared_list:
@@ -766,31 +890,12 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
             index_list,
         )
 
-        # So we have a list of (lists of) indices
-        # [ [index1, index4], index2, index3] so convert these
-        # to an ArrayReference again.
-        # To create all combinations, we use itertools.product
-        # We have to create a new list which only contains lists.
-        new_index_list = []
-        for element in index_list:
-            if isinstance(element, list):
-                new_index_list.append(element)
-            else:
-                new_index_list.append([element])
-        combinations = itertools.product(*new_index_list)
-        for temp_list in combinations:
-            # We need to make copies of the members as each
-            # member can only be the child of one ArrayRef
-            final_list = [element.copy() for element in temp_list]
-            final_member = ArrayMember.create(
-                array_access_member.name, final_list)
-            sref_copy = sref_base.copy()
-            # Copy copies the members
-            members = sref_copy.walk(Member)
-            members[-1].replace_with(final_member)
-            # Add dclause into the in_list if required
-            if sref_copy not in in_list:
-                in_list.append(sref_copy)
+        # Add all combinations of dependencies from the computed index_list
+        # into in_list
+        self._add_dependencies_from_index_list(
+                index_list, in_list, sref_base,
+                array_access_member=array_access_member
+        )
         # Add to shared_list
         sclause = Reference(ref.symbol)
         if sclause not in shared_list:
@@ -823,7 +928,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                                  children is found.
         :raises GenerationError: If an ArrayOfStructuresReference containing
                                  an ArrayMember of ArrayOfStructuresMember as
-                                 a child if found.
+                                 a child is found.
         """
         if isinstance(ref, (ArrayReference, ArrayOfStructuresReference)):
             # If ref is an ArrayOfStructuresReference and contains an
@@ -831,7 +936,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
             if isinstance(ref, ArrayOfStructuresReference):
                 array_children = ref.walk((ArrayOfStructuresMember,
                                            ArrayMember))
-                if len(array_children) > 0:
+                if array_children:
                     raise GenerationError(
                         f"PSyclone doesn't support an OMPTaskDirective "
                         f"containing an ArrayOfStructuresReference with "
@@ -849,7 +954,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
             # the code to handle an arrayref is not compatible with more
             # than one ArrayMixin child.
             array_children = ref.walk((ArrayOfStructuresMember, ArrayMember))
-            if len(array_children) > 0:
+            if array_children:
                 if len(array_children) > 1:
                     raise GenerationError(
                         f"PSyclone doesn't support an OMPTaskDirective "
@@ -955,26 +1060,9 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                         # possible variants, as we might have multiple values
                         # set for a value, e.g. for a boundary condition if
                         # statement.
-                        if len(index_list) <= dim:
-                            index_list.append([])
-                        for temp_ref in self._proxy_loop_vars[index.symbol].\
-                                parent_node:
-                            parent_ref = temp_ref.copy()
-                            if isinstance(parent_ref, BinaryOperation):
-                                quick_list = []
-                                self._handle_index_binop(
-                                    parent_ref,
-                                    quick_list,
-                                    firstprivate_list,
-                                    private_list,
-                                )
-                                for element in quick_list:
-                                    if isinstance(element, list):
-                                        index_list[dim].extend(element)
-                                    else:
-                                        index_list[dim].append(element)
-                            else:
-                                index_list[dim].append(parent_ref)
+                        self._handle_proxy_loop_index(index_list, dim, index,
+                                                      firstprivate_list,
+                                                      private_list)
                     else:
                         # Final case is just a generic Reference, in which case
                         # just copy the Reference
@@ -1072,33 +1160,12 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
             index_list,
         )
 
-        # So we have a list of (lists of) indices
-        # [ [index1, index4], index2, index3] so convert these
-        # to an ArrayReference again.
-        # To create all combinations, we use itertools.product
-        # We have to create a new list which only contains lists.
-        new_index_list = []
-        for element in index_list:
-            if isinstance(element, list):
-                new_index_list.append(element)
-            else:
-                new_index_list.append([element])
-        combinations = itertools.product(*new_index_list)
-        for temp_list in combinations:
-            # We need to make copies of the members as each
-            # member can only be the child of one ArrayRef
-            final_list = []
-            for element in temp_list:
-                final_list.append(element.copy())
-            final_member = ArrayMember.create(
-                array_access_member.name, list(final_list)
-            )
-            sref_copy = sref_base.copy()
-            members = sref_copy.walk(Member)
-            members[-1].replace_with(final_member)
-            # Add dclause into the out_list if required
-            if sref_copy not in out_list:
-                out_list.append(sref_copy)
+        # Add all combinations of dependencies from the computed index_list
+        # into out_list
+        self._add_dependencies_from_index_list(
+                index_list, out_list, sref_base,
+                array_access_member=array_access_member
+        )
         # Add to shared_list
         sclause = Reference(ref.symbol)
         if sclause not in shared_list:
@@ -1182,26 +1249,9 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                         # possible variants, as we might have multiple values
                         # set for a value, e.g. for a boundary condition if
                         # statement.
-                        if len(index_list) <= dim:
-                            index_list.append([])
-                        for temp_ref in self._proxy_loop_vars[index.symbol].\
-                                parent_node:
-                            parent_ref = temp_ref.copy()
-                            if isinstance(parent_ref, BinaryOperation):
-                                quick_list = []
-                                self._handle_index_binop(
-                                    parent_ref,
-                                    quick_list,
-                                    firstprivate_list,
-                                    private_list,
-                                )
-                                for element in quick_list:
-                                    if isinstance(element, list):
-                                        index_list[dim].extend(element)
-                                    else:
-                                        index_list[dim].append(element)
-                            else:
-                                index_list[dim].append(parent_ref)
+                        self._handle_proxy_loop_index(index_list, dim, index,
+                                                      firstprivate_list,
+                                                      private_list)
                     else:
                         # Final case is just a generic Reference, in which case
                         # just copy the Reference if its firstprivate.
@@ -1228,28 +1278,11 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                     index, index_list, firstprivate_list, private_list
                 )
 
-        # So we have a list of (lists of) indices
-        # [ [index1, index4], index2, index3] so convert these
-        # to an ArrayReference again.
-        # To create all combinations, we use itertools.product
-        # We have to create a new list which only contains lists.
-        new_index_list = []
-        for element in index_list:
-            if isinstance(element, list):
-                new_index_list.append(element)
-            else:
-                new_index_list.append([element])
-        combinations = itertools.product(*new_index_list)
-        for temp_list in combinations:
-            # We need to make copies of the members as each
-            # member can only be the child of one ArrayRef
-            final_list = []
-            for element in temp_list:
-                final_list.append(element.copy())
-            dclause = ArrayReference.create(ref.symbol, list(final_list))
-            # Add dclause into the out_list if required
-            if dclause not in out_list:
-                out_list.append(dclause)
+        # Add all combinations of dependencies from the computed index_list
+        # into out_list
+        self._add_dependencies_from_index_list(
+                index_list, out_list, ref
+        )
         # Add to shared_list
         sclause = Reference(ref.symbol)
         if sclause not in shared_list:
@@ -1323,7 +1356,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
             if isinstance(ref, ArrayOfStructuresReference):
                 array_children = ref.walk((ArrayOfStructuresMember,
                                            ArrayMember))
-                if len(array_children) > 0:
+                if array_children:
                     raise GenerationError(
                         f"PSyclone doesn't support an OMPTaskDirective "
                         f"containing an ArrayOfStructuresReference with "
@@ -1341,7 +1374,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
             # the code to handle an arrayref is not compatible with more
             # than one ArrayMixin child
             array_children = ref.walk((ArrayOfStructuresMember, ArrayMember))
-            if len(array_children) > 0:
+            if array_children:
                 if len(array_children) > 1:
                     raise GenerationError(
                         f"PSyclone doesn't support an OMPTaskDirective "
@@ -1441,17 +1474,14 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                                 rhs.copy()
                         )
                 else:
-                    ProxyVars = namedtuple(
-                            'ProxyVars', ['parent_var', 'parent_node',
-                                          'loop', 'parent_loop']
-                    )
-                    subdict = ProxyVars(
+                    subdict = self._proxy_vars(
                             parent_var, [rhs.copy()], node,
                             self._parent_loops[index]
                     )
 
                     self._proxy_loop_vars[lhs.symbol] = subdict
                 added = True
+            # If we find any proxy loop variable on the RHS then we stop.
             if added:
                 break
 
@@ -1484,11 +1514,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                             self._proxy_loop_vars[lhs.symbol].parent_node.\
                                     append(rhs.copy())
                     else:
-                        ProxyVars = namedtuple(
-                                'ProxyVars', ['parent_var', 'parent_node',
-                                              'loop', 'parent_loop']
-                        )
-                        subdict = ProxyVars(
+                        subdict = self._proxy_vars(
                                 self._proxy_loop_vars[proxy_var].parent_var,
                                 [rhs.copy()], node, self._parent_loops[index]
                         )
@@ -1568,11 +1594,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                 if start_val_refs[0].symbol == parent_var:
                     to_remove = loop_var
                     # Store the loop and parent_var
-                    ProxyVars = namedtuple(
-                            'ProxyVars', ['parent_var', 'parent_node',
-                                          'loop', 'parent_loop']
-                    )
-                    subdict = ProxyVars(
+                    subdict = self._proxy_vars(
                             parent_var, [Reference(parent_var)], node,
                             self._parent_loops[index]
                     )
