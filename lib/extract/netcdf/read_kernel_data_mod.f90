@@ -256,10 +256,7 @@ contains
         endif
 
         retval = CheckError(nf90_inq_varid(this%ncid, name, varid))
-        ! Initialise it with 0, so that an array comparison will work
-        ! even though e.g. boundary areas or so might not be set at all.
-        ! The compiler will convert the double precision value to the right
-        ! type (e.g. int or single precision).
+        ! Initialise the whole array with "".
         value = ""
         retval = CheckError(nf90_get_var(this%ncid, varid, value))
 
@@ -312,10 +309,7 @@ contains
         endif
 
         retval = CheckError(nf90_inq_varid(this%ncid, name, varid))
-        ! Initialise it with 0, so that an array comparison will work
-        ! even though e.g. boundary areas or so might not be set at all.
-        ! The compiler will convert the double precision value to the right
-        ! type (e.g. int or single precision).
+        ! Initialise the whole array with "".
         value = ""
         retval = CheckError(nf90_get_var(this%ncid, varid, value))
 
@@ -372,10 +366,7 @@ contains
         endif
 
         retval = CheckError(nf90_inq_varid(this%ncid, name, varid))
-        ! Initialise it with 0, so that an array comparison will work
-        ! even though e.g. boundary areas or so might not be set at all.
-        ! The compiler will convert the double precision value to the right
-        ! type (e.g. int or single precision).
+        ! Initialise the whole array with "".
         value = ""
         retval = CheckError(nf90_get_var(this%ncid, varid, value))
 
@@ -436,10 +427,7 @@ contains
         endif
 
         retval = CheckError(nf90_inq_varid(this%ncid, name, varid))
-        ! Initialise it with 0, so that an array comparison will work
-        ! even though e.g. boundary areas or so might not be set at all.
-        ! The compiler will convert the double precision value to the right
-        ! type (e.g. int or single precision).
+        ! Initialise the whole array with "".
         value = ""
         retval = CheckError(nf90_get_var(this%ncid, varid, value))
 

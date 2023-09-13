@@ -58,7 +58,8 @@ parser = argparse.ArgumentParser(
 parser.add_argument('template_name',
                     help="Name of the template file to process.")
 parser.add_argument('-types', help="Comma-separated list of types, "
-                                   "e.g. real,int,double (no spaces).",
+                                   "e.g. real,int,double,char,logical,long "
+                                   "(no spaces).",
                     default="real,int,double")
 parser.add_argument("-dims", help="Comma-separated list of dimensions, "
                                   "e.g. 1,2,4 (no spaces)",
