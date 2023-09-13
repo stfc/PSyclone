@@ -288,6 +288,23 @@ class ArrayMixin(metaclass=abc.ABCMeta):
         # Call the helper function
         return self._get_bound_expression(pos, "upper")
 
+    def get_full_range(self, pos):
+        '''
+        Returns a Range object that covers the full indexing of the dimension
+        specified by pos for this ArrayMixin object.
+
+        :param int pos: the dimension of the array for which to lookup the
+                        upper bound.
+
+        :returns: A Range representing the full range for the dimension of
+                  pos for this ArrayMixin.
+        :rtype: :py:class:`psyclone.psyir.nodes.Range`
+        '''
+        lbound = self.get_lbound_expression(pos)
+        ubound = self.get_ubound_expression(pos)
+
+        return Range.create(lbound, ubound)
+
     def is_upper_bound(self, index):
         '''Returns whether this array access includes the upper bound of
         the array for the specified index. Returns True if it is and False

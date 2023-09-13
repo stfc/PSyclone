@@ -302,24 +302,6 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                 # the index.
                 index_list[dim].append(parent_ref)
 
-    def _create_full_range_for_array(self, ref, index):
-        """
-        Create a Range object that covers the full range for a given
-        ArrayMixin and index.
-
-        :param ref: The ArrayMixin object to create a full range for.
-        :type ref: :py:class:`psyclone.psyir.nodes.ArrayMixin`
-        :param int index: The index of ref (or a child of ref) to create
-                          the Range for
-
-        :returns: A Range representing the full range for ref.
-        :rtype: :py:class:`psyclone.psyir.nodes.Range`
-        """
-        lbound = ref.get_lbound_expression(index)
-        ubound = ref.get_ubound_expression(index)
-
-        return Range.create(lbound, ubound)
-
     def _is_reference_private(self, ref):
         """
         Determines whether the provided reference is private or shared in the
@@ -636,14 +618,10 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                     # Find the arrayref
                     array_access_member = ref.ancestor(ArrayMember)
                     if array_access_member is not None:
-                        full_range = self._create_full_range_for_array(
-                                array_access_member, dim
-                        )
+                        full_range = array_access_member.get_full_range(dim)
                     else:
                         arrayref = ref.parent.parent
-                        full_range = self._create_full_range_for_array(
-                                arrayref, dim
-                        )
+                        full_range = arrayref.get_full_range(dim)
                     index_list.append(full_range)
                 else:
                     # We have a private constant, written to inside
@@ -653,9 +631,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                     # Return a full range (:)
                     dim = len(index_list)
                     arrayref = ref.parent.parent
-                    full_range = self._create_full_range_for_array(
-                            arrayref, dim
-                    )
+                    full_range = arrayref.get_full_range(dim)
                     index_list.append(full_range)
             else:
                 if ref not in firstprivate_list:
@@ -775,9 +751,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                     # of the loop is used.
                     if index.symbol in child_loop_vars:
                         # Append a full Range (i.e., :)
-                        full_range = self._create_full_range_for_array(
-                                ref, dim
-                        )
+                        full_range = ref.get_full_range(dim)
                         index_list.append(full_range)
                     elif index.symbol in self._proxy_loop_vars:
                         # Special case 2. the index is a proxy for a parent
@@ -1049,9 +1023,8 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                     # of the loop is used.
                     if index.symbol in child_loop_vars:
                         # Append a full Range (i.e., :)
-                        full_range = self._create_full_range_for_array(
-                                sref_base.walk(ArrayMember)[0], dim
-                        )
+                        full_range = sref_base.walk(ArrayMember)[0].\
+                                get_full_range(dim)
                         index_list.append(full_range)
                     elif index.symbol in self._proxy_loop_vars:
                         # Special case 2. the index is a proxy for a parent
@@ -1238,8 +1211,8 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                     # of the loop is used.
                     if index.symbol in child_loop_vars:
                         # Return a Full Range (i.e. :)
-                        full_range = self._create_full_range_for_array(
-                                ref.walk(ArrayMixin)[0], dim
+                        full_range = ref.walk(ArrayMixin)[0].get_full_range(
+                                dim
                         )
                         index_list.append(full_range)
                     elif index.symbol in self._proxy_loop_vars:
@@ -1262,9 +1235,8 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                             # the value of this is at the time we evaluate the
                             # depend clause, so we can only generate a full
                             # range (:)
-                            full_range = self._create_full_range_for_array(
-                                    ref.walk(ArrayMixin)[0], dim
-                            )
+                            full_range = ref.walk(ArrayMixin)[0].\
+                                    get_full_range(dim)
                             index_list.append(full_range)
                 else:
                     raise GenerationError(

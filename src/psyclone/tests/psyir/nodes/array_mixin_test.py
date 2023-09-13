@@ -461,6 +461,23 @@ def test_member_get_bound_expression(fortran_writer):
     assert (sref2.member.member._get_bound_expression(1, "upper") ==
             sref2.member.member.get_ubound_expression(1))
 
+
+@pytest.mark.parametrize("extent", [ArrayType.Extent.DEFERRED,
+                                    ArrayType.Extent.ATTRIBUTE])
+def test_aref_get_full_range_unknown_size(extent):
+    '''Tests the get_full_range function returns full ranges ezxpect by
+    the is_full_range function.'''
+    symbol = DataSymbol("my_symbol", ArrayType(INTEGER_TYPE,
+                                               [extent, extent]))
+    aref = ArrayReference.create(symbol, [_ONE.copy(), _ONE.copy()])
+    range1 = aref.get_full_range(0)
+    range2 = aref.get_full_range(1)
+
+    full_range_aref = ArrayReference.create(symbol, [range1, range2])
+    assert full_range_aref.is_full_range(0)
+    assert full_range_aref.is_full_range(1)
+
+
 # _get_effective_shape
 
 
