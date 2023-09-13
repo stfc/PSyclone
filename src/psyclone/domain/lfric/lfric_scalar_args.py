@@ -36,9 +36,9 @@
 # Modified J. Henrichs, Bureau of Meteorology
 # Modified A. B. G. Chalk and N. Nobre, STFC Daresbury Lab
 
-''' 
+'''
 This module contains the LFRicScalarArgs class which handles the
-declarations of scalar arguments to the kernel found in either 
+declarations of scalar arguments to the kernel found in either
 an Invoke or a Kernel stub.
 '''
 
@@ -51,6 +51,8 @@ from psyclone.f2pygen import DeclGen
 from psyclone.psyGen import FORTRAN_INTENT_NAMES
 
 # pylint: disable=too-many-lines
+# pylint: disable=too-many-locals
+# pylint: disable=too-many-branches
 
 
 class LFRicScalarArgs(LFRicCollection):
@@ -65,7 +67,7 @@ class LFRicScalarArgs(LFRicCollection):
 
     '''
     def __init__(self, node):
-        super(LFRicScalarArgs, self).__init__(node)
+        super().__init__(node)
 
         # Initialise dictionaries of 'real', 'integer' and 'logical'
         # scalar arguments by data type and intent

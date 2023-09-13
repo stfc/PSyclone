@@ -46,7 +46,7 @@
 # Imports
 import os
 from enum import Enum
-from collections import OrderedDict, namedtuple, Counter
+from collections import OrderedDict, namedtuple
 import fparser
 
 from psyclone import psyGen
@@ -72,7 +72,7 @@ from psyclone.parse.kernel import KernelType, getkerneldescriptors
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import (PSy, Invokes, InvokeSchedule, Arguments,
                              KernelArgument, HaloExchange, GlobalSum,
-                             FORTRAN_INTENT_NAMES, DataAccess, CodedKern)
+                             DataAccess, CodedKern)
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import (Loop, Literal, Schedule, Reference,
