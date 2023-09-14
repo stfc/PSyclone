@@ -175,31 +175,6 @@ def test_indexed_array_error(fortran_reader):
             "found a fixed dimension in 'array(1,1)'." in str(info.value))
 
 
-def test_dimension_arg(fortran_reader):
-    '''Test that the expected exception is raised if the dimension arg is
-    not a literal or a variable.
-
-    '''
-    code = (
-        "subroutine test(array,n,m)\n"
-        "  integer :: n, m\n"
-        "  real :: array(10,10)\n"
-        "  real :: result\n"
-        "  integer :: dimension\n"
-        "  result = sum(array, dim=dimension*2)\n"
-        "end subroutine\n")
-    psyir = fortran_reader.psyir_from_source(code)
-    # FileContainer/Routine/Assignment/IntrinsicCall
-    node = psyir.children[0].children[0].children[1]
-    trans = NamedTestTrans()
-    with pytest.raises(TransformationError) as info:
-        trans.validate(node)
-    assert ("Can't find the value of the 'dim' argument to the SUM "
-            "intrinsic. Expected it to be a literal or a reference to "
-            "a known constant value, but found 'dimension * 2' which "
-            "is type 'BinaryOperation'." in str(info.value))
-
-
 def test_non_constant_dim_value_binop(fortran_reader):
     '''Test that the expected exception is raised if the literal value of
     the dim arg can not be determined (as it is a binary
