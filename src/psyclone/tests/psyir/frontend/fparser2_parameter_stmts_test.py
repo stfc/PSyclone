@@ -41,9 +41,10 @@ import pytest
 from fparser.common.readfortran import FortranStringReader
 from fparser.two.Fortran2003 import Specification_Part
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
-from psyclone.psyir.nodes import Routine, Literal, BinaryOperation, \
-    Container, CodeBlock, Reference
-from psyclone.psyir.symbols import Symbol, StaticInterface
+from psyclone.psyir.nodes import (
+    Routine, Literal, BinaryOperation, Container, CodeBlock, Reference,
+    UnaryOperation)
+from psyclone.psyir.symbols import Symbol, StaticInterface, ScalarType
 
 
 @pytest.mark.usefixtures("f2008_parser")
@@ -230,3 +231,32 @@ MODULE my_mod
   END SUBROUTINE my_sub
 END MODULE my_mod
 '''
+
+
+def test_parameter_before_decln(fortran_reader):
+    '''
+    Test when a PARAMETER statement occurs *before* the named symbol is
+    actually declared.
+    '''
+    psyir = fortran_reader.psyir_from_source('''\
+module test_mod
+  implicit none
+  PARAMETER(MPI_DISPLACEMENT_CURRENT = - 54278278)
+  INTEGER*8 :: MPI_DISPLACEMENT_CURRENT
+  PARAMETER(MPI_TROUBLE = atan(-1.0))
+  real :: mpi_trouble
+contains
+
+  subroutine some_sub()
+  end subroutine some_sub
+end module test_mod
+''')
+    # We should have succeeded in parsing the code and creating a Container.
+    assert isinstance(psyir.children[0], Container)
+    sym = psyir.children[0].symbol_table.lookup("MPI_DISPLACEMENT_CURRENT")
+    # The Symbol should be a runtime constant with an initial value.
+    assert sym.is_constant
+    assert isinstance(sym.initial_value, UnaryOperation)
+    sym2 = psyir.children[0].symbol_table.lookup("MPI_TROUBLE")
+    assert sym2.is_constant
+    assert sym2.datatype.intrinsic == ScalarType.Intrinsic.REAL
