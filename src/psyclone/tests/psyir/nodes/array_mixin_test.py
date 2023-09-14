@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author S. Siso, STFC Daresbury Lab
 # Modified: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Modified: A. B. G. Chalk, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' Performs py.test tests of the ArrayMixin PSyIR nodes trait. '''
@@ -59,26 +60,26 @@ def test_is_bound_op():
     class.
 
     '''
-    one = Literal("1", INTEGER_TYPE)
     array = DataSymbol("my_symbol", ArrayType(INTEGER_TYPE, [10]))
     array2 = DataSymbol("my_symbol2", ArrayType(INTEGER_TYPE, [10]))
     scalar = DataSymbol("tmp", INTEGER_TYPE)
     ubound = IntrinsicCall.create(
-        IntrinsicCall.Intrinsic.UBOUND, [Reference(array), ("dim", one)])
-    my_range = Range.create(one.copy(), ubound)
+        IntrinsicCall.Intrinsic.UBOUND,
+        [Reference(array), ("dim", _ONE.copy())])
+    my_range = Range.create(_ONE.copy(), ubound)
     array_ref = ArrayReference.create(array, [my_range])
     array2_ref = ArrayReference.create(array2, [my_range.copy()])
     # not a binary operation
     oper = None
     assert not array_ref._is_bound_op(
-        oper, IntrinsicCall.Intrinsic.UBOUND, one)
+        oper, IntrinsicCall.Intrinsic.UBOUND, _ONE)
     # not a match with the binary operator
     oper = IntrinsicCall.create(
-        IntrinsicCall.Intrinsic.LBOUND, [array_ref, ("dim", one.copy())])
+        IntrinsicCall.Intrinsic.LBOUND, [array_ref, ("dim", _ONE.copy())])
     assert not array_ref._is_bound_op(oper, IntrinsicCall.Intrinsic.UBOUND, 0)
     # 1st dimension of the bound is not the same array
     oper = IntrinsicCall.create(
-        IntrinsicCall.Intrinsic.UBOUND, [array2_ref, ("dim", one.copy())])
+        IntrinsicCall.Intrinsic.UBOUND, [array2_ref, ("dim", _ONE.copy())])
     assert not array_ref._is_bound_op(oper, IntrinsicCall.Intrinsic.UBOUND, 0)
     # 2nd dimension of the bound not a literal
     oper = IntrinsicCall.create(
@@ -98,7 +99,7 @@ def test_is_bound_op():
     # OK
     oper = IntrinsicCall.create(
         IntrinsicCall.Intrinsic.UBOUND,
-        [array_ref.copy(), ("dim", one.copy())])
+        [array_ref.copy(), ("dim", _ONE.copy())])
     assert array_ref._is_bound_op(oper, IntrinsicCall.Intrinsic.UBOUND, 0)
 
 
@@ -285,9 +286,9 @@ def test_is_bound_access(fortran_reader, bounds, access, lower, upper):
 # the ArrayReference class.
 
 
-def test_get_lbound_expression():
+def test_get_bound_expression():
     '''
-    Tests for the get_lbound_expression method on an ArrayReference defined
+    Tests for the _get_bound_expression method on an ArrayReference defined
     by an ArrayType.
 
     '''
@@ -299,89 +300,134 @@ def test_get_lbound_expression():
                                                [10, (2, 10), (lbnd_ref, 10)]))
     aref = ArrayReference.create(symbol,
                                  [_ONE.copy(), _ONE.copy(), _ONE.copy()])
-    assert aref.get_lbound_expression(0) == _ONE
-    assert aref.get_lbound_expression(1) == _TWO
-    lb2 = aref.get_lbound_expression(2)
+    assert aref._get_bound_expression(0, "lower") == _ONE
+    assert aref._get_bound_expression(1, "lower") == _TWO
+    lb2 = aref._get_bound_expression(2, "lower")
     assert isinstance(lb2, Reference)
     # Returned lower bound should be a *copy* of the original.
     assert lb2 is not lbnd_ref
     assert lb2.symbol is lbound
     with pytest.raises(IndexError):
-        aref.get_lbound_expression(3)
+        aref._get_bound_expression(3, "lower")
     # Symbol is of DeferredType so the result should be an instance of the
     # LBOUND intrinsic.
     dtsym = DataSymbol("oops", DeferredType())
     dtref = ArrayReference.create(dtsym,
                                   [_ONE.copy(), _ONE.copy(), _ONE.copy()])
-    lbnd = dtref.get_lbound_expression(1)
+    lbnd = dtref._get_bound_expression(1, "lower")
     assert isinstance(lbnd, IntrinsicCall)
     assert lbnd.intrinsic == IntrinsicCall.Intrinsic.LBOUND
     assert lbnd.children[0].symbol is dtsym
     assert lbnd.children[1] == Literal("2", INTEGER_TYPE)
 
+    # Tests for ubound
+
+    # Symbol is of ArrayType.
+    ubound = DataSymbol("jmin", INTEGER_TYPE, is_constant=True,
+                        initial_value=Literal("10", INTEGER_TYPE))
+    ubnd_ref = Reference(ubound)
+    symbol = DataSymbol("my_symbol", ArrayType(INTEGER_TYPE,
+                                               [1, (1, 2), (1, ubnd_ref)]))
+    aref = ArrayReference.create(symbol,
+                                 [_ONE.copy(), _ONE.copy(), _ONE.copy()])
+    assert aref._get_bound_expression(0, "upper") == _ONE
+    assert aref._get_bound_expression(1, "upper") == _TWO
+    ub2 = aref._get_bound_expression(2, "upper")
+    assert isinstance(ub2, Reference)
+    # Returned lower bound should be a *copy* of the original.
+    assert ub2 is not ubnd_ref
+    assert ub2 == ubnd_ref
+
+    # Symbol is of DeferredType so the result should be an instance of the
+    # UBOUND intrinsic.
+    dtsym = DataSymbol("oops", DeferredType())
+    dtref = ArrayReference.create(dtsym,
+                                  [_ONE.copy(), _ONE.copy(), _ONE.copy()])
+    ubnd = dtref._get_bound_expression(1, "upper")
+    assert isinstance(ubnd, IntrinsicCall)
+    assert ubnd.intrinsic == IntrinsicCall.Intrinsic.UBOUND
+    assert ubnd.children[0].symbol is dtsym
+    assert ubnd.children[1] == Literal("2", INTEGER_TYPE)
+
 
 @pytest.mark.parametrize("extent", [ArrayType.Extent.DEFERRED,
                                     ArrayType.Extent.ATTRIBUTE])
-def test_get_lbound_expression_unknown_size(extent):
+def test_get_bound_expression_unknown_size(extent):
     '''
-    Test the get_lbound_expression method when we have the definition of the
+    Test the _get_bound_expression method when we have the definition of the
     array type but its dimensions are unknown.
 
     '''
     symbol = DataSymbol("my_symbol", ArrayType(INTEGER_TYPE,
                                                [extent, extent]))
     aref = ArrayReference.create(symbol, [_ONE.copy(), _ONE.copy()])
-    lbnd = aref.get_lbound_expression(1)
+    lbnd = aref._get_bound_expression(1, "lower")
     assert isinstance(lbnd, IntrinsicCall)
     assert lbnd.intrinsic == IntrinsicCall.Intrinsic.LBOUND
     assert lbnd.children[0].symbol is symbol
 
+    ubnd = aref._get_bound_expression(1, "upper")
+    assert isinstance(ubnd, IntrinsicCall)
+    assert ubnd.intrinsic == IntrinsicCall.Intrinsic.UBOUND
+    assert ubnd.children[0].symbol is symbol
 
-def test_aref_to_aos_lbound_expression():
+
+def test_aref_to_aos_bound_expression():
     '''
-    Test the get_lbound_expression() method for an ArrayReference to an array
+    Test the _get_bound_expression() method for an ArrayReference to an array
     of structures.
 
     '''
     sgrid_type = StructureType.create(
-        [("id", INTEGER_TYPE, Symbol.Visibility.PUBLIC)])
+        [("ID", INTEGER_TYPE, Symbol.Visibility.PUBLIC)])
     sgrid_type_sym = DataTypeSymbol("subgrid_type", sgrid_type)
     sym = DataSymbol("subgrids", ArrayType(sgrid_type_sym, [(3, 10)]))
-    one = Literal("1", INTEGER_TYPE)
     lbound = IntrinsicCall.create(IntrinsicCall.Intrinsic.LBOUND,
-                                  [Reference(sym), ("dim", one)])
+                                  [Reference(sym), ("dim", _ONE.copy())])
     ubound = IntrinsicCall.create(IntrinsicCall.Intrinsic.UBOUND,
-                                  [Reference(sym), ("dim", one.copy())])
+                                  [Reference(sym), ("dim", _ONE.copy())])
     array = ArrayReference.create(sym, [Range.create(lbound, ubound)])
-    lbnd = array.get_lbound_expression(0)
+    lbnd = array._get_bound_expression(0, "lower")
     assert lbnd.value == "3"
+    ubnd = array._get_bound_expression(0, "upper")
+    assert ubnd.value == "10"
 
 
-def test_member_get_lbound_expression(fortran_writer):
+def test_member_get_bound_expression(fortran_writer):
     '''
-    Tests for the get_lbound_expression() method when used with a
+    Tests for the _get_bound_expression() method when used with a
     sub-class of Member.
 
     '''
-    one = Literal("1", INTEGER_TYPE)
-    two = Literal("2", INTEGER_TYPE)
     # First, test when we don't have type information.
     grid_type = DataTypeSymbol("grid_type", DeferredType())
     sym = DataSymbol("grid_var", grid_type)
-    ref = StructureReference.create(sym, [("data", [one.copy()])])
-    lbnd = ref.member.get_lbound_expression(0)
+    # Use upper case to test the upper case is converted to lower case
+    # correctly.
+    ref = StructureReference.create(sym, [("DATA", [_ONE.copy()])])
+    # Test invalid argument
+    with pytest.raises(InternalError) as excinfo:
+        ref.member._get_bound_expression(0, "notvalid")
+    assert ("'bound' argument must be 'lower' or 'upper. "
+            "Found 'notvalid'" in str(excinfo.value))
+    lbnd = ref.member._get_bound_expression(0, "lower")
     assert isinstance(lbnd, IntrinsicCall)
     out = fortran_writer(lbnd).lower()
     assert "lbound(grid_var%data, dim=1)" in out
     usym = DataSymbol("uvar", DeferredType())
     ref = ArrayOfStructuresReference.create(
-        usym, [one.copy()],
-        [("map", [one.copy(), two.copy()]),
-         ("data", [one.copy()])])
-    lbnd = ref.member.member.get_lbound_expression(0)
+        usym, [_ONE.copy()],
+        [("map", [_ONE.copy(), _TWO.copy()]),
+         ("data", [_ONE.copy()])])
+    lbnd = ref.member.member._get_bound_expression(0, "lower")
     assert isinstance(lbnd, IntrinsicCall)
     out = fortran_writer(lbnd).lower()
     assert "lbound(uvar(1)%map(1,2)%data, dim=1)" in out
+
+    ubnd = ref.member._get_bound_expression(0, "upper")
+    assert isinstance(ubnd, IntrinsicCall)
+    out = fortran_writer(ubnd).lower()
+    assert "ubound(uvar(1)%map, dim=1)" in out
     # Second, test when we do have type information.
     a2d = ArrayType(REAL_TYPE, [2, (2, 8)])
     # Structure that contains "map" which is a 2D array.
@@ -397,17 +443,29 @@ def test_member_get_lbound_expression(fortran_writer):
     ssym = DataSymbol("var", stypedef2)
     sref = StructureReference.create(ssym,
                                      ["grid",
-                                      ("map", [two.copy(), two.copy()])])
-    assert sref.member.member.get_lbound_expression(0) == one
-    assert sref.member.member.get_lbound_expression(1) == two
+                                      ("map", [_TWO.copy(), _TWO.copy()])])
+    assert sref.member.member._get_bound_expression(0, "lower") == _ONE
+    assert sref.member.member._get_bound_expression(1, "lower") == _TWO
+    assert sref.member.member._get_bound_expression(0, "upper").value == "2"
+    assert sref.member.member._get_bound_expression(1, "upper").value == "8"
     sref2 = StructureReference.create(
-        ssym, [("subgrids", [two.copy(), two.copy()]),
-               ("map", [two.copy(), two.copy()])])
-    assert sref2.member.get_lbound_expression(1) == two
-    assert sref2.member.member.get_lbound_expression(1) == two
+        ssym, [("subgrids", [_TWO.copy(), _TWO.copy()]),
+               ("map", [_TWO.copy(), _TWO.copy()])])
+    assert sref2.member._get_bound_expression(1, "lower") == _TWO
+    assert sref2.member.member._get_bound_expression(1, "lower") == _TWO
 
+    assert sref2.member._get_bound_expression(1, "upper").value == "6"
+    assert sref2.member.member._get_bound_expression(1, "upper").value == "8"
+
+    # Check that get_lbound_expression gives the same result
+    assert (sref2.member.member._get_bound_expression(1, "lower") ==
+            sref2.member.member.get_lbound_expression(1))
+    # Check that get_ubound_expression gives the same result
+    assert (sref2.member.member._get_bound_expression(1, "upper") ==
+            sref2.member.member.get_ubound_expression(1))
 
 # _get_effective_shape
+
 
 def test_get_effective_shape(fortran_reader, fortran_writer):
     '''Tests for the _get_effective_shape() method.'''
