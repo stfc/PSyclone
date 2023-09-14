@@ -44,7 +44,6 @@ from psyclone.psyir.transformations import HoistLoopBoundExprTrans, \
     HoistTrans, ProfileTrans, HoistLocalArraysTrans, Reference2ArrayRangeTrans
 from psyclone.domain.nemo.transformations import NemoAllArrayRange2LoopTrans
 from psyclone.transformations import TransformationError
-from psyclone.psyir.tools import DependencyTools
 
 
 # If routine names contain these substrings then we do not profile them
@@ -216,9 +215,8 @@ def insert_explicit_loop_parallelism(
         many nested loops as possible.
     :param collapse: whether to insert directive on loops with Calls or \
         CodeBlocks in their loop body.
-    '''
-    dep_tools = DependencyTools()
 
+    '''
     # Add the parallel directives in each loop
     for loop in schedule.walk(Loop):
         if loop.ancestor(Directive):
@@ -326,7 +324,7 @@ def insert_explicit_loop_parallelism(
                     break
 
                 # Check that the next loop has no loop-carried dependencies
-                if not dep_tools.can_loop_be_parallelised(next_loop):
+                if not next_loop.independent_iterations():
                     break
 
             # Add collapse clause to the parent directive
