@@ -68,6 +68,8 @@ transform:
 	$(MAKE) single -e TL_KERNEL_NAME=poly2d_w3_reconstruction_kernel ACTIVE_VAR_LIST="reconstruction polynomial_tracer tracer"
 	$(MAKE) single -e TL_KERNEL_NAME=tl_sample_eos_pressure_kernel ACTIVE_VAR_LIST="exner rho_cell rho_e rho tmp_exner theta_vd_cell theta_vd_e theta moist_dyn_gas"
 	$(MAKE) single -e TL_KERNEL_NAME=tl_rhs_project_eos_kernel ACTIVE_VAR_LIST="rhs_eos exner rho theta moist_dyn_gas eos exner_quad theta_vd_quad rho_quad rho_e exner_e theta_vd_e"
+	$(MAKE) single -e TL_KERNEL_NAME=matrix_vector_kernel ACTIVE_VAR_LIST="lhs x lhs_e x_e"
+	$(MAKE) single -e TL_KERNEL_NAME=dg_inc_matrix_vector_kernel ACTIVE_VAR_LIST="lhs x lhs_e x_e"
 
 compile:
 	@echo No compilation supported.

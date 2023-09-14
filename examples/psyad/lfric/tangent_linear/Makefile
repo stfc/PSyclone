@@ -56,15 +56,14 @@ ${ADJ_KERNEL_FILE}: ${TL_KERNEL_FILE}
 
 # working:
 
-# broken: dg_inc_matrix_vector_kernel and matrix_vector_kernel: interface - unchanged metadata and interface names + public names
+# broken: dg_inc_matrix_vector_kernel: multi-precision kernels not supported
+# broken: matrix_vector_kernel: multi-precision kernels not supported
 # broken: adj_poly_advective_kernel: passive variables are updated leading to incorrect results.
 # broken: pressure_gradient_bd_kernel: stencil code and metadata + arguments change.
 # broken: adj_rhs_same_eos_kernel, strong_curl_kernel: kernel argument changes required due to basis functions
 
 transform:
 	$(MAKE) single -e TL_KERNEL_NAME=transpose_matrix_vector_kernel ACTIVE_VAR_LIST="lhs lhs_e x_e x" OUT_DIR="../adjoint"
-	$(MAKE) single -e TL_KERNEL_NAME=matrix_vector_kernel ACTIVE_VAR_LIST="lhs x lhs_e x_e"
-	$(MAKE) single -e TL_KERNEL_NAME=dg_inc_matrix_vector_kernel ACTIVE_VAR_LIST="lhs x lhs_e x_e"
 	$(MAKE) single -e TL_KERNEL_NAME=tl_hydrostatic_kernel ACTIVE_VAR_LIST="r_u exner theta grad_term exner_at_quad theta_v_at_quad res_dot_product grad_theta_v_at_quad theta_v_e exner_e moist_dyn_tot moist_dyn_gas" OUT_DIR="../adjoint"
 	$(MAKE) single -e TL_KERNEL_NAME=tl_moist_dyn_mass_kernel ACTIVE_VAR_LIST="moist_dyn_tot mr_v mr_cl mr_r mr_ci mr_s mr_g mr_v_at_dof mr_cl_at_dof mr_r_at_dof mr_ci_at_dof mr_s_at_dof mr_g_at_dof" OUT_DIR="../adjoint"
 	$(MAKE) single -e TL_KERNEL_NAME=tl_pressure_gradient_bd_kernel ACTIVE_VAR_LIST="r_u_bd exner pressure_gradient_bd_e bdary_term exner_av theta_v_at_fquad theta_v_e exner_e exner_next_e theta moist_dyn_tot moist_dyn_gas"
