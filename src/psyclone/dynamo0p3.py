@@ -61,7 +61,7 @@ from psyclone.domain.lfric import (FunctionSpace, KernCallAccArgList,
                                    LFRicArgDescriptor, KernelInterface,
                                    LFRicCollection, LFRicConstants,
                                    LFRicSymbolTable, LFRicInvoke,
-                                   LFRicKernCallFactory, LFRicStencil)
+                                   LFRicKernCallFactory, LFRicArgStencil)
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 from psyclone.f2pygen import (AllocateGen, AssignGen, CallGen, CommentGen,
                               DeallocateGen, DeclGen, DoGen, IfThenGen,
@@ -8536,14 +8536,14 @@ class DynKernelArguments(Arguments):
             if dyn_argument.descriptor.stencil:
                 # Create a stencil object and store a reference to it in our
                 # new DynKernelArgument object.
-                stencil = LFRicStencil(dyn_argument.descriptor.stencil['type'])
+                stencil = LFRicArgStencil(dyn_argument.descriptor.stencil['type'])
                 dyn_argument.stencil = stencil
 
                 if dyn_argument.descriptor.stencil['extent']:
                     raise GenerationError("extent metadata not yet supported")
                     # if supported we would add the following
                     # line. However, note there is currently no setter
-                    # for extent in LFRicStencil so this would need to
+                    # for extent in LFRicArgStencil so this would need to
                     # be added.  stencil.extent =
                     # dyn_argument.descriptor.stencil['extent']
                 # An extent argument has been added.
@@ -9566,7 +9566,7 @@ class DynKernelArgument(KernelArgument):
     def stencil(self):
         '''
         :returns: stencil information for this argument if it exists.
-        :rtype: :py:class:`psyclone.domain.lfric.LFRicStencil`
+        :rtype: :py:class:`psyclone.domain.lfric.LFRicArgStencil`
         '''
         return self._stencil
 
@@ -9576,7 +9576,7 @@ class DynKernelArgument(KernelArgument):
         Sets stencil information for this kernel argument.
 
         :param value: stencil information for this argument.
-        :type value: :py:class:`psyclone.domain.lfric.LFRicStencil`
+        :type value: :py:class:`psyclone.domain.lfric.LFRicArgStencil`
 
         '''
         self._stencil = value

@@ -36,15 +36,18 @@
 # Modified J. Henrichs, Bureau of Meteorology
 # Modified A. B. G. Chalk and N. Nobre, STFC Daresbury Lab
 
-''' This module contains the LFRicStencil class which provides stencil
-information about a Dynamo agrument. LFRicStencil can provide the extent, 
+''' This module contains the LFRicArgStencil class which provides stencil
+information about an LFRic kernel agrument. LFRicArgStencil can provide the extent, 
 algorithm argument for the extent, and the direction argument of a 
 stencil or set any of these properties.'''
 
 # pylint: disable=too-many-lines
 
-class LFRicStencil():
-    ''' Provides stencil information about a Dynamo argument '''
+class LFRicArgStencil():
+    ''' 
+    Provides stencil information about an LFRic kernel argument 
+    :param str name: the name of the stencil
+    '''
     def __init__(self, name):
         self._name = name
         self._extent = None
@@ -53,14 +56,20 @@ class LFRicStencil():
 
     @property
     def extent(self):
-        '''Returns the extent of the stencil if it is known. It will be known
-        if it is specified in the metadata.'''
+        '''
+        :returns: the extent of the stencil if it is known. It will be known
+        if it is specified in the metadata.
+        :rtype: string
+        '''
         return self._extent
 
     @property
     def extent_arg(self):
-        '''Returns the algorithm argument associated with the extent value if
-        extent has not been provided in the metadata.'''
+        '''
+        :returns: the algorithm argument associated with the extent value if
+        extent has not been provided in the metadata.
+        :rtype: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        '''
         return self._extent_arg
 
     @extent_arg.setter
@@ -70,8 +79,11 @@ class LFRicStencil():
 
     @property
     def direction_arg(self):
-        '''returns the direction argument associated with the direction of
-        the stencil if the direction of the stencil is not known'''
+        '''
+        :returns: the direction argument associated with the direction of
+        the stencil if the direction of the stencil is not known
+        :rtype: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        '''
         return self._direction_arg
 
     @direction_arg.setter
@@ -83,4 +95,4 @@ class LFRicStencil():
 # ---------- Documentation utils -------------------------------------------- #
 # The list of module members that we wish AutoAPI to generate
 # documentation for. (See https://psyclone-ref.readthedocs.io)
-__all__ = ['LFRicStencil']
+__all__ = ['LFRicArgStencil']
