@@ -52,10 +52,11 @@ from psyclone.errors import InternalError, GenerationError
 from psyclone.psyad import AdjointVisitor
 from psyclone.psyad.domain.common import create_adjoint_name
 from psyclone.psyir.nodes import Routine
-from psyclone.psyir.symbols import RoutineSymbol
+from psyclone.psyir.symbols import RoutineSymbol, ContainerSymbol
 from psyclone.psyir.symbols.symbol import ArgumentInterface, ImportInterface
 
 
+# pylint: disable=too-many-locals
 def generate_lfric_adjoint(tl_psyir, active_variables):
     '''Takes an LFRic tangent-linear kernel represented in language-level PSyIR
     and returns its adjoint represented in language-level PSyIR.
@@ -131,16 +132,8 @@ def generate_lfric_adjoint(tl_psyir, active_variables):
 
     # Now we modify the kernel metadata.
 
-    # Infer the adjoint metadata name from the container name.
-    ad_metadata_name = metadata_name_from_module_name(ad_container.name)
-
     # Find the argument symbols. These will be used to determine the
     # metadata index of a particular symbol.
-    if not isinstance(ad_container.children[0], Routine):
-        raise GenerationError(
-            f"A valid LFRic kernel should have a routine (subroutine) as the "
-            "first child of it container (module), but found "
-            "'{type(ad_container.children[0].__name__}'.")
     arg_symbols = ad_container.children[0].symbol_table.argument_list
 
     # Raise the PSyIR from generic to LFRic-specific. This gives us
@@ -159,24 +152,48 @@ def generate_lfric_adjoint(tl_psyir, active_variables):
     if metadata.procedure_name:
         metadata.procedure_name = create_adjoint_name(metadata.procedure_name)
     else:
-        # TODO: issue #2236. We are not yet able to need to raise
-        # generic PSyIR interface metadata to LFRic-specific interface
-        # metadata.
+        # Issue #2236. We are not yet able to to raise multi-precision
+        # metadata to LFRic-specific metadata, so return without
+        # making any further modifications.
         return ad_psyir
 
     # Change the meta_args access metadata
     for var_name in active_variables:
-        access = update_access_metadata(var_name, arg_symbols, metadata)
+        access = _update_access_metadata(var_name, arg_symbols, metadata)
         if access:
-            check_or_add_access(ad_container, access)
+            # Add in any new access symbols.
+            _check_or_add_access(ad_container, access)
 
     return ad_psyir
 
-def update_access_metadata(var_name, arg_symbols, metadata):
-    ''' xxx '''
+
+# pylint: disable=too-many-branches
+def _update_access_metadata(var_name, arg_symbols, metadata):
+    '''If the access metadata for the variable var_name is incorrect then
+    update it.
+
+    :param str var_name: the name of the active variable whose
+        metadata we are going to update if required.
+    :param arg_symbols: a list containing all of the argument symbols
+        that are passed into the associated kernel.
+    :type arg_symbols: List[:py:class:`psyclone.psyir.symbols.DataSymbol`]
+    :param metadata: the LFRic metadata.
+    :type metadata:
+        :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+
+    :returns: the access metadata or None if the active variable is
+        not passed by argument.
+    :rtype: Optional[str]
+
+    :raises GenerationError: if the argument position does not match
+        the metadata.
+    :raises InternalError: if an unexpected metadata type is found.
+    :raises InternalError: if an unexpected access type is found.
+
+    '''
     # Determine the order of the kernel arguments from the
     # metadata. This is needed to find the metadata associated with
-    # the specified active variables.
+    # the specified active variable.
     meta_arg_index_from_arg_index = ArgIndexToMetadataIndex.mapping(metadata)
 
     # Determine whether this active variable is passed by argument.
@@ -192,7 +209,7 @@ def update_access_metadata(var_name, arg_symbols, metadata):
     arg_index = arg_symbols.index(found_symbol)
     try:
         meta_arg_index = meta_arg_index_from_arg_index[arg_index]
-    except:
+    except KeyError as exc:
         raise GenerationError(
             f"The argument position '{arg_index}' of the active variable "
             f"'{found_symbol.name}' does not match any position as "
@@ -200,7 +217,7 @@ def update_access_metadata(var_name, arg_symbols, metadata):
             f"from argument positions are "
             f"'{meta_arg_index_from_arg_index}'. The most likely reason "
             f"for this is that the argument list does not conform to the "
-            f"LFRic rules - perhaps it is a PSyKAl-lite kernel?")
+            f"LFRic rules - perhaps it is a PSyKAl-lite kernel?") from exc
     meta_arg = metadata.meta_args[meta_arg_index]
 
     # Determine the intent of this variable from its declaration
@@ -209,11 +226,16 @@ def update_access_metadata(var_name, arg_symbols, metadata):
     const = LFRicConstants()
     access = None
     if var_access == ArgumentInterface.Access.READWRITE:
+        # pylint: disable=unidiomatic-typecheck
         if type(meta_arg) == ScalarArgMetadata:
             access = "gh_sum"
-        elif type(meta_arg) in [OperatorArgMetadata, ColumnwiseOperatorArgMetadata]:
+        elif type(meta_arg) in [
+                OperatorArgMetadata, ColumnwiseOperatorArgMetadata]:
             access = "gh_readwrite"
-        elif type(meta_arg) in [FieldArgMetadata, FieldVectorArgMetadata] and meta_arg.function_space in const.VALID_DISCONTINUOUS_NAMES:
+        elif type(meta_arg) in [
+                FieldArgMetadata, FieldVectorArgMetadata] and (
+                    meta_arg.function_space in
+                    const.VALID_DISCONTINUOUS_NAMES):
             access = "gh_readwrite"
         elif type(meta_arg) in [FieldArgMetadata, FieldVectorArgMetadata]:
             access = "gh_inc"
@@ -226,22 +248,40 @@ def update_access_metadata(var_name, arg_symbols, metadata):
     elif var_access == ArgumentInterface.Access.READ:
         access = "gh_read"
     else:
-        raise InternalError(f"Found unexpected access '{var_access}' for '{found_symbol.name}'.")
+        raise InternalError(
+            f"Found unexpected access '{var_access}' for "
+            f"'{found_symbol.name}'.")
     meta_arg.access = access
     return access
 
-def check_or_add_access(container, access):
-    '''Check whether the LFRic metadata name provided in argument 'access'
-    is already declared in the symbol table and if not add it.
+
+def _check_or_add_access(container, access):
+    '''Check whether the LFRic access metadata name provided in argument
+    'access' is already declared in the symbol table and if not add
+    it.
+
+    :param container: the adjoint PSyIR.
+    :type container: :py:class:`psyclone.psyir.nodes.Container`
+    :param str access: the access metadata.
 
     '''
     kernel = container.children[0]
     symbol_table = kernel.symbol_table
     try:
         argument_mod_symbol = symbol_table.lookup(access)
-        # TODO, check it is imported from argument_mod
-    except:
-        arg_mod_symbol = symbol_table.lookup("argument_mod")
+        if not isinstance(argument_mod_symbol.interface, ImportInterface):
+            raise GenerationError(
+                f"The existing symbol '{access}' is not imported from a use "
+                "statement.")
+        if not (argument_mod_symbol.interface.container_symbol.name.lower()
+                == "argument_mod"):
+            raise GenerationError(
+                f"The existing symbol '{access}' is imported from "
+                f"'{argument_mod_symbol.interface.container_symbol.name}' but "
+                f"should be imported from 'argument_mod'.")
+    except KeyError:
+        arg_mod_symbol = symbol_table.find_or_create(
+            "argument_mod", symbol_type=ContainerSymbol)
         symbol_table = arg_mod_symbol.find_symbol_table(kernel)
         symbol_table.new_symbol(
             root_name=access, interface=ImportInterface(arg_mod_symbol))
