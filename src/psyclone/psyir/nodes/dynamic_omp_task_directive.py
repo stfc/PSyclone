@@ -58,7 +58,6 @@ from psyclone.psyir.nodes.array_of_structures_member import (
 from psyclone.psyir.nodes.operation import BinaryOperation
 from psyclone.psyir.nodes.loop import Loop
 from psyclone.psyir.nodes.literal import Literal
-from psyclone.psyir.nodes.ranges import Range
 from psyclone.psyir.nodes.member import Member
 from psyclone.psyir.nodes.omp_clauses import (
     OMPPrivateClause,
@@ -94,6 +93,11 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                           'loop', 'parent_loop']
     )
 
+    _clause_lists = namedtuple(
+            'ProxyVars', ['private_list', 'firstprivate_list',
+                          'shared_list', 'in_list', 'out_list']
+    )
+
     def __init__(self, children=None, parent=None):
         super().__init__(
             children=children, parent=parent
@@ -123,9 +127,11 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         # symbols.
         self._in_kern = False
 
-    def _array_reference_for_clause_combination_helper(self, ref, temp_list):
+    def _array_for_clause_combination_helper(self, ref, temp_list,
+                                             base_member=None):
         '''
-        Helper function for creating an ArrayReference to place into the
+        Helper function for creating an ArrayReference or StructureReference
+        containing an ArrayMember to place into the
         relevant in or out dependency list when computing index combinations.
 
         :param ref: The reference whose symbol the created ArrayReference is
@@ -134,45 +140,31 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         :param temp_list: The current list of indices to add to the created
                           ArrayReference
         :type temp_list: List[:py:class:`psyclone.psyir.nodes.Node`]
+        :param base_member: Optional argument containing the array member
+                            child of ref to duplicate with
+                            the indices specified by temp_list
+        :type base_member: Union[:py:class:`psyclone.psyir.nodes.ArrayMember`,
+                                 None]
 
         :returns: an ArrayReference to the provided symbol and with the
-                  provided indices.
-        :rtype: :py:class:`psyclone.psyir.nodes.ArrayReference
+                  provided indices, or a StructureReference containing the
+                  new ArrayMember if base_member is provided.
+        :rtype: :py:class:`psyclone.psyir.nodes.ArrayReference` or
+                :py:class:`psyclone.psyir.nodes.StructureReference`
 
         '''
         final_list = [element.copy() for element in temp_list]
+        if(base_member):
+            final_member = ArrayMember.create(base_member.name, final_list)
+            sref_copy = ref.copy()
+            # Copying the StructureReference includes the Members
+            members = sref_copy.walk(Member)
+            # Replace the last one with the new ArrayMember
+            members[-1].replace_with(final_member)
+            return sref_copy
+
         dclause = ArrayReference.create(ref.symbol, final_list)
         return dclause
-
-    def _array_member_for_clause_combination_helper(self, sref, temp_list,
-                                                    base_member):
-        '''
-        Helper function for create a StructureReference containing an
-        ArrayMember to place into the relevant in or out dependency list
-        when computing index combinations.
-
-        :param sref: The structure reference to copy to contain the new
-                     ArrayMember.
-        :type sref: :py:class:`psyclone.psyir.nodes.StructureReference`
-        :param temp_list: The current list of indices to add to the created
-                          ArrayReference
-        :type temp_list: List[:py:class:`psyclone.psyir.nodes.Node`]
-        :param base_member: The array member child of sref to duplicate with
-                            the indices specified by temp_list
-        :type base_member: :py:class:`psyclone.psyir.nodes.ArrayMember`
-
-        :returns: a StructureReference containing the created ArrayMember.
-        :rtype: :py:class:`psyclone.psyir.nodes.StructureReference
-
-        '''
-        final_list = [element.copy() for element in temp_list]
-        final_member = ArrayMember.create(base_member.name, final_list)
-        sref_copy = sref.copy()
-        # Copying the StructureReference includes the Members
-        members = sref_copy.walk(Member)
-        # Replace the last one with the new ArrayMember
-        members[-1].replace_with(final_member)
-        return sref_copy
 
     def _add_dependencies_from_index_list(self, index_list, dependency_list,
                                           reference, array_access_member=None):
@@ -208,16 +200,9 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
 
         combinations = itertools.product(*new_index_list)
         for temp_list in combinations:
-            # We need to make copies of the members as each
-            # member can only be the child of one ArrayRef
-            if array_access_member:
-                new_ref = self._array_member_for_clause_combination_helper(
-                        reference, temp_list, array_access_member
-                )
-            else:
-                new_ref = self._array_reference_for_clause_combination_helper(
-                        reference, temp_list
-                )
+            new_ref = self._array_for_clause_combination_helper(
+                    reference, temp_list, array_access_member
+            )
 
             if new_ref not in dependency_list:
                 dependency_list.append(new_ref)
@@ -254,7 +239,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                 self._parallel_firstprivate)
 
     def _handle_proxy_loop_index(self, index_list, dim, index,
-                                 firstprivate_list, private_list):
+                                 clause_lists):
         '''
         Handles the special case where an index is a proxy loop variable
         to a parent of the node. In this case, we add a reference to the
@@ -268,12 +253,24 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                         ArrayReference
         :param index: The index that is a proxy to a parent loop variable.
         :type index: :py:class:`psyclone.psyir.nodes.Reference`
-        :type private_list: List[:py:class:`psyclone.psyir.nodes.Reference`]
-        :param firstprivate_list: The firstprivate References for this
-                                  task.
-        :type firstprivate_list: List[
-                                 :py:class:`psyclone.psyir.nodes.Reference`]
-        :param in_list: The input References for this task.
+        :param clause_lists: The namedtuple containing the lists storing the
+                             clauses.
+        :type clause_lists: namedtuple(
+                            private_list=List[
+                                :py:class:`psyclone.psyir.nodes.Reference`
+                            ],
+                            firstprivate_list=List[
+                                :py:class:`psyclone.psyir.nodes.Reference`
+                            ],
+                            shared_list=List[
+                                :py:class:`psyclone.psyir.nodes.Reference`
+                            ],
+                            in_list=List[
+                                :py:class:`psyclone.psyir.nodes.Reference`
+                            ],
+                            out_list=List[
+                                :py:class:`psyclone.psyir.nodes.Reference`
+                            ])
 
         '''
         # Ensure we have the correct number of entries in index_list
@@ -289,8 +286,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                 self._handle_index_binop(
                     parent_ref,
                     quick_list,
-                    firstprivate_list,
-                    private_list,
+                    clause_lists
                 )
                 for element in quick_list:
                     if isinstance(element, list):
@@ -320,7 +316,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         return False
 
     def _evaluate_readonly_baseref(
-        self, ref, private_list, firstprivate_list, in_list
+        self, ref, clause_lists
     ):
         """
         Evaluates any read-only References to variables inside the OpenMP task
@@ -337,14 +333,24 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
 
         :param ref: The reference to be evaluated.
         :type ref: :py:class:`psyclone.psyir.nodes.Reference`
-        :param private_list: The private References for this task.
-        :type private_list: List[:py:class:`psyclone.psyir.nodes.Reference`]
-        :param firstprivate_list: The firstprivate References for this
-                                  task.
-        :type firstprivate_list: List[
-                                 :py:class:`psyclone.psyir.nodes.Reference`]
-        :param in_list: The input References for this task.
-        :type in_list: List[:py:class:`psyclone.psyir.nodes.Reference`]
+        :param clause_lists: The namedtuple containing the lists storing the
+                             clauses.
+        :type clause_lists: namedtuple(
+                            private_list=List[
+                                :py:class:`psyclone.psyir.nodes.Reference`
+                            ],
+                            firstprivate_list=List[
+                                :py:class:`psyclone.psyir.nodes.Reference`
+                            ],
+                            shared_list=List[
+                                :py:class:`psyclone.psyir.nodes.Reference`
+                            ],
+                            in_list=List[
+                                :py:class:`psyclone.psyir.nodes.Reference`
+                            ],
+                            out_list=List[
+                                :py:class:`psyclone.psyir.nodes.Reference`
+                            ])
         """
         symbol = ref.symbol
         is_private = symbol in self._parallel_private
@@ -353,16 +359,17 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
             # then it is added to the firstprivate clause for this
             # task if it has not yet been written to (i.e. is not
             # yet in the private clause list).
-            if ref not in private_list and ref not in firstprivate_list:
-                firstprivate_list.append(ref.copy())
+            if (ref not in clause_lists.private_list and
+                    ref not in clause_lists.firstprivate_list):
+                clause_lists.firstprivate_list.append(ref.copy())
         else:
             # Otherwise it was a shared variable. Its not an
             # array so we just add the name to the in_list
             # if not already there. If its already in out_list
             # we still add it as this is the same as an inout
             # dependency
-            if ref not in in_list:
-                in_list.append(ref.copy())
+            if ref not in clause_lists.in_list:
+                clause_lists.in_list.append(ref.copy())
 
     def _create_binops_from_step_and_divisors(self, node, ref,
                                               step_val, divisor,
@@ -460,7 +467,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         return binop, binop2
 
     def _handle_index_binop(
-        self, node, index_list, firstprivate_list, private_list
+        self, node, index_list, clause_lists
     ):
         """
         Evaluates an expression consisting a binary operation which is used
@@ -487,13 +494,24 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                            multiple calls to this function to avoid duplicating
                            Nodes.
         :type index_list: List[:py:class:`psyclone.psyir.nodes.Node`]
-        :param firstprivate_list: The firstprivate References used in
-                                  this task region.
-        :type firstprivate_list: List[
-                                 :py:class:`psyclone.psyir.nodes.Reference`]
-        :param private_list: The private References used in
-                             this task region.
-        :type private_list: List[:py:class:`psyclone.psyir.nodes.Reference`]
+        :param clause_lists: The namedtuple containing the lists storing the
+                             clauses.
+        :type clause_lists: namedtuple(
+                            private_list=List[
+                                :py:class:`psyclone.psyir.nodes.Reference`
+                            ],
+                            firstprivate_list=List[
+                                :py:class:`psyclone.psyir.nodes.Reference`
+                            ],
+                            shared_list=List[
+                                :py:class:`psyclone.psyir.nodes.Reference`
+                            ],
+                            in_list=List[
+                                :py:class:`psyclone.psyir.nodes.Reference`
+                            ],
+                            out_list=List[
+                                :py:class:`psyclone.psyir.nodes.Reference`
+                            ])
 
         :raises GenerationError: if this BinaryOperation is not an addition or
                                  subtraction.
@@ -528,11 +546,12 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         ):
             raise GenerationError(
                 f"Children of BinaryOperation are of "
-                f"types {type(node.children[0]).__name__} and "
-                f"{type(node.children[1]).__name__}, expected one "
+                f"types '{type(node.children[0]).__name__}' and "
+                f"'{type(node.children[1]).__name__}', expected one "
                 f"Reference and one Literal when"
                 f" used as an array index inside an "
-                f"OMPTaskDirective."
+                f"OMPTaskDirective. The containing ArrayReference is "
+                f"'{node.parent.debug_string()}'."
             )
 
         # Have Reference +/- Literal, analyse
@@ -604,7 +623,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         # If the variable is private:
         elif index_private:
             # If the variable is in our private list
-            if ref in private_list:
+            if ref in clause_lists.private_list:
                 # If its a child loop variable
                 if ref.symbol in child_loop_vars:
                     # Return a full range (:)
@@ -628,8 +647,8 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                     full_range = arrayref.get_full_range(dim)
                     index_list.append(full_range)
             else:
-                if ref not in firstprivate_list:
-                    firstprivate_list.append(ref.copy())
+                if ref not in clause_lists.firstprivate_list:
+                    clause_lists.firstprivate_list.append(ref.copy())
                 if ref.symbol in self._parent_loop_vars:
                     # Non-proxy access to a parent loop variable.
                     # In this case we have to do similar to when accessing a
@@ -670,7 +689,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
             )
 
     def _evaluate_readonly_arrayref(
-        self, ref, private_list, firstprivate_list, shared_list, in_list
+        self, ref, clause_lists
     ):
         """
         Evaluates a read-only access to an Array inside the task region, and
@@ -692,17 +711,24 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
 
         :param node: The Reference to be evaluated.
         :type node: :py:class:`psyclone.psyir.nodes.Reference`
-        :param private_list: The private References used in this task
-                             region.
-        :type private_list: List[:py:class:`psyclone.psyir.nodes.Reference`]
-        :param firstprivate_list: The firstprivate References used in
-                                  this task region.
-        :type firstprivate_list: List[
-                                 :py:class:`psyclone.psyir.nodes.Reference`]
-        :param shared_list: The shared References for this task.
-        :type shared_list: List[:py:class:`psyclone.psyir.nodes.Reference`]
-        :param in_list: The input References for this task.
-        :type in_list: List[:py:class:`psyclone.psyir.nodes.Reference`]
+        :param clause_lists: The namedtuple containing the lists storing the
+                             clauses.
+        :type clause_lists: namedtuple(
+                            private_list=List[
+                                :py:class:`psyclone.psyir.nodes.Reference`
+                            ],
+                            firstprivate_list=List[
+                                :py:class:`psyclone.psyir.nodes.Reference`
+                            ],
+                            shared_list=List[
+                                :py:class:`psyclone.psyir.nodes.Reference`
+                            ],
+                            in_list=List[
+                                :py:class:`psyclone.psyir.nodes.Reference`
+                            ],
+                            out_list=List[
+                                :py:class:`psyclone.psyir.nodes.Reference`
+                            ])
 
         :raises GenerationError: If an array index is a shared variable.
         :raises GenerationError: If an array index is not a Reference, Literal
@@ -735,10 +761,10 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
 
                 if index_private:
                     if (
-                        index not in private_list
-                        and index not in firstprivate_list
+                        index not in clause_lists.private_list
+                        and index not in clause_lists.firstprivate_list
                     ):
-                        firstprivate_list.append(index.copy())
+                        clause_lists.firstprivate_list.append(index.copy())
                     # Special case 1. If index belongs to a child loop
                     # that is NOT a proxy for a parent loop, then we
                     # can only do as well as guessing the entire range
@@ -755,8 +781,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                         # set for a value, e.g. for a boundary condition if
                         # statement.
                         self._handle_proxy_loop_index(index_list, dim, index,
-                                                      firstprivate_list,
-                                                      private_list)
+                                                      clause_lists)
                     else:
                         # Final case is just a generic Reference, in which case
                         # just copy the Reference
@@ -766,14 +791,15 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                         f"Shared variable access used "
                         f"as an array index inside an "
                         f"OMPTaskDirective which is not "
-                        f"supported. Variable name is '{index}'."
+                        f"supported. Variable name is '{index.symbol.name}'. "
+                        f"The full access is '{ref.debug_string()}'."
                     )
             elif isinstance(index, BinaryOperation):
                 # Binary Operation check
                 # A single binary operation, e.g. a(i+1) can require
                 # multiple clauses to correctly handle.
                 self._handle_index_binop(
-                    index, index_list, firstprivate_list, private_list
+                    index, index_list, clause_lists
                 )
             elif isinstance(index, Literal):
                 # Just place literal directly into the dependency clause.
@@ -784,26 +810,25 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                     f"'{type(index).__name__}' object is not allowed to "
                     f"appear in an array index "
                     f"expression inside an "
-                    f"OMPTaskDirective."
+                    f"OMPTaskDirective. The index was "
+                    f"'{index.debug_string()}'."
                 )
 
         # Add all combinations of dependencies from the computed index_list
         # into in_list
-        self._add_dependencies_from_index_list(index_list, in_list, ref)
+        self._add_dependencies_from_index_list(index_list,
+                                               clause_lists.in_list, ref)
 
         # Add to shared_list
         sclause = Reference(ref.symbol)
-        if sclause not in shared_list:
-            shared_list.append(sclause)
+        if sclause not in clause_lists.shared_list:
+            clause_lists.shared_list.append(sclause)
 
     def _evaluate_structure_with_array_reference_read(
         self,
         ref,
         array_access_member,
-        private_list,
-        firstprivate_list,
-        shared_list,
-        in_list,
+        clause_lists,
     ):
         """
         Evaluates a read-only access to an array within a structure inside the
@@ -829,17 +854,24 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                                     node.
         :type array_access_member:
                 :py:class:psyclone.psyir.nodes.array_mixin.ArrayMixin`
-        :param private_list: The private References used in this task
-                             region.
-        :type private_list: List[:py:class:`psyclone.psyir.nodes.Reference`]
-        :param firstprivate_list: The firstprivate References used in
-                                  this task region.
-        :type firstprivate_list: List[
-                                 :py:class:`psyclone.psyir.nodes.Reference`]
-        :param shared_list: The shared References for this task.
-        :type shared_list: List[:py:class:`psyclone.psyir.nodes.Reference`]
-        :param in_list: The input References for this task.
-        :type in_list: List[:py:class:`psyclone.psyir.nodes.Reference`]
+        :param clause_lists: The namedtuple containing the lists storing the
+                             clauses.
+        :type clause_lists: namedtuple(
+                            private_list=List[
+                                :py:class:`psyclone.psyir.nodes.Reference`
+                            ],
+                            firstprivate_list=List[
+                                :py:class:`psyclone.psyir.nodes.Reference`
+                            ],
+                            shared_list=List[
+                                :py:class:`psyclone.psyir.nodes.Reference`
+                            ],
+                            in_list=List[
+                                :py:class:`psyclone.psyir.nodes.Reference`
+                            ],
+                            out_list=List[
+                                :py:class:`psyclone.psyir.nodes.Reference`
+                            ])
         """
 
         # Index list stores the set of indices to use with this ArrayMixin
@@ -853,24 +885,23 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         self._evaluate_structure_with_array_reference_indexlist(
             sref_base,
             array_access_member,
-            private_list,
-            firstprivate_list,
-            index_list,
+            clause_lists,
+            index_list
         )
 
         # Add all combinations of dependencies from the computed index_list
         # into in_list
         self._add_dependencies_from_index_list(
-                index_list, in_list, sref_base,
+                index_list, clause_lists.in_list, sref_base,
                 array_access_member=array_access_member
         )
         # Add to shared_list
         sclause = Reference(ref.symbol)
-        if sclause not in shared_list:
-            shared_list.append(sclause)
+        if sclause not in clause_lists.shared_list:
+            clause_lists.shared_list.append(sclause)
 
     def _evaluate_readonly_reference(
-        self, ref, private_list, firstprivate_list, shared_list, in_list
+        self, ref, clause_lists
     ):
         """
         Evaluates any Reference used in a read context. This is done by
@@ -879,17 +910,24 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
 
         :param node: The Reference to be evaluated.
         :type node: :py:class:`psyclone.psyir.nodes.Reference`
-        :param private_list: The private References used in this task
-                             region.
-        :type private_list: List[:py:class:`psyclone.psyir.nodes.Reference`]
-        :param firstprivate_list: The firstprivate References used in
-                                  this task region.
-        :type firstprivate_list: List[
-                                 :py:class:`psyclone.psyir.nodes.Reference`]
-        :param shared_list: The shared References for this task.
-        :type shared_list: List[:py:class:`psyclone.psyir.nodes.Reference`]
-        :param in_list: The input References for this task.
-        :type in_list: List[:py:class:`psyclone.psyir.nodes.Reference`]
+        :param clause_lists: The namedtuple containing the lists storing the
+                             clauses.
+        :type clause_lists: namedtuple(
+                            private_list=List[
+                                :py:class:`psyclone.psyir.nodes.Reference`
+                            ],
+                            firstprivate_list=List[
+                                :py:class:`psyclone.psyir.nodes.Reference`
+                            ],
+                            shared_list=List[
+                                :py:class:`psyclone.psyir.nodes.Reference`
+                            ],
+                            in_list=List[
+                                :py:class:`psyclone.psyir.nodes.Reference`
+                            ],
+                            out_list=List[
+                                :py:class:`psyclone.psyir.nodes.Reference`
+                            ])
 
         :raises GenerationError: If a StructureReference containing multiple
                                  ArrayMember or ArrayOfStructuresMember as
@@ -914,7 +952,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
 
             # Resolve ArrayReference or ArrayOfStructuresReference
             self._evaluate_readonly_arrayref(
-                ref, private_list, firstprivate_list, shared_list, in_list
+                ref, clause_lists
             )
         elif isinstance(ref, StructureReference):
             # If the StructureReference contains an ArrayMixin then
@@ -932,10 +970,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                 self._evaluate_structure_with_array_reference_read(
                     ref,
                     array_children[0],
-                    private_list,
-                    firstprivate_list,
-                    shared_list,
-                    in_list,
+                    clause_lists
                 )
             else:
                 # We have a StructureReference with no array children, so it
@@ -945,20 +980,19 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                 # within a structure are valid in clauses.
                 base_ref = Reference(ref.symbol)
                 self._evaluate_readonly_baseref(
-                    base_ref, private_list, firstprivate_list, in_list
+                    base_ref, clause_lists
                 )
         elif isinstance(ref, Reference):
             self._evaluate_readonly_baseref(
-                ref, private_list, firstprivate_list, in_list
+                ref, clause_lists
             )
 
     def _evaluate_structure_with_array_reference_indexlist(
         self,
         sref_base,
         array_access_member,
-        private_list,
-        firstprivate_list,
-        index_list,
+        clause_lists,
+        index_list
     ):
         """
         Evaluates an access to an array with a structure inside the task
@@ -983,13 +1017,24 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                                     node.
         :type array_access_member:
                 :py:class:psyclone.psyir.nodes.array_mixin.ArrayMixin`
-        :param private_list: The private References used in this task
-                             region.
-        :type private_list: List[:py:class:`psyclone.psyir.nodes.Reference`]
-        :param firstprivate_list: The firstprivate References used in
-                                  this task region.
-        :type firstprivate_list: List[
-                                 :py:class:`psyclone.psyir.nodes.Reference`]
+        :param clause_lists: The namedtuple containing the lists storing the
+                             clauses.
+        :type clause_lists: namedtuple(
+                            private_list=List[
+                                :py:class:`psyclone.psyir.nodes.Reference`
+                            ],
+                            firstprivate_list=List[
+                                :py:class:`psyclone.psyir.nodes.Reference`
+                            ],
+                            shared_list=List[
+                                :py:class:`psyclone.psyir.nodes.Reference`
+                            ],
+                            in_list=List[
+                                :py:class:`psyclone.psyir.nodes.Reference`
+                            ],
+                            out_list=List[
+                                :py:class:`psyclone.psyir.nodes.Reference`
+                            ])
         :param index_list: The output References for this task.
         :type index_list: List[:py:class:`psyclone.psyir.nodes.Reference`]
 
@@ -1007,10 +1052,10 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
 
                 if index_private:
                     if (
-                        index not in private_list
-                        and index not in firstprivate_list
+                        index not in clause_lists.private_list
+                        and index not in clause_lists.firstprivate_list
                     ):
-                        firstprivate_list.append(index.copy())
+                        clause_lists.firstprivate_list.append(index.copy())
                     # Special case 1. If index belongs to a child loop
                     # that is NOT a proxy for a parent loop, then we
                     # can only do as well as guessing the entire range
@@ -1028,8 +1073,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                         # set for a value, e.g. for a boundary condition if
                         # statement.
                         self._handle_proxy_loop_index(index_list, dim, index,
-                                                      firstprivate_list,
-                                                      private_list)
+                                                      clause_lists)
                     else:
                         # Final case is just a generic Reference, in which case
                         # just copy the Reference
@@ -1039,14 +1083,15 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                         f"Shared variable access used "
                         f"as an array index inside an "
                         f"OMPTaskDirective which is not "
-                        f"supported. Variable name is '{index}'."
+                        f"supported. Variable name is '{index.symbol.name}'. "
+                        f"The full access is '{sref_base.debug_string()}'."
                     )
             elif isinstance(index, BinaryOperation):
                 # Binary Operation check
                 # A single binary operation, e.g. a(i+1) can require
                 # multiple clauses to correctly handle.
                 self._handle_index_binop(
-                    index, index_list, firstprivate_list, private_list
+                    index, index_list, clause_lists
                 )
             elif isinstance(index, Literal):
                 # Just place literal directly into the dependency clause.
@@ -1064,10 +1109,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         self,
         ref,
         array_access_member,
-        private_list,
-        firstprivate_list,
-        shared_list,
-        out_list,
+        clause_lists
     ):
         """
         Evaluates a write access to an array within a structure inside the
@@ -1093,17 +1135,24 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                                     node.
         :type array_access_member:
                 :py:class:psyclone.psyir.nodes.array_mixin.ArrayMixin`
-        :param private_list: The private References used in this task
-                             region.
-        :type private_list: List[:py:class:`psyclone.psyir.nodes.Reference`]
-        :param firstprivate_list: The firstprivate References used in
-                                  this task region.
-        :type firstprivate_list: List[
-                                 :py:class:`psyclone.psyir.nodes.Reference`]
-        :param shared_list: The shared References for this task.
-        :type shared_list: List[:py:class:`psyclone.psyir.nodes.Reference`]
-        :param out_list: The output References for this task.
-        :type out_list: List[:py:class:`psyclone.psyir.nodes.Reference`]
+        :param clause_lists: The namedtuple containing the lists storing the
+                             clauses.
+        :type clause_lists: namedtuple(
+                            private_list=List[
+                                :py:class:`psyclone.psyir.nodes.Reference`
+                            ],
+                            firstprivate_list=List[
+                                :py:class:`psyclone.psyir.nodes.Reference`
+                            ],
+                            shared_list=List[
+                                :py:class:`psyclone.psyir.nodes.Reference`
+                            ],
+                            in_list=List[
+                                :py:class:`psyclone.psyir.nodes.Reference`
+                            ],
+                            out_list=List[
+                                :py:class:`psyclone.psyir.nodes.Reference`
+                            ])
         """
         # We write to this arrayref, so its shared and depend out on
         # the array.
@@ -1122,24 +1171,23 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         self._evaluate_structure_with_array_reference_indexlist(
             sref_base,
             array_access_member,
-            private_list,
-            firstprivate_list,
+            clause_lists,
             index_list,
         )
 
         # Add all combinations of dependencies from the computed index_list
         # into out_list
         self._add_dependencies_from_index_list(
-                index_list, out_list, sref_base,
+                index_list, clause_lists.out_list, sref_base,
                 array_access_member=array_access_member
         )
         # Add to shared_list
         sclause = Reference(ref.symbol)
-        if sclause not in shared_list:
-            shared_list.append(sclause)
+        if sclause not in clause_lists.shared_list:
+            clause_lists.shared_list.append(sclause)
 
     def _evaluate_write_arrayref(
-        self, ref, private_list, firstprivate_list, shared_list, out_list
+        self, ref, clause_lists
     ):
         """
         Evaluates a write access to an Array inside the task region, and
@@ -1161,17 +1209,24 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
 
         :param ref: The Reference to be evaluated.
         :type ref: :py:class:`psyclone.psyir.nodes.Reference`
-        :param private_list: The private References used in this task
-                             region.
-        :type private_list: List[:py:class:`psyclone.psyir.nodes.Reference`]
-        :param firstprivate_list: The firstprivate References used in
-                                  this task region.
-        :type firstprivate_list: List[
-                                 :py:class:`psyclone.psyir.nodes.Reference`]
-        :param shared_list: The shared References for this task.
-        :type shared_list: List[:py:class:`psyclone.psyir.nodes.Reference`]
-        :param out_list: The output References for this task.
-        :type out_list: List[:py:class:`psyclone.psyir.nodes.Reference`]
+        :param clause_lists: The namedtuple containing the lists storing the
+                             clauses.
+        :type clause_lists: namedtuple(
+                            private_list=List[
+                                :py:class:`psyclone.psyir.nodes.Reference`
+                            ],
+                            firstprivate_list=List[
+                                :py:class:`psyclone.psyir.nodes.Reference`
+                            ],
+                            shared_list=List[
+                                :py:class:`psyclone.psyir.nodes.Reference`
+                            ],
+                            in_list=List[
+                                :py:class:`psyclone.psyir.nodes.Reference`
+                            ],
+                            out_list=List[
+                                :py:class:`psyclone.psyir.nodes.Reference`
+                            ])
 
         :raises GenerationError: If an array index is a shared variable.
         """
@@ -1195,10 +1250,10 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                 child_loop_vars = self._child_loop_vars
                 if index_private:
                     if (
-                        index not in private_list
-                        and index not in firstprivate_list
+                        index not in clause_lists.private_list
+                        and index not in clause_lists.firstprivate_list
                     ):
-                        firstprivate_list.append(index.copy())
+                        clause_lists.firstprivate_list.append(index.copy())
                     # Special case 1. If index belongs to a child loop
                     # that is NOT a proxy for a parent loop, then we
                     # can only do as well as guessing the entire range
@@ -1217,12 +1272,11 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                         # set for a value, e.g. for a boundary condition if
                         # statement.
                         self._handle_proxy_loop_index(index_list, dim, index,
-                                                      firstprivate_list,
-                                                      private_list)
+                                                      clause_lists)
                     else:
                         # Final case is just a generic Reference, in which case
                         # just copy the Reference if its firstprivate.
-                        if index in firstprivate_list:
+                        if index in clause_lists.firstprivate_list:
                             index_list.append(index.copy())
                         else:
                             # If its general private, then we don't know what
@@ -1237,25 +1291,26 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                         f"Shared variable access used "
                         f"as an array index inside an "
                         f"OMPTaskDirective which is not "
-                        f"supported. Variable name is '{index}'."
+                        f"supported. Variable name is '{index.symbol.name}'. "
+                        f"The full access is '{ref.debug_string()}'."
                     )
             elif isinstance(index, BinaryOperation):
                 self._handle_index_binop(
-                    index, index_list, firstprivate_list, private_list
+                    index, index_list, clause_lists
                 )
 
         # Add all combinations of dependencies from the computed index_list
         # into out_list
         self._add_dependencies_from_index_list(
-                index_list, out_list, ref
+                index_list, clause_lists.out_list, ref
         )
         # Add to shared_list
         sclause = Reference(ref.symbol)
-        if sclause not in shared_list:
-            shared_list.append(sclause)
+        if sclause not in clause_lists.shared_list:
+            clause_lists.shared_list.append(sclause)
 
     def _evaluate_write_baseref(
-        self, ref, private_list, shared_list, out_list
+        self, ref, clause_lists
     ):
         """
         Evaluates a write to a non-ArrayReference reference. If the variable
@@ -1267,28 +1322,39 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
 
         :param ref: The Reference to be evaluated.
         :type ref: :py:class:`psyclone.psyir.nodes.Reference`
-        :param private_list: The private References used in this task
-                             region.
-        :type private_list: List[:py:class:`psyclone.psyir.nodes.Reference`]
-        :param shared_list: The shared References for this task.
-        :type shared_list: List[:py:class:`psyclone.psyir.nodes.Reference`]
-        :param out_list: The output References for this task.
-        :type out_list: List[:py:class:`psyclone.psyir.nodes.Reference`]
+        :param clause_lists: The namedtuple containing the lists storing the
+                             clauses.
+        :type clause_lists: namedtuple(
+                            private_list=List[
+                                :py:class:`psyclone.psyir.nodes.Reference`
+                            ],
+                            firstprivate_list=List[
+                                :py:class:`psyclone.psyir.nodes.Reference`
+                            ],
+                            shared_list=List[
+                                :py:class:`psyclone.psyir.nodes.Reference`
+                            ],
+                            in_list=List[
+                                :py:class:`psyclone.psyir.nodes.Reference`
+                            ],
+                            out_list=List[
+                                :py:class:`psyclone.psyir.nodes.Reference`
+                            ])
         """
         # Check if its a private variable
         is_private = self._is_reference_private(ref)
         # If its private should add it to private list if not already present
-        if is_private and ref not in private_list:
-            private_list.append(ref.copy())
+        if is_private and ref not in clause_lists.private_list:
+            clause_lists.private_list.append(ref.copy())
         # Otherwise its a shared variable
         if not is_private:
-            if ref not in shared_list:
-                shared_list.append(ref.copy())
-            if ref not in out_list:
-                out_list.append(ref.copy())
+            if ref not in clause_lists.shared_list:
+                clause_lists.shared_list.append(ref.copy())
+            if ref not in clause_lists.out_list:
+                clause_lists.out_list.append(ref.copy())
 
     def _evaluate_write_reference(
-        self, ref, private_list, firstprivate_list, shared_list, out_list
+        self, ref, clause_lists
     ):
         """
         Evaluates a write to any Reference in the task region. This is done by
@@ -1297,17 +1363,24 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
 
         :param ref: The Reference to be evaluated.
         :type ref: :py:class:`psyclone.psyir.nodes.Reference`
-        :param private_list: The private References used in this task
-                             region.
-        :type private_list: List[:py:class:`psyclone.psyir.nodes.Reference`]
-        :param firstprivate_list: The firstprivate References used in
-                                  this task region.
-        :type firstprivate_list: List[
-                                 :py:class:`psyclone.psyir.nodes.Reference`]
-        :param shared_list: The shared References for this task.
-        :type shared_list: List[:py:class:`psyclone.psyir.nodes.Reference`]
-        :param out_list: The output References for this task.
-        :type out_list: List[:py:class:`psyclone.psyir.nodes.Reference`]
+        :param clause_lists: The namedtuple containing the lists storing the
+                             clauses.
+        :type clause_lists: namedtuple(
+                            private_list=List[
+                                :py:class:`psyclone.psyir.nodes.Reference`
+                            ],
+                            firstprivate_list=List[
+                                :py:class:`psyclone.psyir.nodes.Reference`
+                            ],
+                            shared_list=List[
+                                :py:class:`psyclone.psyir.nodes.Reference`
+                            ],
+                            in_list=List[
+                                :py:class:`psyclone.psyir.nodes.Reference`
+                            ],
+                            out_list=List[
+                                :py:class:`psyclone.psyir.nodes.Reference`
+                            ])
 
         :raises GenerationError: If a StructureReference containing multiple
                                  ArrayMember or ArrayOfStructuresMember as
@@ -1332,7 +1405,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
 
             # Resolve ArrayReference or ArrayOfStructuresReference
             self._evaluate_write_arrayref(
-                ref, private_list, firstprivate_list, shared_list, out_list
+                ref, clause_lists
             )
         elif isinstance(ref, StructureReference):
             # If the StructureReference contains an ArrayMixin then
@@ -1350,21 +1423,18 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                 self._evaluate_structure_with_array_reference_write(
                     ref,
                     array_children[0],
-                    private_list,
-                    firstprivate_list,
-                    shared_list,
-                    out_list,
+                    clause_lists
                 )
             else:
                 # This is treated the same as a Reference, but we create a
                 # Reference to the symbol to handle.
                 base_ref = Reference(ref.symbol)
                 self._evaluate_write_baseref(
-                    base_ref, private_list, shared_list, out_list
+                    base_ref, clause_lists
                 )
         elif isinstance(ref, Reference):
             self._evaluate_write_baseref(
-                ref, private_list, shared_list, out_list
+                ref, clause_lists
             )
         else:
             raise InternalError(f"PSyclone can't handle an OMPTaskDirective "
@@ -1375,11 +1445,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
     def _evaluate_assignment(
         self,
         node,
-        private_list,
-        firstprivate_list,
-        shared_list,
-        in_list,
-        out_list,
+        clause_lists
     ):
         """
         Evaluates an Assignment node within this task region. This is done
@@ -1388,25 +1454,30 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
 
         :param ref: The Assignment to be evaluated.
         :type ref: :py:class:`psyclone.psyir.nodes.Assignment`
-        :param private_list: The private References used in this task
-                             region.
-        :type private_list: List[:py:class:`psyclone.psyir.nodes.Reference`]
-        :param firstprivate_list: The firstprivate References used in
-                                  this task region.
-        :type firstprivate_list: List[
-                                 :py:class:`psyclone.psyir.nodes.Reference`]
-        :param shared_list: The shared References for this task.
-        :type shared_list: List[:py:class:`psyclone.psyir.nodes.Reference`]
-        :param in_list: The input References for this task.
-        :type in_list: List[:py:class:`psyclone.psyir.nodes.Reference`]
-        :param out_list: The output References for this task.
-        :type out_list: List[:py:class:`psyclone.psyir.nodes.Reference`]
+        :param clause_lists: The namedtuple containing the lists storing the
+                             clauses.
+        :type clause_lists: namedtuple(
+                            private_list=List[
+                                :py:class:`psyclone.psyir.nodes.Reference`
+                            ],
+                            firstprivate_list=List[
+                                :py:class:`psyclone.psyir.nodes.Reference`
+                            ],
+                            shared_list=List[
+                                :py:class:`psyclone.psyir.nodes.Reference`
+                            ],
+                            in_list=List[
+                                :py:class:`psyclone.psyir.nodes.Reference`
+                            ],
+                            out_list=List[
+                                :py:class:`psyclone.psyir.nodes.Reference`
+                            ])
         """
         lhs = node.children[0]
         rhs = node.children[1]
         # Evaluate LHS
         self._evaluate_write_reference(
-            lhs, private_list, firstprivate_list, shared_list, out_list
+            lhs, clause_lists
         )
 
         # Evaluate RHS
@@ -1493,17 +1564,13 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
 
         for ref in references:
             self._evaluate_readonly_reference(
-                ref, private_list, firstprivate_list, shared_list, in_list
+                ref, clause_lists
             )
 
     def _evaluate_loop(
         self,
         node,
-        private_list,
-        firstprivate_list,
-        shared_list,
-        in_list,
-        out_list,
+        clause_lists
     ):
         """
         Evaluates a Loop node within this task Region. This is done in several
@@ -1520,19 +1587,24 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
 
         :param node: The Loop to be evaluated.
         :type node: :py:class:`psyclone.psyir.nodes.Loop`
-        :param private_list: The private References used in this task
-                             region.
-        :type private_list: List[:py:class:`psyclone.psyir.nodes.Reference`]
-        :param firstprivate_list: The firstprivate References used in
-                                  this task region.
-        :type firstprivate_list: List[
-                                 :py:class:`psyclone.psyir.nodes.Reference`]
-        :param shared_list: The shared References for this task.
-        :type shared_list: List[:py:class:`psyclone.psyir.nodes.Reference`]
-        :param in_list: The input References for this task.
-        :type in_list: List[:py:class:`psyclone.psyir.nodes.Reference`]
-        :param out_list: The output References for this task.
-        :type out_list: List[:py:class:`psyclone.psyir.nodes.Reference`]
+        :param clause_lists: The namedtuple containing the lists storing the
+                             clauses.
+        :type clause_lists: namedtuple(
+                            private_list=List[
+                                :py:class:`psyclone.psyir.nodes.Reference`
+                            ],
+                            firstprivate_list=List[
+                                :py:class:`psyclone.psyir.nodes.Reference`
+                            ],
+                            shared_list=List[
+                                :py:class:`psyclone.psyir.nodes.Reference`
+                            ],
+                            in_list=List[
+                                :py:class:`psyclone.psyir.nodes.Reference`
+                            ],
+                            out_list=List[
+                                :py:class:`psyclone.psyir.nodes.Reference`
+                            ])
 
         :raises GenerationError: If the loop variable is a shared variable.
         :raises GenerationError: If the loop start, stop or step expression
@@ -1582,9 +1654,9 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                 "not allowed in OpenMP Task directive. "
                 f"Variable name is {loop_var_ref.name}"
             )
-        if loop_var_ref not in firstprivate_list:
-            if loop_var_ref not in private_list:
-                private_list.append(loop_var_ref)
+        if loop_var_ref not in clause_lists.firstprivate_list:
+            if loop_var_ref not in clause_lists.private_list:
+                clause_lists.private_list.append(loop_var_ref)
 
         # If we have a proxy variable, the parent loop variable has to be
         # firstprivate
@@ -1592,17 +1664,18 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
             parent_var_ref = Reference(
                 self._proxy_loop_vars[to_remove].parent_var
             )
-            if parent_var_ref not in firstprivate_list:
-                firstprivate_list.append(parent_var_ref.copy())
+            if parent_var_ref not in clause_lists.firstprivate_list:
+                clause_lists.firstprivate_list.append(parent_var_ref.copy())
 
         # For all non-array accesses we make them firstprivate unless they
         # are already declared as something else
         for ref in start_val_refs:
             if isinstance(ref, (ArrayReference, ArrayOfStructuresReference)):
                 raise GenerationError(
-                    f"{type(ref).__name__} not supported in "
-                    "the start variable of a Loop in a "
-                    "OMPTaskDirective node."
+                    f"'{type(ref).__name__}' not supported in "
+                    f"the start variable of a Loop in a "
+                    f"OMPTaskDirective node. The start expression is "
+                    f"'{node.start_expr.debug_string()}'."
                 )
             # If we have a StructureReference, then we need to only add the
             # base symbol to the lists
@@ -1610,26 +1683,28 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                 ref_copy = Reference(ref.symbol)
                 # start_val can't be written to in Fortran so if its a
                 # structure we should make it shared
-                # Only the base Structure is allowed to be in a depend clause.
-                if ref_copy not in shared_list:
-                    shared_list.append(ref_copy.copy())
-                if ref_copy not in in_list:
-                    in_list.append(ref_copy.copy())
+                # Only the base Structure is allowed to be in a depend clause
+                # in OpenMP, see OpenMP section 2.1
+                if ref_copy not in clause_lists.shared_list:
+                    clause_lists.shared_list.append(ref_copy.copy())
+                if ref_copy not in clause_lists.in_list:
+                    clause_lists.in_list.append(ref_copy.copy())
                 ref = ref_copy
             if (
-                ref not in firstprivate_list
-                and ref not in private_list
-                and ref not in shared_list
+                ref not in clause_lists.firstprivate_list
+                and ref not in clause_lists.private_list
+                and ref not in clause_lists.shared_list
             ):
-                firstprivate_list.append(ref.copy())
+                clause_lists.firstprivate_list.append(ref.copy())
 
         stop_val_refs = stop_val.walk(Reference)
         for ref in stop_val_refs:
             if isinstance(ref, (ArrayReference, ArrayOfStructuresReference)):
                 raise GenerationError(
-                    f"{type(ref).__name__} not supported in "
-                    "the stop variable of a Loop in a "
-                    "OMPTaskDirective node."
+                    f"'{type(ref).__name__}' not supported in "
+                    f"the stop variable of a Loop in a "
+                    f"OMPTaskDirective node. The stop expression is "
+                    f"'{node.stop_expr.debug_string()}'."
                 )
             # If we have a StructureReference, then we need to only add the
             # base symbol to the lists
@@ -1638,25 +1713,26 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                 # stop_val can't be written to in Fortran so if its a structure
                 # we should make it shared
                 # Only the base Structure is allowed to be in a depend clause.
-                if ref_copy not in shared_list:
-                    shared_list.append(ref_copy.copy())
-                if ref_copy not in in_list:
-                    in_list.append(ref_copy.copy())
+                if ref_copy not in clause_lists.shared_list:
+                    clause_lists.shared_list.append(ref_copy.copy())
+                if ref_copy not in clause_lists.in_list:
+                    clause_lists.in_list.append(ref_copy.copy())
                 ref = ref_copy
             if (
-                ref not in firstprivate_list
-                and ref not in private_list
-                and ref not in shared_list
+                ref not in clause_lists.firstprivate_list
+                and ref not in clause_lists.private_list
+                and ref not in clause_lists.shared_list
             ):
-                firstprivate_list.append(ref.copy())
+                clause_lists.firstprivate_list.append(ref.copy())
 
         step_val_refs = step_val.walk(Reference)
         for ref in step_val_refs:
             if isinstance(ref, (ArrayReference, ArrayOfStructuresReference)):
                 raise GenerationError(
-                    f"{type(ref).__name__} not supported in "
-                    "the step variable of a Loop in a "
-                    "OMPTaskDirective node."
+                    f"'{type(ref).__name__}' not supported in "
+                    f"the step variable of a Loop in a "
+                    f"OMPTaskDirective node. The step expression is "
+                    f"'{node.step_expr.debug_string()}'."
                 )
             # If we have a StructureReference, then we need to only add the
             # base symbol to the lists
@@ -1665,17 +1741,17 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                 # stop_val can't be written to in Fortran so if its a structure
                 # we should make it shared
                 # Only the base Structure is allowed to be in a depend clause.
-                if ref_copy not in shared_list:
-                    shared_list.append(ref_copy.copy())
-                if ref_copy not in in_list:
-                    in_list.append(ref_copy.copy())
+                if ref_copy not in clause_lists.shared_list:
+                    clause_lists.shared_list.append(ref_copy.copy())
+                if ref_copy not in clause_lists.in_list:
+                    clause_lists.in_list.append(ref_copy.copy())
                 ref = ref_copy
             if (
-                ref not in firstprivate_list
-                and ref not in private_list
-                and ref not in shared_list
+                ref not in clause_lists.firstprivate_list
+                and ref not in clause_lists.private_list
+                and ref not in clause_lists.shared_list
             ):
-                firstprivate_list.append(ref.copy())
+                clause_lists.firstprivate_list.append(ref.copy())
 
         # Finished handling the loop bounds now
 
@@ -1683,11 +1759,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         for child_node in node.children[3].children:
             self._evaluate_node(
                 child_node,
-                private_list,
-                firstprivate_list,
-                shared_list,
-                in_list,
-                out_list,
+                clause_lists
             )
 
         # Remove any stuff added to proxy_loop_vars if needed
@@ -1700,11 +1772,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
     def _evaluate_ifblock(
         self,
         node,
-        private_list,
-        firstprivate_list,
-        shared_list,
-        in_list,
-        out_list,
+        clause_lists
     ):
         """
         Evaluates an ifblock inside a task region. This is done by calling
@@ -1714,23 +1782,28 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
 
         :param node: The IfBlock to be evaluated.
         :type node: :py:class:`psyclone.psyir.nodes.IfBlock`
-        :param private_list: The private References used in this task
-                             region.
-        :type private_list: List[:py:class:`psyclone.psyir.nodes.Reference`]
-        :param firstprivate_list: The firstprivate References used in
-                                  this task region.
-        :type firstprivate_list: List[
-                                 :py:class:`psyclone.psyir.nodes.Reference`]
-        :param shared_list: The shared References for this task.
-        :type shared_list: List[:py:class:`psyclone.psyir.nodes.Reference`]
-        :param in_list: The input References for this task.
-        :type in_list: List[:py:class:`psyclone.psyir.nodes.Reference`]
-        :param out_list: The output References for this task.
-        :type out_list: List[:py:class:`psyclone.psyir.nodes.Reference`]
+        :param clause_lists: The namedtuple containing the lists storing the
+                             clauses.
+        :type clause_lists: namedtuple(
+                            private_list=List[
+                                :py:class:`psyclone.psyir.nodes.Reference`
+                            ],
+                            firstprivate_list=List[
+                                :py:class:`psyclone.psyir.nodes.Reference`
+                            ],
+                            shared_list=List[
+                                :py:class:`psyclone.psyir.nodes.Reference`
+                            ],
+                            in_list=List[
+                                :py:class:`psyclone.psyir.nodes.Reference`
+                            ],
+                            out_list=List[
+                                :py:class:`psyclone.psyir.nodes.Reference`
+                            ])
         """
         for ref in node.condition.walk(Reference):
             self._evaluate_readonly_reference(
-                ref, private_list, firstprivate_list, shared_list, in_list
+                ref, clause_lists
             )
 
         # Recurse to the children
@@ -1738,83 +1811,65 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         for child_node in node.if_body.children:
             self._evaluate_node(
                 child_node,
-                private_list,
-                firstprivate_list,
-                shared_list,
-                in_list,
-                out_list,
+                clause_lists
             )
         # Else block if present
         if node.else_body is not None:
             for child_node in node.else_body.children:
                 self._evaluate_node(
                     child_node,
-                    private_list,
-                    firstprivate_list,
-                    shared_list,
-                    in_list,
-                    out_list,
+                    clause_lists
                 )
 
     def _evaluate_node(
         self,
         node,
-        private_list,
-        firstprivate_list,
-        shared_list,
-        in_list,
-        out_list,
+        clause_lists
     ):
         """
         Evaluates a generic Node inside the task region. Calls the appropriate
-        call depending on whether the node is an Assignment, Loop or IfBlock.
+        handler depending on whether the node is an Assignment, Loop or
+        IfBlock.
 
         :param node: The Node to be evaluated.
         :type node: :py:class:`psyclone.psyir.nodes.Node`
-        :param private_list: The private References used in this task
-                             region.
-        :type private_list: List[:py:class:`psyclone.psyir.nodes.Reference`]
-        :param firstprivate_list: The firstprivate References used in
-                                  this task region.
-        :type firstprivate_list: List[
-                                 :py:class:`psyclone.psyir.nodes.Reference`]
-        :param shared_list: The shared References for this task.
-        :type shared_list: List[:py:class:`psyclone.psyir.nodes.Reference`]
-        :param in_list: The input References for this task.
-        :type in_list: List[:py:class:`psyclone.psyir.nodes.Reference`]
-        :param out_list: The output References for this task.
-        :type out_list: List[:py:class:`psyclone.psyir.nodes.Reference`]
+        :param clause_lists: The namedtuple containing the lists storing the
+                             clauses.
+        :type clause_lists: namedtuple(
+                            private_list=List[
+                                :py:class:`psyclone.psyir.nodes.Reference`
+                            ],
+                            firstprivate_list=List[
+                                :py:class:`psyclone.psyir.nodes.Reference`
+                            ],
+                            shared_list=List[
+                                :py:class:`psyclone.psyir.nodes.Reference`
+                            ],
+                            in_list=List[
+                                :py:class:`psyclone.psyir.nodes.Reference`
+                            ],
+                            out_list=List[
+                                :py:class:`psyclone.psyir.nodes.Reference`
+                            ])
         """
         # For the node, check if it is Loop, Assignment or IfBlock
         if isinstance(node, Assignment):
             # Resolve assignment
             self._evaluate_assignment(
                 node,
-                private_list,
-                firstprivate_list,
-                shared_list,
-                in_list,
-                out_list,
+                clause_lists
             )
         elif isinstance(node, Loop):
             # Resolve loop
             self._evaluate_loop(
                 node,
-                private_list,
-                firstprivate_list,
-                shared_list,
-                in_list,
-                out_list,
+                clause_lists
             )
         elif isinstance(node, IfBlock):
             # Resolve IfBlock
             self._evaluate_ifblock(
                 node,
-                private_list,
-                firstprivate_list,
-                shared_list,
-                in_list,
-                out_list,
+                clause_lists
             )
 
         # All other node types are ignored as they shouldn't affect
@@ -1831,15 +1886,16 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         data-sharing attributes and dependencies.
         The clauses are then built up from those, and returned.
 
-        :raises GenerationError: If the OMPTaskDirective has multiple children.
-        :raises GenerationError: If the OMPTaskDirective's child is not a Loop.
-
         :returns: The clauses computed for this OMPTaskDirective.
         :rtype: List[:py:class:`psyclone.psyir.nodes.OMPPrivateClause`,
                      :py:class:`psyclone.psyir.nodes.OMPFirstprivateClause`,
                      :py:class:`psyclone.psyir.nodes.OMPSharedClause`,
                      :py:class:`psyclone.psyir.nodes.OMPDependClause`,
                      :py:class:`psyclone.psyir.nodes.OMPDependClause`]
+
+        :raises GenerationError: If the OMPTaskDirective has multiple children.
+        :raises GenerationError: If the OMPTaskDirective's child is not a Loop.
+
         """
 
         # These lists will store PSyclone nodes which are to be added to the
@@ -1849,6 +1905,8 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         shared_list = []
         in_list = []
         out_list = []
+        clause_lists = self._clause_lists(private_list, firstprivate_list,
+                                          shared_list, in_list, out_list)
 
         # Reset this in case we already computed clauses before but are
         # recomputing them (usually due to a code change or multiple outputs).
@@ -1871,15 +1929,11 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
             raise GenerationError(
                 "OMPTaskDirective must have exactly one Loop"
                 " child. Found "
-                f"{type(self.children[0].children[0])}"
+                f"'{type(self.children[0].children[0])}'"
             )
         self._evaluate_node(
             self.children[0].children[0],
-            private_list,
-            firstprivate_list,
-            shared_list,
-            in_list,
-            out_list,
+            clause_lists
         )
 
         # Make the clauses to return.
@@ -1937,7 +1991,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         # If we find a Kern or Call child then we abort.
         # Note that if the transformation is used it will have already
         # attempted to do this inlining.
-        if len(self.walk((Kern, Call))) > 0:
+        if self.walk((Kern, Call)):
             raise GenerationError(
                 "Attempted to lower to OMPTaskDirective "
                 "node, but the node contains a Call or Kern "
@@ -1953,16 +2007,14 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
             out_clause,
         ) = self._compute_clauses()
 
-        if len(self.children) < 2 or private_clause != self.children[1]:
-            self.children[1] = private_clause
-        if len(self.children) < 3 or firstprivate_clause != self.children[2]:
-            self.children[2] = firstprivate_clause
-        if len(self.children) < 4 or shared_clause != self.children[3]:
-            self.children[3] = shared_clause
-        if len(self.children) < 5 or in_clause != self.children[4]:
-            self.children[4] = in_clause
-        if len(self.children) < 6 or out_clause != self.children[5]:
-            self.children[5] = out_clause
+        # Replace the children with the new children
+        old_children = self.pop_all_children()
+        self.addchild(old_children[0])
+        self.addchild(private_clause)
+        self.addchild(firstprivate_clause)
+        self.addchild(shared_clause)
+        self.addchild(in_clause)
+        self.addchild(out_clause)
         super().lower_to_language_level()
 
         # Replace this node with an OMPTaskDirective

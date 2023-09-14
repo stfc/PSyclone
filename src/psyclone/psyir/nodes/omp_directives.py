@@ -44,12 +44,11 @@ nodes.'''
 
 import abc
 import itertools
-import sys
 import sympy
 
 from psyclone.configuration import Config
 from psyclone.core import AccessType, VariablesAccessInfo
-from psyclone.errors import (GenerationError, InternalError,
+from psyclone.errors import (GenerationError,
                              UnresolvedDependencyError)
 from psyclone.f2pygen import (AssignGen, UseGen, DeclGen, DirectiveGen,
                               CommentGen)
@@ -63,7 +62,6 @@ from psyclone.psyir.nodes.loop import Loop
 from psyclone.psyir.nodes.if_block import IfBlock
 from psyclone.psyir.nodes.while_loop import WhileLoop
 from psyclone.psyir.nodes.literal import Literal
-from psyclone.psyir.nodes.member import Member
 from psyclone.psyir.nodes.omp_clauses import OMPGrainsizeClause, \
     OMPNowaitClause, OMPNogroupClause, OMPNumTasksClause, OMPPrivateClause, \
     OMPDefaultClause, OMPReductionClause, OMPScheduleClause, \
@@ -143,7 +141,7 @@ class OMPDeclareTargetDirective(OMPStandaloneDirective):
 
         :param parent: the parent Node in the Schedule to which to add our \
                        content.
-        f:type parent: sub-class of :py:class:`psyclone.f2pygen.BaseGen`
+        :type parent: sub-class of :py:class:`psyclone.f2pygen.BaseGen`
         '''
         # Check the constraints are correct
         self.validate_global_constraints()
@@ -440,7 +438,7 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                             f"with a non-ADD operand "
                             f"which is not supported. "
                             f"The operation found was "
-                            f"{ref.debug_string()}.")
+                            f"'{ref.debug_string()}'.")
             elif isinstance(ref.children[1], Literal):
                 # Have Reference OP Literal. Store the symbol of the
                 # Reference, and the integer value of the Literal. If the
@@ -459,7 +457,7 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                             f"Operator is neither ADD not SUB "
                             f"which is not supported. "
                             f"The operation found was "
-                            f"{ref.debug_string()}.")
+                            f"'{ref.debug_string()}'.")
 
             elif isinstance(ref.children[0], BinaryOperation):
                 if ref.operator == BinaryOperation.Operator.ADD:
@@ -476,7 +474,7 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                                 f"BinaryOperation with a non-MUL operator "
                                 f"which is not supported. "
                                 f"The operation found was "
-                                f"{ref.debug_string()}.")
+                                f"'{ref.debug_string()}'.")
                     # These binary operations are format of Literal MUL Literal
                     # where step_val is the 2nd literal and the multiplier
                     # is the first literal
@@ -488,7 +486,7 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                                 f"BinaryOperation with a non-Literal child "
                                 f"which is not supported. "
                                 f"The operation found was "
-                                f"{ref.debug_string()}.")
+                                f"'{ref.debug_string()}'.")
                     # We store the step of the parent loop in binop_val, and
                     # use the other operand to compute how many entries we
                     # need to compute to validate this dependency list.
@@ -502,7 +500,7 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                             f"Reference with a non-ADD operand "
                             f"which is not supported. "
                             f"The operation found was "
-                            f"{ref.debug_string()}.")
+                            f"'{ref.debug_string()}'.")
             elif isinstance(ref.children[1], BinaryOperation):
                 # Have Reference ADD/SUB Binop. Store the symbol of the
                 # Reference, and store the binop. The binop is of
@@ -519,7 +517,7 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                                 f"BinaryOperation with a non-MUL operator "
                                 f"which is not supported. "
                                 f"The operation found was "
-                                f"{ref.debug_string()}.")
+                                f"'{ref.debug_string()}'.")
                     # These binary operations are format of Literal MUL Literal
                     # where step_val is the 2nd literal.
                     if (not (isinstance(binop.children[0], Literal) and
@@ -530,7 +528,7 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                                 f"BinaryOperation with a non-Literal operand "
                                 f"which is not supported. "
                                 f"The operation found was "
-                                f"{ref.debug_string()}.")
+                                f"'{ref.debug_string()}'.")
                     # We store the step of the parent loop in binop_val, and
                     # use the other operand to compute how many entries we
                     # need to compute to validate this dependency list.
@@ -551,7 +549,7 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                             f"non-SUB operand "
                             f"which is not supported. "
                             f"The operation found was "
-                            f"{ref.debug_string()}.")
+                            f"'{ref.debug_string()}'.")
             else:
                 raise UnresolvedDependencyError(
                         f"Found a dependency index that is a "
@@ -560,7 +558,7 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                         f"PSyclone can't validate "
                         f"this dependency. "
                         f"The operation found was "
-                        f"{ref.debug_string()}.")
+                        f"'{ref.debug_string()}'.")
         start, stop, step = self._compute_accesses_get_start_stop_step(
                 preceding_nodes, task, symbol)
 
@@ -571,11 +569,12 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                 # this case, as BinaryOperations created by OMPTaskDirective
                 # in dependencies will always be based on ancestor loops.
                 raise UnresolvedDependencyError(
-                        "Found a dependency between a "
-                        "BinaryOperation and a previously "
-                        "set constant value. "
-                        "PSyclone cannot yet handle this "
-                        "interaction.")
+                        f"Found a dependency between a "
+                        f"BinaryOperation and a previously "
+                        f"set constant value. "
+                        f"PSyclone cannot yet handle this "
+                        f"interaction. The error occurs from "
+                        f"'{ref.debug_string()}'.")
             # If the step isn't a Literal value, then we can't compute what
             # the address accesses at compile time, so we can't validate the
             # dependency.
@@ -584,7 +583,7 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                         f"Found a dependency index that is a "
                         f"Loop variable with a non-Literal step "
                         f"which we can't resolve in PSyclone. "
-                        f"Containing node is {ref.debug_string()}.")
+                        f"Containing node is '{ref.debug_string()}'.")
             # If the start and stop are both Literals, we can compute a set
             # of accesses this BinaryOperation is related to precisely.
             if (isinstance(start, Literal) and isinstance(stop, Literal)):
@@ -1471,18 +1470,17 @@ class OMPParallelDirective(OMPRegionDirective):
                     if clause.operand == "in":
                         continue
                     # Check if the symbol is in this depend clause.
-                    for child in clause.children:
-                        if sym.name == child.symbol.name:
-                            found = True
-                            break
+                    if sym.name in [child.symbol.name for child in
+                                    clause.children]:
+                        found = True
                     if found:
                         break
                 if not found:
                     raise GenerationError(
-                        f"Lowering {type(self).__name__} does not support "
+                        f"Lowering '{type(self).__name__}' does not support "
                         f"symbols that need synchronisation unless they are "
                         f"in a depend clause, but found: "
-                        f"{sym.name} which is not in a depend clause.")
+                        f"'{sym.name}' which is not in a depend clause.")
 
         self.addchild(private_clause)
         self.addchild(fprivate_clause)

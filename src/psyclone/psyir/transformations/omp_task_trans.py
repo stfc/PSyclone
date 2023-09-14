@@ -40,7 +40,7 @@ from psyclone.psyir.transformations.fold_conditional_return_expressions_trans \
         import FoldConditionalReturnExpressionsTrans
 from psyclone.psyir.transformations.parallel_loop_trans import\
     ParallelLoopTrans
-from psyclone.psyir.nodes import CodeBlock, Call, Routine
+from psyclone.psyir.nodes import CodeBlock, Call
 from psyclone.psyir.nodes import DynamicOMPTaskDirective
 from psyclone.psyir.transformations.inline_trans import InlineTrans
 from psyclone.psyir.transformations.transformation_error import \
@@ -171,8 +171,7 @@ class OMPTaskTrans(ParallelLoopTrans):
           ...
           !$OMP END TASK
 
-        At code-generation time (when
-        :py:meth:`OMPTaskDirective.gen_code` is called), this node must be
+        At code-generation time, this node must be
         within (i.e. a child of) an OpenMP Serial region (OpenMP Single or
         OpenMP Master)
 

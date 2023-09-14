@@ -117,8 +117,8 @@ class ArrayMixin(metaclass=abc.ABCMeta):
                 f"'{type(index).__name__}'.")
         if index > len(self.indices)-1:
             raise ValueError(
-                f"In ArrayReference '{self.name}' the specified index "
-                f"'{index}' must be less than the number of dimensions "
+                f"In '{type(self).__name__}' '{self.name}' the specified "
+                f"index '{index}' must be less than the number of dimensions "
                 f"'{len(self.indices)}'.")
 
     def _is_bound_op(self, expr, bound_operator, index):
@@ -267,6 +267,7 @@ class ArrayMixin(metaclass=abc.ABCMeta):
         :rtype: :py:class:`psyclone.psyir.nodes.Node`
 
         '''
+        self._validate_index(pos)
         # Call the helper function
         return self._get_bound_expression(pos, "lower")
 
@@ -285,6 +286,7 @@ class ArrayMixin(metaclass=abc.ABCMeta):
         :rtype: :py:class:`psyclone.psyir.nodes.Node`
 
         '''
+        self._validate_index(pos)
         # Call the helper function
         return self._get_bound_expression(pos, "upper")
 
@@ -300,6 +302,8 @@ class ArrayMixin(metaclass=abc.ABCMeta):
                   pos for this ArrayMixin.
         :rtype: :py:class:`psyclone.psyir.nodes.Range`
         '''
+        self._validate_index(pos)
+
         lbound = self.get_lbound_expression(pos)
         ubound = self.get_ubound_expression(pos)
 

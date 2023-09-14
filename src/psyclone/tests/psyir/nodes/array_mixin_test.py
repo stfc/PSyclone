@@ -138,8 +138,8 @@ def test_is_bound_validate_index(fortran_reader):
     array_ref = assigns[0].lhs
     with pytest.raises(ValueError) as info:
         array_ref._is_bound(2, "upper")
-    assert ("In ArrayReference 'a' the specified index '2' must be less than "
-            "the number of dimensions '1'." in str(info.value))
+    assert ("In 'ArrayReference' 'a' the specified index '2' must be less "
+            "than the number of dimensions '1'." in str(info.value))
 
 
 @pytest.mark.parametrize("bounds,lower,upper", [
@@ -476,6 +476,13 @@ def test_aref_get_full_range_unknown_size(extent):
     full_range_aref = ArrayReference.create(symbol, [range1, range2])
     assert full_range_aref.is_full_range(0)
     assert full_range_aref.is_full_range(1)
+
+    # Test the validate index function correctly throws an exception for
+    # a bad index
+    with pytest.raises(ValueError) as excinfo:
+        aref.get_full_range(10)
+    assert ("In 'ArrayReference' 'my_symbol' the specified index '10' must be "
+            "less than the number of dimensions '2'." in str(excinfo.value))
 
 
 # _get_effective_shape
