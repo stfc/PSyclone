@@ -36,7 +36,7 @@
 '''Module containing LFRic-specific utility functions.'''
 
 from psyclone.psyir.nodes import Node, Container, FileContainer
-from psyclone.errors import GenerationError
+from psyclone.errors import GenerationError, InternalError
 
 
 def find_container(psyir):
@@ -55,6 +55,8 @@ def find_container(psyir):
 
     :raises TypeError: if the supplied psyir argument does not contain
         PSyIR.
+    :raises GenerationError: if the supplied PSyIR does not contain
+        any containers.
     :raises InternalError: if there are two Containers and the second is a
         FileContainer. This is invalid PSyIR.
     :raises GenerationError: if there are two Containers and the first is
@@ -66,7 +68,7 @@ def find_container(psyir):
     if not isinstance(psyir, Node):
         raise TypeError(
             f"In, the find_container function, expected the 'psyir' argument "
-            "to be a PSyIR Node but found '{type(psyir).__name__}'.")
+            f"to be a PSyIR Node but found '{type(psyir).__name__}'.")
 
     containers = psyir.walk(Container)
     if not containers:
@@ -115,10 +117,16 @@ def metadata_name_from_module_name(module_name):
         the LFRic kernel naming conventions.
 
     '''
-    if module_name.lower().endswith("_mod"):
+    if not isinstance(module_name, str):
+        raise TypeError(
+            f"Expected the module_name argument to the "
+            f"metadata_name_from_module_name utility to be a string, but "
+            f"found '{type(module_name).__name__}'.")
+
+    if module_name.lower().endswith("_mod") and len(module_name) > len("_mod"):
         root_name = module_name[:(len(module_name)-len("_mod"))]
     else:
         raise GenerationError(
             f"LFRic module names should end with \"_mod\", but found "
-            f"a module called '{module_name}'")
+            f"a module called '{module_name}'.")
     return f"{root_name}_type"
