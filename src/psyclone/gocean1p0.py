@@ -511,6 +511,48 @@ class GOLoop(PSyLoop):
         '''
         return self._bounds_lookup
 
+    def independent_iterations(self,
+                               test_all_variables=False,
+                               signatures_to_ignore=None,
+                               dep_tools=None):
+        '''
+        This function is a GOcean-specific override of the default method
+        in the Loop class. It allows domain-specific rules to be applied when
+        determining whether or not loop iterations are independent.
+
+        :param bool test_all_variables: if True, it will test if all variable
+            accesses are independent, otherwise it will stop after the first
+            variable access is found that isn't.
+        :param signatures_to_ignore: list of signatures for which to skip
+            the access checks.
+        :type signatures_to_ignore: Optional[
+            List[:py:class:`psyclone.core.Signature`]]
+        :param dep_tools: an optional instance of DependencyTools so that the
+            caller can access any diagnostic messages detailing why the loop
+            iterations are not independent.
+        :type dep_tools: Optional[
+            :py:class:`psyclone.psyir.tools.DependencyTools]
+
+        :returns: True if the loop iterations are independent, False otherwise.
+        :rtype: bool
+
+        '''
+        if not dep_tools:
+            from psyclone.psyir.tools import DependencyTools
+            dtools = DependencyTools()
+        else:
+            dtools = dep_tools
+
+        try:
+            stat = dtools.can_loop_be_parallelised(
+                self, test_all_variables=test_all_variables,
+                signatures_to_ignore=signatures_to_ignore)
+            return stat
+        except InternalError:
+            # The dependence analysis in GOcean doesn't yet use PSyIR
+            # consistently and that causes failures - TODO #845.
+            return True
+
     # -------------------------------------------------------------------------
     def _halo_read_access(self, arg):
         '''Determines whether the supplied argument has (or might have) its
