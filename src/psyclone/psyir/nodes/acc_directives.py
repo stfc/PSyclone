@@ -36,7 +36,8 @@
 #         C.M. Maynard, Met Office / University of Reading
 #         J. Henrichs, Bureau of Meteorology
 # Modified A. B. G. Chalk, STFC Daresbury Lab
-# Modified J. G. Wallwork, Met Office
+#          S. Valat, INRIA / LJK
+#          J. G. Wallwork, Met Office
 # -----------------------------------------------------------------------------
 
 ''' This module contains the implementation of the various OpenACC Directive
@@ -44,6 +45,7 @@ nodes.'''
 
 import abc
 
+from psyclone.core import AccessType, VariablesAccessInfo
 from psyclone.core import Signature
 from psyclone.f2pygen import DirectiveGen, CommentGen
 from psyclone.errors import GenerationError, InternalError
@@ -54,6 +56,10 @@ from psyclone.psyir.nodes.directive import (StandaloneDirective,
                                             RegionDirective)
 from psyclone.psyir.nodes.psy_data_node import PSyDataNode
 from psyclone.psyir.nodes.routine import Routine
+from psyclone.psyir.nodes.reference import Reference
+from psyclone.psyir.symbols import ScalarType
+from psyclone.psyir.nodes.acc_mixins import ACCAsyncMixin
+from psyclone.core.signature import Signature
 from psyclone.psyir.nodes.schedule import Schedule
 
 
@@ -167,7 +173,7 @@ class ACCRoutineDirective(ACCStandaloneDirective):
         return "acc routine"
 
 
-class ACCEnterDataDirective(ACCStandaloneDirective):
+class ACCEnterDataDirective(ACCStandaloneDirective, ACCAsyncMixin):
     '''
     Class representing a "!$ACC enter data" OpenACC directive in
     an InvokeSchedule. Must be sub-classed for a particular API because the way
@@ -178,9 +184,16 @@ class ACCEnterDataDirective(ACCStandaloneDirective):
     :param parent: the node in the InvokeSchedule to which to add this \
                    directive as a child.
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
+    :param async_queue: Enable async support and attach it to the given queue.
+                        Can use False to disable, True to enable on default
+                        stream. Int to attach to the given stream ID or use a
+                        variable Signature to say at runtime what stream to be
+                        used.
+    :type async_queue: bool | int | :py:class: psyclone.core.Signature
     '''
-    def __init__(self, children=None, parent=None):
+    def __init__(self, children=None, parent=None, async_queue=False):
         super().__init__(children=children, parent=parent)
+        ACCAsyncMixin.__init__(self, async_queue)
         self._acc_dirs = None  # List of parallel directives
 
         self._sig_set = set()
@@ -202,11 +215,14 @@ class ACCEnterDataDirective(ACCStandaloneDirective):
         # incompatible with class DirectiveGen() we are using below.
         self.begin_string()
 
+        # async
+        async_option = self._build_async_string()
+
         # Add the enter data directive.
         sym_list = _sig_set_to_string(self._sig_set)
         copy_in_str = f"copyin({sym_list})"
         parent.add(DirectiveGen(parent, "acc", "begin", "enter data",
-                                copy_in_str))
+                                copy_in_str + async_option))
         # Call an API-specific subclass of this class in case
         # additional declarations are required.
         self.data_on_device(parent)
@@ -257,9 +273,15 @@ class ACCEnterDataDirective(ACCStandaloneDirective):
 
         sym_list = _sig_set_to_string(self._sig_set)
 
+        # options
+        options = f" copyin({sym_list})"
+
+        # async
+        options += self._build_async_string()
+
         # Variables need lexicographic sorting since sets guarantee no ordering
         # and members of composite variables must appear later in deep copies.
-        return f"acc enter data copyin({sym_list})"
+        return f"acc enter data{options}"
 
     def data_on_device(self, parent):
         '''
@@ -273,14 +295,43 @@ class ACCEnterDataDirective(ACCStandaloneDirective):
         '''
 
 
-class ACCParallelDirective(ACCRegionDirective):
+class ACCParallelDirective(ACCRegionDirective, ACCAsyncMixin):
     '''
     Class representing the !$ACC PARALLEL directive of OpenACC
     in the PSyIR. By default it includes the 'DEFAULT(PRESENT)' clause which
     means this node must either come after an EnterDataDirective or within
     a DataDirective.
 
+    :param children: the PSyIR nodes to be enclosed in the ACC parallel region\
+                         and which are therefore children of this node.
+        :type children: List[:py:class:`psyclone.psyir.nodes.Node`]
+        :param parent: the parent of this node in the PSyIR.
+        :type parent: sub-class of :py:class:`psyclone.psyir.nodes.Node`
+        :param async_queue: Make the directive asynchonous and attached to the
+                            given stream identified by an ID or by a variable
+                            name pointing to an integer.
+        :type async_queue: bool|:py:class:`psyclone.psyir.nodes.Reference`|int
     '''
+    def __init__(self, children=None, parent=None, async_queue=False):
+        super().__init__(children=children, parent=parent)
+        ACCAsyncMixin.__init__(self, async_queue)
+
+    def __eq__(self, other):
+        '''
+        Checks whether two nodes are equal. Two ACCParallelDirective nodes are
+        equal if their default_present members are equal and they use the
+        same async_queue.
+
+        :param object other: the object to check equality to.
+
+        :returns: whether other is equal to self.
+        :rtype: bool
+        '''
+        is_eq = super().__eq__(other)
+        is_eq = is_eq and ACCAsyncMixin.__eq__(self, other)
+
+        return is_eq
+
     def gen_code(self, parent):
         '''
         Generate the elements of the f2pygen AST for this Node in the Schedule.
@@ -291,8 +342,13 @@ class ACCParallelDirective(ACCRegionDirective):
         '''
         self.validate_global_constraints()
 
+        # remove the "acc parallel" added by begin_string() and keep only the
+        # parameters
+        begin_args = ' '.join(self.begin_string().split()[2:])
+
+        # add the directive
         parent.add(DirectiveGen(parent, "acc", "begin", "parallel",
-                                "default(present)"))
+                                begin_args))
 
         for child in self.children:
             child.gen_code(parent)
@@ -315,7 +371,14 @@ class ACCParallelDirective(ACCRegionDirective):
         # all data required by the parallel region is already present
         # on the device. If we've made a mistake and it isn't present
         # then we'll get a run-time error.
-        return "acc parallel default(present)"
+
+        # present
+        options = " default(present)"
+
+        # async
+        options += self._build_async_string()
+
+        return f"acc parallel{options}"
 
     def end_string(self):
         '''
@@ -560,7 +623,7 @@ class ACCLoopDirective(ACCRegionDirective):
         return ""
 
 
-class ACCKernelsDirective(ACCRegionDirective):
+class ACCKernelsDirective(ACCRegionDirective, ACCAsyncMixin):
     '''
     Class representing the !$ACC KERNELS directive in the PSyIR.
 
@@ -569,12 +632,20 @@ class ACCKernelsDirective(ACCRegionDirective):
     :type children: List[:py:class:`psyclone.psyir.nodes.Node`]
     :param parent: the parent of this node in the PSyIR.
     :type parent: sub-class of :py:class:`psyclone.psyir.nodes.Node`
-    :param bool default_present: whether or not to add the "default(present)" \
-                                 clause to the kernels directive.
+    :param bool default_present: whether or not to add the \
+                                "default(present)" clause to the kernels \
+                                directive.
+    :param async_queue: Make the directive asynchonous and attached to the
+                        given stream identified by an ID or by a variable
+                        name pointing to an integer.
+    :type async_queue: bool|:py:class:`psyclone.psyir.nodes.Reference`|int
 
     '''
-    def __init__(self, children=None, parent=None, default_present=True):
+
+    def __init__(self, children=None, parent=None, default_present=True,
+                 async_queue=False):
         super().__init__(children=children, parent=parent)
+        ACCAsyncMixin.__init__(self, async_queue)
         self._default_present = default_present
 
     def __eq__(self, other):
@@ -589,6 +660,7 @@ class ACCKernelsDirective(ACCRegionDirective):
         '''
         is_eq = super().__eq__(other)
         is_eq = is_eq and self.default_present == other.default_present
+        is_eq = is_eq and ACCAsyncMixin.__eq__(self, other)
 
         return is_eq
 
@@ -634,8 +706,14 @@ class ACCKernelsDirective(ACCRegionDirective):
 
         '''
         result = "acc kernels"
+
+        # present
         if self._default_present:
             result += " default(present)"
+
+        # async
+        result += self._build_async_string()
+
         return result
 
     def end_string(self):
@@ -740,7 +818,7 @@ class ACCDataDirective(ACCRegionDirective):
             self.addchild(ACCCopyClause(children=list(readwrites.values())))
 
 
-class ACCUpdateDirective(ACCStandaloneDirective):
+class ACCUpdateDirective(ACCStandaloneDirective, ACCAsyncMixin):
     ''' Class representing the OpenACC update directive in the PSyIR. It has
     a direction attribute that can be set to 'self', 'host' or 'device', the
     set of symbols being updated and an optional if_present clause.
@@ -758,15 +836,21 @@ class ACCUpdateDirective(ACCStandaloneDirective):
                         clause on the update directive (this instructs the
                         directive to silently ignore any variables that are not
                         on the device).
+    :param async_queue: Make the directive asynchonous and attached to the \
+                        given stream identified by an ID or by a variable name
+                        pointing to an integer.
+    :type async_queue: Optional[
+        bool|:py:class:`psyclone.psyir.nodes.Reference`|int
+    ]
     :type if_present: Optional[bool]
     '''
 
     _VALID_DIRECTIONS = ("self", "host", "device")
 
     def __init__(self, signatures, direction, children=None, parent=None,
-                 if_present=True):
+                 if_present=True, async_queue=False):
         super().__init__(children=children, parent=parent)
-
+        ACCAsyncMixin.__init__(self, async_queue)
         self.sig_set = signatures
         self.direction = direction
         self.if_present = if_present
@@ -785,6 +869,7 @@ class ACCUpdateDirective(ACCStandaloneDirective):
         is_eq = is_eq and self.sig_set == other.sig_set
         is_eq = is_eq and self.direction == other.direction
         is_eq = is_eq and self.if_present == other.if_present
+        is_eq = is_eq and ACCAsyncMixin.__eq__(self, other)
 
         return is_eq
 
@@ -883,7 +968,11 @@ class ACCUpdateDirective(ACCStandaloneDirective):
         condition = "if_present " if self._if_present else ""
         sym_list = _sig_set_to_string(self._sig_set)
 
-        return f"acc update {condition}{self._direction}({sym_list})"
+        # async
+        asyncvalue = self._build_async_string()
+
+        return \
+            f"acc update {condition}{self._direction}({sym_list}){asyncvalue}"
 
 
 def _sig_set_to_string(sig_set):
@@ -902,8 +991,97 @@ def _sig_set_to_string(sig_set):
     return ",".join(sorted(names))
 
 
+class ACCWaitDirective(ACCStandaloneDirective):
+    '''
+    Class representing the !$ACC WAIT directive in the PSyIR.
+
+    :param wait_queue: Which ACC async stream to wait. None to wait all.
+    :type wait_queue: Optional[:py:class:`psyclone.psyir.nodes.Reference`, int]
+    '''
+    def __init__(self, wait_queue=None):
+        # call parent
+        super().__init__()
+        self.wait_queue = wait_queue
+
+    def __eq__(self, other):
+        '''
+        Test the equality of two directives.
+
+        :returns: If the two directives are equals.
+        :rtype: bool
+        '''
+        is_eq = super().__eq__(other)
+        is_eq = is_eq and self._wait_queue == other._wait_queue
+        return is_eq
+
+    @property
+    def wait_queue(self):
+        '''
+        :returns: The queue to wait on.
+        :rtype: Optional[int, :py:class:`psyclone.psyir.nodes.Reference`]
+        '''
+        return self._wait_queue
+
+    @wait_queue.setter
+    def wait_queue(self, wait_queue):
+        '''
+        Setter to assign a specific wait queue to wait for.
+
+        :param wait_queue: The wait queue to expect, or None for all.
+        :type wait_queue: Optional[int, \
+            :py:class:`psyclone.psyir.nodes.Reference`]
+
+        :raises TypeError: if `wait_queue` is of the wrong type
+        '''
+        # check
+        if (wait_queue is not None
+           and not isinstance(wait_queue, (int, Reference))):
+            raise TypeError("Invalid value type as wait_group, shoule be"
+                            "in (None, int, Signature) !")
+
+        # set
+        self._wait_queue = wait_queue
+
+    def gen_code(self, parent):
+        '''
+        Generate the given directive code to add it to the call tree.
+
+        :param parent: the parent Node in the Schedule to which to add this \
+                       content.
+        :type parent: sub-class of :py:class:`psyclone.f2pygen.BaseGen`
+        '''
+        # remove the "acc wait" added by begin_string() and keep only the
+        # parameters
+        args = ' '.join(self.begin_string().split()[2:])
+
+        # Generate the directive
+        parent.add(DirectiveGen(parent, "acc", "begin", "wait", args))
+
+    def begin_string(self):
+        '''Returns the beginning statement of this directive, i.e.
+        "acc wait ...". The backend is responsible for adding the
+        correct directive beginning (e.g. "!$").
+
+        :returns: the beginning statement for this directive.
+        :rtype: str
+
+        '''
+        # default basic directive
+        result = "acc wait"
+
+        # handle specifying groups
+        if self._wait_queue is not None:
+            if isinstance(self._wait_queue, Reference):
+                result += f" ({self._wait_queue.name})"
+            else:
+                result += f" ({self._wait_queue})"
+
+        # ok return it
+        return result
+
+
 # For automatic API documentation generation
 __all__ = ["ACCRegionDirective", "ACCEnterDataDirective",
            "ACCParallelDirective", "ACCLoopDirective", "ACCKernelsDirective",
            "ACCDataDirective", "ACCUpdateDirective", "ACCStandaloneDirective",
-           "ACCDirective", "ACCRoutineDirective"]
+           "ACCDirective", "ACCRoutineDirective", "ACCWaitDirective"]

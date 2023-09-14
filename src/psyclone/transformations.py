@@ -2266,6 +2266,11 @@ class ACCEnterDataTrans(Transformation):
         :param sched: schedule to which to add an "enter data" directive.
         :type sched: sub-class of :py:class:`psyclone.psyir.nodes.Schedule`
         :param options: a dictionary with options for transformations.
+
+        The available options are :
+         - async_queue : Permit to force using the given async stream if
+                         not None.
+
         :type options: Optional[Dict[str, Any]]
 
         '''
@@ -2299,10 +2304,42 @@ class ACCEnterDataTrans(Transformation):
                 current = current.parent
             posn = sched.children.index(current)
 
+        # handle default empty options
+        if options is None:
+            options = {}
+
+        # extract async
+        async_queue = options.get('async_queue', False)
+
+        # check
+        self.check_child_async(sched, async_queue)
+
         # Add the directive at the position determined above, i.e. just before
         # the first statement containing an OpenACC compute construct.
-        data_dir = AccEnterDataDir(parent=sched, children=[])
+        data_dir = AccEnterDataDir(parent=sched, children=[],
+                                   async_queue=async_queue)
         sched.addchild(data_dir, index=posn)
+
+    def check_child_async(self, sched, async_queue):
+        '''
+        Common function to check that all kernel/parallel childs have the
+        same async queue.
+
+        :param sched: schedule to which to add an "enter data" directive.
+        :type sched: sub-class of :py:class:`psyclone.psyir.nodes.Schedule`
+
+        :param async_queue: The async queue to expect in childs.
+        :type async_queue: \
+            Optional[bool,int,:py:class: psyclone.core.Reference]
+        '''
+
+        directive_cls = (ACCParallelDirective, ACCKernelsDirective)
+        for dir in sched.walk(directive_cls):
+            if async_queue is not None:
+                if async_queue != dir.async_queue:
+                    raise TransformationError(
+                        'Try to make an ACCEnterDataTrans with async_queue '
+                        'different than the one in child kernels !')
 
     def validate(self, sched, options=None):
         # pylint: disable=arguments-differ, arguments-renamed
@@ -2331,6 +2368,14 @@ class ACCEnterDataTrans(Transformation):
         if sched.walk(directive_cls, stop_type=directive_cls):
             raise TransformationError("Schedule already has an OpenACC data "
                                       "region - cannot add an enter data.")
+
+        # handle async option
+        if options is None:
+            options = {}
+        async_queue = options.get('async_queue', False)
+
+        # check consistency with childs about async_queue
+        self.check_child_async(sched, async_queue)
 
 
 class ACCRoutineTrans(Transformation):
@@ -2514,13 +2559,51 @@ class ACCKernelsTrans(RegionTrans):
         if not options:
             options = {}
         default_present = options.get("default_present", False)
+        async_queue = options.get("async_queue", False)
+
+        # check
+        self.check_async_queue(node, async_queue)
 
         # Create a directive containing the nodes in node_list and insert it.
         directive = ACCKernelsDirective(
             parent=parent, children=[node.detach() for node in node_list],
-            default_present=default_present)
+            default_present=default_present, async_queue=async_queue)
 
         parent.children.insert(start_index, directive)
+
+    def check_async_queue(self, nodes, async_queue):
+        '''
+        Common function to check that all parent data directives have
+        the same async queue.
+
+        :param node: a node or list of nodes in the PSyIR to enclose.
+        :type nodes: (a list of) :py:class:`psyclone.psyir.nodes.Node`
+
+        :param async_queue: The async queue to expect in parents.
+        :type async_queue: \
+            Optional[bool,int,:py:class: psyclone.core.Reference]
+        '''
+
+        # check type
+        if (async_queue is not None and
+           not isinstance(async_queue, (int, Reference))):
+            raise TypeError(f"Invalid async_queue value, expect Reference or "
+                            f"integer or None or False, got : {async_queue}")
+
+        # handle list
+        if not isinstance(nodes, list):
+            nodes = [nodes]
+
+        directive_cls = (ACCDataDirective)
+        for node in nodes:
+            parent = node.ancestor(directive_cls)
+            if parent is not None:
+                if async_queue is not None:
+                    if async_queue != parent.async_queue:
+                        raise TransformationError(
+                            'Try to make an ACCKernelTrans with async_queue '
+                            'different than the one in parent data directive '
+                            '!')
 
     def validate(self, nodes, options):
         # pylint: disable=signature-differs
@@ -2532,6 +2615,11 @@ class ACCKernelsTrans(RegionTrans):
                       kernels region.
         :type nodes: (list of) :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.
+
+        The available options are :
+         - async_queue : Permit to force using the given async stream if
+                         not None.
+
         :type options: Optional[Dict[str, Any]]
 
         :raises NotImplementedError: if the supplied Nodes belong to \
@@ -2563,6 +2651,16 @@ class ACCKernelsTrans(RegionTrans):
             raise TransformationError(
                 "A kernels transformation must enclose at least one loop or "
                 "array range but none were found.")
+
+        # handle default empty option
+        if options is None:
+            options = {}
+
+        # extract async
+        async_queue = options.get('async_queue', False)
+
+        # check
+        self.check_async_queue(node, async_queue)
 
 
 class ACCDataTrans(RegionTrans):
