@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2023, Science and Technology Facilities Council.
+# Copyright (c) 2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,14 +33,15 @@
 # -----------------------------------------------------------------------------
 # Author: R. W. Ford, STFC Daresbury Laboratory
 
-'''Module containing tests for the sum2code transformation.'''
+'''Module containing tests for the maxval2code transformation.'''
 
 import pytest
 
 from psyclone.psyir.nodes import Reference, ArrayReference
 from psyclone.psyir.symbols import (
-    REAL_TYPE, DataSymbol, INTEGER_TYPE, ArrayType, ScalarType)
-from psyclone.psyir.transformations import Sum2CodeTrans, TransformationError
+    REAL_TYPE, DataSymbol, INTEGER_TYPE, ArrayType)
+from psyclone.psyir.transformations import (
+    Maxval2CodeTrans, TransformationError)
 from psyclone.tests.utilities import Compile
 
 
@@ -49,9 +50,9 @@ def test_initialise():
     _INTRINSIC_NAME is set up as expected.
 
     '''
-    trans = Sum2CodeTrans()
-    assert isinstance(trans, Sum2CodeTrans)
-    assert trans._INTRINSIC_NAME == "SUM"
+    trans = Maxval2CodeTrans()
+    assert isinstance(trans, Maxval2CodeTrans)
+    assert trans._INTRINSIC_NAME == "MAXVAL"
 
 
 def test_loop_body():
@@ -59,7 +60,7 @@ def test_loop_body():
     reduction.
 
     '''
-    trans = Sum2CodeTrans()
+    trans = Maxval2CodeTrans()
     i_iterator = DataSymbol("i", INTEGER_TYPE)
     j_iterator = DataSymbol("j", INTEGER_TYPE)
     array_iterators = [j_iterator, i_iterator]
@@ -68,7 +69,10 @@ def test_loop_body():
     array_ref = ArrayReference.create(
         array_symbol, [Reference(i_iterator), Reference(j_iterator)])
     result = trans._loop_body(False, array_iterators, var_symbol, array_ref)
-    assert result.debug_string() == "var = var + array(i,j)\n"
+    assert result.debug_string() == (
+        "if (var < array(i,j)) then\n"
+        "  var = array(i,j)\n"
+        "end if\n")
 
 
 def test_loop_body_reduction():
@@ -76,7 +80,7 @@ def test_loop_body_reduction():
     reduction.
 
     '''
-    trans = Sum2CodeTrans()
+    trans = Maxval2CodeTrans()
     i_iterator = DataSymbol("i", INTEGER_TYPE)
     j_iterator = DataSymbol("j", INTEGER_TYPE)
     k_iterator = DataSymbol("k", INTEGER_TYPE)
@@ -87,24 +91,20 @@ def test_loop_body_reduction():
         array_symbol, [Reference(i_iterator), Reference(j_iterator),
                        Reference(k_iterator)])
     result = trans._loop_body(True, array_iterators, var_symbol, array_ref)
-    assert result.debug_string() == "var(i,k) = var(i,k) + array(i,j,k)\n"
+    assert result.debug_string() == (
+        "if (var(i,k) < array(i,j,k)) then\n"
+        "  var(i,k) = array(i,j,k)\n"
+        "end if\n")
 
 
-@pytest.mark.parametrize("name,precision,zero", [
-    (ScalarType.Intrinsic.REAL, ScalarType.Precision.UNDEFINED, "0.0"),
-    (ScalarType.Intrinsic.INTEGER, ScalarType.Precision.UNDEFINED, "0"),
-    (ScalarType.Intrinsic.REAL, DataSymbol("r_def", INTEGER_TYPE),
-     "0.0_r_def")])
-def test_init_var(name, precision, zero):
-    '''Test that the _init_var method works as expected. Test with real,
-    integer and with a specified precision.
-
-    '''
-    trans = Sum2CodeTrans()
-    datatype = ScalarType(name, precision)
-    var_symbol = DataSymbol("var", datatype)
+def test_init_var():
+    '''Test that the _init_var method works as expected.'''
+    trans = Maxval2CodeTrans()
+    var_symbol = DataSymbol("var", REAL_TYPE)
     result = trans._init_var(var_symbol)
-    assert result.debug_string() == zero
+    # As 'tiny' is not yet part of an expression, the 'debug_string()'
+    # method incorrectly assumes it is a call.
+    assert result.debug_string() == "call TINY(var)\n"
 
 
 def test_str():
@@ -112,8 +112,8 @@ def test_str():
     as expected.
 
     '''
-    trans = Sum2CodeTrans()
-    assert str(trans) == ("Convert the PSyIR SUM intrinsic to equivalent "
+    trans = Maxval2CodeTrans()
+    assert str(trans) == ("Convert the PSyIR MAXVAL intrinsic to equivalent "
                           "PSyIR code.")
 
 
@@ -122,8 +122,8 @@ def test_name():
     as expected.
 
     '''
-    trans = Sum2CodeTrans()
-    assert trans.name == "Sum2CodeTrans"
+    trans = Maxval2CodeTrans()
+    assert trans.name == "Maxval2CodeTrans"
 
 
 def test_validate():
@@ -131,10 +131,10 @@ def test_validate():
     works as expected.
 
     '''
-    trans = Sum2CodeTrans()
+    trans = Maxval2CodeTrans()
     with pytest.raises(TransformationError) as info:
         trans.validate(None)
-    assert ("Error in Sum2CodeTrans transformation. The supplied node "
+    assert ("Error in Maxval2CodeTrans transformation. The supplied node "
             "argument is not an intrinsic, found 'NoneType'."
             in str(info.value))
 
@@ -145,30 +145,32 @@ def test_apply(fortran_reader, fortran_writer, tmpdir):
 
     '''
     code = (
-        "subroutine sum_test(array,n,m)\n"
+        "subroutine maxval_test(array,n,m)\n"
         "  integer :: n, m\n"
         "  real :: array(10,20)\n"
         "  real :: result\n"
-        "  result = sum(array)\n"
+        "  result = maxval(array)\n"
         "end subroutine\n")
     expected = (
-        "subroutine sum_test(array, n, m)\n"
+        "subroutine maxval_test(array, n, m)\n"
         "  integer :: n\n  integer :: m\n"
         "  real, dimension(10,20) :: array\n"
-        "  real :: result\n  real :: sum_var\n"
+        "  real :: result\n  real :: maxval_var\n"
         "  integer :: i_0\n  integer :: i_1\n\n"
-        "  sum_var = 0.0\n"
+        "  maxval_var = TINY(maxval_var)\n"
         "  do i_1 = 1, 20, 1\n"
         "    do i_0 = 1, 10, 1\n"
-        "      sum_var = sum_var + array(i_0,i_1)\n"
+        "      if (maxval_var < array(i_0,i_1)) then\n"
+        "        maxval_var = array(i_0,i_1)\n"
+        "      end if\n"
         "    enddo\n"
         "  enddo\n"
-        "  result = sum_var\n\n"
-        "end subroutine sum_test\n")
+        "  result = maxval_var\n\n"
+        "end subroutine maxval_test\n")
     psyir = fortran_reader.psyir_from_source(code)
     # FileContainer/Routine/Assignment/UnaryOperation
     intrinsic_node = psyir.children[0].children[0].children[1]
-    trans = Sum2CodeTrans()
+    trans = Maxval2CodeTrans()
     trans.apply(intrinsic_node)
     result = fortran_writer(psyir)
     assert result == expected
