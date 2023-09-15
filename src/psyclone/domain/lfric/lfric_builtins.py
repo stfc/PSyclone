@@ -227,17 +227,26 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
             :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
+        table = self.scope.symbol_table
         # Collect all write access in a separate object, so they can be added
         # after all read access (which must happen before something is written)
         written = VariablesAccessInfo()
+
         for arg in self.args:
             if arg.form in ["variable", "indexed_variable"]:
-                if arg.access == AccessType.WRITE:
-                    written.add_access(Signature(arg.declaration_name),
-                                       arg.access, self)
+                if arg.is_field:
+                    sym = table.lookup_with_tag(f"{arg.name}_data")
+                    name = sym.name
+                elif arg.is_operator:
+                    import pdb; pdb.set_trace()
+                    sym = table.lookup_with_tag(f"{arg.name}_data")
+                    name = sym.name
                 else:
-                    var_accesses.add_access(Signature(arg.declaration_name),
-                                            arg.access, self)
+                    name = arg.declaration_name
+                if arg.access == AccessType.WRITE:
+                    written.add_access(Signature(name), arg.access, self)
+                else:
+                    var_accesses.add_access(Signature(name), arg.access, self)
         # Now merge the write access to the end of all other accesses:
         var_accesses.merge(written)
         # Forward location pointer to next index, since this built-in kernel

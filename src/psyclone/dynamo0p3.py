@@ -7690,32 +7690,28 @@ class DynLoop(PSyLoop):
             # or operators then this is safe to parallelise.
             table = self.scope.symbol_table
             # Create the set of all LFRic field types.
-            all_fld_names = set(desc["type"] for desc in
-                                LFRicConstants().DATA_TYPE_MAP.values())
+            #all_fld_names = set(desc["type"] for desc in
+            #                    LFRicConstants().DATA_TYPE_MAP.values())
+            #import pdb; pdb.set_trace()
 
             for msg in dtools.get_all_messages():
-                if msg.code != DTCode.WARN_SCALAR_WRITTEN_ONCE:
+                if msg.code != DTCode.ERROR_WRITE_WRITE_RACE:
                     # The DA is complaining about something other than writing
-                    # to (what it thinks is) a scalar.  Therefore the loop
-                    # cannot be parallelised.
+                    # to an array.  Therefore the loop cannot be parallelised.
                     return False
-                # Currently the DA (wrongly) identifies things like
-                # 'fld_proxy%data' as being scalar accesses. We therefore need
-                # to check that the argument it says is a scalar is in fact a
-                # field. If it is, this is safe to parallelise (because an
-                # LFRic Kernel is constrained to write to dofs in the 'owned'
-                # column).
-                # TODO #2197 - when we change the PSy layer to pass field
-                # pointers to kernels, the DA will identify that they are
-                # arrays and this logic will need to be changed.
+                # We need to check that the array argument in question is in
+                # fact a field. If it is, this is safe to parallelise (because
+                # an LFRic Kernel is constrained to write to dofs in the
+                # 'owned' column).
                 for name in msg.var_names:
                     sym = table.lookup(name)
                     # Ideally at this point we would compare sym.datatype with
                     # LFRicTypes("RealFieldDataType") etc. but the LFRic PSy
                     # layer doesn't use those types yet.
-                    if not (isinstance(sym.datatype, DataTypeSymbol) and
-                            sym.datatype.name in all_fld_names):
+                    if not (isinstance(sym.datatype, ArrayType) and
+                            len(sym.datatype.shape) == 1):
                         # The Symbol is not a field or operator.
+                        import pdb; pdb.set_trace()
                         return False
             # All of the variables referred to in all of the messages are
             # actually fields - it is safe to ignore this warning.
