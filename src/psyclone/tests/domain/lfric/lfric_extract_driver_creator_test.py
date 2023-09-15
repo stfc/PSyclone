@@ -255,8 +255,8 @@ def test_lfric_driver_simple_test():
                  "loop0_start)",
                  "call extract_psy_data%ReadVariable('loop0_stop', "
                  "loop0_stop)",
-                 "call extract_psy_data%ReadVariable('m1', m1)",
-                 "call extract_psy_data%ReadVariable('m2', m2)",
+                 "call extract_psy_data%ReadVariable('m1_data', m1_data)",
+                 "call extract_psy_data%ReadVariable('m2_data', m2_data)",
                  "call extract_psy_data%ReadVariable('map_w1', map_w1)",
                  "call extract_psy_data%ReadVariable('map_w2', map_w2)",
                  "call extract_psy_data%ReadVariable('map_w3', map_w3)",
@@ -264,13 +264,13 @@ def test_lfric_driver_simple_test():
                  "call extract_psy_data%ReadVariable('ndf_w2', ndf_w2)",
                  "call extract_psy_data%ReadVariable('ndf_w3', ndf_w3)",
                  "call extract_psy_data%ReadVariable('nlayers', nlayers)",
-                 "call extract_psy_data%ReadVariable('self_vec_type_vector', "
-                 "self_vec_type_vector)",
+                 "call extract_psy_data%ReadVariable('self_vec_type_vector_data', "
+                 "self_vec_type_vector_data)",
                  "call extract_psy_data%ReadVariable('undf_w1', undf_w1)",
                  "call extract_psy_data%ReadVariable('undf_w2', undf_w2)",
                  "call extract_psy_data%ReadVariable('undf_w3', undf_w3)",
-                 "call extract_psy_data%ReadVariable('x_ptr_vector', "
-                 "x_ptr_vector)",
+                 "call extract_psy_data%ReadVariable('x_ptr_vector_data', "
+                 "x_ptr_vector_data)",
                  "call extract_psy_data%ReadVariable('cell_post', cell_post)"]:
         assert line in driver
 
@@ -346,9 +346,9 @@ def test_lfric_driver_field_arrays():
         driver = my_file.read()
 
     # Check that the driver reads the three individual fields
-    assert "ReadVariable('chi%1', chi_1)" in driver
-    assert "ReadVariable('chi%2', chi_2)" in driver
-    assert "ReadVariable('chi%3', chi_3)" in driver
+    assert "ReadVariable('chi_1_data', chi_1_data)" in driver
+    assert "ReadVariable('chi_2_data', chi_2_data)" in driver
+    assert "ReadVariable('chi_3_data', chi_3_data)" in driver
 
     for mod in ["read_kernel_data_mod", "constants_mod", "kernel_mod",
                 "argument_mod", "log_mod", "fs_continuity_mod",
@@ -378,8 +378,8 @@ def test_lfric_driver_operator():
                            "region_name": ("operator", "test")})
     out = str(invoke.gen())
     # Check the structure members that are added for operators:
-    assert ("ProvideVariable(\"mm_w3_proxy%local_stencil\", "
-            "mm_w3_proxy%local_stencil)" in out)
+    assert ("ProvideVariable(\"mm_w3_local_stencil\", "
+            "mm_w3_local_stencil)" in out)
     assert ("ProvideVariable(\"mm_w3_proxy%ncell_3d\", "
             "mm_w3_proxy%ncell_3d)" in out)
     assert "ProvideVariable(\"coord_post\", coord)" in out
@@ -390,13 +390,14 @@ def test_lfric_driver_operator():
 
     # Check that the user defined variables that are added for
     # operators are flattened correctly:
-    assert ("ReadVariable('mm_w3_proxy%local_stencil', "
-            "mm_w3_proxy_local_stencil" in driver)
+    assert ("ReadVariable('mm_w3_local_stencil', "
+            "mm_w3_local_stencil" in driver)
     assert ("ReadVariable('mm_w3_proxy%ncell_3d', "
             "mm_w3_proxy_ncell_3d" in driver)
     # And check the field arrays just in case
     for i in range(1, 4):
-        assert f"ReadVariable('coord_post%{i}', coord_{i}" in driver
+        assert (f"ReadVariable('coord_{i}_data_post', coord_{i}_data"
+                in driver)
 
     for mod in ["read_kernel_data_mod", "constants_mod", "kernel_mod",
                 "argument_mod", "log_mod", "fs_continuity_mod",
@@ -480,11 +481,12 @@ def test_lfric_driver_removing_structure_data():
         get_driver_as_string(invoke.schedule, read_write_info, "extract",
                              "_post", region_name=("region", "name"))
 
-    assert "call extract_psy_data%ReadVariable('f1', f1)" in driver
-    assert "call extract_psy_data%ReadVariable('f2_post', f2_post)" in driver
-    assert "ALLOCATE(f2, mold=f2_post)" in driver
-    assert "f2(df) = a + f1(df)" in driver
-    assert "if (ALL(f2 - f2_post == 0.0)) then" in driver
+    assert "call extract_psy_data%ReadVariable('f1_data', f1_data)" in driver
+    assert ("call extract_psy_data%ReadVariable('f2_data_post', f2_data_post)"
+            in driver)
+    assert "ALLOCATE(f2_data, mold=f2_data_post)" in driver
+    assert "f2_data(df) = a + f1_data(df)" in driver
+    assert "if (ALL(f2_data - f2_data_post == 0.0)) then" in driver
 
     for mod in ["read_kernel_data_mod", "constants_mod"]:
         assert f"module {mod}" in driver
@@ -569,8 +571,8 @@ def test_lfric_driver_field_array_write():
         driver = my_file.read()
 
     for i in range(1, 4):
-        assert f"ReadVariable('coord_post%{i}', coord_{i}_post)" in driver
-        assert f"ALL(coord_{i} - coord_{i}_post == 0.0))" in driver
+        assert f"ReadVariable('coord_{i}_data_post', coord_{i}_data_post)" in driver
+        assert f"ALL(coord_{i}_data - coord_{i}_data_post == 0.0))" in driver
 
     for mod in ["read_kernel_data_mod", "constants_mod", "kernel_mod",
                 "argument_mod", "log_mod", "fs_continuity_mod",
@@ -599,22 +601,22 @@ def test_lfric_driver_field_array_inc():
                            "region_name": ("field", "test")})
     code = str(invoke.gen())
     assert 'ProvideVariable("chi", chi)' in code
-    assert 'ProvideVariable("f1", f1)' in code
+    assert 'ProvideVariable("f1_data", f1_data)' in code
     assert 'ProvideVariable("chi_post", chi)' in code
-    assert 'ProvideVariable("f1_post", f1)' in code
+    assert 'ProvideVariable("f1_data_post", f1_data)' in code
 
     filename = "driver-field-test.F90"
     with open(filename, "r", encoding='utf-8') as my_file:
         driver = my_file.read()
 
-    assert "ReadVariable('f1', f1)" in driver
-    assert "ReadVariable('chi%1', chi_1)" in driver
-    assert "ReadVariable('chi%2', chi_2)" in driver
-    assert "ReadVariable('chi%3', chi_3)" in driver
-    assert "ReadVariable('chi_post%1', chi_1_post)" in driver
-    assert "ReadVariable('chi_post%2', chi_2_post)" in driver
-    assert "ReadVariable('chi_post%3', chi_3_post)" in driver
-    assert "ReadVariable('f1_post', f1_post)" in driver
+    assert "ReadVariable('f1_data', f1_data)" in driver
+    assert "ReadVariable('chi_1_data', chi_1_data)" in driver
+    assert "ReadVariable('chi_2_data', chi_2_data)" in driver
+    assert "ReadVariable('chi_3_data', chi_3_data)" in driver
+    assert "ReadVariable('chi_1_data_post', chi_1_data_post)" in driver
+    assert "ReadVariable('chi_2_data_post', chi_2_data_post)" in driver
+    assert "ReadVariable('chi_3_data_post', chi_3_data_post)" in driver
+    assert "ReadVariable('f1_data_post', f1_data_post)" in driver
 
     # Check that the required modules are inlined
     for mod in ["read_kernel_data_mod", "constants_mod", "kernel_mod",

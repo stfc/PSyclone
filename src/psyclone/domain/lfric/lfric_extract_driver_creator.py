@@ -459,7 +459,7 @@ class LFRicExtractDriverCreator:
         '''
         symbol_table = program.symbol_table
         if index:
-            sym = symbol_table.lookup_with_tag(f"{name}%{index}")
+            sym = symbol_table.lookup_with_tag(f"{name}_{index}_data")
         else:
             sym = symbol_table.lookup_with_tag(name)
 
@@ -470,8 +470,9 @@ class LFRicExtractDriverCreator:
                                            symbol_type=DataSymbol,
                                            datatype=sym.datatype)
         if index:
-            post_tag = f"{name}{postfix}%{index}"
+            post_tag = f"{name}_{index}_data{postfix}"
         else:
+            # TODO ARPDBG - why no _data below?
             post_tag = f"{name}{postfix}"
         name_lit = Literal(post_tag, CHARACTER_TYPE)
         LFRicExtractDriverCreator._add_call(program, read_var,
@@ -551,8 +552,8 @@ class LFRicExtractDriverCreator:
                 # This is a field vector, so add all individual fields
                 upper = int(orig_sym.datatype.shape[0].upper.value)
                 for i in range(1, upper+1):
-                    sym = symbol_table.lookup_with_tag(f"{sig_str}%{i}")
-                    name_lit = Literal(f"{sig_str}%{i}", CHARACTER_TYPE)
+                    sym = symbol_table.lookup_with_tag(f"{sig_str}_{i}_data")
+                    name_lit = Literal(f"{sig_str}_{i}_data", CHARACTER_TYPE)
                     self._add_call(program, read_var, [name_lit,
                                                        Reference(sym)])
                 continue
