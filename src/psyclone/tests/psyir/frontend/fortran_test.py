@@ -216,7 +216,7 @@ def test_fortran_psyir_from_file(fortran_reader, tmpdir_factory):
     ''' Test that the psyir_from_file method reads and parses to PSyIR
     the specified file. '''
     filename = str(tmpdir_factory.mktemp('frontend_test').join("testfile.f90"))
-    with open(filename, "w") as wfile:
+    with open(filename, "w", encoding='utf-8') as wfile:
         wfile.write(CODE)
 
     # Check with a proper file
@@ -227,7 +227,7 @@ def test_fortran_psyir_from_file(fortran_reader, tmpdir_factory):
 
     # Check with an empty file
     filename = str(tmpdir_factory.mktemp('frontend_test').join("empty.f90"))
-    with open(filename, "w") as wfile:
+    with open(filename, "w", encoding='utf-8') as wfile:
         wfile.write("")
     file_container = fortran_reader.psyir_from_file(filename)
     assert isinstance(file_container, FileContainer)

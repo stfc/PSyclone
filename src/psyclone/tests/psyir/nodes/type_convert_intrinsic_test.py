@@ -82,7 +82,7 @@ def test_type_convert_intrinsic_create(intrinsic, intr_str, fortran_writer):
 
 
 @pytest.mark.xfail(reason="No PSyIR symbol type checking is performed on the "
-                   "arguments supplied to the BinaryOperation.create() "
+                   "arguments supplied to the IntrinsicCall.create() "
                    "method - TODO #658.")
 def test_real_intrinsic_invalid():
     ''' Test that the create method rejects invalid precisions. '''

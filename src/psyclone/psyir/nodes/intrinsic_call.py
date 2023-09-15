@@ -524,7 +524,7 @@ class IntrinsicCall(Call):
             ArgDesc(3, 3, DataNode), {})
         MIN = IAttr(
             'MIN', True, True, False,
-            ArgDesc(1, None, DataNode), {})
+            ArgDesc(2, None, DataNode), {})
         MINEXPONENT = IAttr(
             'MINEXPONENT', True, False, True,
             ArgDesc(1, 1, DataNode), {})

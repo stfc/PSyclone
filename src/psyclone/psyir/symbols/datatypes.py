@@ -364,21 +364,40 @@ class ArrayType(DataType):
 
         # This import must be placed here to avoid circular dependencies.
         # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.nodes import Literal, DataNode
+        from psyclone.psyir.nodes import Literal, DataNode, Assignment
 
         def _node_from_int(var):
             ''' Helper routine that simply creates a Literal out of an int.
             If the supplied arg is not an int then it is returned unchanged.
 
             :param var: variable for which to create a Literal if necessary.
-            :type var: int or :py:class:`psyclone.psyir.nodes.DataNode`
+            :type var: int | :py:class:`psyclone.psyir.nodes.DataNode` | Extent
 
-            :returns: a DataNode representing the supplied input.
-            :rtype: :py:class:`psyclone.psyir.nodes.DataNode`
+            :returns: the variable with ints converted to DataNodes.
+            :rtype: :py:class:`psyclone.psyir.nodes.DataNode` | Extent
 
             '''
             if isinstance(var, int):
                 return Literal(str(var), INTEGER_TYPE)
+            return var
+
+        def _dangling_parent(var):
+            ''' Helper routine that copies and adds a dangling parent
+            Assignment to a given node, this implicitly guarantees that the
+            node is not attached anywhere else (and is unexpectedly modified)
+            and also makes it behave like other nodes (e.g. calls inside an
+            expression do not have the "call" keyword in Fortran)
+
+            :param var: variable with a dangling parent if necessary.
+            :type var: int | :py:class:`psyclone.psyir.nodes.DataNode` | Extent
+
+            :returns: the variable with dangling parent when necessary.
+            :rtype: :py:class:`psyclone.psyir.nodes.DataNode` | Extent
+            '''
+            if isinstance(var, DataNode):
+                parent = Assignment()
+                parent.addchild(var.copy())
+                return parent.children[0]
             return var
 
         if isinstance(datatype, DataType):
@@ -412,12 +431,15 @@ class ArrayType(DataType):
         for dim in shape:
             if isinstance(dim, (DataNode, int)):
                 # The lower bound is 1 by default.
-                self._shape.append(ArrayType.ArrayBounds(one.copy(),
-                                                         _node_from_int(dim)))
+                self._shape.append(
+                    ArrayType.ArrayBounds(
+                        _dangling_parent(one.copy()),
+                        _dangling_parent(_node_from_int(dim))))
             elif isinstance(dim, tuple):
                 self._shape.append(
-                    ArrayType.ArrayBounds(_node_from_int(dim[0]),
-                                          _node_from_int(dim[1])))
+                    ArrayType.ArrayBounds(
+                        _dangling_parent(_node_from_int(dim[0])),
+                        _dangling_parent(_node_from_int(dim[1]))))
             else:
                 self._shape.append(dim)
 

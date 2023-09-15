@@ -237,7 +237,7 @@ def insert_explicit_loop_parallelism(
         # which we'd rather parallelise
         if ('ice' in routine_name
             and isinstance(loop.stop_expr, IntrinsicCall)
-            and (loop.stop_expr.intrinsic == (IntrinsicCall.Intrinsic.UBOUND,
+            and (loop.stop_expr.intrinsic in (IntrinsicCall.Intrinsic.UBOUND,
                                               IntrinsicCall.Intrinsic.SIZE))
             and (len(loop.walk(Loop)) > 2
                  or any(ref.symbol.name in ('npti',)

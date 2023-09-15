@@ -408,16 +408,12 @@ class FortranWriter(LanguageWriter):
                 # Lower and upper bounds of an array declaration specified
                 # by literal constant, symbol reference, or computed dimension
                 lower_expression = self._visit(index.lower)
-                if isinstance(index.lower, IntrinsicCall):
-                    lower_expression = lower_expression[7:-1]
                 if isinstance(index.upper, ArrayType.Extent):
                     # We have an assumed-shape array (R514) where only the
                     # lower bound is specified.
                     upper_expression = ""
                 else:
                     upper_expression = self._visit(index.upper)
-                    if isinstance(index.upper, IntrinsicCall):
-                        upper_expression = upper_expression[7:-1]
                 if lower_expression == "1":
                     # Lower bound of 1 is the default in Fortran
                     dims.append(upper_expression)
