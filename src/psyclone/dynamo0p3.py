@@ -8277,6 +8277,13 @@ class DynKern(CodedKern):
 
         # Get the PSyIR Kernel Schedule(s)
         routines = Fparser2Reader().get_routine_schedules(self.name, self.ast)
+        for routine in routines:
+            # If one of the symbols is not declared in a routine then
+            # this is only picked up when writing out the routine
+            # (raising a VisitorError), so we check here so that
+            # invalid code is not inlined. We use debug_string() to
+            # minimise the overhead.
+            routine.debug_string()
 
         if len(routines) == 1:
             sched = routines[0]
