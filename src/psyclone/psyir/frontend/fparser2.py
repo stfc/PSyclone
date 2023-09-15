@@ -2248,6 +2248,63 @@ class Fparser2Reader():
 
         return datatype, init_expr
 
+    def _process_parameter_stmts(self, nodes, parent):
+        '''
+        Examine the supplied list of fparser2 nodes and handle any
+        PARAMETER statements. This is done separately so that it can be
+        performed after all the declarations have been processed (since
+        a PARAMETER statement can come *before* a symbol's declaration.)
+
+        :param nodes: fparser2 AST nodes containing declaration statements.
+        :type nodes: list of :py:class:`fparser.two.utils.Base`
+        :param parent: PSyIR node in which to insert the symbols found.
+        :type parent: :py:class:`psyclone.psyir.nodes.KernelSchedule`
+
+        :raises NotImplementedError: if there are any issues parsing a
+            parameter statement.
+
+        '''
+        for node in nodes:
+            if not isinstance(node, Fortran2003.Implicit_Part):
+                continue
+            for stmt in node.children:
+                if not isinstance(stmt, Fortran2003.Parameter_Stmt):
+                    continue
+                for parameter_def in stmt.children[1].items:
+                    name, expr = parameter_def.items
+                    try:
+                        symbol = parent.symbol_table.lookup(str(name))
+                    except Exception as err:
+                        # If there is any problem put the whole thing
+                        # in a codeblock (as we presume the original
+                        # code is correct).
+                        raise NotImplementedError(
+                            f"Could not parse '{stmt}' because: "
+                            f"{err}.") from err
+
+                    if not isinstance(symbol, DataSymbol):
+                        raise NotImplementedError(
+                            f"Could not parse '{stmt}' because "
+                            f"'{symbol.name}' is not a DataSymbol.")
+                    if isinstance(symbol.datatype, UnknownType):
+                        raise NotImplementedError(
+                            f"Could not parse '{stmt}' because "
+                            f"'{symbol.name}' has an UnknownType.")
+
+                    # Parse its initialization into a dummy Assignment
+                    # (but connected to the parent scope since symbols
+                    # must be resolved)
+                    dummynode = Assignment(parent=parent)
+                    self.process_nodes(parent=dummynode, nodes=[expr])
+
+                    # Add the initialization expression in the symbol
+                    # constant_value attribute
+                    ct_expr = dummynode.children[0].detach()
+                    symbol.initial_value = ct_expr
+                    symbol.is_constant = True
+                    # Ensure the interface to this Symbol is static
+                    symbol.interface = StaticInterface()
+
     def process_declarations(self, parent, nodes, arg_list,
                              visibility_map=None):
         '''
@@ -2433,50 +2490,20 @@ class Fparser2Reader():
                 # These node types are handled separately
                 pass
             elif isinstance(node, Fortran2003.Implicit_Part):
-                for stmt in node.children:
-                    if isinstance(stmt, Fortran2003.Parameter_Stmt):
-                        for parameter_def in stmt.children[1].items:
-                            name, expr = parameter_def.items
-                            try:
-                                symbol = parent.symbol_table.lookup(str(name))
-                            except Exception as err:
-                                # If there is any problem put the whole thing
-                                # in a codeblock (as we presume the original
-                                # code is correct).
-                                raise NotImplementedError(
-                                    f"Could not parse '{stmt}' because: "
-                                    f"{err}.") from err
-
-                            if not isinstance(symbol, DataSymbol):
-                                raise NotImplementedError(
-                                    f"Could not parse '{stmt}' because "
-                                    f"'{symbol.name}' is not a DataSymbol.")
-                            if isinstance(symbol.datatype, UnknownType):
-                                raise NotImplementedError(
-                                    f"Could not parse '{stmt}' because "
-                                    f"'{symbol.name}' has an UnknownType.")
-
-                            # Parse its initialization into a dummy Assignment
-                            # (but connected to the parent scope since symbols
-                            # must be resolved)
-                            dummynode = Assignment(parent=parent)
-                            self.process_nodes(parent=dummynode, nodes=[expr])
-
-                            # Add the initialization expression in the symbol
-                            # constant_value attribute
-                            ct_expr = dummynode.children[0].detach()
-                            symbol.initial_value = ct_expr
-                            symbol.is_constant = True
-                            # Ensure the interface to this Symbol is static
-                            symbol.interface = StaticInterface()
-                    else:
-                        # TODO #1254: We currently silently ignore the rest of
-                        # the Implicit_Part statements
-                        pass
+                # Any PARAMETER statements are handled separately by the
+                # call to _process_parameter_stmts below.
+                # TODO #1254: We currently silently ignore the rest of
+                # the Implicit_Part statements
+                pass
             else:
                 raise NotImplementedError(
                     f"Error processing declarations: fparser2 node of type "
                     f"'{type(node).__name__}' not supported")
+
+        # Process the nodes again, looking for PARAMETER statements. This is
+        # done after the main declarations loop because they modify existing
+        # symbols and can appear in any order.
+        self._process_parameter_stmts(nodes, parent)
 
         # We process the nodes again looking for common blocks. We do this
         # here, after the main declarations loop, because they modify the
