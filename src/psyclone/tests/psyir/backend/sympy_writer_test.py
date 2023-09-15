@@ -512,3 +512,45 @@ def test_sympy_writer_user_types(fortran_reader, fortran_writer,
     sympy_reader = SymPyReader(sympy_writer)
     new_psyir = sympy_reader.psyir_from_expression(sympy_exp, symbol_table)
     assert fortran_writer(new_psyir) == fortran_expr
+
+
+@pytest.mark.parametrize("expression", ["def", "if", "raise", "del",
+                                        "import", "return", "elif", "in",
+                                        "try", "and", "else", "is", "while",
+                                        "as", "except", "lambda", "with",
+                                        "assert", "finally", "nonlocal",
+                                        "yield", "break", "for", "not",
+                                        "class", "from", "or", "continue",
+                                        "global", "pass"])
+def test_sym_writer_reserved_names(fortran_reader, expression):
+    '''Test that reserved names are properly renamed. In this example,
+    all reserved named will get a ``_1`` appended.
+    '''
+    # A dummy program to easily create the PSyIR for the
+    # expressions we need. We just take the RHS of the assignments
+    source = f'''program test_prog
+                use some_mod
+                integer :: x
+                x = {expression}
+                end program test_prog '''
+    psyir = fortran_reader.psyir_from_source(source)
+    # psyir is a FileContainer, its first child the program, and its
+    # first child the assignment, of which we take the right hand side
+    psyir_expr = psyir.children[0].children[0].rhs
+
+    # Make sure that the symbols are renamed in the string representation
+    # of the PSyIR - the symbol table will make the symbols unique by
+    # appending ``_1``
+    sympy_writer = SymPyWriter()
+    assert sympy_writer._to_str(psyir_expr) == f"{expression}_1"
+
+    # The SymPy representation will contain e.g. the symbol 'lambda_1' after
+    # renaming, but when the expression is converted to a string, it should
+    # use 'lambda' as string representation for the symbol 'lambda_1'.
+    # Explicit:
+    #  >>> lambda_1 = sp.Symbol("lambda")
+    #  >>> print(lambda_1)
+    # lambda
+
+    sympy_exp = sympy_writer(psyir_expr)
+    assert str(sympy_exp) == expression

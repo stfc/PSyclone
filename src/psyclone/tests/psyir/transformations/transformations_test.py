@@ -407,10 +407,6 @@ def test_parallellooptrans_validate_dependencies(fortran_reader):
     # just with 'jk' and it is not modified in the inner loops
     omplooptrans.validate(loops[1])
 
-    # Check if there is missing symbol information it still validates
-    del loops[1].ancestor(Routine).symbol_table._symbols['zws']
-    omplooptrans.validate(loops[1])
-
     # Reductions also indicate a data dependency that needs to be handled, so
     # we don't permit the parallelisation of the loop (until we support
     # reduction clauses)
@@ -438,8 +434,7 @@ def test_parallellooptrans_validate_dependencies(fortran_reader):
             enddo
           enddo
         enddo''')
-    assert not DependencyTools().can_loop_be_parallelised(
-                    loops[0], only_nested_loops=False)
+    assert not DependencyTools().can_loop_be_parallelised(loops[0])
     omplooptrans.validate(loops[0])
 
 

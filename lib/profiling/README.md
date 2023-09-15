@@ -6,8 +6,8 @@ https://psyclone.readthedocs.io/en/stable/profiling.html#profiling). All
 profiling-library interfaces use the the [PSyData API](
 https://psyclone.readthedocs.io/en/stable/psy_data.html). The profiling
 wrappers included in PSyclone are: ``template``,
-``simple_timing``, ``dl_timer``, ``drhook``, ``nvidia`` and
-``lfric_timer``. the overview is given below (for more information please
+``simple_timing``, ``dl_timer``, ``drhook``, ``nvidia``, ``tau`` and
+``lfric_timer``. The overview is given below (for more information please
 refer to the linked individual ``README.md`` documents).
 
 ## Profiling Wrappers
@@ -164,23 +164,40 @@ it should already exist. For example:
     ||psy_test:invoke_1_update_field:u||                 0.00||                 0.00||                 0.00||                    1||                44.47||                 0.00||
 ```
 
+### [TAU](./tau)
+
+This wrapper library uses the [TAU profiling library](https://www.cs.uoregon.edu/research/tau).
+Detailed linking instructions are in [``tau/README.md``](./tau/README.md).
+
+The output is written to several files called ``profile.x.y.z``, one for each process and thread.
+Simple textual output can be seen by using ``pprof``:
+
+```
+    Reading Profile files in profile.*
+
+    NODE 0;CONTEXT 0;THREAD 0:
+    ---------------------------------------------------------------------------------------
+    %Time    Exclusive    Inclusive       #Call      #Subrs  Inclusive Name
+                  msec   total msec                          usec/call
+    ---------------------------------------------------------------------------------------
+    100.0        0.343        0.375           1           2        375 .TAU application
+      8.0         0.03         0.03           1           0         30 invoke_0:r0
+      0.5        0.002        0.002           1           0          2 invoke_1_update_field:r0
+
+```
+In general is recommended to first pack the profiling output files into one file using
+``paraprof --pack``, and then using ``paraprof`` to visualise the profiling results in the GUI.
+
+
 ## Compilation
 
 The top level ``Makefile`` can be used to compile the profiling-library
 interfaces included in PSyclone. The command ``make TARGET`` where ``TARGET``
-is one of ``template``, ``simple_timing``, ``dl_timer``, ``drhook``, ``nvidia``
-or ``lfric_timer`` will only compile the corresponding library interface.
-
-**Note** that compilation currently does not include ``dl_timer``, ``drhook``
-and ``nvidia`` profiling-library interfaces since they require external
-libraries to be available. For the same reason, the ``all`` target
-
-```shell
-make all
-```
-
-will only compile ``template``, ``simple_timing`` and ``lfric_timer``
-libraries.
+is one of ``template``, ``simple_timing``, ``dl_timer``, ``drhook``, ``nvidia``,
+``lfric_timer`` or ``tau``, will only compile the corresponding library interface.
+The target ``make all``, which is also the default, will compile all libraries
+that do not need additional software or libraries to be installed, i.e.
+``lfric_timer``, ``simple_timing`` and ``template``.
 
 The following ``Makefile`` variables are used and can be overwritten on the
 command line (e.g. ``F90=mpif90 make``):
@@ -207,7 +224,7 @@ source.
 
 BSD 3-Clause License
 
-Copyright (c) 2020-2021, Science and Technology Facilities Council.
+Copyright (c) 2020-2023, Science and Technology Facilities Council.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
