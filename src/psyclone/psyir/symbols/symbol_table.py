@@ -1396,6 +1396,24 @@ class SymbolTable():
                                             symbol, symbol_target):
                     continue
 
+                # Determine if there is an Unresolved Symbol in a
+                # descendent symbol table that matches the name of the
+                # symbol we are importing and if so, move it to this
+                # symbol table if a symbol with the same name does not
+                # already exist in this symbol table.
+
+                # Import here to avoid circular dependencies
+                # pylint: disable=import-outside-toplevel
+                from psyclone.psyir.nodes import ScopingNode
+                for scoping_node in self.node.walk(ScopingNode):
+                    symbol_table = scoping_node.symbol_table
+                    if symbol.name in symbol_table:
+                        test_symbol = symbol_table.lookup(symbol.name)
+                        if (type(test_symbol) == Symbol and test_symbol.is_unresolved
+                                and not test_symbol.name in self):
+                            symbol_table.remove(test_symbol)
+                            self.add(test_symbol)
+
                 # This Symbol matches the name of a symbol in the current table
                 if symbol.name in self:
 
