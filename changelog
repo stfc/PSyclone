@@ -594,6 +594,8 @@
 
 	200) PR #2309 for #1558. Add support for out-of-order parameter statements.
 
+	201) PR #2148 towards #2105. Adds {Min,Max}Val2Code transformations.
+
 release 2.3.1 17th of June 2022
 
 	1) PR #1747 for #1720. Adds support for If blocks to PSyAD.
