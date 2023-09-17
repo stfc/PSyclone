@@ -3087,6 +3087,7 @@ class DynProxies(LFRicCollection):
         int_field_args = self._invoke.unique_declarations(
             argument_types=const.VALID_FIELD_NAMES,
             intrinsic_type=const.MAPPING_DATA_TYPES["gh_integer"])
+        all_tags = set(self._symbol_table.get_tags().keys())
         for arg in real_field_args + int_field_args:
             # Create symbols that we will associate with the internal
             # data arrays.
@@ -3097,16 +3098,22 @@ class DynProxies(LFRicCollection):
                 LFRicTypes(ltype)(precision), [ArrayType.Extent.DEFERRED])
             if arg.vector_size > 1:
                 for idx in range(1, arg.vector_size+1):
-                    self._symbol_table.new_symbol(
-                        f"{arg.name}_{idx}_data",
-                        symbol_type=DataSymbol,
-                        datatype=dtype,
-                        tag=f"{arg.name}_{idx}_data")
+                    ttext = f"{arg.name}_{idx}%data"
+                    if ttext not in all_tags:
+                        all_tags.add(ttext)
+                        self._symbol_table.new_symbol(
+                            f"{arg.name}_{idx}_data",
+                            symbol_type=DataSymbol,
+                            datatype=dtype,
+                            tag=ttext)
             else:
-                self._symbol_table.new_symbol(arg.name+"_data",
-                                              symbol_type=DataSymbol,
-                                              datatype=dtype,
-                                              tag=arg.name+"_data")
+                ttext = f"{arg.name}%data"
+                if ttext not in all_tags:
+                    all_tags.add(ttext)
+                    self._symbol_table.new_symbol(arg.name+"_data",
+                                                  symbol_type=DataSymbol,
+                                                  datatype=dtype,
+                                                  tag=ttext)
         # Create symbols that we will associate with pointers to the
         # internal data arrays of operators.
         op_args = self._invoke.unique_declarations(
@@ -3174,10 +3181,10 @@ class DynProxies(LFRicCollection):
                 if arg.vector_size > 1:
                     entity_names = []
                     for idx in range(1, arg.vector_size+1):
-                        vsym = table.lookup_with_tag(f"{arg.name}_{idx}_data")
+                        vsym = table.lookup_with_tag(f"{arg.name}_{idx}%data")
                         entity_names.append(vsym.name)
                 else:
-                    sym = table.lookup_with_tag(arg.name+"_data")
+                    sym = table.lookup_with_tag(arg.name+"%data")
                     entity_names = [sym.name]
                 parent.add(
                     DeclGen(
@@ -3277,7 +3284,7 @@ class DynProxies(LFRicCollection):
                                   lhs=arg.proxy_name+"("+str(idx)+")",
                                   rhs=arg.name+"("+str(idx)+")%get_proxy()"))
                     name = self._symbol_table.lookup_with_tag(
-                        f"{arg.name}_{idx}_data").name
+                        f"{arg.name}_{idx}%data").name
                     parent.add(
                         AssignGen(parent,
                                   lhs=name,
@@ -3288,7 +3295,7 @@ class DynProxies(LFRicCollection):
                                      rhs=arg.name+"%get_proxy()"))
                 if arg.is_field:
                     name = self._symbol_table.lookup_with_tag(
-                        f"{arg.name}_data").name
+                        f"{arg.name}%data").name
                     parent.add(
                         AssignGen(parent,
                                   lhs=name,
