@@ -3297,9 +3297,12 @@ class DynProxies(LFRicCollection):
         '''
         Insert code into the PSy layer to initialise all necessary proxies.
 
-        :param parent: node in the f2pygen AST representing the PSy-layer \
+        :param parent: node in the f2pygen AST representing the PSy-layer
                        routine.
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+
+        :raises InternalError: if a kernel argument of an unrecognised type
+            is encountered.
 
         '''
         parent.add(CommentGen(parent, ""))
@@ -3350,10 +3353,14 @@ class DynProxies(LFRicCollection):
                                       rhs=f"{arg.proxy_name}%local_stencil",
                                       pointer=True))
                     else:
-                        raise InternalError("ARPDBG")
+                        raise InternalError(
+                            f"Kernel argument '{arg.name}' is a recognised "
+                            f"operator but its type ('{arg.argument_type}') is"
+                            f" not supported by DynProxies.initialise()")
                 else:
                     raise InternalError(
-                        f"Kernel argument of type '{arg.argument_type}' not "
+                        f"Kernel argument '{arg.name}' of type "
+                        f"'{arg.argument_type}' not "
                         f"handled in DynProxies.initialise()")
 
 

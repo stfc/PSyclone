@@ -3654,11 +3654,8 @@ def test_haloex_not_required(monkeypatch):
 def test_lfriccollection_err1():
     ''' Check that the LFRicCollection constructor raises the expected
     error if it is not provided with a DynKern or LFRicInvoke. '''
-    _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
-                    api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     with pytest.raises(InternalError) as err:
-        _ = DynProxies(psy)
+        _ = DynProxies(None)
     assert ("LFRicCollection takes only an LFRicInvoke or a DynKern but"
             in str(err.value))
 
