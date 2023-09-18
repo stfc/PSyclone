@@ -433,7 +433,7 @@ class ArrayType(DataType):
                 # The lower bound is 1 by default.
                 self._shape.append(
                     ArrayType.ArrayBounds(
-                        _dangling_parent(one.copy()),
+                        _dangling_parent(one),
                         _dangling_parent(_node_from_int(dim))))
             elif isinstance(dim, tuple):
                 self._shape.append(
