@@ -42,11 +42,7 @@ LFRic field arguments.
 '''
 
 import os
-import pytest
 
-from psyclone.domain.lfric import LFRicConstants
-from psyclone.dynamo0p3 import DynKernelArgument
-from psyclone.errors import GenerationError
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.tests.lfric_build import LFRicBuild
@@ -308,7 +304,7 @@ def test_field_fs(tmpdir):
     generated_code = str(psy.gen)
     output = (
         "  MODULE single_invoke_fs_psy\n"
-        "    USE constants_mod, ONLY: i_def\n"
+        "    USE constants_mod, ONLY: r_def, i_def\n"
         "    USE field_mod, ONLY: field_type, field_proxy_type\n"
         "    IMPLICIT NONE\n"
         "    CONTAINS\n"
@@ -1013,7 +1009,7 @@ def test_int_real_field_fs(dist_mem, tmpdir):
 
     output = (
         "  MODULE multikernel_invokes_real_int_field_fs_psy\n"
-        "    USE constants_mod, ONLY: i_def\n"
+        "    USE constants_mod, ONLY: r_def, i_def\n"
         "    USE field_mod, ONLY: field_type, field_proxy_type\n"
         "    USE integer_field_mod, ONLY: integer_field_type, "
         "integer_field_proxy_type\n"

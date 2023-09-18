@@ -852,7 +852,7 @@ def test_bc_kernel_field_only(monkeypatch, annexed, dist_mem):
     # operator rather than a field
     monkeypatch.setattr(arg, "_argument_type", value="gh_operator")
     # Have to add a tag to the symbol table to get to the error.
-    schedule.symbol_table.find_or_create_tag("a_local_stencil")
+    schedule.symbol_table.find_or_create_tag("a:local_stencil")
     # We have to monkey-patch the arg.ref_name() function too as
     # otherwise the first monkey-patch causes it to break. Since
     # it is a function we have to patch it with a temporary

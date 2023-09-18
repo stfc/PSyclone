@@ -1045,9 +1045,8 @@ class DynamoPSy(PSy):
                     if arg.is_literal:
                         kind_names.add(arg.precision)
         # Add precision names to the dictionary storing the required
-        # LFRic constants. Sort the names so that all versions of
-        # Python return the same order (for testing purposes).
-        self._infrastructure_modules[const_mod] = list(sorted(kind_names))
+        # LFRic constants.
+        self._infrastructure_modules[const_mod] = kind_names
 
     @property
     def name(self):
@@ -2293,11 +2292,11 @@ class DynReferenceElement(LFRicCollection):
         my_kind = api_config.default_kind["real"]
         parent.add(DeclGen(parent, datatype="real", kind=my_kind,
                            allocatable=True, entity_decls=array_decls))
+        # Ensure the necessary kind parameter is imported.
         const_mod = const.UTILITIES_MOD_MAP["constants"]["module"]
-        const_mod_list = self._invoke.invokes.psy. \
+        const_mod_uses = self._invoke.invokes.psy. \
             infrastructure_modules[const_mod]
-        if my_kind not in const_mod_list:
-            const_mod_list.append(my_kind)
+        const_mod_uses.add(my_kind)
 
     def _stub_declarations(self, parent):
         '''
@@ -3120,16 +3119,33 @@ class DynProxies(LFRicCollection):
             argument_types=["gh_operator"])
         for arg in op_args:
             name = arg.name
-            # We put precision Symbols in the Container symbol table.
-            table = self._invoke.schedule.parent.symbol_table
-            precision = table.add_lfric_precision_symbol(arg.precision)
-            array_type = ArrayType(
-                LFRicTypes("LFRicRealScalarDataType")(precision),
-                [ArrayType.Extent.DEFERRED]*3)
-            self._symbol_table.new_symbol(name+"_local_stencil",
-                                          symbol_type=DataSymbol,
-                                          datatype=array_type,
-                                          tag=name+"_local_stencil")
+            ttext = f"{name}:local_stencil"
+            if ttext not in all_tags:
+                all_tags.add(ttext)
+                # We put precision Symbols in the Container symbol table.
+                ctable = self._invoke.schedule.parent.symbol_table
+                precision = ctable.add_lfric_precision_symbol(arg.precision)
+                array_type = ArrayType(
+                    LFRicTypes("LFRicRealScalarDataType")(precision),
+                    [ArrayType.Extent.DEFERRED]*3)
+                self._symbol_table.new_symbol(name+"_local_stencil",
+                                              symbol_type=DataSymbol,
+                                              datatype=array_type,
+                                              tag=ttext)
+
+        # Create symbols that we will associate with pointers to the
+        # internal data arrays of CMA operators.
+        cma_op_args = self._invoke.unique_declarations(
+            argument_types=["gh_columnwise_operator"])
+        for arg in cma_op_args:
+            ttext = f"{arg.name}:cma_matrix"
+            if ttext not in all_tags:
+                all_tags.add(ttext)
+                # TODO use UnknownFortranType rather than DeferredType?
+                self._symbol_table.new_symbol(arg.name+"_cma_matrix",
+                                              symbol_type=DataSymbol,
+                                              datatype=DeferredType(),
+                                              tag=ttext)
 
     def _invoke_declarations(self, parent):
         '''
@@ -3141,6 +3157,7 @@ class DynProxies(LFRicCollection):
 
         '''
         const = LFRicConstants()
+        const_mod = const.UTILITIES_MOD_MAP["constants"]["module"]
         table = self._symbol_table
 
         # Declarations of real and integer field proxies
@@ -3167,6 +3184,8 @@ class DynProxies(LFRicCollection):
                 field_datatype_map[
                     (arg.proxy_data_type, arg.module_name)] = [arg]
 
+        all_tags = set()
+
         # Add the Invoke subroutine declarations for the different
         # field-type proxies
         for (fld_type, fld_mod), args in field_datatype_map.items():
@@ -3175,24 +3194,34 @@ class DynProxies(LFRicCollection):
                                    entity_decls=arg_list))
             (self._invoke.invokes.psy.
              infrastructure_modules[fld_mod].add(fld_type))
+
             # Create declarations for the pointers to the internal
             # data arrays.
             for arg in args:
+                (self._invoke.invokes.psy.infrastructure_modules[const_mod].
+                 add(arg.precision))
                 if arg.vector_size > 1:
                     entity_names = []
                     for idx in range(1, arg.vector_size+1):
-                        vsym = table.lookup_with_tag(f"{arg.name}_{idx}:data")
-                        entity_names.append(vsym.name)
+                        ttext = f"{arg.name}_{idx}:data"
+                        if ttext not in all_tags:
+                            all_tags.add(ttext)
+                            vsym = table.lookup_with_tag(ttext)
+                            entity_names.append(vsym.name)
                 else:
-                    sym = table.lookup_with_tag(arg.name+":data")
-                    entity_names = [sym.name]
-                parent.add(
-                    DeclGen(
-                        parent, datatype=arg.intrinsic_type,
-                        kind=arg.precision, dimension=":",
-                        entity_decls=[f"{name} => null()" for
-                                      name in entity_names],
-                        pointer=True))
+                    ttext = f"{arg.name}:data"
+                    if ttext not in all_tags:
+                        all_tags.add(ttext)
+                        sym = table.lookup_with_tag(ttext)
+                        entity_names = [sym.name]
+                if entity_names:
+                    parent.add(
+                        DeclGen(
+                            parent, datatype=arg.intrinsic_type,
+                            kind=arg.precision, dimension=":",
+                            entity_decls=[f"{name} => null()" for
+                                          name in entity_names],
+                            pointer=True))
 
         # Declarations of LMA operator proxies
         op_args = self._invoke.unique_declarations(
@@ -3217,16 +3246,23 @@ class DynProxies(LFRicCollection):
             # internal data arrays.
             for arg in operators_list:
                 name = arg.name
-                sym = table.lookup_with_tag(name+"_local_stencil")
-                # Declare the pointer to the stencil array.
-                parent.add(DeclGen(parent, datatype="real",
-                                   kind=arg.precision,
-                                   dimension=":,:,:",
-                                   entity_decls=[f"{sym.name} => null()"],
-                                   pointer=True))
+                ttext = f"{name}:local_stencil"
+                if ttext not in all_tags:
+                    all_tags.add(ttext)
+                    sym = table.lookup_with_tag(ttext)
+                    # Declare the pointer to the stencil array.
+                    parent.add(DeclGen(parent, datatype="real",
+                                       kind=arg.precision,
+                                       dimension=":,:,:",
+                                       entity_decls=[f"{sym.name} => null()"],
+                                       pointer=True))
             op_mod = operators_list[0].module_name
+            # Ensure the appropriate derived datatype will be imported.
             (self._invoke.invokes.psy.infrastructure_modules[op_mod].
              add(operator_datatype))
+            # Ensure the appropriate kind parameter will be imported.
+            (self._invoke.invokes.psy.infrastructure_modules[const_mod].
+             add(arg.precision))
 
         # Declarations of CMA operator proxies
         cma_op_args = self._invoke.unique_declarations(
@@ -3245,17 +3281,17 @@ class DynProxies(LFRicCollection):
         # Create symbols that we will associate with pointers to the
         # internal data arrays.
         for arg in cma_op_args:
-            # TODO use UnknownFortranType rather than DeferredType?
-            sym = table.new_symbol(arg.name+"_cma_matrix",
-                                   symbol_type=DataSymbol,
-                                   datatype=DeferredType(),
-                                   tag=arg.name+"_cma_matrix")
+            ttext = f"{arg.name}:cma_matrix"
+            sym = table.lookup_with_tag(arg.name+":cma_matrix")
             # Declare the pointer to the CMA matrix.
             parent.add(DeclGen(parent, datatype="real",
                                kind=arg.precision,
                                dimension=":,:,:",
                                entity_decls=[f"{sym.name} => null()"],
                                pointer=True))
+            # Ensure the appropriate kind parameter will be imported.
+            (self._invoke.invokes.psy.infrastructure_modules[const_mod].
+             add(arg.precision))
 
     def initialise(self, parent):
         '''
@@ -3307,7 +3343,7 @@ class DynProxies(LFRicCollection):
                         pass
                     elif arg.argument_type == "gh_operator":
                         name = self._symbol_table.lookup_with_tag(
-                            f"{arg.name}_local_stencil").name
+                            f"{arg.name}:local_stencil").name
                         parent.add(
                             AssignGen(parent,
                                       lhs=name,
@@ -3544,9 +3580,9 @@ class LFRicScalarArgs(LFRicCollection):
         '''
         const = LFRicConstants()
         const_mod = const.UTILITIES_MOD_MAP["constants"]["module"]
-        const_mod_list = None
+        const_mod_uses = None
         if self._invoke:
-            const_mod_list = self._invoke.invokes.psy. \
+            const_mod_uses = self._invoke.invokes.psy. \
                 infrastructure_modules[const_mod]
         # Real scalar arguments
         for intent in FORTRAN_INTENT_NAMES:
@@ -3574,8 +3610,7 @@ class LFRicScalarArgs(LFRicCollection):
                                 entity_decls=real_scalar_names,
                                 intent=intent))
                     if self._invoke:
-                        if real_scalar_kind not in const_mod_list:
-                            const_mod_list.append(real_scalar_kind)
+                        const_mod_uses.add(real_scalar_kind)
                     elif self._kernel:
                         self._kernel.argument_kinds.add(real_scalar_kind)
                     else:
@@ -3596,8 +3631,7 @@ class LFRicScalarArgs(LFRicCollection):
                             entity_decls=integer_scalar_names,
                             intent=intent))
                 if self._invoke:
-                    if dkind not in const_mod_list:
-                        const_mod_list.append(dkind)
+                    const_mod_uses.add(dkind)
                 elif self._kernel:
                     self._kernel.argument_kinds.add(dkind)
                 else:
@@ -3618,8 +3652,7 @@ class LFRicScalarArgs(LFRicCollection):
                             entity_decls=logical_scalar_names,
                             intent=intent))
                 if self._invoke:
-                    if dkind not in const_mod_list:
-                        const_mod_list.append(dkind)
+                    const_mod_uses.add(dkind)
                 elif self._kernel:
                     self._kernel.argument_kinds.add(dkind)
                 else:
@@ -3845,13 +3878,12 @@ class DynCMAOperators(LFRicCollection):
                                entity_decls=[cma_name+"(:,:,:) => null()"]))
             const = LFRicConstants()
             const_mod = const.UTILITIES_MOD_MAP["constants"]["module"]
-            const_mod_list = self._invoke.invokes.psy. \
+            const_mod_uses = self._invoke.invokes.psy. \
                 infrastructure_modules[const_mod]
-            if cma_kind not in const_mod_list:
-                # Record that we will need to import the kind of this
-                # cma operator from the appropriate infrastructure
-                # module
-                const_mod_list.append(cma_kind)
+            # Record that we will need to import the kind of this
+            # cma operator from the appropriate infrastructure
+            # module
+            const_mod_uses.add(cma_kind)
 
             # Declare the associated integer parameters
             param_names = []
@@ -4925,13 +4957,12 @@ class DynBasisFunctions(LFRicCollection):
                                pointer=True,
                                entity_decls=[nodes_name+"(:,:) => null()"]))
             const_mod = const.UTILITIES_MOD_MAP["constants"]["module"]
-            const_mod_list = self._invoke.invokes.psy. \
+            const_mod_uses = self._invoke.invokes.psy. \
                 infrastructure_modules[const_mod]
-            if my_kind not in const_mod_list:
-                # Record that we will need to import the kind for a
-                # pointer declaration (associated with a function
-                # space) from the appropriate infrastructure module
-                const_mod_list.append(my_kind)
+            # Record that we will need to import the kind for a
+            # pointer declaration (associated with a function
+            # space) from the appropriate infrastructure module
+            const_mod_uses.add(my_kind)
 
         if self._basis_fns:
             parent.add(CommentGen(parent, ""))
@@ -4984,9 +5015,6 @@ class DynBasisFunctions(LFRicCollection):
             parent.add(DeclGen(parent, datatype="real", kind=my_kind,
                                allocatable=True,
                                entity_decls=basis_declarations))
-            const_mod = const.UTILITIES_MOD_MAP["constants"]["module"]
-            const_mod_list = self._invoke.invokes.psy. \
-                infrastructure_modules[const_mod]
             # Default kind (r_def) will always already exist due to
             # arrays associated with gh_shape, so there is no need to
             # declare it here.
@@ -5156,13 +5184,12 @@ class DynBasisFunctions(LFRicCollection):
                 DeclGen(parent, datatype=datatype, kind=kind,
                         pointer=True, entity_decls=decl_list))
             const_mod = const.UTILITIES_MOD_MAP["constants"]["module"]
-            const_mod_list = self._invoke.invokes.psy. \
+            const_mod_uses = self._invoke.invokes.psy. \
                 infrastructure_modules[const_mod]
-            if kind not in const_mod_list:
-                # Record that we will need to import the kind for a
-                # declaration (associated with quadrature) from
-                # the appropriate infrastructure module
-                const_mod_list.append(kind)
+            # Record that we will need to import the kind for a
+            # declaration (associated with quadrature) from
+            # the appropriate infrastructure module
+            const_mod_uses.add(kind)
 
             # Get the quadrature proxy
             proxy_name = qr_arg_name + "_proxy"
@@ -5248,13 +5275,12 @@ class DynBasisFunctions(LFRicCollection):
                 DeclGen(parent, datatype=datatype, pointer=True, kind=kind,
                         entity_decls=decl_list))
             const_mod = const.UTILITIES_MOD_MAP["constants"]["module"]
-            const_mod_list = self._invoke.invokes.psy. \
+            const_mod_uses = self._invoke.invokes.psy. \
                 infrastructure_modules[const_mod]
-            if kind not in const_mod_list:
-                # Record that we will need to import the kind for a
-                # declaration (associated with quadrature) from the
-                # appropriate infrastructure module
-                const_mod_list.append(kind)
+            # Record that we will need to import the kind for a
+            # declaration (associated with quadrature) from the
+            # appropriate infrastructure module
+            const_mod_uses.add(kind)
             # Get the quadrature proxy
             proxy_name = symbol_table.find_or_create_tag(
                 qr_arg_name+"_proxy").name

@@ -4256,7 +4256,7 @@ def test_int_X(tmpdir, monkeypatch, annexed, dist_mem):
 
     # First check that the correct field types and constants are used
     output = (
-        "    USE constants_mod, ONLY: i_def\n"
+        "    USE constants_mod, ONLY: r_def, i_def\n"
         "    USE field_mod, ONLY: field_type, field_proxy_type\n"
         "    USE integer_field_mod, ONLY: integer_field_type, "
         "integer_field_proxy_type\n")
@@ -4336,7 +4336,7 @@ def test_int_X_precision(monkeypatch):
     kern = first_invoke.schedule.children[0].loop_body[0]
     monkeypatch.setattr(kern.args[0], "_precision", "i_solver")
     code = str(psy.gen)
-    assert "USE constants_mod, ONLY: i_solver, i_def" in code
+    assert "USE constants_mod, ONLY: r_def, i_solver, i_def" in code
     assert "f2_data(df) = int(f1_data(df), i_solver)" in code
 
 # ------------- Xfail built-ins --------------------------------------------- #

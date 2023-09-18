@@ -389,8 +389,8 @@ def test_lfricscalarargs_mp():
                      "1.6.4_scalar_mixed_prec.f90"),
         api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
-    code = str(psy.gen)
-    assert "USE constants_mod, ONLY: roo_def, i_def" in code
+    code = str(psy.gen).lower()
+    assert "use constants_mod, only: roo_def, r_def, i_def" in code
 
 
 def test_lfricinvoke_uniq_declns_intent_scalar():

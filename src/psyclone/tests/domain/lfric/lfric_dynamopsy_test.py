@@ -74,7 +74,7 @@ def test_dynamopsy():
     assert isinstance(dynamo_psy._invokes, DynamoInvokes)
     infrastructure_modules = dynamo_psy._infrastructure_modules
     assert isinstance(infrastructure_modules, OrderedDict)
-    assert infrastructure_modules["constants_mod"] == ["i_def"]
+    assert list(infrastructure_modules["constants_mod"]) == ["i_def"]
     const = LFRicConstants()
     names = set(item["module"] for item in const.DATA_TYPE_MAP.values())
     assert len(names)+1 == len(infrastructure_modules)
@@ -100,8 +100,8 @@ def test_dynamopsy_kind():
         invoke_info.calls[0].kcalls[0].args[1]._text = f"0.0_{kind_name}"
         invoke_info.calls[0].kcalls[0].args[1]._datatype = ("real", kind_name)
         dynamo_psy = DynamoPSy(invoke_info)
-        result = str(dynamo_psy.gen)
-        assert f"USE constants_mod, ONLY: {kind_name}, i_def" in result
+        result = str(dynamo_psy.gen).lower()
+        assert f"use constants_mod, only: {kind_name}, r_def, i_def" in result
         assert f"f1_data(df) = 0.0_{kind_name}" in result
 
 

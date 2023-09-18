@@ -361,7 +361,7 @@ def test_kerncallarglist_bcs(fortran_writer, monkeypatch):
     monkeypatch.setattr(arg, "_argument_type", value="gh_operator")
     # Add a tag to the symbol table to allow us to get through to the error
     # (since the argument is/was a field, its tagged name is now wrong).
-    schedule.symbol_table.find_or_create_tag("a_local_stencil")
+    schedule.symbol_table.find_or_create_tag("a:local_stencil")
     with pytest.raises(GenerationError) as err:
         create_arg_list.generate()
     assert ("Expected an argument of ['gh_field'] type from which to look-up "

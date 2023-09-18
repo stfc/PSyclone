@@ -629,7 +629,7 @@ class KernCallArgList(ArgOrdering):
         #array_type = \
         #    ArrayType(LFRicTypes("LFRicRealScalarDataType")(precision),
         #              [ArrayType.Extent.DEFERRED]*3)
-        sym = self._symtab.lookup_with_tag(arg.name+"_local_stencil")
+        sym = self._symtab.lookup_with_tag(arg.name+":local_stencil")
         self.psyir_append(Reference(sym))
         # The access mode of `local_stencil` is taken from the meta-data:
         self.append(sym.name, var_accesses,
