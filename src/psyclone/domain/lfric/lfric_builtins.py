@@ -235,11 +235,11 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
         for arg in self.args:
             if arg.form in ["variable", "indexed_variable"]:
                 if arg.is_field:
-                    sym = table.lookup_with_tag(f"{arg.name}%data")
+                    sym = table.lookup_with_tag(f"{arg.name}:data")
                     name = sym.name
                 elif arg.is_operator:
                     import pdb; pdb.set_trace()
-                    sym = table.lookup_with_tag(f"{arg.name}%data")
+                    sym = table.lookup_with_tag(f"{arg.name}:data")
                     name = sym.name
                 else:
                     name = arg.declaration_name
@@ -486,7 +486,7 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
         for arg in self._arguments.args:
             if not arg.is_field:
                 continue
-            sym = table.lookup_with_tag(f"{arg.name}%data")
+            sym = table.lookup_with_tag(f"{arg.name}:data")
             refs.append(ArrayReference.create(sym, [Reference(idx_sym)]))
         return refs
 #        return [StructureReference.create(
@@ -540,9 +540,9 @@ class LFRicXKern(LFRicBuiltIn, metaclass=abc.ABCMeta):
         # Convert all the elements of a field of one type to the
         # corresponding elements of a field of another type using
         # the PSyclone configuration for the correct 'kind'.
-        sym2 = table.lookup_with_tag(f"{self._arguments.args[0].name}%data")
+        sym2 = table.lookup_with_tag(f"{self._arguments.args[0].name}:data")
         field2 = self.array_ref(sym2.name)
-        sym1 = table.lookup_with_tag(f"{self._arguments.args[1].name}%data")
+        sym1 = table.lookup_with_tag(f"{self._arguments.args[1].name}:data")
         field1 = self.array_ref(sym1.name)
         precision = self._arguments.args[0].precision
         rhs_expr = f"{self._field_type}({field1}, {precision})"
@@ -2395,9 +2395,9 @@ class LFRicXInnerproductYKern(LFRicBuiltIn):
         # The real scalar variable holding the sum is initialised to zero
         # in the PSy layer.
         innprod_name = self._reduction_ref(self._arguments.args[0].name)
-        sym1 = table.lookup_with_tag(f"{self._arguments.args[1].name}%data")
+        sym1 = table.lookup_with_tag(f"{self._arguments.args[1].name}:data")
         field1 = self.array_ref(sym1.name)
-        sym2 = table.lookup_with_tag(f"{self._arguments.args[2].name}%data")
+        sym2 = table.lookup_with_tag(f"{self._arguments.args[2].name}:data")
         field2 = self.array_ref(sym2.name)
         rhs_expr = f"{innprod_name} + {field1}*{field2}"
         parent.add(AssignGen(parent, lhs=innprod_name, rhs=rhs_expr))
@@ -2438,7 +2438,7 @@ class LFRicXInnerproductXKern(LFRicBuiltIn):
         # The real scalar variable holding the sum is initialised to zero
         # in the PSy layer.
         innprod_name = self._reduction_ref(self._arguments.args[0].name)
-        sym = table.lookup_with_tag(f"{self._arguments.args[1].name}%data")
+        sym = table.lookup_with_tag(f"{self._arguments.args[1].name}:data")
         field_name = self.array_ref(sym.name)
         rhs_expr = f"{innprod_name} + {field_name}*{field_name}"
         parent.add(AssignGen(parent, lhs=innprod_name, rhs=rhs_expr))
@@ -2485,7 +2485,7 @@ class LFRicSumXKern(LFRicBuiltIn):
         table = self.scope.symbol_table
         # Sum all the elements of a real-valued field. The real scalar
         # variable holding the sum is initialised to zero in the PSy layer.
-        sym = table.lookup_with_tag(f"{self._arguments.args[1].name}%data")
+        sym = table.lookup_with_tag(f"{self._arguments.args[1].name}:data")
         field_name = self.array_ref(sym.name)
         sum_name = self._reduction_ref(self._arguments.args[0].name)
         rhs_expr = f"{sum_name} + {field_name}"

@@ -397,7 +397,7 @@ class KernCallArgList(ArgOrdering):
                              [ArrayType.Extent.DEFERRED])
         for idx in range(1, argvect.vector_size + 1):
             cmpt_sym = self._symtab.lookup_with_tag(
-                f"{argvect.name}_{idx}%data")
+                f"{argvect.name}_{idx}:data")
             # Create the accesses to each element of the vector:
             lit_ind = Literal(str(idx), INTEGER_SINGLE_TYPE)
             #ref = ArrayOfStructuresReference.\
@@ -425,7 +425,7 @@ class KernCallArgList(ArgOrdering):
         '''
         # Look-up the name of the variable that stores the reference to
         # the data in this field.
-        sym = self._symtab.lookup_with_tag(arg.name+"%data")
+        sym = self._symtab.lookup_with_tag(arg.name+":data")
         text = sym.name #arg.proxy_name + "%data"
         # Add the field object arg%name and not just the proxy part
         # as being read.

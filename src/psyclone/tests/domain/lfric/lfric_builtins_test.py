@@ -5107,7 +5107,8 @@ def mesh_code_present(field_str, code):
 def test_field_access_info_for_arrays_in_builtins():
     '''Tests that array of fields in LFRic built-ins properly report access
     information. For example, 'call invoke( a_plus_X(f2(i), a, f1) )'
-    must report the access to 'f2'.
+    must report the access to 'f2' (which will be 'f2_data', the pointer to
+    the data array associated with the field).
 
     '''
     _, invoke = get_invoke("15.1.8_a_plus_X_builtin_array_of_fields.f90",
@@ -5115,7 +5116,7 @@ def test_field_access_info_for_arrays_in_builtins():
     schedule = invoke.schedule
     vai = VariablesAccessInfo(schedule)
 
-    assert Signature("f2") in vai
+    assert Signature("f2_data") in vai
 
-    assert ("a: READ, df: READ+WRITE, f1: READ, f2: WRITE, loop0_start: READ, "
-            "loop0_stop: READ" == str(vai))
+    assert ("a: READ, df: READ+WRITE, f1_data: READ, f2_data: WRITE, "
+            "loop0_start: READ, loop0_stop: READ" == str(vai))

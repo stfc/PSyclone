@@ -791,7 +791,7 @@ def test_operator_bc_kernel_fld_err(monkeypatch, dist_mem):
     # field rather than an operator
     monkeypatch.setattr(arg, "_argument_type", value="gh_field")
     # We have to add a tag to the Symbol table to get to the desired error.
-    schedule.symbol_table.find_or_create_tag("op_a_data")
+    schedule.symbol_table.find_or_create_tag("op_a:data")
     with pytest.raises(GenerationError) as excinfo:
         _ = psy.gen
     assert ("Expected an LMA operator from which to look-up boundary dofs "
@@ -822,7 +822,7 @@ def test_operator_bc_kernel_multi_args_err(dist_mem):
     # And again but make the second argument a field this time
     call.arguments.args[1]._argument_type = "gh_field"
     # We have to add a tag to the Symbol table to get to the desired error.
-    schedule.symbol_table.find_or_create_tag("op_a_data")
+    schedule.symbol_table.find_or_create_tag("op_a:data")
     with pytest.raises(GenerationError) as excinfo:
         _ = psy.gen
     assert ("Kernel enforce_operator_bc_code has 2 arguments when it "

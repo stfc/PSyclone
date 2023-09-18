@@ -3098,7 +3098,7 @@ class DynProxies(LFRicCollection):
                 LFRicTypes(ltype)(precision), [ArrayType.Extent.DEFERRED])
             if arg.vector_size > 1:
                 for idx in range(1, arg.vector_size+1):
-                    ttext = f"{arg.name}_{idx}%data"
+                    ttext = f"{arg.name}_{idx}:data"
                     if ttext not in all_tags:
                         all_tags.add(ttext)
                         self._symbol_table.new_symbol(
@@ -3107,7 +3107,7 @@ class DynProxies(LFRicCollection):
                             datatype=dtype,
                             tag=ttext)
             else:
-                ttext = f"{arg.name}%data"
+                ttext = f"{arg.name}:data"
                 if ttext not in all_tags:
                     all_tags.add(ttext)
                     self._symbol_table.new_symbol(arg.name+"_data",
@@ -3181,10 +3181,10 @@ class DynProxies(LFRicCollection):
                 if arg.vector_size > 1:
                     entity_names = []
                     for idx in range(1, arg.vector_size+1):
-                        vsym = table.lookup_with_tag(f"{arg.name}_{idx}%data")
+                        vsym = table.lookup_with_tag(f"{arg.name}_{idx}:data")
                         entity_names.append(vsym.name)
                 else:
-                    sym = table.lookup_with_tag(arg.name+"%data")
+                    sym = table.lookup_with_tag(arg.name+":data")
                     entity_names = [sym.name]
                 parent.add(
                     DeclGen(
@@ -3284,7 +3284,7 @@ class DynProxies(LFRicCollection):
                                   lhs=arg.proxy_name+"("+str(idx)+")",
                                   rhs=arg.name+"("+str(idx)+")%get_proxy()"))
                     name = self._symbol_table.lookup_with_tag(
-                        f"{arg.name}_{idx}%data").name
+                        f"{arg.name}_{idx}:data").name
                     parent.add(
                         AssignGen(parent,
                                   lhs=name,
@@ -3295,7 +3295,7 @@ class DynProxies(LFRicCollection):
                                      rhs=arg.name+"%get_proxy()"))
                 if arg.is_field:
                     name = self._symbol_table.lookup_with_tag(
-                        f"{arg.name}%data").name
+                        f"{arg.name}:data").name
                     parent.add(
                         AssignGen(parent,
                                   lhs=name,
