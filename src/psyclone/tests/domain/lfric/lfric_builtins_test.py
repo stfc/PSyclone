@@ -49,7 +49,7 @@ import pytest
 
 from psyclone.configuration import Config
 from psyclone.core import Signature, VariablesAccessInfo
-from psyclone.domain.lfric import lfric_builtins, LFRicConstants, LFRicTypes
+from psyclone.domain.lfric import lfric_builtins, LFRicConstants
 from psyclone.domain.lfric.kernel import LFRicKernelMetadata, FieldArgMetadata
 from psyclone.domain.lfric.lfric_builtins import (
     LFRicBuiltInCallFactory, LFRicBuiltIn, LFRicXKern)
@@ -59,10 +59,8 @@ from psyclone.parse.algorithm import BuiltInCall, parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import (
-    ArrayReference, Loop, Reference, UnaryOperation, Literal,
-    StructureReference)
-from psyclone.psyir.symbols import (
-    ArrayType, DataTypeSymbol, DeferredType, ScalarType)
+    ArrayReference, Loop, Reference, UnaryOperation, Literal)
+from psyclone.psyir.symbols import ArrayType, ScalarType
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.utilities import get_invoke
 
@@ -663,6 +661,29 @@ def test_get_dof_loop_index_symbol():
     sym = kern.get_dof_loop_index_symbol()
     assert sym.name == "df"
     assert sym.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
+
+
+def test_reference_accesses(monkeypatch):
+    '''Test the 'reference_accesses()' method.'''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15.1.8_a_plus_X_builtin.f90"),
+                           api=API)
+    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    loop = psy.invokes.invoke_list[0].schedule[0]
+    kern = loop.loop_body[0]
+    var_info = VariablesAccessInfo()
+    kern.reference_accesses(var_info)
+    # f2_data(df) = a + f1_data(df)
+    assert var_info.is_written(Signature("f2_data"))
+    assert var_info.is_read(Signature("f1_data"))
+    assert var_info.is_read(Signature("a"))
+    # Check for the expected error if an unsupported type of argument
+    # is encountered. Use monkeypatch to break one of the existing args.
+    monkeypatch.setattr(kern.args[0], "_argument_type", "gh_wrong")
+    with pytest.raises(InternalError) as err:
+        kern.reference_accesses(var_info)
+    assert ("LFRicBuiltin.reference_accesses only supports field and scalar "
+            "arguments but got 'f2' of type 'gh_wrong'" in str(err.value))
 
 
 # ------------- Adding (scaled) real fields --------------------------------- #

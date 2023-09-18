@@ -226,6 +226,8 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
         :type var_accesses: \
             :py:class:`psyclone.core.VariablesAccessInfo`
 
+        :raises InternalError: if an unsupported argument type is encountered.
+
         '''
         table = self.scope.symbol_table
         # Collect all write access in a separate object, so they can be added
@@ -237,12 +239,13 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
                 if arg.is_field:
                     sym = table.lookup_with_tag(f"{arg.name}:data")
                     name = sym.name
-                elif arg.is_operator:
-                    import pdb; pdb.set_trace()
-                    sym = table.lookup_with_tag(f"{arg.name}:data")
-                    name = sym.name
-                else:
+                elif arg.is_scalar:
                     name = arg.declaration_name
+                else:
+                    raise InternalError(
+                        f"LFRicBuiltin.reference_accesses only supports field "
+                        f"and scalar arguments but got '{arg.name}' of type "
+                        f"'{arg.argument_type}'")
                 if arg.access == AccessType.WRITE:
                     written.add_access(Signature(name), arg.access, self)
                 else:
