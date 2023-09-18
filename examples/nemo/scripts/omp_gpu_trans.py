@@ -70,7 +70,8 @@ def trans(psy):
         if PROFILING_ENABLED:
             add_profiling(invoke.schedule.children)
 
-        # Has structure accesses that can not be offloaded
+        # TODO #2317: Has structure accesses that can not be offloaded and has
+        # a problematic range to loop expansion of (1:1)
         if psy.name.startswith("psy_obs_"):
             print("Skipping", invoke.name)
             continue
