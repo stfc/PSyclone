@@ -59,7 +59,7 @@ sphinx:
 # need to install the PSyclone package.
 python:
    install:
-     - requirements: pip_requirements.txt
+     - requirements: doc/developer_guide/pip_requirements.txt
      - method: pip
        path: .
        extra_requirements:
