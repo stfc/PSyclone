@@ -66,6 +66,12 @@ def trans(psy):
         if PROFILING_ENABLED:
             add_profiling(invoke.schedule.children)
 
+        # TODO #2317: Has structure accesses that can not be offloaded and has
+        # a problematic range to loop expansion of (1:1)
+        if psy.name.startswith("psy_obs_"):
+            print("Skipping", invoke.name)
+            continue
+
         enhance_tree_information(invoke.schedule)
 
         if invoke.name in ("eos_rprof"):

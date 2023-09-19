@@ -55,7 +55,7 @@ from psyclone.psyir.nodes.array_member import ArrayMember
 from psyclone.psyir.nodes.array_of_structures_member import \
     ArrayOfStructuresMember
 from psyclone.psyir.nodes.operation import Operation, UnaryOperation, \
-    BinaryOperation, NaryOperation
+    BinaryOperation
 from psyclone.psyir.nodes.literal import Literal
 from psyclone.psyir.nodes.if_block import IfBlock
 from psyclone.psyir.nodes.intrinsic_call import IntrinsicCall
@@ -117,7 +117,6 @@ __all__ = [
         'Literal',
         'Loop',
         'Member',
-        'NaryOperation',
         'Node',
         'OperandClause',
         'Operation',

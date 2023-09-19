@@ -93,6 +93,14 @@ def test_call_is_pure():
     assert call.is_pure is True
 
 
+def test_call_is_available_on_device():
+    '''Test the is_available_on_device() method of a Call (currently always
+    returns False). '''
+    routine = RoutineSymbol("zaphod", NoType())
+    call = Call(routine)
+    assert call.is_available_on_device() is False
+
+
 def test_call_equality():
     '''Test the __eq__ method of the Call class. '''
     # routine arguments
