@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+# Copyright (c) 2017-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -42,7 +42,6 @@ import abc
 
 from psyclone import psyGen
 from psyclone.domain.common.psylayer import PSyLoop
-from psyclone.errors import InternalError
 from psyclone.psyir import nodes
 from psyclone.psyir.nodes import Loop
 from psyclone.psyir.tools import DependencyTools, DTCode
@@ -108,7 +107,6 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
         super().validate(node, options=options)
 
         # Check we are not a sequential loop
-        # TODO add a list of loop types that are sequential
         if isinstance(node, PSyLoop) and node.loop_type == 'colours':
             raise TransformationError(f"Error in {self.name} transformation. "
                                       f"The target loop is over colours and "
@@ -148,28 +146,18 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
 
         dep_tools = DependencyTools()
 
-        try:
-            if not dep_tools.can_loop_be_parallelised(node,
-                                                      only_nested_loops=False):
-                # The DependencyTools also returns False for things that are
-                # not an issue, so we ignore specific messages.
-                for message in dep_tools.get_all_messages():
-                    if message.code == DTCode.WARN_SCALAR_WRITTEN_ONCE:
-                        continue
-                    all_msg_str = [str(message) for message in
-                                   dep_tools.get_all_messages()]
-                    messages = "\n".join(all_msg_str)
-                    raise TransformationError(
-                        f"Dependency analysis failed with the following "
-                        f"messages:\n{messages}")
-
-        except (KeyError, InternalError):
-            # LFRic still has symbols that don't exist in the symbol_table
-            # until the gen_code() step, so the dependency analysis raises
-            # KeyErrors in some cases.
-            # Also, the dependence analysis doesn't yet use PSyIR consistently
-            # and that causes failures - TOD0 #845.
-            pass
+        if not node.independent_iterations(dep_tools=dep_tools):
+            # The DependencyTools also returns False for things that are
+            # not an issue, so we ignore specific messages.
+            for message in dep_tools.get_all_messages():
+                if message.code == DTCode.WARN_SCALAR_WRITTEN_ONCE:
+                    continue
+                all_msg_str = [str(message) for message in
+                               dep_tools.get_all_messages()]
+                messages = "\n".join(all_msg_str)
+                raise TransformationError(
+                    f"Dependency analysis failed with the following "
+                    f"messages:\n{messages}")
 
     def apply(self, node, options=None):
         '''

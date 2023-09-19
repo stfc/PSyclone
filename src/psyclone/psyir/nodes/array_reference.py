@@ -41,7 +41,7 @@
 from psyclone.errors import GenerationError
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.nodes.literal import Literal
-from psyclone.psyir.nodes.operation import BinaryOperation
+from psyclone.psyir.nodes.intrinsic_call import IntrinsicCall
 from psyclone.psyir.nodes.ranges import Range
 from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.symbols import (DataSymbol, DeferredType, UnknownType,
@@ -102,12 +102,14 @@ class ArrayReference(ArrayMixin, Reference):
         array = ArrayReference(symbol)
         for ind, child in enumerate(indices):
             if child == ":":
-                lbound = BinaryOperation.create(
-                    BinaryOperation.Operator.LBOUND,
-                    Reference(symbol), Literal(f"{ind+1}", INTEGER_TYPE))
-                ubound = BinaryOperation.create(
-                    BinaryOperation.Operator.UBOUND,
-                    Reference(symbol), Literal(f"{ind+1}", INTEGER_TYPE))
+                lbound = IntrinsicCall.create(
+                    IntrinsicCall.Intrinsic.LBOUND,
+                    [Reference(symbol),
+                     ("dim", Literal(f"{ind+1}", INTEGER_TYPE))])
+                ubound = IntrinsicCall.create(
+                    IntrinsicCall.Intrinsic.UBOUND,
+                    [Reference(symbol),
+                     ("dim", Literal(f"{ind+1}", INTEGER_TYPE))])
                 my_range = Range.create(lbound, ubound)
                 array.addchild(my_range)
             else:

@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
-
+# Modified: S. Siso, STFC Daresbury Lab
 
 ''' Performs pytest tests on the support for allocate statements in the
     fparser2 PSyIR front-end. '''
@@ -117,7 +117,6 @@ program test_alloc
   integer, parameter :: mask(5,8)
   real, allocatable, dimension(:, :) :: var1, var2
   allocate(var1, mold=mask, stat=ierr)
-  var1(:,:) = 3.1459
   allocate(var2, source=var1)
 end program test_alloc
 '''

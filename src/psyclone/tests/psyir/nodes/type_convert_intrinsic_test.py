@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,26 +32,26 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
+# Modified: S. Siso, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' Performs pytest tests specific to the REAL/INT type-conversion
-    BinaryOperations. '''
+    intrinsics. '''
 
-from __future__ import absolute_import
 import pytest
-from psyclone.psyir.nodes import BinaryOperation, Literal, Reference
+from psyclone.psyir.nodes import BinaryOperation, Literal, Reference, \
+    IntrinsicCall
 from psyclone.psyir.symbols import DataSymbol, INTEGER_SINGLE_TYPE, \
     REAL_SINGLE_TYPE
-from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.tests.utilities import check_links
 
 
-@pytest.mark.parametrize("operation, op_str",
-                         [(BinaryOperation.Operator.REAL, "real"),
-                          (BinaryOperation.Operator.INT, "int")])
-def test_type_convert_binaryop_create(operation, op_str):
-    '''Test that the create method in the BinaryOperation class correctly
-    creates a BinaryOperation instance for the REAL and INT type-conversion
+@pytest.mark.parametrize("intrinsic, intr_str",
+                         [(IntrinsicCall.Intrinsic.REAL, "real"),
+                          (IntrinsicCall.Intrinsic.INT, "int")])
+def test_type_convert_intrinsic_create(intrinsic, intr_str, fortran_writer):
+    '''Test that the create method in the IntrinsicCall class correctly
+    creates a IntrinsicCall instance for the REAL and INT type-conversion
     operations..
 
     '''
@@ -60,44 +60,47 @@ def test_type_convert_binaryop_create(operation, op_str):
     wp_sym = DataSymbol("wp", INTEGER_SINGLE_TYPE)
     # Reference to a kind parameter
     rhs = Reference(wp_sym)
-    binaryoperation = BinaryOperation.create(operation, lhs, rhs)
-    assert binaryoperation._operator is operation
-    check_links(binaryoperation, [lhs, rhs])
-    result = FortranWriter().binaryoperation_node(binaryoperation)
-    assert op_str + "(tmp1, wp)" in result.lower()
+    intr_call = IntrinsicCall.create(intrinsic, [lhs, ("kind", rhs)])
+    assert intr_call.intrinsic is intrinsic
+    check_links(intr_call, [lhs, rhs])
+    result = fortran_writer(intr_call)
+    assert intr_str + "(tmp1, kind=wp)" in result.lower()
     # Kind specified with an integer literal
     rhs = Literal("4", INTEGER_SINGLE_TYPE)
-    binaryoperation = BinaryOperation.create(operation, lhs.detach(), rhs)
-    check_links(binaryoperation, [lhs, rhs])
-    result = FortranWriter().binaryoperation_node(binaryoperation)
-    assert op_str + "(tmp1, 4)" in result.lower()
+    intr_call = IntrinsicCall.create(intrinsic, [lhs.detach(), ("kind", rhs)])
+    check_links(intr_call, [lhs, rhs])
+    result = fortran_writer(intr_call)
+    assert intr_str + "(tmp1, kind=4)" in result.lower()
     # Kind specified as an arithmetic expression
     rhs = BinaryOperation.create(BinaryOperation.Operator.ADD,
                                  Reference(wp_sym),
                                  Literal("2", INTEGER_SINGLE_TYPE))
-    binaryoperation = BinaryOperation.create(operation, lhs.detach(), rhs)
-    check_links(binaryoperation, [lhs, rhs])
-    result = FortranWriter().binaryoperation_node(binaryoperation)
-    assert op_str + "(tmp1, wp + 2)" in result.lower()
+    intr_call = IntrinsicCall.create(intrinsic, [lhs.detach(), ("kind", rhs)])
+    check_links(intr_call, [lhs, rhs])
+    result = fortran_writer(intr_call)
+    assert intr_str + "(tmp1, kind=wp + 2)" in result.lower()
 
 
-@pytest.mark.xfail(reason="Only limited checking is performed on the "
-                   "arguments supplied to the BinaryOperation.create() "
+@pytest.mark.xfail(reason="No PSyIR symbol type checking is performed on the "
+                   "arguments supplied to the IntrinsicCall.create() "
                    "method - TODO #658.")
-def test_real_binaryop_invalid():
+def test_real_intrinsic_invalid():
     ''' Test that the create method rejects invalid precisions. '''
     sym = DataSymbol("tmp1", REAL_SINGLE_TYPE)
-    oper = BinaryOperation.Operator.REAL
+    intrinsic = IntrinsicCall.Intrinsic.REAL
     with pytest.raises(TypeError) as err:
-        _ = BinaryOperation.create(oper, Reference(sym),
-                                   Literal("1.0", REAL_SINGLE_TYPE))
+        _ = IntrinsicCall.create(
+            intrinsic,
+            [Reference(sym), ("kind", Literal("1.0", REAL_SINGLE_TYPE))])
     assert ("Precision argument to REAL operation must be specified using a "
             "DataSymbol, ScalarType.PRECISION or integer Literal but got "
             "xxxx" in str(err.value))
     # A Symbol of REAL type cannot be used to specify a precision
     wrong_kind = DataSymbol("not_wp", REAL_SINGLE_TYPE)
     with pytest.raises(TypeError) as err:
-        _ = BinaryOperation.create(oper, Reference(sym), Reference(wrong_kind))
+        _ = IntrinsicCall.create(
+            intrinsic,
+            [Reference(sym), ("kind", Reference(wrong_kind))])
     assert ("If the precision argument to a REAL operation is a Reference "
             "then it must be to a symbol of integer type but got: 'yyyy'" in
             str(err.value))

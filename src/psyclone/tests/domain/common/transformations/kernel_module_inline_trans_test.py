@@ -44,9 +44,11 @@ from fparser.common.readfortran import FortranStringReader
 from psyclone.configuration import Config
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.psyGen import CodedKern, Kern
-from psyclone.psyir.nodes import Container, Routine, CodeBlock, Call
-from psyclone.psyir.symbols import DataSymbol, RoutineSymbol, REAL_TYPE, \
-    SymbolError, ContainerSymbol, ImportInterface
+from psyclone.psyir.nodes import (
+    Container, Routine, CodeBlock, Call, IntrinsicCall)
+from psyclone.psyir.symbols import (
+    DataSymbol, RoutineSymbol, REAL_TYPE, SymbolError, ContainerSymbol,
+    ImportInterface)
 from psyclone.psyir.transformations import TransformationError
 from psyclone.tests.gocean_build import GOceanBuild
 from psyclone.tests.lfric_build import LFRicBuild
@@ -129,7 +131,7 @@ def test_validate_no_inline_global_var(parser):
     sched = invoke.schedule
     kernels = sched.walk(Kern)
     with pytest.raises(TransformationError) as err:
-        inline_trans.apply(kernels[0])
+        inline_trans.validate(kernels[0])
     assert ("'kernel_with_global_code' contains accesses to 'alpha' which is "
             "declared in the same module scope. Cannot inline such a kernel."
             in str(err.value))
@@ -146,10 +148,17 @@ def test_validate_no_inline_global_var(parser):
     kernels[0].get_kernel_schedule().addchild(block)
 
     with pytest.raises(TransformationError) as err:
-        inline_trans.apply(kernels[0])
+        inline_trans.validate(kernels[0])
     assert ("'kernel_with_global_code' contains accesses to 'alpha' in a "
             "CodeBlock that is declared in the same module scope. Cannot "
             "inline such a kernel." in str(err.value))
+
+    # But make sure that an IntrinsicCall routine name is not considered
+    # a global symbol, as they are implicitly declared everywhere
+    kernels[0].get_kernel_schedule().pop_all_children()
+    kernels[0].get_kernel_schedule().addchild(
+        IntrinsicCall.create(IntrinsicCall.Intrinsic.DATE_AND_TIME, []))
+    inline_trans.validate(kernels[0])
 
 
 def test_validate_name_clashes():

@@ -7516,6 +7516,113 @@ class DynLoop(PSyLoop):
                                    f"set_clean({halo_depth})")
                     parent.add(call)
 
+    def independent_iterations(self,
+                               test_all_variables=False,
+                               signatures_to_ignore=None,
+                               dep_tools=None):
+        '''
+        This function is an LFRic-specific override of the default method
+        in the Loop class. It allows domain-specific rules to be applied when
+        determining whether or not loop iterations are independent.
+
+        :param bool test_all_variables: if True, it will test if all variable
+            accesses are independent, otherwise it will stop after the first
+            variable access is found that isn't.
+        :param signatures_to_ignore: list of signatures for which to skip
+            the access checks.
+        :type signatures_to_ignore: Optional[
+            List[:py:class:`psyclone.core.Signature`]]
+        :param dep_tools: an optional instance of DependencyTools so that the
+            caller can access any diagnostic messages detailing why the loop
+            iterations are not independent.
+        :type dep_tools: Optional[
+            :py:class:`psyclone.psyir.tools.DependencyTools]
+
+        :returns: True if the loop iterations are independent, False otherwise.
+        :rtype: bool
+
+        '''
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.tools import DependencyTools, DTCode
+        if not dep_tools:
+            dtools = DependencyTools()
+        else:
+            dtools = dep_tools
+
+        if self.loop_type in ["null", "colours"]:
+            # We know we can't parallelise these loops. ("null" means there
+            # is no actual loop and "colours" is the *outer* loop over the
+            # different colours used - it is the inner, "colour" loop over
+            # cells of a single colour which can be parallelised.)
+            return False
+
+        try:
+            stat = dtools.can_loop_be_parallelised(
+                self, test_all_variables=test_all_variables,
+                signatures_to_ignore=signatures_to_ignore)
+            if stat:
+                return True
+        except (InternalError, KeyError):
+            # LFRic still has symbols that don't exist in the symbol_table
+            # until the gen_code() step, so the dependency analysis raises
+            # errors in some cases.
+            # TODO #1648 - when a transformation colours a loop we must
+            # ensure "last_[halo]_cell_all_colours" is added to the symbol
+            # table.
+            return True
+
+        # The generic DA says that this loop cannot be parallelised. However,
+        # that is often because it wrongly identifies field/operator array
+        # accesses (e.g. fld_proxy%data) as being scalars that are written to.
+        if self.loop_type in ["colour", "dof"]:
+            # This loop is either over cells of a single colour or DoFs. So
+            # long as the symbols that the DA is complaining about are fields
+            # or operators then this is safe to parallelise.
+            table = self.scope.symbol_table
+            # Create the set of all LFRic field types.
+            all_fld_names = set(desc["type"] for desc in
+                                LFRicConstants().DATA_TYPE_MAP.values())
+
+            for msg in dtools.get_all_messages():
+                if msg.code != DTCode.WARN_SCALAR_WRITTEN_ONCE:
+                    # The DA is complaining about something other than writing
+                    # to (what it thinks is) a scalar.  Therefore the loop
+                    # cannot be parallelised.
+                    return False
+                # Currently the DA (wrongly) identifies things like
+                # 'fld_proxy%data' as being scalar accesses. We therefore need
+                # to check that the argument it says is a scalar is in fact a
+                # field. If it is, this is safe to parallelise (because an
+                # LFRic Kernel is constrained to write to dofs in the 'owned'
+                # column).
+                # TODO #2197 - when we change the PSy layer to pass field
+                # pointers to kernels, the DA will identify that they are
+                # arrays and this logic will need to be changed.
+                for name in msg.var_names:
+                    sym = table.lookup(name)
+                    # Ideally at this point we would compare sym.datatype with
+                    # LFRicTypes("RealFieldDataType") etc. but the LFRic PSy
+                    # layer doesn't use those types yet.
+                    if not (isinstance(sym.datatype, DataTypeSymbol) and
+                            sym.datatype.name in all_fld_names):
+                        # The Symbol is not a field or operator.
+                        return False
+            # All of the variables referred to in all of the messages are
+            # actually fields - it is safe to ignore this warning.
+            return True
+
+        if self.loop_type == "":
+            # We can parallelise a non-coloured loop if it only updates
+            # quantities on discontinuous function spaces. If an LFRic kernel
+            # updates quantities on a continuous function space then it must
+            # have at least one argument with GH_INC access. Therefore, we
+            # can simply check whether or not it has such an argument in order
+            # to infer the continuity of the space.
+            return not self.has_inc_arg()
+
+        raise InternalError(f"independent_iterations: loop of type "
+                            f"'{self.loop_type}' is not supported.")
+
 
 class DynKern(CodedKern):
     ''' Stores information about Dynamo Kernels as specified by the
