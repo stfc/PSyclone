@@ -36,12 +36,8 @@
 # Modified J. Henrichs, Bureau of Meteorology
 # Modified A. B. G. Chalk and N. Nobre, STFC Daresbury Lab
 
-''' This module implements the PSyclone Dynamo 0.3 API by 1)
-    specialising the required base classes in parser.py (KernelType) and
-    adding a new class (DynFuncDescriptor03) to capture function descriptor
-    metadata and 2) specialising the required base classes in psyGen.py
-    (PSy, Invokes, Invoke, InvokeSchedule, Loop, Kern, Inf, Arguments and
-    Argument). '''
+''' This module contains the LFRicInvokes class which passes the
+LFRicInvoke class to the base class.'''
 
 # Imports
 from psyclone.domain.lfric import LFRicInvoke
@@ -49,8 +45,8 @@ from psyclone.psyGen import Invokes
 
 
 class LFRicInvokes(Invokes):
-    '''The Dynamo specific invokes class. This passes the Dynamo
-    specific invoke class to the base class so it creates the one we
+    '''The LFRic-specific invokes class. This passes the LFRic-specific
+    LFRicInvoke class to the base class so it creates the one we
     require.
 
     :param alg_calls: list of objects containing the parsed invoke \
