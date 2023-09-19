@@ -46,7 +46,7 @@
 import abc
 
 from psyclone.core import AccessType, Signature, VariablesAccessInfo
-from psyclone.domain.lfric import LFRicConstants, LFRicTypes
+from psyclone.domain.lfric import LFRicConstants
 from psyclone.domain.lfric.kernel import (
     LFRicKernelMetadata, FieldArgMetadata, ScalarArgMetadata,
     FieldVectorArgMetadata)
@@ -56,7 +56,6 @@ from psyclone.parse.utils import ParseError
 from psyclone.psyGen import BuiltIn
 from psyclone.psyir.nodes import (ArrayReference, Assignment, BinaryOperation,
                                   Reference, IntrinsicCall)
-from psyclone.psyir.symbols import ArrayType, RoutineSymbol
 from psyclone.utils import a_or_an
 
 # The name of the file containing the meta-data describing the
@@ -471,19 +470,18 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
         Creates a DoF-indexed StructureReference for each of the field
         arguments to this Built-In kernel. e.g. if the kernel has a field
         argument named 'fld1' then this routine will create a
-        StructureReference for 'fld1%data(df)' where 'df' is the DoF-loop
-        variable.
+        StructureReference for 'fld1_data(df)' where 'df' is the DoF-loop
+        variable and 'fld1_data' is the pointer to the data array within
+        the fld1 object.
 
-        :returns: a reference to the 'df'th element of each kernel argument \
+        :returns: a reference to the 'df'th element of each kernel argument
                   that is a field.
-        :rtype: list of :py:class:`psyclone.psyir.nodes.StructureReference`
+        :rtype: List[:py:class:`psyclone.psyir.nodes.ArrayReference`]
 
         '''
         table = self.scope.symbol_table
         idx_sym = self.get_dof_loop_index_symbol()
 
-        array_1d = ArrayType(LFRicTypes("LFRicRealScalarDataType")(),
-                             [ArrayType.Extent.DEFERRED])
         refs = []
         for arg in self._arguments.args:
             if not arg.is_field:
@@ -491,10 +489,6 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
             sym = table.lookup_with_tag(f"{arg.name}:data")
             refs.append(ArrayReference.create(sym, [Reference(idx_sym)]))
         return refs
-#        return [StructureReference.create(
-#            arg.psyir_expression().symbol, [("data", [Reference(idx_sym)])],
-#            overwrite_datatype=array_1d)
-#                for arg in self._arguments.args if arg.is_field]
 
     def get_scalar_argument_references(self):
         '''
@@ -2334,10 +2328,10 @@ class LFRicSetvalRandomKern(LFRicBuiltIn):
     def lower_to_language_level(self):
         '''
         Lowers this LFRic built-in kernel to language-level PSyIR.
-        This BuiltIn node is replaced by a Call node.
+        This BuiltIn node is replaced by an IntrinsicCall node.
 
         :returns: the lowered version of this node.
-        :rtype: :py:class:`psyclone.psyir.node.Node`
+        :rtype: :py:class:`psyclone.psyir.node.IntrinsicCall`
 
         '''
         # Get indexed refs for the field (proxy) argument.
@@ -2345,8 +2339,6 @@ class LFRicSetvalRandomKern(LFRicBuiltIn):
 
         # Create the PSyIR for the kernel:
         #      call random_number(proxy0%data(df))
-
-        routine = RoutineSymbol("random_number")
         call = IntrinsicCall.create(IntrinsicCall.Intrinsic.RANDOM_NUMBER,
                                     arg_refs)
         # Finally, replace this kernel node with the Assignment
