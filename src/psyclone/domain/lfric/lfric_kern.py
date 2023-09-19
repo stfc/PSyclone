@@ -482,9 +482,9 @@ class LFRicKern(CodedKern):
     def fs_descriptors(self):
         '''
         :return: a list of function space descriptor objects of
-                 type FSDescriptor which contain information about
+                 type FSDescriptors which contain information about
                  the function spaces.
-        :rtype: list of str
+        :rtype: list of :py:class:`psyclone.FSDescriptors`.
 
         '''
         return self._fs_descriptors
