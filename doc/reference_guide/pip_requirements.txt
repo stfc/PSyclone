@@ -36,7 +36,8 @@
 # pip requirements file specifying the packages required to build
 # the PSyclone documentation. Used by readthedocs.
 # We have to pin Sphinx to less than version 7 to avoid an incompatibility
-# with the version of sphinx_rtd_theme used by RTD.
+# with the version of sphinx_rtd_theme used by RTD
+# (https://github.com/readthedocs/sphinx_rtd_theme/issues/1463).
 sphinx<7
 sphinx_rtd_theme
 sphinxcontrib.bibtex
