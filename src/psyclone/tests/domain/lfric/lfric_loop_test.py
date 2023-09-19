@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council
+# Copyright (c) 2021-2023, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -54,6 +54,9 @@ from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import (ArrayReference, Call, Literal, Reference,
                                   Schedule, ScopingNode)
+from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
+from psyclone.psyir.tools import DependencyTools
+from psyclone.psyir.tools.dependency_tools import Message, DTCode
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.utilities import get_invoke
 from psyclone.transformations import (Dynamo0p3ColourTrans,
@@ -997,3 +1000,72 @@ end module testkern_mod
     assert ("A DynLoop of type 'null' can only contain a kernel that "
             "operates on the 'domain' but kernel 'testkern_code' operates "
             "on 'cell_column'" in str(err.value))
+
+
+def test_loop_independent_iterations(monkeypatch, dist_mem):
+    '''Tests for the independent_iterations method.'''
+    # A 'null' loop cannot be parallelised (because there's nothing to
+    # parallelise).
+    loop = DynLoop(loop_type="null")
+    assert not loop.independent_iterations()
+    # A loop over all columns that contains a kernel that increments a field
+    # on a continuous function space does not have independent iterations.
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "1_single_invoke.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    loop = schedule.walk(DynLoop)[0]
+    assert not loop.independent_iterations()
+    # Colour the loop.
+    trans = Dynamo0p3ColourTrans()
+    trans.apply(loop)
+    loops = schedule.walk(DynLoop)
+    assert not loops[0].independent_iterations()
+    assert loops[1].independent_iterations()
+    # Loop over dofs.
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15.1.6_aX_plus_bY_builtin.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    loop = schedule.walk(DynLoop)[0]
+    assert loop.independent_iterations()
+    # Test that we can get hold of any DA messages if we supply our own
+    # instance of DependencyTools.
+    dtools = DependencyTools()
+    loop.independent_iterations(dep_tools=dtools)
+    assert len(dtools.get_all_messages()) == 1
+    # Unsupported/unknown loop type
+    monkeypatch.setattr(loop, "_loop_type", "broken")
+    with pytest.raises(InternalError) as err:
+        loop.independent_iterations()
+    assert "loop of type 'broken' is not supported" in str(err.value)
+    monkeypatch.undo()
+    # Test when the DA returns an unexpected message.
+    monkeypatch.setattr(DependencyTools, "get_all_messages",
+                        lambda _1: [Message("just a test",
+                                            DTCode.WARN_SCALAR_REDUCTION)])
+    assert not loop.independent_iterations()
+    # Test when the DA warns about a variable that is not a field or operator.
+    # Add a new symbol to the table so that we can refer to it.
+    schedule.symbol_table.add(DataSymbol("fake", INTEGER_TYPE))
+    monkeypatch.setattr(DependencyTools, "get_all_messages",
+                        lambda _1: [Message("just a test",
+                                            DTCode.WARN_SCALAR_WRITTEN_ONCE,
+                                            var_names=["fake"])])
+    assert not loop.independent_iterations()
+    # Test when the DA returns True. Since this currently never happens for an
+    # LFRic kernel we use monkeypatch.
+    monkeypatch.setattr(DependencyTools, "can_loop_be_parallelised",
+                        lambda _1, _2, test_all_variables=False,
+                        signatures_to_ignore=[]: True)
+    assert loop.independent_iterations()
+    # Test when the DA raises an exception. This is hard to reproduce (it
+    # depends on the precise names used for arguments to a kernel) so we
+    # simply use monkeypatch again to check that it is handled.
+
+    def fake(_1, _2, test_all_variables=False, signatures_to_ignore=None):
+        raise KeyError("This is just a test")
+    monkeypatch.setattr(DependencyTools, "can_loop_be_parallelised", fake)
+    assert loop.independent_iterations()
