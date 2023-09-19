@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council.
+# Copyright (c) 2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,36 +31,30 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Lab
+# Author J. Henrichs, Bureau of Meteorology
+
+# ----------- Default "make" values, can be overwritten by the user -----------
+F90 ?= gfortran
+F90FLAGS ?=
+
 # -----------------------------------------------------------------------------
 
-''' pytest module for the U/LBOUND intrinsic PSyIR operators. '''
+PSYDATA_LIB_NAME = tau_psy
+PSYDATA_LIB = lib$(PSYDATA_LIB_NAME).a
 
-from __future__ import absolute_import
-import pytest
-from psyclone.psyir.nodes import BinaryOperation, Literal, ArrayReference
-from psyclone.psyir.symbols import (REAL_TYPE, INTEGER_TYPE, DataSymbol,
-                                    DeferredType)
+OBJS = tau_psy.o
 
+default: $(PSYDATA_LIB)
 
-@pytest.mark.xfail(reason="#677 the create() method does not check that the "
-                   "types of the Nodes it is passed are correct for the "
-                   "provided operator.")
-@pytest.mark.parametrize("bound", [BinaryOperation.Operator.LBOUND,
-                                   BinaryOperation.Operator.UBOUND])
-def test_bound_intrinsic_wrong_type(bound):
-    ''' Check that attempting to create an L/UBOUND intrinsic operator
-    with the wrong type of arguments raises the expected error. '''
-    int_one = Literal("1", INTEGER_TYPE)
-    with pytest.raises(TypeError) as err:
-        # First argument must be an Array
-        _ = BinaryOperation.create(bound, int_one.copy(), int_one.copy())
-    assert "must be an Array but got: 'Literal" in str(err.value)
-    sym = DataSymbol("array", DeferredType())
-    with pytest.raises(TypeError) as err:
-        # Second argument cannot be a real literal
-        _ = BinaryOperation.create(
-            bound, ArrayReference.create(sym, [int_one.copy()]),
-            Literal("1.0", REAL_TYPE))
-    assert ("must be an integer but got a Literal of type REAL" in
-            str(err.value))
+.PHONY: default clean allclean
+
+$(PSYDATA_LIB): $(OBJS)
+	ar rs $(PSYDATA_LIB) $(OBJS)
+
+%.o: %.f90
+	$(F90) $(F90FLAGS) -c $<
+
+clean:
+	rm -f *.o *.mod $(PSYDATA_LIB) *pomp.f90 *opari.inc
+
+allclean: clean

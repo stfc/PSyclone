@@ -192,7 +192,8 @@ For a full list of methods available in any PSyIR node see the
     To achieve this, we sub-classed the Python list and redefined all
     methods that modify the list by calling first the PSyIR provided
     validation method and subsequently, if valid, calling the associated
-    list method.
+    list method and triggering an 'update' signal (see
+    :ref:`update_signals_label`).
 
 .. _nodesinfo-label:
 
@@ -256,6 +257,26 @@ relationship.
 Methods like ``node.detach()``, ``node.copy()`` and ``node.pop_all_children()``
 can be used to move or replicate existing children into different nodes. 
 
+.. _update_signals_label:
+
+Dynamic Tree Updates
+====================
+
+Certain modifications to a PSyIR tree will require that parent nodes
+also be updated. For instance, if nodes are added to or removed from
+an OpenACC data region, then the clauses describing the
+necessary data movement (to/from the accelerator device) may have to
+change. To support such use cases, the PSyIR Node has the
+``update_signal`` method which is used to signal that the tree has
+been modified. This signal is propagated up the tree (i.e. from parent
+to parent). The default handler for this signal, ``Node._update_node``, does
+nothing. If a sub-class must take action when the tree below it is
+modified then it must override the ``_update_node`` method as appropriate.
+
+Note that the signalling mechanism is fully contained within the ``Node``
+class and takes care of avoiding recursive updates to the same Node instance.
+It should therefore only be necessary for a class to implement the
+``_update_node`` handler.
 
 Selected Node Descriptions
 ==========================
@@ -476,9 +497,9 @@ See the full Range API in the
 Operation Nodes
 ---------------
 
-Arithmetic operations and various intrinsic/query functions are represented
-in the PSyIR by sub-classes of the `Operation` node. The operations are
-classified according to the number of operands:
+Arithmetic and logic operations are represented in the PSyIR by sub-classes
+of the `Operation` node. The operations are classified according to the number
+of operands:
 
 - Those having one operand are represented by
   `psyclone.psyir.nodes.UnaryOperation` nodes,
@@ -486,26 +507,21 @@ classified according to the number of operands:
 - those having two operands are represented by
   `psyclone.psyir.nodes.BinaryOperation` nodes.
 
-- and those having more than two or a variable number of operands are
-  represented by `psyclone.psyir.nodes.NaryOperation` nodes.
-
 See the documentation for each Operation class in the
 :ref_guide:`Operation psyclone.psyir.nodes.html#psyclone.psyir.nodes.Operation`,
-:ref_guide:`UnaryOperation psyclone.psyir.nodes.html#psyclone.psyir.nodes.UnaryOperation`,
-:ref_guide:`BinaryOperation psyclone.psyir.nodes.html#psyclone.psyir.nodes.BinaryOperation` and
-:ref_guide:`NaryOperation psyclone.psyir.nodes.html#psyclone.psyir.nodes.NaryOperation`
+:ref_guide:`UnaryOperation psyclone.psyir.nodes.html#psyclone.psyir.nodes.UnaryOperation` and
+:ref_guide:`BinaryOperation psyclone.psyir.nodes.html#psyclone.psyir.nodes.BinaryOperation`
 sections of the reference guide.
 
-Note that where an intrinsic (such as
-Fortran's `MAX`) can have a variable number of arguments, the class
-used to represent it in the PSyIR is determined by the actual number
-of arguments in a particular instance. e.g. `MAX(var1, var2)` would be
-represented by a `psyclone.psyir.nodes.BinaryOperation` but `MAX(var1,
-var2, var3)` would be represented by a
-`psyclone.psyir.nodes.NaryOperation`.
-
-The PSyIR supports the concept of named arguments for operation
-nodes, see the :ref:`named_arguments-label` section for more details.
+.. note:: Similar to Fortran, the PSyIR has two comparison operators, one for
+        booleans (EQV) and one for non-booleans (EQ). These are not
+        interchangeable because they have different precedence priorities and
+        some compilers will not compile with the wrong operator. In some cases
+        we need to insert a comparison of two expressions and we don't know the
+        datatype of the operands (e.g. in the select-case canonicalisation).
+        A solution to this is to create an abstract interface with appropriate
+        implementations for each possible datatype.
+            
 
 IntrinsicCall Nodes
 -------------------
@@ -513,57 +529,16 @@ IntrinsicCall Nodes
 PSyIR `IntrinsicCall` nodes (see :ref_guide:`IntrinsicCall
 psyclone.psyir.nodes.html#psyclone.psyir.nodes.IntrinsicCall`) capture
 all PSyIR intrinsics that are not expressed as language symbols (`+`,`-`,`*`
-etc). The latter are captured as `Operation` nodes. At the moment some
-intrinsics that should be captured as `IntrinsicCall` nodes are
-captured as `Operation` nodes (for example `sin` and `cos`). These
-will be migrated to being captured as `IntrinsicCall` nodes in the
-near future. Supported `IntrinsicCall` intrinsics are listed in the
-`IntrinsicCall.Intrinsic` enumeration within the class:
+etc). The latter are captured as `Operation` nodes. At the moment the
+available PSyIR `IntrinsicCall` match those of the `Fortran 2018 standard
+<https://fortranwiki.org/fortran/show/Intrinsic+procedures>`_
+In addition to Fortran Intrinsics, special Fortran statements such as:
+`ALLOCATE`, `DEALLOCATE` and `NULLIFY` are also PSyIR IntrinsicCalls.
 
-+--------------+------------------------------+--------------------------------+
-| Name         | Positional arguments         | Optional arguments             |
-+--------------+------------------------------+------+-------------------------+
-| ALLOCATE     | One or more Reference or     | stat | Reference to an integer |
-|              | ArrayReferences to which     |      | variable which will hold|
-|              | memory will be allocated.    |      | return status.          |
-|              |                              +------+-------------------------+
-|              |                              | mold | Reference to an array   |
-|              |                              |      | which is used to specify|
-|              |                              |      | the dimensions of the   |
-|              |                              |      | allocated object.       |
-|              |                              +------+-------------------------+
-|              |                              |source| Reference to an array   |
-|              |                              |      | which is used to specify|
-|              |                              |      | both the dimensions &   |
-|              |                              |      | initial value(s) of the |
-|              |                              |      | allocated object.       |
-|              |                              +------+-------------------------+
-|              |                              |errmsg| Reference to a character|
-|              |                              |      | variable which will     |
-|              |                              |      | contain an error message|
-|              |                              |      | should the operation    |
-|              |                              |      | fail.                   |
-+--------------+------------------------------+------+-------------------------+
-| DEALLOCATE   | One or more References.      | stat | Reference which will    |
-|              |                              |      | hold return status.     |
-+--------------+------------------------------+------+-------------------------+
-| RANDOM_NUMBER| A single Reference which will|                                |
-|              | be filled with pseudo-random |                                |
-|              | numbers in the range         |                                |
-|              | [0.0, 1.0].                  |                                |
-+--------------+------------------------------+------+-------------------------+
-| SUM, MAXVAL, | A single DataNode.           | dim  | A DataNode specifying   |
-| MINVAL       |                              |      | one of the supplied     |
-|              |                              |      | array's dimensions.     |
-|              |                              +------+-------------------------+
-|              |                              | mask | A DataNode indicating   |
-|              |                              |      | on which elements to    |
-|              |                              |      | apply the function.     |
-+--------------+------------------------------+------+-------------------------+
-| HUGE, TINY   | A single Reference or        |                                |
-|              | Literal.                     |                                |
-+--------------+------------------------------+--------------------------------+
 
+IntrinsicCalls, like Calls, have properties to inform if the call is to a
+pure, elemental, inquiry (does not touch the first argument data) function
+or is available on a GPU device.
 
 CodeBlock Node
 --------------
@@ -671,9 +646,7 @@ psyclone.psyir.nodes.html#psyclone.psyir.nodes.Directive`.
 Named arguments
 ---------------
 
-The `Call` node and the three subclasses of the `Operation` node
-(`UnaryOperation`, `BinaryOperation` and `NaryOperation`) all support
-named arguments.
+The `Call` node (and its sub-classes) support named arguments.
 
 The argument names are provided by the `argument_names` property. This
 property returns a list of names. The first entry in the list refers
@@ -721,10 +694,9 @@ re-ordered; an argument that has replaced a named argument will not be
 a named argument; an inserted argument will not be a named argument,
 and the name of a deleted named argument will be removed.
 
-Making a copy of the `Call` node or one of the three subclasses of
-Operation nodes (`UnaryOperation`, `BinaryOperation` or
-`NaryOperation`) also causes problems with consistency between the
-internal `_argument_names` list and the arguments. The reason for this
+Making a copy of the `Call` node also causes problems with consistency
+between the internal `_argument_names` list and the arguments.
+The reason for this
 is that the arguments get copied and therefore have a different `id`,
 whereas the `id`s in the internal `_argument_names` list are simply
 copied. To solve this problem, the `copy()` method is specialised to

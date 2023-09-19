@@ -39,7 +39,7 @@ optimisations: inline kernels into modules, expand intrinsics into code.
 '''
 
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
-from psyclone.psyir.nodes import BinaryOperation, Container, KernelSchedule
+from psyclone.psyir.nodes import IntrinsicCall, Container, KernelSchedule
 from psyclone.psyir.transformations import Matmul2CodeTrans
 from psyclone.transformations import TransformationError
 
@@ -70,10 +70,10 @@ def trans(psy):
         root = psy.invokes.invoke_list[0].schedule.ancestor(Container)
         for kschedule in root.walk(KernelSchedule):
             # Expand MATMUL intrinsic
-            for bop in kschedule.walk(BinaryOperation):
-                if bop.operator == BinaryOperation.Operator.MATMUL:
+            for icall in kschedule.walk(IntrinsicCall):
+                if icall.intrinsic == IntrinsicCall.Intrinsic.MATMUL:
                     try:
-                        matmul_trans.apply(bop)
+                        matmul_trans.apply(icall)
                     except TransformationError as err:
                         print(f"Inline MATMUL failed for '{kschedule.name}' "
                                "because:")

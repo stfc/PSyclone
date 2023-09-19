@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified I. Kavcic, A. Coughtrie and L. Turner, Met Office
+# Modified I. Kavcic, A. Coughtrie, L. Turner and O. Brunt, Met Office
 # Modified J. Henrichs, Bureau of Meteorology
 # Modified A. B. G. Chalk and N. Nobre, STFC Daresbury Lab
 
@@ -100,8 +100,8 @@ class LFRicInvoke(Invoke):
                                         DynMeshes, DynBoundaryConditions,
                                         DynProxies, LFRicRunTimeChecks,
                                         DynCellIterators, DynReferenceElement,
-                                        LFRicMeshProperties, LFRicLoopBounds,
-                                        DynGlobalSum)
+                                        LFRicMeshProperties, DynGlobalSum)
+        from psyclone.domain.lfric import LFRicLoopBounds
         self.scalar_args = LFRicScalarArgs(self)
 
         # Initialise our Invoke stencil information
