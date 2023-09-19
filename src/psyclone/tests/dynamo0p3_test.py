@@ -61,7 +61,7 @@ from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory, InvokeSchedule, HaloExchange, BuiltIn
 from psyclone.psyir.nodes import (colored, BinaryOperation, UnaryOperation,
                                   Reference, Routine)
-from psyclone.psyir.symbols import ScalarType, DataTypeSymbol
+from psyclone.psyir.symbols import ArrayType, ScalarType, DataTypeSymbol
 from psyclone.psyir.transformations import LoopFuseTrans
 from psyclone.tests.lfric_build import LFRicBuild
 
@@ -1445,16 +1445,10 @@ def test_dynkernelargument_psyir_expression(monkeypatch):
     second_arg = first_kernel.arguments.args[1]
     psyir = second_arg.psyir_expression()
     assert isinstance(psyir, Reference)
-    assert psyir.symbol.name == "f1_proxy"
-    assert isinstance(psyir.symbol.datatype, DataTypeSymbol)
-    assert psyir.symbol.datatype.name == "field_proxy_type"
-    # Repeat but force the symbol for 'f1_proxy' to be created
-    del first_kernel.scope.symbol_table._symbols["f1_proxy"]
-    psyir = second_arg.psyir_expression()
-    assert isinstance(psyir, Reference)
-    assert psyir.symbol.name == "f1_proxy"
-    assert isinstance(psyir.symbol.datatype, DataTypeSymbol)
-    assert psyir.symbol.datatype.name == "field_proxy_type"
+    assert psyir.symbol.name == "f1_data"
+    assert isinstance(psyir.symbol.datatype, ArrayType)
+    assert psyir.symbol.datatype.intrinsic == ScalarType.Intrinsic.REAL
+    assert len(psyir.symbol.datatype.shape) == 1
     # Break the argument type
     monkeypatch.setattr(second_arg, "_argument_type", "gh_wrong")
     with pytest.raises(NotImplementedError) as err:
@@ -1488,6 +1482,27 @@ def test_dynkernelargument_psyir_expression(monkeypatch):
     assert ("Expected argument '3.0 + f1' to kernel 'inc_x_powint_n' to be a "
             "literal but the created PSyIR contains one or more References"
             in str(err.value))
+    # Test for an LMA operator argument.
+    _, invoke_info = parse(os.path.join(BASE_PATH, "10_operator.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    first_invoke = psy.invokes.invoke_list[0]
+    kern = first_invoke.schedule.walk(DynKern)[0]
+    psyir = kern.arguments.args[0].psyir_expression()
+    assert isinstance(psyir, Reference)
+    assert psyir.symbol.name == "mm_w0_local_stencil"
+    assert isinstance(psyir.symbol.datatype, ArrayType)
+    # Test for an CMA operator argument.
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "20.0.1_cma_assembly_scalar.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
+    first_invoke = psy.invokes.invoke_list[0]
+    kern = first_invoke.schedule.walk(DynKern)[0]
+    psyir = kern.arguments.args[1].psyir_expression()
+    assert isinstance(psyir, Reference)
+    assert psyir.symbol.name == "cma_op1_cma_matrix"
+    assert isinstance(psyir.symbol.datatype, ArrayType)
 
 
 def test_arg_ref_name_method_error1():

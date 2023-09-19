@@ -3123,6 +3123,7 @@ class DynProxies(LFRicCollection):
                 # We put precision Symbols in the Container symbol table.
                 ctable = self._invoke.schedule.parent.symbol_table
                 precision = ctable.add_lfric_precision_symbol(arg.precision)
+                # Construct the type.
                 array_type = ArrayType(
                     LFRicTypes("LFRicRealScalarDataType")(precision),
                     [ArrayType.Extent.DEFERRED]*3)
@@ -3140,6 +3141,8 @@ class DynProxies(LFRicCollection):
             if ttext not in all_tags:
                 all_tags.add(ttext)
                 # TODO use UnknownFortranType rather than DeferredType?
+                # REAL(KIND=r_solver), pointer, dimension(:,:,:) :: &
+                #     op1_cma_matrix => null()
                 self._symbol_table.new_symbol(arg.name+"_cma_matrix",
                                               symbol_type=DataSymbol,
                                               datatype=DeferredType(),
@@ -9675,18 +9678,19 @@ class DynKernelArgument(KernelArgument):
                     datatype=self.infer_datatype())
             return Reference(scalar_sym)
 
-        if self.is_field or self.is_operator:
-            # Although the argument to a Kernel is a field, the data itself
-            # is accessed through a field_proxy.
-            try:
-                sym = symbol_table.lookup(self.proxy_name)
-            except KeyError:
-                # TODO once #1258 is done the symbols should already exist
-                # and therefore we should raise an exception if not.
-                sym = symbol_table.new_symbol(
-                    self.proxy_name, symbol_type=DataSymbol,
-                    datatype=self.infer_datatype(proxy=True))
-            return StructureReference.create(sym, ["data"])
+        tag_name = ""
+        if self.is_field:
+            tag_name = f"{self.name}:data"
+
+        if self.is_operator:
+            if self.argument_type == "gh_operator":
+                tag_name = f"{self.name}:local_stencil"
+            elif self.argument_type == "gh_columnwise_operator":
+                tag_name = f"{self.name}:cma_matrix"
+
+        if tag_name:
+            sym = symbol_table.lookup_with_tag(tag_name)
+            return Reference(sym)
 
         raise NotImplementedError(
             f"Unsupported kernel argument type: '{self.name}' is of type "
