@@ -2,7 +2,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -37,12 +37,13 @@
 ''' PSyclone transformation script showing the introduction of OpenMP for GPU
 directives into Nemo code. '''
 
+from utils import insert_explicit_loop_parallelism, normalise_loops, \
+    enhance_tree_information, add_profiling
+
 from psyclone.psyGen import TransInfo
 from psyclone.psyir.nodes import Call, Loop
 from psyclone.psyir.transformations import OMPTargetTrans
 from psyclone.transformations import OMPDeclareTargetTrans
-from utils import insert_explicit_loop_parallelism, normalise_loops, \
-    enhance_tree_information, add_profiling
 
 PROFILING_ENABLED = True
 
@@ -69,7 +70,8 @@ def trans(psy):
         if PROFILING_ENABLED:
             add_profiling(invoke.schedule.children)
 
-        # Has structure accesses that can not be offloaded
+        # TODO #2317: Has structure accesses that can not be offloaded and has
+        # a problematic range to loop expansion of (1:1)
         if psy.name.startswith("psy_obs_"):
             print("Skipping", invoke.name)
             continue
@@ -107,9 +109,11 @@ def trans(psy):
 
         # For performance in lib_fortran, mark serial routines as GPU-enabled
         if psy.name == "psy_lib_fortran_psy":
-            if not invoke.schedule.walk((Loop, Call)):
-                OMPDeclareTargetTrans().apply(invoke.schedule)
-                continue
+            if not invoke.schedule.walk(Loop):
+                calls = invoke.schedule.walk(Call)
+                if all(call.is_available_on_device() for call in calls):
+                    OMPDeclareTargetTrans().apply(invoke.schedule)
+                    continue
 
         insert_explicit_loop_parallelism(
                 invoke.schedule,
