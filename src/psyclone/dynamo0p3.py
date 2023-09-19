@@ -7729,10 +7729,6 @@ class DynLoop(PSyLoop):
             # long as the symbols that the DA is complaining about are fields
             # or operators then this is safe to parallelise.
             table = self.scope.symbol_table
-            # Create the set of all LFRic field types.
-            #all_fld_names = set(desc["type"] for desc in
-            #                    LFRicConstants().DATA_TYPE_MAP.values())
-            #import pdb; pdb.set_trace()
 
             for msg in dtools.get_all_messages():
                 if msg.code != DTCode.ERROR_WRITE_WRITE_RACE:
@@ -7748,10 +7744,15 @@ class DynLoop(PSyLoop):
                     # Ideally at this point we would compare sym.datatype with
                     # LFRicTypes("RealFieldDataType") etc. but the LFRic PSy
                     # layer doesn't use those types yet.
-                    if not (isinstance(sym.datatype, ArrayType) and
-                            len(sym.datatype.shape) == 1):
+                    # Therefore, we check that the Symbol has the correct tag
+                    # for either a field, LMA operator or CMA operator.
+                    local_table = sym.find_symbol_table(self)
+                    tags_dict = local_table.get_reverse_tags_dict()
+                    tag = tags_dict.get(sym, "")
+                    if not (tag.endswith(":data") or
+                            tag.endswith(":local_stencil") or
+                            tag.endswith(":cma_matrix")):
                         # The Symbol is not a field or operator.
-                        import pdb; pdb.set_trace()
                         return False
             # All of the variables referred to in all of the messages are
             # actually fields - it is safe to ignore this warning.

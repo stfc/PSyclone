@@ -1052,7 +1052,7 @@ def test_loop_independent_iterations(monkeypatch, dist_mem):
     schedule.symbol_table.add(DataSymbol("fake", INTEGER_TYPE))
     monkeypatch.setattr(DependencyTools, "get_all_messages",
                         lambda _1: [Message("just a test",
-                                            DTCode.WARN_SCALAR_WRITTEN_ONCE,
+                                            DTCode.ERROR_WRITE_WRITE_RACE,
                                             var_names=["fake"])])
     assert not loop.independent_iterations()
     # Test when the DA returns True. Since this currently never happens for an
