@@ -8503,6 +8503,23 @@ def check_args(call):
 
 @dataclass
 class LFRicArgStencil:
+    '''
+    Provides stencil information about an LFRic kernel argument.
+    LFRicArgStencil can provide the extent, algorithm argument for the extent,
+    and the direction argument of a stencil or set any of these properties.
+
+    :param str name:        the name of the stencil.
+    :param str extent:      the extent of the stencil if it is known. It will
+                            be known if it is specified in the metadata.
+    :param extent_arg:      the algorithm argument associated with the extent
+                            value if extent was not found in the metadata.
+    :type extent_arg:       Any
+    :param direction_arg:   the direction argument associated with the 
+                            direction of the stencil if the direction of the
+                            stencil is not known.
+    :type direction_arg:    Any
+    
+    '''
     name: str
     extent: str = None
     extent_arg: Any = None
@@ -8546,7 +8563,9 @@ class DynKernelArguments(Arguments):
             if dyn_argument.descriptor.stencil:
                 # Create a stencil object and store a reference to it in our
                 # new DynKernelArgument object.
-                stencil = LFRicArgStencil(dyn_argument.descriptor.stencil['type'])
+                stencil = LFRicArgStencil(
+                    dyn_argument.descriptor.stencil['type']
+                    )
                 dyn_argument.stencil = stencil
 
                 if dyn_argument.descriptor.stencil['extent']:
