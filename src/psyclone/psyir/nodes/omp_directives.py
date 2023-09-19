@@ -52,6 +52,7 @@ from psyclone.f2pygen import (AssignGen, UseGen, DeclGen, DirectiveGen,
 from psyclone.psyir.nodes.directive import StandaloneDirective, \
     RegionDirective
 from psyclone.psyir.nodes.assignment import Assignment
+from psyclone.psyir.nodes.directive import Directive
 from psyclone.psyir.nodes.if_block import IfBlock
 from psyclone.psyir.nodes.intrinsic_call import IntrinsicCall
 from psyclone.psyir.nodes.literal import Literal
@@ -1681,35 +1682,27 @@ class OMPLoopDirective(OMPRegionDirective):
         super().validate_global_constraints()
 
 
-class OMPAtomicDirective(OMPDirective):
+class OMPAtomicDirective(OMPRegionDirective):
     '''
     OpenMP directive to represent that the memory accesses in the associated
     assignment must be performed atomically.
 
     '''
-    # Textual description of the node.
-    _children_valid_format = "Assignment"
-
-    @staticmethod
-    def _validate_child(position, child):
+    def begin_string(self):
         '''
-        :param int position: the position to be validated.
-        :param child: a child to be validated.
-        :type child: :py:class:`psyclone.psyir.nodes.Node`
-
-        :return: whether the given child and position are valid for this node.
-        :rtype: bool
+        :returns: the opening string statement of this directive.
+        :rtype: str
 
         '''
-        return position == 0 and isinstance(child, Assignment)
+        return "omp atomic"
 
-    @property
-    def clauses(self):
+    def end_string(self):
         '''
-        :returns: the Clauses associated with this directive.
-        :rtype: List of :py:class:`psyclone.psyir.nodes.Clause`
+        :returns: the ending string statement of this directive.
+        :rtype: str
+
         '''
-        return []
+        return "omp end atomic"
 
     @staticmethod
     def is_valid_atomic_statement(stmt):
@@ -1722,11 +1715,16 @@ class OMPAtomicDirective(OMPDirective):
         :returns: whether a given statement is compliant with the OpenMP \
             atomic expression.
         :rtype: bool
+
         '''
-        # Not all rules are checked, just that:
-        # - operands are of a scalar intrinsic type (or deferred)
-        if not isinstance(stmt.lhs.datatype, (ScalarType, DeferredType)):
+        if not isinstance(stmt, Assignment):
             return False
+
+        # Not all rules are checked, just that:
+        # - operands are of a scalar intrinsic type
+        if not isinstance(stmt.lhs.datatype, ScalarType):
+            return False
+
         # - operators are one of:
         #   +, *, -, /, AND, OR, EQV, NEQV
         if isinstance(stmt.rhs, BinaryOperation):
@@ -1741,7 +1739,11 @@ class OMPAtomicDirective(OMPDirective):
                 return True
         # - or intrinsics: MAX, MIN, IAND, IOR, or IEOR
         if isinstance(stmt.rhs, IntrinsicCall):
-            if stmt.rhs.intrinsic in (IntrinsicCall.Intrinsic.MAX, ):
+            if stmt.rhs.intrinsic in (IntrinsicCall.Intrinsic.MAX,
+                                      IntrinsicCall.Intrinsic.MIN,
+                                      IntrinsicCall.Intrinsic.IAND,
+                                      IntrinsicCall.Intrinsic.IOR,
+                                      IntrinsicCall.Intrinsic.IEOR):
                 return True
         return False
 
@@ -1752,13 +1754,15 @@ class OMPAtomicDirective(OMPDirective):
         :raises GenerationError: if the OMPAtomicDirective associated \
             statement does not conform to a valid OpenMP atomic operation.
         '''
-        if not self.children:
+        if not self.children or len(self.dir_body.children) != 1:
             raise GenerationError(
-                "Atomic directives must always have an associated statement.")
-        if not self.is_valid_atomic_statement(self.children[0]):
+                f"Atomic directives must always have one and only one"
+                f" associated statement, but found '{self.debug_string()}'")
+        stmt = self.dir_body[0]
+        if not self.is_valid_atomic_statement(stmt):
             raise GenerationError(
-                f"Statement {self.children[0]} is not a valid OpenMP Atomic "
-                f"statement.")
+                f"Statement '{self.children[0].debug_string()}' is not a "
+                f"valid OpenMP Atomic statement.")
 
 
 # For automatic API documentation generation

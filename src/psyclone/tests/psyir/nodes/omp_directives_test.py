@@ -1591,10 +1591,11 @@ def test_omp_atomics_is_valid_atomic_statement(fortran_reader):
 
         A(1,1) = A(1,1) * 2
         A(1,1) = A(1,1) / 2 + 3 - 5
+        A(1,1) = MAX(A(1,1), A(1,2))
     end subroutine
     '''
     tree = fortran_reader.psyir_from_source(code)
-    for stmt in tree.walk(Statement):
+    for stmt in tree.walk(Assignment):
         assert OMPAtomicDirective.is_valid_atomic_statement(stmt)
 
     code = '''
@@ -1609,5 +1610,50 @@ def test_omp_atomics_is_valid_atomic_statement(fortran_reader):
     end subroutine
     '''
     tree = fortran_reader.psyir_from_source(code)
-    for stmt in tree.walk(Statement):
+    for stmt in tree.walk(Assignment):
         assert not OMPAtomicDirective.is_valid_atomic_statement(stmt)
+
+
+def test_omp_atomics_validate_global_constraints(fortran_reader, monkeypatch):
+    ''' Test the OMPAtomicDirective can check the globals constraints to
+    validate that the directive is correctly formed.'''
+
+    code = '''
+    subroutine my_subroutine()
+        integer, dimension(10, 10) :: A = 1
+        integer, dimension(10, 10) :: B = 2
+        integer :: i, j, val
+
+        A(1,1) = A(1,1) * 2
+    end subroutine
+    '''
+    tree = fortran_reader.psyir_from_source(code)
+    routine = tree.walk(Routine)[0]
+    stmt = routine.children[0]
+    atomic = OMPAtomicDirective()
+    atomic.dir_body.addchild(stmt.detach())
+    routine.addchild(atomic)
+
+    # This is a valid atomic
+    atomic.validate_global_constraints()
+
+    # If the statement is invalid (for any reason already tested in a previous
+    # test), it raises an error
+    monkeypatch.setattr(atomic, "is_valid_atomic_statement", lambda _: False)
+    with pytest.raises(GenerationError) as err:
+        atomic.validate_global_constraints()
+    assert "is not a valid OpenMP Atomic statement." in str(err.value)
+
+    # If it doesn not have an associated statement
+    atomic.dir_body[0].detach()
+    with pytest.raises(GenerationError) as err:
+        atomic.validate_global_constraints()
+    assert ("Atomic directives must always have one and only one associated "
+            "statement, but found " in str(err.value))
+
+
+def test_omp_atomics_srtings():
+    ''' Test the OMPAtomicDirective begin and end strings '''
+    atomic = OMPAtomicDirective()
+    assert atomic.begin_string() == "omp atomic"
+    assert atomic.end_string() == "omp end atomic"
