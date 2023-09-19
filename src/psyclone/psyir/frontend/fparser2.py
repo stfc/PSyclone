@@ -51,7 +51,7 @@ from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.nodes import (
     ArrayMember, ArrayOfStructuresReference, ArrayReference, Assignment,
     BinaryOperation, Call, CodeBlock, Container, Directive, FileContainer,
-    IfBlock, IntrinsicCall, Literal, Loop, Member, NaryOperation, Node, Range,
+    IfBlock, IntrinsicCall, Literal, Loop, Member, Node, Range,
     Reference, Return, Routine, Schedule, StructureReference, UnaryOperation,
     WhileLoop)
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
@@ -104,7 +104,7 @@ INTENT_MAPPING = {"in": ArgumentInterface.Access.READ,
 SUPPORTED_ROUTINE_PREFIXES = ["ELEMENTAL", "PURE", "IMPURE"]
 
 
-# TODO #1987. It may be that this method could be made more general so
+# TODO #2302: It may be that this method could be made more general so
 # that it works for more intrinsics, to help minimise the number of
 # canonicalise_* functions.
 def _canonicalise_minmaxsum(arg_nodes, arg_names, node):
@@ -120,11 +120,11 @@ def _canonicalise_minmaxsum(arg_nodes, arg_names, node):
     different forms that are allowed in Fortran.
 
     In general Fortran supports all arguments being named, all
-    arguments being positional and everything inbetween, as long as
+    arguments being positional and everything in-between, as long as
     all named arguments follow all positional arguments.
 
     For example, both SUM(A, DIM, MASK) and SUM(DIM=DIM, MASK=MASK,
-    ARRAY=A) are equivalant in Fortran.
+    ARRAY=A) are equivalent in Fortran.
 
     The PSyIR canonical form has all required arguments as positional
     arguments and all optional arguments as named arguments, which
@@ -361,6 +361,75 @@ def _find_or_create_unresolved_symbol(location, name, scope_limit=None,
     raise SymbolError(f"No Symbol found for name '{name}'.")
 
 
+def _find_or_create_psyclone_internal_cmp(node):
+    '''
+    Utility routine to return a symbol of the generic psyclone comparison
+    interface. If the interface does not exist in the scope it first adds
+    the necessary code to the parent module.
+
+    :param node: location where the comparison interface is needed.
+    :type node: :py:class:`psyclone.psyir.nodes.Node`
+    :returns: the comparison interface symbol.
+    :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
+
+    :raises NotImplementedError: if there is no ancestor module container
+        on which to add the interface code into.
+    '''
+    try:
+        return node.scope.symbol_table.lookup_with_tag("psyclone_internal_cmp")
+    except KeyError:
+        container = node.ancestor(Container)
+        if container and not isinstance(container, FileContainer):
+            # pylint: disable=import-outside-toplevel
+            from psyclone.psyir.frontend.fortran import FortranReader
+            name_interface = node.scope.symbol_table.next_available_name(
+                                                       "psyclone_internal_cmp")
+            name_f_int = node.scope.symbol_table.next_available_name(
+                                                       "psyclone_cmp_int")
+            name_f_logical = node.scope.symbol_table.next_available_name(
+                                                       "psyclone_cmp_logical")
+            name_f_char = node.scope.symbol_table.next_available_name(
+                                                       "psyclone_cmp_char")
+            fortran_reader = FortranReader()
+            dummymod = fortran_reader.psyir_from_source(f'''
+            module dummy
+                implicit none
+                interface {name_interface}
+                    procedure {name_f_int}
+                    procedure {name_f_logical}
+                    procedure {name_f_char}
+                end interface {name_interface}
+                private {name_interface}
+                private {name_f_int}, {name_f_logical}, {name_f_char}
+                contains
+                logical pure function {name_f_int}(op1, op2)
+                    integer, intent(in) :: op1, op2
+                    {name_f_int} = op1.eq.op2
+                end function
+                logical pure function {name_f_logical}(op1, op2)
+                    logical, intent(in) :: op1, op2
+                    {name_f_logical} = op1.eqv.op2
+                end function
+                logical pure function {name_f_char}(op1, op2)
+                    character(*), intent(in) :: op1, op2
+                    {name_f_char} = op1.eq.op2
+                end function
+            end module dummy
+            ''').children[0]  # We skip the top FileContainer
+
+            # Add the new functions and interface to the ancestor container
+            container.children.extend(dummymod.pop_all_children())
+            container.symbol_table.merge(dummymod.symbol_table)
+            symbol = container.symbol_table.lookup(name_interface)
+            # Add the appropriate tag to find it regardless of the name
+            container.symbol_table.tags_dict['psyclone_internal_cmp'] = symbol
+            return symbol
+
+    raise NotImplementedError(
+        "Could not find the generic comparison interface and the scope does "
+        "not have an ancestor container in which to add it.")
+
+
 def _check_args(array, dim):
     '''Utility routine used by the _check_bound_is_full_extent and
     _check_array_range_literal functions to check common arguments.
@@ -408,7 +477,7 @@ def _check_args(array, dim):
             f"Range type but found '{type(array.indices[dim-1]).__name__}'.")
 
 
-def _is_bound_full_extent(array, dim, operator):
+def _is_bound_full_extent(array, dim, intrinsic):
     '''A Fortran array section with a missing lower bound implies the
     access starts at the first element and a missing upper bound
     implies the access ends at the last element e.g. a(:,:)
@@ -430,12 +499,12 @@ def _is_bound_full_extent(array, dim, operator):
     :param array: the node to check.
     :type array: :py:class:`pysclone.psyir.nodes.ArrayMixin`
     :param int dim: the dimension index to use.
-    :param operator: the operator to check.
-    :type operator: \
-        :py:class:`psyclone.psyir.nodes.binaryoperation.Operator.LBOUND` \
-        or :py:class:`psyclone.psyir.nodes.binaryoperation.Operator.UBOUND`
+    :param intrinsic: the intrinsic to check.
+    :type intrinsic:
+        :py:class:`psyclone.psyir.nodes.IntrinsicCall.Intrinsic.LBOUND` |
+        :py:class:`psyclone.psyir.nodes.IntrinsicCall.Intrinsic.UBOUND`
 
-    :returns: True if the supplied array has the expected properties, \
+    :returns: True if the supplied array has the expected properties,
         otherwise returns False.
     :rtype: bool
 
@@ -444,26 +513,26 @@ def _is_bound_full_extent(array, dim, operator):
     '''
     _check_args(array, dim)
 
-    if operator == BinaryOperation.Operator.LBOUND:
+    if intrinsic == IntrinsicCall.Intrinsic.LBOUND:
         index = 0
-    elif operator == BinaryOperation.Operator.UBOUND:
+    elif intrinsic == IntrinsicCall.Intrinsic.UBOUND:
         index = 1
     else:
         raise TypeError(
-            f"'operator' argument  expected to be LBOUND or UBOUND but "
-            f"found '{type(operator).__name__}'.")
+            f"'intrinsic' argument  expected to be LBOUND or UBOUND but "
+            f"found '{type(intrinsic).__name__}'.")
 
     # The first element of the array (index 0) relates to the first
     # dimension (dim 1), so we need to reduce dim by 1.
     bound = array.indices[dim-1].children[index]
 
-    if not isinstance(bound, BinaryOperation):
+    if not isinstance(bound, IntrinsicCall):
         return False
 
     reference = bound.children[0]
     literal = bound.children[1]
 
-    if bound.operator != operator:
+    if bound.intrinsic != intrinsic:
         return False
 
     if (not isinstance(literal, Literal) or
@@ -563,10 +632,10 @@ def _is_range_full_extent(my_range):
     dim = array.children.index(my_range) + 1
     # Check lower bound
     is_lower = _is_bound_full_extent(
-        array, dim, BinaryOperation.Operator.LBOUND)
+        array, dim, IntrinsicCall.Intrinsic.LBOUND)
     # Check upper bound
     is_upper = _is_bound_full_extent(
-        array, dim, BinaryOperation.Operator.UBOUND)
+        array, dim, IntrinsicCall.Intrinsic.UBOUND)
     # Check step (index 2 is the step index for the range function)
     is_step = _is_array_range_literal(array, dim, 2, 1)
     return is_lower and is_upper and is_step
@@ -663,7 +732,7 @@ def _kind_find_or_create(name, symbol_table):
     try:
         kind_symbol = symbol_table.lookup(lower_name)
         # pylint: disable=unidiomatic-typecheck
-        if type(kind_symbol) == Symbol:
+        if type(kind_symbol) is Symbol:
             # There is an existing entry but it's only a generic Symbol
             # so we need to replace it with a DataSymbol of integer type.
             # Since the lookup() above looks through *all* ancestor symbol
@@ -1002,24 +1071,7 @@ class Fparser2Reader():
     unary_operators = OrderedDict([
         ('+', UnaryOperation.Operator.PLUS),
         ('-', UnaryOperation.Operator.MINUS),
-        ('.not.', UnaryOperation.Operator.NOT),
-        ('abs', UnaryOperation.Operator.ABS),
-        ('ceiling', UnaryOperation.Operator.CEIL),
-        ('floor', UnaryOperation.Operator.FLOOR),
-        ('transpose', UnaryOperation.Operator.TRANSPOSE),
-        ('exp', UnaryOperation.Operator.EXP),
-        ('log', UnaryOperation.Operator.LOG),
-        ('log10', UnaryOperation.Operator.LOG10),
-        ('sin', UnaryOperation.Operator.SIN),
-        ('asin', UnaryOperation.Operator.ASIN),
-        ('cos', UnaryOperation.Operator.COS),
-        ('acos', UnaryOperation.Operator.ACOS),
-        ('tan', UnaryOperation.Operator.TAN),
-        ('atan', UnaryOperation.Operator.ATAN),
-        ('sqrt', UnaryOperation.Operator.SQRT),
-        ('real', UnaryOperation.Operator.REAL),
-        ('nint', UnaryOperation.Operator.NINT),
-        ('int', UnaryOperation.Operator.INT)])
+        ('.not.', UnaryOperation.Operator.NOT)])
 
     binary_operators = OrderedDict([
         ('+', BinaryOperation.Operator.ADD),
@@ -1042,33 +1094,7 @@ class Fparser2Reader():
         ('>', BinaryOperation.Operator.GT),
         ('.gt.', BinaryOperation.Operator.GT),
         ('.and.', BinaryOperation.Operator.AND),
-        ('.or.', BinaryOperation.Operator.OR),
-        ('dot_product', BinaryOperation.Operator.DOT_PRODUCT),
-        ('int', BinaryOperation.Operator.INT),
-        ('real', BinaryOperation.Operator.REAL),
-        ('sign', BinaryOperation.Operator.SIGN),
-        ('size', BinaryOperation.Operator.SIZE),
-        ('lbound', BinaryOperation.Operator.LBOUND),
-        ('ubound', BinaryOperation.Operator.UBOUND),
-        ('max', BinaryOperation.Operator.MAX),
-        ('min', BinaryOperation.Operator.MIN),
-        ('mod', BinaryOperation.Operator.REM),
-        ('matmul', BinaryOperation.Operator.MATMUL),
-        ('transfer', BinaryOperation.Operator.CAST)])
-
-    nary_operators = OrderedDict([
-        ('max', NaryOperation.Operator.MAX),
-        ('min', NaryOperation.Operator.MIN)])
-
-    intrinsics = OrderedDict([
-        ('allocate', IntrinsicCall.Intrinsic.ALLOCATE),
-        ('deallocate', IntrinsicCall.Intrinsic.DEALLOCATE),
-        ('random', IntrinsicCall.Intrinsic.RANDOM_NUMBER),
-        ('minval', IntrinsicCall.Intrinsic.MINVAL),
-        ('maxval', IntrinsicCall.Intrinsic.MAXVAL),
-        ('sum', IntrinsicCall.Intrinsic.SUM),
-        ('tiny', IntrinsicCall.Intrinsic.TINY),
-        ('huge', IntrinsicCall.Intrinsic.HUGE)])
+        ('.or.', BinaryOperation.Operator.OR)])
 
     def __init__(self):
         # Map of fparser2 node types to handlers (which are class methods)
@@ -1356,7 +1382,7 @@ class Fparser2Reader():
                 try:
                     sym = symbol_table.lookup(dim_name)
                     # pylint: disable=unidiomatic-typecheck
-                    if type(sym) == Symbol:
+                    if type(sym) is Symbol:
                         # An entry for this symbol exists but it's only a
                         # generic Symbol and we now know it must be a
                         # DataSymbol.
@@ -1737,7 +1763,7 @@ class Fparser2Reader():
             # Do we already have a Symbol for this derived type?
             type_symbol = _find_or_create_unresolved_symbol(parent, type_name)
             # pylint: disable=unidiomatic-typecheck
-            if type(type_symbol) == Symbol:
+            if type(type_symbol) is Symbol:
                 # We do but we didn't know what kind of symbol it was. Create
                 # a DataTypeSymbol to replace it.
                 new_symbol = DataTypeSymbol(type_name, DeferredType(),
@@ -2177,7 +2203,66 @@ class Fparser2Reader():
         node.children[2].items = tuple(orig_entity_decl_list)
         node.children[2].children[0].items = tuple(orig_entity_decl_children)
 
+        # Return the init_expr detached from the temporal symbol
+        init_expr = init_expr.detach() if init_expr is not None else None
         return datatype, init_expr
+
+    def _process_parameter_stmts(self, nodes, parent):
+        '''
+        Examine the supplied list of fparser2 nodes and handle any
+        PARAMETER statements. This is done separately so that it can be
+        performed after all the declarations have been processed (since
+        a PARAMETER statement can come *before* a symbol's declaration.)
+
+        :param nodes: fparser2 AST nodes containing declaration statements.
+        :type nodes: list of :py:class:`fparser.two.utils.Base`
+        :param parent: PSyIR node in which to insert the symbols found.
+        :type parent: :py:class:`psyclone.psyir.nodes.KernelSchedule`
+
+        :raises NotImplementedError: if there are any issues parsing a
+            parameter statement.
+
+        '''
+        for node in nodes:
+            if not isinstance(node, Fortran2003.Implicit_Part):
+                continue
+            for stmt in node.children:
+                if not isinstance(stmt, Fortran2003.Parameter_Stmt):
+                    continue
+                for parameter_def in stmt.children[1].items:
+                    name, expr = parameter_def.items
+                    try:
+                        symbol = parent.symbol_table.lookup(str(name))
+                    except Exception as err:
+                        # If there is any problem put the whole thing
+                        # in a codeblock (as we presume the original
+                        # code is correct).
+                        raise NotImplementedError(
+                            f"Could not parse '{stmt}' because: "
+                            f"{err}.") from err
+
+                    if not isinstance(symbol, DataSymbol):
+                        raise NotImplementedError(
+                            f"Could not parse '{stmt}' because "
+                            f"'{symbol.name}' is not a DataSymbol.")
+                    if isinstance(symbol.datatype, UnknownType):
+                        raise NotImplementedError(
+                            f"Could not parse '{stmt}' because "
+                            f"'{symbol.name}' has an UnknownType.")
+
+                    # Parse its initialization into a dummy Assignment
+                    # (but connected to the parent scope since symbols
+                    # must be resolved)
+                    dummynode = Assignment(parent=parent)
+                    self.process_nodes(parent=dummynode, nodes=[expr])
+
+                    # Add the initialization expression in the symbol
+                    # constant_value attribute
+                    ct_expr = dummynode.children[0].detach()
+                    symbol.initial_value = ct_expr
+                    symbol.is_constant = True
+                    # Ensure the interface to this Symbol is static
+                    symbol.interface = StaticInterface()
 
     def process_declarations(self, parent, nodes, arg_list,
                              visibility_map=None):
@@ -2364,50 +2449,20 @@ class Fparser2Reader():
                 # These node types are handled separately
                 pass
             elif isinstance(node, Fortran2003.Implicit_Part):
-                for stmt in node.children:
-                    if isinstance(stmt, Fortran2003.Parameter_Stmt):
-                        for parameter_def in stmt.children[1].items:
-                            name, expr = parameter_def.items
-                            try:
-                                symbol = parent.symbol_table.lookup(str(name))
-                            except Exception as err:
-                                # If there is any problem put the whole thing
-                                # in a codeblock (as we presume the original
-                                # code is correct).
-                                raise NotImplementedError(
-                                    f"Could not parse '{stmt}' because: "
-                                    f"{err}.") from err
-
-                            if not isinstance(symbol, DataSymbol):
-                                raise NotImplementedError(
-                                    f"Could not parse '{stmt}' because "
-                                    f"'{symbol.name}' is not a DataSymbol.")
-                            if isinstance(symbol.datatype, UnknownType):
-                                raise NotImplementedError(
-                                    f"Could not parse '{stmt}' because "
-                                    f"'{symbol.name}' has an UnknownType.")
-
-                            # Parse its initialization into a dummy Assignment
-                            # (but connected to the parent scope since symbols
-                            # must be resolved)
-                            dummynode = Assignment(parent=parent)
-                            self.process_nodes(parent=dummynode, nodes=[expr])
-
-                            # Add the initialization expression in the symbol
-                            # constant_value attribute
-                            ct_expr = dummynode.children[0].detach()
-                            symbol.initial_value = ct_expr
-                            symbol.is_constant = True
-                            # Ensure the interface to this Symbol is static
-                            symbol.interface = StaticInterface()
-                    else:
-                        # TODO #1254: We currently silently ignore the rest of
-                        # the Implicit_Part statements
-                        pass
+                # Any PARAMETER statements are handled separately by the
+                # call to _process_parameter_stmts below.
+                # TODO #1254: We currently silently ignore the rest of
+                # the Implicit_Part statements
+                pass
             else:
                 raise NotImplementedError(
                     f"Error processing declarations: fparser2 node of type "
                     f"'{type(node).__name__}' not supported")
+
+        # Process the nodes again, looking for PARAMETER statements. This is
+        # done after the main declarations loop because they modify existing
+        # symbols and can appear in any order.
+        self._process_parameter_stmts(nodes, parent)
 
         # We process the nodes again looking for common blocks. We do this
         # here, after the main declarations loop, because they modify the
@@ -3344,53 +3399,33 @@ class Fparser2Reader():
                 new_parent.addchild(leop)
         else:
             # The case value is some scalar expression
-            bop = BinaryOperation(BinaryOperation.Operator.EQ,
-                                  parent=parent)
-            self.process_nodes(parent=bop, nodes=[selector])
-            self.process_nodes(parent=bop, nodes=[node])
-            # TODO #1799 when generic child.datatype is supported we can
-            # remove the conditional inside the loop and support full
-            # expressions
+            fake_parent = Assignment(parent=parent)
+            self.process_nodes(parent=fake_parent, nodes=[selector])
+            self.process_nodes(parent=fake_parent, nodes=[node])
 
-            # Keep track of whether we know if the operator should be EQ/EQV
-            operator_known = False
-            for child in bop.children:
-                if (isinstance(child, Literal) and
-                        isinstance(child.datatype, ScalarType)):
-                    # We know the operator for all literals
-                    operator_known = True
-                    if (child.datatype.intrinsic ==
+            for operand in fake_parent.lhs, fake_parent.rhs:
+                # If any of the operands has a datatype we can distinguish
+                # between boolean (which in Fortran and PSyIR uses the EQV
+                # operator) or not-boolean (which uses the EQ operator)
+                if (hasattr(operand, "datatype") and
+                        isinstance(operand.datatype, ScalarType)):
+                    if (operand.datatype.intrinsic ==
                             ScalarType.Intrinsic.BOOLEAN):
-                        rhs = bop.children[1].detach()
-                        lhs = bop.children[0].detach()
                         bop = BinaryOperation(BinaryOperation.Operator.EQV,
                                               parent=parent)
-                        bop.addchild(lhs)
-                        bop.addchild(rhs)
-                elif (isinstance(child, Reference) and
-                        isinstance(child.symbol, DataSymbol) and
-                        not isinstance(child.symbol.datatype,
-                                       UnknownFortranType)):
-                    # We know the operator for all known reference types.
-                    operator_known = True
-                    if (child.symbol.datatype.intrinsic ==
-                            ScalarType.Intrinsic.BOOLEAN):
-                        rhs = bop.children[1].detach()
-                        lhs = bop.children[0].detach()
-                        bop = BinaryOperation(BinaryOperation.Operator.EQV,
+                    else:
+                        bop = BinaryOperation(BinaryOperation.Operator.EQ,
                                               parent=parent)
-                        bop.addchild(lhs)
-                        bop.addchild(rhs)
-
-            if operator_known:
-                parent.addchild(bop)
+                    parent.addchild(bop)
+                    bop.children.extend(fake_parent.pop_all_children())
+                    break
             else:
-                raise NotImplementedError(f"PSyclone can't determine if this "
-                                          f"case should be '==' or '.EQV.' "
-                                          f"because it can't figure out if "
-                                          f"{bop.children[0].debug_string} "
-                                          f"or {bop.children[1].debug_string}"
-                                          f" are logical expressions.")
+                # If the loop did not encounter a break, we don't know which
+                # operator is needed, so we use the generic interface instead
+                cmp_symbol = _find_or_create_psyclone_internal_cmp(parent)
+                call = Call(cmp_symbol, parent=parent)
+                parent.addchild(call)
+                call.children.extend(fake_parent.pop_all_children())
 
     @staticmethod
     def _array_notation_rank(node):
@@ -3643,8 +3678,8 @@ class Fparser2Reader():
             loop.addchild(Literal("1", integer_type))
             # Add loop upper bound - we use the SIZE operator to query the
             # extent of the current array dimension
-            size_node = BinaryOperation(BinaryOperation.Operator.SIZE,
-                                        parent=loop)
+            size_node = IntrinsicCall(IntrinsicCall.Intrinsic.SIZE,
+                                      parent=loop)
             loop.addchild(size_node)
 
             # Create the first argument to the SIZE operator
@@ -3916,22 +3951,18 @@ class Fparser2Reader():
 
     def _unary_op_handler(self, node, parent):
         '''
-        Transforms an fparser2 UnaryOpBase or Intrinsic_Function_Reference
-        to the PSyIR representation.
+        Transforms an fparser2 UnaryOpBase to its PSyIR representation.
 
         :param node: node in fparser2 AST.
-        :type node: :py:class:`fparser.two.utils.UnaryOpBase` or \
-               :py:class:`fparser.two.Fortran2003.Intrinsic_Function_Reference`
+        :type node: :py:class:`fparser.two.utils.UnaryOpBase`
         :param parent: Parent node of the PSyIR node we are constructing.
         :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
         :return: PSyIR representation of node
         :rtype: :py:class:`psyclone.psyir.nodes.UnaryOperation`
 
-        :raises NotImplementedError: if the supplied operator is not \
-                                     supported by this handler.
-        :raises InternalError: if the fparser parse tree does not have the \
-                               expected structure.
+        :raises NotImplementedError: if the supplied operator is not
+            supported by this handler.
 
         '''
         operator_str = str(node.items[0]).lower()
@@ -3941,67 +3972,28 @@ class Fparser2Reader():
             # Operator not supported, it will produce a CodeBlock instead
             raise NotImplementedError(operator_str) from err
 
-        if isinstance(node.items[1], Fortran2003.Actual_Arg_Spec_List):
-            if len(node.items[1].items) > 1:
-                # We have more than one argument and therefore this is not a
-                # unary operation!
-                raise InternalError(
-                    f"Operation '{node}' has more than one argument and is "
-                    f"therefore not unary!")
-            node_list = node.items[1].items
-        else:
-            node_list = [node.items[1]]
         unary_op = UnaryOperation(operator, parent=parent)
-
-        # Store the names of any named args
-        arg_nodes, arg_names = _get_arg_names(node_list)
-
-        self.process_nodes(parent=unary_op, nodes=arg_nodes)
-
-        # Detach the child and add it again with the argument
-        # name
-        child = unary_op.children[0]
-        child.detach()
-        unary_op.append_named_arg(arg_names[0], child)
-
+        self.process_nodes(parent=unary_op, nodes=[node.items[1]])
         return unary_op
 
     def _binary_op_handler(self, node, parent):
         '''
-        Transforms an fparser2 BinaryOp or Intrinsic_Function_Reference to
-        the PSyIR representation.
+        Transforms an fparser2 BinaryOp to its PSyIR representation.
 
         :param node: node in fparser2 AST.
-        :type node: :py:class:`fparser.two.utils.BinaryOpBase` or \
-               :py:class:`fparser.two.Fortran2003.Intrinsic_Function_Reference`
+        :type node: :py:class:`fparser.two.utils.BinaryOpBase`
         :param parent: Parent node of the PSyIR node we are constructing.
         :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
         :returns: PSyIR representation of node
         :rtype: :py:class:`psyclone.psyir.nodes.BinaryOperation`
 
-        :raises NotImplementedError: if the supplied operator/intrinsic is \
-                                     not supported by this handler.
-        :raises InternalError: if the fparser parse tree does not have the \
-                               expected structure.
+        :raises NotImplementedError: if the supplied operator is not supported
+            by this handler.
 
         '''
-        if isinstance(node, Fortran2003.Intrinsic_Function_Reference):
-            operator_str = node.items[0].string.lower()
-            # Arguments are held in an Actual_Arg_Spec_List
-            if not isinstance(node.items[1], Fortran2003.Actual_Arg_Spec_List):
-                raise InternalError(
-                    f"Unexpected fparser parse tree for binary intrinsic "
-                    f"operation '{node}'. Expected second child to be "
-                    f"Actual_Arg_Spec_List but got '{type(node.items[1])}'.")
-            arg_nodes = node.items[1].items
-            if len(arg_nodes) != 2:
-                raise InternalError(
-                    f"Binary operator should have exactly two arguments but "
-                    f"found {len(arg_nodes)} for '{node}'.")
-        else:
-            operator_str = node.items[1].lower()
-            arg_nodes = [node.items[0], node.items[2]]
+        operator_str = node.items[1].lower()
+        arg_nodes = [node.items[0], node.items[2]]
 
         try:
             operator = Fparser2Reader.binary_operators[operator_str]
@@ -4010,135 +4002,48 @@ class Fparser2Reader():
             raise NotImplementedError(operator_str) from err
 
         binary_op = BinaryOperation(operator, parent=parent)
-
-        # Store the names of any named args
-        new_arg_nodes, arg_names = _get_arg_names(arg_nodes)
-
-        self.process_nodes(parent=binary_op, nodes=[new_arg_nodes[0]])
-        self.process_nodes(parent=binary_op, nodes=[new_arg_nodes[1]])
-
-        # Detach the children and add them again with the argument
-        # names
-        child_list = binary_op.children[:]
-        for child in child_list:
-            child.detach()
-        for idx, child in enumerate(child_list):
-            binary_op.append_named_arg(arg_names[idx], child)
-
+        self.process_nodes(parent=binary_op, nodes=[arg_nodes[0]])
+        self.process_nodes(parent=binary_op, nodes=[arg_nodes[1]])
         return binary_op
-
-    def _nary_op_handler(self, node, parent):
-        '''
-        Transforms an fparser2 Intrinsic_Function_Reference with three or
-        more arguments to the PSyIR representation.
-        :param node: node in fparser2 Parse Tree.
-        :type node: \
-             :py:class:`fparser.two.Fortran2003.Intrinsic_Function_Reference`
-        :param parent: Parent node of the PSyIR node we are constructing.
-        :type parent: :py:class:`psyclone.psyir.nodes.Node`
-
-        :returns: PSyIR representation of node.
-        :rtype: :py:class:`psyclone.psyir.nodes.NaryOperation`
-
-        :raises NotImplementedError: if the supplied Intrinsic is not \
-                                     supported by this handler.
-        :raises InternalError: if the fparser parse tree does not have the \
-                               expected structure.
-
-        '''
-        operator_str = str(node.items[0]).lower()
-        try:
-            operator = Fparser2Reader.nary_operators[operator_str]
-        except KeyError as err:
-            # Intrinsic not supported, it will produce a CodeBlock instead
-            raise NotImplementedError(operator_str) from err
-
-        nary_op = NaryOperation(operator, parent=parent)
-
-        if not isinstance(node.items[1], Fortran2003.Actual_Arg_Spec_List):
-            raise InternalError(
-                f"Expected second 'item' of N-ary intrinsic '{node}' in "
-                f"fparser parse tree to be an Actual_Arg_Spec_List but found "
-                f"'{type(node.items[1])}'.")
-        if len(node.items[1].items) < 3:
-            raise InternalError(
-                f"An N-ary operation must have more than two arguments but "
-                f"found {len(node.items[1].items)} for '{node}'.")
-
-        # node.items[1] is a Fortran2003.Actual_Arg_Spec_List so we have
-        # to process the `items` of that...
-
-        # Store the names of any named args
-        arg_nodes, arg_names = _get_arg_names(node.items[1].items)
-
-        self.process_nodes(parent=nary_op, nodes=arg_nodes)
-
-        # Detach the children and add them again with the argument
-        # names
-        child_list = nary_op.children[:]
-        for child in child_list:
-            child.detach()
-        for idx, child in enumerate(child_list):
-            nary_op.append_named_arg(arg_names[idx], child)
-
-        return nary_op
 
     def _intrinsic_handler(self, node, parent):
         '''Transforms an fparser2 Intrinsic_Function_Reference to the PSyIR
-        representation. Since Fortran Intrinsics can be unary, binary or
-        nary this handler identifies the appropriate 'sub handler' by
-        examining the number of arguments present.
+        representation.
 
         :param node: node in fparser2 Parse Tree.
-        :type node: \
+        :type node:
             :py:class:`fparser.two.Fortran2003.Intrinsic_Function_Reference`
         :param parent: Parent node of the PSyIR node we are constructing.
         :type parent: :py:class:`psyclone.psyir.nodes.Node`
 
         :returns: PSyIR representation of node
-        :rtype: :py:class:`psyclone.psyir.nodes.UnaryOperation` or \
-                :py:class:`psyclone.psyir.nodes.BinaryOperation` or \
-                :py:class:`psyclone.psyir.nodes.NaryOperation` or \
-                :py:class:`psyclone.psyir.nodes.IntrinsicCall`
+        :rtype: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
 
-        :raises NotImplementedError: if the form of the Fortran is not \
-            supported.
+        :raises NotImplementedError: if an unsupported intrinsic is found.
 
         '''
-        # First item is the name of the intrinsic
-        name = node.items[0].string.upper()
+        try:
+            intrinsic = IntrinsicCall.Intrinsic[node.items[0].string.upper()]
 
-        # Fortran intrinsics are (or will be) treated as intrinsic calls.
-        if name.lower() in ["tiny", "huge"]:
-            # Intrinsics with no optional arguments
-            call = IntrinsicCall(self.intrinsics[name.lower()], parent=parent)
+            if not intrinsic.optional_args:
+                # Intrinsics with no optional arguments
+                call = IntrinsicCall(intrinsic, parent=parent)
+                return self._process_args(node, call)
+            if intrinsic.name.lower() in ["minval", "maxval", "sum"]:
+                # Intrinsics with optional arguments require a
+                # canonicalise function
+                call = IntrinsicCall(intrinsic, parent=parent)
+                return self._process_args(
+                    node, call, canonicalise=_canonicalise_minmaxsum)
+            # TODO #2302: We do not canonicalise the order of the
+            # arguments of the remaining intrinsics, but this means
+            # PSyIR won't be able to guarantee what each child is.
+            call = IntrinsicCall(intrinsic, parent=parent)
             return self._process_args(node, call)
-        if name.lower() in ["minval", "maxval", "sum"]:
-            # Intrinsics with optional arguments require a
-            # canonicalise function
-            call = IntrinsicCall(self.intrinsics[name.lower()], parent=parent)
-            return self._process_args(
-                node, call, canonicalise=_canonicalise_minmaxsum)
-
-        # Treat all other intrinsics as Operations.
-
-        # Now work out how many arguments it has
-        num_args = 0
-        if len(node.items) > 1:
-            num_args = len(node.items[1].items)
-
-        # We don't handle any intrinsics that don't have arguments
-        if num_args == 1:
-            return self._unary_op_handler(node, parent)
-        if num_args == 2:
-            return self._binary_op_handler(node, parent)
-        if num_args > 2:
-            return self._nary_op_handler(node, parent)
-
-        # Intrinsic is not handled - this will result in a CodeBlock
-        raise NotImplementedError(
-            f"Operator '{name}' has no arguments but operators must have at "
-            f"least one.")
+        except KeyError as err:
+            raise NotImplementedError(
+                f"Intrinsic '{node.items[0].string}' is not supported"
+            ) from err
 
     def _name_handler(self, node, parent):
         '''
@@ -4252,12 +4157,12 @@ class Fparser2Reader():
         else:
             # There is no lower bound, it is implied. This is not
             # supported in the PSyIR so we create the equivalent code
-            # by using the PSyIR lbound function:
+            # by using the PSyIR lbound intrinsic function:
             # a(:...) becomes a(lbound(a,1):...)
-            lbound = BinaryOperation.create(
-                BinaryOperation.Operator.LBOUND,
-                _copy_full_base_reference(parent),
-                Literal(dimension, integer_type))
+            lbound = IntrinsicCall.create(
+                IntrinsicCall.Intrinsic.LBOUND,
+                [_copy_full_base_reference(parent),
+                 ("dim", Literal(dimension, integer_type))])
             my_range.children.append(lbound)
 
         if node.children[1]:
@@ -4265,12 +4170,12 @@ class Fparser2Reader():
         else:
             # There is no upper bound, it is implied. This is not
             # supported in the PSyIR so we create the equivalent code
-            # by using the PSyIR ubound function:
+            # by using the PSyIR ubound intrinsic function:
             # a(...:) becomes a(...:ubound(a,1))
-            ubound = BinaryOperation.create(
-                BinaryOperation.Operator.UBOUND,
-                _copy_full_base_reference(parent),
-                Literal(dimension, integer_type))
+            ubound = IntrinsicCall.create(
+                IntrinsicCall.Intrinsic.UBOUND,
+                [_copy_full_base_reference(parent),
+                 ("dim", Literal(dimension, integer_type))])
             my_range.children.append(ubound)
 
         if node.children[2]:
