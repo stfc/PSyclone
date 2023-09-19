@@ -76,12 +76,11 @@ from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import (Loop, Literal, Schedule, Reference,
                                   ArrayReference, ACCEnterDataDirective,
                                   ACCRegionDirective, OMPRegionDirective,
-                                  Routine, ScopingNode, StructureReference,
-                                  KernelSchedule)
+                                  Routine, ScopingNode, KernelSchedule)
 from psyclone.psyir.symbols import (INTEGER_TYPE, DataSymbol, ScalarType,
                                     DeferredType, DataTypeSymbol,
                                     ContainerSymbol, ImportInterface,
-                                    ArrayType, SymbolError)
+                                    ArrayType, SymbolError, UnknownFortranType)
 
 # pylint: disable=too-many-lines
 # --------------------------------------------------------------------------- #
@@ -3111,6 +3110,10 @@ class DynProxies(LFRicCollection):
                                                   symbol_type=DataSymbol,
                                                   datatype=dtype,
                                                   tag=ttext)
+
+        # We put precision Symbols in the Container symbol table.
+        ctable = self._invoke.schedule.parent.symbol_table
+
         # Create symbols that we will associate with pointers to the
         # internal data arrays of operators.
         op_args = self._invoke.unique_declarations(
@@ -3120,14 +3123,25 @@ class DynProxies(LFRicCollection):
             ttext = f"{name}:local_stencil"
             if ttext not in all_tags:
                 all_tags.add(ttext)
-                # We put precision Symbols in the Container symbol table.
-                ctable = self._invoke.schedule.parent.symbol_table
                 precision = ctable.add_lfric_precision_symbol(arg.precision)
+                # Make sure we're going to create a Symbol with a unique
+                # name.
+                new_name = self._symbol_table.next_available_name(
+                    f"{name}_local_stencil")
                 # Construct the type.
+                #   REAL(KIND=r_def), pointer, dimension(:,:,:) :: &
+                #              mapping_local_stencil => null()
                 array_type = ArrayType(
                     LFRicTypes("LFRicRealScalarDataType")(precision),
                     [ArrayType.Extent.DEFERRED]*3)
-                self._symbol_table.new_symbol(name+"_local_stencil",
+                # TODO use LFRicConstants.ARG_TYPE_SUFFIX_MAPPING here.
+                dtype = UnknownFortranType(
+                    f"real(kind={arg.precision}), pointer, dimension(:,:,:) "
+                    f":: {new_name} => null()",
+                array_type = ArrayType(
+                    LFRicTypes("LFRicRealScalarDataType")(precision),
+                    [ArrayType.Extent.DEFERRED]*3)
+                self._symbol_table.new_symbol(new_name,
                                               symbol_type=DataSymbol,
                                               datatype=array_type,
                                               tag=ttext)
@@ -3140,12 +3154,22 @@ class DynProxies(LFRicCollection):
             ttext = f"{arg.name}:cma_matrix"
             if ttext not in all_tags:
                 all_tags.add(ttext)
-                # TODO use UnknownFortranType rather than DeferredType?
-                # REAL(KIND=r_solver), pointer, dimension(:,:,:) :: &
-                #     op1_cma_matrix => null()
+                # Since the PSyIR doesn't have the 'pointer concept, we have
+                # to have an UnknownFortranType.
+                #   REAL(KIND=r_solver), pointer, dimension(:,:,:) :: &
+                #       op1_cma_matrix => null()
+                precision = ctable.add_lfric_precision_symbol(arg.precision)
+                # TODO use next_available_name here.
+                array_type = ArrayType(
+                    LFRicTypes("LFRicRealScalarDataType")(precision),
+                    [ArrayType.Extent.DEFERRED]*3)
+                dtype = UnknownFortranType(
+                    f"real(kind={arg.precision}), pointer, dimension(:,:,:) "
+                    f":: {arg.name}_cma_matrix => null()",
+                    partial_datatype=array_type)
                 self._symbol_table.new_symbol(arg.name+"_cma_matrix",
                                               symbol_type=DataSymbol,
-                                              datatype=DeferredType(),
+                                              datatype=dtype,
                                               tag=ttext)
 
     def _invoke_declarations(self, parent):

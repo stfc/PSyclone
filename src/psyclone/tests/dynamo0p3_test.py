@@ -61,7 +61,8 @@ from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory, InvokeSchedule, HaloExchange, BuiltIn
 from psyclone.psyir.nodes import (colored, BinaryOperation, UnaryOperation,
                                   Reference, Routine)
-from psyclone.psyir.symbols import ArrayType, ScalarType, DataTypeSymbol
+from psyclone.psyir.symbols import (ArrayType, ScalarType, DataTypeSymbol,
+                                    UnknownFortranType)
 from psyclone.psyir.transformations import LoopFuseTrans
 from psyclone.tests.lfric_build import LFRicBuild
 
@@ -1492,7 +1493,7 @@ def test_dynkernelargument_psyir_expression(monkeypatch):
     assert isinstance(psyir, Reference)
     assert psyir.symbol.name == "mm_w0_local_stencil"
     assert isinstance(psyir.symbol.datatype, ArrayType)
-    # Test for an CMA operator argument.
+    # Test for a CMA operator argument.
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "20.0.1_cma_assembly_scalar.f90"),
                            api=TEST_API)
@@ -1502,7 +1503,9 @@ def test_dynkernelargument_psyir_expression(monkeypatch):
     psyir = kern.arguments.args[1].psyir_expression()
     assert isinstance(psyir, Reference)
     assert psyir.symbol.name == "cma_op1_cma_matrix"
-    assert isinstance(psyir.symbol.datatype, ArrayType)
+    assert isinstance(psyir.symbol.datatype, UnknownFortranType)
+    assert isinstance(psyir.symbol.datatype.partial_datatype, ArrayType)
+    assert len(psyir.symbol.datatype.partial_datatype.shape) == 3
 
 
 def test_arg_ref_name_method_error1():
