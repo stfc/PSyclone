@@ -596,7 +596,9 @@
 
 	201) PR #2148 towards #2105. Adds {Min,Max}Val2Code transformations.
 
-	202) PR 2298 for #1987. Change all intrinsic Operations to IntrinsicCalls.
+	202) PR #2298 for #1987. Change all intrinsic Operations to IntrinsicCalls.
+
+	203) PR #2320 for #2242. Pin Sphinx dependency to <7 to fix RTD building step.
 
 release 2.3.1 17th of June 2022
 
