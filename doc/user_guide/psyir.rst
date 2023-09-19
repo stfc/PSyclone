@@ -109,7 +109,7 @@ PSyIR nodes are: ``Loop``, ``WhileLoop``, ``IfBlock``, ``CodeBlock``,
 subclassed into ``ArrayReference``, ``StructureReference`` and
 ``ArrayOfStructuresReference``, the ``Operation`` class is further
 subclassed into ``UnaryOperation``, ``BinaryOperation`` and
-``NaryOperation`` and the ``Container`` class is further subclassed
+the ``Container`` class is further subclassed
 into ``FileContainer`` (representing a file that may contain more than
 one ``Container`` and/or ``Routine``. Those nodes representing
 references to structures (derived types in Fortran) have a ``Member``
@@ -780,9 +780,7 @@ parent reference are not.
 Named arguments
 ---------------
 
-The `Call` and three sub-classes of `Operation` node
-(`UnaryOperation`, `BinaryOperation` and `NaryOperation`) all support
-named arguments.
+The `Call` node (and its sub-classes) support named arguments.
 
 Named arguments can be set or modified via the `create()`,
 `append_named_arg()`, `insert_named_arg()` or `replace_named_arg()`

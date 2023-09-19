@@ -44,7 +44,7 @@ from psyclone.domain.lfric.kernel import LFRicKernelMetadata
 from psyclone.domain.lfric.lfric_builtins import LFRicSetvalRandomKern
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
-from psyclone.psyir.nodes import Call
+from psyclone.psyir.nodes import IntrinsicCall
 from psyclone.tests.lfric_build import LFRicBuild
 
 
@@ -104,5 +104,5 @@ def test_setval_random_lowering():
     parent = kern.parent
     lowered = kern.lower_to_language_level()
     assert parent.children[0] is lowered
-    assert isinstance(parent.children[0], Call)
-    assert parent.children[0].routine.name == "random_number"
+    assert isinstance(parent.children[0], IntrinsicCall)
+    assert parent.children[0].routine.name == "RANDOM_NUMBER"
