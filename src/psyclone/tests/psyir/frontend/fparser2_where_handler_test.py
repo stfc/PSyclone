@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2022, Science and Technology Facilities Council.
+# Copyright (c) 2019-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -46,7 +46,8 @@ from psyclone.errors import InternalError
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import Schedule, CodeBlock, Loop, ArrayReference, \
     Assignment, Literal, Reference, UnaryOperation, BinaryOperation, IfBlock, \
-    Call, Routine, Container, Range, ArrayMember, StructureReference
+    Call, Routine, Container, Range, ArrayMember, StructureReference,\
+    IntrinsicCall
 from psyclone.psyir.symbols import DataSymbol, ArrayType, ScalarType, \
     REAL_TYPE, INTEGER_TYPE, UnresolvedInterface
 
@@ -341,7 +342,8 @@ def test_basic_where():
         assert isinstance(loop.ast, Fortran2003.Where_Construct)
 
     assert isinstance(loops[0].children[0], Literal)
-    assert isinstance(loops[0].children[1], BinaryOperation)
+    assert isinstance(loops[0].children[1], IntrinsicCall)
+    assert loops[0].children[1].intrinsic == IntrinsicCall.Intrinsic.SIZE
     assert str(loops[0].children[1].children[0]) == "Reference[name:'dry']"
 
     ifblock = loops[2].loop_body[0]
@@ -579,7 +581,8 @@ def test_where_derived_type(fortran_reader, fortran_writer, code, size_arg):
     psyir = fortran_reader.psyir_from_source(code)
     loops = psyir.walk(Loop)
     assert len(loops) == 2
-    assert isinstance(loops[1].stop_expr, BinaryOperation)
+    assert isinstance(loops[1].stop_expr, IntrinsicCall)
+    assert loops[1].stop_expr.intrinsic == IntrinsicCall.Intrinsic.SIZE
     assert isinstance(loops[1].stop_expr.children[0], StructureReference)
     assert fortran_writer(loops[1].stop_expr.children[0]) == size_arg
     assert isinstance(loops[1].loop_body[0], IfBlock)
