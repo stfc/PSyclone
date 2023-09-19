@@ -59,7 +59,7 @@ from psyclone.psyir.nodes import OMPDoDirective, OMPParallelDirective, \
     Range, OMPSharedClause, OMPDependClause
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, SymbolTable, \
     REAL_SINGLE_TYPE, INTEGER_SINGLE_TYPE, Symbol, ArrayType, RoutineSymbol, \
-    REAL_TYPE, StructureType
+    REAL_TYPE, StructureType, DataTypeSymbol
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.transformations import ChunkLoopTrans, OMPTaskTrans
 from psyclone.transformations import Dynamo0p3OMPLoopTrans, OMPParallelTrans, \
@@ -4407,6 +4407,41 @@ def test_omp_serial_check_dependency_valid_pairing_edgecase():
 
     val = test_dir._check_dependency_pairing_valid(ref1, ref2, None, None)
     assert not val
+
+
+def test_omp_serial_check_dependency_valid_multiple_arraymixin():
+    '''
+    Tests the case where a StructureReference contains two ArrayMixin
+    children.
+    '''
+    region_type = StructureType.create([
+        ("startx", ArrayType(REAL_TYPE, [10]), Symbol.Visibility.PUBLIC)
+    ])
+    region_type_symbol = DataTypeSymbol("region_type", region_type)
+    grid_type = StructureType.create([
+        ("nx", INTEGER_TYPE, Symbol.Visibility.PUBLIC),
+        ("region", region_type_symbol, Symbol.Visibility.PRIVATE),
+        ("sub_grids", ArrayType(region_type_symbol, [3]),
+         Symbol.Visibility.PUBLIC),
+        ("data", ArrayType(REAL_TYPE, [10, 10]),
+         Symbol.Visibility.PUBLIC)])
+    grid_type_symbol = DataTypeSymbol("grid_type", grid_type)
+    ssym = DataSymbol("grid", grid_type_symbol)
+    # Reference to scalar member of structure
+    two = Literal("2", INTEGER_SINGLE_TYPE)
+    sref = StructureReference.create(
+        ssym, [("sub_grids", [two.copy(), two.copy()]),
+               ("startx", [two.copy()])]
+    )
+    sref2 = StructureReference.create(
+        ssym, [("sub_grids", [two.copy(), two.copy()]),
+               ("startx", [two.copy()])]
+    )
+    test_dir = OMPSingleDirective()
+    res = test_dir._check_dependency_pairing_valid(
+               sref, sref2, None, None
+        )
+    assert not res
 
 
 def test_omp_serial_check_dependency_valid_pairing():
