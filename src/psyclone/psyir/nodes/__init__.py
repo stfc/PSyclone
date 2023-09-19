@@ -52,10 +52,10 @@ from psyclone.psyir.nodes.scoping_node import ScopingNode
 from psyclone.psyir.nodes.schedule import Schedule
 from psyclone.psyir.nodes.return_stmt import Return
 from psyclone.psyir.nodes.array_member import ArrayMember
-from psyclone.psyir.nodes.array_of_structures_member import \
-    ArrayOfStructuresMember
-from psyclone.psyir.nodes.operation import Operation, UnaryOperation, \
-    BinaryOperation
+from psyclone.psyir.nodes.array_of_structures_member import (
+    ArrayOfStructuresMember)
+from psyclone.psyir.nodes.operation import (
+    Operation, UnaryOperation, BinaryOperation)
 from psyclone.psyir.nodes.literal import Literal
 from psyclone.psyir.nodes.if_block import IfBlock
 from psyclone.psyir.nodes.intrinsic_call import IntrinsicCall
@@ -76,24 +76,26 @@ from psyclone.psyir.nodes.structure_reference import StructureReference
 from psyclone.psyir.nodes.structure_member import StructureMember
 from psyclone.psyir.nodes.call import Call
 from psyclone.psyir.nodes.file_container import FileContainer
-from psyclone.psyir.nodes.directive import Directive, StandaloneDirective, \
-    RegionDirective
-from psyclone.psyir.nodes.acc_directives import ACCDirective, \
-    ACCLoopDirective, ACCEnterDataDirective, ACCParallelDirective, \
-    ACCKernelsDirective, ACCDataDirective, ACCUpdateDirective, \
-    ACCStandaloneDirective, ACCRegionDirective, ACCRoutineDirective, \
-    ACCAtomicDirective
-from psyclone.psyir.nodes.omp_directives import OMPDirective, OMPDoDirective, \
-    OMPParallelDirective, OMPParallelDoDirective, OMPSingleDirective, \
-    OMPMasterDirective, OMPSerialDirective, OMPTaskloopDirective, \
-    OMPTaskwaitDirective, OMPStandaloneDirective, OMPRegionDirective, \
-    OMPTargetDirective, OMPLoopDirective, OMPDeclareTargetDirective, \
-    OMPTeamsDistributeParallelDoDirective, OMPAtomicDirective
+from psyclone.psyir.nodes.directive import (
+    Directive, StandaloneDirective, RegionDirective)
+from psyclone.psyir.nodes.acc_directives import (
+    ACCDirective, ACCLoopDirective, ACCEnterDataDirective,
+    ACCParallelDirective, ACCKernelsDirective, ACCDataDirective,
+    ACCUpdateDirective, ACCStandaloneDirective, ACCRegionDirective,
+    ACCRoutineDirective, ACCAtomicDirective)
+from psyclone.psyir.nodes.omp_directives import (
+    OMPDirective, OMPDoDirective, OMPParallelDirective,
+    OMPParallelDoDirective, OMPSingleDirective, OMPMasterDirective,
+    OMPSerialDirective, OMPTaskloopDirective, OMPTaskwaitDirective,
+    OMPStandaloneDirective, OMPRegionDirective, OMPTargetDirective,
+    OMPLoopDirective, OMPDeclareTargetDirective,
+    OMPTeamsDistributeParallelDoDirective, OMPAtomicDirective,
+    OMPSimdDirective)
 from psyclone.psyir.nodes.clause import Clause, OperandClause
-from psyclone.psyir.nodes.omp_clauses import OMPGrainsizeClause, \
-    OMPNogroupClause, OMPNowaitClause, OMPNumTasksClause, OMPPrivateClause, \
-    OMPDefaultClause, OMPReductionClause, OMPScheduleClause, \
-    OMPFirstprivateClause, OMPSharedClause, OMPDependClause
+from psyclone.psyir.nodes.omp_clauses import (
+    OMPGrainsizeClause, OMPNogroupClause, OMPNowaitClause, OMPNumTasksClause,
+    OMPPrivateClause, OMPDefaultClause, OMPReductionClause, OMPScheduleClause,
+    OMPFirstprivateClause, OMPSharedClause, OMPDependClause)
 from psyclone.psyir.nodes.while_loop import WhileLoop
 
 
@@ -176,6 +178,7 @@ __all__ = [
         'OMPTargetDirective',
         'OMPLoopDirective',
         'OMPDeclareTargetDirective',
+        'OMPSimdDirective',
         'OMPTeamsDistributeParallelDoDirective',
         # OMP Clause Nodes
         'OMPGrainsizeClause',

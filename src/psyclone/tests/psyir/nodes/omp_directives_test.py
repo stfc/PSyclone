@@ -45,21 +45,24 @@ from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir import nodes
 from psyclone import psyGen
-from psyclone.psyir.nodes import OMPDoDirective, OMPParallelDirective, \
-    OMPParallelDoDirective, OMPMasterDirective, OMPTaskloopDirective, \
-    OMPTaskwaitDirective, OMPTargetDirective, OMPLoopDirective, Schedule, \
-    Return, OMPSingleDirective, Loop, Literal, Routine, Assignment, \
-    Reference, OMPDeclareTargetDirective, OMPNowaitClause, \
-    OMPGrainsizeClause, OMPNumTasksClause, OMPNogroupClause, \
-    OMPPrivateClause, OMPDefaultClause, OMPReductionClause, \
-    OMPScheduleClause, OMPTeamsDistributeParallelDoDirective, \
-    Statement, OMPAtomicDirective, OMPFirstprivateClause
-from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, SymbolTable, \
-    REAL_SINGLE_TYPE, INTEGER_SINGLE_TYPE, Symbol
+from psyclone.psyir.nodes import (
+    OMPDoDirective, OMPParallelDirective,
+    OMPParallelDoDirective, OMPMasterDirective, OMPTaskloopDirective,
+    OMPTaskwaitDirective, OMPTargetDirective, OMPLoopDirective, Schedule,
+    Return, OMPSingleDirective, Loop, Literal, Routine, Assignment,
+    Reference, OMPDeclareTargetDirective, OMPNowaitClause,
+    OMPGrainsizeClause, OMPNumTasksClause, OMPNogroupClause,
+    OMPPrivateClause, OMPDefaultClause, OMPReductionClause,
+    OMPScheduleClause, OMPTeamsDistributeParallelDoDirective,
+    OMPAtomicDirective, OMPFirstprivateClause, OMPSimdDirective)
+from psyclone.psyir.symbols import (
+    DataSymbol, INTEGER_TYPE, SymbolTable,
+    REAL_SINGLE_TYPE, INTEGER_SINGLE_TYPE, Symbol)
 from psyclone.errors import InternalError, GenerationError
-from psyclone.transformations import Dynamo0p3OMPLoopTrans, OMPParallelTrans, \
-    OMPParallelLoopTrans, DynamoOMPParallelLoopTrans, OMPSingleTrans, \
-    OMPMasterTrans, OMPTaskloopTrans, OMPLoopTrans
+from psyclone.transformations import (
+    Dynamo0p3OMPLoopTrans, OMPParallelTrans,
+    OMPParallelLoopTrans, DynamoOMPParallelLoopTrans, OMPSingleTrans,
+    OMPMasterTrans, OMPTaskloopTrans, OMPLoopTrans)
 from psyclone.tests.utilities import get_invoke
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
@@ -1649,7 +1652,7 @@ def test_omp_atomics_validate_global_constraints(fortran_reader, monkeypatch):
     with pytest.raises(GenerationError) as err:
         atomic.validate_global_constraints()
     assert ("Atomic directives must always have one and only one associated "
-            "statement, but found " in str(err.value))
+            "statement, but found: " in str(err.value))
 
 
 def test_omp_atomics_srtings():
@@ -1657,3 +1660,55 @@ def test_omp_atomics_srtings():
     atomic = OMPAtomicDirective()
     assert atomic.begin_string() == "omp atomic"
     assert atomic.end_string() == "omp end atomic"
+
+
+def test_omp_simd_srtings():
+    ''' Test the OMPAtomicDirective begin and end strings '''
+    atomic = OMPSimdDirective()
+    assert atomic.begin_string() == "omp simd"
+    assert atomic.end_string() == "omp end simd"
+
+
+def test_omp_simd_validate_global_constraints(fortran_reader):
+    ''' Test the OMPSimdDirective can check the globals constraints to
+    validate that the directive is correctly formed.'''
+
+    code = '''
+    subroutine my_subroutine()
+        integer, dimension(10, 10) :: A = 1
+        integer, dimension(10, 10) :: B = 2
+        integer :: i, j, val
+
+        A(1,1) = A(1,1) * 2
+        do i = 1, 10
+            A(i,1) = 3
+        end do
+    end subroutine
+    '''
+    tree = fortran_reader.psyir_from_source(code)
+    routine = tree.walk(Routine)[0]
+    stmt = routine.children[0]
+    simd = OMPSimdDirective()
+    simd.dir_body.addchild(stmt.detach())
+    routine.children.insert(0, simd)
+
+    # If it doesn not have an associated loop
+    with pytest.raises(GenerationError) as err:
+        simd.validate_global_constraints()
+    assert ("The OMP SIMD directives must always have one and only one "
+            "associated loop, but found: " in str(err.value))
+
+    # If it doesn not have an associated node at all
+    simd.dir_body[0].detach()
+    with pytest.raises(GenerationError) as err:
+        simd.validate_global_constraints()
+    assert ("The OMP SIMD directives must always have one and only one "
+            "associated loop, but found: " in str(err.value))
+
+    stmt = routine.children[1]
+    simd = OMPSimdDirective()
+    simd.dir_body.addchild(stmt.detach())
+    routine.addchild(simd)
+
+    # This is a valid OMPSimd expression
+    simd.validate_global_constraints()

@@ -1712,7 +1712,7 @@ class OMPAtomicDirective(OMPRegionDirective):
         :param stmt: a node to be validated.
         :type stmt: :py:class:`psyclone.psyir.nodes.Node`
 
-        :returns: whether a given statement is compliant with the OpenMP \
+        :returns: whether a given statement is compliant with the OpenMP
             atomic expression.
         :rtype: bool
 
@@ -1751,18 +1751,54 @@ class OMPAtomicDirective(OMPRegionDirective):
         ''' Perform validation of those global constraints that can only be
         done at code-generation time.
 
-        :raises GenerationError: if the OMPAtomicDirective associated \
+        :raises GenerationError: if the OMPAtomicDirective associated
             statement does not conform to a valid OpenMP atomic operation.
         '''
         if not self.children or len(self.dir_body.children) != 1:
             raise GenerationError(
                 f"Atomic directives must always have one and only one"
-                f" associated statement, but found '{self.debug_string()}'")
+                f" associated statement, but found: '{self.debug_string()}'")
         stmt = self.dir_body[0]
         if not self.is_valid_atomic_statement(stmt):
             raise GenerationError(
                 f"Statement '{self.children[0].debug_string()}' is not a "
                 f"valid OpenMP Atomic statement.")
+
+
+class OMPSimdDirective(OMPRegionDirective):
+    '''
+    OpenMP directive to inform that the associated loop can be vectorised.
+
+    '''
+    def begin_string(self):
+        '''
+        :returns: the opening string statement of this directive.
+        :rtype: str
+
+        '''
+        return "omp simd"
+
+    def end_string(self):
+        '''
+        :returns: the ending string statement of this directive.
+        :rtype: str
+
+        '''
+        return "omp end simd"
+
+    def validate_global_constraints(self):
+        ''' Perform validation of those global constraints that can only be
+        done at code-generation time.
+
+        :raises GenerationError: if the OMPSimdDirective has an associated
+        loop.
+
+        '''
+        if (not self.children or len(self.dir_body.children) != 1 or
+                not isinstance(self.dir_body[0], Loop)):
+            raise GenerationError(
+                f"The OMP SIMD directives must always have one and only one"
+                f" associated loop, but found: '{self.debug_string()}'")
 
 
 # For automatic API documentation generation
@@ -1771,4 +1807,4 @@ __all__ = ["OMPRegionDirective", "OMPParallelDirective", "OMPSingleDirective",
            "OMPSerialDirective", "OMPTaskloopDirective", "OMPTargetDirective",
            "OMPTaskwaitDirective", "OMPDirective", "OMPStandaloneDirective",
            "OMPLoopDirective", "OMPDeclareTargetDirective",
-           "OMPAtomicDirective"]
+           "OMPAtomicDirective", "OMPSimdDirective"]
