@@ -43,7 +43,6 @@
     (PSy, Invokes, Invoke, InvokeSchedule, Loop, Kern, Inf, Arguments and
     Argument). '''
 
-# Imports
 import os
 from enum import Enum
 from collections import OrderedDict, namedtuple, Counter
@@ -52,15 +51,14 @@ import fparser
 from psyclone import psyGen
 from psyclone.configuration import Config
 from psyclone.core import AccessType, Signature
-from psyclone.domain.lfric.lfric_builtins import (LFRicTypes,
-                                                  LFRicBuiltInCallFactory,
+from psyclone.domain.lfric.lfric_builtins import (LFRicBuiltInCallFactory,
                                                   LFRicBuiltIn, BUILTIN_MAP)
 from psyclone.domain.common.psylayer import PSyLoop
 from psyclone.domain.lfric import (FunctionSpace, KernCallAccArgList,
                                    KernCallArgList, KernStubArgList,
                                    LFRicArgDescriptor, KernelInterface,
                                    LFRicCollection, LFRicConstants,
-                                   LFRicSymbolTable, LFRicInvoke,
+                                   LFRicSymbolTable, LFRicTypes, LFRicInvoke,
                                    LFRicKernCallFactory)
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 from psyclone.f2pygen import (AllocateGen, AssignGen, CallGen, CommentGen,
