@@ -42,7 +42,6 @@ This module contains the HoistLocalArraysTrans transformation.
 import copy
 
 from psyclone.psyGen import Transformation
-from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (Routine, Container, ArrayReference, Range,
                                   FileContainer, IfBlock, UnaryOperation,
                                   CodeBlock, ACCRoutineDirective, Literal,
@@ -153,16 +152,15 @@ then
         # associated with the symbol being hoisted.
         tags_dict = node.symbol_table.get_reverse_tags_dict()
 
-        # Fortran reader needed to create Codeblocks in the following loop
-        freader = FortranReader()
-
         for sym in automatic_arrays:
             # Keep a copy of the original shape of the array.
             orig_shape = sym.datatype.shape[:]
             # Modify the *existing* symbol so that any references to it
             # remain valid.
             new_type = copy.copy(sym.datatype)
+            # pylint: disable=protected-access
             new_type._shape = len(orig_shape)*[ArrayType.Extent.DEFERRED]
+            # pylint: enable=protected-access
             sym.datatype = new_type
             # Ensure that the promoted symbol is private to the container.
             sym.visibility = Symbol.Visibility.PRIVATE
@@ -183,11 +181,11 @@ then
                         for dim in orig_shape]
             aref = ArrayReference.create(sym, dim_list)
 
-            # TODO #1366: we have to use a CodeBlock in order to query whether
-            # or not the array has been allocated already.
-            code = f"allocated({sym.name})"
-            allocated_expr = freader.psyir_from_expression(
-                                code, node.symbol_table)
+            # Add a conditional expression to avoid repeating the allocation
+            # if its already done
+            allocated_expr = IntrinsicCall.create(
+                    IntrinsicCall.Intrinsic.ALLOCATED,
+                    [Reference(sym)])
             cond_expr = UnaryOperation.create(
                             UnaryOperation.Operator.NOT, allocated_expr)
 
@@ -198,10 +196,10 @@ then
                 if not isinstance(dim.lower, Literal):
                     expr = BinaryOperation.create(
                             BinaryOperation.Operator.NE,
-                            BinaryOperation.create(
-                                BinaryOperation.Operator.LBOUND,
-                                Reference(sym),
-                                Literal(str(idx+1), INTEGER_TYPE)),
+                            IntrinsicCall.create(
+                                IntrinsicCall.Intrinsic.LBOUND,
+                                [Reference(sym),
+                                 ("dim", Literal(str(idx+1), INTEGER_TYPE))]),
                             dim.lower.copy())
                     # We chain the new check to the already existing cond_expr
                     # which starts with the 'not allocated' condition added
@@ -213,10 +211,10 @@ then
                 if not isinstance(dim.upper, Literal):
                     expr = BinaryOperation.create(
                             BinaryOperation.Operator.NE,
-                            BinaryOperation.create(
-                                BinaryOperation.Operator.UBOUND,
-                                Reference(sym),
-                                Literal(str(idx+1), INTEGER_TYPE)),
+                            IntrinsicCall.create(
+                                IntrinsicCall.Intrinsic.UBOUND,
+                                [Reference(sym),
+                                 ("dim", Literal(str(idx+1), INTEGER_TYPE))]),
                             dim.upper.copy())
                     # We chain the new check to the already existing cond_expr
                     # which starts with the 'not allocated' condition added

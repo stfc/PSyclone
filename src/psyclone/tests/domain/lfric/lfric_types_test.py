@@ -327,8 +327,8 @@ def test_arrays(data_type_name, symbol_name, scalar_type_name,
         if isinstance(dim.upper, Literal):
             assert dim.upper.value == str(dims[idx])
         elif isinstance(dim.upper, Reference):
-            assert dim.upper is dims[idx]
-            assert dim.upper.symbol is dims[idx].symbol
+            assert dim.upper == dims[idx]
+            assert dim.upper.symbol == dims[idx].symbol
         else:
             assert False, "unexpected type of dimension found"
     # Wrong number of dims
