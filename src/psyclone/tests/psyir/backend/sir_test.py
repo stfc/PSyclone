@@ -45,7 +45,9 @@ from psyclone.nemo import NemoKern
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.backend.sir import gen_stencil, SIRWriter
 from psyclone.psyir.backend.visitor import VisitorError
-from psyclone.psyir.nodes import Schedule, Assignment, Node
+from psyclone.psyir.nodes import (
+    Schedule, Assignment, Node, BinaryOperation, UnaryOperation, Literal)
+from psyclone.psyir.symbols import INTEGER_TYPE
 
 
 # pylint: disable=redefined-outer-name
@@ -586,10 +588,21 @@ def test_sirwriter_binaryoperation_node_3(parser, sir_writer):
         "  )" in result)
 
 
-# (4/4) Method binaryoperation_node
-def test_sirwriter_binaryoperation_node_4(parser, sir_writer):
-    '''Check the binaryoperation_node method of the SIRWriter class raises
-    the expected exception if an unsupported binary operator is found.
+def test_sirwriter_binaryoperator_not_supported(sir_writer):
+    ''' Check that unsupported BinaryOperators produce a relevant error. '''
+    operation = BinaryOperation.create(
+        BinaryOperation.Operator.REM,
+        Literal("1", INTEGER_TYPE),
+        Literal("2", INTEGER_TYPE))
+    with pytest.raises(VisitorError) as excinfo:
+        sir_writer.binaryoperation_node(operation)
+    assert ("Method binaryoperation_node in class SIRWriter, unsupported "
+            "operator 'Operator.REM' found." in str(excinfo.value))
+
+
+def test_sirwriter_intrinsiccall_node(parser, sir_writer):
+    '''Check the intrinsiccall_node method of the SIRWriter class raises
+    the expected exception if an unsupported intrinsic is found.
 
     '''
     code = CODE.replace("\n    integer ::",
@@ -599,8 +612,8 @@ def test_sirwriter_binaryoperation_node_4(parser, sir_writer):
     code = code.replace("a(i,j,k) = 1.0", "a(i,j,k) = matmul(b, c)")
     rhs = get_rhs(parser, code)
     with pytest.raises(VisitorError) as excinfo:
-        _ = sir_writer.binaryoperation_node(rhs)
-    assert "unsupported operator 'Operator.MATMUL' found" in str(excinfo.value)
+        _ = sir_writer.intrinsiccall_node(rhs)
+    assert "unsupported intrinsic 'MATMUL' found" in str(excinfo.value)
 
 
 # (1/2) Method reference_node
@@ -700,21 +713,6 @@ def test_sirwriter_unaryoperation_node_1(parser, sir_writer):
                 in result)
 
 
-# (2/5) Method unaryoperation_node
-def test_sirwriter_unary_node_2(parser, sir_writer):
-    '''Check the unaryoperation_node method of the SIRWriter class raises
-    the expected exception if an unsupported unary operator is found.
-
-    '''
-    # Choose the sin function as there are no examples of its
-    # use in the SIR so no mapping is currently provided.
-    code = CODE.replace("1.0", "sin(1.0)")
-    rhs = get_rhs(parser, code)
-    with pytest.raises(VisitorError) as excinfo:
-        _ = sir_writer.unaryoperation_node(rhs)
-    assert "unsupported operator 'Operator.SIN' found" in str(excinfo.value)
-
-
 # (3/5) Method unaryoperation_node
 @pytest.mark.parametrize(
     "value, datatype", [("-1", "Integer"), ("-1.0", "Float")])
@@ -770,6 +768,17 @@ def test_sirwriter_unary_node_5(parser, sir_writer):
         "    make_field_access_expr(\"b\", [0, 0, 0])\n"
         "    )\n"
         ")\n")
+
+
+def test_sirwriter_unaryoperator_not_supported(sir_writer):
+    ''' Check that unsupported UnaryOperators produce a relevant error. '''
+    operation = UnaryOperation.create(
+        UnaryOperation.Operator.NOT,
+        Literal("1", INTEGER_TYPE))
+    with pytest.raises(VisitorError) as excinfo:
+        sir_writer.unaryoperation_node(operation)
+    assert ("Method unaryoperation_node in class SIRWriter, unsupported "
+            "operator 'Operator.NOT' found." in str(excinfo.value))
 
 
 # (1/4) Method ifblock_node
@@ -942,85 +951,51 @@ def test_sirwriter_schedule_node_1(parser, sir_writer):
         "  \"=\")," in schedule_result)
 
 
-def test_sirwriter_unaryoperation_intrinsic_node(parser, sir_writer):
-    '''Check the unaryoperation_node method of the SIRWriter class
-    outputs the expected SIR code when the unaryoperation is an
-    intrinsic.
+def test_sirwriter_intrinsiccall_node_2(parser, sir_writer):
+    '''Check the intrinsiccall_node method of the SIRWriter class
+    outputs the expected SIR code for a supported intrinsic with
+    1 argument.
 
     '''
     code = CODE.replace("1.0", "abs(1.0)")
     rhs = get_rhs(parser, code)
-    result = sir_writer.unaryoperation_node(rhs)
+    result = sir_writer.intrinsiccall_node(rhs)
     assert ("make_fun_call_expr(\"math::fabs\", [make_literal_access_expr("
             "\"1.0\", BuiltinType.Float)])" in result)
 
 
-@pytest.mark.parametrize("operation", ["min", "max"])
-def test_sirwriter_binaryoperation_intrinsic_node(parser, sir_writer,
-                                                  operation):
-    '''Check the binaryoperation_node method of the SIRWriter class
-    outputs the expected SIR code when the binaryoperation is an
-    intrinsic.
+@pytest.mark.parametrize("intrinsic", ["min", "max"])
+def test_sirwriter_intrinsiccall_node_3(parser, sir_writer, intrinsic):
+    '''Check the intrinsiccall_node method of the SIRWriter class
+    outputs the expected SIR code for a supported intrinsic with 2
+    arguments.
 
     '''
-    code = CODE.replace("1.0", f"{operation}(1.0, 2.0)")
+    code = CODE.replace("1.0", f"{intrinsic}(1.0, 2.0)")
     rhs = get_rhs(parser, code)
-    result = sir_writer.binaryoperation_node(rhs)
-    assert (f"make_fun_call_expr(\"math::{operation}\", ["
+    result = sir_writer.intrinsiccall_node(rhs)
+    assert (f"make_fun_call_expr(\"math::{intrinsic}\", ["
             f"make_literal_access_expr(\"1.0\", BuiltinType.Float)], "
             f"[make_literal_access_expr(\"2.0\", BuiltinType.Float)])"
             in result)
 
 
-def test_sirwriter_binaryoperation_sign_node(parser, sir_writer):
-    '''Check the binaryoperation_node method of the SIRWriter class
-    outputs the expected SIR code when the binaryoperation is sign
-    intrinsic. This is a special case as the sign intrinsic is
+def test_sirwriter_intrinsiccall_sign_node(parser, sir_writer):
+    '''Check the intrinsiccall_node method of the SIRWriter class
+    outputs the expected SIR code for the sign intrinsic.
+    This is a special case as the sign intrinsic is
     implemented differently in the PSyIR (Fortran implementation) and
     SIR (C implementation).
 
     '''
     code = CODE.replace("1.0", "sign(1.0, 2.0)")
     rhs = get_rhs(parser, code)
-    result = sir_writer.binaryoperation_node(rhs)
+    result = sir_writer.intrinsiccall_node(rhs)
     assert ("make_binary_operator(make_fun_call_expr(\"math::fabs\", "
             "[make_literal_access_expr(\"1.0\", BuiltinType.Float)]), "
             "\"*\", make_fun_call_expr(\"math::sign\", "
             "[make_literal_access_expr(\"2.0\", BuiltinType.Float)]))"
             in result)
 
-
-def test_sirwriter_naryoperation_error(parser, sir_writer, monkeypatch):
-    '''Check the naryoperation_node method of the SIRWriter class raises
-    the expected exception when the naryoperation is an unsupported
-    operator. Both min and max are supported so we need to
-    monkeypatch.
-
-    '''
-    code = CODE.replace("1.0", "MIN(1.0, 2.0, 3.0)")
-    rhs = get_rhs(parser, code)
-    monkeypatch.setattr(rhs, "_operator", None)
-    with pytest.raises(VisitorError) as info:
-        _ = sir_writer.naryoperation_node(rhs)
-    assert ("Method naryoperation_node in class SIRWriter, unsupported "
-            "operator 'None' found. Expected one of '['MIN', 'MAX']'."
-            in str(info.value))
-
-
-@pytest.mark.parametrize("operation", ["min", "max"])
-def test_sirwriter_naryoperation_intrinsic_node(parser, sir_writer, operation):
-    '''Check the naryoperation_node method of the SIRWriter class
-    outputs the expected SIR code when the naryoperation is an
-    intrinsic.
-
-    '''
-    code = CODE.replace("1.0", f"{operation}(1.0, 2.0, 3.0)")
-    rhs = get_rhs(parser, code)
-    result = sir_writer.naryoperation_node(rhs)
-    assert (f"make_fun_call_expr(\"math::{operation}\", "
-            f"[make_literal_access_expr(\"1.0\", BuiltinType.Float)], "
-            f"[make_literal_access_expr(\"2.0\", BuiltinType.Float)], "
-            f"[make_literal_access_expr(\"3.0\", BuiltinType.Float)])"
-            in result)
 
 # Class SIRWriter end
