@@ -231,11 +231,13 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
         # Collect all write access in a separate object, so they can be added
         # after all read access (which must happen before something is written)
         written = VariablesAccessInfo()
+        suffix_map = LFRicConstants().ARG_TYPE_SUFFIX_MAPPING
 
         for arg in self.args:
             if arg.form in ["variable", "indexed_variable"]:
                 if arg.is_field:
-                    sym = table.lookup_with_tag(f"{arg.name}:data")
+                    sym = table.lookup_with_tag(
+                        f"{arg.name}:{suffix_map[arg.argument_type]}")
                     name = sym.name
                 elif arg.is_scalar:
                     name = arg.declaration_name
@@ -481,12 +483,14 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
         '''
         table = self.scope.symbol_table
         idx_sym = self.get_dof_loop_index_symbol()
+        suffixes = LFRicConstants().ARG_TYPE_SUFFIX_MAPPING
 
         refs = []
         for arg in self._arguments.args:
             if not arg.is_field:
                 continue
-            sym = table.lookup_with_tag(f"{arg.name}:data")
+            sym = table.lookup_with_tag(
+                f"{arg.name}:{suffixes[arg.argument_type]}")
             refs.append(ArrayReference.create(sym, [Reference(idx_sym)]))
         return refs
 
@@ -536,9 +540,13 @@ class LFRicXKern(LFRicBuiltIn, metaclass=abc.ABCMeta):
         # Convert all the elements of a field of one type to the
         # corresponding elements of a field of another type using
         # the PSyclone configuration for the correct 'kind'.
-        sym2 = table.lookup_with_tag(f"{self._arguments.args[0].name}:data")
+        suffixes = LFRicConstants().ARG_TYPE_SUFFIX_MAPPING
+        args = self._arguments.args
+        sym2 = table.lookup_with_tag(
+            f"{args[0].name}:{suffixes[args[0].argument_type]}")
         field2 = self.array_ref(sym2.name)
-        sym1 = table.lookup_with_tag(f"{self._arguments.args[1].name}:data")
+        sym1 = table.lookup_with_tag(
+            f"{args[1].name}:{suffixes[args[1].argument_type]}")
         field1 = self.array_ref(sym1.name)
         precision = self._arguments.args[0].precision
         rhs_expr = f"{self._field_type}({field1}, {precision})"
@@ -2386,9 +2394,14 @@ class LFRicXInnerproductYKern(LFRicBuiltIn):
         # The real scalar variable holding the sum is initialised to zero
         # in the PSy layer.
         innprod_name = self._reduction_ref(self._arguments.args[0].name)
-        sym1 = table.lookup_with_tag(f"{self._arguments.args[1].name}:data")
+        suffixes = LFRicConstants().ARG_TYPE_SUFFIX_MAPPING
+
+        args = self._arguments.args
+        sym1 = table.lookup_with_tag(
+            f"{args[1].name}:{suffixes[args[1].argument_type]}")
         field1 = self.array_ref(sym1.name)
-        sym2 = table.lookup_with_tag(f"{self._arguments.args[2].name}:data")
+        sym2 = table.lookup_with_tag(
+            f"{args[2].name}:{suffixes[args[2].argument_type]}")
         field2 = self.array_ref(sym2.name)
         rhs_expr = f"{innprod_name} + {field1}*{field2}"
         parent.add(AssignGen(parent, lhs=innprod_name, rhs=rhs_expr))
@@ -2425,11 +2438,14 @@ class LFRicXInnerproductXKern(LFRicBuiltIn):
 
         '''
         table = self.scope.symbol_table
+        suffixes = LFRicConstants().ARG_TYPE_SUFFIX_MAPPING
         # We sum the DoF-wise product of the supplied real-valued fields.
         # The real scalar variable holding the sum is initialised to zero
         # in the PSy layer.
         innprod_name = self._reduction_ref(self._arguments.args[0].name)
-        sym = table.lookup_with_tag(f"{self._arguments.args[1].name}:data")
+        sym = table.lookup_with_tag(
+            f"{self._arguments.args[1].name}:"
+            f"{suffixes[self._arguments.args[1].argument_type]}")
         field_name = self.array_ref(sym.name)
         rhs_expr = f"{innprod_name} + {field_name}*{field_name}"
         parent.add(AssignGen(parent, lhs=innprod_name, rhs=rhs_expr))
@@ -2474,9 +2490,12 @@ class LFRicSumXKern(LFRicBuiltIn):
 
         '''
         table = self.scope.symbol_table
+        suffixes = LFRicConstants().ARG_TYPE_SUFFIX_MAPPING
         # Sum all the elements of a real-valued field. The real scalar
         # variable holding the sum is initialised to zero in the PSy layer.
-        sym = table.lookup_with_tag(f"{self._arguments.args[1].name}:data")
+        sym = table.lookup_with_tag(
+            f"{self._arguments.args[1].name}:"
+            f"{suffixes[self._arguments.args[1].argument_type]}")
         field_name = self.array_ref(sym.name)
         sum_name = self._reduction_ref(self._arguments.args[0].name)
         rhs_expr = f"{sum_name} + {field_name}"

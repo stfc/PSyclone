@@ -3095,13 +3095,12 @@ class DynProxies(LFRicCollection):
             suffix = const.ARG_TYPE_SUFFIX_MAPPING[arg.argument_type]
             if arg.vector_size > 1:
                 for idx in range(1, arg.vector_size+1):
-                    ttext = f"{arg.name}_{idx}:{suffix}"
                     try:
                         self._symbol_table.new_symbol(
                             f"{arg.name}_{idx}_{suffix}",
                             symbol_type=DataSymbol,
                             datatype=dtype,
-                            tag=ttext)
+                            tag=f"{arg.name}_{idx}:{suffix}")
                     except KeyError:
                         # We can have user-supplied kernels that accept a full
                         # field-vector as argument but also individual
@@ -3110,12 +3109,11 @@ class DynProxies(LFRicCollection):
                         # occur which we can safely ignore.
                         pass
             else:
-                ttext = f"{arg.name}:{suffix}"
                 try:
                     self._symbol_table.new_symbol(f"{arg.name}_{suffix}",
                                                   symbol_type=DataSymbol,
                                                   datatype=dtype,
-                                                  tag=ttext)
+                                                  tag=f"{arg.name}:{suffix}")
                 except KeyError:
                     # See comment in other KeyError handler above.
                     pass
@@ -3246,8 +3244,6 @@ class DynProxies(LFRicCollection):
                                arg in operators_list]
             parent.add(TypeDeclGen(parent, datatype=operator_datatype,
                                    entity_decls=operators_names))
-            # Create symbols that we will associate with pointers to the
-            # internal data arrays.
             for arg in operators_list:
                 name = arg.name
                 suffix = const.ARG_TYPE_SUFFIX_MAPPING[arg.argument_type]
@@ -3281,13 +3277,11 @@ class DynProxies(LFRicCollection):
             (self._invoke.invokes.psy.infrastructure_modules[op_mod].
              add(op_type))
 
-        # Create symbols that we will associate with pointers to the
-        # internal data arrays.
+        # Declarations of pointers to the internal CMA matrices.
         for arg in cma_op_args:
             suffix = const.ARG_TYPE_SUFFIX_MAPPING[arg.argument_type]
             ttext = f"{arg.name}:{suffix}"
             sym = table.lookup_with_tag(ttext)
-            # Declare the pointer to the CMA matrix.
             parent.add(DeclGen(parent, datatype="real",
                                kind=arg.precision,
                                dimension=":,:,:",

@@ -421,29 +421,20 @@ class KernCallArgList(ArgOrdering):
 
         :param arg: the field to be added.
         :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-        :param var_accesses: optional VariablesAccessInfo instance to store \
+        :param var_accesses: optional VariablesAccessInfo instance to store
             the information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+        :type var_accesses: :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
+        const = LFRicConstants()
+        suffix = const.ARG_TYPE_SUFFIX_MAPPING[arg.argument_type]
         # Look-up the name of the variable that stores the reference to
         # the data in this field.
-        sym = self._symtab.lookup_with_tag(arg.name+":data")
-        text = sym.name #arg.proxy_name + "%data"
-        # Add the field object arg%name and not just the proxy part
-        # as being read.
-        self.append(text, var_accesses, var_access_name=sym.name, #arg.name,
+        sym = self._symtab.lookup_with_tag(f"{arg.name}:{suffix}")
+        # Add the field data array as being read.
+        self.append(sym.name, var_accesses, var_access_name=sym.name,
                     mode=arg.access, metadata_posn=arg.metadata_index)
 
-        # Add an access to field_proxy%data:
-        precision = KernCallArgList._map_type_to_precision(arg.data_type)
-        array_1d = \
-            ArrayType(LFRicTypes("LFRicRealScalarDataType")(precision),
-                      [ArrayType.Extent.DEFERRED])
-        #self.append_structure_reference(
-        #    arg.module_name, arg.proxy_data_type, ["data"],
-        #    arg.proxy_name, overwrite_datatype=array_1d)
         self.psyir_append(Reference(sym))
 
     def stencil_unknown_extent(self, arg, var_accesses=None):
