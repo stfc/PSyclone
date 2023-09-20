@@ -56,7 +56,7 @@ from psyclone.psyir.nodes import OMPDoDirective, OMPParallelDirective, \
     OMPScheduleClause, OMPTeamsDistributeParallelDoDirective, \
     OMPFirstprivateClause, ArrayReference, BinaryOperation, Call, \
     IfBlock, StructureReference, DynamicOMPTaskDirective, OMPTaskDirective, \
-    Range, OMPSharedClause, OMPDependClause
+    Range, OMPSharedClause, OMPDependClause, IntrinsicCall
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, SymbolTable, \
     REAL_SINGLE_TYPE, INTEGER_SINGLE_TYPE, Symbol, ArrayType, RoutineSymbol, \
     REAL_TYPE, StructureType, DataTypeSymbol
@@ -1631,10 +1631,14 @@ def test_omp_serial_valid_dependence_ranges():
 
     ref = ArrayReference.create(tmp, [one.copy()])
 
-    lbound = BinaryOperation.create(BinaryOperation.Operator.LBOUND,
-                                    reference, one)
-    ubound = BinaryOperation.create(BinaryOperation.Operator.UBOUND,
-                                    reference.copy(), one.copy())
+    lbound = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.LBOUND,
+        [reference.copy(), ("dim", one.copy())]
+    )
+    ubound = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.UBOUND,
+        [reference.copy(), ("dim", one.copy())]
+    )
     my_range = Range.create(lbound.copy(), ubound.copy(), one.copy())
     array_reference = ArrayReference.create(tmp, [my_range])
     array_reference_2 = ArrayReference.create(tmp, [my_range.copy()])
@@ -4465,15 +4469,23 @@ def test_omp_serial_check_dependency_valid_pairing():
     # correct answer for range indices.
     array_type = ArrayType(INTEGER_SINGLE_TYPE, [128, 128])
     rval = DataSymbol("rval", array_type)
-    lbound = BinaryOperation.create(BinaryOperation.Operator.LBOUND,
-                                    Reference(rval), one.copy())
-    ubound = BinaryOperation.create(BinaryOperation.Operator.UBOUND,
-                                    Reference(rval), one.copy())
+    lbound = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.LBOUND,
+        [Reference(rval), ("dim", one.copy())]
+    )
+    ubound = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.UBOUND,
+        [Reference(rval), ("dim", one.copy())]
+    )
     my_range1 = Range.create(lbound.copy(), ubound.copy(), one.copy())
-    lbound2 = BinaryOperation.create(BinaryOperation.Operator.LBOUND,
-                                     Reference(rval), two.copy())
-    ubound2 = BinaryOperation.create(BinaryOperation.Operator.UBOUND,
-                                     Reference(rval), two.copy())
+    lbound2 = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.LBOUND,
+        [Reference(rval), ("dim", two.copy())]
+    )
+    ubound2 = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.UBOUND,
+        [Reference(rval), ("dim", two.copy())]
+    )
     my_range2 = Range.create(lbound2.copy(), ubound2.copy(), one.copy())
     array_reference1 = ArrayReference.create(rval, [my_range1.copy(),
                                                     my_range2.copy()])
