@@ -36,7 +36,8 @@
 
 include ../../common.mk
 
-SCRIPTS = $(wildcard *.py)
+# Get all python scripts in this folder excluding the compare_output.py script
+SCRIPTS = $(filter-out compare_ouput.py, $(wildcard *.py))
 
 transform: ${SCRIPTS}
 
