@@ -48,6 +48,7 @@ from psyclone.psyir.nodes import (
     Assignment,
     Call,
     IfBlock,
+    IntrinsicCall,
     Reference,
     StructureReference,
 )
@@ -88,15 +89,58 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         "OMPFirstprivateClause, OMPSharedClause"
         "OMPDependClause, OMPDependClause"
     )
+
+    # The named tuple object to handle the creation of ProxyVar
+    # elements. These contain the parent_var (The variable this
+    # is a proxy to), and the node and loop containing the parent
+    # variable. It also contains the loop with the proxy variable as
+    # its loop variable.
     _proxy_vars = namedtuple(
             'ProxyVars', ['parent_var', 'parent_node',
                           'loop', 'parent_loop']
     )
 
+    # The named tuple object containing all the clause lists that
+    # are passed throughout the functions. Each of the members
+    # of this tuple are list of References that will be added to
+    # the appropriate clause when the clauses are created.
     _clause_lists = namedtuple(
-            'ProxyVars', ['private_list', 'firstprivate_list',
-                          'shared_list', 'in_list', 'out_list']
+            'ClauseLists', ['private_list', 'firstprivate_list',
+                            'shared_list', 'in_list', 'out_list']
     )
+
+    # List of Fortran Intrinsics allowed to appear inside a
+    # task directive.
+    _allowed_intrinsics = [
+        IntrinsicCall.Intrinsic.ABS,
+        IntrinsicCall.Intrinsic.ACOS,
+        IntrinsicCall.Intrinsic.ACOSH,
+        IntrinsicCall.Intrinsic.ASIN,
+        IntrinsicCall.Intrinsic.ASINH,
+        IntrinsicCall.Intrinsic.ATAN,
+        IntrinsicCall.Intrinsic.ATAN2,
+        IntrinsicCall.Intrinsic.ATANH,
+        IntrinsicCall.Intrinsic.CEILING,
+        IntrinsicCall.Intrinsic.COS,
+        IntrinsicCall.Intrinsic.COSH,
+        IntrinsicCall.Intrinsic.ERF,
+        IntrinsicCall.Intrinsic.EXP,
+        IntrinsicCall.Intrinsic.FLOOR,
+        IntrinsicCall.Intrinsic.LBOUND,
+        IntrinsicCall.Intrinsic.LEN,
+        IntrinsicCall.Intrinsic.LOG,
+        IntrinsicCall.Intrinsic.LOG10,
+        IntrinsicCall.Intrinsic.MAX,
+        IntrinsicCall.Intrinsic.MIN,
+        IntrinsicCall.Intrinsic.MODULO,
+        IntrinsicCall.Intrinsic.SIGN,
+        IntrinsicCall.Intrinsic.SIN,
+        IntrinsicCall.Intrinsic.SINH,
+        IntrinsicCall.Intrinsic.SQRT,
+        IntrinsicCall.Intrinsic.TAN,
+        IntrinsicCall.Intrinsic.TANH,
+        IntrinsicCall.Intrinsic.UBOUND,
+    ]
 
     def __init__(self, children=None, parent=None):
         super().__init__(
@@ -143,8 +187,8 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         :param base_member: Optional argument containing the array member
                             child of ref to duplicate with
                             the indices specified by temp_list
-        :type base_member: Union[:py:class:`psyclone.psyir.nodes.ArrayMember`,
-                                 None]
+        :type base_member: Optional[
+                           :py:class:`psyclone.psyir.nodes.ArrayMember`]
 
         :returns: an ArrayReference to the provided symbol and with the
                   provided indices, or a StructureReference containing the
@@ -154,7 +198,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
 
         '''
         final_list = [element.copy() for element in temp_list]
-        if(base_member):
+        if base_member:
             final_member = ArrayMember.create(base_member.name, final_list)
             sref_copy = ref.copy()
             # Copying the StructureReference includes the Members
@@ -1821,6 +1865,52 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                     clause_lists
                 )
 
+    def _evaluate_intrinsic(
+        self,
+        node,
+        clause_lists
+    ):
+        """
+        Evaluates an IntrinsicCall node inside the task region.
+        The function immediately stops if the intrinsic has
+        `is_inquiry` set to True, as no data dependency occurs
+        on these intrinsic.
+        All other allowed intrinsics are read-only, so the relevant
+        helper functions are called on each argument.
+
+        :param node: The IntrinsicCall to be evaluated.
+        :type node: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
+        :param clause_lists: The namedtuple containing the lists storing the
+                             clauses.
+        :type clause_lists: namedtuple(
+                            private_list=List[
+                                :py:class:`psyclone.psyir.nodes.Reference`
+                            ],
+                            firstprivate_list=List[
+                                :py:class:`psyclone.psyir.nodes.Reference`
+                            ],
+                            shared_list=List[
+                                :py:class:`psyclone.psyir.nodes.Reference`
+                            ],
+                            in_list=List[
+                                :py:class:`psyclone.psyir.nodes.Reference`
+                            ],
+                            out_list=List[
+                                :py:class:`psyclone.psyir.nodes.Reference`
+                            ])
+        """
+        # If the intrinsic is an inquiry intrinsic we don't need to
+        # do anything.
+        if node.intrinsic.is_inquiry:
+            return
+
+        # Otherwise, we loop through the references in the IntrinsicCall
+        # and compute any new dependencies.
+        for ref in node.condition.walk(Reference):
+            self._evaluate_readonly_reference(
+                ref, clause_lists
+            )
+
     def _evaluate_node(
         self,
         node,
@@ -1868,6 +1958,12 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         elif isinstance(node, IfBlock):
             # Resolve IfBlock
             self._evaluate_ifblock(
+                node,
+                clause_lists
+            )
+        elif isinstance(node, IntrinsicCall):
+            # Resolve IntrinsicCall
+            self._evaluate_intrinsic(
                 node,
                 clause_lists
             )
@@ -1991,12 +2087,28 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         # If we find a Kern or Call child then we abort.
         # Note that if the transformation is used it will have already
         # attempted to do this inlining.
-        if self.walk((Kern, Call)):
+        if self.walk(Kern):
             raise GenerationError(
                 "Attempted to lower to OMPTaskDirective "
-                "node, but the node contains a Call or Kern "
+                "node, but the node contains a Kern "
                 "which must be inlined first."
             )
+        # We allow a small subset of IntrinsicCall nodes
+        for child in self.walk(Call):
+            if type(child) is Call:
+                raise GenerationError(
+                    "Attempted to lower to OMPTaskDirective "
+                    "node, but the node contains a Call "
+                    "which must be inlined first."
+                )
+            # Otherwise we have an IntrinsicCall
+            if child.intrinsic not in self._allowed_intrinsics:
+                raise GenerationError(
+                    f"Attempted to lower to OMPTaskDirective "
+                    f"node, but the node contains a "
+                    f"{child.debug_string()} intrinsic call, which "
+                    f"is not supported."
+                )
 
         # Create the clauses
         (

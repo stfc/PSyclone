@@ -328,7 +328,10 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
             # Reference
             if not isinstance(node, (Assignment, Loop, Call)):
                 continue
-            if isinstance(node, Call):
+            # At the moment we allow all IntrinsicCall nodes through, and
+            # assume that all IntrinsicCall nodes we find don't modify
+            # symbols, but only read from them.
+            if type(node) is Call:
                 # Currently opting to fail on any Call.
                 # Potentially it might be possible to check if the Symbol is
                 # written to and only if so then raise an error
@@ -735,7 +738,9 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
         try:
             ref1_accesses = self._compute_accesses(ref1, preceding_t1, task1)
             ref2_accesses = self._compute_accesses(ref2, preceding_t2, task2)
-        except UnresolvedDependencyError:
+        except UnresolvedDependencyError as excinfo:
+            print(str(excinfo.value))
+            print("Hello")
             # If we get a UnresolvedDependencyError from compute_accesses, then
             # we found an access that isn't able to be handled by PSyclone, so
             # dependencies based on it need to be handled by a taskwait

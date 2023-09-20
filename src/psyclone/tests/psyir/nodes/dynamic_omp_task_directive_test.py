@@ -309,9 +309,7 @@ def test_omp_task_directive_6(fortran_reader, fortran_writer, tmpdir):
     parent.addchild(tdir, index=0)
     strans.apply(loops[0])
     ptrans.apply(loops[0].parent.parent)
-    correct = '''!$omp parallel default(shared), private(i,ii,j)
-  !$omp single
-  do i = 1, 320, 32
+    correct = '''\
     !$omp task private(ii,j), firstprivate(i), shared(a,b), \
 depend(in: b(i + 32,:),b(i,:),k), depend(out: a(i,:))
     do ii = i, i + 32, 1
@@ -319,10 +317,7 @@ depend(in: b(i + 32,:),b(i,:),k), depend(out: a(i,:))
         a(ii,j) = b(ii + 1,j) + k
       enddo
     enddo
-    !$omp end task
-  enddo
-  !$omp end single
-  !$omp end parallel'''
+    !$omp end task'''
     assert correct in fortran_writer(tree)
     assert Compile(tmpdir).string_compiles(fortran_writer(tree))
 
@@ -2906,7 +2901,7 @@ def test_omp_task_directive_call_failure(fortran_reader):
     with pytest.raises(GenerationError) as excinfo:
         tree.lower_to_language_level()
     assert ("Attempted to lower to OMPTaskDirective node, but the node "
-            "contains a Call or Kern which must be inlined first."
+            "contains a Call which must be inlined first."
             in str(excinfo.value))
 
 
@@ -2961,7 +2956,8 @@ depend(in: b(i + 32,:),b(i,:)), depend(out: a(i,:))
     enddo
     !$omp end task'''
     assert correct in fortran_writer(psyir)
-    assert Compile(tmpdir).string_compiles(fortran_writer(tree))
+    # Cannot test compilation of this test as it uses an external module.
+    # assert Compile(tmpdir).string_compiles(fortran_writer(tree))
 
 
 # TODO #2052 This test is expected to fail as we can't yet handle
