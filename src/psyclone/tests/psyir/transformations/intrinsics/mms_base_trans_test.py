@@ -390,8 +390,10 @@ def test_not_assignment(fortran_reader):
                          [("10", "20", "1", "10", "1", "20"),
                           ("n", "m", "1", "n", "1", "m"),
                           ("0:n", "2:m", "0", "n", "2", "m"),
-                          (":", ":", "LBOUND(array, 1)", "UBOUND(array, 1)",
-                           "LBOUND(array, 2)", "UBOUND(array, 2)")])
+                          (":", ":", "LBOUND(array, dim=1)",
+                           "UBOUND(array, dim=1)",
+                           "LBOUND(array, dim=2)",
+                           "UBOUND(array, dim=2)")])
 def test_apply(idim1, idim2, rdim11, rdim12, rdim21, rdim22,
                fortran_reader, fortran_writer, tmpdir):
     '''Test that a sum intrinsic as the only term on the rhs of an
@@ -473,7 +475,8 @@ def test_apply_dimension_1d(fortran_reader, fortran_writer, tmpdir):
         "  result = value1 + sum(array,dim=1) * value2\n"
         "end subroutine\n")
     expected_decl = "  real :: sum_var\n"
-    expected_bounds = "  do i_0 = LBOUND(array, 1), UBOUND(array, 1), 1\n"
+    expected_bounds = "  do i_0 = LBOUND(array, dim=1), "
+    expected_bounds += "UBOUND(array, dim=1), 1\n"
     expected_result = "  result = value1 + sum_var * value2\n"
     psyir = fortran_reader.psyir_from_source(code)
     # FileContainer/Routine/Assignment/BinaryOperation(ADD)/
@@ -512,7 +515,8 @@ def test_apply_dimension_multid(fortran_reader, fortran_writer, tmpdir):
     psyir = fortran_reader.psyir_from_source(code)
     # FileContainer/Routine/Assignment/BinaryOperation(ADD)/
     # BinaryOperation(MUL)/IntrinsicCall
-    node = psyir.walk(IntrinsicCall)[0]
+    node = [intr for intr in psyir.walk(IntrinsicCall)
+            if intr.intrinsic == IntrinsicCall.Intrinsic.SUM][0]
     trans = NamedTestTrans()
     trans.apply(node)
     result = fortran_writer(psyir)
@@ -537,17 +541,18 @@ def test_apply_dimension_multid_unknown(
         "  result(:,:) = value1 + sum(array,dim=2) * value2\n"
         "end subroutine\n")
     expected_decl = (
-        "  real, dimension(LBOUND(array, 1):UBOUND(array, 1),LBOUND(array, 3):"
-        "UBOUND(array, 3)) :: sum_var\n")
+        "  real, dimension(LBOUND(array, dim=1):UBOUND(array, dim=1),"
+        "LBOUND(array, dim=3):UBOUND(array, dim=3)) :: sum_var\n")
     expected_bounds = (
-        "  do i_2 = LBOUND(array, 3), UBOUND(array, 3), 1\n"
-        "    do i_1 = LBOUND(array, 2), UBOUND(array, 2), 1\n"
-        "      do i_0 = LBOUND(array, 1), UBOUND(array, 1), 1\n")
+        "  do i_2 = LBOUND(array, dim=3), UBOUND(array, dim=3), 1\n"
+        "    do i_1 = LBOUND(array, dim=2), UBOUND(array, dim=2), 1\n"
+        "      do i_0 = LBOUND(array, dim=1), UBOUND(array, dim=1), 1\n")
     expected_result = "  result(:,:) = value1 + sum_var(:,:) * value2\n\n"
     psyir = fortran_reader.psyir_from_source(code)
     # FileContainer/Routine/Assignment/BinaryOperation(ADD)/
     # BinaryOperation(MUL)/IntrinsicCall
-    node = psyir.walk(IntrinsicCall)[0]
+    node = [intr for intr in psyir.walk(IntrinsicCall)
+            if intr.intrinsic == IntrinsicCall.Intrinsic.SUM][0]
     trans = NamedTestTrans()
     trans.apply(node)
     result = fortran_writer(psyir)
@@ -582,7 +587,8 @@ def test_apply_dimension_multid_range(fortran_reader, fortran_writer, tmpdir):
     psyir = fortran_reader.psyir_from_source(code)
     # FileContainer/Routine/Assignment/BinaryOperation(ADD)/
     # BinaryOperation(MUL)/IntrinsicCall
-    node = psyir.walk(IntrinsicCall)[0]
+    node = [intr for intr in psyir.walk(IntrinsicCall)
+            if intr.intrinsic == IntrinsicCall.Intrinsic.SUM][0]
     trans = NamedTestTrans()
     trans.apply(node)
     result = fortran_writer(psyir)
@@ -728,12 +734,12 @@ def test_allocate_dim(fortran_reader, fortran_writer, tmpdir):
         "  integer :: i_1\n"
         "  integer :: i_2\n\n"
         "  ALLOCATE(a(1:4,1:4,1:4))\n"
-        "  ALLOCATE(sum_var(LBOUND(a, 1):UBOUND(a, 1),"
-        "LBOUND(a, 3):UBOUND(a, 3)))\n"
+        "  ALLOCATE(sum_var(LBOUND(a, dim=1):UBOUND(a, dim=1),"
+        "LBOUND(a, dim=3):UBOUND(a, dim=3)))\n"
         "  sum_var(:,:) = 0\n"
-        "  do i_2 = LBOUND(a, 3), UBOUND(a, 3), 1\n"
-        "    do i_1 = LBOUND(a, 2), UBOUND(a, 2), 1\n"
-        "      do i_0 = LBOUND(a, 1), UBOUND(a, 1), 1\n"
+        "  do i_2 = LBOUND(a, dim=3), UBOUND(a, dim=3), 1\n"
+        "    do i_1 = LBOUND(a, dim=2), UBOUND(a, dim=2), 1\n"
+        "      do i_0 = LBOUND(a, dim=1), UBOUND(a, dim=1), 1\n"
         "        sum_var(i_0,i_2) = sum_var(i_0,i_2) + a(i_0,i_1,i_2)\n"
         "      enddo\n"
         "    enddo\n"

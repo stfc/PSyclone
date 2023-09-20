@@ -55,7 +55,7 @@ from psyclone.f2pygen import AssignGen, PSyIRGen
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import BuiltIn
 from psyclone.psyir.nodes import (Assignment, BinaryOperation, Call, Reference,
-                                  StructureReference)
+                                  StructureReference, IntrinsicCall)
 from psyclone.psyir.symbols import ArrayType, RoutineSymbol
 from psyclone.utils import a_or_an
 
@@ -2323,12 +2323,9 @@ class LFRicSetvalRandomKern(LFRicBuiltIn):
         # Create the PSyIR for the kernel:
         #      call random_number(proxy0%data(df))
 
-        # TODO #1366 - currently we have to create a Symbol for the intrinsic
-        # but *not* add it to the symbol table (since there's no import for
-        # it). This can be removed once we have proper support for intrinsics
-        # that are not operators.
         routine = RoutineSymbol("random_number")
-        call = Call.create(routine, arg_refs)
+        call = IntrinsicCall.create(IntrinsicCall.Intrinsic.RANDOM_NUMBER,
+                                    arg_refs)
         # Finally, replace this kernel node with the Assignment
         self.replace_with(call)
         return call
@@ -2511,8 +2508,8 @@ class LFRicSignXKern(LFRicBuiltIn):
 
         # Create the PSyIR for the kernel:
         #      proxy0%data(df) = SIGN(ascalar, proxy1%data)
-        rhs = BinaryOperation.create(BinaryOperation.Operator.SIGN,
-                                     scalar_args[0], arg_refs[1])
+        rhs = IntrinsicCall.create(IntrinsicCall.Intrinsic.SIGN,
+                                   [scalar_args[0], arg_refs[1]])
         assign = Assignment.create(arg_refs[0], rhs)
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
@@ -2563,8 +2560,8 @@ class LFRicMaxAXKern(LFRicBuiltIn):
 
         # Create the PSyIR for the kernel:
         #      proxy0%data(df) = MAX(ascalar, proxy1%data)
-        rhs = BinaryOperation.create(BinaryOperation.Operator.MAX,
-                                     scalar_args[0], arg_refs[1])
+        rhs = IntrinsicCall.create(IntrinsicCall.Intrinsic.MAX,
+                                   [scalar_args[0], arg_refs[1]])
         assign = Assignment.create(arg_refs[0], rhs)
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
@@ -2610,8 +2607,8 @@ class LFRicIncMaxAXKern(LFRicBuiltIn):
         # Create the PSyIR for the kernel:
         #      proxy0%data(df) = MAX(ascalar, proxy0%data)
         lhs = arg_refs[0]
-        rhs = BinaryOperation.create(BinaryOperation.Operator.MAX,
-                                     scalar_args[0], lhs.copy())
+        rhs = IntrinsicCall.create(IntrinsicCall.Intrinsic.MAX,
+                                   [scalar_args[0], lhs.copy()])
         assign = Assignment.create(lhs, rhs)
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
@@ -2662,8 +2659,8 @@ class LFRicMinAXKern(LFRicBuiltIn):
 
         # Create the PSyIR for the kernel:
         #      proxy0%data(df) = MIN(ascalar, proxy1%data)
-        rhs = BinaryOperation.create(BinaryOperation.Operator.MIN,
-                                     scalar_args[0], arg_refs[1])
+        rhs = IntrinsicCall.create(IntrinsicCall.Intrinsic.MIN,
+                                   [scalar_args[0], arg_refs[1]])
         assign = Assignment.create(arg_refs[0], rhs)
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
@@ -2709,8 +2706,8 @@ class LFRicIncMinAXKern(LFRicBuiltIn):
         # Create the PSyIR for the kernel:
         #      proxy0%data(df) = MIN(ascalar, proxy0%data)
         lhs = arg_refs[0]
-        rhs = BinaryOperation.create(BinaryOperation.Operator.MIN,
-                                     scalar_args[0], lhs.copy())
+        rhs = IntrinsicCall.create(IntrinsicCall.Intrinsic.MIN,
+                                   [scalar_args[0], lhs.copy()])
         assign = Assignment.create(lhs, rhs)
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)

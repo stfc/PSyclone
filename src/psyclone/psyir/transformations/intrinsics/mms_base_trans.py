@@ -41,8 +41,8 @@ PSyIR SUM, MINVAL or MAXVAL intrinsic to PSyIR code.
 from abc import ABC, abstractmethod
 
 from psyclone.psyir.nodes import (
-    BinaryOperation, Assignment, Reference,
-    Literal, Loop, ArrayReference, IfBlock, Range, IntrinsicCall)
+    Assignment, Reference, Literal, Loop, ArrayReference, IfBlock, Range,
+    IntrinsicCall)
 from psyclone.psyir.symbols import (
     DataSymbol, INTEGER_TYPE, ScalarType, ArrayType)
 from psyclone.psyGen import Transformation
@@ -134,7 +134,7 @@ class MMSBaseTrans(Transformation, ABC):
         # pylint: disable=unidiomatic-typecheck
         if dim_ref and not (
                 isinstance(dim_ref, Literal)
-                or (type(dim_ref) == Reference and
+                or (type(dim_ref) is Reference and
                     dim_ref.symbol.is_constant and
                     isinstance(dim_ref.symbol.initial_value, Literal))):
             if isinstance(dim_ref, Reference):
@@ -150,7 +150,7 @@ class MMSBaseTrans(Transformation, ABC):
 
         # pylint: disable=unidiomatic-typecheck
         if not (isinstance(array_ref, ArrayReference) or
-                (type(array_ref) == Reference)):
+                (type(array_ref) is Reference)):
             raise TransformationError(
                 f"{self.name} only supports arrays or plain references for "
                 f"the first argument, but found '{type(array_ref).__name__}'.")
@@ -213,7 +213,7 @@ class MMSBaseTrans(Transformation, ABC):
             pass
         elif isinstance(dimension_ref, Literal):
             dimension_literal = dimension_ref
-        elif ((type(dimension_ref) == Reference) and
+        elif ((type(dimension_ref) is Reference) and
               dimension_ref.symbol.is_constant):
             dimension_literal = dimension_ref.symbol.initial_value
         # else exception is handled by the validate method.
@@ -235,14 +235,14 @@ class MMSBaseTrans(Transformation, ABC):
                     if shape == ArrayType.Extent.DEFERRED:
                         allocatable = True
                     # runtime extent using LBOUND and UBOUND required
-                    lbound = BinaryOperation.create(
-                        BinaryOperation.Operator.LBOUND,
-                        Reference(array_ref.symbol),
-                        Literal(str(idx+1), INTEGER_TYPE))
-                    ubound = BinaryOperation.create(
-                        BinaryOperation.Operator.UBOUND,
-                        Reference(array_ref.symbol),
-                        Literal(str(idx+1), INTEGER_TYPE))
+                    lbound = IntrinsicCall.create(
+                        IntrinsicCall.Intrinsic.LBOUND,
+                        [Reference(array_ref.symbol),
+                         ("dim", Literal(str(idx+1), INTEGER_TYPE))])
+                    ubound = IntrinsicCall.create(
+                        IntrinsicCall.Intrinsic.UBOUND,
+                        [Reference(array_ref.symbol),
+                         ("dim", Literal(str(idx+1), INTEGER_TYPE))])
                     loop_bounds.append((lbound, ubound))
                 elif isinstance(shape, ArrayType.ArrayBounds):
                     # array extent is defined in the array declaration
@@ -348,7 +348,7 @@ class MMSBaseTrans(Transformation, ABC):
             # A mask argument has been provided
             for ref in mask_ref.walk(Reference):
                 # pylint: disable=unidiomatic-typecheck
-                if ref.name == array_ref.name and type(ref) == Reference:
+                if ref.name == array_ref.name and type(ref) is Reference:
                     # The array is not indexed so it needs indexing
                     # for the loop nest.
                     shape = [Reference(obj) for obj in loop_iterators]
