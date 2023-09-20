@@ -3083,7 +3083,7 @@ class DynProxies(LFRicCollection):
         int_field_args = self._invoke.unique_declarations(
             argument_types=const.VALID_FIELD_NAMES,
             intrinsic_type=const.MAPPING_DATA_TYPES["gh_integer"])
-        all_tags = set(self._symbol_table.get_tags().keys())
+
         for arg in real_field_args + int_field_args:
             # Create symbols that we will associate with the internal
             # data arrays.
@@ -3092,85 +3092,69 @@ class DynProxies(LFRicCollection):
                      else "LFRicIntegerScalarDataType")
             dtype = ArrayType(
                 LFRicTypes(ltype)(precision), [ArrayType.Extent.DEFERRED])
+            suffix = const.ARG_TYPE_SUFFIX_MAPPING[arg.argument_type]
             if arg.vector_size > 1:
                 for idx in range(1, arg.vector_size+1):
-                    ttext = f"{arg.name}_{idx}:data"
-                    if ttext not in all_tags:
-                        all_tags.add(ttext)
+                    ttext = f"{arg.name}_{idx}:{suffix}"
+                    try:
                         self._symbol_table.new_symbol(
-                            f"{arg.name}_{idx}_data",
+                            f"{arg.name}_{idx}_{suffix}",
                             symbol_type=DataSymbol,
                             datatype=dtype,
                             tag=ttext)
+                    except KeyError:
+                        # We can have user-supplied kernels that accept a full
+                        # field-vector as argument but also individual
+                        # components of that vector might be passed to
+                        # Builtins. Therefore a clash with an existing tag may
+                        # occur which we can safely ignore.
+                        pass
             else:
-                ttext = f"{arg.name}:data"
-                if ttext not in all_tags:
-                    all_tags.add(ttext)
-                    self._symbol_table.new_symbol(arg.name+"_data",
+                ttext = f"{arg.name}:{suffix}"
+                try:
+                    self._symbol_table.new_symbol(f"{arg.name}_{suffix}",
                                                   symbol_type=DataSymbol,
                                                   datatype=dtype,
                                                   tag=ttext)
+                except KeyError:
+                    # See comment in other KeyError handler above.
+                    pass
 
         # We put precision Symbols in the Container symbol table.
         ctable = self._invoke.schedule.parent.symbol_table
 
         # Create symbols that we will associate with pointers to the
-        # internal data arrays of operators.
+        # internal data arrays of LMA and CMA operators.
         op_args = self._invoke.unique_declarations(
-            argument_types=["gh_operator"])
+            argument_types=const.VALID_OPERATOR_NAMES)
+
         for arg in op_args:
             name = arg.name
-            ttext = f"{name}:local_stencil"
-            if ttext not in all_tags:
-                all_tags.add(ttext)
-                precision = ctable.add_lfric_precision_symbol(arg.precision)
-                # Make sure we're going to create a Symbol with a unique
-                # name.
-                new_name = self._symbol_table.next_available_name(
-                    f"{name}_local_stencil")
-                # Construct the type.
-                #   REAL(KIND=r_def), pointer, dimension(:,:,:) :: &
-                #              mapping_local_stencil => null()
-                array_type = ArrayType(
-                    LFRicTypes("LFRicRealScalarDataType")(precision),
-                    [ArrayType.Extent.DEFERRED]*3)
-                # TODO use LFRicConstants.ARG_TYPE_SUFFIX_MAPPING here.
-                dtype = UnknownFortranType(
-                    f"real(kind={arg.precision}), pointer, dimension(:,:,:) "
-                    f":: {new_name} => null()",
-                array_type = ArrayType(
-                    LFRicTypes("LFRicRealScalarDataType")(precision),
-                    [ArrayType.Extent.DEFERRED]*3)
+            suffix = const.ARG_TYPE_SUFFIX_MAPPING[arg.argument_type]
+            ttext = f"{name}:{suffix}"
+            precision = ctable.add_lfric_precision_symbol(arg.precision)
+            # Make sure we're going to create a Symbol with a unique
+            # name.
+            new_name = self._symbol_table.next_available_name(
+                f"{name}_{suffix}")
+            array_type = ArrayType(
+                LFRicTypes("LFRicRealScalarDataType")(precision),
+                [ArrayType.Extent.DEFERRED]*3)
+            # Since the PSyIR doesn't have the pointer concept, we have
+            # to have an UnknownFortranType.
+            dtype = UnknownFortranType(
+                f"real(kind={arg.precision}), pointer, dimension(:,:,:) "
+                f":: {new_name} => null()", partial_datatype=array_type)
+            try:
                 self._symbol_table.new_symbol(new_name,
-                                              symbol_type=DataSymbol,
-                                              datatype=array_type,
-                                              tag=ttext)
-
-        # Create symbols that we will associate with pointers to the
-        # internal data arrays of CMA operators.
-        cma_op_args = self._invoke.unique_declarations(
-            argument_types=["gh_columnwise_operator"])
-        for arg in cma_op_args:
-            ttext = f"{arg.name}:cma_matrix"
-            if ttext not in all_tags:
-                all_tags.add(ttext)
-                # Since the PSyIR doesn't have the 'pointer concept, we have
-                # to have an UnknownFortranType.
-                #   REAL(KIND=r_solver), pointer, dimension(:,:,:) :: &
-                #       op1_cma_matrix => null()
-                precision = ctable.add_lfric_precision_symbol(arg.precision)
-                # TODO use next_available_name here.
-                array_type = ArrayType(
-                    LFRicTypes("LFRicRealScalarDataType")(precision),
-                    [ArrayType.Extent.DEFERRED]*3)
-                dtype = UnknownFortranType(
-                    f"real(kind={arg.precision}), pointer, dimension(:,:,:) "
-                    f":: {arg.name}_cma_matrix => null()",
-                    partial_datatype=array_type)
-                self._symbol_table.new_symbol(arg.name+"_cma_matrix",
                                               symbol_type=DataSymbol,
                                               datatype=dtype,
                                               tag=ttext)
+            except KeyError:
+                # The tag already exists and therefore we don't need to do
+                # anything. (This can happen if the Symbol Table has already
+                # been populated by a previous call to this constructor.)
+                pass
 
     def _invoke_declarations(self, parent):
         '''
@@ -3209,8 +3193,6 @@ class DynProxies(LFRicCollection):
                 field_datatype_map[
                     (arg.proxy_data_type, arg.module_name)] = [arg]
 
-        all_tags = set()
-
         # Add the Invoke subroutine declarations for the different
         # field-type proxies
         for (fld_type, fld_mod), args in field_datatype_map.items():
@@ -3225,20 +3207,17 @@ class DynProxies(LFRicCollection):
             for arg in args:
                 (self._invoke.invokes.psy.infrastructure_modules[const_mod].
                  add(arg.precision))
+                suffix = const.ARG_TYPE_SUFFIX_MAPPING[arg.argument_type]
                 if arg.vector_size > 1:
                     entity_names = []
                     for idx in range(1, arg.vector_size+1):
-                        ttext = f"{arg.name}_{idx}:data"
-                        if ttext not in all_tags:
-                            all_tags.add(ttext)
-                            vsym = table.lookup_with_tag(ttext)
-                            entity_names.append(vsym.name)
+                        ttext = f"{arg.name}_{idx}:{suffix}"
+                        vsym = table.lookup_with_tag(ttext)
+                        entity_names.append(vsym.name)
                 else:
-                    ttext = f"{arg.name}:data"
-                    if ttext not in all_tags:
-                        all_tags.add(ttext)
-                        sym = table.lookup_with_tag(ttext)
-                        entity_names = [sym.name]
+                    ttext = f"{arg.name}:{suffix}"
+                    sym = table.lookup_with_tag(ttext)
+                    entity_names = [sym.name]
                 if entity_names:
                     parent.add(
                         DeclGen(
@@ -3271,16 +3250,15 @@ class DynProxies(LFRicCollection):
             # internal data arrays.
             for arg in operators_list:
                 name = arg.name
-                ttext = f"{name}:local_stencil"
-                if ttext not in all_tags:
-                    all_tags.add(ttext)
-                    sym = table.lookup_with_tag(ttext)
-                    # Declare the pointer to the stencil array.
-                    parent.add(DeclGen(parent, datatype="real",
-                                       kind=arg.precision,
-                                       dimension=":,:,:",
-                                       entity_decls=[f"{sym.name} => null()"],
-                                       pointer=True))
+                suffix = const.ARG_TYPE_SUFFIX_MAPPING[arg.argument_type]
+                ttext = f"{name}:{suffix}"
+                sym = table.lookup_with_tag(ttext)
+                # Declare the pointer to the stencil array.
+                parent.add(DeclGen(parent, datatype="real",
+                                   kind=arg.precision,
+                                   dimension=":,:,:",
+                                   entity_decls=[f"{sym.name} => null()"],
+                                   pointer=True))
             op_mod = operators_list[0].module_name
             # Ensure the appropriate derived datatype will be imported.
             (self._invoke.invokes.psy.infrastructure_modules[op_mod].
@@ -3306,8 +3284,9 @@ class DynProxies(LFRicCollection):
         # Create symbols that we will associate with pointers to the
         # internal data arrays.
         for arg in cma_op_args:
-            ttext = f"{arg.name}:cma_matrix"
-            sym = table.lookup_with_tag(arg.name+":cma_matrix")
+            suffix = const.ARG_TYPE_SUFFIX_MAPPING[arg.argument_type]
+            ttext = f"{arg.name}:{suffix}"
+            sym = table.lookup_with_tag(ttext)
             # Declare the pointer to the CMA matrix.
             parent.add(DeclGen(parent, datatype="real",
                                kind=arg.precision,
@@ -3338,6 +3317,10 @@ class DynProxies(LFRicCollection):
             # We don't have proxies for scalars
             if arg.is_scalar:
                 continue
+
+            const = LFRicConstants()
+            suffix = const.ARG_TYPE_SUFFIX_MAPPING[arg.argument_type]
+
             if arg.vector_size > 1:
                 # the range function below returns values from
                 # 1 to the vector size which is what we
@@ -3348,7 +3331,7 @@ class DynProxies(LFRicCollection):
                                   lhs=arg.proxy_name+"("+str(idx)+")",
                                   rhs=arg.name+"("+str(idx)+")%get_proxy()"))
                     name = self._symbol_table.lookup_with_tag(
-                        f"{arg.name}_{idx}:data").name
+                        f"{arg.name}_{idx}:{suffix}").name
                     parent.add(
                         AssignGen(parent,
                                   lhs=name,
@@ -3359,7 +3342,7 @@ class DynProxies(LFRicCollection):
                                      rhs=arg.name+"%get_proxy()"))
                 if arg.is_field:
                     name = self._symbol_table.lookup_with_tag(
-                        f"{arg.name}:data").name
+                        f"{arg.name}:{suffix}").name
                     parent.add(
                         AssignGen(parent,
                                   lhs=name,
@@ -3371,7 +3354,7 @@ class DynProxies(LFRicCollection):
                         pass
                     elif arg.argument_type == "gh_operator":
                         name = self._symbol_table.lookup_with_tag(
-                            f"{arg.name}:local_stencil").name
+                            f"{arg.name}:{suffix}").name
                         parent.add(
                             AssignGen(parent,
                                       lhs=name,
@@ -7754,6 +7737,7 @@ class DynLoop(PSyLoop):
             # long as the symbols that the DA is complaining about are fields
             # or operators then this is safe to parallelise.
             table = self.scope.symbol_table
+            suffixes_dict = LFRicConstants().ARG_TYPE_SUFFIX_MAPPING
 
             for msg in dtools.get_all_messages():
                 if msg.code != DTCode.ERROR_WRITE_WRITE_RACE:
@@ -7774,9 +7758,8 @@ class DynLoop(PSyLoop):
                     local_table = sym.find_symbol_table(self)
                     tags_dict = local_table.get_reverse_tags_dict()
                     tag = tags_dict.get(sym, "")
-                    if not (tag.endswith(":data") or
-                            tag.endswith(":local_stencil") or
-                            tag.endswith(":cma_matrix")):
+                    if not any(tag.endswith(f":{suffix}") for suffix
+                               in suffixes_dict.values()):
                         # The Symbol is not a field or operator.
                         return False
             # All of the variables referred to in all of the messages are
@@ -9702,24 +9685,18 @@ class DynKernelArgument(KernelArgument):
                     datatype=self.infer_datatype())
             return Reference(scalar_sym)
 
-        tag_name = ""
-        if self.is_field:
-            tag_name = f"{self.name}:data"
-
-        if self.is_operator:
-            if self.argument_type == "gh_operator":
-                tag_name = f"{self.name}:local_stencil"
-            elif self.argument_type == "gh_columnwise_operator":
-                tag_name = f"{self.name}:cma_matrix"
-
-        if tag_name:
+        const = LFRicConstants()
+        try:
+            suffix = const.ARG_TYPE_SUFFIX_MAPPING[self.argument_type]
+            tag_name = f"{self.name}:{suffix}"
             sym = symbol_table.lookup_with_tag(tag_name)
             return Reference(sym)
 
-        raise NotImplementedError(
-            f"Unsupported kernel argument type: '{self.name}' is of type "
-            f"'{self.argument_type}' which is not recognised as being a "
-            f"literal, scalar or field.")
+        except KeyError as err:
+            raise NotImplementedError(
+                f"Unsupported kernel argument type: '{self.name}' is of type "
+                f"'{self.argument_type}' which is not recognised as being a "
+                f"literal, scalar or field.") from err
 
     @property
     def declaration_name(self):

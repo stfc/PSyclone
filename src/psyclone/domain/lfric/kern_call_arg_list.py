@@ -82,6 +82,21 @@ class KernCallArgList(ArgOrdering):
         self._nlayers_positions = []
         self._nqp_positions = []
         self._ndf_positions = []
+        self._lfric_constants = LFRicConstants()
+
+    def _suffix_from_type(self, arg):
+        '''
+        Utility to get the symbol/tag suffix for the given Kernel argument.
+
+        :param arg: metadata describing a Kernel argument.
+        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+
+        :returns: the symbol/tag suffix for the supplied kernel argument.
+        :rtype: str
+
+        '''
+        return self._lfric_constants.ARG_TYPE_SUFFIX_MAPPING[
+            arg.argument_type]
 
     @staticmethod
     def _map_type_to_precision(data_type):
@@ -384,26 +399,15 @@ class KernCallArgList(ArgOrdering):
             :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
-        # First declare the proxy as a 1d-array:
-        lit_ind = Literal(str(argvect.vector_size), INTEGER_SINGLE_TYPE)
-        sym = self.get_user_type(argvect.module_name,
-                                 argvect.proxy_data_type,
-                                 argvect.proxy_name, shape=[lit_ind])
-
-        # the range function below returns values from
+        suffix = self._suffix_from_type(argvect)
+        # The range function below returns values from
         # 1 to the vector size which is what we
         # require in our Fortran code
-        array_1d = ArrayType(LFRicTypes("LFRicRealScalarDataType")(),
-                             [ArrayType.Extent.DEFERRED])
         for idx in range(1, argvect.vector_size + 1):
             cmpt_sym = self._symtab.lookup_with_tag(
-                f"{argvect.name}_{idx}:data")
-            # Create the accesses to each element of the vector:
-            lit_ind = Literal(str(idx), INTEGER_SINGLE_TYPE)
-            #ref = ArrayOfStructuresReference.\
-            #    create(sym, [lit_ind], ["data"], overwrite_datatype=array_1d)
+                f"{argvect.name}_{idx}:{suffix}")
             self.psyir_append(Reference(cmpt_sym))
-            text = cmpt_sym.name # f"{sym.name}({idx})%data"
+            text = cmpt_sym.name
             self.append(text, metadata_posn=argvect.metadata_index)
 
         if var_accesses is not None:
@@ -617,7 +621,7 @@ class KernCallArgList(ArgOrdering):
             op_name = "r_tran_operator"
         else:
             op_name = "operator"
-        operator = LFRicConstants().DATA_TYPE_MAP[op_name]
+        operator = self._lfric_constants.DATA_TYPE_MAP[op_name]
         self.append_structure_reference(
             operator["module"], operator["proxy_type"], ["ncell_3d"],
             arg.proxy_name_indexed,
@@ -625,11 +629,8 @@ class KernCallArgList(ArgOrdering):
         self.append(arg.proxy_name_indexed + "%ncell_3d", var_accesses,
                     mode=AccessType.READ)
 
-        #precision = KernCallArgList._map_type_to_precision(operator["type"])
-        #array_type = \
-        #    ArrayType(LFRicTypes("LFRicRealScalarDataType")(precision),
-        #              [ArrayType.Extent.DEFERRED]*3)
-        sym = self._symtab.lookup_with_tag(arg.name+":local_stencil")
+        sym = self._symtab.lookup_with_tag(
+            f"{arg.name}:{self._suffix_from_type(arg)}")
         self.psyir_append(Reference(sym))
         # The access mode of `local_stencil` is taken from the meta-data:
         self.append(sym.name, var_accesses,
@@ -810,7 +811,7 @@ class KernCallArgList(ArgOrdering):
         # Sanity check - expect the enforce_bc_code kernel to only have
         # a field argument.
         if not farg.is_field:
-            const = LFRicConstants()
+            const = self._lfric_constants
             raise GenerationError(
                 f"Expected an argument of {const.VALID_FIELD_NAMES} type "
                 f"from which to look-up boundary dofs for kernel "

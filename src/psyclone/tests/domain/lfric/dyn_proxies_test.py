@@ -136,6 +136,9 @@ def test_initialise_errors(monkeypatch):
     # Monkeypatch the first kernel argument so that it is of an unrecognised
     # type.
     monkeypatch.setattr(kern.args[0], "_argument_type", "gh_wrong")
+    # Have to ensure the suffix lookup works too.
+    monkeypatch.setattr(LFRicConstants, "ARG_TYPE_SUFFIX_MAPPING",
+                        {"gh_wrong": "data"})
     with pytest.raises(InternalError) as err:
         proxies.initialise(node)
     assert ("Kernel argument 'my_mapping' of type 'gh_wrong' not handled in "

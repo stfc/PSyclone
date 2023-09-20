@@ -49,7 +49,7 @@ from psyclone.dynamo0p3 import DynKern
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import Literal, Loop, Reference, UnaryOperation
-from psyclone.psyir.symbols import ArrayType, DeferredType, ScalarType
+from psyclone.psyir.symbols import ArrayType, ScalarType, UnknownFortranType
 from psyclone.tests.utilities import get_base_path, get_invoke
 from psyclone.transformations import Dynamo0p3ColourTrans
 
@@ -387,13 +387,10 @@ def test_kerncallarglist_bcs_operator(fortran_writer):
     check_psyir_results(create_arg_list, fortran_writer)
     assert (create_arg_list.psyir_arglist[2].datatype ==
             LFRicTypes("LFRicIntegerScalarDataType")())
-    # TODO #744 - implement support for comparing datatypes.
-    # array_type_3d = ArrayType(LFRicTypes("LFRicRealScalarDataType")(),
-    #                           [ArrayType.Extent.DEFERRED]*3)
-    # assert create_arg_list.psyir_arglist[3].datatype == array_type_3d
-    assert isinstance(create_arg_list.psyir_arglist[3].datatype, ArrayType)
-    assert create_arg_list.psyir_arglist[3].datatype.precision.name == "r_def"
-    assert len(create_arg_list.psyir_arglist[3].datatype.shape) == 3
+    arg = create_arg_list.psyir_arglist[3]
+    assert isinstance(arg.datatype, UnknownFortranType)
+    assert arg.datatype.partial_datatype.precision.name == "r_def"
+    assert len(arg.datatype.partial_datatype.shape) == 3
 
     # Also check that the structure access is correctly converted
     # into a 2-component signature:
@@ -426,9 +423,10 @@ def test_kerncallarglist_mixed_precision():
     # operator: ncell_3d:
     assert create_arg_list.psyir_arglist[4].datatype.precision.name == "i_def"
     # operator: local_stencil
-    assert isinstance(create_arg_list.psyir_arglist[5].datatype,
-                      ArrayType)
-    assert len(create_arg_list.psyir_arglist[5].datatype.shape) == 3
+    arg5 = create_arg_list.psyir_arglist[5]
+    assert isinstance(arg5.datatype, UnknownFortranType)
+    assert isinstance(arg5.datatype.partial_datatype, ArrayType)
+    assert len(arg5.datatype.partial_datatype.shape) == 3
 
     create_arg_list = KernCallArgList(schedule.kernels()[1])
     create_arg_list.generate()
@@ -437,8 +435,9 @@ def test_kerncallarglist_mixed_precision():
     assert isinstance(create_arg_list.psyir_arglist[3].datatype,
                       ArrayType)
     assert create_arg_list.psyir_arglist[4].datatype.precision.name == "i_def"
-    assert isinstance(create_arg_list.psyir_arglist[5].datatype,
-                      ArrayType)
+    arg5 = create_arg_list.psyir_arglist[5]
+    assert isinstance(arg5.datatype, UnknownFortranType)
+    assert isinstance(arg5.datatype.partial_datatype, ArrayType)
 
     create_arg_list = KernCallArgList(schedule.kernels()[2])
     create_arg_list.generate()
@@ -446,24 +445,27 @@ def test_kerncallarglist_mixed_precision():
     assert isinstance(create_arg_list.psyir_arglist[3].datatype,
                       ArrayType)
     assert create_arg_list.psyir_arglist[4].datatype.precision.name == "i_def"
-    assert isinstance(create_arg_list.psyir_arglist[5].datatype,
-                      ArrayType)
+    arg5 = create_arg_list.psyir_arglist[5]
+    assert isinstance(arg5.datatype, UnknownFortranType)
+    assert isinstance(arg5.datatype.partial_datatype, ArrayType)
 
     create_arg_list = KernCallArgList(schedule.kernels()[3])
     create_arg_list.generate()
     assert create_arg_list.psyir_arglist[2].datatype.precision.name == "r_bl"
     assert isinstance(create_arg_list.psyir_arglist[3].datatype,
                       ArrayType)
-    assert isinstance(create_arg_list.psyir_arglist[5].datatype,
-                      ArrayType)
+    arg5 = create_arg_list.psyir_arglist[5]
+    assert isinstance(arg5.datatype, UnknownFortranType)
+    assert isinstance(arg5.datatype.partial_datatype, ArrayType)
 
     create_arg_list = KernCallArgList(schedule.kernels()[4])
     create_arg_list.generate()
     assert create_arg_list.psyir_arglist[2].datatype.precision.name == "r_phys"
     assert isinstance(create_arg_list.psyir_arglist[3].datatype,
                       ArrayType)
-    assert isinstance(create_arg_list.psyir_arglist[5].datatype,
-                      ArrayType)
+    arg5 = create_arg_list.psyir_arglist[5]
+    assert isinstance(arg5.datatype, UnknownFortranType)
+    assert isinstance(arg5.datatype.partial_datatype, ArrayType)
 
 
 def test_kerncallarglist_scalar_literal(fortran_writer):

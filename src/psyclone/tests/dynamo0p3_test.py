@@ -1492,7 +1492,9 @@ def test_dynkernelargument_psyir_expression(monkeypatch):
     psyir = kern.arguments.args[0].psyir_expression()
     assert isinstance(psyir, Reference)
     assert psyir.symbol.name == "mm_w0_local_stencil"
-    assert isinstance(psyir.symbol.datatype, ArrayType)
+    assert isinstance(psyir.symbol.datatype, UnknownFortranType)
+    assert isinstance(psyir.symbol.datatype.partial_datatype, ArrayType)
+    assert len(psyir.symbol.datatype.partial_datatype.shape) == 3
     # Test for a CMA operator argument.
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "20.0.1_cma_assembly_scalar.f90"),
