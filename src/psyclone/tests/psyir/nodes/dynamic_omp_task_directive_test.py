@@ -2599,22 +2599,22 @@ def test_omp_task_directive_43(fortran_reader, fortran_writer, tmpdir):
     code = '''
     subroutine my_subroutine()
         type :: x
-          integer, dimension(320, 10) :: A
+          integer, dimension(10,320) :: A
         end type
         type(x) :: AA
-        integer, dimension(320, 10) :: B
-        integer, dimension(320, 10) :: boundary
+        integer, dimension(10,320) :: B
+        integer, dimension(10,320) :: boundary
         integer :: iplusone
         integer :: i
         integer :: j
         do i = 1, 320, 32
             do j = 1, 10
-                if(boundary(i,j) > 1) then
+                if(boundary(j,i) > 1) then
                     iplusone = i+32
                 else
                     iplusone = i-1
                 end if
-                AA%A(iplusone, j) = B(i, j) + 1
+                AA%A(j,iplusone) = B(j,i) + 1
             end do
         end do
     end subroutine
@@ -2636,15 +2636,15 @@ def test_omp_task_directive_43(fortran_reader, fortran_writer, tmpdir):
   !$omp single
   do i = 1, 320, 32
     !$omp task private(j), firstprivate(i,iplusone), shared(boundary,aa,b), \
-depend(in: boundary(i,:),b(i,:)), \
-depend(out: aa%A(i + 32,1:10),aa%A(i - 32,1:10),aa%A(i,1:10))
+depend(in: boundary(:,i),b(:,i)), \
+depend(out: aa%A(1:10,i + 32),aa%A(1:10,i - 32),aa%A(1:10,i))
     do j = 1, 10, 1
-      if (boundary(i,j) > 1) then
+      if (boundary(j,i) > 1) then
         iplusone = i + 32
       else
         iplusone = i - 1
       end if
-      aa%A(iplusone,j) = b(i,j) + 1
+      aa%A(j,iplusone) = b(j,i) + 1
     enddo
     !$omp end task'''
     assert correct in fortran_writer(tree)
