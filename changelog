@@ -590,6 +590,18 @@
 	198) PR #2283 for #2282 and #2286. Adds a get_ubound_expression
 	method to ArrayMixin (analagous to get_lbound_expression).
 
+	199) PR #2293 for #2301. Add 'is_independent' property/query to Loop.
+
+	200) PR #2309 for #1558. Add support for out-of-order parameter statements.
+
+	201) PR #2148 towards #2105. Adds {Min,Max}Val2Code transformations.
+
+	202) PR #2298 for #1987. Change all intrinsic Operations to IntrinsicCalls.
+
+	203) PR #2320 for #2242. Pin Sphinx dependency to <7 to fix RTD building step.
+
+	204) PR #2264 for #2263. Split LFRicScalarArgs from src/psyclone/dynamo0p3.py.
+
 release 2.3.1 17th of June 2022
 
 	1) PR #1747 for #1720. Adds support for If blocks to PSyAD.

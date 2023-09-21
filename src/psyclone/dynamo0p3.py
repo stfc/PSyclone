@@ -46,7 +46,7 @@
 # Imports
 import os
 from enum import Enum
-from collections import OrderedDict, namedtuple, Counter
+from collections import OrderedDict, namedtuple
 import fparser
 
 from psyclone import psyGen
@@ -61,7 +61,7 @@ from psyclone.domain.lfric import (FunctionSpace, KernCallAccArgList,
                                    LFRicArgDescriptor, KernelInterface,
                                    LFRicCollection, LFRicConstants,
                                    LFRicSymbolTable, LFRicInvoke,
-                                   LFRicKernCallFactory)
+                                   LFRicKernCallFactory, LFRicScalarArgs)
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 from psyclone.f2pygen import (AllocateGen, AssignGen, CallGen, CommentGen,
                               DeallocateGen, DeclGen, DoGen, IfThenGen,
@@ -72,7 +72,7 @@ from psyclone.parse.kernel import KernelType, getkerneldescriptors
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import (PSy, Invokes, InvokeSchedule, Arguments,
                              KernelArgument, HaloExchange, GlobalSum,
-                             FORTRAN_INTENT_NAMES, DataAccess, CodedKern)
+                             DataAccess, CodedKern)
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import (Loop, Literal, Schedule, Reference,
@@ -3105,230 +3105,6 @@ class DynCellIterators(LFRicCollection):
                 parent, lhs=self._nlayers_name,
                 rhs=self._first_var.proxy_name_indexed + "%" +
                 self._first_var.ref_name() + "%get_nlayers()"))
-
-
-class LFRicScalarArgs(LFRicCollection):
-    '''
-    Handles the declarations of scalar kernel arguments appearing in either
-    an Invoke or a Kernel stub.
-
-    :param node: the Invoke or Kernel stub for which to manage the scalar \
-                 arguments.
-    :type node: :py:class:`psyclone.dynamo0p3.DynKern` or \
-                :py:class:`psyclone.dynamo0p3.LFRicInvoke`
-
-    '''
-    def __init__(self, node):
-        super(LFRicScalarArgs, self).__init__(node)
-
-        # Initialise dictionaries of 'real', 'integer' and 'logical'
-        # scalar arguments by data type and intent
-        self._scalar_args = {}
-        self._real_scalars = {}
-        self._integer_scalars = {}
-        self._logical_scalars = {}
-        for intent in FORTRAN_INTENT_NAMES:
-            self._scalar_args[intent] = []
-            self._real_scalars[intent] = []
-            self._integer_scalars[intent] = []
-            self._logical_scalars[intent] = []
-
-    def _invoke_declarations(self, parent):
-        '''
-        Create argument lists and declarations for all scalar arguments
-        in an Invoke.
-
-        :param parent: the f2pygen node representing the PSy-layer routine \
-                       to which to add declarations.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
-
-        :raises InternalError: for unsupported argument intrinsic types.
-        :raises GenerationError: if the same scalar argument has different \
-                                 data types in different Kernel calls \
-                                 within the same Invoke.
-
-        '''
-        # Create dictionary of all scalar arguments for checks
-        const = LFRicConstants()
-        self._scalar_args = self._invoke.unique_declns_by_intent(
-            const.VALID_SCALAR_NAMES)
-        # Filter scalar arguments by intent and intrinsic type
-        self._real_scalars = self._invoke.unique_declns_by_intent(
-            const.VALID_SCALAR_NAMES,
-            intrinsic_type=const.MAPPING_DATA_TYPES["gh_real"])
-        self._integer_scalars = self._invoke.unique_declns_by_intent(
-            const.VALID_SCALAR_NAMES,
-            intrinsic_type=const.MAPPING_DATA_TYPES["gh_integer"])
-        self._logical_scalars = self._invoke.unique_declns_by_intent(
-            const.VALID_SCALAR_NAMES,
-            intrinsic_type=const.MAPPING_DATA_TYPES["gh_logical"])
-
-        for intent in FORTRAN_INTENT_NAMES:
-            scal = [arg.declaration_name for arg in self._scalar_args[intent]]
-            rscal = [arg.declaration_name for
-                     arg in self._real_scalars[intent]]
-            iscal = [arg.declaration_name for
-                     arg in self._integer_scalars[intent]]
-            lscal = [arg.declaration_name for
-                     arg in self._logical_scalars[intent]]
-            # Add "real", "integer" and "logical" scalar lists for checks
-            decl_scal = rscal + iscal + lscal
-            # Check for unsupported intrinsic types
-            scal_inv = sorted(set(scal) - set(decl_scal))
-            if scal_inv:
-                raise InternalError(
-                    f"Found unsupported intrinsic types for the scalar "
-                    f"arguments {scal_inv} to Invoke '{self._invoke.name}'. "
-                    f"Supported types are {const.VALID_INTRINSIC_TYPES}.")
-            # Check that the same scalar name is not found in either of
-            # 'real', 'integer' or 'logical' scalar lists (for instance if
-            # passed to one kernel as a 'real' and to another kernel as an
-            # 'integer' scalar)
-            scal_multi_type = [item for item, count in
-                               Counter(decl_scal).items() if count > 1]
-            if scal_multi_type:
-                raise GenerationError(
-                    f"Scalar argument(s) {scal_multi_type} in Invoke "
-                    f"'{self._invoke.name}' have different metadata for data "
-                    f"type ({list(const.MAPPING_DATA_TYPES.keys())}) in "
-                    f"different kernels. This is invalid.")
-
-        # Create declarations
-        self._create_declarations(parent)
-
-    def _stub_declarations(self, parent):
-        '''
-        Create and add declarations for all scalar arguments in
-        a Kernel stub.
-
-        :param parent: node in the f2pygen AST representing the Kernel stub \
-                       to which to add declarations.
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
-
-        :raises InternalError: for an unsupported argument data type.
-
-        '''
-        # Extract all scalar arguments
-        for arg in self._calls[0].arguments.args:
-            if arg.is_scalar:
-                self._scalar_args[arg.intent].append(arg)
-
-        const = LFRicConstants()
-        # Filter scalar arguments by intent and data type
-        for intent in FORTRAN_INTENT_NAMES:
-            for arg in self._scalar_args[intent]:
-                if arg.descriptor.data_type == "gh_real":
-                    self._real_scalars[intent].append(arg)
-                elif arg.descriptor.data_type == "gh_integer":
-                    self._integer_scalars[intent].append(arg)
-                elif arg.descriptor.data_type == "gh_logical":
-                    self._logical_scalars[intent].append(arg)
-                else:
-                    raise InternalError(
-                        f"Found an unsupported data type "
-                        f"'{arg.descriptor.data_type}' for the scalar "
-                        f"argument '{arg.declaration_name}'. Supported types "
-                        f"are {const.VALID_SCALAR_DATA_TYPES}.")
-
-        # Create declarations
-        self._create_declarations(parent)
-
-    def _create_declarations(self, parent):
-        '''Add declarations for the scalar arguments.
-
-        :param parent: the f2pygen node in which to insert declarations \
-                       (Invoke or Kernel).
-        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
-
-        :raises InternalError: if neither self._invoke nor \
-            self._kernel are set.
-
-        '''
-        const = LFRicConstants()
-        const_mod = const.UTILITIES_MOD_MAP["constants"]["module"]
-        const_mod_list = None
-        if self._invoke:
-            const_mod_list = self._invoke.invokes.psy. \
-                infrastructure_modules[const_mod]
-        # Real scalar arguments
-        for intent in FORTRAN_INTENT_NAMES:
-            if self._real_scalars[intent]:
-                # Filter scalars based on precision
-                real_scalars_precision_map = OrderedDict()
-                for real_scalar in self._real_scalars[intent]:
-                    try:
-                        real_scalars_precision_map[
-                            real_scalar.precision].append(real_scalar)
-                    except KeyError:
-                        # This precision has not been seen before so
-                        # create a new entry
-                        real_scalars_precision_map[
-                            real_scalar.precision] = [real_scalar]
-                # Declare scalars
-                for real_scalar_kind, real_scalars_list in \
-                        real_scalars_precision_map.items():
-                    real_scalar_type = real_scalars_list[0].intrinsic_type
-                    real_scalar_names = [arg.declaration_name for arg
-                                         in real_scalars_list]
-                    parent.add(
-                        DeclGen(parent, datatype=real_scalar_type,
-                                kind=real_scalar_kind,
-                                entity_decls=real_scalar_names,
-                                intent=intent))
-                    if self._invoke:
-                        if real_scalar_kind not in const_mod_list:
-                            const_mod_list.append(real_scalar_kind)
-                    elif self._kernel:
-                        self._kernel.argument_kinds.add(real_scalar_kind)
-                    else:
-                        raise InternalError(
-                            "Expected the declaration of real scalar kernel "
-                            "arguments to be for either an invoke or a "
-                            "kernel stub, but it is neither.")
-
-        # Integer scalar arguments
-        for intent in FORTRAN_INTENT_NAMES:
-            if self._integer_scalars[intent]:
-                dtype = self._integer_scalars[intent][0].intrinsic_type
-                dkind = self._integer_scalars[intent][0].precision
-                integer_scalar_names = [arg.declaration_name for arg
-                                        in self._integer_scalars[intent]]
-                parent.add(
-                    DeclGen(parent, datatype=dtype, kind=dkind,
-                            entity_decls=integer_scalar_names,
-                            intent=intent))
-                if self._invoke:
-                    if dkind not in const_mod_list:
-                        const_mod_list.append(dkind)
-                elif self._kernel:
-                    self._kernel.argument_kinds.add(dkind)
-                else:
-                    raise InternalError(
-                        "Expected the declaration of integer scalar kernel "
-                        "arguments to be for either an invoke or a "
-                        "kernel stub, but it is neither.")
-
-        # Logical scalar arguments
-        for intent in FORTRAN_INTENT_NAMES:
-            if self._logical_scalars[intent]:
-                dtype = self._logical_scalars[intent][0].intrinsic_type
-                dkind = self._logical_scalars[intent][0].precision
-                logical_scalar_names = [arg.declaration_name for arg
-                                        in self._logical_scalars[intent]]
-                parent.add(
-                    DeclGen(parent, datatype=dtype, kind=dkind,
-                            entity_decls=logical_scalar_names,
-                            intent=intent))
-                if self._invoke:
-                    if dkind not in const_mod_list:
-                        const_mod_list.append(dkind)
-                elif self._kernel:
-                    self._kernel.argument_kinds.add(dkind)
-                else:
-                    raise InternalError(
-                        "Expected the declaration of logical scalar kernel "
-                        "arguments to be for either an invoke or a "
-                        "kernel stub, but it is neither.")
 
 
 class DynLMAOperators(LFRicCollection):
@@ -7335,6 +7111,113 @@ class DynLoop(PSyLoop):
                                    f"set_clean({halo_depth})")
                     parent.add(call)
 
+    def independent_iterations(self,
+                               test_all_variables=False,
+                               signatures_to_ignore=None,
+                               dep_tools=None):
+        '''
+        This function is an LFRic-specific override of the default method
+        in the Loop class. It allows domain-specific rules to be applied when
+        determining whether or not loop iterations are independent.
+
+        :param bool test_all_variables: if True, it will test if all variable
+            accesses are independent, otherwise it will stop after the first
+            variable access is found that isn't.
+        :param signatures_to_ignore: list of signatures for which to skip
+            the access checks.
+        :type signatures_to_ignore: Optional[
+            List[:py:class:`psyclone.core.Signature`]]
+        :param dep_tools: an optional instance of DependencyTools so that the
+            caller can access any diagnostic messages detailing why the loop
+            iterations are not independent.
+        :type dep_tools: Optional[
+            :py:class:`psyclone.psyir.tools.DependencyTools]
+
+        :returns: True if the loop iterations are independent, False otherwise.
+        :rtype: bool
+
+        '''
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.tools import DependencyTools, DTCode
+        if not dep_tools:
+            dtools = DependencyTools()
+        else:
+            dtools = dep_tools
+
+        if self.loop_type in ["null", "colours"]:
+            # We know we can't parallelise these loops. ("null" means there
+            # is no actual loop and "colours" is the *outer* loop over the
+            # different colours used - it is the inner, "colour" loop over
+            # cells of a single colour which can be parallelised.)
+            return False
+
+        try:
+            stat = dtools.can_loop_be_parallelised(
+                self, test_all_variables=test_all_variables,
+                signatures_to_ignore=signatures_to_ignore)
+            if stat:
+                return True
+        except (InternalError, KeyError):
+            # LFRic still has symbols that don't exist in the symbol_table
+            # until the gen_code() step, so the dependency analysis raises
+            # errors in some cases.
+            # TODO #1648 - when a transformation colours a loop we must
+            # ensure "last_[halo]_cell_all_colours" is added to the symbol
+            # table.
+            return True
+
+        # The generic DA says that this loop cannot be parallelised. However,
+        # that is often because it wrongly identifies field/operator array
+        # accesses (e.g. fld_proxy%data) as being scalars that are written to.
+        if self.loop_type in ["colour", "dof"]:
+            # This loop is either over cells of a single colour or DoFs. So
+            # long as the symbols that the DA is complaining about are fields
+            # or operators then this is safe to parallelise.
+            table = self.scope.symbol_table
+            # Create the set of all LFRic field types.
+            all_fld_names = set(desc["type"] for desc in
+                                LFRicConstants().DATA_TYPE_MAP.values())
+
+            for msg in dtools.get_all_messages():
+                if msg.code != DTCode.WARN_SCALAR_WRITTEN_ONCE:
+                    # The DA is complaining about something other than writing
+                    # to (what it thinks is) a scalar.  Therefore the loop
+                    # cannot be parallelised.
+                    return False
+                # Currently the DA (wrongly) identifies things like
+                # 'fld_proxy%data' as being scalar accesses. We therefore need
+                # to check that the argument it says is a scalar is in fact a
+                # field. If it is, this is safe to parallelise (because an
+                # LFRic Kernel is constrained to write to dofs in the 'owned'
+                # column).
+                # TODO #2197 - when we change the PSy layer to pass field
+                # pointers to kernels, the DA will identify that they are
+                # arrays and this logic will need to be changed.
+                for name in msg.var_names:
+                    sym = table.lookup(name)
+                    # Ideally at this point we would compare sym.datatype with
+                    # LFRicTypes("RealFieldDataType") etc. but the LFRic PSy
+                    # layer doesn't use those types yet.
+                    if not (isinstance(sym.datatype, DataTypeSymbol) and
+                            sym.datatype.name in all_fld_names):
+                        # The Symbol is not a field or operator.
+                        return False
+            # All of the variables referred to in all of the messages are
+            # actually fields - it is safe to ignore this warning.
+            return True
+
+        if self.loop_type == "":
+            # We can parallelise a non-coloured loop if it only updates
+            # quantities on discontinuous function spaces. If an LFRic kernel
+            # updates quantities on a continuous function space then it must
+            # have at least one argument with GH_INC access. Therefore, we
+            # can simply check whether or not it has such an argument in order
+            # to infer the continuity of the space.
+            return not self.has_inc_arg()
+
+        raise InternalError(f"independent_iterations: loop of type "
+                            f"'{self.loop_type}' is not supported.")
+
 
 class DynKern(CodedKern):
     ''' Stores information about Dynamo Kernels as specified by the
@@ -9566,7 +9449,6 @@ __all__ = [
     'LFRicFields',
     'DynProxies',
     'DynCellIterators',
-    'LFRicScalarArgs',
     'DynLMAOperators',
     'DynCMAOperators',
     'DynMeshes',

@@ -43,11 +43,11 @@ restriction that the first matrix must be of at least rank 2.
 
 '''
 from psyclone.psyir.nodes import BinaryOperation, Assignment, Reference, \
-    Loop, Literal, ArrayReference, Range
+    Loop, Literal, ArrayReference, Range, IntrinsicCall
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, REAL_TYPE, \
     ArrayType
-from psyclone.psyir.transformations.intrinsics.operator2code_trans import \
-    Operator2CodeTrans
+from psyclone.psyir.transformations.intrinsics.intrinsic2code_trans import \
+    Intrinsic2CodeTrans
 
 
 def _create_matrix_ref(matrix_symbol, loop_idx_symbols, other_dims):
@@ -106,29 +106,33 @@ def _get_array_bound(array, index):
             f"Unsupported index type found for array '{array.name}': "
             f"{err}") from err
 
+    dim_index = index + 1  # The Fortran dim argument is 1-indexed
     if isinstance(my_dim, ArrayType.ArrayBounds):
         # Use .copy() to ensure we return new nodes.
         lower_bound = my_dim.lower.copy()
         if my_dim.upper == ArrayType.Extent.ATTRIBUTE:
             # Assumed-shape array.
-            upper_bound = BinaryOperation.create(
-                BinaryOperation.Operator.UBOUND, Reference(array.symbol),
-                Literal(str(index), INTEGER_TYPE))
+            upper_bound = IntrinsicCall.create(
+                IntrinsicCall.Intrinsic.UBOUND,
+                [Reference(array.symbol),
+                 ("dim", Literal(str(dim_index), INTEGER_TYPE))])
         else:
             upper_bound = my_dim.upper.copy()
     else:
-        lower_bound = BinaryOperation.create(
-            BinaryOperation.Operator.LBOUND, Reference(array.symbol),
-            Literal(str(index), INTEGER_TYPE))
-        upper_bound = BinaryOperation.create(
-            BinaryOperation.Operator.UBOUND, Reference(array.symbol),
-            Literal(str(index), INTEGER_TYPE))
+        lower_bound = IntrinsicCall.create(
+            IntrinsicCall.Intrinsic.LBOUND,
+            [Reference(array.symbol),
+             ("dim", Literal(str(dim_index), INTEGER_TYPE))])
+        upper_bound = IntrinsicCall.create(
+            IntrinsicCall.Intrinsic.UBOUND,
+            [Reference(array.symbol),
+             ("dim", Literal(str(dim_index), INTEGER_TYPE))])
 
     step = Literal("1", INTEGER_TYPE)
     return (lower_bound, upper_bound, step)
 
 
-class Matmul2CodeTrans(Operator2CodeTrans):
+class Matmul2CodeTrans(Intrinsic2CodeTrans):
     '''Provides a transformation from a PSyIR MATMUL Operator node to
     equivalent code in a PSyIR tree. Validity checks are also
     performed.
@@ -167,9 +171,7 @@ class Matmul2CodeTrans(Operator2CodeTrans):
     '''
     def __init__(self):
         super().__init__()
-        self._operator_name = "MATMUL"
-        self._classes = (BinaryOperation,)
-        self._operators = (BinaryOperation.Operator.MATMUL,)
+        self._intrinsic = IntrinsicCall.Intrinsic.MATMUL
 
     def validate(self, node, options=None):
         '''Perform checks to ensure that it is valid to apply the

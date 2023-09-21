@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2022, Science and Technology Facilities Council.
+# Copyright (c) 2020-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,36 +32,36 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: R. W. Ford, STFC Daresbury Laboratory
-# Modified: A. R. Porter, STFC Daresbury Laboratory
+# Modified: A. R. Porter and S. Siso, STFC Daresbury Laboratory
 
-'''Module containing tests for the operator abstract class which
-provides common functionality for the intrinsic operator
-transformations (such as MIN, ABS and SIGN).'''
+'''Module containing tests for the Intrinsic2CodeTrans abstract class which
+provides common functionality for the intrinsic transformations (such as MIN,
+ABS and SIGN).'''
 
-from __future__ import absolute_import
 import pytest
 from psyclone.psyir.transformations import TransformationError
-from psyclone.psyir.transformations.intrinsics.operator2code_trans import \
-    Operator2CodeTrans
+from psyclone.psyir.transformations.intrinsics.intrinsic2code_trans import (
+    Intrinsic2CodeTrans)
 from psyclone.psyir.symbols import DataSymbol, REAL_TYPE
-from psyclone.psyir.nodes import Reference, UnaryOperation, Assignment, Literal
+from psyclone.psyir.nodes import (
+    Reference, Assignment, Literal, IntrinsicCall)
 
 
 def test_create():
     # pylint: disable=abstract-class-instantiated
-    '''Check that Operator2CodeTrans is abstract.'''
+    '''Check that Intrinsic2CodeTrans is abstract.'''
     with pytest.raises(TypeError) as excinfo:
-        _ = Operator2CodeTrans()
+        _ = Intrinsic2CodeTrans()
     msg = str(excinfo.value)
     # Have to split this check as Python >= 3.10 spots that 'method'
     # should be singular.
-    assert ("Can't instantiate abstract class Operator2CodeTrans with "
+    assert ("Can't instantiate abstract class Intrinsic2CodeTrans with "
             "abstract method" in msg)
     assert " apply" in msg
 
 
-class DummyTrans(Operator2CodeTrans):
-    '''Dummy transformation class used to test Operator2CodeTrans
+class DummyTrans(Intrinsic2CodeTrans):
+    '''Dummy transformation class used to test Intrinsic2CodeTrans
     methods.'''
     # pylint: disable=arguments-differ, no-method-argument
     def apply():
@@ -72,56 +72,46 @@ def test_init():
     '''Check that internal variables are initialised as expected.'''
 
     dummy = DummyTrans()
-    assert dummy._operator_name is None
-    assert dummy._classes is None
-    assert dummy._operators is None
+    assert dummy._intrinsic is None
 
 
 def test_str_name():
     '''Check that str and name methods behave as expected.'''
 
     dummy = DummyTrans()
-    # operator_name is usually set by the Transformation's __init__
-    # method but set it manually here to avoid creating multiple
-    # implementations of DummyTrans.
-    dummy._operator_name = "hello"
-    assert (str(dummy) == "Convert the PSyIR HELLO intrinsic to equivalent "
+    dummy._intrinsic = IntrinsicCall.Intrinsic.SUM
+    assert (str(dummy) == "Convert the PSyIR 'SUM' intrinsic to equivalent "
             "PSyIR code.")
-    assert dummy.name == "Hello2CodeTrans"
+    assert dummy.name == "DummyTrans"
 
 
 def test_validate():
     '''Check that the validate method raises exceptions as expected.'''
 
     dummy = DummyTrans()
-    # operator_name, classes and operators are usually set by the
-    # Transformation's __init__ method but set them manually here to
-    # avoid creating multiple implementations of DummyTrans.
-    dummy._operator_name = "hello"
-    dummy._classes = (UnaryOperation,)
-    dummy._operators = (UnaryOperation.Operator.ABS,)
+    dummy._intrinsic = IntrinsicCall.Intrinsic.ABS
 
     var = Literal("0.0", REAL_TYPE)
-    operator = UnaryOperation.create(UnaryOperation.Operator.ABS, var)
+    intrinsic = IntrinsicCall.create(IntrinsicCall.Intrinsic.ABS, [var])
 
     with pytest.raises(TransformationError) as excinfo:
-        dummy.validate(operator)
+        dummy.validate(intrinsic)
     assert ("This transformation requires the operator to be part of an "
             "assignment statement, but no such assignment was found."
             in str(excinfo.value))
 
     reference = Reference(DataSymbol("fred", REAL_TYPE))
-    _ = Assignment.create(lhs=reference, rhs=operator)
+    _ = Assignment.create(lhs=reference, rhs=intrinsic)
 
     with pytest.raises(TransformationError) as excinfo:
         dummy.validate(None)
-    assert ("The supplied node argument is not a hello operator, found "
+    assert ("The supplied node must be an 'IntrinsicCall', but found "
             "'NoneType'." in str(excinfo.value))
 
     with pytest.raises(TransformationError) as excinfo:
-        dummy.validate(UnaryOperation(UnaryOperation.Operator.SIN, var))
-    assert ("Error in Hello2CodeTrans transformation. The supplied node "
-            "operator is invalid, found 'Operator.SIN', but expected one "
-            "of '['ABS']'." in str(excinfo.value))
+        dummy.validate(IntrinsicCall.create(
+                           IntrinsicCall.Intrinsic.COS, [var.detach()]))
+    assert ("Error in DummyTrans transformation. The supplied IntrinsicCall "
+            "must be a 'ABS' but found: 'COS'." in str(excinfo.value))
 
-    dummy.validate(operator)
+    dummy.validate(intrinsic)
