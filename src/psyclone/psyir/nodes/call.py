@@ -347,6 +347,14 @@ class Call(Statement, DataNode):
         '''
         return self._routine.is_pure
 
+    def is_available_on_device(self):
+        '''
+        :returns: whether this intrinsic is available on an accelerated device.
+        :rtype: bool
+
+        '''
+        return False
+
     @property
     def argument_names(self):
         '''

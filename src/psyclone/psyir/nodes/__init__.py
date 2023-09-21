@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2022, Science and Technology Facilities Council.
+# Copyright (c) 2020-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -39,6 +39,8 @@
 
 ''' PSyIR nodes package module '''
 
+from psyclone.psyir.nodes.acc_clauses import (ACCCopyClause, ACCCopyInClause,
+                                              ACCCopyOutClause)
 from psyclone.psyir.nodes.array_reference import ArrayReference
 from psyclone.psyir.nodes.array_of_structures_reference import (
     ArrayOfStructuresReference)
@@ -53,7 +55,7 @@ from psyclone.psyir.nodes.array_member import ArrayMember
 from psyclone.psyir.nodes.array_of_structures_member import \
     ArrayOfStructuresMember
 from psyclone.psyir.nodes.operation import Operation, UnaryOperation, \
-    BinaryOperation, NaryOperation
+    BinaryOperation
 from psyclone.psyir.nodes.literal import Literal
 from psyclone.psyir.nodes.if_block import IfBlock
 from psyclone.psyir.nodes.intrinsic_call import IntrinsicCall
@@ -115,7 +117,6 @@ __all__ = [
         'Literal',
         'Loop',
         'Member',
-        'NaryOperation',
         'Node',
         'OperandClause',
         'Operation',
@@ -142,6 +143,7 @@ __all__ = [
         'Directive',
         'RegionDirective',
         'StandaloneDirective',
+        # OpenACC Directive Nodes
         'ACCDirective',
         'ACCRegionDirective',
         'ACCStandaloneDirective',
@@ -152,6 +154,11 @@ __all__ = [
         'ACCKernelsDirective',
         'ACCUpdateDirective',
         'ACCRoutineDirective',
+        # OpenACC Clause Nodes
+        'ACCCopyClause',
+        'ACCCopyInClause',
+        'ACCCopyOutClause',
+        # OpenMP Directive Nodes
         'OMPDirective',
         'OMPRegionDirective',
         'OMPStandaloneDirective',

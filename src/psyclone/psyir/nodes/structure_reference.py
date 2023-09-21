@@ -258,8 +258,8 @@ class StructureReference(Reference):
         ''':returns: the Signature of this structure reference, and \
             a list of the indices used for each component (empty list \
             if an access is not an array).
-        :rtype: tuple(:py:class:`psyclone.core.Signature`, list of \
-            list of indices)
+        :rtype: Tuple[:py:class:`psyclone.core.Signature`, \
+                      List[List[:py:class:`psyclone.psyir.nodes.Node`]]]
 
         '''
         # Get the signature of self:
