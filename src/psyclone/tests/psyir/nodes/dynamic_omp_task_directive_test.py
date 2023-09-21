@@ -198,8 +198,8 @@ def test_omp_task_directive_4(fortran_reader, fortran_writer, tmpdir):
         integer :: k
         do i = 1, 10
             do j = 1, 10
-                A(i, j) = k
-                A(i, j) = B(i+1, j) + k
+                A(j, i) = k
+                A(j, i) = B(j, i+1) + k
             end do
         end do
     end subroutine
@@ -217,10 +217,10 @@ def test_omp_task_directive_4(fortran_reader, fortran_writer, tmpdir):
     strans.apply(loops[0])
     ptrans.apply(loops[0].parent.parent)
     correct = '''!$omp task private(j), firstprivate(i), shared(a,b), \
-depend(in: k,b(i + 1,:)), depend(out: a(i,:))
+depend(in: k,b(:,i + 1)), depend(out: a(:,i))
     do j = 1, 10, 1
-      a(i,j) = k
-      a(i,j) = b(i + 1,j) + k
+      a(j,i) = k
+      a(j,i) = b(j,i + 1) + k
     enddo
     !$omp end task
   '''
@@ -242,8 +242,8 @@ def test_omp_task_directive_5(fortran_reader, fortran_writer, tmpdir):
         integer :: k
         do i = 1, 320, 32
             do j = 1, 32
-                A(i, j) = k
-                A(i, j) = B(i+1, j) + k
+                A(j, i) = k
+                A(j, i) = B(j, i+1) + k
             end do
         end do
     end subroutine
@@ -264,10 +264,10 @@ def test_omp_task_directive_5(fortran_reader, fortran_writer, tmpdir):
   !$omp single
   do i = 1, 320, 32
     !$omp task private(j), firstprivate(i), shared(a,b), \
-depend(in: k,b(i + 32,:),b(i,:)), depend(out: a(i,:))
+depend(in: k,b(:,i + 32),b(:,i)), depend(out: a(:,i))
     do j = 1, 32, 1
-      a(i,j) = k
-      a(i,j) = b(i + 1,j) + k
+      a(j,i) = k
+      a(j,i) = b(j,i + 1) + k
     enddo
     !$omp end task
   enddo
@@ -291,7 +291,7 @@ def test_omp_task_directive_6(fortran_reader, fortran_writer, tmpdir):
         do i = 1, 320, 32
             do ii=i, i+32
                 do j = 1, 32
-                    A(ii, j) = B(ii+1, j) + k
+                    A(j, ii) = B(j, ii+1) + k
                 end do
             end do
         end do
@@ -311,10 +311,10 @@ def test_omp_task_directive_6(fortran_reader, fortran_writer, tmpdir):
     ptrans.apply(loops[0].parent.parent)
     correct = '''\
     !$omp task private(ii,j), firstprivate(i), shared(a,b), \
-depend(in: b(i + 32,:),b(i,:),k), depend(out: a(i,:))
+depend(in: b(:,i + 32),b(:,i),k), depend(out: a(:,i))
     do ii = i, i + 32, 1
       do j = 1, 32, 1
-        a(ii,j) = b(ii + 1,j) + k
+        a(j,ii) = b(j,ii + 1) + k
       enddo
     enddo
     !$omp end task'''
@@ -441,7 +441,7 @@ def test_omp_task_directive_9(fortran_reader, fortran_writer, tmpdir):
         do i = 1, 320, 32
             do ii=i, i+32
                 do j = 1, 32
-                    A(ii+1, j) = B(ii, j) + k
+                    A(j, ii+1) = B(j, ii) + k
                 end do
             end do
         end do
@@ -460,10 +460,10 @@ def test_omp_task_directive_9(fortran_reader, fortran_writer, tmpdir):
     strans.apply(loops[0])
     ptrans.apply(loops[0].parent.parent)
     correct = '''!$omp task private(ii,j), firstprivate(i), shared(a,b), \
-depend(in: b(i,:),k), depend(out: a(i + 32,:),a(i,:))
+depend(in: b(:,i),k), depend(out: a(:,i + 32),a(:,i))
     do ii = i, i + 32, 1
       do j = 1, 32, 1
-        a(ii + 1,j) = b(ii,j) + k
+        a(j,ii + 1) = b(j,ii) + k
       enddo
     enddo
     !$omp end task'''
@@ -586,8 +586,8 @@ def test_omp_task_directive_36(fortran_reader, fortran_writer, tmpdir):
 
         do i = 1, 10, 1
             do j = l, m, n
-                A(i, j) = k
-                A(i, j) = B(i+1, j) + k
+                A(j, i) = k
+                A(j, i) = B(j, i+1) + k
             end do
         end do
     end subroutine
@@ -605,10 +605,10 @@ def test_omp_task_directive_36(fortran_reader, fortran_writer, tmpdir):
     strans.apply(loops[0])
     ptrans.apply(loops[0].parent.parent)
     correct = '''!$omp task private(j), firstprivate(l,m,n,i), shared(a,b), \
-depend(in: k,b(i + 1,:)), depend(out: a(i,:))
+depend(in: k,b(:,i + 1)), depend(out: a(:,i))
     do j = l, m, n
-      a(i,j) = k
-      a(i,j) = b(i + 1,j) + k
+      a(j,i) = k
+      a(j,i) = b(j,i + 1) + k
     enddo
     !$omp end task'''
     assert correct in fortran_writer(tree)
@@ -636,8 +636,8 @@ def test_omp_task_directive_37(fortran_reader, fortran_writer, tmpdir):
 
         do i = 1, 10, 1
             do j = l%k, m%k, n%k
-                A(i, j) = k
-                A(i, j) = B(i+1, j) + k
+                A(j, i) = k
+                A(j, i) = B(j, i+1) + k
             end do
         end do
     end subroutine
@@ -655,10 +655,10 @@ def test_omp_task_directive_37(fortran_reader, fortran_writer, tmpdir):
     strans.apply(loops[0])
     ptrans.apply(loops[0].parent.parent)
     correct = '''!$omp task private(j), firstprivate(i), shared(l,m,n,a,b), \
-depend(in: l,m,n,k,b(i + 1,:)), depend(out: a(i,:))
+depend(in: l,m,n,k,b(:,i + 1)), depend(out: a(:,i))
     do j = l%k, m%k, n%k
-      a(i,j) = k
-      a(i,j) = b(i + 1,j) + k
+      a(j,i) = k
+      a(j,i) = b(j,i + 1) + k
     enddo
     !$omp end task'''
     assert correct in fortran_writer(tree)
@@ -679,7 +679,7 @@ def test_omp_task_directive_45(fortran_reader, fortran_writer, tmpdir):
         do i = 1, 320, 32
             do ii=i, i+32
                 do j = 1, 32
-                    A(ii, j) = B(ii+1, j) + k
+                    A(j, ii) = B(j, ii+1) + k
                 end do
             end do
         end do
@@ -698,10 +698,10 @@ def test_omp_task_directive_45(fortran_reader, fortran_writer, tmpdir):
     strans.apply(loops[0])
     ptrans.apply(loops[0].parent.parent)
     correct = '''!$omp task private(ii,j), firstprivate(i), shared(a,b), \
-depend(in: b(i + 32,:),b(i,:)), depend(out: a(i,:))
+depend(in: b(:,i + 32),b(:,i)), depend(out: a(:,i))
     do ii = i, i + 32, 1
       do j = 1, 32, 1
-        a(ii,j) = b(ii + 1,j) + k
+        a(j,ii) = b(j,ii + 1) + k
       enddo
     enddo
     !$omp end task'''
@@ -856,10 +856,10 @@ def test_omp_task_directive_13(fortran_reader, fortran_writer, tmpdir):
         integer :: k
         do i = 1, 320, 32
             do j = 1, 32
-                A(i, j) = k
-                A(i, j) = B(1+i, j) + k
-                A(i, j) = B(33+i, j) + k
-                A(i, j) = B(32+i, j) + k
+                A(j,i) = k
+                A(j,i) = B(j, 1+i) + k
+                A(j,i) = B(j, 33+i) + k
+                A(j,i) = B(j, 32+i) + k
             end do
         end do
     end subroutine
@@ -877,12 +877,12 @@ def test_omp_task_directive_13(fortran_reader, fortran_writer, tmpdir):
     strans.apply(loops[0])
     ptrans.apply(loops[0].parent.parent)
     correct = '''!$omp task private(j), firstprivate(i), shared(a,b), \
-depend(in: k,b(32 + i,:),b(i,:),b(2 * 32 + i,:)), depend(out: a(i,:))
+depend(in: k,b(:,32 + i),b(:,i),b(:,2 * 32 + i)), depend(out: a(:,i))
     do j = 1, 32, 1
-      a(i,j) = k
-      a(i,j) = b(1 + i,j) + k
-      a(i,j) = b(33 + i,j) + k
-      a(i,j) = b(32 + i,j) + k
+      a(j,i) = k
+      a(j,i) = b(j,1 + i) + k
+      a(j,i) = b(j,33 + i) + k
+      a(j,i) = b(j,32 + i) + k
     enddo
     !$omp end task'''
     assert correct in fortran_writer(tree)
@@ -1073,8 +1073,8 @@ def test_omp_task_directive_14(fortran_reader, fortran_writer, tmpdir):
             k = 9
             do ii=i, i+32
                 do j = 1, 32
-                    A(ii, j) = B(ii+1, k) + k
-                    A(ii, j) = B(ii+1, k) + 1
+                    A(j, ii) = B(k, ii+1) + k
+                    A(j, ii) = B(k, ii+1) + 1
                 end do
             end do
         end do
@@ -1097,11 +1097,11 @@ def test_omp_task_directive_14(fortran_reader, fortran_writer, tmpdir):
   do i = 1, 320, 32
     k = 9
     !$omp task private(ii,j), firstprivate(i,k), shared(a,b), \
-depend(in: b(i + 32,k),b(i,k)), depend(out: a(i,:))
+depend(in: b(k,i + 32),b(k,i)), depend(out: a(:,i))
     do ii = i, i + 32, 1
       do j = 1, 32, 1
-        a(ii,j) = b(ii + 1,k) + k
-        a(ii,j) = b(ii + 1,k) + 1
+        a(j,ii) = b(k,ii + 1) + k
+        a(j,ii) = b(k,ii + 1) + 1
       enddo
     enddo
     !$omp end task'''
@@ -1125,7 +1125,7 @@ def test_omp_task_directive_15(fortran_reader, fortran_writer, tmpdir):
             k = k + i
             do ii=i, i+32
                 do j = 1, 32
-                    k = k + B(ii+1, j) + 1
+                    k = k + B(j, ii+1) + 1
                 end do
             end do
         end do
@@ -1144,10 +1144,10 @@ def test_omp_task_directive_15(fortran_reader, fortran_writer, tmpdir):
     strans.apply(loops[0])
     ptrans.apply(tree.children[0].children[:])
     correct = '''!$omp task private(ii,j), firstprivate(i), shared(k,b), \
-depend(in: k,b(i + 32,:),b(i,:)), depend(out: k)
+depend(in: k,b(:,i + 32),b(:,i)), depend(out: k)
     do ii = i, i + 32, 1
       do j = 1, 32, 1
-        k = k + b(ii + 1,j) + 1
+        k = k + b(j,ii + 1) + 1
       enddo
     enddo
     !$omp end task'''
@@ -1360,7 +1360,7 @@ def test_omp_task_directive_20(fortran_reader, fortran_writer, tmpdir):
         do i = 1, 320, 32
             do ii=i, i+32
                 do j = 1, 32
-                    A(ii, j) = B(1, j) + 1
+                    A(j, ii) = B(j, 1) + 1
                 end do
             end do
         end do
@@ -1379,10 +1379,10 @@ def test_omp_task_directive_20(fortran_reader, fortran_writer, tmpdir):
     strans.apply(loops[0])
     ptrans.apply(tree.children[0].children[:])
     correct = '''!$omp task private(ii,j), firstprivate(i), shared(a,b), \
-depend(in: b(1,:)), depend(out: a(i,:))
+depend(in: b(:,1)), depend(out: a(:,i))
     do ii = i, i + 32, 1
       do j = 1, 32, 1
-        a(ii,j) = b(1,j) + 1
+        a(j,ii) = b(j,1) + 1
       enddo
     enddo
     !$omp end task'''
@@ -1403,7 +1403,7 @@ def test_omp_task_directive_21(fortran_reader, fortran_writer, tmpdir):
         do i = 1, 320, 32
             do ii=i, i+32
                 do j = 1, 32
-                    A(ii, 1) = B(ii, j) + 1
+                    A(1, ii) = B(j, ii) + 1
                 end do
             end do
         end do
@@ -1422,10 +1422,10 @@ def test_omp_task_directive_21(fortran_reader, fortran_writer, tmpdir):
     strans.apply(loops[0])
     ptrans.apply(tree.children[0].children[:])
     correct = '''!$omp task private(ii,j), firstprivate(i), shared(a,b), \
-depend(in: b(i,:)), depend(out: a(i,1))
+depend(in: b(:,i)), depend(out: a(1,i))
     do ii = i, i + 32, 1
       do j = 1, 32, 1
-        a(ii,1) = b(ii,j) + 1
+        a(1,ii) = b(j,ii) + 1
       enddo
     enddo
     !$omp end task'''
@@ -1637,10 +1637,10 @@ def test_omp_task_directive_22(fortran_reader, fortran_writer, tmpdir):
         do i = 1, 320, 32
             do ii = i, i + 32
                 do j = 1, 32
-                    A(i, j) = k
-                    A(i, j) = B(1+ii, j) + k
-                    A(i, j) = B(33+ii, j) + k
-                    A(i, j) = B(32+ii, j) + k
+                    A(j, i) = k
+                    A(j, i) = B(j, 1+ii) + k
+                    A(j, i) = B(j, 33+ii) + k
+                    A(j, i) = B(j, 32+ii) + k
                 end do
             end do
         end do
@@ -1659,13 +1659,13 @@ def test_omp_task_directive_22(fortran_reader, fortran_writer, tmpdir):
     strans.apply(loops[0])
     ptrans.apply(loops[0].parent.parent)
     correct = '''!$omp task private(ii,j), firstprivate(i), shared(a,b), \
-depend(in: k,b(32 + i,:),b(i,:),b(2 * 32 + i,:)), depend(out: a(i,:))
+depend(in: k,b(:,32 + i),b(:,i),b(:,2 * 32 + i)), depend(out: a(:,i))
     do ii = i, i + 32, 1
       do j = 1, 32, 1
-        a(i,j) = k
-        a(i,j) = b(1 + ii,j) + k
-        a(i,j) = b(33 + ii,j) + k
-        a(i,j) = b(32 + ii,j) + k
+        a(j,i) = k
+        a(j,i) = b(j,1 + ii) + k
+        a(j,i) = b(j,33 + ii) + k
+        a(j,i) = b(j,32 + ii) + k
       enddo
     enddo
     !$omp end task'''
@@ -1688,9 +1688,9 @@ def test_omp_task_directive_23(fortran_reader, fortran_writer, tmpdir):
             do ii = i, i + 32
                 k = 3
                 do j = 1, 32
-                    A(i, j+1) = k
+                    A(j+1,i) = k
                 end do
-                A(i,k + 2) = 3
+                A(k+2,i) = 3
             end do
         end do
     end subroutine
@@ -1710,13 +1710,13 @@ def test_omp_task_directive_23(fortran_reader, fortran_writer, tmpdir):
     correct = '''!$omp parallel default(shared), private(i,ii,j,k)
   !$omp single
   do i = 1, 320, 32
-    !$omp task private(ii,k,j), firstprivate(i), shared(a), depend(out: a(i,:))
+    !$omp task private(ii,k,j), firstprivate(i), shared(a), depend(out: a(:,i))
     do ii = i, i + 32, 1
       k = 3
       do j = 1, 32, 1
-        a(i,j + 1) = k
+        a(j + 1,i) = k
       enddo
-      a(i,k + 2) = 3
+      a(k + 2,i) = 3
     enddo
     !$omp end task'''
     assert correct in fortran_writer(tree)
@@ -1780,7 +1780,7 @@ def test_omp_task_directive_25(fortran_reader, fortran_writer, tmpdir):
             if(statement) then
               k = 30
             end if
-            A(ii,k+1) = 20
+            A(k+1,ii) = 20
           end do
         end do
     end subroutine
@@ -1802,12 +1802,12 @@ def test_omp_task_directive_25(fortran_reader, fortran_writer, tmpdir):
   !$omp single
   do i = 1, 320, 32
     !$omp task private(ii), firstprivate(i,k), shared(a), \
-depend(in: statement), depend(out: a(i,:))
+depend(in: statement), depend(out: a(:,i))
     do ii = i, i + 32, 1
       if (statement) then
         k = 30
       end if
-      a(ii,k + 1) = 20
+      a(k + 1,ii) = 20
     enddo
     !$omp end task'''
     assert correct in fortran_writer(tree)
@@ -1902,8 +1902,8 @@ def test_omp_task_directive_28(fortran_reader, fortran_writer, tmpdir):
         do i = 1, 10
             do j = 1, 10
                 iu = i + 1
-                A(i, j) = k
-                A(i, j) = B(iu, j) + k
+                A(j, i) = k
+                A(j, i) = B(j, iu) + k
             end do
         end do
     end subroutine
@@ -1924,11 +1924,11 @@ def test_omp_task_directive_28(fortran_reader, fortran_writer, tmpdir):
   !$omp single
   do i = 1, 10, 1
     !$omp task private(j,iu), firstprivate(i), shared(a,b), \
-depend(in: k,b(i + 1,:)), depend(out: a(i,:))
+depend(in: k,b(:,i + 1)), depend(out: a(:,i))
     do j = 1, 10, 1
       iu = i + 1
-      a(i,j) = k
-      a(i,j) = b(iu,j) + k
+      a(j,i) = k
+      a(j,i) = b(j,iu) + k
     enddo
     !$omp end task'''
     assert correct in fortran_writer(tree)
@@ -2380,8 +2380,8 @@ def test_omp_task_directive_39(fortran_reader, fortran_writer, tmpdir):
         do i = 1, 320, 32
             do j = 1, 32
                 iplusone = i + 1
-                A(i, j) = k
-                A(i, j) = B(iplusone, j) + k
+                A(j, i) = k
+                A(j, i) = B(j, iplusone) + k
             end do
         end do
     end subroutine
@@ -2402,11 +2402,11 @@ def test_omp_task_directive_39(fortran_reader, fortran_writer, tmpdir):
   !$omp single
   do i = 1, 320, 32
     !$omp task private(j,iplusone), firstprivate(i), shared(a,b), \
-depend(in: k,b(i + 32,:),b(i,:)), depend(out: a(i,:))
+depend(in: k,b(:,i + 32),b(:,i)), depend(out: a(:,i))
     do j = 1, 32, 1
       iplusone = i + 1
-      a(i,j) = k
-      a(i,j) = b(iplusone,j) + k
+      a(j,i) = k
+      a(j,i) = b(j,iplusone) + k
     enddo
     !$omp end task'''
     assert correct in fortran_writer(tree)
@@ -2431,12 +2431,12 @@ def test_omp_task_directive_40(fortran_reader, fortran_writer, tmpdir):
         integer :: k
         do i = 1, 320, 32
             do j = 1, 32
-                if(boundary(i,j) > 1) then
+                if(boundary(j,i) > 1) then
                     iplusone = i + 1
                 else
                     iplusone = i - 1
                 endif
-                A(iplusone, j) = B(i, j) + k
+                A(j,iplusone) = B(j, i) + k
             end do
         end do
     end subroutine
@@ -2458,14 +2458,14 @@ def test_omp_task_directive_40(fortran_reader, fortran_writer, tmpdir):
   !$omp single
   do i = 1, 320, 32
     !$omp task private(j), firstprivate(i,iplusone), shared(boundary,a,b), \
-depend(in: boundary(i,:),b(i,:),k), depend(out: a(i + 32,:),a(i,:),a(i - 32,:))
+depend(in: boundary(:,i),b(:,i),k), depend(out: a(:,i + 32),a(:,i),a(:,i - 32))
     do j = 1, 32, 1
-      if (boundary(i,j) > 1) then
+      if (boundary(j,i) > 1) then
         iplusone = i + 1
       else
         iplusone = i - 1
       end if
-      a(iplusone,j) = b(i,j) + k
+      a(j,iplusone) = b(j,i) + k
     enddo
     !$omp end task'''
     assert correct in fortran_writer(tree)
@@ -2490,13 +2490,13 @@ def test_omp_task_directive_41(fortran_reader, fortran_writer, tmpdir):
         integer :: k
         do i = 1, 320, 32
             do j = 1, 32
-                if(boundary(i,j) > 1) then
+                if(boundary(j,i) > 1) then
                     iplusone = i + 1
                 else
                     iplusone = i - 1
                 endif
-                A(i, j) = k
-                A(i, j) = B(iplusone, j) + k
+                A(j,i) = k
+                A(j,i) = B(j,iplusone) + k
             end do
         end do
     end subroutine
@@ -2518,15 +2518,15 @@ def test_omp_task_directive_41(fortran_reader, fortran_writer, tmpdir):
   !$omp single
   do i = 1, 320, 32
     !$omp task private(j), firstprivate(i,iplusone), shared(boundary,a,b), \
-depend(in: boundary(i,:),k,b(i + 32,:),b(i,:),b(i - 32,:)), depend(out: a(i,:))
+depend(in: boundary(:,i),k,b(:,i + 32),b(:,i),b(:,i - 32)), depend(out: a(:,i))
     do j = 1, 32, 1
-      if (boundary(i,j) > 1) then
+      if (boundary(j,i) > 1) then
         iplusone = i + 1
       else
         iplusone = i - 1
       end if
-      a(i,j) = k
-      a(i,j) = b(iplusone,j) + k
+      a(j,i) = k
+      a(j,i) = b(j,iplusone) + k
     enddo
     !$omp end task'''
     assert correct in fortran_writer(tree)
@@ -2540,22 +2540,22 @@ def test_omp_task_directive_42(fortran_reader, fortran_writer, tmpdir):
     code = '''
     subroutine my_subroutine()
         type :: x
-          integer, dimension(320, 10) :: A
+          integer, dimension(10,320) :: A
         end type
         type(x) :: AA
-        integer, dimension(320, 10) :: B
-        integer, dimension(320, 10) :: boundary
+        integer, dimension(10,320) :: B
+        integer, dimension(10,320) :: boundary
         integer :: iplusone
         integer :: i
         integer :: j
         do i = 1, 320, 32
             do j = 1, 10
-                if(boundary(i,j) > 1) then
+                if(boundary(j,i) > 1) then
                     iplusone = i+32
                 else
                     iplusone = i-1
                 end if
-                B(i, j) = AA%A(iplusone,j) + 1
+                B(j,i) = AA%A(j,iplusone) + 1
             end do
         end do
     end subroutine
@@ -2577,15 +2577,15 @@ def test_omp_task_directive_42(fortran_reader, fortran_writer, tmpdir):
   !$omp single
   do i = 1, 320, 32
     !$omp task private(j), firstprivate(i,iplusone), shared(boundary,b,aa), \
-depend(in: boundary(i,:),aa%A(i + 32,1:10),aa%A(i - 32,1:10),aa%A(i,1:10))\
-, depend(out: b(i,:))
+depend(in: boundary(:,i),aa%A(1:10,i + 32),aa%A(1:10,i - 32),aa%A(1:10,i))\
+, depend(out: b(:,i))
     do j = 1, 10, 1
-      if (boundary(i,j) > 1) then
+      if (boundary(j,i) > 1) then
         iplusone = i + 32
       else
         iplusone = i - 1
       end if
-      b(i,j) = aa%A(iplusone,j) + 1
+      b(j,i) = aa%A(j,iplusone) + 1
     enddo
     !$omp end task'''
     assert correct in fortran_writer(tree)
@@ -2777,12 +2777,12 @@ def test_omp_task_directive_47(fortran_reader, fortran_writer, tmpdir):
         integer :: k
         do i = 1, 320, 32
             do j = 1, 32
-                if(boundary(i,j) > 1) then
+                if(boundary(j,i) > 1) then
                     iplusone = i + 32
                 else
                     iplusone = i + 1
                 endif
-                A(iplusone, j) = B(i, j) + k
+                A(j,iplusone) = B(j,i) + k
             end do
         end do
     end subroutine
@@ -2804,14 +2804,14 @@ def test_omp_task_directive_47(fortran_reader, fortran_writer, tmpdir):
   !$omp single
   do i = 1, 320, 32
     !$omp task private(j), firstprivate(i,iplusone), shared(boundary,a,b), \
-depend(in: boundary(i,:),b(i,:),k), depend(out: a(i + 32,:),a(i,:))
+depend(in: boundary(:,i),b(:,i),k), depend(out: a(:,i + 32),a(:,i))
     do j = 1, 32, 1
-      if (boundary(i,j) > 1) then
+      if (boundary(j,i) > 1) then
         iplusone = i + 32
       else
         iplusone = i + 1
       end if
-      a(iplusone,j) = b(i,j) + k
+      a(j,iplusone) = b(j,i) + k
     enddo
     !$omp end task'''
     assert correct in fortran_writer(tree)
@@ -3035,7 +3035,7 @@ def test_omp_task_directive_48(fortran_reader, fortran_writer, tmpdir):
         do i = 1, 320, 32
             do ii=i, i+32
                 do j = 1, 32
-                    A(ii, j) = B(ii, j) + k
+                    A(j,ii) = B(j,ii) + k
                 end do
                 j = 3
                 a(j,3) = 1
@@ -3056,10 +3056,10 @@ def test_omp_task_directive_48(fortran_reader, fortran_writer, tmpdir):
     strans.apply(loops[0])
     ptrans.apply(loops[0].parent.parent)
     correct = '''!$omp task private(ii,j), firstprivate(i), shared(a,b), \
-depend(in: b(i,:)), depend(out: a(i,:),a(:,3))
+depend(in: b(:,i)), depend(out: a(:,i),a(:,3))
     do ii = i, i + 32, 1
       do j = 1, 32, 1
-        a(ii,j) = b(ii,j) + k
+        a(j,ii) = b(j,ii) + k
       enddo
       j = 3
       a(j,3) = 1
