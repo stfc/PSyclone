@@ -1606,7 +1606,16 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
             if added:
                 break
 
+        # Use the intrinsic walk function to evaluate any references inside
+        # Intrinsics
+        for intrinsic in node.walk(IntrinsicCall):
+            self._evaluate_intrinsic(intrinsic, clause_lists)
+
         for ref in references:
+            # If the ref has an IntrinsicCall ancestor, it will already
+            # have been evaluated
+            if ref.ancestor(IntrinsicCall):
+                continue
             self._evaluate_readonly_reference(
                 ref, clause_lists
             )
@@ -1906,7 +1915,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
 
         # Otherwise, we loop through the references in the IntrinsicCall
         # and compute any new dependencies.
-        for ref in node.condition.walk(Reference):
+        for ref in node.walk(Reference):
             self._evaluate_readonly_reference(
                 ref, clause_lists
             )
@@ -2093,8 +2102,9 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                 "node, but the node contains a Kern "
                 "which must be inlined first."
             )
-        # We allow a small subset of IntrinsicCall nodes
+        # We allow a subset of IntrinsicCall nodes
         for child in self.walk(Call):
+            # pylint: disable=unidiomatic-typecheck
             if type(child) is Call:
                 raise GenerationError(
                     "Attempted to lower to OMPTaskDirective "
@@ -2106,7 +2116,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                 raise GenerationError(
                     f"Attempted to lower to OMPTaskDirective "
                     f"node, but the node contains a "
-                    f"{child.debug_string()} intrinsic call, which "
+                    f"'{child.debug_string()}' intrinsic call, which "
                     f"is not supported."
                 )
 

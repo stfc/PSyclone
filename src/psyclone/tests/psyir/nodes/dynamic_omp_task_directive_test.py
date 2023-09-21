@@ -39,6 +39,8 @@
 import os
 import pytest
 from psyclone.errors import GenerationError, InternalError
+from psyclone.parse.algorithm import parse
+from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import Assignment, BinaryOperation, \
         DynamicOMPTaskDirective, Literal, Loop, Reference
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
@@ -46,8 +48,6 @@ from psyclone.tests.utilities import Compile
 from psyclone.transformations import OMPSingleTrans, \
     OMPParallelTrans
 
-BASE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
-    os.path.abspath(__file__)))), "test_files", "dynamo0p3")
 GOCEAN_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                 os.pardir, os.pardir, "test_files",
                                 "gocean1p0")
@@ -2723,8 +2723,8 @@ firstprivate(jiv)
     j_el_inner = MIN(j_out_var + (32 - 1), ystop)
     !$omp task private(j,i), firstprivate(j_out_var,j_el_inner,xstart,\
 xstop,jiv), shared(boundary,va,hv,sshn_v), depend(in: boundary(:,j_out_var),\
-boundary(:,j_out_var + 32),va(:,j_out_var + 32),va(:,j_out_var),g,\
-hv(:,j_out_var),sshn_v(:,j_out_var),sshn_v(:,j_out_var + 32),\
+boundary(:,j_out_var + 32),g,hv(:,j_out_var),va(:,j_out_var + 32),\
+va(:,j_out_var),sshn_v(:,j_out_var),sshn_v(:,j_out_var + 32),\
 va(:,j_out_var - 32),sshn_v(:,j_out_var - 32)), depend(out: va(:,j_out_var))
     do j = j_out_var, j_el_inner, 1
       do i = xstart, xstop, 1
@@ -2905,7 +2905,7 @@ def test_omp_task_directive_call_failure(fortran_reader):
             in str(excinfo.value))
 
 
-def test_omp_task_external_constant(fortran_reader, fortran_writer, tmpdir):
+def test_omp_task_external_constant(fortran_reader, fortran_writer):
     ''' Test the an external constant is ignored in clauses.'''
     code = '''
     module mymod
@@ -3069,6 +3069,82 @@ depend(in: b(:,i)), depend(out: a(:,i),a(:,3))
     assert Compile(tmpdir).string_compiles(fortran_writer(tree))
 
 
+def test_omp_task_directive_inquiry_intrinsic(fortran_reader, fortran_writer):
+    ''' Test the code generation generates the correct depend clause when
+    an inquiry intrinsic is used inside the task. '''
+
+    code = '''
+    subroutine my_subroutine()
+        integer, dimension(321, 10) :: A
+        integer, dimension(32, 10) :: B
+        integer :: i, ii
+        integer :: j
+        integer, parameter :: k = 1
+        do i = 1, 320, 32
+            do ii=i, i+32
+                do j = 1, 32
+                    A(j,ii) = LBOUND(B, 1) + k
+                end do
+            end do
+        end do
+    end subroutine
+    '''
+    tree = fortran_reader.psyir_from_source(code)
+    ptrans = OMPParallelTrans()
+    strans = OMPSingleTrans()
+    tdir = DynamicOMPTaskDirective()
+    loops = tree.walk(Loop, stop_type=Loop)
+    loop = loops[0].children[3].children[0]
+    parent = loop.parent
+    loop.detach()
+    tdir.children[0].addchild(loop)
+    parent.addchild(tdir, index=0)
+    strans.apply(loops[0])
+    ptrans.apply(loops[0].parent.parent)
+    correct = '''!$omp task private(ii,j), firstprivate(i), shared(a),\
+ depend(out: a(:,i))
+    do ii = i, i + 32, 1'''
+    assert correct in fortran_writer(tree)
+
+
+def test_omp_task_directive_disallowed_intrinsic(fortran_reader):
+    '''Test that the code generation throws an error if an intrinsic is used
+    inside a task region that is not enabled in PSyclone.'''
+    code = '''
+    subroutine my_subroutine()
+        integer, dimension(321, 10) :: A
+        integer, dimension(32, 10) :: B
+        integer :: i, ii
+        integer :: j
+        integer, parameter :: k = 1
+        do i = 1, 320, 32
+            do ii=i, i+32
+                do j = 1, 32
+                    A(j,ii) = SUM(B) + k
+                end do
+            end do
+        end do
+    end subroutine
+    '''
+    tree = fortran_reader.psyir_from_source(code)
+    ptrans = OMPParallelTrans()
+    strans = OMPSingleTrans()
+    tdir = DynamicOMPTaskDirective()
+    loops = tree.walk(Loop, stop_type=Loop)
+    loop = loops[0].children[3].children[0]
+    parent = loop.parent
+    loop.detach()
+    tdir.children[0].addchild(loop)
+    parent.addchild(tdir, index=0)
+    strans.apply(loops[0])
+    ptrans.apply(loops[0].parent.parent)
+    with pytest.raises(GenerationError) as excinfo:
+        tree.lower_to_language_level()
+    assert ("Attempted to lower to OMPTaskDirective node, but the "
+            "node contains a 'SUM(b)' intrinsic call, which is not "
+            "supported." in str(excinfo.value))
+
+
 def test_evaluate_write_reference_failcase():
     ''' Tests that the _evaluate_write_reference function throws an
     InternalError if provided a non-reference value for the ref argument.
@@ -3213,3 +3289,23 @@ def test_evaluate_write_ref_failcase(fortran_reader):
     assert ("PSyclone doesn't support an OMPTaskDirective containing "
             "an ArrayOfStructuresReference with an array accessing member. "
             "Found 'a(3)%b(1)'." in str(excinfo.value))
+
+
+def test_lowering_containing_kern_error():
+    ''' Test that lowering throws an error when the task region
+    contains a Kern child.'''
+    _, invoke_info = parse(os.path.join(GOCEAN_BASE_PATH, "single_invoke.f90"),
+                           api="gocean1.0")
+    psy = PSyFactory("gocean1.0", distributed_memory=False).\
+        create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    loops = schedule.walk(Loop)
+    tdir = DynamicOMPTaskDirective()
+    children = loops[0].children[3].pop_all_children()
+    loops[0].children[3].addchild(tdir)
+    tdir.children[0].children = children
+    with pytest.raises(GenerationError) as excinfo:
+        tdir.lower_to_language_level()
+    assert ("Attempted to lower to OMPTaskDirective node, but the "
+            "node contains a Kern which must be inlined first."
+            in str(excinfo.value))
