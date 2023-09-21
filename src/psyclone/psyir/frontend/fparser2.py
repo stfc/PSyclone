@@ -4574,7 +4574,18 @@ class Fparser2Reader():
         :returns: PSyIR representation of node.
         :rtype: :py:class:`psyclone.psyir.nodes.Routine`
 
+        :raises NotImplementedError: if the node contains a Contains clause.
         '''
+        try:
+            _first_type_match(node.children,
+                              Fortran2003.Internal_Subprogram_Part)
+            has_contains = True
+        except ValueError:
+            has_contains = False
+        if has_contains:
+            raise NotImplementedError("Psyclone doesn't yet support 'Contains'"
+                                      " insinde a Program")
+
         name = node.children[0].children[1].string
         routine = Routine(name, parent=parent, is_program=True)
 

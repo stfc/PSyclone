@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford, STFC Daresbury Lab
+# Author R. W. Ford, A. B. G. Chalk, STFC Daresbury Lab
 
 '''Module containing pytest tests for the _main_program_handler method
 in the class Fparser2Reader. This handler deals with the translation
@@ -42,7 +42,7 @@ from __future__ import absolute_import
 import pytest
 
 from fparser.common.readfortran import FortranStringReader
-from psyclone.psyir.nodes import Routine
+from psyclone.psyir.nodes import CodeBlock, Routine
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.backend.fortran import FortranWriter
 
@@ -94,3 +94,19 @@ def test_main_program_handler(parser, code, expected):
     writer = FortranWriter()
     result = writer(psyir)
     assert expected == result
+
+
+def test_main_program_handler_codeblock(fortran_reader):
+    '''Test the main_program_handler results in a CodeBlock if the input
+    code contains a child Subroutine.'''
+    code = '''Program TestProgram
+
+    contains
+    Subroutine TestSubroutine()
+    End Subroutine
+    End Program'''
+
+    psyir = fortran_reader.psyir_from_source(code)
+    cblock = psyir.children[0]
+    assert isinstance(cblock, CodeBlock)
+    assert "SUBROUTINE" in str(cblock.get_ast_nodes[0])
