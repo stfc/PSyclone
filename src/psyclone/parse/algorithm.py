@@ -388,7 +388,7 @@ class Parser():
         '''
         kernel_name, args = get_kernel(argument, self._alg_filename,
                                        self._arg_type_defns)
-        if kernel_name.lower() in self._builtin_name_map.keys():
+        if kernel_name.lower() in self._builtin_name_map:
             # This is a builtin kernel
             kernel_call = self.create_builtin_kernel_call(
                 kernel_name, args)

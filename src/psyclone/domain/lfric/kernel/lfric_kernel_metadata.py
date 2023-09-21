@@ -31,7 +31,8 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford, STFC Daresbury Lab
+# Author R. W. Ford, STFC Daresbury Laboratory
+# Modifications: A. R. Porter, STFC Daresbury Laboratory
 
 '''Module containing the LFRicKernelMetadata
 kernel-layer-specific class that captures the LFRic kernel metadata.

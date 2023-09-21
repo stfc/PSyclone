@@ -152,16 +152,17 @@ class RaisePSyIR2AlgTrans(Transformation):
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
 
-        :raises TransformationError: if the supplied call argument is \
+        :raises TransformationError: if the supplied call argument is
             not a PSyIR Call node.
-        :raises TransformationError: if the supplied call argument \
-            does not have the expected name which would identify it as an \
+        :raises TransformationError: if the supplied call argument
+            does not have the expected name which would identify it as an
             invoke call.
-        :raises TransformationError: if the there is more than one \
+        :raises TransformationError: if the there is more than one
             named argument.
         :raises TransformationError: if the named argument does not
             conform to the name=str format.
-        :raises TransformationError: if the invoke arguments are not a \
+        :raises TransformationError: if the name of the invoke is invalid.
+        :raises TransformationError: if the invoke arguments are not a
             PSyIR ArrayReference or CodeBlock.
 
         '''

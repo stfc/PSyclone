@@ -114,9 +114,9 @@ class AlgorithmInvokeCall(Call):
         :type arguments: list of :py:class:`psyclone.psyir.nodes.DataNode`
         :param int index: the position of this invoke call relative to \
             other invokes in the algorithm layer.
-        :param Optional[str] name: a string naming/describing the the invoke \
-            or None if one is not provided. This is converted to lower case \
-            and used to create the name of the routine that replaces the \
+        :param Optional[str] name: a string naming/describing the invoke
+            or None if one is not provided. This is converted to lower case
+            and used to create the name of the routine that replaces the
             invoke. It must be a valid Fortran name. Defaults to None.
 
         :raises GenerationError: if the arguments argument is not a \

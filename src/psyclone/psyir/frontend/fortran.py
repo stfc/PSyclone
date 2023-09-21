@@ -1,6 +1,6 @@
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -63,7 +63,8 @@ class FortranReader():
 
     @staticmethod
     def validate_name(name):
-        '''Utility method that checks that the supplied name is a valid
+        '''
+        Utility method that checks that the supplied name is a valid
         Fortran name.
 
         :param str name: the name to check.
@@ -216,7 +217,7 @@ class FortranReader():
         # place to implement caching in order to avoid repeating parsing steps
         # that have already been done before.
 
-        with open(file_path, "r") as source:
+        with open(file_path, "r", encoding="utf-8") as source:
             return self.psyir_from_source(source.read(), free_form=free_form)
 
 

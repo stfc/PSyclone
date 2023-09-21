@@ -283,7 +283,7 @@ def test_invokes_get():
             "['invoke_important_invoke']" in str(err.value))
 
 
-# tests for class InvokeCall
+# Tests for class InvokeCall
 
 def test_invokes_can_always_be_printed():
     '''Test that an Invoke instance can always be printed (i.e. is

@@ -501,7 +501,7 @@ def test_parser_caseinsensitive2(monkeypatch):
 
 
 def test_getinvokelabel_lowercase():
-    '''Test that get_invoke_label converts to lowercase.'''
+    '''Test that 'get_invoke_label' converts to lowercase.'''
     parse_tree = Actual_Arg_Spec("name='HeartOfGold'")
     label = get_invoke_label(parse_tree, "dummy.f90")
     assert label == "heartofgold"
@@ -537,7 +537,7 @@ def test_getinvokelabel_invalid_items(monkeypatch):
 
 
 def test_getinvokelabel_whitespace():
-    '''Test that an invoke label containing white space is rejected.'''
+    '''Test that an invoke label containing whitespace is rejected.'''
     parse_tree = Actual_Arg_Spec("name='my name'")
     with pytest.raises(ParseError) as err:
         _ = get_invoke_label(parse_tree, "dummy.f90")

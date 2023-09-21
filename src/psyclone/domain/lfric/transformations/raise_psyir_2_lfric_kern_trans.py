@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford STFC Daresbury Lab
+# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
 '''Raise generic PSyIR representing a kernel-layer routine to
 LFRic kernel-layer-specific PSyIR which uses specialised classes.
@@ -117,14 +117,16 @@ class RaisePSyIR2LFRicKernTrans(Transformation):
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str: str]]
 
-        :raises TransformationError: if the supplied node is not a \
+        :raises TransformationError: if the supplied node is not a
             Container.
-        :raises TransformationError: if the supplied node argument has \
+        :raises TransformationError: if the supplied node argument has
             a parent.
-        :raises TransformationError: if the metadata name has not been \
+        :raises TransformationError: if the metadata name has not been
             provided in the options argument.
-        :raises TransformationError: if the metadata name has not been \
+        :raises TransformationError: if the metadata name has not been
             set or does not exist in the code.
+        :raises TransformationError: if the metadata symbol does not
+            reside in a Container (as opposed to a FileContainer).
 
         '''
         super().validate(node, options=options)

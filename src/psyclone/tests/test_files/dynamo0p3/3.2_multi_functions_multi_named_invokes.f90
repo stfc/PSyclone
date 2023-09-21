@@ -32,7 +32,8 @@
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Author R. W. Ford, STFC Daresbury Lab
-! Modified I. Kavcic and L. Turner, Met Office
+! Modified: I. Kavcic and L. Turner, Met Office
+!           A. R. Porter, STFC Daresbury Lab
 
 program multi_functions_multi_invokes
 

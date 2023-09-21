@@ -32,6 +32,7 @@
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Author I. Kavcic, Met Office
+! Modfied: A. R. Porter, STFC Daresbury Lab
 
 program multikernel_invokes_real_int_field_invalid
 
