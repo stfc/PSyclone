@@ -1662,6 +1662,8 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         :raises GenerationError: If the loop variable is a shared variable.
         :raises GenerationError: If the loop start, stop or step expression
                                  contains an ArrayReference.
+        :raises GenerationError: If the loop step expression contains an
+                                 IntrinsicCall.
         """
         # Look at loop bounds etc first.
         # Find our loop initialisation, variable and bounds
@@ -1730,6 +1732,10 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                     f"OMPTaskDirective node. The start expression is "
                     f"'{node.start_expr.debug_string()}'."
                 )
+            # Ignore references inside inquiry IntrinsicCalls (e.g. BOUNDs)
+            icall = ref.ancestor(IntrinsicCall)
+            if icall and icall.intrinsic.is_inquiry:
+                continue
             # If we have a StructureReference, then we need to only add the
             # base symbol to the lists
             if isinstance(ref, StructureReference):
@@ -1759,6 +1765,10 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                     f"OMPTaskDirective node. The stop expression is "
                     f"'{node.stop_expr.debug_string()}'."
                 )
+            # Ignore references inside inquiry IntrinsicCalls (e.g. BOUNDs)
+            icall = ref.ancestor(IntrinsicCall)
+            if icall and icall.intrinsic.is_inquiry:
+                continue
             # If we have a StructureReference, then we need to only add the
             # base symbol to the lists
             if isinstance(ref, StructureReference):
@@ -1786,6 +1796,14 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                     f"the step variable of a Loop in a "
                     f"OMPTaskDirective node. The step expression is "
                     f"'{node.step_expr.debug_string()}'."
+                )
+            # We disallow intrinsic calls inside the step value, this is
+            # beyond the scope of the current implementation
+            if ref.ancestor(IntrinsicCall):
+                raise GenerationError(
+                    f"IntrinsicCall not supported in the step variable "
+                    f"of a Loop in an OMPTaskDirective node. The step "
+                    f"expression is '{node.step_expr.debug_string()}'."
                 )
             # If we have a StructureReference, then we need to only add the
             # base symbol to the lists
@@ -1970,17 +1988,12 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
                 node,
                 clause_lists
             )
-        elif isinstance(node, IntrinsicCall):
-            # Resolve IntrinsicCall
-            self._evaluate_intrinsic(
-                node,
-                clause_lists
-            )
 
         # All other node types are ignored as they shouldn't affect
         # dependency computation, as these are the only nodes that
         # have read or write accesses that can get to this function
-        # as Calls are prohibited in validation.
+        # as Calls are prohibited in validation, and the allowed
+        # IntrinsicCalls will all be children of other nodes.
 
     def _compute_clauses(self):
         """

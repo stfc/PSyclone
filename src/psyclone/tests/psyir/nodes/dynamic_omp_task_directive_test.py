@@ -3145,6 +3145,94 @@ def test_omp_task_directive_disallowed_intrinsic(fortran_reader):
             "supported." in str(excinfo.value))
 
 
+def test_omp_task_directive_intrinsic_loop_bound(fortran_reader,
+                                                 fortran_writer, tmpdir):
+    ''' Test code generation with the task directive applied to a
+    loop which accesses the full arrays with the ubound and lbound
+    intrinsics.'''
+    code = '''
+    subroutine my_subroutine()
+        integer, dimension(10, 10) :: A
+        integer, dimension(10, 10) :: B
+        integer :: i
+        integer :: j
+        do i = LBOUND(A,2), UBOUND(A, 2)
+            do j = LBOUND(A,1), UBOUND(A,1)
+                A(i, j) = B(i, j) + 1
+            end do
+        end do
+        do i = 1, 10
+            do j = 1, 10
+                A(i, j) = 0
+            end do
+        end do
+    end subroutine
+    '''
+    tree = fortran_reader.psyir_from_source(code)
+    ptrans = OMPParallelTrans()
+    strans = OMPSingleTrans()
+    tdir = DynamicOMPTaskDirective()
+    loops = tree.walk(Loop, stop_type=Loop)
+    loop = loops[0]
+    parent = loop.parent
+    loop.detach()
+    tdir.children[0].addchild(loop)
+    parent.addchild(tdir, index=0)
+    strans.apply(parent.children)
+    ptrans.apply(parent.children)
+    correct = '''\
+!$omp task private(i,j), shared(a,b), depend(in: b(:,:)), depend(out: a(:,:))
+  do i = LBOUND(a, 2), UBOUND(a, 2), 1
+    do j = LBOUND(a, 1), UBOUND(a, 1), 1
+      a(i,j) = b(i,j) + 1
+    enddo
+  enddo
+  !$omp end task'''
+    assert correct in fortran_writer(tree)
+    assert Compile(tmpdir).string_compiles(fortran_writer(tree))
+
+
+def test_omp_task_directive_intrinsic_loop_step(fortran_reader):
+    ''' Test lowering fails when the step of a loop contains an
+    intrinsic call.'''
+    code = '''
+    subroutine my_subroutine()
+        integer, dimension(10, 10) :: A
+        integer, dimension(10, 10) :: B
+        integer :: i
+        integer :: j
+        do i = LBOUND(A,2), UBOUND(A, 2), LBOUND(A,2)
+            do j = LBOUND(A,1), UBOUND(A,1), LBOUND(A,1)
+                A(i, j) = B(i, j) + 1
+            end do
+        end do
+        do i = 1, 10
+            do j = 1, 10
+                A(i, j) = 0
+            end do
+        end do
+    end subroutine
+    '''
+    tree = fortran_reader.psyir_from_source(code)
+    ptrans = OMPParallelTrans()
+    strans = OMPSingleTrans()
+    tdir = DynamicOMPTaskDirective()
+    loops = tree.walk(Loop, stop_type=Loop)
+    loop = loops[0]
+    parent = loop.parent
+    loop.detach()
+    tdir.children[0].addchild(loop)
+    parent.addchild(tdir, index=0)
+    strans.apply(parent.children)
+    ptrans.apply(parent.children)
+
+    with pytest.raises(GenerationError) as excinfo:
+        tdir.lower_to_language_level()
+    assert ("IntrinsicCall not supported in the step variable of a Loop"
+            " in an OMPTaskDirective node. The step expression is "
+            "'LBOUND(a, 2)'." in str(excinfo.value))
+
+
 def test_evaluate_write_reference_failcase():
     ''' Tests that the _evaluate_write_reference function throws an
     InternalError if provided a non-reference value for the ref argument.
