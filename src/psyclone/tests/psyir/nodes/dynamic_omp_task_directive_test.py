@@ -53,7 +53,9 @@ GOCEAN_BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                 "gocean1p0")
 
 
-def test_omp_task_directive_1(fortran_reader, fortran_writer, tmpdir):
+def test_omp_task_directive_basic_full_array_test(
+        fortran_reader, fortran_writer, tmpdir
+        ):
     ''' Test a basic code generation with the task directive applied to a
     loop which accesses the full arrays.'''
     code = '''
@@ -98,7 +100,7 @@ def test_omp_task_directive_1(fortran_reader, fortran_writer, tmpdir):
     assert Compile(tmpdir).string_compiles(fortran_writer(tree))
 
 
-def test_omp_task_directive_2(fortran_reader):
+def test_omp_task_directive_array_index_fail(fortran_reader):
     ''' Test the code generation fails when attempting to access an array
     when using an array element as an index.'''
     code = '''
@@ -139,7 +141,9 @@ def test_omp_task_directive_2(fortran_reader):
             in str(excinfo.value))
 
 
-def test_omp_task_directive_3(fortran_reader, fortran_writer, tmpdir):
+def test_omp_task_directive_firstprivate_clause(
+        fortran_reader, fortran_writer, tmpdir
+        ):
     '''Test the code generation captures if a variable should be
     declared as firstprivate.'''
     code = '''
@@ -186,7 +190,9 @@ depend(out: a(:,:))
     assert Compile(tmpdir).string_compiles(fortran_writer(tree))
 
 
-def test_omp_task_directive_4(fortran_reader, fortran_writer, tmpdir):
+def test_omp_task_directive_full_step_input_access(
+        fortran_reader, fortran_writer, tmpdir
+        ):
     ''' Test the code generation makes the depend clause when
     accessing an input array shifted by the step size of the outer loop.'''
     code = '''
@@ -228,7 +234,9 @@ depend(in: k,b(:,i + 1)), depend(out: a(:,i))
     assert Compile(tmpdir).string_compiles(fortran_writer(tree))
 
 
-def test_omp_task_directive_5(fortran_reader, fortran_writer, tmpdir):
+def test_omp_task_directive_sub_step_input_access(
+        fortran_reader, fortran_writer, tmpdir
+        ):
     ''' Test the code generation generates the correct depend clause
     when an input array is shifted by less than a full step of the outer loop.
     This is not quite a real use-case, however its a first check for this
@@ -277,7 +285,9 @@ depend(in: k,b(:,i + 32),b(:,i)), depend(out: a(:,i))
     assert Compile(tmpdir).string_compiles(fortran_writer(tree))
 
 
-def test_omp_task_directive_6(fortran_reader, fortran_writer, tmpdir):
+def test_omp_task_directive_sub_step_access_chunked_loop(
+        fortran_reader, fortran_writer, tmpdir
+        ):
     ''' Test the code generation generates the correct depend clause
     when an input array is shifted by less than a full step of the outer loop.
     This is expected to be similar to a real use-case.'''
@@ -322,7 +332,9 @@ depend(in: b(:,i + 32),b(:,i),k), depend(out: a(:,i))
     assert Compile(tmpdir).string_compiles(fortran_writer(tree))
 
 
-def test_omp_task_directive_7(fortran_reader, fortran_writer, tmpdir):
+def test_omp_task_directive_sub_step_access_double_chunked_loop(
+        fortran_reader, fortran_writer, tmpdir
+        ):
     ''' Test the code generation generates the correct depend clause
     when an input array is shifted by less than a full step of the outer loop.
     This is expected to be similar to a real use-case. In this case, we have
@@ -378,7 +390,9 @@ depend(out: a(i,j))
     assert Compile(tmpdir).string_compiles(fortran_writer(tree))
 
 
-def test_omp_task_directive_8(fortran_reader, fortran_writer, tmpdir):
+def test_omp_task_directive_multi_step_access_chunked_loops(
+        fortran_reader, fortran_writer, tmpdir
+        ):
     ''' Test the code generation generates the correct depend clause
     when an input array is shifted by a mixture of steps of the chunked loop.
     This is expected to be similar to a real use-case. In this case, we have
@@ -427,7 +441,9 @@ b(i,j + 32),k), depend(out: a(i,j))
     assert Compile(tmpdir).string_compiles(fortran_writer(tree))
 
 
-def test_omp_task_directive_9(fortran_reader, fortran_writer, tmpdir):
+def test_omp_task_directive_output_sub_step_access_chunked_loop(
+        fortran_reader, fortran_writer, tmpdir
+        ):
     ''' Test the code generation generates the correct depend clause
     when an output array is shifted by less than a full step of the outer loop.
     This is expected to be similar to a real use-case.'''
@@ -471,7 +487,9 @@ depend(in: b(:,i),k), depend(out: a(:,i + 32),a(:,i))
     assert Compile(tmpdir).string_compiles(fortran_writer(tree))
 
 
-def test_omp_task_directive_10(fortran_reader, fortran_writer, tmpdir):
+def test_omp_task_directive_output_sub_step_access_double_chunked_loop(
+        fortran_reader, fortran_writer, tmpdir
+        ):
     ''' Test the code generation generates the correct depend clause
     when an output array is shifted by less than a full step of the outer loop.
     This is expected to be similar to a real use-case. In this case, we have
@@ -519,7 +537,9 @@ a(i,j + 32),a(i,j))
     assert Compile(tmpdir).string_compiles(fortran_writer(tree))
 
 
-def test_omp_task_directive_11(fortran_reader, fortran_writer, tmpdir):
+def test_omp_task_directive_output_multi_step_access_double_chunked_loop(
+        fortran_reader, fortran_writer, tmpdir
+        ):
     ''' Test the code generation generates the correct depend clause
     when an input array is shifted by a mixture of steps of the chunked loop.
     This is expected to be similar to a real use-case. In this case, we have
@@ -569,7 +589,9 @@ a(i,j + 2 * 32),a(i,j + 32),a(i + 32,j + 3 * 32),a(i,j + 3 * 32))
     assert Compile(tmpdir).string_compiles(fortran_writer(tree))
 
 
-def test_omp_task_directive_36(fortran_reader, fortran_writer, tmpdir):
+def test_omp_task_directive_input_shift_loop_reference_expressions(
+        fortran_reader, fortran_writer, tmpdir
+        ):
     ''' Test the code generation makes the depend clause when
     accessing an input array shifted by the step size of the outer loop,
     and the inner loop uses Reference values for start, stop and step.'''
@@ -615,7 +637,9 @@ depend(in: k,b(:,i + 1)), depend(out: a(:,i))
     assert Compile(tmpdir).string_compiles(fortran_writer(tree))
 
 
-def test_omp_task_directive_37(fortran_reader, fortran_writer, tmpdir):
+def test_omp_task_directive_input_shift_loop_strucutre_reference_expressions(
+        fortran_reader, fortran_writer, tmpdir
+        ):
     ''' Test the code generation makes the depend clause when
     accessing an input array shifted by the step size of the outer loop,
     and the inner loop contains start, stop and step values that are elements
@@ -665,9 +689,12 @@ depend(in: l,m,n,k,b(:,i + 1)), depend(out: a(:,i))
     assert Compile(tmpdir).string_compiles(fortran_writer(tree))
 
 
-def test_omp_task_directive_45(fortran_reader, fortran_writer, tmpdir):
-    ''' Test the code generation generates the correct depend clause
-    when an input array is shifted by less than a full step of the outer loop.
+def test_omp_task_directive_input_sub_step_access_parameter_ignored(
+        fortran_reader, fortran_writer, tmpdir
+        ):
+    ''' Test the code generation generates the correct depend clause (ignoring
+    the parameter) when an input array is shifted by less than a full step
+    of the outer loop.
     This is expected to be similar to a real use-case.'''
     code = '''
     subroutine my_subroutine()
@@ -709,7 +736,9 @@ depend(in: b(:,i + 32),b(:,i)), depend(out: a(:,i))
     assert Compile(tmpdir).string_compiles(fortran_writer(tree))
 
 
-def test_omp_task_directive_12(fortran_reader, fortran_writer, tmpdir):
+def test_omp_task_directive_if_statement(
+        fortran_reader, fortran_writer, tmpdir
+        ):
     ''' Test the code generation generates the correct depend clause
     when an if statement is present. '''
     code = '''
@@ -844,7 +873,9 @@ def test_omp_task_directive_refref_index_fail(fortran_reader):
             in str(excinfo.value))
 
 
-def test_omp_task_directive_13(fortran_reader, fortran_writer, tmpdir):
+def test_omp_task_directive_lit_sum_ref_array_index(
+        fortran_reader, fortran_writer, tmpdir
+        ):
     ''' Test the code generation generates the correct depend clause
     when we have Literal+Reference as an array index.'''
     code = '''
@@ -1058,7 +1089,9 @@ def test_omp_task_directive_write_index_shared_type(fortran_reader):
             "'k'. The full access is 'aa%A(i,k)'" in str(excinfo.value))
 
 
-def test_omp_task_directive_14(fortran_reader, fortran_writer, tmpdir):
+def test_omp_task_directive_first_access_read_firstprivate(
+        fortran_reader, fortran_writer, tmpdir
+        ):
     ''' Test the code generation generates the correct
     firstprivate clause when the first access to a private variable is a
     read.'''
@@ -1109,7 +1142,9 @@ depend(in: b(k,i + 32),b(k,i)), depend(out: a(:,i))
     assert Compile(tmpdir).string_compiles(fortran_writer(tree))
 
 
-def test_omp_task_directive_15(fortran_reader, fortran_writer, tmpdir):
+def test_omp_task_directive_shared_nonarray(
+        fortran_reader, fortran_writer, tmpdir
+        ):
     ''' Test the code generation generates the correct
     code for a non-array shared variable.'''
     code = '''
@@ -1155,7 +1190,9 @@ depend(in: k,b(:,i + 32),b(:,i)), depend(out: k)
     assert Compile(tmpdir).string_compiles(fortran_writer(tree))
 
 
-def test_omp_task_directive_16(fortran_reader, fortran_writer, tmpdir):
+def test_omp_task_directive_else_statement(
+        fortran_reader, fortran_writer, tmpdir
+        ):
     ''' Test the code generation generates the correct depend clause
     when an else statement is present. '''
     code = '''
@@ -1208,7 +1245,9 @@ depend(in: a(i,j),b(i,j),k), depend(out: a(i + 32,j),a(i,j),a(i - 32,j))
     assert Compile(tmpdir).string_compiles(fortran_writer(tree))
 
 
-def test_omp_task_directive_17(fortran_reader, fortran_writer, tmpdir):
+def test_omp_task_directive_output_nonarray_shared_var(
+        fortran_reader, fortran_writer, tmpdir
+        ):
     ''' Test the code generation generates the correct clauses
     when an output variable is just a shared vairable '''
     code = '''
@@ -1253,7 +1292,9 @@ depend(in: k), depend(out: k)
     assert Compile(tmpdir).string_compiles(fortran_writer(tree))
 
 
-def test_omp_task_directive_18(fortran_reader, fortran_writer, tmpdir):
+def test_omp_task_directive_stepval_not_yet_firstprivate(
+        fortran_reader, fortran_writer, tmpdir
+        ):
     ''' Test the code generation generates the correct code if
     stepval is not yet declared firstprivate '''
     code = '''
@@ -1297,7 +1338,9 @@ depend(in: k), depend(out: k)
     assert Compile(tmpdir).string_compiles(fortran_writer(tree))
 
 
-def test_omp_task_directive_19(fortran_reader, fortran_writer, tmpdir):
+def test_omp_task_directive_steval_not_yet_firsprivate_structureref(
+        fortran_reader, fortran_writer, tmpdir
+        ):
     ''' Test the code generation generates the correct code if
     stepval is not yet declared firstprivate and the loop contains a structure
     access.'''
@@ -1347,7 +1390,9 @@ depend(in: k,ty), depend(out: k,ty)
     assert Compile(tmpdir).string_compiles(fortran_writer(tree))
 
 
-def test_omp_task_directive_20(fortran_reader, fortran_writer, tmpdir):
+def test_omp_task_directive_literal_index_to_read_array(
+        fortran_reader, fortran_writer, tmpdir
+        ):
     ''' Test the code generation generates the correct
     code for a literal read-only array index.'''
     code = '''
@@ -1390,7 +1435,9 @@ depend(in: b(:,1)), depend(out: a(:,i))
     assert Compile(tmpdir).string_compiles(fortran_writer(tree))
 
 
-def test_omp_task_directive_21(fortran_reader, fortran_writer, tmpdir):
+def test_omp_task_directive_literal_index_to_write_array(
+        fortran_reader, fortran_writer, tmpdir
+        ):
     ''' Test the code generation generates the correct
     code for a literal index to a written array.'''
     code = '''
@@ -1624,7 +1671,9 @@ def test_omp_task_directive_loop_step_array(fortran_reader):
             "'b(i,2)'." in str(excinfo.value))
 
 
-def test_omp_task_directive_22(fortran_reader, fortran_writer, tmpdir):
+def test_omp_task_directive_literal_add_reference_proxy_var(
+        fortran_reader, fortran_writer, tmpdir
+        ):
     ''' Test the code generation generates the correct depend clause
     when we have Literal+Reference for a proxy loop variable.'''
     code = '''
@@ -1673,7 +1722,9 @@ depend(in: k,b(:,32 + i),b(:,i),b(:,2 * 32 + i)), depend(out: a(:,i))
     assert Compile(tmpdir).string_compiles(fortran_writer(tree))
 
 
-def test_omp_task_directive_23(fortran_reader, fortran_writer, tmpdir):
+def test_omp_task_directive_private_variable_in_array_index(
+        fortran_reader, fortran_writer, tmpdir
+        ):
     ''' Test the code generation generates the correct depend clause
     when we have a private variable in an array reference, either as a child
     loop member or not.'''
@@ -1723,7 +1774,9 @@ def test_omp_task_directive_23(fortran_reader, fortran_writer, tmpdir):
     assert Compile(tmpdir).string_compiles(fortran_writer(tree))
 
 
-def test_omp_task_directive_24(fortran_reader, fortran_writer, tmpdir):
+def test_omp_task_directive_parent_loop_array_index(
+        fortran_reader, fortran_writer, tmpdir
+        ):
     ''' Test the code generation generates the correct depend clause
     when we have access to a non-proxy parent loop variable in an array index
     binary operation.'''
@@ -1765,7 +1818,9 @@ depend(in: k), depend(out: a(i,j + 3 * 32),a(i,j + 2 * 32))
     assert Compile(tmpdir).string_compiles(fortran_writer(tree))
 
 
-def test_omp_task_directive_25(fortran_reader, fortran_writer, tmpdir):
+def test_omp_task_directive_firstprivate_constant(
+        fortran_reader, fortran_writer, tmpdir
+        ):
     ''' Test the code generation generates the correct clauses
     when we have access to a first private constant in the routine'''
     code = '''
@@ -1814,7 +1869,9 @@ depend(in: statement), depend(out: a(:,i))
     assert Compile(tmpdir).string_compiles(fortran_writer(tree))
 
 
-def test_omp_task_directive_26(fortran_reader):
+def test_omp_task_directive_error_shared_index_nonarray(
+        fortran_reader
+        ):
     ''' Test the code generation throws an error if an
     index is a shared non-array variable.'''
     code = '''
@@ -1851,7 +1908,9 @@ def test_omp_task_directive_26(fortran_reader):
             "'j + 1'" in str(excinfo.value))
 
 
-def test_omp_task_directive_27(fortran_reader):
+def test_omp_task_directive_shared_loop_var(
+        fortran_reader
+        ):
     ''' Test the code generation throws an error if a loop
     variable is declared as shared.'''
     code = '''
@@ -1887,7 +1946,9 @@ def test_omp_task_directive_27(fortran_reader):
            "directive. Variable name is j" in str(excinfo.value))
 
 
-def test_omp_task_directive_28(fortran_reader, fortran_writer, tmpdir):
+def test_omp_task_directive_temporary_variable_shift_input(
+        fortran_reader, fortran_writer, tmpdir
+        ):
     ''' Test the code generation makes the depend clause when
     accessing an input array shifted by the step size of the outer loop,
     but the shift is hidden in a temporary variable.'''
@@ -1935,7 +1996,9 @@ depend(in: k,b(:,i + 1)), depend(out: a(:,i))
     assert Compile(tmpdir).string_compiles(fortran_writer(tree))
 
 
-def test_omp_task_directive_29(fortran_reader, fortran_writer, tmpdir):
+def test_omp_task_directive_subtype_nonloop_index(
+        fortran_reader, fortran_writer, tmpdir
+        ):
     ''' Test the code generation generates the correct code if
     code contains a type within a type, and is indexed using a non-loop
     variable.'''
@@ -2004,7 +2067,9 @@ in: k,ty%y%jp(index),ty%y%jp(index + 1)), depend(out: k,ty%y%jp(index + 1))
     assert Compile(tmpdir).string_compiles(fortran_writer(tree))
 
 
-def test_omp_task_directive_30(fortran_reader, fortran_writer, tmpdir):
+def test_omp_task_directive_subtype_loop_index(
+        fortran_reader, fortran_writer, tmpdir
+        ):
     ''' Test the code generation generates the correct code if
     code contains a type within a type and is indexed using a loop
     variable.'''
@@ -2059,7 +2124,9 @@ k,ty%y%jp(j),ty%y%jp(j + 32)), depend(out: k,ty%y%jp(j + 32),ty%y%jp(j))
     assert Compile(tmpdir).string_compiles(fortran_writer(tree))
 
 
-def test_omp_task_directive_31(fortran_reader, fortran_writer, tmpdir):
+def test_omp_task_directive_subtype_literal_index(
+        fortran_reader, fortran_writer, tmpdir
+        ):
     ''' Test the code generation generates the correct code if
     code contains a type within a type and is indexed with a Literal
     value.'''
@@ -2119,7 +2186,9 @@ ty%y%jp(i),ty%y%jp(1))
     assert Compile(tmpdir).string_compiles(fortran_writer(tree))
 
 
-def test_omp_task_directive_32(fortran_reader):
+def test_omp_task_directive_error_multiarray_structure(
+        fortran_reader
+        ):
     ''' Test the code generation throws an error if the
     code contains a type within a type which contains multiple
     ArrayMember children.'''
@@ -2169,7 +2238,9 @@ ty%y(3)%jp(ii+1))
             in str(excinfo.value))
 
 
-def test_omp_task_directive_33(fortran_reader):
+def test_omp_task_directive_error_array_member_array_index(
+        fortran_reader
+        ):
     ''' Test the code generation fails when attempting to access an array
     member of a structure when using an array element as an index.'''
     code = '''
@@ -2212,10 +2283,10 @@ def test_omp_task_directive_33(fortran_reader):
             in str(excinfo.value))
 
 
-def test_omp_task_directive_34(fortran_reader):
+def test_omp_task_directive_multi_array_structure_rhs(fortran_reader):
     ''' Test the code generation throws an error if
-    code contains a type within a type that is only accessed on the
-    right hand side of an assignment.'''
+    code contains an array member within an array member that is only accessed
+    on the right hand side of an assignment.'''
     code = '''
     subroutine my_subroutine()
       type :: y
@@ -2260,7 +2331,9 @@ def test_omp_task_directive_34(fortran_reader):
             "Found 'ty%y(1)%jp(ii + 1)'." in str(excinfo.value))
 
 
-def test_omp_task_directive_35(fortran_reader, fortran_writer, tmpdir):
+def test_omp_task_directive_array_member_ref_and_literal_index(
+        fortran_reader, fortran_writer, tmpdir
+        ):
     ''' Test the code generation generates the correct code if
     code contains a type within a type. In this case the array member
     is accessed with both a Reference and a Literal index, from both
@@ -2320,7 +2393,9 @@ k,ty%y%jp(i),ty%y%jp(1)), depend(out: k,ty%y%jp(i),ty%y%jp(1))
     assert Compile(tmpdir).string_compiles(fortran_writer(tree))
 
 
-def test_omp_task_directive_38(fortran_reader, fortran_writer, tmpdir):
+def test_omp_task_directive_array_member_child_loop_index(
+        fortran_reader, fortran_writer, tmpdir
+        ):
     ''' Test the code generation makes the depend clause when
     accessing an array access child of a type, when the indexes are
     not proxy loop variables but loop variables of children of the task.'''
@@ -2365,7 +2440,9 @@ depend(out: b(:,:))
     assert Compile(tmpdir).string_compiles(fortran_writer(tree))
 
 
-def test_omp_task_directive_39(fortran_reader, fortran_writer, tmpdir):
+def test_omp_task_directive_sub_shift_indirection_input(
+        fortran_reader, fortran_writer, tmpdir
+        ):
     ''' Test the code generation generates the correct depend clause
     when an input array is shifted by less than a full step of the outer loop,
     but this is done using an extra variable for indirection.'''
@@ -2413,7 +2490,9 @@ depend(in: k,b(:,i + 32),b(:,i)), depend(out: a(:,i))
     assert Compile(tmpdir).string_compiles(fortran_writer(tree))
 
 
-def test_omp_task_directive_40(fortran_reader, fortran_writer, tmpdir):
+def test_omp_task_directive_sub_shift_indirection_if(
+        fortran_reader, fortran_writer, tmpdir
+        ):
     ''' Test the code generation generates the correct depend clause
     when an input array is shifted by less than a full step of the outer loop,
     but this is done using an extra variable for indirection. In this case
@@ -2472,7 +2551,9 @@ depend(in: boundary(:,i),b(:,i),k), depend(out: a(:,i + 32),a(:,i),a(:,i - 32))
     assert Compile(tmpdir).string_compiles(fortran_writer(tree))
 
 
-def test_omp_task_directive_41(fortran_reader, fortran_writer, tmpdir):
+def test_omp_task_directive_sub_shift_indirection_if_readonly(
+        fortran_reader, fortran_writer, tmpdir
+        ):
     ''' Test the code generation generates the correct depend clause
     when an input array is shifted by less than a full step of the outer loop,
     but this is done using an extra variable for indirection. In this case
@@ -2533,7 +2614,9 @@ depend(in: boundary(:,i),k,b(:,i + 32),b(:,i),b(:,i - 32)), depend(out: a(:,i))
     assert Compile(tmpdir).string_compiles(fortran_writer(tree))
 
 
-def test_omp_task_directive_42(fortran_reader, fortran_writer, tmpdir):
+def test_omp_task_directive_array_member_if_indirection_readonly(
+        fortran_reader, fortran_writer, tmpdir
+        ):
     ''' Test the code generation makes the depend clause when
     accessing an array access child of a type through an indirection,
     and the array access is read-only.'''
@@ -2592,7 +2675,9 @@ depend(in: boundary(:,i),aa%A(1:10,i + 32),aa%A(1:10,i - 32),aa%A(1:10,i))\
     assert Compile(tmpdir).string_compiles(fortran_writer(tree))
 
 
-def test_omp_task_directive_43(fortran_reader, fortran_writer, tmpdir):
+def test_omp_task_directive_array_member_if_indirection_write(
+        fortran_reader, fortran_writer, tmpdir
+        ):
     ''' Test the code generation makes the depend clause when
     accessing an array access child of a type through an indirection,
     and the array access is written to.'''
@@ -2651,7 +2736,9 @@ depend(out: aa%A(1:10,i + 32),aa%A(1:10,i - 32),aa%A(1:10,i))
     assert Compile(tmpdir).string_compiles(fortran_writer(tree))
 
 
-def test_omp_task_directive_44(fortran_reader, fortran_writer, tmpdir):
+def test_omp_task_directive_nemolite_boundary(
+        fortran_reader, fortran_writer, tmpdir
+        ):
     '''Test the code generation generates the correct depend clause for a case
     like the boundary condition for NemoLite2D. here we have a normal structure
     for task + chunk loop code, and jiv = j + 1 needs to be correctly resolved
@@ -2760,7 +2847,9 @@ va(:,j_out_var))
     assert Compile(tmpdir).string_compiles(fortran_writer(tree))
 
 
-def test_omp_task_directive_47(fortran_reader, fortran_writer, tmpdir):
+def test_omp_task_directive_multi_step_if_indirection(
+        fortran_reader, fortran_writer, tmpdir
+        ):
     ''' Test the code generation generates the correct depend clause
     when an input array is shifted by less than a full step of the outer loop,
     but this is done using an extra variable for indirection. In this case
@@ -2818,7 +2907,9 @@ depend(in: boundary(:,i),b(:,i),k), depend(out: a(:,i + 32),a(:,i))
     assert Compile(tmpdir).string_compiles(fortran_writer(tree))
 
 
-def test_omp_task_directive_46(fortran_reader, fortran_writer, tmpdir):
+def test_omp_task_directive_binop_index_array_member(
+        fortran_reader, fortran_writer, tmpdir
+        ):
     ''' Test the code generation generates the correct code if
     code contains a type within a type and the array index is a binary
     operation.'''
