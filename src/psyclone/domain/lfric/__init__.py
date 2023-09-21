@@ -79,6 +79,6 @@ __all__ = [
     'LFRicConstants',
     'LFRicExtractDriverCreator',
     'LFRicInvoke',
-    'LFRicRunTimeChecks',
     'LFRicLoopBounds',
+    'LFRicRunTimeChecks',
     'LFRicSymbolTable']
