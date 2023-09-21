@@ -2163,10 +2163,10 @@ ty%y(3)%jp(ii+1))
     ptrans.apply(tree.children[0].children[:])
     with pytest.raises(GenerationError) as excinfo:
         tree.lower_to_language_level()
-    assert("PSyclone doesn't support an OMPTaskDirective containing a "
-           "StructureReference with multiple "
-           "array accessing members. Found 'ty%y(2)%jp(ii + 1)'"
-           in str(excinfo.value))
+    assert ("PSyclone doesn't support an OMPTaskDirective containing a "
+            "StructureReference with multiple "
+            "array accessing members. Found 'ty%y(2)%jp(ii + 1)'"
+            in str(excinfo.value))
 
 
 def test_omp_task_directive_33(fortran_reader):
@@ -2255,9 +2255,9 @@ def test_omp_task_directive_34(fortran_reader):
     ptrans.apply(tree.children[0].children[:])
     with pytest.raises(GenerationError) as excinfo:
         tree.lower_to_language_level()
-    assert("PSyclone doesn't support an OMPTaskDirective containing a "
-           "StructureReference with multiple array accessing members. "
-           "Found 'ty%y(1)%jp(ii + 1)'." in str(excinfo.value))
+    assert ("PSyclone doesn't support an OMPTaskDirective containing a "
+            "StructureReference with multiple array accessing members. "
+            "Found 'ty%y(1)%jp(ii + 1)'." in str(excinfo.value))
 
 
 def test_omp_task_directive_35(fortran_reader, fortran_writer, tmpdir):
