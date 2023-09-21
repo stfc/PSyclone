@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab;
-#          I. Kavcic, A. Coughtrie and L. Turner, Met Office;
+#          I. Kavcic, A. Coughtrie, L. Turner and O. Brunt, Met Office;
 #          C. M. Maynard, Met Office/University of Reading;
 #          J. Henrichs, Bureau of Meteorology.
 # Modified by: L. Turner, Met Office
@@ -47,8 +47,9 @@ import os
 import pytest
 
 from fparser import api as fpapi
-from psyclone.domain.lfric import LFRicConstants, LFRicKern
-from psyclone.dynamo0p3 import DynKernMetadata, LFRicScalarArgs
+from psyclone.domain.lfric import (LFRicConstants, LFRicKern,
+                                   LFRicScalarArgs)
+from psyclone.dynamo0p3 import DynKernMetadata
 from psyclone.f2pygen import ModuleGen
 from psyclone.errors import InternalError
 from psyclone.gen_kernel_stub import generate
