@@ -36,19 +36,17 @@
 # Modified J. Henrichs, Bureau of Meteorology
 # Modified A. B. G. Chalk and N. Nobre, STFC Daresbury Lab
 
-''' This module provides the LFRicLoopBounds Class that handles all variables 
+''' This module provides the LFRicLoopBounds Class that handles all variables
     required for specifying loop limits within an LFRic PSy-layer routine.'''
 
-# Imports
 from psyclone.configuration import Config
 from psyclone.domain.lfric import LFRicCollection
 from psyclone.f2pygen import AssignGen, CommentGen, DeclGen
 
 
 class LFRicLoopBounds(LFRicCollection):
-
-    ''' 
-    Handles all variables required for specifying loop limits within 
+    '''
+    Handles all variables required for specifying loop limits within
     an LFRic PSy-layer routine.
     '''
 

@@ -84,9 +84,9 @@ def test_apply_bounds(tmpdir):
     writer = FortranWriter()
     result = writer(schedule)
     assert (
-        "  do idx = LBOUND(umask, 3), UBOUND(umask, 3), 1\n"
+        "  do idx = LBOUND(umask, dim=3), UBOUND(umask, dim=3), 1\n"
         "    do idx_1 = 2, 4, 1\n"
-        "      do idx_2 = LBOUND(umask, 1), UBOUND(umask, 1), 1\n"
+        "      do idx_2 = LBOUND(umask, dim=1), UBOUND(umask, dim=1), 1\n"
         "        umask(idx_2,idx_1,idx) = 0.0d0\n"
         "      enddo\n"
         "    enddo\n"
@@ -112,9 +112,9 @@ def test_apply_different_dims(tmpdir):
     writer = FortranWriter()
     result = writer(schedule)
     assert (
-        "  do idx = LBOUND(umask, 5), UBOUND(umask, 5), 1\n"
-        "    do idx_1 = LBOUND(umask, 3), UBOUND(umask, 3), 1\n"
-        "      do idx_2 = LBOUND(umask, 1), UBOUND(umask, 1), 1\n"
+        "  do idx = LBOUND(umask, dim=5), UBOUND(umask, dim=5), 1\n"
+        "    do idx_1 = LBOUND(umask, dim=3), UBOUND(umask, dim=3), 1\n"
+        "      do idx_2 = LBOUND(umask, dim=1), UBOUND(umask, dim=1), 1\n"
         "        umask(idx_2,jpj,idx_1,ndim,idx) = vmask(jpi,idx_2,idx_1,idx,"
         "ndim) + 1.0\n"
         "      enddo\n"
@@ -140,7 +140,7 @@ def test_apply_var_name(tmpdir):
     writer = FortranWriter()
     result = writer(schedule)
     assert (
-        "  do idx_1 = LBOUND(umask, 5), UBOUND(umask, 5), 1\n"
+        "  do idx_1 = LBOUND(umask, dim=5), UBOUND(umask, dim=5), 1\n"
         "    umask(:,:,:,:,idx_1) = vmask(:,:,:,:,idx_1) + 1.0\n"
         "  enddo" in result)
     assert Compile(tmpdir).string_compiles(result)
@@ -166,9 +166,9 @@ def test_apply_structure_of_arrays(fortran_reader, fortran_writer):
     trans.apply(array_ref.children[0])
     result = fortran_writer(psyir)
     assert (
-        "  do idx = LBOUND(umask, 3), UBOUND(umask, 3), 1\n"
-        "    do idx_1 = LBOUND(umask, 2), UBOUND(umask, 2), 1\n"
-        "      do idx_2 = LBOUND(umask, 1), UBOUND(umask, 1), 1\n"
+        "  do idx = LBOUND(umask, dim=3), UBOUND(umask, dim=3), 1\n"
+        "    do idx_1 = LBOUND(umask, dim=2), UBOUND(umask, dim=2), 1\n"
+        "      do idx_2 = LBOUND(umask, dim=1), UBOUND(umask, dim=1), 1\n"
         "        umask(idx_2,idx_1,idx) = mystruct%field(idx_2,idx_1,idx) "
         "+ mystruct%field2%field(idx_2,idx_1,idx)\n"
         "      enddo\n"
@@ -188,12 +188,12 @@ def test_apply_structure_of_arrays(fortran_reader, fortran_writer):
     trans.apply(array_ref.member.member.children[0])
     result = fortran_writer(psyir)
     assert (
-        "  do idx = LBOUND(mystruct%field2%field, 3), "
-        "UBOUND(mystruct%field2%field, 3), 1\n"
-        "    do idx_1 = LBOUND(mystruct%field2%field, 2), "
-        "UBOUND(mystruct%field2%field, 2), 1\n"
-        "      do idx_2 = LBOUND(mystruct%field2%field, 1), "
-        "UBOUND(mystruct%field2%field, 1), 1\n"
+        "  do idx = LBOUND(mystruct%field2%field, dim=3), "
+        "UBOUND(mystruct%field2%field, dim=3), 1\n"
+        "    do idx_1 = LBOUND(mystruct%field2%field, dim=2), "
+        "UBOUND(mystruct%field2%field, dim=2), 1\n"
+        "      do idx_2 = LBOUND(mystruct%field2%field, dim=1), "
+        "UBOUND(mystruct%field2%field, dim=1), 1\n"
         "        mystruct%field2%field(idx_2,idx_1,idx) = 0.0d0\n"
         "      enddo\n"
         "    enddo\n"
@@ -212,12 +212,12 @@ def test_apply_structure_of_arrays(fortran_reader, fortran_writer):
     trans.apply(array_ref.member.children[1])
     result = fortran_writer(psyir)
     assert (
-        "  do idx = LBOUND(mystruct%field3, 3), "
-        "UBOUND(mystruct%field3, 3), 1\n"
-        "    do idx_1 = LBOUND(mystruct%field3, 2), "
-        "UBOUND(mystruct%field3, 2), 1\n"
-        "      do idx_2 = LBOUND(mystruct%field3, 1), "
-        "UBOUND(mystruct%field3, 1), 1\n"
+        "  do idx = LBOUND(mystruct%field3, dim=3), "
+        "UBOUND(mystruct%field3, dim=3), 1\n"
+        "    do idx_1 = LBOUND(mystruct%field3, dim=2), "
+        "UBOUND(mystruct%field3, dim=2), 1\n"
+        "      do idx_2 = LBOUND(mystruct%field3, dim=1), "
+        "UBOUND(mystruct%field3, dim=1), 1\n"
         "        mystruct%field3(idx_2,idx_1,idx)%field4 = 0.0d0\n"
         "      enddo\n"
         "    enddo\n"
@@ -236,12 +236,12 @@ def test_apply_structure_of_arrays(fortran_reader, fortran_writer):
     trans.apply(array_ref.member.children[1])
     result = fortran_writer(psyir)
     assert (
-        "  do idx = LBOUND(mystruct%field3, 3), "
-        "UBOUND(mystruct%field3, 3), 1\n"
-        "    do idx_1 = LBOUND(mystruct%field3, 2), "
-        "UBOUND(mystruct%field3, 2), 1\n"
-        "      do idx_2 = LBOUND(mystruct%field3, 1), "
-        "UBOUND(mystruct%field3, 1), 1\n"
+        "  do idx = LBOUND(mystruct%field3, dim=3), "
+        "UBOUND(mystruct%field3, dim=3), 1\n"
+        "    do idx_1 = LBOUND(mystruct%field3, dim=2), "
+        "UBOUND(mystruct%field3, dim=2), 1\n"
+        "      do idx_2 = LBOUND(mystruct%field3, dim=1), "
+        "UBOUND(mystruct%field3, dim=1), 1\n"
         "        mystruct%field3(idx_2,idx_1,idx)%field4 = "
         "mystruct%field2%field(idx_2,idx_1,idx)\n"
         "      enddo\n"
@@ -270,12 +270,12 @@ def test_apply_structure_of_arrays_multiple_arrays(fortran_reader,
     trans.apply(array_ref.member.member.children[0])
     result = fortran_writer(psyir)
     assert (
-        "  do idx = LBOUND(mystruct%field2(4,3)%field, 3), "
-        "UBOUND(mystruct%field2(4,3)%field, 3), 1\n"
-        "    do idx_1 = LBOUND(mystruct%field2(4,3)%field, 2), "
-        "UBOUND(mystruct%field2(4,3)%field, 2), 1\n"
-        "      do idx_2 = LBOUND(mystruct%field2(4,3)%field, 1), "
-        "UBOUND(mystruct%field2(4,3)%field, 1), 1\n"
+        "  do idx = LBOUND(mystruct%field2(4,3)%field, dim=3), "
+        "UBOUND(mystruct%field2(4,3)%field, dim=3), 1\n"
+        "    do idx_1 = LBOUND(mystruct%field2(4,3)%field, dim=2), "
+        "UBOUND(mystruct%field2(4,3)%field, dim=2), 1\n"
+        "      do idx_2 = LBOUND(mystruct%field2(4,3)%field, dim=1), "
+        "UBOUND(mystruct%field2(4,3)%field, dim=1), 1\n"
         "        mystruct%field2(4,3)%field(idx_2,idx_1,idx) = "
         "mystruct%field2(5,8)%field(idx_2,idx_1,idx)\n"
         "      enddo\n"
@@ -571,8 +571,8 @@ def test_validate_array_non_elemental_operator():
         trans.apply(array_ref.children[0])
     assert (
         "Error in NemoArrayRange2LoopTrans transformation. This "
-        "transformation does not support non-elemental Operations on the rhs "
-        "of the associated Assignment node, but found 'MATMUL' in:"
+        "transformation does not support non-elemental IntrinsicCalls on the "
+        "rhs of the associated Assignment node, but found 'MATMUL' in:"
         in str(info.value))
 
 

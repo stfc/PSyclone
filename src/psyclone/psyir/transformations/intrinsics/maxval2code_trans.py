@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2023, Science and Technology Facilities Council
+# Copyright (c) 2023, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,193 +32,189 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: R. W. Ford, STFC Daresbury Lab
-# Modified: S. Siso, STFC Daresbury Lab
 
-'''Module providing a transformation from a PSyIR SUM intrinsic to
-PSyIR code. This could be useful if the SUM intrinsic is not supported
-by the back-end, the required parallelisation approach, or if the
-performance in the inline code is better than the intrinsic.
+'''Module providing a transformation from a PSyIR MAXVAL intrinsic to
+PSyIR code. This could be useful if the MAXVAL operator is not
+supported by the back-end, the required parallelisation approach, or
+if the performance in the inline code is better than the intrinsic.
 
 '''
 from psyclone.psyir.nodes import (
-    BinaryOperation, Assignment, Reference, Literal, ArrayReference)
-from psyclone.psyir.symbols import ScalarType
+    Reference, Assignment, IfBlock, BinaryOperation, ArrayReference,
+    IntrinsicCall)
 from psyclone.psyir.transformations.intrinsics.mms_base_trans import (
     MMSBaseTrans)
 
 
-class Sum2CodeTrans(MMSBaseTrans):
-    '''Provides a transformation from a PSyIR SUM IntrinsicCall node to
+class Maxval2CodeTrans(MMSBaseTrans):
+    '''Provides a transformation from a PSyIR MAXVAL IntrinsicCall node to
     equivalent code in a PSyIR tree. Validity checks are also
     performed.
 
-    If SUM contains a single positional argument which is an array,
-    all elements of that array are summed and the result returned in
-    the scalar R.
+    If MAXVAL contains a single positional argument which is an array,
+    the maximum value of all of the elements in the array is returned
+    in the the scalar R.
 
     .. code-block:: fortran
 
-        R = SUM(ARRAY)
+        R = MAXVAL(ARRAY)
 
     For example, if the array is two dimensional, the equivalent code
     for real data is:
 
     .. code-block:: fortran
 
-        R = 0.0
+        R = TINY(R)
         DO J=LBOUND(ARRAY,2),UBOUND(ARRAY,2)
           DO I=LBOUND(ARRAY,1),UBOUND(ARRAY,1)
-            R = R + ARRAY(I,J)
+            IF (R < ARRAY(I,J)) THEN
+              R = ARRAY(I,J)
 
-    If the dimension argument is provided then only that dimension is
-    summed:
+    If the dimension argument is provided then the maximum value is
+    returned along the row for each entry in that dimension:
 
     .. code-block:: fortran
 
-        R = SUM(ARRAY, dimension=2)
+        R = MAXVAL(ARRAY, dimension=2)
 
     If the array is two dimensional, the equivalent code
     for real data is:
 
     .. code-block:: fortran
 
-        R(:) = 0.0
+        R(:) = TINY(R)
         DO J=LBOUND(ARRAY,2),UBOUND(ARRAY,2)
           DO I=LBOUND(ARRAY,1),UBOUND(ARRAY,1)
-            R(I) = R(I) + ARRAY(I,J)
+            IF (R(I) < ARRAY(I,J)) THEN
+              R(I) = ARRAY(I,J)
 
     A restriction is that the value of dimension must be able to be
     determined by PSyclone, either being a literal or a reference to
     something with a known value.
 
     If the mask argument is provided then the mask is used to
-    determine whether the sum is applied:
+    determine whether the maxval is applied:
 
     .. code-block:: fortran
 
-        R = SUM(ARRAY, mask=MOD(ARRAY, 2.0)==1)
+        R = MAXVAL(ARRAY, mask=MOD(ARRAY, 2.0)==1)
 
     If the array is two dimensional, the equivalent code
     for real data is:
 
     .. code-block:: fortran
 
-        R = 0.0
+        R = TINY(R)
         DO J=LBOUND(ARRAY,2),UBOUND(ARRAY,2)
           DO I=LBOUND(ARRAY,1),UBOUND(ARRAY,1)
             IF (MOD(ARRAY(I,J), 2.0)==1) THEN
-              R = R + ARRAY(I,J)
+              IF (R < ARRAY(I,J)) THEN
+                R = ARRAY(I,J)
 
-    The array passed to SUM may use array syntax, array notation or
+    The array passed to MAXVAL may use array syntax, array notation or
     array sections (or a mixture of the two), but scalar bounds are
     not allowed:
 
     .. code-block:: fortran
 
-        R = SUM(ARRAY) ! array syntax
-        R = SUM(ARRAY(:,:)) ! array notation
-        R = SUM(ARRAY(1:10,lo:hi)) ! array sections
-        R = SUM(ARRAY(1:10,:)) ! mix of array sections and array notation
-        R = SUM(ARRAY(1:10,2)) ! NOT SUPPORTED as 2 is a scalar bound
+        R = MAXVAL(ARRAY) ! array syntax
+        R = MAXVAL(ARRAY(:,:)) ! array notation
+        R = MAXVAL(ARRAY(1:10,lo:hi)) ! array sections
+        R = MAXVAL(ARRAY(1:10,:)) ! mix of array sections and array notation
+        R = MAXVAL(ARRAY(1:10,2)) ! NOT SUPPORTED as 2 is a scalar bound
 
     For example:
 
     >>> from psyclone.psyir.backend.fortran import FortranWriter
     >>> from psyclone.psyir.frontend.fortran import FortranReader
-    >>> from psyclone.psyir.transformations import Sum2CodeTrans
-    >>> code = ("subroutine sum_test(array,n,m)\\n"
-    ...         "  integer :: n, m\\n"
+    >>> from psyclone.psyir.transformations import Maxval2CodeTrans
+    >>> code = ("subroutine maxval_test(array)\\n"
     ...         "  real :: array(10,10)\\n"
     ...         "  real :: result\\n"
-    ...         "  result = sum(array)\\n"
+    ...         "  result = maxval(array)\\n"
     ...         "end subroutine\\n")
     >>> psyir = FortranReader().psyir_from_source(code)
     >>> sum_node = psyir.children[0].children[0].children[1]
-    >>> Sum2CodeTrans().apply(sum_node)
+    >>> Maxval2CodeTrans().apply(sum_node)
     >>> print(FortranWriter()(psyir))
-    subroutine sum_test(array, n, m)
-      integer :: n
-      integer :: m
+    subroutine maxval_test(array)
       real, dimension(10,10) :: array
       real :: result
-      real :: sum_var
+      real :: maxval_var
       integer :: i_0
       integer :: i_1
     <BLANKLINE>
-      sum_var = 0.0
+      maxval_var = TINY(maxval_var)
       do i_1 = 1, 10, 1
         do i_0 = 1, 10, 1
-          sum_var = sum_var + array(i_0,i_1)
+          if (maxval_var < array(i_0,i_1)) then
+            maxval_var = array(i_0,i_1)
+          end if
         enddo
       enddo
-      result = sum_var
+      result = maxval_var
     <BLANKLINE>
-    end subroutine sum_test
+    end subroutine maxval_test
     <BLANKLINE>
 
     '''
-    _INTRINSIC_NAME = "SUM"
+    _INTRINSIC_NAME = "MAXVAL"
 
     def _loop_body(self, array_reduction, array_iterators, var_symbol,
                    array_ref):
-        '''Provide the body of the nested loop that computes the sum of an
-        array.
+        '''Provide the body of the nested loop that computes the maximum value
+        of an array.
 
         :param bool array_reduction: True if the implementation should
-            provide a sum over a particular array dimension and False
-            if the sum is for all elements of the array.
+            provide a maximum over a particular array dimension and False
+            if the maximum is for all elements of the array.
         :param array_iterators: a list of datasymbols containing the
-            loop iterators ordered from outermost loop symbol to innermost
+            loop iterators ordered from innermost loop symbol to outermost
             loop symbol.
         :type array_iterators:
             List[:py:class:`psyclone.psyir.symbols.DataSymbol`]
         :param var_symbol: the symbol used to store the final result.
         :type var_symbol: :py:class:`psyclone.psyir.symbols.DataSymbol`
         :param array_ref: a reference to the array for which the
-            sum is being determined.
+            maximum is being determined.
         :type array_ref: :py:class:`psyclone.psyir.nodes.ArrayReference`
 
         :returns: PSyIR for the body of the nested loop.
-        :rtype: :py:class:`psyclone.psyir.nodes.Assignment`
+        :rtype: :py:class:`psyclone.psyir.nodes.IfBlock`
 
         '''
+        # maxval_var() = array(i...)
         if array_reduction:
-            # sum_var(i,...) = sum_var(i,...) + array(i,...)
             array_indices = [Reference(iterator)
                              for iterator in array_iterators]
             lhs = ArrayReference.create(var_symbol, array_indices)
-            array_indices = [Reference(iterator)
-                             for iterator in array_iterators]
-            rhs_child1 = ArrayReference.create(var_symbol, array_indices)
         else:
-            # sum_var = sum_var + array(i,...)
             lhs = Reference(var_symbol)
-            rhs_child1 = Reference(var_symbol)
+        rhs = array_ref
+        assignment = Assignment.create(lhs, rhs)
 
-        rhs_child2 = array_ref
-        rhs = BinaryOperation.create(BinaryOperation.Operator.ADD, rhs_child1,
-                                     rhs_child2)
-        return Assignment.create(lhs, rhs)
+        # maxval_var() < array(i...)
+        lhs = lhs.copy()
+        rhs = rhs.copy()
+        if_condition = BinaryOperation.create(
+            BinaryOperation.Operator.LT, lhs, rhs)
+
+        # if maxval_var() < array(i...) then
+        #   maxval_var() = array(i...)
+        # end if
+        return IfBlock.create(if_condition, [assignment])
 
     def _init_var(self, var_symbol):
-        '''The initial value for the variable that computes the sum
+        '''The initial value for the variable that computes the maximum value
         of an array.
 
         :param var_symbol: the symbol used to store the final result.
         :type var_symbol: :py:class:`psyclone.psyir.symbols.DataSymbol`
 
         :returns: PSyIR for the value to initialise the variable that
-            computes the sum.
-        :rtype: :py:class:`psyclone.psyir.nodes.Literal`
+            computes the maximum value.
+        :rtype: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
 
         '''
-        intrinsic = var_symbol.datatype.intrinsic
-        precision = var_symbol.datatype.precision
-        scalar_type = ScalarType(intrinsic, precision)
-        if intrinsic == ScalarType.Intrinsic.REAL:
-            value_str = "0.0"
-        elif intrinsic == ScalarType.Intrinsic.INTEGER:
-            value_str = "0"
-        # Note, the validate method guarantees that an else branch is
-        # not required.
-        return Literal(value_str, scalar_type)
+        return IntrinsicCall.create(
+            IntrinsicCall.Intrinsic.TINY, [Reference(var_symbol)])

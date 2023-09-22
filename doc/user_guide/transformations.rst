@@ -147,7 +147,7 @@ can be found in the API-specific sections).
       :members: apply
       :noindex:
 
-.. warning:: This transformation assumes that the ABS Operator acts on
+.. warning:: This transformation assumes that the ABS Intrinsic acts on
              PSyIR Real scalar data and does not check that this is
              not the case. Once issue #658 is on master then this
              limitation can be fixed.
@@ -275,10 +275,16 @@ can be found in the API-specific sections).
       :members: apply
       :noindex:
 
-.. warning:: This transformation assumes that the MAX Operator acts on
+.. warning:: This transformation assumes that the MAX Intrinsic acts on
              PSyIR Real scalar data and does not check that this is
              not the case. Once issue #658 is on master then this
              limitation can be fixed.
+
+####
+
+.. autoclass:: psyclone.psyir.transformations.Maxval2CodeTrans
+      :members: apply
+      :noindex:
 
 ####
 
@@ -286,10 +292,16 @@ can be found in the API-specific sections).
       :members: apply
       :noindex:
 
-.. warning:: This transformation assumes that the MIN Operator acts on
+.. warning:: This transformation assumes that the MIN Intrinsic acts on
              PSyIR Real scalar data and does not check that this is
              not the case. Once issue #658 is on master then this
              limitation can be fixed.
+
+####
+
+.. autoclass:: psyclone.psyir.transformations.Minval2CodeTrans
+      :members: apply
+      :noindex:
 
 ####
 
@@ -424,7 +436,7 @@ can be found in the API-specific sections).
       :members: apply
       :noindex:
 
-.. warning:: This transformation assumes that the SIGN Operator acts
+.. warning:: This transformation assumes that the SIGN Intrinsic acts
              on PSyIR Real scalar data and does not check whether or not
              this is the case. Once issue #658 is on master then this
              limitation can be fixed.
