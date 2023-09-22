@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 
 '''A module to perform pytest tests on the code in the tl2ad.py file
 within the psyad directory.
@@ -49,7 +49,7 @@ from psyclone.psyad.tl2ad import (
     _get_active_variables_datatype, _add_precision_symbol)
 from psyclone.psyir.nodes import (
     Container, FileContainer, Return, Routine, Assignment, BinaryOperation,
-    UnaryOperation, Literal)
+    IntrinsicCall, Literal)
 from psyclone.psyir.symbols import (
     DataSymbol, SymbolTable, REAL_DOUBLE_TYPE, INTEGER_TYPE, REAL_TYPE,
     ArrayType, RoutineSymbol, ImportInterface, ScalarType, ContainerSymbol,
@@ -933,13 +933,13 @@ def test_generate_harness_kernel_arg_invalid_shape(fortran_reader):
     # Break one of the bounds in the Range inside the argument shape by making
     # it into a UnaryOperation node.
     fld_arg.datatype._shape[0] = ArrayType.ArrayBounds(
-        lower=UnaryOperation.create(UnaryOperation.Operator.NINT,
-                                    Literal("1", INTEGER_TYPE)),
+        lower=IntrinsicCall.create(IntrinsicCall.Intrinsic.NINT,
+                                   [Literal("1", INTEGER_TYPE)]),
         upper=fld_arg.datatype._shape[0].upper)
     with pytest.raises(NotImplementedError) as err:
         generate_adjoint_test(tl_psyir, ad_psyir, ["field1"])
     assert ("Found argument 'field1' to kernel 'kernel' which has an array "
-            "bound specified by a 'UnaryOperation' node. Only Literals or "
+            "bound specified by a 'IntrinsicCall' node. Only Literals or "
             "References are supported" in str(err.value))
     # Break the argument shape.
     fld_arg.datatype._shape = [1] + fld_arg.datatype._shape[1:]
