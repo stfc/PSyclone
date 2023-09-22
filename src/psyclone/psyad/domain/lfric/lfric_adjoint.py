@@ -162,7 +162,7 @@ def generate_lfric_adjoint(tl_psyir, active_variables):
         access = _update_access_metadata(var_name, arg_symbols, metadata)
         if access:
             # Add in any new access symbols.
-            _check_or_add_access(ad_container, access)
+            _check_or_add_access_symbol(ad_container, access)
 
     return ad_psyir
 
@@ -211,13 +211,15 @@ def _update_access_metadata(var_name, arg_symbols, metadata):
         meta_arg_index = meta_arg_index_from_arg_index[arg_index]
     except KeyError as exc:
         raise GenerationError(
-            f"The argument position '{arg_index}' of the active variable "
-            f"'{found_symbol.name}' does not match any position as "
-            f"specified by the metadata. The expected meta_arg positions "
-            f"from argument positions are "
-            f"'{meta_arg_index_from_arg_index}'. The most likely reason "
-            f"for this is that the argument list does not conform to the "
-            f"LFRic rules - perhaps it is a PSyKAl-lite kernel?") from exc
+            f"The position in the kernel subroutine argument list "
+            f"'{arg_index}' of the active variable '{found_symbol.name}' "
+            f"does not match any of the positions expected by the kernel "
+            f"argument ('meta_arg') metadata descriptions. The expected "
+            f"mapping of kernel subroutine argument positions to kernel "
+            f"meta_arg positions is '{meta_arg_index_from_arg_index}'. "
+            f"The most likely reason for this is that the kernel subroutine "
+            f"argument list does not conform to the LFRic rules - perhaps "
+            f"it is a PSyKAl-lite kernel?") from exc
     meta_arg = metadata.meta_args[meta_arg_index]
 
     # Determine the intent of this variable from its declaration
@@ -255,10 +257,10 @@ def _update_access_metadata(var_name, arg_symbols, metadata):
     return access
 
 
-def _check_or_add_access(container, access):
-    '''Check whether the LFRic access metadata name provided in argument
-    'access' is already declared in the symbol table and if not add
-    it.
+def _check_or_add_access_symbol(container, access):
+    '''Check whether the LFRic access metadata name (e.g. 'gh_write')
+    provided in argument 'access' is already declared in the symbol
+    table and if not add it.
 
     :param container: the adjoint PSyIR.
     :type container: :py:class:`psyclone.psyir.nodes.Container`

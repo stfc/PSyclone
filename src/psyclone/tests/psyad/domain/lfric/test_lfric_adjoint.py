@@ -49,7 +49,7 @@ from psyclone.domain.lfric.kernel import (
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyad.domain.lfric import generate_lfric_adjoint
 from psyclone.psyad.domain.lfric.lfric_adjoint import (
-    _update_access_metadata, _check_or_add_access)
+    _update_access_metadata, _check_or_add_access_symbol)
 from psyclone.psyir.symbols import (
     DataSymbol, ArgumentInterface, INTEGER_TYPE, REAL_TYPE)
 from psyclone.psyir.transformations import TransformationError
@@ -70,9 +70,9 @@ end program test
 """)
     with pytest.raises(GenerationError) as err:
         generate_lfric_adjoint(psyir, ["var1", "var2"])
-    assert ("If the LFRic kernel contains a single container, it should not "
-            "be a FileContainer (as that means the kernel does not contain "
-            "a module)." in str(err.value))
+    assert ("If the LFRic kernel PSyIR contains a single container, it "
+            "should not be a FileContainer (as that means the kernel "
+            "source is not within a module)." in str(err.value))
 
 
 def test_generate_lfric_adjoint_no_routines_error(fortran_reader):
@@ -259,9 +259,9 @@ def test_generate_lfric_adjoint_multi_precision(
         "    arg_type(gh_field, gh_real, gh_read, w0)/)\n" in result)
 
 
-def test_generate_lfric_adjoint_check_add_access(
+def test_generate_lfric_adjoint_check_add_access_symbol(
         fortran_reader, fortran_writer):
-    '''Check that the _check_or_add_access method is called from
+    '''Check that the _check_or_add_access_symbol method is called from
     generate_lfric_adjoint. We do this by checking that the access
     declarations are updated.
 
@@ -361,12 +361,16 @@ def test_update_access_metadata_index_error():
     arguments = [field_1]
     with pytest.raises(GenerationError) as info:
         _ = _update_access_metadata("field_1", arguments, metadata)
-    assert ("The argument position '0' of the active variable 'field_1' "
-            "does not match any position as specified by the metadata. "
-            "The expected meta_arg positions from argument positions are "
-            "'{2: 0, 3: 1, 4: 2, 5: 3, 7: 4}'. The most likely reason for "
-            "this is that the argument list does not conform to the LFRic "
-            "rules - perhaps it is a PSyKAl-lite kernel?" in str(info.value))
+
+    print(str(info.value))
+    assert ("The position in the kernel subroutine argument list '0' of the "
+            "active variable 'field_1' does not match any of the positions "
+            "expected by the kernel argument ('meta_arg') metadata "
+            "descriptions. The expected mapping of kernel subroutine argument "
+            "positions to kernel meta_arg positions is '{2: 0, 3: 1, 4: 2, "
+            "5: 3, 7: 4}'. The most likely reason for this is that the kernel "
+            "subroutine argument list does not conform to the LFRic rules - "
+            "perhaps it is a PSyKAl-lite kernel?" in str(info.value))
 
 
 def test_update_access_metadata_scalar_sum():
@@ -466,8 +470,10 @@ def test_update_access_metadata_write(monkeypatch):
 
 
 def test_update_access_metadata_read(monkeypatch):
-    '''Test that a field with intent out results in metadata with access
-    gh_read. We monkeypatch the field to create this case.
+    '''Test that a field which specifies gh_write in its tangent linear
+    metadata, but the adjoint code specifies that it is now intent in,
+    results in metadata with access gh_read. We monkeypatch the field
+    to create this case.
 
     '''
     metadata, dummy, field_1, field_2, field_3, scalar, operator = \
@@ -500,9 +506,9 @@ def test_update_access_metadata_unexpected(monkeypatch):
             in str(info.value))
 
 
-# _check_or_add_access
+# _check_or_add_access_symbol
 
-def test_check_or_add_access_exists(fortran_reader, fortran_writer):
+def test_check_or_add_access_symbol_exists(fortran_reader, fortran_writer):
     '''Test that nothing changes if the access type already exists
     explicitly in the code and is imported from argument_mod.
 
@@ -515,12 +521,12 @@ def test_check_or_add_access_exists(fortran_reader, fortran_writer):
         "  contains\n\n"
         "end module test_mod\n")
     psyir = fortran_reader.psyir_from_source(adj_code)
-    _check_or_add_access(psyir, "gh_readwrite")
+    _check_or_add_access_symbol(psyir, "gh_readwrite")
     result = fortran_writer(psyir)
     assert result == adj_code
 
 
-def test_check_or_add_access_no_import(fortran_reader):
+def test_check_or_add_access_symbol_no_import(fortran_reader):
     '''Test that the expected exeption is raised if the access type
     already exists explicitly in the code but is not imported.
 
@@ -534,12 +540,12 @@ def test_check_or_add_access_no_import(fortran_reader):
         "end module test_mod\n")
     psyir = fortran_reader.psyir_from_source(adj_code)
     with pytest.raises(GenerationError) as info:
-        _check_or_add_access(psyir, "gh_readwrite")
+        _check_or_add_access_symbol(psyir, "gh_readwrite")
     assert ("The existing symbol 'gh_readwrite' is not imported from a use "
             "statement." in str(info.value))
 
 
-def test_check_or_add_access_argument_mod(fortran_reader):
+def test_check_or_add_access_symbol_argument_mod(fortran_reader):
     '''Test that an exception is raised if the access type already exists
     explicitly in the code but is imported from a module other than
     argument_mod.
@@ -554,13 +560,13 @@ def test_check_or_add_access_argument_mod(fortran_reader):
         "end module test_mod\n")
     psyir = fortran_reader.psyir_from_source(adj_code)
     with pytest.raises(GenerationError) as info:
-        _check_or_add_access(psyir, "gh_readwrite")
+        _check_or_add_access_symbol(psyir, "gh_readwrite")
     assert ("The existing symbol 'gh_readwrite' is imported from "
             "'another_mod' but should be imported from 'argument_mod'."
             in str(info.value))
 
 
-def test_check_or_add_access_argument_mod_wildcard(
+def test_check_or_add_access_symbol_argument_mod_wildcard(
         fortran_reader, fortran_writer):
     '''Test that there is no change in the code if argument_mod is
     imported as a wildcard import.
@@ -574,12 +580,12 @@ def test_check_or_add_access_argument_mod_wildcard(
         "  contains\n\n"
         "end module test_mod\n")
     psyir = fortran_reader.psyir_from_source(adj_code)
-    _check_or_add_access(psyir, "gh_readwrite")
+    _check_or_add_access_symbol(psyir, "gh_readwrite")
     result = fortran_writer(psyir)
     assert result == adj_code
 
 
-def test_check_or_add_access_argument_mod_argument_mod_exists(
+def test_check_or_add_access_symbol_argument_mod_argument_mod_exists(
         fortran_reader, fortran_writer):
     '''Test that that if if argument_mod already imports something else
     then the access type is also added.
@@ -590,21 +596,21 @@ def test_check_or_add_access_argument_mod_argument_mod_exists(
         "  use argument_mod, only : gh_read\n"
         "end module test_mod\n")
     psyir = fortran_reader.psyir_from_source(adj_code)
-    _check_or_add_access(psyir, "gh_readwrite")
+    _check_or_add_access_symbol(psyir, "gh_readwrite")
     result = fortran_writer(psyir)
     assert "use argument_mod, only : gh_read, gh_readwrite" in result
 
 
-def test_check_or_add_access_argument_mod_argument_mod_not_exist(
+def test_check_or_add_access_symbol_argument_mod_argument_mod_not_exist(
         fortran_reader, fortran_writer):
     '''Test that that if if argument_mod does not exist then it is added
-    as well as the access type is also added.
+    as well as the access type.
 
     '''
     adj_code = (
         "module test_mod\n"
         "end module test_mod\n")
     psyir = fortran_reader.psyir_from_source(adj_code)
-    _check_or_add_access(psyir, "gh_readwrite")
+    _check_or_add_access_symbol(psyir, "gh_readwrite")
     result = fortran_writer(psyir)
     assert "use argument_mod, only : gh_readwrite" in result

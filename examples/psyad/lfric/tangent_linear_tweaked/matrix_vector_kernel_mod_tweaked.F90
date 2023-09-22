@@ -6,6 +6,11 @@
 
 !> @brief This version is for use on continuous spaces and will force
 !>        halo exchanges on the input fields
+
+! Tweaked this kernel to allow it to run though PSyAD by adding
+! artificial contains and procedure to the metadata as PSyAD currently
+! can not process multi-precision metadata.
+
 module matrix_vector_kernel_mod
   use argument_mod,            only : arg_type,                 &
                                       GH_FIELD, GH_OPERATOR,    &
