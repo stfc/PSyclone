@@ -602,6 +602,8 @@
 
 	204) PR #2264 for #2263. Split LFRicScalarArgs from src/psyclone/dynamo0p3.py.
 
+	205) PR #2328 for #2316. Update PSyclone to use 0.1.3 of fparser.
+
 release 2.3.1 17th of June 2022
 
 	1) PR #1747 for #1720. Adds support for If blocks to PSyAD.

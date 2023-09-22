@@ -161,7 +161,7 @@ if __name__ == '__main__':
         packages=PACKAGES,
         package_dir={"": "src"},
         # TODO #1193: Pinned jsonschema to support older versions of python
-        install_requires=['pyparsing', 'fparser==0.1.1', 'configparser',
+        install_requires=['pyparsing', 'fparser==0.1.3', 'configparser',
                           'jsonschema==3.0.2', 'sympy'],
         extras_require={
             'dag': ["graphviz"],
