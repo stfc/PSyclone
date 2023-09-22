@@ -1393,8 +1393,8 @@ def test_omp_par_and_halo_exchange_error():
     # Enclose the invoke code within a single region
     with pytest.raises(TransformationError) as excinfo:
         rtrans.apply(schedule.children)
-    assert ("type 'LFRicHaloExchange' cannot be enclosed by a OMPParallelTrans "
-            "transformation" in str(excinfo.value))
+    assert ("type 'LFRicHaloExchange' cannot be enclosed by a "
+            "OMPParallelTrans transformation" in str(excinfo.value))
 
 
 def test_builtin_single_omp_pdo(tmpdir, monkeypatch, annexed, dist_mem):
