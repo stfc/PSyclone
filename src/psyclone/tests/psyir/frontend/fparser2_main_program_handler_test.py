@@ -96,7 +96,7 @@ def test_main_program_handler(parser, code, expected):
     assert expected == result
 
 
-def test_main_program_handler_codeblock(fortran_reader):
+def test_main_program_handler_codeblock(fortran_reader, fortran_writer):
     '''Test the main_program_handler results in a CodeBlock if the input
     code contains a child Subroutine.'''
     code = '''Program TestProgram
@@ -109,4 +109,11 @@ def test_main_program_handler_codeblock(fortran_reader):
     psyir = fortran_reader.psyir_from_source(code)
     cblock = psyir.children[0]
     assert isinstance(cblock, CodeBlock)
-    assert "SUBROUTINE" in str(cblock.get_ast_nodes[0])
+    out = fortran_writer(psyir)
+    correct = '''PROGRAM TestProgram
+  CONTAINS
+  SUBROUTINE TestSubroutine
+  END SUBROUTINE
+END PROGRAM
+'''
+    assert correct == out

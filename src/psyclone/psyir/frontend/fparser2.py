@@ -4579,12 +4579,11 @@ class Fparser2Reader():
         try:
             _first_type_match(node.children,
                               Fortran2003.Internal_Subprogram_Part)
-            has_contains = True
-        except ValueError:
-            has_contains = False
-        if has_contains:
             raise NotImplementedError("Psyclone doesn't yet support 'Contains'"
-                                      " insinde a Program")
+                                      " inside a Program")
+        except ValueError:
+            # The Program does not hae a contains block
+            pass
 
         name = node.children[0].children[1].string
         routine = Routine(name, parent=parent, is_program=True)
