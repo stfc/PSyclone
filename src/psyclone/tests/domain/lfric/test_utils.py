@@ -51,7 +51,7 @@ def test_find_container_not_node():
     provided argument is not a PSyIR Node. '''
     with pytest.raises(TypeError) as info:
         _ = find_container(None)
-    assert ("In, the find_container function, expected the 'psyir' argument "
+    assert ("In the find_container function, expected the 'psyir' argument "
             "to be a PSyIR Node but found 'NoneType'." in str(info.value))
 
 
@@ -76,9 +76,9 @@ def test_find_container_no_module():
     '''
     with pytest.raises(GenerationError) as info:
         _ = find_container(FileContainer.create("filename", SymbolTable(), []))
-    assert ("If the LFRic kernel contains a single container, it should not "
-            "be a FileContainer (as that means the kernel does not contain a "
-            "module)." in str(info.value))
+    assert ("If the LFRic kernel PSyIR contains a single container, it should "
+            "not be a FileContainer (as that means the kernel source is "
+            "not within a module)." in str(info.value))
 
 
 def test_find_container_inner_filecontainer():
@@ -114,7 +114,8 @@ def test_find_container_outer_not_filecontainer():
 
 def test_find_container_multi_module():
     '''Test that the find_container utility raises an exception if the
-    provided PSyIR contains mode than one module as LFRic expects one.
+    provided PSyIR contains more than two Containers as this is an
+    invalid LFRic kernel.
 
     '''
     container1 = Container.create("mod_name1", SymbolTable(), [])
@@ -129,7 +130,7 @@ def test_find_container_multi_module():
 
 def test_find_container_working():
     '''Test that the find_container utility raises an exception if the
-    provided PSyIR contains mode than one module as LFRic expects one.
+    provided PSyIR contains more than one module as LFRic expects one.
 
     '''
     module = Container.create("mod_name", SymbolTable(), [])
@@ -158,19 +159,24 @@ def test_metadata_name_wrong_type():
 @pytest.mark.parametrize("name", ["", "_mod", "module"])
 def test_metadata_name_no_mod(name):
     '''Test that the expected exception is raised if the supplied module
-    name does not end in _mod.
+    name does not end in _mod or does not have at least one character
+    that precedes _mod.
 
     '''
     with pytest.raises(GenerationError) as info:
         _ = metadata_name_from_module_name(name)
-    assert (f"LFRic module names should end with \"_mod\", but found a "
-            f"module called '{name}'." in str(info.value))
+    assert (f"LFRic module names should end with \"_mod\", with at least "
+            f"one preceding character, but found a module called '{name}'."
+            in str(info.value))
 
 
-def test_metadata_name_ok():
+@pytest.mark.parametrize("name,expected", [
+    ("example_mod", "example_type"), ("x_mod", "x_type"),
+    ("something_mod_mod", "something_mod_type")])
+def test_metadata_name_ok(name, expected):
     '''Test that the funtion returns the expected output if valid input is
     provided (*_mod in the input is output as *_type).
 
     '''
-    result = metadata_name_from_module_name("example_mod")
-    assert result == "example_type"
+    result = metadata_name_from_module_name(name)
+    assert result == expected

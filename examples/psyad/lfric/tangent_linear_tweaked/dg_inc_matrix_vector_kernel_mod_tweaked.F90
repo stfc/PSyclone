@@ -6,6 +6,11 @@
 !> @brief This version is for use on discontinous spaces and increments the
 !>        output field, hence can be used for WTheta spaces and incrementing
 !>        W3 fields
+
+! Tweaked this kernel to allow it to run though PSyAD by adding
+! artificial contains and procedure to the metadata as PSyAD currently
+! can not process multi-precision metadata.
+
 module dg_inc_matrix_vector_kernel_mod
   use argument_mod,            only : arg_type,                  &
                                       GH_FIELD, GH_OPERATOR,     &
