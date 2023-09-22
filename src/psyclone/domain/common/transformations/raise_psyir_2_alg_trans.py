@@ -146,7 +146,7 @@ class RaisePSyIR2AlgTrans(Transformation):
     def validate(self, node, options=None):
         '''Validate the node argument.
 
-        :param node: a PSyIR call node capturing an invoke call in \
+        :param node: a PSyIR call node capturing an invoke call in
             generic PSyIR.
         :type node: :py:class:`psyclone.psyir.nodes.Call`
         :param options: a dictionary with options for transformations.
@@ -157,8 +157,7 @@ class RaisePSyIR2AlgTrans(Transformation):
         :raises TransformationError: if the supplied call argument
             does not have the expected name which would identify it as an
             invoke call.
-        :raises TransformationError: if the there is more than one
-            named argument.
+        :raises TransformationError: if there is more than one named argument.
         :raises TransformationError: if the named argument does not
             conform to the name=str format.
         :raises TransformationError: if the name of the invoke is invalid.

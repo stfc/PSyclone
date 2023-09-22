@@ -29,7 +29,7 @@
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Author: J. Henrichs, Bureau of Meteorology
-
+! Modifications: A. R. Porter, STFC Daresbury Laboratory
 
 program main
 
