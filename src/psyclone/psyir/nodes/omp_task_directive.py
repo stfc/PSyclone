@@ -62,6 +62,9 @@ class OMPTaskDirective(OMPRegionDirective):
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
     :param bool lowering: If this node is being lowered from another node.
     """
+    # TODO #2330: This node cannot handle if the tree beneath it changes after
+    # the clause computation - this should not currently cause much issues but
+    # we should improve it in the future.
 
     _children_valid_format = (
         "Schedule, OMPPrivateClause,"

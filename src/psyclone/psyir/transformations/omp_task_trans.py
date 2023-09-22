@@ -50,6 +50,10 @@ from psyclone.psyir.transformations.transformation_error import \
 class OMPTaskTrans(ParallelLoopTrans):
     ''' Apply an OpenMP Task Transformation to a Loop. The Loop must
     be within an OpenMP Serial region (Single or Master) at codegen time.
+    Once lowering begins, no more modifications to the tree should occur
+    as the task directives do not recompute dependencies after lowering.
+    In the future it may be possible to do this through an _update_node
+    implementation.
     '''
 
     def __str__(self):

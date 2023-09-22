@@ -3048,13 +3048,12 @@ depend(in: b(i + 32,:),b(i,:)), depend(out: a(i,:))
     !$omp end task'''
     assert correct in fortran_writer(psyir)
     # Cannot test compilation of this test as it uses an external module.
-    # assert Compile(tmpdir).string_compiles(fortran_writer(tree))
 
 
-# TODO #2052 This test is expected to fail as we can't yet handle
-# multiple indirections on either side of a statement and will over
-# generate code for this dependency.
-@pytest.mark.xfail
+@pytest.mark.xfail(reason="TODO #2052 This test is expected to fail as "
+                          "we can't yet handle multiple indirections on "
+                          "either side of a statement and will over "
+                          "generate code for this dependency.")
 def test_omp_task_directive_xfail_indirection_test(fortran_reader,
                                                    fortran_writer,
                                                    tmpdir):

@@ -2117,8 +2117,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
             )
         # We allow a subset of IntrinsicCall nodes
         for child in self.walk(Call):
-            # pylint: disable=unidiomatic-typecheck
-            if type(child) is Call:
+            if not isinstance(child, IntrinsicCall):
                 raise GenerationError(
                     "Attempted to lower to OMPTaskDirective "
                     "node, but the node contains a Call "

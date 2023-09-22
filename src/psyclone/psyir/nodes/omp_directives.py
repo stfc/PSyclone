@@ -60,7 +60,7 @@ from psyclone.psyir.nodes.directive import StandaloneDirective, \
     RegionDirective
 from psyclone.psyir.nodes.loop import Loop
 from psyclone.psyir.nodes.if_block import IfBlock
-from psyclone.psyir.nodes.while_loop import WhileLoop
+from psyclone.psyir.nodes.intrinsic_call import IntrinsicCall
 from psyclone.psyir.nodes.literal import Literal
 from psyclone.psyir.nodes.omp_clauses import OMPGrainsizeClause, \
     OMPNowaitClause, OMPNogroupClause, OMPNumTasksClause, OMPPrivateClause, \
@@ -72,6 +72,7 @@ from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes.schedule import Schedule
 from psyclone.psyir.nodes.structure_reference import StructureReference
+from psyclone.psyir.nodes.while_loop import WhileLoop
 from psyclone.psyir.symbols import INTEGER_TYPE
 
 # OMP_OPERATOR_MAPPING is used to determine the operator to use in the
@@ -331,8 +332,8 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
             # At the moment we allow all IntrinsicCall nodes through, and
             # assume that all IntrinsicCall nodes we find don't modify
             # symbols, but only read from them.
-            if type(node) is Call:
-                # Currently opting to fail on any Call.
+            if isinstance(node, Call) and not isinstance(node, IntrinsicCall):
+                # Currently opting to fail on any non-intrinsic Call.
                 # Potentially it might be possible to check if the Symbol is
                 # written to and only if so then raise an error
                 raise UnresolvedDependencyError(
@@ -682,7 +683,7 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
             # If the value is between min and max of r1 then we check that
             # the value is in the values list
             val = int(member)
-            if val >= r1_min and val <= r1_max:
+            if r1_min <= val <= r1_max:
                 if val not in values:
                     # Found incompatible dependency between two
                     # array accesses, ref1 is in range r1_min
@@ -738,9 +739,7 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
         try:
             ref1_accesses = self._compute_accesses(ref1, preceding_t1, task1)
             ref2_accesses = self._compute_accesses(ref2, preceding_t2, task2)
-        except UnresolvedDependencyError as excinfo:
-            print(str(excinfo.value))
-            print("Hello")
+        except UnresolvedDependencyError:
             # If we get a UnresolvedDependencyError from compute_accesses, then
             # we found an access that isn't able to be handled by PSyclone, so
             # dependencies based on it need to be handled by a taskwait
@@ -755,7 +754,7 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
         if isinstance(ref1_accesses, dict) or isinstance(ref2_accesses, dict):
             # If they aren't both dicts then we need to return False as
             # the special case isn't handled correctly.
-            if type(ref1_accesses) != type(ref2_accesses):
+            if type(ref1_accesses) is not type(ref2_accesses):
                 return False
             # If they're both dicts then we need the step to be equal for
             # this dependency to be satisfiable.
@@ -817,7 +816,7 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
         # and the other is a base Reference type - this is unlikely to happen
         # but we check just in case. In this case we have to assume there is
         # an unhandled dependency
-        if type(node1) != type(node2):
+        if type(node1) is not type(node2):
             return False
         # For structure reference we need to check they access
         # the same member. If they don't, no dependence so valid.
@@ -839,6 +838,7 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
         # If we have (exactly) Reference objects we filter out
         # non-matching ones with the symbol check, and matching ones
         # are always valid since they are simple accesses.
+        # pylint: disable=unidiomatic-typecheck
         if type(node1) is Reference:
             return True
 
@@ -1522,7 +1522,7 @@ class OMPParallelDirective(OMPRegionDirective):
         '''
         The PSyIR does not specify if each symbol inside an OpenMP region is
         private, firstprivate, shared or shared but needs synchronisation,
-        the attributes are infered looking at the usage of each symbol inside
+        the attributes are inferred looking at the usage of each symbol inside
         the parallel region.
 
         This method analyses the directive body and automatically classifies
@@ -1531,12 +1531,13 @@ class OMPParallelDirective(OMPRegionDirective):
         - Scalars that are accessed only once are shared.
         - Scalars that are read-only or written outside a loop are shared.
         - Scalars written in multiple iterations of a loop are private, unless:
-          * there is a write-after-read dependency in a loop iteration,
-          in this case they are shared but need synchronisation;
-          * they are read before in the same parallel region (but not inside
-          the same loop iteration), in this case they are firstprivate.
-          * they are only conditionally written in some iterations;
-          in this case they are firstprivate.
+
+            * there is a write-after-read dependency in a loop iteration,
+              in this case they are shared but need synchronisation;
+            * they are read before in the same parallel region (but not inside
+              the same loop iteration), in this case they are firstprivate.
+            * they are only conditionally written in some iterations;
+              in this case they are firstprivate.
 
         This method returns the sets of private, firstprivate, and shared but
         needing synchronisation symbols, all symbols not in these sets are

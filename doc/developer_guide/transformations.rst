@@ -552,6 +552,6 @@ nodes, then additional `OMPTaskwaitDirectives` will be added to ensure code
 correctness.
 
 If an OpenMP task region contains an `LBOUND`, `UBOUND` or `SIZE` intrinsic inside
-an if condition or a loop condition, and that intrisic contains an array section
+an if condition or a loop condition, and that intrinsic contains an array section
 then PSyclone may generate extra dependencies, which may hurt code performance. If
 this causes issues, please open an issue.
