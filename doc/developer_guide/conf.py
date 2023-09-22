@@ -247,8 +247,8 @@ latex_elements = {
 #  documentclass [howto/manual]).
 latex_documents = [
     ('index', 'psyclone-dev.tex', u"PSyclone Developer Guide",
-     u'Rupert Ford, Joerg Henrichs, Iva Kavcic, Andrew Porter,\\\\ Sergi Siso'
-     ' and Lottie Turner', 'manual'),
+     u'Oakley Brunt, Rupert Ford, Joerg Henrichs, Iva Kavcic, \\\\'
+     'Andrew Porter, Sergi Siso and Lottie Turner', 'manual'),
 ]
 
 # The name of an image file (relative to this directory) to place at the top of

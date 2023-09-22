@@ -34,7 +34,7 @@
 # Author I. Kavcic, Met Office
 # Modified by A. R. Porter and R. W. Ford, STFC Daresbury Lab
 # Modified by J. Henrichs, Bureau of Meteorology
-# Modified by L. Turner, Met Office
+# Modified by L. Turner and O. Brunt, Met Office
 # -----------------------------------------------------------------------------
 
 ''' Module containing tests for PSyclone LFRicExtractTrans

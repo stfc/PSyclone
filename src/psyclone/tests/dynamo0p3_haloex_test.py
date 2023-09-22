@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+# Modified by O. Brunt, Met Office
 
 '''This module tests the LFRic API-specific halo exchange
    implementation. '''

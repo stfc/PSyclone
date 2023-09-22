@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
-# Modified I. Kavcic and L. Turner, Met Office
+# Modified I. Kavcic, L. Turner and O. Brunt, Met Office
 # -----------------------------------------------------------------------------
 
 ''' Performs py.test tests on the psyGen module '''
