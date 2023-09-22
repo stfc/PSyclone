@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2022, Science and Technology Facilities Council
+# Copyright (c) 2020-2023, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,8 +31,8 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford STFC Daresbury Lab.
-
+# Author: R. W. Ford, STFC Daresbury Lab.
+# Modified: S. Siso, STFC Daresbury Lab.
 
 '''An example PSyclone transformation script to demonstrate
 optimisations to the matrix vector kernel to improve its performance
@@ -68,9 +68,8 @@ $ psyclone -s ./matvec_opt.py \
 -oalg /dev/null -opsy /dev/null
 
 '''
-from __future__ import print_function
 import sys
-from psyclone.psyir.nodes import BinaryOperation
+from psyclone.psyir.nodes import IntrinsicCall
 from psyclone.psyir.transformations import Matmul2CodeTrans
 from psyclone.psyir.backend.fortran import FortranWriter
 
@@ -93,9 +92,9 @@ def trans(psy):
             if kernel.name.lower() == "matrix_vector_kernel_code":
                 kernel_schedule = kernel.get_kernel_schedule()
                 # Replace matmul with inline code
-                for bin_op in kernel_schedule.walk(BinaryOperation):
-                    if bin_op.operator is BinaryOperation.Operator.MATMUL:
-                        matmul2code_trans.apply(bin_op)
+                for icall in kernel_schedule.walk(IntrinsicCall):
+                    if icall.intrinsic is IntrinsicCall.Intrinsic.MATMUL:
+                        matmul2code_trans.apply(icall)
                 # Future optimisations will go here.
                 print(kernel_schedule.view())
                 result = fortran_writer(kernel_schedule)

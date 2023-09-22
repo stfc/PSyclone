@@ -44,14 +44,17 @@ nodes.'''
 
 import abc
 
-from psyclone.core import AccessType, VariablesAccessInfo, Signature
+from psyclone.core import Signature
 from psyclone.f2pygen import DirectiveGen, CommentGen
 from psyclone.errors import GenerationError, InternalError
+from psyclone.psyir.nodes.acc_clauses import (ACCCopyClause, ACCCopyInClause,
+                                              ACCCopyOutClause)
 from psyclone.psyir.nodes.codeblock import CodeBlock
-from psyclone.psyir.nodes.directive import StandaloneDirective, RegionDirective
+from psyclone.psyir.nodes.directive import (StandaloneDirective,
+                                            RegionDirective)
 from psyclone.psyir.nodes.psy_data_node import PSyDataNode
 from psyclone.psyir.nodes.routine import Routine
-from psyclone.psyir.symbols import ScalarType
+from psyclone.psyir.nodes.schedule import Schedule
 
 
 class ACCDirective(metaclass=abc.ABCMeta):
@@ -71,7 +74,9 @@ class ACCDirective(metaclass=abc.ABCMeta):
 
 
 class ACCRegionDirective(ACCDirective, RegionDirective, metaclass=abc.ABCMeta):
-    ''' Base class for all OpenACC region directive statements. '''
+    ''' Base class for all OpenACC region directive statements.
+
+    '''
     def validate_global_constraints(self):
         '''
         Perform validation checks for any global constraints. This can only
@@ -567,8 +572,6 @@ class ACCKernelsDirective(ACCRegionDirective):
     :param bool default_present: whether or not to add the "default(present)" \
                                  clause to the kernels directive.
 
-    :raises NotImplementedError: if default_present is False.
-
     '''
     def __init__(self, children=None, parent=None, default_present=True):
         super().__init__(children=children, parent=parent)
@@ -665,103 +668,32 @@ class ACCDataDirective(ACCRegionDirective):
         raise InternalError(
             "ACCDataDirective.gen_code should not have been called.")
 
-    def begin_string(self):
-        '''Returns the beginning statement of this directive, i.e.
-        "acc data". The backend is responsible for adding the
-        correct directive beginning (e.g. "!$").
+    @staticmethod
+    def _validate_child(position, child):
+        '''
+        Check that the supplied node is a valid child of this node at the
+        specified position.
 
-        :returns: the opening statement of this directive.
-        :rtype: str
+        :param int position: the proposed position of this child in the list
+            of children.
+        :param child: the proposed child node.
+        :type child: :py:class:`psyclone.psyir.nodes.Node`
 
-        TODO #1396 - remove this whole method in favour of having the
-        visitor backend generate the code.
+        :returns: whether or not the proposed child and position are valid.
+        :rtype: bool
 
         '''
-        def _create_access_list(signatures, var_accesses):
-            '''
-            Constructs a list of variables for inclusion in a data-access
-            clause.
+        if position == 0:
+            return isinstance(child, Schedule)
+        return isinstance(child, (ACCCopyClause, ACCCopyInClause,
+                                  ACCCopyOutClause))
 
-            :param signatures: the list of Signatures for which to create \
-                entries in the list.
-            :type signatures: List[:py:class:`psyclone.core.Signature`]
-            :param var_accesses: object holding details on all variable \
-                accesses in the region to which the data-access clause applies.
-            :type var_accesses: :py:class:`psyclone.core.VariablesAccessInfo`
-
-            :returns: list of variable accesses.
-            :rtype: List[str]
-
-            '''
-            access_list = []
-            for sig in signatures:
-                if sig.is_structure:
-                    # We have to do a 'deep copy' of any structure access. This
-                    # means that if we have an access `a%b%c(i)` then we need
-                    # to copy `a`, `a%b` and then `a%b%c`.
-                    # Look up a PSyIR node that corresponds to this access.
-                    current = var_accesses[sig].all_accesses[0].node
-                    part_list = [current.name]
-                    if current.name not in access_list:
-                        access_list.append(current.name)
-                    while hasattr(current, "member"):
-                        current = current.member
-                        # Currently this is hardwired to generate Fortran (i.e.
-                        # we use '%' when accessing a component of a struct).
-                        # TODO #1386 a new StructureReference needs to be
-                        # created for 'current' and then given to an
-                        # appropriate backend.
-                        ref_string = "%".join(part_list[:]+[current.name])
-                        if ref_string not in access_list:
-                            access_list.append(ref_string)
-                else:
-                    ref_string = str(sig)
-                    if ref_string not in access_list:
-                        access_list.append(ref_string)
-            return access_list
-
-        result = "acc data"
-
-        # Identify the inputs and outputs to the region (variables that
-        # are read and written).
-        var_accesses = VariablesAccessInfo(self)
-        table = self.scope.symbol_table
-        readers = set()
-        writers = set()
-        for signature in var_accesses.all_signatures:
-            sym = table.lookup(signature.var_name)
-            accesses = var_accesses[signature]
-            if isinstance(sym.datatype, ScalarType):
-                # We ignore scalars as these are passed by value when OpenACC
-                # kernels are launched.
-                continue
-            if accesses.is_read():
-                readers.add(signature)
-            if accesses.is_written():
-                writers.add(signature)
-        readwrites = readers.intersection(writers)
-        # Are any of the read-writes written before they are read?
-        for signature in list(readwrites)[:]:
-            accesses = var_accesses[signature]
-            if accesses[0].access_type == AccessType.WRITE:
-                # First access is a write so treat as a write
-                writers.add(signature)
-                readers.discard(signature)
-                readwrites.discard(signature)
-        readers_list = sorted(readers - readwrites)
-        writers_list = sorted(writers - readwrites)
-        readwrites_list = sorted(readwrites)
-        if readers_list:
-            result += f""" copyin({",".join(
-                _create_access_list(readers_list, var_accesses))})"""
-        if writers_list:
-            result += f""" copyout({",".join(
-                _create_access_list(writers_list, var_accesses))})"""
-        if readwrites_list:
-            result += f""" copy({",".join(
-                _create_access_list(readwrites_list, var_accesses))})"""
-
-        return result
+    def begin_string(self):
+        '''
+        :returns: the beginning of the opening statement of this directive.
+        :rtype: str
+        '''
+        return "acc data"
 
     def end_string(self):
         '''
@@ -770,6 +702,42 @@ class ACCDataDirective(ACCRegionDirective):
 
         '''
         return "acc end data"
+
+    def _update_node(self):
+        '''
+        Called whenever there is a change in the PSyIR tree below this node.
+
+        Ensures that the various data-movement clauses are up-to-date.
+
+        '''
+        self._update_data_movement_clauses()
+
+    def _update_data_movement_clauses(self):
+        '''
+        Updates the data-movement clauses on this directive.
+
+        First removes any such clauses and then regenerates them using
+        dependence analysis to determine which variables (if any) need moving.
+
+        '''
+        # Remove the clauses that we will update.
+        for child in self.children[:]:
+            if isinstance(child,
+                          (ACCCopyInClause, ACCCopyOutClause, ACCCopyClause)):
+                self.children.remove(child)
+
+        # Use dependence analysis to identify the variables that are read,
+        # written and read+written within the tree below this node.
+        reads, writes, readwrites = self.create_data_movement_deep_copy_refs()
+
+        if reads:
+            self.addchild(ACCCopyInClause(children=list(reads.values())))
+
+        if writes:
+            self.addchild(ACCCopyOutClause(children=list(writes.values())))
+
+        if readwrites:
+            self.addchild(ACCCopyClause(children=list(readwrites.values())))
 
 
 class ACCUpdateDirective(ACCStandaloneDirective):
