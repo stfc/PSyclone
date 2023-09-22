@@ -3,6 +3,9 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
+! LICENCE.original is available from the Met Office Science Repository Service:
+! https://code.metoffice.gov.uk/trac/lfric/browser/LFRic/trunk/LICENCE.original
+! -----------------------------------------------------------------------------
 !
 !> @brief Perform the restriction operation of a fine W2 field to a coarse mesh
 !> @details Restrict the W2 fine grid field over a number of cells into a
