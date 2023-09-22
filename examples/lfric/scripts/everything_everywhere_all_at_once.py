@@ -42,7 +42,7 @@ DistibutedMemory, OpenMP coloring and serial transformations possible.
 '''
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.domain.lfric import LFRicConstants
-from psyclone.dynamo0p3 import LFRicHaloExchange, DynHaloExchangeStart
+from psyclone.dynamo0p3 import LFRicHaloExchange, LFRicHaloExchangeStart
 from psyclone.psyir.transformations import Matmul2CodeTrans
 from psyclone.psyir.nodes import BinaryOperation, Container, KernelSchedule
 from psyclone.transformations import Dynamo0p3ColourTrans, \
@@ -95,7 +95,7 @@ def trans(psy):
             # far as possible offering the potential for overlap between
             # communication and computation
             location_cursor = 0
-            for ahex in schedule.walk(DynHaloExchangeStart):
+            for ahex in schedule.walk(LFRicHaloExchangeStart):
                 if ahex.position <= location_cursor:
                     continue
                 try:

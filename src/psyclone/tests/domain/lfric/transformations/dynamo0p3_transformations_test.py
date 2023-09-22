@@ -47,8 +47,8 @@ from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
 from psyclone.domain.lfric.lfric_builtins import LFRicXInnerproductYKern
 from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
-from psyclone.dynamo0p3 import DynLoop, DynHaloExchangeStart, \
-    DynHaloExchangeEnd, LFRicHaloExchange
+from psyclone.dynamo0p3 import DynLoop, LFRicHaloExchangeStart, \
+    LFRicHaloExchangeEnd, LFRicHaloExchange
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyGen import InvokeSchedule, GlobalSum, BuiltIn
 from psyclone.psyir.nodes import colored, Loop, Schedule, Literal, Directive, \
@@ -7062,8 +7062,8 @@ def test_vector_async_halo_exchange(tmpdir):
 
     assert len(schedule.children) == 8
     for index in [0, 2, 4]:
-        assert isinstance(schedule.children[index], DynHaloExchangeStart)
-        assert isinstance(schedule.children[index+1], DynHaloExchangeEnd)
+        assert isinstance(schedule.children[index], LFRicHaloExchangeStart)
+        assert isinstance(schedule.children[index+1], LFRicHaloExchangeEnd)
     assert isinstance(schedule.children[6], DynLoop)
     assert isinstance(schedule.children[7], DynLoop)
 

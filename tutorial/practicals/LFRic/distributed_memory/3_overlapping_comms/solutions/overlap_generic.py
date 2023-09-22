@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2022, Science and Technology Facilities Council
+# Copyright (c) 2020-2023, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: R. W. Ford, STFC Daresbury Lab
+# Modified by O. Brunt, Met Office
 
 '''A PSyclone transformation script that transforms all synchronous
 halo exchanges into asynchronous halo exchanges and moves the halo
@@ -49,7 +50,7 @@ PSyclone, it is not designed to be run directly from python.
 '''
 from psyclone.transformations import Dynamo0p3AsyncHaloExchangeTrans, \
     MoveTrans, TransformationError
-from psyclone.dynamo0p3 import LFRicHaloExchange, DynHaloExchangeStart
+from psyclone.dynamo0p3 import LFRicHaloExchange, LFRicHaloExchangeStart
 
 
 def trans(psy):
@@ -82,7 +83,7 @@ def trans(psy):
         # Move any halo exchange starts as early as possible in the
         # schedule to maximise overlap of compute and comms within the
         # invoke.
-        for hex_start_node in reversed(schedule.walk(DynHaloExchangeStart)):
+        for hex_start_node in reversed(schedule.walk(LFRicHaloExchangeStart)):
             idx = hex_start_node.position
             parent = hex_start_node.parent
             # Move halo exchange start node up one node at a time

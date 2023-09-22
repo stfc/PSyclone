@@ -5738,8 +5738,8 @@ class LFRicHaloExchange(HaloExchange):
             # a read dependence. As ignore_hex_dep is True this should
             # be ignored so this is removed from the list.
             if any(dep for dep in hex_deps
-                   if isinstance(dep.call, (DynHaloExchangeStart,
-                                            DynHaloExchangeEnd))):
+                   if isinstance(dep.call, (LFRicHaloExchangeStart,
+                                            LFRicHaloExchangeEnd))):
                 raise GenerationError(
                     "Please perform redundant computation transformations "
                     "before asynchronous halo exchange transformations.")
@@ -6017,7 +6017,7 @@ class LFRicHaloExchange(HaloExchange):
         parent.add(CommentGen(parent, ""))
 
 
-class DynHaloExchangeStart(LFRicHaloExchange):
+class LFRicHaloExchangeStart(LFRicHaloExchange):
     '''The start of an asynchronous halo exchange. This is similar to a
     regular halo exchange except that the Fortran name of the call is
     different and the routine only reads the data being transferred
@@ -6053,7 +6053,7 @@ class DynHaloExchangeStart(LFRicHaloExchange):
     def __init__(self, field, check_dirty=True,
                  vector_index=None, parent=None):
         LFRicHaloExchange.__init__(self, field, check_dirty=check_dirty,
-                                 vector_index=vector_index, parent=parent)
+                                   vector_index=vector_index, parent=parent)
         # Update the field's access appropriately. Here "gh_read"
         # specifies that the start of a halo exchange only reads
         # the field's data.
@@ -6110,7 +6110,7 @@ class DynHaloExchangeStart(LFRicHaloExchange):
         object or raises an exception if one is not found.
 
         :return: The corresponding halo exchange end object
-        :rtype: :py:class:`psyclone.dynamo0p3.DynHaloExchangeEnd`
+        :rtype: :py:class:`psyclone.dynamo0p3.LFRicHaloExchangeEnd`
         :raises GenerationError: If no matching HaloExchangeEnd is \
         found, or if the first matching haloexchange that is found is \
         not a HaloExchangeEnd
@@ -6126,7 +6126,7 @@ class DynHaloExchangeStart(LFRicHaloExchange):
                 # haloexchangestart
                 access = DataAccess(self.field)
                 if access.overlaps(node.field):
-                    if isinstance(node, DynHaloExchangeEnd):
+                    if isinstance(node, LFRicHaloExchangeEnd):
                         return node
                     raise GenerationError(
                         f"Halo exchange start for field '{self.field.name}' "
@@ -6140,7 +6140,7 @@ class DynHaloExchangeStart(LFRicHaloExchange):
             f"matching halo exchange end")
 
 
-class DynHaloExchangeEnd(LFRicHaloExchange):
+class LFRicHaloExchangeEnd(LFRicHaloExchange):
     '''The end of an asynchronous halo exchange. This is similar to a
     regular halo exchange except that the Fortran name of the call is
     different and the routine only writes to the data being
@@ -6168,7 +6168,7 @@ class DynHaloExchangeEnd(LFRicHaloExchange):
     def __init__(self, field, check_dirty=True,
                  vector_index=None, parent=None):
         LFRicHaloExchange.__init__(self, field, check_dirty=check_dirty,
-                                 vector_index=vector_index, parent=parent)
+                                   vector_index=vector_index, parent=parent)
         # Update field properties appropriately. The associated field is
         # written to. However, a readwrite field access needs to be
         # specified as this is required for the halo exchange logic to
@@ -7167,8 +7167,8 @@ class DynLoop(PSyLoop):
 
         '''
         exchange = LFRicHaloExchange(halo_field,
-                                   parent=self.parent,
-                                   vector_index=idx)
+                                     parent=self.parent,
+                                     vector_index=idx)
         self.parent.children.insert(self.position,
                                     exchange)
 
@@ -9755,8 +9755,8 @@ __all__ = [
     'DynInvokeSchedule',
     'DynGlobalSum',
     'LFRicHaloExchange',
-    'DynHaloExchangeStart',
-    'DynHaloExchangeEnd',
+    'LFRicHaloExchangeStart',
+    'LFRicHaloExchangeEnd',
     'HaloDepth',
     'HaloWriteAccess',
     'HaloReadAccess',

@@ -41,7 +41,7 @@ in the generator.py script.
 
 '''
 
-from psyclone.dynamo0p3 import LFRicHaloExchange, DynHaloExchangeStart
+from psyclone.dynamo0p3 import LFRicHaloExchange, LFRicHaloExchangeStart
 from psyclone.transformations import Dynamo0p3AsyncHaloExchangeTrans, \
     MoveTrans, TransformationError
 
@@ -63,7 +63,7 @@ def trans(psy):
         # and computation.
         mtrans = MoveTrans()
         location_cursor = 0
-        for ahex in schedule.walk(DynHaloExchangeStart):
+        for ahex in schedule.walk(LFRicHaloExchangeStart):
             if ahex.position <= location_cursor:
                 continue
             try:
