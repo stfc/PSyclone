@@ -7963,9 +7963,9 @@ class DynKern(CodedKern):
 
         '''
         # pylint: disable=too-many-branches, too-many-locals
-        CodedKern.__init__(self, DynKernelArguments,
-                           KernelCall(module_name, ktype, args),
-                           parent, check)
+        super().__init__(DynKernelArguments,
+                         KernelCall(module_name, ktype, args),
+                         parent, check)
         # Remove "_code" from the name if it exists to determine the
         # base name which (if dynamo0.3 naming conventions are
         # followed) is used as the root for the module and subroutine
@@ -8060,6 +8060,18 @@ class DynKern(CodedKern):
 
         # Properties of the mesh required by this kernel
         self._mesh_properties = ktype.mesh
+
+    def _refine_copy(self, other):
+        '''
+        Refine the object attributes when a shallow copy is not the most
+        appropriate operation during a call to the copy() method.
+
+        :param other: object we are copying from.
+        :type other: :py:class:`psyclone.dynamo0p3.DynKern`
+
+        '''
+        super()._refine_copy(other)
+        self._arguments._parent_call = self
 
     @property
     def qr_rules(self):
