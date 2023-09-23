@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+# Copyright (c) 2017-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -44,7 +44,7 @@ from psyclone.psyir.transformations import TransformationError
 from psyclone.psyir.symbols import RoutineSymbol, DataSymbol, \
     DataTypeSymbol, Symbol, ContainerSymbol, DefaultModuleInterface
 from psyclone.psyir.nodes import Container, ScopingNode, Reference, Routine, \
-    Literal, CodeBlock, Call
+    Literal, CodeBlock, Call, IntrinsicCall
 
 
 class KernelModuleInlineTrans(Transformation):
@@ -120,8 +120,11 @@ class KernelModuleInlineTrans(Transformation):
         for var in kernel_schedule.walk((Reference, Call)):
             if isinstance(var, Reference):
                 symbol = var.symbol
-            elif isinstance(var, Call):
+            elif isinstance(var, Call) and not isinstance(var, IntrinsicCall):
                 symbol = var.routine
+            else:
+                # At this point it can only be a IntrinsicCall
+                continue
             if not symbol.is_import:
                 try:
                     var.scope.symbol_table.lookup(
@@ -209,11 +212,6 @@ class KernelModuleInlineTrans(Transformation):
         # Then decide which symbols need to be brought inside the subroutine
         symbols_to_bring_in = set()
         for symbol in all_symbols:
-            # TODO #1366: We still need a solution for intrinsics that
-            # currently are parsed into Calls/RoutineSymbols, for the
-            # moment here we skip the ones causing issues.
-            if symbol.name in ("random_number", ) and symbol.is_unresolved:
-                continue  # Skip intrinsic symbols
             if symbol.is_unresolved or symbol.is_import:
                 # This symbol is already in the symbol table, but adding it
                 # to the 'symbols_to_bring_in' will make the next step bring

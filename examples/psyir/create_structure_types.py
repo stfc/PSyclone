@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
-# Modified: R. W. Ford, STFC Daresbury Lab
+# Modified: R. W. Ford and S. Siso, STFC Daresbury Lab
 
 '''A Python script showing how to create and manipulate symbols of structure
 type within the PSyIR. In order to use it you must first install PSyclone.
@@ -45,7 +45,7 @@ Once you have psyclone installed, this script may be run by doing:
 '''
 from psyclone.psyir.nodes import Literal, KernelSchedule, Container, \
     StructureReference, ArrayOfStructuresReference, Assignment, \
-    BinaryOperation, Range
+    IntrinsicCall, Range
 from psyclone.psyir.symbols import DataSymbol, SymbolTable, StructureType, \
     ContainerSymbol, ArgumentInterface, ScalarType, ArrayType, DataTypeSymbol,\
     ImportInterface, INTEGER_TYPE, INTEGER4_TYPE, INTEGER8_TYPE, \
@@ -130,12 +130,12 @@ FLAG_REF = StructureReference.create(FIELD_SYMBOL, ["flag"])
 DX_REF = StructureReference.create(FIELD_SYMBOL, ["grid", "dx"])
 
 # Array reference to component of derived type using a range
-LBOUND = BinaryOperation.create(
-    BinaryOperation.Operator.LBOUND,
-    StructureReference.create(FIELD_SYMBOL, ["data"]), int_one())
-UBOUND = BinaryOperation.create(
-    BinaryOperation.Operator.UBOUND,
-    StructureReference.create(FIELD_SYMBOL, ["data"]), int_one())
+LBOUND = IntrinsicCall.create(
+    IntrinsicCall.Intrinsic.LBOUND,
+    [StructureReference.create(FIELD_SYMBOL, ["data"]), ("dim", int_one())])
+UBOUND = IntrinsicCall.create(
+    IntrinsicCall.Intrinsic.UBOUND,
+    [StructureReference.create(FIELD_SYMBOL, ["data"]), ("dim", int_one())])
 MY_RANGE = Range.create(LBOUND, UBOUND)
 
 DATA_REF = StructureReference.create(FIELD_SYMBOL, [("data", [MY_RANGE])])

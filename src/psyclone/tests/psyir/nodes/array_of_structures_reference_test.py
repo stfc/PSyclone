@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: A. R. Porter and N. Nobre, STFC Daresbury Lab
+# Authors: A. R. Porter, N. Nobre and S. Siso, STFC Daresbury Lab
 #          J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
@@ -94,12 +94,12 @@ def test_asr_create(component_symbol):
     assert isinstance(asref.children[0], nodes.StructureMember)
     assert isinstance(asref.children[0].children[0], nodes.Member)
     # Reference to range of structures
-    lbound = nodes.BinaryOperation.create(
-        nodes.BinaryOperation.Operator.LBOUND,
-        nodes.Reference(component_symbol), int_one.copy())
-    ubound = nodes.BinaryOperation.create(
-        nodes.BinaryOperation.Operator.UBOUND,
-        nodes.Reference(component_symbol), int_one.copy())
+    lbound = nodes.IntrinsicCall.create(
+        nodes.IntrinsicCall.Intrinsic.LBOUND,
+        [nodes.Reference(component_symbol), ("dim", int_one.copy())])
+    ubound = nodes.IntrinsicCall.create(
+        nodes.IntrinsicCall.Intrinsic.UBOUND,
+        [nodes.Reference(component_symbol), ("dim", int_one.copy())])
     my_range = nodes.Range.create(lbound, ubound)
     asref = nodes.ArrayOfStructuresReference.create(component_symbol,
                                                     [my_range], ["nx"])
@@ -109,12 +109,12 @@ def test_asr_create(component_symbol):
     check_links(asref.children[1], asref.children[1].children)
 
     # Test to enforce a type:
-    lbound = nodes.BinaryOperation.create(
-        nodes.BinaryOperation.Operator.LBOUND,
-        nodes.Reference(component_symbol), int_one.copy())
-    ubound = nodes.BinaryOperation.create(
-        nodes.BinaryOperation.Operator.UBOUND,
-        nodes.Reference(component_symbol), int_one.copy())
+    lbound = nodes.IntrinsicCall.create(
+        nodes.IntrinsicCall.Intrinsic.LBOUND,
+        [nodes.Reference(component_symbol), ("dim", int_one.copy())])
+    ubound = nodes.IntrinsicCall.create(
+        nodes.IntrinsicCall.Intrinsic.UBOUND,
+        [nodes.Reference(component_symbol), ("dim", int_one.copy())])
     my_range = nodes.Range.create(lbound, ubound)
     datatype = symbols.INTEGER8_TYPE
     asref = nodes.ArrayOfStructuresReference.\

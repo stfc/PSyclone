@@ -43,7 +43,7 @@ from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import (
     Routine, FileContainer, UnaryOperation, BinaryOperation, Literal,
-    Assignment, CodeBlock)
+    Assignment, CodeBlock, IntrinsicCall)
 from psyclone.psyir.symbols import (
     SymbolTable, DataSymbol, ScalarType, DeferredType)
 
@@ -123,8 +123,8 @@ def test_fortran_psyir_from_expression(fortran_reader):
     assert psyir.children[0].children[0].value == "3.0"
 
     psyir = fortran_reader.psyir_from_expression("ABS(-3.0)", table)
-    assert isinstance(psyir, UnaryOperation)
-    assert psyir.operator == UnaryOperation.Operator.ABS
+    assert isinstance(psyir, IntrinsicCall)
+    assert psyir.intrinsic == IntrinsicCall.Intrinsic.ABS
     assert isinstance(psyir.children[0], UnaryOperation)
     assert psyir.children[0].operator == UnaryOperation.Operator.MINUS
     assert isinstance(psyir.children[0].children[0], Literal)

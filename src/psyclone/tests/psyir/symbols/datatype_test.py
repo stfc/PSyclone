@@ -293,9 +293,9 @@ def test_arraytype():
     # TODO #1857: the datatype property might be affected.
     assert array_type.datatype == scalar_type
     # Provided and stored as a Literal (DataNode)
-    assert array_type.shape[1].upper is literal
+    assert array_type.shape[1].upper == literal
     # Provided and stored as an Operator (DataNode)
-    assert array_type.shape[2].upper is var_plus_1
+    assert array_type.shape[2].upper == var_plus_1
     # Provided and stored as a Reference to a DataSymbol
     assert isinstance(array_type.shape[3].upper, Reference)
     assert array_type.shape[3].upper.symbol is data_symbol

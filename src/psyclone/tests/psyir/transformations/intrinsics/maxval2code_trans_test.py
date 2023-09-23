@@ -168,7 +168,7 @@ def test_apply(fortran_reader, fortran_writer, tmpdir):
         "  result = maxval_var\n\n"
         "end subroutine maxval_test\n")
     psyir = fortran_reader.psyir_from_source(code)
-    # FileContainer/Routine/Assignment/UnaryOperation
+    # FileContainer/Routine/Assignment/IntrinsicCall
     intrinsic_node = psyir.children[0].children[0].children[1]
     trans = Maxval2CodeTrans()
     trans.apply(intrinsic_node)
