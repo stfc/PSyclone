@@ -8283,6 +8283,16 @@ class DynKern(CodedKern):
             # (raising a VisitorError), so we check here so that
             # invalid code is not inlined. We use debug_string() to
             # minimise the overhead.
+
+            # #2271 could potentially avoid the need for
+            # debug_string() within. Sergi suggests that we may be
+            # missing the traversal of the declaration init
+            # expressions and that might solve the problem. I'm not so
+            # sure as we are talking about unknown symbols that will
+            # only be resolved in the back-end (or not). If I am right
+            # then one option would be to use the FortranWriter, but
+            # that would be bigger overhead, or perhaps just the
+            # declarations part of FortranWriter if that is possible.
             routine.debug_string()
 
         if len(routines) == 1:
