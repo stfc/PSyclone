@@ -35,7 +35,7 @@
 # Modified: S. Siso, STFC Daresbury Lab
 
 '''Module providing a transformation from a PSyIR SUM intrinsic to
-PSyIR code. This could be useful if the SUM operator is not supported
+PSyIR code. This could be useful if the SUM intrinsic is not supported
 by the back-end, the required parallelisation approach, or if the
 performance in the inline code is better than the intrinsic.
 

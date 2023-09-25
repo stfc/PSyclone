@@ -44,7 +44,7 @@
 from psyclone.errors import LazyString
 from psyclone.psyGen import Transformation
 from psyclone.psyir.nodes import (Range, Reference, ArrayReference, Literal,
-                                  BinaryOperation, IntrinsicCall)
+                                  IntrinsicCall)
 from psyclone.psyir.symbols import INTEGER_TYPE, ArrayType
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
@@ -115,12 +115,12 @@ class Reference2ArrayRangeTrans(Transformation):
 
         # No explicit array bound information could be found so use the
         # LBOUND and UBOUND intrinsics.
-        lower_bound = BinaryOperation.create(
-            BinaryOperation.Operator.LBOUND, Reference(symbol),
-            Literal(str(index+1), INTEGER_TYPE))
-        upper_bound = BinaryOperation.create(
-            BinaryOperation.Operator.UBOUND, Reference(symbol),
-            Literal(str(index+1), INTEGER_TYPE))
+        lower_bound = IntrinsicCall.create(
+            IntrinsicCall.Intrinsic.LBOUND,
+            [Reference(symbol), ("dim", Literal(str(index+1), INTEGER_TYPE))])
+        upper_bound = IntrinsicCall.create(
+            IntrinsicCall.Intrinsic.UBOUND,
+            [Reference(symbol), ("dim", Literal(str(index+1), INTEGER_TYPE))])
         step = Literal("1", INTEGER_TYPE)
         return (lower_bound, upper_bound, step)
 
@@ -150,14 +150,14 @@ class Reference2ArrayRangeTrans(Transformation):
             raise TransformationError(
                 f"The supplied node should be a Reference to a symbol "
                 f"that is an array, but '{node.symbol.name}' is not.")
-        if (isinstance(node.parent, BinaryOperation) and
-                node.parent.operator in [
-                    BinaryOperation.Operator.LBOUND,
-                    BinaryOperation.Operator.UBOUND,
-                    BinaryOperation.Operator.SIZE]):
+        if (isinstance(node.parent, IntrinsicCall) and
+                node.parent.intrinsic in [
+                    IntrinsicCall.Intrinsic.LBOUND,
+                    IntrinsicCall.Intrinsic.UBOUND,
+                    IntrinsicCall.Intrinsic.SIZE]):
             raise TransformationError(
                 "References to arrays within LBOUND, UBOUND or SIZE "
-                "operators should not be transformed.")
+                "intrinsics should not be transformed.")
         if (isinstance(node.parent, IntrinsicCall) and
                 node.parent.routine.name in ["DEALLOCATE"]):
             raise TransformationError(LazyString(
