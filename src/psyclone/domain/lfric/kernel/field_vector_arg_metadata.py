@@ -32,7 +32,6 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
-# Modified L. Turner, Met Office
 
 '''Module containing the FieldVector Arg class which captures the metadata
 associated with a field vector argument. Supports the creation, modification
@@ -91,7 +90,7 @@ class FieldVectorArgMetadata(FieldArgMetadata):
         '''
         datatype, access, function_space, stencil = super()._get_metadata(
             fparser2_tree)
-        vector_length = cls.get_array_dimension(fparser2_tree)
+        vector_length = cls.get_vector_length(fparser2_tree)
         return (datatype, access, function_space, vector_length, stencil)
 
     def fortran_string(self):

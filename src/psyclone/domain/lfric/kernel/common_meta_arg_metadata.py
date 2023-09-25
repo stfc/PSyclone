@@ -178,7 +178,7 @@ class CommonMetaArgMetadata(CommonArgMetadata, ABC):
     # pylint: enable=arguments-differ
 
     @classmethod
-    def get_array_dimension(cls, fparser2_tree):
+    def get_vector_length(cls, fparser2_tree):
         '''Retrieves the vector length metadata value found within the
         supplied fparser2 tree and checks that it is valid.
 
@@ -198,9 +198,9 @@ class CommonMetaArgMetadata(CommonArgMetadata, ABC):
         if len(components) != 2:
             raise TypeError(
                 f"The vector length metadata should be in the form "
-                f"'form*integer' but found '{vector_datatype}'.")
-        array_dimension = components[1].strip()
-        return array_dimension
+                f"'form*vector_length' but found '{vector_datatype}'.")
+        vector_length = components[1].strip()
+        return vector_length
 
     @property
     def datatype(self):

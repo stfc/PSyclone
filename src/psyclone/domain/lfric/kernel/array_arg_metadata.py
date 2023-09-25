@@ -73,26 +73,26 @@ class ArrayArgMetadata(ScalarArgMetadata):
         super().__init__(datatype, access)
         self.array_nranks = array_nranks
 
-    @classmethod
-    def _get_metadata(cls, fparser2_tree):
-        '''Extract the required metadata from the fparser2 tree and return it
-        as strings. Also check that the metadata is in the expected
-        form (but do not check the metadata values as that is done
-        separately).
-
-        :param fparser2_tree: fparser2 tree containing the metadata \
-            for this argument.
-        :type fparser2_tree: :py:class:`fparser.two.Fortran2003.Part_Ref` | \
-            :py:class:`fparser.two.Fortran2003.Structure_Constructor`
-
-        :returns: a tuple containing the datatype, access and array nranks \
-            metadata.
-        :rtype: Tuple[str, str, str]
-
-        '''
-        datatype, access = super()._get_metadata(fparser2_tree)
-        array_nranks = cls.get_array_dimension(fparser2_tree)
-        return (datatype, access, array_nranks)
+#    @classmethod
+#    def _get_metadata(cls, fparser2_tree):
+#        '''Extract the required metadata from the fparser2 tree and return it
+#        as strings. Also check that the metadata is in the expected
+#        form (but do not check the metadata values as that is done
+#        separately).
+#
+#        :param fparser2_tree: fparser2 tree containing the metadata \
+#            for this argument.
+#        :type fparser2_tree: :py:class:`fparser.two.Fortran2003.Part_Ref` | \
+#            :py:class:`fparser.two.Fortran2003.Structure_Constructor`
+#
+#        :returns: a tuple containing the datatype, access and array nranks \
+#            metadata.
+#        :rtype: Tuple[str, str, str]
+#
+#        '''
+#        datatype, access = super()._get_metadata(fparser2_tree)
+#        # array_nranks = cls.get_array_dimension(fparser2_tree)
+#        return (datatype, access, array_nranks)
 
     def fortran_string(self):
         '''
