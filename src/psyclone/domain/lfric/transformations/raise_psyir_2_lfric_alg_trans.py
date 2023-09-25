@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -73,7 +73,7 @@ class RaisePSyIR2LFRicAlgTrans(RaisePSyIR2AlgTrans):
         for idx, call_arg in enumerate(call.children):
 
             if call.argument_names[idx]:
-                call_name = f"'{call_arg.value}'"
+                call_name = f"{call_arg.value}"
             elif isinstance(call_arg, ArrayReference):
                 # kernel or builtin misrepresented as ArrayReference
                 args = call_arg.pop_all_children()
