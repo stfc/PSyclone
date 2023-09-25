@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+# Copyright (c) 2017-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -35,6 +35,7 @@
 #         A. B. G. Chalk STFC Daresbury Lab
 #         J. Henrichs, Bureau of Meteorology
 # Modified I. Kavcic, Met Office
+# Modified J. G. Wallwork, Met Office
 
 ''' This module provides the various transformations that can be applied to
     PSyIR nodes. There are both general and API-specific transformation
@@ -47,6 +48,7 @@ import abc
 
 from psyclone import psyGen
 from psyclone.configuration import Config
+from psyclone.core import Signature, VariablesAccessInfo
 from psyclone.domain.lfric import KernCallArgList, LFRicConstants
 from psyclone.dynamo0p3 import DynHaloExchangeEnd, DynHaloExchangeStart, \
     DynInvokeSchedule, DynKern
@@ -63,6 +65,9 @@ from psyclone.psyir.nodes import ACCDataDirective, ACCDirective, \
     OMPParallelDirective, OMPParallelDoDirective, OMPSerialDirective, \
     OMPSingleDirective, OMPTaskloopDirective, PSyDataNode, Reference, \
     Return, Routine, Schedule
+from psyclone.psyir.nodes.array_mixin import ArrayMixin
+from psyclone.psyir.nodes.structure_member import StructureMember
+from psyclone.psyir.nodes.structure_reference import StructureReference
 from psyclone.psyir.symbols import ArgumentInterface, DataSymbol, \
     DeferredType, INTEGER_TYPE, ScalarType, Symbol, SymbolError
 from psyclone.psyir.transformations.loop_trans import LoopTrans
@@ -496,6 +501,8 @@ class ACCLoopTrans(ParallelLoopTrans):
         # to the loop directive.
         self._independent = True
         self._sequential = False
+        self._gang = False
+        self._vector = False
         super().__init__()
 
     def __str__(self):
@@ -508,13 +515,15 @@ class ACCLoopTrans(ParallelLoopTrans):
 
         :param children: list of child nodes of the new directive Node.
         :type children: list of :py:class:`psyclone.psyir.nodes.Node`
-        :param int collapse: number of nested loops to collapse or None if \
+        :param int collapse: number of nested loops to collapse or None if
                              no collapse attribute is required.
         '''
         directive = ACCLoopDirective(children=children,
                                      collapse=collapse,
                                      independent=self._independent,
-                                     sequential=self._sequential)
+                                     sequential=self._sequential,
+                                     gang=self._gang,
+                                     vector=self._vector)
         return directive
 
     def apply(self, node, options=None):
@@ -534,15 +543,21 @@ class ACCLoopTrans(ParallelLoopTrans):
         :py:meth:`psyclone.psyir.nodes.ACCLoopDirective.gen_code` is called),
         this node must be within (i.e. a child of) a PARALLEL region.
 
-        :param node: the supplied node to which we will apply the \
+        :param node: the supplied node to which we will apply the
                      Loop transformation.
         :type node: :py:class:`psyclone.psyir.nodes.Loop`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
         :param int options["collapse"]: number of nested loops to collapse.
-        :param bool options["independent"]: whether to add the "independent" \
-                clause to the directive (not strictly necessary within \
+        :param bool options["independent"]: whether to add the "independent"
+                clause to the directive (not strictly necessary within
                 PARALLEL regions).
+        :param bool options["sequential"]: whether to add the "seq" clause to
+                the directive.
+        :param bool options["gang"]: whether to add the "gang" clause to the
+                directive.
+        :param bool options["vector"]: whether to add the "vector" clause to
+                the directive.
 
         '''
         # Store sub-class specific options. These are used when
@@ -551,6 +566,8 @@ class ACCLoopTrans(ParallelLoopTrans):
             options = {}
         self._independent = options.get("independent", True)
         self._sequential = options.get("sequential", False)
+        self._gang = options.get("gang", False)
+        self._vector = options.get("vector", False)
 
         # Call the apply() method of the base class
         super().apply(node, options)
@@ -1988,18 +2005,17 @@ class Dynamo0p3KernelConstTrans(Transformation):
             'arg_position' into a compile-time constant with value
             'value'.
 
-            :param symbol_table: the symbol table for the kernel \
-                         holding the argument that is going to be modified.
+            :param symbol_table: the symbol table for the kernel holding
+                the argument that is going to be modified.
             :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
-            :param int arg_position: the argument's position in the \
-                                     argument list.
-            :param value: the constant value that this argument is \
-                    going to be given. Its type depends on the type of the \
-                    argument.
+            :param int arg_position: the argument's position in the
+                argument list.
+            :param value: the constant value that this argument is going to
+                be given. Its type depends on the type of the argument.
             :type value: int, str or bool
-            :type str function_space: the name of the function space \
-                    if there is a function space associated with this \
-                    argument. Defaults to None.
+            :type str function_space: the name of the function space if there
+                is a function space associated with this argument. Defaults
+                to None.
 
             '''
             arg_index = arg_position - 1
@@ -2033,7 +2049,7 @@ class Dynamo0p3KernelConstTrans(Transformation):
             # #321).
             orig_name = symbol.name
             local_symbol = DataSymbol(orig_name+"_dummy", INTEGER_TYPE,
-                                      constant_value=value)
+                                      is_constant=True, initial_value=value)
             symbol_table.add(local_symbol)
             symbol_table.swap_symbol_properties(symbol, local_symbol)
 
@@ -2611,7 +2627,7 @@ class ACCDataTrans(RegionTrans):
 
         # Create a directive containing the nodes in node_list and insert it.
         directive = ACCDataDirective(
-            parent=parent, children=[node.detach() for node in node_list])
+                parent=parent, children=[node.detach() for node in node_list])
 
         parent.children.insert(start_index, directive)
 
@@ -2622,15 +2638,18 @@ class ACCDataTrans(RegionTrans):
         of nodes.
 
         :param nodes: the proposed node(s) to enclose in a data region.
-        :type nodes: (list of) subclasses of \
-                     :py:class:`psyclone.psyir.nodes.Node`
+        :type nodes: List[:py:class:`psyclone.psyir.nodes.Node`] |
+            :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
 
-        :raises TransformationError: if the Schedule to which the nodes \
-                                belong already has an 'enter data' directive.
-        :raises TransformationError: if any of the nodes are themselves \
-                                     data directives.
+        :raises TransformationError: if the Schedule to which the nodes
+            belong already has an 'enter data' directive.
+        :raises TransformationError: if any of the nodes are themselves
+            data directives.
+        :raises TransformationError: if an array of structures needs to be
+            deep copied (this is not currently supported).
+
         '''
         # Ensure we are always working with a list of nodes, even if only
         # one was supplied via the `nodes` argument.
@@ -2646,6 +2665,44 @@ class ACCDataTrans(RegionTrans):
             raise TransformationError(
                 "Cannot add an OpenACC data region to a schedule that "
                 "already contains an 'enter data' directive.")
+        # Check that we don't have any accesses to arrays of derived types
+        # that we can't yet deep copy.
+        for node in node_list:
+            for sref in node.walk(StructureReference):
+
+                # Find the loop variables for all Loops that contain this
+                # access and are themselves within the data region.
+                loop_vars = []
+                cursor = sref.ancestor(Loop, limit=node)
+                while cursor:
+                    loop_vars.append(Signature(cursor.variable.name))
+                    cursor = cursor.ancestor(Loop)
+
+                # Now check whether any of these loop variables appear within
+                # the structure reference.
+                # Loop over each component of the structure reference that is
+                # an array access.
+                array_accesses = sref.walk(ArrayMixin)
+                for access in array_accesses:
+                    if not isinstance(access, StructureMember):
+                        continue
+                    var_accesses = VariablesAccessInfo(access.indices)
+                    for var in loop_vars:
+                        if var not in var_accesses.all_signatures:
+                            continue
+                        # For an access such as my_struct(ii)%my_array(ji)
+                        # then if we're inside a loop over it we would actually
+                        # need a loop to do the deep copy:
+                        #   do ii = 1, N
+                        #   !$acc data copyin(my_struct(ii)%my_array)
+                        #   end do
+                        raise TransformationError(
+                            f"Data region contains a structure access "
+                            f"'{sref.debug_string()}' where component "
+                            f"'{access.name}' is an array and is iterated over"
+                            f" (variable '{var}'). Deep copying of data for "
+                            f"structures is only supported where the deepest "
+                            f"component is the one being iterated over.")
 
 
 class KernelImportsToArguments(Transformation):
@@ -2742,7 +2799,7 @@ class KernelImportsToArguments(Transformation):
 
             # Resolve the data type information if it is not available
             # pylint: disable=unidiomatic-typecheck
-            if (type(imported_var) == Symbol or
+            if (type(imported_var) is Symbol or
                     isinstance(imported_var.datatype, DeferredType)):
                 updated_sym = imported_var.resolve_deferred()
                 # If we have a new symbol then we must update the symbol table
@@ -2760,11 +2817,14 @@ class KernelImportsToArguments(Transformation):
 
             # Convert the symbol to an argument and add it to the argument list
             current_arg_list = symtab.argument_list
-            if updated_sym.is_constant:
+            # An argument does not have an initial value.
+            was_constant = updated_sym.is_constant
+            updated_sym.is_constant = False
+            updated_sym.initial_value = None
+            if was_constant:
                 # Imported constants lose the constant value but are read-only
                 # TODO: When #633 and #11 are implemented, warn the user that
                 # they should transform the constants to literal values first.
-                updated_sym.constant_value = None
                 updated_sym.interface = ArgumentInterface(
                     ArgumentInterface.Access.READ)
             else:

@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
-# Modified I. Kavcic and A. Coughtrie, Met Office
+# Modified I. Kavcic, A. Coughtrie and L. Turner, Met Office
 #          C.M. Maynard, Met Office / University of Reading
 # Modified J. Henrichs, Bureau of Meteorology
 # Modified A. B. G. Chalk, STFC Daresbury Lab
@@ -44,9 +44,11 @@ from fparser.common.readfortran import FortranStringReader
 from psyclone.configuration import Config
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
 from psyclone.psyGen import CodedKern, Kern
-from psyclone.psyir.nodes import Container, Routine, CodeBlock, Call
-from psyclone.psyir.symbols import DataSymbol, RoutineSymbol, REAL_TYPE, \
-    SymbolError, ContainerSymbol, ImportInterface
+from psyclone.psyir.nodes import (
+    Container, Routine, CodeBlock, Call, IntrinsicCall)
+from psyclone.psyir.symbols import (
+    DataSymbol, RoutineSymbol, REAL_TYPE, SymbolError, ContainerSymbol,
+    ImportInterface)
 from psyclone.psyir.transformations import TransformationError
 from psyclone.tests.gocean_build import GOceanBuild
 from psyclone.tests.lfric_build import LFRicBuild
@@ -129,7 +131,7 @@ def test_validate_no_inline_global_var(parser):
     sched = invoke.schedule
     kernels = sched.walk(Kern)
     with pytest.raises(TransformationError) as err:
-        inline_trans.apply(kernels[0])
+        inline_trans.validate(kernels[0])
     assert ("'kernel_with_global_code' contains accesses to 'alpha' which is "
             "declared in the same module scope. Cannot inline such a kernel."
             in str(err.value))
@@ -146,10 +148,17 @@ def test_validate_no_inline_global_var(parser):
     kernels[0].get_kernel_schedule().addchild(block)
 
     with pytest.raises(TransformationError) as err:
-        inline_trans.apply(kernels[0])
+        inline_trans.validate(kernels[0])
     assert ("'kernel_with_global_code' contains accesses to 'alpha' in a "
             "CodeBlock that is declared in the same module scope. Cannot "
             "inline such a kernel." in str(err.value))
+
+    # But make sure that an IntrinsicCall routine name is not considered
+    # a global symbol, as they are implicitly declared everywhere
+    kernels[0].get_kernel_schedule().pop_all_children()
+    kernels[0].get_kernel_schedule().addchild(
+        IntrinsicCall.create(IntrinsicCall.Intrinsic.DATE_AND_TIME, []))
+    inline_trans.validate(kernels[0])
 
 
 def test_validate_name_clashes():
@@ -278,6 +287,8 @@ def test_module_inline_apply_transformation(tmpdir, fortran_writer):
     # The new inlined routine must now exist
     assert kern_call.ancestor(Container).symbol_table.lookup("compute_cv_code")
     assert kern_call.ancestor(Container).children[1].name == "compute_cv_code"
+    assert (kern_call.ancestor(Container).symbol_table.
+            lookup("compute_cv_code").is_modulevar)
 
     # We should see it in the output of both:
     # - the backend
@@ -307,14 +318,14 @@ def test_module_inline_apply_transformation(tmpdir, fortran_writer):
 def test_module_inline_apply_kernel_in_multiple_invokes(tmpdir):
     ''' Check that module-inline works as expected when the same kernel
     is provided in different invokes'''
-    # Use LFRic example with the kernel 'testkern_qr' repeated once in
+    # Use LFRic example with the kernel 'testkern_qr_mod' repeated once in
     # the first invoke and 3 times in the second invoke.
     psy, _ = get_invoke("3.1_multi_functions_multi_invokes.f90", "dynamo0.3",
                         idx=0, dist_mem=False)
 
     # By default the kernel is imported once per invoke
     gen = str(psy.gen)
-    assert gen.count("USE testkern_qr, ONLY: testkern_qr_code") == 2
+    assert gen.count("USE testkern_qr_mod, ONLY: testkern_qr_code") == 2
     assert gen.count("END SUBROUTINE testkern_qr_code") == 0
 
     # Module inline kernel in invoke 1
@@ -327,7 +338,7 @@ def test_module_inline_apply_kernel_in_multiple_invokes(tmpdir):
 
     # After this, one invoke uses the inlined top-level subroutine
     # and the other imports it (shadowing the top-level symbol)
-    assert gen.count("USE testkern_qr, ONLY: testkern_qr_code") == 1
+    assert gen.count("USE testkern_qr_mod, ONLY: testkern_qr_code") == 1
     assert gen.count("END SUBROUTINE testkern_qr_code") == 1
 
     # Module inline kernel in invoke 2
@@ -338,7 +349,7 @@ def test_module_inline_apply_kernel_in_multiple_invokes(tmpdir):
     gen = str(psy.gen)
     # After this, no imports are remaining and both use the same
     # top-level implementation
-    assert gen.count("USE testkern_qr, ONLY: testkern_qr_code") == 0
+    assert gen.count("USE testkern_qr_mod, ONLY: testkern_qr_code") == 0
     assert gen.count("END SUBROUTINE testkern_qr_code") == 1
 
     # And it is valid code
@@ -411,6 +422,52 @@ def test_module_inline_apply_bring_in_non_local_symbols(
     result = fortran_writer(routine)
     assert "use external_mod1" in result
     assert "use external_mod2" in result
+    assert "not_needed" not in result
+    assert "not_used" not in result
+
+    # Also if they are imports with 'only' and '=>' keywords
+    psyir = fortran_reader.psyir_from_source('''
+    module my_mod
+        use external_mod1, only: a
+        use external_mod2, only: b => var1, c => var2
+        use not_needed, only: not_used
+        implicit none
+        contains
+        subroutine code()
+            a = b + c
+        end subroutine code
+    end module my_mod
+    ''')
+
+    routine = psyir.walk(Routine)[0]
+    inline_trans._prepare_code_to_inline(routine)
+    result = fortran_writer(routine)
+    assert "use external_mod1, only : a" in result
+    assert "use external_mod2, only : b=>var1, c=>var2" in result
+    assert "not_needed" not in result
+    assert "not_used" not in result
+
+    # Same but now with some pre-existing module clashes
+    psyir = fortran_reader.psyir_from_source('''
+    module my_mod
+        use external_mod1, only: a
+        use external_mod2, only: b => var1, c => var2
+        use not_needed, only: not_used
+        implicit none
+        contains
+        subroutine code()
+             use external_mod1, only : d
+             use external_mod2, only : var1
+            a = b + c
+        end subroutine code
+    end module my_mod
+    ''')
+
+    routine = psyir.walk(Routine)[0]
+    inline_trans._prepare_code_to_inline(routine)
+    result = fortran_writer(routine)
+    assert "use external_mod1, only : a, d" in result
+    assert "use external_mod2, only : b=>var1, c=>var2, var1" in result
     assert "not_needed" not in result
     assert "not_used" not in result
 

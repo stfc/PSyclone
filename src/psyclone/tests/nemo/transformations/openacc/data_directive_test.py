@@ -45,7 +45,7 @@ import pytest
 from fparser.common.readfortran import FortranStringReader
 from psyclone.errors import InternalError
 from psyclone.psyGen import PSyFactory, TransInfo
-from psyclone.psyir.nodes import ACCDataDirective, Routine
+from psyclone.psyir.nodes import ACCDataDirective, Schedule, Routine
 from psyclone.psyir.transformations import TransformationError
 from psyclone.tests.utilities import get_invoke, Compile
 
@@ -183,13 +183,14 @@ def test_multi_data():
     gen_code = str(psy.gen)
 
     assert ("  do jk = 1, jpkm1, 1\n"
-            "    !$acc data copyin(ptb,wmask) copyout(zdk1t,zdkt)\n"
+            "    !$acc data copyin(ptb,wmask), copyout(zdk1t,zdkt)\n"
             "    do jj = 1, jpj, 1") in gen_code
 
     assert ("    end if\n"
             "    !$acc end data\n"
             "    !$acc data copyin(e2_e1u,e2u,e3t_n,e3u_n,pahu,r1_e1e2t,"
-            "umask,uslp,wmask,zdit,zdk1t,zdkt,zftv) copyout(zftu) copy(pta)\n"
+            "umask,uslp,wmask,zdit,zdk1t,zdkt,zftv), copyout(zftu), "
+            "copy(pta)\n"
             "    do jj = 1, jpjm1, 1") in gen_code
 
     assert ("    enddo\n"
@@ -246,7 +247,7 @@ END subroutine data_ref
     acc_trans = TransInfo().get_trans_name('ACCDataTrans')
     acc_trans.apply(schedule.children)
     gen_code = str(psy.gen)
-    assert "!$acc data copyin(a) copyout(prof,prof%npind)" in gen_code
+    assert "!$acc data copyin(a), copyout(prof,prof%npind)" in gen_code
 
 
 def test_data_ref_read(parser):
@@ -270,6 +271,60 @@ def test_data_ref_read(parser):
     assert "copyin(fld,fld%data)" in gen_code
 
 
+def test_multi_array_derived_type(fortran_reader, fortran_writer):
+    '''
+    Check that we generate the correct clause if the derived-type contains
+    more than one array access but only one is iterated over.
+    '''
+    psyir = fortran_reader.psyir_from_source(
+        "program dtype_read\n"
+        "use field_mod, only: fld_type\n"
+        "integer, parameter :: jpj = 10\n"
+        "type(fld_type), dimension(5) :: small_holding\n"
+        "real, dimension(jpj) :: sto_tmp\n"
+        "integer :: ji\n"
+        "do ji = 1,jpj\n"
+        "  sto_tmp(ji) = small_holding(2)%data(ji) + 1.0\n"
+        "end do\n"
+        "end program dtype_read\n")
+    schedule = psyir.walk(Schedule)[0]
+    acc_trans = TransInfo().get_trans_name('ACCDataTrans')
+    acc_trans.apply(schedule.children)
+    gen_code = fortran_writer(psyir)
+    assert ("!$acc data copyin(small_holding,small_holding(2)%data), "
+            "copyout(sto_tmp)" in gen_code)
+
+
+def test_multi_array_derived_type_error(fortran_reader):
+    '''
+    Check that we raise the expected error if the derived-type contains
+    more than one array access and they are both iterated over.
+    '''
+    psyir = fortran_reader.psyir_from_source(
+        "program dtype_read\n"
+        "use field_mod, only: fld_type\n"
+        "integer, parameter :: jpj = 10\n"
+        "type(fld_type), dimension(5) :: small_holding\n"
+        "real, dimension(jpj) :: sto_tmp\n"
+        "integer :: ji, jf\n"
+        "sto_tmp(:) = 0.0\n"
+        "do jf = 1, 5\n"
+        "do ji = 1,jpj\n"
+        "  sto_tmp(ji) = sto_tmp(ji) + small_holding(3)%grid(jf)%data(ji)\n"
+        "end do\n"
+        "end do\n"
+        "end program dtype_read\n")
+    schedule = psyir.walk(Schedule)[0]
+    acc_trans = TransInfo().get_trans_name('ACCDataTrans')
+    with pytest.raises(TransformationError) as err:
+        acc_trans.apply(schedule.children)
+    assert ("Data region contains a structure access 'small_holding(3)%"
+            "grid(jf)%data(ji)' where component 'grid' is an array and is "
+            "iterated over (variable 'jf'). Deep copying of data for "
+            "structures is only supported where the deepest component is the "
+            "one being iterated over." in str(err.value))
+
+
 def test_array_section():
     '''Check code generation with a arrays accessed via an array section.
 
@@ -279,7 +334,7 @@ def test_array_section():
     acc_trans = TransInfo().get_trans_name('ACCDataTrans')
     acc_trans.apply(schedule.children)
     gen_code = str(psy.gen).lower()
-    assert "!$acc data copyin(b,c) copyout(a)" in gen_code
+    assert "!$acc data copyin(b,c), copyout(a)" in gen_code
 
 
 def test_kind_parameter(parser):
@@ -426,8 +481,9 @@ def test_array_access_in_ifblock(parser):
 
 
 def test_array_access_loop_bounds(parser):
-    ''' Check that we raise the expected error if our code that identifies
-    read and write accesses misses an array access. '''
+    ''' Check that the correct data-movement statement is generated when
+    the region contains a loop that has an array-access as one of its
+    bounds. '''
     code = ("program do_bound\n"
             "  use kind_params_mod\n"
             "  real(kind=wp) :: trim_width(8), zdta(8,8)\n"

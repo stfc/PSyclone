@@ -109,7 +109,7 @@ PSyIR nodes are: ``Loop``, ``WhileLoop``, ``IfBlock``, ``CodeBlock``,
 subclassed into ``ArrayReference``, ``StructureReference`` and
 ``ArrayOfStructuresReference``, the ``Operation`` class is further
 subclassed into ``UnaryOperation``, ``BinaryOperation`` and
-``NaryOperation`` and the ``Container`` class is further subclassed
+the ``Container`` class is further subclassed
 into ``FileContainer`` (representing a file that may contain more than
 one ``Container`` and/or ``Routine``. Those nodes representing
 references to structures (derived types in Fortran) have a ``Member``
@@ -208,11 +208,16 @@ information about the exact location.
 
 .. automethod:: psyclone.psyir.nodes.Node.walk
 
-Finally, all nodes also provide the `ancestor` method which may be used to
+All nodes also provide the `ancestor` method which may be used to
 recurse back up the tree from a given node in order to find a node of a
 particular type:
 
 .. automethod:: psyclone.psyir.nodes.Node.ancestor
+
+Finally, the `path_from` method can be used to find the route through the
+tree from an ancestor node to the node:
+
+.. automethod:: psyclone.psyir.nodes.Node.path_from
 
 DataTypes
 =========
@@ -252,7 +257,7 @@ example:
     >>> int_type = ScalarType(ScalarType.Intrinsic.INTEGER,
     ...                       ScalarType.Precision.SINGLE)
     >>> bool_type = ScalarType(ScalarType.Intrinsic.BOOLEAN, 4)
-    >>> symbol = DataSymbol("rdef", int_type, constant_value=4)
+    >>> symbol = DataSymbol("rdef", int_type, initial_value=4)
     >>> scalar_type = ScalarType(ScalarType.Intrinsic.REAL, symbol)
 
 For convenience PSyclone predefines a number of scalar datatypes:
@@ -517,10 +522,12 @@ as keyword arguments. For example, the following code:
   symbol_table.new_symbol(root_name="something",
                           symbol_type=DataSymbol,
                           datatype=REAL_TYPE,
-                          constant_value=3)
+			  is_constant=True,
+                          initial_value=3)
 
 declares a symbol named "something" of REAL_TYPE datatype where the
-constant_value argument will be passed to the DataSymbol constructor.
+``is_constant`` and ``initial_value`` arguments will be passed to the
+DataSymbol constructor.
 
 An example of using the ``new_symbol()`` method can be found in the
 PSyclone ``examples/psyir`` directory.
@@ -773,9 +780,7 @@ parent reference are not.
 Named arguments
 ---------------
 
-The `Call` and three sub-classes of `Operation` node
-(`UnaryOperation`, `BinaryOperation` and `NaryOperation`) all support
-named arguments.
+The `Call` node (and its sub-classes) support named arguments.
 
 Named arguments can be set or modified via the `create()`,
 `append_named_arg()`, `insert_named_arg()` or `replace_named_arg()`

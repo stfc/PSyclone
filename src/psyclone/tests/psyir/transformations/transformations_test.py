@@ -407,10 +407,6 @@ def test_parallellooptrans_validate_dependencies(fortran_reader):
     # just with 'jk' and it is not modified in the inner loops
     omplooptrans.validate(loops[1])
 
-    # Check if there is missing symbol information it still validates
-    del loops[1].ancestor(Routine).symbol_table._symbols['zws']
-    omplooptrans.validate(loops[1])
-
     # Reductions also indicate a data dependency that needs to be handled, so
     # we don't permit the parallelisation of the loop (until we support
     # reduction clauses)
@@ -438,8 +434,7 @@ def test_parallellooptrans_validate_dependencies(fortran_reader):
             enddo
           enddo
         enddo''')
-    assert not DependencyTools().can_loop_be_parallelised(
-                    loops[0], only_nested_loops=False)
+    assert not DependencyTools().can_loop_be_parallelised(loops[0])
     omplooptrans.validate(loops[0])
 
 
@@ -488,47 +483,6 @@ firstprivate(scalar1), schedule(auto)
       enddo
     enddo
     !$omp end parallel do\n'''
-
-    gen = fortran_writer(psyir)
-    assert expected in gen
-    assert Compile(tmpdir).string_compiles(gen)
-
-    # Example with a read before write
-    psyir = fortran_reader.psyir_from_source('''
-        module my_mod
-            contains
-            subroutine my_subroutine()
-                integer :: ji, jj, jk, jpkm1, jpjm1, jpim1, scalar1, scalar2
-                real, dimension(10, 10, 10) :: zwt, zwd, zwi, zws
-                do jk = 2, jpkm1, 1
-                  do jj = 2, jpjm1, 1
-                    do ji = 2, jpim1, 1
-                       scalar2 = scalar1 + zwt(ji,jj,jk)
-                       scalar1 = 3
-                       zws(ji,jj,jk) = scalar2 + scalar1
-                    enddo
-                  enddo
-                enddo
-            end subroutine
-        end module my_mod''')
-    omplooptrans = OMPParallelLoopTrans()
-    loop = psyir.walk(Loop)[0]
-    # This need to be forced since the DependencyAnalysis wrongly considers
-    # it a reduction
-    omplooptrans.apply(loop, options={"force": True})
-    expected = '''\
-    !$omp parallel do default(shared), private(ji,jj,jk,scalar2), \
-firstprivate(scalar1), schedule(auto)
-    do jk = 2, jpkm1, 1
-      do jj = 2, jpjm1, 1
-        do ji = 2, jpim1, 1
-          scalar2 = scalar1 + zwt(ji,jj,jk)
-          scalar1 = 3
-          zws(ji,jj,jk) = scalar2 + scalar1
-        enddo
-      enddo
-    enddo
-    !$omp end parallel do'''
 
     gen = fortran_writer(psyir)
     assert expected in gen

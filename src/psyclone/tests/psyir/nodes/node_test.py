@@ -624,6 +624,62 @@ def test_node_ancestor():
     assert kern.ancestor(Loop, limit=sched) is kern.parent.parent
 
 
+def test_node_ancestor_shared_with(fortran_reader):
+    ''' Test the shared_with parameter of the Node.ancestor() method. '''
+    code = '''Subroutine test()
+    integer :: x
+    x = 1 + 2 * 3
+    End Subroutine test
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    assignment = psyir.children[0].children[0]
+    add_binop = assignment.rhs
+    one_lit = add_binop.children[0]
+    mul_binop = add_binop.children[1]
+    two_lit = mul_binop.children[0]
+    three_lit = mul_binop.children[1]
+
+    assert (two_lit.ancestor(BinaryOperation, shared_with=three_lit) is
+            mul_binop)
+    assert (two_lit.ancestor(BinaryOperation, shared_with=mul_binop,
+                             include_self=True) is mul_binop)
+    assert (two_lit.ancestor(BinaryOperation, shared_with=mul_binop,
+                             include_self=False) is add_binop)
+    assert (two_lit.ancestor(Node, shared_with=one_lit,
+                             excluding=BinaryOperation) is assignment)
+    # Check the inverse of previous statements is the same.
+    assert (three_lit.ancestor(BinaryOperation, shared_with=two_lit) is
+            mul_binop)
+    assert (mul_binop.ancestor(BinaryOperation, shared_with=two_lit,
+                               include_self=True) is mul_binop)
+    assert (mul_binop.ancestor(BinaryOperation, shared_with=two_lit,
+                               include_self=False) is add_binop)
+    assert (one_lit.ancestor(Node, shared_with=two_lit,
+                             excluding=BinaryOperation) is assignment)
+
+    # Check cases where we don't find a valid ancestor
+    assert (two_lit.ancestor(BinaryOperation, shared_with=one_lit,
+                             limit=mul_binop) is None)
+    assert (assignment.ancestor(BinaryOperation, shared_with=one_lit)
+            is None)
+
+    code2 = '''Subroutine test2()
+    integer :: x
+    x = 1 + 2
+    End Subroutine test2
+    '''
+    psyir2 = fortran_reader.psyir_from_source(code2)
+    assignment2 = psyir2.children[0].children[0]
+
+    # Tests where node (one_list) and the shared_with argument are
+    # from separate psyir trees, i.e. they have no shared ancestors.
+    assert one_lit.ancestor(Node, shared_with=assignment2) is None
+    # Test when supplied a limit argument that is not an ancestor of
+    # the node (one_lit) but is an ancestor of the shared_with parameter.
+    assert one_lit.ancestor(Node, shared_with=assignment2,
+                            limit=assignment2.parent) is None
+
+
 def test_dag_names():
     ''' Test that the dag_name method returns the correct value for the
     node class and its specialisations. '''
@@ -1024,6 +1080,99 @@ def test_children_setter():
     assert statement2.parent is None
 
 
+def test_children_clear():
+    '''Test that the clear() method works correctly for a ChildrenList.'''
+    testnode = Schedule()
+    stmt1 = Statement()
+    stmt2 = Statement()
+    testnode.addchild(stmt1)
+    testnode.addchild(stmt2)
+    assert len(testnode.children) == 2
+    assert stmt1.parent is testnode
+    assert stmt2.parent is testnode
+    testnode.children.clear()
+    assert len(testnode.children) == 0
+    assert stmt1.parent is None
+    assert stmt2.parent is None
+
+
+def test_children_sort():
+    '''Check that the sort() method of ChildrenList has been overridden and
+    raises an appropriate error.'''
+    testnode = Schedule()
+    with pytest.raises(NotImplementedError) as err:
+        testnode.children.sort()
+    assert "Sorting the Children of a Node is not supported" in str(err.value)
+
+
+def test_children_trigger_update():
+    '''Test that various modifications of ChildrenList all trigger a tree
+    update. We do this by implementing a sub-class of Schedule that has a
+    bespoke update handler.
+
+    '''
+    class TestingSched(Schedule):
+        '''
+        Sub-class of Schedule that re-implements _update_node() so that it
+        (configurably) raises a GenerationError when called.
+
+        '''
+        def __init__(self, test_enable=True):
+            # Controls whether or not an exception is raised by _update_node.
+            self._test_enable = test_enable
+            super().__init__()
+
+        def _update_node(self):
+            if self._test_enable:
+                # Manually unset this flag here as we're about to break out
+                # of the updating code which would otherwise leave this flag
+                # set to True and would mean we couldn't use the same object
+                # in subsequent tests.
+                self._disable_tree_update = False
+                raise GenerationError("update called OK")
+
+    # Set-up a Schedule with some children with the exception disabled.
+    sched = TestingSched(test_enable=False)
+    sched.addchild(Return())
+    sched.addchild(Return())
+    # Enable the exception in the test class.
+    sched._test_enable = True
+    # Various ways of adding children.
+    with pytest.raises(GenerationError) as err:
+        sched.addchild(Return())
+    assert "update called OK" in str(err.value)
+    with pytest.raises(GenerationError) as err:
+        sched.children.extend([Return()])
+    assert "update called OK" in str(err.value)
+    with pytest.raises(GenerationError) as err:
+        sched.children.insert(1, Return())
+    assert "update called OK" in str(err.value)
+    # Various ways of removing children.
+    with pytest.raises(GenerationError) as err:
+        sched.children.pop()
+    assert "update called OK" in str(err.value)
+    with pytest.raises(GenerationError) as err:
+        del sched.children[1]
+    assert "update called OK" in str(err.value)
+    with pytest.raises(GenerationError) as err:
+        sched.children.remove(sched.children[0])
+    assert "update called OK" in str(err.value)
+    # Modifying members of the list.
+    with pytest.raises(GenerationError) as err:
+        sched.children[1] = Return()
+    assert "update called OK" in str(err.value)
+    with pytest.raises(GenerationError) as err:
+        sched.children.reverse()
+    assert "update called OK" in str(err.value)
+    with pytest.raises(GenerationError) as err:
+        sched.children.clear()
+    assert "update called OK" in str(err.value)
+    # Check that disabling the tree update in the sched class means that
+    # the update method is no longer called.
+    sched._disable_tree_update = True
+    sched.children.clear()
+
+
 def test_lower_to_language_level(monkeypatch):
     ''' Test that Node has a lower_to_language_level() method that \
     recurses to the same method of its children. '''
@@ -1399,3 +1548,35 @@ def test_debug_string(monkeypatch):
     monkeypatch.setattr(DebugWriter, "__call__", lambda x, y: "CORRECT STRING")
     tnode = Node()
     assert tnode.debug_string() == "CORRECT STRING"
+
+
+def test_path_from(fortran_reader):
+    ''' Test the path_from method of the Node class.'''
+
+    code = '''subroutine test_sub()
+    integer :: i, j, k, l
+    k = 12
+    do i = 1, 128
+      do j = 2, 256
+        k = k + 32
+      end do
+    end do
+    l = k
+    end subroutine'''
+
+    psyir = fortran_reader.psyir_from_source(code)
+    assigns = psyir.walk(Assignment)
+    routine = psyir.walk(Routine)[0]
+    result = assigns[1].path_from(routine)
+    start = routine
+    for index in result:
+        start = start.children[index]
+    assert start is assigns[1]
+
+    assert len(assigns[1].path_from(assigns[1])) == 0
+
+    loops = psyir.walk(Loop)
+    with pytest.raises(ValueError) as excinfo:
+        assigns[0].path_from(loops[0])
+    assert ("Attempted to find path_from a non-ancestor 'Loop' "
+            "node." in str(excinfo.value))

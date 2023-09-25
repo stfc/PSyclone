@@ -30,12 +30,11 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford, A. R. Porter and N. Nobre, STFC Daresbury Lab
+# Authors: R. W. Ford, A. R. Porter, N. Nobre and S. Siso, STFC Daresbury Lab
 # Modified by J. Henrichs, Bureau of Meteorology
-#
+
 '''Module to test the psyad assignment transformation.'''
 
-from __future__ import absolute_import
 import pytest
 
 from psyclone.psyad.transformations import AssignmentTrans, TangentLinearError
@@ -43,7 +42,7 @@ from psyclone.psyad.transformations import AssignmentTrans, TangentLinearError
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import BinaryOperation, Reference, Assignment, \
-    Literal, UnaryOperation, ArrayReference, Range
+    Literal, UnaryOperation, ArrayReference, Range, IntrinsicCall
 from psyclone.psyir.symbols import DataSymbol, REAL_TYPE, INTEGER_TYPE, \
     ScalarType, ArrayType
 from psyclone.psyir.transformations import TransformationError
@@ -952,7 +951,8 @@ def test_validate_rhs_zero():
         assignment = Assignment.create(Reference(lhs_symbol), rhs_literal)
         trans.validate(assignment)
     # 0 with a kind value
-    real_kind = DataSymbol("r_def", INTEGER_TYPE, constant_value=8)
+    real_kind = DataSymbol("r_def", INTEGER_TYPE, is_constant=True,
+                           initial_value=8)
     scalar_type = ScalarType(ScalarType.Intrinsic.REAL, real_kind)
     rhs_literal = Literal("0.0", scalar_type)
     assignment = Assignment.create(Reference(lhs_symbol), rhs_literal)
@@ -1276,8 +1276,8 @@ def test_validate_unaryop():
     '''
     lhs_symbol = DataSymbol("a", REAL_TYPE)
     rhs_symbol = DataSymbol("b", REAL_TYPE)
-    sqrt = UnaryOperation.create(
-        UnaryOperation.Operator.SQRT, Reference(rhs_symbol))
+    sqrt = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.SQRT, [Reference(rhs_symbol)])
     assignment = Assignment.create(Reference(lhs_symbol), sqrt)
     trans = AssignmentTrans(active_variables=[
         lhs_symbol, rhs_symbol])

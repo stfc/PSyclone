@@ -41,7 +41,7 @@ from psyclone.psyir.transformations import Matmul2CodeTrans, \
 from psyclone.psyir.transformations.intrinsics.matmul2code_trans import \
     _create_matrix_ref, _get_array_bound
 from psyclone.psyir.nodes import BinaryOperation, Literal, ArrayReference, \
-    Assignment, Reference, Range, KernelSchedule
+    Assignment, Reference, Range, KernelSchedule, IntrinsicCall
 from psyclone.psyir.symbols import DataSymbol, SymbolTable, ArrayType, \
     ScalarType, INTEGER_TYPE, REAL_TYPE
 from psyclone.psyir.backend.fortran import FortranWriter
@@ -56,35 +56,41 @@ def create_matmul():
     symbol_table = SymbolTable()
     one = Literal("1", INTEGER_TYPE)
     two = Literal("2", INTEGER_TYPE)
-    index = DataSymbol("idx", INTEGER_TYPE, constant_value=3)
+    index = DataSymbol("idx", INTEGER_TYPE, is_constant=True, initial_value=3)
     symbol_table.add(index)
     array_type = ArrayType(REAL_TYPE, [5, 10, 15])
     mat_symbol = DataSymbol("x", array_type)
     symbol_table.add(mat_symbol)
-    lbound1 = BinaryOperation.create(
-        BinaryOperation.Operator.LBOUND, Reference(mat_symbol), one.copy())
-    ubound1 = BinaryOperation.create(
-        BinaryOperation.Operator.UBOUND, Reference(mat_symbol), one.copy())
+    lbound1 = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.LBOUND,
+        [Reference(mat_symbol), ("dim", one.copy())])
+    ubound1 = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.UBOUND,
+        [Reference(mat_symbol), ("dim", one.copy())])
     my_mat_range1 = Range.create(lbound1, ubound1, one.copy())
-    lbound2 = BinaryOperation.create(
-        BinaryOperation.Operator.LBOUND, Reference(mat_symbol), two.copy())
-    ubound2 = BinaryOperation.create(
-        BinaryOperation.Operator.UBOUND, Reference(mat_symbol), two.copy())
+    lbound2 = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.LBOUND,
+        [Reference(mat_symbol), ("dim", two.copy())])
+    ubound2 = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.UBOUND,
+        [Reference(mat_symbol), ("dim", two.copy())])
     my_mat_range2 = Range.create(lbound2, ubound2, one.copy())
     matrix = ArrayReference.create(mat_symbol, [my_mat_range1, my_mat_range2,
                                                 Reference(index)])
     array_type = ArrayType(REAL_TYPE, [10, 20, 10])
     vec_symbol = DataSymbol("y", array_type)
     symbol_table.add(vec_symbol)
-    lbound = BinaryOperation.create(
-        BinaryOperation.Operator.LBOUND, Reference(vec_symbol), one.copy())
-    ubound = BinaryOperation.create(
-        BinaryOperation.Operator.UBOUND, Reference(vec_symbol), one.copy())
+    lbound = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.LBOUND,
+        [Reference(vec_symbol), ("dim", one.copy())])
+    ubound = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.UBOUND,
+        [Reference(vec_symbol), ("dim", one.copy())])
     my_vec_range = Range.create(lbound, ubound, one.copy())
     vector = ArrayReference.create(vec_symbol, [my_vec_range,
                                                 Reference(index), one.copy()])
-    matmul = BinaryOperation.create(
-        BinaryOperation.Operator.MATMUL, matrix, vector)
+    matmul = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.MATMUL, [matrix, vector])
     lhs_type = ArrayType(REAL_TYPE, [10])
     lhs_symbol = DataSymbol("result", lhs_type)
     symbol_table.add(lhs_symbol)
@@ -166,7 +172,8 @@ def test_get_array_bound():
     new nodes are created each time the utility is called.
 
     '''
-    scalar_symbol = DataSymbol("n", INTEGER_TYPE, constant_value=20)
+    scalar_symbol = DataSymbol("n", INTEGER_TYPE, is_constant=True,
+                               initial_value=20)
     array_type = ArrayType(REAL_TYPE, [10, Reference(scalar_symbol)])
     array_symbol = DataSymbol("x", array_type)
     reference = Reference(array_symbol)
@@ -209,22 +216,22 @@ def test_get_array_bound():
         respectively.
 
         '''
-        assert isinstance(lower_bound, BinaryOperation)
-        assert lower_bound.operator == BinaryOperation.Operator.LBOUND
+        assert isinstance(lower_bound, IntrinsicCall)
+        assert lower_bound.intrinsic == IntrinsicCall.Intrinsic.LBOUND
         assert isinstance(lower_bound.children[0], Reference)
         assert lower_bound.children[0].symbol is array_symbol
         assert isinstance(lower_bound.children[1], Literal)
         assert (lower_bound.children[1].datatype.intrinsic ==
                 ScalarType.Intrinsic.INTEGER)
-        assert lower_bound.children[1].value == str(index)
-        assert isinstance(upper_bound, BinaryOperation)
-        assert upper_bound.operator == BinaryOperation.Operator.UBOUND
+        assert lower_bound.children[1].value == str(index+1)
+        assert isinstance(upper_bound, IntrinsicCall)
+        assert upper_bound.intrinsic == IntrinsicCall.Intrinsic.UBOUND
         assert isinstance(upper_bound.children[0], Reference)
         assert upper_bound.children[0].symbol is array_symbol
         assert isinstance(upper_bound.children[1], Literal)
         assert (upper_bound.children[1].datatype.intrinsic ==
                 ScalarType.Intrinsic.INTEGER)
-        assert upper_bound.children[1].value == str(index)
+        assert upper_bound.children[1].value == str(index+1)
         assert isinstance(step, Literal)
         assert step.value == "1"
         assert step.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
@@ -261,7 +268,7 @@ def test_get_array_bound():
     reference = Reference(array_symbol)
     (lower_bound, upper_bound, step) = _get_array_bound(reference, 0)
     assert isinstance(lower_bound, Literal)
-    assert isinstance(upper_bound, BinaryOperation)
+    assert isinstance(upper_bound, IntrinsicCall)
     (lower_bound2, upper_bound2, step2) = _get_array_bound(reference, 1)
     assert lower_bound2 is not lower_bound
     assert upper_bound2 is not upper_bound
@@ -273,8 +280,8 @@ def test_initialise():
 
     '''
     trans = Matmul2CodeTrans()
-    assert (str(trans) == "Convert the PSyIR MATMUL intrinsic to equivalent "
-            "PSyIR code.")
+    assert (str(trans) == "Convert the PSyIR 'MATMUL' intrinsic to "
+            "equivalent PSyIR code.")
     assert trans.name == "Matmul2CodeTrans"
 
 
@@ -286,8 +293,8 @@ def test_validate1():
     trans = Matmul2CodeTrans()
     with pytest.raises(TransformationError) as excinfo:
         trans.validate(None)
-    assert ("Error in Matmul2CodeTrans transformation. The supplied node "
-            "argument is not a MATMUL operator, found 'NoneType'."
+    assert ("Error in Matmul2CodeTrans transformation. The supplied node must "
+            "be an 'IntrinsicCall', but found 'NoneType'."
             in str(excinfo.value))
 
 
@@ -299,12 +306,11 @@ def test_validate2():
     '''
     trans = Matmul2CodeTrans()
     with pytest.raises(TransformationError) as excinfo:
-        trans.validate(BinaryOperation.create(
-            BinaryOperation.Operator.ADD, Literal("1.0", REAL_TYPE),
-            Literal("1.0", REAL_TYPE)))
+        trans.validate(IntrinsicCall.create(
+            IntrinsicCall.Intrinsic.SUM, [Literal("1.0", REAL_TYPE)]))
     assert ("Transformation Error: Error in Matmul2CodeTrans transformation. "
-            "The supplied node operator is invalid, found 'Operator.ADD', "
-            "but expected one of '['MATMUL']'." in str(excinfo.value))
+            "The supplied IntrinsicCall must be a 'MATMUL' but "
+            "found: 'SUM'." in str(excinfo.value))
 
 
 def test_validate3():
@@ -318,8 +324,8 @@ def test_validate3():
     array_type = ArrayType(REAL_TYPE, [10, 10])
     vector = Reference(DataSymbol("x", vector_type))
     array = Reference(DataSymbol("y", array_type))
-    matmul = BinaryOperation.create(
-        BinaryOperation.Operator.MATMUL, array, vector)
+    matmul = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.MATMUL, [array, vector])
     with pytest.raises(TransformationError) as excinfo:
         trans.validate(matmul)
     assert ("Transformation Error: Error in Matmul2CodeTrans transformation. "
@@ -339,8 +345,8 @@ def test_validate4():
     array_type = ArrayType(REAL_TYPE, [10, 10])
     vector = Reference(DataSymbol("x", vector_type))
     array = Reference(DataSymbol("y", array_type))
-    matmul = BinaryOperation.create(
-        BinaryOperation.Operator.MATMUL, array, vector)
+    matmul = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.MATMUL, [array, vector])
     rhs = BinaryOperation.create(
         BinaryOperation.Operator.MUL, matmul, vector.copy())
     _ = Assignment.create(array.copy(), rhs)
@@ -363,14 +369,14 @@ def test_validate5():
                                   [Literal("10", INTEGER_TYPE)])
     mult = BinaryOperation.create(
         BinaryOperation.Operator.MUL, array.copy(), array.copy())
-    matmul = BinaryOperation.create(
-        BinaryOperation.Operator.MATMUL, mult.copy(), mult.copy())
+    matmul = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.MATMUL, [mult.copy(), mult.copy()])
     _ = Assignment.create(array, matmul)
     with pytest.raises(TransformationError) as excinfo:
         trans.validate(matmul)
-    assert ("Expected children of a MATMUL BinaryOperation to be references, "
-            "but found 'BinaryOperation', 'BinaryOperation'."
-            in str(excinfo.value))
+    assert ("Expected result and operands of MATMUL BinaryOperation to be "
+            "references, but found: 'x(10) = MATMUL(x(10) * x(10), x(10) * "
+            "x(10))\n'." in str(excinfo.value))
 
 
 def test_validate6():
@@ -382,14 +388,13 @@ def test_validate6():
     '''
     trans = Matmul2CodeTrans()
     scalar = Reference(DataSymbol("x", REAL_TYPE))
-    matmul = BinaryOperation.create(
-        BinaryOperation.Operator.MATMUL, scalar, scalar.copy())
+    matmul = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.MATMUL, [scalar, scalar.copy()])
     _ = Assignment.create(scalar.copy(), matmul)
     with pytest.raises(TransformationError) as excinfo:
         trans.validate(matmul)
-    assert ("Transformation Error: Expected children of a MATMUL "
-            "BinaryOperation to be references to arrays but found "
-            "'DataSymbol', 'DataSymbol' for 'x', 'x'." in str(excinfo.value))
+    assert ("Expected result and operands of MATMUL BinaryOperation to be "
+            "references to arrays but found" in str(excinfo.value))
 
 
 def test_validate_structure_accesses(fortran_reader):
@@ -409,9 +414,8 @@ def test_validate_structure_accesses(fortran_reader):
     assign = psyir.walk(Assignment)[0]
     with pytest.raises(TransformationError) as err:
         trans.apply(assign.rhs)
-    assert ("Expected children of a MATMUL BinaryOperation to be references "
-            "to arrays but found 'DataSymbol', 'DataSymbol' for 'grid', "
-            "'grid_inv'" in str(err.value))
+    assert ("Expected result and operands of MATMUL BinaryOperation to be "
+            "references to arrays but found" in str(err.value))
 
 
 def test_validate7():
@@ -423,8 +427,8 @@ def test_validate7():
     trans = Matmul2CodeTrans()
     array_type = ArrayType(REAL_TYPE, [10])
     array = Reference(DataSymbol("x", array_type))
-    matmul = BinaryOperation.create(
-        BinaryOperation.Operator.MATMUL, array.copy(), array.copy())
+    matmul = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.MATMUL, [array.copy(), array.copy()])
     _ = Assignment.create(array, matmul)
     with pytest.raises(TransformationError) as excinfo:
         trans.validate(matmul)
@@ -443,8 +447,8 @@ def test_validate8():
     trans = Matmul2CodeTrans()
     array_type = ArrayType(REAL_TYPE, [10, 10, 10])
     array = Reference(DataSymbol("x", array_type))
-    matmul = BinaryOperation.create(
-        BinaryOperation.Operator.MATMUL, array.copy(), array.copy())
+    matmul = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.MATMUL, [array.copy(), array.copy()])
     _ = Assignment.create(array, matmul)
     with pytest.raises(TransformationError) as excinfo:
         trans.validate(matmul)
@@ -464,8 +468,8 @@ def test_validate9():
     array = Reference(DataSymbol("x", array_type))
     vector_type = ArrayType(REAL_TYPE, [10, 10, 10])
     vector = Reference(DataSymbol("y", vector_type))
-    matmul = BinaryOperation.create(
-        BinaryOperation.Operator.MATMUL, array, vector)
+    matmul = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.MATMUL, [array, vector])
     _ = Assignment.create(array.copy(), matmul)
     with pytest.raises(TransformationError) as excinfo:
         trans.validate(matmul)
@@ -484,7 +488,7 @@ def test_validate10():
     matmul = create_matmul()
     matrix = matmul.children[0]
     matrix.children[0] = Literal("1", INTEGER_TYPE)
-    with pytest.raises(NotImplementedError) as excinfo:
+    with pytest.raises(TransformationError) as excinfo:
         trans.validate(matmul)
     assert ("To use matmul2code_trans on matmul, the first two indices of the "
             "1st argument 'x' must be full ranges." in str(excinfo.value))
@@ -502,7 +506,7 @@ def test_validate11():
     matrix = matmul.children[0]
     my_range = matrix.children[0].copy()
     matrix.children[2] = my_range
-    with pytest.raises(NotImplementedError) as excinfo:
+    with pytest.raises(TransformationError) as excinfo:
         trans.validate(matmul)
     assert ("To use matmul2code_trans on matmul, only the first two indices "
             "of the 1st argument are permitted to be Ranges but "
@@ -520,7 +524,7 @@ def test_validate12():
     matmul = create_matmul()
     vector = matmul.children[1]
     vector.children[0] = Literal("1", INTEGER_TYPE)
-    with pytest.raises(NotImplementedError) as excinfo:
+    with pytest.raises(TransformationError) as excinfo:
         trans.validate(matmul)
     assert ("To use matmul2code_trans on matmul, the first index of the 2nd "
             "argument 'y' must be a full range." in str(excinfo.value))
@@ -535,11 +539,11 @@ def test_validate_2nd_dim_2nd_arg():
     matrix2 = matmul.children[1]
     matrix2.children[1] = Range.create(Literal("1", INTEGER_TYPE),
                                        Literal("2", INTEGER_TYPE))
-    with pytest.raises(NotImplementedError) as excinfo:
+    with pytest.raises(TransformationError) as excinfo:
         trans.validate(matmul)
     assert ("To use matmul2code_trans on matmul for a matrix-matrix "
             "multiplication, the second index of the 2nd argument 'y' must "
-            "be a full range." in str(excinfo))
+            "be a full range." in str(excinfo.value))
 
 
 def test_validate13():
@@ -554,7 +558,7 @@ def test_validate13():
     vector = matmul.children[1]
     my_range = vector.children[0].copy()
     vector.children[2] = my_range
-    with pytest.raises(NotImplementedError) as excinfo:
+    with pytest.raises(TransformationError) as excinfo:
         trans.validate(matmul)
     assert ("To use matmul2code_trans on matmul, only the first two "
             "indices of the 2nd argument are permitted to be a Range but "
@@ -570,6 +574,65 @@ def test_validate14():
     trans = Matmul2CodeTrans()
     matmul = create_matmul()
     trans.validate(matmul)
+
+
+def test_validate_matmat_with_slices_on_rhs(fortran_reader):
+    '''
+    Check that the validate method refuses matrix-matrix operations with
+    array slides in its lhs.
+
+    '''
+    psyir = fortran_reader.psyir_from_source(
+        "subroutine my_sub()\n"
+        "  real, dimension(2,6) :: jac\n"
+        "  real, dimension(6,3) :: jac_inv\n"
+        "  real, dimension(10,10) :: result\n"
+        "  result(2:4,2:5) = matmul(jac(:,:), jac_inv(:,:))\n"
+        "end subroutine my_sub\n")
+    trans = Matmul2CodeTrans()
+    assign = psyir.walk(Assignment)[0]
+    with pytest.raises(TransformationError) as excinfo:
+        trans.validate(assign.rhs)
+    assert ("To use matmul2code_trans on matmul, each range on the result "
+            "variable 'result' must be a full range but found "
+            "result(2:4,2:5)" in str(excinfo.value))
+
+
+def test_validate_matmat_with_same_mem(fortran_reader):
+    '''
+    Check that the validate method refuses cases where one of the operands
+    is also the lhs of the matrix multiplication.
+
+    '''
+    psyir = fortran_reader.psyir_from_source(
+        "subroutine my_sub()\n"
+        "  real, dimension(2,2) :: jac\n"
+        "  real, dimension(2,2) :: jac_inv\n"
+        "  jac = matmul(jac(:,:), jac_inv(:,:))\n"
+        "end subroutine my_sub\n")
+    trans = Matmul2CodeTrans()
+    assign = psyir.walk(Assignment)[0]
+    with pytest.raises(TransformationError) as excinfo:
+        trans.validate(assign.rhs)
+    assert ("Transformation Error: 'jac' is the result location and one of the"
+            " MATMUL operators. This is not supported." in str(excinfo.value))
+
+    # In the version below we can not guarantee whether the memory is the same
+    psyir = fortran_reader.psyir_from_source(
+        "subroutine my_sub()\n"
+        "  real, dimension(2,2) :: jac\n"
+        "  real, dimension(2,2), pointer :: jac_inv\n"
+        "  real, dimension(2,2), pointer :: result\n"
+        "  result = matmul(jac(:,:), jac_inv(:,:))\n"
+        "end subroutine my_sub\n")
+    trans = Matmul2CodeTrans()
+    assign = psyir.walk(Assignment)[0]
+    with pytest.raises(TransformationError) as excinfo:
+        trans.validate(assign.rhs)
+    assert ("Transformation Error: Expected result and operands of MATMUL "
+            "BinaryOperation to be references to arrays but found 'result: "
+            "DataSymbol<UnknownFortranType('REAL, DIMENSION(2, 2), POINTER "
+            ":: result')" in str(excinfo.value))
 
 
 def test_apply_matvect(tmpdir):
@@ -689,45 +752,6 @@ def test_apply_matvect_no_indices(tmpdir, fortran_writer):
     assert Compile(tmpdir).string_compiles(result)
 
 
-def test_apply_matvect_increment(tmpdir, fortran_writer):
-    '''Test that the matmul2code apply method produces the expected
-    PSyIR. We use the Fortran backend to help provide the test for
-    correctness. This example make the lhs be the same array as the
-    second operand of the matmul (the vector in this case).
-
-    '''
-    trans = Matmul2CodeTrans()
-    one = Literal("1", INTEGER_TYPE)
-    five = Literal("5", INTEGER_TYPE)
-    matmul = create_matmul()
-    root = matmul.root
-    assignment = matmul.parent
-    vector = assignment.scope.symbol_table.lookup("y")
-    assignment.children[0] = ArrayReference.create(
-            vector, [Range.create(one, five, one.copy()),
-                     one.copy(), one.copy()])
-    trans.apply(matmul)
-    result = fortran_writer(root)
-    assert (
-        "subroutine my_kern()\n"
-        "  integer, parameter :: idx = 3\n"
-        "  real, dimension(5,10,15) :: x\n"
-        "  real, dimension(10,20,10) :: y\n"
-        "  real, dimension(10) :: result\n"
-        "  integer :: i\n"
-        "  integer :: j\n"
-        "\n"
-        "  do i = 1, 5, 1\n"
-        "    y(i,1,1) = 0.0\n"
-        "    do j = 1, 10, 1\n"
-        "      y(i,1,1) = y(i,1,1) + x(i,j,idx) * y(j,idx,1)\n"
-        "    enddo\n"
-        "  enddo\n"
-        "\n"
-        "end subroutine my_kern" in result)
-    assert Compile(tmpdir).string_compiles(result)
-
-
 def test_apply_matmat_no_indices(tmpdir, fortran_reader, fortran_writer):
     '''
     Check the apply method works when the second argument to matmul is a
@@ -736,9 +760,9 @@ def test_apply_matmat_no_indices(tmpdir, fortran_reader, fortran_writer):
     '''
     psyir = fortran_reader.psyir_from_source(
         "subroutine my_sub()\n"
-        "  real, dimension(3,6) :: jac\n"
-        "  real, dimension(5,3) :: jac_inv\n"
-        "  real, dimension(5,6) :: result\n"
+        "  real, dimension(2,3) :: jac\n"
+        "  real, dimension(3,4) :: jac_inv\n"
+        "  real, dimension(2,4) :: result\n"
         "  result = matmul(jac, jac_inv)\n"
         "end subroutine my_sub\n")
     trans = Matmul2CodeTrans()
@@ -747,15 +771,15 @@ def test_apply_matmat_no_indices(tmpdir, fortran_reader, fortran_writer):
     out = fortran_writer(psyir)
     assert (
         "subroutine my_sub()\n"
-        "  real, dimension(3,6) :: jac\n"
-        "  real, dimension(5,3) :: jac_inv\n"
-        "  real, dimension(5,6) :: result\n"
+        "  real, dimension(2,3) :: jac\n"
+        "  real, dimension(3,4) :: jac_inv\n"
+        "  real, dimension(2,4) :: result\n"
         "  integer :: i\n"
         "  integer :: j\n"
         "  integer :: ii\n"
         "\n"
-        "  do j = 1, 6, 1\n"
-        "    do i = 1, 5, 1\n"
+        "  do j = 1, 4, 1\n"
+        "    do i = 1, 2, 1\n"
         "      result(i,j) = 0.0\n"
         "      do ii = 1, 3, 1\n"
         "        result(i,j) = result(i,j) + jac(i,ii) * jac_inv(ii,j)\n"
@@ -773,31 +797,93 @@ def test_apply_matmat_extra_indices(tmpdir, fortran_reader, fortran_writer):
     matrix but additional indices are present.
 
     '''
+
+    #  Extra indices in the inputs
     psyir = fortran_reader.psyir_from_source(
         "subroutine my_sub()\n"
-        "  real, dimension(3,6,4) :: jac\n"
-        "  real, dimension(5,3,4) :: jac_inv\n"
-        "  real, dimension(5,6,2) :: result\n"
-        "  result(:,:,2) = matmul(jac(:,:,1), jac_inv(:,:,2))\n"
+        "  real, dimension(2,6,4) :: jac\n"
+        "  real, dimension(6,3,4) :: jac_inv\n"
+        "  real, dimension(2,3) :: result\n"
+        "  result(:,:) = matmul(jac(:,:,1), jac_inv(:,:,2))\n"
         "end subroutine my_sub\n")
     trans = Matmul2CodeTrans()
     assign = psyir.walk(Assignment)[0]
     trans.apply(assign.rhs)
     out = fortran_writer(psyir)
     assert (
-        "  real, dimension(3,6,4) :: jac\n"
-        "  real, dimension(5,3,4) :: jac_inv\n"
-        "  real, dimension(5,6,2) :: result\n"
+        "  real, dimension(2,6,4) :: jac\n"
+        "  real, dimension(6,3,4) :: jac_inv\n"
+        "  real, dimension(2,3) :: result\n"
         "  integer :: i\n"
         "  integer :: j\n"
         "  integer :: ii\n"
         "\n"
-        "  do j = 1, 6, 1\n"
-        "    do i = 1, 5, 1\n"
-        "      result(i,j,2) = 0.0\n"
-        "      do ii = 1, 3, 1\n"
-        "        result(i,j,2) = result(i,j,2) + "
-        "jac(i,ii,1) * jac_inv(ii,j,2)\n"
+        "  do j = 1, 3, 1\n"
+        "    do i = 1, 2, 1\n"
+        "      result(i,j) = 0.0\n"
+        "      do ii = 1, 6, 1\n"
+        "        result(i,j) = result(i,j) + jac(i,ii,1) * jac_inv(ii,j,2)\n"
+        "      enddo\n"
+        "    enddo\n"
+        "  enddo\n" in out)
+    assert Compile(tmpdir).string_compiles(out)
+
+    #  Extra indices in 1 input (and rhs array-notation)
+    psyir = fortran_reader.psyir_from_source(
+        "subroutine my_sub()\n"
+        "  real, dimension(2,6) :: jac\n"
+        "  real, dimension(6,3,4,5,6) :: jac_inv\n"
+        "  real, dimension(2,3) :: result\n"
+        "  result = matmul(jac(:,:), jac_inv(:,:,2,3,4))\n"
+        "end subroutine my_sub\n")
+    trans = Matmul2CodeTrans()
+    assign = psyir.walk(Assignment)[0]
+    trans.apply(assign.rhs)
+    out = fortran_writer(psyir)
+    assert (
+        "  real, dimension(2,6) :: jac\n"
+        "  real, dimension(6,3,4,5,6) :: jac_inv\n"
+        "  real, dimension(2,3) :: result\n"
+        "  integer :: i\n"
+        "  integer :: j\n"
+        "  integer :: ii\n"
+        "\n"
+        "  do j = 1, 3, 1\n"
+        "    do i = 1, 2, 1\n"
+        "      result(i,j) = 0.0\n"
+        "      do ii = 1, 6, 1\n"
+        "        result(i,j) = result(i,j) + jac(i,ii) * jac_inv(ii,j,2,3,4)\n"
+        "      enddo\n"
+        "    enddo\n"
+        "  enddo\n" in out)
+    assert Compile(tmpdir).string_compiles(out)
+
+    #  Extra indices in the output
+    psyir = fortran_reader.psyir_from_source(
+        "subroutine my_sub()\n"
+        "  real, dimension(2,6) :: jac\n"
+        "  real, dimension(6,3) :: jac_inv\n"
+        "  real, dimension(2,3,4,4) :: result\n"
+        "  result(:,:,2,3) = matmul(jac(:,:), jac_inv(:,:))\n"
+        "end subroutine my_sub\n")
+    trans = Matmul2CodeTrans()
+    assign = psyir.walk(Assignment)[0]
+    trans.apply(assign.rhs)
+    out = fortran_writer(psyir)
+    assert (
+        "  real, dimension(2,6) :: jac\n"
+        "  real, dimension(6,3) :: jac_inv\n"
+        "  real, dimension(2,3,4,4) :: result\n"
+        "  integer :: i\n"
+        "  integer :: j\n"
+        "  integer :: ii\n"
+        "\n"
+        "  do j = 1, 3, 1\n"
+        "    do i = 1, 2, 1\n"
+        "      result(i,j,2,3) = 0.0\n"
+        "      do ii = 1, 6, 1\n"
+        "        result(i,j,2,3) = result(i,j,2,3) + jac(i,ii) * jac_inv(ii,j)"
+        "\n"
         "      enddo\n"
         "    enddo\n"
         "  enddo\n" in out)
@@ -813,9 +899,9 @@ def test_apply_matmat_name_clashes(tmpdir, fortran_reader, fortran_writer):
     psyir = fortran_reader.psyir_from_source(
         "subroutine my_sub()\n"
         "  real :: i, j, ii\n"
-        "  real, dimension(3,6,4) :: jac\n"
-        "  real, dimension(5,3,4) :: jac_inv\n"
-        "  real, dimension(5,6,2) :: result\n"
+        "  real, dimension(2,6,4) :: jac\n"
+        "  real, dimension(6,3,4) :: jac_inv\n"
+        "  real, dimension(2,3,2) :: result\n"
         "  result(:,:,2) = matmul(jac(:,:,1), jac_inv(:,:,2))\n"
         "end subroutine my_sub\n")
     trans = Matmul2CodeTrans()
@@ -823,17 +909,17 @@ def test_apply_matmat_name_clashes(tmpdir, fortran_reader, fortran_writer):
     trans.apply(assign.rhs)
     out = fortran_writer(psyir)
     assert (
-        "  real, dimension(3,6,4) :: jac\n"
-        "  real, dimension(5,3,4) :: jac_inv\n"
-        "  real, dimension(5,6,2) :: result\n"
+        "  real, dimension(2,6,4) :: jac\n"
+        "  real, dimension(6,3,4) :: jac_inv\n"
+        "  real, dimension(2,3,2) :: result\n"
         "  integer :: i_1\n"
         "  integer :: j_1\n"
         "  integer :: ii_1\n"
         "\n"
-        "  do j_1 = 1, 6, 1\n"
-        "    do i_1 = 1, 5, 1\n"
+        "  do j_1 = 1, 3, 1\n"
+        "    do i_1 = 1, 2, 1\n"
         "      result(i_1,j_1,2) = 0.0\n"
-        "      do ii_1 = 1, 3, 1\n"
+        "      do ii_1 = 1, 6, 1\n"
         "        result(i_1,j_1,2) = result(i_1,j_1,2) + "
         "jac(i_1,ii_1,1) * jac_inv(ii_1,j_1,2)\n"
         "      enddo\n"
