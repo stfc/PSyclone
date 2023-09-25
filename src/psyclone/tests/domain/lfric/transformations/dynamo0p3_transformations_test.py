@@ -251,6 +251,30 @@ def test_colour_trans(tmpdir, dist_mem):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
+def test_colour_trans_tiled(tmpdir, dist_mem):
+    ''' Test of the colouring transformation of a single loop. We test
+    when distributed memory is both off and on. '''
+    psy, invoke = get_invoke("1_single_invoke.f90", TEST_API,
+                             name="invoke_0_testkern_type",
+                             dist_mem=dist_mem)
+    schedule = invoke.schedule
+    ctrans = Dynamo0p3ColourTrans()
+
+    if dist_mem:
+        index = 4
+    else:
+        index = 0
+
+    # Colour the loop
+    ctrans.apply(schedule.children[index], options={"tiling": True})
+
+    # Store the results of applying this code transformation as
+    # a string (Fortran is not case sensitive)
+    gen = str(psy.gen).lower()
+    print(gen)
+    # assert False
+
+
 def test_colour_trans_operator(tmpdir, dist_mem):
     '''test of the colouring transformation of a single loop with an
     operator. We check that the first argument is a colourmap lookup,

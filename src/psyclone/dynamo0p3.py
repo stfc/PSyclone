@@ -3782,6 +3782,9 @@ class DynMeshes():
             # No. of colours
             ncolours = sym_tab.find_or_create_integer_symbol(
                 "ncolour", tag="ncolour").name
+            ntilecolours = sym_tab.find_or_create_integer_symbol(
+                "ntilecolour", tag="ntilecolour").name
+
             if self._needs_colourmap_halo:
                 sym_tab.find_or_create_array(
                     "last_halo_cell_all_colours", 2,
@@ -4135,6 +4138,15 @@ class DynInterGrid():
         # and 1D otherwise.
         self._last_cell_var_symbol = None
 
+        # We have no colourmap information when first created
+        self._tilecolourmap_symbol = None
+        # Symbol for the variable holding the number of colours
+        self._ntilecolours_var_symbol = None
+        # Symbol of the variable holding the last tile of a particular colour
+        self._last_tile_var_symbol = None
+        # Symbol of the variable holding the last cell of a particular tile
+        self._last_cell_tile_var_symbol = None
+
     def set_colour_info(self, colour_map, ncolours, last_cell):
         '''Sets the colour_map, number of colours, and
         last cell of a particular colour.
@@ -4150,6 +4162,24 @@ class DynInterGrid():
         self._colourmap_symbol = colour_map
         self._ncolours_var_symbol = ncolours
         self._last_cell_var_symbol = last_cell
+
+    def set_tilecolour_info(self, tilecolour_map, ntilecolours,
+                            last_tile, last_cell_tile):
+        '''Sets the colour_map, number of colours, and
+        last cell of a particular colour.
+
+        :param colour_map: the colour map symbol.
+        :type: colour_map:py:class:`psyclone.psyir.symbols.Symbol`
+        :param ncolours: the number of colours.
+        :type: ncolours: :py:class:`psyclone.psyir.symbols.Symbol`
+        :param last_cell: the last cell of a particular colour.
+        :type last_cell: :py:class:`psyclone.psyir.symbols.Symbol`
+
+        '''
+        self._tilecolourmap_symbol = tilecolour_map
+        self._ntilecolours_var_symbol = ntilecolours
+        self._last_tile_var_symbol = last_tile
+        self._last_cell_tile_var_symbol = last_cell_tile
 
     @property
     def colourmap_symbol(self):
@@ -4171,6 +4201,34 @@ class DynInterGrid():
         :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
         '''
         return self._last_cell_var_symbol
+
+    @property
+    def tilecolourmap_symbol(self):
+        ''':returns: the colour map symbol.
+        :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
+        '''
+        return self._tilecolourmap_symbol
+
+    @property
+    def ntilecolours_var_symbol(self):
+        ''':returns: the symbol for storing the number of colours.
+        :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
+        '''
+        return self._ntilecolours_var_symbol
+
+    @property
+    def last_tile_var_symbol(self):
+        ''':returns: the last cell variable.
+        :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
+        '''
+        return self._last_tile_var_symbol
+
+    @property
+    def last_cell_tile_var_symbol(self):
+        ''':returns: the last cell variable.
+        :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
+        '''
+        return self._last_cell_tile_var_symbol
 
 
 class DynBasisFunctions(LFRicCollection):
@@ -6772,6 +6830,21 @@ class DynLoop(PSyLoop):
                         f"All kernels within a loop over colours must have "
                         f"been coloured but kernel '{kern.name}' has not")
             return kernels[0].ncolours_var
+
+        if self._upper_bound_name == "ntilecolours":
+            # Loop over coloured tiles
+            kernels = self.walk(LFRicKern)
+            if not kernels:
+                raise InternalError(
+                    "Failed to find a kernel within a loop over colours.")
+            # Check that all kernels have been tile-coloured. We can't check
+            # the number of colours since that is only known at runtime.
+            for kern in kernels:
+                if not kern.ntilecolours_var:
+                    raise InternalError(
+                        f"All kernels within a loop over colours must have "
+                        f"been coloured but kernel '{kern.name}' has not")
+            return kernels[0].ntilecolours_var
 
         if self._upper_bound_name == "ncolour":
             # Loop over cells of a particular colour when DM is disabled.

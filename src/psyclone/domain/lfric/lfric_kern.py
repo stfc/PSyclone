@@ -389,9 +389,8 @@ class LFRicKern(CodedKern):
         :returns: name of the colourmap (Fortran array).
         :rtype: str
 
-        :raises InternalError: if this kernel is not coloured or the \
-                               dictionary of inter-grid kernels and \
-                               colourmaps has not been constructed.
+        :raises InternalError: if this kernel is not coloured or the dictionary
+        of inter-grid kernels and colourmaps has not been constructed.
 
         '''
         if not self.is_coloured():
@@ -417,6 +416,43 @@ class LFRicKern(CodedKern):
                     tag="cmap").name
 
         return cmap
+
+    @property
+    def colourtilemap(self):
+        '''
+        Getter for the name of the colourtilemap associated with this
+        kernel call.
+
+        :returns: name of the colourmap (Fortran array).
+        :rtype: str
+
+        :raises InternalError: if this kernel is not coloured or the dictionary
+        of inter-grid kernels and colourmaps has not been constructed.
+
+        '''
+        if not self.is_coloured():
+            raise InternalError(f"Kernel '{self.name}' is not inside a "
+                                f"coloured loop.")
+        sched = self.ancestor(InvokeSchedule)
+        if self._is_intergrid:
+            invoke = sched.invoke
+            if id(self) not in invoke.meshes.intergrid_kernels:
+                raise InternalError(
+                    f"Colourtilemap information for kernel '{self.name}'"
+                    f" has not yet been initialised")
+            tmap = invoke.meshes.intergrid_kernels[id(self)].\
+                colourmap_symbol.name
+        else:
+            try:
+                tmap = sched.symbol_table.lookup_with_tag("tmap").name
+            except KeyError:
+                # We have to do this here as _init_colourmap (which calls this
+                # method) is only called at code-generation time.
+                tmap = sched.symbol_table.find_or_create_array(
+                    "tmap", 3, ScalarType.Intrinsic.INTEGER,
+                    tag="tmap").name
+
+        return tmap
 
     @property
     def last_cell_all_colours_symbol(self):
@@ -486,6 +522,35 @@ class LFRicKern(CodedKern):
             return ncols_sym.name
 
         return self.scope.symbol_table.lookup_with_tag("ncolour").name
+
+    @property
+    def ntilecolours_var(self):
+        '''
+        Getter for the name of the variable holding the number of colours
+        associated with this kernel call.
+
+        :return: name of the variable holding the number of colours
+        :rtype: Union[str, NoneType]
+
+        :raises InternalError: if this kernel is not coloured or the
+            colour-map information has not been initialised.
+        '''
+        if not self.is_coloured():
+            raise InternalError(f"Kernel '{self.name}' is not inside a "
+                                f"coloured loop.")
+        if self._is_intergrid:
+            invoke = self.ancestor(InvokeSchedule).invoke
+            if id(self) not in invoke.meshes.intergrid_kernels:
+                raise InternalError(
+                    f"Colourmap information for kernel '{self.name}' has "
+                    f"not yet been initialised")
+            kernel = invoke.meshes.intergrid_kernels[id(self)]
+            ncols_sym = kernel.ntilecolours_var_symbol
+            if not ncols_sym:
+                return None
+            return ncols_sym.name
+
+        return self.scope.symbol_table.lookup_with_tag("ntilecolour").name
 
     @property
     def fs_descriptors(self):

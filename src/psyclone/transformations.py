@@ -901,15 +901,23 @@ class ColourTrans(LoopTrans):
         :type options: Optional[Dict[str, Any]]
 
         '''
+        if not options:
+            options = {}
+
         self.validate(node, options=options)
 
-        colours_loop = self._create_colours_loop(node)
+        tiled_colouring = options.get("tiling", False)
+
+        if tiled_colouring:
+            colours_loop = self._create_tiled_colours_loops(node)
+        else:
+            colours_loop = self._create_colours_loop(node)
 
         # Add this loop as a child of the original node's parent
         node.parent.addchild(colours_loop, index=node.position)
 
-        # Add contents of node to colour loop.
-        colours_loop.loop_body[0].loop_body.children.extend(
+        # Add contents of node to the inner loop body.
+        colours_loop.walk(Schedule)[-1].children.extend(
             node.loop_body.pop_all_children())
 
         # remove original loop
@@ -926,11 +934,29 @@ class ColourTrans(LoopTrans):
         :returns: doubly-nested loop over colours and cells of a given colour.
         :rtype: :py:class:`psyclone.psyir.nodes.Loop`
 
-        :raises NotImplementedError: this method must be overridden in an \
+        :raises NotImplementedError: this method must be overridden in an
                                      API-specific sub-class.
         '''
         raise InternalError("_create_colours_loop() must be overridden in an "
                             "API-specific sub-class.")
+
+    def _create_tiled_colours_loops(self, node):
+        '''
+        Creates nested loop (colours, tiles of a given colour and cells) to
+        replace the supplied loop over cells.
+
+        :param node: the loop for which to create a coloured version.
+        :type node: :py:class:`psyclone.psyir.nodes.Loop`
+
+        :returns: triply-nested loop over colours, tiles of a given colour,
+            and cells.
+        :rtype: :py:class:`psyclone.psyir.nodes.Loop`
+
+        :raises NotImplementedError: this method must be overridden in an
+                                     API-specific sub-class.
+        '''
+        raise InternalError("_create_tiled_colours_loops() must be overridden"
+                            " in an API-specific sub-class.")
 
 
 class Dynamo0p3ColourTrans(ColourTrans):
@@ -995,6 +1021,9 @@ class Dynamo0p3ColourTrans(ColourTrans):
         :type options: Optional[Dict[str, Any]]
 
         '''
+        if not options:
+            options = {}
+
         # check node is a loop
         super().validate(node, options=options)
 
@@ -1048,6 +1077,51 @@ class Dynamo0p3ColourTrans(ColourTrans):
         colours_loop.iteration_space = node.iteration_space
         colours_loop.set_lower_bound("start")
         colours_loop.set_upper_bound("ncolours")
+
+        # Create a colour loop. This loops over cells of a particular colour
+        # and can be run in parallel.
+        colour_loop = node.__class__(parent=colours_loop.loop_body,
+                                     loop_type="colour")
+        colour_loop.field_space = node.field_space
+        colour_loop.field_name = node.field_name
+        colour_loop.iteration_space = node.iteration_space
+        colour_loop.set_lower_bound("start")
+        colour_loop.kernel = node.kernel
+
+        if node.upper_bound_name in LFRicConstants().HALO_ACCESS_LOOP_BOUNDS:
+            # If the original loop went into the halo then this coloured loop
+            # must also go into the halo.
+            index = node.upper_bound_halo_depth
+            colour_loop.set_upper_bound("colour_halo", index)
+        else:
+            # No halo access.
+            colour_loop.set_upper_bound("ncolour")
+
+        # Add this loop as a child of our loop over colours
+        colours_loop.loop_body.addchild(colour_loop)
+
+        return colours_loop
+
+
+    def _create_tiled_colours_loops(self, node):
+        '''
+        Creates a nested loop (colours, and cells of a given colour) which
+        can be used to replace the supplied loop over cells.
+
+        :param node: the loop for which to create a coloured version.
+        :type node: :py:class:`psyclone.psyir.nodes.Loop`
+
+        :returns: doubly-nested loop over colours and cells of a given colour.
+        :rtype: :py:class:`psyclone.psyir.nodes.Loop`
+
+        '''
+        # Create a colours loop. This loops over colours and must be run
+        # sequentially.
+        colours_loop = node.__class__(parent=node.parent, loop_type="colours")
+        colours_loop.field_space = node.field_space
+        colours_loop.iteration_space = node.iteration_space
+        colours_loop.set_lower_bound("start")
+        colours_loop.set_upper_bound("ntilecolours")
 
         # Create a colour loop. This loops over cells of a particular colour
         # and can be run in parallel.
