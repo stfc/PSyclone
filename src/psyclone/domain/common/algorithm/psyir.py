@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -38,10 +38,10 @@
 '''This module contains PSyclone Algorithm-layer-specific PSyIR classes.
 
 '''
-from __future__ import absolute_import
 import re
 
 from psyclone.errors import GenerationError, InternalError
+from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (Call, Reference, DataNode,
                                   Routine, Container, FileContainer)
 from psyclone.psyir.symbols import DataTypeSymbol
@@ -59,13 +59,12 @@ class AlgorithmInvokeCall(Call):
         to None.
     :type parent: sub-class of :py:class:`psyclone.psyir.nodes.Node` \
         or NoneType
-    :param name: an optional name, describing the \
+    :param Optional[str] name: an optional name, describing the \
         AlgorithmInvokeCall. Defaults to None.
-
-    :type name: str or NoneType
 
     :raises TypeError: if the index argument is not an integer.
     :raises ValueError: if the index argument is negative.
+    :raises ValueError: if an invalid name is supplied.
 
     '''
     _children_valid_format = "[KernelFunctor]*"
@@ -83,10 +82,14 @@ class AlgorithmInvokeCall(Call):
             raise ValueError(
                 f"AlgorithmInvokeCall index argument should be a non-negative "
                 f"integer but found {index}.")
-        if name and not isinstance(name, str):
-            raise TypeError(
-                f"AlgorithmInvokeCall name argument should be a str but "
-                f"found '{type(name).__name__}'.")
+        try:
+            if name:
+                FortranReader.validate_name(name)
+        except (TypeError, ValueError) as err:
+            raise ValueError(
+                f"Error with AlgorithmInvokeCall name argument: "
+                f"{err}") from err
+
         self._index = index
         # Keep the root names as these will also be needed by the
         # PSy-layer to use as tags to pull out the actual names from
@@ -111,11 +114,10 @@ class AlgorithmInvokeCall(Call):
         :type arguments: list of :py:class:`psyclone.psyir.nodes.DataNode`
         :param int index: the position of this invoke call relative to \
             other invokes in the algorithm layer.
-        :param name: a string describing the purpose of the invoke or \
-            None if one is not provided. This is used to create the \
-            name of the routine that replaces the invoke. Defaults to \
-            None.
-        :type name: str or NoneType
+        :param Optional[str] name: a string naming/describing the invoke
+            or None if one is not provided. This is converted to lower case
+            and used to create the name of the routine that replaces the
+            invoke. It must be a valid Fortran name. Defaults to None.
 
         :raises GenerationError: if the arguments argument is not a \
             list.
@@ -130,7 +132,15 @@ class AlgorithmInvokeCall(Call):
                 f"AlgorithmInvokeCall create arguments argument should be a "
                 f"list but found '{type(arguments).__name__}'.")
 
-        call = cls(routine, index, name=name)
+        # Convert name to lowercase if provided.
+        if name:
+            # We have to validate it first as that checks (amongst other
+            # things) that it is a str.
+            FortranReader.validate_name(name)
+            lwr_name = name.lower()
+        else:
+            lwr_name = None
+        call = cls(routine, index, name=lwr_name)
         call.children = arguments
         return call
 
