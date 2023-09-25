@@ -608,6 +608,11 @@
 	frontend to ensure that a PROGRAM with a CONTAINS is captured as
 	a CodeBlock.
 
+	207) PR #2327 towards #2132. Updates the LFRic integration tests
+	to use a Spack environment and the latest HEAD of trunk of LFRic.
+	Also extends the integration tests to upload performance numbers
+	to a GitHub gist.
+
 release 2.3.1 17th of June 2022
 
 	1) PR #1747 for #1720. Adds support for If blocks to PSyAD.
