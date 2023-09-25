@@ -7840,18 +7840,6 @@ class DynKern(CodedKern):
         # Properties of the mesh required by this kernel
         self._mesh_properties = ktype.mesh
 
-    def _refine_copy(self, other):
-        '''
-        Refine the object attributes when a shallow copy is not the most
-        appropriate operation during a call to the copy() method.
-
-        :param other: object we are copying from.
-        :type other: :py:class:`psyclone.dynamo0p3.DynKern`
-
-        '''
-        super()._refine_copy(other)
-        self._arguments._parent_call = self
-
     @property
     def qr_rules(self):
         '''
