@@ -84,7 +84,7 @@ jobs:
     # PSyclone, compile and run MetOffice NEMO with OpenMP for GPUs
     - name: NEMO MetOffice OpenMP for GPU
       run: |
-        . .runner_venv/bin/activate
+        source .runner_venv/bin/activate
         export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
         export NEMO_DIR=${HOME}/NEMO
         cd examples/nemo/scripts
@@ -92,32 +92,27 @@ jobs:
         module load nvidia-hpcsdk netcdf_fortran
         make -j 4 compile-openmp_gpu
         export NV_ACC_POOL_THRESHOLD=75
-        make run-openmp_gpu | tee output.txt
+        make run-openmp_gpu |& tee output.txt
         # Check the output is as expected for the first 6 digits
         tail -n 1 output.txt | grep -q " it :      10"
         tail -n 1 output.txt | grep -q "|ssh|_max:  0.259483"
         tail -n 1 output.txt | grep -q "|U|_max:  0.458515"
         tail -n 1 output.txt | grep -q "S_min:  0.482686"
         tail -n 1 output.txt | grep -q "S_max:  0.407622"
-        grep -A 1 "Elapsed Time" output.txt
-        echo  $GITHUB_REF_NAME $GITHUB_SHA $(grep -A 1 "Elapsed Time" output.txt | head -n 2 | tail -n 1) >> ${NEMO_DIR}/performance_history_openmp_gpu
-        # Upload the results into a Github Gist
-        newresults=$(printf "%q" "$(cat ${NEMO_DIR}/performance_history_openmp_gpu)")
-        {
-          printf '{"description":"New NEMO OpenMP GPU results","files":{"nemo_openmp_gpu.txt":{"content":"'
-          echo -n ${newresults:2:-1}
-          printf '"}}}'
-        }| curl -L -X PATCH \
-             -H "Accept: application/vnd.github+json" \
-             -H "Authorization: Bearer ${{ secrets.GIST_TOKEN }}" \
-             -H "X-GitHub-Api-Version: 2022-11-28" \
-             https://api.github.com/gists/a4049a0fc0a0a11651a5ce6a04d76160 \
-             --data-binary @-
+        export VAR_TIME=$(grep -A 1 "Elapsed Time" output.txt | head -n 2 | tail -n 1)
+        echo $GITHUB_REF_NAME $GITHUB_SHA $VAR_TIME >> ${HOME}/store_results/performance_history_openmp_gpu
+
+    - name: Upload NEMO OpenMP GPU results
+      uses: exuanbo/actions-deploy-gist@v1
+      with:
+        token: ${{ secrets.GIST_TOKEN }}
+        gist_id: a4049a0fc0a0a11651a5ce6a04d76160
+        file_path: ../../../../store_results/performance_history_openmp_gpu
 
     # PSyclone, compile and run MetOffice NEMO with OpenACC kernels for GPUs
     - name: NEMO MetOffice OpenACC kernels for GPU
       run: |
-        . .runner_venv/bin/activate
+        source .runner_venv/bin/activate
         export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
         export NEMO_DIR=${HOME}/NEMO
         cd examples/nemo/scripts
@@ -125,32 +120,28 @@ jobs:
         module load nvidia-hpcsdk netcdf_fortran
         COMPILER_ARCH=linux_nvidia_acc_gpu make -j 4 compile-openacc_kernels
         export NV_ACC_POOL_THRESHOLD=75
-        make run-openacc_kernels | tee output.txt
+        make run-openacc_kernels |& tee output.txt
         # Check the output is as expected for the first 6 digits
         tail -n 1 output.txt | grep -q " it :      10"
         tail -n 1 output.txt | grep -q "|ssh|_max:  0.259483"
         tail -n 1 output.txt | grep -q "|U|_max:  0.458515"
         tail -n 1 output.txt | grep -q "S_min:  0.482686"
         tail -n 1 output.txt | grep -q "S_max:  0.407622"
-        grep -A 1 "Elapsed Time" output.txt
-        echo  $GITHUB_REF_NAME $GITHUB_SHA $(grep -A 1 "Elapsed Time" output.txt | head -n 2 | tail -n 1) >> ${NEMO_DIR}/performance_history_openacc_kernels_gpu
+        export VAR_TIME=$(grep -A 1 "Elapsed Time" output.txt | head -n 2 | tail -n 1)
+        echo $GITHUB_REF_NAME $GITHUB_SHA $VAR_TIME >> ${HOME}/store_results/performance_history_openacc_kernels_gpu
         # Upload the results into a Github Gist
-        newresults=$(printf "%q" "$(cat ${NEMO_DIR}/performance_history_openacc_kernels_gpu)")
-        {
-          printf '{"description":"New NEMO OpenACC GPU results","files":{"nemo_openacc_kernels_gpu.txt":{"content":"'
-          echo -n ${newresults:2:-1}
-          printf '"}}}'
-        }| curl -L -X PATCH \
-             -H "Accept: application/vnd.github+json" \
-             -H "Authorization: Bearer ${{ secrets.GIST_TOKEN }}" \
-             -H "X-GitHub-Api-Version: 2022-11-28" \
-             https://api.github.com/gists/a4049a0fc0a0a11651a5ce6a04d76160 \
-             --data-binary @-
+
+    - name: Upload NEMO OpenACC kernels GPU results
+      uses: exuanbo/actions-deploy-gist@v1
+      with:
+        token: ${{ secrets.GIST_TOKEN }}
+        gist_id: a4049a0fc0a0a11651a5ce6a04d76160
+        file_path: ../../../../store_results/performance_history_openacc_kernels_gpu
 
     # PSyclone, compile and run ECMWF NEMO with OpenMP for CPUs
     - name: NEMO ECMWF OpenMP for CPU
       run: |
-        . .runner_venv/bin/activate
+        source .runner_venv/bin/activate
         export PSYCLONE_NEMO_DIR=${GITHUB_WORKSPACE}/examples/nemo/scripts
         export NEMO_DIR=${HOME}/NEMOGCM_V40
         export COMPILER_ARCH=linux_intel
@@ -166,24 +157,19 @@ jobs:
         export LD_LIBRARY_PATH=/home/ssiso/ecmwf_nemo/ESiWACE2/scripts/dev/hdf5-1.12.2/lib/:$LD_LIBRARY_PATH
         make -j 4 compile-openmp_cpu
         export OMP_NUM_THREADS=4
-        make run-openmp_cpu | tee output.txt
+        make run-openmp_cpu |& tee output.txt
         # Check the output is as expected for the first 6 digits
         tail -n 1 output.txt | grep -q " it :      10"
         tail -n 1 output.txt | grep -q "|ssh|_max:  0.199714"
         tail -n 1 output.txt | grep -q "|U|_max:  0.148409"
         tail -n 1 output.txt | grep -q "S_min:  0.108530"
         tail -n 1 output.txt | grep -q "S_max:  0.404045"
-        grep -A 1 "Elapsed Time" output.txt
-        echo  $GITHUB_REF_NAME $GITHUB_SHA $(grep -A 1 "Elapsed Time" output.txt | head -n 2 | tail -n 1) >> ${NEMO_DIR}/performance_history_openmp_cpu
-        # Upload the results into a Github Gist
-        newresults=$(printf "%q" "$(cat ${NEMO_DIR}/performance_history_openmp_cpu)")
-        {
-          printf '{"description":"New NEMO OpenMP CPU results","files":{"nemo_openmp_cpu.txt":{"content":"'
-          echo -n ${newresults:2:-1}
-          printf '"}}}'
-        }| curl -L -X PATCH \
-             -H "Accept: application/vnd.github+json" \
-             -H "Authorization: Bearer ${{ secrets.GIST_TOKEN }}" \
-             -H "X-GitHub-Api-Version: 2022-11-28" \
-             https://api.github.com/gists/a4049a0fc0a0a11651a5ce6a04d76160 \
-             --data-binary @-
+        export VAR_TIME=$(grep -A 1 "Elapsed Time" output.txt | head -n 2 | tail -n 1)
+        echo  $GITHUB_REF_NAME $GITHUB_SHA $VAR_TIME >> ${HOME}/store_results/performance_history_openmp_cpu
+
+    - name: Upload NEMO OpenMP CPU results
+      uses: exuanbo/actions-deploy-gist@v1
+      with:
+        token: ${{ secrets.GIST_TOKEN }}
+        gist_id: a4049a0fc0a0a11651a5ce6a04d76160
+        file_path: ../../../../store_results/performance_history_openmp_cpu
