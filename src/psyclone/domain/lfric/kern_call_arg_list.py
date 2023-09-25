@@ -122,8 +122,7 @@ class KernCallArgList(ArgOrdering):
         raise InternalError(f"Unknown data type '{data_type}', expected one "
                             f"of {valid}.")
 
-    def get_user_type(self, module_name, user_type, name, tag=None,
-                      shape=None):
+    def get_user_type(self, module_name, user_type, name, tag=None):
         # pylint: disable=too-many-arguments
         '''Returns the symbol for a user-defined type. If required, the
         required import statements will all be generated.
@@ -134,8 +133,6 @@ class KernCallArgList(ArgOrdering):
         :param str name: the name of the variable to be used in the Reference.
         :param Optional[str] tag: tag to use for the variable, defaults to \
             the name
-        :param shape: if specified, declare an array of user types
-        :type shape: List[:py:class:`psyclone.psyir.nodes.Node`]
 
         :return: the symbol that is used in the reference
         :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
@@ -156,34 +153,24 @@ class KernCallArgList(ArgOrdering):
             # Check if the module is already declared:
             module = self._symtab.lookup(module_name)
         except KeyError:
-            module = \
-                self._symtab.new_symbol(module_name,
-                                        symbol_type=ContainerSymbol)
+            module = self._symtab.new_symbol(module_name,
+                                             symbol_type=ContainerSymbol)
 
         # Get the symbol table in which the module is declared:
         mod_sym_tab = module.find_symbol_table(self._kern)
 
         # The user-defined type must be declared in the same symbol
         # table as the container (otherwise errors will happen later):
-        user_type_symbol = \
-            mod_sym_tab.find_or_create(user_type,
-                                       symbol_type=DataTypeSymbol,
-                                       datatype=DeferredType(),
-                                       interface=ImportInterface(module))
-        if shape:
-            # Define an array of the user type
-            user_type_array = \
-                ArrayType(user_type_symbol, shape)
-            # Then add this symbol for an array to the symbol table.
-            sym = self._symtab.new_symbol(name, tag=tag,
-                                          symbol_type=DataSymbol,
-                                          datatype=user_type_array)
-        else:
-            # Declare the actual user symbol in the local symbol table, using
-            # the datatype from the root table:
-            sym = self._symtab.new_symbol(name, tag=tag,
-                                          symbol_type=DataSymbol,
-                                          datatype=user_type_symbol)
+        user_type_symbol = mod_sym_tab.find_or_create(
+            user_type,
+            symbol_type=DataTypeSymbol,
+            datatype=DeferredType(),
+            interface=ImportInterface(module))
+        # Declare the actual user symbol in the local symbol table, using
+        # the datatype from the root table:
+        sym = self._symtab.new_symbol(name, tag=tag,
+                                      symbol_type=DataSymbol,
+                                      datatype=user_type_symbol)
         return sym
 
     def append_structure_reference(self, module_name, user_type, member_list,
@@ -192,27 +179,26 @@ class KernCallArgList(ArgOrdering):
         '''Creates a reference to a variable of a user-defined type. If
         required, the required import statements will all be generated.
 
-        :param str module_name: the name of the module from which the \
+        :param str module_name: the name of the module from which the
             user-defined type must be imported.
         :param str user_type: the name of the user-defined type.
         :param member_list: the members used hierarchically.
         :type member_list: List[str]
         :param str name: the name of the variable to be used in the Reference.
-        :param Optional[str] tag: tag to use for the variable, defaults to \
+        :param Optional[str] tag: tag to use for the variable, defaults to
             the name
-        :param overwrite_datatype: the datatype for the reference, which will \
-            overwrite the value determined by analysing the corresponding \
-            user defined type. This is useful when e.g. the module that \
+        :param overwrite_datatype: the datatype for the reference, which will
+            overwrite the value determined by analysing the corresponding
+            user defined type. This is useful when e.g. the module that
             declares the structure cannot be accessed.
-        :type overwrite_datatype: \
+        :type overwrite_datatype:
             Optional[:py:class:`psyclone.psyir.symbols.DataType`]
 
         :return: the symbol that is used in the reference
         :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
 
         '''
-        sym = self.get_user_type(module_name, user_type, name,
-                                 tag)
+        sym = self.get_user_type(module_name, user_type, name, tag)
         self.psyir_append(StructureReference.
                           create(sym, member_list,
                                  overwrite_datatype=overwrite_datatype))

@@ -273,29 +273,9 @@ class LFRicExtractDriverCreator:
         # to preserve the expected names from a user's point of view.
         symbol_name = proxy_name_mapping.get(signature[0], signature[0])
 
-        if isinstance(old_reference.symbol.datatype, ArrayType):
-            # Vector field. Get the index that is being accessed, and
-            # don't append the '%data'
-            indx = int(old_reference.indices[-1].value)
-            signature = Signature(f"{symbol_name}%{indx}")
-        else:
-            # Create the new signature, e.g. f1_proyx%data --> f1
-            field_type = old_reference.symbol.datatype.name
-            # TODO #2069: check if this list can be taken from LFRicConstants
-            if field_type in ["integer_field_proxy_type", "field_proxy_type",
-                              "r_bl_field_proxy_type",
-                              "r_phys_field_proxy_type",
-                              "r_solver_field_proxy_type",
-                              "r_tran_field_proxy_type"]:
-                # Field proxy are accessed using '%data'. Remove this to
-                # have more familiar names for the user, and also because
-                # the plain name is used in the file written.
-                signature = Signature(symbol_name)
-            else:
-                # Other types need to get the member added to the name,
-                # to make unique symbols (e.g. 'op_a_proxy%ncell_3d'
-                # and 'op_a_proxy%local_stencil'
-                signature = Signature(symbol_name, signature[1:])
+        # Other types need to get the member added to the name,
+        # to make unique symbols (e.g. 'op_a_proxy%ncell_3d').
+        signature = Signature(symbol_name, signature[1:])
 
         # We use this string as a unique tag - it must be unique since no
         # other tag uses a '%' in the name. So even if the flattened name
@@ -309,27 +289,7 @@ class LFRicExtractDriverCreator:
             symbol = DataSymbol(flattened_name, old_reference.datatype)
             symbol_table.add(symbol, tag=signature_str)
 
-        current = old_reference
-        # Get the indices from a structure array access, e.g.
-        # field%data(i) --> field(i)
-        while current:
-            if isinstance(current, ArrayOfStructuresMember):
-                raise GenerationError(f"Array of structures are not supported "
-                                      f"in the driver creation: "
-                                      f"'{old_reference.debug_string()}'.")
-            if isinstance(current, ArrayMember):
-                # If there is an array access, we need to replace the
-                # structure reference with an ArrayReference. The children
-                # of an ArrayMember are the indices, so they need to be
-                # used in the flattened symbol:
-                ind = current.pop_all_children()
-                new_ref = ArrayReference.create(symbol, ind)
-                break
-            if not current.children:
-                new_ref = Reference(symbol)
-                break
-            current = current.children[0]
-
+        new_ref = Reference(symbol)
         old_reference.replace_with(new_ref)
 
     # -------------------------------------------------------------------------

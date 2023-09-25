@@ -559,9 +559,8 @@ class LFRicXKern(LFRicBuiltIn, metaclass=abc.ABCMeta):
         from psyclone.dynamo0p3 import DynInvokeSchedule
         schedule = self.ancestor(DynInvokeSchedule)
         psy = schedule.invoke.invokes.psy
-        precision_list = psy.infrastructure_modules[const_mod]
-        if precision not in precision_list:
-            precision_list.append(precision)
+        precision_uses = psy.infrastructure_modules[const_mod]
+        precision_uses.add(precision)
 
 
 # ******************************************************************* #
