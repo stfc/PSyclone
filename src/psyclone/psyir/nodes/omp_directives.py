@@ -52,7 +52,6 @@ from psyclone.f2pygen import (AssignGen, UseGen, DeclGen, DirectiveGen,
 from psyclone.psyir.nodes.directive import StandaloneDirective, \
     RegionDirective
 from psyclone.psyir.nodes.assignment import Assignment
-from psyclone.psyir.nodes.directive import Directive
 from psyclone.psyir.nodes.if_block import IfBlock
 from psyclone.psyir.nodes.intrinsic_call import IntrinsicCall
 from psyclone.psyir.nodes.literal import Literal
@@ -66,7 +65,7 @@ from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes.schedule import Schedule
 from psyclone.psyir.nodes.while_loop import WhileLoop
-from psyclone.psyir.symbols import INTEGER_TYPE, ScalarType, DeferredType
+from psyclone.psyir.symbols import INTEGER_TYPE, ScalarType
 
 # OMP_OPERATOR_MAPPING is used to determine the operator to use in the
 # reduction clause of an OpenMP directive.
@@ -1725,27 +1724,31 @@ class OMPAtomicDirective(OMPRegionDirective):
         if not isinstance(stmt.lhs.datatype, ScalarType):
             return False
 
-        # - operators are one of:
-        #   +, *, -, /, AND, OR, EQV, NEQV
+        # - operators are one of: +, *, -, /, AND, OR, EQV, NEQV
         if isinstance(stmt.rhs, BinaryOperation):
-            if stmt.rhs.operator in (BinaryOperation.Operator.ADD,
-                                     BinaryOperation.Operator.SUB,
-                                     BinaryOperation.Operator.MUL,
-                                     BinaryOperation.Operator.DIV,
-                                     BinaryOperation.Operator.AND,
-                                     BinaryOperation.Operator.OR,
-                                     BinaryOperation.Operator.EQV,
-                                     BinaryOperation.Operator.NEQV):
-                return True
+            if stmt.rhs.operator not in (BinaryOperation.Operator.ADD,
+                                         BinaryOperation.Operator.SUB,
+                                         BinaryOperation.Operator.MUL,
+                                         BinaryOperation.Operator.DIV,
+                                         BinaryOperation.Operator.AND,
+                                         BinaryOperation.Operator.OR,
+                                         BinaryOperation.Operator.EQV,
+                                         BinaryOperation.Operator.NEQV):
+                return False
         # - or intrinsics: MAX, MIN, IAND, IOR, or IEOR
         if isinstance(stmt.rhs, IntrinsicCall):
-            if stmt.rhs.intrinsic in (IntrinsicCall.Intrinsic.MAX,
-                                      IntrinsicCall.Intrinsic.MIN,
-                                      IntrinsicCall.Intrinsic.IAND,
-                                      IntrinsicCall.Intrinsic.IOR,
-                                      IntrinsicCall.Intrinsic.IEOR):
-                return True
-        return False
+            if stmt.rhs.intrinsic not in (IntrinsicCall.Intrinsic.MAX,
+                                          IntrinsicCall.Intrinsic.MIN,
+                                          IntrinsicCall.Intrinsic.IAND,
+                                          IntrinsicCall.Intrinsic.IOR,
+                                          IntrinsicCall.Intrinsic.IEOR):
+                return False
+
+        # - one of the operands should be the same as the lhs
+        if stmt.lhs not in (stmt.rhs.children[0], stmt.rhs.children[1]):
+            return False
+
+        return True
 
     def validate_global_constraints(self):
         ''' Perform validation of those global constraints that can only be
@@ -1790,8 +1793,8 @@ class OMPSimdDirective(OMPRegionDirective):
         ''' Perform validation of those global constraints that can only be
         done at code-generation time.
 
-        :raises GenerationError: if the OMPSimdDirective has an associated
-        loop.
+        :raises GenerationError: if the OMPSimdDirective does not contain
+            precisely one loop.
 
         '''
         if (not self.children or len(self.dir_body.children) != 1 or

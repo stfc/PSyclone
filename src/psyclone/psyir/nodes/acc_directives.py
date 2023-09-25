@@ -909,7 +909,7 @@ def _sig_set_to_string(sig_set):
 class ACCAtomicDirective(ACCRegionDirective):
     '''
     OpenACC directive to represent that the memory accesses in the associated
-    assignment must be performed atomically.
+    assignment(s) must be performed atomically.
 
     '''
     def begin_string(self):
@@ -948,27 +948,31 @@ class ACCAtomicDirective(ACCRegionDirective):
         if not isinstance(stmt.lhs.datatype, ScalarType):
             return False
 
-        # - operators are one of:
-        #   +, *, -, /, AND, OR, EQV, NEQV
+        # - operators are one of: +, *, -, /, AND, OR, EQV, NEQV
         if isinstance(stmt.rhs, BinaryOperation):
-            if stmt.rhs.operator in (BinaryOperation.Operator.ADD,
-                                     BinaryOperation.Operator.SUB,
-                                     BinaryOperation.Operator.MUL,
-                                     BinaryOperation.Operator.DIV,
-                                     BinaryOperation.Operator.AND,
-                                     BinaryOperation.Operator.OR,
-                                     BinaryOperation.Operator.EQV,
-                                     BinaryOperation.Operator.NEQV):
-                return True
+            if stmt.rhs.operator not in (BinaryOperation.Operator.ADD,
+                                         BinaryOperation.Operator.SUB,
+                                         BinaryOperation.Operator.MUL,
+                                         BinaryOperation.Operator.DIV,
+                                         BinaryOperation.Operator.AND,
+                                         BinaryOperation.Operator.OR,
+                                         BinaryOperation.Operator.EQV,
+                                         BinaryOperation.Operator.NEQV):
+                return False
         # - or intrinsics: MAX, MIN, IAND, IOR, or IEOR
         if isinstance(stmt.rhs, IntrinsicCall):
-            if stmt.rhs.intrinsic in (IntrinsicCall.Intrinsic.MAX,
-                                      IntrinsicCall.Intrinsic.MIN,
-                                      IntrinsicCall.Intrinsic.IAND,
-                                      IntrinsicCall.Intrinsic.IOR,
-                                      IntrinsicCall.Intrinsic.IEOR):
-                return True
-        return False
+            if stmt.rhs.intrinsic not in (IntrinsicCall.Intrinsic.MAX,
+                                          IntrinsicCall.Intrinsic.MIN,
+                                          IntrinsicCall.Intrinsic.IAND,
+                                          IntrinsicCall.Intrinsic.IOR,
+                                          IntrinsicCall.Intrinsic.IEOR):
+                return False
+
+        # - one of the operands should be the same as the lhs
+        if stmt.lhs not in (stmt.rhs.children[0], stmt.rhs.children[1]):
+            return False
+
+        return True
 
     def validate_global_constraints(self):
         ''' Perform validation of those global constraints that can only be

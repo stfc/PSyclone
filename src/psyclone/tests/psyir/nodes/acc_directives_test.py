@@ -57,6 +57,7 @@ from psyclone.psyir.nodes import (ACCKernelsDirective,
                                   Assignment,
                                   Literal,
                                   Reference,
+                                  Return,
                                   Routine)
 from psyclone.psyir.nodes.loop import Loop
 from psyclone.psyir.nodes.schedule import Schedule
@@ -509,7 +510,7 @@ def test_acc_atomics_is_valid_atomic_statement(fortran_reader):
         integer :: i, j, val
 
         A(1,1) = A(1,1) * 2
-        A(1,1) = A(1,1) / 2 + 3 - 5
+        A(1,1) = A(1,1) / (2 + 3 - 5)
         A(1,1) = MAX(A(1,1), A(1,2))
     end subroutine
     '''
@@ -523,14 +524,19 @@ def test_acc_atomics_is_valid_atomic_statement(fortran_reader):
         integer, dimension(10, 10) :: B = 2
         integer :: i, j, val
 
-        A(1,1) = A(1,1) ** 2
-        A(:,1) = A(:,1) / 2 + 3 - 5
-        A(1,1) = MOD(A(1,1), 3)
+        A(1,1) = A(1,1) ** 2  ! Operator is not supported
+        A(1,1) = A(2,1) * 2   ! The operands are different that the lhs
+        A(1,1) = A(1,1) / 2 + 3 - 5  ! A(1,1) is not a top-level operand
+        A(:,1) = A(:,1) / 2      ! It is not a scalar expression
+        A(1,1) = MOD(A(1,1), 3)  ! Intrinsic is not supported
     end subroutine
     '''
     tree = fortran_reader.psyir_from_source(code)
     for stmt in tree.walk(Assignment):
         assert not ACCAtomicDirective.is_valid_atomic_statement(stmt)
+
+    # Its also not valid if its not an Assignment
+    assert not ACCAtomicDirective.is_valid_atomic_statement(Return())
 
 
 def test_acc_atomics_validate_global_constraints(fortran_reader, monkeypatch):

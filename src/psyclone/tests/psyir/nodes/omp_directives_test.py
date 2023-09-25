@@ -570,7 +570,7 @@ def test_ompdo_equality():
     assert ompdo1 == ompdo2
 
     loop2.detach()
-    ompdo2 = OMPDoDirective(children=[loop2], reprod=(not ompdo1.reprod))
+    ompdo2 = OMPDoDirective(children=[loop2], reprod=not ompdo1.reprod)
     assert ompdo1 != ompdo2
 
 
@@ -1593,7 +1593,7 @@ def test_omp_atomics_is_valid_atomic_statement(fortran_reader):
         integer :: i, j, val
 
         A(1,1) = A(1,1) * 2
-        A(1,1) = A(1,1) / 2 + 3 - 5
+        A(1,1) = A(1,1) / (2 + 3 - 5)
         A(1,1) = MAX(A(1,1), A(1,2))
     end subroutine
     '''
@@ -1607,14 +1607,20 @@ def test_omp_atomics_is_valid_atomic_statement(fortran_reader):
         integer, dimension(10, 10) :: B = 2
         integer :: i, j, val
 
-        A(1,1) = A(1,1) ** 2
-        A(:,1) = A(:,1) / 2 + 3 - 5
-        A(1,1) = MOD(A(1,1), 3)
+        A(1,1) = A(1,1) ** 2  ! Operator is not supported
+        A(1,1) = A(2,1) * 2   ! The operands are different that the lhs
+        A(1,1) = A(1,1) / 2 + 3 - 5  ! A(1,1) is not a top-level operand
+        A(:,1) = A(:,1) / 2      ! It is not a scalar expression
+        A(1,1) = MOD(A(1,1), 3)  ! Intrinsic is not supported
+        return
     end subroutine
     '''
     tree = fortran_reader.psyir_from_source(code)
     for stmt in tree.walk(Assignment):
         assert not OMPAtomicDirective.is_valid_atomic_statement(stmt)
+
+    # Its also not valid if its not an Assignment
+    assert not OMPAtomicDirective.is_valid_atomic_statement(Return())
 
 
 def test_omp_atomics_validate_global_constraints(fortran_reader, monkeypatch):
@@ -1647,7 +1653,7 @@ def test_omp_atomics_validate_global_constraints(fortran_reader, monkeypatch):
         atomic.validate_global_constraints()
     assert "is not a valid OpenMP Atomic statement." in str(err.value)
 
-    # If it doesn not have an associated statement
+    # If it does not have an associated statement
     atomic.dir_body[0].detach()
     with pytest.raises(GenerationError) as err:
         atomic.validate_global_constraints()
@@ -1655,14 +1661,14 @@ def test_omp_atomics_validate_global_constraints(fortran_reader, monkeypatch):
             "statement, but found: " in str(err.value))
 
 
-def test_omp_atomics_srtings():
+def test_omp_atomics_strings():
     ''' Test the OMPAtomicDirective begin and end strings '''
     atomic = OMPAtomicDirective()
     assert atomic.begin_string() == "omp atomic"
     assert atomic.end_string() == "omp end atomic"
 
 
-def test_omp_simd_srtings():
+def test_omp_simd_strings():
     ''' Test the OMPAtomicDirective begin and end strings '''
     atomic = OMPSimdDirective()
     assert atomic.begin_string() == "omp simd"
@@ -1692,7 +1698,7 @@ def test_omp_simd_validate_global_constraints(fortran_reader):
     simd.dir_body.addchild(stmt.detach())
     routine.children.insert(0, simd)
 
-    # If it doesn not have an associated loop
+    # If it does not have an associated loop
     with pytest.raises(GenerationError) as err:
         simd.validate_global_constraints()
     assert ("The OMP SIMD directives must always have one and only one "
