@@ -61,11 +61,11 @@ from psyclone.domain.lfric.metadata_to_arguments_rules import \
     MetadataToArgumentsRules
 from psyclone.domain.lfric.arg_index_to_metadata_index import \
     ArgIndexToMetadataIndex
+from psyclone.domain.lfric.lfric_kern import LFRicKern
 from psyclone.domain.lfric.lfric_kern_call_factory import LFRicKernCallFactory
 from psyclone.domain.lfric.lfric_collection import LFRicCollection
 from psyclone.domain.lfric.lfric_scalar_args import LFRicScalarArgs
 from psyclone.domain.lfric.lfric_loop_bounds import LFRicLoopBounds
-from psyclone.domain.lfric.lfric_kern import LFRicKern
 
 
 __all__ = [
