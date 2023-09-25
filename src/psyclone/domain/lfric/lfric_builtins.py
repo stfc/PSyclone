@@ -471,8 +471,8 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
         '''
         Creates a DoF-indexed StructureReference for each of the field
         arguments to this Built-In kernel. e.g. if the kernel has a field
-        argument named 'fld1' then this routine will create a
-        StructureReference for 'fld1_data(df)' where 'df' is the DoF-loop
+        argument named 'fld1' then this routine will create an
+        ArrayReference for 'fld1_data(df)' where 'df' is the DoF-loop
         variable and 'fld1_data' is the pointer to the data array within
         the fld1 object.
 

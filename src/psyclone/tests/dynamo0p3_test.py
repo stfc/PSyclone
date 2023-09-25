@@ -1447,9 +1447,11 @@ def test_dynkernelargument_psyir_expression(monkeypatch):
     psyir = second_arg.psyir_expression()
     assert isinstance(psyir, Reference)
     assert psyir.symbol.name == "f1_data"
-    assert isinstance(psyir.symbol.datatype, ArrayType)
-    assert psyir.symbol.datatype.intrinsic == ScalarType.Intrinsic.REAL
-    assert len(psyir.symbol.datatype.shape) == 1
+    assert isinstance(psyir.symbol.datatype, UnknownFortranType)
+    assert isinstance(psyir.symbol.datatype.partial_datatype, ArrayType)
+    assert (psyir.symbol.datatype.partial_datatype.intrinsic ==
+            ScalarType.Intrinsic.REAL)
+    assert len(psyir.symbol.datatype.partial_datatype.shape) == 1
     # Break the argument type
     monkeypatch.setattr(second_arg, "_argument_type", "gh_wrong")
     with pytest.raises(NotImplementedError) as err:

@@ -2291,8 +2291,8 @@ class DynReferenceElement(LFRicCollection):
                            allocatable=True, entity_decls=array_decls))
         # Ensure the necessary kind parameter is imported.
         const_mod = const.UTILITIES_MOD_MAP["constants"]["module"]
-        const_mod_uses = self._invoke.invokes.psy. \
-            infrastructure_modules[const_mod]
+        const_mod_uses = self._invoke.invokes.psy.infrastructure_modules[
+            const_mod]
         const_mod_uses.add(my_kind)
 
     def _stub_declarations(self, parent):
@@ -3084,33 +3084,54 @@ class DynProxies(LFRicCollection):
             argument_types=const.VALID_FIELD_NAMES,
             intrinsic_type=const.MAPPING_DATA_TYPES["gh_integer"])
 
+        # TODO reduce duplication here.
         for arg in real_field_args + int_field_args:
             # Create symbols that we will associate with the internal
             # data arrays.
             precision = KernCallArgList._map_type_to_precision(arg.data_type)
             ltype = ("LFRicRealScalarDataType" if arg in real_field_args
                      else "LFRicIntegerScalarDataType")
-            dtype = ArrayType(
+            intrinsic_type = "integer" if arg in int_field_args else "real"
+            array_type = ArrayType(
                 LFRicTypes(ltype)(precision), [ArrayType.Extent.DEFERRED])
             suffix = const.ARG_TYPE_SUFFIX_MAPPING[arg.argument_type]
             if arg.vector_size > 1:
                 for idx in range(1, arg.vector_size+1):
+                    # Make sure we're going to create a Symbol with a unique
+                    # name.
+                    new_name = self._symbol_table.next_available_name(
+                        f"{arg.name}_{idx}_{suffix}")
+                    # Since the PSyIR doesn't have the pointer concept, we have
+                    # to have an UnknownFortranType.
+                    dtype = UnknownFortranType(
+                        f"{intrinsic_type}(kind={arg.precision}), pointer, "
+                        f"dimension(:) :: {new_name} => null()",
+                        partial_datatype=array_type)
                     try:
                         self._symbol_table.new_symbol(
-                            f"{arg.name}_{idx}_{suffix}",
+                            new_name,
                             symbol_type=DataSymbol,
                             datatype=dtype,
                             tag=f"{arg.name}_{idx}:{suffix}")
                     except KeyError:
-                        # We can have user-supplied kernels that accept a full
-                        # field-vector as argument but also individual
-                        # components of that vector might be passed to
-                        # Builtins. Therefore a clash with an existing tag may
-                        # occur which we can safely ignore.
+                        # Within a single Invoke we can have user-supplied
+                        # kernels that accept a full field-vector as argument
+                        # but also individual components of that vector might
+                        # be passed to Builtins. Therefore a clash with an
+                        # existing tag may occur which we can safely ignore.
                         pass
             else:
+                # Make sure we're going to create a Symbol with a unique
+                # name (since this is hardwired into the UnknownFortranType).
+                new_name = self._symbol_table.next_available_name(
+                    f"{arg.name}_{suffix}")
+                # Since the PSyIR doesn't have the pointer concept, we have
+                # to have an UnknownFortranType.
+                dtype = UnknownFortranType(
+                    f"{intrinsic_type}(kind={arg.precision}), pointer, dimension(:) "
+                    f":: {new_name} => null()", partial_datatype=array_type)
                 try:
-                    self._symbol_table.new_symbol(f"{arg.name}_{suffix}",
+                    self._symbol_table.new_symbol(new_name,
                                                   symbol_type=DataSymbol,
                                                   datatype=dtype,
                                                   tag=f"{arg.name}:{suffix}")
@@ -3131,8 +3152,7 @@ class DynProxies(LFRicCollection):
             suffix = const.ARG_TYPE_SUFFIX_MAPPING[arg.argument_type]
             ttext = f"{name}:{suffix}"
             precision = ctable.add_lfric_precision_symbol(arg.precision)
-            # Make sure we're going to create a Symbol with a unique
-            # name.
+            # Make sure we're going to create a Symbol with a unique name.
             new_name = self._symbol_table.next_available_name(
                 f"{name}_{suffix}")
             array_type = ArrayType(

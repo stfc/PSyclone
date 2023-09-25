@@ -397,42 +397,44 @@ class LFRicExtractDriverCreator:
         This function also handles array of fields, which need to get
         an index number added.
 
-        :param str name: the name of original variable (i.e. \
-            without _post), which will be looked up as a tag in the symbol \
-            table. If index is provided, it is added to the tag name using \
-            %{index}.
-        :param program: the PSyIR Routine to which any code must \
+        :param str name: the name of original variable (i.e.
+            without _post), which will be looked up as a tag in the symbol
+            table. If index is provided, it is incorporated in the tag using
+            f"{name}_{index}_data".
+        :param program: the PSyIR Routine to which any code must
             be added. It also contains the symbol table to be used.
         :type program: :py:class:`psyclone.psyir.nodes.Routine`
-        :param bool is_input: True if this variable is also an input \
-            parameters.
-        :param str read_var: the readvar method to be used including the \
+        :param bool is_input: True if this variable is also an input
+            parameter.
+        :param str read_var: the readvar method to be used including the
             name of the PSyData object (e.g. 'psy_data%ReadVar')
-        :param str postfix: the postfix to use for the expected output \
+        :param str postfix: the postfix to use for the expected output
             values, which are read from the file.
+        :param index: if present, the index to the component of a field vector.
+        :type index: Optional[int]
 
-        :returns: a 2-tuple containing the output symbol after the kernel, \
+        :returns: a 2-tuple containing the output Symbol after the kernel,
              and the expected output read from the file.
         :rtype: Tuple[:py:class:`psyclone.psyir.symbols.Symbol`,
                       :py:class:`psyclone.psyir.symbols.Symbol`]
 
         '''
         symbol_table = program.symbol_table
-        if index:
+        if index is not None:
             sym = symbol_table.lookup_with_tag(f"{name}_{index}_data")
         else:
+            # If it is not indexed then `name` will already end in "_data"
             sym = symbol_table.lookup_with_tag(name)
 
-        # Declare a 'post' variable of the same type and
-        # read in its value.
+        # Declare a 'post' variable of the same type and read in its value.
         post_name = sym.name + postfix
         post_sym = symbol_table.new_symbol(post_name,
                                            symbol_type=DataSymbol,
                                            datatype=sym.datatype)
-        if index:
+        if index is not None:
             post_tag = f"{name}_{index}_data{postfix}"
         else:
-            # TODO ARPDBG - why no _data below?
+            # If it is not indexed then `name` will already end in "_data"
             post_tag = f"{name}{postfix}"
         name_lit = Literal(post_tag, CHARACTER_TYPE)
         LFRicExtractDriverCreator._add_call(program, read_var,
