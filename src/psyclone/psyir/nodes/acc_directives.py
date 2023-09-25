@@ -948,7 +948,7 @@ class ACCAtomicDirective(ACCRegionDirective):
         if not isinstance(stmt.lhs.datatype, ScalarType):
             return False
 
-        # - operators are one of: +, *, -, /, AND, OR, EQV, NEQV
+        # - the top-level operator is one of: +, *, -, /, AND, OR, EQV, NEQV
         if isinstance(stmt.rhs, BinaryOperation):
             if stmt.rhs.operator not in (BinaryOperation.Operator.ADD,
                                          BinaryOperation.Operator.SUB,
@@ -969,7 +969,7 @@ class ACCAtomicDirective(ACCRegionDirective):
                 return False
 
         # - one of the operands should be the same as the lhs
-        if stmt.lhs not in (stmt.rhs.children[0], stmt.rhs.children[1]):
+        if stmt.lhs not in stmt.rhs.children:
             return False
 
         return True
