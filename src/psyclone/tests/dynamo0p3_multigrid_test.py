@@ -507,11 +507,13 @@ def test_field_restrict(tmpdir, dist_mem, monkeypatch, annexed):
 
 
 def test_cont_field_restrict(tmpdir, dist_mem, monkeypatch, annexed):
-    ''' Test that we generate correct code for an invoke containing a
-    single restriction operation (read from fine, write to
-    coarse) when the field is on a continuous function space but has
-    GH_WRITE access (so that there is no need to perform redundant computation
-    to get the correct values for annexed dofs).
+    '''
+    Test that we generate correct code for an invoke containing a
+    single restriction operation (read from field on a fine mesh,
+    write to field on a coarse mesh) when the field is on a continuous
+    function space but has GH_WRITE access (so that there is no need
+    to perform redundant computation to get the correct values for
+    annexed dofs).
 
     '''
 
@@ -528,6 +530,7 @@ def test_cont_field_restrict(tmpdir, dist_mem, monkeypatch, annexed):
         assert "loop0_stop = mesh_field1%get_last_edge_cell()" in output
     else:
         assert "loop0_stop = field1_proxy%vspace%get_ncell()" in output
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_restrict_prolong_chain(tmpdir, dist_mem):

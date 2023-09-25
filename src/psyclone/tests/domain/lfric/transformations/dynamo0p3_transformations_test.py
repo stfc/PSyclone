@@ -393,7 +393,8 @@ def test_colour_trans_adjacent_face(dist_mem, tmpdir):
 
 
 def test_colour_trans_continuous_write(dist_mem, tmpdir):
-    ''' Test the colouring transformation for a loop containing a kernel that
+    '''
+    Test the colouring transformation for a loop containing a kernel that
     has a 'GH_WRITE' access for a field on a continuous space.
 
     '''
@@ -415,7 +416,8 @@ def test_colour_trans_continuous_write(dist_mem, tmpdir):
 
 
 def test_colour_continuous_writer_intergrid(tmpdir, dist_mem):
-    '''Test the loop-colouring transformation for an intergrid kernel that has
+    '''
+    Test the loop-colouring transformation for an inter-grid kernel that has
     a GH_WRITE access to a field on a continuous space. Since it has GH_WRITE
     it does not need to iterate into the halos (to get clean annexed dofs) and
     therefore should use the 'last_edge_cell' colour map.
