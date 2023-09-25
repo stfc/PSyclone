@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022-2023, Science and Technology Facilities Council
+# Copyright (c) 2022, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,6 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
-# Modified L. Turner, Met Office
 
 '''Module containing the abstract CommonMetaArgMetadata class which
 captures the metadata associated with an LFRic meta_arg
@@ -44,7 +43,6 @@ from abc import ABC, abstractmethod
 
 from psyclone.domain.lfric.kernel.common_arg_metadata import CommonArgMetadata
 from psyclone.errors import InternalError
-from psyclone.parse.utils import ParseError
 
 
 class CommonMetaArgMetadata(CommonArgMetadata, ABC):
