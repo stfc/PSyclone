@@ -408,7 +408,7 @@ class Symbol():
         try:
             current = node.scope.symbol_table
             while current:
-                if self.name in current and current.lookup(self.name) is self:
+                if self.name in current:
                     return current
                 if current.node.parent:
                     current = current.node.parent.scope.symbol_table
