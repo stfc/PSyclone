@@ -50,12 +50,10 @@ from psyclone.domain.lfric import ArgOrdering, LFRicConstants
 # Avoid circular import:
 from psyclone.domain.lfric.lfric_types import LFRicTypes
 from psyclone.errors import GenerationError, InternalError
-from psyclone.psyir.nodes import (ArrayOfStructuresReference, Literal,
-                                  Reference, StructureReference)
-from psyclone.psyir.symbols import (ArrayType, DataSymbol, DataTypeSymbol,
-                                    DeferredType, ContainerSymbol,
-                                    ImportInterface, INTEGER_SINGLE_TYPE,
-                                    ScalarType)
+from psyclone.psyir.nodes import Reference, StructureReference
+from psyclone.psyir.symbols import (
+    DataSymbol, DataTypeSymbol, DeferredType,
+    ContainerSymbol, ImportInterface, ScalarType)
 
 # psyir has classes created at runtime
 # pylint: disable=no-member
@@ -99,13 +97,13 @@ class KernCallArgList(ArgOrdering):
             arg.argument_type]
 
     @staticmethod
-    def _map_type_to_precision(data_type):
+    def map_type_to_precision(data_type):
         '''This function returns the precision required for the various
         LFRic types.
 
         :param str data_type: the name of the data type.
 
-        :returns: the precision as defined in domain.lfric.lfric_types \
+        :returns: the precision as defined in domain.lfric.lfric_types
             (one of R_SOLVER, R_TRAN, R_DEF).
         :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol`
 

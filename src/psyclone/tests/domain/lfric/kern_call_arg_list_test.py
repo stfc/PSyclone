@@ -92,7 +92,7 @@ def test_map_type_to_precision():
     const = LFRicConstants()
 
     for module_info in const.DATA_TYPE_MAP.values():
-        assert (KernCallArgList._map_type_to_precision(module_info["type"])
+        assert (KernCallArgList.map_type_to_precision(module_info["type"])
                 == LFRicTypes(module_info["kind"].upper()))
 
 
@@ -102,7 +102,7 @@ def test_map_type_to_precision_error():
     '''
 
     with pytest.raises(InternalError) as err:
-        KernCallArgList._map_type_to_precision("invalid")
+        KernCallArgList.map_type_to_precision("invalid")
     assert "Unknown data type 'invalid', expected one of" in str(err.value)
 
 

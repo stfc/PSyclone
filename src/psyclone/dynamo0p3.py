@@ -3083,17 +3083,17 @@ class DynProxies(LFRicCollection):
         int_field_args = self._invoke.unique_declarations(
             argument_types=const.VALID_FIELD_NAMES,
             intrinsic_type=const.MAPPING_DATA_TYPES["gh_integer"])
+        op_args = self._invoke.unique_declarations(
+            argument_types=const.VALID_OPERATOR_NAMES)
 
-        # TODO reduce duplication here.
-        for arg in real_field_args + int_field_args:
+        # We put precision Symbols in the Container symbol table.
+        ctable = self._invoke.schedule.parent.symbol_table
+
+        for arg in real_field_args + int_field_args + op_args:
             # Create symbols that we will associate with the internal
-            # data arrays.
-            precision = KernCallArgList._map_type_to_precision(arg.data_type)
-            ltype = ("LFRicRealScalarDataType" if arg in real_field_args
-                     else "LFRicIntegerScalarDataType")
+            # data arrays of fields, field vectors and (LMA and CMA) operators.
+            ctable.add_lfric_precision_symbol(arg.precision)
             intrinsic_type = "integer" if arg in int_field_args else "real"
-            array_type = ArrayType(
-                LFRicTypes(ltype)(precision), [ArrayType.Extent.DEFERRED])
             suffix = const.ARG_TYPE_SUFFIX_MAPPING[arg.argument_type]
             if arg.vector_size > 1:
                 for idx in range(1, arg.vector_size+1):
@@ -3101,78 +3101,72 @@ class DynProxies(LFRicCollection):
                     # name.
                     new_name = self._symbol_table.next_available_name(
                         f"{arg.name}_{idx}_{suffix}")
-                    # Since the PSyIR doesn't have the pointer concept, we have
-                    # to have an UnknownFortranType.
-                    dtype = UnknownFortranType(
-                        f"{intrinsic_type}(kind={arg.precision}), pointer, "
-                        f"dimension(:) :: {new_name} => null()",
-                        partial_datatype=array_type)
-                    try:
-                        self._symbol_table.new_symbol(
-                            new_name,
-                            symbol_type=DataSymbol,
-                            datatype=dtype,
-                            tag=f"{arg.name}_{idx}:{suffix}")
-                    except KeyError:
-                        # Within a single Invoke we can have user-supplied
-                        # kernels that accept a full field-vector as argument
-                        # but also individual components of that vector might
-                        # be passed to Builtins. Therefore a clash with an
-                        # existing tag may occur which we can safely ignore.
-                        pass
+                    tag = f"{arg.name}_{idx}:{suffix}"
+                    # The data for a field lives in a rank-1 array.
+                    self._add_symbol(new_name, tag, intrinsic_type, arg, 1)
             else:
                 # Make sure we're going to create a Symbol with a unique
                 # name (since this is hardwired into the UnknownFortranType).
                 new_name = self._symbol_table.next_available_name(
                     f"{arg.name}_{suffix}")
-                # Since the PSyIR doesn't have the pointer concept, we have
-                # to have an UnknownFortranType.
-                dtype = UnknownFortranType(
-                    f"{intrinsic_type}(kind={arg.precision}), pointer, dimension(:) "
-                    f":: {new_name} => null()", partial_datatype=array_type)
-                try:
-                    self._symbol_table.new_symbol(new_name,
-                                                  symbol_type=DataSymbol,
-                                                  datatype=dtype,
-                                                  tag=f"{arg.name}:{suffix}")
-                except KeyError:
-                    # See comment in other KeyError handler above.
-                    pass
+                tag = f"{arg.name}:{suffix}"
+                # The data for an operator lives in a rank-3 array.
+                rank = 1 if arg not in op_args else 3
+                self._add_symbol(new_name, tag, intrinsic_type, arg, rank)
 
-        # We put precision Symbols in the Container symbol table.
-        ctable = self._invoke.schedule.parent.symbol_table
+    def _add_symbol(self, name, tag, intrinsic_type, arg, rank):
+        '''
+        Creates a new DataSymbol representing either an LFRic field or
+        operator and adds it to the SymbolTable associated with this class.
+        The Symbol is of UnknownFortranType because it is a pointer
+        to the internal data array and the PSyIR does not support pointers. The
+        remainder of the type information is fully supplied in the
+        `partial_datatype` property of the UnknownFortranType.
+        The supplied Symbol name is assumed not to already exist in the
+        SymbolTable (e.g. it is obtained with the `next_available_name` method
+        of SymbolTable) because it is used in constructing the
+        UnknownFortranType which must be done before the Symbol is created.
 
-        # Create symbols that we will associate with pointers to the
-        # internal data arrays of LMA and CMA operators.
-        op_args = self._invoke.unique_declarations(
-            argument_types=const.VALID_OPERATOR_NAMES)
+        :param str name: the name of the new Symbol.
+        :param str tag: the tag to associate with the new Symbol.
+        :param str intrinsic_type: whether the Symbol represents "real" or
+                                   "integer" data.
+        :param arg: the metadata description of the associated kernel argument.
+        :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
+        :param int rank: the rank of the array represented by the Symbol.
 
-        for arg in op_args:
-            name = arg.name
-            suffix = const.ARG_TYPE_SUFFIX_MAPPING[arg.argument_type]
-            ttext = f"{name}:{suffix}"
-            precision = ctable.add_lfric_precision_symbol(arg.precision)
-            # Make sure we're going to create a Symbol with a unique name.
-            new_name = self._symbol_table.next_available_name(
-                f"{name}_{suffix}")
-            array_type = ArrayType(
-                LFRicTypes("LFRicRealScalarDataType")(precision),
-                [ArrayType.Extent.DEFERRED]*3)
-            # Since the PSyIR doesn't have the pointer concept, we have
-            # to have an UnknownFortranType.
-            dtype = UnknownFortranType(
-                f"real(kind={arg.precision}), pointer, dimension(:,:,:) "
-                f":: {new_name} => null()", partial_datatype=array_type)
-            try:
-                self._symbol_table.new_symbol(new_name,
-                                              symbol_type=DataSymbol,
-                                              datatype=dtype,
-                                              tag=ttext)
-            except KeyError:
-                # The tag already exists and therefore we don't need to do
-                # anything. (This can happen if the Symbol Table has already
-                # been populated by a previous call to this constructor.)
-                pass
+        '''
+        if intrinsic_type == "real":
+            lfric_type = "LFRicRealScalarDataType"
+        else:
+            lfric_type = "LFRicIntegerScalarDataType"
+        precision = KernCallArgList.map_type_to_precision(arg.data_type)
+        array_type = ArrayType(
+                LFRicTypes(lfric_type)(precision),
+                [ArrayType.Extent.DEFERRED]*rank)
+
+        # Since the PSyIR doesn't have the pointer concept, we have
+        # to have an UnknownFortranType.
+        index_str = ",".join(rank*[":"])
+        dtype = UnknownFortranType(
+            f"{intrinsic_type}(kind={arg.precision}), pointer, "
+            f"dimension({index_str}) :: {name} => null()",
+            partial_datatype=array_type)
+        try:
+            self._symbol_table.new_symbol(name,
+                                          symbol_type=DataSymbol,
+                                          datatype=dtype,
+                                          tag=tag)
+        except KeyError:
+            # The tag already exists and therefore we don't need to do
+            # anything. This can happen if the Symbol Table has already
+            # been populated by a previous call to this constructor. Even if
+            # this is not the case, within a single Invoke we can have user-
+            # supplied kernels that accept a full field-vector as argument
+            # but also individual components of that vector might
+            # be passed to Builtins. Therefore a clash with an
+            # existing tag may occur which we can safely ignore.
+            pass
 
     def _invoke_declarations(self, parent):
         '''
