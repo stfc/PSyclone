@@ -255,6 +255,10 @@ def test_lfric_driver_simple_test():
                  "call extract_psy_data%ReadVariable('cell_post', cell_post)"]:
         assert line in driver
 
+    # A read-write/inc variable should not be allocated (since it will
+    # be allocated as part of reading in its value):
+    assert "ALLOCATE(x_ptr_vector," not in driver
+
     # Check that all module dependencies have been inlined:
     for mod in ["read_kernel_data_mod", "constants_mod", "kernel_mod",
                 "argument_mod", "log_mod", "fs_continuity_mod",

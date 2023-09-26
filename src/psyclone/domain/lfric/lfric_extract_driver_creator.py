@@ -541,7 +541,7 @@ class LFRicExtractDriverCreator:
             # variables have References, and will already have been declared
             # in the symbol table (in _add_all_kernel_symbols).
             orig_sym = original_symbol_table.lookup(signature[0])
-            is_input = signature in read_write_info.read_list
+            is_input = read_write_info.is_read(signature)
             if orig_sym.is_array and orig_sym.datatype.intrinsic.name in \
                     self._all_field_types:
                 # This is a field vector, so handle each individual field
