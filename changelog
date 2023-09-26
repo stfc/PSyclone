@@ -622,6 +622,9 @@
 	210) PR #2287 for #2253. Allow for GH_WRITE access to continuous
 	field arguments to inter-grid kernels in the LFRic API.
 
+	211) PR #2299 for #2297. Add option to get original symbol name
+	(for an imported symbol) in VariablesAccessInfo.
+
 release 2.3.1 17th of June 2022
 
 	1) PR #1747 for #1720. Adds support for If blocks to PSyAD.
