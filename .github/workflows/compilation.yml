@@ -90,7 +90,7 @@ jobs:
         module load python/${PYTHON_VERSION}
         . .runner_venv/bin/activate
         module load gcc/${GFORTRAN_VERSION} openmpi netcdf_fortran
-        pytest -n 2 --f90=gfortran --f90flags="-ffree-line-length-none" --compile --compileopencl src/psyclone/tests
+        pytest -n 4 --f90=gfortran --f90flags="-ffree-line-length-none" --compile --compileopencl src/psyclone/tests
         module rm netcdf_fortran gcc
     - name: Unit tests with compilation - nvfortran
       run: |
@@ -98,7 +98,7 @@ jobs:
         . .runner_venv/bin/activate
         module load nvidia-hpcsdk/${NVFORTRAN_VERSION} netcdf_fortran
         # We have to tell nvfortran where to find the OpenCL library.
-        pytest -n 2 --f90=nvfortran --f90flags="-L/apps/packages/compilers/nvidia-hpcsdk/Linux_x86_64/${NVFORTRAN_VERSION}/cuda/${CUDA_VERSION}/targets/x86_64-linux/lib" --compile --compileopencl src/psyclone/tests
+        pytest -n 4 --f90=nvfortran --f90flags="-L/apps/packages/compilers/nvidia-hpcsdk/Linux_x86_64/${NVFORTRAN_VERSION}/cuda/${CUDA_VERSION}/targets/x86_64-linux/lib" --compile --compileopencl src/psyclone/tests
         module rm netcdf_fortran nvidia-hpcsdk
     - name: Examples with compilation - gfortran
       run: |
