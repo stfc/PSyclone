@@ -167,12 +167,12 @@ class VariablesAccessInfo(dict):
         or None if the key is not specified in the options. If no
         key is specified, the whole option dictionary is returned.
 
-        :param key: the option to query, or None if all options should \
-            be returned.
+        :param key: the option to query, or None if all options should
+                    be returned.
         :type key: Optional[str]
 
-        :returns: the value of the option if it is specified in the
-        or the whole option dictionary.
+        :returns: the value of the option associated with the provided key
+                  or the whole option dictionary if it is not supplied.
         :rtype: Union[None, Any, dict]
 
         :raises InternalError: if an invalid key is specified.
