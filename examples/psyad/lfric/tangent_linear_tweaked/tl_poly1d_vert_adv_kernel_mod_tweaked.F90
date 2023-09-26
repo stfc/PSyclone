@@ -6,6 +6,11 @@
 
 !> @brief Tangent linear for computing vertical fluxes through fitting a
 !!        high order 1D upwind reconstruction.
+
+! This tweaked version of the code 1) splits the real and floor
+! intrinsics onto their own lines and 2) replaces minval and maxval
+! with equialent inline code.
+
 module tl_poly1d_vert_adv_kernel_mod
 
 use argument_mod,         only : arg_type, CELL_COLUMN, &
