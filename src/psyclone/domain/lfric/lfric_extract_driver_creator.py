@@ -42,21 +42,20 @@ the output data contained in the input file.
 
 from psyclone.core import Signature
 from psyclone.domain.lfric import LFRicConstants
-from psyclone.errors import GenerationError, InternalError
+from psyclone.errors import InternalError
 from psyclone.line_length import FortLineLength
 from psyclone.parse import ModuleManager
 from psyclone.psyGen import InvokeSchedule, Kern
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyir.nodes import (ArrayMember, ArrayOfStructuresMember,
-                                  ArrayReference, Assignment, Call,
-                                  FileContainer, IntrinsicCall, Literal,
-                                  Node, Reference, Routine, StructureReference)
+from psyclone.psyir.nodes import (Assignment, Call, FileContainer,
+                                  IntrinsicCall, Literal, Node, Reference,
+                                  Routine, StructureReference)
 from psyclone.psyir.symbols import (ArrayType, CHARACTER_TYPE,
                                     ContainerSymbol, DataSymbol,
                                     DataTypeSymbol, DeferredType,
                                     ImportInterface, INTEGER_TYPE,
-                                    RoutineSymbol)
+                                    RoutineSymbol, UnknownFortranType)
 from psyclone.psyir.transformations import ExtractTrans
 
 
@@ -335,11 +334,18 @@ class LFRicExtractDriverCreator:
             # Now we have a reference with a symbol that is in the old symbol
             # table (i.e. not in the one of the driver). Create a new symbol
             # (with the same name) in the driver's symbol table), and use
-            # it in the reference
+            # it in the reference.
+            datatype = old_symbol.datatype
+            if isinstance(datatype, UnknownFortranType):
+                # Currently fields are of UnknownFortranType because they are
+                # pointers in the PSy layer. Here we just want the base type
+                # (i.e. not a pointer).
+                datatype = old_symbol.datatype.partial_datatype
+
             new_symbol = symbol_table.new_symbol(root_name=reference.name,
                                                  tag=reference.name,
                                                  symbol_type=DataSymbol,
-                                                 datatype=old_symbol.datatype)
+                                                 datatype=datatype)
             reference.symbol = new_symbol
 
         # Now handle all derived type. The name of a derived type is
@@ -444,7 +450,10 @@ class LFRicExtractDriverCreator:
         # Now if a variable is written to, but not read, the variable
         # is not allocated. So we need to allocate it and set it to 0.
         if not is_input:
-            if isinstance(post_sym.datatype, ArrayType):
+            if (isinstance(post_sym.datatype, ArrayType) or
+                    (isinstance(post_sym.datatype, UnknownFortranType) and
+                     isinstance(post_sym.datatype.partial_datatype,
+                                ArrayType))):
                 alloc = IntrinsicCall.create(
                     IntrinsicCall.Intrinsic.ALLOCATE,
                     [Reference(sym), ("mold", Reference(post_sym))])
@@ -642,7 +651,10 @@ class LFRicExtractDriverCreator:
         # TODO #2083: check if this can be combined with psyad result
         # comparison.
         for (sym_computed, sym_read) in output_symbols:
-            if isinstance(sym_computed.datatype, ArrayType):
+            if (isinstance(sym_computed.datatype, ArrayType) or
+                    (isinstance(sym_computed.datatype, UnknownFortranType) and
+                     isinstance(sym_computed.datatype.partial_datatype,
+                                ArrayType))):
                 cond = f"all({sym_computed.name} - {sym_read.name} == 0.0)"
             else:
                 cond = f"{sym_computed.name} == {sym_read.name}"
