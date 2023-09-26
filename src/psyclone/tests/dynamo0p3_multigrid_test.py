@@ -530,6 +530,7 @@ def test_cont_field_restrict(tmpdir, dist_mem, monkeypatch, annexed):
         assert "loop0_stop = mesh_field1%get_last_edge_cell()" in output
     else:
         assert "loop0_stop = field1_proxy%vspace%get_ncell()" in output
+
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
