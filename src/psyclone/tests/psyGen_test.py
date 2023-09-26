@@ -64,8 +64,6 @@ from psyclone.psyGen import TransInfo, Transformation, PSyFactory, \
     InlinedKern, object_index, HaloExchange, Invoke, \
     DataAccess, Kern, Arguments, CodedKern, Argument, GlobalSum, \
     InvokeSchedule, BuiltIn
-from psyclone.psyir.backend.c import CWriter
-from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import Assignment, BinaryOperation, Container, \
     Literal, Node, KernelSchedule, Call, colored
 from psyclone.psyir.symbols import DataSymbol, RoutineSymbol, REAL_TYPE, \
@@ -264,7 +262,28 @@ def test_valid_return_object_from_name():
     assert isinstance(transform, Transformation)
 
 
-# tests for class Call
+# Tests for class Invokes
+
+def test_invokes_get():
+    '''Test the get() method of the Invokes class.'''
+    # Making an Invokes object is not easy so we do a full PSy generation.
+    _, invoke = parse(
+        os.path.join(BASE_PATH, "1.0.1_single_named_invoke.f90"),
+        api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke)
+    # Check that the get isn't case sensitive and doesn't require the
+    # leading "invoke_" text.
+    inv = psy.invokes.get("important_INVOKE")
+    # Stored name has "invoke_" prepended.
+    assert inv._name == "invoke_important_invoke"
+    # No matching name found.
+    with pytest.raises(RuntimeError) as err:
+        psy.invokes.get("missing")
+    assert ("Cannot find an invoke named 'missing' or 'invoke_missing' in "
+            "['invoke_important_invoke']" in str(err.value))
+
+
+# Tests for class InvokeCall
 
 def test_invokes_can_always_be_printed():
     '''Test that an Invoke instance can always be printed (i.e. is

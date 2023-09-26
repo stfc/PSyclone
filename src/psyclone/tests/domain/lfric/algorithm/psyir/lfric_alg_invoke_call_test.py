@@ -111,8 +111,8 @@ def test_lfricalgorithminvokecall_create(cls):
     '''
     routine = RoutineSymbol("hello")
     klc = LFRicKernelFunctor.create(DataTypeSymbol("arg", StructureType()), [])
-    call = cls.create(routine, [klc], 0, name="describing an invoke")
-    assert call._name == "describing an invoke"
+    call = cls.create(routine, [klc], 0, name="describing_an_invoke")
+    assert call._name == "describing_an_invoke"
     assert call.routine is routine
     # pylint: disable=unidiomatic-typecheck
     assert type(call) is cls
