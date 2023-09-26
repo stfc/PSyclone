@@ -393,7 +393,8 @@ def test_colour_trans_adjacent_face(dist_mem, tmpdir):
 
 
 def test_colour_trans_continuous_write(dist_mem, tmpdir):
-    ''' Test the colouring transformation for a loop containing a kernel that
+    '''
+    Test the colouring transformation for a loop containing a kernel that
     has a 'GH_WRITE' access for a field on a continuous space.
 
     '''
@@ -411,6 +412,36 @@ def test_colour_trans_continuous_write(dist_mem, tmpdir):
             "mesh%get_last_edge_cell_all_colours()" in gen)
     assert "DO cell=loop1_start,last_edge_cell_all_colours(colour)" in gen
 
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+
+def test_colour_continuous_writer_intergrid(tmpdir, dist_mem):
+    '''
+    Test the loop-colouring transformation for an inter-grid kernel that has
+    a GH_WRITE access to a field on a continuous space. Since it has GH_WRITE
+    it does not need to iterate into the halos (to get clean annexed dofs) and
+    therefore should use the 'last_edge_cell' colour map.
+
+    '''
+    psy, invoke = get_invoke("22.1.1_intergrid_cont_restrict.f90",
+                             TEST_API, idx=0, dist_mem=dist_mem)
+    loop = invoke.schedule[0]
+    ctrans = Dynamo0p3ColourTrans()
+    ctrans.apply(loop)
+    result = str(psy.gen).lower()
+    # Declarations.
+    assert ("integer(kind=i_def), allocatable :: "
+            "last_edge_cell_all_colours_field1(:)" in result)
+    # Initialisation.
+    assert ("last_edge_cell_all_colours_field1 = mesh_field1%"
+            "get_last_edge_cell_all_colours()" in result)
+    # Usage. Since there is no need to loop into the halo, the upper loop
+    # bound should be independent of whether or not DM is enabled.
+    upper_bound = "last_edge_cell_all_colours_field1(colour)"
+    assert (f"      do colour=loop0_start,loop0_stop\n"
+            f"        do cell=loop1_start,{upper_bound}\n"
+            f"          !\n"
+            f"          call restrict_w2_code(nlayers" in result)
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
@@ -4089,7 +4120,6 @@ def test_rc_discontinuous_depth(tmpdir, monkeypatch, annexed):
     loop = schedule.children[index]
     rc_trans.apply(loop, {"depth": 3})
     result = str(psy.gen)
-    print(result)
     for field_name in ["f1", "f2", "m1"]:
         assert (f"      IF ({field_name}_proxy%is_dirty(depth=3)) THEN\n"
                 f"        CALL {field_name}_proxy%halo_exchange(depth=3)"
@@ -4151,7 +4181,6 @@ def test_rc_all_discontinuous_depth(tmpdir):
     loop = schedule.children[0]
     rc_trans.apply(loop, {"depth": 3})
     result = str(psy.gen)
-    print(result)
     assert "IF (f2_proxy%is_dirty(depth=3)) THEN" in result
     assert "CALL f2_proxy%halo_exchange(depth=3)" in result
     assert "loop0_stop = mesh%get_last_halo_cell(3)" in result
