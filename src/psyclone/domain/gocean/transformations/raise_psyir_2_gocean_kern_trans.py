@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022, Science and Technology Facilities Council.
+# Copyright (c) 2022-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -37,11 +37,11 @@
 PSyclone kernel-layer-specific PSyIR which uses specialised classes.
 
 '''
-from psyclone.configuration import Config
 from psyclone.domain.gocean.kernel import GOceanKernelMetadata, GOceanContainer
 from psyclone.errors import PSycloneError
 from psyclone.gocean1p0 import GOSymbolTable, GOKernelSchedule
 from psyclone.psyGen import Transformation
+from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Container, Routine, ScopingNode, FileContainer
 from psyclone.psyir.transformations import TransformationError
 
@@ -111,13 +111,15 @@ class RaisePSyIR2GOceanKernTrans(Transformation):
     '''
     def __init__(self, metadata_name):
         super().__init__()
-        config = Config.get()
-        if not metadata_name or not config.valid_name.match(metadata_name):
+
+        try:
+            FortranReader.validate_name(metadata_name)
+        except (TypeError, ValueError) as err:
             raise TransformationError(
                 f"Error in {self.name} transformation. The "
                 f"RaisePSyIR2GOceanKernTrans transformation requires the "
                 f"name of the variable containing the metadata to be set to a "
-                f"valid value, but found '{metadata_name}'.")
+                f"valid value, but found '{metadata_name}'.") from err
 
         # The name of the PSyIR symbol containing the metadata
         self._metadata_name = metadata_name
