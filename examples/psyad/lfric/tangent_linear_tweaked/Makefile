@@ -67,7 +67,7 @@ transform:
 	$(MAKE) single -e TL_KERNEL_NAME=poly1d_w3_reconstruction_kernel ACTIVE_VAR_LIST="reconstruction polynomial_tracer tracer"
 	$(MAKE) single -e TL_KERNEL_NAME=tl_poly1d_vert_w3_reconstruction_kernel ACTIVE_VAR_LIST="reconstruction polynomial_tracer tracer"
 	$(MAKE) single -e TL_KERNEL_NAME=convert_hdiv_field_kernel ACTIVE_VAR_LIST="physical_field1 physical_field2 physical_field3 vector_out vector_in computational_field"
-	# tl_calc_exner_pointwise is provided in PSyclone as a
+	# tl_calc_exner_pointwise is provided in LFRic as a
 	# function so needs to be manually tweaked to be a subroutine.
 	# Further, it does not contain any metadata, therefore we use
 	# the generic version of PSyAD (with no API) to process the

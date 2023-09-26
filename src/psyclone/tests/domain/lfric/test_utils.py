@@ -129,8 +129,8 @@ def test_find_container_multi_module():
 
 
 def test_find_container_working():
-    '''Test that the find_container utility raises an exception if the
-    provided PSyIR contains more than one module as LFRic expects one.
+    '''Test that the find_container utility find the correct Container,
+    independent of starting point.
 
     '''
     module = Container.create("mod_name", SymbolTable(), [])
