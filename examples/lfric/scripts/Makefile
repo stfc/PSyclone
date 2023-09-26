@@ -36,7 +36,9 @@
 
 include ../../common.mk
 
-SCRIPTS = $(wildcard *.py)
+# Get all psyclone scripts in this folder, which are all python files excluding
+# the compare_output.py script
+SCRIPTS = $(filter-out compare_ouput.py, $(wildcard *.py))
 
 transform: ${SCRIPTS}
 
