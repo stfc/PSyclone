@@ -133,7 +133,10 @@ def test_cellmap_intergrid(dist_mem, fortran_writer):
         'map_w2(:,cell)']
 
     check_psyir_results(create_arg_list, fortran_writer)
-    assert isinstance(create_arg_list.psyir_arglist[5].datatype, ArrayType)
+    arg = create_arg_list.psyir_arglist[5]
+    assert isinstance(arg.datatype, UnknownFortranType)
+    assert isinstance(arg.datatype.partial_datatype, ArrayType)
+    assert len(arg.datatype.partial_datatype.shape) == 1
 
 
 def test_kerncallarglist_face_xyoz(dist_mem, fortran_writer):
@@ -165,7 +168,10 @@ def test_kerncallarglist_face_xyoz(dist_mem, fortran_writer):
     # The kernel in question accepts integer fields.
     array_1d = ArrayType(LFRicTypes("LFRicIntegerScalarDataType")(),
                          [ArrayType.Extent.DEFERRED])
-    assert create_arg_list.psyir_arglist[2].datatype == array_1d
+    assert isinstance(create_arg_list.psyir_arglist[2].datatype,
+                      UnknownFortranType)
+    assert (create_arg_list.psyir_arglist[2].datatype.partial_datatype ==
+            array_1d)
     array_4d = ArrayType(LFRicTypes("LFRicRealScalarDataType")(),
                          [ArrayType.Extent.DEFERRED]*4)
     assert create_arg_list.psyir_arglist[15].datatype == array_4d
@@ -419,7 +425,10 @@ def test_kerncallarglist_mixed_precision():
     # Scalar:
     assert create_arg_list.psyir_arglist[2].datatype.precision.name == "r_def"
     # Field.
-    assert isinstance(create_arg_list.psyir_arglist[3].datatype, ArrayType)
+    assert isinstance(create_arg_list.psyir_arglist[3].datatype,
+                      UnknownFortranType)
+    assert isinstance(
+        create_arg_list.psyir_arglist[3].datatype.partial_datatype, ArrayType)
     # operator: ncell_3d:
     assert create_arg_list.psyir_arglist[4].datatype.precision.name == "i_def"
     # operator: local_stencil
@@ -433,7 +442,9 @@ def test_kerncallarglist_mixed_precision():
     assert (create_arg_list.psyir_arglist[2].datatype.precision.name ==
             "r_solver")
     assert isinstance(create_arg_list.psyir_arglist[3].datatype,
-                      ArrayType)
+                      UnknownFortranType)
+    assert isinstance(
+        create_arg_list.psyir_arglist[3].datatype.partial_datatype, ArrayType)
     assert create_arg_list.psyir_arglist[4].datatype.precision.name == "i_def"
     arg5 = create_arg_list.psyir_arglist[5]
     assert isinstance(arg5.datatype, UnknownFortranType)
@@ -443,7 +454,10 @@ def test_kerncallarglist_mixed_precision():
     create_arg_list.generate()
     assert create_arg_list.psyir_arglist[2].datatype.precision.name == "r_tran"
     assert isinstance(create_arg_list.psyir_arglist[3].datatype,
-                      ArrayType)
+                      UnknownFortranType)
+    assert isinstance(
+        create_arg_list.psyir_arglist[3].datatype.partial_datatype,
+        ArrayType)
     assert create_arg_list.psyir_arglist[4].datatype.precision.name == "i_def"
     arg5 = create_arg_list.psyir_arglist[5]
     assert isinstance(arg5.datatype, UnknownFortranType)
@@ -452,8 +466,9 @@ def test_kerncallarglist_mixed_precision():
     create_arg_list = KernCallArgList(schedule.kernels()[3])
     create_arg_list.generate()
     assert create_arg_list.psyir_arglist[2].datatype.precision.name == "r_bl"
-    assert isinstance(create_arg_list.psyir_arglist[3].datatype,
-                      ArrayType)
+    assert isinstance(
+        create_arg_list.psyir_arglist[3].datatype.partial_datatype,
+        ArrayType)
     arg5 = create_arg_list.psyir_arglist[5]
     assert isinstance(arg5.datatype, UnknownFortranType)
     assert isinstance(arg5.datatype.partial_datatype, ArrayType)
@@ -462,7 +477,10 @@ def test_kerncallarglist_mixed_precision():
     create_arg_list.generate()
     assert create_arg_list.psyir_arglist[2].datatype.precision.name == "r_phys"
     assert isinstance(create_arg_list.psyir_arglist[3].datatype,
-                      ArrayType)
+                      UnknownFortranType)
+    assert isinstance(
+        create_arg_list.psyir_arglist[3].datatype.partial_datatype,
+        ArrayType)
     arg5 = create_arg_list.psyir_arglist[5]
     assert isinstance(arg5.datatype, UnknownFortranType)
     assert isinstance(arg5.datatype.partial_datatype, ArrayType)
@@ -567,10 +585,14 @@ def test_indirect_dofmap(fortran_writer):
     dummy_sym_tab = LFRicSymbolTable()
     # Test all 1D real arrays:
     for i in [2, 3]:
-        # The datatype of a field  reference is the type of the member
-        # accessed, i.e. it's the 1D real array.
-        assert isinstance(psyir_args[i].datatype, ArrayType)
-        assert psyir_args[i].datatype.intrinsic == ScalarType.Intrinsic.REAL
+        # The datatype of a field reference is of UnknownFortranType because
+        # the PSyIR doesn't support pointers. However, its 'partial_datatype'
+        # is the type of the member accessed, i.e. it's the 1D real array.
+        assert isinstance(psyir_args[i].datatype, UnknownFortranType)
+        assert isinstance(psyir_args[i].datatype.partial_datatype,
+                          ArrayType)
+        assert (psyir_args[i].datatype.partial_datatype.intrinsic ==
+                ScalarType.Intrinsic.REAL)
 
     # Test all 3D real arrays:
     real_3d = dummy_sym_tab.find_or_create_array("doesnt_matter2dreal", 3,
@@ -625,10 +647,13 @@ def test_ref_element_handling(fortran_writer):
     # Test the 1d real array, which is of type r_solver
     # The datatype of a field  reference is the type of the member
     # accessed, i.e. it's the 1D real array.
-    assert isinstance(psyir_args[1].datatype, ArrayType)
-    assert len(psyir_args[1].datatype.shape) == 1
-    assert psyir_args[1].datatype.intrinsic == ScalarType.Intrinsic.REAL
-    assert psyir_args[1].datatype.precision.name == "r_solver"
+    arg = psyir_args[1]
+    assert isinstance(arg.datatype, UnknownFortranType)
+    assert isinstance(arg.datatype.partial_datatype,
+                      ArrayType)
+    assert len(arg.datatype.partial_datatype.shape) == 1
+    assert arg.datatype.partial_datatype.intrinsic == ScalarType.Intrinsic.REAL
+    assert arg.datatype.partial_datatype.precision.name == "r_solver"
     # TODO #2022: it would be convenient if find_or_create_array could
     # create an r_solver based array, then the above tests would just (
     # once #744 is sorted out) be:

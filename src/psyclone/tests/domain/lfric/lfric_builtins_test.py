@@ -60,7 +60,7 @@ from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import (
     ArrayReference, Loop, Reference, UnaryOperation, Literal)
-from psyclone.psyir.symbols import ArrayType, ScalarType
+from psyclone.psyir.symbols import ArrayType, ScalarType, UnknownFortranType
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.utilities import get_invoke
 
@@ -622,11 +622,12 @@ def test_get_indexed_field_argument_refs():
     assert len(refs) == 2
     for ref in refs:
         assert isinstance(ref, ArrayReference)
-        assert isinstance(ref.symbol.datatype, ArrayType)
-        assert len(ref.symbol.datatype.shape) == 1
+        assert isinstance(ref.symbol.datatype, UnknownFortranType)
+        assert isinstance(ref.symbol.datatype.partial_datatype, ArrayType)
+        assert len(ref.symbol.datatype.partial_datatype.shape) == 1
         # The reference in a built-in will have a data type hard coded
-        assert isinstance(ref.datatype, ScalarType)
-        assert ref.datatype.precision.name == "r_def"
+        assert isinstance(ref.datatype.partial_datatype, ArrayType)
+        assert ref.datatype.partial_datatype.precision.name == "r_def"
 
 
 def test_get_scalar_argument_references():

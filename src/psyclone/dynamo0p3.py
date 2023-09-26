@@ -7524,7 +7524,7 @@ class DynLoop(PSyLoop):
 
         # The generic DA says that this loop cannot be parallelised. However,
         # that is often because it wrongly identifies field/operator array
-        # accesses (e.g. fld_proxy%data) as being scalars that are written to.
+        # accesses (e.g. fld_data) as being scalars that are written to.
         if self.loop_type in ["colour", "dof"]:
             # This loop is either over cells of a single colour or DoFs. So
             # long as the symbols that the DA is complaining about are fields
@@ -7533,11 +7533,13 @@ class DynLoop(PSyLoop):
             suffixes_dict = LFRicConstants().ARG_TYPE_SUFFIX_MAPPING
 
             for msg in dtools.get_all_messages():
-                if msg.code != DTCode.ERROR_WRITE_WRITE_RACE:
+                if msg.code not in [DTCode.ERROR_WRITE_WRITE_RACE,
+                                    DTCode.WARN_SCALAR_WRITTEN_ONCE]:
                     # The DA is complaining about something other than writing
-                    # to an array.  Therefore the loop cannot be parallelised.
+                    # to an array or a scalar. Therefore the loop cannot be
+                    # parallelised.
                     return False
-                # We need to check that the array argument in question is in
+                # We need to check that the argument in question is in
                 # fact a field. If it is, this is safe to parallelise (because
                 # an LFRic Kernel is constrained to write to dofs in the
                 # 'owned' column).
