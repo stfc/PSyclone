@@ -362,7 +362,6 @@ def test_update_access_metadata_index_error():
     with pytest.raises(GenerationError) as info:
         _ = _update_access_metadata("field_1", arguments, metadata)
 
-    print(str(info.value))
     assert ("The position in the kernel subroutine argument list '0' of the "
             "active variable 'field_1' does not match any of the positions "
             "expected by the kernel argument ('meta_arg') metadata "
@@ -376,6 +375,9 @@ def test_update_access_metadata_index_error():
 def test_update_access_metadata_scalar_sum():
     '''Test that a scalar with intent inout results in metadata with
     access gh_sum.
+
+    TODO #2333 - only Builtin kernels are permitted to write to scalars so
+    really we need to check with the user or flag it as an error.
 
     '''
     metadata, dummy, field_1, field_2, field_3, scalar, operator = \
