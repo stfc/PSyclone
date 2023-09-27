@@ -2033,6 +2033,8 @@ end module gold'''
             "CodeBlock:\nWRITE(*, *) my_var" in str(err.value))
 
 
+# resolve_imports
+
 def test_resolve_imports(fortran_reader, tmpdir, monkeypatch):
     ''' Tests that the SymbolTable resolve_imports method works as expected
     when importing symbol information from external containers and respects
@@ -2480,6 +2482,110 @@ def test_resolve_imports_parent_scope(fortran_reader, tmpdir, monkeypatch):
     new_sym = mod.symbol_table.lookup(sym.name)
     assert isinstance(new_sym.interface, ImportInterface)
     assert new_sym.interface.container_symbol.name == "a_mod"
+
+
+def test_resolve_imports_from_child_symtab(
+        fortran_reader, tmpdir, monkeypatch):
+    '''Check that when an unresolved symbol is declared in a subroutine,
+    resolve imports can resolve it from a parent module as long as
+    there are no wildcard imports in the subroutine.
+
+    '''
+    # Set up include_path to import the proper modules
+    monkeypatch.setattr(Config.get(), '_include_paths', [str(tmpdir)])
+    filename = os.path.join(str(tmpdir), "a_mod.f90")
+    with open(filename, "w", encoding='UTF-8') as module:
+        module.write('''
+        module a_mod
+            integer :: some_var
+        end module a_mod
+        ''')
+    psyir = fortran_reader.psyir_from_source('''
+        module b_mod
+            use a_mod
+        contains
+          subroutine my_sub()
+            some_var = 0.0
+          end subroutine
+        end module b_mod
+        ''')
+    mod = psyir.children[0]
+    subroutine = psyir.walk(Routine)[0]
+    assert "some_var" not in mod.symbol_table
+    assert "some_var" in subroutine.symbol_table
+    symbol = subroutine.symbol_table.lookup("some_var")
+    # pylint: disable=unidiomatic-typecheck
+    assert type(symbol) is Symbol
+    mod.symbol_table.resolve_imports()
+    assert "some_var" not in subroutine.symbol_table
+    assert "some_var" in mod.symbol_table
+    symbol = mod.symbol_table.lookup("some_var")
+    # pylint: disable=unidiomatic-typecheck
+    assert type(symbol) is DataSymbol
+    assert isinstance(symbol.interface, ImportInterface)
+    assert symbol.interface.container_symbol.name == "a_mod"
+
+
+def test_resolve_imports_from_child_symtab_with_import(
+        fortran_reader, tmpdir, monkeypatch):
+    '''Check that when an unresolved symbol is declared in a subroutine
+    with at least one wildcard use statement resolve imports can't
+    resolve it from a parent. This shows one of the current
+    limitations of resolve_imports i.e. it should be able to be done
+    on routines as well as modules and should recurse up a hierarchy
+    of symbol tables by default or have an option to do so. At the
+    moment we end up with a symbol in the subroutine but also a
+    datasymbol with the same name in the module symbol table.
+
+    '''
+    # Set up include_path to import the proper modules
+    monkeypatch.setattr(Config.get(), '_include_paths', [str(tmpdir)])
+    filename = os.path.join(str(tmpdir), "a_mod.f90")
+    with open(filename, "w", encoding='UTF-8') as module:
+        module.write('''
+        module a_mod
+            integer :: some_var
+            integer :: rau0 = 1
+        end module a_mod
+        ''')
+    filename = os.path.join(str(tmpdir), "b_mod.f90")
+    with open(filename, "w", encoding='UTF-8') as module:
+        module.write('''
+        module b_mod
+            integer :: rau0 = 2
+        end module b_mod
+        ''')
+    psyir = fortran_reader.psyir_from_source('''
+        module c_mod
+            use a_mod
+        contains
+          subroutine my_sub()
+            use b_mod
+            some_var = rau0
+          end subroutine
+        end module c_mod
+        ''')
+    mod = psyir.children[0]
+    subroutine = mod.children[0]
+    for symbol_name in ["some_var", "rau0"]:
+        assert symbol_name not in mod.symbol_table
+        assert symbol_name in subroutine.symbol_table
+        symbol = subroutine.symbol_table.lookup(symbol_name)
+        # pylint: disable=unidiomatic-typecheck
+        assert type(symbol) is Symbol
+    mod.symbol_table.resolve_imports()
+    pytest.xfail(reason="issue #2331: Routine symbol table not checked "
+                 "with resolve_imports")
+    assert "rau0" in subroutine.symbol_table
+    assert "rau0" not in mod.symbol_table
+    data_symbol = subroutine.symbol_table.lookup("rau0")
+    # pylint: disable=unidiomatic-typecheck
+    assert type(data_symbol) is DataSymbol
+    assert "some_var" not in subroutine.symbol_table
+    assert "some_var" in mod.symbol_table
+    data_symbol = mod.symbol_table.lookup("some_var")
+    # pylint: disable=unidiomatic-typecheck
+    assert type(data_symbol) is DataSymbol
 
 
 def test_scope():

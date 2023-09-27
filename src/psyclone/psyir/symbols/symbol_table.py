@@ -1409,10 +1409,16 @@ class SymbolTable():
                     symbol_table = scoping_node.symbol_table
                     if symbol.name in symbol_table:
                         test_symbol = symbol_table.lookup(symbol.name)
-                        if (type(test_symbol) == Symbol and test_symbol.is_unresolved
-                                and not test_symbol.name in self):
-                            symbol_table.remove(test_symbol)
-                            self.add(test_symbol)
+                        # pylint: disable=unidiomatic-typecheck
+                        if (type(test_symbol) == Symbol
+                            and test_symbol.is_unresolved
+                                and test_symbol.name not in self):
+                            # No wildcard imports in this symbol table
+                            if not [sym for sym in
+                                    symbol_table.containersymbols if
+                                    sym.wildcard_import]:
+                                symbol_table.remove(test_symbol)
+                                self.add(test_symbol)
 
                 # This Symbol matches the name of a symbol in the current table
                 if symbol.name in self:
