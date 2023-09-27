@@ -31,17 +31,17 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford STFC Daresbury Lab
+# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
 '''Raise generic PSyIR representing a kernel-layer routine to
 LFRic kernel-layer-specific PSyIR which uses specialised classes.
 
 '''
-from psyclone.configuration import Config
 from psyclone.domain.lfric.kernel.lfric_kernel_metadata import \
     LFRicKernelMetadata
 from psyclone.domain.lfric.kernel.psyir import LFRicKernelContainer
 from psyclone.psyGen import Transformation
+from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Container, ScopingNode, FileContainer
 from psyclone.psyir.transformations import TransformationError
 
@@ -117,14 +117,16 @@ class RaisePSyIR2LFRicKernTrans(Transformation):
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str: str]]
 
-        :raises TransformationError: if the supplied node is not a \
+        :raises TransformationError: if the supplied node is not a
             Container.
-        :raises TransformationError: if the supplied node argument has \
+        :raises TransformationError: if the supplied node argument has
             a parent.
-        :raises TransformationError: if the metadata name has not been \
+        :raises TransformationError: if the metadata name has not been
             provided in the options argument.
-        :raises TransformationError: if the metadata name has not been \
+        :raises TransformationError: if the metadata name has not been
             set or does not exist in the code.
+        :raises TransformationError: if the metadata symbol does not
+            reside in a Container (as opposed to a FileContainer).
 
         '''
         super().validate(node, options=options)
@@ -151,13 +153,14 @@ class RaisePSyIR2LFRicKernTrans(Transformation):
                 f"argument with lookup name 'metadata_name', but found "
                 f"'{names}'.") from info
 
-        config = Config.get()
-        if not config.valid_name.match(metadata_name):
+        try:
+            FortranReader.validate_name(metadata_name)
+        except (TypeError, ValueError) as err:
             raise TransformationError(
                 f"Error in {self.name} transformation. This "
                 f"transformation requires the name of the variable "
                 f"containing the metadata to be set to a "
-                f"valid Fortran name, but found '{metadata_name}'.")
+                f"valid Fortran name, but found '{metadata_name}'.") from err
 
         metadata_symbol, scoping_node = find_symbol(node, metadata_name)
         if not metadata_symbol:
