@@ -1685,6 +1685,8 @@ class OMPAtomicDirective(OMPRegionDirective):
     '''
     OpenMP directive to represent that the memory accesses in the associated
     assignment must be performed atomically.
+    Note that the standard supports blocks with 2 assignments but this is
+    currently unsupported in the PSyIR.
 
     '''
     def begin_string(self):
