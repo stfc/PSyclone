@@ -31,8 +31,8 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified by O. Brunt, Met Office
+# Authors: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+# Modified: O. Brunt, Met Office
 
 '''This module tests the LFRic API-specific halo exchange
    implementation. '''
@@ -55,6 +55,7 @@ from psyclone.transformations import (
 # constants
 API = "dynamo0.3"
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                         os.pardir, os.pardir, os.pardir, 
                          "test_files", "dynamo0p3")
 
 

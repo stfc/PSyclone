@@ -278,8 +278,8 @@ latex_documents = [
 # (source start file, name, description, authors, manual section).
 man_pages = [
     ('index', 'psyclone-dev', u"PSyclone Developer Guide",
-     [u'Rupert Ford, Joerg Henrichs, Iva Kavcic, Andrew Porter, Sergi '
-      'Siso and Lottie Turner'], 1)
+     [u'Oakley Brunt, Rupert Ford, Joerg Henrichs, Iva Kavcic, Andrew Porter, '
+      'Sergi Siso and Lottie Turner'], 1)
 ]
 
 # If true, show URL addresses after external links.
@@ -293,8 +293,8 @@ man_pages = [
 #  dir menu entry, description, category)
 texinfo_documents = [
     ('index', 'psyclone-dev', u"PSyclone Developer Guide",
-     [u'Rupert Ford, Joerg Henrichs, Iva Kavcic, Andrew Porter, Sergi Siso '
-      'and Lottie Turner'], 'psyclone',
+     [u'Oakley Brunt, Rupert Ford, Joerg Henrichs, Iva Kavcic, Andrew Porter, '
+      'Sergi Siso and Lottie Turner'], 'psyclone',
      'A domain-specific compiler for Finite-Element/Volume/Difference models.',
      'Miscellaneous'),
 ]
@@ -313,10 +313,10 @@ texinfo_documents = [
 
 # Bibliographic Dublin Core info.
 epub_title = u"PSyclone Developer Guide"
-epub_author = u'Rupert Ford, Joerg Henrichs, Iva Kavcic, Andrew Porter, ' \
-    'Sergi Siso and Lottie Turner'
-epub_publisher = u'Rupert Ford, Joerg Henrichs, Iva Kavcic, Andrew Porter, ' \
-    'Sergi Siso and Lottie Turner'
+epub_author = u'Oakley Brunt, Rupert Ford, Joerg Henrichs, Iva Kavcic, ' \
+    'Andrew Porter, Sergi Siso and Lottie Turner'
+epub_publisher = u'Oakley Brunt, Rupert Ford, Joerg Henrichs, Iva Kavcic, ' \
+    'Andrew Porter, Sergi Siso and Lottie Turner'
 epub_copyright = copyright
 
 # The language of the text. It defaults to the language option

@@ -34,7 +34,7 @@
 # Authors: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 #          I. Kavcic, Met Office
 #          J. Henrichs, Bureau of Meteorology
-# Modified by O. Brunt, Met Office
+# Modified: O. Brunt, Met Office
 
 '''PSyclone transformation script for the LFRic API to apply all the
 DistibutedMemory, OpenMP coloring and serial transformations possible.

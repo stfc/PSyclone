@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors: R. Ford, A. R. Porter and S. Siso, STFC Daresbury Laboratory
-# Modified by O. Brunt, Met Office
+# Modified: O. Brunt, Met Office
 
 '''File containing a PSyclone transformation script for the Dynamo0p3
 API to make asynchronous halo exchanges and overlap their

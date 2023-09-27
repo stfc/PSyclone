@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: R. W. Ford, STFC Daresbury Lab
-# Modified by O. Brunt, Met Office
+# Modified: O. Brunt, Met Office
 
 '''A PSyclone transformation script that transforms all synchronous
 halo exchanges into asynchronous halo exchanges and moves the halo
