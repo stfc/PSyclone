@@ -38,7 +38,7 @@
 
 from fparser.common.readfortran import FortranStringReader
 from fparser.common.sourceinfo import FortranFormat
-from fparser.two import Fortran2003
+from fparser.two import Fortran2003, pattern_tools
 from fparser.two.parser import ParserFactory
 from fparser.two.symbol_table import SYMBOL_TABLES
 from fparser.two.utils import NoMatchError
@@ -60,6 +60,26 @@ class FortranReader():
             self._parser = ParserFactory().create(std="f2008")
         self._processor = Fparser2Reader()
         SYMBOL_TABLES.clear()
+
+    @staticmethod
+    def validate_name(name):
+        '''
+        Utility method that checks that the supplied name is a valid
+        Fortran name.
+
+        :param str name: the name to check.
+
+        :raises TypeError: if the name is not a string.
+        :raises ValueError: if this is not a valid name.
+
+        '''
+        if not isinstance(name, str):
+            raise TypeError(
+                f"A name should be a string, but found "
+                f"'{type(name).__name__}'.")
+        if not pattern_tools.abs_name.match(name):
+            raise ValueError(
+                f"Invalid Fortran name '{name}' found.")
 
     def psyir_from_source(self, source_code, free_form=True):
         ''' Generate the PSyIR tree representing the given Fortran source code.
@@ -189,7 +209,7 @@ class FortranReader():
         # place to implement caching in order to avoid repeating parsing steps
         # that have already been done before.
 
-        with open(file_path, "r", encoding="utf8") as source:
+        with open(file_path, "r", encoding="utf-8") as source:
             return self.psyir_from_source(source.read(), free_form=free_form)
 
 

@@ -608,6 +608,25 @@
 	frontend to ensure that a PROGRAM with a CONTAINS is captured as
 	a CodeBlock.
 
+	207) PR #2327 towards #2132. Updates the LFRic integration tests
+	to use a Spack environment and the latest HEAD of trunk of LFRic.
+	Also extends the integration tests to upload performance numbers
+	to a GitHub gist.
+
+	208) PR #2154 for #95 and #994. Enforce valid Fortran names for
+	invoke names in the LFRic API.
+
+	209) PR #2332 for #2318. Small bug fix to the LFRic extraction
+	driver creation. eg17/full_example_extract now builds and runs OK.
+
+	210) PR #2287 for #2253. Allow for GH_WRITE access to continuous
+	field arguments to inter-grid kernels in the LFRic API.
+
+	211) PR #2299 for #2297. Add option to get original symbol name
+	(for an imported symbol) in VariablesAccessInfo.
+
+	212) PR #2233 for #1772. Correct kernel metadata for LFRic adjoint code.
+
 release 2.3.1 17th of June 2022
 
 	1) PR #1747 for #1720. Adds support for If blocks to PSyAD.
