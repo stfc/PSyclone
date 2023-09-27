@@ -10,6 +10,11 @@
 !>          \f[ \xi/ \times u (with vorticity \xi and wind u) \f]
 !>          The tangent linear is:
 !>          \f[ \xi/ \times ls_u + ls_\xi/ \times u \f]
+
+! The tweaks in this file 1) replace ANY_SPACE_9 with WCHI, 2) split
+! the transpose intrinsic onto its own line and 3) inline the
+! cross_product code.
+
 module tl_vorticity_advection_kernel_mod
 use kernel_mod,              only: kernel_type
 use argument_mod,            only: arg_type, func_type,                 &

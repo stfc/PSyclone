@@ -387,14 +387,27 @@ def test_symbol_array_detection(fortran_reader):
 def test_variables_access_info_options():
     '''Test handling of options for VariablesAccessInfo.
     '''
-    vai = VariablesAccessInfo(options={'COLLECT-ARRAY-SHAPE-READS': True})
+    vai = VariablesAccessInfo()
+    assert vai.options("COLLECT-ARRAY-SHAPE-READS") is False
+    assert vai.options("USE-ORIGINAL-NAMES") is False
 
+    vai = VariablesAccessInfo(options={'COLLECT-ARRAY-SHAPE-READS': True})
     assert vai.options("COLLECT-ARRAY-SHAPE-READS") is True
-    assert vai.options() == {'COLLECT-ARRAY-SHAPE-READS': True}
+    assert vai.options("USE-ORIGINAL-NAMES") is False
+    assert vai.options() == {"COLLECT-ARRAY-SHAPE-READS": True,
+                             "USE-ORIGINAL-NAMES": False}
+
+    vai = VariablesAccessInfo(options={'USE-ORIGINAL-NAMES': True})
+    assert vai.options("COLLECT-ARRAY-SHAPE-READS") is False
+    assert vai.options("USE-ORIGINAL-NAMES") is True
+    assert vai.options() == {"COLLECT-ARRAY-SHAPE-READS": False,
+                             "USE-ORIGINAL-NAMES": True}
+
     with pytest.raises(InternalError) as err:
         vai.options("invalid")
     assert ("Option key 'invalid' is invalid, it must be one of "
-            "['COLLECT-ARRAY-SHAPE-READS']." in str(err.value))
+            "['COLLECT-ARRAY-SHAPE-READS', 'USE-ORIGINAL-NAMES']."
+            in str(err.value))
 
 
 # -----------------------------------------------------------------------------

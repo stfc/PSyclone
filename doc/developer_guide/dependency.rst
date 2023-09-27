@@ -339,6 +339,15 @@ constructor can be used: add the key
 In this case all arrays specified as first parameter to one of the
 PSyIR operators above will be reported as read access.
 
+Fortran also allows to rename a symbol locally when it is being imported,
+(`use some_mod, only: renamed => original_name`). Depending on use case,
+it might be useful to get the non-local, original name. By default,
+`VariablesAccessInfo` will report the local name (i.e. the renamed name),
+but if you add the key `USE-ORIGINAL-NAMES` and set it to True::
+
+    vai = VariablesAccessInfo(options={'USE-ORIGINAL-NAMES': True})
+
+the original name will be returned in the `VariablesAccessInfo` object.
 
 SingleVariableAccessInfo
 ------------------------

@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford STFC Daresbury Lab
+# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' Performs py.test tests on the Call PSyIR node. '''
@@ -188,7 +188,7 @@ def test_call_create_error3():
         _ = Call.create(
             routine, [Reference(DataSymbol(
                 "arg1", INTEGER_TYPE)), (" a", None)])
-    assert "Invalid name ' a' found." in str(info.value)
+    assert "Invalid Fortran name ' a' found." in str(info.value)
 
 
 def test_call_create_error4():
@@ -267,12 +267,12 @@ def test_call_appendnamedarg():
     # name arg wrong type
     with pytest.raises(TypeError) as info:
         call.append_named_arg(1, op1)
-    assert ("A name should be a string or None, but found int."
+    assert ("A name should be a string, but found 'int'."
             in str(info.value))
     # invalid name
     with pytest.raises(ValueError) as info:
         call.append_named_arg("_", op1)
-    assert "Invalid name '_' found." in str(info.value)
+    assert "Invalid Fortran name '_' found." in str(info.value)
     # name arg already used
     call.append_named_arg("name1", op1)
     with pytest.raises(ValueError) as info:
@@ -300,12 +300,12 @@ def test_call_insertnamedarg():
     # name arg wrong type
     with pytest.raises(TypeError) as info:
         call.insert_named_arg(1, op1, 0)
-    assert ("A name should be a string or None, but found int."
+    assert ("A name should be a string, but found 'int'."
             in str(info.value))
     # invalid name
     with pytest.raises(ValueError) as info:
         call.insert_named_arg("1", op1, 0)
-    assert "Invalid name '1' found." in str(info.value)
+    assert "Invalid Fortran name '1' found." in str(info.value)
     # name arg already used
     call.insert_named_arg("name1", op1, 0)
     with pytest.raises(ValueError) as info:
@@ -362,41 +362,6 @@ def test_call_replacenamedarg():
     assert call.argument_names == ["name1", "name2"]
     assert call._argument_names[0][0] == id(op3)
     assert call._argument_names[1][0] == id(op2)
-
-
-def test_validate_name_type():
-    '''Test that the _validate_name utility raise an error if the wrong
-    type is provided and returns successfully if the expected type is
-    provided.
-
-    '''
-    call = Call(RoutineSymbol("x"))
-    # invalid type
-    with pytest.raises(TypeError) as info:
-        call._validate_name(2)
-    assert ("A name should be a string or None, but found int."
-            in str(info.value))
-    # ok
-    call._validate_name(None)
-    # ok
-    call._validate_name("hello")
-
-
-@pytest.mark.parametrize("name", ["", "0", "_", " a", "a ", "a*"])
-def test_validate_name_invalid(name):
-    '''Test the _validate_name utility raises the expected exception when
-    the supplied name is invalid.'''
-    call = Call(RoutineSymbol("x"))
-    with pytest.raises(ValueError) as info:
-        call._validate_name(name)
-    assert f"Invalid name '{name}' found." in str(info.value)
-
-
-@pytest.mark.parametrize("name", ["a", "A", "aA", "a1", "a_", "a3B_"])
-def test_validate_name_valid(name):
-    '''Test the _validate_name utility accepts valid names.'''
-    call = Call(RoutineSymbol("x"))
-    call._validate_name(name)
 
 
 def test_call_reference_accesses():
