@@ -6,6 +6,11 @@
 
 !> @brief Tangent linear for computing the projection of the pressure field
 !!        into the same space as density.
+
+! Tweaked this kernel to allow it to run through PSyAD by removing the
+! use of the tl_calc_exner_pointwise function and declare the
+! variables kappa, Rd and p_zero with the correct type.
+
 module tl_project_eos_pressure_kernel_mod
 
   use argument_mod,      only : arg_type, func_type,       &
