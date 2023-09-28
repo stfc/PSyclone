@@ -8074,6 +8074,8 @@ class DynKern(CodedKern):
             # then one option would be to use the FortranWriter, but
             # that would be bigger overhead, or perhaps just the
             # declarations part of FortranWriter if that is possible.
+            # Also see issue #2336 which captures the specific problem
+            # in LFRic that this fixes.
             routine.debug_string()
 
         if len(routines) == 1:

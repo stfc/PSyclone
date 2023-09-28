@@ -1402,6 +1402,11 @@ class SymbolTable():
                 # symbol table if a symbol with the same name does not
                 # already exist in this symbol table.
 
+                # There are potential issues with this approach and
+                # with the routine in general which are captured in
+                # issue #2331. Issue #2271 may also help/fix some or
+                # all of the problems too.
+
                 # Import here to avoid circular dependencies
                 # pylint: disable=import-outside-toplevel
                 from psyclone.psyir.nodes import ScopingNode
