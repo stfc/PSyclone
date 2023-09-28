@@ -34,7 +34,7 @@
 # Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 #         A. B. G. Chalk STFC Daresbury Lab
 #         J. Henrichs, Bureau of Meteorology
-# Modified I. Kavcic, Met Office
+# Modified I. Kavcic and O. Brunt, Met Office
 # Modified J. G. Wallwork, Met Office
 
 ''' This module provides the various transformations that can be applied to
@@ -50,7 +50,7 @@ from psyclone import psyGen
 from psyclone.configuration import Config
 from psyclone.core import Signature, VariablesAccessInfo
 from psyclone.domain.lfric import KernCallArgList, LFRicConstants
-from psyclone.dynamo0p3 import DynHaloExchangeEnd, DynHaloExchangeStart, \
+from psyclone.dynamo0p3 import LFRicHaloExchangeEnd, LFRicHaloExchangeStart, \
     DynInvokeSchedule, DynKern
 from psyclone.errors import InternalError
 from psyclone.gocean1p0 import GOInvokeSchedule
@@ -1860,12 +1860,12 @@ class Dynamo0p3AsyncHaloExchangeTrans(Transformation):
         # exchange
         # pylint: disable=protected-access
         node.parent.addchild(
-            DynHaloExchangeStart(
+            LFRicHaloExchangeStart(
                 node.field, check_dirty=node._check_dirty,
                 vector_index=node.vector_index, parent=node.parent),
             index=node.position)
         node.parent.addchild(
-            DynHaloExchangeEnd(
+            LFRicHaloExchangeEnd(
                 node.field, check_dirty=node._check_dirty,
                 vector_index=node.vector_index, parent=node.parent),
             index=node.position)
@@ -1888,7 +1888,7 @@ class Dynamo0p3AsyncHaloExchangeTrans(Transformation):
 
         '''
         if not isinstance(node, psyGen.HaloExchange) or \
-           isinstance(node, (DynHaloExchangeStart, DynHaloExchangeEnd)):
+           isinstance(node, (LFRicHaloExchangeStart, LFRicHaloExchangeEnd)):
             raise TransformationError(
                 f"Error in Dynamo0p3AsyncHaloExchange transformation. Supplied"
                 f" node must be a synchronous halo exchange but found "

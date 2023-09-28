@@ -3756,22 +3756,24 @@ class DynMeshes():
             base_name = "ncolour_" + carg_name
             ncolours = sym_tab.find_or_create_integer_symbol(
                 base_name, tag=base_name)
-            # Array holding the last halo or edge cell of a given colour
-            # and halo depth.
-            if Config.get().distributed_memory:
+            # Array holding the last cell of a given colour.
+            if (Config.get().distributed_memory and
+                    not call.all_updates_are_writes):
+                # This will require a loop into the halo and so the array is
+                # 2D (indexed by colour *and* halo depth).
                 base_name = "last_halo_cell_all_colours_" + carg_name
                 last_cell = self._schedule.symbol_table.find_or_create_array(
-                    base_name, 2, ScalarType.Intrinsic.INTEGER,
-                    tag=base_name)
+                    base_name, 2, ScalarType.Intrinsic.INTEGER, tag=base_name)
             else:
+                # Array holding the last edge cell of a given colour. Just 1D
+                # as indexed by colour only.
                 base_name = "last_edge_cell_all_colours_" + carg_name
                 last_cell = self._schedule.symbol_table.find_or_create_array(
-                    base_name, 1, ScalarType.Intrinsic.INTEGER,
-                    tag=base_name)
+                    base_name, 1, ScalarType.Intrinsic.INTEGER, tag=base_name)
             # Add these symbols into the dictionary entry for this
             # inter-grid kernel
-            self._ig_kernels[id(call)].set_colour_info(colour_map, ncolours,
-                                                       last_cell)
+            self._ig_kernels[id(call)].set_colour_info(
+                colour_map, ncolours, last_cell)
 
         if have_non_intergrid and (self._needs_colourmap or
                                    self._needs_colourmap_halo):
@@ -3799,7 +3801,7 @@ class DynMeshes():
         Declare variables specific to mesh objects.
 
         :param parent: the parent node to which to add the declarations
-        :type parent: an instance of :py:class:`psyclone.f2pygen.BaseGen`
+        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
 
         '''
         # pylint: disable=too-many-locals, too-many-statements
@@ -3863,13 +3865,12 @@ class DynMeshes():
                     DeclGen(parent, datatype="integer",
                             kind=api_config.default_kind["integer"],
                             entity_decls=[kern.ncolours_var_symbol.name]))
-                decln = kern.last_cell_var_symbol.name
-                if Config.get().distributed_memory:
-                    # If DM is enabled then the cell-count array is 2D because
-                    # it has a halo-depth dimension.
-                    decln += "(:,:)"
-                else:
-                    decln += "(:)"
+                # The cell-count array is 2D if we go into the halo and 1D
+                # otherwise (i.e. no DM or this kernel is GH_WRITE only and
+                # does not access the halo).
+                dim_list = len(kern.last_cell_var_symbol.datatype.shape)*":"
+                decln = (f"{kern.last_cell_var_symbol.name}("
+                         f"{','.join(dim_list)})")
                 parent.add(
                     DeclGen(parent, datatype="integer", allocatable=True,
                             kind=api_config.default_kind["integer"],
@@ -3914,7 +3915,7 @@ class DynMeshes():
         Initialise parameters specific to inter-grid kernels.
 
         :param parent: the parent node to which to add the initialisations.
-        :type parent: an instance of :py:class:`psyclone.f2pygen.BaseGen`
+        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
 
         '''
         # pylint: disable=too-many-branches
@@ -4065,11 +4066,15 @@ class DynMeshes():
                 parent.add(AssignGen(parent, lhs=dig.colourmap_symbol.name,
                                      pointer=True,
                                      rhs=coarse_mesh + "%get_colour_map()"))
-                if Config.get().distributed_memory:
+                # Last halo/edge cell per colour.
+                sym = dig.last_cell_var_symbol
+                if len(sym.datatype.shape) == 2:
+                    # Array is 2D so is a halo access.
                     name = "%get_last_halo_cell_all_colours()"
                 else:
+                    # Array is just 1D so go to the last edge cell.
                     name = "%get_last_edge_cell_all_colours()"
-                parent.add(AssignGen(parent, lhs=dig.last_cell_var_symbol.name,
+                parent.add(AssignGen(parent, lhs=sym.name,
                                      rhs=coarse_mesh + name))
 
     @property
@@ -4128,7 +4133,9 @@ class DynInterGrid():
         self._colourmap_symbol = None
         # Symbol for the variable holding the number of colours
         self._ncolours_var_symbol = None
-        # Symbol of the variable holding the last cell of a particular colour
+        # Symbol of the variable holding the last cell of a particular colour.
+        # Will be a 2D array if the kernel iteration space includes the halo
+        # and 1D otherwise.
         self._last_cell_var_symbol = None
 
     def set_colour_info(self, colour_map, ncolours, last_cell):
@@ -4139,7 +4146,7 @@ class DynInterGrid():
         :type: colour_map:py:class:`psyclone.psyir.symbols.Symbol`
         :param ncolours: the number of colours.
         :type: ncolours: :py:class:`psyclone.psyir.symbols.Symbol`
-        :param last_cell: the last cell of a particular colour.
+        :param last_cell: the last halo cell of a particular colour.
         :type last_cell: :py:class:`psyclone.psyir.symbols.Symbol`
 
         '''
@@ -4163,7 +4170,7 @@ class DynInterGrid():
 
     @property
     def last_cell_var_symbol(self):
-        ''':returns: the last cell variable.
+        ''':returns: the last halo/edge cell variable.
         :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
         '''
         return self._last_cell_var_symbol
@@ -5376,7 +5383,7 @@ def _create_depth_list(halo_info_list, sym_table):
     return depth_info_list
 
 
-class DynHaloExchange(HaloExchange):
+class LFRicHaloExchange(HaloExchange):
 
     '''Dynamo specific halo exchange class which can be added to and
     manipulated in a schedule.
@@ -5508,14 +5515,14 @@ class DynHaloExchange(HaloExchange):
         '''
         read_dependencies = self.field.forward_read_dependencies()
         hex_deps = [dep for dep in read_dependencies
-                    if isinstance(dep.call, DynHaloExchange)]
+                    if isinstance(dep.call, LFRicHaloExchange)]
         if hex_deps:
             # There is a field accessed by a halo exchange that is
             # a read dependence. As ignore_hex_dep is True this should
             # be ignored so this is removed from the list.
             if any(dep for dep in hex_deps
-                   if isinstance(dep.call, (DynHaloExchangeStart,
-                                            DynHaloExchangeEnd))):
+                   if isinstance(dep.call, (LFRicHaloExchangeStart,
+                                            LFRicHaloExchangeEnd))):
                 raise GenerationError(
                     "Please perform redundant computation transformations "
                     "before asynchronous halo exchange transformations.")
@@ -5530,7 +5537,7 @@ class DynHaloExchange(HaloExchange):
                     f"{self.field.name}.")
             # For sanity, check that the field accessed by the halo
             # exchange is the last dependence in the list.
-            if not isinstance(read_dependencies[-1].call, DynHaloExchange):
+            if not isinstance(read_dependencies[-1].call, LFRicHaloExchange):
                 raise InternalError(
                     "If there is a read dependency associated with a halo "
                     "exchange in the list of read dependencies then it should "
@@ -5793,7 +5800,7 @@ class DynHaloExchange(HaloExchange):
         parent.add(CommentGen(parent, ""))
 
 
-class DynHaloExchangeStart(DynHaloExchange):
+class LFRicHaloExchangeStart(LFRicHaloExchange):
     '''The start of an asynchronous halo exchange. This is similar to a
     regular halo exchange except that the Fortran name of the call is
     different and the routine only reads the data being transferred
@@ -5828,8 +5835,8 @@ class DynHaloExchangeStart(DynHaloExchange):
 
     def __init__(self, field, check_dirty=True,
                  vector_index=None, parent=None):
-        DynHaloExchange.__init__(self, field, check_dirty=check_dirty,
-                                 vector_index=vector_index, parent=parent)
+        LFRicHaloExchange.__init__(self, field, check_dirty=check_dirty,
+                                   vector_index=vector_index, parent=parent)
         # Update the field's access appropriately. Here "gh_read"
         # specifies that the start of a halo exchange only reads
         # the field's data.
@@ -5886,7 +5893,7 @@ class DynHaloExchangeStart(DynHaloExchange):
         object or raises an exception if one is not found.
 
         :return: The corresponding halo exchange end object
-        :rtype: :py:class:`psyclone.dynamo0p3.DynHaloExchangeEnd`
+        :rtype: :py:class:`psyclone.dynamo0p3.LFRicHaloExchangeEnd`
         :raises GenerationError: If no matching HaloExchangeEnd is \
         found, or if the first matching haloexchange that is found is \
         not a HaloExchangeEnd
@@ -5895,14 +5902,14 @@ class DynHaloExchangeStart(DynHaloExchange):
         # Look at all nodes following this one in schedule order
         # (which is PSyIRe node order)
         for node in self.following():
-            if self.sameParent(node) and isinstance(node, DynHaloExchange):
+            if self.sameParent(node) and isinstance(node, LFRicHaloExchange):
                 # Found a following `haloexchange`,
                 # `haloexchangestart` or `haloexchangeend` PSyIRe node
                 # that is at the same calling hierarchy level as this
                 # haloexchangestart
                 access = DataAccess(self.field)
                 if access.overlaps(node.field):
-                    if isinstance(node, DynHaloExchangeEnd):
+                    if isinstance(node, LFRicHaloExchangeEnd):
                         return node
                     raise GenerationError(
                         f"Halo exchange start for field '{self.field.name}' "
@@ -5916,7 +5923,7 @@ class DynHaloExchangeStart(DynHaloExchange):
             f"matching halo exchange end")
 
 
-class DynHaloExchangeEnd(DynHaloExchange):
+class LFRicHaloExchangeEnd(LFRicHaloExchange):
     '''The end of an asynchronous halo exchange. This is similar to a
     regular halo exchange except that the Fortran name of the call is
     different and the routine only writes to the data being
@@ -5943,8 +5950,8 @@ class DynHaloExchangeEnd(DynHaloExchange):
 
     def __init__(self, field, check_dirty=True,
                  vector_index=None, parent=None):
-        DynHaloExchange.__init__(self, field, check_dirty=check_dirty,
-                                 vector_index=vector_index, parent=parent)
+        LFRicHaloExchange.__init__(self, field, check_dirty=check_dirty,
+                                   vector_index=vector_index, parent=parent)
         # Update field properties appropriately. The associated field is
         # written to. However, a readwrite field access needs to be
         # specified as this is required for the halo exchange logic to
@@ -6942,9 +6949,9 @@ class DynLoop(PSyLoop):
             exchanges.
 
         '''
-        exchange = DynHaloExchange(halo_field,
-                                   parent=self.parent,
-                                   vector_index=idx)
+        exchange = LFRicHaloExchange(halo_field,
+                                     parent=self.parent,
+                                     vector_index=idx)
         self.parent.children.insert(self.position,
                                     exchange)
 
@@ -7018,7 +7025,7 @@ class DynLoop(PSyLoop):
                 if arg.access in AccessType.all_write_accesses():
                     dep_arg_list = arg.forward_read_dependencies()
                     for dep_arg in dep_arg_list:
-                        if isinstance(dep_arg.call, DynHaloExchange):
+                        if isinstance(dep_arg.call, LFRicHaloExchange):
                             # found a halo exchange as a forward dependence
                             # ask the halo exchange if it is required
                             halo_exchange = dep_arg.call
@@ -7068,12 +7075,12 @@ class DynLoop(PSyLoop):
                             f"dependencies is '{halo_field.vector_size}' and "
                             f"the vector size is '{len(prev_arg_list)}'.")
                     for arg in prev_arg_list:
-                        if not isinstance(arg.call, DynHaloExchange):
+                        if not isinstance(arg.call, LFRicHaloExchange):
                             raise GenerationError(
                                 "Error in create_halo_exchanges. Expecting "
                                 "all dependent nodes to be halo exchanges")
                 prev_node = prev_arg_list[0].call
-                if not isinstance(prev_node, DynHaloExchange):
+                if not isinstance(prev_node, LFRicHaloExchange):
                     # previous dependence is not a halo exchange so
                     # call the add halo exchange logic which
                     # determines whether a halo exchange is required
@@ -7758,19 +7765,20 @@ class DynKern(CodedKern):
         if not self.is_coloured():
             raise InternalError(f"Kernel '{self.name}' is not inside a "
                                 f"coloured loop.")
+
         if self._is_intergrid:
             invoke = self.ancestor(InvokeSchedule).invoke
             if id(self) not in invoke.meshes.intergrid_kernels:
                 raise InternalError(
                     f"Colourmap information for kernel '{self.name}' has "
                     f"not yet been initialised")
-            return invoke.meshes.intergrid_kernels[id(self)].\
-                last_cell_var_symbol
+            return (invoke.meshes.intergrid_kernels[id(self)].
+                    last_cell_var_symbol)
 
+        ubnd_name = self.ancestor(Loop).upper_bound_name
         const = LFRicConstants()
 
-        if (self.ancestor(Loop).upper_bound_name in
-                const.HALO_ACCESS_LOOP_BOUNDS):
+        if (ubnd_name in const.HALO_ACCESS_LOOP_BOUNDS):
             return self.scope.symbol_table.find_or_create_array(
                 "last_halo_cell_all_colours", 2,
                 ScalarType.Intrinsic.INTEGER,
@@ -7866,14 +7874,11 @@ class DynKern(CodedKern):
     @property
     def all_updates_are_writes(self):
         '''
-        :returns: True if all of the arguments updated by this kernel have \
+        :returns: True if all of the arguments updated by this kernel have
                   'GH_WRITE' access, False otherwise.
         :rtype: bool
 
         '''
-        if self.is_intergrid:
-            # This is not a special kernel
-            return False
         accesses = set(arg.access for arg in self.args)
         all_writes = AccessType.all_write_accesses()
         all_writes.remove(AccessType.WRITE)
@@ -9636,9 +9641,9 @@ __all__ = [
     'DynBoundaryConditions',
     'DynInvokeSchedule',
     'DynGlobalSum',
-    'DynHaloExchange',
-    'DynHaloExchangeStart',
-    'DynHaloExchangeEnd',
+    'LFRicHaloExchange',
+    'LFRicHaloExchangeStart',
+    'LFRicHaloExchangeEnd',
     'HaloDepth',
     'HaloWriteAccess',
     'HaloReadAccess',

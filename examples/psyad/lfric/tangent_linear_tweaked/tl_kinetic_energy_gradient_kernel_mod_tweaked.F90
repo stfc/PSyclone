@@ -11,6 +11,11 @@
 !>          The tangent linear is:
 !>          \f[ \nabla(u . ls_u) \f] where u is the perturbation and
 !>          ls_u is the linearisation state.
+
+! Tweaked this kernel to allow it to run through PSyAD by replacing
+! ANY_SPACE_9 with WCHI and splitting dot_product onto its own line
+! rather than it having matmul as arguments.
+
 module tl_kinetic_energy_gradient_kernel_mod
 
   use argument_mod,      only : arg_type, func_type,       &
