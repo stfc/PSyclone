@@ -627,6 +627,10 @@
 
 	212) PR #2233 for #1772. Correct kernel metadata for LFRic adjoint code.
 
+	213) PR #2334. Fix missing backtick in docstrings.
+
+	214) PR #2306 for #2305. Rename DynHaloExchange to LFRicHaloExchange.
+
 release 2.3.1 17th of June 2022
 
 	1) PR #1747 for #1720. Adds support for If blocks to PSyAD.

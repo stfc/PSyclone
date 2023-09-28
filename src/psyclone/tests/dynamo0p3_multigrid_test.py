@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified I. Kavcic, Met Office
+# Modified I. Kavcic and O. Brunt, Met Office
 # Modified by J. Henrichs, Bureau of Meteorology
 
 ''' This module contains tests for the inter-grid part of the LFRic API
@@ -45,7 +45,8 @@ import fparser
 from fparser import api as fpapi
 from psyclone.configuration import Config
 from psyclone.domain.lfric import LFRicConstants
-from psyclone.dynamo0p3 import DynHaloExchange, DynKernMetadata, HaloReadAccess
+from psyclone.dynamo0p3 import (LFRicHaloExchange, DynKernMetadata,
+                                HaloReadAccess)
 from psyclone.errors import GenerationError, InternalError
 from psyclone.gen_kernel_stub import generate
 from psyclone.parse.algorithm import parse
@@ -708,7 +709,7 @@ def test_fine_halo_read():
     psy = PSyFactory(API, distributed_memory=True).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
     hexch = schedule.children[5]
-    assert isinstance(hexch, DynHaloExchange)
+    assert isinstance(hexch, LFRicHaloExchange)
     assert hexch._compute_halo_depth() == '2'
     call = schedule.children[6]
     field = call.args[1]
