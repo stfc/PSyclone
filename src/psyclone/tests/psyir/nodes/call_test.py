@@ -31,14 +31,15 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford STFC Daresbury Lab
+# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' Performs py.test tests on the Call PSyIR node. '''
 
 import pytest
+from psyclone.core import Signature, VariablesAccessInfo
 from psyclone.psyir.nodes import (
-    Call, Reference, ArrayReference, Schedule, Literal)
+    BinaryOperation, Call, Reference, ArrayReference, Schedule, Literal)
 from psyclone.psyir.nodes.node import colored
 from psyclone.psyir.symbols import ArrayType, INTEGER_TYPE, DataSymbol, \
     RoutineSymbol, NoType, REAL_TYPE
@@ -90,6 +91,14 @@ def test_call_is_pure():
     routine = RoutineSymbol("beeblebrox", NoType(), is_pure=True)
     call = Call(routine)
     assert call.is_pure is True
+
+
+def test_call_is_available_on_device():
+    '''Test the is_available_on_device() method of a Call (currently always
+    returns False). '''
+    routine = RoutineSymbol("zaphod", NoType())
+    call = Call(routine)
+    assert call.is_available_on_device() is False
 
 
 def test_call_equality():
@@ -179,7 +188,7 @@ def test_call_create_error3():
         _ = Call.create(
             routine, [Reference(DataSymbol(
                 "arg1", INTEGER_TYPE)), (" a", None)])
-    assert "Invalid name ' a' found." in str(info.value)
+    assert "Invalid Fortran name ' a' found." in str(info.value)
 
 
 def test_call_create_error4():
@@ -258,12 +267,12 @@ def test_call_appendnamedarg():
     # name arg wrong type
     with pytest.raises(TypeError) as info:
         call.append_named_arg(1, op1)
-    assert ("A name should be a string or None, but found int."
+    assert ("A name should be a string, but found 'int'."
             in str(info.value))
     # invalid name
     with pytest.raises(ValueError) as info:
         call.append_named_arg("_", op1)
-    assert "Invalid name '_' found." in str(info.value)
+    assert "Invalid Fortran name '_' found." in str(info.value)
     # name arg already used
     call.append_named_arg("name1", op1)
     with pytest.raises(ValueError) as info:
@@ -291,12 +300,12 @@ def test_call_insertnamedarg():
     # name arg wrong type
     with pytest.raises(TypeError) as info:
         call.insert_named_arg(1, op1, 0)
-    assert ("A name should be a string or None, but found int."
+    assert ("A name should be a string, but found 'int'."
             in str(info.value))
     # invalid name
     with pytest.raises(ValueError) as info:
         call.insert_named_arg("1", op1, 0)
-    assert "Invalid name '1' found." in str(info.value)
+    assert "Invalid Fortran name '1' found." in str(info.value)
     # name arg already used
     call.insert_named_arg("name1", op1, 0)
     with pytest.raises(ValueError) as info:
@@ -355,39 +364,50 @@ def test_call_replacenamedarg():
     assert call._argument_names[1][0] == id(op2)
 
 
-def test_validate_name_type():
-    '''Test that the _validate_name utility raise an error if the wrong
-    type is provided and returns successfully if the expected type is
-    provided.
-
-    '''
-    call = Call(RoutineSymbol("x"))
-    # invalid type
-    with pytest.raises(TypeError) as info:
-        call._validate_name(2)
-    assert ("A name should be a string or None, but found int."
-            in str(info.value))
-    # ok
-    call._validate_name(None)
-    # ok
-    call._validate_name("hello")
-
-
-@pytest.mark.parametrize("name", ["", "0", "_", " a", "a ", "a*"])
-def test_validate_name_invalid(name):
-    '''Test the _validate_name utility raises the expected exception when
-    the supplied name is invalid.'''
-    call = Call(RoutineSymbol("x"))
-    with pytest.raises(ValueError) as info:
-        call._validate_name(name)
-    assert f"Invalid name '{name}' found." in str(info.value)
-
-
-@pytest.mark.parametrize("name", ["a", "A", "aA", "a1", "a_", "a3B_"])
-def test_validate_name_valid(name):
-    '''Test the _validate_name utility accepts valid names.'''
-    call = Call(RoutineSymbol("x"))
-    call._validate_name(name)
+def test_call_reference_accesses():
+    '''Test the reference_accesses() method.'''
+    rsym = RoutineSymbol("trillian")
+    # A call with an argument passed by value.
+    call1 = Call.create(rsym, [Literal("1", INTEGER_TYPE)])
+    var_info = VariablesAccessInfo()
+    call1.reference_accesses(var_info)
+    assert not var_info.all_signatures
+    dsym = DataSymbol("beta", INTEGER_TYPE)
+    # Simple argument passed by reference.
+    call2 = Call.create(rsym, [Reference(dsym)])
+    call2.reference_accesses(var_info)
+    assert var_info.has_read_write(Signature("beta"))
+    # Array access argument. The array should be READWRITE, any variable in
+    # the index expression should be READ.
+    idx_sym = DataSymbol("ji", INTEGER_TYPE)
+    asym = DataSymbol("gamma", ArrayType(INTEGER_TYPE, shape=[10]))
+    aref = ArrayReference.create(asym, [Reference(idx_sym)])
+    call3 = Call.create(rsym, [aref])
+    call3.reference_accesses(var_info)
+    assert var_info.has_read_write(Signature("gamma"))
+    assert var_info.is_read(Signature("ji"))
+    # Argument is a temporary so any inputs to it are READ only.
+    expr = BinaryOperation.create(BinaryOperation.Operator.MUL,
+                                  Literal("2", INTEGER_TYPE), Reference(dsym))
+    call4 = Call.create(rsym, [expr])
+    var_info = VariablesAccessInfo()
+    call4.reference_accesses(var_info)
+    assert var_info.is_read(Signature("beta"))
+    # Argument is itself a function call: call trillian(some_func(gamma(ji)))
+    fsym = RoutineSymbol("some_func")
+    fcall = Call.create(fsym,
+                        [ArrayReference.create(asym, [Reference(idx_sym)])])
+    call5 = Call.create(rsym, [fcall])
+    call5.reference_accesses(var_info)
+    assert var_info.has_read_write(Signature("gamma"))
+    assert var_info.is_read(Signature("ji"))
+    # Call to a PURE routine - arguments should be READ only.
+    puresym = RoutineSymbol("dirk", is_pure=True)
+    call6 = Call.create(puresym, [Reference(dsym)])
+    var_info = VariablesAccessInfo()
+    call6.reference_accesses(var_info)
+    assert var_info.is_read(Signature("beta"))
+    assert not var_info.is_written(Signature("beta"))
 
 
 def test_call_argumentnames_after_removearg():

@@ -35,7 +35,7 @@
 # Modified I. Kavcic, Met Office
 # Modified by J. Henrichs, Bureau of Meteorology
 
-''' This module contains tests for the multi-grid part of the LFRic API
+''' This module contains tests for the inter-grid part of the LFRic API
     using pytest. '''
 
 import os
@@ -501,6 +501,34 @@ def test_field_restrict(tmpdir, dist_mem, monkeypatch, annexed):
     if dist_mem:
         set_dirty = "      CALL field1_proxy%set_dirty()\n"
         assert set_dirty in output
+
+
+def test_cont_field_restrict(tmpdir, dist_mem, monkeypatch, annexed):
+    '''
+    Test that we generate correct code for an invoke containing a
+    single restriction operation (read from field on a fine mesh,
+    write to field on a coarse mesh) when the field is on a continuous
+    function space but has GH_WRITE access (so that there is no need
+    to perform redundant computation to get the correct values for
+    annexed dofs).
+
+    '''
+
+    config = Config.get()
+    dyn_config = config.api_conf("dynamo0.3")
+    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
+
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "22.1.1_intergrid_cont_restrict.f90"),
+                           api=API)
+    psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
+    output = str(psy.gen)
+    if dist_mem:
+        assert "loop0_stop = mesh_field1%get_last_edge_cell()" in output
+    else:
+        assert "loop0_stop = field1_proxy%vspace%get_ncell()" in output
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_restrict_prolong_chain(tmpdir, dist_mem):

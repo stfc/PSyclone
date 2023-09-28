@@ -1007,7 +1007,7 @@ class SymbolTable():
 
         # pylint: disable=unidiomatic-typecheck
         if not (isinstance(symbol, (ContainerSymbol, RoutineSymbol)) or
-                type(symbol) == Symbol):
+                type(symbol) is Symbol):
             raise NotImplementedError(
                 f"remove() currently only supports generic Symbol, "
                 f"ContainerSymbol and RoutineSymbol types but got: "
@@ -1431,7 +1431,7 @@ class SymbolTable():
                     # otherwise ignore this step.
                     if isinstance(symbol, type(symbol_match)):
                         # pylint: disable=unidiomatic-typecheck
-                        if type(symbol) != type(symbol_match):
+                        if type(symbol) is not type(symbol_match):
                             if isinstance(symbol, TypedSymbol):
                                 # All TypedSymbols have a mandatory datatype
                                 # argument
@@ -1665,7 +1665,7 @@ class SymbolTable():
         :rtype: bool
         '''
         # pylint: disable=unidiomatic-typecheck
-        if type(self) != type(other):
+        if type(self) is not type(other):
             return False
         this_lines = self.view().split('\n')
         other_lines = other.view().split('\n')

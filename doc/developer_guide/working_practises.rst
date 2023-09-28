@@ -581,6 +581,16 @@ the LFRic model (available in the self-hosted runner). Two tests are performed:
     the ``examples/lfric/scripts/everything_everywhere_all_at_once.py`` script
     and then compiled and run 6-way parallel using OpenMP threading.
 
+Some of the LFRic and NEMO integration tests also store, and upload, their
+performance results
+`into a Github Gist <https://gist.github.com/a4049a0fc0a0a11651a5ce6a04d76160>`_.
+These results can track the performance improvements and degradations that
+psyclone scripts suffered from each change for LFRic and NEMO applications.
+However, one must note that the test runner does not have exclusive access to
+the testing system, and some results may be impacted by other users using the
+system at the same time.
+
+
 Performance
 ===========
 

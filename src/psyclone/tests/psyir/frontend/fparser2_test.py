@@ -65,8 +65,7 @@ from psyclone.psyir.symbols import (
     DataSymbol, ContainerSymbol, SymbolTable, ArgumentInterface,
     SymbolError, ScalarType, ArrayType, INTEGER_TYPE, REAL_TYPE,
     UnknownFortranType, DeferredType, Symbol, UnresolvedInterface,
-    ImportInterface, BOOLEAN_TYPE, StaticInterface, UnknownInterface,
-    AutomaticInterface, DefaultModuleInterface)
+    ImportInterface, BOOLEAN_TYPE, StaticInterface, UnknownInterface)
 
 # pylint: disable=too-many-statements
 
@@ -157,72 +156,73 @@ def test_is_bound_full_extent():
 
     with pytest.raises(TypeError) as excinfo:
         _is_bound_full_extent(array_reference, 1, None)
-    assert ("'operator' argument  expected to be LBOUND or UBOUND but found "
+    assert ("'intrinsic' argument  expected to be LBOUND or UBOUND but found "
             "'NoneType'" in str(excinfo.value))
 
     # Expecting BinaryOperation but found Literal
     assert not _is_bound_full_extent(array_reference, 1,
-                                     BinaryOperation.Operator.UBOUND)
+                                     IntrinsicCall.Intrinsic.UBOUND)
 
-    operator = BinaryOperation.create(
-        BinaryOperation.Operator.UBOUND, one.copy(), one.copy())
+    operator = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.UBOUND,
+        [one.copy(), ("dim", one.copy())])
     my_range = Range.create(operator, one.copy())
     array_reference = ArrayReference.create(symbol, [my_range])
 
-    # Expecting operator to be Operator.LBOUND, but found
-    # Operator.UBOUND
+    # Expecting intrinsic to be LBOUND, but found UBOUND
     assert not _is_bound_full_extent(array_reference, 1,
-                                     BinaryOperation.Operator.LBOUND)
+                                     IntrinsicCall.Intrinsic.LBOUND)
 
-    operator = BinaryOperation.create(
-        BinaryOperation.Operator.LBOUND, one.copy(), one.copy())
+    operator = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.LBOUND,
+        [one.copy(), ("dim", one.copy())])
     my_range = Range.create(operator, one.copy())
     array_reference = ArrayReference.create(symbol, [my_range])
 
     # Expecting Reference but found Literal
     assert not _is_bound_full_extent(array_reference, 1,
-                                     BinaryOperation.Operator.LBOUND)
+                                     IntrinsicCall.Intrinsic.LBOUND)
 
-    operator = BinaryOperation.create(
-        BinaryOperation.Operator.LBOUND,
-        Reference(DataSymbol("x", INTEGER_TYPE)), one.copy())
+    operator = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.LBOUND,
+        [Reference(DataSymbol("x", INTEGER_TYPE)), ("dim", one.copy())])
     my_range = Range.create(operator, one.copy())
     array_reference = ArrayReference.create(symbol, [my_range])
 
     # Expecting Reference symbol x to be the same as array symbol a
     assert not _is_bound_full_extent(array_reference, 1,
-                                     BinaryOperation.Operator.LBOUND)
+                                     IntrinsicCall.Intrinsic.LBOUND)
 
-    operator = BinaryOperation.create(
-        BinaryOperation.Operator.LBOUND,
-        Reference(symbol), Literal("1.0", REAL_TYPE))
+    operator = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.LBOUND,
+        [Reference(symbol), ("dim", Literal("1.0", REAL_TYPE))])
     my_range = Range.create(operator, one.copy())
     array_reference = ArrayReference.create(symbol, [my_range])
 
     # Expecting integer but found real
     assert not _is_bound_full_extent(array_reference, 1,
-                                     BinaryOperation.Operator.LBOUND)
+                                     IntrinsicCall.Intrinsic.LBOUND)
 
-    operator = BinaryOperation.create(
-        BinaryOperation.Operator.LBOUND,
-        Reference(symbol), Literal("2", INTEGER_TYPE))
+    operator = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.LBOUND,
+        [Reference(symbol), ("dim", Literal("2", INTEGER_TYPE))])
     my_range = Range.create(operator, one.copy())
     array_reference = ArrayReference.create(symbol, [my_range])
 
     # Expecting literal value 2 to be the same as the current array
     # dimension 1
     assert not _is_bound_full_extent(array_reference, 1,
-                                     BinaryOperation.Operator.LBOUND)
+                                     IntrinsicCall.Intrinsic.LBOUND)
 
-    operator = BinaryOperation.create(
-        BinaryOperation.Operator.LBOUND,
-        Reference(symbol), Literal("1", INTEGER_TYPE))
+    operator = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.LBOUND,
+        [Reference(symbol), ("dim", Literal("1", INTEGER_TYPE))])
     my_range = Range.create(operator, one.copy())
     array_reference = ArrayReference.create(symbol, [my_range])
 
     # valid
     assert _is_bound_full_extent(array_reference, 1,
-                                 BinaryOperation.Operator.LBOUND)
+                                 IntrinsicCall.Intrinsic.LBOUND)
 
 
 def test_is_array_range_literal():
@@ -238,9 +238,9 @@ def test_is_array_range_literal():
     one = Literal("1", INTEGER_TYPE)
     array_type = ArrayType(REAL_TYPE, [20])
     symbol = DataSymbol('a', array_type)
-    operator = BinaryOperation.create(
-        BinaryOperation.Operator.LBOUND,
-        Reference(symbol), Literal("1", INTEGER_TYPE))
+    operator = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.LBOUND,
+        [Reference(symbol), ("dim", Literal("1", INTEGER_TYPE))])
     my_range = Range.create(operator, one)
     array_reference = ArrayReference.create(symbol, [my_range])
 
@@ -294,12 +294,12 @@ def test_is_range_full_extent():
     one = Literal("1", INTEGER_TYPE)
     array_type = ArrayType(REAL_TYPE, [2])
     symbol = DataSymbol('a', array_type)
-    lbound_op = BinaryOperation.create(
-        BinaryOperation.Operator.LBOUND,
-        Reference(symbol), Literal("1", INTEGER_TYPE))
-    ubound_op = BinaryOperation.create(
-        BinaryOperation.Operator.UBOUND,
-        Reference(symbol), Literal("1", INTEGER_TYPE))
+    lbound_op = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.LBOUND,
+        [Reference(symbol), ("dim", Literal("1", INTEGER_TYPE))])
+    ubound_op = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.UBOUND,
+        [Reference(symbol), ("dim", Literal("1", INTEGER_TYPE))])
 
     my_range = Range.create(lbound_op, ubound_op, one)
     _ = ArrayReference.create(symbol, [my_range])
@@ -394,12 +394,14 @@ def test_array_notation_rank():
     assert "No array access found in node 'field'" in str(err.value)
 
     # Structure reference with ranges in more than one part reference.
-    lbound = BinaryOperation.create(
-        BinaryOperation.Operator.LBOUND,
-        StructureReference.create(symbol, ["first"]), int_one.copy())
-    ubound = BinaryOperation.create(
-        BinaryOperation.Operator.UBOUND,
-        StructureReference.create(symbol, ["first"]), int_one.copy())
+    lbound = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.LBOUND,
+        [StructureReference.create(symbol, ["first"]),
+         ("dim", int_one.copy())])
+    ubound = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.UBOUND,
+        [StructureReference.create(symbol, ["first"]),
+         ("dim", int_one.copy())])
     my_range = Range.create(lbound, ubound)
     with pytest.raises(InternalError) as err:
         Fparser2Reader._array_notation_rank(
@@ -407,8 +409,8 @@ def test_array_notation_rank():
                                                ("second", [my_range.copy()])]))
     assert ("Found a structure reference containing two or more part "
             "references that have ranges: 'field%first(:)%second("
-            "LBOUND(field%first, 1):UBOUND(field%first, 1))'. This is not "
-            "valid within a WHERE in Fortran." in str(err.value))
+            "LBOUND(field%first, dim=1):UBOUND(field%first, dim=1))'. This is "
+            "not valid within a WHERE in Fortran." in str(err.value))
     # Repeat but this time for an ArrayOfStructuresReference.
     with pytest.raises(InternalError) as err:
         Fparser2Reader._array_notation_rank(
@@ -416,10 +418,10 @@ def test_array_notation_rank():
                                               ["first",
                                                ("second", [my_range.copy()])]))
     assert ("Found a structure reference containing two or more part "
-            "references that have ranges: 'field(LBOUND(field%first, 1):"
-            "UBOUND(field%first, 1))%first%second("
-            "LBOUND(field%first, 1):UBOUND(field%first, 1))'. This is not "
-            "valid within a WHERE in Fortran." in str(err.value))
+            "references that have ranges: 'field(LBOUND(field%first, dim=1):"
+            "UBOUND(field%first, dim=1))%first%second("
+            "LBOUND(field%first, dim=1):UBOUND(field%first, dim=1))'. This is "
+            "not valid within a WHERE in Fortran." in str(err.value))
 
     # An array with no dimensions raises an exception
     array_type = ArrayType(REAL_TYPE, [10])
@@ -435,18 +437,18 @@ def test_array_notation_rank():
     # in that dimension
     array_type = ArrayType(REAL_TYPE, [10, 10, 10])
     symbol = DataSymbol("a", array_type)
-    lbound_op1 = BinaryOperation.create(
-        BinaryOperation.Operator.LBOUND,
-        Reference(symbol), Literal("1", INTEGER_TYPE))
-    ubound_op1 = BinaryOperation.create(
-        BinaryOperation.Operator.UBOUND,
-        Reference(symbol), Literal("1", INTEGER_TYPE))
-    lbound_op3 = BinaryOperation.create(
-        BinaryOperation.Operator.LBOUND,
-        Reference(symbol), Literal("3", INTEGER_TYPE))
-    ubound_op3 = BinaryOperation.create(
-        BinaryOperation.Operator.UBOUND,
-        Reference(symbol), Literal("3", INTEGER_TYPE))
+    lbound_op1 = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.LBOUND,
+        [Reference(symbol), ("dim", Literal("1", INTEGER_TYPE))])
+    ubound_op1 = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.UBOUND,
+        [Reference(symbol), ("dim", Literal("1", INTEGER_TYPE))])
+    lbound_op3 = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.LBOUND,
+        [Reference(symbol), ("dim", Literal("3", INTEGER_TYPE))])
+    ubound_op3 = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.UBOUND,
+        [Reference(symbol), ("dim", Literal("3", INTEGER_TYPE))])
 
     range1 = Range.create(lbound_op1, ubound_op1)
     range2 = Range.create(lbound_op3, ubound_op3)
@@ -705,6 +707,7 @@ def test_get_partial_datatype():
     datatype, init = processor._get_partial_datatype(node, fake_parent, {})
     assert isinstance(datatype, ScalarType)
     assert isinstance(init, Literal)
+    assert init.parent is None
     assert datatype.intrinsic is ScalarType.Intrinsic.INTEGER
     # Check fparser2 tree is unmodified
     assert ids == [id(entry) for entry in walk(node)]
@@ -717,6 +720,7 @@ def test_get_partial_datatype():
     datatype, init = processor._get_partial_datatype(node, fake_parent, {})
     assert isinstance(datatype, ScalarType)
     assert isinstance(init, CodeBlock)
+    assert init.parent is None
     assert datatype.intrinsic is ScalarType.Intrinsic.INTEGER
     # Check fparser2 tree is unmodified
     assert ids == [id(entry) for entry in walk(node)]
@@ -757,6 +761,7 @@ def test_get_partial_datatype():
     datatype, init = processor._get_partial_datatype(node, fake_parent, {})
     assert isinstance(datatype, ScalarType)
     assert isinstance(init, CodeBlock)
+    assert init.parent is None
     assert datatype.intrinsic is ScalarType.Intrinsic.INTEGER
     # Check fparser2 tree is unmodified
     assert ids == [id(entry) for entry in walk(node)]
@@ -1117,13 +1122,14 @@ def test_process_unsupported_declarations(fortran_reader):
     assert isinstance(psyir.children[0].symbol_table.lookup("l").datatype,
                       UnknownFortranType)
 
-    # Unsupported initialisation of a parameter which comes after a valid
-    # initialisation and is then followed by another, valid initialisation
-    # which references the second one.
+    # Test that CodeBlocks and refernces to variables initialised with a
+    # CodeBlock are handled correctly
     reader = FortranStringReader(
-        "INTEGER, PARAMETER :: happy=1, fbsp=SELECTED_REAL_KIND(6,37), "
+        "INTEGER, PARAMETER :: happy=1, fbsp=sin(1), "
         " sad=fbsp")
     fparser2spec = Specification_Part(reader).content[0]
+    # We change SIN for something that creates a CodeBlock
+    fparser2spec.items[2].items[1].items[3].items[1].items[0].string = "CBLOCK"
     processor.process_declarations(fake_parent, [fparser2spec], [])
     fbsym = fake_parent.symbol_table.lookup("fbsp")
     assert fbsym.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
@@ -1784,7 +1790,7 @@ def test_parse_array_dimensions_attributes():
     csym = sym_table.new_symbol("some_mod", symbol_type=ContainerSymbol)
     vsym = sym_table.new_symbol("var3", interface=ImportInterface(csym))
     # pylint: disable=unidiomatic-typecheck
-    assert type(vsym) == Symbol
+    assert type(vsym) is Symbol
     shape = Fparser2Reader._parse_dimensions(fparser2spec, sym_table)
     assert len(shape) == 1
     assert shape[0][0].value == "1"
@@ -2160,9 +2166,9 @@ def test_array_section():
         _check_array(array_reference, ndims=1)
         _check_range(array_reference, dim=1)
         assert _is_bound_full_extent(array_reference, 1,
-                                     BinaryOperation.Operator.LBOUND)
+                                     IntrinsicCall.Intrinsic.LBOUND)
         assert _is_bound_full_extent(array_reference, 1,
-                                     BinaryOperation.Operator.UBOUND)
+                                     IntrinsicCall.Intrinsic.UBOUND)
         assert _is_array_range_literal(
             array_reference, dim=1, index=2, value=1)
     # Simple multi-dimensional
@@ -2174,10 +2180,10 @@ def test_array_section():
             _check_range(array_reference, dim=dim)
             assert _is_bound_full_extent(
                 array_reference, dim,
-                BinaryOperation.Operator.LBOUND)
+                IntrinsicCall.Intrinsic.LBOUND)
             assert _is_bound_full_extent(
                 array_reference, dim,
-                BinaryOperation.Operator.UBOUND)
+                IntrinsicCall.Intrinsic.UBOUND)
             assert _is_array_range_literal(
                 array_reference, dim=dim, index=2, value=1)
     # Simple values
@@ -2188,7 +2194,7 @@ def test_array_section():
     _check_range(array_reference, dim=1)
     assert _is_array_range_literal(array_reference, dim=1, index=0, value=1)
     assert _is_bound_full_extent(array_reference, 1,
-                                 BinaryOperation.Operator.UBOUND)
+                                 IntrinsicCall.Intrinsic.UBOUND)
     assert _is_array_range_literal(array_reference, dim=1, index=2, value=1)
     # dim 2
     _check_range(array_reference, dim=2)
@@ -2203,27 +2209,27 @@ def test_array_section():
     # dim 4
     _check_range(array_reference, dim=4)
     assert _is_bound_full_extent(array_reference, 4,
-                                 BinaryOperation.Operator.LBOUND)
+                                 IntrinsicCall.Intrinsic.LBOUND)
     assert _is_array_range_literal(array_reference, dim=4, index=1, value=2)
     assert _is_array_range_literal(array_reference, dim=4, index=2, value=1)
     # dim 5
     _check_range(array_reference, dim=5)
     assert _is_bound_full_extent(array_reference, 5,
-                                 BinaryOperation.Operator.LBOUND)
+                                 IntrinsicCall.Intrinsic.LBOUND)
     assert _is_array_range_literal(array_reference, dim=5, index=1, value=2)
     assert _is_array_range_literal(array_reference, dim=5, index=2, value=3)
     # dim 6
     _check_range(array_reference, dim=6)
     assert _is_bound_full_extent(array_reference, 6,
-                                 BinaryOperation.Operator.LBOUND)
+                                 IntrinsicCall.Intrinsic.LBOUND)
     assert _is_bound_full_extent(array_reference, 6,
-                                 BinaryOperation.Operator.UBOUND)
+                                 IntrinsicCall.Intrinsic.UBOUND)
     assert _is_array_range_literal(array_reference, dim=6, index=2, value=3)
     # dim 7
     _check_range(array_reference, dim=7)
     assert _is_array_range_literal(array_reference, dim=7, index=0, value=1)
     assert _is_bound_full_extent(array_reference, 7,
-                                 BinaryOperation.Operator.UBOUND)
+                                 IntrinsicCall.Intrinsic.UBOUND)
     assert _is_array_range_literal(array_reference, dim=7, index=2, value=3)
 
     # Simple variables
@@ -2234,7 +2240,7 @@ def test_array_section():
     _check_range(array_reference, dim=1)
     _check_reference(array_reference, dim=1, index=0, name="b")
     assert _is_bound_full_extent(array_reference, 1,
-                                 BinaryOperation.Operator.UBOUND)
+                                 IntrinsicCall.Intrinsic.UBOUND)
     assert _is_array_range_literal(array_reference, dim=1, index=2, value=1)
     # dim 2
     _check_range(array_reference, dim=2)
@@ -2774,7 +2780,7 @@ def test_named_and_wildcard_use_var(f2008_parser):
     avar1 = container.symbol_table.lookup("a_var")
     # It must be a generic Symbol since we don't know anything about it
     # pylint: disable=unidiomatic-typecheck
-    assert type(avar1) == Symbol
+    assert type(avar1) is Symbol
     # There should be no entry for "a_var" in the symbol table for the
     # "test_sub1" routine as it is not declared there.
     schedule = psy.invokes.invoke_list[0].schedule
@@ -2783,7 +2789,7 @@ def test_named_and_wildcard_use_var(f2008_parser):
     # for "test_sub2" as it has a use statement that imports it.
     schedule = psy.invokes.invoke_list[1].schedule
     avar2 = schedule.symbol_table.lookup("a_var")
-    assert type(avar2) == Symbol
+    assert type(avar2) is Symbol
     assert avar2 is not avar1
 
 

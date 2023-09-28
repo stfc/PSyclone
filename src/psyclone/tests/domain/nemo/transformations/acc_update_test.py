@@ -137,7 +137,7 @@ end SUBROUTINE tra_ldf_iso
     assert ("    call dia_ptr_hst(jn, 'ldf', zftv(:,:,:))\n"
             "    !$acc update if_present host(zftv)\n"
             "    zftv(:,:,:) = 1.0d0\n"
-            "    !$acc update if_present device(zftv)\n" in code)
+            "    !$acc update if_present device(jn,zftv)\n" in code)
     assert ("  !$acc update if_present host(jn,zftv)\n"
             "  call" in code)
 
@@ -188,7 +188,7 @@ end SUBROUTINE tra_ldf_iso
     assert ("    !$acc update if_present host(zftv)\n"
             "    zftv(:,:,:) = 1.0d0\n"
             ) in code
-    assert ("    !$acc update if_present device(zftv)\n"
+    assert ("    !$acc update if_present device(jn,zftv)\n"
             "  else\n"
             ) in code
     assert ("  !$acc update if_present host(jn,zftv)\n"
@@ -196,7 +196,7 @@ end SUBROUTINE tra_ldf_iso
             ) in code
     assert ("  !$acc update if_present host(jpi,tmask)\n"
             "  tmask(:,:) = jpi\n"
-            "  !$acc update if_present device(tmask)\n"
+            "  !$acc update if_present device(jn,tmask,zftv)\n"
             ) in code
 
 
@@ -226,7 +226,7 @@ end SUBROUTINE tra_ldf_iso
             "  call dia_ptr_hst(jn, 'ldf', zftv(:,:,:))\n"
             "  !$acc update if_present host(checksum,zftv)\n"
             "  checksum = SUM(zftv)\n"
-            "  !$acc update if_present device(checksum)\n" in code)
+            "  !$acc update if_present device(checksum,jn,zftv)\n" in code)
 
 
 def test_call_within_if(parser, fortran_writer):

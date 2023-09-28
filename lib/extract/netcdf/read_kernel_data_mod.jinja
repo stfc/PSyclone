@@ -28,6 +28,7 @@
 {% if ALL_TYPES is not defined -%}
    {% set ALL_TYPES = [ ("Double", "real(kind=real64)",   64),
                         ("Real",   "real(kind=real32)",   32),
+                        ("Char",   "character(*)",        8),
                         ("Logical","integer(kind=real32)",32),
                         ("Int",    "integer(kind=int32)", 32) ] %}
 {% endif -%}
@@ -288,11 +289,16 @@ contains
         value = tmp == 1
         deallocate(tmp)
         {% else %}
+        {% if name == "Char" %}
+        ! Initialise the whole array with "".
+        value = ""
+        {% else %}
         ! Initialise it with 0, so that an array comparison will work
         ! even though e.g. boundary areas or so might not be set at all.
         ! The compiler will convert the double precision value to the right
         ! type (e.g. int or single precision).
         value = 0.0d0
+        {% endif %}
         retval = CheckError(nf90_get_var(this%ncid, varid, value))
         {% endif %}
 

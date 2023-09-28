@@ -42,7 +42,7 @@ from fparser.two import Fortran2003
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import Routine, FileContainer, UnaryOperation, \
-    BinaryOperation, Literal, Assignment, CodeBlock
+    BinaryOperation, Literal, Assignment, CodeBlock, IntrinsicCall
 from psyclone.psyir.symbols import SymbolTable, DataSymbol, \
     ScalarType, SymbolError, ContainerSymbol, DeferredType
 
@@ -120,8 +120,8 @@ def test_fortran_psyir_from_expression(fortran_reader):
     assert isinstance(psyir.children[0].children[0], Literal)
     assert psyir.children[0].children[0].value == "3.0"
     psyir = fortran_reader.psyir_from_expression("ABS(-3.0)", table)
-    assert isinstance(psyir, UnaryOperation)
-    assert psyir.operator == UnaryOperation.Operator.ABS
+    assert isinstance(psyir, IntrinsicCall)
+    assert psyir.intrinsic == IntrinsicCall.Intrinsic.ABS
     assert isinstance(psyir.children[0], UnaryOperation)
     assert psyir.children[0].operator == UnaryOperation.Operator.MINUS
     assert isinstance(psyir.children[0].children[0], Literal)
@@ -216,7 +216,7 @@ def test_fortran_psyir_from_file(fortran_reader, tmpdir_factory):
     ''' Test that the psyir_from_file method reads and parses to PSyIR
     the specified file. '''
     filename = str(tmpdir_factory.mktemp('frontend_test').join("testfile.f90"))
-    with open(filename, "w") as wfile:
+    with open(filename, "w", encoding='utf-8') as wfile:
         wfile.write(CODE)
 
     # Check with a proper file
@@ -227,7 +227,7 @@ def test_fortran_psyir_from_file(fortran_reader, tmpdir_factory):
 
     # Check with an empty file
     filename = str(tmpdir_factory.mktemp('frontend_test').join("empty.f90"))
-    with open(filename, "w") as wfile:
+    with open(filename, "w", encoding='utf-8') as wfile:
         wfile.write("")
     file_container = fortran_reader.psyir_from_file(filename)
     assert isinstance(file_container, FileContainer)

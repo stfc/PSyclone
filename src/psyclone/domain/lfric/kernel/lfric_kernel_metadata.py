@@ -31,7 +31,8 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford, STFC Daresbury Lab
+# Author R. W. Ford, STFC Daresbury Laboratory
+# Modifications: A. R. Porter, STFC Daresbury Laboratory
 
 '''Module containing the LFRicKernelMetadata
 kernel-layer-specific class that captures the LFRic kernel metadata.
@@ -54,9 +55,6 @@ from psyclone.domain.lfric.kernel.inter_grid_vector_arg_metadata import \
     InterGridVectorArgMetadata
 from psyclone.domain.lfric.kernel.operator_arg_metadata import \
     OperatorArgMetadata
-
-
-from psyclone.configuration import Config
 from psyclone.domain.lfric.kernel.common_metadata import CommonMetadata
 from psyclone.domain.lfric.kernel.common_meta_arg_metadata import \
     CommonMetaArgMetadata
@@ -76,6 +74,7 @@ from psyclone.domain.lfric.kernel.scalar_arg_metadata import ScalarArgMetadata
 from psyclone.domain.lfric.kernel.shapes_metadata import ShapesMetadata
 from psyclone.errors import InternalError
 from psyclone.parse.utils import ParseError
+from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.symbols import DataTypeSymbol, UnknownFortranType
 
 # pylint: disable=too-many-lines
@@ -477,7 +476,7 @@ class LFRicKernelMetadata(CommonMetadata):
         # All arguments except the CMA argument must be read-only.
         # pylint: disable=unidiomatic-typecheck
         for meta_arg in self.meta_args:
-            if type(meta_arg) != ColumnwiseOperatorArgMetadata:
+            if type(meta_arg) is not ColumnwiseOperatorArgMetadata:
                 if meta_arg.access != "gh_read":
                     raise ParseError(self._validation_error_str(
                         f"A CMA assembly kernel should have all arguments as "
@@ -590,7 +589,7 @@ class LFRicKernelMetadata(CommonMetadata):
         # Exactly one of the CMA arguments must be written to.
         # pylint: disable=unidiomatic-typecheck
         cma_writers = [meta_arg for meta_arg in self.meta_args if
-                       type(meta_arg) == ColumnwiseOperatorArgMetadata
+                       type(meta_arg) is ColumnwiseOperatorArgMetadata
                        and meta_arg.access in lfric_constants.WRITE_ACCESSES]
         # pylint: enable=unidiomatic-typecheck
         if len(cma_writers) != 1:
@@ -1080,15 +1079,14 @@ class LFRicKernelMetadata(CommonMetadata):
         :raises ValueError: if the metadata has an invalid value.
 
         '''
-        if value is None:
-            self._procedure_name = None
-        else:
-            config = Config.get()
-            if not value or not config.valid_name.match(value):
+        if value:
+            try:
+                FortranReader.validate_name(value)
+            except (ValueError, TypeError) as err:
                 raise ValueError(
                     f"Expected procedure_name to be a valid Fortran name but "
-                    f"found '{value}'.")
-            self._procedure_name = value
+                    f"found '{value}'.") from err
+        self._procedure_name = value
 
     @property
     def name(self):
@@ -1109,11 +1107,7 @@ class LFRicKernelMetadata(CommonMetadata):
         :raises ValueError: if the name is not valid.
 
         '''
-        config = Config.get()
-        if not value or not config.valid_name.match(value):
-            raise ValueError(
-                f"Expected name to be a valid Fortran name but found "
-                f"'{value}'.")
+        FortranReader.validate_name(value)
         self._name = value
 
     def meta_args_get(self, types):

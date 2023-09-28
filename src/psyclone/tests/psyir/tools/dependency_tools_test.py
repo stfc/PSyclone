@@ -38,12 +38,9 @@
 
 import pytest
 
-from fparser.common.readfortran import FortranStringReader
-
 from psyclone.configuration import Config
 from psyclone.core import Signature, VariablesAccessInfo
 from psyclone.errors import InternalError
-from psyclone.psyGen import PSyFactory
 from psyclone.psyir.tools import DependencyTools, DTCode, ReadWriteInfo
 from psyclone.tests.utilities import get_invoke
 
@@ -60,11 +57,14 @@ def test_messages():
 
     dep_tools = DependencyTools()
     assert dep_tools.get_all_messages() == []
-    dep_tools._add_message("info-test", DTCode.INFO_NOT_NESTED_LOOP,
+
+    # There aren't currently any INFO messages so we invent one by simply
+    # adding one to the minimum INFO error code.
+    dep_tools._add_message("info-test", DTCode.INFO_MIN+1,
                            ["a", "b"])
     msg = dep_tools.get_all_messages()[0]
     assert str(msg) == "Info: info-test"
-    assert msg.code == DTCode.INFO_NOT_NESTED_LOOP
+    assert msg.code == DTCode.INFO_MIN + 1
     assert msg.var_names == ["a", "b"]
 
     dep_tools._add_message("warning-test", DTCode.WARN_SCALAR_REDUCTION,
@@ -124,69 +124,6 @@ def test_loop_parallelise_errors():
 
 
 # -----------------------------------------------------------------------------
-def test_nested_loop_detection(parser):
-    '''Tests if nested loop are handled correctly.
-    '''
-    reader = FortranStringReader('''program test
-                                 integer :: ji, jk
-                                 integer, parameter :: jpi=10, jpk=10
-                                 real, dimension(jpi,jpi,jpk) :: umask, xmask
-                                 do jk = 1, jpk   ! loop 0
-                                   umask(1,1,jk) = -1.0d0
-                                 end do
-                                 do ji = 1, jpi   ! loop 1
-                                   xmask(ji,1,1) = -1.0d0
-                                 end do
-                                 end program test''')
-    prog = parser(reader)
-    psy = PSyFactory("nemo", distributed_memory=False).create(prog)
-    loops = psy.invokes.get("test").schedule
-    dep_tools = DependencyTools(["levels", "lat"])
-
-    # Not a nested loop
-    parallel = dep_tools.can_loop_be_parallelised(loops[0])
-    assert parallel is False
-    msg = dep_tools.get_all_messages()[0]
-    assert "Not a nested loop" in str(msg)
-    assert msg.code == DTCode.INFO_NOT_NESTED_LOOP
-    assert msg.var_names == []
-
-    # Now disable the test for nested loops:
-    parallel = dep_tools.can_loop_be_parallelised(loops[0],
-                                                  only_nested_loops=False)
-    assert parallel is True
-    # Make sure can_loop_be_parallelised clears old messages automatically
-    assert dep_tools.get_all_messages() == []
-
-
-# -----------------------------------------------------------------------------
-def test_loop_type(parser):
-    '''Tests general functionality of can_loop_be_parallelised.
-    '''
-    reader = FortranStringReader('''program test
-                                 integer ji
-                                 integer, parameter :: jpi=10
-                                 real, dimension(jpi,1,1) :: xmask
-                                 do ji = 1, jpi
-                                   xmask(ji,1,1) = -1.0d0
-                                 end do
-                                 end program test''')
-    prog = parser(reader)
-    psy = PSyFactory("nemo", distributed_memory=False).create(prog)
-    loop = psy.invokes.get("test").schedule[0]
-    dep_tools = DependencyTools(["levels", "lat"])
-
-    # Check a loop that has the wrong loop type
-    parallel = dep_tools.can_loop_be_parallelised(loop,
-                                                  only_nested_loops=False)
-    assert parallel is False
-    msg = dep_tools.get_all_messages()[0]
-    assert "wrong loop type 'lon'" in str(msg)
-    assert msg.code == DTCode.INFO_WRONG_LOOP_TYPE
-    assert msg.var_names == []
-
-
-# -----------------------------------------------------------------------------
 def test_arrays_parallelise(fortran_reader):
     '''Tests the array checks of can_loop_be_parallelised.
     '''
@@ -220,7 +157,7 @@ def test_arrays_parallelise(fortran_reader):
     loops = psyir.children[0].children[0:4]
     dep_tools = DependencyTools()
 
-    # Write to array that does not depend on parallel loop variable
+    # Write to array that does not depend on the parallel loop variable
     # Test that right default variable name (outer loop jj) is used.
     parallel = dep_tools.can_loop_be_parallelised(loops[0])
     assert parallel is False
@@ -230,12 +167,12 @@ def test_arrays_parallelise(fortran_reader):
     assert msg.code == DTCode.ERROR_WRITE_WRITE_RACE
     assert msg.var_names == ["mask(jk,jk)"]
 
-    # Write to array that does not depend on parallel loop variable
+    # Write to array that does not depend on the parallel loop variable
     parallel = dep_tools.can_loop_be_parallelised(loops[1])
     assert parallel is True
     assert dep_tools.get_all_messages() == []
 
-    # Use parallel loop variable in more than one dimension
+    # Use the parallel loop variable in more than one dimension
     parallel = dep_tools.can_loop_be_parallelised(loops[2])
     assert parallel is True
 
@@ -779,3 +716,72 @@ def test_da_array_expression(fortran_reader):
     dep_tools = DependencyTools()
     result = dep_tools.can_loop_be_parallelised(loops[0])
     assert result is False
+
+
+# -----------------------------------------------------------------------------
+def test_reserved_words(fortran_reader):
+    '''Tests that using a reserved Python word ('lambda' here') as a loop
+    variable, which will be renamed when converting to SymPy, works as
+    expected. Also make sure that name clashes are handled as expected by
+    declaring local symbols lambda_1 (which will clash with the renamed
+    lambda) and lambda_1_1 (which will clash with the renamed lambda_1).
+    Otherwise this test is identical to test_arrays_parallelise.
+    '''
+    source = '''program test
+                integer ji, lambda, jk
+                integer, parameter :: jpi=5, jpj=10
+                real, dimension(jpi,jpi) :: mask, umask, lambda_1, lambda_1_1
+                do lambda = 1, jpj   ! loop 0
+                   do ji = 1, jpi
+                      mask(jk, jk) = -1.0d0
+                    end do
+                end do
+                do lambda = 1, jpj   ! loop 1
+                   do ji = 1, jpi
+                      mask(ji, lambda+lambda_1+lambda_1_1) = umask(jk, jk)
+                    end do
+                end do
+                do lambda = 1, jpj   ! loop 2
+                   do ji = 1, jpi
+                      mask(lambda, lambda) = umask(ji, lambda)
+                    end do
+                end do
+                do lambda = 1, jpj   ! loop 3
+                   do ji = 1, jpi
+                      mask(ji, lambda) = mask(ji, lambda+1)
+                    end do
+                end do
+                end program test'''
+
+    psyir = fortran_reader.psyir_from_source(source)
+    loops = psyir.children[0].children[0:4]
+    dep_tools = DependencyTools()
+
+    # Write to array that does not depend on the parallel loop variable
+    # Test that right default variable name (outer loop lambda) is used.
+    parallel = dep_tools.can_loop_be_parallelised(loops[0])
+    assert parallel is False
+    msg = dep_tools.get_all_messages()[0]
+    assert ("The write access to 'mask(jk,jk)' causes a write-write race "
+            "condition" in str(msg))
+    assert msg.code == DTCode.ERROR_WRITE_WRITE_RACE
+    assert msg.var_names == ["mask(jk,jk)"]
+
+    # Write to array that does not depend on the parallel loop variable
+    parallel = dep_tools.can_loop_be_parallelised(loops[1])
+    assert parallel is True
+    assert dep_tools.get_all_messages() == []
+
+    # Use the parallel loop variable in more than one dimension
+    parallel = dep_tools.can_loop_be_parallelised(loops[2])
+    assert parallel is True
+
+    # Use a stencil access (with write), which prevents parallelisation
+    parallel = dep_tools.can_loop_be_parallelised(loops[3])
+    assert parallel is False
+    msg = dep_tools.get_all_messages()[0]
+    assert ("The write access to 'mask(ji,lambda)' and to "
+            "'mask(ji,lambda + 1)' are dependent and cannot be parallelised."
+            in str(msg))
+    assert msg.code == DTCode.ERROR_DEPENDENCY
+    assert msg.var_names == ["mask(ji,lambda)", "mask(ji,lambda + 1)"]
