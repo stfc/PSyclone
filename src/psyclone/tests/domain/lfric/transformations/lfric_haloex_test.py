@@ -55,7 +55,7 @@ from psyclone.transformations import (
 # constants
 API = "dynamo0.3"
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                         os.pardir, os.pardir, os.pardir, 
+                         os.pardir, os.pardir, os.pardir,
                          "test_files", "dynamo0p3")
 
 
