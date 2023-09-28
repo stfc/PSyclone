@@ -49,12 +49,11 @@ class LFRicInvokes(Invokes):
     LFRicInvoke class to the base class so it creates the one we
     require.
 
-    :param alg_calls: list of objects containing the parsed invoke \
-        information.
-    :type alg_calls: list of \
-        :py:class:`psyclone.parse.algorithm.InvokeCall`
-    :param psy: the PSy object containing this LFRicInvokes object.
-    :type psy: :py:class`psyclone.dynamo0p3.DynamoPSy`
+    :param alg_calls: A list of objects containing the parsed invoke
+                      information.
+    :type alg_calls: List[:py:class:`psyclone.parse.algorithm.InvokeCall`]
+    :param psy: The PSy object containing this LFRicInvokes object.
+    :type psy: :py:class:`psyclone.dynamo0p3.DynamoPSy`
 
     '''
     def __init__(self, alg_calls, psy):

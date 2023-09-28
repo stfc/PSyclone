@@ -58,13 +58,13 @@ class LFRicInvoke(Invoke):
 
     :param alg_invocation: object containing the invoke call information.
     :type alg_invocation: :py:class:`psyclone.parse.algorithm.InvokeCall`
-    :param int idx: the position of the invoke in the list of invokes \
+    :param int idx: the position of the invoke in the list of invokes
                     contained in the Algorithm.
-    :param invokes: the Invokes object containing this LFRicInvoke \
+    :param invokes: the Invokes object containing this LFRicInvoke
                     object.
-    :type invokes: :py:class:`psyclone.dynamo0p3.LFRicInvokes`
+    :type invokes: :py:class:`psyclone.domain.lfric.LFRicInvokes`
 
-    :raises GenerationError: if integer reductions are required in the \
+    :raises GenerationError: if integer reductions are required in the
                     PSy-layer.
 
     '''
