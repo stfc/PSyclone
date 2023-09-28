@@ -123,7 +123,7 @@ __all__ = ['ACCUpdateTrans',
            'NanTestTrans',
            'OMPLoopTrans',
            'OMPTargetTrans',
-           'OMPTaskTrans'
+           'OMPTaskTrans',
            'OMPTaskwaitTrans',
            'ParallelLoopTrans',
            'ProfileTrans',

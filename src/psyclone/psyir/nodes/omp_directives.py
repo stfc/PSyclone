@@ -354,10 +354,11 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                     ancestor_loop = ancestor_loop.ancestor(Loop, limit=self)
                 if not is_ancestor:
                     raise UnresolvedDependencyError(
-                            "Found a dependency index that "
-                            "was updated as a Loop variable "
-                            "that is not an ancestor Loop of "
-                            "the task.")
+                            f"Found a dependency index that "
+                            f"was updated as a Loop variable "
+                            f"that is not an ancestor Loop of "
+                            f"the task. The variable is "
+                            f"{node.variable}.")
                 # It has to be an ancestor loop, so we want to find the start,
                 # stop and step Nodes
                 start, stop, step = node.start_expr, node.stop_expr, \
@@ -1544,14 +1545,14 @@ class OMPParallelDirective(OMPRegionDirective):
         assumed shared. How to synchronise the symbols in the third set is
         up to the caller of this method.
 
-        :returns: three set of symbols that classify each of the symbols in \
-            the directive body as PRIVATE, FIRSTPRIVATE or SHARED NEEDING \
-            SYNCHRONISATION.
-        :rtype: Tuple[Set(:py:class:`psyclone.psyir.symbols.symbol), \
-                      Set(:py:class:`psyclone.psyir.symbols.symbol), \
-                      Set(:py:class:`psyclone.psyir.symbols.symbol)]
+        :returns: three set of symbols that classify each of the symbols in
+                  the directive body as PRIVATE, FIRSTPRIVATE or SHARED NEEDING
+                  SYNCHRONISATION.
+        :rtype: Tuple[Set(:py:class:`psyclone.psyir.symbols.Symbol`),
+                      Set(:py:class:`psyclone.psyir.symbols.Symbol`),
+                      Set(:py:class:`psyclone.psyir.symbols.Symbol`)]
 
-        :raises GenerationError: if the DefaultClauseType associated with \
+        :raises GenerationError: if the DefaultClauseType associated with
                                  this OMPParallelDirective is not shared.
 
         '''
