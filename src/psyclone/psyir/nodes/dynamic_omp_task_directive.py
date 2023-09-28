@@ -2152,6 +2152,10 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
         super().lower_to_language_level()
 
         # Replace this node with an OMPTaskDirective
-        childs = self.pop_all_children()
-        replacement = OMPTaskDirective(children=childs, lowering=True)
+        childs = self.dir_body.pop_all_children()
+        clauses = []
+        for clause in self.clauses:
+            clauses.append(clause)
+        self.pop_all_children()
+        replacement = OMPTaskDirective(children=childs, clauses=clauses)
         self.replace_with(replacement)

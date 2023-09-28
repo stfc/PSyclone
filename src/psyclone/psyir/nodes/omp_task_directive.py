@@ -60,7 +60,8 @@ class OMPTaskDirective(OMPRegionDirective):
     :type children: List[:py:class:`psyclone.psyir.nodes.Node`]
     :param parent: the Node in the AST that has this directive as a child
     :type parent: :py:class:`psyclone.psyir.nodes.Node`
-    :param bool lowering: If this node is being lowered from another node.
+    :param clauses: optional list of clauses to be added to this Node.
+    :type clauses: Optional[List[:py:class:`psyclone.psyir.nodes.Clause`]]
     """
     # TODO #2330: This node cannot handle if the tree beneath it changes after
     # the clause computation - this should not currently cause much issues but
@@ -72,19 +73,12 @@ class OMPTaskDirective(OMPRegionDirective):
         "OMPDependClause, OMPDependClause"
     )
 
-    def __init__(self, children=None, parent=None, lowering=False):
-        # If we're lowering this node from a DynamicOMPTaskDirective then
-        # we need remove the children from that node before adding
-        # the children from this node.
-        if lowering:
-            sched_childs = children[0].pop_all_children()
-            super().__init__(
-                children=sched_childs, parent=parent
-            )
-            for child in children[1:]:
+    def __init__(self, children=None, parent=None, clauses=None):
+        super().__init__(children=children, parent=parent)
+        if clauses:
+            for child in clauses:
+                child.detach()
                 self.addchild(child)
-        else:
-            super().__init__(children=children, parent=parent)
 
     @staticmethod
     def _validate_child(position, child):
