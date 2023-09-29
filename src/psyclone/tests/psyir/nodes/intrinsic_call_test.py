@@ -35,7 +35,12 @@
 # Modified: R. W. Ford and S. Siso, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
-'''This module contains pytest tests for the IntrinsicCall node.'''
+'''
+This module contains pytest tests for the IntrinsicCall node.
+
+TODO #x2341 - tests need to be added for all of the supported intrinsics.
+
+'''
 
 import pytest
 
@@ -445,15 +450,20 @@ def test_index_intrinsic(fortran_reader, fortran_writer):
 program test_prog
   implicit none
   character(len=10) :: clname
-  integer :: ind1, ind2, idom, jpdom_local
+  integer :: ind1, ind2
 
   ind1 = INDEX( clname, '_', back = .TRUE. ) + 1
-  ind2 = INDEX( clname, '.', back = .TRUE. ) - 1
+  ind2 = INDEX( clname, '.') - 1
+  ind2 = INDEX( clname, '.', kind=4) - 1
 
 end program test_prog
 '''
     psyir = fortran_reader.psyir_from_source(code)
-    assert len(psyir.walk(IntrinsicCall)) == 2
+    assert len(psyir.walk(IntrinsicCall)) == 3
+    result = fortran_writer(psyir).lower()
+    assert "ind1 = index(clname, '_', back=.true.) + 1" in result
+    assert "ind2 = index(clname, '.') - 1" in result
+    assert "ind2 = index(clname, '.', kind=4) - 1" in result
 
 
 def test_verify_intrinsic(fortran_reader, fortran_writer):
@@ -468,13 +478,24 @@ program test_prog
 
   ind1 = 2
   ind2 = 5
-  IF( ind2 > ind1 ) THEN
-    IF( VERIFY( clname(ind1:ind2), '0123456789' ) == 0 ) idom = jpdom_local
-  ENDIF
+  IF( VERIFY( clname(ind1:ind2), '0123456789' ) == 0 ) idom = jpdom_local
+  IF( VERIFY( clname(ind1:ind2), '0123456789', back=.true. ) == 0 ) &
+idom = jpdom_local
+  IF( VERIFY( clname(ind1:ind2), '0123456789', kind=kind(1) ) == 0 ) &
+idom = jpdom_local
+  IF( VERIFY( clname(ind1:ind2), '0123456789', kind=kind(1), back=.true. ) &
+== 0 ) idom = jpdom_local
 
 end program test_prog
 '''
     psyir = fortran_reader.psyir_from_source(code)
-    assert len(psyir.walk(IntrinsicCall)) == 1
+    # Should have 4 VERIFY and 2 KIND
+    assert len(psyir.walk(IntrinsicCall)) == 6
     result = fortran_writer(psyir).lower()
     assert "if (verify(clname(ind1:ind2), '0123456789') == 0) then" in result
+    assert ("if (verify(clname(ind1:ind2), '0123456789', back=.true.) "
+            "== 0) then" in result)
+    assert ("if (verify(clname(ind1:ind2), '0123456789', kind=kind(1)) "
+            "== 0) then" in result)
+    assert ("if (verify(clname(ind1:ind2), '0123456789', kind=kind(1), "
+            "back=.true.) == 0) then" in result)
