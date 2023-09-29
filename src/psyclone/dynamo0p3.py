@@ -1860,7 +1860,8 @@ class LFRicMeshProperties(LFRicCollection):
                     cell_name = "cell"
                     if self._kernel.is_coloured():
                         colour_name = "colour"
-                        cmap_name = "cmap"
+                        cmap_name = self._symbol_table.find_or_create_tag(
+                            "cmap", root_name="cmap").name
                         adj_face += (f"(:,{cmap_name}({colour_name},"
                                      f"{cell_name}))")
                     else:
@@ -3720,12 +3721,13 @@ class DynMeshes():
         '''
         Sets-up information on any required colourmaps. This cannot be done
         in the constructor since colouring is applied by Transformations
-        and happens after the Schedule has already been constructed.
+        and happens after the Schedule has already been constructed. Therefore,
+        this method is called at code-generation time.
 
         '''
         # pylint: disable=too-many-locals
         const = LFRicConstants()
-        have_non_intergrid = False
+        non_intergrid_kern = None
         sym_tab = self._schedule.symbol_table
 
         for call in [call for call in self._schedule.coded_kernels() if
@@ -3740,7 +3742,7 @@ class DynMeshes():
                 self._needs_colourmap = True
 
             if not call.is_intergrid:
-                have_non_intergrid = True
+                non_intergrid_kern = call
                 continue
 
             # This is an inter-grid kernel so look-up the names of
@@ -3775,13 +3777,14 @@ class DynMeshes():
             self._ig_kernels[id(call)].set_colour_info(
                 colour_map, ncolours, last_cell)
 
-        if have_non_intergrid and (self._needs_colourmap or
+        if non_intergrid_kern and (self._needs_colourmap or
                                    self._needs_colourmap_halo):
             # There aren't any inter-grid kernels but we do need colourmap
             # information and that means we'll need a mesh object
             self._add_mesh_symbols(["mesh"])
-            colour_map = sym_tab.find_or_create_array(
-                "cmap", 2, ScalarType.Intrinsic.INTEGER, tag="cmap").name
+            # This creates the colourmap information for this invoke if we
+            # don't already have one.
+            colour_map = non_intergrid_kern.colourmap
             # No. of colours
             ncolours = sym_tab.find_or_create_integer_symbol(
                 "ncolour", tag="ncolour").name
@@ -3881,8 +3884,8 @@ class DynMeshes():
             # There aren't any inter-grid kernels but we do need
             # colourmap information
             base_name = "cmap"
-            colour_map = \
-                self._schedule.symbol_table.find_or_create_tag(base_name).name
+            csym = self._schedule.symbol_table.lookup_with_tag("cmap")
+            colour_map = csym.name
             # No. of colours
             base_name = "ncolour"
             ncolours = \
@@ -7736,8 +7739,9 @@ class DynKern(CodedKern):
         if not self.is_coloured():
             raise InternalError(f"Kernel '{self.name}' is not inside a "
                                 f"coloured loop.")
+        sched = self.ancestor(InvokeSchedule)
         if self._is_intergrid:
-            invoke = self.ancestor(InvokeSchedule).invoke
+            invoke = sched.invoke
             if id(self) not in invoke.meshes.intergrid_kernels:
                 raise InternalError(
                     f"Colourmap information for kernel '{self.name}' has "
@@ -7745,7 +7749,14 @@ class DynKern(CodedKern):
             cmap = invoke.meshes.intergrid_kernels[id(self)].\
                 colourmap_symbol.name
         else:
-            cmap = self.scope.symbol_table.lookup_with_tag("cmap").name
+            try:
+                cmap = sched.symbol_table.lookup_with_tag("cmap").name
+            except KeyError:
+                # We have to do this here as _init_colourmap (which calls this
+                # method) is only called at code-generation time.
+                cmap = sched.symbol_table.find_or_create_array(
+                    "cmap", 2, ScalarType.Intrinsic.INTEGER,
+                    tag="cmap").name
 
         return cmap
 

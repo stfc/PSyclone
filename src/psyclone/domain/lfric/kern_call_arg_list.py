@@ -993,10 +993,17 @@ class KernCallArgList(ArgOrdering):
         if self._kern.is_coloured():
             colour_sym = self._symtab.find_or_create_integer_symbol(
                 "colour", tag="colours_loop_idx")
-            array_ref = self.get_array_reference("cmap",
+            if self._kern.is_intergrid:
+                tag = None
+            else:
+                # If there is only one colourmap we need to specify the tag
+                # to make sure we get the right symbol.
+                tag = "cmap"
+            array_ref = self.get_array_reference(self._kern.colourmap,
                                                  [Reference(colour_sym),
                                                   Reference(cell_sym)],
-                                                 ScalarType.Intrinsic.INTEGER)
+                                                 ScalarType.Intrinsic.INTEGER,
+                                                 tag=tag)
             if var_accesses is not None:
                 var_accesses.add_access(Signature(colour_sym.name),
                                         AccessType.READ, self._kern)
