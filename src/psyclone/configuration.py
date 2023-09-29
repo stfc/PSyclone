@@ -775,6 +775,30 @@ class APISpecificConfig:
             # Remove spaces and convert unicode to normal strings in Python2
             return_dict[str(key.strip())] = str(value.strip())
         return return_dict
+    
+    @staticmethod
+    def create_numeric_dict_from_list(input_list):
+
+        return_dict = {}
+        for entry in input_list:
+            try:
+                key, value = entry.split(":", 1)
+            except ValueError as err:
+                # Raised when split does not return two elements:
+                raise ConfigurationError(
+                    f"Invalid format for mapping: {entry.strip()}") from err
+            # Try to convert to float or int
+            try:
+                if isinstance(value, str):
+                    if '.' in value:
+                        value = float(value)
+                    else:
+                        value = int(value)
+            except ValueError:
+                pass
+            # Remove spaces and convert unicode to normal strings in Python2
+            return_dict[str(key.strip())] = value
+        return return_dict
 
     def get_access_mapping(self):
         '''Returns the mapping of API-specific access strings (e.g.
@@ -853,6 +877,7 @@ class LFRicConfig(APISpecificConfig):
         # Initialise LFRic datatypes' default kinds (precisions) settings
         self._supported_fortran_datatypes = []
         self._default_kind = {}
+        self._precision_map = {}
         # Number of ANY_SPACE and ANY_DISCONTINUOUS_SPACE function spaces
         self._num_any_space = None
         self._num_any_discontinuous_space = None
@@ -862,6 +887,7 @@ class LFRicConfig(APISpecificConfig):
                                 "compute_annexed_dofs",
                                 "supported_fortran_datatypes",
                                 "default_kind",
+                                "precision_map",
                                 "run_time_checks",
                                 "num_any_space",
                                 "num_any_discontinuous_space"]
@@ -926,6 +952,27 @@ class LFRicConfig(APISpecificConfig):
                 f"{self._supported_fortran_datatypes}.")
         self._default_kind = all_kinds
 
+        # Parse setting for default precision map values.
+        precisions_list = section.getlist("precision_map")
+        all_precisions = self.create_numeric_dict_from_list(precisions_list)
+        # Check for valid datatypes
+        for key in all_precisions.keys():
+            if not isinstance(all_precisions[key], int):
+                raise ConfigurationError(
+                    f"Wrong type supplied to '[{section.name}]' in "
+                    f"'{config.filename}': \n '{key} : "
+                    f"{all_precisions[key]}' is of type "
+                    f"{str(type(all_precisions[i])).upper()} not integer."
+                )
+            if all_precisions[key] < 0:
+                raise ConfigurationError(
+                    f"Negative precision value supplied to '[{section.name}]' "
+                    f"in '{config.filename}': \n '{key} : "
+                    f"{all_precisions[key]}' is less than "
+                    f"0 but precision values must be positive."
+                )
+        self._precision_map = all_precisions
+        
         # Parse setting for the number of ANY_SPACE function spaces
         # (check for an invalid value and numbers <= 0)
         try:
@@ -1008,6 +1055,18 @@ class LFRicConfig(APISpecificConfig):
         '''
         return self._default_kind
 
+    @property
+    def precision_map(self):
+        '''
+        Getter for precision map values for supported fortran datatypes 
+        in LFRic.
+
+        :returns: the precision map values for main datatypes in LFRic.
+        :rtype: dict of int
+
+        '''
+        return self._precision_map
+    
     @property
     def num_any_space(self):
         '''

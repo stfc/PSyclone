@@ -64,6 +64,19 @@ access_mapping = gh_read: read, gh_write: write, gh_readwrite: readwrite,
 COMPUTE_ANNEXED_DOFS = false
 supported_fortran_datatypes = real, integer, logical
 default_kind = real: r_def, integer: i_def, logical: l_def
+precision_map = i_def: 4,
+                l_def: 1,
+                r_def: 8,
+                r_double: 8,
+                r_ncdf: 8,
+                r_quad: 16,
+                r_second: 8,
+                r_single: 4,
+                r_solver: 4,
+                r_tran: 8,
+                r_bl: 8,
+                r_phys: 8,
+                r_um: 8
 RUN_TIME_CHECKS = false
 NUM_ANY_SPACE = 10
 NUM_ANY_DISCONTINUOUS_SPACE = 10
@@ -114,24 +127,24 @@ def config(config_file, content):
 @pytest.mark.parametrize(
     "option", ["access_mapping", "COMPUTE_ANNEXED_DOFS",
                "supported_fortran_datatypes", "default_kind",
-               "RUN_TIME_CHECKS", "NUM_ANY_SPACE",
-               "NUM_ANY_DISCONTINUOUS_SPACE"])
+               "precision_map", "RUN_TIME_CHECKS",
+               "NUM_ANY_SPACE", "NUM_ANY_DISCONTINUOUS_SPACE"])
 def test_no_mandatory_option(tmpdir, option):
     ''' Check that we raise an error if we do not provide mandatory
     configuration options for LFRic (Dynamo0.3) API '''
     config_file = tmpdir.join("config_dyn")
+
     content = re.sub(f"^{option} = .*$", "",
                      _CONFIG_CONTENT, flags=re.MULTILINE)
-
+    
     with pytest.raises(ConfigurationError) as err:
         config(config_file, content)
-
     assert ("Missing mandatory configuration option in the "
             "\'[dynamo0.3]\' section " in str(err.value))
     assert ("Valid options are: ['access_mapping', "
             "'compute_annexed_dofs', 'supported_fortran_datatypes', "
-            "'default_kind', 'run_time_checks', 'num_any_space', "
-            "'num_any_discontinuous_space']." in str(err.value))
+            "'default_kind', 'precision_map', 'run_time_checks', "
+            "'num_any_space', 'num_any_discontinuous_space']." in str(err.value))
 
 
 @pytest.mark.parametrize("option", ["COMPUTE_ANNEXED_DOFS", "RUN_TIME_CHECKS"])
@@ -268,6 +281,13 @@ def test_default_kind():
     assert api_config.default_kind["real"] == "r_def"
     assert api_config.default_kind["integer"] == "i_def"
     assert api_config.default_kind["logical"] == "l_def"
+
+def test_precision_map():
+
+    api_config = Config().get().api_conf(TEST_API)
+    for key in api_config.precision_map.keys():
+        assert api_config.precision_map[key] > 0
+        assert isinstance(api_config.precision_map[key], int)
 
 
 def test_run_time_checks():

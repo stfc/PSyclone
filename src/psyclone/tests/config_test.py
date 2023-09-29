@@ -78,6 +78,19 @@ access_mapping = gh_read: read, gh_write: write, gh_readwrite: readwrite,
 COMPUTE_ANNEXED_DOFS = false
 supported_fortran_datatypes = real, integer, logical
 default_kind = real: r_def, integer: i_def, logical: l_def
+precision_map = i_def: 4,
+                l_def: 1,
+                r_def: 8,
+                r_double: 8,
+                r_ncdf: 8,
+                r_quad: 16,
+                r_second: 8,
+                r_single: 4,
+                r_solver: 4,
+                r_tran: 8,
+                r_bl: 8,
+                r_phys: 8,
+                r_um: 8
 RUN_TIME_CHECKS = false
 NUM_ANY_SPACE = 10
 NUM_ANY_DISCONTINUOUS_SPACE = 10
