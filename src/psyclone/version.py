@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+# Copyright (c) 2017-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -38,8 +38,8 @@
     used in setup.py and doc/conf.py '''
 
 __MAJOR__ = 2
-__MINOR__ = 3
-__MICRO__ = 1
+__MINOR__ = 4
+__MICRO__ = 0
 
 __SHORT_VERSION__ = f"{__MAJOR__:d}.{__MINOR__:d}"
 __VERSION__ = f"{__MAJOR__:d}.{__MINOR__:d}.{__MICRO__:d}"
