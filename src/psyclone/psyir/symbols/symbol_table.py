@@ -1409,7 +1409,7 @@ class SymbolTable():
 
                 # Import here to avoid circular dependencies
                 # pylint: disable=import-outside-toplevel
-                from psyclone.psyir.nodes import ScopingNode
+                from psyclone.psyir.nodes import ScopingNode, Reference
                 for scoping_node in self.node.walk(ScopingNode):
                     symbol_table = scoping_node.symbol_table
                     if symbol.name in symbol_table:
@@ -1424,6 +1424,14 @@ class SymbolTable():
                                 symbol_table.remove(test_symbol)
                                 if test_symbol.name not in self:
                                     self.add(test_symbol)
+                                else:
+                                    for ref in symbol_table.node.walk(
+                                            Reference):
+                                        if SymbolTable._has_same_name(
+                                                ref.symbol, symbol):
+                                            mod_symbol = self.lookup(
+                                                symbol.name)
+                                            ref.symbol = mod_symbol
 
                 # This Symbol matches the name of a symbol in the current table
                 if symbol.name in self:

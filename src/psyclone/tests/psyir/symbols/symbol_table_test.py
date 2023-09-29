@@ -2574,7 +2574,9 @@ def test_resolve_imports_from_child_symtabs(
         fortran_reader, tmpdir, monkeypatch):
     '''Check that when an unresolved symbol is declared in more than one
     subroutine, resolve imports can resolve it from a parent module as
-    long as there are no wildcard imports in the subroutine.
+    long as there are no wildcard imports in the subroutine. We also
+    need to check that references to the new symbol still work when we
+    remove (rather than move) the original symbol.
 
     '''
     # Set up include_path to import the proper modules
@@ -2615,13 +2617,24 @@ def test_resolve_imports_from_child_symtabs(
     assert isinstance(symbol.interface, ImportInterface)
     assert symbol.interface.container_symbol.name == "a_mod"
 
+    # Check that all References to the symbol have been updated,
+    # i.e. that all References reference the new symbol. This has to
+    # be dealt with by the implementation when the symbol we want to
+    # reference already exists in the module symbol table and we want
+    # to remove the symbol from a subroutine symbol table.
+    some_var_symbol = mod.symbol_table.lookup("some_var")
+    for reference in psyir.walk(Reference):
+        assert reference.symbol is some_var_symbol
+
 
 def test_resolve_imports_from_child_symtabs_utf(
         fortran_reader, tmpdir, monkeypatch):
     '''Check that when an unresolved symbol is declared in more than one
     subroutine, resolve imports can resolve it from a parent module
     where it is declared as an UnknownFortranType, as long as there
-    are no wildcard imports in the subroutine.
+    are no wildcard imports in the subroutine.  We also need to check
+    that references to the new symbol still work when we remove
+    (rather than move) the original symbol.
 
     '''
     # Set up include_path to import the proper modules
@@ -2662,6 +2675,15 @@ def test_resolve_imports_from_child_symtabs_utf(
     assert isinstance(symbol.datatype, UnknownFortranType)
     assert isinstance(symbol.interface, ImportInterface)
     assert symbol.interface.container_symbol.name == "a_mod"
+
+    # Check that all References to the symbol have been updated,
+    # i.e. that all References reference the new symbol. This has to
+    # be dealt with by the implementation when the symbol we want to
+    # reference already exists in the module symbol table and we want
+    # to remove the symbol from a subroutine symbol table.
+    some_var_symbol = mod.symbol_table.lookup("some_var")
+    for reference in psyir.walk(Reference):
+        assert reference.symbol is some_var_symbol
 
 
 def test_resolve_imports_from_child_symtab_with_import(
