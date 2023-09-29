@@ -775,7 +775,7 @@ class APISpecificConfig:
             # Remove spaces and convert unicode to normal strings in Python2
             return_dict[str(key.strip())] = str(value.strip())
         return return_dict
-    
+
     @staticmethod
     def create_numeric_dict_from_list(input_list):
 
@@ -959,20 +959,20 @@ class LFRicConfig(APISpecificConfig):
         for key in all_precisions.keys():
             if not isinstance(all_precisions[key], int):
                 raise ConfigurationError(
-                    f"Wrong type supplied to '[{section.name}]' in "
-                    f"'{config.filename}': \n '{key} : "
+                    f"Wrong precision_map type supplied to '[{section.name}]' "
+                    f"in '{config.filename}': \n '{key} :"
                     f"{all_precisions[key]}' is of type "
                     f"{str(type(all_precisions[key])).upper()} not integer."
                 )
             if all_precisions[key] < 0:
                 raise ConfigurationError(
-                    f"Negative precision value supplied to '[{section.name}]' "
-                    f"in '{config.filename}': \n '{key} : "
-                    f"{all_precisions[key]}' is less than "
-                    f"0 but precision values must be positive."
+                    f"Negative precision value, '{key} : "
+                    f"{all_precisions[key]}', supplied to '[{section.name}]' "
+                    f"in '{config.filename}'. Precision values must be "
+                    f"positive."
                 )
         self._precision_map = all_precisions
-        
+
         # Parse setting for the number of ANY_SPACE function spaces
         # (check for an invalid value and numbers <= 0)
         try:
@@ -1058,7 +1058,7 @@ class LFRicConfig(APISpecificConfig):
     @property
     def precision_map(self):
         '''
-        Getter for precision map values for supported fortran datatypes 
+        Getter for precision map values for supported fortran datatypes
         in LFRic.
 
         :returns: the precision map values for main datatypes in LFRic.
@@ -1066,7 +1066,7 @@ class LFRicConfig(APISpecificConfig):
 
         '''
         return self._precision_map
-    
+
     @property
     def num_any_space(self):
         '''

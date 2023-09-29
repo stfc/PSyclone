@@ -136,7 +136,7 @@ def test_no_mandatory_option(tmpdir, option):
 
     content = re.sub(f"^{option} = .*$", "",
                      _CONFIG_CONTENT, flags=re.MULTILINE)
-    
+
     with pytest.raises(ConfigurationError) as err:
         config(config_file, content)
     assert ("Missing mandatory configuration option in the "
@@ -144,7 +144,8 @@ def test_no_mandatory_option(tmpdir, option):
     assert ("Valid options are: ['access_mapping', "
             "'compute_annexed_dofs', 'supported_fortran_datatypes', "
             "'default_kind', 'precision_map', 'run_time_checks', "
-            "'num_any_space', 'num_any_discontinuous_space']." in str(err.value))
+            "'num_any_space', 'num_any_discontinuous_space']."
+            in str(err.value))
 
 
 @pytest.mark.parametrize("option", ["COMPUTE_ANNEXED_DOFS", "RUN_TIME_CHECKS"])
@@ -282,13 +283,43 @@ def test_default_kind():
     assert api_config.default_kind["integer"] == "i_def"
     assert api_config.default_kind["logical"] == "l_def"
 
-def test_precision_map():
+
+def test_precision_map(tmpdir):
+    '''Check that we load correct default precisions value types for
+    all datatypes.
+    '''
+    config_file = tmpdir.join("config_dyn")
+
+    # Test invalid datatype
+    content = re.sub(r"r_double: 8,", "r_double: pinky,",
+                     _CONFIG_CONTENT,
+                     flags=re.MULTILINE)
+
+    with pytest.raises(ConfigurationError) as err:
+        config(config_file, content)
+
+    assert ("Wrong precision_map type supplied to \'[dynamo0.3]\' in "
+            in str(err.value))
+    assert ("'r_double : pinky' is of type <CLASS 'STR'> not integer."
+            in str(err.value))
+
+    # Test invalid datatype
+    content = re.sub(r"r_double: 8,", "r_double: -8,",
+                     _CONFIG_CONTENT,
+                     flags=re.MULTILINE)
+
+    with pytest.raises(ConfigurationError) as err:
+        config(config_file, content)
+
+    assert ("Negative precision value, 'r_double : -8', supplied to "
+            "\'[dynamo0.3]\' in " in str(err.value))
+    assert ("Precision values must be positive."
+            in str(err.value))
 
     api_config = Config().get().api_conf(TEST_API)
     for key in api_config.precision_map.keys():
         assert api_config.precision_map[key] > 0
         assert isinstance(api_config.precision_map[key], int)
-
 
 def test_run_time_checks():
     '''Check that we load the expected default RUN_TIME_CHECKS value
