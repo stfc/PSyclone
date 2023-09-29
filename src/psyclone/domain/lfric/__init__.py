@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author J. Henrichs, Bureau of Meteorology
-# Modified: I. Kavcic and L. Turner, Met Office
+# Modified: I. Kavcic, L. Turner and O. Brunt, Met Office
 #           R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
 '''Module for the LFRic domain.
@@ -63,6 +63,8 @@ from psyclone.domain.lfric.metadata_to_arguments_rules import \
 from psyclone.domain.lfric.arg_index_to_metadata_index import \
     ArgIndexToMetadataIndex
 from psyclone.domain.lfric.lfric_collection import LFRicCollection
+from psyclone.domain.lfric.lfric_scalar_args import LFRicScalarArgs
+from psyclone.domain.lfric.lfric_loop_bounds import LFRicLoopBounds
 
 
 __all__ = [
@@ -77,4 +79,6 @@ __all__ = [
     'LFRicConstants',
     'LFRicExtractDriverCreator',
     'LFRicInvoke',
+    'LFRicLoopBounds',
+    'LFRicScalarArgs',
     'LFRicSymbolTable']

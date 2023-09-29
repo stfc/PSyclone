@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council
+# Copyright (c) 2017-2023, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,13 +32,12 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified I. Kavcic, Met Office
+# Modified I. Kavcic and O. Brunt, Met Office
 # Modified by J. Henrichs, Bureau of Meteorology
 
-''' This module contains tests for the multi-grid part of the Dynamo 0.3 API
+''' This module contains tests for the inter-grid part of the LFRic API
     using pytest. '''
 
-from __future__ import absolute_import, print_function
 # Since this is a file containing tests which often have to get in and
 # change the internal state of objects we disable pylint's warning
 # about such accesses
@@ -50,7 +49,8 @@ import fparser
 from fparser import api as fpapi
 from psyclone.configuration import Config
 from psyclone.domain.lfric import LFRicConstants
-from psyclone.dynamo0p3 import DynHaloExchange, DynKernMetadata, HaloReadAccess
+from psyclone.dynamo0p3 import (LFRicHaloExchange, DynKernMetadata,
+                                HaloReadAccess)
 from psyclone.errors import GenerationError, InternalError
 from psyclone.gen_kernel_stub import generate
 from psyclone.parse.algorithm import parse
@@ -507,6 +507,34 @@ def test_field_restrict(tmpdir, dist_mem, monkeypatch, annexed):
         assert set_dirty in output
 
 
+def test_cont_field_restrict(tmpdir, dist_mem, monkeypatch, annexed):
+    '''
+    Test that we generate correct code for an invoke containing a
+    single restriction operation (read from field on a fine mesh,
+    write to field on a coarse mesh) when the field is on a continuous
+    function space but has GH_WRITE access (so that there is no need
+    to perform redundant computation to get the correct values for
+    annexed dofs).
+
+    '''
+
+    config = Config.get()
+    dyn_config = config.api_conf("dynamo0.3")
+    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
+
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "22.1.1_intergrid_cont_restrict.f90"),
+                           api=API)
+    psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
+    output = str(psy.gen)
+    if dist_mem:
+        assert "loop0_stop = mesh_field1%get_last_edge_cell()" in output
+    else:
+        assert "loop0_stop = field1_proxy%vspace%get_ncell()" in output
+
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+
 def test_restrict_prolong_chain(tmpdir, dist_mem):
     ''' Test when we have a single invoke containing a chain of
     restrictions and prolongations.
@@ -683,7 +711,7 @@ def test_fine_halo_read():
     psy = PSyFactory(API, distributed_memory=True).create(invoke_info)
     schedule = psy.invokes.invoke_list[0].schedule
     hexch = schedule.children[5]
-    assert isinstance(hexch, DynHaloExchange)
+    assert isinstance(hexch, LFRicHaloExchange)
     assert hexch._compute_halo_depth() == '2'
     call = schedule.children[6]
     field = call.args[1]

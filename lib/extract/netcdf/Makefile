@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2022, Science and Technology Facilities Council.
+# Copyright (c) 2020-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -53,7 +53,7 @@ F90FLAGS += $$(nf-config --fflags)
 
 # The extract library is implemented for int, real and
 # double scalars and 1- to 4-dimensional arrays
-PROCESS_ARGS = -prefix=extract_ -types=int,long,logical,real,double \
+PROCESS_ARGS = -prefix=extract_ -types=char,int,long,logical,real,double \
 		       -dims=1,2,3,4
 PROCESS = $$($(PSYDATA_LIB_DIR)/get_python.sh) $(PSYDATA_LIB_DIR)/process.py
 
@@ -90,7 +90,7 @@ read_kernel_data_mod.f90:	read_kernel_data_mod.jinja Makefile
 	$(F90) $(F90FLAGS) -c $<
 
 clean:
-	rm -f extract_netcdf_base.f90 psy_data_base.f90 read_kernel_data_mod.f90
+	rm -f extract_netcdf_base.f90 psy_data_base.f90
 	rm -f *.o *.mod
 
 allclean:

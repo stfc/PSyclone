@@ -31,11 +31,11 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
-# Modified I. Kavcic and A. Coughtrie, Met Office
+# Authors: R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
+# Modified: I. Kavcic, A. Coughtrie and O. Brunt, Met Office
 #          C.M. Maynard, Met Office / University of Reading
-# Modified J. Henrichs, Bureau of Meteorology
-# Modified A. B. G. Chalk, STFC Daresbury Lab
+# Modified: J. Henrichs, Bureau of Meteorology
+# Modified: A. B. G. Chalk, STFC Daresbury Lab
 
 ''' Tests of transformations with the LFRic (Dynamo 0.3) API '''
 
@@ -47,8 +47,8 @@ from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
 from psyclone.domain.lfric.lfric_builtins import LFRicXInnerproductYKern
 from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
-from psyclone.dynamo0p3 import DynLoop, DynHaloExchangeStart, \
-    DynHaloExchangeEnd, DynHaloExchange
+from psyclone.dynamo0p3 import DynLoop, LFRicHaloExchangeStart, \
+    LFRicHaloExchangeEnd, LFRicHaloExchange
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyGen import InvokeSchedule, GlobalSum, BuiltIn
 from psyclone.psyir.nodes import colored, Loop, Schedule, Literal, Directive, \
@@ -393,7 +393,8 @@ def test_colour_trans_adjacent_face(dist_mem, tmpdir):
 
 
 def test_colour_trans_continuous_write(dist_mem, tmpdir):
-    ''' Test the colouring transformation for a loop containing a kernel that
+    '''
+    Test the colouring transformation for a loop containing a kernel that
     has a 'GH_WRITE' access for a field on a continuous space.
 
     '''
@@ -411,6 +412,36 @@ def test_colour_trans_continuous_write(dist_mem, tmpdir):
             "mesh%get_last_edge_cell_all_colours()" in gen)
     assert "DO cell=loop1_start,last_edge_cell_all_colours(colour)" in gen
 
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+
+def test_colour_continuous_writer_intergrid(tmpdir, dist_mem):
+    '''
+    Test the loop-colouring transformation for an inter-grid kernel that has
+    a GH_WRITE access to a field on a continuous space. Since it has GH_WRITE
+    it does not need to iterate into the halos (to get clean annexed dofs) and
+    therefore should use the 'last_edge_cell' colour map.
+
+    '''
+    psy, invoke = get_invoke("22.1.1_intergrid_cont_restrict.f90",
+                             TEST_API, idx=0, dist_mem=dist_mem)
+    loop = invoke.schedule[0]
+    ctrans = Dynamo0p3ColourTrans()
+    ctrans.apply(loop)
+    result = str(psy.gen).lower()
+    # Declarations.
+    assert ("integer(kind=i_def), allocatable :: "
+            "last_edge_cell_all_colours_field1(:)" in result)
+    # Initialisation.
+    assert ("last_edge_cell_all_colours_field1 = mesh_field1%"
+            "get_last_edge_cell_all_colours()" in result)
+    # Usage. Since there is no need to loop into the halo, the upper loop
+    # bound should be independent of whether or not DM is enabled.
+    upper_bound = "last_edge_cell_all_colours_field1(colour)"
+    assert (f"      do colour=loop0_start,loop0_stop\n"
+            f"        do cell=loop1_start,{upper_bound}\n"
+            f"          !\n"
+            f"          call restrict_w2_code(nlayers" in result)
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
@@ -1393,8 +1424,8 @@ def test_omp_par_and_halo_exchange_error():
     # Enclose the invoke code within a single region
     with pytest.raises(TransformationError) as excinfo:
         rtrans.apply(schedule.children)
-    assert ("type 'DynHaloExchange' cannot be enclosed by a OMPParallelTrans "
-            "transformation" in str(excinfo.value))
+    assert ("type 'LFRicHaloExchange' cannot be enclosed by a "
+            "OMPParallelTrans transformation" in str(excinfo.value))
 
 
 def test_builtin_single_omp_pdo(tmpdir, monkeypatch, annexed, dist_mem):
@@ -3941,7 +3972,7 @@ def test_rc_node_not_loop():
     with pytest.raises(TransformationError) as excinfo:
         rc_trans.apply(schedule.children[0])
     assert ("Target of Dynamo0p3RedundantComputationTrans transformation must "
-            "be a sub-class of Loop but got \'DynHaloExchange\'" in
+            "be a sub-class of Loop but got \'LFRicHaloExchange\'" in
             str(excinfo.value))
 
 
@@ -4084,7 +4115,6 @@ def test_rc_discontinuous_depth(tmpdir, monkeypatch, annexed):
     loop = schedule.children[index]
     rc_trans.apply(loop, {"depth": 3})
     result = str(psy.gen)
-    print(result)
     for field_name in ["f1", "f2", "m1"]:
         assert (f"      IF ({field_name}_proxy%is_dirty(depth=3)) THEN\n"
                 f"        CALL {field_name}_proxy%halo_exchange(depth=3)"
@@ -4146,7 +4176,6 @@ def test_rc_all_discontinuous_depth(tmpdir):
     loop = schedule.children[0]
     rc_trans.apply(loop, {"depth": 3})
     result = str(psy.gen)
-    print(result)
     assert "IF (f2_proxy%is_dirty(depth=3)) THEN" in result
     assert "CALL f2_proxy%halo_exchange(depth=3)" in result
     assert "loop0_stop = mesh%get_last_halo_cell(3)" in result
@@ -4657,7 +4686,7 @@ def test_rc_updated_dependence_analysis():
     previous_node = previous_field.call
     # check f2_field has a backward dependence with the new halo
     # exchange field
-    assert isinstance(previous_node, DynHaloExchange)
+    assert isinstance(previous_node, LFRicHaloExchange)
     # check the new halo exchange field has a forward dependence with
     # the kernel f2_field
     assert previous_field.forward_dependence() == f2_field
@@ -6088,13 +6117,13 @@ def test_haloex_rc4_colouring(tmpdir, monkeypatch, annexed):
 
     if annexed:
         assert result.count("f1_proxy%halo_exchange(depth=1)") == 1
-        assert isinstance(schedule.children[2], DynHaloExchange)
+        assert isinstance(schedule.children[2], LFRicHaloExchange)
         assert schedule.children[2].field.name == "f1"
     else:
         assert result.count("f1_proxy%halo_exchange(depth=1)") == 2
-        assert isinstance(schedule.children[0], DynHaloExchange)
+        assert isinstance(schedule.children[0], LFRicHaloExchange)
         assert schedule.children[0].field.name == "f1"
-        assert isinstance(schedule.children[4], DynHaloExchange)
+        assert isinstance(schedule.children[4], LFRicHaloExchange)
         assert schedule.children[4].field.name == "f1"
 
     w_loop_idx = 2
@@ -6141,7 +6170,7 @@ def test_haloex_rc4_colouring(tmpdir, monkeypatch, annexed):
             index = 1
         else:
             index = 0
-        assert isinstance(schedule.children[index], DynHaloExchange)
+        assert isinstance(schedule.children[index], LFRicHaloExchange)
         assert schedule.children[index].field.name == "f1"
 
         assert LFRicBuild(tmpdir).code_compiles(psy)
@@ -6455,7 +6484,7 @@ def test_acckernelstrans_dm():
     sched = invoke.schedule
     with pytest.raises(TransformationError) as err:
         kernels_trans.apply(sched.children)
-    assert ("Nodes of type 'DynHaloExchange' cannot be enclosed by a "
+    assert ("Nodes of type 'LFRicHaloExchange' cannot be enclosed by a "
             "ACCKernelsTrans transformation" in str(err.value))
     kernels_trans.apply(sched.walk(Loop))
     code = str(psy.gen)
@@ -6524,7 +6553,7 @@ def test_accparalleltrans_dm(tmpdir):
     # Cannot include halo-exchange nodes within an ACC parallel region.
     with pytest.raises(TransformationError) as err:
         acc_par_trans.apply(sched)
-    assert ("Nodes of type 'DynHaloExchange' cannot be enclosed by a "
+    assert ("Nodes of type 'LFRicHaloExchange' cannot be enclosed by a "
             "ACCParallelTrans transformation" in str(err.value))
     acc_par_trans.apply(sched.walk(Loop)[0])
     acc_enter_trans.apply(sched)
@@ -7004,7 +7033,7 @@ def test_vector_halo_exchange_remove():
     rc_trans.apply(schedule.children[3], {"depth": 2})
     assert len(schedule.children) == 5
     for index in [0, 1, 2]:
-        assert isinstance(schedule.children[index], DynHaloExchange)
+        assert isinstance(schedule.children[index], LFRicHaloExchange)
     assert isinstance(schedule.children[3], DynLoop)
     assert isinstance(schedule.children[4], DynLoop)
 
@@ -7062,8 +7091,8 @@ def test_vector_async_halo_exchange(tmpdir):
 
     assert len(schedule.children) == 8
     for index in [0, 2, 4]:
-        assert isinstance(schedule.children[index], DynHaloExchangeStart)
-        assert isinstance(schedule.children[index+1], DynHaloExchangeEnd)
+        assert isinstance(schedule.children[index], LFRicHaloExchangeStart)
+        assert isinstance(schedule.children[index+1], LFRicHaloExchangeEnd)
     assert isinstance(schedule.children[6], DynLoop)
     assert isinstance(schedule.children[7], DynLoop)
 
@@ -7103,7 +7132,7 @@ def test_async_halo_exchange_nomatch1():
         hex_start._get_hex_end()
     assert ("Halo exchange start for field 'f1' should match with a halo "
             "exchange end, but found <class 'psyclone.dynamo0p3."
-            "DynHaloExchange'>") in str(excinfo.value)
+            "LFRicHaloExchange'>") in str(excinfo.value)
 
 
 def test_async_halo_exchange_nomatch2():
@@ -7474,7 +7503,8 @@ def test_kern_const_invalid_make_constant2():
     # Expecting scalar integer. Set to constant.
     symbol._datatype = ScalarType(ScalarType.Intrinsic.INTEGER,
                                   ScalarType.Precision.UNDEFINED)
-    symbol._constant_value = 10
+    symbol._initial_value = Literal("10", INTEGER_TYPE)
+    symbol._is_constant = True
     with pytest.raises(TransformationError) as excinfo:
         kctrans.apply(kernel, {"element_order": 0})
     assert ("Expected entry to be a scalar integer argument but found "

@@ -375,7 +375,8 @@ code to file and then invoking a Fortran compiler. This testing is not
 performed by default since it requires a Fortran compiler and
 significantly increases the time taken to run the test suite.
 
-The Gnu Fortran compiler (gfortran) is used by default. If you wish to
+If compilation testing is requested then the Gnu Fortran compiler (gfortran)
+is used by default. If you wish to
 use a different compiler and/or supply specific flags then these are
 specified by further command-line flags::
 
@@ -462,7 +463,7 @@ Since we try to be good 'open-source citizens' we do not do any compilation
 testing using GitHub as that would use a lot more compute time. Instead, it
 is the responsibility of the developer and code reviewer to run these checks
 locally (see :ref:`compilation_testing`). Code reviewers are able to make
-use of the ``compilation`` GitHub Action which will eventually perform
+use of the ``compilation`` GitHub Action which performs
 these checks semi-automatically - see :ref:`integration-testing`.
 
 By default, the GitHub Actions configuration uses ``pip`` to install
@@ -541,14 +542,14 @@ dictionary within ``conf.py``.
 Compilation and Integration Testing
 -----------------------------------
 
-As mentioned above, running the test suite and/or examples with compilation
-enabled significantly increases the required compute time. However, there
-is a need to test PSyclone with full builds of the LFRic and NEMO
-applications. Therefore, in addition to the principal action described
-above, there are the following workflow files that manage multiple
-Integration tests:
+As mentioned above, running the test suite, examples and tutorials
+with compilation enabled significantly increases the required compute
+time. However, there is a need to test PSyclone with full builds of
+the LFRic and NEMO applications. Therefore, in addition to the
+principal action described above, there are the following workflow
+files that manage multiple Integration tests:
 
-The ``repo-sync`` action, which must be triggered
+The ``repo-sync.yml`` action, which must be triggered
 manually (on GitHub) and pushes a copy of the current branch to a private
 repository. (This action uses the ``integration`` environment and can
 therefore only be triggered by GitHub users who have ``review`` permissions
@@ -561,13 +562,33 @@ below. Since the self-hosted runner is only available in the private
 repository, these action are configured such that they only run if the name
 of the repository is that of the private one.
 
-The ``compilation.yml`` action, runs the test suite and examples with
-compilation enabled (using ``gfortran``).
+The ``compilation.yml`` action runs the test suite, examples and tutorials
+with compilation enabled for both ``gfortran`` and ``nvfortran`` (the latter
+with OpenACC enabled).
 
-The ``nemo.yml`` action, processes the NEMO source code (available in
-self-hosted runner) with the PSyclone scripts in examples/nemo/scripts.
+The ``nemo.yml`` action, processes the NEMO source code (available in the
+self-hosted runner) with the PSyclone scripts in ``examples/nemo/scripts``.
 Then it compiles the generated code, runs it, and validates that the
-output produced matches with the expected results.
+output produced matches with the expected results. The wallclock time used
+by the run is also recorded for future reference.
+
+The ``lfric_test.yml`` action performs integration testing of PSyclone with
+the LFRic model (available in the self-hosted runner). Two tests are performed:
+
+ 1. A 'pass-through' test where the LFRic GungHo mini-app is built and then
+    run 6-way parallel using MPI;
+ 2. An optimisation test where the LFRic GungHo mini-app is transformed using
+    the ``examples/lfric/scripts/everything_everywhere_all_at_once.py`` script
+    and then compiled and run 6-way parallel using OpenMP threading.
+
+Some of the LFRic and NEMO integration tests also store, and upload, their
+performance results
+`into a Github Gist <https://gist.github.com/a4049a0fc0a0a11651a5ce6a04d76160>`_.
+These results can track the performance improvements and degradations that
+psyclone scripts suffered from each change for LFRic and NEMO applications.
+However, one must note that the test runner does not have exclusive access to
+the testing system, and some results may be impacted by other users using the
+system at the same time.
 
 
 Performance

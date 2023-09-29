@@ -37,24 +37,100 @@
 
 import pytest
 
-from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.psyir.nodes import IntrinsicCall, Reference
-from psyclone.psyir.symbols import REAL_TYPE, DataSymbol
+from psyclone.psyir.nodes import Reference, ArrayReference
+from psyclone.psyir.symbols import (
+    REAL_TYPE, DataSymbol, INTEGER_TYPE, ArrayType, ScalarType)
 from psyclone.psyir.transformations import Sum2CodeTrans, TransformationError
+from psyclone.tests.utilities import Compile
 
 
 def test_initialise():
-    ''' Test that we can create an instance of the transformation '''
+    '''Test that we can create an instance of the transformation and that
+    _INTRINSIC_NAME is set up as expected.
+
+    '''
     trans = Sum2CodeTrans()
     assert isinstance(trans, Sum2CodeTrans)
-    assert (str(trans) == "Convert the PSyIR SUM intrinsic to equivalent "
-            "PSyIR code.")
+    assert trans._INTRINSIC_NAME == "SUM"
+
+
+def test_loop_body():
+    '''Test that the _loop_body method works as expected, without an array
+    reduction.
+
+    '''
+    trans = Sum2CodeTrans()
+    i_iterator = DataSymbol("i", INTEGER_TYPE)
+    j_iterator = DataSymbol("j", INTEGER_TYPE)
+    array_iterators = [j_iterator, i_iterator]
+    var_symbol = DataSymbol("var", REAL_TYPE)
+    array_symbol = DataSymbol("array", ArrayType(REAL_TYPE, [10, 10]))
+    array_ref = ArrayReference.create(
+        array_symbol, [Reference(i_iterator), Reference(j_iterator)])
+    result = trans._loop_body(False, array_iterators, var_symbol, array_ref)
+    assert result.debug_string() == "var = var + array(i,j)\n"
+
+
+def test_loop_body_reduction():
+    '''Test that the _loop_body method works as expected, with an array
+    reduction.
+
+    '''
+    trans = Sum2CodeTrans()
+    i_iterator = DataSymbol("i", INTEGER_TYPE)
+    j_iterator = DataSymbol("j", INTEGER_TYPE)
+    k_iterator = DataSymbol("k", INTEGER_TYPE)
+    array_iterators = [i_iterator, k_iterator]
+    var_symbol = DataSymbol("var", ArrayType(REAL_TYPE, [10, 10]))
+    array_symbol = DataSymbol("array", ArrayType(REAL_TYPE, [10, 10, 10]))
+    array_ref = ArrayReference.create(
+        array_symbol, [Reference(i_iterator), Reference(j_iterator),
+                       Reference(k_iterator)])
+    result = trans._loop_body(True, array_iterators, var_symbol, array_ref)
+    assert result.debug_string() == "var(i,k) = var(i,k) + array(i,j,k)\n"
+
+
+@pytest.mark.parametrize("name,precision,zero", [
+    (ScalarType.Intrinsic.REAL, ScalarType.Precision.UNDEFINED, "0.0"),
+    (ScalarType.Intrinsic.INTEGER, ScalarType.Precision.UNDEFINED, "0"),
+    (ScalarType.Intrinsic.REAL, DataSymbol("r_def", INTEGER_TYPE),
+     "0.0_r_def")])
+def test_init_var(name, precision, zero):
+    '''Test that the _init_var method works as expected. Test with real,
+    integer and with a specified precision.
+
+    '''
+    trans = Sum2CodeTrans()
+    datatype = ScalarType(name, precision)
+    var_symbol = DataSymbol("var", datatype)
+    result = trans._init_var(var_symbol)
+    assert result.debug_string() == zero
+
+
+def test_str():
+    '''Test that the str method, implemented in the parent class, works
+    as expected.
+
+    '''
+    trans = Sum2CodeTrans()
+    assert str(trans) == ("Convert the PSyIR SUM intrinsic to equivalent "
+                          "PSyIR code.")
+
+
+def test_name():
+    '''Test that the name method, implemented in the parent class, works
+    as expected.
+
+    '''
+    trans = Sum2CodeTrans()
     assert trans.name == "Sum2CodeTrans"
 
 
-def test_validate_node():
-    '''Check that an incorrect node raises the expected exception.'''
+def test_validate():
+    '''Test that the validate method, implemented in the parent class,
+    works as expected.
+
+    '''
     trans = Sum2CodeTrans()
     with pytest.raises(TransformationError) as info:
         trans.validate(None)
@@ -62,488 +138,38 @@ def test_validate_node():
             "argument is not an intrinsic, found 'NoneType'."
             in str(info.value))
 
-    intrinsic = IntrinsicCall.create(
-        IntrinsicCall.Intrinsic.MINVAL,
-        [Reference(DataSymbol("array", REAL_TYPE))])
-    with pytest.raises(TransformationError) as info:
-        trans.validate(intrinsic)
-    assert ("The supplied node argument is not a sum intrinsic, found "
-            "'MINVAL'." in str(info.value))
 
-
-def test_structure_error(fortran_reader):
-    '''Test that the transformation raises an exception if the array node
-    is part of a structure, as this is not currently supported.
-
-    '''
-    code = (
-        "subroutine sum_test(n,m)\n"
-        "  integer :: n, m\n"
-        "  type :: array_type\n"
-        "      real :: array(10,10)\n"
-        "  end type\n"
-        "  type(array_type) :: ref\n"
-        "  real :: result\n"
-        "  integer :: dimension\n"
-        "  result = sum(ref%array)\n"
-        "end subroutine\n")
-    psyir = fortran_reader.psyir_from_source(code)
-    sum_node = psyir.children[0].children[0].children[1]
-    trans = Sum2CodeTrans()
-    with pytest.raises(TransformationError) as info:
-        trans.validate(sum_node)
-    assert ("Sum2CodeTrans only support arrays for the first argument, but "
-            "found 'StructureReference'." in str(info.value))
-
-
-def test_indexed_array_error(fortran_reader):
-    '''Test that the transformation raises an exception if the array node
-    has a literal index, as this is invalid.
+def test_apply(fortran_reader, fortran_writer, tmpdir):
+    '''Test that the apply method, implemented in the parent class, works
+    as expected.
 
     '''
     code = (
         "subroutine sum_test(array,n,m)\n"
         "  integer :: n, m\n"
-        "  real :: array(10,10)\n"
-        "  real :: result\n"
-        "  integer :: dimension\n"
-        "  result = sum(array(1,1))\n"
-        "end subroutine\n")
-    psyir = fortran_reader.psyir_from_source(code)
-    sum_node = psyir.children[0].children[0].children[1]
-    trans = Sum2CodeTrans()
-    with pytest.raises(TransformationError) as info:
-        trans.validate(sum_node)
-    assert ("Sum2CodeTrans only supports arrays with array ranges, but "
-            "found a fixed dimension in 'array(1,1)'." in str(info.value))
-
-
-def test_dimension_arg(fortran_reader):
-    '''Test that the expected exception is raised if the dimension arg is
-    not a literal or a variable.
-
-    '''
-    code = (
-        "subroutine sum_test(array,n,m)\n"
-        "  integer :: n, m\n"
-        "  real :: array(10,10)\n"
-        "  real :: result\n"
-        "  integer :: dimension\n"
-        "  result = sum(array, dim=dimension*2)\n"
-        "end subroutine\n")
-    psyir = fortran_reader.psyir_from_source(code)
-    # FileContainer/Routine/Assignment/UnaryOperation
-    sum_node = psyir.children[0].children[0].children[1]
-    trans = Sum2CodeTrans()
-    with pytest.raises(TransformationError) as info:
-        trans.validate(sum_node)
-    assert ("Can't find the value of the dimension argument. Expected it to "
-            "be a literal or a reference but found 'dimension * 2' which is "
-            "a 'BinaryOperation'." in str(info.value))
-
-
-def test_array_arg(fortran_reader):
-    '''Test that the expected exception is raised if the array argument is
-    not an array.
-
-    '''
-    code = (
-        "subroutine sum_test(array,n,m)\n"
-        "  integer :: n, m\n"
-        "  real :: array\n"
+        "  real :: array(10,20)\n"
         "  real :: result\n"
         "  result = sum(array)\n"
         "end subroutine\n")
-    psyir = fortran_reader.psyir_from_source(code)
-    # FileContainer/Routine/Assignment/UnaryOperation
-    sum_node = psyir.children[0].children[0].children[1]
-    trans = Sum2CodeTrans()
-    with pytest.raises(TransformationError) as info:
-        trans.validate(sum_node)
-    assert "Expected 'array' to be an array." in str(info.value)
-
-
-def test_array_shape(fortran_reader, monkeypatch):
-    '''Tests that the expected exception is raised if the array shape is
-    not a valid value. Requires monkeypatching.
-
-    '''
-    code = (
-        "subroutine sum_test(array,n,m)\n"
-        "  integer :: n, m\n"
-        "  real :: array(1)\n"
-        "  real :: result\n"
-        "  result = sum(array)\n"
-        "end subroutine\n")
-    psyir = fortran_reader.psyir_from_source(code)
-    # FileContainer/Routine/Assignment/UnaryOperation
-    sum_node = psyir.children[0].children[0].children[1]
-
-    # Modify array shape from sum_node to create exception
-    array_ref = sum_node.children[0]
-    array_symbol = array_ref.symbol
-    monkeypatch.setattr(array_symbol._datatype, "_shape", [None])
-
-    trans = Sum2CodeTrans()
-    with pytest.raises(TransformationError) as info:
-        trans.validate(sum_node)
-    assert ("Unexpected shape for array 'array': " in str(info.value))
-
-
-def test_array_type_arg(fortran_reader):
-    '''Test that the expected exception is raised if the array is an
-    unsupported datatype.
-
-    '''
-    code = (
-        "subroutine sum_test(array,n,m)\n"
-        "  integer :: n, m\n"
-        "  logical :: array(10)\n"
-        "  real :: result\n"
-        "  result = sum(array)\n"
-        "end subroutine\n")
-    psyir = fortran_reader.psyir_from_source(code)
-    # FileContainer/Routine/Assignment/UnaryOperation
-    sum_node = psyir.children[0].children[0].children[1]
-    trans = Sum2CodeTrans()
-    with pytest.raises(TransformationError) as info:
-        trans.validate(sum_node)
-    assert ("Only real and integer types supported for array 'array', "
-            "but found 'BOOLEAN'." in str(info.value))
-
-
-# apply tests
-
-@pytest.mark.parametrize("idim1,idim2,rdim11,rdim12,rdim21,rdim22",
-                         [("10", "20", "1", "10", "1", "20"),
-                          ("n", "m", "1", "n", "1", "m"),
-                          ("0:n", "2:m", "0", "n", "2", "m"),
-                          (":", ":", "LBOUND(array, 1)", "UBOUND(array, 1)",
-                           "LBOUND(array, 2)", "UBOUND(array, 2)")])
-def test_apply_sum(idim1, idim2, rdim11, rdim12, rdim21, rdim22,
-                   fortran_reader, fortran_writer):
-    '''Test that a sum intrinsic as the only term on the rhs of an
-    assignment with a single array argument gets transformed as
-    expected. Test with known and unknown array sizes.
-
-    '''
-    code = (
-        f"subroutine sum_test(array,n,m)\n"
-        f"  integer :: n, m\n"
-        f"  real :: array({idim1},{idim2})\n"
-        f"  real :: result\n"
-        f"  result = sum(array)\n"
-        f"end subroutine\n")
     expected = (
-        f"subroutine sum_test(array, n, m)\n"
-        f"  integer :: n\n  integer :: m\n"
-        f"  real, dimension({idim1},{idim2}) :: array\n"
-        f"  real :: result\n  real :: sum_var\n"
-        f"  integer :: i_0\n  integer :: i_1\n\n"
-        f"  sum_var = 0.0\n"
-        f"  do i_1 = {rdim21}, {rdim22}, 1\n"
-        f"    do i_0 = {rdim11}, {rdim12}, 1\n"
-        f"      sum_var = sum_var + array(i_0,i_1)\n"
-        f"    enddo\n"
-        f"  enddo\n"
-        f"  result = sum_var\n\n"
-        f"end subroutine sum_test\n")
-    psyir = fortran_reader.psyir_from_source(code)
-    # FileContainer/Routine/Assignment/UnaryOperation
-    sum_node = psyir.children[0].children[0].children[1]
-    trans = Sum2CodeTrans()
-    trans.apply(sum_node)
-    result = fortran_writer(psyir)
-    assert result == expected
-
-
-@pytest.mark.parametrize("datatype,zero", [("real", "0.0"), ("integer", "0"),
-                                           ("real(kind=r_def)", "0.0_r_def")])
-def test_apply_sum_multi(fortran_reader, fortran_writer, datatype, zero):
-    '''Test that a sum intrinsic as part of multiple term on the rhs of an
-    assignment with a single array argument gets transformed as
-    expected. Test with real, integer and with a specified precision.
-
-    '''
-    code = (
-        f"subroutine sum_test(array,n,m,value1,value2)\n"
-        f"  use precision\n"
-        f"  integer :: n, m\n"
-        f"  {datatype} :: array(n,m)\n"
-        f"  real :: value1, value2\n"
-        f"  real :: result\n"
-        f"  result = value1 + sum(array) * value2\n"
-        f"end subroutine\n")
-    expected = (
-        f"subroutine sum_test(array, n, m, value1, value2)\n"
-        f"  use precision\n"
-        f"  integer :: n\n  integer :: m\n"
-        f"  {datatype}, dimension(n,m) :: array\n"
-        f"  real :: value1\n  real :: value2\n"
-        f"  real :: result\n  {datatype} :: sum_var\n"
-        f"  integer :: i_0\n  integer :: i_1\n\n"
-        f"  sum_var = {zero}\n"
-        f"  do i_1 = 1, m, 1\n"
-        f"    do i_0 = 1, n, 1\n"
-        f"      sum_var = sum_var + array(i_0,i_1)\n"
-        f"    enddo\n"
-        f"  enddo\n"
-        f"  result = value1 + sum_var * value2\n\n"
-        f"end subroutine sum_test\n")
-    psyir = fortran_reader.psyir_from_source(code)
-    # FileContainer/Routine/Assignment/BinaryOperation(ADD)/
-    # BinaryOperation(MUL)/UnaryOperation
-    sum_node = psyir.children[0].children[0].children[1].children[1]. \
-        children[0]
-    trans = Sum2CodeTrans()
-    trans.apply(sum_node)
-    result = fortran_writer(psyir)
-    assert result == expected
-
-
-def test_apply_dimension_1d(fortran_reader, fortran_writer):
-    '''Test that the apply method works as expected when a dimension
-    argument is specified and the array is one dimensional. This
-    should be the same as if dimension were not specified at all.
-
-    '''
-    code = (
-        "subroutine sum_test(array,value1,value2)\n"
-        "  real :: array(:)\n"
-        "  real :: value1, value2\n"
-        "  real :: result\n"
-        "  result = value1 + sum(array,dim=1) * value2\n"
-        "end subroutine\n")
-    expected = (
-        "subroutine sum_test(array, value1, value2)\n"
-        "  real, dimension(:) :: array\n"
-        "  real :: value1\n  real :: value2\n"
+        "subroutine sum_test(array, n, m)\n"
+        "  integer :: n\n  integer :: m\n"
+        "  real, dimension(10,20) :: array\n"
         "  real :: result\n  real :: sum_var\n"
-        "  integer :: i_0\n\n"
+        "  integer :: i_0\n  integer :: i_1\n\n"
         "  sum_var = 0.0\n"
-        "  do i_0 = LBOUND(array, 1), UBOUND(array, 1), 1\n"
-        "    sum_var = sum_var + array(i_0)\n"
-        "  enddo\n"
-        "  result = value1 + sum_var * value2\n\n"
-        "end subroutine sum_test\n")
-    psyir = fortran_reader.psyir_from_source(code)
-    # FileContainer/Routine/Assignment/BinaryOperation(ADD)/
-    # BinaryOperation(MUL)/UnaryOperation
-    sum_node = psyir.children[0].children[0].children[1].children[1]. \
-        children[0]
-    trans = Sum2CodeTrans()
-    trans.apply(sum_node)
-    result = fortran_writer(psyir)
-    assert result == expected
-
-
-def test_apply_dimension_multid(fortran_reader, fortran_writer):
-    '''Test that the apply method works as expected when a dimension
-    argument is specified and the array is multi-dimensional. Only the
-    specified dimension should be summed.
-
-    '''
-    code = (
-        "subroutine sum_test(array,value1,value2,n,m,p)\n"
-        "  integer :: n,m,p\n"
-        "  real :: array(n,m,p)\n"
-        "  real :: value1, value2\n"
-        "  real :: result(n,p)\n"
-        "  result(:,:) = value1 + sum(array,dim=2) * value2\n"
-        "end subroutine\n")
-    expected = (
-        "subroutine sum_test(array, value1, value2, n, m, p)\n"
-        "  integer :: n\n  integer :: m\n  integer :: p\n"
-        "  real, dimension(n,m,p) :: array\n"
-        "  real :: value1\n  real :: value2\n"
-        "  real, dimension(n,p) :: result\n"
-        "  real, dimension(n,p) :: sum_var\n"
-        "  integer :: i_0\n  integer :: i_1\n  integer :: i_2\n\n"
-        "  sum_var = 0.0\n"
-        "  do i_2 = 1, p, 1\n"
-        "    do i_1 = 1, m, 1\n"
-        "      do i_0 = 1, n, 1\n"
-        "        sum_var(i_0,i_2) = sum_var(i_0,i_2) + array(i_0,i_1,i_2)\n"
-        "      enddo\n"
-        "    enddo\n"
-        "  enddo\n"
-        "  result(:,:) = value1 + sum_var * value2\n\n"
-        "end subroutine sum_test\n")
-    psyir = fortran_reader.psyir_from_source(code)
-    # FileContainer/Routine/Assignment/BinaryOperation(ADD)/
-    # BinaryOperation(MUL)/UnaryOperation
-    sum_node = psyir.children[0].children[0].children[1].children[1]. \
-        children[0]
-    trans = Sum2CodeTrans()
-    trans.apply(sum_node)
-    result = fortran_writer(psyir)
-    assert result == expected
-
-
-def test_apply_dimension_multid_unknown(fortran_reader, fortran_writer):
-    '''Test that lbound and ubound are used if the bounds of the array are
-    not known.
-
-    '''
-    code = (
-        "subroutine sum_test(array,value1,value2,result)\n"
-        "  real :: array(:,:,:)\n"
-        "  real :: value1, value2\n"
-        "  real :: result(:,:)\n"
-        "  result(:,:) = value1 + sum(array,dim=2) * value2\n"
-        "end subroutine\n")
-    expected = (
-        "subroutine sum_test(array, value1, value2, result)\n"
-        "  real, dimension(:,:,:) :: array\n"
-        "  real :: value1\n"
-        "  real :: value2\n"
-        "  real, dimension(:,:) :: result\n"
-        "  real, dimension(LBOUND(array, 1):UBOUND(array, 1),LBOUND(array, 3):"
-        "UBOUND(array, 3)) :: sum_var\n"
-        "  integer :: i_0\n"
-        "  integer :: i_1\n"
-        "  integer :: i_2\n\n"
-        "  sum_var = 0.0\n"
-        "  do i_2 = LBOUND(array, 3), UBOUND(array, 3), 1\n"
-        "    do i_1 = LBOUND(array, 2), UBOUND(array, 2), 1\n"
-        "      do i_0 = LBOUND(array, 1), UBOUND(array, 1), 1\n"
-        "        sum_var(i_0,i_2) = sum_var(i_0,i_2) + array(i_0,i_1,i_2)\n"
-        "      enddo\n"
-        "    enddo\n"
-        "  enddo\n"
-        "  result(:,:) = value1 + sum_var * value2\n\n"
-        "end subroutine sum_test\n")
-    psyir = fortran_reader.psyir_from_source(code)
-    # FileContainer/Routine/Assignment/BinaryOperation(ADD)/
-    # BinaryOperation(MUL)/UnaryOperation
-    sum_node = psyir.children[0].children[0].children[1].children[1]. \
-        children[0]
-    trans = Sum2CodeTrans()
-    trans.apply(sum_node)
-    result = fortran_writer(psyir)
-    assert result == expected
-
-
-# specified array range
-def test_apply_dimension_multid_range(fortran_reader, fortran_writer):
-    '''Test that the apply method works as expected when an array range is
-    specified and the array is multi-dimensional. Only the specified
-    dimension should be summed.
-
-    '''
-    code = (
-        "subroutine sum_test(array,value1,value2,n,m,p)\n"
-        "  integer :: n,m,p\n"
-        "  real :: array(:,:,:)\n"
-        "  real :: value1, value2\n"
-        "  real :: result(n,p)\n"
-        "  result(:,:) = value1 + sum(array(1:n,m-1:m,1:p),dim=2) * "
-        "value2\n"
-        "end subroutine\n")
-    expected = (
-        "subroutine sum_test(array, value1, value2, n, m, p)\n"
-        "  integer :: n\n  integer :: m\n  integer :: p\n"
-        "  real, dimension(:,:,:) :: array\n"
-        "  real :: value1\n  real :: value2\n"
-        "  real, dimension(n,p) :: result\n"
-        "  real, dimension(n,p) :: sum_var\n"
-        "  integer :: i_0\n  integer :: i_1\n  integer :: i_2\n\n"
-        "  sum_var = 0.0\n"
-        "  do i_2 = 1, p, 1\n"
-        "    do i_1 = m - 1, m, 1\n"
-        "      do i_0 = 1, n, 1\n"
-        "        sum_var(i_0,i_2) = sum_var(i_0,i_2) + array(i_0,i_1,i_2)\n"
-        "      enddo\n"
-        "    enddo\n"
-        "  enddo\n"
-        "  result(:,:) = value1 + sum_var * value2\n\n"
-        "end subroutine sum_test\n")
-    psyir = fortran_reader.psyir_from_source(code)
-    # FileContainer/Routine/Assignment/BinaryOperation(ADD)/
-    # BinaryOperation(MUL)/UnaryOperation
-    sum_node = psyir.children[0].children[0].children[1].children[1]. \
-        children[0]
-    trans = Sum2CodeTrans()
-    trans.apply(sum_node)
-    result = fortran_writer(psyir)
-    assert result == expected
-
-
-def test_mask():
-    '''Test that the sum transformation works when there is a mask
-    specified.
-
-    '''
-    code = (
-        "program sum_test\n"
-        "  real :: array(10,10)\n"
-        "  real :: result\n"
-        "  result = sum(array, mask=MOD(array, 2.0)==1)\n"
-        "end program\n")
-    expected = (
-        "program sum_test\n"
-        "  real, dimension(10,10) :: array\n"
-        "  real :: result\n"
-        "  real :: sum_var\n"
-        "  integer :: i_0\n"
-        "  integer :: i_1\n\n"
-        "  sum_var = 0.0\n"
-        "  do i_1 = 1, 10, 1\n"
+        "  do i_1 = 1, 20, 1\n"
         "    do i_0 = 1, 10, 1\n"
-        "      if (MOD(array(i_0,i_1), 2.0) == 1) then\n"
-        "        sum_var = sum_var + array(i_0,i_1)\n"
-        "      end if\n"
+        "      sum_var = sum_var + array(i_0,i_1)\n"
         "    enddo\n"
         "  enddo\n"
         "  result = sum_var\n\n"
-        "end program sum_test")
-    reader = FortranReader()
-    psyir = reader.psyir_from_source(code)
-    # FileContainer/Routine/Assignment/UnaryOperation
-    sum_node = psyir.children[0].children[0].children[1]
+        "end subroutine sum_test\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    # FileContainer/Routine/Assignment/IntrinsicCall
+    intrinsic_node = psyir.children[0].children[0].children[1]
     trans = Sum2CodeTrans()
-    trans.apply(sum_node)
-    writer = FortranWriter()
-    result = writer(psyir)
-    assert expected in result
-
-
-def test_mask_dimension():
-    '''Test that the sum transformation works when there is a mask and a
-    dimension specified.
-
-    '''
-    code = (
-        "program sum_test\n"
-        "  real :: array(10,10)\n"
-        "  real :: result(10)\n"
-        "  integer, parameter :: dimension=2\n"
-        "  result = sum(array, dimension, mask=MOD(array, 2.0)==1)\n"
-        "end program\n")
-    expected = (
-        "program sum_test\n"
-        "  integer, parameter :: dimension = 2\n"
-        "  real, dimension(10,10) :: array\n"
-        "  real, dimension(10) :: result\n"
-        "  real, dimension(10) :: sum_var\n"
-        "  integer :: i_0\n"
-        "  integer :: i_1\n\n"
-        "  sum_var = 0.0\n"
-        "  do i_1 = 1, 10, 1\n"
-        "    do i_0 = 1, 10, 1\n"
-        "      if (MOD(array(i_0,i_1), 2.0) == 1) then\n"
-        "        sum_var(i_0) = sum_var(i_0) + array(i_0,i_1)\n"
-        "      end if\n"
-        "    enddo\n"
-        "  enddo\n"
-        "  result = sum_var\n\n"
-        "end program sum_test")
-    reader = FortranReader()
-    psyir = reader.psyir_from_source(code)
-    # FileContainer/Routine/Assignment/UnaryOperation
-    sum_node = psyir.children[0].children[0].children[1]
-    trans = Sum2CodeTrans()
-    trans.apply(sum_node)
-    writer = FortranWriter()
-    result = writer(psyir)
-    assert expected in result
+    trans.apply(intrinsic_node)
+    result = fortran_writer(psyir)
+    assert result == expected
+    assert Compile(tmpdir).string_compiles(result)

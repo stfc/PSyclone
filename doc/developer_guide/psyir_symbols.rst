@@ -230,7 +230,8 @@ the subclass. For example:
 
 Sometimes providing additional properties of the new sub-class is desirable,
 and sometimes even mandatory (e.g. a `DataSymbol` must always have a datatype
-and optionally a constant_value parameter). For this reason the specialise
+and optionally is_constant and initial_value parameters). For this reason
+the specialise
 method implementation provides the same interface as the constructor
 of the symbol type in order to provide the same behaviour and default values
 as the constructor. For instance, in the `DataSymbol` case the following
@@ -241,15 +242,21 @@ specialisations are possible:
     >>> sym = Symbol("a")
     >>> # The following statement would fail because it doesn't have a datatype
     >>> # sym.specialise(DataSymbol)
-    >>> # The following statement is valid and constant_value is set to None
+    >>> # The following statement is valid (in this case initial_value will
+    >>> # default to None and is_constant to False):
     >>> sym.specialise(DataSymbol, datatype=INTEGER_TYPE)
 
     >>> sym2 = Symbol("b")
-    >>> # The following statement would fail because the constant_value doesn't
-    >>> # match the datatype of the symbol
-    >>> # sym2.specialise(DataSymbol, datatype=INTEGER_TYPE, constant_value=3.14)
-    >>> # The following statement is valid and constant_value is set to 3
-    >>> sym2.specialise(DataSymbol, datatype=INTEGER_TYPE, constant_value=3)
+    >>> # The following statement would fail because the initial_value doesn't
+    >>> # match the datatype of the symbol:
+    >>> # sym2.specialise(DataSymbol, datatype=INTEGER_TYPE, initial_value=3.14)
+    >>> # The following statement is valid and initial_value is set to 3
+    >>> # (and is_constant will default to False):
+    >>> sym2.specialise(DataSymbol, datatype=INTEGER_TYPE, initial_value=3)
+    >>> print(sym2.initial_value)
+    Literal[value:'3', Scalar<INTEGER, UNDEFINED>]
+    >>> print(sym2.is_constant)
+    False
 
 
 Routine Interfaces

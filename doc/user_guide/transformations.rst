@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
 .. BSD 3-Clause License
 ..
-.. Copyright (c) 2017-2022, Science and Technology Facilities Council
+.. Copyright (c) 2017-2023, Science and Technology Facilities Council
 .. All rights reserved.
 ..
 .. Redistribution and use in source and binary forms, with or without
@@ -147,7 +147,7 @@ can be found in the API-specific sections).
       :members: apply
       :noindex:
 
-.. warning:: This transformation assumes that the ABS Operator acts on
+.. warning:: This transformation assumes that the ABS Intrinsic acts on
              PSyIR Real scalar data and does not check that this is
              not the case. Once issue #658 is on master then this
              limitation can be fixed.
@@ -275,10 +275,16 @@ can be found in the API-specific sections).
       :members: apply
       :noindex:
 
-.. warning:: This transformation assumes that the MAX Operator acts on
+.. warning:: This transformation assumes that the MAX Intrinsic acts on
              PSyIR Real scalar data and does not check that this is
              not the case. Once issue #658 is on master then this
              limitation can be fixed.
+
+####
+
+.. autoclass:: psyclone.psyir.transformations.Maxval2CodeTrans
+      :members: apply
+      :noindex:
 
 ####
 
@@ -286,10 +292,16 @@ can be found in the API-specific sections).
       :members: apply
       :noindex:
 
-.. warning:: This transformation assumes that the MIN Operator acts on
+.. warning:: This transformation assumes that the MIN Intrinsic acts on
              PSyIR Real scalar data and does not check that this is
              not the case. Once issue #658 is on master then this
              limitation can be fixed.
+
+####
+
+.. autoclass:: psyclone.psyir.transformations.Minval2CodeTrans
+      :members: apply
+      :noindex:
 
 ####
 
@@ -424,7 +436,7 @@ can be found in the API-specific sections).
       :members: apply
       :noindex:
 
-.. warning:: This transformation assumes that the SIGN Operator acts
+.. warning:: This transformation assumes that the SIGN Intrinsic acts
              on PSyIR Real scalar data and does not check whether or not
              this is the case. Once issue #658 is on master then this
              limitation can be fixed.
@@ -1049,9 +1061,7 @@ PSyclone-generated loops in the PSy layer. PSyclone therefore provides
 the ``ACCRoutineTrans`` transformation which, given a Kernel node in
 the PSyIR, creates a new version of that kernel with the ``routine``
 directive added. See either PSyclone/examples/gocean/eg2 or
-PSyclone/examples/lfric/eg14 for an example (although please note that
-this transformation is not yet fully working for kernels in
-the LFRic (Dynamo0.3) API - see #1724).
+PSyclone/examples/lfric/eg14 for an example.
 
 SIR
 ---

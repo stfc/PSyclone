@@ -279,9 +279,9 @@ def _add_precision_symbol(symbol, table):
     if symbol.name in table:
         return
 
-    if symbol.is_automatic or symbol.is_modulevar:
-        table.add(symbol.copy())
-    elif symbol.is_import:
+    if symbol.is_import:
+        # Handle imported symbols first because they may also be constants
+        # while the reverse is not true.
         contr_sym = symbol.interface.container_symbol
         try:
             kind_contr_sym = table.lookup(contr_sym.name)
@@ -292,6 +292,8 @@ def _add_precision_symbol(symbol, table):
         kind_symbol = symbol.copy()
         kind_symbol.interface = ImportInterface(kind_contr_sym)
         table.add(kind_symbol)
+    elif symbol.is_automatic or symbol.is_modulevar or symbol.is_constant:
+        table.add(symbol.copy())
     else:
         raise NotImplementedError(
             f"One or more variables have a precision specified by symbol "
@@ -396,7 +398,8 @@ def generate_adjoint_test(tl_psyir, ad_psyir,
     dim_size_sym = symbol_table.new_symbol("array_extent",
                                            symbol_type=DataSymbol,
                                            datatype=INTEGER_TYPE,
-                                           constant_value=TEST_ARRAY_DIM_SIZE)
+                                           is_constant=True,
+                                           initial_value=TEST_ARRAY_DIM_SIZE)
 
     # Create symbols for the results of the inner products
     inner1 = symbol_table.new_symbol("inner1", symbol_type=DataSymbol,
@@ -439,7 +442,8 @@ def generate_adjoint_test(tl_psyir, ad_psyir,
         new_dim_args_map[arg] = symbol_table.new_symbol(
             arg.name, symbol_type=DataSymbol,
             datatype=arg.datatype,
-            constant_value=Reference(dim_size_sym))
+            is_constant=True,
+            initial_value=Reference(dim_size_sym))
 
     # Create necessary variables for the kernel arguments.
     inputs = []
@@ -665,20 +669,20 @@ def _create_array_inner_product(result, array1, array2, table):
     # Generate a Range object for each dimension of each array
     for idx in range(len(array1.datatype.shape)):
         idx_literal = Literal(str(idx+1), INTEGER_TYPE)
-        lbound1 = BinaryOperation.create(BinaryOperation.Operator.LBOUND,
-                                         Reference(array1),
-                                         idx_literal.copy())
-        ubound1 = BinaryOperation.create(BinaryOperation.Operator.UBOUND,
-                                         Reference(array1),
-                                         idx_literal.copy())
+        lbound1 = IntrinsicCall.create(
+            IntrinsicCall.Intrinsic.LBOUND,
+            [Reference(array1), ("dim", idx_literal.copy())])
+        ubound1 = IntrinsicCall.create(
+            IntrinsicCall.Intrinsic.UBOUND,
+            [Reference(array1), ("dim", idx_literal.copy())])
         ranges1.append(Range.create(lbound1, ubound1))
 
-        lbound2 = BinaryOperation.create(BinaryOperation.Operator.LBOUND,
-                                         Reference(array2),
-                                         idx_literal.copy())
-        ubound2 = BinaryOperation.create(BinaryOperation.Operator.UBOUND,
-                                         Reference(array2),
-                                         idx_literal.copy())
+        lbound2 = IntrinsicCall.create(
+            IntrinsicCall.Intrinsic.LBOUND,
+            [Reference(array2), ("dim", idx_literal.copy())])
+        ubound2 = IntrinsicCall.create(
+            IntrinsicCall.Intrinsic.UBOUND,
+            [Reference(array2), ("dim", idx_literal.copy())])
         ranges2.append(Range.create(lbound2, ubound2))
 
     # Use these Ranges to create references for all elements of both arrays

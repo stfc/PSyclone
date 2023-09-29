@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified I. Kavcic, A. Coughtrie and L. Turner, Met Office
+# Modified I. Kavcic, A. Coughtrie, L. Turner and O. Brunt, Met Office
 # Modified J. Henrichs, Bureau of Meteorology
 # Modified A. B. G. Chalk and N. Nobre, STFC Daresbury Lab
 
@@ -93,15 +93,16 @@ class LFRicInvoke(Invoke):
 
         # Import here to avoid circular dependency
         # pylint: disable=import-outside-toplevel
-        from psyclone.dynamo0p3 import (LFRicScalarArgs, DynStencils,
+        from psyclone.dynamo0p3 import (DynStencils,
                                         DynFunctionSpaces, DynDofmaps,
                                         LFRicFields, DynLMAOperators,
                                         DynCMAOperators, DynBasisFunctions,
                                         DynMeshes, DynBoundaryConditions,
                                         DynProxies, LFRicRunTimeChecks,
                                         DynCellIterators, DynReferenceElement,
-                                        LFRicMeshProperties, LFRicLoopBounds,
-                                        DynGlobalSum)
+                                        LFRicMeshProperties, DynGlobalSum)
+        from psyclone.domain.lfric import LFRicLoopBounds, LFRicScalarArgs
+
         self.scalar_args = LFRicScalarArgs(self)
 
         # Initialise our Invoke stencil information
