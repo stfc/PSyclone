@@ -735,7 +735,7 @@ class IntrinsicCall(Call):
             'UNPACK', True, False, False,
             ArgDesc(3, 3, DataNode), {})
         VERIFY = IAttr(
-            'TRIM', True, True, False,
+            'VERIFY', True, True, False,
             ArgDesc(2, 2, DataNode), {"back": DataNode, "kind": DataNode})
 
         def __hash__(self):

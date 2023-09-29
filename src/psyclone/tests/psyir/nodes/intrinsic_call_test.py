@@ -392,3 +392,89 @@ def test_reference_accesses_bounds(operator, fortran_reader):
     vai = VariablesAccessInfo(schedule,
                               options={"COLLECT-ARRAY-SHAPE-READS": True})
     assert str(vai) == "a: READ, b: READ, n: WRITE"
+
+
+def test_allocate_intrinsic(fortran_reader, fortran_writer):
+    '''
+    Test the ALLOCATE 'intrinsic'.
+    '''
+    code = '''
+program test_prog
+  implicit none
+  integer :: ierr
+  character(len=128) :: msg
+  real, allocatable, dimension(:) :: arr1, arr2
+  allocate(arr1(10), stat=ierr)
+  allocate(arr2, mold=arr1)
+  allocate(arr2, source=arr1, errmsg=msg)
+end program test_prog
+'''
+    psyir = fortran_reader.psyir_from_source(code)
+    assert len(psyir.walk(IntrinsicCall)) == 3
+    result = fortran_writer(psyir).lower()
+    assert "allocate(arr1(1:10), stat=ierr)" in result
+    assert "allocate(arr2, mold=arr1)" in result
+    assert "allocate(arr2, source=arr1, errmsg=msg)" in result
+
+
+def test_deallocate_intrinsic(fortran_reader, fortran_writer):
+    '''
+    Test the DEALLOCATE 'intrinsic'.
+    '''
+    code = '''
+program test_prog
+  implicit none
+  integer :: ierr
+  real, allocatable, dimension(:) :: arr1
+  deallocate(arr1)
+  deallocate(arr1, stat=ierr)
+end program test_prog
+'''
+    psyir = fortran_reader.psyir_from_source(code)
+    assert len(psyir.walk(IntrinsicCall)) == 2
+    result = fortran_writer(psyir).lower()
+    assert "deallocate(arr1)" in result
+    assert "deallocate(arr1, stat=ierr)" in result
+
+
+def test_index_intrinsic(fortran_reader, fortran_writer):
+    '''
+    Test the INDEX intrinsic.
+    '''
+    code = '''
+program test_prog
+  implicit none
+  character(len=10) :: clname
+  integer :: ind1, ind2, idom, jpdom_local
+
+  ind1 = INDEX( clname, '_', back = .TRUE. ) + 1
+  ind2 = INDEX( clname, '.', back = .TRUE. ) - 1
+
+end program test_prog
+'''
+    psyir = fortran_reader.psyir_from_source(code)
+    assert len(psyir.walk(IntrinsicCall)) == 2
+
+
+def test_verify_intrinsic(fortran_reader, fortran_writer):
+    '''
+    Test the VERIFY intrinsic.
+    '''
+    code = '''
+program test_prog
+  implicit none
+  character(len=10) :: clname
+  integer :: ind1, ind2, idom, jpdom_local
+
+  ind1 = 2
+  ind2 = 5
+  IF( ind2 > ind1 ) THEN
+    IF( VERIFY( clname(ind1:ind2), '0123456789' ) == 0 ) idom = jpdom_local
+  ENDIF
+
+end program test_prog
+'''
+    psyir = fortran_reader.psyir_from_source(code)
+    assert len(psyir.walk(IntrinsicCall)) == 1
+    result = fortran_writer(psyir).lower()
+    assert "if (verify(clname(ind1:ind2), '0123456789') == 0) then" in result
