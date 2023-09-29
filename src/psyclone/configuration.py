@@ -962,7 +962,7 @@ class LFRicConfig(APISpecificConfig):
                     f"Wrong type supplied to '[{section.name}]' in "
                     f"'{config.filename}': \n '{key} : "
                     f"{all_precisions[key]}' is of type "
-                    f"{str(type(all_precisions[i])).upper()} not integer."
+                    f"{str(type(all_precisions[key])).upper()} not integer."
                 )
             if all_precisions[key] < 0:
                 raise ConfigurationError(
