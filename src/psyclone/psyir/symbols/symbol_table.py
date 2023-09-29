@@ -1416,14 +1416,14 @@ class SymbolTable():
                         test_symbol = symbol_table.lookup(symbol.name)
                         # pylint: disable=unidiomatic-typecheck
                         if (type(test_symbol) == Symbol
-                            and test_symbol.is_unresolved
-                                and test_symbol.name not in self):
+                                and test_symbol.is_unresolved):
                             # No wildcard imports in this symbol table
                             if not [sym for sym in
                                     symbol_table.containersymbols if
                                     sym.wildcard_import]:
                                 symbol_table.remove(test_symbol)
-                                self.add(test_symbol)
+                                if test_symbol.name not in self:
+                                    self.add(test_symbol)
 
                 # This Symbol matches the name of a symbol in the current table
                 if symbol.name in self:

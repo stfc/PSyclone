@@ -2526,6 +2526,144 @@ def test_resolve_imports_from_child_symtab(
     assert symbol.interface.container_symbol.name == "a_mod"
 
 
+def test_resolve_imports_from_child_symtab_uft(
+        fortran_reader, tmpdir, monkeypatch):
+    '''Check that when an unresolved symbol is declared in a subroutine,
+    resolve imports can resolve it from a parent module as an
+    UnknownFortranType as long as there are no wildcard imports in the
+    subroutine.
+
+    '''
+    # Set up include_path to import the proper modules
+    monkeypatch.setattr(Config.get(), '_include_paths', [str(tmpdir)])
+    filename = os.path.join(str(tmpdir), "a_mod.f90")
+    with open(filename, "w", encoding='UTF-8') as module:
+        module.write('''
+        module a_mod
+            integer, save, pointer :: some_var
+        end module a_mod
+        ''')
+    psyir = fortran_reader.psyir_from_source('''
+        module b_mod
+            use a_mod
+        contains
+          subroutine my_sub()
+            some_var = 0.0
+          end subroutine
+        end module b_mod
+        ''')
+    mod = psyir.children[0]
+    subroutine = psyir.walk(Routine)[0]
+    assert "some_var" not in mod.symbol_table
+    assert "some_var" in subroutine.symbol_table
+    symbol = subroutine.symbol_table.lookup("some_var")
+    # pylint: disable=unidiomatic-typecheck
+    assert type(symbol) is Symbol
+    mod.symbol_table.resolve_imports()
+    assert "some_var" not in subroutine.symbol_table
+    assert "some_var" in mod.symbol_table
+    symbol = mod.symbol_table.lookup("some_var")
+    # pylint: disable=unidiomatic-typecheck
+    assert type(symbol) is DataSymbol
+    assert isinstance(symbol.datatype, UnknownFortranType)
+    assert isinstance(symbol.interface, ImportInterface)
+    assert symbol.interface.container_symbol.name == "a_mod"
+
+
+def test_resolve_imports_from_child_symtabs(
+        fortran_reader, tmpdir, monkeypatch):
+    '''Check that when an unresolved symbol is declared in more than one
+    subroutine, resolve imports can resolve it from a parent module as
+    long as there are no wildcard imports in the subroutine.
+
+    '''
+    # Set up include_path to import the proper modules
+    monkeypatch.setattr(Config.get(), '_include_paths', [str(tmpdir)])
+    filename = os.path.join(str(tmpdir), "a_mod.f90")
+    with open(filename, "w", encoding='UTF-8') as module:
+        module.write('''
+        module a_mod
+            integer :: some_var
+        end module a_mod
+        ''')
+    psyir = fortran_reader.psyir_from_source('''
+        module b_mod
+            use a_mod
+        contains
+          subroutine my_sub1()
+            some_var = 0.0
+          end subroutine
+          subroutine my_sub2()
+            some_var = 0.0
+          end subroutine
+        end module b_mod
+        ''')
+    mod = psyir.children[0]
+    assert "some_var" not in mod.symbol_table
+    for subroutine in psyir.walk(Routine):
+        assert "some_var" in subroutine.symbol_table
+        symbol = subroutine.symbol_table.lookup("some_var")
+        # pylint: disable=unidiomatic-typecheck
+        assert type(symbol) is Symbol
+    mod.symbol_table.resolve_imports()
+    for subroutine in psyir.walk(Routine):
+        assert "some_var" not in subroutine.symbol_table
+    assert "some_var" in mod.symbol_table
+    symbol = mod.symbol_table.lookup("some_var")
+    # pylint: disable=unidiomatic-typecheck
+    assert type(symbol) is DataSymbol
+    assert isinstance(symbol.interface, ImportInterface)
+    assert symbol.interface.container_symbol.name == "a_mod"
+
+
+def test_resolve_imports_from_child_symtabs_utf(
+        fortran_reader, tmpdir, monkeypatch):
+    '''Check that when an unresolved symbol is declared in more than one
+    subroutine, resolve imports can resolve it from a parent module
+    where it is declared as an UnknownFortranType, as long as there
+    are no wildcard imports in the subroutine.
+
+    '''
+    # Set up include_path to import the proper modules
+    monkeypatch.setattr(Config.get(), '_include_paths', [str(tmpdir)])
+    filename = os.path.join(str(tmpdir), "a_mod.f90")
+    with open(filename, "w", encoding='UTF-8') as module:
+        module.write('''
+        module a_mod
+            integer, save, pointer :: some_var
+        end module a_mod
+        ''')
+    psyir = fortran_reader.psyir_from_source('''
+        module b_mod
+            use a_mod
+        contains
+          subroutine my_sub1()
+            some_var = 0.0
+          end subroutine
+          subroutine my_sub2()
+            some_var = 0.0
+          end subroutine
+        end module b_mod
+        ''')
+    mod = psyir.children[0]
+    assert "some_var" not in mod.symbol_table
+    for subroutine in psyir.walk(Routine):
+        assert "some_var" in subroutine.symbol_table
+        symbol = subroutine.symbol_table.lookup("some_var")
+        # pylint: disable=unidiomatic-typecheck
+        assert type(symbol) is Symbol
+    mod.symbol_table.resolve_imports()
+    for subroutine in psyir.walk(Routine):
+        assert "some_var" not in subroutine.symbol_table
+    assert "some_var" in mod.symbol_table
+    symbol = mod.symbol_table.lookup("some_var")
+    # pylint: disable=unidiomatic-typecheck
+    assert type(symbol) is DataSymbol
+    assert isinstance(symbol.datatype, UnknownFortranType)
+    assert isinstance(symbol.interface, ImportInterface)
+    assert symbol.interface.container_symbol.name == "a_mod"
+
+
 def test_resolve_imports_from_child_symtab_with_import(
         fortran_reader, tmpdir, monkeypatch):
     '''Check that when an unresolved symbol is declared in a subroutine

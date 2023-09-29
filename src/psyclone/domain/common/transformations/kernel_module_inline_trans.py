@@ -178,7 +178,7 @@ class KernelModuleInlineTrans(Transformation):
         '''Prepare the PSyIR tree to inline by bringing in to the subroutine
         all referenced symbols so that the implementation is self contained.
 
-        issue #2271 will improve this method and could potentially
+        TODO #2271 will improve this method and could potentially
         avoid the need for debug_string() within get_kernel_schedule()
         in dynamo0.3.py. Sergi suggests that we may be missing the
         traversal of the declaration init expressions here and that

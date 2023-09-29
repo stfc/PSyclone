@@ -8065,7 +8065,7 @@ class DynKern(CodedKern):
             # invalid code is not inlined. We use debug_string() to
             # minimise the overhead.
 
-            # #2271 could potentially avoid the need for
+            # TODO #2271 could potentially avoid the need for
             # debug_string() within. Sergi suggests that we may be
             # missing the traversal of the declaration init
             # expressions and that might solve the problem. I'm not so
@@ -8074,8 +8074,8 @@ class DynKern(CodedKern):
             # then one option would be to use the FortranWriter, but
             # that would be bigger overhead, or perhaps just the
             # declarations part of FortranWriter if that is possible.
-            # Also see issue #2336 which captures the specific problem
-            # in LFRic that this fixes.
+            # Also see TODO issue #2336 which captures the specific
+            # problem in LFRic that this fixes.
             routine.debug_string()
 
         if len(routines) == 1:
