@@ -43,7 +43,8 @@ import pytest
 from psyclone.psyir.nodes import IntrinsicCall, Reference, Literal, Assignment
 from psyclone.psyir.symbols import (
     Symbol, BOOLEAN_TYPE, INTEGER_TYPE, DataSymbol, REAL_TYPE)
-from psyclone.psyir.transformations import TransformationError, Sum2CodeTrans
+from psyclone.psyir.transformations import (
+    TransformationError, Sum2CodeTrans, Maxval2CodeTrans)
 from psyclone.psyir.transformations.intrinsics.mms_base_trans import (
     MMSBaseTrans)
 from psyclone.tests.utilities import Compile
@@ -148,9 +149,11 @@ def test_structure_error(fortran_reader):
     trans = NamedTestTrans()
     with pytest.raises(TransformationError) as info:
         trans.validate(node)
-    assert ("NamedTestTrans only supports arrays or plain references for "
-            "the first argument, but found 'StructureReference'."
-            in str(info.value))
+    assert ("Unsupported node found of type 'StructureReference' in "
+            "'ref%array'. NamedTestTrans supports an expression for the "
+            "first argument to the SUM intrinsic, containing a mixture of "
+            "unary operations, binary operations, elemental intrinsic calls "
+            "and an array reference or reference." in str(info.value))
 
 
 def test_indexed_array_error(fortran_reader):
@@ -171,6 +174,7 @@ def test_indexed_array_error(fortran_reader):
     trans = NamedTestTrans()
     with pytest.raises(TransformationError) as info:
         trans.validate(node)
+    print(str(info.value))
     assert ("NamedTestTrans only supports arrays with array ranges, but "
             "found a fixed dimension in 'array(1,1)'." in str(info.value))
 
@@ -385,6 +389,107 @@ def test_not_assignment(fortran_reader):
 
 
 # apply
+
+def test_array_unary_expr(fortran_reader, fortran_writer):
+    '''Test that the array argument may be an expression consisting of a
+    single array reference, and one of more literals, operators or
+    intrinsics. Use the
+    Maxval2CodeTrans transformation (a subclass of MMSBaseTrans), as it
+    is easy to test.
+
+    '''
+    code = (
+        "subroutine test(array)\n"
+        "  real :: array(:,:,:)\n"
+        "  real :: result\n"
+        "  result = maxval(-array(:,:,:))\n"
+        "end subroutine\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    # FileContainer/Routine/Assignment/maxval
+    node = psyir.children[0].children[0].children[1]
+    trans = Maxval2CodeTrans()
+    trans.apply(node)
+    result = fortran_writer(psyir)
+    print(result)
+
+
+def test_array_ingrinsic_call(fortran_reader, fortran_writer):
+    '''Test that the array argument may be an expression consisting of a
+    single array reference, and one of more literals, operators or
+    intrinsics. Use the
+    Maxval2CodeTrans transformation (a subclass of MMSBaseTrans), as it
+    is easy to test.
+
+    '''
+    code = (
+        "subroutine test(sshn, zmax)\n"
+        "  real :: sshn(:,:)\n"
+        "  real :: zmax(1)\n"
+        "  zmax(1) = MAXVAL(ABS(sshn(:,:)))\n"
+        "end subroutine\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    # FileContainer/Routine/Assignment/maxval
+    node = psyir.children[0].children[0].children[1]
+    trans = Maxval2CodeTrans()
+    trans.apply(node)
+    result = fortran_writer(psyir)
+    print(result)
+
+
+def test_array_intrinsic_and_operator_calls(fortran_reader, fortran_writer):
+    '''Test that the array argument may be an expression consisting of a
+    single array reference, and one of more literals, operators or
+    intrinsics. Use the
+    Maxval2CodeTrans transformation (a subclass of MMSBaseTrans), as it
+    is easy to test.
+
+    '''
+    code = (
+        "subroutine test(sshn, zmax, ssh_ref, tmask)\n"
+        "  real :: sshn(:,:)\n"
+        "  real :: tmask(:,:,:)\n"
+        "  real :: zmax(1)\n"
+        "  real :: ssh_ref\n"
+        "  zmax(1) = MAXVAL(ABS(sshn(:,:) + ssh_ref * tmask(:,:,1)))\n"
+        "end subroutine\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    # FileContainer/Routine/Assignment/maxval
+    node = psyir.children[0].children[0].children[1]
+    trans = Maxval2CodeTrans()
+    trans.apply(node)
+    result = fortran_writer(psyir)
+    print(result)
+
+
+def test_scalar_index(fortran_reader, fortran_writer):
+    '''Test that the array argument may be an expression consisting of a
+    single array reference, and one of more literals, operators or
+    intrinsics. Use the
+    Maxval2CodeTrans transformation (a subclass of MMSBaseTrans), as it
+    is easy to test.
+
+    '''
+    code = (
+        "subroutine test(tsn, zmax, jp_sal, llmsk)\n"
+        "  real :: sshn(:,:)\n"
+        "  !real :: tsn(:,:,:,:)\n"
+        "  real :: tsn(:,:,:)\n"
+        "  real :: llmsk(:,:,:)\n"
+        "  real :: zmax(3)\n"
+        "  real :: jp_sal\n"
+        "  !zmax(3) = MAXVAL(-tsn(:,:,:,jp_sal), mask=llmsk)\n"
+        "  zmax(3) = MAXVAL(-tsn(:,:,:), mask=llmsk)\n"
+        "end subroutine\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    # FileContainer/Routine/Assignment/maxval
+    node = psyir.children[0].children[0].children[1]
+    trans = Maxval2CodeTrans()
+    trans.apply(node)
+    result = fortran_writer(psyir)
+    print(result)
+    exit(1)
+
+
 
 @pytest.mark.parametrize("idim1,idim2,rdim11,rdim12,rdim21,rdim22",
                          [("10", "20", "1", "10", "1", "20"),

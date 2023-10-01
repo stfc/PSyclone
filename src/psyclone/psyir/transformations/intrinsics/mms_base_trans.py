@@ -42,7 +42,7 @@ from abc import ABC, abstractmethod
 
 from psyclone.psyir.nodes import (
     Assignment, Reference, Literal, Loop, ArrayReference, IfBlock, Range,
-    IntrinsicCall)
+    IntrinsicCall, Node, UnaryOperation, BinaryOperation)
 from psyclone.psyir.symbols import (
     DataSymbol, INTEGER_TYPE, ScalarType, ArrayType)
 from psyclone.psyGen import Transformation
@@ -61,13 +61,13 @@ class MMSBaseTrans(Transformation, ABC):
     @staticmethod
     def _get_args(node):
         '''Utility method that returns the minval, maxval or sum arguments,
-        (array reference, dimension and mask).
+        (expression (containing array reference), dimension and mask).
 
         :param node: a minval, maxval or sum intrinsic.
         :type node: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
 
         returns: a tuple containing the 3 arguments.
-        rtype: Tuple[py:class:`psyclone.psyir.nodes.reference.Reference`,
+        rtype: Tuple[py:class:`psyclone.psyir.nodes.DataNode`,
             py:class:`psyclone.psyir.nodes.Literal` |
             :py:class:`psyclone.psyir.nodes.Reference`,
             Optional[:py:class:`psyclone.psyir.nodes.Node`]]
@@ -89,6 +89,73 @@ class MMSBaseTrans(Transformation, ABC):
     def __str__(self):
         return (f"Convert the PSyIR {self._INTRINSIC_NAME} intrinsic "
                 "to equivalent PSyIR code.")
+
+    def _allowed_expression(self, expression):
+        '''This transformations supports the first argument to to the minval,
+        maxval and sum intrinsics being an exression containing a
+        mixture of unary operations, binary operations, elemental
+        intrinsic calls and an array or array reference. This method
+        validates checks that the supplied argument conforms to these
+        constraints.
+
+        :param expression: a PSyIR DataNode node
+        :type expression: :py:class:`psyclone.psyir.nodes.datanode`
+
+        raises TransformationError: if an unsupported node is found in
+            the expression.
+
+        '''
+        array_node = None
+        for node in expression.walk(Node):
+            # pylint: disable=unidiomatic-typecheck
+            if not (isinstance(node, (
+                    UnaryOperation, BinaryOperation, IntrinsicCall,
+                    ArrayReference)) or (type(node) is Reference)):
+                # nodes inside ArrayReferences, LBOUND and UBOUND have
+                # different constraints.
+                if not node.ancestor(ArrayReference):
+                    if not (isinstance(node, IntrinsicCall) and node.intrinsic in [IntrinsicCall.Intrinsic.LBOUND, IntrinsicCall.Intrinsic.UBOUND]):
+                        if not (node.ancestor(IntrinsicCall) and node.ancestor(IntrinsicCall).intrinsic == IntrinsicCall.Intrinsic.UBOUND):
+                            raise TransformationError(
+                                f"Unsupported node found of type '{type(node).__name__}' "
+                                f"in '{node.debug_string()}'. {self.name} supports an "
+                                f"expression for the first argument to the "
+                                f"{self._INTRINSIC_NAME} intrinsic, containing a mixture "
+                                f"of unary operations, binary operations, elemental "
+                                f"intrinsic calls and an array reference or reference.")
+            elif isinstance(node, IntrinsicCall) and not node.is_elemental and not node.intrinsic in [IntrinsicCall.Intrinsic.LBOUND, IntrinsicCall.Intrinsic.UBOUND]:
+                raise TransformationError(
+                    f"Found a non-elemental intrinsic call of type "
+                    f"'{type(node).__name__}' in '{node.debug_string()}'. "
+                    f"{self.name} supports an expression for the first "
+                    f"argument to the {self._INTRINSIC_NAME} intrinsic but "
+                    f"any intrinsic call within this must be elemental or be an LBOUND or UBOUND intrinsic call.")
+            # pylint: disable=unidiomatic-typecheck
+            elif (isinstance(node, ArrayReference) or (type(node) is Reference)):
+                if not (node.ancestor(IntrinsicCall) and node.ancestor(IntrinsicCall).intrinsic in [IntrinsicCall.Intrinsic.LBOUND, IntrinsicCall.Intrinsic.UBOUND]):
+                    parent = node.parent
+                    ok = False
+                    while parent:
+                        if isinstance(parent, IntrinsicCall) and parent.intrinsic.name.upper() == self._INTRINSIC_NAME:
+                            ok = True
+                            break
+                        if isinstance(parent, ArrayReference):
+                            ok = False
+                            break
+                        parent = parent.parent
+                    if ok:
+                        if array_node:
+                            raise TransformationError(
+                                f"{self.name} supports an expression for the first "
+                                f"argument to the {self._INTRINSIC_NAME} intrinsic but "
+                                f"only one array reference or reference is allowed in the expression. However, found {type(array_node).__name__} and {type(node).__name__} in '{node.debug_string()}'.")
+                        array_node = node
+        else:
+            if not array_node:
+                raise TransformationError(
+                    "{self.name} no array references or references found in expression")
+
+        return array_node
 
     # pylint: disable=too-many-branches
     def validate(self, node, options=None):
@@ -127,7 +194,7 @@ class MMSBaseTrans(Transformation, ABC):
                 f"argument is not a {self._INTRINSIC_NAME.lower()} "
                 f"intrinsic, found '{node.routine.name}'.")
 
-        array_ref, dim_ref, _ = self._get_args(node)
+        array_expression, dim_ref, _ = self._get_args(node)
 
         # If there is a dim argument then PSyclone curently needs to
         # be able to determine the literal value.
@@ -148,18 +215,13 @@ class MMSBaseTrans(Transformation, ABC):
                 f"value, but found '{dim_ref.debug_string()}' which is "
                 f"{info}.")
 
-        # pylint: disable=unidiomatic-typecheck
-        if not (isinstance(array_ref, ArrayReference) or
-                (type(array_ref) is Reference)):
-            raise TransformationError(
-                f"{self.name} only supports arrays or plain references for "
-                f"the first argument, but found '{type(array_ref).__name__}'.")
+        actual_array_ref = self._allowed_expression(array_expression)
 
-        if len(array_ref.children) == 0:
-            if not array_ref.symbol.is_array:
+        if len(actual_array_ref.children) == 0:
+            if not actual_array_ref.symbol.is_array:
                 raise TransformationError(
-                    f"Expected '{array_ref.name}' to be an array.")
-            for shape in array_ref.symbol.shape:
+                    f"Expected '{actual_array_ref.name}' to be an array.")
+            for shape in actual_array_ref.symbol.shape:
                 if not (shape in [
                         ArrayType.Extent.DEFERRED, ArrayType.Extent.ATTRIBUTE]
                         or isinstance(shape, ArrayType.ArrayBounds)):
@@ -167,19 +229,19 @@ class MMSBaseTrans(Transformation, ABC):
                         f"Unexpected shape for array. Expecting one of "
                         f"Deferred, Attribute or Bounds but found '{shape}'.")
 
-        for shape in array_ref.children:
+        for shape in actual_array_ref.children:
             if not isinstance(shape, Range):
                 raise TransformationError(
                     f"{self.name} only supports arrays with array ranges, "
                     f"but found a fixed dimension in "
-                    f"'{array_ref.debug_string()}'.")
+                    f"'{actual_array_ref.debug_string()}'.")
 
-        array_intrinsic = array_ref.symbol.datatype.intrinsic
+        array_intrinsic = actual_array_ref.symbol.datatype.intrinsic
         if array_intrinsic not in [ScalarType.Intrinsic.REAL,
                                    ScalarType.Intrinsic.INTEGER]:
             raise TransformationError(
                 f"Only real and integer types supported for array "
-                f"'{array_ref.name}', but found '{array_intrinsic.name}'.")
+                f"'{actual_array_ref.name}', but found '{array_intrinsic.name}'.")
 
         if not node.ancestor(Assignment):
             raise TransformationError(
@@ -203,7 +265,12 @@ class MMSBaseTrans(Transformation, ABC):
         '''
         self.validate(node)
 
-        array_ref, dimension_ref, mask_ref = self._get_args(node)
+        array_expression, dimension_ref, mask_ref = self._get_args(node)
+        # allowed_expression needs to be replaced as it does validation.
+        array_ref = self._allowed_expression(array_expression)
+
+        #print(array_ref.view())
+        #print(array_expression.view())
 
         # Determine the literal value of the dimension argument
         dimension_literal = None
@@ -291,9 +358,19 @@ class MMSBaseTrans(Transformation, ABC):
             else:
                 datatype = ArrayType(scalar_type, shape)
 
-        # Detach the intrinsics array-reference argument to the
+        # Detach the intrinsics array-expression argument to the
         # intrinsic as it will be used later within a loop nest.
-        array_ref = node.children[0].detach()
+        #print(node.children[0].view())
+        if id(array_expression) == id(array_ref):
+            array_ref = array_ref.detach()
+            has_expr = False
+        else:
+            has_expr = True
+        # array_expression.detach()
+        # array_expr = array_expression.detach()
+        # print(array_ref.view())
+        # print(array_expr.view())
+        #array_ref = node.children[0].detach()
 
         # Create temporary variable based on the name of the intrinsic.
         var_symbol = symbol_table.new_symbol(
@@ -339,10 +416,13 @@ class MMSBaseTrans(Transformation, ABC):
         array_indices = []
         for idx in range(ndims):
             array_indices.append(Reference(loop_iterators[idx]))
-        array_ref = ArrayReference.create(array_ref.symbol, array_indices)
-
+        new_array_ref = ArrayReference.create(array_ref.symbol, array_indices)
+        if has_expr:
+            array_ref.replace_with(new_array_ref)
+            new_array_ref = array_expression.detach()
+        
         statement = self._loop_body(
-            array_reduction, array_iterators, var_symbol, array_ref)
+            array_reduction, array_iterators, var_symbol, new_array_ref)
 
         if mask_ref:
             # A mask argument has been provided
