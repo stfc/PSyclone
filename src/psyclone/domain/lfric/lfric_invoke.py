@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified I. Kavcic, A. Coughtrie and L. Turner, Met Office
+# Modified I. Kavcic, A. Coughtrie, L. Turner and O. Brunt, Met Office
 # Modified J. Henrichs, Bureau of Meteorology
 # Modified A. B. G. Chalk and N. Nobre, STFC Daresbury Lab
 
@@ -58,13 +58,13 @@ class LFRicInvoke(Invoke):
 
     :param alg_invocation: object containing the invoke call information.
     :type alg_invocation: :py:class:`psyclone.parse.algorithm.InvokeCall`
-    :param int idx: the position of the invoke in the list of invokes \
+    :param int idx: the position of the invoke in the list of invokes
                     contained in the Algorithm.
-    :param invokes: the Invokes object containing this LFRicInvoke \
+    :param invokes: the Invokes object containing this LFRicInvoke
                     object.
-    :type invokes: :py:class:`psyclone.dynamo0p3.DynamoInvokes`
+    :type invokes: :py:class:`psyclone.domain.lfric.LFRicInvokes`
 
-    :raises GenerationError: if integer reductions are required in the \
+    :raises GenerationError: if integer reductions are required in the
                     PSy-layer.
 
     '''
@@ -93,7 +93,7 @@ class LFRicInvoke(Invoke):
 
         # Import here to avoid circular dependency
         # pylint: disable=import-outside-toplevel
-        from psyclone.dynamo0p3 import (LFRicScalarArgs, DynStencils,
+        from psyclone.dynamo0p3 import (DynStencils,
                                         DynFunctionSpaces, DynDofmaps,
                                         DynLMAOperators, DynCMAOperators, 
                                         DynBasisFunctions, DynMeshes, 
@@ -101,6 +101,8 @@ class LFRicInvoke(Invoke):
                                         LFRicRunTimeChecks, DynCellIterators, 
                                         DynReferenceElement, LFRicMeshProperties,
                                         LFRicLoopBounds, DynGlobalSum)
+        from psyclone.domain.lfric import LFRicLoopBounds, LFRicScalarArgs
+
         self.scalar_args = LFRicScalarArgs(self)
 
         # Initialise our Invoke stencil information

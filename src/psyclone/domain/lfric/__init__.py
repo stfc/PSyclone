@@ -64,6 +64,9 @@ from psyclone.domain.lfric.arg_index_to_metadata_index import \
     ArgIndexToMetadataIndex
 from psyclone.domain.lfric.lfric_collection import LFRicCollection
 from psyclone.domain.lfric.lfric_fields import LFRicFields
+from psyclone.domain.lfric.lfric_invokes import LFRicInvokes
+from psyclone.domain.lfric.lfric_scalar_args import LFRicScalarArgs
+from psyclone.domain.lfric.lfric_loop_bounds import LFRicLoopBounds
 
 
 __all__ = [
@@ -79,4 +82,7 @@ __all__ = [
     'LFRicExtractDriverCreator',
     'LFRicFields',
     'LFRicInvoke',
+    'LFRicInvokes',
+    'LFRicLoopBounds',
+    'LFRicScalarArgs',
     'LFRicSymbolTable']

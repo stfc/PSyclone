@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
-# Modified: R. W. Ford, STFC Daresbury Lab
+# Modified: R. W. Ford and S. Siso, STFC Daresbury Lab
 
 '''A Python script showing how to create and manipulate symbols of structure
 type within the PSyIR. In order to use it you must first install PSyclone.
@@ -45,7 +45,7 @@ Once you have psyclone installed, this script may be run by doing:
 '''
 from psyclone.psyir.nodes import Literal, KernelSchedule, Container, \
     StructureReference, ArrayOfStructuresReference, Assignment, \
-    BinaryOperation, Range
+    IntrinsicCall, Range
 from psyclone.psyir.symbols import DataSymbol, SymbolTable, StructureType, \
     ContainerSymbol, ArgumentInterface, ScalarType, ArrayType, DataTypeSymbol,\
     ImportInterface, INTEGER_TYPE, INTEGER4_TYPE, INTEGER8_TYPE, \
@@ -64,8 +64,9 @@ SCALAR_TYPE = ScalarType(ScalarType.Intrinsic.REAL, REAL_KIND)
 
 # Derived-type definition in container
 GRID_TYPE = StructureType.create([
-    ("dx", SCALAR_TYPE, Symbol.Visibility.PUBLIC),
-    ("dy", SCALAR_TYPE, Symbol.Visibility.PUBLIC)])
+    ("dx", SCALAR_TYPE, Symbol.Visibility.PUBLIC, None),
+    ("dy", SCALAR_TYPE, Symbol.Visibility.PUBLIC,
+     Literal("1.0", SCALAR_TYPE))])
 GRID_TYPE_SYMBOL = DataTypeSymbol("grid_type", GRID_TYPE)
 CONTAINER_SYMBOL_TABLE.add(GRID_TYPE_SYMBOL)
 
@@ -81,11 +82,11 @@ SYMBOL_TABLE.add(DTYPE_SYMBOL)
 
 # Create the definition of the 'field_type'
 FIELD_TYPE_DEF = StructureType.create(
-    [("data", ArrayType(SCALAR_TYPE, [10]), Symbol.Visibility.PUBLIC),
-     ("grid", GRID_TYPE_SYMBOL, Symbol.Visibility.PUBLIC),
+    [("data", ArrayType(SCALAR_TYPE, [10]), Symbol.Visibility.PUBLIC, None),
+     ("grid", GRID_TYPE_SYMBOL, Symbol.Visibility.PUBLIC, None),
      ("sub_meshes", ArrayType(GRID_TYPE_SYMBOL, [3]),
-      Symbol.Visibility.PUBLIC),
-     ("flag", INTEGER4_TYPE, Symbol.Visibility.PUBLIC)])
+      Symbol.Visibility.PUBLIC, None),
+     ("flag", INTEGER4_TYPE, Symbol.Visibility.PUBLIC, None)])
 FIELD_TYPE_SYMBOL = DataTypeSymbol("field_type", FIELD_TYPE_DEF)
 CONTAINER_SYMBOL_TABLE.add(FIELD_TYPE_SYMBOL)
 
@@ -129,12 +130,12 @@ FLAG_REF = StructureReference.create(FIELD_SYMBOL, ["flag"])
 DX_REF = StructureReference.create(FIELD_SYMBOL, ["grid", "dx"])
 
 # Array reference to component of derived type using a range
-LBOUND = BinaryOperation.create(
-    BinaryOperation.Operator.LBOUND,
-    StructureReference.create(FIELD_SYMBOL, ["data"]), int_one())
-UBOUND = BinaryOperation.create(
-    BinaryOperation.Operator.UBOUND,
-    StructureReference.create(FIELD_SYMBOL, ["data"]), int_one())
+LBOUND = IntrinsicCall.create(
+    IntrinsicCall.Intrinsic.LBOUND,
+    [StructureReference.create(FIELD_SYMBOL, ["data"]), ("dim", int_one())])
+UBOUND = IntrinsicCall.create(
+    IntrinsicCall.Intrinsic.UBOUND,
+    [StructureReference.create(FIELD_SYMBOL, ["data"]), ("dim", int_one())])
 MY_RANGE = Range.create(LBOUND, UBOUND)
 
 DATA_REF = StructureReference.create(FIELD_SYMBOL, [("data", [MY_RANGE])])

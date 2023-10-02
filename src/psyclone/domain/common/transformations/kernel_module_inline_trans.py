@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+# Copyright (c) 2017-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -42,9 +42,9 @@
 from psyclone.psyGen import Transformation, CodedKern
 from psyclone.psyir.transformations import TransformationError
 from psyclone.psyir.symbols import RoutineSymbol, DataSymbol, \
-    DataTypeSymbol, Symbol, ContainerSymbol
+    DataTypeSymbol, Symbol, ContainerSymbol, DefaultModuleInterface
 from psyclone.psyir.nodes import Container, ScopingNode, Reference, Routine, \
-    Literal, CodeBlock, Call
+    Literal, CodeBlock, Call, IntrinsicCall
 
 
 class KernelModuleInlineTrans(Transformation):
@@ -72,6 +72,7 @@ class KernelModuleInlineTrans(Transformation):
     def __str__(self):
         return "Inline a kernel subroutine into the PSy module"
 
+    # pylint: disable=too-many-branches
     def validate(self, node, options=None):
         '''
         Checks that the supplied node is a Kernel and that it is possible to
@@ -119,8 +120,11 @@ class KernelModuleInlineTrans(Transformation):
         for var in kernel_schedule.walk((Reference, Call)):
             if isinstance(var, Reference):
                 symbol = var.symbol
-            elif isinstance(var, Call):
+            elif isinstance(var, Call) and not isinstance(var, IntrinsicCall):
                 symbol = var.routine
+            else:
+                # At this point it can only be a IntrinsicCall
+                continue
             if not symbol.is_import:
                 try:
                     var.scope.symbol_table.lookup(
@@ -171,8 +175,15 @@ class KernelModuleInlineTrans(Transformation):
 
     @staticmethod
     def _prepare_code_to_inline(code_to_inline):
-        ''' Prepare the PSyIR tree to inline by bringing in to the subroutine
+        '''Prepare the PSyIR tree to inline by bringing in to the subroutine
         all referenced symbols so that the implementation is self contained.
+
+        TODO #2271 will improve this method and could potentially
+        avoid the need for debug_string() within get_kernel_schedule()
+        in dynamo0.3.py. Sergi suggests that we may be missing the
+        traversal of the declaration init expressions here and that
+        might solve the problem. I'm not so sure and explain why in
+        get_kernel_schedule() but still referencing this issue.
 
         :param code_to_inline: the subroutine to module-inline.
         :type code_to_inline: :py:class:`psyclone.psyir.node.Routine`
@@ -201,11 +212,6 @@ class KernelModuleInlineTrans(Transformation):
         # Then decide which symbols need to be brought inside the subroutine
         symbols_to_bring_in = set()
         for symbol in all_symbols:
-            # TODO #1366: We still need a solution for intrinsics that
-            # currently are parsed into Calls/RoutineSymbols, for the
-            # moment here we skip the ones causing issues.
-            if symbol.name in ("random_number", ) and symbol.is_unresolved:
-                continue  # Skip intrinsic symbols
             if symbol.is_unresolved or symbol.is_import:
                 # This symbol is already in the symbol table, but adding it
                 # to the 'symbols_to_bring_in' will make the next step bring
@@ -277,7 +283,9 @@ class KernelModuleInlineTrans(Transformation):
         if not existing_symbol:
             # If it doesn't exist already, module-inline the subroutine by:
             # 1) Registering the subroutine symbol in the Container
-            node.ancestor(Container).symbol_table.add(RoutineSymbol(name))
+            node.ancestor(Container).symbol_table.add(RoutineSymbol(
+                    name, interface=DefaultModuleInterface()
+            ))
             # 2) Insert the relevant code into the tree.
             node.ancestor(Container).addchild(code_to_inline.detach())
         else:

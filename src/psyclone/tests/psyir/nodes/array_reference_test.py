@@ -34,6 +34,7 @@
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 #         I. Kavcic, Met Office
 #         J. Henrichs, Bureau of Meteorology
+# Modified A. B. G. Chalk, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' Performs py.test tests of the ArrayReference PSyIR node. '''
@@ -43,7 +44,7 @@ from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes.node import colored
 from psyclone.psyir.nodes import Reference, ArrayReference, Assignment, \
-    Literal, BinaryOperation, Range, KernelSchedule
+    Literal, BinaryOperation, Range, KernelSchedule, IntrinsicCall
 from psyclone.psyir.symbols import (
     ArrayType, DataSymbol, DataTypeSymbol, DeferredType, ScalarType,
     REAL_SINGLE_TYPE, INTEGER_SINGLE_TYPE, REAL_TYPE, INTEGER_TYPE)
@@ -193,7 +194,7 @@ def test_array_validate_index():
 
     with pytest.raises(ValueError) as info:
         array._validate_index(1)
-    assert ("In ArrayReference 'test' the specified index '1' must be less "
+    assert ("In 'ArrayReference' 'test' the specified index '1' must be less "
             "than the number of dimensions '1'." in str(info.value))
 
     array._validate_index(0)
@@ -226,22 +227,23 @@ def test_array_is_lower_bound():
     array2 = ArrayReference.create(DataSymbol("test2",
                                               ArrayType(REAL_TYPE, [10])),
                                    [one.copy()])
-    operator = BinaryOperation.create(
-        BinaryOperation.Operator.LBOUND, Reference(array2.symbol),
-        one.copy())
+    operator = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.LBOUND,
+        [Reference(array2.symbol), ("dim", one.copy())])
     array.children[0] = Range.create(operator, one.copy(), one.copy())
     assert not array.is_lower_bound(0)
 
     # range node lbound references a different index
-    operator = BinaryOperation.create(
-        BinaryOperation.Operator.LBOUND, Reference(array.symbol),
-        Literal("2", INTEGER_TYPE))
+    operator = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.LBOUND,
+        [Reference(array.symbol), ("dim", Literal("2", INTEGER_TYPE))])
     array.children[0] = Range.create(operator, one.copy(), one.copy())
     assert not array.is_lower_bound(0)
 
     # all is well
-    operator = BinaryOperation.create(
-        BinaryOperation.Operator.LBOUND, Reference(array.symbol), one.copy())
+    operator = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.LBOUND,
+        [Reference(array.symbol), ("dim", one.copy())])
     array.children[0] = Range.create(operator, one.copy(), one.copy())
     assert array.is_lower_bound(0)
 
@@ -271,21 +273,23 @@ def test_array_is_upper_bound():
     array2 = ArrayReference.create(DataSymbol("test2",
                                               ArrayType(REAL_TYPE, [10])),
                                    [one.copy()])
-    operator = BinaryOperation.create(
-        BinaryOperation.Operator.UBOUND, Reference(array2.symbol), one.copy())
+    operator = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.UBOUND,
+        [Reference(array2.symbol), ("dim", one.copy())])
     array.children[0] = Range.create(one.copy(), operator, one.copy())
     assert not array.is_upper_bound(0)
 
     # range node ubound references a different index
-    operator = BinaryOperation.create(
-        BinaryOperation.Operator.UBOUND, Reference(array.symbol),
-        Literal("2", INTEGER_TYPE))
+    operator = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.UBOUND,
+        [Reference(array.symbol), ("dim", Literal("2", INTEGER_TYPE))])
     array.children[0] = Range.create(one.copy(), operator, one.copy())
     assert not array.is_upper_bound(0)
 
     # all is well
-    operator = BinaryOperation.create(
-        BinaryOperation.Operator.UBOUND, Reference(array.symbol), one.copy())
+    operator = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.UBOUND,
+        [Reference(array.symbol), ("dim", one.copy())])
     array.children[0] = Range.create(one.copy(), operator, one.copy())
     assert array.is_upper_bound(0)
 
@@ -299,10 +303,10 @@ def test_array_is_full_range():
     array_type = ArrayType(REAL_SINGLE_TYPE, [10])
     symbol = DataSymbol("my_array", array_type)
     reference = Reference(symbol)
-    lbound = BinaryOperation.create(BinaryOperation.Operator.LBOUND,
-                                    reference, one)
-    ubound = BinaryOperation.create(BinaryOperation.Operator.UBOUND,
-                                    reference.copy(), one.copy())
+    lbound = IntrinsicCall.create(IntrinsicCall.Intrinsic.LBOUND,
+                                  [reference, ("dim", one)])
+    ubound = IntrinsicCall.create(IntrinsicCall.Intrinsic.UBOUND,
+                                  [reference.copy(), ("dim", one.copy())])
     symbol_error = DataSymbol("another_array", array_type)
     reference_error = Reference(symbol_error)
 
@@ -310,7 +314,7 @@ def test_array_is_full_range():
     array_reference = ArrayReference.create(symbol, [one.copy()])
     with pytest.raises(ValueError) as excinfo:
         array_reference.is_full_range(1)
-    assert ("In ArrayReference 'my_array' the specified index '1' must be "
+    assert ("In 'ArrayReference' 'my_array' the specified index '1' must be "
             "less than the number of dimensions '1'." in str(excinfo.value))
 
     # Array dimension is not a Range
@@ -329,95 +333,101 @@ def test_array_is_full_range():
 
     # Array dimension range lower bound is an LBOUND binary operation
     # with the first value not being a reference
-    lbound_error = BinaryOperation.create(BinaryOperation.Operator.LBOUND,
-                                          zero.copy(), zero.copy())
+    lbound_error = IntrinsicCall.create(IntrinsicCall.Intrinsic.LBOUND,
+                                        [zero.copy(), ("dim", zero.copy())])
     my_range = Range.create(lbound_error, one.copy(), one.copy())
     array_reference = ArrayReference.create(symbol, [my_range])
     assert not array_reference.is_full_range(0)
 
     # Array dimension range lower bound is an LBOUND binary operation
     # with the first value being a reference to a different symbol
-    lbound_error = BinaryOperation.create(BinaryOperation.Operator.LBOUND,
-                                          reference_error, zero.copy())
+    lbound_error = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.LBOUND,
+        [reference_error, ("dim", zero.copy())])
     my_range = Range.create(lbound_error, one.copy(), one.copy())
     array_reference = ArrayReference.create(symbol, [my_range])
     assert not array_reference.is_full_range(0)
 
     # Array dimension range lower bound is an LBOUND binary operation
     # with the second value not being a literal.
-    lbound_error = BinaryOperation.create(BinaryOperation.Operator.LBOUND,
-                                          reference.copy(), reference.copy())
+    lbound_error = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.LBOUND,
+        [reference.copy(), ("dim", reference.copy())])
     my_range = Range.create(lbound_error, one.copy(), one.copy())
     array_reference = ArrayReference.create(symbol, [my_range])
     assert not array_reference.is_full_range(0)
 
     # Array dimension range lower bound is an LBOUND binary operation
     # with the second value not being an integer literal.
-    lbound_error = BinaryOperation.create(
-        BinaryOperation.Operator.LBOUND, reference.copy(),
-        Literal("1.0", REAL_SINGLE_TYPE))
+    lbound_error = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.LBOUND,
+        [reference.copy(), ("dim", Literal("1.0", REAL_SINGLE_TYPE))])
     my_range = Range.create(lbound_error, one.copy(), one.copy())
     array_reference = ArrayReference.create(symbol, [my_range])
     assert not array_reference.is_full_range(0)
 
-    # Array dimension range lower bound is an LBOUND binary operation
+    # Array dimension range lower bound is an LBOUND intrinsic
     # with the second value being an integer literal with the wrong
     # value (should be 0 as this dimension index is 0).
-    lbound_error = BinaryOperation.create(
-        BinaryOperation.Operator.LBOUND, reference.copy(), one.copy())
+    lbound_error = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.LBOUND,
+        [reference.copy(), ("dim", one.copy())])
     my_range = Range.create(lbound_error, one.copy(), one.copy())
     array_reference = ArrayReference.create(symbol, [my_range])
     assert not array_reference.is_full_range(0)
 
     # Check UBOUND
-    # Array dimension range upper bound is not a binary operation
+    # Array dimension range upper bound is not a intrinsic
     my_range = Range.create(lbound, one.copy(), one.copy())
     array_reference = ArrayReference.create(symbol, [my_range])
     assert not array_reference.is_full_range(0)
 
-    # Array dimension range upper bound is not a UBOUND binary operation
+    # Array dimension range upper bound is not a UBOUND intrinsic
     my_range = Range.create(lbound.copy(), lbound.copy(), one.copy())
     array_reference = ArrayReference.create(symbol, [my_range])
     assert not array_reference.is_full_range(0)
 
-    # Array dimension range upper bound is a UBOUND binary operation
+    # Array dimension range upper bound is a UBOUND intrinsic
     # with the first value not being a reference
-    ubound_error = BinaryOperation.create(BinaryOperation.Operator.UBOUND,
-                                          zero.copy(), zero.copy())
+    ubound_error = IntrinsicCall.create(IntrinsicCall.Intrinsic.UBOUND,
+                                        [zero.copy(), ("dim", zero.copy())])
     my_range = Range.create(lbound.copy(), ubound_error, one.copy())
     array_reference = ArrayReference.create(symbol, [my_range])
     assert not array_reference.is_full_range(0)
 
-    # Array dimension range upper bound is a UBOUND binary operation
+    # Array dimension range upper bound is a UBOUND intrinsic
     # with the first value being a reference to a different symbol
-    ubound_error = BinaryOperation.create(BinaryOperation.Operator.UBOUND,
-                                          reference_error.copy(), zero.copy())
+    ubound_error = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.UBOUND,
+        [reference_error.copy(), ("dim", zero.copy())])
     my_range = Range.create(lbound.copy(), ubound_error, one.copy())
     array_reference = ArrayReference.create(symbol, [my_range])
     assert not array_reference.is_full_range(0)
 
-    # Array dimension range upper bound is a UBOUND binary operation
+    # Array dimension range upper bound is a UBOUND intrinsic
     # with the second value not being a literal.
-    ubound_error = BinaryOperation.create(BinaryOperation.Operator.UBOUND,
-                                          reference.copy(), reference.copy())
+    ubound_error = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.UBOUND,
+        [reference.copy(), ("dim", reference.copy())])
     my_range = Range.create(lbound.copy(), ubound_error, one.copy())
     array_reference = ArrayReference.create(symbol, [my_range])
     assert not array_reference.is_full_range(0)
 
-    # Array dimension range upper bound is a UBOUND binary operation
+    # Array dimension range upper bound is a UBOUND intrinsic
     # with the second value not being an integer literal.
-    ubound_error = BinaryOperation.create(
-        BinaryOperation.Operator.UBOUND, reference.copy(),
-        Literal("1.0", REAL_SINGLE_TYPE))
+    ubound_error = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.UBOUND,
+        [reference.copy(), ("dim", Literal("1.0", REAL_SINGLE_TYPE))])
     my_range = Range.create(lbound.copy(), ubound_error, one.copy())
     array_reference = ArrayReference.create(symbol, [my_range])
     assert not array_reference.is_full_range(0)
 
-    # Array dimension range upper bound is a UBOUND binary operation
+    # Array dimension range upper bound is a UBOUND intrinsic
     # with the second value being an integer literal with the wrong
     # value (should be 1 as this dimension is 1).
-    ubound_error = BinaryOperation.create(
-        BinaryOperation.Operator.UBOUND, reference.copy(), zero.copy())
+    ubound_error = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.UBOUND,
+        [reference.copy(), ("dim", zero.copy())])
     my_range = Range.create(lbound.copy(), ubound_error, one.copy())
     array_reference = ArrayReference.create(symbol, [my_range])
     assert not array_reference.is_full_range(0)
@@ -529,11 +539,11 @@ def test_array_create_colon(fortran_writer):
     # Check that each dimension is `lbound(...):ubound(...)`
     for child in aref.indices:
         assert isinstance(child, Range)
-        assert isinstance(child.children[1], BinaryOperation)
-        assert child.children[0].operator == \
-               BinaryOperation.Operator.LBOUND
-        assert child.children[1].operator == \
-               BinaryOperation.Operator.UBOUND
+        assert isinstance(child.children[1], IntrinsicCall)
+        assert child.children[0].intrinsic == \
+               IntrinsicCall.Intrinsic.LBOUND
+        assert child.children[1].intrinsic == \
+               IntrinsicCall.Intrinsic.UBOUND
 
     code = fortran_writer(aref)
     assert code == "test(:,:)"

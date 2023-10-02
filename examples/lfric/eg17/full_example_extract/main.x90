@@ -1,6 +1,6 @@
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2020-2022, Science and Technology Facilities Council
+! Copyright (c) 2020-2023, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -29,7 +29,7 @@
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
 ! Author: J. Henrichs, Bureau of Meteorology
-
+! Modifications: A. R. Porter, STFC Daresbury Laboratory
 
 program main
 
@@ -96,7 +96,7 @@ program main
     call field1%initialise( vector_space = vector_space_ptr, name="field1" )
     call field2%initialise( vector_space = vector_space_ptr, name="field2" )
     one = 1.0_r_def
-    call invoke( name = 'Initialise fields',        &
+    call invoke( name = 'Initialise_fields',        &
                  setval_c( field1,     0.0_r_def ), &
                  setval_c( field2,     one       )  &
                  )

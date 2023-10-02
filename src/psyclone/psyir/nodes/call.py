@@ -36,10 +36,11 @@
 
 ''' This module contains the Call node implementation.'''
 
-import re
 
+from psyclone.core import AccessType
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.datanode import DataNode
+from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.symbols import RoutineSymbol
 from psyclone.errors import GenerationError
 
@@ -185,8 +186,11 @@ class Call(Statement, DataNode):
                for an existing argument.
 
         '''
-        self._validate_name(name)
         if name is not None:
+            # Avoid circular import.
+            # pylint: disable=import-outside-toplevel
+            from psyclone.psyir.frontend.fortran import FortranReader
+            FortranReader.validate_name(name)
             for check_name in self.argument_names:
                 if check_name and check_name.lower() == name.lower():
                     raise ValueError(
@@ -211,8 +215,11 @@ class Call(Statement, DataNode):
            :raises TypeError: if the index argument is the wrong type.
 
         '''
-        self._validate_name(name)
         if name is not None:
+            # Avoid circular import.
+            # pylint: disable=import-outside-toplevel
+            from psyclone.psyir.frontend.fortran import FortranReader
+            FortranReader.validate_name(name)
             for check_name in self.argument_names:
                 if check_name and check_name.lower() == name.lower():
                     raise ValueError(
@@ -260,28 +267,6 @@ class Call(Statement, DataNode):
         self._argument_names[index] = (id(arg), existing_name)
 
     @staticmethod
-    def _validate_name(name):
-        '''Utility method that checks that the supplied name has a valid
-        format.
-
-        :param name: the name to check.
-        :type name: Optional[str]
-
-        :raises TypeError: if the name is not a string or None.
-        :raises ValueError: if this is not a valid name.
-
-        '''
-        if name is None:
-            return
-        if not isinstance(name, str):
-            raise TypeError(
-                f"A name should be a string or None, but found "
-                f"{type(name).__name__}.")
-        if not re.match(r'^[a-zA-Z]\w*$', name):
-            raise ValueError(
-                f"Invalid name '{name}' found.")
-
-    @staticmethod
     def _validate_child(position, child):
         '''
         :param int position: the position to be validated.
@@ -293,6 +278,45 @@ class Call(Statement, DataNode):
 
         '''
         return isinstance(child, DataNode)
+
+    def reference_accesses(self, var_accesses):
+        '''
+        Updates the supplied var_accesses object with information on the
+        arguments passed to this call.
+
+        TODO #446 - all arguments that are passed by reference are currently
+        marked as having READWRITE access (unless we know that the routine is
+        PURE). We could do better than this if we have the PSyIR of the called
+        Routine.
+
+        :param var_accesses: VariablesAccessInfo instance that stores the
+            information about variable accesses.
+        :type var_accesses: :py:class:`psyclone.core.VariablesAccessInfo`
+
+        '''
+        if self.is_pure:
+            # If the called routine is pure then any arguments are only
+            # read.
+            default_access = AccessType.READ
+        else:
+            # We conservatively default to READWRITE otherwise (TODO #446).
+            default_access = AccessType.READWRITE
+
+        for arg in self.children:
+            if isinstance(arg, Reference):
+                # This argument is pass-by-reference.
+                sig, indices_list = arg.get_signature_and_indices()
+                var_accesses.add_access(sig, default_access, arg)
+                # Any symbols referenced in any index expressions are READ.
+                for indices in indices_list:
+                    for idx in indices:
+                        idx.reference_accesses(var_accesses)
+            else:
+                # This argument is not a Reference so continue to walk down the
+                # tree. (e.g. it could be/contain a Call to
+                # an impure routine in which case any arguments to that Call
+                # will have READWRITE access.)
+                arg.reference_accesses(var_accesses)
 
     @property
     def routine(self):
@@ -322,6 +346,14 @@ class Call(Statement, DataNode):
         :rtype: NoneType | bool
         '''
         return self._routine.is_pure
+
+    def is_available_on_device(self):
+        '''
+        :returns: whether this intrinsic is available on an accelerated device.
+        :rtype: bool
+
+        '''
+        return False
 
     @property
     def argument_names(self):

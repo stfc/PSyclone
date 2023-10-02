@@ -384,6 +384,31 @@ longstringname2,1:some_type%longstringname3,&
     assert correct in out
 
 
+def test_long_lines_indentation():
+    '''Test that if we have too much initial indentation that we still
+    can output a result.'''
+    long_string = '''                                                     \
+                                                                          \
+    allocate(pressure_prsc(some_type%longstringname1, \
+some_type%longstringname2))'''
+    line_length = FortLineLength()
+    out = line_length.process(long_string)
+    correct = '''allocate(pressure_prsc(some_type%longstringname1, \
+some_type%longstringname2))'''
+    assert correct == out
+
+    long_string = '''                                                     \
+                                                                          \
+    allocate(pressure_prsc(some_type%longstringname1, \
+some_type%longstringname2, some_type%longstringname3, \
+some_type%longerstringname4))'''
+    out = line_length.process(long_string)
+    correct = '''allocate(pressure_prsc(some_type%longstringname1, \
+some_type%longstringname2, some_type%longstringname3, &
+&some_type%longerstringname4))'''
+    assert correct == out
+
+
 def test_long_lines_true():
     ''' Tests that the long_lines method returns true with fortran
     input which has at least one line longer than the specified
@@ -393,7 +418,7 @@ def test_long_lines_true():
         "! " + "line2"*6 + "\n"
         "! line3\n")
     fll = FortLineLength(line_length=30)
-    assert fll.long_lines(input_string),\
+    assert fll.long_lines(input_string), \
         "long_lines_true test should return True"
 
 
@@ -405,7 +430,7 @@ def test_long_lines_false():
         "! " + "line2"*5 + "\n" +
         "! line3\n")
     fll = FortLineLength(line_length=30)
-    assert not fll.long_lines(input_string),\
+    assert not fll.long_lines(input_string), \
         "long_lines_false test should return False"
 
 
@@ -414,7 +439,7 @@ def test_length():
     input_length = 20
     fll = FortLineLength(line_length=input_length)
     output_length = fll.length
-    assert output_length == input_length,\
+    assert output_length == input_length, \
         "test_length expecting length method to be the same as the length" +\
         "provided on input"
 

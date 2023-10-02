@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified I. Kavcic, A. Coughtrie and L. Turner, Met Office,
+# Modified I. Kavcic, A. Coughtrie, L. Turner and O. Brunt, Met Office,
 #          C. M. Maynard, Met Office/University of Reading,
 #          J. Henrichs, Bureau of Meteorology.
 
@@ -1473,11 +1473,6 @@ def test_dynkernelargument_psyir_expression(monkeypatch):
     assert isinstance(psyir, BinaryOperation)
     assert psyir.operator == BinaryOperation.Operator.ADD
     # Test that we catch invalid literal expressions
-    monkeypatch.setattr(kern.arguments.args[1], "_name", "missing")
-    with pytest.raises(InternalError) as err:
-        _ = kern.arguments.args[1].psyir_expression()
-    assert ("Unexpected literal expression 'missing' when processing kernel "
-            "'inc_x_powint_n" in str(err.value))
     monkeypatch.setattr(kern.arguments.args[1], "_name", "3.0 + f1")
     with pytest.raises(InternalError) as err:
         _ = kern.arguments.args[1].psyir_expression()
@@ -2872,7 +2867,7 @@ def test_multiple_derived_type_args(dist_mem, tmpdir):
 
 def test_haloexchange_unknown_halo_depth():
     ''' If a stencil extent is provided in the kernel metadata then the
-    value is stored in an instance of the DynHaloExchange class. This test
+    value is stored in an instance of the LFRicHaloExchange class. This test
     checks that the value is stored as expected (although stencil extents
     in metadata are not currently supported in PSyclone).
 
@@ -3279,7 +3274,7 @@ def test_halo_different_stencils_no_red_comp(tmpdir):
 
 def test_comp_halo_intern_err(monkeypatch):
     '''Check that we raise an exception if the compute_halo_read_info method in
-    dynhaloexchange does not find any read dependencies. This should
+    LFRicHaloExchange does not find any read dependencies. This should
     never be the case. We use monkeypatch to force the exception to be
     raised'''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
@@ -3368,7 +3363,7 @@ def test_HaloReadAccess_field_in_call():
     with pytest.raises(GenerationError) as excinfo:
         _ = HaloReadAccess(field, None)
     assert ("field 'f1' should be from a call but found "
-            "<class 'psyclone.dynamo0p3.DynHaloExchange'>"
+            "<class 'psyclone.dynamo0p3.LFRicHaloExchange'>"
             in str(excinfo.value))
 
 

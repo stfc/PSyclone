@@ -388,6 +388,13 @@ and --f90 and --f90flags), e.g.::
 
   > pytest --compileopencl --f90=<opencl-compiler> --f90flags="<opencl-specific flags>"
 
+If you want to test OpenMP code created by PSyclone, you must add the relevant
+openmp flag to --f90flags (`-qopenmp` for intel, `-fopenmp` for gfortran). In addition
+the OpenMP tasking tests currently only support compilation testing with intel
+compilers, e.g.::
+
+  > pytest --compile --f90=ifort --f90flags="-qopenmp"
+
 
 Infrastructure libraries
 ++++++++++++++++++++++++
@@ -580,6 +587,16 @@ the LFRic model (available in the self-hosted runner). Two tests are performed:
  2. An optimisation test where the LFRic GungHo mini-app is transformed using
     the ``examples/lfric/scripts/everything_everywhere_all_at_once.py`` script
     and then compiled and run 6-way parallel using OpenMP threading.
+
+Some of the LFRic and NEMO integration tests also store, and upload, their
+performance results
+`into a Github Gist <https://gist.github.com/a4049a0fc0a0a11651a5ce6a04d76160>`_.
+These results can track the performance improvements and degradations that
+psyclone scripts suffered from each change for LFRic and NEMO applications.
+However, one must note that the test runner does not have exclusive access to
+the testing system, and some results may be impacted by other users using the
+system at the same time.
+
 
 Performance
 ===========
