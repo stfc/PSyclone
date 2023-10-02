@@ -46,7 +46,7 @@ For example:
 
 Or, if you have Gnu 'parallel':
 
->>> parallel passthrough.py -s ./kernels_trans.py -o <MY_CONFIG_NAME>/MY_SRC \
+>>> parallel passthrough.py -o <MY_CONFIG_NAME>/MY_SRC \
   {} ::: <MY_CONFIG_NAME>/BLD/ppsrc/nemo/*90
 
 '''
