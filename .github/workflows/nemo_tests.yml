@@ -50,6 +50,7 @@ jobs:
         PERL_LOCAL_LIB_ROOT: /home/aporter/perl5
         PERL_MB_OPT: "--install_base \"/home/aporter/perl5\""
         PERL_MM_OPT: "INSTALL_BASE=/home/aporter/perl5"
+        PYTHON_VERSION = 3.11.4
 
     steps:
     - uses: actions/checkout@v3
@@ -66,6 +67,7 @@ jobs:
         commit-filter: '[skip ci]'
     - name: Install dependencies
       run: |
+        module load python/${PYTHON_VERSION}
         python -m venv .runner_venv
         . .runner_venv/bin/activate
         python -m pip install --upgrade pip
