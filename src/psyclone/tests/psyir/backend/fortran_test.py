@@ -362,8 +362,8 @@ def test_gen_typedecl_validation(fortran_writer, monkeypatch):
             "'UnknownType'" in str(err.value))
     # Symbol with an invalid visibility
     dtype = StructureType.create([
-        ("flag", INTEGER_TYPE, Symbol.Visibility.PUBLIC),
-        ("secret", INTEGER_TYPE, Symbol.Visibility.PRIVATE)])
+        ("flag", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None),
+        ("secret", INTEGER_TYPE, Symbol.Visibility.PRIVATE, None)])
     tsymbol = DataTypeSymbol("my_type", dtype)
     tsymbol._visibility = "wrong"
     with pytest.raises(InternalError) as err:
@@ -433,15 +433,15 @@ def test_gen_typedecl(fortran_writer):
     tsymbol = DataTypeSymbol("grid_type", DeferredType())
     dtype = StructureType.create([
         # Scalar integer
-        ("flag", INTEGER_TYPE, Symbol.Visibility.PUBLIC),
+        ("flag", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None),
         # Private, scalar integer
-        ("secret", INTEGER_TYPE, Symbol.Visibility.PRIVATE),
+        ("secret", INTEGER_TYPE, Symbol.Visibility.PRIVATE, None),
         # Static array
-        ("matrix", atype, Symbol.Visibility.PUBLIC),
+        ("matrix", atype, Symbol.Visibility.PUBLIC, None),
         # Allocatable array
-        ("data", dynamic_atype, Symbol.Visibility.PUBLIC),
+        ("data", dynamic_atype, Symbol.Visibility.PUBLIC, None),
         # Derived type
-        ("grid", tsymbol, Symbol.Visibility.PRIVATE)])
+        ("grid", tsymbol, Symbol.Visibility.PRIVATE, None)])
     tsymbol = DataTypeSymbol("my_type", dtype)
     assert (fortran_writer.gen_typedecl(tsymbol) ==
             "type, public :: my_type\n"
@@ -2005,3 +2005,27 @@ def test_fw_keeps_symbol_renaming(fortran_writer, fortran_reader):
     psyir = fortran_reader.psyir_from_source(code)
     output = fortran_writer(psyir)
     assert "b_mod_name=>a_mod_name" in output
+
+
+def test_componenttype_initialisation(fortran_reader, fortran_writer):
+    '''Test that initial values are output for a StructureType which
+    contains types that have initial values.
+
+    '''
+    test_code = (
+        "module test_mod\n"
+        "    type :: my_type\n"
+        "      integer :: i = 1\n"
+        "      integer :: j\n"
+        "    end type my_type\n"
+        "end module test_mod\n")
+    psyir = fortran_reader.psyir_from_source(test_code)
+    sym_table = psyir.children[0].symbol_table
+    symbol = sym_table.lookup("my_type")
+    assert isinstance(symbol.datatype, StructureType)
+    result = fortran_writer(psyir)
+    assert (
+        "  type, public :: my_type\n"
+        "    integer, public :: i = 1\n"
+        "    integer, public :: j\n"
+        "  end type my_type\n" in result)

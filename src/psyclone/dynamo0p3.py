@@ -8054,6 +8054,25 @@ class DynKern(CodedKern):
 
         # Get the PSyIR Kernel Schedule(s)
         routines = Fparser2Reader().get_routine_schedules(self.name, self.ast)
+        for routine in routines:
+            # If one of the symbols is not declared in a routine then
+            # this is only picked up when writing out the routine
+            # (raising a VisitorError), so we check here so that
+            # invalid code is not inlined. We use debug_string() to
+            # minimise the overhead.
+
+            # TODO #2271 could potentially avoid the need for
+            # debug_string() within. Sergi suggests that we may be
+            # missing the traversal of the declaration init
+            # expressions and that might solve the problem. I'm not so
+            # sure as we are talking about unknown symbols that will
+            # only be resolved in the back-end (or not). If I am right
+            # then one option would be to use the FortranWriter, but
+            # that would be bigger overhead, or perhaps just the
+            # declarations part of FortranWriter if that is possible.
+            # Also see TODO issue #2336 which captures the specific
+            # problem in LFRic that this fixes.
+            routine.debug_string()
 
         if len(routines) == 1:
             sched = routines[0]
@@ -9269,12 +9288,7 @@ class DynKernelArgument(KernelArgument):
             if self.precision:
                 # Ensure any associated precision symbol is in the table.
                 symbol_table.add_lfric_precision_symbol(self.precision)
-            try:
-                lit = reader.psyir_from_expression(self.name, symbol_table)
-            except SymbolError as err:
-                raise InternalError(
-                    f"Unexpected literal expression '{self.name}' when "
-                    f"processing kernel '{self.call.name}'.") from err
+            lit = reader.psyir_from_expression(self.name, symbol_table)
 
             # Sanity check that the resulting expression is a literal.
             if lit.walk(Reference):

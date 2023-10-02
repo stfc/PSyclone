@@ -1,9 +1,12 @@
-
-	1) PR #2199 for #2189. fix bugs with missing maps in enter data
+	1) PR #2199 for #2189. Fix bugs with missing maps in enter data
 	directive.
 
 	2) PR #2269 for #2268. Rename DynInvokes to LFRicInvokes and move
 	to own module.
+	
+	3) PR #2255 for #2237. The derived type intial values are not lost
+	anymore, and the "extends" or "abstract" keywords cause a
+	UnknownFortranType.
 
 release 2.4.0 29th of September 2023
 
