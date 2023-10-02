@@ -46,10 +46,9 @@ For example:
 
 Or, if you have Gnu 'parallel':
 
->>> parallel process_nemo.py -s ./kernels_trans.py -o <MY_CONFIG_NAME>/MY_SRC \
+>>> parallel passthrough.py -s ./kernels_trans.py -o <MY_CONFIG_NAME>/MY_SRC \
   {} ::: <MY_CONFIG_NAME>/BLD/ppsrc/nemo/*90
 
-Tested with the NVIDIA HPC SDK version 22.5.
 '''
 
 import os
@@ -108,19 +107,20 @@ if __name__ == "__main__":
         if file_name in EXCLUDED_FILES:
             print(f"Skipping {ffile} entirely.")
             continue
-        else:
-            print(f"Processing {file_name}...")
-            extra_args = []
-            if ARGS.include_path:
-                extra_args += ["-I", ARGS.include_path]
-            extra_args += ["-oalg", "/dev/null",
-                           "-opsy", out_file, ffile]
+
+        print(f"Processing {file_name}...")
+        extra_args = []
+        if ARGS.include_path:
+            extra_args += ["-I", ARGS.include_path]
+        extra_args += ["-oalg", "/dev/null",
+                       "-opsy", out_file, ffile]
         # Since we're in Python we could call psyclone.generator.main()
         # directly but PSyclone is not designed to be called repeatedly
         # in that way and doesn't clear up state between invocations.
+        CMD_TXT = " ".join(args + extra_args)
+        print(f"Executing: {CMD_TXT}")
         tstart = perf_counter()
-        print("Executing:" + " ".join(args + extra_args))
-        rtype = os.system(" ".join(args + extra_args))
+        rtype = os.system(CMD_TXT)
         tstop = perf_counter()
 
         if rtype != 0:
