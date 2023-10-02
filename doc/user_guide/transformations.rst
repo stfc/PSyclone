@@ -400,6 +400,12 @@ can be found in the API-specific sections).
 
 ####
 
+.. autoclass:: psyclone.psyir.transformations.OMPTaskTrans
+    :members: apply
+    :noindex:
+
+####
+
 .. autoclass:: psyclone.psyir.transformations.OMPTaskwaitTrans
     :members: apply
     :noindex:

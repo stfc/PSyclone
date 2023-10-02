@@ -8,6 +8,9 @@
 	anymore, and the "extends" or "abstract" keywords cause a
 	UnknownFortranType.
 
+	4) PR #1822 towards #1338. Adds support for the OMP tasking
+	directive and transformation.
+
 release 2.4.0 29th of September 2023
 
 	1) PR #1758 for #1741. Splits the PSyData read functionality into a
