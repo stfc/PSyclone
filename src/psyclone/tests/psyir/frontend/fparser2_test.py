@@ -3074,12 +3074,12 @@ def test_structures_constants(fortran_reader, fortran_writer):
     m_reference = i_symbol.initial_value.children[1]
     assert m_reference.symbol is m_symbol
     result = fortran_writer(psyir)
-    assert("  integer, parameter, public :: N = 1\n"
-           "  integer, parameter, public :: M = 2\n"
-           "  type, private :: my_type\n"
-           "    integer, public :: i = N + M\n"
-           "    integer, public :: j\n"
-           "  end type my_type\n" in result)
+    assert ("  integer, parameter, public :: N = 1\n"
+            "  integer, parameter, public :: M = 2\n"
+            "  type, private :: my_type\n"
+            "    integer, public :: i = N + M\n"
+            "    integer, public :: j\n"
+            "  end type my_type\n" in result)
 
 
 def test_structures_constant_scope(fortran_reader, fortran_writer):
@@ -3166,7 +3166,7 @@ def test_structures_constant_use(fortran_reader, fortran_writer):
     m_reference = i_symbol.initial_value.children[1]
     assert m_reference.symbol is m_symbol
     result = fortran_writer(psyir)
-    assert(
+    assert (
         "    integer, parameter :: N = 1\n"
         "    integer, parameter :: M = 2\n"
         "    type :: my_type\n"
