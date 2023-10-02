@@ -50,7 +50,7 @@ jobs:
         PERL_LOCAL_LIB_ROOT: /home/aporter/perl5
         PERL_MB_OPT: "--install_base \"/home/aporter/perl5\""
         PERL_MM_OPT: "INSTALL_BASE=/home/aporter/perl5"
-        PYTHON_VERSION = 3.11.4
+        PYTHON_VERSION: 3.11.4
 
     steps:
     - uses: actions/checkout@v3
