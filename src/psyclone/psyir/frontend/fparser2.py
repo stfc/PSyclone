@@ -224,23 +224,22 @@ def _first_type_match(nodelist, typekind):
 
 def _find_or_create_unresolved_symbol(location, name, scope_limit=None,
                                       **kargs):
-    '''Returns the symbol with the name 'name' from a symbol table
-    associated with this node or one of its ancestors.  If a symbol is found
-    and the `symbol_type` keyword argument is supplied then the type of the
-    existing symbol is compared with the specified type. If it is not already
-    an instance of this type, then the symbol is specialised (in place).
+    '''Returns the symbol with the given 'name' from a symbol table
+    associated with the 'location' node or one of its ancestors. If a
+    symbol is found then the type of the existing symbol is compared
+    with the specified 'symbol_type' parameter (passed as part of
+    '**kargs'). If it is not already an instance of this type, then
+    the symbol is specialised (in place).
 
-    If the symbol is not found and there are no ContainerSymbols with
-    wildcard imports and no interfaces with unknown content then an
-    exception is raised. However, if there are one or more
-    ContainerSymbols with wildcard imports (which could therefore be
-    bringing the symbol into scope) or one or more interfaces with
-    unknown content then a new Symbol with the specified visibility
-    but of unknown interface is created and inserted in the most local
-    SymbolTable that has such an import. The scope_limit variable
-    further limits the symbol table search so that the search through
-    ancestor nodes stops when the scope_limit node is reached
-    i.e. ancestors of the scope_limit node are not searched.
+    If the symbol is not found then a new Symbol with the specified
+    visibility but of unresolved interface is created and inserted in the
+    most local SymbolTable that has a Routine or Container node as
+    parent.
+
+    The scope_limit variable further limits the symbol table search so
+    that the search through ancestor nodes stops when the scope_limit
+    node is reached i.e. ancestors of the scope_limit node are not
+    searched.
 
     :param location: PSyIR node from which to operate.
     :type location: :py:class:`psyclone.psyir.nodes.Node`
@@ -260,9 +259,6 @@ def _find_or_create_unresolved_symbol(location, name, scope_limit=None,
     :raises TypeError: if the supplied scope_limit is not a Node.
     :raises ValueError: if the supplied scope_limit node is not an
         ancestor of the supplied node.
-    :raises SymbolError: if no matching symbol is found and there are
-        no ContainerSymbols from which it might be brought into scope
-        or unknown interfaces which might contain its declaration.
 
     '''
     if not isinstance(location, Node):
@@ -294,71 +290,37 @@ def _find_or_create_unresolved_symbol(location, name, scope_limit=None,
                 f"_find_or_create_unresolved_symbol() is not an ancestor of "
                 f"this node '{location}'.")
 
-    # Keep a reference to the most local SymbolTable with a wildcard
-    # import in case we need to create a Symbol.
-    first_symbol_table = None
-    test_node = location
-
-    # Iterate over ancestor Nodes of this Node.
-    while test_node:
-        # For simplicity, test every Node for the existence of a
-        # SymbolTable (rather than checking for the particular
-        # Node types which we know to have SymbolTables).
-        if hasattr(test_node, 'symbol_table'):
-            # This Node does have a SymbolTable.
-            symbol_table = test_node.symbol_table
-            try:
-                # If the name matches a Symbol in this SymbolTable then
-                # return the Symbol (after specialising it, if necessary).
-                sym = symbol_table.lookup(name, scope_limit=test_node)
-                if "symbol_type" in kargs:
-                    expected_type = kargs.pop("symbol_type")
-                    if not isinstance(sym, expected_type):
-                        # The caller specified a sub-class so we need to
-                        # specialise the existing symbol.
-                        sym.specialise(expected_type, **kargs)
-                return sym
-            except KeyError:
-                # The supplied name does not match any Symbols in
-                # this SymbolTable. Does this SymbolTable have any
-                # wildcard imports?
-                if first_symbol_table is None:
-                    for csym in symbol_table.containersymbols:
-                        if csym.wildcard_import:
-                            first_symbol_table = symbol_table
-                            break
-
-        if test_node is scope_limit:
-            # The ancestor scope/top-level Node has been reached and
-            # nothing has matched.
-            break
-
-        # Move on to the next ancestor.
-        test_node = test_node.parent
-
-    if first_symbol_table:
-        # No symbol found but there are one or more Containers from which
-        # it may be being brought into scope. Therefore create a generic
-        # Symbol with a UnresolvedInterface and add it to the most
-        # local SymbolTable with a wildcard import.
-        return first_symbol_table.new_symbol(
-                name, interface=UnresolvedInterface(), **kargs)
-
-    # Are there any interfaces that might be hiding the symbol declaration?
-    symbol_table = location.scope.symbol_table
     try:
-        _ = symbol_table.lookup(
-            "_psyclone_internal_interface", scope_limit=scope_limit)
-        # There is an unknown interface so add this symbol.
-        return location.scope.symbol_table.new_symbol(
-            name, interface=UnresolvedInterface(), **kargs)
+        sym = location.scope.symbol_table.lookup(name, scope_limit=scope_limit)
+        if "symbol_type" in kargs:
+            expected_type = kargs.pop("symbol_type")
+            if not isinstance(sym, expected_type):
+                # The caller specified a sub-class so we need to
+                # specialise the existing symbol.
+                sym.specialise(expected_type, **kargs)
+        return sym
     except KeyError:
         pass
 
+    # find the closest ancestor symbol table attached to a Routine or
+    # Container node. We don't want to add to a Schedule node as in
+    # some situations PSyclone assumes symbols are declared within
+    # Routine or Container symbol tables due to its Fortran provenance
+    # (but should probably not!). We also have cases when the whole
+    # tree has not been built so the symbol table is not connected to
+    # a node.
+    symbol_table = location.scope.symbol_table
+    while symbol_table.node and not isinstance(
+            symbol_table.node, (Routine, Container)):
+        symbol_table = symbol_table.parent_symbol_table()
+
     # All requested Nodes have been checked but there has been no
-    # match and there are no wildcard imports or unknown interfaces so
-    # raise an exception.
-    raise SymbolError(f"No Symbol found for name '{name}'.")
+    # match. Add it to the symbol table as an unresolved symbol in any
+    # case as, for example, it might be declared later, or the
+    # declaration may be hidden (perhaps in a codeblock), or it may be
+    # imported with a wildcard import.
+    return symbol_table.new_symbol(
+        name, interface=UnresolvedInterface(), **kargs)
 
 
 def _find_or_create_psyclone_internal_cmp(node):
@@ -1244,13 +1206,8 @@ class Fparser2Reader():
         # Parse the declarations if it has any
         for child in module.children:
             if isinstance(child, Fortran2003.Specification_Part):
-                try:
-                    self.process_declarations(new_container, child.children,
-                                              [], visibility_map)
-                except SymbolError as err:
-                    raise SymbolError(
-                        f"Error when generating Container for module "
-                        f"'{mod_name}': {err.args[0]}") from err
+                self.process_declarations(new_container, child.children,
+                                          [], visibility_map)
                 break
 
         return new_container
@@ -1896,6 +1853,14 @@ class Fparser2Reader():
                 raise GenerationError(
                     f"SAVE and PARAMETER attributes are not compatible but "
                     f"found:\n {decl}")
+
+            # Now we've checked for save and parameter existing
+            # together, we can allow parameter without save and set it
+            # to the same interface as save.
+            if has_constant_value and interface is None:
+                # We have a parameter so should set its interface to static.
+                interface = StaticInterface()
+
             if allocatable and has_constant_value:
                 raise GenerationError(
                     f"ALLOCATABLE and PARAMETER attributes are not compatible "
@@ -1990,19 +1955,32 @@ class Fparser2Reader():
             tag = None
             try:
                 sym = symbol_table.lookup(sym_name, scope_limit=scope)
-                if sym is symbol_table.lookup_with_tag("own_routine_symbol"):
-                    # In case it is its own function routine symbol, Fortran
-                    # will declare it inside the function as a DataSymbol.
-                    # Remove the RoutineSymbol in order to free the exact name
-                    # for the DataSymbol.
-                    symbol_table.remove(sym)
-                    # And trigger the exception path but keeping the same tag
-                    tag = "own_routine_symbol"
-                    raise KeyError
-                if not sym.is_unresolved:
-                    raise SymbolError(
-                        f"Symbol '{sym_name}' already present in SymbolTable "
-                        f"with a defined interface ({sym.interface}).")
+                # pylint: disable=unidiomatic-typecheck
+                if type(sym) == Symbol:
+                    # This was a generic symbol. We now know what it is
+                    sym.specialise(DataSymbol, datatype=datatype,
+                                   visibility=visibility,
+                                   interface=interface,
+                                   is_constant=has_constant_value,
+                                   initial_value=init_expr)
+                else:
+                    if sym is symbol_table.lookup_with_tag(
+                            "own_routine_symbol"):
+                        # In case it is its own function routine
+                        # symbol, Fortran will declare it inside the
+                        # function as a DataSymbol.  Remove the
+                        # RoutineSymbol in order to free the exact
+                        # name for the DataSymbol.
+                        symbol_table.remove(sym)
+                        # And trigger the exception path but keeping
+                        # the same tag
+                        tag = "own_routine_symbol"
+                        raise KeyError
+                    if not sym.is_unresolved:
+                        raise SymbolError(
+                            f"Symbol '{sym_name}' already present in "
+                            f"SymbolTable with a defined interface "
+                            f"({sym.interface}).")
             except KeyError:
                 try:
                     sym = DataSymbol(sym_name, datatype,
@@ -2109,6 +2087,15 @@ class Fparser2Reader():
         # Populate this StructureType by processing the components of
         # the derived type
         try:
+            # We don't support derived-types with additional
+            # attributes e.g. "extends" or "abstract". Note, we do
+            # support public/private attributes but these are stored
+            # as Access_Spec, not Type_Attr_Spec.
+            derived_type_stmt = decl.children[0]
+            if walk(derived_type_stmt, Fortran2003.Type_Attr_Spec):
+                raise NotImplementedError(
+                    "Derived-type definition contains unsupported attributes.")
+
             # We don't yet support derived-type definitions with a CONTAINS
             # section.
             contains = walk(decl, Fortran2003.Contains_Stmt)
@@ -2123,7 +2110,8 @@ class Fparser2Reader():
                 self._process_decln(parent, local_table, child)
             # Convert from Symbols to type information
             for symbol in local_table.symbols:
-                dtype.add(symbol.name, symbol.datatype, symbol.visibility)
+                dtype.add(symbol.name, symbol.datatype, symbol.visibility,
+                          symbol.initial_value)
 
             # Update its type with the definition we've found
             tsymbol.datatype = dtype
@@ -2475,19 +2463,10 @@ class Fparser2Reader():
             # into scope by an unqualified use statement.
             for name, vis in visibility_map.items():
                 if name not in parent.symbol_table:
-                    try:
-                        # If a suitable unqualified use statement is found then
-                        # this call creates a Symbol and inserts it in the
-                        # appropriate symbol table.
-                        _find_or_create_unresolved_symbol(parent, name,
-                                                          visibility=vis)
-                    except SymbolError as err:
-                        # Improve the error message with context-specific info
-                        raise SymbolError(
-                            f"'{name}' is listed in an accessibility "
-                            f"statement as being '{vis}' but failed to find a "
-                            f"declaration or possible import (use) of this "
-                            f"symbol.") from err
+                    # This call creates a Symbol and inserts it in the
+                    # appropriate symbol table.
+                    _find_or_create_unresolved_symbol(parent, name,
+                                                      visibility=vis)
         try:
             arg_symbols = []
             # Ensure each associated symbol has the correct interface info.
@@ -3005,22 +2984,15 @@ class Fparser2Reader():
             self.process_nodes(parent=loop_body, nodes=node.content[1:-1])
             return loop
 
-        # Second element of items member of Loop Control is itself a tuple
-        # containing:
-        #   Loop variable, [start value expression, end value expression, step
-        #   expression]
-        # Loop variable will be an instance of Fortran2003.Name
+        # Second element of items member of Loop Control is itself a
+        # tuple containing: Loop variable, [start value expression,
+        # end value expression, step expression] Loop variable will be
+        # an instance of Fortran2003.Name and will be an integer.
         loop_var = str(ctrl[0].items[1][0])
         variable_name = str(loop_var)
-        try:
-            data_symbol = _find_or_create_unresolved_symbol(
-                parent, variable_name, symbol_type=DataSymbol,
-                datatype=DeferredType())
-        except SymbolError as err:
-            raise InternalError(
-                f"Loop-variable name '{variable_name}' is not declared and "
-                f"there are no unqualified use statements. This is currently "
-                f"unsupported.") from err
+        data_symbol = _find_or_create_unresolved_symbol(
+            parent, variable_name, symbol_type=DataSymbol,
+            datatype=default_integer_type())
         # The loop node is created with the _create_loop factory method as some
         # APIs require a specialised loop node type.
         loop = self._create_loop(parent, data_symbol)

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022, Science and Technology Facilities Council.
+# Copyright (c) 2022-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -46,25 +46,6 @@ from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import KernelSchedule, Routine, Call, ArrayReference
 from psyclone.psyir.symbols import SymbolError, DataSymbol, ScalarType, \
     INTEGER_TYPE, RoutineSymbol, ArrayType
-
-
-@pytest.mark.usefixtures("f2008_parser")
-def test_handling_part_ref_error():
-    '''Test that the expected exception is raised when the parsed symbol
-    is not found in the symbol table.
-
-    '''
-    reader = FortranStringReader("x(2)=1")
-    fparser2part_ref = Execution_Part.match(reader)[0][0]
-
-    fake_parent = KernelSchedule('kernel')
-    processor = Fparser2Reader()
-
-    # If one of the ancestors has a symbol table then process_nodes()
-    # checks that the symbol is declared.
-    with pytest.raises(SymbolError) as error:
-        processor.process_nodes(fake_parent, [fparser2part_ref])
-    assert "No Symbol found for name 'x'." in str(error.value)
 
 
 @pytest.mark.usefixtures("f2008_parser")
