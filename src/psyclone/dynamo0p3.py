@@ -1860,7 +1860,8 @@ class LFRicMeshProperties(LFRicCollection):
                     cell_name = "cell"
                     if self._kernel.is_coloured():
                         colour_name = "colour"
-                        cmap_name = "cmap"
+                        cmap_name = self._symbol_table.find_or_create_tag(
+                            "cmap", root_name="cmap").name
                         adj_face += (f"(:,{cmap_name}({colour_name},"
                                      f"{cell_name}))")
                     else:
@@ -3720,12 +3721,13 @@ class DynMeshes():
         '''
         Sets-up information on any required colourmaps. This cannot be done
         in the constructor since colouring is applied by Transformations
-        and happens after the Schedule has already been constructed.
+        and happens after the Schedule has already been constructed. Therefore,
+        this method is called at code-generation time.
 
         '''
         # pylint: disable=too-many-locals
         const = LFRicConstants()
-        have_non_intergrid = False
+        non_intergrid_kern = None
         sym_tab = self._schedule.symbol_table
 
         for call in [call for call in self._schedule.coded_kernels() if
@@ -3740,7 +3742,7 @@ class DynMeshes():
                 self._needs_colourmap = True
 
             if not call.is_intergrid:
-                have_non_intergrid = True
+                non_intergrid_kern = call
                 continue
 
             # This is an inter-grid kernel so look-up the names of
@@ -3775,13 +3777,14 @@ class DynMeshes():
             self._ig_kernels[id(call)].set_colour_info(
                 colour_map, ncolours, last_cell)
 
-        if have_non_intergrid and (self._needs_colourmap or
+        if non_intergrid_kern and (self._needs_colourmap or
                                    self._needs_colourmap_halo):
             # There aren't any inter-grid kernels but we do need colourmap
             # information and that means we'll need a mesh object
             self._add_mesh_symbols(["mesh"])
-            colour_map = sym_tab.find_or_create_array(
-                "cmap", 2, ScalarType.Intrinsic.INTEGER, tag="cmap").name
+            # This creates the colourmap information for this invoke if we
+            # don't already have one.
+            colour_map = non_intergrid_kern.colourmap
             # No. of colours
             ncolours = sym_tab.find_or_create_integer_symbol(
                 "ncolour", tag="ncolour").name
@@ -3881,8 +3884,8 @@ class DynMeshes():
             # There aren't any inter-grid kernels but we do need
             # colourmap information
             base_name = "cmap"
-            colour_map = \
-                self._schedule.symbol_table.find_or_create_tag(base_name).name
+            csym = self._schedule.symbol_table.lookup_with_tag("cmap")
+            colour_map = csym.name
             # No. of colours
             base_name = "ncolour"
             ncolours = \
@@ -5383,7 +5386,7 @@ def _create_depth_list(halo_info_list, sym_table):
     return depth_info_list
 
 
-class DynHaloExchange(HaloExchange):
+class LFRicHaloExchange(HaloExchange):
 
     '''Dynamo specific halo exchange class which can be added to and
     manipulated in a schedule.
@@ -5515,14 +5518,14 @@ class DynHaloExchange(HaloExchange):
         '''
         read_dependencies = self.field.forward_read_dependencies()
         hex_deps = [dep for dep in read_dependencies
-                    if isinstance(dep.call, DynHaloExchange)]
+                    if isinstance(dep.call, LFRicHaloExchange)]
         if hex_deps:
             # There is a field accessed by a halo exchange that is
             # a read dependence. As ignore_hex_dep is True this should
             # be ignored so this is removed from the list.
             if any(dep for dep in hex_deps
-                   if isinstance(dep.call, (DynHaloExchangeStart,
-                                            DynHaloExchangeEnd))):
+                   if isinstance(dep.call, (LFRicHaloExchangeStart,
+                                            LFRicHaloExchangeEnd))):
                 raise GenerationError(
                     "Please perform redundant computation transformations "
                     "before asynchronous halo exchange transformations.")
@@ -5537,7 +5540,7 @@ class DynHaloExchange(HaloExchange):
                     f"{self.field.name}.")
             # For sanity, check that the field accessed by the halo
             # exchange is the last dependence in the list.
-            if not isinstance(read_dependencies[-1].call, DynHaloExchange):
+            if not isinstance(read_dependencies[-1].call, LFRicHaloExchange):
                 raise InternalError(
                     "If there is a read dependency associated with a halo "
                     "exchange in the list of read dependencies then it should "
@@ -5800,7 +5803,7 @@ class DynHaloExchange(HaloExchange):
         parent.add(CommentGen(parent, ""))
 
 
-class DynHaloExchangeStart(DynHaloExchange):
+class LFRicHaloExchangeStart(LFRicHaloExchange):
     '''The start of an asynchronous halo exchange. This is similar to a
     regular halo exchange except that the Fortran name of the call is
     different and the routine only reads the data being transferred
@@ -5835,8 +5838,8 @@ class DynHaloExchangeStart(DynHaloExchange):
 
     def __init__(self, field, check_dirty=True,
                  vector_index=None, parent=None):
-        DynHaloExchange.__init__(self, field, check_dirty=check_dirty,
-                                 vector_index=vector_index, parent=parent)
+        LFRicHaloExchange.__init__(self, field, check_dirty=check_dirty,
+                                   vector_index=vector_index, parent=parent)
         # Update the field's access appropriately. Here "gh_read"
         # specifies that the start of a halo exchange only reads
         # the field's data.
@@ -5893,7 +5896,7 @@ class DynHaloExchangeStart(DynHaloExchange):
         object or raises an exception if one is not found.
 
         :return: The corresponding halo exchange end object
-        :rtype: :py:class:`psyclone.dynamo0p3.DynHaloExchangeEnd`
+        :rtype: :py:class:`psyclone.dynamo0p3.LFRicHaloExchangeEnd`
         :raises GenerationError: If no matching HaloExchangeEnd is \
         found, or if the first matching haloexchange that is found is \
         not a HaloExchangeEnd
@@ -5902,14 +5905,14 @@ class DynHaloExchangeStart(DynHaloExchange):
         # Look at all nodes following this one in schedule order
         # (which is PSyIRe node order)
         for node in self.following():
-            if self.sameParent(node) and isinstance(node, DynHaloExchange):
+            if self.sameParent(node) and isinstance(node, LFRicHaloExchange):
                 # Found a following `haloexchange`,
                 # `haloexchangestart` or `haloexchangeend` PSyIRe node
                 # that is at the same calling hierarchy level as this
                 # haloexchangestart
                 access = DataAccess(self.field)
                 if access.overlaps(node.field):
-                    if isinstance(node, DynHaloExchangeEnd):
+                    if isinstance(node, LFRicHaloExchangeEnd):
                         return node
                     raise GenerationError(
                         f"Halo exchange start for field '{self.field.name}' "
@@ -5923,7 +5926,7 @@ class DynHaloExchangeStart(DynHaloExchange):
             f"matching halo exchange end")
 
 
-class DynHaloExchangeEnd(DynHaloExchange):
+class LFRicHaloExchangeEnd(LFRicHaloExchange):
     '''The end of an asynchronous halo exchange. This is similar to a
     regular halo exchange except that the Fortran name of the call is
     different and the routine only writes to the data being
@@ -5950,8 +5953,8 @@ class DynHaloExchangeEnd(DynHaloExchange):
 
     def __init__(self, field, check_dirty=True,
                  vector_index=None, parent=None):
-        DynHaloExchange.__init__(self, field, check_dirty=check_dirty,
-                                 vector_index=vector_index, parent=parent)
+        LFRicHaloExchange.__init__(self, field, check_dirty=check_dirty,
+                                   vector_index=vector_index, parent=parent)
         # Update field properties appropriately. The associated field is
         # written to. However, a readwrite field access needs to be
         # specified as this is required for the halo exchange logic to
@@ -6949,9 +6952,9 @@ class DynLoop(PSyLoop):
             exchanges.
 
         '''
-        exchange = DynHaloExchange(halo_field,
-                                   parent=self.parent,
-                                   vector_index=idx)
+        exchange = LFRicHaloExchange(halo_field,
+                                     parent=self.parent,
+                                     vector_index=idx)
         self.parent.children.insert(self.position,
                                     exchange)
 
@@ -7025,7 +7028,7 @@ class DynLoop(PSyLoop):
                 if arg.access in AccessType.all_write_accesses():
                     dep_arg_list = arg.forward_read_dependencies()
                     for dep_arg in dep_arg_list:
-                        if isinstance(dep_arg.call, DynHaloExchange):
+                        if isinstance(dep_arg.call, LFRicHaloExchange):
                             # found a halo exchange as a forward dependence
                             # ask the halo exchange if it is required
                             halo_exchange = dep_arg.call
@@ -7075,12 +7078,12 @@ class DynLoop(PSyLoop):
                             f"dependencies is '{halo_field.vector_size}' and "
                             f"the vector size is '{len(prev_arg_list)}'.")
                     for arg in prev_arg_list:
-                        if not isinstance(arg.call, DynHaloExchange):
+                        if not isinstance(arg.call, LFRicHaloExchange):
                             raise GenerationError(
                                 "Error in create_halo_exchanges. Expecting "
                                 "all dependent nodes to be halo exchanges")
                 prev_node = prev_arg_list[0].call
-                if not isinstance(prev_node, DynHaloExchange):
+                if not isinstance(prev_node, LFRicHaloExchange):
                     # previous dependence is not a halo exchange so
                     # call the add halo exchange logic which
                     # determines whether a halo exchange is required
@@ -7317,7 +7320,7 @@ class DynLoop(PSyLoop):
             caller can access any diagnostic messages detailing why the loop
             iterations are not independent.
         :type dep_tools: Optional[
-            :py:class:`psyclone.psyir.tools.DependencyTools]
+            :py:class:`psyclone.psyir.tools.DependencyTools`]
 
         :returns: True if the loop iterations are independent, False otherwise.
         :rtype: bool
@@ -7736,8 +7739,9 @@ class DynKern(CodedKern):
         if not self.is_coloured():
             raise InternalError(f"Kernel '{self.name}' is not inside a "
                                 f"coloured loop.")
+        sched = self.ancestor(InvokeSchedule)
         if self._is_intergrid:
-            invoke = self.ancestor(InvokeSchedule).invoke
+            invoke = sched.invoke
             if id(self) not in invoke.meshes.intergrid_kernels:
                 raise InternalError(
                     f"Colourmap information for kernel '{self.name}' has "
@@ -7745,7 +7749,14 @@ class DynKern(CodedKern):
             cmap = invoke.meshes.intergrid_kernels[id(self)].\
                 colourmap_symbol.name
         else:
-            cmap = self.scope.symbol_table.lookup_with_tag("cmap").name
+            try:
+                cmap = sched.symbol_table.lookup_with_tag("cmap").name
+            except KeyError:
+                # We have to do this here as _init_colourmap (which calls this
+                # method) is only called at code-generation time.
+                cmap = sched.symbol_table.find_or_create_array(
+                    "cmap", 2, ScalarType.Intrinsic.INTEGER,
+                    tag="cmap").name
 
         return cmap
 
@@ -9641,9 +9652,9 @@ __all__ = [
     'DynBoundaryConditions',
     'DynInvokeSchedule',
     'DynGlobalSum',
-    'DynHaloExchange',
-    'DynHaloExchangeStart',
-    'DynHaloExchangeEnd',
+    'LFRicHaloExchange',
+    'LFRicHaloExchangeStart',
+    'LFRicHaloExchangeEnd',
     'HaloDepth',
     'HaloWriteAccess',
     'HaloReadAccess',

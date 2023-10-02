@@ -1,3 +1,9 @@
+
+	1) PR #2199 for #2189. fix bugs with missing maps in enter data
+	directive.
+
+release 2.4.0 29th of September 2023
+
 	1) PR #1758 for #1741. Splits the PSyData read functionality into a
 	standalone module to remove dependence on infrastructure for
 	driver code.
@@ -626,6 +632,10 @@
 	(for an imported symbol) in VariablesAccessInfo.
 
 	212) PR #2233 for #1772. Correct kernel metadata for LFRic adjoint code.
+
+	213) PR #2334. Fix missing backtick in docstrings.
+
+	214) PR #2306 for #2305. Rename DynHaloExchange to LFRicHaloExchange.
 
 release 2.3.1 17th of June 2022
 
