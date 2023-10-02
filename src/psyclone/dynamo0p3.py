@@ -8678,9 +8678,7 @@ class DynKernelArguments(Arguments):
                 if dyn_argument.descriptor.stencil['extent']:
                     raise GenerationError("extent metadata not yet supported")
                     # if supported we would add the following
-                    # line. However, note there is currently no setter
-                    # for extent in LFRicArgStencil so this would need to
-                    # be added.  stencil.extent =
+                    # line: stencil.extent =
                     # dyn_argument.descriptor.stencil['extent']
                 # An extent argument has been added.
                 stencil.extent_arg = call.args[idx]
