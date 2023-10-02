@@ -3278,7 +3278,6 @@ def test_omp_task_directive_intrinsic_loop_bound(fortran_reader,
     enddo
   enddo
   !$omp end task'''
-    print(fortran_writer(tree))
     assert correct in fortran_writer(tree)
     assert Compile(tmpdir).string_compiles(fortran_writer(tree))
 

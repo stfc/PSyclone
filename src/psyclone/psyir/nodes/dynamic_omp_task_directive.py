@@ -2153,9 +2153,7 @@ class DynamicOMPTaskDirective(OMPTaskDirective):
 
         # Replace this node with an OMPTaskDirective
         childs = self.dir_body.pop_all_children()
-        clauses = []
-        for clause in self.clauses:
-            clauses.append(clause)
+        clauses = self.clauses[:]
         self.pop_all_children()
         replacement = OMPTaskDirective(children=childs, clauses=clauses)
         self.replace_with(replacement)

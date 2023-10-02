@@ -358,7 +358,7 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
                             f"was updated as a Loop variable "
                             f"that is not an ancestor Loop of "
                             f"the task. The variable is "
-                            f"{node.variable}.")
+                            f"'{node.variable.name}'.")
                 # It has to be an ancestor loop, so we want to find the start,
                 # stop and step Nodes
                 start, stop, step = node.start_expr, node.stop_expr, \

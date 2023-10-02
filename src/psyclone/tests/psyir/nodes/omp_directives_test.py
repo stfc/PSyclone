@@ -1897,7 +1897,7 @@ def test_omp_serial_compute_accesses_other_fails():
         sing._compute_accesses(ref, [loop1], task)
     assert (
         "Found a dependency index that was updated as a Loop variable "
-        "that is not an ancestor Loop of the task. The variable is tmp"
+        "that is not an ancestor Loop of the task. The variable is 'tmp'"
         in str(excinfo.value)
     )
 
