@@ -15,6 +15,10 @@
 !!          polynomial representation of the tracer field.
 !!          This method is only valid for lowest order elements.
 
+! This tweaked version of the code changes the dimensions of
+! polynomial tracer. These are modified as PSyAD does not support
+! array dimensions with offsets.
+
 module poly2d_w3_reconstruction_kernel_mod
 
 use argument_mod,      only : arg_type, func_type,         &

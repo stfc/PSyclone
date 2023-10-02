@@ -1,3 +1,12 @@
+
+	1) PR #2199 for #2189. fix bugs with missing maps in enter data
+	directive.
+
+	2) PR #2269 for #2268. Rename DynInvokes to LFRicInvokes and move
+	to own module.
+
+release 2.4.0 29th of September 2023
+
 	1) PR #1758 for #1741. Splits the PSyData read functionality into a
 	standalone module to remove dependence on infrastructure for
 	driver code.
@@ -599,6 +608,37 @@
 	202) PR #2298 for #1987. Change all intrinsic Operations to IntrinsicCalls.
 
 	203) PR #2320 for #2242. Pin Sphinx dependency to <7 to fix RTD building step.
+
+	204) PR #2264 for #2263. Split LFRicScalarArgs from src/psyclone/dynamo0p3.py.
+
+	205) PR #2328 for #2316. Update PSyclone to use 0.1.3 of fparser.
+
+	206) PR #2329 towards #2204 and closes #2315. Bug fix to fparser2
+	frontend to ensure that a PROGRAM with a CONTAINS is captured as
+	a CodeBlock.
+
+	207) PR #2327 towards #2132. Updates the LFRic integration tests
+	to use a Spack environment and the latest HEAD of trunk of LFRic.
+	Also extends the integration tests to upload performance numbers
+	to a GitHub gist.
+
+	208) PR #2154 for #95 and #994. Enforce valid Fortran names for
+	invoke names in the LFRic API.
+
+	209) PR #2332 for #2318. Small bug fix to the LFRic extraction
+	driver creation. eg17/full_example_extract now builds and runs OK.
+
+	210) PR #2287 for #2253. Allow for GH_WRITE access to continuous
+	field arguments to inter-grid kernels in the LFRic API.
+
+	211) PR #2299 for #2297. Add option to get original symbol name
+	(for an imported symbol) in VariablesAccessInfo.
+
+	212) PR #2233 for #1772. Correct kernel metadata for LFRic adjoint code.
+
+	213) PR #2334. Fix missing backtick in docstrings.
+
+	214) PR #2306 for #2305. Rename DynHaloExchange to LFRicHaloExchange.
 
 release 2.3.1 17th of June 2022
 
