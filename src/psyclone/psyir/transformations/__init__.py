@@ -85,6 +85,7 @@ from psyclone.psyir.transformations.nan_test_trans import NanTestTrans
 from psyclone.psyir.transformations.omp_loop_trans import OMPLoopTrans
 from psyclone.psyir.transformations.omp_target_trans import OMPTargetTrans
 from psyclone.psyir.transformations.omp_taskwait_trans import OMPTaskwaitTrans
+from psyclone.psyir.transformations.omp_task_trans import OMPTaskTrans
 from psyclone.psyir.transformations.parallel_loop_trans import \
     ParallelLoopTrans
 from psyclone.psyir.transformations.profile_trans import ProfileTrans
@@ -121,8 +122,9 @@ __all__ = ['ACCUpdateTrans',
            'LoopTrans',
            'NanTestTrans',
            'OMPLoopTrans',
-           'OMPTaskwaitTrans',
            'OMPTargetTrans',
+           'OMPTaskTrans',
+           'OMPTaskwaitTrans',
            'ParallelLoopTrans',
            'ProfileTrans',
            'PSyDataTrans',

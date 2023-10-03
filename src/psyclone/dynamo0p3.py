@@ -61,7 +61,8 @@ from psyclone.domain.lfric import (FunctionSpace, KernCallAccArgList,
                                    LFRicArgDescriptor, KernelInterface,
                                    LFRicCollection, LFRicConstants,
                                    LFRicSymbolTable, LFRicInvoke,
-                                   LFRicKernCallFactory, LFRicScalarArgs)
+                                   LFRicInvokes, LFRicKernCallFactory,
+                                   LFRicScalarArgs)
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 from psyclone.f2pygen import (AllocateGen, AssignGen, CallGen, CommentGen,
                               DeallocateGen, DeclGen, DoGen, IfThenGen,
@@ -1010,7 +1011,7 @@ class DynamoPSy(PSy):
         # TODO #1954: Remove the protected access using a factory
         ScopingNode._symbol_table_class = LFRicSymbolTable
         PSy.__init__(self, invoke_info)
-        self._invokes = DynamoInvokes(invoke_info.calls, self)
+        self._invokes = LFRicInvokes(invoke_info.calls, self)
         # Initialise the dictionary that holds the names of the required
         # LFRic constants, data structures and data structure proxies for
         # the "use" statements in modules that contain PSy-layer routines.
@@ -1118,24 +1119,6 @@ class DynamoPSy(PSy):
 
         # Return the root node of the generated code
         return psy_module.root
-
-
-class DynamoInvokes(Invokes):
-    '''The Dynamo specific invokes class. This passes the Dynamo
-    specific invoke class to the base class so it creates the one we
-    require.
-
-    :param alg_calls: list of objects containing the parsed invoke \
-        information.
-    :type alg_calls: list of \
-        :py:class:`psyclone.parse.algorithm.InvokeCall`
-    :param psy: the PSy object containing this DynamoInvokes object.
-    :type psy: :py:class`psyclone.dynamo0p3.DynamoPSy`
-
-    '''
-    def __init__(self, alg_calls, psy):
-        self._0_to_n = LFRicInvoke(None, None, None)  # for pyreverse
-        Invokes.__init__(self, alg_calls, LFRicInvoke, psy)
 
 
 class DynStencils(LFRicCollection):
@@ -8069,6 +8052,25 @@ class DynKern(CodedKern):
 
         # Get the PSyIR Kernel Schedule(s)
         routines = Fparser2Reader().get_routine_schedules(self.name, self.ast)
+        for routine in routines:
+            # If one of the symbols is not declared in a routine then
+            # this is only picked up when writing out the routine
+            # (raising a VisitorError), so we check here so that
+            # invalid code is not inlined. We use debug_string() to
+            # minimise the overhead.
+
+            # TODO #2271 could potentially avoid the need for
+            # debug_string() within. Sergi suggests that we may be
+            # missing the traversal of the declaration init
+            # expressions and that might solve the problem. I'm not so
+            # sure as we are talking about unknown symbols that will
+            # only be resolved in the back-end (or not). If I am right
+            # then one option would be to use the FortranWriter, but
+            # that would be bigger overhead, or perhaps just the
+            # declarations part of FortranWriter if that is possible.
+            # Also see TODO issue #2336 which captures the specific
+            # problem in LFRic that this fixes.
+            routine.debug_string()
 
         if len(routines) == 1:
             sched = routines[0]
@@ -9294,12 +9296,7 @@ class DynKernelArgument(KernelArgument):
             if self.precision:
                 # Ensure any associated precision symbol is in the table.
                 symbol_table.add_lfric_precision_symbol(self.precision)
-            try:
-                lit = reader.psyir_from_expression(self.name, symbol_table)
-            except SymbolError as err:
-                raise InternalError(
-                    f"Unexpected literal expression '{self.name}' when "
-                    f"processing kernel '{self.call.name}'.") from err
+            lit = reader.psyir_from_expression(self.name, symbol_table)
 
             # Sanity check that the resulting expression is a literal.
             if lit.walk(Reference):
@@ -9637,7 +9634,6 @@ __all__ = [
     'DynFuncDescriptor03',
     'DynKernMetadata',
     'DynamoPSy',
-    'DynamoInvokes',
     'DynStencils',
     'DynDofmaps',
     'DynFunctionSpaces',

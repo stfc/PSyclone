@@ -43,15 +43,21 @@ nodes.'''
 
 
 import abc
+import itertools
+import sympy
 
 from psyclone.configuration import Config
 from psyclone.core import AccessType, VariablesAccessInfo
-from psyclone.errors import GenerationError
+from psyclone.errors import (GenerationError,
+                             UnresolvedDependencyError)
 from psyclone.f2pygen import (AssignGen, UseGen, DeclGen, DirectiveGen,
                               CommentGen)
+from psyclone.psyir.nodes.array_mixin import ArrayMixin
+from psyclone.psyir.nodes.array_reference import ArrayReference
+from psyclone.psyir.nodes.assignment import Assignment
+from psyclone.psyir.nodes.call import Call
 from psyclone.psyir.nodes.directive import StandaloneDirective, \
     RegionDirective
-from psyclone.psyir.nodes.assignment import Assignment
 from psyclone.psyir.nodes.if_block import IfBlock
 from psyclone.psyir.nodes.intrinsic_call import IntrinsicCall
 from psyclone.psyir.nodes.literal import Literal
@@ -60,10 +66,12 @@ from psyclone.psyir.nodes.operation import BinaryOperation
 from psyclone.psyir.nodes.omp_clauses import OMPGrainsizeClause, \
     OMPNowaitClause, OMPNogroupClause, OMPNumTasksClause, OMPPrivateClause, \
     OMPDefaultClause, OMPReductionClause, OMPScheduleClause, \
-    OMPFirstprivateClause
+    OMPFirstprivateClause, OMPDependClause
+from psyclone.psyir.nodes.ranges import Range
 from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes.schedule import Schedule
+from psyclone.psyir.nodes.structure_reference import StructureReference
 from psyclone.psyir.nodes.while_loop import WhileLoop
 from psyclone.psyir.symbols import INTEGER_TYPE, ScalarType
 
@@ -233,6 +241,834 @@ class OMPSerialDirective(OMPRegionDirective, metaclass=abc.ABCMeta):
 
     '''
 
+    def _valid_dependence_literals(self, lit1, lit2):
+        '''
+        Compares two Nodes to check whether they are a valid dependency
+        pair. For two Nodes where at least one is a Literal, a valid
+        dependency is any pair of Literals.
+
+        :param lit1: the first node to compare.
+        :type lit1: :py:class:`psyclone.psyir.nodes.Node`
+        :param lit2: the second node to compare.
+        :type lit2: :py:class:`psyclone.psyir.nodes.Node`
+
+        :returns: whether or not these two nodes can be used as a valid
+                  dependency pair in OpenMP.
+        :rtype: bool
+
+        '''
+        # Check both are Literals
+
+        # If a Literal index into an array that is a dependency
+        # has calculated dependency to a
+        # non-Literal array index, this will return False, as this is not
+        # currently supported in PSyclone.
+
+        # If literals are not the same its fine, since a(1) is not a
+        # dependency to a(2), so as long as both are Literals this is ok.
+        return isinstance(lit1, Literal) and isinstance(lit2, Literal)
+
+    def _valid_dependence_ranges(self, arraymixin1, arraymixin2, index):
+        '''
+        Compares two ArrayMixin Nodes to check whether they are a valid
+        dependency pair on the provided index. For two Nodes where at least
+        one has a Range at this index, they must both have Ranges, and both be
+        full ranges, i.e. ":".
+
+        :param arraymixin1: the first node to validate.
+        :type arraymixin1: :py:class:`psyclone.psyir.nodes.ArrayMixin`
+        :param arraymixin2: the second node to validate.
+        :type arraymixin2: :py:class:`psyclone.psyir.nodes.ArrayMixin`
+
+        :returns: whether or not these two nodes can be used as a valid
+                  dependency pair in OpenMP, based upon the provided index.
+        :rtype: bool
+        '''
+        # We know both inputs are always ArrayMixin as this is a private
+        # function.
+        # Check both are Ranges
+        if (not isinstance(arraymixin1.indices[index], Range) or not
+                isinstance(arraymixin2.indices[index], Range)):
+            # Range index to a dependency has calculated dependency to a
+            # non-Range index, which is not currently supported in PSyclone
+            return False
+
+        # To be valid, both ranges need to be full ranges.
+
+        # If we have a range index between dependencies which does not cover
+        # the full array range, it is not currently supported in
+        # PSyclone (due to OpenMP limitations), so False will be returned.
+        return (arraymixin1.is_full_range(index) and
+                arraymixin2.is_full_range(index))
+
+    def _compute_accesses_get_start_stop_step(self, preceding_nodes, task,
+                                              symbol):
+        '''
+        Computes the start, stop and step values used in the _compute_accesses
+        function by searching through the preceding nodes for the last access
+        to the symbol.
+
+        :param preceding_nodes: a list of nodes that precede the task in the
+                                tree.
+        :type preceding_nodes: List[:py:class:`psyclone.psyir.nodes.Node`]
+        :param task: the OMPTaskDirective node being used in
+                     _compute_accesses.
+        :type task: :py:class:`psyclone.psyir.nodes.OMPTaskDirective`
+        :param symbol: the symbol used by the ref in _compute_accesses.
+        :type symbol: :py:class:`psyclone.psyir.symbols.Symbol`
+
+        :returns: a tuple containing the start, stop and step nodes (or None
+                  if there is no value).
+        :rtype: Tuple[:py:class`psyclone.psyir.nodes.Node, None]
+        '''
+        start = None
+        stop = None
+        step = None
+        for node in preceding_nodes:
+            # Only Assignment, Loop or Call nodes can modify the symbol in our
+            # Reference
+            if not isinstance(node, (Assignment, Loop, Call)):
+                continue
+            # At the moment we allow all IntrinsicCall nodes through, and
+            # assume that all IntrinsicCall nodes we find don't modify
+            # symbols, but only read from them.
+            if isinstance(node, Call) and not isinstance(node, IntrinsicCall):
+                # Currently opting to fail on any non-intrinsic Call.
+                # Potentially it might be possible to check if the Symbol is
+                # written to and only if so then raise an error
+                raise UnresolvedDependencyError(
+                        "Found a Call in preceding_nodes, which "
+                        "is not yet supported.")
+            if isinstance(node, Assignment) and node.lhs.symbol == symbol:
+                start = node.rhs.copy()
+                break
+            if isinstance(node, Loop) and node.variable == symbol:
+                # If the loop is not an ancestor of the task then
+                # we don't currently support it.
+                ancestor_loop = task.ancestor(Loop, limit=self)
+                is_ancestor = False
+                while ancestor_loop is not None:
+                    if ancestor_loop == node:
+                        is_ancestor = True
+                        break
+                    ancestor_loop = ancestor_loop.ancestor(Loop, limit=self)
+                if not is_ancestor:
+                    raise UnresolvedDependencyError(
+                            f"Found a dependency index that "
+                            f"was updated as a Loop variable "
+                            f"that is not an ancestor Loop of "
+                            f"the task. The variable is "
+                            f"'{node.variable.name}'.")
+                # It has to be an ancestor loop, so we want to find the start,
+                # stop and step Nodes
+                start, stop, step = node.start_expr, node.stop_expr, \
+                    node.step_expr
+                break
+        return (start, stop, step)
+
+    def _compute_accesses(self, ref, preceding_nodes, task):
+        '''
+        Computes the set of accesses for a Reference or BinaryOperation
+        Node, based upon the preceding_nodes and containing task.
+
+        The returned result is either a set of Literals, or Literals
+        and BinaryOperations.
+
+        If ref is a BinaryOperation, it needs to be of the following formats:
+        1. Reference ADD/SUB Literal
+        2. Literal ADD Reference
+        3. Binop(Literal MUL Literal) ADD Reference
+        4. Reference ADD/SUB Binop(Literal MUL Literal)
+
+
+        :param ref: the Reference or BinaryOperation node to compute
+                    accesses for.
+        :type ref: Union[:py:class:`psyclone.psyir.nodes.Reference,
+                   :py:class:`psyclone.psyir.nodes.BinaryOperation]
+        :param preceding_nodes: a list of nodes that precede the task in the
+                                tree.
+        :type preceding_nodes: List[:py:class:`psyclone.psyir.nodes.Node`]
+        :param task: the OMPTaskDirective node containing ref as a child.
+        :type task: :py:class:`psyclone.psyir.nodes.OMPTaskDirective`
+
+        :raises UnresolvedDependencyError: If the ref contains an unsupported
+                                           BinaryOperation structure, such as
+                                           a non-ADD/SUB/MUL operator. Check
+                                           error message for more details.
+        :raises UnresolvedDependencyError: If preceding_nodes contains a Call
+                                           node.
+        :raises UnresolvedDependencyError: If ref is a BinaryOperation and
+                                           neither child of ref is a Literal
+                                           or BinaryOperation.
+        :raises UnresolvedDependencyError: If there is a dependency between
+                                           ref (a BinaryOperation) and a
+                                           previously set constant.
+        :raises UnresolvedDependencyError: If there is a dependency between
+                                           ref and a Loop variable that is
+                                           not an ancestor of task.
+        :raises UnresolvedDependencyError: If preceding_nodes contains a
+                                           dependent loop with a non-Literal
+                                           step.
+
+        :returns: a list of the dependency values for the input ref, or a
+                  dict of the start, stop and step values.
+        :rtype: List[Union[:py:class:`psyclone.psyir.nodes.Literal`,
+                :py:class:`psyclone.psyir.nodes.BinaryOperation`]] or
+                Dict[str: py:class:`psyclone.psyir.nodes.Node`]
+        '''
+        if isinstance(ref, Reference):
+            symbol = ref.symbol
+        else:
+            # Get the symbol out of the Binop, and store some other
+            # important information. We store the step value of the
+            # ancestor loop (which will be the value of the Literal, or
+            # one of the Literals if an operand is a BinaryOperation).
+            # In the case that one of the operands is a BinaryOperation,
+            # we also store a "num_entries" value, which is based upon the
+            # multiplier of the step value. This is how we can handle
+            # cases such as array(i+57) if the step value is 32, the
+            # dependencies stored would be array(i+32) and array(i+64).
+            if isinstance(ref.children[0], Literal):
+                if ref.operator == BinaryOperation.Operator.ADD:
+                    # Have Literal + Reference. Store the symbol of the
+                    # Reference and the integer value of the Literal.
+                    symbol = ref.children[1].symbol
+                    binop_val = int(ref.children[0].value)
+                    num_entries = 2
+                else:
+                    raise UnresolvedDependencyError(
+                            f"Found a dependency index that is "
+                            f"a BinaryOperation where the "
+                            f"format is Literal OP Reference "
+                            f"with a non-ADD operand "
+                            f"which is not supported. "
+                            f"The operation found was "
+                            f"'{ref.debug_string()}'.")
+            elif isinstance(ref.children[1], Literal):
+                # Have Reference OP Literal. Store the symbol of the
+                # Reference, and the integer value of the Literal. If the
+                # operator is negative, then we store the value negated.
+                if ref.operator in [BinaryOperation.Operator.ADD,
+                                    BinaryOperation.Operator.SUB]:
+                    symbol = ref.children[0].symbol
+                    binop_val = int(ref.children[1].value)
+                    num_entries = 2
+                    if ref.operator == BinaryOperation.Operator.SUB:
+                        binop_val = -binop_val
+                else:
+                    raise UnresolvedDependencyError(
+                            f"Found a dependency index that is "
+                            f"a BinaryOperation where the "
+                            f"Operator is neither ADD not SUB "
+                            f"which is not supported. "
+                            f"The operation found was "
+                            f"'{ref.debug_string()}'.")
+
+            elif isinstance(ref.children[0], BinaryOperation):
+                if ref.operator == BinaryOperation.Operator.ADD:
+                    # Have Binop ADD Reference. Store the symbol of the
+                    # Reference, and store the binop. The binop is of
+                    # structure Literal MUL Literal, where the second
+                    # Literal is to the step of a parent loop.
+                    symbol = ref.children[1].symbol
+                    binop = ref.children[0]
+                    if binop.operator != BinaryOperation.Operator.MUL:
+                        raise UnresolvedDependencyError(
+                                f"Found a dependency index that is a "
+                                f"BinaryOperation with a child "
+                                f"BinaryOperation with a non-MUL operator "
+                                f"which is not supported. "
+                                f"The operation found was "
+                                f"'{ref.debug_string()}'.")
+                    # These binary operations are format of Literal MUL Literal
+                    # where step_val is the 2nd literal and the multiplier
+                    # is the first literal
+                    if (not (isinstance(binop.children[0], Literal) and
+                             isinstance(binop.children[1], Literal))):
+                        raise UnresolvedDependencyError(
+                                f"Found a dependency index that is a "
+                                f"BinaryOperation with a child "
+                                f"BinaryOperation with a non-Literal child "
+                                f"which is not supported. "
+                                f"The operation found was "
+                                f"'{ref.debug_string()}'.")
+                    # We store the step of the parent loop in binop_val, and
+                    # use the other operand to compute how many entries we
+                    # need to compute to validate this dependency list.
+                    binop_val = int(binop.children[1].value)
+                    num_entries = int(binop.children[0].value)+1
+                else:
+                    raise UnresolvedDependencyError(
+                            f"Found a dependency index that is "
+                            f"a BinaryOperation where the "
+                            f"format is BinaryOperator OP "
+                            f"Reference with a non-ADD operand "
+                            f"which is not supported. "
+                            f"The operation found was "
+                            f"'{ref.debug_string()}'.")
+            elif isinstance(ref.children[1], BinaryOperation):
+                # Have Reference ADD/SUB Binop. Store the symbol of the
+                # Reference, and store the binop. The binop is of
+                # structure Literal MUL Literal, where the second
+                # Literal is to the step of a parent loop.
+                if ref.operator in [BinaryOperation.Operator.ADD,
+                                    BinaryOperation.Operator.SUB]:
+                    symbol = ref.children[0].symbol
+                    binop = ref.children[1]
+                    if binop.operator != BinaryOperation.Operator.MUL:
+                        raise UnresolvedDependencyError(
+                                f"Found a dependency index that is a "
+                                f"BinaryOperation with a child "
+                                f"BinaryOperation with a non-MUL operator "
+                                f"which is not supported. "
+                                f"The operation found was "
+                                f"'{ref.debug_string()}'.")
+                    # These binary operations are format of Literal MUL Literal
+                    # where step_val is the 2nd literal.
+                    if (not (isinstance(binop.children[0], Literal) and
+                             isinstance(binop.children[1], Literal))):
+                        raise UnresolvedDependencyError(
+                                f"Found a dependency index that is a "
+                                f"BinaryOperation with an operand "
+                                f"BinaryOperation with a non-Literal operand "
+                                f"which is not supported. "
+                                f"The operation found was "
+                                f"'{ref.debug_string()}'.")
+                    # We store the step of the parent loop in binop_val, and
+                    # use the other operand to compute how many entries we
+                    # need to compute to validate this dependency list.
+                    binop_val = int(binop.children[1].value)
+                    num_entries = int(binop.children[0].value)+1
+                    if ref.operator == BinaryOperation.Operator.SUB:
+                        # If the operator is SUB then we use 1 less
+                        # entry in the list, as Fortran arrays start
+                        # from 1.
+                        binop_val = -binop_val
+                        num_entries = num_entries-1
+                else:
+                    raise UnresolvedDependencyError(
+                            f"Found a dependency index that is "
+                            f"a BinaryOperation where the "
+                            f"format is Reference OP "
+                            f"BinaryOperation with a non-ADD, "
+                            f"non-SUB operand "
+                            f"which is not supported. "
+                            f"The operation found was "
+                            f"'{ref.debug_string()}'.")
+            else:
+                raise UnresolvedDependencyError(
+                        f"Found a dependency index that is a "
+                        f"BinaryOperation where neither child "
+                        f"is a Literal or BinaryOperation. "
+                        f"PSyclone can't validate "
+                        f"this dependency. "
+                        f"The operation found was "
+                        f"'{ref.debug_string()}'.")
+        start, stop, step = self._compute_accesses_get_start_stop_step(
+                preceding_nodes, task, symbol)
+
+        if isinstance(ref, BinaryOperation):
+            output_list = []
+            if step is None:
+                # Found no ancestor loop, PSyclone cannot handle
+                # this case, as BinaryOperations created by OMPTaskDirective
+                # in dependencies will always be based on ancestor loops.
+                raise UnresolvedDependencyError(
+                        f"Found a dependency between a "
+                        f"BinaryOperation and a previously "
+                        f"set constant value. "
+                        f"PSyclone cannot yet handle this "
+                        f"interaction. The error occurs from "
+                        f"'{ref.debug_string()}'.")
+            # If the step isn't a Literal value, then we can't compute what
+            # the address accesses at compile time, so we can't validate the
+            # dependency.
+            if not isinstance(step, Literal):
+                raise UnresolvedDependencyError(
+                        f"Found a dependency index that is a "
+                        f"Loop variable with a non-Literal step "
+                        f"which we can't resolve in PSyclone. "
+                        f"Containing node is '{ref.debug_string()}'.")
+            # If the start and stop are both Literals, we can compute a set
+            # of accesses this BinaryOperation is related to precisely.
+            if (isinstance(start, Literal) and isinstance(stop, Literal)):
+                # Fill the output list with all values from start to stop
+                # incremented by step
+                startval = int(start.value)
+                stopval = int(stop.value)
+                stepval = int(step.value)
+                # We loop from startval to stopval + 1 as PSyIR loops will
+                # include stopval, wheras Python loops do not.
+                for i in range(startval, stopval + 1, stepval):
+                    new_x = i + binop_val
+                    output_list.append(Literal(f"{new_x}", INTEGER_TYPE))
+                return output_list
+
+            # If they are not all literals, we have a special case. In this
+            # case we return a dict containing start, stop and step and this
+            # is compared directly to the start, stop and step of a
+            # corresponding access.
+            output_list = {}
+            output_list["start"] = BinaryOperation.create(
+                                       BinaryOperation.Operator.ADD,
+                                       start.copy(),
+                                       Literal(f"{binop_val}", INTEGER_TYPE)
+                                    )
+            output_list["stop"] = stop.copy()
+            output_list["step"] = step.copy()
+            return output_list
+        if step is None:
+            # Result for an assignment.
+            output_list = [start]
+            return output_list
+        output_list = []
+        # If step is not a Literal then we probably can't resolve this
+        if not isinstance(step, Literal):
+            raise UnresolvedDependencyError(
+                    "Found a dependency index that is a "
+                    "Loop variable with a non-Literal step "
+                    "which we can't resolve in PSyclone.")
+        # Special case when all are Literals
+        if (isinstance(start, Literal) and isinstance(stop, Literal)):
+            # Fill the output list with all values from start to stop
+            # incremented by step
+            startval = int(start.value)
+            stopval = int(stop.value)
+            stepval = int(step.value)
+            # We loop from startval to stopval + 1 as PSyIR loops will include
+            # stopval, wheras Python loops do not.
+            for i in range(startval, stopval + 1, stepval):
+                output_list.append(Literal(f"{i}", INTEGER_TYPE))
+            return output_list
+
+        # the sequence only. In this case, we have a non-parent loop reference
+        # which is also firstprivate (as shared indices are forbidden in
+        # OMPTaskDirective already), so is essentially a constant. In this
+        # case therefore we will have an unknown start and stop value, so we
+        # verify this dependency differently. To ensure this special case is
+        # understood as a special case, we return a dict with the 3 members.
+        output_list = {}
+        output_list["start"] = start.copy()
+        output_list["stop"] = stop.copy()
+        output_list["step"] = step.copy()
+        return output_list
+
+    def _check_valid_overlap(self, sympy_ref1s, sympy_ref2s):
+        '''
+        Takes two lists of SymPy expressions, and checks that any overlaps
+        between the expressions is valid for OpenMP depend clauses.
+
+        :param sympy_ref1s: the list of SymPy expressions corresponding to
+                            the first dependency clause.
+        :type sympy_ref1s: List[:py:class:`sympy.core.basic.Basic`]
+        :param sympy_ref2s: the list of SymPy expressions corresponding to
+                            the second dependency clause.
+        :type sympy_ref2s: List[:py:class:`sympy.core.basic.Basic`]
+
+        :returns: whether this is a valid overlap according to the OpenMP \
+                  standard.
+        :rtype: bool
+        '''
+        # r1_min will contain the minimum computed value for (ref + value)
+        # from the list. r1_max will contain the maximum computed value.
+        # Loop through the values in sympy_ref1s, and compute the maximum
+        # and minumum values in that list. These correspond to the maximum and
+        # minimum values used for accessing the array relative to the
+        # symbol used as a base access.
+        values = [int(member) for member in sympy_ref1s]
+        r1_min = min(values)
+        r1_max = max(values)
+        # Loop over the elements in sympy_ref2s and check that the dependency
+        # is valid in OpenMP.
+        for member in sympy_ref2s:
+            # If the value is between min and max of r1 then we check that
+            # the value is in the values list
+            val = int(member)
+            if r1_min <= val <= r1_max:
+                if val not in values:
+                    # Found incompatible dependency between two
+                    # array accesses, ref1 is in range r1_min
+                    # to r1_max, but doesn't contain val.
+                    # This can happen if we have two loops with
+                    # different start values or steps.
+                    return False
+        return True
+
+    def _valid_dependence_ref_binop(self, ref1, ref2, task1, task2):
+        '''
+        Compares two Reference/BinaryOperation Nodes to check they are a set
+        of dependencies that are valid according to OpenMP. Both these nodes
+        are array indices on the same array symbol, so for OpenMP to correctly
+        compute this dependency, we must guarantee at compile time that we
+        know the addresses/array sections covered by this index are identical.
+
+        :param ref1: the first Node to compare.
+        :type ref1: Union[:py:class:`psyclone.psyir.nodes.Reference`, \
+                    :py:class:`psyclone.psyir.nodes.BinaryOperation`]
+        :param ref2: the second Node to compare.
+        :type ref2: Union[:py:class:`psyclone.psyir.nodes.Reference`, \
+                    :py:class:`psyclone.psyir.nodes.BinaryOperation`]
+        :param task1: the task containing ref1 as a child.
+        :type task1: :py:class:`psyclone.psyir.nodes.OMPTaskDirective`
+        :param task2: the task containing ref2 as a child.
+        :type task2: :py:class:`psyclone.psyir.nodes.OMPTaskDirective`
+
+        :raises GenerationError: If ref1 and ref2 are dependencies on the \
+                                 same array, and one does not contain a \
+                                 Reference but the other does.
+        :raises GenerationError: If ref1 and ref2 are dependencies on the \
+                                 same array but are References to different \
+                                 variables.
+        :raises GenerationError: If ref1 and ref2 are dependencies on the \
+                                 same array, but the computed index values \
+                                 are not dependent according to OpenMP.
+
+        :returns: whether or not these two nodes can be used as a valid \
+                  dependency on the same array in OpenMP.
+        :rtype: bool
+
+        '''
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.backend.sympy_writer import SymPyWriter
+        # In this case we have two Reference/BinaryOperation as indices.
+        # We need to attempt to find their value set and check the value
+        # set matches.
+        # Find all the nodes before these tasks
+        preceding_t1 = task1.preceding(reverse=True)
+        preceding_t2 = task2.preceding(reverse=True)
+        # Get access list for each ref
+        try:
+            ref1_accesses = self._compute_accesses(ref1, preceding_t1, task1)
+            ref2_accesses = self._compute_accesses(ref2, preceding_t2, task2)
+        except UnresolvedDependencyError:
+            # If we get a UnresolvedDependencyError from compute_accesses, then
+            # we found an access that isn't able to be handled by PSyclone, so
+            # dependencies based on it need to be handled by a taskwait
+            return False
+
+        # Create our sympy_writer
+        sympy_writer = SymPyWriter()
+
+        # If either of the returned accesses are a dict, this is a special
+        # case where both must be a dict and have the same start, stop and
+        # step.
+        if isinstance(ref1_accesses, dict) or isinstance(ref2_accesses, dict):
+            # If they aren't both dicts then we need to return False as
+            # the special case isn't handled correctly.
+            if type(ref1_accesses) is not type(ref2_accesses):
+                return False
+            # If they're both dicts then we need the step to be equal for
+            # this dependency to be satisfiable.
+            if ref1_accesses["step"] != ref2_accesses["step"]:
+                return False
+            # Now we know the step is equal, we need the start values to be
+            # start1 = start2 + x * step, where x is an integer value.
+            # We use SymPy to solve this equation and perform this check.
+            sympy_start1 = sympy_writer(ref1_accesses["start"])
+            sympy_start2 = sympy_writer(ref2_accesses["start"])
+            sympy_step = sympy_writer(ref2_accesses["step"])
+            b_sym = sympy.Symbol('b')
+            result = sympy.solvers.solve(sympy_start1 - sympy_start2 +
+                                         b_sym * sympy_step, b_sym)
+            if not isinstance(result[0], sympy.core.numbers.Integer):
+                return False
+
+            # If we know the start and step are aligned, all possible
+            # dependencies are aligned so we don't need to check the stop
+            # value.
+            return True
+
+        # If we have a list, then we have a set of Literal values.
+        # We use the SymPyWriter to convert these objects to expressions
+        # we can use to obtain integer values for these Literals
+        sympy_ref1s = sympy_writer(ref1_accesses)
+        sympy_ref2s = sympy_writer(ref2_accesses)
+        return self._check_valid_overlap(sympy_ref1s, sympy_ref2s)
+
+    def _check_dependency_pairing_valid(self, node1, node2, task1, task2):
+        '''
+        Given a pair of nodes which are children of a OMPDependClause, this
+        function checks whether the described dependence is correctly
+        described by the OpenMP standard.
+        If the dependence is not going to be handled safely, this function
+        returns False, else it returns true.
+
+        :param node1: the first input node to check.
+        :type node1: :py:class:`psyclone.psyir.nodes.Reference`
+        :param node2: the second input node to check.
+        :type node2: :py:class:`psyclone.psyir.nodes.Reference`
+        :param task1: the OMPTaskDirective node containing node1 as a \
+                      dependency
+        :type task1: :py:class:`psyclone.psyir.nodes.OMPTaskDirective`
+        :param task2: the OMPTaskDirective node containing node2 as a \
+                      dependency
+        :type task2: :py:class:`psyclone.psyir.nodes.OMPTaskDirective`
+
+        :returns: whether the dependence is going to be handled safely \
+                  according to the OpenMP standard.
+        :rtype: bool
+        '''
+        # Checking the symbol is the same works. If the symbol is not the same
+        # then there's no dependence, so its valid.
+        if node1.symbol != node2.symbol:
+            return True
+        # The typing check handles any edge case where we have node1 and node2
+        # pointing to the same symbol, but one is a specialised reference type
+        # and the other is a base Reference type - this is unlikely to happen
+        # but we check just in case. In this case we have to assume there is
+        # an unhandled dependency
+        if type(node1) is not type(node2):
+            return False
+        # For structure reference we need to check they access
+        # the same member. If they don't, no dependence so valid.
+        if isinstance(node1, StructureReference):
+            # If either is a StructureReference here they must both be,
+            # as they access the same symbol.
+
+            # We can't just do == on the Member child, as that
+            # will recurse and check the array indices for any
+            # ArrayMixin children
+
+            # Check the signature of both StructureReference
+            # to see if they are accessing the same data
+            ref0_sig = node1.get_signature_and_indices()[0]
+            ref1_sig = node2.get_signature_and_indices()[0]
+            if ref0_sig != ref1_sig:
+                return True
+
+        # If we have (exactly) Reference objects we filter out
+        # non-matching ones with the symbol check, and matching ones
+        # are always valid since they are simple accesses.
+        # pylint: disable=unidiomatic-typecheck
+        if type(node1) is Reference:
+            return True
+
+        # All remaining objects are some sort of Array access
+        array1 = None
+        array2 = None
+
+        # PSyclone will not handle dependencies on multiple array indexes
+        # at the moment, so we return False.
+        if len(node1.walk(ArrayMixin)) > 1 or len(node2.walk(ArrayMixin)) > 1:
+            return False
+        if isinstance(node1, ArrayReference):
+            array1 = node1
+            array2 = node2
+        else:
+            array1 = node1.walk(ArrayMixin)[0]
+            array2 = node2.walk(ArrayMixin)[0]
+        for i, index in enumerate(array1.indices):
+            if (isinstance(index, Literal) or
+                    isinstance(array2.indices[i], Literal)):
+                valid = self._valid_dependence_literals(
+                            index, array2.indices[i])
+            elif (isinstance(index, Range) or
+                  isinstance(array2.indices[i], Range)):
+                valid = self._valid_dependence_ranges(
+                            array1, array2, i)
+            else:
+                # The only remaining option is that the indices are
+                # References or BinaryOperations
+                valid = self._valid_dependence_ref_binop(
+                            index, array2.indices[i], task1, task2)
+            # If this was not valid then return False, else keep checking
+            # other indices
+            if not valid:
+                return False
+
+        return valid
+
+    def _validate_task_dependencies(self):
+        '''
+        Validates all task dependencies in this OMPSerialDirective region are
+        valid within the restraints of OpenMP & PSyclone. This is done through
+        a variety of helper functions, and checks each pair of tasks' inout,
+        outin and outout combinations.
+
+        Any task dependencies that are detected and will not be handled by
+        OpenMP's depend clause will be handled through the addition of
+        OMPTaskwaitDirective nodes.
+
+        :raises NotImplementedError: If this region contains both an \
+                                 OMPTaskDirective and an OMPTaskloopDirective.
+        '''
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.nodes.omp_task_directive import OMPTaskDirective
+        tasks = self.walk(OMPTaskDirective)
+        # For now we disallow Tasks and Taskloop directives in the same Serial
+        # Region
+        if len(tasks) > 0 and any(self.walk(OMPTaskloopDirective)):
+            raise NotImplementedError("OMPTaskDirectives and "
+                                      "OMPTaskloopDirectives are not "
+                                      "currently supported inside the same "
+                                      "parent serial region.")
+
+        pairs = itertools.combinations(tasks, 2)
+
+        # List of tuples of dependent nodes that aren't handled by OpenMP
+        unhandled_dependent_nodes = []
+        # Lowest and highest position nodes contain the abs_position of each
+        # tuple inside unhandled_dependent_nodes, used for sorting the arrays
+        # and checking if the unhandled dependency has a taskwait inbetween.
+        lowest_position_nodes = []
+        highest_position_nodes = []
+
+        for pair in pairs:
+            task1 = pair[0]
+            task2 = pair[1]
+
+            # Find all References in each tasks' depend clauses
+            # Should we cache these instead?
+            task1_in = [x for x in task1.input_depend_clause.children
+                        if isinstance(x, Reference)]
+            task1_out = [x for x in task1.output_depend_clause.children
+                         if isinstance(x, Reference)]
+            task2_in = [x for x in task2.input_depend_clause.children
+                        if isinstance(x, Reference)]
+            task2_out = [x for x in task2.output_depend_clause.children
+                         if isinstance(x, Reference)]
+
+            inout = list(itertools.product(task1_in, task2_out))
+            outin = list(itertools.product(task1_out, task2_in))
+            outout = list(itertools.product(task1_out, task2_out))
+            # Loop through each potential dependency pair and check they
+            # will be handled correctly.
+
+            # Need to predefine satisfiable in case all lists are empty.
+            satisfiable = True
+            for mem in inout + outin + outout:
+                satisfiable = \
+                    self._check_dependency_pairing_valid(mem[0], mem[1],
+                                                         task1, task2)
+                # As soon as any is not satisfiable, then we don't need to
+                # continue checking.
+                if not satisfiable:
+                    break
+
+            # If we have an unsatisfiable dependency between two tasks, then we
+            # need to have a taskwait between them always. We need to loop up
+            # to find these tasks' parents which are closest to the Schedule
+            # which contains both tasks, and use them as the nodes which are
+            # dependent.
+            if not satisfiable:
+                # Find the lowest schedule containing both nodes.
+                schedule1 = task1.ancestor(Schedule, shared_with=task2)
+                # Find the closest ancestor to the common schedule.
+                task1_proxy = task1
+                while task1_proxy.parent is not schedule1:
+                    task1_proxy = task1_proxy.parent
+                task2_proxy = task2
+                while task2_proxy.parent is not schedule1:
+                    task2_proxy = task2_proxy.parent
+
+                # Now we have the closest nodes to the closest common ancestor
+                # schedule, so add them to the unhandled_dependent_nodes list.
+                if task1_proxy is not task2_proxy:
+                    # If they end up with the same proxy, they have the same
+                    # ancestor tree but are in different schedules. This means
+                    # that they are in something like an if/else block with
+                    # one node in an if block and the other in the else block.
+                    # These dependencies we can ignore as they are not ever
+                    # both executed
+                    unhandled_dependent_nodes.append(
+                            (task1_proxy, task2_proxy))
+                    lowest_position_nodes.append(min(task1_proxy.abs_position,
+                                                     task2_proxy.abs_position))
+                    highest_position_nodes.append(
+                            max(task1_proxy.abs_position,
+                                task2_proxy.abs_position))
+
+        # If we have no invalid dependencies we can return early
+        if len(unhandled_dependent_nodes) == 0:
+            return
+
+        # Need to sort lists by highest_position_nodes value, and then
+        # by lowest value if tied.
+        # Based upon
+        # https://stackoverflow.com/questions/9764298/how-to-sort-two-
+        # lists-which-reference-each-other-in-the-exact-same-way
+
+        # sorted_highest_positions and sorted_lowest_positions contain
+        # the abs_positions for the corresponding Nodes in the tuple at
+        # the same index in sorted_dependency_pairs. The
+        # sorted_dependency_pairs list contains each pair of unhandled
+        # dependency nodes that were previously computed, but sorted
+        # according to abs_position in the tree.
+        sorted_highest_positions, sorted_lowest_positions, \
+            sorted_dependency_pairs = (list(t) for t in
+                                       zip(*sorted(zip(
+                                           highest_position_nodes,
+                                           lowest_position_nodes,
+                                           unhandled_dependent_nodes)
+                                           )))
+        # The location of any node where need to place an OMPTaskwaitDirective
+        # to ensure code correctness. The size of this list should be
+        # minimised during construction as we will not add another
+        # OMPTaskwaitDirective when a dependency will be handled already by
+        # an existing OMPTaskwaitDirective or one that will be created during
+        # this process.
+        taskwait_location_nodes = []
+        # Stores the abs_position for each of the OMPTaskwaitDirective nodes
+        # that does or will exist.
+        taskwait_location_abs_pos = []
+        for taskwait in self.walk(OMPTaskwaitDirective):
+            taskwait_location_nodes.append(taskwait)
+            taskwait_location_abs_pos.append(taskwait.abs_position)
+        # Add the first node to have a taskwait placed in front of it into the
+        # list, unless one of the existing OMPTaskwaitDirective nodes already
+        # satisfies the dependency.
+        lo_abs_pos = sorted_lowest_positions[0]
+        hi_abs_pos = sorted_highest_positions[0]
+        for ind, taskwait_loc in enumerate(taskwait_location_nodes):
+            if (taskwait_location_abs_pos[ind] <= hi_abs_pos and
+                    taskwait_location_abs_pos[ind] >= lo_abs_pos):
+                # We potentially already satisfy this initial dependency
+                if (sorted_dependency_pairs[0][1].ancestor(Schedule) is
+                        taskwait_loc.ancestor(Schedule)):
+                    break
+        else:
+            taskwait_location_nodes.append(sorted_dependency_pairs[0][1])
+            taskwait_location_abs_pos.append(sorted_highest_positions[0])
+
+        for index, pairs in enumerate(sorted_dependency_pairs[1:]):
+            # Add 1 to index here because we're looking from [1:]
+            lo_abs_pos = sorted_lowest_positions[index+1]
+            hi_abs_pos = sorted_highest_positions[index+1]
+            for ind, taskwait_loc in enumerate(taskwait_location_nodes):
+                if (taskwait_location_abs_pos[ind] <= hi_abs_pos and
+                        taskwait_location_abs_pos[ind] >= lo_abs_pos):
+                    # We have a taskwait meant to be placed here that is
+                    # potentially already satisfied. To check we need to
+                    # ensure that the ancestor schedules of the nodes
+                    # are identical
+                    if (pairs[0].ancestor(Schedule) is
+                            taskwait_loc.ancestor(Schedule)):
+                        break
+            else:
+                # If we didn't find a taskwait we plan to add that satisfies
+                # this dependency, add it to the list
+                taskwait_location_nodes.append(pairs[1])
+                taskwait_location_abs_pos.append(hi_abs_pos)
+        # Now loop through the list in reverse and add taskwaits unless the
+        # node is already a taskwait
+        taskwait_location_nodes.reverse()
+        for taskwait_loc in taskwait_location_nodes:
+            if isinstance(taskwait_loc, OMPTaskwaitDirective):
+                continue
+            node_parent = taskwait_loc.parent
+            loc = taskwait_loc.position
+            node_parent.addchild(OMPTaskwaitDirective(), loc)
+
+    def lower_to_language_level(self):
+        '''
+        Checks that any task dependencies inside this node are valid.
+        '''
+        # Perform parent ops
+        super().lower_to_language_level()
+
+        # Validate any task dependencies in this OMPSerialRegion.
+        self._validate_task_dependencies()
+
     def validate_global_constraints(self):
         '''
         Perform validation checks that can only be done at code-generation
@@ -272,7 +1108,7 @@ class OMPSingleDirective(OMPSerialDirective):
     '''
     Class representing an OpenMP SINGLE directive in the PSyIR.
 
-    :param bool nowait: Argument describing whether this single should have \
+    :param bool nowait: argument describing whether this single should have \
         a nowait clause applied. Default value is False.
     :param kwargs: additional keyword arguments provided to the PSyIR node.
     :type kwargs: unwrapped dict.
@@ -520,7 +1356,7 @@ class OMPParallelDirective(OMPRegionDirective):
         self._encloses_omp_directive()
 
         # Generate the private and firstprivate clauses
-        private, fprivate, need_sync = self._infer_sharing_attributes()
+        private, fprivate, need_sync = self.infer_sharing_attributes()
         private_clause = OMPPrivateClause.create(
                             sorted(private, key=lambda x: x.name))
         fprivate_clause = OMPFirstprivateClause.create(
@@ -625,16 +1461,32 @@ class OMPParallelDirective(OMPRegionDirective):
 
         # Create data sharing clauses (order alphabetically to make generation
         # reproducible)
-        private, fprivate, need_sync = self._infer_sharing_attributes()
+        private, fprivate, need_sync = self.infer_sharing_attributes()
         private_clause = OMPPrivateClause.create(
                             sorted(private, key=lambda x: x.name))
         fprivate_clause = OMPFirstprivateClause.create(
                             sorted(fprivate, key=lambda x: x.name))
+        # Check all of the need_sync nodes are synchronized in children.
+        sync_clauses = self.walk(OMPDependClause)
         if need_sync:
-            raise GenerationError(
-                f"Lowering {type(self).__name__} does not support symbols that"
-                f" need synchronisation, but found: "
-                f"{[x.name for x in need_sync]}")
+            for sym in need_sync:
+                found = False
+                for clause in sync_clauses:
+                    # Needs to be an out depend clause to synchronize
+                    if clause.operand == "in":
+                        continue
+                    # Check if the symbol is in this depend clause.
+                    if sym.name in [child.symbol.name for child in
+                                    clause.children]:
+                        found = True
+                    if found:
+                        break
+                if not found:
+                    raise GenerationError(
+                        f"Lowering '{type(self).__name__}' does not support "
+                        f"symbols that need synchronisation unless they are "
+                        f"in a depend clause, but found: "
+                        f"'{sym.name}' which is not in a depend clause.")
 
         self.addchild(private_clause)
         self.addchild(fprivate_clause)
@@ -667,11 +1519,11 @@ class OMPParallelDirective(OMPRegionDirective):
         '''
         return "omp end parallel"
 
-    def _infer_sharing_attributes(self):
+    def infer_sharing_attributes(self):
         '''
         The PSyIR does not specify if each symbol inside an OpenMP region is
         private, firstprivate, shared or shared but needs synchronisation,
-        the attributes are infered looking at the usage of each symbol inside
+        the attributes are inferred looking at the usage of each symbol inside
         the parallel region.
 
         This method analyses the directive body and automatically classifies
@@ -680,26 +1532,27 @@ class OMPParallelDirective(OMPRegionDirective):
         - Scalars that are accessed only once are shared.
         - Scalars that are read-only or written outside a loop are shared.
         - Scalars written in multiple iterations of a loop are private, unless:
-          * there is a write-after-read dependency in a loop iteration,
-          in this case they are shared but need synchronisation;
-          * they are read before in the same parallel region (but not inside
-          the same loop iteration), in this case they are firstprivate.
-          * they are only conditionally written in some iterations;
-          in this case they are firstprivate.
+
+            * there is a write-after-read dependency in a loop iteration,
+              in this case they are shared but need synchronisation;
+            * they are read before in the same parallel region (but not inside
+              the same loop iteration), in this case they are firstprivate.
+            * they are only conditionally written in some iterations;
+              in this case they are firstprivate.
 
         This method returns the sets of private, firstprivate, and shared but
         needing synchronisation symbols, all symbols not in these sets are
         assumed shared. How to synchronise the symbols in the third set is
         up to the caller of this method.
 
-        :returns: three set of symbols that classify each of the symbols in \
-            the directive body as PRIVATE, FIRSTPRIVATE or SHARED NEEDING \
-            SYNCHRONISATION.
-        :rtype: Tuple[Set(:py:class:`psyclone.psyir.symbols.symbol), \
-                      Set(:py:class:`psyclone.psyir.symbols.symbol), \
-                      Set(:py:class:`psyclone.psyir.symbols.symbol)]
+        :returns: three set of symbols that classify each of the symbols in
+                  the directive body as PRIVATE, FIRSTPRIVATE or SHARED NEEDING
+                  SYNCHRONISATION.
+        :rtype: Tuple[Set(:py:class:`psyclone.psyir.symbols.Symbol`),
+                      Set(:py:class:`psyclone.psyir.symbols.Symbol`),
+                      Set(:py:class:`psyclone.psyir.symbols.Symbol`)]
 
-        :raises GenerationError: if the DefaultClauseType associated with \
+        :raises GenerationError: if the DefaultClauseType associated with
                                  this OMPParallelDirective is not shared.
 
         '''
@@ -1393,7 +2246,7 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         # pylint: disable=protected-access
         default_str = self.children[1]._clause_string
         # pylint: enable=protected-access
-        private, fprivate, need_sync = self._infer_sharing_attributes()
+        private, fprivate, need_sync = self.infer_sharing_attributes()
         private_clause = OMPPrivateClause.create(
                             sorted(private, key=lambda x: x.name))
         fprivate_clause = OMPFirstprivateClause.create(

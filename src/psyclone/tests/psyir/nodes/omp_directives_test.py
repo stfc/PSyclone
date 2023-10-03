@@ -40,13 +40,16 @@
 
 import os
 import pytest
+from psyclone.errors import UnresolvedDependencyError
 from psyclone.f2pygen import ModuleGen
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir import nodes
 from psyclone import psyGen
 from psyclone.psyir.nodes import (
-    OMPDoDirective, OMPParallelDirective,
+    OMPDoDirective, OMPParallelDirective, BinaryOperation, Call,
+    ArrayReference, OMPTaskDirective, DynamicOMPTaskDirective,
+    IntrinsicCall, OMPSharedClause, Range, OMPDependClause,
     OMPParallelDoDirective, OMPMasterDirective, OMPTaskloopDirective,
     OMPTaskwaitDirective, OMPTargetDirective, OMPLoopDirective, Schedule,
     Return, OMPSingleDirective, Loop, Literal, Routine, Assignment,
@@ -54,10 +57,13 @@ from psyclone.psyir.nodes import (
     OMPGrainsizeClause, OMPNumTasksClause, OMPNogroupClause,
     OMPPrivateClause, OMPDefaultClause, OMPReductionClause,
     OMPScheduleClause, OMPTeamsDistributeParallelDoDirective,
-    OMPAtomicDirective, OMPFirstprivateClause, OMPSimdDirective)
+    OMPAtomicDirective, OMPFirstprivateClause, OMPSimdDirective,
+    StructureReference, IfBlock)
 from psyclone.psyir.symbols import (
-    DataSymbol, INTEGER_TYPE, SymbolTable,
-    REAL_SINGLE_TYPE, INTEGER_SINGLE_TYPE, Symbol)
+    DataSymbol, INTEGER_TYPE, SymbolTable, ArrayType, RoutineSymbol,
+    REAL_SINGLE_TYPE, INTEGER_SINGLE_TYPE, Symbol, StructureType,
+    REAL_TYPE, DataTypeSymbol)
+from psyclone.psyir.transformations import ChunkLoopTrans, OMPTaskTrans
 from psyclone.errors import InternalError, GenerationError
 from psyclone.transformations import (
     Dynamo0p3OMPLoopTrans, OMPParallelTrans,
@@ -120,7 +126,7 @@ def test_ompparallel_lowering(fortran_reader, monkeypatch):
     assert pdir.children[2] is not priv_clause
 
     # Monkeypatch a case with private and firstprivate clauses
-    monkeypatch.setattr(pdir, "_infer_sharing_attributes",
+    monkeypatch.setattr(pdir, "infer_sharing_attributes",
                         lambda: ({Symbol("a")}, {Symbol("b")}, None))
 
     pdir.lower_to_language_level()
@@ -132,12 +138,31 @@ def test_ompparallel_lowering(fortran_reader, monkeypatch):
     assert pdir.children[3].children[0].name == 'b'
 
     # Monkeypatch a case with shared variables that need synchronisation
-    monkeypatch.setattr(pdir, "_infer_sharing_attributes",
-                        lambda: ({}, {}, {Symbol("a")}))
+    a_sym = Symbol("a")
+    monkeypatch.setattr(pdir, "infer_sharing_attributes",
+                        lambda: ({}, {}, {a_sym}))
     with pytest.raises(GenerationError) as err:
         pdir.lower_to_language_level()
-    assert ("Lowering OMPParallelDirective does not support symbols that "
-            "need synchronisation, but found: ['a']" in str(err.value))
+    assert("Lowering 'OMPParallelDirective' does not support symbols that "
+           "need synchronisation unless they are in a depend clause, but "
+           "found: 'a' which is not in a depend clause." in str(err.value))
+
+    # Also a case which contains the symbol in an input dependency clause.
+    task_dir = OMPTaskDirective()
+    task_dir.addchild(OMPPrivateClause())
+    task_dir.addchild(OMPFirstprivateClause())
+    task_dir.addchild(OMPSharedClause())
+    in_clause = OMPDependClause(
+            depend_type=OMPDependClause.DependClauseTypes.IN)
+    in_clause.addchild(Reference(a_sym))
+    task_dir.addchild(in_clause)
+    pdir.children[0].addchild(task_dir)
+
+    with pytest.raises(GenerationError) as err:
+        pdir.lower_to_language_level()
+    assert("Lowering 'OMPParallelDirective' does not support symbols that "
+           "need synchronisation unless they are in a depend clause, but "
+           "found: 'a' which is not in a depend clause." in str(err.value))
 
 
 def test_ompparallel_gen_code_clauses(monkeypatch):
@@ -182,7 +207,7 @@ def test_ompparallel_gen_code_clauses(monkeypatch):
     assert "private(cell,k)" in code
 
     # Monkeypatch a case with private and firstprivate clauses
-    monkeypatch.setattr(pdir, "_infer_sharing_attributes",
+    monkeypatch.setattr(pdir, "infer_sharing_attributes",
                         lambda: ({Symbol("a")}, {Symbol("b")}, None))
 
     code = str(psy.gen).lower()
@@ -190,7 +215,7 @@ def test_ompparallel_gen_code_clauses(monkeypatch):
     assert "firstprivate(b)" in code
 
     # Monkeypatch a case with shared variables that need synchronisation
-    monkeypatch.setattr(pdir, "_infer_sharing_attributes",
+    monkeypatch.setattr(pdir, "infer_sharing_attributes",
                         lambda: ({}, {}, {Symbol("a")}))
     with pytest.raises(GenerationError) as err:
         code = str(psy.gen).lower()
@@ -236,7 +261,7 @@ def test_omp_paralleldo_clauses_gen_code(monkeypatch):
     assert "firstprivate" not in code
 
     # Monkeypatch a case with firstprivate clauses
-    monkeypatch.setattr(pdir, "_infer_sharing_attributes",
+    monkeypatch.setattr(pdir, "infer_sharing_attributes",
                         lambda: ({Symbol("a")}, {Symbol("b")}, None))
 
     code = str(psy.gen).lower()
@@ -244,7 +269,7 @@ def test_omp_paralleldo_clauses_gen_code(monkeypatch):
     assert "firstprivate(b)" in code
 
     # Monkeypatch a case with shared variables that need synchronisation
-    monkeypatch.setattr(pdir, "_infer_sharing_attributes",
+    monkeypatch.setattr(pdir, "infer_sharing_attributes",
                         lambda: ({}, {}, {Symbol("a")}))
     with pytest.raises(GenerationError) as err:
         code = str(psy.gen).lower()
@@ -305,7 +330,7 @@ def test_omp_parallel_do_lowering(fortran_reader, monkeypatch):
     assert isinstance(pdir.children[4], OMPScheduleClause)
 
     # Monkeypatch a case with private and firstprivate clauses
-    monkeypatch.setattr(pdir, "_infer_sharing_attributes",
+    monkeypatch.setattr(pdir, "infer_sharing_attributes",
                         lambda: ({Symbol("a")}, {Symbol("b")}, None))
 
     pdir.lower_to_language_level()
@@ -317,12 +342,13 @@ def test_omp_parallel_do_lowering(fortran_reader, monkeypatch):
     assert pdir.children[3].children[0].name == 'b'
 
     # Monkeypatch a case with shared variables that need synchronisation
-    monkeypatch.setattr(pdir, "_infer_sharing_attributes",
+    monkeypatch.setattr(pdir, "infer_sharing_attributes",
                         lambda: ({}, {}, {Symbol("a")}))
     with pytest.raises(GenerationError) as err:
         pdir.lower_to_language_level()
-    assert ("Lowering OMPParallelDoDirective does not support symbols that "
-            "need synchronisation, but found: ['a']" in str(err.value))
+    assert("Lowering 'OMPParallelDoDirective' does not support symbols that "
+           "need synchronisation unless they are in a depend clause, but "
+           "found: 'a' which is not in a depend clause." in str(err.value))
 
 
 def test_omp_teams_distribute_parallel_do_strings(
@@ -597,8 +623,8 @@ def test_omp_do_children_err():
             "this Node has a child of type 'Return'" in str(err.value))
 
 
-def test_directive_infer_sharing_attributes_lfric():
-    ''' Tests for the _infer_sharing_attributes() method of
+def test_directiveinfer_sharing_attributes_lfric():
+    ''' Tests for the infer_sharing_attributes() method of
     OMPParallelDirective containing an LFRic kernel.
 
     Note: this test does not apply colouring so the loops must be over
@@ -626,8 +652,8 @@ def test_directive_infer_sharing_attributes_lfric():
     # replaced by a `lower_to_language_level` call.
     # pylint: disable=pointless-statement
     psy.gen
-    # Now check that _infer_sharing_attributes returns what we expect
-    pvars, fpvars, sync = directive._infer_sharing_attributes()
+    # Now check that infer_sharing_attributes returns what we expect
+    pvars, fpvars, sync = directive.infer_sharing_attributes()
     assert isinstance(pvars, set)
     assert isinstance(fpvars, set)
     assert len(pvars) == 1
@@ -638,14 +664,14 @@ def test_directive_infer_sharing_attributes_lfric():
     directive.children[1] = OMPDefaultClause(
             clause_type=OMPDefaultClause.DefaultClauseTypes.NONE)
     with pytest.raises(GenerationError) as excinfo:
-        _ = directive._infer_sharing_attributes()
+        _ = directive.infer_sharing_attributes()
     assert ("OMPParallelClause cannot correctly generate the private clause "
             "when its default data sharing attribute in its default clause is "
             "not 'shared'." in str(excinfo.value))
 
 
-def test_directive_infer_sharing_attributes(fortran_reader):
-    ''' Tests for the _infer_sharing_attributes() method of OpenMP directives
+def test_directiveinfer_sharing_attributes(fortran_reader):
+    ''' Tests for the infer_sharing_attributes() method of OpenMP directives
     with generic code inside the directive body.
     '''
 
@@ -667,7 +693,7 @@ def test_directive_infer_sharing_attributes(fortran_reader):
     routine = psyir.walk(Routine)[0]
     omptrans.apply(routine.children)
     directive = psyir.walk(OMPParallelDirective)[0]
-    pvars, fpvars, sync = directive._infer_sharing_attributes()
+    pvars, fpvars, sync = directive.infer_sharing_attributes()
     assert len(pvars) == 1
     assert list(pvars)[0].name == 'i'
     assert len(fpvars) == 0
@@ -694,7 +720,7 @@ def test_directive_infer_sharing_attributes(fortran_reader):
     loop = psyir.walk(Loop)[0]
     omplooptrans.apply(loop)
     directive = psyir.walk(OMPParallelDoDirective)[0]
-    pvars, fpvars, sync = directive._infer_sharing_attributes()
+    pvars, fpvars, sync = directive.infer_sharing_attributes()
     assert len(pvars) == 2
     assert sorted(pvars, key=lambda x: x.name)[0].name == 'i'
     assert sorted(pvars, key=lambda x: x.name)[1].name == 'scalar2'
@@ -719,7 +745,7 @@ def test_directive_infer_sharing_attributes(fortran_reader):
     routine = psyir.walk(Routine)[0]
     omptrans.apply(routine.children)
     directive = psyir.walk(OMPParallelDirective)[0]
-    pvars, fpvars, sync = directive._infer_sharing_attributes()
+    pvars, fpvars, sync = directive.infer_sharing_attributes()
     assert len(pvars) == 2
     assert len(fpvars) == 0
     assert len(sync) == 0
@@ -746,7 +772,7 @@ def test_directive_infer_sharing_attributes(fortran_reader):
     routine = psyir.walk(Routine)[0]
     omptrans.apply(routine.children)
     directive = psyir.walk(OMPParallelDirective)[0]
-    pvars, fpvars, sync = directive._infer_sharing_attributes()
+    pvars, fpvars, sync = directive.infer_sharing_attributes()
     assert len(pvars) == 1
     assert len(fpvars) == 1
     assert len(sync) == 0
@@ -768,7 +794,7 @@ def test_directive_infer_sharing_attributes(fortran_reader):
     loop = psyir.walk(Loop)[0]
     omplooptrans.apply(loop, options={'force': True})
     directive = psyir.walk(OMPParallelDoDirective)[0]
-    pvars, fpvars, sync = directive._infer_sharing_attributes()
+    pvars, fpvars, sync = directive.infer_sharing_attributes()
     assert len(pvars) == 1
     assert len(fpvars) == 1
     assert len(sync) == 0
@@ -790,7 +816,7 @@ def test_directive_infer_sharing_attributes(fortran_reader):
     loop = psyir.walk(Loop)[0]
     omplooptrans.apply(loop, options={"force": True})
     directive = psyir.walk(OMPParallelDoDirective)[0]
-    pvars, fpvars, sync = directive._infer_sharing_attributes()
+    pvars, fpvars, sync = directive.infer_sharing_attributes()
     assert len(pvars) == 1
     assert list(pvars)[0].name == 'i'
     assert len(fpvars) == 0
@@ -813,7 +839,7 @@ def test_directive_infer_sharing_attributes(fortran_reader):
     loop = psyir.walk(Loop)[0]
     omplooptrans.apply(loop, options={"force": True})
     directive = psyir.walk(OMPParallelDoDirective)[0]
-    pvars, fpvars, sync = directive._infer_sharing_attributes()
+    pvars, fpvars, sync = directive.infer_sharing_attributes()
     assert len(pvars) == 2
     assert sorted(pvars, key=lambda x: x.name)[0].name == 'i'
     assert sorted(pvars, key=lambda x: x.name)[1].name == 'tmp'
@@ -842,7 +868,7 @@ def test_directive_infer_sharing_attributes(fortran_reader):
     loop = psyir.walk(Loop)[0]
     ptrans.apply(loop)
     directive = psyir.walk(OMPParallelDirective)[0]
-    pvars, fpvars, sync = directive._infer_sharing_attributes()
+    pvars, fpvars, sync = directive.infer_sharing_attributes()
     assert len(pvars) == 4
     assert sorted(pvars, key=lambda x: x.name)[0].name == 'i'
     assert sorted(pvars, key=lambda x: x.name)[1].name == 'ii'
@@ -853,8 +879,8 @@ def test_directive_infer_sharing_attributes(fortran_reader):
     assert list(sync)[0].name == 'k'
 
 
-def test_directive_infer_sharing_attributes_with_structures(fortran_reader):
-    ''' Tests for the _infer_sharing_attributes() method of OpenMP directives
+def test_directiveinfer_sharing_attributes_with_structures(fortran_reader):
+    ''' Tests for the infer_sharing_attributes() method of OpenMP directives
     with code that contains structure accesses.
     '''
     psyir = fortran_reader.psyir_from_source('''
@@ -876,7 +902,7 @@ def test_directive_infer_sharing_attributes_with_structures(fortran_reader):
     routine = psyir.walk(Routine)[0]
     omptrans.apply(routine.children)
     directive = psyir.walk(OMPParallelDirective)[0]
-    pvars, fpvars, sync = directive._infer_sharing_attributes()
+    pvars, fpvars, sync = directive.infer_sharing_attributes()
     assert len(pvars) == 2
     assert sorted(pvars, key=lambda x: x.name)[0].name == 'i'
     assert sorted(pvars, key=lambda x: x.name)[1].name == 'scalar1'
@@ -903,7 +929,7 @@ def test_directive_infer_sharing_attributes_with_structures(fortran_reader):
     routine = psyir.walk(Routine)[0]
     omptrans.apply(routine.children)
     directive = psyir.walk(OMPParallelDirective)[0]
-    pvars, fpvars, sync = directive._infer_sharing_attributes()
+    pvars, fpvars, sync = directive.infer_sharing_attributes()
     assert len(pvars) == 1
     assert list(pvars)[0].name == 'i'
     assert len(fpvars) == 1
@@ -913,8 +939,8 @@ def test_directive_infer_sharing_attributes_with_structures(fortran_reader):
                      "more detail is necessary.")
 
 
-def test_infer_sharing_attributes_sequential_semantics(fortran_reader):
-    ''' _infer_sharing_attributes() tries to conserve the same semantics
+def testinfer_sharing_attributes_sequential_semantics(fortran_reader):
+    ''' infer_sharing_attributes() tries to conserve the same semantics
     as the sequential loop, however, for loops that are not possible to
     parallelise (but we force the transformation anyway). For now this
     may return different results than the original code.
@@ -935,7 +961,7 @@ def test_infer_sharing_attributes_sequential_semantics(fortran_reader):
     loop = psyir.walk(Loop)[0]
     omplooptrans.apply(loop, options={"force": True})
     directive = psyir.walk(OMPParallelDoDirective)[0]
-    pvars, fpvars, sync = directive._infer_sharing_attributes()
+    pvars, fpvars, sync = directive.infer_sharing_attributes()
     assert len(pvars) == 1
     assert list(pvars)[0].name == 'i'
     assert len(fpvars) == 0
@@ -1718,3 +1744,2913 @@ def test_omp_simd_validate_global_constraints(fortran_reader):
 
     # This is a valid OMPSimd expression
     simd.validate_global_constraints()
+
+
+def test_omp_serial_valid_dependence_literals():
+    '''
+    Tests the _valid_dependence_literals function in OMPSerialDirective
+    '''
+    sing = OMPSingleDirective()
+    lit1 = Literal("0", INTEGER_SINGLE_TYPE)
+    lit2 = Literal("1", INTEGER_SINGLE_TYPE)
+    assert sing._valid_dependence_literals(lit1, lit2) is True
+    tmp = DataSymbol("tmp", REAL_SINGLE_TYPE)
+    ref = Reference(tmp)
+    assert sing._valid_dependence_literals(lit1, ref) is False
+
+
+def test_omp_serial_valid_dependence_ranges():
+    '''
+    Tests the _valid_dependence_ranges function in OMPSerialDirective
+    '''
+    sing = OMPSingleDirective()
+    one = Literal("1", INTEGER_SINGLE_TYPE)
+
+    # Create an ArrayType
+    array_type = ArrayType(INTEGER_SINGLE_TYPE, [100])
+    tmp = DataSymbol("tmp", array_type)
+    reference = Reference(tmp)
+
+    ref = ArrayReference.create(tmp, [one.copy()])
+
+    lbound = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.LBOUND,
+        [reference.copy(), ("dim", one.copy())]
+    )
+    ubound = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.UBOUND,
+        [reference.copy(), ("dim", one.copy())]
+    )
+    my_range = Range.create(lbound.copy(), ubound.copy(), one.copy())
+    array_reference = ArrayReference.create(tmp, [my_range])
+    array_reference_2 = ArrayReference.create(tmp, [my_range.copy()])
+
+    # Valid run
+    assert (sing._valid_dependence_ranges(array_reference,
+                                          array_reference_2, 0)
+            is True)
+
+    assert sing._valid_dependence_ranges(array_reference, ref, 0) is False
+
+
+def test_omp_serial_compute_accesses_bad_binop():
+    '''
+    Tests the first set of failure cases for _compute_accesses
+    in OMPSerialDirective
+    '''
+    # A lot to do here, across multiple tests.
+    # Inputs are a reference or Binop, a list of nodes preceding a task,
+    # and that task.
+
+    # Fail conditions:
+    # 1. Literal OP Reference BinaryOperation where the operator is not ADD
+    # 2. Reference OP Literal BinaryOperation where the operator is not
+    # ADD or SUB
+    # 3&4. BinaryOperation OP Refrence BinaryOperation where the sub
+    # BinaryOperation is not a Literal MUL Literal
+    # 5. BinaryOperation OP Reference where OP is not ADD
+    # 6&7. Reference ADD BinaryOperation where the sub BinaryOperation is not
+    # a Literal MUL Literal.
+    # 8&9. Reference SUB BinaryOperation where the sub BinaryOperation is not
+    # a Literal MUL Literal.
+    # 10. Referebce OP BinaryOperation where the OP is not ADD or SUB.
+    # 11. Reference OP Non-Literal/BinaryOperation
+    # 12. Non-Literal/Reference/Binop OP ...
+    # 13. BinaryOperation OP Reference where the Binop has non Literal child
+
+    # Fail conditions 1-12 we can just test with only Ref as the input,
+    # the others are a bit more complex.
+    sing = OMPSingleDirective()
+    tmp = DataSymbol("tmp", INTEGER_SINGLE_TYPE)
+
+    binop_fail1 = BinaryOperation.create(
+        BinaryOperation.Operator.MUL,
+        Literal("1", INTEGER_SINGLE_TYPE),
+        Reference(tmp),
+    )
+
+    with pytest.raises(UnresolvedDependencyError) as excinfo:
+        sing._compute_accesses(binop_fail1, [], None)
+    assert (
+        "Found a dependency index that is "
+        "a BinaryOperation where the "
+        "format is Literal OP Reference "
+        "with a non-ADD operand "
+        "which is not supported." in str(excinfo.value)
+    )
+
+    binop_fail2 = BinaryOperation.create(
+        BinaryOperation.Operator.MUL,
+        Reference(tmp),
+        Literal("1", INTEGER_SINGLE_TYPE),
+    )
+    with pytest.raises(UnresolvedDependencyError) as excinfo:
+        sing._compute_accesses(binop_fail2, [], None)
+    assert (
+        "Found a dependency index that is "
+        "a BinaryOperation where the "
+        "Operator is neither ADD not SUB "
+        "which is not supported." in str(excinfo.value)
+    )
+
+    sub_binop1 = BinaryOperation.create(
+        BinaryOperation.Operator.ADD,
+        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("1", INTEGER_SINGLE_TYPE),
+    )
+    binop_fail3 = BinaryOperation.create(
+        BinaryOperation.Operator.ADD, sub_binop1.copy(), Reference(tmp)
+    )
+    with pytest.raises(UnresolvedDependencyError) as excinfo:
+        sing._compute_accesses(binop_fail3, [], None)
+    assert (
+        "Found a dependency index that is a "
+        "BinaryOperation with a child "
+        "BinaryOperation with a non-MUL operator "
+        "which is not supported." in str(excinfo.value)
+    )
+
+    sub_binop2 = BinaryOperation.create(
+        BinaryOperation.Operator.MUL,
+        Literal("1", INTEGER_SINGLE_TYPE),
+        Reference(tmp),
+    )
+    binop_fail4 = BinaryOperation.create(
+        BinaryOperation.Operator.ADD, sub_binop2, Reference(tmp)
+    )
+    with pytest.raises(UnresolvedDependencyError) as excinfo:
+        sing._compute_accesses(binop_fail4, [], None)
+    assert (
+        "Found a dependency index that is a BinaryOperation with a child "
+        "BinaryOperation with a non-Literal child which is not supported."
+        in str(excinfo.value)
+    )
+
+    sub_binop3 = BinaryOperation.create(
+        BinaryOperation.Operator.MUL,
+        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("1", INTEGER_SINGLE_TYPE),
+    )
+    binop_fail5 = BinaryOperation.create(
+        BinaryOperation.Operator.SUB, sub_binop3, Reference(tmp)
+    )
+    with pytest.raises(UnresolvedDependencyError) as excinfo:
+        sing._compute_accesses(binop_fail5, [], None)
+    assert (
+        "Found a dependency index that is "
+        "a BinaryOperation where the "
+        "format is BinaryOperator OP "
+        "Reference with a non-ADD operand " in str(excinfo.value)
+    )
+
+    binop_fail6 = BinaryOperation.create(
+        BinaryOperation.Operator.ADD, Reference(tmp), sub_binop1.copy()
+    )
+    with pytest.raises(UnresolvedDependencyError) as excinfo:
+        sing._compute_accesses(binop_fail6, [], None)
+    assert (
+        "Found a dependency index that is a BinaryOperation with a child "
+        "BinaryOperation with a non-MUL operator which is not supported."
+        in str(excinfo.value)
+    )
+
+    binop_fail7 = BinaryOperation.create(
+        BinaryOperation.Operator.SUB, Reference(tmp), sub_binop2.copy()
+    )
+    with pytest.raises(UnresolvedDependencyError) as excinfo:
+        sing._compute_accesses(binop_fail7, [], None)
+    assert (
+        "Found a dependency index that is a BinaryOperation with an operand "
+        "BinaryOperation with a non-Literal operand which is not supported."
+        in str(excinfo.value)
+    )
+
+    binop_fail8 = BinaryOperation.create(
+        BinaryOperation.Operator.SUB, Reference(tmp), sub_binop1.copy()
+    )
+    with pytest.raises(UnresolvedDependencyError) as excinfo:
+        sing._compute_accesses(binop_fail8, [], None)
+    print(str(excinfo.value))
+    assert (
+        "Found a dependency index that is a BinaryOperation with a child "
+        "BinaryOperation with a non-MUL operator which is not supported."
+        in str(excinfo.value)
+    )
+
+    binop_fail9 = BinaryOperation.create(
+        BinaryOperation.Operator.SUB, Reference(tmp), sub_binop2.copy()
+    )
+    with pytest.raises(UnresolvedDependencyError) as excinfo:
+        sing._compute_accesses(binop_fail9, [], None)
+    assert (
+        "Found a dependency index that is a BinaryOperation with an operand "
+        "BinaryOperation with a non-Literal operand which is not supported."
+        in str(excinfo.value)
+    )
+
+    binop_fail10 = BinaryOperation.create(
+        BinaryOperation.Operator.MUL, Reference(tmp), sub_binop3.copy()
+    )
+    with pytest.raises(UnresolvedDependencyError) as excinfo:
+        sing._compute_accesses(binop_fail10, [], None)
+    assert (
+        "Found a dependency index that is a BinaryOperation where the "
+        "format is Reference OP BinaryOperation with a non-ADD, non-SUB "
+        "operand which is not supported." in str(excinfo.value)
+    )
+
+    binop_fail11 = BinaryOperation.create(
+        BinaryOperation.Operator.ADD, Reference(tmp), Reference(tmp)
+    )
+    with pytest.raises(UnresolvedDependencyError) as excinfo:
+        sing._compute_accesses(binop_fail11, [], None)
+    assert (
+        "Found a dependency index that is a BinaryOperation where neither "
+        "child is a Literal or BinaryOperation. PSyclone can't validate "
+        "this dependency." in str(excinfo.value)
+    )
+
+    binop_fail12 = BinaryOperation.create(
+        BinaryOperation.Operator.ADD,
+        Call(RoutineSymbol("mycall")),
+        Reference(tmp),
+    )
+    with pytest.raises(UnresolvedDependencyError) as excinfo:
+        sing._compute_accesses(binop_fail12, [], None)
+    assert (
+        "Found a dependency index that is a "
+        "BinaryOperation where neither child "
+        "is a Literal or BinaryOperation. "
+        "PSyclone can't validate "
+        "this dependency." in str(excinfo.value)
+    )
+
+    binop_fail13 = BinaryOperation.create(
+        BinaryOperation.Operator.ADD, Reference(tmp), sub_binop2.copy()
+    )
+    with pytest.raises(UnresolvedDependencyError) as excinfo:
+        sing._compute_accesses(binop_fail13, [], None)
+    assert (
+        "Found a dependency index that is a BinaryOperation with an operand "
+        "BinaryOperation with a non-Literal operand which is not supported."
+        in str(excinfo.value)
+    )
+
+
+def test_omp_serial_compute_accesses_other_fails():
+    '''
+    Tests more failure cases of _compute_accesses function in
+    OMPSerialDirective
+    '''
+    sing = OMPSingleDirective()
+    tmp = DataSymbol("tmp", INTEGER_SINGLE_TYPE)
+    ref = Reference(tmp)
+    # 13. If preceding_nodes contains a Call.
+    # 14. If we have an access to a previous Loop variable that is not an
+    # ancestor of the supplied task.
+    # 15. Binaryop access to Loop variable with non-Literal step
+    # (Line 435, i think this is the cause?)
+    # 16. Assignment to a index of a Loop variable
+    # with non-Literal step (Line 468)
+    correct_binop = BinaryOperation.create(
+        BinaryOperation.Operator.ADD,
+        Reference(tmp),
+        Literal("1", INTEGER_SINGLE_TYPE),
+    )
+
+    call_fail = Call(RoutineSymbol("mycall"))
+    with pytest.raises(UnresolvedDependencyError) as excinfo:
+        sing._compute_accesses(correct_binop, [call_fail], None)
+    assert (
+        "Found a Call in preceding_nodes, which is not yet supported."
+        in str(excinfo.value)
+    )
+
+    # Create a task, and a Loop where the loop variable is tmp
+    task = OMPTaskDirective()
+    loop1 = Loop.create(
+        tmp,
+        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("2", INTEGER_SINGLE_TYPE),
+        Literal("3", INTEGER_SINGLE_TYPE),
+        [],
+    )
+    with pytest.raises(UnresolvedDependencyError) as excinfo:
+        sing._compute_accesses(ref, [loop1], task)
+    assert (
+        "Found a dependency index that was updated as a Loop variable "
+        "that is not an ancestor Loop of the task. The variable is 'tmp'"
+        in str(excinfo.value)
+    )
+
+    task2 = task.copy()
+    loop2 = Loop.create(
+        tmp,
+        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("2", INTEGER_SINGLE_TYPE),
+        ref.copy(),
+        [task2],
+    )
+
+    with pytest.raises(UnresolvedDependencyError) as excinfo:
+        sing._compute_accesses(correct_binop, [loop2], task2)
+    assert (
+        "Found a dependency index that is a Loop variable with a non-"
+        "Literal step which we can't resolve in PSyclone."
+        in str(excinfo.value)
+    )
+
+    assign = Assignment.create(ref.copy(), Literal("1", INTEGER_SINGLE_TYPE))
+    with pytest.raises(UnresolvedDependencyError) as excinfo:
+        sing._compute_accesses(correct_binop, [assign], task2)
+    assert (
+        "Found a dependency between a BinaryOperation "
+        "and a previously set constant value. PSyclone "
+        "cannot yet handle this interaction." in str(excinfo.value)
+    )
+
+    with pytest.raises(UnresolvedDependencyError) as excinfo:
+        sing._compute_accesses(ref, [loop2], task2)
+    assert (
+        "Found a dependency index that is a Loop variable with a non-"
+        "Literal step which we can't resolve in PSyclone."
+        in str(excinfo.value)
+    )
+
+
+def test_omp_serial_compute_accesses_results():
+    '''
+    Tests the _compute_accesses fucntion in OMPSerialDirective
+    '''
+    # First result output, BinaryOperation with all Literal Loop
+    sing = OMPSingleDirective()
+    tmp = DataSymbol("tmp", INTEGER_SINGLE_TYPE)
+    tmp3 = DataSymbol("tmp3", INTEGER_SINGLE_TYPE)
+    ref = Reference(tmp)
+    task = OMPTaskDirective()
+    loop = Loop.create(
+        tmp,
+        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("64", INTEGER_SINGLE_TYPE),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        [task],
+    )
+
+    binop = BinaryOperation.create(
+        BinaryOperation.Operator.ADD,
+        ref.copy(),
+        Literal("1", INTEGER_SINGLE_TYPE),
+    )
+
+    res = sing._compute_accesses(binop, [loop], task)
+    assert len(res) == 2
+    assert isinstance(res[0], Literal)
+    assert res[0].value == "2"
+    assert isinstance(res[1], Literal)
+    assert res[1].value == "34"
+
+    # Second result output, BinaryOpeartion with reference start Loop
+    tmp2 = DataSymbol("tmp2", INTEGER_SINGLE_TYPE)
+    task = task.copy()
+    loop = Loop.create(
+        tmp,
+        Reference(tmp2),
+        Literal("256", INTEGER_SINGLE_TYPE),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        [task],
+    )
+
+    res = sing._compute_accesses(binop, [loop], task)
+    assert len(res) == 3
+    assert isinstance(res, dict)
+    assert isinstance(res["start"], BinaryOperation)
+    assert res["start"].operator == BinaryOperation.Operator.ADD
+    assert isinstance(res["start"].children[0], Reference)
+    assert res["start"].children[0].symbol == tmp2
+    assert isinstance(res["start"].children[1], Literal)
+    assert res["start"].children[1].value == "1"
+
+    assert isinstance(res["stop"], Literal)
+    assert res["stop"].value == "256"
+
+    assert isinstance(res["step"], Literal)
+    assert res["step"].value == "32"
+
+    # Third result output, Reference to Assignment
+    assign = Assignment.create(Reference(tmp), Reference(tmp2))
+    res = sing._compute_accesses(Reference(tmp), [assign], task)
+    assert len(res) == 1
+    assert isinstance(res[0], Reference)
+    assert res[0].symbol == tmp2
+
+    # Fifth result output, Reference access to loop with non Literal start
+    res = sing._compute_accesses(Reference(tmp), [loop], task)
+    assert len(res) == 3
+    assert isinstance(res, dict)
+    assert isinstance(res["start"], Reference)
+    assert res["start"].symbol == tmp2
+    assert isinstance(res["stop"], Literal)
+    assert res["stop"].value == "256"
+    assert isinstance(res["step"], Literal)
+    assert res["step"].value == "32"
+
+    # Fourth result output, Reference access to loop with all Literals
+    task = task.copy()
+    loop = Loop.create(
+        tmp,
+        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("128", INTEGER_SINGLE_TYPE),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        [task],
+    )
+    res = sing._compute_accesses(Reference(tmp), [loop], task)
+    assert len(res) == 4
+    assert isinstance(res[0], Literal)
+    assert res[0].value == "1"
+    assert isinstance(res[1], Literal)
+    assert res[1].value == "33"
+    assert isinstance(res[2], Literal)
+    assert res[2].value == "65"
+    assert isinstance(res[3], Literal)
+    assert res[3].value == "97"
+
+    # Finally cover some code which were missed by these tests so far
+    task = OMPTaskDirective()
+    loop = Loop.create(
+        tmp,
+        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("64", INTEGER_SINGLE_TYPE),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        [task],
+    )
+
+    binop = BinaryOperation.create(
+        BinaryOperation.Operator.ADD,
+        Literal("1", INTEGER_SINGLE_TYPE),
+        ref.copy(),
+    )
+    res = sing._compute_accesses(binop, [loop], task)
+    assert len(res) == 2
+    assert isinstance(res[0], Literal)
+    assert res[0].value == "2"
+    assert isinstance(res[1], Literal)
+    assert res[1].value == "34"
+
+    task = OMPTaskDirective()
+    loop = Loop.create(
+        tmp,
+        Literal("3", INTEGER_SINGLE_TYPE),
+        Literal("64", INTEGER_SINGLE_TYPE),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        [task],
+    )
+
+    binop = BinaryOperation.create(
+        BinaryOperation.Operator.SUB,
+        ref.copy(),
+        Literal("1", INTEGER_SINGLE_TYPE),
+    )
+
+    res = sing._compute_accesses(binop, [loop], task)
+    assert len(res) == 2
+    assert isinstance(res[0], Literal)
+    assert res[0].value == "2"
+    assert isinstance(res[1], Literal)
+    assert res[1].value == "34"
+
+    task = OMPTaskDirective()
+    loop = Loop.create(
+        tmp,
+        Reference(tmp2),
+        Literal("1028", INTEGER_SINGLE_TYPE),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        [task],
+    )
+    binop = BinaryOperation.create(
+        BinaryOperation.Operator.MUL,
+        Literal("3", INTEGER_SINGLE_TYPE),
+        Literal("32", INTEGER_SINGLE_TYPE),
+    )
+    binop2 = BinaryOperation.create(
+        BinaryOperation.Operator.ADD, binop, ref.copy()
+    )
+    res = sing._compute_accesses(binop2, [loop], task)
+    assert len(res) == 3
+    assert isinstance(res, dict)
+    assert isinstance(res["start"], BinaryOperation)
+    assert res["start"].children[0].symbol == tmp2
+    assert res["start"].children[1].value == "32"
+    assert isinstance(res["stop"], Literal)
+    assert res["stop"].value == "1028"
+    assert isinstance(res["step"], Literal)
+    assert res["step"].value == "32"
+
+    task = OMPTaskDirective()
+    loop = Loop.create(
+        tmp,
+        Reference(tmp2),
+        Literal("1028", INTEGER_SINGLE_TYPE),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        [task],
+    )
+    binop = BinaryOperation.create(
+        BinaryOperation.Operator.MUL,
+        Literal("3", INTEGER_SINGLE_TYPE),
+        Literal("32", INTEGER_SINGLE_TYPE),
+    )
+    binop2 = BinaryOperation.create(
+        BinaryOperation.Operator.SUB, ref.copy(), binop
+    )
+    res = sing._compute_accesses(binop2, [loop], task)
+    assert len(res) == 3
+    assert isinstance(res, dict)
+    assert isinstance(res["start"], BinaryOperation)
+    assert res["start"].children[0].symbol == tmp2
+    assert res["start"].children[1].value == "-32"
+    assert isinstance(res["stop"], Literal)
+    assert res["stop"].value == "1028"
+    assert isinstance(res["step"], Literal)
+    assert res["step"].value == "32"
+
+    task = OMPTaskDirective()
+    loop = Loop.create(
+        tmp,
+        Reference(tmp2),
+        Literal("1028", INTEGER_SINGLE_TYPE),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        [task],
+    )
+    binop = BinaryOperation.create(
+        BinaryOperation.Operator.MUL,
+        Literal("3", INTEGER_SINGLE_TYPE),
+        Literal("32", INTEGER_SINGLE_TYPE),
+    )
+    binop2 = BinaryOperation.create(
+        BinaryOperation.Operator.ADD, ref.copy(), binop
+    )
+    res = sing._compute_accesses(binop2, [loop], task)
+    assert len(res) == 3
+    assert isinstance(res, dict)
+    assert isinstance(res["start"], BinaryOperation)
+    assert res["start"].children[0].symbol == tmp2
+    assert res["start"].children[1].value == "32"
+    assert isinstance(res["stop"], Literal)
+    assert res["stop"].value == "1028"
+    assert isinstance(res["step"], Literal)
+    assert res["step"].value == "32"
+
+    task = OMPTaskDirective()
+    loop = Loop.create(
+        tmp3,
+        Reference(tmp2),
+        Literal("1028", INTEGER_SINGLE_TYPE),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        [task],
+    )
+    loop2 = Loop.create(
+        tmp,
+        Reference(tmp2),
+        Literal("1028", INTEGER_SINGLE_TYPE),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        [loop],
+    )
+    binop = BinaryOperation.create(
+        BinaryOperation.Operator.MUL,
+        Literal("3", INTEGER_SINGLE_TYPE),
+        Literal("32", INTEGER_SINGLE_TYPE),
+    )
+    binop2 = BinaryOperation.create(
+        BinaryOperation.Operator.ADD, ref.copy(), binop
+    )
+    res = sing._compute_accesses(binop2, [loop, loop2], task)
+    assert len(res) == 3
+    assert isinstance(res, dict)
+    assert isinstance(res["start"], BinaryOperation)
+    assert res["start"].children[0].symbol == tmp2
+    assert res["start"].children[1].value == "32"
+    assert isinstance(res["stop"], Literal)
+    assert res["stop"].value == "1028"
+    assert isinstance(res["step"], Literal)
+    assert res["step"].value == "32"
+
+
+def test_omp_serial_valid_dependence_ref_binop_dict_cases():
+    '''
+    Tests the _valid_dependence_ref_binop cases when either of the computed
+    accesses is a dict.
+    '''
+    sing = OMPSingleDirective()
+    start = DataSymbol("start", INTEGER_SINGLE_TYPE)
+    stop = DataSymbol("stop", INTEGER_SINGLE_TYPE)
+    outer_var = DataSymbol("outvar", INTEGER_SINGLE_TYPE)
+    task = OMPTaskDirective()
+    task2 = OMPTaskDirective()
+
+    # Check the case where only 1 of the references results in a
+    # dict output from compute_accesses returns False
+    parent_loop = Loop.create(
+        outer_var,
+        Reference(start),
+        Reference(stop),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        [task]
+    )
+    parent_loop2 = Loop.create(
+        outer_var,
+        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("128", INTEGER_SINGLE_TYPE),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        [task2]
+    )
+    ref1 = Reference(outer_var)
+    ref2 = Reference(outer_var)
+    assert (sing._valid_dependence_ref_binop(ref1, ref2, task, task2)
+            is False)
+
+    # Check the case where the steps are not equal
+    task2 = OMPTaskDirective()
+    parent_loop2 = Loop.create(
+        outer_var,
+        Reference(start),
+        Reference(stop),
+        Literal("33", INTEGER_SINGLE_TYPE),
+        [task2]
+    )
+    assert (sing._valid_dependence_ref_binop(ref1, ref2, task, task2)
+            is False)
+
+    # Check the case where the starts offset is not an integer multiple
+    # of the step.
+    task2 = OMPTaskDirective()
+    parent_loop2 = Loop.create(
+        outer_var,
+        BinaryOperation.create(
+            BinaryOperation.Operator.ADD,
+            Reference(start),
+            Literal("16", INTEGER_SINGLE_TYPE)
+        ),
+        Reference(stop),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        [task2]
+    )
+    assert (sing._valid_dependence_ref_binop(ref1, ref2, task, task2)
+            is False)
+
+
+def test_omp_serial_valid_dependence_ref_binop_fails():
+    '''
+    Tests the _valid_dependence_ref_binop failure cases of OMPSerialDirective
+    '''
+
+    # Case when ref_accesses raises an error
+    sing = OMPSingleDirective()
+    tmp = DataSymbol("tmp", INTEGER_SINGLE_TYPE)
+    tmp2 = DataSymbol("tmp2", INTEGER_SINGLE_TYPE)
+
+    binop_fail1 = BinaryOperation.create(
+        BinaryOperation.Operator.MUL,
+        Literal("1", INTEGER_SINGLE_TYPE),
+        Reference(tmp),
+    )
+    task = OMPTaskDirective()
+    task2 = OMPTaskDirective()
+    # pylint: disable=unused-variable
+    loop = Loop.create(
+        tmp,
+        Reference(tmp2),
+        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        [task2],
+    )
+    assert (sing._valid_dependence_ref_binop(binop_fail1, None, task2, task)
+            is False)
+
+    # Test the first failure. One has accesses to references
+    # and the other doesn't.
+
+    sing = OMPSingleDirective()
+    tmp = DataSymbol("tmp", INTEGER_SINGLE_TYPE)
+    tmp2 = DataSymbol("tmp2", INTEGER_SINGLE_TYPE)
+    ref = Reference(tmp)
+    task = OMPTaskDirective()
+    task2 = OMPTaskDirective()
+    binop = BinaryOperation.create(
+        BinaryOperation.Operator.ADD,
+        ref.copy(),
+        Literal("1", INTEGER_SINGLE_TYPE),
+    )
+    # pylint: disable=unused-variable
+    loop = Loop.create(
+        tmp,
+        Reference(tmp2),
+        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        [task2],
+    )
+    # pylint: disable=unused-variable
+    loop2 = Loop.create(
+        tmp,
+        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("128", INTEGER_SINGLE_TYPE),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        [task],
+    )
+
+    assert sing._valid_dependence_ref_binop(ref, binop, task, task2) is False
+
+    assert sing._valid_dependence_ref_binop(binop, ref, task2, task) is False
+
+    ref2 = Reference(tmp2)
+    task3 = OMPTaskDirective()
+    tmp3 = DataSymbol("tmp3", INTEGER_SINGLE_TYPE)
+    tmp4 = DataSymbol("tmp4", INTEGER_SINGLE_TYPE)
+    loop = Loop.create(
+        tmp2,
+        Reference(tmp3),
+        Literal("128", INTEGER_SINGLE_TYPE),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        [task3],
+    )
+    loop2.children[3].pop_all_children()
+    loop2 = Loop.create(
+        tmp,
+        Reference(tmp4),
+        Literal("128", INTEGER_SINGLE_TYPE),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        [task],
+    )
+    assert sing._valid_dependence_ref_binop(ref, ref2, task, task3) is False
+
+    task2 = OMPTaskDirective()
+    task = OMPTaskDirective()
+    loop = Loop.create(
+        tmp,
+        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("128", INTEGER_SINGLE_TYPE),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        [task],
+    )
+    binop = BinaryOperation.create(
+        BinaryOperation.Operator.ADD,
+        ref.copy(),
+        Literal("1", INTEGER_SINGLE_TYPE),
+    )
+    loop2 = Loop.create(
+        tmp,
+        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("128", INTEGER_SINGLE_TYPE),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        [task2],
+    )
+
+    assert sing._valid_dependence_ref_binop(ref, binop, task, task2) is False
+
+    task = OMPTaskDirective()
+    task2 = OMPTaskDirective()
+    loop = Loop.create(
+        tmp,
+        Reference(tmp2),
+        Literal("128", INTEGER_SINGLE_TYPE),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        [task],
+    )
+    loop2 = Loop.create(
+        tmp,
+        Reference(tmp2),
+        Literal("128", INTEGER_SINGLE_TYPE),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        [task2],
+    )
+
+    assert sing._valid_dependence_ref_binop(ref, binop, task, task2) is False
+
+
+def test_omp_serial_valid_dependence_ref_binops():
+    '''
+    Test the _valid_dependence_ref_binops function of OMPSerialDirective.
+    '''
+    sing = OMPSingleDirective()
+    tmp = DataSymbol("tmp", INTEGER_SINGLE_TYPE)
+    tmp2 = DataSymbol("tmp2", INTEGER_SINGLE_TYPE)
+    ref = Reference(tmp)
+    task = OMPTaskDirective()
+    task2 = OMPTaskDirective()
+
+    # Pylint incorrectly flags these loops as unused
+    # pylint: disable=unused-variable
+    loop = Loop.create(
+        tmp,
+        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("128", INTEGER_SINGLE_TYPE),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        [task],
+    )
+    binop = BinaryOperation.create(
+        BinaryOperation.Operator.ADD,
+        ref.copy(),
+        Literal("1", INTEGER_SINGLE_TYPE),
+    )
+    # pylint: disable=unused-variable
+    loop2 = Loop.create(
+        tmp,
+        Literal("0", INTEGER_SINGLE_TYPE),
+        Literal("128", INTEGER_SINGLE_TYPE),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        [task2],
+    )
+
+    sing._valid_dependence_ref_binop(ref, binop, task, task2)
+
+    task = OMPTaskDirective()
+    task2 = OMPTaskDirective()
+    loop = Loop.create(
+        tmp,
+        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("128", INTEGER_SINGLE_TYPE),
+        Literal("16", INTEGER_SINGLE_TYPE),
+        [task],
+    )
+    binop = BinaryOperation.create(
+        BinaryOperation.Operator.ADD,
+        ref.copy(),
+        Literal("16", INTEGER_SINGLE_TYPE),
+    )
+    loop2 = Loop.create(
+        tmp,
+        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("128", INTEGER_SINGLE_TYPE),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        [task2],
+    )
+
+    sing._valid_dependence_ref_binop(ref, binop, task, task2)
+
+    task = OMPTaskDirective()
+    task2 = OMPTaskDirective()
+    loop = Loop.create(
+        tmp,
+        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("128", INTEGER_SINGLE_TYPE),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        [task],
+    )
+    binop = BinaryOperation.create(
+        BinaryOperation.Operator.ADD,
+        ref.copy(),
+        Literal("1", INTEGER_SINGLE_TYPE),
+    )
+    loop2 = Loop.create(
+        tmp,
+        Literal("129", INTEGER_SINGLE_TYPE),
+        Literal("256", INTEGER_SINGLE_TYPE),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        [task2],
+    )
+
+    sing._valid_dependence_ref_binop(ref, binop, task, task2)
+
+    task = OMPTaskDirective()
+    task2 = OMPTaskDirective()
+    loop = Loop.create(
+        tmp,
+        Reference(tmp2),
+        Literal("128", INTEGER_SINGLE_TYPE),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        [task],
+    )
+    loop2 = Loop.create(
+        tmp,
+        Reference(tmp2),
+        Literal("128", INTEGER_SINGLE_TYPE),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        [task2],
+    )
+    sing._valid_dependence_ref_binop(ref, ref.copy(), task, task2)
+    sing._valid_dependence_ref_binop(binop, binop.copy(), task, task2)
+
+
+def test_omp_serial_validate_task_dependencies_fails():
+    '''
+    Test the fail cases of the check_task_dependencies function of
+    OMPSerialDirective.
+    '''
+    # First fail, task + taskloop
+    sing = OMPSingleDirective()
+    task = OMPTaskDirective()
+    taskloop = OMPTaskloopDirective()
+    sing.children[0].addchild(task)
+    sing.children[0].addchild(taskloop)
+    with pytest.raises(NotImplementedError) as excinfo:
+        sing._validate_task_dependencies()
+    assert (
+        "OMPTaskDirectives and OMPTaskloopDirectives"
+        " are not currently supported inside the "
+        "same parent serial region." in str(excinfo.value)
+    )
+
+
+def test_omp_serial_validate_task_dependencies_outout():
+    '''
+    Test check_task_dependencies member of OMPSerialDirective
+    for outout dependency types
+    '''
+
+    # Check outout Array dependency
+    subroutine = Routine("testsub")
+    parallel = OMPParallelDirective.create()
+    subroutine.addchild(parallel)
+    sing = OMPSingleDirective()
+    parallel.children[0].addchild(sing)
+    tmp = DataSymbol("tmp", INTEGER_SINGLE_TYPE)
+    tmp2 = DataSymbol("tmp2", INTEGER_SINGLE_TYPE)
+    array_type = ArrayType(INTEGER_SINGLE_TYPE, [128, 128])
+    rval = DataSymbol("rval", array_type)
+
+    subroutine.symbol_table.add(tmp)
+    subroutine.symbol_table.add(tmp2)
+    subroutine.symbol_table.add(rval)
+
+    task1 = DynamicOMPTaskDirective()
+    loop1 = Loop.create(
+        tmp,
+        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("128", INTEGER_SINGLE_TYPE),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        [task1],
+    )
+    assign1 = Assignment.create(
+        ArrayReference.create(rval, [Reference(tmp), Reference(tmp)]),
+        Literal("1", INTEGER_SINGLE_TYPE),
+    )
+    subloop1 = Loop.create(
+        tmp2,
+        Reference(tmp),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("1", INTEGER_SINGLE_TYPE),
+        [assign1],
+    )
+
+    task2 = DynamicOMPTaskDirective()
+    loop2 = Loop.create(
+        tmp,
+        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("64", INTEGER_SINGLE_TYPE),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        [task2],
+    )
+    assign2 = Assignment.create(
+        ArrayReference.create(rval, [Reference(tmp), Reference(tmp)]),
+        Literal("24", INTEGER_SINGLE_TYPE),
+    )
+    subloop2 = Loop.create(
+        tmp2,
+        Reference(tmp),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("1", INTEGER_SINGLE_TYPE),
+        [assign2],
+    )
+    sing.children[0].addchild(loop1)
+    sing.children[0].addchild(loop2)
+
+    task1.children[0].addchild(subloop1)
+    task1.lower_to_language_level()
+    task2.children[0].addchild(subloop2)
+    task2.lower_to_language_level()
+
+    sing._validate_task_dependencies()
+
+    # Check outout Reference dependency
+    subroutine = Routine("testsub")
+    parallel = OMPParallelDirective.create()
+    subroutine.addchild(parallel)
+    sing = OMPSingleDirective()
+    parallel.children[0].addchild(sing)
+    tmp = DataSymbol("tmp", INTEGER_SINGLE_TYPE)
+    tmp2 = DataSymbol("tmp2", INTEGER_SINGLE_TYPE)
+    rval = DataSymbol("rval", INTEGER_SINGLE_TYPE)
+
+    subroutine.symbol_table.add(tmp)
+    subroutine.symbol_table.add(tmp2)
+
+    subroutine.symbol_table.add(rval)
+
+    task1 = DynamicOMPTaskDirective()
+    loop1 = Loop.create(
+        tmp,
+        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("128", INTEGER_SINGLE_TYPE),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        [task1],
+    )
+    assign1 = Assignment.create(
+        Reference(rval),
+        BinaryOperation.create(
+            BinaryOperation.Operator.ADD, Reference(rval), Reference(tmp2)
+        ),
+    )
+    subloop1 = Loop.create(
+        tmp2,
+        Reference(tmp),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("1", INTEGER_SINGLE_TYPE),
+        [assign1],
+    )
+
+    task2 = DynamicOMPTaskDirective()
+    loop2 = Loop.create(
+        tmp,
+        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("128", INTEGER_SINGLE_TYPE),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        [task2],
+    )
+    assign2 = Assignment.create(
+        Reference(rval),
+        BinaryOperation.create(
+            BinaryOperation.Operator.ADD, Reference(rval), Reference(tmp2)
+        ),
+    )
+    subloop2 = Loop.create(
+        tmp2,
+        Reference(tmp),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("1", INTEGER_SINGLE_TYPE),
+        [assign2],
+    )
+    sing.children[0].addchild(loop1)
+    sing.children[0].addchild(loop2)
+
+    task1.children[0].addchild(subloop1)
+    task1.lower_to_language_level()
+    task2.children[0].addchild(subloop2)
+    task2.lower_to_language_level()
+
+    sing._validate_task_dependencies()
+
+    # StructureType for Structure tests
+    grid_type = StructureType.create(
+        [
+            ("nx", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None),
+            (
+                "sub_grids",
+                ArrayType(INTEGER_TYPE, [3]),
+                Symbol.Visibility.PUBLIC,
+                None,
+            ),
+            (
+                "data",
+                ArrayType(REAL_TYPE, [128, 128]),
+                Symbol.Visibility.PUBLIC,
+                None,
+            ),
+        ]
+    )
+    # Check outout StructureReference non-array dependency
+    subroutine = Routine("testsub")
+    parallel = OMPParallelDirective.create()
+    subroutine.addchild(parallel)
+    sing = OMPSingleDirective()
+    tmp = DataSymbol("tmp", INTEGER_SINGLE_TYPE)
+    tmp2 = DataSymbol("tmp2", INTEGER_SINGLE_TYPE)
+    rval = DataSymbol("rval", grid_type)
+    subroutine.symbol_table.add(tmp)
+    subroutine.symbol_table.add(tmp2)
+    subroutine.symbol_table.add(rval)
+
+    do_dir = OMPDoDirective()
+    assign1 = Assignment.create(
+        Reference(tmp2), StructureReference.create(rval, ["nx"])
+    )
+    loop1 = Loop.create(
+        tmp,
+        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("128", INTEGER_SINGLE_TYPE),
+        Literal("1", INTEGER_SINGLE_TYPE),
+        [assign1],
+    )
+    do_dir.children[0].addchild(loop1)
+
+    task1 = DynamicOMPTaskDirective()
+    loop1 = Loop.create(
+        tmp,
+        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("128", INTEGER_SINGLE_TYPE),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        [task1],
+    )
+    assign1 = Assignment.create(
+        StructureReference.create(rval, ["nx"]), Reference(tmp2)
+    )
+    subloop1 = Loop.create(
+        tmp2,
+        Reference(tmp),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("1", INTEGER_SINGLE_TYPE),
+        [assign1],
+    )
+
+    task2 = DynamicOMPTaskDirective()
+    loop2 = Loop.create(
+        tmp,
+        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("128", INTEGER_SINGLE_TYPE),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        [task2],
+    )
+    assign2 = Assignment.create(
+        StructureReference.create(rval, ["nx"]), Reference(tmp2)
+    )
+    subloop2 = Loop.create(
+        tmp2,
+        Reference(tmp),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("1", INTEGER_SINGLE_TYPE),
+        [assign2],
+    )
+
+    parallel.children[0].addchild(do_dir)
+    parallel.children[0].addchild(sing)
+    sing.children[0].addchild(loop1)
+    sing.children[0].addchild(loop2)
+
+    task1.children[0].addchild(subloop1)
+    task1.lower_to_language_level()
+    task2.children[0].addchild(subloop2)
+    task2.lower_to_language_level()
+
+    sing._validate_task_dependencies()
+
+    # Check outout StructureReference with array access
+    subroutine = Routine("testsub")
+    parallel = OMPParallelDirective.create()
+    subroutine.addchild(parallel)
+    sing = OMPSingleDirective()
+    parallel.children[0].addchild(sing)
+    tmp = DataSymbol("tmp", INTEGER_SINGLE_TYPE)
+    tmp2 = DataSymbol("tmp2", INTEGER_SINGLE_TYPE)
+    rval = DataSymbol("rval", grid_type)
+    subroutine.symbol_table.add(tmp)
+    subroutine.symbol_table.add(tmp2)
+    subroutine.symbol_table.add(rval)
+
+    task1 = DynamicOMPTaskDirective()
+    loop1 = Loop.create(
+        tmp,
+        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("128", INTEGER_SINGLE_TYPE),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        [task1],
+    )
+    assign1 = Assignment.create(
+        StructureReference.create(
+            rval, [("data", [Reference(tmp2), Reference(tmp2)])]
+        ),
+        Reference(tmp2),
+    )
+    subloop1 = Loop.create(
+        tmp2,
+        Reference(tmp),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("1", INTEGER_SINGLE_TYPE),
+        [assign1],
+    )
+
+    task2 = DynamicOMPTaskDirective()
+    loop2 = Loop.create(
+        tmp,
+        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("128", INTEGER_SINGLE_TYPE),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        [task2],
+    )
+    assign2 = Assignment.create(
+        StructureReference.create(
+            rval, [("data", [Reference(tmp2), Reference(tmp2)])]
+        ),
+        Reference(tmp2),
+    )
+    subloop2 = Loop.create(
+        tmp2,
+        Reference(tmp),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("1", INTEGER_SINGLE_TYPE),
+        [assign2],
+    )
+
+    sing.children[0].addchild(loop1)
+    sing.children[0].addchild(loop2)
+
+    task1.children[0].addchild(subloop1)
+    task1.lower_to_language_level()
+    task2.children[0].addchild(subloop2)
+    task2.lower_to_language_level()
+
+    sing._validate_task_dependencies()
+
+    # Check outout accesses to different structure member lengths
+    sub_grid_type = StructureType.create(
+        [("array", ArrayType(REAL_TYPE, [128, 128]), Symbol.Visibility.PUBLIC,
+          None)]
+    )
+    grid_type = StructureType.create(
+        [
+            ("nx", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None),
+            ("sub_grids", sub_grid_type, Symbol.Visibility.PUBLIC, None),
+            (
+                "data",
+                ArrayType(REAL_TYPE, [128, 128]),
+                Symbol.Visibility.PUBLIC,
+                None,
+            ),
+        ]
+    )
+    subroutine = Routine("testsub")
+    parallel = OMPParallelDirective.create()
+    subroutine.addchild(parallel)
+    sing = OMPSingleDirective()
+    parallel.children[0].addchild(sing)
+    tmp = DataSymbol("tmp", INTEGER_SINGLE_TYPE)
+    tmp2 = DataSymbol("tmp2", INTEGER_SINGLE_TYPE)
+    tmp3 = DataSymbol("tmp3", INTEGER_SINGLE_TYPE)
+    rval = DataSymbol("rval", grid_type)
+    subroutine.symbol_table.add(tmp)
+    subroutine.symbol_table.add(tmp2)
+    subroutine.symbol_table.add(tmp3)
+    subroutine.symbol_table.add(rval)
+
+    task1 = DynamicOMPTaskDirective()
+    loop1 = Loop.create(
+        tmp,
+        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("128", INTEGER_SINGLE_TYPE),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        [task1],
+    )
+    assign1 = Assignment.create(
+        StructureReference.create(
+            rval, [("data", [Reference(tmp2), Reference(tmp2)])]
+        ),
+        Reference(tmp2),
+    )
+    subloop1 = Loop.create(
+        tmp2,
+        Reference(tmp),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("1", INTEGER_SINGLE_TYPE),
+        [assign1],
+    )
+
+    task2 = DynamicOMPTaskDirective()
+    loop2 = Loop.create(
+        tmp,
+        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("128", INTEGER_SINGLE_TYPE),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        [task2],
+    )
+    assign2 = Assignment.create(
+        StructureReference.create(
+            rval, ["sub_grids", ("array", [Reference(tmp2), Reference(tmp2)])]
+        ),
+        Reference(tmp2),
+    )
+    subloop2 = Loop.create(
+        tmp2,
+        Reference(tmp),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("1", INTEGER_SINGLE_TYPE),
+        [assign2],
+    )
+
+    sing.children[0].addchild(loop1)
+    sing.children[0].addchild(loop2)
+
+    task1.children[0].addchild(subloop1)
+    task1.lower_to_language_level()
+    task2.children[0].addchild(subloop2)
+    task2.lower_to_language_level()
+
+    sing._validate_task_dependencies()
+
+    # Check outout accesses to different structure members
+    grid_type = StructureType.create(
+        [
+            ("nx", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None),
+            (
+                "data2",
+                ArrayType(REAL_TYPE, [128, 128]),
+                Symbol.Visibility.PUBLIC,
+                None,
+            ),
+            (
+                "data",
+                ArrayType(REAL_TYPE, [128, 128]),
+                Symbol.Visibility.PUBLIC,
+                None,
+            ),
+        ]
+    )
+    subroutine = Routine("testsub")
+    parallel = OMPParallelDirective.create()
+    subroutine.addchild(parallel)
+    sing = OMPSingleDirective()
+    parallel.children[0].addchild(sing)
+    tmp = DataSymbol("tmp", INTEGER_SINGLE_TYPE)
+    tmp2 = DataSymbol("tmp2", INTEGER_SINGLE_TYPE)
+    tmp3 = DataSymbol("tmp3", INTEGER_SINGLE_TYPE)
+    rval = DataSymbol("rval", grid_type)
+    subroutine.symbol_table.add(tmp)
+    subroutine.symbol_table.add(tmp2)
+    subroutine.symbol_table.add(tmp3)
+    subroutine.symbol_table.add(rval)
+
+    task1 = DynamicOMPTaskDirective()
+    loop1 = Loop.create(
+        tmp,
+        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("128", INTEGER_SINGLE_TYPE),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        [task1],
+    )
+    assign1 = Assignment.create(
+        StructureReference.create(
+            rval, [("data", [Reference(tmp2), Reference(tmp2)])]
+        ),
+        Reference(tmp2),
+    )
+    subloop1 = Loop.create(
+        tmp2,
+        Reference(tmp),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("1", INTEGER_SINGLE_TYPE),
+        [assign1],
+    )
+
+    task2 = DynamicOMPTaskDirective()
+    loop2 = Loop.create(
+        tmp,
+        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("128", INTEGER_SINGLE_TYPE),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        [task2],
+    )
+    assign2 = Assignment.create(
+        StructureReference.create(
+            rval, [("data2", [Reference(tmp2), Reference(tmp2)])]
+        ),
+        Reference(tmp2),
+    )
+    subloop2 = Loop.create(
+        tmp2,
+        Reference(tmp),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("1", INTEGER_SINGLE_TYPE),
+        [assign2],
+    )
+
+    sing.children[0].addchild(loop1)
+    sing.children[0].addchild(loop2)
+
+    task1.children[0].addchild(subloop1)
+    task1.lower_to_language_level()
+    task2.children[0].addchild(subloop2)
+    task2.lower_to_language_level()
+    sing._validate_task_dependencies()
+
+    # Check outout accesses to range and literal indexes.
+    subroutine = Routine("testsub")
+    parallel = OMPParallelDirective.create()
+    subroutine.addchild(parallel)
+    sing = OMPSingleDirective()
+    parallel.children[0].addchild(sing)
+    tmp = DataSymbol("tmp", INTEGER_SINGLE_TYPE)
+    tmp2 = DataSymbol("tmp2", INTEGER_SINGLE_TYPE)
+    tmp3 = DataSymbol("tmp3", INTEGER_SINGLE_TYPE)
+    rval = DataSymbol("rval", grid_type)
+    subroutine.symbol_table.add(tmp)
+    subroutine.symbol_table.add(tmp2)
+    subroutine.symbol_table.add(tmp3)
+    subroutine.symbol_table.add(rval)
+
+    task1 = DynamicOMPTaskDirective()
+    loop1 = Loop.create(
+        tmp,
+        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("128", INTEGER_SINGLE_TYPE),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        [task1],
+    )
+    assign1 = Assignment.create(
+        StructureReference.create(
+            rval,
+            [("data", [Literal("1", INTEGER_SINGLE_TYPE), Reference(tmp2)])],
+        ),
+        Reference(tmp2),
+    )
+    subloop1 = Loop.create(
+        tmp2,
+        Reference(tmp3),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("1", INTEGER_SINGLE_TYPE),
+        [assign1],
+    )
+
+    task2 = DynamicOMPTaskDirective()
+    loop2 = Loop.create(
+        tmp,
+        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("128", INTEGER_SINGLE_TYPE),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        [task2],
+    )
+    assign2 = Assignment.create(
+        StructureReference.create(
+            rval,
+            [("data", [Literal("1", INTEGER_SINGLE_TYPE), Reference(tmp2)])],
+        ),
+        Reference(tmp2),
+    )
+    subloop2 = Loop.create(
+        tmp2,
+        Reference(tmp3),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("1", INTEGER_SINGLE_TYPE),
+        [assign2],
+    )
+
+    sing.children[0].addchild(loop1)
+    sing.children[0].addchild(loop2)
+
+    task1.children[0].addchild(subloop1)
+    task1.lower_to_language_level()
+    task2.children[0].addchild(subloop2)
+    task2.lower_to_language_level()
+
+    sing._validate_task_dependencies()
+
+
+def test_omp_serial_validate_task_dependencies_inout():
+    '''
+    Test check_task_dependencies member of OMPSerialDirective
+    for inout dependency types
+    '''
+    # Check inout Array dependency
+    subroutine = Routine("testsub")
+    parallel = OMPParallelDirective.create()
+    subroutine.addchild(parallel)
+    sing = OMPSingleDirective()
+    parallel.children[0].addchild(sing)
+    tmp = DataSymbol("tmp", INTEGER_SINGLE_TYPE)
+    tmp2 = DataSymbol("tmp2", INTEGER_SINGLE_TYPE)
+    tmp3 = DataSymbol("tmp3", INTEGER_SINGLE_TYPE)
+    array_type = ArrayType(INTEGER_SINGLE_TYPE, [128, 128])
+    rval = DataSymbol("rval", array_type)
+
+    subroutine.symbol_table.add(tmp)
+    subroutine.symbol_table.add(tmp2)
+    subroutine.symbol_table.add(tmp3)
+    subroutine.symbol_table.add(rval)
+
+    task1 = DynamicOMPTaskDirective()
+    loop1 = Loop.create(
+        tmp,
+        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("128", INTEGER_SINGLE_TYPE),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        [task1],
+    )
+    assign1 = Assignment.create(
+        Reference(tmp3),
+        ArrayReference.create(rval, [Reference(tmp), Reference(tmp)]),
+    )
+    subloop1 = Loop.create(
+        tmp2,
+        Reference(tmp),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("1", INTEGER_SINGLE_TYPE),
+        [assign1],
+    )
+
+    task2 = DynamicOMPTaskDirective()
+    loop2 = Loop.create(
+        tmp,
+        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("64", INTEGER_SINGLE_TYPE),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        [task2],
+    )
+    assign2 = Assignment.create(
+        ArrayReference.create(rval, [Reference(tmp), Reference(tmp)]),
+        Literal("24", INTEGER_SINGLE_TYPE),
+    )
+    subloop2 = Loop.create(
+        tmp2,
+        Reference(tmp),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("1", INTEGER_SINGLE_TYPE),
+        [assign2],
+    )
+    sing.children[0].addchild(loop1)
+    sing.children[0].addchild(loop2)
+
+    task1.children[0].addchild(subloop1)
+    task1.lower_to_language_level()
+    task2.children[0].addchild(subloop2)
+    task2.lower_to_language_level()
+
+    sing._validate_task_dependencies()
+
+    # Check inout Reference dependency
+    subroutine = Routine("testsub")
+    parallel = OMPParallelDirective.create()
+    subroutine.addchild(parallel)
+    sing = OMPSingleDirective()
+    parallel.children[0].addchild(sing)
+    tmp = DataSymbol("tmp", INTEGER_SINGLE_TYPE)
+    tmp2 = DataSymbol("tmp2", INTEGER_SINGLE_TYPE)
+    tmp3 = DataSymbol("tmp3", INTEGER_SINGLE_TYPE)
+    rval = DataSymbol("rval", INTEGER_SINGLE_TYPE)
+
+    subroutine.symbol_table.add(tmp)
+    subroutine.symbol_table.add(tmp2)
+    subroutine.symbol_table.add(tmp3)
+
+    subroutine.symbol_table.add(rval)
+
+    task1 = DynamicOMPTaskDirective()
+    loop1 = Loop.create(
+        tmp,
+        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("128", INTEGER_SINGLE_TYPE),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        [task1],
+    )
+    assign1 = Assignment.create(
+        Reference(tmp3),
+        BinaryOperation.create(
+            BinaryOperation.Operator.ADD, Reference(rval), Reference(tmp2)
+        ),
+    )
+    subloop1 = Loop.create(
+        tmp2,
+        Reference(tmp),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("1", INTEGER_SINGLE_TYPE),
+        [assign1],
+    )
+
+    task2 = DynamicOMPTaskDirective()
+    loop2 = Loop.create(
+        tmp,
+        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("128", INTEGER_SINGLE_TYPE),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        [task2],
+    )
+    assign2 = Assignment.create(
+        Reference(rval),
+        BinaryOperation.create(
+            BinaryOperation.Operator.ADD, Reference(rval), Reference(tmp2)
+        ),
+    )
+    subloop2 = Loop.create(
+        tmp2,
+        Reference(tmp),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("1", INTEGER_SINGLE_TYPE),
+        [assign2],
+    )
+    sing.children[0].addchild(loop1)
+    sing.children[0].addchild(loop2)
+
+    task1.children[0].addchild(subloop1)
+    task1.lower_to_language_level()
+    task2.children[0].addchild(subloop2)
+    task2.lower_to_language_level()
+
+    sing._validate_task_dependencies()
+
+    # StructureType for Structure tests
+    grid_type = StructureType.create(
+        [
+            ("nx", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None),
+            (
+                "sub_grids",
+                ArrayType(INTEGER_TYPE, [3]),
+                Symbol.Visibility.PUBLIC,
+                None,
+            ),
+            (
+                "data",
+                ArrayType(REAL_TYPE, [128, 128]),
+                Symbol.Visibility.PUBLIC,
+                None,
+            ),
+        ]
+    )
+    # Check inout StructureReference non-array dependency
+    subroutine = Routine("testsub")
+    parallel = OMPParallelDirective.create()
+    subroutine.addchild(parallel)
+    sing = OMPSingleDirective()
+    tmp = DataSymbol("tmp", INTEGER_SINGLE_TYPE)
+    tmp2 = DataSymbol("tmp2", INTEGER_SINGLE_TYPE)
+    tmp3 = DataSymbol("tmp3", INTEGER_SINGLE_TYPE)
+    rval = DataSymbol("rval", grid_type)
+    subroutine.symbol_table.add(tmp)
+    subroutine.symbol_table.add(tmp2)
+    subroutine.symbol_table.add(tmp3)
+    subroutine.symbol_table.add(rval)
+
+    do_dir = OMPDoDirective()
+    assign1 = Assignment.create(
+        Reference(tmp2), StructureReference.create(rval, ["nx"])
+    )
+    loop1 = Loop.create(
+        tmp,
+        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("128", INTEGER_SINGLE_TYPE),
+        Literal("1", INTEGER_SINGLE_TYPE),
+        [assign1],
+    )
+    do_dir.children[0].addchild(loop1)
+
+    task1 = DynamicOMPTaskDirective()
+    loop1 = Loop.create(
+        tmp,
+        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("128", INTEGER_SINGLE_TYPE),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        [task1],
+    )
+    assign1 = Assignment.create(
+        Reference(tmp3), StructureReference.create(rval, ["nx"])
+    )
+    subloop1 = Loop.create(
+        tmp2,
+        Reference(tmp),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("1", INTEGER_SINGLE_TYPE),
+        [assign1],
+    )
+
+    task2 = DynamicOMPTaskDirective()
+    loop2 = Loop.create(
+        tmp,
+        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("128", INTEGER_SINGLE_TYPE),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        [task2],
+    )
+    assign2 = Assignment.create(
+        StructureReference.create(rval, ["nx"]), Reference(tmp2)
+    )
+    subloop2 = Loop.create(
+        tmp2,
+        Reference(tmp),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("1", INTEGER_SINGLE_TYPE),
+        [assign2],
+    )
+
+    parallel.children[0].addchild(do_dir)
+    parallel.children[0].addchild(sing)
+    sing.children[0].addchild(loop1)
+    sing.children[0].addchild(loop2)
+
+    task1.children[0].addchild(subloop1)
+    task1.lower_to_language_level()
+    task2.children[0].addchild(subloop2)
+    task2.lower_to_language_level()
+
+    sing._validate_task_dependencies()
+
+    # Check inout StructureReference with array access
+    subroutine = Routine("testsub")
+    parallel = OMPParallelDirective.create()
+    subroutine.addchild(parallel)
+    sing = OMPSingleDirective()
+    parallel.children[0].addchild(sing)
+    tmp = DataSymbol("tmp", INTEGER_SINGLE_TYPE)
+    tmp2 = DataSymbol("tmp2", INTEGER_SINGLE_TYPE)
+    tmp3 = DataSymbol("tmp3", INTEGER_SINGLE_TYPE)
+    rval = DataSymbol("rval", grid_type)
+    subroutine.symbol_table.add(tmp)
+    subroutine.symbol_table.add(tmp2)
+    subroutine.symbol_table.add(tmp3)
+    subroutine.symbol_table.add(rval)
+
+    task1 = DynamicOMPTaskDirective()
+    loop1 = Loop.create(
+        tmp,
+        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("128", INTEGER_SINGLE_TYPE),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        [task1],
+    )
+    assign1 = Assignment.create(
+        Reference(tmp3),
+        StructureReference.create(
+            rval, [("data", [Reference(tmp2), Reference(tmp2)])]
+        ),
+    )
+    subloop1 = Loop.create(
+        tmp2,
+        Reference(tmp),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("1", INTEGER_SINGLE_TYPE),
+        [assign1],
+    )
+
+    task2 = DynamicOMPTaskDirective()
+    loop2 = Loop.create(
+        tmp,
+        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("128", INTEGER_SINGLE_TYPE),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        [task2],
+    )
+    assign2 = Assignment.create(
+        StructureReference.create(
+            rval, [("data", [Reference(tmp2), Reference(tmp2)])]
+        ),
+        Reference(tmp2),
+    )
+    subloop2 = Loop.create(
+        tmp2,
+        Reference(tmp),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("1", INTEGER_SINGLE_TYPE),
+        [assign2],
+    )
+
+    sing.children[0].addchild(loop1)
+    sing.children[0].addchild(loop2)
+
+    task1.children[0].addchild(subloop1)
+    task1.lower_to_language_level()
+    task2.children[0].addchild(subloop2)
+    task2.lower_to_language_level()
+
+    sing._validate_task_dependencies()
+
+    # Check inout accesses to different structure member lengths
+    sub_grid_type = StructureType.create(
+        [("array", ArrayType(REAL_TYPE, [128, 128]), Symbol.Visibility.PUBLIC,
+          None)]
+    )
+    grid_type = StructureType.create(
+        [
+            ("nx", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None),
+            ("sub_grids", sub_grid_type, Symbol.Visibility.PUBLIC, None),
+            (
+                "data",
+                ArrayType(REAL_TYPE, [128, 128]),
+                Symbol.Visibility.PUBLIC,
+                None,
+            ),
+        ]
+    )
+    subroutine = Routine("testsub")
+    parallel = OMPParallelDirective.create()
+    subroutine.addchild(parallel)
+    sing = OMPSingleDirective()
+    parallel.children[0].addchild(sing)
+    tmp = DataSymbol("tmp", INTEGER_SINGLE_TYPE)
+    tmp2 = DataSymbol("tmp2", INTEGER_SINGLE_TYPE)
+    tmp3 = DataSymbol("tmp3", INTEGER_SINGLE_TYPE)
+    rval = DataSymbol("rval", grid_type)
+    subroutine.symbol_table.add(tmp)
+    subroutine.symbol_table.add(tmp2)
+    subroutine.symbol_table.add(tmp3)
+    subroutine.symbol_table.add(rval)
+
+    task1 = DynamicOMPTaskDirective()
+    loop1 = Loop.create(
+        tmp,
+        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("128", INTEGER_SINGLE_TYPE),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        [task1],
+    )
+    assign1 = Assignment.create(
+        Reference(tmp3),
+        StructureReference.create(
+            rval, ["sub_grids", ("array", [Reference(tmp2), Reference(tmp2)])]
+        ),
+    )
+    subloop1 = Loop.create(
+        tmp2,
+        Reference(tmp),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("1", INTEGER_SINGLE_TYPE),
+        [assign1],
+    )
+
+    task2 = DynamicOMPTaskDirective()
+    loop2 = Loop.create(
+        tmp,
+        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("128", INTEGER_SINGLE_TYPE),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        [task2],
+    )
+    assign2 = Assignment.create(
+        StructureReference.create(
+            rval, [("data", [Reference(tmp2), Reference(tmp2)])]
+        ),
+        Reference(tmp2),
+    )
+    subloop2 = Loop.create(
+        tmp2,
+        Reference(tmp),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("1", INTEGER_SINGLE_TYPE),
+        [assign2],
+    )
+
+    sing.children[0].addchild(loop1)
+    sing.children[0].addchild(loop2)
+
+    task1.children[0].addchild(subloop1)
+    task1.lower_to_language_level()
+    task2.children[0].addchild(subloop2)
+    task2.lower_to_language_level()
+
+    sing._validate_task_dependencies()
+
+    # Check inout accesses to different structure members
+    grid_type = StructureType.create(
+        [
+            ("nx", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None),
+            (
+                "data2",
+                ArrayType(REAL_TYPE, [128, 128]),
+                Symbol.Visibility.PUBLIC,
+                None,
+            ),
+            (
+                "data",
+                ArrayType(REAL_TYPE, [128, 128]),
+                Symbol.Visibility.PUBLIC,
+                None,
+            ),
+        ]
+    )
+    subroutine = Routine("testsub")
+    parallel = OMPParallelDirective.create()
+    subroutine.addchild(parallel)
+    sing = OMPSingleDirective()
+    parallel.children[0].addchild(sing)
+    tmp = DataSymbol("tmp", INTEGER_SINGLE_TYPE)
+    tmp2 = DataSymbol("tmp2", INTEGER_SINGLE_TYPE)
+    tmp3 = DataSymbol("tmp3", INTEGER_SINGLE_TYPE)
+    rval = DataSymbol("rval", grid_type)
+    subroutine.symbol_table.add(tmp)
+    subroutine.symbol_table.add(tmp2)
+    subroutine.symbol_table.add(tmp3)
+    subroutine.symbol_table.add(rval)
+
+    task1 = DynamicOMPTaskDirective()
+    loop1 = Loop.create(
+        tmp,
+        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("128", INTEGER_SINGLE_TYPE),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        [task1],
+    )
+    assign1 = Assignment.create(
+        Reference(tmp3),
+        StructureReference.create(
+            rval, [("data2", [Reference(tmp2), Reference(tmp2)])]
+        ),
+    )
+    subloop1 = Loop.create(
+        tmp2,
+        Reference(tmp),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("1", INTEGER_SINGLE_TYPE),
+        [assign1],
+    )
+
+    task2 = DynamicOMPTaskDirective()
+    loop2 = Loop.create(
+        tmp,
+        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("128", INTEGER_SINGLE_TYPE),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        [task2],
+    )
+    assign2 = Assignment.create(
+        StructureReference.create(
+            rval, [("data", [Reference(tmp2), Reference(tmp2)])]
+        ),
+        Reference(tmp2),
+    )
+    subloop2 = Loop.create(
+        tmp2,
+        Reference(tmp),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("1", INTEGER_SINGLE_TYPE),
+        [assign2],
+    )
+
+    sing.children[0].addchild(loop1)
+    sing.children[0].addchild(loop2)
+
+    task1.children[0].addchild(subloop1)
+    task1.lower_to_language_level()
+    task2.children[0].addchild(subloop2)
+    task2.lower_to_language_level()
+
+    sing._validate_task_dependencies()
+
+    # Check inout accesses to range and literal indexes.
+    subroutine = Routine("testsub")
+    parallel = OMPParallelDirective.create()
+    subroutine.addchild(parallel)
+    sing = OMPSingleDirective()
+    parallel.children[0].addchild(sing)
+    tmp = DataSymbol("tmp", INTEGER_SINGLE_TYPE)
+    tmp2 = DataSymbol("tmp2", INTEGER_SINGLE_TYPE)
+    tmp3 = DataSymbol("tmp3", INTEGER_SINGLE_TYPE)
+    tmp4 = DataSymbol("tmp4", INTEGER_SINGLE_TYPE)
+    rval = DataSymbol("rval", grid_type)
+    subroutine.symbol_table.add(tmp)
+    subroutine.symbol_table.add(tmp2)
+    subroutine.symbol_table.add(tmp3)
+    subroutine.symbol_table.add(tmp4)
+    subroutine.symbol_table.add(rval)
+
+    task1 = DynamicOMPTaskDirective()
+    loop1 = Loop.create(
+        tmp,
+        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("128", INTEGER_SINGLE_TYPE),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        [task1],
+    )
+    assign1 = Assignment.create(
+        Reference(tmp4),
+        StructureReference.create(
+            rval,
+            [("data", [Literal("1", INTEGER_SINGLE_TYPE), Reference(tmp2)])],
+        ),
+    )
+    subloop1 = Loop.create(
+        tmp2,
+        Reference(tmp3),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("1", INTEGER_SINGLE_TYPE),
+        [assign1],
+    )
+
+    task2 = DynamicOMPTaskDirective()
+    loop2 = Loop.create(
+        tmp,
+        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("128", INTEGER_SINGLE_TYPE),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        [task2],
+    )
+    assign2 = Assignment.create(
+        StructureReference.create(
+            rval,
+            [("data", [Literal("1", INTEGER_SINGLE_TYPE), Reference(tmp2)])],
+        ),
+        Reference(tmp2),
+    )
+    subloop2 = Loop.create(
+        tmp2,
+        Reference(tmp3),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("1", INTEGER_SINGLE_TYPE),
+        [assign2],
+    )
+
+    sing.children[0].addchild(loop1)
+    sing.children[0].addchild(loop2)
+
+    task1.children[0].addchild(subloop1)
+    task1.lower_to_language_level()
+    task2.children[0].addchild(subloop2)
+    task2.lower_to_language_level()
+
+    sing._validate_task_dependencies()
+
+
+def test_omp_serial_validate_task_dependencies_outin():
+    '''
+    Test check_task_dependencies member of OMPSerialDirective
+    for outin dependency types
+    '''
+    # Check outin Array dependency
+    subroutine = Routine("testsub")
+    parallel = OMPParallelDirective.create()
+    subroutine.addchild(parallel)
+    sing = OMPSingleDirective()
+    parallel.children[0].addchild(sing)
+    tmp = DataSymbol("tmp", INTEGER_SINGLE_TYPE)
+    tmp2 = DataSymbol("tmp2", INTEGER_SINGLE_TYPE)
+    tmp3 = DataSymbol("tmp3", INTEGER_SINGLE_TYPE)
+    array_type = ArrayType(INTEGER_SINGLE_TYPE, [128, 128])
+    rval = DataSymbol("rval", array_type)
+
+    subroutine.symbol_table.add(tmp)
+    subroutine.symbol_table.add(tmp2)
+    subroutine.symbol_table.add(tmp3)
+    subroutine.symbol_table.add(rval)
+
+    task1 = DynamicOMPTaskDirective()
+    loop1 = Loop.create(
+        tmp,
+        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("128", INTEGER_SINGLE_TYPE),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        [task1],
+    )
+    assign1 = Assignment.create(
+        ArrayReference.create(rval, [Reference(tmp), Reference(tmp)]),
+        Literal("24", INTEGER_SINGLE_TYPE),
+    )
+    subloop1 = Loop.create(
+        tmp2,
+        Reference(tmp),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("1", INTEGER_SINGLE_TYPE),
+        [assign1],
+    )
+
+    task2 = DynamicOMPTaskDirective()
+    loop2 = Loop.create(
+        tmp,
+        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("64", INTEGER_SINGLE_TYPE),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        [task2],
+    )
+    assign2 = Assignment.create(
+        Reference(tmp3),
+        ArrayReference.create(rval, [Reference(tmp), Reference(tmp)]),
+    )
+    subloop2 = Loop.create(
+        tmp2,
+        Reference(tmp),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("1", INTEGER_SINGLE_TYPE),
+        [assign2],
+    )
+    sing.children[0].addchild(loop1)
+    sing.children[0].addchild(loop2)
+
+    task1.children[0].addchild(subloop1)
+    task1.lower_to_language_level()
+    task2.children[0].addchild(subloop2)
+    task2.lower_to_language_level()
+
+    sing._validate_task_dependencies()
+
+    # Check outin Reference dependency
+    subroutine = Routine("testsub")
+    parallel = OMPParallelDirective.create()
+    subroutine.addchild(parallel)
+    sing = OMPSingleDirective()
+    parallel.children[0].addchild(sing)
+    tmp = DataSymbol("tmp", INTEGER_SINGLE_TYPE)
+    tmp2 = DataSymbol("tmp2", INTEGER_SINGLE_TYPE)
+    tmp3 = DataSymbol("tmp3", INTEGER_SINGLE_TYPE)
+    rval = DataSymbol("rval", INTEGER_SINGLE_TYPE)
+
+    subroutine.symbol_table.add(tmp)
+    subroutine.symbol_table.add(tmp2)
+    subroutine.symbol_table.add(tmp3)
+
+    subroutine.symbol_table.add(rval)
+
+    task1 = DynamicOMPTaskDirective()
+    loop1 = Loop.create(
+        tmp,
+        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("128", INTEGER_SINGLE_TYPE),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        [task1],
+    )
+    assign1 = Assignment.create(
+        Reference(rval),
+        BinaryOperation.create(
+            BinaryOperation.Operator.ADD, Reference(rval), Reference(tmp2)
+        ),
+    )
+    subloop1 = Loop.create(
+        tmp2,
+        Reference(tmp),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("1", INTEGER_SINGLE_TYPE),
+        [assign1],
+    )
+
+    task2 = DynamicOMPTaskDirective()
+    loop2 = Loop.create(
+        tmp,
+        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("128", INTEGER_SINGLE_TYPE),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        [task2],
+    )
+    assign2 = Assignment.create(
+        Reference(tmp3),
+        BinaryOperation.create(
+            BinaryOperation.Operator.ADD, Reference(rval), Reference(tmp2)
+        ),
+    )
+    subloop2 = Loop.create(
+        tmp2,
+        Reference(tmp),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("1", INTEGER_SINGLE_TYPE),
+        [assign2],
+    )
+    sing.children[0].addchild(loop1)
+    sing.children[0].addchild(loop2)
+
+    task1.children[0].addchild(subloop1)
+    task1.lower_to_language_level()
+    task2.children[0].addchild(subloop2)
+    task2.lower_to_language_level()
+
+    sing._validate_task_dependencies()
+
+    # StructureType for Structure tests
+    grid_type = StructureType.create(
+        [
+            ("nx", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None),
+            (
+                "sub_grids",
+                ArrayType(INTEGER_TYPE, [3]),
+                Symbol.Visibility.PUBLIC,
+                None,
+            ),
+            (
+                "data",
+                ArrayType(REAL_TYPE, [128, 128]),
+                Symbol.Visibility.PUBLIC,
+                None,
+            ),
+        ]
+    )
+    # Check inout StructureReference non-array dependency
+    subroutine = Routine("testsub")
+    parallel = OMPParallelDirective.create()
+    subroutine.addchild(parallel)
+    sing = OMPSingleDirective()
+    tmp = DataSymbol("tmp", INTEGER_SINGLE_TYPE)
+    tmp2 = DataSymbol("tmp2", INTEGER_SINGLE_TYPE)
+    tmp3 = DataSymbol("tmp3", INTEGER_SINGLE_TYPE)
+    rval = DataSymbol("rval", grid_type)
+    subroutine.symbol_table.add(tmp)
+    subroutine.symbol_table.add(tmp2)
+    subroutine.symbol_table.add(tmp3)
+    subroutine.symbol_table.add(rval)
+
+    do_dir = OMPDoDirective()
+    assign1 = Assignment.create(
+        Reference(tmp2), StructureReference.create(rval, ["nx"])
+    )
+    loop1 = Loop.create(
+        tmp,
+        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("128", INTEGER_SINGLE_TYPE),
+        Literal("1", INTEGER_SINGLE_TYPE),
+        [assign1],
+    )
+    do_dir.children[0].addchild(loop1)
+
+    task1 = DynamicOMPTaskDirective()
+    loop1 = Loop.create(
+        tmp,
+        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("128", INTEGER_SINGLE_TYPE),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        [task1],
+    )
+    assign1 = Assignment.create(
+        StructureReference.create(rval, ["nx"]), Reference(tmp2)
+    )
+    subloop1 = Loop.create(
+        tmp2,
+        Reference(tmp),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("1", INTEGER_SINGLE_TYPE),
+        [assign1],
+    )
+
+    task2 = DynamicOMPTaskDirective()
+    loop2 = Loop.create(
+        tmp,
+        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("128", INTEGER_SINGLE_TYPE),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        [task2],
+    )
+    assign2 = Assignment.create(
+        Reference(tmp3), StructureReference.create(rval, ["nx"])
+    )
+    subloop2 = Loop.create(
+        tmp2,
+        Reference(tmp),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("1", INTEGER_SINGLE_TYPE),
+        [assign2],
+    )
+
+    parallel.children[0].addchild(do_dir)
+    parallel.children[0].addchild(sing)
+    sing.children[0].addchild(loop1)
+    sing.children[0].addchild(loop2)
+
+    task1.children[0].addchild(subloop1)
+    task1.lower_to_language_level()
+    task2.children[0].addchild(subloop2)
+    task2.lower_to_language_level()
+
+    sing._validate_task_dependencies()
+
+    # Check inout StructureReference with array access
+    subroutine = Routine("testsub")
+    parallel = OMPParallelDirective.create()
+    subroutine.addchild(parallel)
+    sing = OMPSingleDirective()
+    parallel.children[0].addchild(sing)
+    tmp = DataSymbol("tmp", INTEGER_SINGLE_TYPE)
+    tmp2 = DataSymbol("tmp2", INTEGER_SINGLE_TYPE)
+    tmp3 = DataSymbol("tmp3", INTEGER_SINGLE_TYPE)
+    rval = DataSymbol("rval", grid_type)
+    subroutine.symbol_table.add(tmp)
+    subroutine.symbol_table.add(tmp2)
+    subroutine.symbol_table.add(tmp3)
+    subroutine.symbol_table.add(rval)
+
+    task1 = DynamicOMPTaskDirective()
+    loop1 = Loop.create(
+        tmp,
+        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("128", INTEGER_SINGLE_TYPE),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        [task1],
+    )
+    assign1 = Assignment.create(
+        StructureReference.create(
+            rval, [("data", [Reference(tmp2), Reference(tmp2)])]
+        ),
+        Reference(tmp2),
+    )
+    subloop1 = Loop.create(
+        tmp2,
+        Reference(tmp),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("1", INTEGER_SINGLE_TYPE),
+        [assign1],
+    )
+
+    task2 = DynamicOMPTaskDirective()
+    loop2 = Loop.create(
+        tmp,
+        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("128", INTEGER_SINGLE_TYPE),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        [task2],
+    )
+    assign2 = Assignment.create(
+        Reference(tmp3),
+        StructureReference.create(
+            rval, [("data", [Reference(tmp2), Reference(tmp2)])]
+        ),
+    )
+    subloop2 = Loop.create(
+        tmp2,
+        Reference(tmp),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("1", INTEGER_SINGLE_TYPE),
+        [assign2],
+    )
+
+    sing.children[0].addchild(loop1)
+    sing.children[0].addchild(loop2)
+
+    task1.children[0].addchild(subloop1)
+    task1.lower_to_language_level()
+    task2.children[0].addchild(subloop2)
+    task2.lower_to_language_level()
+
+    sing._validate_task_dependencies()
+
+    # Check outin accesses to different structure member lengths
+    sub_grid_type = StructureType.create(
+        [("array", ArrayType(REAL_TYPE, [128, 128]), Symbol.Visibility.PUBLIC,
+          None)]
+    )
+    grid_type = StructureType.create(
+        [
+            ("nx", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None),
+            ("sub_grids", sub_grid_type, Symbol.Visibility.PUBLIC, None),
+            (
+                "data",
+                ArrayType(REAL_TYPE, [128, 128]),
+                Symbol.Visibility.PUBLIC,
+                None,
+            ),
+        ]
+    )
+    subroutine = Routine("testsub")
+    parallel = OMPParallelDirective.create()
+    subroutine.addchild(parallel)
+    sing = OMPSingleDirective()
+    parallel.children[0].addchild(sing)
+    tmp = DataSymbol("tmp", INTEGER_SINGLE_TYPE)
+    tmp2 = DataSymbol("tmp2", INTEGER_SINGLE_TYPE)
+    tmp3 = DataSymbol("tmp3", INTEGER_SINGLE_TYPE)
+    rval = DataSymbol("rval", grid_type)
+    subroutine.symbol_table.add(tmp)
+    subroutine.symbol_table.add(tmp2)
+    subroutine.symbol_table.add(tmp3)
+    subroutine.symbol_table.add(rval)
+
+    task1 = DynamicOMPTaskDirective()
+    loop1 = Loop.create(
+        tmp,
+        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("128", INTEGER_SINGLE_TYPE),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        [task1],
+    )
+    assign1 = Assignment.create(
+        StructureReference.create(
+            rval, [("data", [Reference(tmp2), Reference(tmp2)])]
+        ),
+        Reference(tmp2),
+    )
+    subloop1 = Loop.create(
+        tmp2,
+        Reference(tmp),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("1", INTEGER_SINGLE_TYPE),
+        [assign1],
+    )
+
+    task2 = DynamicOMPTaskDirective()
+    loop2 = Loop.create(
+        tmp,
+        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("128", INTEGER_SINGLE_TYPE),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        [task2],
+    )
+    assign2 = Assignment.create(
+        Reference(tmp3),
+        StructureReference.create(
+            rval, ["sub_grids", ("array", [Reference(tmp2), Reference(tmp2)])]
+        ),
+    )
+    subloop2 = Loop.create(
+        tmp2,
+        Reference(tmp),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("1", INTEGER_SINGLE_TYPE),
+        [assign2],
+    )
+
+    sing.children[0].addchild(loop1)
+    sing.children[0].addchild(loop2)
+
+    task1.children[0].addchild(subloop1)
+    task1.lower_to_language_level()
+    task2.children[0].addchild(subloop2)
+    task2.lower_to_language_level()
+
+    sing._validate_task_dependencies()
+
+    # Check outin accesses to different structure members
+    grid_type = StructureType.create(
+        [
+            ("nx", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None),
+            (
+                "data2",
+                ArrayType(REAL_TYPE, [128, 128]),
+                Symbol.Visibility.PUBLIC,
+                None,
+            ),
+            (
+                "data",
+                ArrayType(REAL_TYPE, [128, 128]),
+                Symbol.Visibility.PUBLIC,
+                None,
+            ),
+        ]
+    )
+    subroutine = Routine("testsub")
+    parallel = OMPParallelDirective.create()
+    subroutine.addchild(parallel)
+    sing = OMPSingleDirective()
+    parallel.children[0].addchild(sing)
+    tmp = DataSymbol("tmp", INTEGER_SINGLE_TYPE)
+    tmp2 = DataSymbol("tmp2", INTEGER_SINGLE_TYPE)
+    tmp3 = DataSymbol("tmp3", INTEGER_SINGLE_TYPE)
+    rval = DataSymbol("rval", grid_type)
+    subroutine.symbol_table.add(tmp)
+    subroutine.symbol_table.add(tmp2)
+    subroutine.symbol_table.add(tmp3)
+    subroutine.symbol_table.add(rval)
+
+    task1 = DynamicOMPTaskDirective()
+    loop1 = Loop.create(
+        tmp,
+        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("128", INTEGER_SINGLE_TYPE),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        [task1],
+    )
+    assign1 = Assignment.create(
+        StructureReference.create(
+            rval, [("data", [Reference(tmp2), Reference(tmp2)])]
+        ),
+        Reference(tmp2),
+    )
+    subloop1 = Loop.create(
+        tmp2,
+        Reference(tmp),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("1", INTEGER_SINGLE_TYPE),
+        [assign1],
+    )
+
+    task2 = DynamicOMPTaskDirective()
+    loop2 = Loop.create(
+        tmp,
+        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("128", INTEGER_SINGLE_TYPE),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        [task2],
+    )
+    assign2 = Assignment.create(
+        Reference(tmp3),
+        StructureReference.create(
+            rval, [("data2", [Reference(tmp2), Reference(tmp2)])]
+        ),
+    )
+    subloop2 = Loop.create(
+        tmp2,
+        Reference(tmp),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("1", INTEGER_SINGLE_TYPE),
+        [assign2],
+    )
+
+    sing.children[0].addchild(loop1)
+    sing.children[0].addchild(loop2)
+
+    task1.children[0].addchild(subloop1)
+    task1.lower_to_language_level()
+    task2.children[0].addchild(subloop2)
+    task2.lower_to_language_level()
+
+    sing._validate_task_dependencies()
+
+    # Check outin accesses to range and literal indexes.
+    subroutine = Routine("testsub")
+    parallel = OMPParallelDirective.create()
+    subroutine.addchild(parallel)
+    sing = OMPSingleDirective()
+    parallel.children[0].addchild(sing)
+    tmp = DataSymbol("tmp", INTEGER_SINGLE_TYPE)
+    tmp2 = DataSymbol("tmp2", INTEGER_SINGLE_TYPE)
+    tmp3 = DataSymbol("tmp3", INTEGER_SINGLE_TYPE)
+    tmp4 = DataSymbol("tmp4", INTEGER_SINGLE_TYPE)
+    rval = DataSymbol("rval", grid_type)
+    subroutine.symbol_table.add(tmp)
+    subroutine.symbol_table.add(tmp2)
+    subroutine.symbol_table.add(tmp3)
+    subroutine.symbol_table.add(tmp4)
+    subroutine.symbol_table.add(rval)
+
+    task1 = DynamicOMPTaskDirective()
+    loop1 = Loop.create(
+        tmp,
+        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("128", INTEGER_SINGLE_TYPE),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        [task1],
+    )
+    assign1 = Assignment.create(
+        StructureReference.create(
+            rval,
+            [("data", [Literal("1", INTEGER_SINGLE_TYPE), Reference(tmp2)])],
+        ),
+        Reference(tmp2),
+    )
+    subloop1 = Loop.create(
+        tmp2,
+        Reference(tmp3),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("1", INTEGER_SINGLE_TYPE),
+        [assign1],
+    )
+
+    task2 = DynamicOMPTaskDirective()
+    loop2 = Loop.create(
+        tmp,
+        Literal("1", INTEGER_SINGLE_TYPE),
+        Literal("128", INTEGER_SINGLE_TYPE),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        [task2],
+    )
+    assign2 = Assignment.create(
+        Reference(tmp4),
+        StructureReference.create(
+            rval,
+            [("data", [Literal("1", INTEGER_SINGLE_TYPE), Reference(tmp2)])],
+        ),
+    )
+    subloop2 = Loop.create(
+        tmp2,
+        Reference(tmp3),
+        Literal("32", INTEGER_SINGLE_TYPE),
+        Literal("1", INTEGER_SINGLE_TYPE),
+        [assign2],
+    )
+
+    sing.children[0].addchild(loop1)
+    sing.children[0].addchild(loop2)
+
+    task1.children[0].addchild(subloop1)
+    task1.lower_to_language_level()
+    task2.children[0].addchild(subloop2)
+    task2.lower_to_language_level()
+
+    sing._validate_task_dependencies()
+
+
+def test_omp_serial_validate_task_dependencies_add_taskwait(fortran_reader):
+    '''
+    Test the task dependency chcker adds taskwaits in expected locations.
+    '''
+    code = '''subroutine my_subroutine(grid_max, grid_min)
+        integer, dimension(100, 100) :: A, B, C, D
+        integer :: i, j
+        integer, intent(in) :: grid_max, grid_min
+
+        do i = grid_min, grid_max
+            do j = grid_min, grid_max
+                a(i, j) = i*grid_max + j
+            end do
+        end do
+        do i = grid_min, grid_max
+            do j = grid_min, grid_max
+                b(i, j) = j*grid_max + i
+            end do
+        end do
+        do i = grid_min+1, grid_max-1
+            do j = grid_min, grid_max
+                c(i, j) = a(i,j) * 3
+            end do
+        end do
+        do i = grid_min+1, grid_max-1
+            do j = grid_min, grid_max
+                d(i, j) = b(i,j) + a(i,j)
+            end do
+        end do
+    end subroutine
+    '''
+    tree = fortran_reader.psyir_from_source(code)
+
+    loop_trans = ChunkLoopTrans()
+    task_trans = OMPTaskTrans()
+
+    schedule = tree.walk(Schedule)[0]
+    for child in schedule.children[:]:
+        if isinstance(child, Loop):
+            loop_trans.apply(child)
+            assert isinstance(child.children[3].children[0], Loop)
+            task_trans.apply(child, {"force": True})
+
+    single_trans = OMPSingleTrans()
+    parallel_trans = OMPParallelTrans()
+    single_trans.apply(schedule.children)
+    parallel_trans.apply(schedule.children)
+    tree.lower_to_language_level()
+
+    taskwaits = tree.walk(OMPTaskwaitDirective)
+    assert len(taskwaits) == 1
+    assert taskwaits[0].position == 2
+
+    code = '''subroutine my_subroutine(grid_max, grid_min, runtime_parameter)
+        integer, dimension(100, 100) :: A, B, C, D
+        integer :: i, j
+        integer, intent(in) :: grid_max, grid_min
+        logical, intent(in) :: runtime_parameter
+
+        do i = grid_min, grid_max
+            do j = grid_min, grid_max
+                a(i, j) = i*grid_max + j
+            end do
+        end do
+        do i = grid_min, grid_max
+            do j = grid_min, grid_max
+                b(i, j) = j*grid_max + i
+            end do
+        end do
+        if(runtime_parameter) then
+            do i = grid_min+1, grid_max-1
+                do j = grid_min, grid_max
+                    c(i, j) = a(i,j) * 3
+                end do
+            end do
+        end if
+        do i = grid_min+1, grid_max-1
+            do j = grid_min, grid_max
+                d(i, j) = b(i,j) + a(i,j)
+            end do
+        end do
+    end subroutine
+    '''
+    tree = fortran_reader.psyir_from_source(code)
+
+    schedule = tree.walk(Schedule)[0]
+    for child in schedule.children[:]:
+        if isinstance(child, Loop):
+            loop_trans.apply(child)
+            assert isinstance(child.children[3].children[0], Loop)
+            task_trans.apply(child, {"force": True})
+        if isinstance(child, IfBlock):
+            loop = child.if_body.children[0]
+            loop_trans.apply(loop)
+            task_trans.apply(loop, {"force": True})
+
+    single_trans = OMPSingleTrans()
+    parallel_trans = OMPParallelTrans()
+    single_trans.apply(schedule.children)
+    parallel_trans.apply(schedule.children)
+    tree.lower_to_language_level()
+
+    taskwaits = tree.walk(OMPTaskwaitDirective)
+    assert len(taskwaits) == 1
+    assert taskwaits[0].position == 2
+
+    code = '''subroutine my_subroutine(grid_max, grid_min, runtime_parameter)
+        integer, dimension(100, 100) :: A, B, C, D
+        integer :: i, j
+        integer, intent(in) :: grid_max, grid_min
+        logical, intent(in) :: runtime_parameter
+
+        do i = grid_min, grid_max
+            do j = grid_min, grid_max
+                b(i, j) = j*grid_max + i
+            end do
+        end do
+        if(runtime_parameter) then
+            do i = grid_min, grid_max
+                do j = grid_min, grid_max
+                    a(i, j) = i*grid_max + j
+                end do
+            end do
+        else
+            do i = grid_min+1, grid_max-1
+                do j = grid_min, grid_max
+                    c(i, j) = a(i,j) * 3
+                end do
+            end do
+        end if
+        do i = grid_min+1, grid_max-1
+            do j = grid_min, grid_max
+                d(i, j) = b(i,j) + a(i,j)
+            end do
+        end do
+    end subroutine
+    '''
+    tree = fortran_reader.psyir_from_source(code)
+
+    schedule = tree.walk(Schedule)[0]
+    for child in schedule.children[:]:
+        if isinstance(child, Loop):
+            loop_trans.apply(child)
+            assert isinstance(child.children[3].children[0], Loop)
+            task_trans.apply(child, {"force": True})
+        if isinstance(child, IfBlock):
+            loop = child.if_body.children[0]
+            loop_trans.apply(loop)
+            task_trans.apply(loop, {"force": True})
+            loop = child.else_body.children[0]
+            loop_trans.apply(loop)
+            task_trans.apply(loop, {"force": True})
+
+    single_trans = OMPSingleTrans()
+    parallel_trans = OMPParallelTrans()
+    single_trans.apply(schedule.children)
+    parallel_trans.apply(schedule.children)
+    tree.lower_to_language_level()
+
+    taskwaits = tree.walk(OMPTaskwaitDirective)
+    assert len(taskwaits) == 1
+    assert taskwaits[0].position == 2
+
+    code = '''subroutine my_subroutine(grid_max, grid_min)
+        integer, dimension(100, 100) :: A, B, C, D
+        integer :: i, j
+        integer, intent(in) :: grid_max, grid_min
+
+        do i = grid_min, grid_max
+            do j = grid_min, grid_max
+                a(i, j) = i*grid_max + j
+            end do
+        end do
+        do i = grid_min+1, grid_max-1
+            do j = grid_min, grid_max
+                c(i, j) = a(i,j) * 3
+            end do
+        end do
+        do i = grid_min, grid_max
+            do j = grid_min, grid_max
+                b(i, j) = j*grid_max + i
+            end do
+        end do
+        do i = grid_min+1, grid_max-1
+            do j = grid_min, grid_max
+                d(i, j) = b(i,j) + a(i,j)
+            end do
+        end do
+    end subroutine
+    '''
+    tree = fortran_reader.psyir_from_source(code)
+
+    loop_trans = ChunkLoopTrans()
+    task_trans = OMPTaskTrans()
+
+    schedule = tree.walk(Schedule)[0]
+    for child in schedule.children[:]:
+        if isinstance(child, Loop):
+            loop_trans.apply(child)
+            assert isinstance(child.children[3].children[0], Loop)
+            task_trans.apply(child, {"force": True})
+
+    single_trans = OMPSingleTrans()
+    parallel_trans = OMPParallelTrans()
+    single_trans.apply(schedule.children)
+    parallel_trans.apply(schedule.children)
+    tree.lower_to_language_level()
+
+    taskwaits = tree.walk(OMPTaskwaitDirective)
+    assert len(taskwaits) == 2
+    assert taskwaits[0].position == 1
+    assert taskwaits[1].position == 4
+
+    code = '''subroutine my_subroutine(grid_max, grid_min)
+        integer, dimension(100, 100) :: A, B, C, D
+        integer :: i, j
+        integer, intent(in) :: grid_max, grid_min
+
+        do i = grid_min, grid_max
+            do j = grid_min, grid_max
+                a(i, j) = i*grid_max + j
+            end do
+        end do
+        do i = grid_min+1, grid_max-1
+            do j = grid_min, grid_max
+                c(i, j) = a(i,j) * 3
+            end do
+        end do
+        do i = grid_min, grid_max
+            do j = grid_min, grid_max
+                b(i, j) = j*grid_max + i
+            end do
+        end do
+        do i = grid_min+1, grid_max-1
+            do j = grid_min, grid_max
+                d(i, j) = b(i,j) + a(i,j)
+            end do
+        end do
+    end subroutine
+    '''
+    tree = fortran_reader.psyir_from_source(code)
+
+    loop_trans = ChunkLoopTrans()
+    task_trans = OMPTaskTrans()
+
+    schedule = tree.walk(Schedule)[0]
+    for child in schedule.children[:]:
+        if isinstance(child, Loop):
+            loop_trans.apply(child)
+            assert isinstance(child.children[3].children[0], Loop)
+            task_trans.apply(child, {"force": True})
+
+    single_trans = OMPSingleTrans()
+    parallel_trans = OMPParallelTrans()
+    single_trans.apply(schedule.children)
+    parallel_trans.apply(schedule.children)
+    user_taskwait = OMPTaskwaitDirective()
+    schedule[0].children[0].children[0].children[0].addchild(user_taskwait,
+                                                             index=1)
+    tree.lower_to_language_level()
+
+    taskwaits = tree.walk(OMPTaskwaitDirective)
+    assert len(taskwaits) == 2
+    assert taskwaits[0].position == 1
+    assert taskwaits[1].position == 4
+
+
+def test_omp_serial_check_dependency_valid_pairing_edgecase():
+    '''
+    Tests the edge case where two Reference to the same symbol
+    have different types returns False as expected.
+    '''
+    array_type = ArrayType(INTEGER_SINGLE_TYPE, [128, 128])
+    rval = DataSymbol("rval", array_type)
+    ref1 = Reference(rval)
+    one = Literal("1", INTEGER_SINGLE_TYPE)
+    ref2 = ArrayReference.create(rval, [one.copy(), one.copy()])
+
+    test_dir = OMPSingleDirective()
+
+    val = test_dir._check_dependency_pairing_valid(ref1, ref2, None, None)
+    assert not val
+
+
+def test_omp_serial_check_dependency_valid_multiple_arraymixin():
+    '''
+    Tests the case where a StructureReference contains two ArrayMixin
+    children.
+    '''
+    region_type = StructureType.create([
+        ("startx", ArrayType(REAL_TYPE, [10]), Symbol.Visibility.PUBLIC, None)
+    ])
+    region_type_symbol = DataTypeSymbol("region_type", region_type)
+    grid_type = StructureType.create([
+        ("nx", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None),
+        ("region", region_type_symbol, Symbol.Visibility.PRIVATE, None),
+        ("sub_grids", ArrayType(region_type_symbol, [3]),
+         Symbol.Visibility.PUBLIC, None),
+        ("data", ArrayType(REAL_TYPE, [10, 10]),
+         Symbol.Visibility.PUBLIC, None)])
+    grid_type_symbol = DataTypeSymbol("grid_type", grid_type)
+    ssym = DataSymbol("grid", grid_type_symbol)
+    # Reference to scalar member of structure
+    two = Literal("2", INTEGER_SINGLE_TYPE)
+    sref = StructureReference.create(
+        ssym, [("sub_grids", [two.copy(), two.copy()]),
+               ("startx", [two.copy()])]
+    )
+    sref2 = StructureReference.create(
+        ssym, [("sub_grids", [two.copy(), two.copy()]),
+               ("startx", [two.copy()])]
+    )
+    test_dir = OMPSingleDirective()
+    res = test_dir._check_dependency_pairing_valid(
+               sref, sref2, None, None
+        )
+    assert not res
+
+
+def test_omp_serial_check_dependency_valid_pairing():
+    '''
+    Test check_dependency_valid_pairing calls the correct functions for
+    various array indices.
+    '''
+    # Check we use the valid_dependence_literals function to get
+    # the correct answer for literal indices.
+    array_type = ArrayType(INTEGER_SINGLE_TYPE, [128, 128])
+    rval = DataSymbol("rval", array_type)
+    one = Literal("1", INTEGER_SINGLE_TYPE)
+    two = Literal("2", INTEGER_SINGLE_TYPE)
+    ref1 = ArrayReference.create(rval, [one.copy(), one.copy()])
+    ref2 = ArrayReference.create(rval, [two.copy(), two.copy()])
+
+    test_dir = OMPSingleDirective()
+    assert test_dir._check_dependency_pairing_valid(ref1, ref2, None, None)
+
+    # Check we use the valid_dependence_ranges function to get the
+    # correct answer for range indices.
+    array_type = ArrayType(INTEGER_SINGLE_TYPE, [128, 128])
+    rval = DataSymbol("rval", array_type)
+    lbound = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.LBOUND,
+        [Reference(rval), ("dim", one.copy())]
+    )
+    ubound = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.UBOUND,
+        [Reference(rval), ("dim", one.copy())]
+    )
+    my_range1 = Range.create(lbound.copy(), ubound.copy(), one.copy())
+    lbound2 = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.LBOUND,
+        [Reference(rval), ("dim", two.copy())]
+    )
+    ubound2 = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.UBOUND,
+        [Reference(rval), ("dim", two.copy())]
+    )
+    my_range2 = Range.create(lbound2.copy(), ubound2.copy(), one.copy())
+    array_reference1 = ArrayReference.create(rval, [my_range1.copy(),
+                                                    my_range2.copy()])
+    array_reference2 = ArrayReference.create(rval, [my_range1.copy(),
+                                                    my_range2.copy()])
+    assert test_dir._check_dependency_pairing_valid(
+               array_reference1, array_reference2, None, None
+           )

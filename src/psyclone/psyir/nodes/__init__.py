@@ -78,6 +78,8 @@ from psyclone.psyir.nodes.call import Call
 from psyclone.psyir.nodes.file_container import FileContainer
 from psyclone.psyir.nodes.directive import (
     Directive, StandaloneDirective, RegionDirective)
+from psyclone.psyir.nodes.dynamic_omp_task_directive import (
+    DynamicOMPTaskDirective)
 from psyclone.psyir.nodes.acc_directives import (
     ACCDirective, ACCLoopDirective, ACCEnterDataDirective,
     ACCParallelDirective, ACCKernelsDirective, ACCDataDirective,
@@ -96,8 +98,8 @@ from psyclone.psyir.nodes.omp_clauses import (
     OMPGrainsizeClause, OMPNogroupClause, OMPNowaitClause, OMPNumTasksClause,
     OMPPrivateClause, OMPDefaultClause, OMPReductionClause, OMPScheduleClause,
     OMPFirstprivateClause, OMPSharedClause, OMPDependClause)
+from psyclone.psyir.nodes.omp_task_directive import OMPTaskDirective
 from psyclone.psyir.nodes.while_loop import WhileLoop
-
 
 # The entities in the __all__ list are made available to import directly from
 # this package e.g. 'from psyclone.psyir.nodes import Literal'
@@ -172,6 +174,8 @@ __all__ = [
         'OMPSingleDirective',
         'OMPMasterDirective',
         'OMPTaskloopDirective',
+        'OMPTaskDirective',
+        'DynamicOMPTaskDirective',
         'OMPDoDirective',
         'OMPParallelDoDirective',
         'OMPTaskwaitDirective',
