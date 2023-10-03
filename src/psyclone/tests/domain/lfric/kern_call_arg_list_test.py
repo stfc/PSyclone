@@ -259,9 +259,9 @@ def test_kerncallarglist_evaluator(fortran_writer):
     create_arg_list = KernCallArgList(schedule.kernels()[0])
     create_arg_list.generate()
     assert create_arg_list._arglist == [
-        'nlayers', 'f0_data', 'f1_data', 'ndf_w0', 'undf_w0',
-        'map_w0(:,cmap(colour,cell))', 'basis_w0_on_w0', 'ndf_w1', 'undf_w1',
-        'map_w1(:,cmap(colour,cell))', 'diff_basis_w1_on_w0']
+        'nlayers', 'f0_data', 'cmap_data', 'ndf_w0', 'undf_w0',
+        'map_w0(:,cmap_1(colour,cell))', 'basis_w0_on_w0', 'ndf_w1', 'undf_w1',
+        'map_w1(:,cmap_1(colour,cell))', 'diff_basis_w1_on_w0']
 
     check_psyir_results(create_arg_list, fortran_writer)
 

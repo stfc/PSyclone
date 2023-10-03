@@ -218,7 +218,7 @@ def test_single_kern_eval(tmpdir):
         "      REAL(KIND=r_def), pointer, dimension(:) :: "
         "cmap_data => null()\n"
         "      REAL(KIND=r_def), pointer, dimension(:) :: f0_data => null()\n"
-        "      TYPE(field_proxy_type) f0_proxy, f1_proxy, cma_proxy\n"
+        "      TYPE(field_proxy_type) f0_proxy, cmap_proxy\n"
         "      INTEGER(KIND=i_def), pointer :: map_w0(:,:) => null(), "
         "map_w1(:,:) => null()\n"
         "      INTEGER(KIND=i_def) ndf_w0, undf_w0, ndf_w1, undf_w1\n")
