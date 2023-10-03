@@ -230,7 +230,8 @@ def test_generate_adjoint_str_generate_harness_lfric():
     tl_code = (
         "module testkern_mod\n"
         "  use kinds_mod, only: i_def, r_def\n"
-        "  use kernel_mod, only: kernel_type, arg_type, gh_field, gh_real, "
+        "  use kernel_mod, only: kernel_type\n"
+        "  use argument_mod, only: arg_type, gh_field, gh_real, &\n"
         "gh_write, w3, cell_column\n"
         "  type, extends(kernel_type) :: testkern_type\n"
         "     type(arg_type), dimension(1) :: meta_args =          & \n"

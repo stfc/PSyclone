@@ -1,3 +1,21 @@
+	1) PR #2199 for #2189. Fix bugs with missing maps in enter data
+	directive.
+
+	2) PR #2269 for #2268. Rename DynInvokes to LFRicInvokes and move
+	to own module.
+	
+	3) PR #2255 for #2237. The derived type intial values are not lost
+	anymore, and the "extends" or "abstract" keywords cause a
+	UnknownFortranType.
+
+	4) PR #1822 towards #1338. Adds support for the OMP tasking
+	directive and transformation.
+
+	5) PR #2346 for #2345. Make the integration tests use a parameterised
+	version of python, currently 3.11.4. Pin pylint to < 3.0
+	
+release 2.4.0 29th of September 2023
+
 	1) PR #1758 for #1741. Splits the PSyData read functionality into a
 	standalone module to remove dependence on infrastructure for
 	driver code.
@@ -621,6 +639,15 @@
 
 	210) PR #2287 for #2253. Allow for GH_WRITE access to continuous
 	field arguments to inter-grid kernels in the LFRic API.
+
+	211) PR #2299 for #2297. Add option to get original symbol name
+	(for an imported symbol) in VariablesAccessInfo.
+
+	212) PR #2233 for #1772. Correct kernel metadata for LFRic adjoint code.
+
+	213) PR #2334. Fix missing backtick in docstrings.
+
+	214) PR #2306 for #2305. Rename DynHaloExchange to LFRicHaloExchange.
 
 release 2.3.1 17th of June 2022
 

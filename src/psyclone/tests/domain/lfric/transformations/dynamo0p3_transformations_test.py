@@ -31,11 +31,11 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
-# Modified I. Kavcic and A. Coughtrie, Met Office
+# Authors: R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
+# Modified: I. Kavcic, A. Coughtrie and O. Brunt, Met Office
 #          C.M. Maynard, Met Office / University of Reading
-# Modified J. Henrichs, Bureau of Meteorology
-# Modified A. B. G. Chalk, STFC Daresbury Lab
+# Modified: J. Henrichs, Bureau of Meteorology
+# Modified: A. B. G. Chalk, STFC Daresbury Lab
 
 ''' Tests of transformations with the LFRic (Dynamo 0.3) API '''
 
@@ -47,8 +47,8 @@ from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
 from psyclone.domain.lfric.lfric_builtins import LFRicXInnerproductYKern
 from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
-from psyclone.dynamo0p3 import DynLoop, DynHaloExchangeStart, \
-    DynHaloExchangeEnd, DynHaloExchange
+from psyclone.dynamo0p3 import DynLoop, LFRicHaloExchangeStart, \
+    LFRicHaloExchangeEnd, LFRicHaloExchange
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyGen import InvokeSchedule, GlobalSum, BuiltIn
 from psyclone.psyir.nodes import colored, Loop, Schedule, Literal, Directive, \
@@ -1429,8 +1429,8 @@ def test_omp_par_and_halo_exchange_error():
     # Enclose the invoke code within a single region
     with pytest.raises(TransformationError) as excinfo:
         rtrans.apply(schedule.children)
-    assert ("type 'DynHaloExchange' cannot be enclosed by a OMPParallelTrans "
-            "transformation" in str(excinfo.value))
+    assert ("type 'LFRicHaloExchange' cannot be enclosed by a "
+            "OMPParallelTrans transformation" in str(excinfo.value))
 
 
 def test_builtin_single_omp_pdo(tmpdir, monkeypatch, annexed, dist_mem):
@@ -3977,7 +3977,7 @@ def test_rc_node_not_loop():
     with pytest.raises(TransformationError) as excinfo:
         rc_trans.apply(schedule.children[0])
     assert ("Target of Dynamo0p3RedundantComputationTrans transformation must "
-            "be a sub-class of Loop but got \'DynHaloExchange\'" in
+            "be a sub-class of Loop but got \'LFRicHaloExchange\'" in
             str(excinfo.value))
 
 
@@ -4691,7 +4691,7 @@ def test_rc_updated_dependence_analysis():
     previous_node = previous_field.call
     # check f2_field has a backward dependence with the new halo
     # exchange field
-    assert isinstance(previous_node, DynHaloExchange)
+    assert isinstance(previous_node, LFRicHaloExchange)
     # check the new halo exchange field has a forward dependence with
     # the kernel f2_field
     assert previous_field.forward_dependence() == f2_field
@@ -6123,13 +6123,13 @@ def test_haloex_rc4_colouring(tmpdir, monkeypatch, annexed):
 
     if annexed:
         assert result.count("f1_proxy%halo_exchange(depth=1)") == 1
-        assert isinstance(schedule.children[2], DynHaloExchange)
+        assert isinstance(schedule.children[2], LFRicHaloExchange)
         assert schedule.children[2].field.name == "f1"
     else:
         assert result.count("f1_proxy%halo_exchange(depth=1)") == 2
-        assert isinstance(schedule.children[0], DynHaloExchange)
+        assert isinstance(schedule.children[0], LFRicHaloExchange)
         assert schedule.children[0].field.name == "f1"
-        assert isinstance(schedule.children[4], DynHaloExchange)
+        assert isinstance(schedule.children[4], LFRicHaloExchange)
         assert schedule.children[4].field.name == "f1"
 
     w_loop_idx = 2
@@ -6176,7 +6176,7 @@ def test_haloex_rc4_colouring(tmpdir, monkeypatch, annexed):
             index = 1
         else:
             index = 0
-        assert isinstance(schedule.children[index], DynHaloExchange)
+        assert isinstance(schedule.children[index], LFRicHaloExchange)
         assert schedule.children[index].field.name == "f1"
 
         assert LFRicBuild(tmpdir).code_compiles(psy)
@@ -6205,8 +6205,8 @@ def test_intergrid_colour(dist_mem):
       cmap_fld_m => mesh_fld_m%get_colour_map()'''
     assert expected in gen
     expected = '''\
-      ncolour_fld_c = mesh_fld_c%get_ncolours()
-      cmap_fld_c => mesh_fld_c%get_colour_map()'''
+      ncolour_cmap_fld_c = mesh_cmap_fld_c%get_ncolours()
+      cmap_cmap_fld_c => mesh_cmap_fld_c%get_colour_map()'''
     assert expected in gen
     assert "loop1_stop = ncolour_fld_m" in gen
     assert "loop2_stop" not in gen
@@ -6294,20 +6294,20 @@ def test_intergrid_omp_parado(dist_mem, tmpdir):
     otrans.apply(loops[2])
     otrans.apply(loops[5])
     gen = str(psy.gen)
-    assert "loop4_stop = ncolour_fld_c" in gen
+    assert "loop4_stop = ncolour_cmap_fld_c" in gen
     assert ("      DO colour=loop4_start,loop4_stop\n"
             "        !$omp parallel do default(shared), private(cell), "
             "schedule(static)\n" in gen)
 
     if dist_mem:
-        assert ("last_halo_cell_all_colours_fld_c = "
-                "mesh_fld_c%get_last_halo_cell_all_colours()" in gen)
-        assert ("DO cell=loop5_start,last_halo_cell_all_colours_fld_c"
+        assert ("last_halo_cell_all_colours_cmap_fld_c = "
+                "mesh_cmap_fld_c%get_last_halo_cell_all_colours()" in gen)
+        assert ("DO cell=loop5_start,last_halo_cell_all_colours_cmap_fld_c"
                 "(colour,1)\n" in gen)
     else:
-        assert ("last_edge_cell_all_colours_fld_c = mesh_fld_c%get_last_edge_"
-                "cell_all_colours()" in gen)
-        assert ("DO cell=loop5_start,last_edge_cell_all_colours_fld_c"
+        assert ("last_edge_cell_all_colours_cmap_fld_c = mesh_cmap_fld_c%"
+                "get_last_edge_cell_all_colours()" in gen)
+        assert ("DO cell=loop5_start,last_edge_cell_all_colours_cmap_fld_c"
                 "(colour)\n" in gen)
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -6322,7 +6322,7 @@ def test_intergrid_omp_para_region1(dist_mem, tmpdir):
     ctrans = Dynamo0p3ColourTrans()
     ptrans = OMPParallelTrans()
     otrans = Dynamo0p3OMPLoopTrans()
-    # Colour the first loop (where 'fld_c' is the field on the coarse mesh)
+    # Colour the first loop (where 'cmap_fld_c' is the field on the coarse mesh)
     loops = schedule.walk(Loop)
     ctrans.apply(loops[0])
     # Parallelise the loop over cells of a given colour
@@ -6333,24 +6333,24 @@ def test_intergrid_omp_para_region1(dist_mem, tmpdir):
     ptrans.apply(dirs[0])
     gen = str(psy.gen)
     if dist_mem:
-        assert ("last_halo_cell_all_colours_fld_c = mesh_fld_c%get_last_halo_"
-                "cell_all_colours()" in gen)
-        upper_bound = "last_halo_cell_all_colours_fld_c(colour,1)"
+        assert ("last_halo_cell_all_colours_cmap_fld_c = mesh_cmap_fld_c%"
+                "get_last_halo_cell_all_colours()" in gen)
+        upper_bound = "last_halo_cell_all_colours_cmap_fld_c(colour,1)"
     else:
-        assert ("last_edge_cell_all_colours_fld_c = mesh_fld_c%get_last_edge_"
-                "cell_all_colours()\n" in gen)
-        upper_bound = "last_edge_cell_all_colours_fld_c(colour)"
-    assert "loop0_stop = ncolour_fld_c\n" in gen
+        assert ("last_edge_cell_all_colours_cmap_fld_c = mesh_cmap_fld_c%"
+                "get_last_edge_cell_all_colours()\n" in gen)
+        upper_bound = "last_edge_cell_all_colours_cmap_fld_c(colour)"
+    assert "loop0_stop = ncolour_cmap_fld_c\n" in gen
     assert (f"      DO colour=loop0_start,loop0_stop\n"
             f"        !$omp parallel default(shared), private(cell)\n"
             f"        !$omp do schedule(static)\n"
             f"        DO cell=loop1_start,{upper_bound}\n"
             f"          !\n"
-            f"          CALL prolong_test_kernel_code(nlayers, cell_map_fld_c"
-            f"(:,:,cmap_fld_c(colour,cell)), ncpc_fld_m_fld_c_x, "
-            f"ncpc_fld_m_fld_c_y, ncell_fld_m, "
-            f"fld_m_data, fld_c_data, ndf_w1, undf_w1, map_w1, "
-            f"undf_w2, map_w2(:,cmap_fld_c(colour,cell)))\n"
+            f"          CALL prolong_test_kernel_code(nlayers, "
+            f"cell_map_cmap_fld_c(:,:,cmap_cmap_fld_c(colour,cell)), "
+            f"ncpc_fld_m_cmap_fld_c_x, ncpc_fld_m_cmap_fld_c_y, ncell_fld_m, "
+            f"fld_m_data, cmap_fld_c_data, ndf_w1, undf_w1, "
+            f"map_w1, undf_w2, map_w2(:,cmap_cmap_fld_c(colour,cell)))\n"
             f"        END DO\n"
             f"        !$omp end do\n"
             f"        !$omp end parallel\n"
@@ -6491,7 +6491,7 @@ def test_acckernelstrans_dm():
     sched = invoke.schedule
     with pytest.raises(TransformationError) as err:
         kernels_trans.apply(sched.children)
-    assert ("Nodes of type 'DynHaloExchange' cannot be enclosed by a "
+    assert ("Nodes of type 'LFRicHaloExchange' cannot be enclosed by a "
             "ACCKernelsTrans transformation" in str(err.value))
     kernels_trans.apply(sched.walk(Loop))
     code = str(psy.gen)
@@ -6559,7 +6559,7 @@ def test_accparalleltrans_dm(tmpdir):
     # Cannot include halo-exchange nodes within an ACC parallel region.
     with pytest.raises(TransformationError) as err:
         acc_par_trans.apply(sched)
-    assert ("Nodes of type 'DynHaloExchange' cannot be enclosed by a "
+    assert ("Nodes of type 'LFRicHaloExchange' cannot be enclosed by a "
             "ACCParallelTrans transformation" in str(err.value))
     acc_par_trans.apply(sched.walk(Loop)[0])
     acc_enter_trans.apply(sched)
@@ -7038,7 +7038,7 @@ def test_vector_halo_exchange_remove():
     rc_trans.apply(schedule.children[3], {"depth": 2})
     assert len(schedule.children) == 5
     for index in [0, 1, 2]:
-        assert isinstance(schedule.children[index], DynHaloExchange)
+        assert isinstance(schedule.children[index], LFRicHaloExchange)
     assert isinstance(schedule.children[3], DynLoop)
     assert isinstance(schedule.children[4], DynLoop)
 
@@ -7096,8 +7096,8 @@ def test_vector_async_halo_exchange(tmpdir):
 
     assert len(schedule.children) == 8
     for index in [0, 2, 4]:
-        assert isinstance(schedule.children[index], DynHaloExchangeStart)
-        assert isinstance(schedule.children[index+1], DynHaloExchangeEnd)
+        assert isinstance(schedule.children[index], LFRicHaloExchangeStart)
+        assert isinstance(schedule.children[index+1], LFRicHaloExchangeEnd)
     assert isinstance(schedule.children[6], DynLoop)
     assert isinstance(schedule.children[7], DynLoop)
 
@@ -7137,7 +7137,7 @@ def test_async_halo_exchange_nomatch1():
         hex_start._get_hex_end()
     assert ("Halo exchange start for field 'f1' should match with a halo "
             "exchange end, but found <class 'psyclone.dynamo0p3."
-            "DynHaloExchange'>") in str(excinfo.value)
+            "LFRicHaloExchange'>") in str(excinfo.value)
 
 
 def test_async_halo_exchange_nomatch2():

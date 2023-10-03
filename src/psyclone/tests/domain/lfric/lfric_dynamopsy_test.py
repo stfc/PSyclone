@@ -43,7 +43,7 @@ import os
 
 from psyclone.configuration import Config
 from psyclone.domain.lfric import LFRicConstants
-from psyclone.dynamo0p3 import DynamoPSy, DynamoInvokes
+from psyclone.dynamo0p3 import DynamoPSy, LFRicInvokes
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSy
 
@@ -71,7 +71,7 @@ def test_dynamopsy():
     dynamo_psy = DynamoPSy(invoke_info)
     assert isinstance(dynamo_psy, DynamoPSy)
     assert issubclass(DynamoPSy, PSy)
-    assert isinstance(dynamo_psy._invokes, DynamoInvokes)
+    assert isinstance(dynamo_psy._invokes, LFRicInvokes)
     infrastructure_modules = dynamo_psy._infrastructure_modules
     assert isinstance(infrastructure_modules, OrderedDict)
     assert list(infrastructure_modules["constants_mod"]) == ["i_def"]

@@ -34,6 +34,7 @@
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 #         I. Kavcic, Met Office
 #         J. Henrichs, Bureau of Meteorology
+# Modified A. B. G. Chalk, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' Performs py.test tests of the ArrayReference PSyIR node. '''
@@ -194,7 +195,7 @@ def test_array_validate_index():
 
     with pytest.raises(ValueError) as info:
         array._validate_index(1)
-    assert ("In ArrayReference 'test' the specified index '1' must be less "
+    assert ("In 'ArrayReference' 'test' the specified index '1' must be less "
             "than the number of dimensions '1'." in str(info.value))
 
     array._validate_index(0)
@@ -314,7 +315,7 @@ def test_array_is_full_range():
     array_reference = ArrayReference.create(symbol, [one.copy()])
     with pytest.raises(ValueError) as excinfo:
         array_reference.is_full_range(1)
-    assert ("In ArrayReference 'my_array' the specified index '1' must be "
+    assert ("In 'ArrayReference' 'my_array' the specified index '1' must be "
             "less than the number of dimensions '1'." in str(excinfo.value))
 
     # Array dimension is not a Range
