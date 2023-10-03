@@ -46,7 +46,8 @@ from psyclone.psyir.nodes import Reference, ArrayReference, Assignment, \
     Literal, BinaryOperation, Range, KernelSchedule, IntrinsicCall
 from psyclone.psyir.symbols import (
     ArrayType, DataSymbol, DataTypeSymbol, DeferredType, ScalarType,
-    REAL_SINGLE_TYPE, INTEGER_SINGLE_TYPE, REAL_TYPE, INTEGER_TYPE)
+    REAL_SINGLE_TYPE, INTEGER_SINGLE_TYPE, REAL_TYPE, INTEGER_TYPE,
+    UnknownFortranType)
 from psyclone.tests.utilities import check_links
 
 
@@ -528,6 +529,12 @@ def test_array_datatype(fortran_writer):
     asym = DataSymbol("aos", atype)
     aref = ArrayReference.create(asym, [two.copy()])
     assert aref.datatype is stype
+    # Reference to a single element of an array of UnknownType.
+    unknown_sym = DataSymbol(
+        "unknown",
+        UnknownFortranType("real, dimension(5), pointer :: unknown"))
+    aref = ArrayReference.create(unknown_sym, [two.copy()])
+    assert isinstance(aref.datatype, UnknownFortranType)
 
 
 def test_array_create_colon(fortran_writer):

@@ -3073,6 +3073,22 @@ class DynProxies(LFRicCollection):
     sub-classes of LFRicCollection, we do not have to handle Kernel-stub
     generation since Kernels know nothing about proxies.
 
+    An instance of this class is instantiated for each Invoke before the
+    PSy Layer is constructed. For each unique field or operator argument to
+    a kernel in the Invoke it:
+
+      * Creates a DataSymbol for the corresponding proxy;
+      * Creates a DataSymbol for the pointer to the data array accessed via
+        the proxy. If the argument is a field vector then a DataSymbol is
+        created for each component of the vector;
+      * Tags that DataSymbol so that the correct symbol can always be looked
+        up, irrespective of any name clashes;
+
+    Note that since the Fortran standard forbids (Note 12.34 in the
+    Fortran2008 standard) aliasing of effective arguments that are written to,
+    the set of unique kernel arguments must refer to unique memory locations
+    or to those that are read only.
+
     '''
     def __init__(self, node):
         super().__init__(node)
@@ -3140,7 +3156,7 @@ class DynProxies(LFRicCollection):
             lfric_type = "LFRicRealScalarDataType"
         else:
             lfric_type = "LFRicIntegerScalarDataType"
-        precision = KernCallArgList.map_type_to_precision(arg.data_type)
+        precision = LFRicConstants().precision_for_type(arg.data_type)
         array_type = ArrayType(
                 LFRicTypes(lfric_type)(precision),
                 [ArrayType.Extent.DEFERRED]*rank)
