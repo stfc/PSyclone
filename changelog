@@ -12,7 +12,7 @@
 	directive and transformation.
 
 	5) PR #2346 for #2345. Make the integration tests use a parametrised
-	version of python, currently 3.11.4.
+	version of python, currently 3.11.4. Pin pylint to < 3.0
 	
 release 2.4.0 29th of September 2023
 
