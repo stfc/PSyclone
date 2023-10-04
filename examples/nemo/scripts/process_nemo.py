@@ -2,7 +2,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2022, Science and Technology Facilities Council.
+# Copyright (c) 2019-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -47,15 +47,21 @@ Or, if you have Gnu 'parallel':
 >>> parallel process_nemo.py -s ./kernels_trans.py -o <MY_CONFIG_NAME>/MY_SRC \
   {} ::: <MY_CONFIG_NAME>/BLD/ppsrc/nemo/*90
 
-Tested with the NVIDIA HPC SDK version 22.5.
+If no transformation script is supplied (`-s` argument) then a 'passthrough'
+test is performed whereby PSyclone processes each Fortran source file and
+then recreates it. (This exercises the Fortran->fparser->PSyIR->Fortran
+pathway.)
+
+Tested with the NVIDIA HPC SDK version 23.7.
 '''
 
 import os
 import sys
 from time import perf_counter
 
-# Files that we will only add profiling to. Either due to bugs when applying
-# transformations or because the resulting code does not perform well.
+# Files that PSyclone can process but at most will only add profiling to.
+# Either due to bugs when applying transformations or because the resulting
+# code does not perform well.
 NOT_PERFORMANT = [
     "bdydta.f90", "bdyvol.f90",
     "fldread.f90",
@@ -99,9 +105,9 @@ if __name__ == "__main__":
     PARSER.add_argument('-x', dest='exit_on_error', action='store_true',
                         help="Exit immediately if PSyclone fails")
     PARSER.add_argument('-p', dest='profile', action='store_true',
-                        help="Add profiling instrumentation to the "
-                             "PROFILE_ONLY list of files. Script-processed "
-                             "files are not affected by this argument.")
+                        help="Add profiling instrumentation to any files that "
+                        "are not being transformed (i.e. appear in the "
+                        "NOT_PERFORMANT list)")
     PARSER.add_argument('-I', dest='include_path')
     ARGS = PARSER.parse_args()
 
