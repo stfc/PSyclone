@@ -62,7 +62,7 @@ time). Executing the binary with `./example` will print:
 
 The minimum and maximum of `field1` are printed, and they are as expected 8.
 
-The solution and explanation can be found [here](#solution-for-using-psyclone).
+The explanation can be found [here](#explanation-for-using-psyclone).
 
 
 ## Supporting MPI (`2_supporting_mpi`)
@@ -86,7 +86,7 @@ no domain-decomposition done! So each copy would run the same code (each one
 computing the full field), since the fields are not distributed. This requires
 additional setup, which is beyond the scope of this tutorial.
 
-The solution and explanation can be found [here](#solution-for-supporting-mpi).
+The explanation can be found [here](#explanation-for-supporting-mpi).
 
 
 ## Applying OpenMP (`3_applying_openmp`)
@@ -100,7 +100,7 @@ The script will combine the two loops for the two `setval_c`
 calls into a single loop, and then apply OpenMP parallelisation to all loops.
 Compare the PSy-layer files with the previously created files. What has changed?
 
-The solution and explanation can be found [here](#solution-for-applying-openmp).
+The explanation can be found [here](#explanation-for-applying-openmp).
 
 
 ## MPI and OpenMP (`4_mpi_and_openmp`)
@@ -117,7 +117,7 @@ with the `-dm` flag, but also apply the OpenMP transformation:
 Again, check the created PSy-layer file `main_alg_psy.f90` for the calls to halo-exchanges
 and OpenMP directives around loops.
 
-The solution and explanation can be found [here](#solution-for-mpi-and-openmp).
+The explanation can be found [here](#explanation-for-mpi-and-openmp).
 
 
 ## Error in Algorithm Layer (`5_alg_layer_error`)
@@ -132,7 +132,7 @@ Use:
 
 Does PSyclone's error message make sense?
 
-The solution and explanation can be found [here](#solution-for-error-in-algorithm-layer).
+The explanation can be found [here](#explanation-for-error-in-algorithm-layer).
 
 
 ## Missing Parameter (`6_missing_parameter`)
@@ -142,7 +142,7 @@ This example misses a kernel parameter. Run PSyclone, i.e.:
 
 What happens?
 
-The solution and explanation can be found [here](#solution-for-missing-parameter).
+The explanation can be found [here](#explanation-for-missing-parameter).
 
 
 ## Invalid OpenMP Transformation (`7_invalid_openmp`)
@@ -165,7 +165,7 @@ then allows PSyclone to apply OpenMP parallelisation. PSyclone will always
 internally verify if it is safe to apply a certain transformation, to make
 sure it does not create incorrect code.
 
-The solution and explanation can be found [here](#solution-for-invalid-transformation).
+The explanation can be found [here](#explanation-for-invalid-transformation).
 
 ## Incorrect Naming Scheme (`8_incorrect_naming`)
 This example shows the importance of naming the files correctly. It is basically the same code
@@ -189,14 +189,14 @@ Run PSyclone with the standard command:
 
 and look at the error message provided by PSyclone.
 
-The solution and explanation can be found [here](#solution-for-invalid-transformation).
+The explanation can be found [here](#explanation-for-invalid-transformation).
 
 
-# Solutions
-This section contains the solutions and explanations for all hands-on tasks.
+# Explanations
+This section contains the explanations for all hands-on tasks.
 
 
-## Solution for Using PSyclone
+## Explanation for Using PSyclone
 The file `main_alg.f90` contains two calls to a PSy layer:
     CALL invoke_initialise_fields(field_3, field_0)
     CALL invoke_summation(field_3, field_0)
@@ -229,7 +229,7 @@ Note that PSyclone will automatically provide additional required parameters to
 the kernel.
 
 
-## Solution for Supporting MPI
+## Explanation for Supporting MPI
 After initialising a field, it is marked to be modified (or 'dirty'):
 
     DO df=loop0_start,loop0_stop
@@ -266,7 +266,7 @@ is an automatically applied optimisation that can significantly reduce the numbe
 calls required.
 
 
-## Solution for Applying OpenMP
+## Explanation for Applying OpenMP
 You will see `omp parallel do` statements around each individual loop:
 
     !$omp parallel do default(shared), private(df), schedule(static)
@@ -296,7 +296,7 @@ For the user kernel you will see:
     !$omp end parallel do
 
 
-## Solution for MPI and OpenMP
+## Explanation for MPI and OpenMP
 Implementing hybrid parallelism is easy once a script was written to add the required OpenMP statements.
 The output file contains first the halo exchange, followed by the loop with OpenMP directives:
 
@@ -317,7 +317,7 @@ The output file contains first the halo exchange, followed by the loop with Open
     CALL field_3_proxy%set_dirty()
 
  
-## Solution for Error in Algorithm Layer
+## Explanation for Error in Algorithm Layer
 
 PSylone will print the following error message (or a variation of it, since depending
 on version the list of builtins might change):
@@ -332,7 +332,7 @@ would be required), or if it is supposed to be a user-defined kernel (which requ
 a `use` statement).
 
 
-## Solution for Missing Parameter
+## Explanation for Missing Parameter
 PSyclone will detect that a parameter is missing for the kernel:
 
     Parse Error: Kernel 'summation_w0_to_w3_kernel_type' called from the algorithm layer with
@@ -343,7 +343,7 @@ PSyclone will verify the code the user asked to be created as much as possible a
 any issues early on, i.e. before even compiling the code.
 
 
-## Solution for Invalid Transformation
+## Explanation for Invalid Transformation
 PSyclone internally verifies transformation to make sure it will always create valid
 code. In this case, it will recognise that the kernel cannot simply be parallelised.
 It would need an additional transformation (called colouring) in order to allow
@@ -365,7 +365,7 @@ threading-based parallelisation:
 This error should be reported to the developers of the optimisation script.
   
 
-## Solution for Incorrect Naming Scheme
+## Explanation for Incorrect Naming Scheme
 
 PSyclone will print the error message:
 
