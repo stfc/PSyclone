@@ -58,22 +58,22 @@ from psyclone.psyir.nodes.assignment import Assignment
 from psyclone.psyir.nodes.call import Call
 from psyclone.psyir.nodes.directive import StandaloneDirective, \
     RegionDirective
-from psyclone.psyir.nodes.loop import Loop
 from psyclone.psyir.nodes.if_block import IfBlock
 from psyclone.psyir.nodes.intrinsic_call import IntrinsicCall
 from psyclone.psyir.nodes.literal import Literal
+from psyclone.psyir.nodes.loop import Loop
+from psyclone.psyir.nodes.operation import BinaryOperation
 from psyclone.psyir.nodes.omp_clauses import OMPGrainsizeClause, \
     OMPNowaitClause, OMPNogroupClause, OMPNumTasksClause, OMPPrivateClause, \
     OMPDefaultClause, OMPReductionClause, OMPScheduleClause, \
     OMPFirstprivateClause, OMPDependClause
-from psyclone.psyir.nodes.operation import BinaryOperation
 from psyclone.psyir.nodes.ranges import Range
 from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes.schedule import Schedule
 from psyclone.psyir.nodes.structure_reference import StructureReference
 from psyclone.psyir.nodes.while_loop import WhileLoop
-from psyclone.psyir.symbols import INTEGER_TYPE
+from psyclone.psyir.symbols import INTEGER_TYPE, ScalarType
 
 # OMP_OPERATOR_MAPPING is used to determine the operator to use in the
 # reduction clause of an OpenMP directive.
@@ -2534,9 +2534,135 @@ class OMPLoopDirective(OMPRegionDirective):
         super().validate_global_constraints()
 
 
+class OMPAtomicDirective(OMPRegionDirective):
+    '''
+    OpenMP directive to represent that the memory accesses in the associated
+    assignment must be performed atomically.
+    Note that the standard supports blocks with 2 assignments but this is
+    currently unsupported in the PSyIR.
+
+    '''
+    def begin_string(self):
+        '''
+        :returns: the opening string statement of this directive.
+        :rtype: str
+
+        '''
+        return "omp atomic"
+
+    def end_string(self):
+        '''
+        :returns: the ending string statement of this directive.
+        :rtype: str
+
+        '''
+        return "omp end atomic"
+
+    @staticmethod
+    def is_valid_atomic_statement(stmt):
+        ''' Check if a given statement is a valid OpenMP atomic expression. See
+            https://www.openmp.org/spec-html/5.0/openmpsu95.html
+
+        :param stmt: a node to be validated.
+        :type stmt: :py:class:`psyclone.psyir.nodes.Node`
+
+        :returns: whether a given statement is compliant with the OpenMP
+            atomic expression.
+        :rtype: bool
+
+        '''
+        if not isinstance(stmt, Assignment):
+            return False
+
+        # Not all rules are checked, just that:
+        # - operands are of a scalar intrinsic type
+        if not isinstance(stmt.lhs.datatype, ScalarType):
+            return False
+
+        # - the top-level operator is one of: +, *, -, /, AND, OR, EQV, NEQV
+        if isinstance(stmt.rhs, BinaryOperation):
+            if stmt.rhs.operator not in (BinaryOperation.Operator.ADD,
+                                         BinaryOperation.Operator.SUB,
+                                         BinaryOperation.Operator.MUL,
+                                         BinaryOperation.Operator.DIV,
+                                         BinaryOperation.Operator.AND,
+                                         BinaryOperation.Operator.OR,
+                                         BinaryOperation.Operator.EQV,
+                                         BinaryOperation.Operator.NEQV):
+                return False
+        # - or intrinsics: MAX, MIN, IAND, IOR, or IEOR
+        if isinstance(stmt.rhs, IntrinsicCall):
+            if stmt.rhs.intrinsic not in (IntrinsicCall.Intrinsic.MAX,
+                                          IntrinsicCall.Intrinsic.MIN,
+                                          IntrinsicCall.Intrinsic.IAND,
+                                          IntrinsicCall.Intrinsic.IOR,
+                                          IntrinsicCall.Intrinsic.IEOR):
+                return False
+
+        # - one of the operands should be the same as the lhs
+        if stmt.lhs not in stmt.rhs.children:
+            return False
+
+        return True
+
+    def validate_global_constraints(self):
+        ''' Perform validation of those global constraints that can only be
+        done at code-generation time.
+
+        :raises GenerationError: if the OMPAtomicDirective associated
+            statement does not conform to a valid OpenMP atomic operation.
+        '''
+        if not self.children or len(self.dir_body.children) != 1:
+            raise GenerationError(
+                f"Atomic directives must always have one and only one"
+                f" associated statement, but found: '{self.debug_string()}'")
+        stmt = self.dir_body[0]
+        if not self.is_valid_atomic_statement(stmt):
+            raise GenerationError(
+                f"Statement '{self.children[0].debug_string()}' is not a "
+                f"valid OpenMP Atomic statement.")
+
+
+class OMPSimdDirective(OMPRegionDirective):
+    '''
+    OpenMP directive to inform that the associated loop can be vectorised.
+
+    '''
+    def begin_string(self):
+        '''
+        :returns: the opening string statement of this directive.
+        :rtype: str
+
+        '''
+        return "omp simd"
+
+    def end_string(self):
+        '''
+        :returns: the ending string statement of this directive.
+        :rtype: str
+
+        '''
+        return "omp end simd"
+
+    def validate_global_constraints(self):
+        ''' Perform validation of those global constraints that can only be
+        done at code-generation time.
+
+        :raises GenerationError: if the OMPSimdDirective does not contain
+            precisely one loop.
+
+        '''
+        if (not self.children or len(self.dir_body.children) != 1 or
+                not isinstance(self.dir_body[0], Loop)):
+            raise GenerationError(
+                f"The OMP SIMD directives must always have one and only one"
+                f" associated loop, but found: '{self.debug_string()}'")
+
+
 # For automatic API documentation generation
 __all__ = ["OMPRegionDirective", "OMPParallelDirective", "OMPSingleDirective",
            "OMPMasterDirective", "OMPDoDirective", "OMPParallelDoDirective",
            "OMPSerialDirective", "OMPTaskloopDirective", "OMPTargetDirective",
            "OMPTaskwaitDirective", "OMPDirective", "OMPStandaloneDirective",
-           "OMPLoopDirective", "OMPDeclareTargetDirective"]
+           "OMPLoopDirective", "OMPDeclareTargetDirective",
+           "OMPAtomicDirective", "OMPSimdDirective"]
