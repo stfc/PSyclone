@@ -50,41 +50,36 @@ Or, if you have Gnu 'parallel':
 Tested with the NVIDIA HPC SDK version 22.5.
 '''
 
-from __future__ import print_function
 import os
 import sys
 from time import perf_counter
 
-# Files that we will only add profiling to
-PROFILE_ONLY = ["bdydta.f90", "bdyvol.f90",
-                "fldread.f90",
-                "icbclv.f90", "icbthm.f90", "icbdia.f90", "icbini.f90",
-                "icbstp.f90",
-                "iom.f90", "iom_nf90.f90",
-                "obs_grid.f90", "obs_averg_h2d.f90", "obs_profiles_def.f90",
-                "obs_types.f90", "obs_read_prof.f90", "obs_write.f90",
-                "tide_mod.f90", "zdfosm.f90"]
+# Files that we will only add profiling to. Either due to bugs when applying
+# transformations or because the resulting code does not perform well.
+NOT_PERFORMANT = [
+    "bdydta.f90", "bdyvol.f90",
+    "fldread.f90",
+    "icbclv.f90", "icbthm.f90", "icbdia.f90", "icbini.f90",
+    "icbstp.f90",
+    "iom.f90", "iom_nf90.f90",
+    "obs_grid.f90", "obs_averg_h2d.f90", "obs_profiles_def.f90",
+    "obs_types.f90", "obs_read_prof.f90", "obs_write.f90",
+    "tide_mod.f90", "zdfosm.f90",
+    # TODO #1902: Excluded to avoid HoistLocalArraysTrans bug
+    "mpp_ini.f90",
+]
 
-# Files that we won't touch at all
-EXCLUDED_FILES = [
-    # Re-defines idim intrinsic
-    "obs_utils.f90",
-    # Unsupported module SAVE attribute
-    "obs_profiles.f90",
+# Files that we won't touch at all, either because PSyclone actually fails
+# or because it produces incorrect Fortran.
+NOT_WORKING = [
     # Array accessed inside WHERE does not use array notation
     "diurnal_bulk.f90",
     # mpif.h include is lost
     "mpp_map.f90", "obs_mpp.f90", "icblbc.f90",
     "timing.f90", "lib_mpp.f90", "nemogcm.f90",
-    # Fns defined within fn are lost
-    "storng.f90",
-    # abort intrinsic not recognised
-    "mpp_io.f90",
     # TODO #1960: There is a bug on a WHERE fparser2 frontend processing
     "sbccpl.f90",
-    # TODO #1902: Excluded to avoid HoistLocalArraysTrans bug
-    "mpp_ini.f90",
-    ]
+]
 
 
 if __name__ == "__main__":
@@ -130,19 +125,22 @@ if __name__ == "__main__":
             out_file = file_name
 
         args = [PSYCLONE_CMD, "--limit", "output", "-api", "nemo"]
-        if file_name in PROFILE_ONLY and ARGS.profile:
+        if file_name in NOT_WORKING:
+            print(f"Skipping {ffile} entirely.")
+            continue
+        if file_name in NOT_PERFORMANT and ARGS.profile:
             print(f"Instrumenting {file_name} for profiling...")
             extra_args = ["-p", "invokes",
                           "-oalg", "/dev/null",
                           "-opsy", out_file, ffile]
-        elif file_name in EXCLUDED_FILES or file_name in PROFILE_ONLY:
-            print(f"Skipping {ffile} entirely.")
-            continue
         else:
-            print(f"Processing {file_name}...")
             extra_args = []
-            if ARGS.script_file:
+            if ARGS.script_file and file_name not in NOT_PERFORMANT:
+                print(f"Processing and transforming {file_name}...")
                 extra_args += ["-s", ARGS.script_file]
+            else:
+                print(f"Processing {file_name} (passthrough only)...")
+
             if ARGS.include_path:
                 extra_args += ["-I", ARGS.include_path]
             extra_args += ["-oalg", "/dev/null",
@@ -163,8 +161,9 @@ if __name__ == "__main__":
         else:
             print(f"Time taken for {file_name}: {tstop - tstart:.2f}s")
 
-        print("--------------------\n--------------------\n")
+        print("--------------------\n")
 
     print("All done.")
     if FAILED_FILES:
         print(f"PSyclone failed on the following source files: {FAILED_FILES}")
+        sys.exit(1)
