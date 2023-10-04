@@ -90,7 +90,7 @@ class LFRicRunTimeChecks(LFRicCollection):
             parent, " Check field function space and kernel metadata "
             "function spaces are compatible"))
 
-        # When issue #753 is addressed (with issue #79 helping further)
+        # When issue #30 is addressed (with issue #79 helping further)
         # we may know some or all field function spaces statically. If
         # so, we should remove these from the fields to check at run
         # time (as they will have already been checked at code
@@ -165,7 +165,7 @@ class LFRicRunTimeChecks(LFRicCollection):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         '''
-        # When issue #753 is addressed (with issue #79 helping further)
+        # When issue #30 is addressed (with issue #79 helping further)
         # we may know some or all field function spaces statically. If
         # so, we should remove these from the fields to check at run
         # time (as they will have already been checked at code
