@@ -38,7 +38,7 @@
 # export F90=gfortran
 # export F90FLAGS="-Wall -g -fcheck=bound"
 F90 ?= gfortran
-F90FLAGS ?= -Wall -g -fcheck=bound
+F90FLAGS ?= -Wall -g -fcheck=bound -fopenmp
 
 OBJ = main_alg_psy.o main_alg.o summation_w0_to_w3_kernel_mod.o
 
@@ -63,7 +63,8 @@ transform:
 compile: $(EXEC)
 
 run: compile
-	./example
+	@# If OMP_NUM_THREADS is not define, set it to 3:
+	OMP_NUM_THREADS=$${OMP_NUM_THREADS:-3} ./example
 
 $(EXEC): $(LFRIC_LIB) $(OBJ)
 	$(F90) $(F90FLAGS) $(OBJ) -o $(EXEC) -L$(LFRIC_PATH) -l$(LFRIC_NAME)

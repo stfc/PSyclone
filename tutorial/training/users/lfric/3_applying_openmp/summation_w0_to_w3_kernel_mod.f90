@@ -63,6 +63,7 @@ contains
     SUBROUTINE summation_w0_to_w3_kernel_code(nlayers, field_w3, field_w0, ndf_w3, &
                                               undf_w3, map_w3, ndf_w0, undf_w0, map_w0)
       USE constants_mod
+!$    use omp_lib, only : omp_get_max_threads, omp_get_thread_num
       IMPLICIT NONE
       INTEGER(KIND=i_def), intent(in)                     :: nlayers
       INTEGER(KIND=i_def), intent(in)                     :: ndf_w0
@@ -75,6 +76,8 @@ contains
 
       integer(kind=i_def)                                 :: i, k
 
+      print *,"Kernel executed by thread ", omp_get_thread_num(), " of ", omp_get_max_threads(), &
+              " using indices ", map_w3(1), " - ", map_w3(1)+nlayers-1
       do k=0, nlayers-1
         do i=1, ndf_w0
           field_w3(map_w3(1)+k) = field_w3(map_w3(1)+k) + field_w0(map_w0(i)+k)
