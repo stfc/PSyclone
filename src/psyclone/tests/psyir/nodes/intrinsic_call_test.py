@@ -38,7 +38,7 @@
 '''
 This module contains pytest tests for the IntrinsicCall node.
 
-TODO #x2341 - tests need to be added for all of the supported intrinsics.
+TODO #2341 - tests need to be added for all of the supported intrinsics.
 
 '''
 
@@ -397,6 +397,15 @@ def test_reference_accesses_bounds(operator, fortran_reader):
     vai = VariablesAccessInfo(schedule,
                               options={"COLLECT-ARRAY-SHAPE-READS": True})
     assert str(vai) == "a: READ, b: READ, n: WRITE"
+
+
+def test_enumerator_name_matches_name_field():
+    '''
+    Test that the name given to every IntrinsicCall matches the
+    corresponding name field in the IAttr namedtuple.
+    '''
+    for intrinsic_entry in IntrinsicCall.Intrinsic:
+        assert intrinsic_entry._name_ == intrinsic_entry.name
 
 
 def test_allocate_intrinsic(fortran_reader, fortran_writer):
