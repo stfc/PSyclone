@@ -31,15 +31,37 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Laboratory
-# Modified by R. W. Ford and N. Nobre, STFC Daresbury Lab
+# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+# Modified I. Kavcic, A. Coughtrie, L. Turner and O. Brunt, Met Office
+# Modified J. Henrichs, Bureau of Meteorology
+# Modified A. B. G. Chalk and N. Nobre, STFC Daresbury Lab
 
-''' Single location for the current version number of PSyclone. This is
-    used in setup.py and doc/conf.py '''
+''' This module contains the LFRicInvokes class which passes the
+LFRicInvoke class to the base class.'''
 
-__MAJOR__ = 2
-__MINOR__ = 4
-__MICRO__ = 0
+# Imports
+from psyclone.domain.lfric import LFRicInvoke
+from psyclone.psyGen import Invokes
 
-__SHORT_VERSION__ = f"{__MAJOR__:d}.{__MINOR__:d}"
-__VERSION__ = f"{__MAJOR__:d}.{__MINOR__:d}.{__MICRO__:d}"
+
+class LFRicInvokes(Invokes):
+    '''The LFRic-specific invokes class. This passes the LFRic-specific
+    LFRicInvoke class to the base class so it creates the one we
+    require.
+
+    :param alg_calls: A list of objects containing the parsed invoke
+                      information.
+    :type alg_calls: List[:py:class:`psyclone.parse.algorithm.InvokeCall`]
+    :param psy: The PSy object containing this LFRicInvokes object.
+    :type psy: :py:class:`psyclone.dynamo0p3.DynamoPSy`
+
+    '''
+    def __init__(self, alg_calls, psy):
+        self._0_to_n = LFRicInvoke(None, None, None)  # for pyreverse
+        Invokes.__init__(self, alg_calls, LFRicInvoke, psy)
+
+
+# ---------- Documentation utils -------------------------------------------- #
+# The list of module members that we wish AutoAPI to generate
+# documentation for. (See https://psyclone-ref.readthedocs.io)
+__all__ = ['LFRicInvokes']

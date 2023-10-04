@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -123,14 +123,14 @@ def test_lw_structureref(fortran_writer):
     ''' Test the LanguageWriter support for StructureReference
     using the FortranWriter as instance. '''
     region_type = StructureType.create([
-        ("nx", INTEGER_TYPE, Symbol.Visibility.PUBLIC),
-        ("ny", INTEGER_TYPE, Symbol.Visibility.PUBLIC)])
+        ("nx", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None),
+        ("ny", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None)])
     region_type_sym = DataTypeSymbol("grid_type", region_type)
     region_array_type = ArrayType(region_type_sym, [2, 2])
     grid_type = StructureType.create([
-        ("dx", INTEGER_TYPE, Symbol.Visibility.PUBLIC),
-        ("area", region_type_sym, Symbol.Visibility.PUBLIC),
-        ("levels", region_array_type, Symbol.Visibility.PUBLIC)])
+        ("dx", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None),
+        ("area", region_type_sym, Symbol.Visibility.PUBLIC, None),
+        ("levels", region_array_type, Symbol.Visibility.PUBLIC, None)])
     grid_type_sym = DataTypeSymbol("grid_type", grid_type)
     grid_var = DataSymbol("grid", grid_type_sym)
     grid_ref = StructureReference.create(grid_var, ['area', 'nx'])
@@ -158,13 +158,13 @@ def test_lw_arrayofstructuresmember(fortran_writer):
     ''' Test the LanguageWriter support for ArrayOfStructuresMember
     using the FortranWriter. '''
     region_type = StructureType.create([
-        ("nx", INTEGER_TYPE, Symbol.Visibility.PUBLIC),
-        ("ny", INTEGER_TYPE, Symbol.Visibility.PUBLIC)])
+        ("nx", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None),
+        ("ny", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None)])
     region_type_sym = DataTypeSymbol("grid_type", region_type)
     region_array_type = ArrayType(region_type_sym, [2, 2])
     # The grid type contains an array of region-type structures
     grid_type = StructureType.create([
-        ("levels", region_array_type, Symbol.Visibility.PUBLIC)])
+        ("levels", region_array_type, Symbol.Visibility.PUBLIC, None)])
     grid_type_sym = DataTypeSymbol("grid_type", grid_type)
     grid_var = DataSymbol("grid", grid_type_sym)
     # Reference to an element of an array that is a structure
@@ -191,7 +191,7 @@ def test_lw_arrayofstructuresref(fortran_writer):
     ''' Test the LanguageWriter support for ArrayOfStructuresReference
     using the FortranWriter as instance. '''
     grid_type = StructureType.create([
-        ("dx", INTEGER_TYPE, Symbol.Visibility.PUBLIC)])
+        ("dx", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None)])
     grid_type_sym = DataTypeSymbol("grid_type", grid_type)
     grid_array_type = ArrayType(grid_type_sym, [10])
     grid_var = DataSymbol("grid", grid_array_type)
@@ -218,13 +218,13 @@ def test_lw_arrayofstructuresref(fortran_writer):
 def test_member_node(fortran_writer):
     '''Explicitly test the member_node function.'''
     region_type = StructureType.create([
-        ("nx", INTEGER_TYPE, Symbol.Visibility.PUBLIC),
-        ("ny", INTEGER_TYPE, Symbol.Visibility.PUBLIC)])
+        ("nx", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None),
+        ("ny", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None)])
     region_type_sym = DataTypeSymbol("grid_type", region_type)
     region_array_type = ArrayType(region_type_sym, [2, 2])
     # The grid type contains an array of region-type structures
     grid_type = StructureType.create([
-        ("levels", region_array_type, Symbol.Visibility.PUBLIC)])
+        ("levels", region_array_type, Symbol.Visibility.PUBLIC, None)])
     grid_type_sym = DataTypeSymbol("grid_type", grid_type)
     grid_var = DataSymbol("grid", grid_type_sym)
     # Reference to a member of a structure that is an element of an array
