@@ -69,7 +69,7 @@ The solution and explanation can be found [here](#solution-for-using-psyclone).
 As explained, PSyclone has the ability to support MPI parallelisation of the code. This
 is simply done by using the command line option `-dm` (instead of `-nodm`):
 
-    psyclone -dm -l output -opsy main_mpi_psy.f90 -oalg main_mpi_alg.f90 main_alg.x90
+    psyclone -dm -l output -opsy main_psy.f90 -oalg main_alg.f90 main_alg.x90
 
 Use this option, and look at the PSy-layer. Some of the setup code
 has changed (which is related to getting the loop sizes based on a distributed field),
@@ -94,7 +94,7 @@ In this example you will add transformation script to the PSyclone command line.
 This script will apply OpenMP transformation to the loops. Add the option
 `-s omp.py` to the PSyclone command, i.e.:
 
-    psyclone -s ./omp.py -nodm -l output -opsy main_alg_psy.f90 -oalg main_alg.f90 main_alg.x90
+    psyclone -s ./omp_transformation.py -nodm -l output -opsy main_alg_psy.f90 -oalg main_alg.f90 main_alg.x90
 
 The script will combine the two loops for the two `setval_c`
 calls into a single loop, and then apply OpenMP parallelisation to all loops.
