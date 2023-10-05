@@ -422,7 +422,7 @@ get the following loop structure:
         DO cell=loop1_start,last_halo_cell_all_colours(colour,1)
            !
            CALL summation_w0_to_w0_code(nlayers, field_3_proxy%data, field_0_proxy%data, ndf_w0, undf_w0, &
-&map_w0(:,cmap(colour,cell)))
+                &map_w0(:,cmap(colour,cell)))
        END DO
        !$omp end parallel do
     END DO
