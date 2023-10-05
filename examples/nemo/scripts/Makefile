@@ -42,7 +42,7 @@ NAMELISTS_DIR ?= ${NEMO_DIR}/
 
 # ---- End of configuration section - do not edit below this point ----
 
-TARGETS := openmp_cpu openmp_gpu openacc_kernels openacc_loops
+TARGETS := passthrough openmp_cpu openmp_gpu openacc_kernels openacc_loops
 SRC_FILES := $(wildcard ${ROOT_SRC}/*.f90)
 OUTPUT_FOLDERS := $(addprefix psycloned-, ${TARGETS})
 
@@ -57,7 +57,13 @@ $(OUTPUT_FOLDERS):
 $(TARGETS): % : $(addprefix psycloned-%/, $(notdir $(SRC_FILES)))
 	@echo "Finished generating $@"
 
-# PSyclone instructions for each target type
+# PSyclone instructions for each target type.
+
+# We perform a 'passthrough' test by simply not providing a transformation
+# script.
+psycloned-passthrough/%.f90: ${ROOT_SRC}%.f90 psycloned-passthrough
+	${PSYCLONE_NEMO_DIR}/process_nemo.py -I ${ROOT_SRC} -o psycloned-passthrough $<
+
 psycloned-openmp_cpu/%.f90: ${ROOT_SRC}%.f90 psycloned-openmp_cpu
 	${PSYCLONE_NEMO_DIR}/process_nemo.py -s ${PSYCLONE_NEMO_DIR}/omp_cpu_trans.py -I ${ROOT_SRC} -o psycloned-openmp_cpu $<
 
