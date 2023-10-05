@@ -7351,11 +7351,17 @@ class DynLoop(PSyLoop):
                                 LFRicConstants().DATA_TYPE_MAP.values())
 
             for msg in dtools.get_all_messages():
-                if msg.code != DTCode.WARN_SCALAR_WRITTEN_ONCE:
+                if msg.code not in [DTCode.WARN_SCALAR_WRITTEN_ONCE,
+                                    DTCode.WARN_SCALAR_REDUCTION]:
                     # The DA is complaining about something other than writing
-                    # to (what it thinks is) a scalar.  Therefore the loop
-                    # cannot be parallelised.
+                    # or reducing to (what it thinks is) a scalar. Therefore
+                    # the loop cannot be parallelised.
                     return False
+                if self.loop_type == "dof":
+                    # Loops over dofs *are* permitted to perform reductions in
+                    # LFRic so we ignore warnings about writing to scalars or
+                    # performing reductions.
+                    continue
                 # Currently the DA (wrongly) identifies things like
                 # 'fld_proxy%data' as being scalar accesses. We therefore need
                 # to check that the argument it says is a scalar is in fact a
