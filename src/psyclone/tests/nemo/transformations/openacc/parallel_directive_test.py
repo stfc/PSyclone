@@ -38,8 +38,11 @@
 
 '''
 
+import pytest
+
 from fparser.common.readfortran import FortranStringReader
 from psyclone.psyGen import PSyFactory, TransInfo
+from psyclone.transformations import TransformationError
 
 
 # The PSyclone API under test
@@ -83,6 +86,38 @@ def test_parallel_single_loop(parser):
             "  enddo\n"
             "  !$acc end parallel\n"
             "  !$acc end data\n"
+            "\n"
+            "end program do_loop" in code)
+
+
+def test_parallel_single_loop_with_no_default_present_clause(parser):
+    ''' Check that we can apply the transformation to a single, explicit
+    loop, wihtout the default present clause '''
+    reader = FortranStringReader(SINGLE_LOOP)
+    code = parser(reader)
+    psy = PSyFactory(API, distributed_memory=False).create(code)
+    schedule = psy.invokes.invoke_list[0].schedule
+    acc_trans = TransInfo().get_trans_name('ACCParallelTrans')
+
+    with pytest.raises(TransformationError) as err:
+        acc_trans.apply(schedule[0:1], options={"default_present": 3})
+    assert ("The provided 'default_present' option must be a boolean, "
+            "but found '3'." in str(err.value))
+    
+    acc_trans.apply(schedule[0:1], options={"default_present": False})
+    code = str(psy.gen).lower()
+
+    assert ("program do_loop\n"
+            "  use kind_params_mod, only : wp\n"
+            "  integer, parameter :: jpj = 128\n"
+            "  integer :: ji\n"
+            "  real(kind=wp), dimension(jpj) :: sto_tmp\n"
+            "\n"
+            "  !$acc parallel\n"
+            "  do ji = 1, jpj, 1\n"
+            "    sto_tmp(ji) = 1.0d0\n"
+            "  enddo\n"
+            "  !$acc end parallel\n"
             "\n"
             "end program do_loop" in code)
 

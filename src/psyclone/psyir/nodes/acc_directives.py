@@ -280,13 +280,13 @@ class ACCParallelDirective(ACCRegionDirective):
     means this node must either come after an EnterDataDirective or within
     a DataDirective.
     
-    :param bool default_present: whether it includes the 'DEFAULT(PRESENT)'
-        clause.
+    :param bool default_present: whether this directive includes the
+        'DEFAULT(PRESENT)' clause.
 
     '''
     def __init__(self, default_present=True, **kwargs):
         super().__init__(**kwargs)
-        self._default_present = default_present
+        self.default_present = default_present
         
     def gen_code(self, parent):
         '''
@@ -357,7 +357,7 @@ class ACCParallelDirective(ACCRegionDirective):
         if not isinstance(value, bool):
             raise TypeError(
                 f"The ACCParallelDirective default_present property must be "
-                f"a boolean positive but value '{value}' has been given.")
+                f"a boolean but value '{value}' has been given.")
         self._default_present = value
         
     @property

@@ -1471,7 +1471,7 @@ class ACCParallelTrans(ParallelRegionTrans):
     def __init__(self, default_present=True):
         super().__init__()
         if not isinstance(default_present, bool):
-            raise TransformationError(
+            raise TypeError(
                 f"The provided 'default_present' argument must be a "
                 f"boolean, but found '{default_present}'."
             )

@@ -34,7 +34,7 @@
 # -----------------------------------------------------------------------------
 # Authors: S. Siso, STFC Daresbury Lab
 
-''' PSyclone transformation script showing the introduction of OpenMP for GPU
+''' PSyclone transformation script showing the introduction of OpenACC loop
 directives into Nemo code. '''
 
 from utils import insert_explicit_loop_parallelism, normalise_loops, \
@@ -48,7 +48,7 @@ PROFILING_ENABLED = True
 
 
 def trans(psy):
-    ''' Add OpenMP Target and Loop directives to all loops, including the
+    ''' Add OpenACC Parallel and Loop directives to all loops, including the
     implicit ones, to parallelise the code and execute it in an acceleration
     device.
 
@@ -97,6 +97,7 @@ def trans(psy):
 
         # OpenACC fails in the following routines with the Compiler error:
         # Could not find allocated-variable index for symbol - xxx
+        # This all happen on characters arrays, e.g. cd_nat
         if invoke.name in ("lbc_nfd_2d_ptr", "lbc_nfd_3d_ptr",
                            "lbc_nfd_4d_ptr", "bdy_dyn"):
             print("Skipping", invoke.name)
