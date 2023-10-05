@@ -23,10 +23,11 @@ Each of the following examples has its own subdirectories with the required file
 In order to run the tests, change into the subdirectory specified in the heading.
 The required PSyclone command is specified in this document, but in all cases
 you can also just run `make` in order to run PSyclone with the required parameters.
-Most examples can also be compiled (`make compile`) and executed (`make test`).
+Most examples can also be compiled (`make compile`) and executed (`make run`).
 The only exception are the MPI examples (since the LFRic infrastructure files
 that are used in LFRic are a cut down version which do not include actual MPI
-support).
+support). The OpenMP kernels have been extended to print the thread-id, so you
+can actually see that different threads are being used.
 
 
 ## Using PSyclone (`1_using_psylone`)
