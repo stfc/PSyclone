@@ -1505,6 +1505,7 @@ class ACCParallelTrans(ParallelRegionTrans):
             inserted directive should include the default_present clause. 
 
         '''
+        super().validate(target_nodes, options)
         if options is not None and "default_present" in options:
             if not isinstance(options["default_present"], bool):
                 raise TransformationError(
