@@ -12,6 +12,7 @@ below, which only shows a 1x2x4 mesh, not the full 3x3x5), and is initialised
 with 1. The field `field_3` is on the W3 function
 space (red in the diagram) and represents the actual element, it is initialised
 with 0.
+
 ![FEM mesh](fem-grid.png "Simplified FEM mesh")
 
 Then the kernel `summation_w0_to_w3_kernel` is called, which adds the 8 neighbouring
@@ -426,6 +427,8 @@ get the following loop structure:
        END DO
        !$omp end parallel do
     END DO
+
+A detailled explanation can be found in the [PSyclone Developer's Guide](https://psyclone-dev.readthedocs.io/en/latest/APIs.html#colouring).
 
 The assignment of start index for each column to the 3x3 domain looks like this (inner cells will
 come first in the internal data structure used for a region, followed by the cells that might
