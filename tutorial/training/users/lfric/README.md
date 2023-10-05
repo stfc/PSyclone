@@ -108,9 +108,10 @@ Compare the PSy-layer files with the previously created files. What has changed?
 
 The explanation can be found [here](#explanation-for-applying-openmp).
 
-Optional: You can set the environment variable `$OMP_NUM_THREADS` to an appropriate value
-and execute the compiled binary. The kernel will print out which thread number
-is executing which column indices.
+Optional: You can compile this example using `make comple`. Then set the environment
+variable `$OMP_NUM_THREADS` to an appropriate value and execute the compiled binary.
+The kernel will print out which thread number is executing which column indices. More
+explanations in [this] (#explanation-for-applying-openmp) section.
 
 
 
@@ -329,6 +330,21 @@ For the user kernel you will see:
     END DO
     !$omp end parallel do
 
+The optional task might print out:
+
+    Kernel executed by thread            1  of            3  using indices           16  -           20
+    Kernel executed by thread            1  of            3  using indices           21  -           25
+    Kernel executed by thread            1  of            3  using indices           26  -           30
+    Kernel executed by thread            0  of            3  using indices            1  -            5
+    Kernel executed by thread            0  of            3  using indices            6  -           10
+    Kernel executed by thread            0  of            3  using indices           11  -           15
+    Kernel executed by thread            2  of            3  using indices           31  -           35
+    Kernel executed by thread            2  of            3  using indices           36  -           40
+    Kernel executed by thread            2  of            3  using indices           41  -           45
+
+A column is internally a section of a 1D-array. You can see in the output above that one column
+starts at index 16 and ends at index 20 etc.
+
 
 ## Explanation for MPI and OpenMP
 Implementing hybrid parallelism is easy once a script was written to add the required OpenMP statements.
@@ -420,8 +436,8 @@ share data with a neighbouring process, so this why the first index 1 is in the 
     31  36  41
 
 While the output might vary from run to run (e.g. assignment of thread id to column), here
-a sample output. To make the colouring more obvious, there are comment lines added to indicate
-where the colouring starts
+a sample output when using 4 OpenMP threads. To make the colouring more obvious, there are
+comment lines added manually to indicate where the colouring starts:
 
     ! colour 1 - only the central column, it shares a vertex with all other columns
     Kernel executed by thread            0  of            4  using indices            1  -            5
@@ -448,6 +464,9 @@ It can be useful to manually modify the PSy-layer `main_alg_psy.f90` and add a p
        print *,"colour ", colour
        !$omp parallel do default(shared), private(cell), schedule(static)
 
+This will closely recreate the output above and make it more obvious where the threads are used.
+In this small example, especially at the beginning, thread usage is limited to only one or two
+threads. For a larger example, 
 
 ## Explanation for Incorrect Naming Scheme
 
