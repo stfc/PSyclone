@@ -65,8 +65,10 @@ psycloned-openmp_gpu/%.f90: ${ROOT_SRC}%.f90 psycloned-openmp_gpu
 	${PSYCLONE_NEMO_DIR}/process_nemo.py -s ${PSYCLONE_NEMO_DIR}/omp_gpu_trans.py -I ${ROOT_SRC} -o psycloned-openmp_gpu $<
 
 psycloned-openacc_kernels/%.f90: ${ROOT_SRC}%.f90 psycloned-openacc_kernels
-	${PSYCLONE_NEMO_DIR}/process_nemo.py -s ${PSYCLONE_NEMO_DIR}/kernels_trans.py -I ${ROOT_SRC} -o psycloned-openacc_kernels $<
+	${PSYCLONE_NEMO_DIR}/process_nemo.py -s ${PSYCLONE_NEMO_DIR}/acc_kernels_trans.py -I ${ROOT_SRC} -o psycloned-openacc_kernels $<
 
+psycloned-openacc_loops/%.f90: ${ROOT_SRC}%.f90 psycloned-openacc_loops
+	${PSYCLONE_NEMO_DIR}/process_nemo.py -s ${PSYCLONE_NEMO_DIR}/acc_loops_trans.py -I ${ROOT_SRC} -o psycloned-openacc_loops $<
 
 # Get the number of Makefile parallel jobs to pass it to the makenemo
 MAKE_PID := $(shell echo $$PPID)

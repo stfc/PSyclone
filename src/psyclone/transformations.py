@@ -1468,11 +1468,15 @@ class ACCParallelTrans(ParallelRegionTrans):
                            ACCDataDirective, ACCEnterDataDirective,
                            psyGen.HaloExchange)
 
-    def __init__(self):
+    def __init__(self, default_present=True):
         super().__init__()
-        # Set the type of directive that the base class will use
-        self._directive_factory = ACCParallelDirective
-
+        if not isinstance(default_present, bool):
+            raise TransformationError(
+                f"The provided 'default_present' argument must be a "
+                f"boolean, but found '{default_present}'."
+            )
+        self._default_present = default_present
+        
     def __str__(self):
         return "Insert an OpenACC Parallel region"
 
@@ -1484,6 +1488,72 @@ class ACCParallelTrans(ParallelRegionTrans):
         '''
         return "ACCParallelTrans"
 
+
+    def validate(self, target_nodes, options=None):
+        '''
+        Validate this transformation.
+
+        :param target_nodes: a single Node or a list of Nodes.
+        :type target_nodes: :py:class:`psyclone.psyir.nodes.Node` |
+            List[:py:class:`psyclone.psyir.nodes.Node`]
+        :param options: a dictionary with options for transformations.
+        :type options: Optional[Dict[str, Any]]
+        :param bool options["node-type-check"]: this flag controls if the
+            type of the nodes enclosed in the region should be tested to
+            avoid using unsupported nodes inside a region.
+        :param bool options["default_present"]: this flag controls if the
+            inserted directive should include the default_present clause. 
+
+        '''
+        if options is not None and "default_present" in options:
+            if not isinstance(options["default_present"], bool):
+                raise TransformationError(
+                    f"The provided 'default_present' option must be a "
+                    f"boolean, but found '{options['default_present']}'."
+                )
+        
+    def apply(self, target_nodes, options=None):
+        '''
+        Encapsulate given nodes with the ACCParallelDirective.
+
+        :param target_nodes: a single Node or a list of Nodes.
+        :type target_nodes: :py:class:`psyclone.psyir.nodes.Node` |
+            List[:py:class:`psyclone.psyir.nodes.Node`]
+        :param options: a dictionary with options for transformations.
+        :type options: Optional[Dict[str, Any]]
+        :param bool options["node-type-check"]: this flag controls if the
+            type of the nodes enclosed in the region should be tested to
+            avoid using unsupported nodes inside a region.
+        :param bool options["default_present"]: this flag controls if the
+            inserted directive should include the default_present clause. 
+
+        '''
+        if not options:
+            options = {}
+        # Check whether we've been passed a list of nodes or just a
+        # single node. If the latter then we create ourselves a
+        # list containing just that node.
+        node_list = self.get_node_list(target_nodes)
+        self.validate(node_list, options)
+
+        # Keep a reference to the parent of the nodes that are to be
+        # enclosed within a parallel region. Also keep the index of
+        # the first child to be enclosed as that will become the
+        # position of the new !$omp parallel directive.
+        node_parent = node_list[0].parent
+        node_position = node_list[0].position
+
+        # Create the parallel directive
+        directive = ACCParallelDirective(
+            children=[node.detach() for node in node_list])
+        directive.default_present = options.get("default_present",
+                                                self._default_present)
+
+        # Add the region directive as a child of the parent
+        # of the nodes being enclosed and at the original location
+        # of the first of these nodes
+        node_parent.addchild(directive, index=node_position)
+    
 
 class MoveTrans(Transformation):
     '''Provides a transformation to move a node in the tree. For
