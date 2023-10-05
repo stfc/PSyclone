@@ -43,7 +43,7 @@ and `main_alg_psy.f90`, the created PSy-layer.
 
 Look at the two created  files. You don't need to try to understand the details, since
 PSyclone is creating quite a bit of code. Identify how the main program, the algorithm
-layer, calls the PSylayer, and how the PSy-layer calls the kernel in a loop. Focus
+layer, calls the PSy-layer, and how the PSy-layer calls the kernel in a loop. Focus
 on the first two invokes in `main_alg.x90`:
 
     call invoke( name = 'Initialise fields',         &
@@ -176,6 +176,29 @@ internally verify if it is safe to apply a certain transformation, to make
 sure it does not create incorrect code.
 
 The explanation can be found [here](#explanation-for-invalid-transformation).
+
+Optional: A more advanced usage of a transformation script. This section can be skipped.
+There is a second transformation available in this directory called
+`omp_colour_transformation.py`. As in the scripts used in LFRic, this transformation
+will split the columns into several sets of the same 'colour': columns with the same
+'colour' do not overlap, and therefore can be executed in parallel. The LFRic
+infrastructure provides the colouring information for any field. So instead of having a
+single loop over all columns, there is now an outer loop over all colours. Then its
+inner loop will iterate over all columns of the same columns, i.e. all columns that do not
+overlap and therefore can be executed in parallel. After applying the colouring
+transformation, the inner loop can then be executed in parallel, and the script will apply
+the OpenMP transformation to the inner loop. You can apply this more advanced
+transformation using:
+
+     psyclone -s ./omp_colour_transformation.py -dm -l output -opsy main_alg_psy.f90 -oalg main_alg.f90 main_alg.x90
+
+Check the created psy-layer for the different loop structure created by PSyclone.
+Then you can use `make compile` to compile the example and `OMP_NUM_THREADS=4 ./example`
+to execute the code.
+
+The [explanation](#explanation-for-invalid-transformation) for this optional part will explain
+the loop structure in more detail.
+
 
 ## Incorrect Naming Scheme (`8_incorrect_naming`)
 This example shows the importance of naming the files correctly. It is basically the same code
@@ -373,7 +396,57 @@ threading-based parallelisation:
     please check your script
 
 This error should be reported to the developers of the optimisation script.
-  
+
+Optional task: When you use the `./omp_colour_transformation.py` transformation, you will
+get the following loop structure:
+
+    DO colour=loop0_start,loop0_stop
+       !$omp parallel do default(shared), private(cell), schedule(static)
+        DO cell=loop1_start,last_halo_cell_all_colours(colour,1)
+           !
+           CALL summation_w0_to_w0_code(nlayers, field_3_proxy%data, field_0_proxy%data, ndf_w0, undf_w0, &
+&map_w0(:,cmap(colour,cell)))
+       END DO
+       !$omp end parallel do
+    END DO
+
+The assignment of start index for each column to the 3x3 domain looks like this (inner cells will
+come first in the internal data structure used for a region, followed by the cells that might
+share data with a neighbouring process, so this why the first index 1 is in the middle):
+
+     6  11  16
+    21   1  26
+    31  36  41
+
+While the output might vary from run to run (e.g. assignment of thread id to column), here
+a sample output. To make the colouring more obvious, there are comment lines added to indicate
+where the colouring starts
+
+    ! colour 1 - only the central column, it shares a vertex with all other columns
+    Kernel executed by thread            0  of            4  using indices            1  -            5
+
+    ! colour 2 - the columns to the left and right of the central column. They don't have any shared vertex
+    ! But note that they do share a vertex with columns starting at 11 and 36
+    Kernel executed by thread            0  of            4  using indices           21  -           25
+    Kernel executed by thread            1  of            4  using indices           26  -           30
+
+    ! colour 3 - the columns to the top and bottom of the central column can be done in parallel
+    Kernel executed by thread            1  of            4  using indices           36  -           40
+    Kernel executed by thread            0  of            4  using indices           11  -           15
+
+    ! colour 4 - the remaining four corner columns do not have any overlap and can all be executed
+    !            in parallel
+    Kernel executed by thread            1  of            4  using indices           16  -           20
+    Kernel executed by thread            0  of            4  using indices            6  -           10
+    Kernel executed by thread            2  of            4  using indices           31  -           35
+    Kernel executed by thread            3  of            4  using indices           41  -           45
+
+It can be useful to manually modify the PSy-layer `main_alg_psy.f90` and add a print statement, e.g.:
+
+    DO colour=loop0_start,loop0_stop
+       print *,"colour ", colour
+       !$omp parallel do default(shared), private(cell), schedule(static)
+
 
 ## Explanation for Incorrect Naming Scheme
 

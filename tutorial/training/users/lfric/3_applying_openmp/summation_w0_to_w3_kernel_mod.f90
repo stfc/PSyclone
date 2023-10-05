@@ -76,8 +76,8 @@ contains
 
       integer(kind=i_def)                                 :: i, k
 
-      print *,"Kernel executed by thread ", omp_get_thread_num(), " of ", omp_get_max_threads(), &
-              " using indices ", map_w3(1), " - ", map_w3(1)+nlayers-1
+!$    print *,"Kernel executed by thread ", omp_get_thread_num(), " of ", omp_get_max_threads(), &
+!$            " using indices ", map_w3(1), " - ", map_w3(1)+nlayers-1
       do k=0, nlayers-1
         do i=1, ndf_w0
           field_w3(map_w3(1)+k) = field_w3(map_w3(1)+k) + field_w0(map_w0(i)+k)

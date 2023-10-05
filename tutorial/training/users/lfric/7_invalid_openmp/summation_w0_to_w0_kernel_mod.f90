@@ -58,6 +58,7 @@ module summation_w0_to_w0_kernel_mod
 contains
 
   subroutine summation_w0_to_w0_code(nlayers, fld1, fld2, ndf_w3, undf_w3, map_w3)
+!$  use omp_lib, only : omp_get_max_threads, omp_get_thread_num
 
     implicit none
 
@@ -69,6 +70,8 @@ contains
 
     integer(kind=i_def)                                 :: i, k
 
+!$    print *,"Kernel executed by thread ", omp_get_thread_num(), " of ", omp_get_max_threads(), &
+!$            " using indices ", map_w3(1), " - ", map_w3(1)+nlayers-1
     do k=0, nlayers-1
       do i=1, ndf_w3
         fld1(map_w3(i)+k) = fld1(map_w3(i)+k) + fld2(map_w3(i)+k)

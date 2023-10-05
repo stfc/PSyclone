@@ -33,16 +33,75 @@
 # ------------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
 
-.PHONY: transform test clean allclean
+# The compiler to use may be specified via the F90 environment
+#
+# export F90=gfortran
+# export F90FLAGS="-Wall -g -fcheck=bound"
+F90 ?= gfortran
+F90FLAGS ?= -Wall -g -fcheck=bound -fopenmp
 
+OBJ = main_alg_psy.o main_alg.o summation_w0_to_w0_kernel_mod.o
+
+EXEC = example
+# Path of the included simplified LFRic infrastructure files:
+LFRIC_PATH = ../../../../../src/psyclone/tests/test_files/dynamo0p3/infrastructure
+LFRIC_NAME=lfric
+LFRIC_LIB=$(LFRIC_PATH)/lib$(LFRIC_NAME).a
+
+# This sets up LFRIC_INCLUDE_FLAGS
+include $(LFRIC_PATH)/lfric_include_flags.inc
+F90FLAGS += $(LFRIC_INCLUDE_FLAGS)
+
+# Various targets
+# ---------------
+.PHONY: transform compile run clean allclean test
+
+# Default target: run PSyclone (even if the output file should already exist)
 transform:
 	psyclone -s ./omp_transformation.py -dm -l output -opsy main_alg_psy.f90 -oalg main_alg.f90 main_alg.x90
+
+compile: $(EXEC)
+
+run: compile
+	@# If OMP_NUM_THREADS is not define, set it to 3:
+	OMP_NUM_THREADS=$${OMP_NUM_THREADS:-3} ./example
+
+$(EXEC): $(LFRIC_LIB) $(OBJ)
+	$(F90) $(F90FLAGS) $(OBJ) -o $(EXEC) -L$(LFRIC_PATH) -l$(LFRIC_NAME)
+
+# Only required in case the optional colouring transformation is used
+clean:
+	rm -f $(EXEC) $(OBJ) *.mod main_*alg.f90 main_*psy.f90
+
+allclean: clean
+	make -C $(LFRIC_PATH) allclean
+
+# Keep the generated psy and alg files
+.precious: main_alg_psy.f90 main_alg.f90
+
+# This rule invokes the same PSyclone command, but it won't run if
+# the output file already exist, which is useful to avoid recompilation.
+main_alg_psy.f90: main_alg.x90 omp_transformation.py
+	psyclone -s ./omp_transformation.py -nodm -l output -opsy main_alg_psy.f90 -oalg main_alg.f90 main_alg.x90
 
 # For PSyclone CI:
 test:
 	$(MAKE) transform 2>&1 | grep " The kernel has an argument with INC "\
 	"access. Colouring is required." >/dev/null
 
-# Not actually required, but to avoid errors when cleaning top level
-clean:
-allclean:
+# External libraries - LFRic infrastructure
+# -----------------------------------------
+$(LFRIC_LIB):
+	$(MAKE) -C $(LFRIC_PATH)
+
+# Dependencies
+# ------------
+main_alg.f90: main_alg_psy.f90
+main_alg_psy.o:	summation_w0_to_w0_kernel_mod.o
+main_alg.o:	main_alg_psy.o
+summation_w0_to_w0_kernel_mod.o: $(LFRIC_LIB)
+
+# File creation rules
+# -------------------
+%.o: %.f90
+	$(F90) $(F90FLAGS) $(LFRIC_INCLUDE_FLAGS) -c $<
