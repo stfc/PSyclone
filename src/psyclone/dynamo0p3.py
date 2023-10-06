@@ -7526,47 +7526,10 @@ class DynLoop(PSyLoop):
             return True
 
         # The generic DA says that this loop cannot be parallelised. However,
-        # that is often because it wrongly identifies field/operator array
-        # accesses (e.g. fld_data) as being scalars that are written to.
+        # we use domain-specific information to qualify this.
         if self.loop_type in ["colour", "dof"]:
-            # This loop is either over cells of a single colour or DoFs. So
-            # long as the symbols that the DA is complaining about are fields
-            # or operators then this is safe to parallelise.
-            table = self.scope.symbol_table
-            suffixes_dict = LFRicConstants().ARG_TYPE_SUFFIX_MAPPING
-
-            for msg in dtools.get_all_messages():
-                if msg.code not in [DTCode.WARN_SCALAR_WRITTEN_ONCE,
-                                    DTCode.WARN_SCALAR_REDUCTION]:
-                    # The DA is complaining about something other than writing
-                    # or reducing to (what it thinks is) a scalar. Therefore
-                    # the loop cannot be parallelised.
-                    return False
-                if self.loop_type == "dof":
-                    # Loops over dofs *are* permitted to perform reductions in
-                    # LFRic so we ignore warnings about writing to scalars or
-                    # performing reductions.
-                    continue
-                # We need to check that the argument in question is in
-                # fact a field. If it is, this is safe to parallelise (because
-                # an LFRic Kernel is constrained to write to dofs in the
-                # 'owned' column).
-                for name in msg.var_names:
-                    sym = table.lookup(name)
-                    # Ideally at this point we would compare sym.datatype with
-                    # LFRicTypes("RealFieldDataType") etc. but the LFRic PSy
-                    # layer doesn't use those types yet.
-                    # Therefore, we check that the Symbol has the correct tag
-                    # for either a field, LMA operator or CMA operator.
-                    local_table = sym.find_symbol_table(self)
-                    tags_dict = local_table.get_reverse_tags_dict()
-                    tag = tags_dict.get(sym, "")
-                    if not any(tag.endswith(f":{suffix}") for suffix
-                               in suffixes_dict.values()):
-                        # The Symbol is not a field or operator.
-                        return False
-            # All of the variables referred to in all of the messages are
-            # actually fields - it is safe to ignore this warning.
+            # This loop is either over cells of a single colour or DoFs.
+            # According to LFRic rules this is safe to parallelise.
             return True
 
         if self.loop_type == "":
