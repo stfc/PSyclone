@@ -836,9 +836,8 @@ def test_restrict_prolong_chain_anyd(tmpdir):
     # Now do some transformations
     otrans = DynamoOMPParallelLoopTrans()
     ctrans = Dynamo0p3ColourTrans()
-    # Apply OMP to the first restrict kernel. Strictly speaking this will
-    # result in a race condition so we have to 'force' it.
-    otrans.apply(schedule[0], options={"force": True})
+    # Apply OMP to the first restrict kernel.
+    otrans.apply(schedule[0])
     # Apply colouring and OMP to the first prolong kernel
     ctrans.apply(schedule[4])
     otrans.apply(schedule[4].loop_body[0])

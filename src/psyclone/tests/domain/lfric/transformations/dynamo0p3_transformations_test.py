@@ -52,7 +52,7 @@ from psyclone.dynamo0p3 import DynLoop, LFRicHaloExchangeStart, \
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyGen import InvokeSchedule, GlobalSum, BuiltIn
 from psyclone.psyir.nodes import colored, Loop, Schedule, Literal, Directive, \
-    OMPDoDirective, ACCEnterDataDirective, Reference
+    OMPDoDirective, ACCEnterDataDirective
 from psyclone.psyir.symbols import AutomaticInterface, ScalarType, ArrayType, \
     REAL_TYPE, INTEGER_TYPE
 from psyclone.psyir.transformations import LoopFuseTrans, LoopTrans, \
@@ -517,8 +517,9 @@ def test_omp_parallel_not_a_loop(dist_mem):
     # the loop
     with pytest.raises(TransformationError) as excinfo:
         otrans.apply(schedule)
-    assert ("Target of DynamoOMPParallelLoopTrans transformation must be a "
-            "sub-class of Loop" in str(excinfo.value))
+    assert ("Error in DynamoOMPParallelLoopTrans transformation. The "
+            "supplied node must be a DynLoop but got 'DynInvokeSchedule'"
+            in str(excinfo.value))
 
 
 def test_colour_str():
@@ -596,7 +597,7 @@ def test_omp_parallel_colouring_needed(monkeypatch, annexed, dist_mem):
     otrans = DynamoOMPParallelLoopTrans()
     # Apply OpenMP to the loop
     with pytest.raises(TransformationError) as excinfo:
-        otrans.apply(schedule.children[index], options={"force": True})
+        otrans.apply(schedule.children[index])
     assert "Error in DynamoOMPParallelLoopTrans" in str(excinfo.value)
     assert "kernel has an argument with INC access" in str(excinfo.value)
     assert "Colouring is required" in str(excinfo.value)
@@ -701,8 +702,8 @@ def test_colouring_after_openmp(dist_mem, monkeypatch):
     else:
         index = 0
 
-    # Apply OpenMP to the loop, disabling the dep. analysis
-    otrans.apply(schedule[index], options={"force": True})
+    # Apply OpenMP to the loop
+    otrans.apply(schedule[index])
 
     # Monkeypatch the loop argument to "INC" access and a continuous function
     # space so colouring can be applied
@@ -752,9 +753,9 @@ def test_colouring_multi_kernel(monkeypatch, annexed, dist_mem):
     ctrans.apply(schedule[index])
     ctrans.apply(schedule[index+1])
 
-    # Apply OpenMP to each of the colour loops, disabling the dep. analysis
-    otrans.apply(schedule[index].loop_body[0], options={"force": True})
-    otrans.apply(schedule[index+1].loop_body[0], options={"force": True})
+    # Apply OpenMP to each of the colour loops
+    otrans.apply(schedule[index].loop_body[0])
+    otrans.apply(schedule[index+1].loop_body[0])
 
     gen = str(psy.gen)
 
@@ -974,11 +975,9 @@ def test_multi_different_kernel_omp(
     ctrans.apply(schedule.children[index1])
     ctrans.apply(schedule.children[index2])
 
-    # Apply OpenMP to each of the colour loops, disabling the dep. analysis
-    otrans.apply(schedule.children[index1].loop_body[0],
-                 options={"force": True})
-    otrans.apply(schedule.children[index2].loop_body[0],
-                 options={"force": True})
+    # Apply OpenMP to each of the colour loops
+    otrans.apply(schedule.children[index1].loop_body[0])
+    otrans.apply(schedule.children[index2].loop_body[0])
 
     code = str(psy.gen)
 
@@ -1138,7 +1137,7 @@ def test_loop_fuse_omp(dist_mem):
 
     ftrans.apply(schedule.children[0], schedule.children[1])
 
-    otrans.apply(schedule.children[0], options={"force": True})
+    otrans.apply(schedule.children[0])
 
     code = str(psy.gen)
 
@@ -1204,7 +1203,7 @@ def test_loop_fuse_omp_rwdisc(tmpdir, monkeypatch, annexed, dist_mem):
         index = 0
     ftrans.apply(schedule.children[index], schedule.children[index+1])
 
-    otrans.apply(schedule.children[index], options={"force": True})
+    otrans.apply(schedule.children[index])
 
     code = str(psy.gen)
 
@@ -5282,10 +5281,9 @@ def test_rc_no_directive():
     ctrans = Dynamo0p3ColourTrans()
     ctrans.apply(schedule[4])
 
-    # Create an openmp transformation and apply this to the loop, disabling
-    # dep. analysis.
+    # Create an openmp transformation and apply this to the loop
     otrans = DynamoOMPParallelLoopTrans()
-    otrans.apply(schedule[4].loop_body[0], options={"force": True})
+    otrans.apply(schedule[4].loop_body[0])
 
     # Create a redundant computation transformation and apply this to the loop
     rc_trans = Dynamo0p3RedundantComputationTrans()
@@ -6430,13 +6428,17 @@ def test_accenterdata_builtin(tmpdir):
     acc_enter_trans = ACCEnterDataTrans()
     parallel_trans = ACCParallelTrans()
     acc_loop_trans = ACCLoopTrans()
+    ctrans = Dynamo0p3ColourTrans()
     psy, invoke = get_invoke("15.14.4_builtin_and_normal_kernel_invoke.f90",
                              TEST_API, name="invoke_0", dist_mem=False)
     sched = invoke.schedule
     for loop in sched.loops():
-        # We have to disable the dep. analysis for the user-provided kernel
-        # so just disable for all.
-        acc_loop_trans.apply(loop, options={"force": True})
+        # Colour all loops over cells so that they can be parallelised.
+        if loop.loop_type == "":
+            ctrans.apply(loop)
+    for loop in sched.loops():
+        if loop.loop_type in ["colour", "dof"]:
+            acc_loop_trans.apply(loop)
     parallel_trans.apply(sched.children)
     acc_enter_trans.apply(sched)
     output = str(psy.gen).lower()
@@ -6446,9 +6448,9 @@ def test_accenterdata_builtin(tmpdir):
     assert ("!$acc enter data copyin(f1_data,f2_data,m1_data,m2_data,"
             "map_w1,map_w2,map_w3,ndf_w1,ndf_w2,ndf_w3,"
             "nlayers,undf_w1,undf_w2,undf_w3)" in output)
-    assert "loop1_stop = undf_aspc1_f1" in output
+    assert "loop2_stop = undf_aspc1_f1" in output
     assert ("      !$acc loop independent\n"
-            "      do df=loop1_start,loop1_stop\n"
+            "      do df=loop2_start,loop2_stop\n"
             "        f1_data(df) = 0.0_r_def\n"
             "      end do\n"
             "      !$acc end parallel\n" in output)
@@ -6595,22 +6597,26 @@ def test_acclooptrans():
     acc_par_trans = ACCParallelTrans()
     acc_loop_trans = ACCLoopTrans()
     acc_enter_trans = ACCEnterDataTrans()
+    ctrans = Dynamo0p3ColourTrans()
     psy, invoke = get_invoke("1_single_invoke.f90", TEST_API,
                              name="invoke_0_testkern_type", dist_mem=False)
     sched = invoke.schedule
-    acc_loop_trans.apply(sched.children[0], options={"force": True})
+    ctrans.apply(sched[0])
+    acc_loop_trans.apply(sched[0].loop_body[0])
     acc_par_trans.apply(sched.children)
     acc_enter_trans.apply(sched)
     code = str(psy.gen)
-    assert "loop0_stop = f1_proxy%vspace%get_ncell()" in code
+    assert "loop0_stop = ncolour" in code
     assert (
         "      !$acc enter data copyin(f1_data,f2_data,m1_data,"
         "m2_data,map_w1,map_w2,map_w3,ndf_w1,ndf_w2,ndf_w3,nlayers,"
         "undf_w1,undf_w2,undf_w3)\n"
         "      !\n"
         "      !$acc parallel default(present)\n"
-        "      !$acc loop independent\n"
-        "      DO cell=loop0_start,loop0_stop") in code
+        "      DO colour=loop0_start,loop0_stop\n"
+        "        !$acc loop independent\n"
+        "        DO cell=loop1_start,last_edge_cell_all_colours(colour)"
+        in code)
     assert (
         "      END DO\n"
         "      !$acc end parallel\n") in code

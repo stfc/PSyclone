@@ -51,7 +51,7 @@ from psyclone.configuration import Config
 from psyclone.core import Signature, VariablesAccessInfo
 from psyclone.domain.lfric import KernCallArgList, LFRicConstants
 from psyclone.dynamo0p3 import LFRicHaloExchangeEnd, LFRicHaloExchangeStart, \
-    DynInvokeSchedule, DynKern
+    DynInvokeSchedule, DynKern, DynLoop
 from psyclone.errors import InternalError
 from psyclone.gocean1p0 import GOInvokeSchedule
 from psyclone.nemo import NemoInvokeSchedule
@@ -652,36 +652,37 @@ class DynamoOMPParallelLoopTrans(OMPParallelLoopTrans):
     def __str__(self):
         return "Add an OpenMP Parallel Do directive to a Dynamo loop"
 
-    def apply(self, node, options=None):
-
-        '''Perform Dynamo specific loop validity checks then call the
-        :py:meth:`~OMPParallelLoopTrans.apply` method of the
-        :py:class:`base class <OMPParallelLoopTrans>`.
+    def validate(self, node, options=None):
+        '''
+        Perform LFRic-specific loop validity checks then call the `validate`
+        method of the base class.
 
         :param node: the Node in the Schedule to check
         :type node: :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
 
-        :raises TransformationError: if the associated loop requires \
-                colouring.
-
+        :raises TransformationError: if the supplied Node is not a DynLoop.
+        :raises TransformationError: if the associated loop requires
+            colouring.
         '''
-        self.validate(node, options=options)
+        if not isinstance(node, DynLoop):
+            raise TransformationError(
+                f"Error in {self.name} transformation. The supplied node "
+                f"must be a DynLoop but got '{type(node).__name__}'")
 
         # If the loop is not already coloured then check whether or not
         # it should be. If the field space is discontinuous (including
         # any_discontinuous_space) then we don't need to worry about
         # colouring.
         const = LFRicConstants()
-        if node.field_space.orig_name not in \
-           const.VALID_DISCONTINUOUS_NAMES:
+        if node.field_space.orig_name not in const.VALID_DISCONTINUOUS_NAMES:
             if node.loop_type != 'colour' and node.has_inc_arg():
                 raise TransformationError(
                     f"Error in {self.name} transformation. The kernel has an "
                     f"argument with INC access. Colouring is required.")
 
-        OMPParallelLoopTrans.apply(self, node, options=options)
+        super().validate(node, options=options)
 
 
 class GOceanOMPParallelLoopTrans(OMPParallelLoopTrans):
