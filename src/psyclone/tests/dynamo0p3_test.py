@@ -1473,11 +1473,6 @@ def test_dynkernelargument_psyir_expression(monkeypatch):
     assert isinstance(psyir, BinaryOperation)
     assert psyir.operator == BinaryOperation.Operator.ADD
     # Test that we catch invalid literal expressions
-    monkeypatch.setattr(kern.arguments.args[1], "_name", "missing")
-    with pytest.raises(InternalError) as err:
-        _ = kern.arguments.args[1].psyir_expression()
-    assert ("Unexpected literal expression 'missing' when processing kernel "
-            "'inc_x_powint_n" in str(err.value))
     monkeypatch.setattr(kern.arguments.args[1], "_name", "3.0 + f1")
     with pytest.raises(InternalError) as err:
         _ = kern.arguments.args[1].psyir_expression()

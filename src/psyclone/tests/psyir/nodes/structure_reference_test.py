@@ -63,15 +63,17 @@ def test_struc_ref_init():
 def test_struc_ref_create():
     ''' Tests for the create method. '''
     region_type = symbols.StructureType.create([
-        ("startx", symbols.INTEGER_TYPE, symbols.Symbol.Visibility.PUBLIC)])
+        ("startx", symbols.INTEGER_TYPE, symbols.Symbol.Visibility.PUBLIC,
+         None)])
     region_type_symbol = symbols.DataTypeSymbol("region_type", region_type)
     grid_type = symbols.StructureType.create([
-        ("nx", symbols.INTEGER_TYPE, symbols.Symbol.Visibility.PUBLIC),
-        ("region", region_type_symbol, symbols.Symbol.Visibility.PRIVATE),
+        ("nx", symbols.INTEGER_TYPE, symbols.Symbol.Visibility.PUBLIC, None),
+        ("region", region_type_symbol, symbols.Symbol.Visibility.PRIVATE,
+         None),
         ("sub_grids", symbols.ArrayType(region_type_symbol, [3]),
-         symbols.Symbol.Visibility.PUBLIC),
+         symbols.Symbol.Visibility.PUBLIC, None),
         ("data", symbols.ArrayType(symbols.REAL_TYPE, [10, 10]),
-         symbols.Symbol.Visibility.PUBLIC)])
+         symbols.Symbol.Visibility.PUBLIC, None)])
     grid_type_symbol = symbols.DataTypeSymbol("grid_type", grid_type)
     ssym = symbols.DataSymbol("grid", grid_type_symbol)
     # Reference to scalar member of structure
@@ -140,7 +142,8 @@ def test_struc_ref_create_errors():
     assert ("one or more structure 'members' that are being accessed but "
             "got an empty list for symbol 'grid'" in str(err.value))
     grid_type = symbols.StructureType.create([
-        ("nx", symbols.INTEGER_TYPE, symbols.Symbol.Visibility.PUBLIC)])
+        ("nx", symbols.INTEGER_TYPE, symbols.Symbol.Visibility.PUBLIC,
+         None)])
     tsymbol_known = symbols.DataTypeSymbol("grid_type", grid_type)
     with pytest.raises(TypeError) as err:
         _ = nodes.StructureReference.create(
@@ -161,7 +164,8 @@ def test_struc_ref_create_errors():
 def test_struc_ref_validate_child():
     ''' Tests for the _validate_child method. '''
     grid_type = symbols.StructureType.create([
-        ("nx", symbols.INTEGER_TYPE, symbols.Symbol.Visibility.PUBLIC)])
+        ("nx", symbols.INTEGER_TYPE, symbols.Symbol.Visibility.PUBLIC,
+         None)])
     grid_type_symbol = symbols.DataTypeSymbol("grid_type", grid_type)
     ssym = symbols.DataSymbol("grid", grid_type_symbol)
     # Reference to scalar member of structure
@@ -181,7 +185,7 @@ def test_struc_ref_validate_child():
 def test_struc_ref_str():
     ''' Test the __str__ method of StructureReference. '''
     grid_type = symbols.StructureType.create([
-        ("nx", symbols.INTEGER_TYPE, symbols.Symbol.Visibility.PUBLIC)])
+        ("nx", symbols.INTEGER_TYPE, symbols.Symbol.Visibility.PUBLIC, None)])
     grid_type_symbol = symbols.DataTypeSymbol("grid_type", grid_type)
     ssym = symbols.DataSymbol("grid", grid_type_symbol)
     # Reference to scalar member of structure
@@ -209,7 +213,7 @@ def test_reference_accesses():
 def test_struc_ref_semantic_nav():
     ''' Test the 'member' property of the StructureReference. '''
     grid_type = symbols.StructureType.create([
-        ("nx", symbols.INTEGER_TYPE, symbols.Symbol.Visibility.PUBLIC)])
+        ("nx", symbols.INTEGER_TYPE, symbols.Symbol.Visibility.PUBLIC, None)])
     grid_type_symbol = symbols.DataTypeSymbol("grid_type", grid_type)
     ssym = symbols.DataSymbol("grid", grid_type_symbol)
     # Reference to scalar member of structure
@@ -228,16 +232,17 @@ def test_struc_ref_datatype():
     '''Test the datatype() method of StructureReference.'''
     atype = symbols.ArrayType(symbols.REAL_TYPE, [10, 8])
     rtype = symbols.StructureType.create([
-        ("gibber", symbols.BOOLEAN_TYPE, symbols.Symbol.Visibility.PUBLIC)])
+        ("gibber", symbols.BOOLEAN_TYPE, symbols.Symbol.Visibility.PUBLIC,
+         None)])
     # TODO #1031. Currently cannot create an array of StructureTypes
     # directly - have to have a DataTypeSymbol.
     rtype_sym = symbols.DataTypeSymbol("gibber_type", rtype)
     artype = symbols.ArrayType(rtype_sym, [10, 3])
     grid_type = symbols.StructureType.create([
-        ("nx", symbols.INTEGER_TYPE, symbols.Symbol.Visibility.PUBLIC),
-        ("data", atype, symbols.Symbol.Visibility.PRIVATE),
-        ("roger", rtype, symbols.Symbol.Visibility.PUBLIC),
-        ("titty", artype, symbols.Symbol.Visibility.PUBLIC)])
+        ("nx", symbols.INTEGER_TYPE, symbols.Symbol.Visibility.PUBLIC, None),
+        ("data", atype, symbols.Symbol.Visibility.PRIVATE, None),
+        ("roger", rtype, symbols.Symbol.Visibility.PUBLIC, None),
+        ("titty", artype, symbols.Symbol.Visibility.PUBLIC, None)])
     # Symbol with type defined by StructureType
     ssym0 = symbols.DataSymbol("grid", grid_type)
     # Reference to scalar member of structure
@@ -305,8 +310,9 @@ def test_structure_reference_deferred_type():
         symbols.UnknownFortranType(
             "type(atype), dimension(10,8), pointer :: aptr"), [10, 8])
     grid_type = symbols.StructureType.create([
-        ("mesh", symbols.DeferredType(), symbols.Symbol.Visibility.PUBLIC),
-        ("aptr", atype, symbols.Symbol.Visibility.PUBLIC)])
+        ("mesh", symbols.DeferredType(), symbols.Symbol.Visibility.PUBLIC,
+         None),
+        ("aptr", atype, symbols.Symbol.Visibility.PUBLIC, None)])
     grid_type_symbol = symbols.DataTypeSymbol("grid_type", grid_type)
     ssym = symbols.DataSymbol("grid", grid_type_symbol)
     # Structure of deferred type

@@ -3635,7 +3635,6 @@ def test_reprod_view(monkeypatch, annexed, dist_mem):
     call = colored("BuiltIn", BuiltIn._colour)
     sched = colored("Schedule", Schedule._colour)
     lit = colored("Literal", Literal._colour)
-    ref = colored("Reference", Reference._colour)
     lit_one = lit + "[value:'1', Scalar<INTEGER, UNDEFINED>]\n"
     indent = "    "
 
@@ -6316,7 +6315,8 @@ def test_intergrid_omp_para_region1(dist_mem, tmpdir):
     ctrans = Dynamo0p3ColourTrans()
     ptrans = OMPParallelTrans()
     otrans = Dynamo0p3OMPLoopTrans()
-    # Colour the first loop (where 'cmap_fld_c' is the field on the coarse mesh)
+    # Colour the first loop (where 'cmap_fld_c' is the field on the coarse
+    # mesh)
     loops = schedule.walk(Loop)
     ctrans.apply(loops[0])
     # Parallelise the loop over cells of a given colour

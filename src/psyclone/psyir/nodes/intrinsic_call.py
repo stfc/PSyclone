@@ -439,7 +439,7 @@ class IntrinsicCall(Call):
             'ISHFT', True, True, False,
             ArgDesc(2, 2, (DataNode)), {})
         ISHFTC = IAttr(
-            'ISHFT', True, True, False,
+            'ISHFTC', True, True, False,
             ArgDesc(2, 2, (DataNode)), {"size": DataNode})
         IS_CONTIGUOUS = IAttr(
             'IS_CONTIGUOUS', True, False, True,
@@ -586,7 +586,7 @@ class IntrinsicCall(Call):
             'POPPAR', True, True, False,
             ArgDesc(1, 1, DataNode), {})
         PRECISION = IAttr(
-            'PRECISON', True, False, True,
+            'PRECISION', True, False, True,
             ArgDesc(1, 1, DataNode), {})
         PRESENT = IAttr(
             'PRESENT', True, False, True,
@@ -735,7 +735,7 @@ class IntrinsicCall(Call):
             'UNPACK', True, False, False,
             ArgDesc(3, 3, DataNode), {})
         VERIFY = IAttr(
-            'TRIM', True, True, False,
+            'VERIFY', True, True, False,
             ArgDesc(2, 2, DataNode), {"back": DataNode, "kind": DataNode})
 
         def __hash__(self):

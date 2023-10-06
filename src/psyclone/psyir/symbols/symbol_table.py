@@ -1396,6 +1396,43 @@ class SymbolTable():
                                             symbol, symbol_target):
                     continue
 
+                # Determine if there is an Unresolved Symbol in a
+                # descendent symbol table that matches the name of the
+                # symbol we are importing and if so, move it to this
+                # symbol table if a symbol with the same name does not
+                # already exist in this symbol table.
+
+                # There are potential issues with this approach and
+                # with the routine in general which are captured in
+                # issue #2331. Issue #2271 may also help/fix some or
+                # all of the problems too.
+
+                # Import here to avoid circular dependencies
+                # pylint: disable=import-outside-toplevel
+                from psyclone.psyir.nodes import ScopingNode, Reference
+                for scoping_node in self.node.walk(ScopingNode):
+                    symbol_table = scoping_node.symbol_table
+                    if symbol.name in symbol_table:
+                        test_symbol = symbol_table.lookup(symbol.name)
+                        # pylint: disable=unidiomatic-typecheck
+                        if (type(test_symbol) is Symbol
+                                and test_symbol.is_unresolved):
+                            # No wildcard imports in this symbol table
+                            if not [sym for sym in
+                                    symbol_table.containersymbols if
+                                    sym.wildcard_import]:
+                                symbol_table.remove(test_symbol)
+                                if test_symbol.name not in self:
+                                    self.add(test_symbol)
+                                else:
+                                    for ref in symbol_table.node.walk(
+                                            Reference):
+                                        if SymbolTable._has_same_name(
+                                                ref.symbol, symbol):
+                                            mod_symbol = self.lookup(
+                                                symbol.name)
+                                            ref.symbol = mod_symbol
+
                 # This Symbol matches the name of a symbol in the current table
                 if symbol.name in self:
 

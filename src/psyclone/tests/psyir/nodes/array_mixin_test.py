@@ -141,8 +141,8 @@ def test_is_bound_validate_index(fortran_reader):
     array_ref = assigns[0].lhs
     with pytest.raises(ValueError) as info:
         array_ref._is_bound(2, "upper")
-    assert ("In ArrayReference 'a' the specified index '2' must be less than "
-            "the number of dimensions '1'." in str(info.value))
+    assert ("In 'ArrayReference' 'a' the specified index '2' must be less "
+            "than the number of dimensions '1'." in str(info.value))
 
 
 @pytest.mark.parametrize("bounds,lower,upper", [
@@ -379,7 +379,7 @@ def test_aref_to_aos_bound_expression():
 
     '''
     sgrid_type = StructureType.create(
-        [("ID", INTEGER_TYPE, Symbol.Visibility.PUBLIC)])
+        [("ID", INTEGER_TYPE, Symbol.Visibility.PUBLIC, None)])
     sgrid_type_sym = DataTypeSymbol("subgrid_type", sgrid_type)
     sym = DataSymbol("subgrids", ArrayType(sgrid_type_sym, [(3, 10)]))
     lbound = IntrinsicCall.create(IntrinsicCall.Intrinsic.LBOUND,
@@ -432,14 +432,14 @@ def test_member_get_bound_expression(fortran_writer):
     a2d = ArrayType(REAL_TYPE, [2, (2, 8)])
     # Structure that contains "map" which is a 2D array.
     stypedef = StructureType.create(
-        [("map", a2d, Symbol.Visibility.PUBLIC)])
+        [("map", a2d, Symbol.Visibility.PUBLIC, None)])
     stypedefsym = DataTypeSymbol("map_type", stypedef)
     # Structure containing a structure of stypedef and an array of such
     # structures.
     stypedef2 = StructureType.create(
-        [("grid", stypedef, Symbol.Visibility.PUBLIC),
+        [("grid", stypedef, Symbol.Visibility.PUBLIC, None),
          ("subgrids", ArrayType(stypedefsym, [3, (2, 6)]),
-          Symbol.Visibility.PUBLIC)])
+          Symbol.Visibility.PUBLIC, None)])
     ssym = DataSymbol("var", stypedef2)
     sref = StructureReference.create(ssym,
                                      ["grid",
@@ -463,6 +463,30 @@ def test_member_get_bound_expression(fortran_writer):
     # Check that get_ubound_expression gives the same result
     assert (sref2.member.member._get_bound_expression(1, "upper") ==
             sref2.member.member.get_ubound_expression(1))
+
+
+@pytest.mark.parametrize("extent", [ArrayType.Extent.DEFERRED,
+                                    ArrayType.Extent.ATTRIBUTE])
+def test_aref_get_full_range_unknown_size(extent):
+    '''Tests the get_full_range function returns full ranges ezxpect by
+    the is_full_range function.'''
+    symbol = DataSymbol("my_symbol", ArrayType(INTEGER_TYPE,
+                                               [extent, extent]))
+    aref = ArrayReference.create(symbol, [_ONE.copy(), _ONE.copy()])
+    range1 = aref.get_full_range(0)
+    range2 = aref.get_full_range(1)
+
+    full_range_aref = ArrayReference.create(symbol, [range1, range2])
+    assert full_range_aref.is_full_range(0)
+    assert full_range_aref.is_full_range(1)
+
+    # Test the validate index function correctly throws an exception for
+    # a bad index
+    with pytest.raises(ValueError) as excinfo:
+        aref.get_full_range(10)
+    assert ("In 'ArrayReference' 'my_symbol' the specified index '10' must be "
+            "less than the number of dimensions '2'." in str(excinfo.value))
+
 
 # _get_effective_shape
 
