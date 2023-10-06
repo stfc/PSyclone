@@ -388,6 +388,13 @@ and --f90 and --f90flags), e.g.::
 
   > pytest --compileopencl --f90=<opencl-compiler> --f90flags="<opencl-specific flags>"
 
+If you want to test OpenMP code created by PSyclone, you must add the relevant
+openmp flag to --f90flags (`-qopenmp` for intel, `-fopenmp` for gfortran). In addition
+the OpenMP tasking tests currently only support compilation testing with intel
+compilers, e.g.::
+
+  > pytest --compile --f90=ifort --f90flags="-qopenmp"
+
 
 Infrastructure libraries
 ++++++++++++++++++++++++

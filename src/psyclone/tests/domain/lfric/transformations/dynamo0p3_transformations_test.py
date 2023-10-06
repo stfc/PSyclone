@@ -3635,7 +3635,6 @@ def test_reprod_view(monkeypatch, annexed, dist_mem):
     call = colored("BuiltIn", BuiltIn._colour)
     sched = colored("Schedule", Schedule._colour)
     lit = colored("Literal", Literal._colour)
-    ref = colored("Reference", Reference._colour)
     lit_one = lit + "[value:'1', Scalar<INTEGER, UNDEFINED>]\n"
     indent = "    "
 
@@ -6199,8 +6198,8 @@ def test_intergrid_colour(dist_mem):
       cmap_fld_m => mesh_fld_m%get_colour_map()'''
     assert expected in gen
     expected = '''\
-      ncolour_fld_c = mesh_fld_c%get_ncolours()
-      cmap_fld_c => mesh_fld_c%get_colour_map()'''
+      ncolour_cmap_fld_c = mesh_cmap_fld_c%get_ncolours()
+      cmap_cmap_fld_c => mesh_cmap_fld_c%get_colour_map()'''
     assert expected in gen
     assert "loop1_stop = ncolour_fld_m" in gen
     assert "loop2_stop" not in gen
@@ -6288,20 +6287,20 @@ def test_intergrid_omp_parado(dist_mem, tmpdir):
     otrans.apply(loops[2])
     otrans.apply(loops[5])
     gen = str(psy.gen)
-    assert "loop4_stop = ncolour_fld_c" in gen
+    assert "loop4_stop = ncolour_cmap_fld_c" in gen
     assert ("      DO colour=loop4_start,loop4_stop\n"
             "        !$omp parallel do default(shared), private(cell), "
             "schedule(static)\n" in gen)
 
     if dist_mem:
-        assert ("last_halo_cell_all_colours_fld_c = "
-                "mesh_fld_c%get_last_halo_cell_all_colours()" in gen)
-        assert ("DO cell=loop5_start,last_halo_cell_all_colours_fld_c"
+        assert ("last_halo_cell_all_colours_cmap_fld_c = "
+                "mesh_cmap_fld_c%get_last_halo_cell_all_colours()" in gen)
+        assert ("DO cell=loop5_start,last_halo_cell_all_colours_cmap_fld_c"
                 "(colour,1)\n" in gen)
     else:
-        assert ("last_edge_cell_all_colours_fld_c = mesh_fld_c%get_last_edge_"
-                "cell_all_colours()" in gen)
-        assert ("DO cell=loop5_start,last_edge_cell_all_colours_fld_c"
+        assert ("last_edge_cell_all_colours_cmap_fld_c = mesh_cmap_fld_c%"
+                "get_last_edge_cell_all_colours()" in gen)
+        assert ("DO cell=loop5_start,last_edge_cell_all_colours_cmap_fld_c"
                 "(colour)\n" in gen)
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -6316,7 +6315,8 @@ def test_intergrid_omp_para_region1(dist_mem, tmpdir):
     ctrans = Dynamo0p3ColourTrans()
     ptrans = OMPParallelTrans()
     otrans = Dynamo0p3OMPLoopTrans()
-    # Colour the first loop (where 'fld_c' is the field on the coarse mesh)
+    # Colour the first loop (where 'cmap_fld_c' is the field on the coarse
+    # mesh)
     loops = schedule.walk(Loop)
     ctrans.apply(loops[0])
     # Parallelise the loop over cells of a given colour
@@ -6327,24 +6327,24 @@ def test_intergrid_omp_para_region1(dist_mem, tmpdir):
     ptrans.apply(dirs[0])
     gen = str(psy.gen)
     if dist_mem:
-        assert ("last_halo_cell_all_colours_fld_c = mesh_fld_c%get_last_halo_"
-                "cell_all_colours()" in gen)
-        upper_bound = "last_halo_cell_all_colours_fld_c(colour,1)"
+        assert ("last_halo_cell_all_colours_cmap_fld_c = mesh_cmap_fld_c%"
+                "get_last_halo_cell_all_colours()" in gen)
+        upper_bound = "last_halo_cell_all_colours_cmap_fld_c(colour,1)"
     else:
-        assert ("last_edge_cell_all_colours_fld_c = mesh_fld_c%get_last_edge_"
-                "cell_all_colours()\n" in gen)
-        upper_bound = "last_edge_cell_all_colours_fld_c(colour)"
-    assert "loop0_stop = ncolour_fld_c\n" in gen
+        assert ("last_edge_cell_all_colours_cmap_fld_c = mesh_cmap_fld_c%"
+                "get_last_edge_cell_all_colours()\n" in gen)
+        upper_bound = "last_edge_cell_all_colours_cmap_fld_c(colour)"
+    assert "loop0_stop = ncolour_cmap_fld_c\n" in gen
     assert (f"      DO colour=loop0_start,loop0_stop\n"
             f"        !$omp parallel default(shared), private(cell)\n"
             f"        !$omp do schedule(static)\n"
             f"        DO cell=loop1_start,{upper_bound}\n"
             f"          !\n"
-            f"          CALL prolong_test_kernel_code(nlayers, cell_map_fld_c"
-            f"(:,:,cmap_fld_c(colour,cell)), ncpc_fld_m_fld_c_x, "
-            f"ncpc_fld_m_fld_c_y, ncell_fld_m, "
-            f"fld_m_proxy%data, fld_c_proxy%data, ndf_w1, undf_w1, map_w1, "
-            f"undf_w2, map_w2(:,cmap_fld_c(colour,cell)))\n"
+            f"          CALL prolong_test_kernel_code(nlayers, "
+            f"cell_map_cmap_fld_c(:,:,cmap_cmap_fld_c(colour,cell)), "
+            f"ncpc_fld_m_cmap_fld_c_x, ncpc_fld_m_cmap_fld_c_y, ncell_fld_m, "
+            f"fld_m_proxy%data, cmap_fld_c_proxy%data, ndf_w1, undf_w1, "
+            f"map_w1, undf_w2, map_w2(:,cmap_cmap_fld_c(colour,cell)))\n"
             f"        END DO\n"
             f"        !$omp end do\n"
             f"        !$omp end parallel\n"

@@ -49,12 +49,16 @@ from psyclone.f2pygen import DirectiveGen, CommentGen
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.nodes.acc_clauses import (ACCCopyClause, ACCCopyInClause,
                                               ACCCopyOutClause)
+from psyclone.psyir.nodes.assignment import Assignment
 from psyclone.psyir.nodes.codeblock import CodeBlock
 from psyclone.psyir.nodes.directive import (StandaloneDirective,
                                             RegionDirective)
+from psyclone.psyir.nodes.intrinsic_call import IntrinsicCall
 from psyclone.psyir.nodes.psy_data_node import PSyDataNode
 from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes.schedule import Schedule
+from psyclone.psyir.nodes.operation import BinaryOperation
+from psyclone.psyir.symbols import ScalarType
 
 
 class ACCDirective(metaclass=abc.ABCMeta):
@@ -902,8 +906,96 @@ def _sig_set_to_string(sig_set):
     return ",".join(sorted(names))
 
 
+class ACCAtomicDirective(ACCRegionDirective):
+    '''
+    OpenACC directive to represent that the memory accesses in the associated
+    assignment must be performed atomically.
+    Note that the standard supports blocks with 2 assignments but this is
+    currently unsupported in the PSyIR.
+
+    '''
+    def begin_string(self):
+        '''
+        :returns: the opening string statement of this directive.
+        :rtype: str
+
+        '''
+        return "acc atomic"
+
+    def end_string(self):
+        '''
+        :returns: the ending string statement of this directive.
+        :rtype: str
+
+        '''
+        return "acc end atomic"
+
+    @staticmethod
+    def is_valid_atomic_statement(stmt):
+        ''' Check if a given statement is a valid OpenACC atomic expression.
+
+        :param stmt: a node to be validated.
+        :type stmt: :py:class:`psyclone.psyir.nodes.Node`
+
+        :returns: whether a given statement is compliant with the OpenACC
+            atomic expression.
+        :rtype: bool
+
+        '''
+        if not isinstance(stmt, Assignment):
+            return False
+
+        # Not all rules are checked, just that:
+        # - operands are of a scalar intrinsic type
+        if not isinstance(stmt.lhs.datatype, ScalarType):
+            return False
+
+        # - the top-level operator is one of: +, *, -, /, AND, OR, EQV, NEQV
+        if isinstance(stmt.rhs, BinaryOperation):
+            if stmt.rhs.operator not in (BinaryOperation.Operator.ADD,
+                                         BinaryOperation.Operator.SUB,
+                                         BinaryOperation.Operator.MUL,
+                                         BinaryOperation.Operator.DIV,
+                                         BinaryOperation.Operator.AND,
+                                         BinaryOperation.Operator.OR,
+                                         BinaryOperation.Operator.EQV,
+                                         BinaryOperation.Operator.NEQV):
+                return False
+        # - or intrinsics: MAX, MIN, IAND, IOR, or IEOR
+        if isinstance(stmt.rhs, IntrinsicCall):
+            if stmt.rhs.intrinsic not in (IntrinsicCall.Intrinsic.MAX,
+                                          IntrinsicCall.Intrinsic.MIN,
+                                          IntrinsicCall.Intrinsic.IAND,
+                                          IntrinsicCall.Intrinsic.IOR,
+                                          IntrinsicCall.Intrinsic.IEOR):
+                return False
+
+        # - one of the operands should be the same as the lhs
+        if stmt.lhs not in stmt.rhs.children:
+            return False
+
+        return True
+
+    def validate_global_constraints(self):
+        ''' Perform validation of those global constraints that can only be
+        done at code-generation time.
+
+        :raises GenerationError: if the ACCAtomicDirective associated
+            statement does not conform to a valid OpenACC atomic operation.
+        '''
+        if not self.children or len(self.dir_body.children) != 1:
+            raise GenerationError(
+                f"Atomic directives must always have one and only one"
+                f" associated statement, but found '{self.debug_string()}'")
+        stmt = self.dir_body[0]
+        if not self.is_valid_atomic_statement(stmt):
+            raise GenerationError(
+                f"Statement '{self.children[0].debug_string()}' is not a "
+                f"valid OpenACC Atomic statement.")
+
+
 # For automatic API documentation generation
 __all__ = ["ACCRegionDirective", "ACCEnterDataDirective",
            "ACCParallelDirective", "ACCLoopDirective", "ACCKernelsDirective",
            "ACCDataDirective", "ACCUpdateDirective", "ACCStandaloneDirective",
-           "ACCDirective", "ACCRoutineDirective"]
+           "ACCDirective", "ACCRoutineDirective", "ACCAtomicDirective"]

@@ -38,10 +38,6 @@
 ''' This module contains tests for the inter-grid part of the LFRic API
     using pytest. '''
 
-# Since this is a file containing tests which often have to get in and
-# change the internal state of objects we disable pylint's warning
-# about such accesses
-
 import os
 import pytest
 import fparser
@@ -56,11 +52,12 @@ from psyclone.gen_kernel_stub import generate
 from psyclone.parse.algorithm import parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory
-from psyclone.psyir.nodes import Node
+from psyclone.psyir.nodes import Node, Loop
 from psyclone.psyir.symbols import Symbol
 from psyclone.tests.lfric_build import LFRicBuild
-from psyclone.transformations import check_intergrid, Dynamo0p3ColourTrans, \
-        DynamoOMPParallelLoopTrans, TransformationError
+from psyclone.transformations import (
+    ACCEnterDataTrans, ACCKernelsTrans, check_intergrid, Dynamo0p3ColourTrans,
+    DynamoOMPParallelLoopTrans, TransformationError)
 
 # constants
 BASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -554,23 +551,27 @@ def test_restrict_prolong_chain(tmpdir, dist_mem):
     if dist_mem:
         expected += (
             "      max_halo_depth_mesh_fld_m = mesh_fld_m%get_halo_depth()\n"
-            "      mesh_fld_c => fld_c_proxy%vspace%get_mesh()\n"
-            "      max_halo_depth_mesh_fld_c = mesh_fld_c%get_halo_depth()\n"
+            "      mesh_cmap_fld_c => cmap_fld_c_proxy%vspace%get_mesh()\n"
+            "      max_halo_depth_mesh_cmap_fld_c = "
+            "mesh_cmap_fld_c%get_halo_depth()\n"
             )
     else:
-        expected += "      mesh_fld_c => fld_c_proxy%vspace%get_mesh()\n"
+        expected += ("      mesh_cmap_fld_c => "
+                     "cmap_fld_c_proxy%vspace%get_mesh()\n")
     expected += (
-        "      mmap_fld_m_fld_c => mesh_fld_c%get_mesh_map(mesh_fld_m)\n"
-        "      cell_map_fld_c => mmap_fld_m_fld_c%get_whole_cell_map()\n")
+        "      mmap_fld_m_cmap_fld_c => "
+        "mesh_cmap_fld_c%get_mesh_map(mesh_fld_m)\n"
+        "      cell_map_cmap_fld_c => "
+        "mmap_fld_m_cmap_fld_c%get_whole_cell_map()\n")
 
     assert expected in output
 
     if dist_mem:
         expected = (
             "      ncell_fld_m = mesh_fld_m%get_last_halo_cell(depth=2)\n"
-            "      ncpc_fld_m_fld_c_x = mmap_fld_m_fld_c%"
+            "      ncpc_fld_m_cmap_fld_c_x = mmap_fld_m_cmap_fld_c%"
             "get_ntarget_cells_per_source_x()\n"
-            "      ncpc_fld_m_fld_c_y = mmap_fld_m_fld_c%"
+            "      ncpc_fld_m_cmap_fld_c_y = mmap_fld_m_cmap_fld_c%"
             "get_ntarget_cells_per_source_y()\n"
             "      mesh_fld_f => fld_f_proxy%vspace%get_mesh()\n"
             "      max_halo_depth_mesh_fld_f = mesh_fld_f%get_halo_depth()\n"
@@ -584,10 +585,10 @@ def test_restrict_prolong_chain(tmpdir, dist_mem):
     else:
         expected = (
             "      ncell_fld_m = fld_m_proxy%vspace%get_ncell()\n"
-            "      ncpc_fld_m_fld_c_x = mmap_fld_m_fld_c%get_ntarget_cells_"
-            "per_source_x()\n"
-            "      ncpc_fld_m_fld_c_y = mmap_fld_m_fld_c%get_ntarget_cells_"
-            "per_source_y()\n"
+            "      ncpc_fld_m_cmap_fld_c_x = "
+            "mmap_fld_m_cmap_fld_c%get_ntarget_cells_per_source_x()\n"
+            "      ncpc_fld_m_cmap_fld_c_y = "
+            "mmap_fld_m_cmap_fld_c%get_ntarget_cells_per_source_y()\n"
             "      mesh_fld_f => fld_f_proxy%vspace%get_mesh()\n"
             "      mmap_fld_f_fld_m => mesh_fld_m%get_mesh_map(mesh_fld_f)\n"
             "      cell_map_fld_m => mmap_fld_f_fld_m%get_whole_cell_map()\n"
@@ -611,13 +612,13 @@ def test_restrict_prolong_chain(tmpdir, dist_mem):
             "        CALL fld_m_proxy%halo_exchange(depth=1)\n"
             "      END IF\n"
             "      !\n"
-            "      IF (fld_c_proxy%is_dirty(depth=1)) THEN\n"
-            "        CALL fld_c_proxy%halo_exchange(depth=1)\n"
+            "      IF (cmap_fld_c_proxy%is_dirty(depth=1)) THEN\n"
+            "        CALL cmap_fld_c_proxy%halo_exchange(depth=1)\n"
             "      END IF\n"
             "      !\n"
             "      DO cell=loop0_start,loop0_stop")
         assert expected in output
-        assert "loop0_stop = mesh_fld_c%get_last_halo_cell(1)\n" in output
+        assert "loop0_stop = mesh_cmap_fld_c%get_last_halo_cell(1)\n" in output
         # Since we loop into L1 halo of the coarse mesh, the L1 halo
         # of the fine(r) mesh will now be clean. Therefore, no halo
         # swap before the next prolongation required for fld_m
@@ -663,19 +664,20 @@ def test_restrict_prolong_chain(tmpdir, dist_mem):
                     "        !\n"
                     "        CALL restrict_test_kernel_code")
         assert expected in output
-        assert "loop3_stop = mesh_fld_c%get_last_halo_cell(1)\n" in output
+        assert "loop3_stop = mesh_cmap_fld_c%get_last_halo_cell(1)\n" in output
     else:
-        assert "loop0_stop = fld_c_proxy%vspace%get_ncell()\n" in output
+        assert "loop0_stop = cmap_fld_c_proxy%vspace%get_ncell()\n" in output
         assert "loop1_stop = fld_m_proxy%vspace%get_ncell()\n" in output
         assert "loop2_stop = fld_m_proxy%vspace%get_ncell()\n" in output
-        assert "loop3_stop = fld_c_proxy%vspace%get_ncell()\n" in output
+        assert "loop3_stop = cmap_fld_c_proxy%vspace%get_ncell()\n" in output
         expected = (
             "      DO cell=loop0_start,loop0_stop\n"
             "        !\n"
-            "        CALL prolong_test_kernel_code(nlayers, cell_map_fld_c"
-            "(:,:,cell), ncpc_fld_m_fld_c_x, ncpc_fld_m_fld_c_y, ncell_fld_m, "
-            "fld_m_proxy%data, fld_c_proxy%data, ndf_w1, undf_w1, map_w1, "
-            "undf_w2, map_w2(:,cell))\n"
+            "        CALL prolong_test_kernel_code(nlayers, "
+            "cell_map_cmap_fld_c(:,:,cell), ncpc_fld_m_cmap_fld_c_x, "
+            "ncpc_fld_m_cmap_fld_c_y, ncell_fld_m, fld_m_proxy%data, "
+            "cmap_fld_c_proxy%data, ndf_w1, undf_w1, map_w1, undf_w2, "
+            "map_w2(:,cell))\n"
             "      END DO\n"
             "      DO cell=loop1_start,loop1_stop\n"
             "        !\n"
@@ -694,11 +696,11 @@ def test_restrict_prolong_chain(tmpdir, dist_mem):
             "      END DO\n"
             "      DO cell=loop3_start,loop3_stop\n"
             "        !\n"
-            "        CALL restrict_test_kernel_code(nlayers, cell_map_fld_c"
-            "(:,:,cell), ncpc_fld_m_fld_c_x, ncpc_fld_m_fld_c_y, ncell_fld_m, "
-            "fld_c_proxy%data, fld_m_proxy%data, undf_aspc1_fld_c, "
-            "map_aspc1_fld_c(:,cell), ndf_aspc2_fld_m, undf_aspc2_fld_m, "
-            "map_aspc2_fld_m)\n")
+            "        CALL restrict_test_kernel_code(nlayers, "
+            "cell_map_cmap_fld_c(:,:,cell), ncpc_fld_m_cmap_fld_c_x, "
+            "ncpc_fld_m_cmap_fld_c_y, ncell_fld_m, cmap_fld_c_proxy%data, "
+            "fld_m_proxy%data, undf_aspc1_cmap_fld_c, map_aspc1_cmap_fld_c"
+            "(:,cell), ndf_aspc2_fld_m, undf_aspc2_fld_m, map_aspc2_fld_m)\n")
         assert expected in output
 
 
@@ -860,3 +862,43 @@ def test_restrict_prolong_chain_anyd(tmpdir):
         ctrans.apply(schedule.children[1])
     assert ("Loops iterating over a discontinuous function space "
             "are not currently supported." in str(excinfo.value))
+
+
+def test_restrict_prolong_chain_acc(tmpdir):
+    ''' Test that we generate correct OpenACC code for an invoke containing
+    a chain of discontinuous restrictions and continuous prolongations.
+
+    '''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "22.2_intergrid_3levels.f90"),
+                           api=API)
+    psy = PSyFactory(API, distributed_memory=True).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    enter_data_trans = ACCEnterDataTrans()
+    kernel_trans = ACCKernelsTrans()
+    ctrans = Dynamo0p3ColourTrans()
+    const = LFRicConstants()
+
+    for loop in schedule.walk(Loop):
+        if (loop.iteration_space == "cell_column" and
+                loop.field_space.orig_name not in
+                const.VALID_DISCONTINUOUS_NAMES):
+            ctrans.apply(loop)
+    for loop in schedule.walk(Loop):
+        if loop.loop_type not in ["colours", "null"]:
+            kernel_trans.apply(loop)
+
+    enter_data_trans.apply(schedule)
+    output = str(psy.gen)
+    assert "acc enter data" in output
+    for line in output.split("\n"):
+        # There should be no indexing into arrays within the enter-data
+        # directive.
+        if line.lstrip().startswith("!$acc enter data"):
+            assert "(:,:,cell)" not in line
+            assert "cmap(colour,cell)" not in line
+            assert ",cmap_cmap_fld_c," in line
+            assert ",cmap_fld_m," in line
+            break
+    # Check compilation
+    assert LFRicBuild(tmpdir).code_compiles(psy)

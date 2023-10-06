@@ -38,8 +38,8 @@ program eval_invoke
 
   implicit none
 
-  type(field_type) :: f0, f1
+  type(field_type) :: f0, cmap
 
-  call invoke( testkern_eval_type(f0, f1) )
+  call invoke( testkern_eval_type(f0, cmap) )
 
 end program eval_invoke

@@ -61,7 +61,8 @@ from psyclone.domain.lfric import (FunctionSpace, KernCallAccArgList,
                                    LFRicArgDescriptor, KernelInterface,
                                    LFRicCollection, LFRicConstants,
                                    LFRicSymbolTable, LFRicInvoke,
-                                   LFRicKernCallFactory, LFRicScalarArgs)
+                                   LFRicInvokes, LFRicKernCallFactory,
+                                   LFRicScalarArgs)
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 from psyclone.f2pygen import (AllocateGen, AssignGen, CallGen, CommentGen,
                               DeallocateGen, DeclGen, DoGen, IfThenGen,
@@ -1010,7 +1011,7 @@ class DynamoPSy(PSy):
         # TODO #1954: Remove the protected access using a factory
         ScopingNode._symbol_table_class = LFRicSymbolTable
         PSy.__init__(self, invoke_info)
-        self._invokes = DynamoInvokes(invoke_info.calls, self)
+        self._invokes = LFRicInvokes(invoke_info.calls, self)
         # Initialise the dictionary that holds the names of the required
         # LFRic constants, data structures and data structure proxies for
         # the "use" statements in modules that contain PSy-layer routines.
@@ -1118,24 +1119,6 @@ class DynamoPSy(PSy):
 
         # Return the root node of the generated code
         return psy_module.root
-
-
-class DynamoInvokes(Invokes):
-    '''The Dynamo specific invokes class. This passes the Dynamo
-    specific invoke class to the base class so it creates the one we
-    require.
-
-    :param alg_calls: list of objects containing the parsed invoke \
-        information.
-    :type alg_calls: list of \
-        :py:class:`psyclone.parse.algorithm.InvokeCall`
-    :param psy: the PSy object containing this DynamoInvokes object.
-    :type psy: :py:class`psyclone.dynamo0p3.DynamoPSy`
-
-    '''
-    def __init__(self, alg_calls, psy):
-        self._0_to_n = LFRicInvoke(None, None, None)  # for pyreverse
-        Invokes.__init__(self, alg_calls, LFRicInvoke, psy)
 
 
 class DynStencils(LFRicCollection):
@@ -1860,7 +1843,8 @@ class LFRicMeshProperties(LFRicCollection):
                     cell_name = "cell"
                     if self._kernel.is_coloured():
                         colour_name = "colour"
-                        cmap_name = "cmap"
+                        cmap_name = self._symbol_table.find_or_create_tag(
+                            "cmap", root_name="cmap").name
                         adj_face += (f"(:,{cmap_name}({colour_name},"
                                      f"{cell_name}))")
                     else:
@@ -3720,12 +3704,13 @@ class DynMeshes():
         '''
         Sets-up information on any required colourmaps. This cannot be done
         in the constructor since colouring is applied by Transformations
-        and happens after the Schedule has already been constructed.
+        and happens after the Schedule has already been constructed. Therefore,
+        this method is called at code-generation time.
 
         '''
         # pylint: disable=too-many-locals
         const = LFRicConstants()
-        have_non_intergrid = False
+        non_intergrid_kern = None
         sym_tab = self._schedule.symbol_table
 
         for call in [call for call in self._schedule.coded_kernels() if
@@ -3740,7 +3725,7 @@ class DynMeshes():
                 self._needs_colourmap = True
 
             if not call.is_intergrid:
-                have_non_intergrid = True
+                non_intergrid_kern = call
                 continue
 
             # This is an inter-grid kernel so look-up the names of
@@ -3775,13 +3760,14 @@ class DynMeshes():
             self._ig_kernels[id(call)].set_colour_info(
                 colour_map, ncolours, last_cell)
 
-        if have_non_intergrid and (self._needs_colourmap or
+        if non_intergrid_kern and (self._needs_colourmap or
                                    self._needs_colourmap_halo):
             # There aren't any inter-grid kernels but we do need colourmap
             # information and that means we'll need a mesh object
             self._add_mesh_symbols(["mesh"])
-            colour_map = sym_tab.find_or_create_array(
-                "cmap", 2, ScalarType.Intrinsic.INTEGER, tag="cmap").name
+            # This creates the colourmap information for this invoke if we
+            # don't already have one.
+            colour_map = non_intergrid_kern.colourmap
             # No. of colours
             ncolours = sym_tab.find_or_create_integer_symbol(
                 "ncolour", tag="ncolour").name
@@ -3881,8 +3867,8 @@ class DynMeshes():
             # There aren't any inter-grid kernels but we do need
             # colourmap information
             base_name = "cmap"
-            colour_map = \
-                self._schedule.symbol_table.find_or_create_tag(base_name).name
+            csym = self._schedule.symbol_table.lookup_with_tag("cmap")
+            colour_map = csym.name
             # No. of colours
             base_name = "ncolour"
             ncolours = \
@@ -7365,11 +7351,17 @@ class DynLoop(PSyLoop):
                                 LFRicConstants().DATA_TYPE_MAP.values())
 
             for msg in dtools.get_all_messages():
-                if msg.code != DTCode.WARN_SCALAR_WRITTEN_ONCE:
+                if msg.code not in [DTCode.WARN_SCALAR_WRITTEN_ONCE,
+                                    DTCode.WARN_SCALAR_REDUCTION]:
                     # The DA is complaining about something other than writing
-                    # to (what it thinks is) a scalar.  Therefore the loop
-                    # cannot be parallelised.
+                    # or reducing to (what it thinks is) a scalar. Therefore
+                    # the loop cannot be parallelised.
                     return False
+                if self.loop_type == "dof":
+                    # Loops over dofs *are* permitted to perform reductions in
+                    # LFRic so we ignore warnings about writing to scalars or
+                    # performing reductions.
+                    continue
                 # Currently the DA (wrongly) identifies things like
                 # 'fld_proxy%data' as being scalar accesses. We therefore need
                 # to check that the argument it says is a scalar is in fact a
@@ -7736,8 +7728,9 @@ class DynKern(CodedKern):
         if not self.is_coloured():
             raise InternalError(f"Kernel '{self.name}' is not inside a "
                                 f"coloured loop.")
+        sched = self.ancestor(InvokeSchedule)
         if self._is_intergrid:
-            invoke = self.ancestor(InvokeSchedule).invoke
+            invoke = sched.invoke
             if id(self) not in invoke.meshes.intergrid_kernels:
                 raise InternalError(
                     f"Colourmap information for kernel '{self.name}' has "
@@ -7745,7 +7738,14 @@ class DynKern(CodedKern):
             cmap = invoke.meshes.intergrid_kernels[id(self)].\
                 colourmap_symbol.name
         else:
-            cmap = self.scope.symbol_table.lookup_with_tag("cmap").name
+            try:
+                cmap = sched.symbol_table.lookup_with_tag("cmap").name
+            except KeyError:
+                # We have to do this here as _init_colourmap (which calls this
+                # method) is only called at code-generation time.
+                cmap = sched.symbol_table.find_or_create_array(
+                    "cmap", 2, ScalarType.Intrinsic.INTEGER,
+                    tag="cmap").name
 
         return cmap
 
@@ -8058,6 +8058,25 @@ class DynKern(CodedKern):
 
         # Get the PSyIR Kernel Schedule(s)
         routines = Fparser2Reader().get_routine_schedules(self.name, self.ast)
+        for routine in routines:
+            # If one of the symbols is not declared in a routine then
+            # this is only picked up when writing out the routine
+            # (raising a VisitorError), so we check here so that
+            # invalid code is not inlined. We use debug_string() to
+            # minimise the overhead.
+
+            # TODO #2271 could potentially avoid the need for
+            # debug_string() within. Sergi suggests that we may be
+            # missing the traversal of the declaration init
+            # expressions and that might solve the problem. I'm not so
+            # sure as we are talking about unknown symbols that will
+            # only be resolved in the back-end (or not). If I am right
+            # then one option would be to use the FortranWriter, but
+            # that would be bigger overhead, or perhaps just the
+            # declarations part of FortranWriter if that is possible.
+            # Also see TODO issue #2336 which captures the specific
+            # problem in LFRic that this fixes.
+            routine.debug_string()
 
         if len(routines) == 1:
             sched = routines[0]
@@ -9283,12 +9302,7 @@ class DynKernelArgument(KernelArgument):
             if self.precision:
                 # Ensure any associated precision symbol is in the table.
                 symbol_table.add_lfric_precision_symbol(self.precision)
-            try:
-                lit = reader.psyir_from_expression(self.name, symbol_table)
-            except SymbolError as err:
-                raise InternalError(
-                    f"Unexpected literal expression '{self.name}' when "
-                    f"processing kernel '{self.call.name}'.") from err
+            lit = reader.psyir_from_expression(self.name, symbol_table)
 
             # Sanity check that the resulting expression is a literal.
             if lit.walk(Reference):
@@ -9626,7 +9640,6 @@ __all__ = [
     'DynFuncDescriptor03',
     'DynKernMetadata',
     'DynamoPSy',
-    'DynamoInvokes',
     'DynStencils',
     'DynDofmaps',
     'DynFunctionSpaces',

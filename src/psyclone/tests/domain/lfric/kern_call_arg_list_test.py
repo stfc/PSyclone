@@ -274,9 +274,9 @@ def test_kerncallarglist_evaluator(fortran_writer):
     create_arg_list = KernCallArgList(schedule.kernels()[0])
     create_arg_list.generate()
     assert create_arg_list._arglist == [
-        'nlayers', 'f0_proxy%data', 'f1_proxy%data', 'ndf_w0', 'undf_w0',
-        'map_w0(:,cmap(colour,cell))', 'basis_w0_on_w0', 'ndf_w1', 'undf_w1',
-        'map_w1(:,cmap(colour,cell))', 'diff_basis_w1_on_w0']
+        'nlayers', 'f0_proxy%data', 'cmap_proxy%data', 'ndf_w0', 'undf_w0',
+        'map_w0(:,cmap_1(colour,cell))', 'basis_w0_on_w0', 'ndf_w1', 'undf_w1',
+        'map_w1(:,cmap_1(colour,cell))', 'diff_basis_w1_on_w0']
 
     check_psyir_results(create_arg_list, fortran_writer)
 
@@ -511,8 +511,9 @@ def test_kerncallarglist_scalar_literal(fortran_writer):
     args[3]._intrinsic_type = "invalid"
     with pytest.raises(InternalError) as err:
         create_arg_list.scalar(args[3])
-    assert ("Unexpected literal expression 'invalid' when "
-            "processing kernel 'testkern_qr_code'" in str(err.value))
+    assert ("Expected argument 'invalid' to kernel 'testkern_qr_code' "
+            "to be a literal but the created PSyIR contains one or more "
+            "References." in str(err.value))
 
 
 def test_indirect_dofmap(fortran_writer):
