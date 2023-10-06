@@ -548,11 +548,8 @@ def test_omp_colour_trans(tmpdir, dist_mem):
     # Colour the loop
     ctrans.apply(schedule.children[index])
 
-    # Then apply OpenMP to the inner loop. We have to force it as the
-    # dependence analysis shows that this loop cannot be parallelised (as it
-    # doesn't know about the colouring).
-    otrans.apply(schedule.children[index].loop_body[0],
-                 options={"force": True})
+    # Then apply OpenMP to the inner loop
+    otrans.apply(schedule.children[index].loop_body[0])
 
     code = str(psy.gen)
 

@@ -234,7 +234,7 @@ def test_omp_paralleldo_clauses_gen_code(monkeypatch):
     tree = psy.invokes.invoke_list[0].schedule
     ptrans = OMPParallelLoopTrans()
     loops = tree.walk(Loop)
-    ptrans.apply(loops[0], options={"force": True})
+    ptrans.apply(loops[0])
 
     assert isinstance(tree.children[0], OMPParallelDoDirective)
     pdir = tree.children[0]
