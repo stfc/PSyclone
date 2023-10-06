@@ -484,26 +484,43 @@ class LFRicExtractDriverCreator:
           parameter to the function), allocates it based on the shape of
           the corresponding "_post" variable, and initialises it with 0.
 
-        :param program: the PSyIR Routine to which any code must \
+        :param program: the PSyIR Routine to which any code must
             be added. It also contains the symbol table to be used.
         :type program: :py:class:`psyclone.psyir.nodes.Routine`
         :param psy_data: the PSyData symbol to be used.
         :type psy_data: :py:class:`psyclone.psyir.symbols.DataSymbol`
-        :param read_write_info: information about all input and output \
+        :param read_write_info: information about all input and output
             parameters.
         :type read_write_info: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
-        :param str postfix: a postfix that is added to a variable name to \
-            create the corresponding variable that stores the output \
+        :param str postfix: a postfix that is added to a variable name to
+            create the corresponding variable that stores the output
             value from the kernel data file.
 
-        :returns: all output parameters, i.e. variables that need to be \
-            verified after executing the kernel. Each entry is a 2-tuple \
-            containing the symbol of the computed variable, and the symbol \
+        :returns: all output parameters, i.e. variables that need to be
+            verified after executing the kernel. Each entry is a 2-tuple
+            containing the symbol of the computed variable, and the symbol
             of the variable that contains the value read from the file.
         :rtype: List[Tuple[:py:class:`psyclone.psyir.symbols.Symbol`,
                            :py:class:`psyclone.psyir.symbols.Symbol`]]
 
         '''
+        def _sym_is_field(sym):
+            '''Utility that determines whether the supplied Symbol represents
+            an LFRic field.
+
+            :param sym: the Symbol to check.
+            :type sym: :py:class:`psyclone.psyir.symbols.TypedSymbol`
+
+            :returns: True if the Symbol represents a field, False otherwise.
+            :rtype: bool
+
+            '''
+            if isinstance(orig_sym.datatype, UnknownFortranType):
+                intrinsic_name = sym.datatype.partial_datatype.intrinsic.name
+            else:
+                intrinsic_name = sym.datatype.intrinsic.name
+            return intrinsic_name in self._all_field_types
+
         # pylint: disable=too-many-locals
         symbol_table = program.scope.symbol_table
         read_var = f"{psy_data.name}%ReadVariable"
@@ -518,8 +535,7 @@ class LFRicExtractDriverCreator:
             # in the symbol table (in _add_all_kernel_symbols).
             sig_str = self._flatten_signature(signature)
             orig_sym = original_symbol_table.lookup(signature[0])
-            if orig_sym.is_array and orig_sym.datatype.intrinsic.name in \
-                    self._all_field_types:
+            if orig_sym.is_array and _sym_is_field(orig_sym):
                 # This is a field vector, so add all individual fields
                 upper = int(orig_sym.datatype.shape[0].upper.value)
                 for i in range(1, upper+1):
@@ -551,8 +567,7 @@ class LFRicExtractDriverCreator:
             # in the symbol table (in _add_all_kernel_symbols).
             orig_sym = original_symbol_table.lookup(signature[0])
             is_input = read_write_info.is_read(signature)
-            if orig_sym.is_array and orig_sym.datatype.intrinsic.name in \
-                    self._all_field_types:
+            if orig_sym.is_array and _sym_is_field(orig_sym):
                 # This is a field vector, so handle each individual field
                 # adding a number
                 flattened = self. _flatten_signature(signature)
