@@ -37,32 +37,23 @@
 ''' Tests Fortran save statements in the fparser2 PSyIR front-end '''
 
 import pytest
-from fparser.common.readfortran import FortranStringReader
-from fparser.two.Fortran2003 import Specification_Part
-from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import (
     Routine, Literal, BinaryOperation, Container, CodeBlock, Reference,
     UnaryOperation)
-from psyclone.psyir.symbols import Symbol, StaticInterface, ScalarType
+from psyclone.psyir.symbols import Symbol, StaticInterface
 
 
-@pytest.mark.usefixtures("f2008_parser")
-def test_save_statements_work():
+def test_save_statements_work(fortran_reader):
     '''Tests that parameter statements are correctly captured in the
     constant_value symbol attribute. '''
-
-    # Create a dummy module
-    cont = Container("test_mod")
-    symtab = cont.symbol_table
-    processor = Fparser2Reader()
-
-    # Test with a single saved variable
-    reader = FortranStringReader('''
+    code = '''
+      module my_mod
         integer :: var1
         integer, save :: var2
-        save :: var1''')
-    fparser2spec = Specification_Part(reader)
-    processor.process_declarations(cont, fparser2spec.content, [])
-    newsymbol = symtab.lookup("var1")
-    assert newsymbol.is_constant is False
-    assert isinstance(newsymbol.interface, StaticInterface)
+        save :: var1
+      end module my_mod'''
+    psyir = fortran_reader.psyir_from_source(code)
+    symtab = psyir.children[0].symbol_table
+    var1 = symtab.lookup("var1")
+    assert var1.is_constant is False
+    assert isinstance(var1.interface, StaticInterface)

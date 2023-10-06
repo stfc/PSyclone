@@ -1200,7 +1200,7 @@ class Fparser2Reader():
         new_container.symbol_table.default_visibility = default_visibility
 
         # Look at any SAVE statements to determine the default.
-        (default_save, statics_map) = self.process_save_statements(module)
+        (default_save, statics_list) = self.process_save_statements(module)
 
         # Create symbols for all routines defined within this module
         _process_routine_symbols(module_ast, new_container.symbol_table,
@@ -1210,7 +1210,7 @@ class Fparser2Reader():
         for child in module.children:
             if isinstance(child, Fortran2003.Specification_Part):
                 self.process_declarations(new_container, child.children,
-                                          [], visibility_map, statics_map)
+                                          [], visibility_map, statics_list)
                 break
 
         return new_container
@@ -1553,68 +1553,23 @@ class Fparser2Reader():
 
         '''
         default_save = None
-        # Sets holding the names of those symbols whose access is specified
-        # explicitly via an access-stmt (e.g. "PUBLIC :: my_var")
+        # Sets holding the names of those symbols which are marked as static
+        # via an explicit SAVE stmt (e.g. "SAVE :: my_var")
         explicit_save = set()
-        # R518 an access-stmt shall appear only in the specification-part
-        # of a *module*.
+
         save_stmts = walk(nodes, Fortran2003.Save_Stmt)
 
         for stmt in save_stmts:
 
             if not stmt.children[1]:
-                if default_save:
-                    # We've already seen a SAVE statement without an
-                    # access-id-list. This is therefore invalid Fortran (which
-                    # fparser does not catch).
-                    current_node = stmt.parent
-                    while current_node:
-                        if isinstance(current_node, Fortran2003.Module):
-                            mod_name = str(
-                                current_node.children[0].children[1])
-                            raise GenerationError(
-                                f"Module '{mod_name}' contains more than one "
-                                f"access statement with an omitted "
-                                f"access-id-list. This is invalid Fortran.")
-                        current_node = current_node.parent
-                    # Failed to find an enclosing Module. This is also invalid
-                    # Fortran since an access statement is only permitted
-                    # within a module.
-                    raise GenerationError(
-                        "Found multiple access statements with omitted access-"
-                        "id-lists and no enclosing Module. Both of these "
-                        "things are invalid Fortran.")
-                if public_stmt:
-                    default_visibility = Symbol.Visibility.PUBLIC
-                else:
-                    default_visibility = Symbol.Visibility.PRIVATE
+                default_save = True
             else:
                 symbol_names = [child.string.lower() for child in
                                 stmt.children[1].children]
-                if public_stmt:
-                    explicit_public.update(symbol_names)
-                else:
-                    explicit_private.update(symbol_names)
-        # Sanity check the lists of symbols (because fparser2 does not
-        # currently do much validation)
-        invalid_symbols = explicit_public.intersection(explicit_private)
-        if invalid_symbols:
-            raise GenerationError(
-                f"Symbols {list(invalid_symbols)} appear in access statements "
-                f"with both PUBLIC and PRIVATE access-ids. This is invalid "
-                f"Fortran.")
+                explicit_save.update(symbol_names)
 
-        # Symbols are public by default in Fortran
-        if default_visibility is None:
-            default_visibility = Symbol.Visibility.PUBLIC
-
-        visibility_map = {}
-        for name in explicit_public:
-            visibility_map[name] = Symbol.Visibility.PUBLIC
-        for name in explicit_private:
-            visibility_map[name] = Symbol.Visibility.PRIVATE
-
-        return (default_visibility, visibility_map)
+        print(f"Explicit saves: {explicit_save}")
+        return (default_save, list(explicit_save))
 
     @staticmethod
     def _process_use_stmts(parent, nodes, visibility_map=None):
@@ -4521,12 +4476,10 @@ class Fparser2Reader():
         try:
             _first_type_match(node.children,
                               Fortran2003.Internal_Subprogram_Part)
-            has_contains = True
-        except ValueError:
-            has_contains = False
-        if has_contains:
             raise NotImplementedError("PSyclone doesn't yet support 'Contains'"
                                       " inside a Subroutine or Function")
+        except ValueError:
+            pass
 
         name = node.children[0].children[1].string
         routine = Routine(name, parent=parent)
@@ -4553,7 +4506,11 @@ class Fparser2Reader():
             # Routine has no arguments
             arg_list = []
 
-        self.process_declarations(routine, decl_list, arg_list)
+        # Look at any SAVE statements to determine the default.
+        (default_save, statics_list) = self.process_save_statements(routine)
+
+        self.process_declarations(routine, decl_list, arg_list,
+                                  statics_list=statics_list)
 
         # Check whether the function-stmt has a prefix specifying the
         # return type (other prefixes are handled in
