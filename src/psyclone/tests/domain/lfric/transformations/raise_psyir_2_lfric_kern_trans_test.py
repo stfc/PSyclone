@@ -70,6 +70,32 @@ PROGRAM = (
     f"end module dummy\n")
 
 
+METADATA_MULTI = (
+    "type, extends(kernel_type) :: testkern_type\n"
+    "   type(arg_type), dimension(1) :: meta_args =  (/     &\n"
+    "           arg_type(gh_field,    gh_real, gh_inc,  w1) &\n"
+    "         /)\n"
+    "   integer :: operates_on = cell_column\n"
+    "end type testkern_type\n")
+
+
+PROGRAM_MULTI = (
+    f"module dummy\n"
+    f"{METADATA_MULTI}"
+    f"public :: testkern_code\n"
+    f"interface testkern_code\n"
+    f"module procedure  &\n"
+    f"  testkern_code_r_single, &\n"
+    f"  testkern_code_r_double\n"
+    f"end interface\n"
+    f"contains\n"
+    f"  subroutine testkern_code_r_single()\n"
+    f"  end subroutine testkern_code_r_single\n"
+    f"  subroutine testkern_code_r_double()\n"
+    f"  end subroutine testkern_code_r_double\n"
+    f"end module dummy\n")
+
+
 # find_symbol function
 
 def test_find_symbol(fortran_reader):
@@ -245,6 +271,14 @@ def test_validate_ok(fortran_reader):
     kern_trans.validate(kernel_psyir, {"metadata_name": "testkern_type"})
 
 
+def test_validate_multi_ok(fortran_reader):
+    '''Test that the validate method accepts valid psyir for a
+    multi-precision kernel.'''
+    kernel_psyir = fortran_reader.psyir_from_source(PROGRAM_MULTI)
+    kern_trans = RaisePSyIR2LFRicKernTrans()
+    kern_trans.validate(kernel_psyir, {"metadata_name": "testkern_type"})
+
+
 def test_apply_validate(fortran_reader, monkeypatch):
     '''Test that the validate method is called from the apply method. This
     is done by monkeypatching the validate method.
@@ -294,5 +328,35 @@ def test_apply_ok(fortran_reader):
         "  INTEGER :: OPERATES_ON = cell_column\n"
         "  CONTAINS\n"
         "    PROCEDURE, NOPASS :: testkern_code\n"
+        "END TYPE testkern_type\n")
+    assert container.metadata.fortran_string() == expected
+
+
+def test_apply_multi_ok(fortran_reader):
+    '''Test that the apply method specialises the expected container node,
+    adding the required metadata and removes the original psyir
+    symbol for multi-precision kernels.
+
+    '''
+    kernel_psyir = fortran_reader.psyir_from_source(PROGRAM_MULTI)
+    kern_trans = RaisePSyIR2LFRicKernTrans()
+    container = kernel_psyir.children[0]
+    assert isinstance(container, Container)
+    assert not isinstance(container, LFRicKernelContainer)
+    # The symbol should exist
+    _ = container.symbol_table.lookup("testkern_type")
+    kern_trans.apply(kernel_psyir, {"metadata_name": "testkern_type"})
+    container = kernel_psyir.children[0]
+    # The symbol should be removed
+    with pytest.raises(KeyError):
+        _ = container.symbol_table.lookup("testkern_type")
+    # The container should now be a LFRicKernelContainer
+    assert isinstance(container, LFRicKernelContainer)
+    # and should contain the metadata
+    expected = (
+        "TYPE, PUBLIC, EXTENDS(kernel_type) :: testkern_type\n"
+        "  type(ARG_TYPE) :: META_ARGS(1) = (/ &\n"
+        "    arg_type(gh_field, gh_real, gh_inc, w1)/)\n"
+        "  INTEGER :: OPERATES_ON = cell_column\n"
         "END TYPE testkern_type\n")
     assert container.metadata.fortran_string() == expected

@@ -556,13 +556,17 @@ def test_restrict_prolong_chain(tmpdir, dist_mem):
         expected += (
             "      max_halo_depth_mesh_fld_m = mesh_fld_m%get_halo_depth()\n"
             "      mesh_cmap_fld_c => cmap_fld_c_proxy%vspace%get_mesh()\n"
-            "      max_halo_depth_mesh_cmap_fld_c = mesh_cmap_fld_c%get_halo_depth()\n"
+            "      max_halo_depth_mesh_cmap_fld_c = "
+            "mesh_cmap_fld_c%get_halo_depth()\n"
             )
     else:
-        expected += "      mesh_cmap_fld_c => cmap_fld_c_proxy%vspace%get_mesh()\n"
+        expected += ("      mesh_cmap_fld_c => "
+                     "cmap_fld_c_proxy%vspace%get_mesh()\n")
     expected += (
-        "      mmap_fld_m_cmap_fld_c => mesh_cmap_fld_c%get_mesh_map(mesh_fld_m)\n"
-        "      cell_map_cmap_fld_c => mmap_fld_m_cmap_fld_c%get_whole_cell_map()\n")
+        "      mmap_fld_m_cmap_fld_c => "
+        "mesh_cmap_fld_c%get_mesh_map(mesh_fld_m)\n"
+        "      cell_map_cmap_fld_c => "
+        "mmap_fld_m_cmap_fld_c%get_whole_cell_map()\n")
 
     assert expected in output
 
@@ -585,10 +589,10 @@ def test_restrict_prolong_chain(tmpdir, dist_mem):
     else:
         expected = (
             "      ncell_fld_m = fld_m_proxy%vspace%get_ncell()\n"
-            "      ncpc_fld_m_cmap_fld_c_x = mmap_fld_m_cmap_fld_c%get_ntarget_cells_"
-            "per_source_x()\n"
-            "      ncpc_fld_m_cmap_fld_c_y = mmap_fld_m_cmap_fld_c%get_ntarget_cells_"
-            "per_source_y()\n"
+            "      ncpc_fld_m_cmap_fld_c_x = "
+            "mmap_fld_m_cmap_fld_c%get_ntarget_cells_per_source_x()\n"
+            "      ncpc_fld_m_cmap_fld_c_y = "
+            "mmap_fld_m_cmap_fld_c%get_ntarget_cells_per_source_y()\n"
             "      mesh_fld_f => fld_f_proxy%vspace%get_mesh()\n"
             "      mmap_fld_f_fld_m => mesh_fld_m%get_mesh_map(mesh_fld_f)\n"
             "      cell_map_fld_m => mmap_fld_f_fld_m%get_whole_cell_map()\n"

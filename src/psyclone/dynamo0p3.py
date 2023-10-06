@@ -7536,12 +7536,17 @@ class DynLoop(PSyLoop):
             suffixes_dict = LFRicConstants().ARG_TYPE_SUFFIX_MAPPING
 
             for msg in dtools.get_all_messages():
-                if msg.code not in [DTCode.ERROR_WRITE_WRITE_RACE,
-                                    DTCode.WARN_SCALAR_WRITTEN_ONCE]:
+                if msg.code not in [DTCode.WARN_SCALAR_WRITTEN_ONCE,
+                                    DTCode.WARN_SCALAR_REDUCTION]:
                     # The DA is complaining about something other than writing
-                    # to an array or a scalar. Therefore the loop cannot be
-                    # parallelised.
+                    # or reducing to (what it thinks is) a scalar. Therefore
+                    # the loop cannot be parallelised.
                     return False
+                if self.loop_type == "dof":
+                    # Loops over dofs *are* permitted to perform reductions in
+                    # LFRic so we ignore warnings about writing to scalars or
+                    # performing reductions.
+                    continue
                 # We need to check that the argument in question is in
                 # fact a field. If it is, this is safe to parallelise (because
                 # an LFRic Kernel is constrained to write to dofs in the

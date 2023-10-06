@@ -1023,6 +1023,14 @@ def test_loop_independent_iterations(monkeypatch, dist_mem):
     loops = schedule.walk(DynLoop)
     assert not loops[0].independent_iterations()
     assert loops[1].independent_iterations()
+    # Test when the DA warns about a variable that is not a field or operator.
+    # Add a new symbol to the table so that we can refer to it.
+    schedule.symbol_table.add(DataSymbol("fake", INTEGER_TYPE))
+    monkeypatch.setattr(DependencyTools, "get_all_messages",
+                        lambda _1: [Message("just a test",
+                                            DTCode.WARN_SCALAR_WRITTEN_ONCE,
+                                            var_names=["fake"])])
+    assert not loops[1].independent_iterations()
     # Loop over dofs.
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.1.6_aX_plus_bY_builtin.f90"),
@@ -1045,17 +1053,14 @@ def test_loop_independent_iterations(monkeypatch, dist_mem):
     # Test when the DA returns an unexpected message.
     monkeypatch.setattr(DependencyTools, "get_all_messages",
                         lambda _1: [Message("just a test",
-                                            DTCode.WARN_SCALAR_REDUCTION)])
+                                            DTCode.ERROR_WRITE_WRITE_RACE)])
     assert not loop.independent_iterations()
-    # Test when the DA warns about a variable that is not a field or operator.
-    # Add a new symbol to the table so that we can refer to it.
-    # ARPDBG get rid of this test
-    #schedule.symbol_table.add(DataSymbol("fake", INTEGER_TYPE))
-    #monkeypatch.setattr(DependencyTools, "get_all_messages",
-    #                    lambda _1: [Message("just a test",
-    #                                        DTCode.ERROR_WRITE_WRITE_RACE,
-    #                                        var_names=["fake"])])
-    #assert not loop.independent_iterations()
+    # Test that DA warnings about a scalar variable are ignored if the loop is
+    # over DoFs.
+    monkeypatch.setattr(DependencyTools, "get_all_messages",
+                        lambda _1: [Message("just a test",
+                                            DTCode.WARN_SCALAR_REDUCTION)])
+    assert loop.independent_iterations()
     # Test when the DA returns True. Since this currently never happens for an
     # LFRic kernel we use monkeypatch.
     monkeypatch.setattr(DependencyTools, "can_loop_be_parallelised",

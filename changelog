@@ -13,7 +13,16 @@
 
 	5) PR #2346 for #2345. Make the integration tests use a parameterised
 	version of python, currently 3.11.4. Pin pylint to < 3.0
-	
+
+	6) PR #2325 for #1947. Adds support for OMP/ACC Atomics and OMP Simd
+	directives.
+
+	7) PR #2355 for #2347. Adds testing to demonstrate that the new LFRic
+	metadata handling works for multi-precision kernels.
+
+	8) PR #2342 for #2340. Fix issues with VERIFY, ISHFTC and PRECISION
+	intrinsics and introduce a NEMO passthrough test.
+
 release 2.4.0 29th of September 2023
 
 	1) PR #1758 for #1741. Splits the PSyData read functionality into a
