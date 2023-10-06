@@ -1210,7 +1210,7 @@ class Fparser2Reader():
         for child in module.children:
             if isinstance(child, Fortran2003.Specification_Part):
                 self.process_declarations(new_container, child.children,
-                                          [], visibility_map)
+                                          [], visibility_map, statics_map)
                 break
 
         return new_container
@@ -1836,7 +1836,8 @@ class Fparser2Reader():
 
         return base_type, precision
 
-    def _process_decln(self, scope, symbol_table, decl, visibility_map=None):
+    def _process_decln(self, scope, symbol_table, decl, visibility_map=None,
+                       statics_list=None):
         '''
         Process the supplied fparser2 parse tree for a declaration. For each
         entity that is declared, a symbol is added to the supplied symbol
@@ -2037,6 +2038,14 @@ class Fparser2Reader():
                 else:
                     visibility = symbol_table.default_visibility
 
+            if statics_list and sym_name in statics_list:
+                if interface and not isinstance(interface, StaticInterface):
+                    raise InternalError(
+                        f"Invalid Fortran: '{decl}'. Symbol 'sym_name' is "
+                        f"named in a SAVE statement but has an interface of "
+                        f"'{type(interface).__name__}'")
+                interface = StaticInterface()
+
             if entity_shape:
                 # array
                 datatype = ArrayType(base_type, entity_shape)
@@ -2107,7 +2116,8 @@ class Fparser2Reader():
             else:
                 sym.interface = interface.copy()
 
-    def _process_derived_type_decln(self, parent, decl, visibility_map):
+    def _process_derived_type_decln(self, parent, decl, visibility_map,
+                                    statics_map):
         '''
         Process the supplied fparser2 parse tree for a derived-type
         declaration. A DataTypeSymbol representing the derived-type is added
@@ -2150,6 +2160,11 @@ class Fparser2Reader():
             else:
                 dtype_symbol_vis = parent.symbol_table.default_visibility
 
+        if name in statics_map:
+            is_static = True
+        else:
+            import pdb; pdb.set_trace()
+            #save = walk(decl.children[0], Fortran2003.
         # We have to create the symbol for this type before processing its
         # components as they may refer to it (e.g. for a linked list).
         if name in parent.symbol_table:
@@ -2346,25 +2361,29 @@ class Fparser2Reader():
                     symbol.interface = StaticInterface()
 
     def process_declarations(self, parent, nodes, arg_list,
-                             visibility_map=None):
+                             visibility_map=None, statics_map=None):
         '''
         Transform the variable declarations in the fparser2 parse tree into
         symbols in the symbol table of the PSyIR parent node. The default
         visibility of any new symbol is taken from the symbol table associated
         with the `parent` node if necessary. The `visibility_map` provides
         information on any explicit symbol visibilities that are specified
-        for the declarations.
+        for the declarations. Similarly `statics_map` does the same for
+        any symbols declared to be static.
 
         :param parent: PSyIR node in which to insert the symbols found.
         :type parent: :py:class:`psyclone.psyir.nodes.KernelSchedule`
         :param nodes: fparser2 AST nodes containing declaration statements.
-        :type nodes: list of :py:class:`fparser.two.utils.Base`
+        :type nodes: List[:py:class:`fparser.two.utils.Base`]
         :param arg_list: fparser2 AST node containing the argument list.
         :type arg_list: :py:class:`fparser.Fortran2003.Dummy_Arg_List`
         :param visibility_map: mapping of symbol names to explicit
             visibilities.
-        :type visibility_map: dict with str keys and values of type
-            :py:class:`psyclone.psyir.symbols.Symbol.Visibility`
+        :type visibility_map: dict[
+            :py:class:`psyclone.psyir.symbols.Symbol.Visibility`]
+        :param statics_map: mapping of symbol names to whether they are
+            explicitly static.
+        :type statics_map: dict[bool]
 
         :raises GenerationError: if an INCLUDE statement is encountered.
         :raises NotImplementedError: the provided declarations contain
@@ -2379,6 +2398,8 @@ class Fparser2Reader():
         '''
         if visibility_map is None:
             visibility_map = {}
+        if statics_map is None:
+            statics_map = {}
 
         # Look at any USE statements
         self._process_use_stmts(parent, nodes, visibility_map)
@@ -2387,7 +2408,8 @@ class Fparser2Reader():
         # at general variable declarations in case any of the latter use
         # the former.
         for decl in walk(nodes, Fortran2003.Derived_Type_Def):
-            self._process_derived_type_decln(parent, decl, visibility_map)
+            self._process_derived_type_decln(parent, decl, visibility_map,
+                                             statics_map)
 
         # INCLUDE statements are *not* part of the Fortran language and
         # can appear anywhere. Therefore we have to do a walk to make sure we
@@ -2457,7 +2479,7 @@ class Fparser2Reader():
             elif isinstance(node, Fortran2003.Type_Declaration_Stmt):
                 try:
                     self._process_decln(parent, parent.symbol_table, node,
-                                        visibility_map)
+                                        visibility_map, statics_map)
                 except NotImplementedError:
                     # Found an unsupported variable declaration. Create a
                     # DataSymbol with UnknownType for each entity being

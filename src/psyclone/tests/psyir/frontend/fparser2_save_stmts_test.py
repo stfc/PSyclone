@@ -59,12 +59,10 @@ def test_save_statements_work():
     # Test with a single saved variable
     reader = FortranStringReader('''
         integer :: var1
+        integer, save :: var2
         save :: var1''')
     fparser2spec = Specification_Part(reader)
     processor.process_declarations(cont, fparser2spec.content, [])
     newsymbol = symtab.lookup("var1")
-    assert newsymbol.is_constant
-    assert isinstance(newsymbol.initial_value, Literal)
-    assert newsymbol.initial_value.value == "3"
-    assert newsymbol.is_constant is True
+    assert newsymbol.is_constant is False
     assert isinstance(newsymbol.interface, StaticInterface)
