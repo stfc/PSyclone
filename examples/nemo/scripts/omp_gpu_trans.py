@@ -103,6 +103,7 @@ def trans(psy):
                 invoke.schedule,
                 hoist_local_arrays=True,
                 convert_array_notation=True,
+                inline_array_intrinsics=True,
                 convert_range_loops=True,
                 hoist_expressions=True
         )

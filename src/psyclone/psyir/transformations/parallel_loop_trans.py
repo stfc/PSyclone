@@ -151,8 +151,11 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
             # The DependencyTools also returns False for things that are
             # not an issue, so we ignore specific messages.
             for message in dep_tools.get_all_messages():
-                if message.code == DTCode.WARN_SCALAR_WRITTEN_ONCE:
+                if message.code in (DTCode.WARN_SCALAR_WRITTEN_ONCE,
+                                    DTCode.WARN_SCALAR_REDUCTION):
                     continue
+                
+                import pdb; pdb.set_trace()
                 all_msg_str = [str(message) for message in
                                dep_tools.get_all_messages()]
                 messages = "\n".join(all_msg_str)

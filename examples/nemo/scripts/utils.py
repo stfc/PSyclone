@@ -41,7 +41,8 @@ from psyclone.psyir.nodes import Loop, Assignment, Directive, Container, \
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, REAL_TYPE, \
     ArrayType, ScalarType, RoutineSymbol, ImportInterface
 from psyclone.psyir.transformations import HoistLoopBoundExprTrans, \
-    HoistTrans, ProfileTrans, HoistLocalArraysTrans, Reference2ArrayRangeTrans
+    HoistTrans, ProfileTrans, HoistLocalArraysTrans, \
+    Reference2ArrayRangeTrans, Maxval2CodeTrans
 from psyclone.domain.nemo.transformations import NemoAllArrayRange2LoopTrans
 from psyclone.transformations import TransformationError
 
@@ -129,6 +130,7 @@ def normalise_loops(
         schedule,
         hoist_local_arrays: bool = True,
         convert_array_notation: bool = True,
+        inline_array_intrinsics: bool = True,
         convert_range_loops: bool = True,
         hoist_expressions: bool = True,
         ):
@@ -166,6 +168,16 @@ def normalise_loops(
                     Reference2ArrayRangeTrans().apply(reference)
                 except TransformationError as _:
                     pass
+
+    if inline_array_intrinsics:
+        for intr in schedule.walk(IntrinsicCall):
+            if intr.intrinsic.name == "MAXVAL":
+                try:
+                    Maxval2CodeTrans().apply(intr)
+                except TransformationError as err:
+                    print(err.value)
+
+        
 
     if convert_range_loops:
         # Convert all array implicit loops to explicit loops
