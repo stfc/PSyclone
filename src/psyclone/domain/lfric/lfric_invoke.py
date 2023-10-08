@@ -98,11 +98,12 @@ class LFRicInvoke(Invoke):
                                         LFRicFields, DynLMAOperators,
                                         DynCMAOperators, DynBasisFunctions,
                                         DynMeshes, DynBoundaryConditions,
-                                        DynProxies, DynCellIterators, 
-                                        DynReferenceElement, LFRicMeshProperties, 
+                                        DynProxies, DynCellIterators,
+                                        DynReferenceElement,
+                                        LFRicMeshProperties,
                                         DynGlobalSum)
         from psyclone.domain.lfric import (LFRicLoopBounds, LFRicRunTimeChecks,
-                                          LFRicScalarArgs)
+                                           LFRicScalarArgs)
 
         self.scalar_args = LFRicScalarArgs(self)
 

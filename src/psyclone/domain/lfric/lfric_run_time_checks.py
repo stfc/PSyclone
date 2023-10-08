@@ -38,8 +38,8 @@
 
 ''' This module contians the LFRicRunTimeChecks class which handles
 declarations and code generation for run-time checks. The methods
-check fields' function spaces and read-only fields against kernel 
-function-space metadata on initialisation. The class inherits from 
+check fields' function spaces and read-only fields against kernel
+function-space metadata on initialisation. The class inherits from
 the LFRicCollection class.'''
 
 # Imports

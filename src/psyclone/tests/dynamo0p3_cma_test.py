@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council
+# Copyright (c) 2017-2023, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -851,8 +851,12 @@ def test_cma_asm(tmpdir, dist_mem):
         "columnwise_operator_proxy_type\n")
     assert output in code
     assert "TYPE(operator_proxy_type) lma_op1_proxy" in code
+    assert ("REAL(KIND=r_def), pointer, dimension(:,:,:) :: "
+            "lma_op1_local_stencil => null()" in code)
     assert "TYPE(columnwise_operator_type), intent(in) :: cma_op1" in code
     assert "TYPE(columnwise_operator_proxy_type) cma_op1_proxy" in code
+    assert ("REAL(KIND=r_solver), pointer, dimension(:,:,:) :: "
+            "cma_op1_cma_matrix => null()" in code)
     assert "TYPE(mesh_type), pointer :: mesh => null()" in code
     assert "INTEGER(KIND=i_def) ncell_2d" in code
     assert ("INTEGER(KIND=i_def), pointer :: cbanded_map_adspc1_lma_op1(:,:) "
@@ -860,7 +864,7 @@ def test_cma_asm(tmpdir, dist_mem):
     assert "ncell_2d = mesh%get_ncells_2d" in code
     assert "cma_op1_proxy = cma_op1%get_proxy()" in code
     assert ("CALL columnwise_op_asm_kernel_code(cell, nlayers, ncell_2d, "
-            "lma_op1_proxy%ncell_3d, lma_op1_proxy%local_stencil, "
+            "lma_op1_proxy%ncell_3d, lma_op1_local_stencil, "
             "cma_op1_matrix, cma_op1_nrow, cma_op1_ncol, cma_op1_bandwidth, "
             "cma_op1_alpha, cma_op1_beta, cma_op1_gamma_m, cma_op1_gamma_p, "
             "ndf_adspc1_lma_op1, cbanded_map_adspc1_lma_op1, "
@@ -899,8 +903,8 @@ def test_cma_asm_field(tmpdir, dist_mem):
     assert "cma_op1_proxy = cma_op1%get_proxy()" in code
     expected = (
         "CALL columnwise_op_asm_field_kernel_code(cell, nlayers, ncell_2d, "
-        "afield_proxy%data, lma_op1_proxy%ncell_3d, "
-        "lma_op1_proxy%local_stencil, cma_op1_matrix, cma_op1_nrow, "
+        "afield_data, lma_op1_proxy%ncell_3d, "
+        "lma_op1_local_stencil, cma_op1_matrix, cma_op1_nrow, "
         "cma_op1_ncol, cma_op1_bandwidth, cma_op1_alpha, cma_op1_beta, "
         "cma_op1_gamma_m, cma_op1_gamma_p, ndf_aspc1_afield, "
         "undf_aspc1_afield, map_aspc1_afield(:,cell), "
@@ -942,7 +946,7 @@ def test_cma_asm_scalar(dist_mem, tmpdir):
     assert "cma_op1_proxy = cma_op1%get_proxy()" in code
     expected = ("CALL columnwise_op_asm_kernel_scalar_code(cell, "
                 "nlayers, ncell_2d, lma_op1_proxy%ncell_3d, "
-                "lma_op1_proxy%local_stencil, cma_op1_matrix, cma_op1_nrow, "
+                "lma_op1_local_stencil, cma_op1_matrix, cma_op1_nrow, "
                 "cma_op1_ncol, cma_op1_bandwidth, cma_op1_alpha_1, "
                 "cma_op1_beta, cma_op1_gamma_m, cma_op1_gamma_p, "
                 "cma_op1_alpha, ndf_aspc1_lma_op1, cbanded_map_aspc1_lma_op1, "
@@ -992,7 +996,7 @@ def test_cma_asm_field_same_fs(dist_mem, tmpdir):
     assert "DO cell=loop0_start,loop0_stop\n" in code
     expected = ("CALL columnwise_op_asm_same_fs_kernel_code(cell, "
                 "nlayers, ncell_2d, lma_op1_proxy%ncell_3d, "
-                "lma_op1_proxy%local_stencil, afield_proxy%data, "
+                "lma_op1_local_stencil, afield_data, "
                 "cma_op1_matrix, cma_op1_nrow, cma_op1_bandwidth, "
                 "cma_op1_alpha, cma_op1_beta, cma_op1_gamma_m, "
                 "cma_op1_gamma_p, ndf_aspc1_lma_op1, undf_aspc1_lma_op1, "
@@ -1055,7 +1059,7 @@ def test_cma_apply(tmpdir, dist_mem):
     assert ("cma_indirection_map_aspc2_field_b => "
             "cma_op1_proxy%indirection_dofmap_from") in code
     assert ("CALL columnwise_op_app_kernel_code(cell, ncell_2d, "
-            "field_a_proxy%data, field_b_proxy%data, cma_op1_matrix, "
+            "field_a_data, field_b_data, cma_op1_matrix, "
             "cma_op1_nrow, cma_op1_ncol, cma_op1_bandwidth, cma_op1_alpha, "
             "cma_op1_beta, cma_op1_gamma_m, cma_op1_gamma_p, "
             "ndf_aspc1_field_a, undf_aspc1_field_a, "
@@ -1115,7 +1119,7 @@ def test_cma_apply_discontinuous_spaces(tmpdir, dist_mem):
 
     # Check any_discontinuous_space_1
     assert ("CALL columnwise_op_app_anydspace_kernel_code(cell, "
-            "ncell_2d, field_a_proxy%data, field_b_proxy%data, "
+            "ncell_2d, field_a_data, field_b_data, "
             "cma_op1_matrix, cma_op1_nrow, cma_op1_ncol, "
             "cma_op1_bandwidth, cma_op1_alpha, cma_op1_beta, "
             "cma_op1_gamma_m, cma_op1_gamma_p, ndf_adspc1_field_a, "
@@ -1125,7 +1129,7 @@ def test_cma_apply_discontinuous_spaces(tmpdir, dist_mem):
             "cma_indirection_map_aspc1_field_b") in code
     # Check w2v
     assert ("CALL columnwise_op_app_w2v_kernel_code(cell, ncell_2d, "
-            "field_c_proxy%data, field_d_proxy%data, cma_op2_matrix, "
+            "field_c_data, field_d_data, cma_op2_matrix, "
             "cma_op2_nrow, cma_op2_ncol, cma_op2_bandwidth, cma_op2_alpha, "
             "cma_op2_beta, cma_op2_gamma_m, cma_op2_gamma_p, ndf_w2v, "
             "undf_w2v, map_w2v(:,cell), cma_indirection_map_w2v, "
@@ -1169,7 +1173,7 @@ def test_cma_apply_same_space(dist_mem, tmpdir):
     assert ("cma_indirection_map_aspc2_field_a => "
             "cma_op1_proxy%indirection_dofmap_to") in code
     assert ("CALL columnwise_op_app_same_fs_kernel_code(cell, ncell_2d, "
-            "field_a_proxy%data, field_b_proxy%data, "
+            "field_a_data, field_b_data, "
             "cma_op1_matrix, cma_op1_nrow, "
             "cma_op1_bandwidth, cma_op1_alpha, "
             "cma_op1_beta, cma_op1_gamma_m, cma_op1_gamma_p, "
@@ -1276,10 +1280,14 @@ def test_cma_multi_kernel(tmpdir, dist_mem):
     code = str(psy.gen)
 
     assert ("      afield_proxy = afield%get_proxy()\n"
+            "      afield_data => afield_proxy%data\n"
             "      lma_op1_proxy = lma_op1%get_proxy()\n"
+            "      lma_op1_local_stencil => lma_op1_proxy%local_stencil\n"
             "      cma_op1_proxy = cma_op1%get_proxy()\n"
             "      field_a_proxy = field_a%get_proxy()\n"
+            "      field_a_data => field_a_proxy%data\n"
             "      field_b_proxy = field_b%get_proxy()\n"
+            "      field_b_data => field_b_proxy%data\n"
             "      cma_opb_proxy = cma_opb%get_proxy()\n"
             "      cma_opc_proxy = cma_opc%get_proxy()\n") in code
 
@@ -1314,15 +1322,15 @@ def test_cma_multi_kernel(tmpdir, dist_mem):
                 in code)
 
     assert ("CALL columnwise_op_asm_field_kernel_code(cell, nlayers, "
-            "ncell_2d, afield_proxy%data, lma_op1_proxy%ncell_3d, "
-            "lma_op1_proxy%local_stencil, cma_op1_matrix, cma_op1_nrow, "
+            "ncell_2d, afield_data, lma_op1_proxy%ncell_3d, "
+            "lma_op1_local_stencil, cma_op1_matrix, cma_op1_nrow, "
             "cma_op1_ncol, cma_op1_bandwidth, cma_op1_alpha, cma_op1_beta, "
             "cma_op1_gamma_m, cma_op1_gamma_p, ndf_aspc1_afield, "
             "undf_aspc1_afield, map_aspc1_afield(:,cell), "
             "cbanded_map_aspc1_afield, ndf_aspc2_lma_op1, "
             "cbanded_map_aspc2_lma_op1)") in code
     assert ("CALL columnwise_op_app_kernel_code(cell, ncell_2d, "
-            "field_a_proxy%data, field_b_proxy%data, cma_op1_matrix, "
+            "field_a_data, field_b_data, cma_op1_matrix, "
             "cma_op1_nrow, cma_op1_ncol, cma_op1_bandwidth, cma_op1_alpha, "
             "cma_op1_beta, cma_op1_gamma_m, cma_op1_gamma_p, "
             "ndf_aspc1_field_a, undf_aspc1_field_a, "

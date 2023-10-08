@@ -77,8 +77,11 @@ class ArgOrdering:
         invoke_sched = None
         if kern:
             invoke_sched = kern.ancestor(psyGen.InvokeSchedule)
-        # This pylint does not work when I put it in the else branch :(
-        # pylint: disable=import-outside-toplevel
+
+        # TODO #1934 - we should not keep a reference to a SymbolTable here
+        # as this creates a double reference (with
+        # self._kernel.ancestor(InvokeSchedule)._symbol_table) to that table
+        # and might go stale e.g. if the tree is copied.
         if invoke_sched:
             self._symtab = invoke_sched.symbol_table
         else:
