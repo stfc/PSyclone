@@ -43,7 +43,7 @@ import pytest
 from psyclone.core import Signature
 from psyclone.domain.lfric import LFRicExtractDriverCreator
 from psyclone.domain.lfric.transformations import LFRicExtractTrans
-from psyclone.errors import GenerationError, InternalError
+from psyclone.errors import InternalError
 from psyclone.parse import ModuleManager
 from psyclone.psyir.nodes import Literal, Routine, Schedule
 from psyclone.psyir.symbols import INTEGER_TYPE
@@ -123,7 +123,7 @@ def test_lfric_driver_get_proxy_mapping():
 
 
 # ----------------------------------------------------------------------------
-def test_lfric_driver_flatten_reference_error(fortran_reader):
+def test_lfric_driver_flatten_reference_error():
     '''Tests errors when flattening user defined symbols.'''
     driver_creator = LFRicExtractDriverCreator()
 
@@ -245,8 +245,8 @@ def test_lfric_driver_simple_test():
                  "call extract_psy_data%ReadVariable('ndf_w2', ndf_w2)",
                  "call extract_psy_data%ReadVariable('ndf_w3', ndf_w3)",
                  "call extract_psy_data%ReadVariable('nlayers', nlayers)",
-                 "call extract_psy_data%ReadVariable('self_vec_type_vector_data', "
-                 "self_vec_type_vector_data)",
+                 "call extract_psy_data%ReadVariable('"
+                 "self_vec_type_vector_data', self_vec_type_vector_data)",
                  "call extract_psy_data%ReadVariable('undf_w1', undf_w1)",
                  "call extract_psy_data%ReadVariable('undf_w2', undf_w2)",
                  "call extract_psy_data%ReadVariable('undf_w3', undf_w3)",
@@ -556,7 +556,8 @@ def test_lfric_driver_field_array_write():
         driver = my_file.read()
 
     for i in range(1, 4):
-        assert f"ReadVariable('coord_{i}_data_post', coord_{i}_data_post)" in driver
+        assert (f"ReadVariable('coord_{i}_data_post', coord_{i}_data_post)"
+                in driver)
         assert f"ALL(coord_{i}_data - coord_{i}_data_post == 0.0))" in driver
 
     for mod in ["read_kernel_data_mod", "constants_mod", "kernel_mod",
