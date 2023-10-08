@@ -1199,8 +1199,8 @@ class Fparser2Reader():
             module)
         new_container.symbol_table.default_visibility = default_visibility
 
-        # Look at any SAVE statements to determine the default.
-        (default_save, statics_list) = self.process_save_statements(module)
+        # Look at any SAVE statements to determine any static symbols.
+        statics_list = self.process_save_statements(module)
 
         # Create symbols for all routines defined within this module
         _process_routine_symbols(module_ast, new_container.symbol_table,
@@ -1530,26 +1530,19 @@ class Fparser2Reader():
     def process_save_statements(nodes):
         '''
         Search the supplied list of fparser2 nodes (which must represent a
-        complete Specification Part) for any accessibility
-        statements (e.g. "PUBLIC :: my_var") to determine the default
-        visibility of symbols as well as identifying those that are
-        explicitly declared as public or private.
+        complete Specification Part) for any SAVE statements (e.g.
+        "SAVE :: my_var") to determine which Symbols are static.
 
-        :param nodes: nodes in the fparser2 parse tree describing a \
+        :param nodes: nodes in the fparser2 parse tree describing a
                       Specification Part that will be searched.
         :type nodes: list of :py:class:`fparser.two.utils.Base`
 
-        :returns: default visibility of symbols within the current scoping \
-            unit and dict of symbol names with explicit visibilities.
-        :rtype: 2-tuple of (:py:class:`psyclone.symbols.Symbol.Visibility`, \
-                dict)
+        :returns: names of symbols that are static or just "*" if they all are.
+        :rtype: List[str]
 
-        :raises InternalError: if an accessibility attribute which is not \
-            'public' or 'private' is encountered.
-        :raises GenerationError: if the parse tree is found to contain more \
-            than one bare accessibility statement (i.e. 'PUBLIC' or 'PRIVATE')
-        :raises GenerationError: if a symbol is explicitly declared as being \
-            both public and private.
+        :raises GenerationError: if the parse tree is found to contain a SAVE
+            without a saved-entity list *and* one or more SAVE attributes or
+            SAVE statements (C580).
 
         '''
         default_save = None
@@ -1568,8 +1561,15 @@ class Fparser2Reader():
                                 stmt.children[1].children]
                 explicit_save.update(symbol_names)
 
-        print(f"Explicit saves: {explicit_save}")
-        return (default_save, list(explicit_save))
+        if default_save:
+            if explicit_save:
+                names = sorted(list(explicit_save))
+                raise GenerationError(
+                    f"Supplied nodes contain a SAVE without a saved-entity list "
+                    f"plus one or more SAVES *with* saved-entity lists (naming "
+                    f"{names}). This is not valid Fortran.")
+            explicit_save.add("*")
+        return list(explicit_save)
 
     @staticmethod
     def _process_use_stmts(parent, nodes, visibility_map=None):
@@ -1923,16 +1923,6 @@ class Fparser2Reader():
                     f"Multiple or duplicated incompatible attributes "
                     f"found in declaration:\n {decl}")
 
-        # If interface is not explicitly specified, provide a default value
-        if interface is None:
-            if isinstance(scope, Container):
-                interface = DefaultModuleInterface()
-            else:
-                interface = AutomaticInterface()
-                # This might still be redefined as Argument later if it
-                # appears in the argument list, but we don't know at this
-                # point.
-
         # Parse declarations RHS and declare new symbol into the
         # parent symbol table for each entity found.
         for entity in entities.items:
@@ -2000,6 +1990,15 @@ class Fparser2Reader():
                         f"named in a SAVE statement but has an interface of "
                         f"'{type(interface).__name__}'")
                 interface = StaticInterface()
+            else:
+                if interface is None:
+                    # Interface not explicitly specified, provide a default
+                    # value. This might still be redefined as Argument later if
+                    # it appears in the argument list, but we don't know at
+                    # this point.
+                    interface = (DefaultModuleInterface() if
+                                 isinstance(scope, Container) else
+                                 AutomaticInterface())
 
             if entity_shape:
                 # array
@@ -2316,14 +2315,14 @@ class Fparser2Reader():
                     symbol.interface = StaticInterface()
 
     def process_declarations(self, parent, nodes, arg_list,
-                             visibility_map=None, statics_map=None):
+                             visibility_map=None, statics_list=None):
         '''
         Transform the variable declarations in the fparser2 parse tree into
         symbols in the symbol table of the PSyIR parent node. The default
         visibility of any new symbol is taken from the symbol table associated
         with the `parent` node if necessary. The `visibility_map` provides
         information on any explicit symbol visibilities that are specified
-        for the declarations. Similarly `statics_map` does the same for
+        for the declarations. Similarly `statics_list` does the same for
         any symbols declared to be static.
 
         :param parent: PSyIR node in which to insert the symbols found.
@@ -2336,9 +2335,8 @@ class Fparser2Reader():
             visibilities.
         :type visibility_map: dict[
             :py:class:`psyclone.psyir.symbols.Symbol.Visibility`]
-        :param statics_map: mapping of symbol names to whether they are
-            explicitly static.
-        :type statics_map: dict[bool]
+        :param statics_list: names of symbols which are explicitly static.
+        :type statics_list: List[str]
 
         :raises GenerationError: if an INCLUDE statement is encountered.
         :raises NotImplementedError: the provided declarations contain
@@ -2353,8 +2351,8 @@ class Fparser2Reader():
         '''
         if visibility_map is None:
             visibility_map = {}
-        if statics_map is None:
-            statics_map = {}
+        if statics_list is None:
+            statics_list = []
 
         # Look at any USE statements
         self._process_use_stmts(parent, nodes, visibility_map)
@@ -2364,7 +2362,7 @@ class Fparser2Reader():
         # the former.
         for decl in walk(nodes, Fortran2003.Derived_Type_Def):
             self._process_derived_type_decln(parent, decl, visibility_map,
-                                             statics_map)
+                                             statics_list)
 
         # INCLUDE statements are *not* part of the Fortran language and
         # can appear anywhere. Therefore we have to do a walk to make sure we
@@ -2434,7 +2432,7 @@ class Fparser2Reader():
             elif isinstance(node, Fortran2003.Type_Declaration_Stmt):
                 try:
                     self._process_decln(parent, parent.symbol_table, node,
-                                        visibility_map, statics_map)
+                                        visibility_map, statics_list)
                 except NotImplementedError:
                     # Found an unsupported variable declaration. Create a
                     # DataSymbol with UnknownType for each entity being
@@ -4678,6 +4676,8 @@ class Fparser2Reader():
             node)
         container.symbol_table.default_visibility = default_visibility
 
+        default_save, save_list = self.process_save_statements(node)
+
         # Create symbols for all routines defined within this module
         _process_routine_symbols(node, container.symbol_table, visibility_map)
 
@@ -4690,7 +4690,7 @@ class Fparser2Reader():
 
         if spec_part is not None:
             self.process_declarations(container, spec_part.children,
-                                      [], visibility_map)
+                                      [], visibility_map, save_list)
 
         # Parse any module subprograms (subroutine or function)
         # skipping the contains node
