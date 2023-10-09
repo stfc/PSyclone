@@ -74,7 +74,8 @@ from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (Loop, Literal, Schedule, Reference,
                                   ArrayReference, ACCEnterDataDirective,
                                   ACCRegionDirective, OMPRegionDirective,
-                                  Routine, ScopingNode)
+                                  Routine, ScopingNode, KernelSchedule,
+                                  StructureReference)
 from psyclone.psyir.symbols import (INTEGER_TYPE, DataSymbol, ScalarType,
                                     DeferredType, DataTypeSymbol,
                                     ContainerSymbol, ImportInterface,
@@ -3865,6 +3866,12 @@ class DynMeshes():
                     DeclGen(parent, datatype="integer",
                             kind=api_config.default_kind["integer"],
                             entity_decls=[kern.ncolours_var_symbol.name]))
+                parent.add(
+                    DeclGen(parent, datatype="integer",
+                            kind=api_config.default_kind["integer"],
+                            pointer=True,
+                            entity_decls=[kern.colourtilemap_symbol.name+
+                                          "(:,:,:)"]))
                 # The cell-count array is 2D if we go into the halo and 1D
                 # otherwise (i.e. no DM or this kernel is GH_WRITE only and
                 # does not access the halo).
@@ -6494,6 +6501,12 @@ class DynLoop(PSyLoop):
             elif self.loop_type == "":
                 tag = "cell_loop_idx"
                 suggested_name = "cell"
+            elif self.loop_type == "colourtiles":
+                tag = "tile_loop_idx"
+                suggested_name = "tile"
+            elif self.loop_type == "tile":
+                tag = "cell_loop_idx"
+                suggested_name = "cell"
             else:
                 raise InternalError(
                     f"Unsupported loop type '{self.loop_type}' found when "
@@ -6856,6 +6869,14 @@ class DynLoop(PSyLoop):
             sym = self.ancestor(
                 InvokeSchedule).symbol_table.find_or_create_tag(root_name)
             return f"{sym.name}(colour)"
+        if self._upper_bound_name == "last_halo_tile_per_colour":
+            if Config.get().distributed_memory:
+                return (f"{self._mesh_name}%get_last_halo_tile_per_colour("
+                        f"{halo_index})")
+        if self._upper_bound_name == "last_halo_cell_per_colour_and_tile":
+            if Config.get().distributed_memory:
+                return (f"{self._mesh_name}%get_last_halo_cell_per_colour_and"
+                        f"_tile({halo_index})")
         if self._upper_bound_name == "colour_halo":
             # Loop over cells of a particular colour when DM is enabled. The
             # LFRic API used here allows for colouring with redundant
@@ -7182,22 +7203,47 @@ class DynLoop(PSyLoop):
         inv_sched = self.ancestor(Routine)
         sym_table = inv_sched.symbol_table
 
-        if self._loop_type == "colour":
-            # If this loop is over all cells of a given colour then we must
-            # lookup the loop bound as it depends on the current colour.
-            parent_loop = self.ancestor(Loop)
-            colour_var = parent_loop.variable
+        if self._loop_type in ("colour", "colourtiles", "tile"):
+            # The upper bound of this loop must lookup the bound value at
+            # runtime, as it depends on the parent loop indices
+            if self._loop_type == "tile":
+                loop = self.ancestor(Loop)
+                tile_var = loop.variable
+            else:
+                loop = self
+            colour_var = loop.ancestor(Loop).variable
 
-            asym = self.kernel.last_cell_all_colours_symbol
-            if not asym:
-                # TODO #1618: once the symbols are all defined,
-                # this should not happen anymore.
-                raise InternalError(f"No symbol for last_cell_all_colours"
-                                    f"defined for kernel "
-                                    f"'{self.kernel.name}'.")
+            mesh_sym = sym_table.lookup_with_tag("mesh")
+            if self._loop_type == "colour":
+                asym = self.kernel.last_cell_all_colours_symbol
+                if not asym:
+                    # TODO #1618: once the symbols are all defined,
+                    # this should not happen anymore.
+                    raise InternalError(f"No symbol for last_cell_all_colours"
+                                        f"defined for kernel "
+                                        f"'{self.kernel.name}'.")
+                aref = ArrayReference.create(asym, [Reference(colour_var)])
+            elif self._loop_type == "colourtiles":
+                sref = StructureReference.create(
+                    mesh_sym,
+                    [("get_last_halo_tile_per_colour",
+                     [Reference(colour_var)])])
+                aref = sref.children[0]
+            else:
+                sref = StructureReference.create(
+                    mesh_sym,
+                    [("get_last_halo_cell_per_colour_and_tile",
+                     [Reference(colour_var)])]
+                )
+                aref = sref.children[0]
+
+                # If its over tiles, add an extra tile argument
+                if self._loop_type == "tile":
+                    aref.addchild(Reference(tile_var))
+
+            # If it has halos, add an extra argument with the halo depth
             const = LFRicConstants()
-
-            if self.upper_bound_name in const.HALO_ACCESS_LOOP_BOUNDS:
+            if self.upper_bound_name in LFRicConstants.HALO_ACCESS_LOOP_BOUNDS:
                 if self._upper_bound_halo_depth:
                     # TODO: #696 Add kind (precision) once the
                     # DynInvokeSchedule constructor has been extended to
@@ -7213,9 +7259,10 @@ class DynLoop(PSyLoop):
                         f"max_halo_depth_{root_name}")
                     halo_depth = Reference(depth_sym)
 
-                return ArrayReference.create(asym, [Reference(colour_var),
-                                                    halo_depth])
-            return ArrayReference.create(asym, [Reference(colour_var)])
+                aref.addchild(halo_depth)
+            if sref is not None:
+                return sref
+            return aref
 
         # This isn't a 'colour' loop so we have already set-up a
         # variable that holds the upper bound.
@@ -7259,7 +7306,7 @@ class DynLoop(PSyLoop):
                 child.gen_code(parent)
 
         if not (Config.get().distributed_memory and
-                self._loop_type != "colour"):
+                self._loop_type not in ("colour", "colourtiles", "tile")):
             # No need to add halo exchanges so we are done.
             return
 

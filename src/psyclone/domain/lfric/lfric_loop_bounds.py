@@ -94,7 +94,7 @@ class LFRicLoopBounds(LFRicCollection):
                                  rhs=loop._lower_bound_fortran()))
             entities = [lbound.name]
 
-            if loop.loop_type != "colour":
+            if loop.loop_type not in ("colour", "colourtiles", "tile"):
                 root_name = f"loop{idx}_stop"
                 ubound = sym_table.find_or_create_integer_symbol(root_name,
                                                                  tag=root_name)
