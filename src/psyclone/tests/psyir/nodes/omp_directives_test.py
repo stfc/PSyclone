@@ -46,25 +46,29 @@ from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir import nodes
 from psyclone import psyGen
-from psyclone.psyir.nodes import OMPDoDirective, OMPParallelDirective, \
-    OMPParallelDoDirective, OMPMasterDirective, OMPTaskloopDirective, \
-    OMPTaskwaitDirective, OMPTargetDirective, OMPLoopDirective, Schedule, \
-    Return, OMPSingleDirective, Loop, Literal, Routine, Assignment, \
-    Reference, OMPDeclareTargetDirective, OMPNowaitClause, \
-    OMPGrainsizeClause, OMPNumTasksClause, OMPNogroupClause, \
-    OMPPrivateClause, OMPDefaultClause, OMPReductionClause, \
-    OMPScheduleClause, OMPTeamsDistributeParallelDoDirective, \
-    OMPFirstprivateClause, ArrayReference, BinaryOperation, Call, \
-    IfBlock, StructureReference, DynamicOMPTaskDirective, OMPTaskDirective, \
-    Range, OMPSharedClause, OMPDependClause, IntrinsicCall
-from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, SymbolTable, \
-    REAL_SINGLE_TYPE, INTEGER_SINGLE_TYPE, Symbol, ArrayType, RoutineSymbol, \
-    REAL_TYPE, StructureType, DataTypeSymbol
-from psyclone.errors import InternalError, GenerationError
+from psyclone.psyir.nodes import (
+    OMPDoDirective, OMPParallelDirective, BinaryOperation, Call,
+    ArrayReference, OMPTaskDirective, DynamicOMPTaskDirective,
+    IntrinsicCall, OMPSharedClause, Range, OMPDependClause,
+    OMPParallelDoDirective, OMPMasterDirective, OMPTaskloopDirective,
+    OMPTaskwaitDirective, OMPTargetDirective, OMPLoopDirective, Schedule,
+    Return, OMPSingleDirective, Loop, Literal, Routine, Assignment,
+    Reference, OMPDeclareTargetDirective, OMPNowaitClause,
+    OMPGrainsizeClause, OMPNumTasksClause, OMPNogroupClause,
+    OMPPrivateClause, OMPDefaultClause, OMPReductionClause,
+    OMPScheduleClause, OMPTeamsDistributeParallelDoDirective,
+    OMPAtomicDirective, OMPFirstprivateClause, OMPSimdDirective,
+    StructureReference, IfBlock)
+from psyclone.psyir.symbols import (
+    DataSymbol, INTEGER_TYPE, SymbolTable, ArrayType, RoutineSymbol,
+    REAL_SINGLE_TYPE, INTEGER_SINGLE_TYPE, Symbol, StructureType,
+    REAL_TYPE, DataTypeSymbol)
 from psyclone.psyir.transformations import ChunkLoopTrans, OMPTaskTrans
-from psyclone.transformations import Dynamo0p3OMPLoopTrans, OMPParallelTrans, \
-    OMPParallelLoopTrans, DynamoOMPParallelLoopTrans, OMPSingleTrans, \
-    OMPMasterTrans, OMPTaskloopTrans, OMPLoopTrans
+from psyclone.errors import InternalError, GenerationError
+from psyclone.transformations import (
+    Dynamo0p3OMPLoopTrans, OMPParallelTrans,
+    OMPParallelLoopTrans, DynamoOMPParallelLoopTrans, OMPSingleTrans,
+    OMPMasterTrans, OMPTaskloopTrans, OMPLoopTrans)
 from psyclone.tests.utilities import get_invoke
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
@@ -139,9 +143,9 @@ def test_ompparallel_lowering(fortran_reader, monkeypatch):
                         lambda: ({}, {}, {a_sym}))
     with pytest.raises(GenerationError) as err:
         pdir.lower_to_language_level()
-    assert("Lowering 'OMPParallelDirective' does not support symbols that "
-           "need synchronisation unless they are in a depend clause, but "
-           "found: 'a' which is not in a depend clause." in str(err.value))
+    assert ("Lowering 'OMPParallelDirective' does not support symbols that "
+            "need synchronisation unless they are in a depend clause, but "
+            "found: 'a' which is not in a depend clause." in str(err.value))
 
     # Also a case which contains the symbol in an input dependency clause.
     task_dir = OMPTaskDirective()
@@ -156,9 +160,9 @@ def test_ompparallel_lowering(fortran_reader, monkeypatch):
 
     with pytest.raises(GenerationError) as err:
         pdir.lower_to_language_level()
-    assert("Lowering 'OMPParallelDirective' does not support symbols that "
-           "need synchronisation unless they are in a depend clause, but "
-           "found: 'a' which is not in a depend clause." in str(err.value))
+    assert ("Lowering 'OMPParallelDirective' does not support symbols that "
+            "need synchronisation unless they are in a depend clause, but "
+            "found: 'a' which is not in a depend clause." in str(err.value))
 
 
 def test_ompparallel_gen_code_clauses(monkeypatch):
@@ -342,9 +346,9 @@ def test_omp_parallel_do_lowering(fortran_reader, monkeypatch):
                         lambda: ({}, {}, {Symbol("a")}))
     with pytest.raises(GenerationError) as err:
         pdir.lower_to_language_level()
-    assert("Lowering 'OMPParallelDoDirective' does not support symbols that "
-           "need synchronisation unless they are in a depend clause, but "
-           "found: 'a' which is not in a depend clause." in str(err.value))
+    assert ("Lowering 'OMPParallelDoDirective' does not support symbols that "
+            "need synchronisation unless they are in a depend clause, but "
+            "found: 'a' which is not in a depend clause." in str(err.value))
 
 
 def test_omp_teams_distribute_parallel_do_strings(
@@ -592,7 +596,7 @@ def test_ompdo_equality():
     assert ompdo1 == ompdo2
 
     loop2.detach()
-    ompdo2 = OMPDoDirective(children=[loop2], reprod=(not ompdo1.reprod))
+    ompdo2 = OMPDoDirective(children=[loop2], reprod=not ompdo1.reprod)
     assert ompdo1 != ompdo2
 
 
@@ -1385,7 +1389,7 @@ def test_omp_taskloop_validate_child():
 def test_omp_taskloop_validate_global_constraints():
     ''' Test the validate_global_constraints method of the OMPTaskloop
         directive '''
-    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke_w3.f90"),
                            api="dynamo0.3")
     taskloop = OMPTaskloopTrans()
     psy = PSyFactory("dynamo0.3", distributed_memory=False).\
@@ -1602,6 +1606,144 @@ def test_omploop_equality():
 
     omploop1.collapse = 2
     assert omploop1 != omploop2
+
+
+def test_omp_atomics_is_valid_atomic_statement(fortran_reader):
+    ''' Test the OMPAtomicDirective can identify when a statement is a valid
+    expression to support OpenMP atomics. '''
+
+    code = '''
+    subroutine my_subroutine()
+        integer, dimension(10, 10) :: A = 1
+        integer, dimension(10, 10) :: B = 2
+        integer :: i, j, val
+
+        A(1,1) = A(1,1) * 2
+        A(1,1) = A(1,1) / (2 + 3 - 5)
+        A(1,1) = MAX(A(1,1), A(1,2))
+    end subroutine
+    '''
+    tree = fortran_reader.psyir_from_source(code)
+    for stmt in tree.walk(Assignment):
+        assert OMPAtomicDirective.is_valid_atomic_statement(stmt)
+
+    code = '''
+    subroutine my_subroutine()
+        integer, dimension(10, 10) :: A = 1
+        integer, dimension(10, 10) :: B = 2
+        integer :: i, j, val
+
+        A(1,1) = A(1,1) ** 2  ! Operator is not supported
+        A(1,1) = A(2,1) * 2   ! The operands are different that the lhs
+        A(1,1) = A(1,1) / 2 + 3 - 5  ! A(1,1) is not a top-level operand
+        A(:,1) = A(:,1) / 2      ! It is not a scalar expression
+        A(1,1) = MOD(A(1,1), 3)  ! Intrinsic is not supported
+        return
+    end subroutine
+    '''
+    tree = fortran_reader.psyir_from_source(code)
+    for stmt in tree.walk(Assignment):
+        assert not OMPAtomicDirective.is_valid_atomic_statement(stmt)
+
+    # Its also not valid if its not an Assignment
+    assert not OMPAtomicDirective.is_valid_atomic_statement(Return())
+
+
+def test_omp_atomics_validate_global_constraints(fortran_reader, monkeypatch):
+    ''' Test the OMPAtomicDirective can check the globals constraints to
+    validate that the directive is correctly formed.'''
+
+    code = '''
+    subroutine my_subroutine()
+        integer, dimension(10, 10) :: A = 1
+        integer, dimension(10, 10) :: B = 2
+        integer :: i, j, val
+
+        A(1,1) = A(1,1) * 2
+    end subroutine
+    '''
+    tree = fortran_reader.psyir_from_source(code)
+    routine = tree.walk(Routine)[0]
+    stmt = routine.children[0]
+    atomic = OMPAtomicDirective()
+    atomic.dir_body.addchild(stmt.detach())
+    routine.addchild(atomic)
+
+    # This is a valid atomic
+    atomic.validate_global_constraints()
+
+    # If the statement is invalid (for any reason already tested in a previous
+    # test), it raises an error
+    monkeypatch.setattr(atomic, "is_valid_atomic_statement", lambda _: False)
+    with pytest.raises(GenerationError) as err:
+        atomic.validate_global_constraints()
+    assert "is not a valid OpenMP Atomic statement." in str(err.value)
+
+    # If it does not have an associated statement
+    atomic.dir_body[0].detach()
+    with pytest.raises(GenerationError) as err:
+        atomic.validate_global_constraints()
+    assert ("Atomic directives must always have one and only one associated "
+            "statement, but found: " in str(err.value))
+
+
+def test_omp_atomics_strings():
+    ''' Test the OMPAtomicDirective begin and end strings '''
+    atomic = OMPAtomicDirective()
+    assert atomic.begin_string() == "omp atomic"
+    assert atomic.end_string() == "omp end atomic"
+
+
+def test_omp_simd_strings():
+    ''' Test the OMPAtomicDirective begin and end strings '''
+    atomic = OMPSimdDirective()
+    assert atomic.begin_string() == "omp simd"
+    assert atomic.end_string() == "omp end simd"
+
+
+def test_omp_simd_validate_global_constraints(fortran_reader):
+    ''' Test the OMPSimdDirective can check the globals constraints to
+    validate that the directive is correctly formed.'''
+
+    code = '''
+    subroutine my_subroutine()
+        integer, dimension(10, 10) :: A = 1
+        integer, dimension(10, 10) :: B = 2
+        integer :: i, j, val
+
+        A(1,1) = A(1,1) * 2
+        do i = 1, 10
+            A(i,1) = 3
+        end do
+    end subroutine
+    '''
+    tree = fortran_reader.psyir_from_source(code)
+    routine = tree.walk(Routine)[0]
+    stmt = routine.children[0]
+    simd = OMPSimdDirective()
+    simd.dir_body.addchild(stmt.detach())
+    routine.children.insert(0, simd)
+
+    # If it does not have an associated loop
+    with pytest.raises(GenerationError) as err:
+        simd.validate_global_constraints()
+    assert ("The OMP SIMD directives must always have one and only one "
+            "associated loop, but found: " in str(err.value))
+
+    # If it doesn not have an associated node at all
+    simd.dir_body[0].detach()
+    with pytest.raises(GenerationError) as err:
+        simd.validate_global_constraints()
+    assert ("The OMP SIMD directives must always have one and only one "
+            "associated loop, but found: " in str(err.value))
+
+    stmt = routine.children[1]
+    simd = OMPSimdDirective()
+    simd.dir_body.addchild(stmt.detach())
+    routine.addchild(simd)
+
+    # This is a valid OMPSimd expression
+    simd.validate_global_constraints()
 
 
 def test_omp_serial_valid_dependence_literals():

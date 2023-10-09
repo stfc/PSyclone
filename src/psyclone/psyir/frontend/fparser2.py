@@ -1956,7 +1956,7 @@ class Fparser2Reader():
             try:
                 sym = symbol_table.lookup(sym_name, scope_limit=scope)
                 # pylint: disable=unidiomatic-typecheck
-                if type(sym) == Symbol:
+                if type(sym) is Symbol:
                     # This was a generic symbol. We now know what it is
                     sym.specialise(DataSymbol, datatype=datatype,
                                    visibility=visibility,
