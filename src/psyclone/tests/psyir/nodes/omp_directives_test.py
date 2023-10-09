@@ -1389,7 +1389,7 @@ def test_omp_taskloop_validate_child():
 def test_omp_taskloop_validate_global_constraints():
     ''' Test the validate_global_constraints method of the OMPTaskloop
         directive '''
-    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke_w3.f90"),
                            api="dynamo0.3")
     taskloop = OMPTaskloopTrans()
     psy = PSyFactory("dynamo0.3", distributed_memory=False).\

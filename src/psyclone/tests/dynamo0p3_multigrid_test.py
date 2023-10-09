@@ -360,8 +360,8 @@ def test_field_prolong(tmpdir, dist_mem):
     expected = (
         "        CALL prolong_test_kernel_code(nlayers, "
         "cell_map_field2(:,:,cell), ncpc_field1_field2_x, "
-        "ncpc_field1_field2_y, ncell_field1, field1_proxy%data, "
-        "field2_proxy%data, ndf_w1, undf_w1, map_w1, undf_w2, "
+        "ncpc_field1_field2_y, ncell_field1, field1_data, "
+        "field2_data, ndf_w1, undf_w1, map_w1, undf_w2, "
         "map_w2(:,cell))\n"
         "      END DO\n")
     assert expected in gen_code
@@ -401,6 +401,10 @@ def test_field_restrict(tmpdir, dist_mem, monkeypatch, annexed):
 
     defs2 = (
         "      INTEGER(KIND=i_def) nlayers\n"
+        "      REAL(KIND=r_def), pointer, dimension(:) :: field2_data => "
+        "null()\n"
+        "      REAL(KIND=r_def), pointer, dimension(:) :: field1_data => "
+        "null()\n"
         "      TYPE(field_proxy_type) field1_proxy, field2_proxy\n"
         "      INTEGER(KIND=i_def), pointer :: "
         "map_aspc1_field1(:,:) => null(), map_aspc2_field2(:,:) => null()\n"
@@ -492,7 +496,7 @@ def test_field_restrict(tmpdir, dist_mem, monkeypatch, annexed):
         "        CALL restrict_test_kernel_code(nlayers, "
         "cell_map_field1(:,:,cell), ncpc_field2_field1_x, "
         "ncpc_field2_field1_y, ncell_field2, "
-        "field1_proxy%data, field2_proxy%data, undf_aspc1_field1, "
+        "field1_data, field2_data, undf_aspc1_field1, "
         "map_aspc1_field1(:,cell), ndf_aspc2_field2, undf_aspc2_field2, "
         "map_aspc2_field2)\n"
         "      END DO\n"
@@ -675,22 +679,22 @@ def test_restrict_prolong_chain(tmpdir, dist_mem):
             "        !\n"
             "        CALL prolong_test_kernel_code(nlayers, "
             "cell_map_cmap_fld_c(:,:,cell), ncpc_fld_m_cmap_fld_c_x, "
-            "ncpc_fld_m_cmap_fld_c_y, ncell_fld_m, fld_m_proxy%data, "
-            "cmap_fld_c_proxy%data, ndf_w1, undf_w1, map_w1, undf_w2, "
+            "ncpc_fld_m_cmap_fld_c_y, ncell_fld_m, fld_m_data, "
+            "cmap_fld_c_data, ndf_w1, undf_w1, map_w1, undf_w2, "
             "map_w2(:,cell))\n"
             "      END DO\n"
             "      DO cell=loop1_start,loop1_stop\n"
             "        !\n"
             "        CALL prolong_test_kernel_code(nlayers, cell_map_fld_m"
             "(:,:,cell), ncpc_fld_f_fld_m_x, ncpc_fld_f_fld_m_y, ncell_fld_f, "
-            "fld_f_proxy%data, fld_m_proxy%data, ndf_w1, undf_w1, map_w1, "
+            "fld_f_data, fld_m_data, ndf_w1, undf_w1, map_w1, "
             "undf_w2, map_w2(:,cell))\n"
             "      END DO\n"
             "      DO cell=loop2_start,loop2_stop\n"
             "        !\n"
             "        CALL restrict_test_kernel_code(nlayers, cell_map_fld_m"
             "(:,:,cell), ncpc_fld_f_fld_m_x, ncpc_fld_f_fld_m_y, ncell_fld_f, "
-            "fld_m_proxy%data, fld_f_proxy%data, undf_aspc1_fld_m, "
+            "fld_m_data, fld_f_data, undf_aspc1_fld_m, "
             "map_aspc1_fld_m(:,cell), ndf_aspc2_fld_f, undf_aspc2_fld_f, "
             "map_aspc2_fld_f)\n"
             "      END DO\n"
@@ -698,8 +702,8 @@ def test_restrict_prolong_chain(tmpdir, dist_mem):
             "        !\n"
             "        CALL restrict_test_kernel_code(nlayers, "
             "cell_map_cmap_fld_c(:,:,cell), ncpc_fld_m_cmap_fld_c_x, "
-            "ncpc_fld_m_cmap_fld_c_y, ncell_fld_m, cmap_fld_c_proxy%data, "
-            "fld_m_proxy%data, undf_aspc1_cmap_fld_c, map_aspc1_cmap_fld_c"
+            "ncpc_fld_m_cmap_fld_c_y, ncell_fld_m, cmap_fld_c_data, "
+            "fld_m_data, undf_aspc1_cmap_fld_c, map_aspc1_cmap_fld_c"
             "(:,cell), ndf_aspc2_fld_m, undf_aspc2_fld_m, map_aspc2_fld_m)\n")
         assert expected in output
 
@@ -755,9 +759,8 @@ def test_prolong_vector(tmpdir):
     assert " field1%" not in output
     assert " field2%" not in output
     assert ("ncpc_field1_field2_x, ncpc_field1_field2_y, ncell_field1, "
-            "field1_proxy(1)%data, field1_proxy(2)%data, field1_proxy(3)%data,"
-            " field2_proxy(1)%data, field2_proxy(2)%data, "
-            "field2_proxy(3)%data, ndf_w1" in output)
+            "field1_1_data, field1_2_data, field1_3_data, field2_1_data, "
+            "field2_2_data, field2_3_data, ndf_w1" in output)
     for idx in [1, 2, 3]:
         assert (
             f"      IF (field2_proxy({idx})%is_dirty(depth=1)) THEN\n"
@@ -818,7 +821,7 @@ def test_restrict_prolong_chain_anyd(tmpdir):
         "        !\n"
         "        CALL restrict_kernel_code(nlayers, cell_map_fld_m(:,:,cell), "
         "ncpc_fld_f_fld_m_x, ncpc_fld_f_fld_m_y, ncell_fld_f, "
-        "fld_m_proxy%data, fld_f_proxy%data, undf_adspc1_fld_m, "
+        "fld_m_data, fld_f_data, undf_adspc1_fld_m, "
         "map_adspc1_fld_m(:,cell), ndf_adspc2_fld_f, "
         "undf_adspc2_fld_f, map_adspc2_fld_f)\n"
         "      END DO\n")
@@ -833,7 +836,7 @@ def test_restrict_prolong_chain_anyd(tmpdir):
     # Now do some transformations
     otrans = DynamoOMPParallelLoopTrans()
     ctrans = Dynamo0p3ColourTrans()
-    # Apply OMP to the first restrict kernel
+    # Apply OMP to the first restrict kernel.
     otrans.apply(schedule[0])
     # Apply colouring and OMP to the first prolong kernel
     ctrans.apply(schedule[4])
