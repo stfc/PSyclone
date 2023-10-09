@@ -3595,6 +3595,8 @@ class DynMeshes():
         # Whether or not the associated Invoke requires colourmap information
         self._needs_colourmap = False
         self._needs_colourmap_halo = False
+        self._needs_colourtilemap = False
+        self._needs_colourtilemap_halo = False
         # Keep a reference to the InvokeSchedule so we can check for colouring
         # later
         self._schedule = invoke.schedule
@@ -3733,8 +3735,10 @@ class DynMeshes():
             if (call.parent.parent.upper_bound_name in
                     const.HALO_ACCESS_LOOP_BOUNDS):
                 self._needs_colourmap_halo = True
+                self._needs_colourtilemap_halo = True
             else:
                 self._needs_colourmap = True
+                self._needs_colourtilemap = True
 
             if not call.is_intergrid:
                 non_intergrid_kern = call
@@ -3796,6 +3800,15 @@ class DynMeshes():
                     "last_edge_cell_all_colours", 1,
                     ScalarType.Intrinsic.INTEGER,
                     tag="last_edge_cell_all_colours")
+
+        if non_intergrid_kern and (self._needs_colourtilemap or
+                                   self._needs_colourtilemap_halo):
+            # There aren't any inter-grid kernels but we do need colourmap
+            # information and that means we'll need a mesh object
+            self._add_mesh_symbols(["mesh"])
+            # This creates the colourmap information for this invoke if we
+            # don't already have one.
+            colour_map = non_intergrid_kern.colourtilemap
 
     def declarations(self, parent):
         '''
@@ -3866,12 +3879,6 @@ class DynMeshes():
                     DeclGen(parent, datatype="integer",
                             kind=api_config.default_kind["integer"],
                             entity_decls=[kern.ncolours_var_symbol.name]))
-                parent.add(
-                    DeclGen(parent, datatype="integer",
-                            kind=api_config.default_kind["integer"],
-                            pointer=True,
-                            entity_decls=[kern.colourtilemap_symbol.name+
-                                          "(:,:,:)"]))
                 # The cell-count array is 2D if we go into the halo and 1D
                 # otherwise (i.e. no DM or this kernel is GH_WRITE only and
                 # does not access the halo).
@@ -3882,6 +3889,13 @@ class DynMeshes():
                     DeclGen(parent, datatype="integer", allocatable=True,
                             kind=api_config.default_kind["integer"],
                             entity_decls=[decln]))
+            if kern.colourtilemap_symbol:
+                parent.add(
+                    DeclGen(parent, datatype="integer",
+                            kind=api_config.default_kind["integer"],
+                            pointer=True,
+                            entity_decls=[kern.colourtilemap_symbol.name +
+                                          "(:,:,:)"]))
 
         if not self._ig_kernels and (self._needs_colourmap or
                                      self._needs_colourmap_halo):
@@ -3916,6 +3930,33 @@ class DynMeshes():
                                    kind=api_config.default_kind["integer"],
                                    allocatable=True,
                                    entity_decls=[last_cell.name+"(:)"]))
+
+        if not self._ig_kernels and (self._needs_colourtilemap or
+                                     self._needs_colourtilemap_halo):
+            # There aren't any inter-grid kernels but we do need
+            # colourmap information
+            base_name = "tmap"
+            csym = self._schedule.symbol_table.lookup_with_tag("tmap")
+            colour_map = csym.name
+            # Add declarations for these variables
+            parent.add(DeclGen(parent, datatype="integer",
+                               kind=api_config.default_kind["integer"],
+                               pointer=True,
+                               entity_decls=[colour_map+"(:,:,:)"]))
+            # if self._needs_colourmap_halo:
+            #     last_cell = self._symbol_table.find_or_create_tag(
+            #         "last_halo_cell_all_colours")
+            #     parent.add(DeclGen(parent, datatype="integer",
+            #                        kind=api_config.default_kind["integer"],
+            #                        allocatable=True,
+            #                        entity_decls=[last_cell.name+"(:,:)"]))
+            # if self._needs_colourmap:
+            #     last_cell = self._symbol_table.find_or_create_tag(
+            #         "last_edge_cell_all_colours")
+            #     parent.add(DeclGen(parent, datatype="integer",
+            #                        kind=api_config.default_kind["integer"],
+            #                        allocatable=True,
+            #                        entity_decls=[last_cell.name+"(:)"]))
 
     def initialise(self, parent):
         '''
@@ -3966,6 +4007,17 @@ class DynMeshes():
                 # Get the colour map
                 parent.add(AssignGen(parent, pointer=True, lhs=colour_map,
                                      rhs=f"{mesh_name}%get_colour_map()"))
+            if self._needs_colourtilemap or self._needs_colourtilemap_halo:
+                parent.add(CommentGen(parent, ""))
+                parent.add(CommentGen(parent, " Get the colourtilemap"))
+                parent.add(CommentGen(parent, ""))
+                # Look-up variable names for colourmap and number of colours
+                colour_map = self._schedule.symbol_table.find_or_create_tag(
+                    "tmap").name
+                # Get the colour map
+                parent.add(AssignGen(
+                    parent, pointer=True, lhs=colour_map,
+                    rhs=f"{mesh_name}%get_coloured_tiling_map()"))
             return
 
         parent.add(CommentGen(

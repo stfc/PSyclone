@@ -936,28 +936,42 @@ class KernCallArgList(ArgOrdering):
         if self._kern.is_coloured():
             colour_sym = self._symtab.find_or_create_integer_symbol(
                 "colour", tag="colours_loop_idx")
-            if self._kern.is_intergrid:
-                tag = None
-            else:
-                # If there is only one colourmap we need to specify the tag
-                # to make sure we get the right symbol.
-                tag = "cmap"
-            array_ref = self.get_array_reference(self._kern.colourmap,
-                                                 [Reference(colour_sym),
-                                                  Reference(cell_sym)],
-                                                 ScalarType.Intrinsic.INTEGER,
-                                                 tag=tag)
-            if var_accesses is not None:
-                var_accesses.add_access(Signature(colour_sym.name),
-                                        AccessType.READ, self._kern)
-                var_accesses.add_access(Signature(cell_sym.name),
-                                        AccessType.READ, self._kern)
-                var_accesses.add_access(Signature(array_ref.name),
-                                        AccessType.READ,
-                                        self._kern, ["colour", "cell"])
 
-            return (self._kern.colourmap + "(colour,cell)",
-                    array_ref)
+            from psyclone.dynamo0p3 import DynLoop
+            if self._kern.ancestor(DynLoop)._loop_type == "tile":
+                tile_sym = self._symtab.find_or_create_integer_symbol(
+                    "tile", tag="tile_loop_idx")
+                array_ref = self.get_array_reference(
+                    self._kern.colourtilemap,
+                    [Reference(colour_sym), Reference(tile_sym),
+                     Reference(cell_sym)],
+                    ScalarType.Intrinsic.INTEGER,
+                    tag="tmap")
+                return (self._kern.colourtilemap + "(colour,tile,cell)",
+                        array_ref)
+            else:
+                if self._kern.is_intergrid:
+                    tag = None
+                else:
+                    # If there is only one colourmap we need to specify the tag
+                    # to make sure we get the right symbol.
+                    tag = "cmap"
+                array_ref = self.get_array_reference(self._kern.colourmap,
+                                                     [Reference(colour_sym),
+                                                      Reference(cell_sym)],
+                                                     ScalarType.Intrinsic.INTEGER,
+                                                     tag=tag)
+                if var_accesses is not None:
+                    var_accesses.add_access(Signature(colour_sym.name),
+                                            AccessType.READ, self._kern)
+                    var_accesses.add_access(Signature(cell_sym.name),
+                                            AccessType.READ, self._kern)
+                    var_accesses.add_access(Signature(array_ref.name),
+                                            AccessType.READ,
+                                            self._kern, ["colour", "cell"])
+
+                return (self._kern.colourmap + "(colour,cell)",
+                        array_ref)
 
         if var_accesses is not None:
             var_accesses.add_access(Signature("cell"), AccessType.READ,
