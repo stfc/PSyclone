@@ -37,9 +37,8 @@
 ''' Tests Fortran save statements in the fparser2 PSyIR front-end '''
 
 import pytest
-from psyclone.psyir.nodes import (
-    Routine, Literal, BinaryOperation, Container, CodeBlock, Reference,
-    UnaryOperation)
+
+from psyclone.errors import GenerationError
 from psyclone.psyir.symbols import StaticInterface, DefaultModuleInterface
 
 
@@ -100,7 +99,18 @@ def test_save_default_only(fortran_reader):
         save
         integer, save :: var3
       end module my_mod'''
-    with pytest.raises(SymbolError) as err:
+    with pytest.raises(GenerationError) as err:
+        _ = fortran_reader.psyir_from_source(code)
+    assert ("'INTEGER, SAVE :: var3'. Symbol 'sym_name' is the subject of a "
+            "SAVE statement but also has a SAVE attribute on its declaration"
+            in str(err.value)
+    code = '''
+      module my_mod
+        integer :: var2, var3
+        save
+        save :: var3
+      end module my_mod'''
+    with pytest.raises(GenerationError) as err:
         _ = fortran_reader.psyir_from_source(code)
     assert "hahahah" in str(err.value)
 

@@ -55,8 +55,8 @@ from psyclone.psyir.nodes import (
     Reference, Return, Routine, Schedule, StructureReference, UnaryOperation,
     WhileLoop)
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
-from psyclone.psyir.nodes.array_of_structures_mixin import \
-    ArrayOfStructuresMixin
+from psyclone.psyir.nodes.array_of_structures_mixin import (
+    ArrayOfStructuresMixin)
 from psyclone.psyir.symbols import (
     ArgumentInterface, ArrayType, ContainerSymbol, DataSymbol, DataTypeSymbol,
     DeferredType, ImportInterface, AutomaticInterface, NoType,
@@ -1846,6 +1846,8 @@ class Fparser2Reader():
         # 5) Access-specification - this var is only set if the declaration
         # has an explicit access-spec (e.g. INTEGER, PRIVATE :: xxx)
         decln_access_spec = None
+        # 6) Whether this declaration has the SAVE attribute.
+        has_save_attr = False
         if attr_specs:
             for attr in attr_specs.items:
                 if isinstance(attr, Fortran2003.Attr_Spec):
@@ -1854,6 +1856,7 @@ class Fparser2Reader():
                         if interface is not None:
                             multiple_interfaces = True
                         interface = StaticInterface()
+                        has_save_attr = True
                     elif normalized_string == "parameter":
                         # Flag the existence of a constant value in the RHS
                         has_constant_value = True
@@ -1983,22 +1986,22 @@ class Fparser2Reader():
                 else:
                     visibility = symbol_table.default_visibility
 
-            if statics_list and sym_name in statics_list:
-                if interface and not isinstance(interface, StaticInterface):
-                    raise InternalError(
+            listed_in_save = statics_list == ["*"] or sym_name in statics_list
+            if has_save_attr or listed_in_save:
+                if has_save_attr and listed_in_save:
+                    raise GenerationError(
                         f"Invalid Fortran: '{decl}'. Symbol 'sym_name' is "
-                        f"named in a SAVE statement but has an interface of "
-                        f"'{type(interface).__name__}'")
+                        f"the subject of a SAVE statement but also has a SAVE "
+                        f"attribute on its declaration.")
                 interface = StaticInterface()
-            else:
-                if interface is None:
-                    # Interface not explicitly specified, provide a default
-                    # value. This might still be redefined as Argument later if
-                    # it appears in the argument list, but we don't know at
-                    # this point.
-                    interface = (DefaultModuleInterface() if
-                                 isinstance(scope, Container) else
-                                 AutomaticInterface())
+            if interface is None:
+                # Interface not explicitly specified, provide a default
+                # value. This might still be redefined as Argument later if
+                # it appears in the argument list, but we don't know at
+                # this point.
+                interface = (DefaultModuleInterface() if
+                             isinstance(scope, Container) else
+                             AutomaticInterface())
 
             if entity_shape:
                 # array
@@ -4504,8 +4507,8 @@ class Fparser2Reader():
             # Routine has no arguments
             arg_list = []
 
-        # Look at any SAVE statements to determine the default.
-        (default_save, statics_list) = self.process_save_statements(routine)
+        # Look at any SAVE statements to see which, if any symbols are static.
+        statics_list = self.process_save_statements(routine)
 
         self.process_declarations(routine, decl_list, arg_list,
                                   statics_list=statics_list)
@@ -4676,7 +4679,7 @@ class Fparser2Reader():
             node)
         container.symbol_table.default_visibility = default_visibility
 
-        default_save, save_list = self.process_save_statements(node)
+        save_list = self.process_save_statements(node)
 
         # Create symbols for all routines defined within this module
         _process_routine_symbols(node, container.symbol_table, visibility_map)
