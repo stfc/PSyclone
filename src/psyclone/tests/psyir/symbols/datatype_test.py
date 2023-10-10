@@ -626,6 +626,24 @@ def test_unknown_fortran_type_text():
     assert utype.type_text is text
 
 
+def test_unknown_fortran_type_text_error():
+    '''
+    Check that the expected error is raised if the 'type_text' is requested
+    for something that is not a straightforward declaration.
+    '''
+    decl = "save :: /a_common_problem/"
+    utype = UnknownFortranType(decl)
+    with pytest.raises(NotImplementedError) as err:
+        utype.type_text
+    assert ("Cannot extract the declaration part from UnknownFortranType "
+            "'save :: /a_common_problem/'" in str(err.value))
+    utype = UnknownFortranType("not valid fortran")
+    with pytest.raises(NotImplementedError) as err:
+        utype.type_text
+    assert ("Cannot extract the declaration part from UnknownFortranType "
+            "'not valid fortran' because parsing failed." in str(err.value))
+
+
 def test_unknown_fortran_type_eq():
     '''Test the equality operator for UnknownFortranType.'''
     decl = "type(some_type) :: var"

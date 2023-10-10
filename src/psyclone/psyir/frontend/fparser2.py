@@ -1200,7 +1200,8 @@ class Fparser2Reader():
         new_container.symbol_table.default_visibility = default_visibility
 
         # Look at any SAVE statements to determine any static symbols.
-        statics_list = self.process_save_statements(module)
+        statics_list = self.process_save_statements(module,
+                                                    new_container.symbol_table)
 
         # Create symbols for all routines defined within this module
         _process_routine_symbols(module_ast, new_container.symbol_table,
@@ -1527,7 +1528,7 @@ class Fparser2Reader():
         return (default_visibility, visibility_map)
 
     @staticmethod
-    def process_save_statements(nodes):
+    def process_save_statements(nodes, symbol_table):
         '''
         Search the supplied list of fparser2 nodes (which must represent a
         complete Specification Part) for any SAVE statements (e.g.
@@ -1535,7 +1536,8 @@ class Fparser2Reader():
 
         :param nodes: nodes in the fparser2 parse tree describing a
                       Specification Part that will be searched.
-        :type nodes: list of :py:class:`fparser.two.utils.Base`
+        :type nodes: List[:py:class:`fparser.two.utils.Base`]
+        :param symbol_table: TODO
 
         :returns: names of symbols that are static or just "*" if they all are.
         :rtype: List[str]
@@ -1569,6 +1571,15 @@ class Fparser2Reader():
                     f"plus one or more SAVES *with* saved-entity lists (naming "
                     f"{names}). This is not valid Fortran.")
             explicit_save.add("*")
+
+        # If there are any named Common blocks listed in a SAVE statement then
+        # we must create Symbols of UnknownFortranType for them (so that the
+        # backend can recreate the necessary SAVE statement).
+        for name in explicit_save:
+            if name.startswith("/"):
+                uftype = UnknownFortranType(f"SAVE :: {name}")
+                sym = symbol_table.new_symbol(name, symbol_type=DataSymbol,
+                                              datatype=uftype)
         return list(explicit_save)
 
     @staticmethod
@@ -1900,7 +1911,7 @@ class Fparser2Reader():
             # Fortran but fparser does not check, so we need to check for them
             # here.
             # TODO fparser/#413 could also fix these issues.
-            if isinstance(interface, StaticInterface) and has_constant_value:
+            if has_save_attr and has_constant_value:
                 raise GenerationError(
                     f"SAVE and PARAMETER attributes are not compatible but "
                     f"found:\n {decl}")
@@ -1985,22 +1996,25 @@ class Fparser2Reader():
                 else:
                     visibility = symbol_table.default_visibility
 
-            listed_in_save = statics_list == ["*"] or sym_name in statics_list
+            listed_in_save = statics_list and (statics_list == ["*"] or
+                                               sym_name in statics_list)
             if has_save_attr or listed_in_save:
                 if has_save_attr and listed_in_save:
                     raise GenerationError(
                         f"Invalid Fortran: '{decl}'. Symbol 'sym_name' is "
                         f"the subject of a SAVE statement but also has a SAVE "
                         f"attribute on its declaration.")
-                interface = StaticInterface()
-            else:
+                this_interface = StaticInterface()
+            elif not interface:
                 # Interface not explicitly specified, provide a default
                 # value. This might still be redefined as Argument later if
                 # it appears in the argument list, but we don't know at
                 # this point.
-                interface = (DefaultModuleInterface() if
-                             isinstance(scope, Container) else
-                             AutomaticInterface())
+                this_interface = (DefaultModuleInterface() if
+                                  isinstance(scope, Container) else
+                                  AutomaticInterface())
+            else:
+                this_interface = interface.copy()
 
             if entity_shape:
                 # array
@@ -2018,7 +2032,7 @@ class Fparser2Reader():
                     # This was a generic symbol. We now know what it is
                     sym.specialise(DataSymbol, datatype=datatype,
                                    visibility=visibility,
-                                   interface=interface,
+                                   interface=this_interface,
                                    is_constant=has_constant_value,
                                    initial_value=init_expr)
                 else:
@@ -2070,7 +2084,7 @@ class Fparser2Reader():
                 # unless it is a pointer initialisation.
                 sym.interface = StaticInterface()
             else:
-                sym.interface = interface.copy()
+                sym.interface = this_interface.copy()
 
     def _process_derived_type_decln(self, parent, decl, visibility_map,
                                     statics_map):
@@ -2116,11 +2130,6 @@ class Fparser2Reader():
             else:
                 dtype_symbol_vis = parent.symbol_table.default_visibility
 
-        if name in statics_map:
-            is_static = True
-        else:
-            import pdb; pdb.set_trace()
-            #save = walk(decl.children[0], Fortran2003.
         # We have to create the symbol for this type before processing its
         # components as they may refer to it (e.g. for a linked list).
         if name in parent.symbol_table:
@@ -4497,17 +4506,18 @@ class Fparser2Reader():
         # TODO this if test can be removed once fparser/#211 is fixed
         # such that routine arguments are always contained in a
         # Dummy_Arg_List, even if there's only one of them.
-        if isinstance(node, (Fortran2003.Subroutine_Subprogram,
-                             Fortran2003.Function_Subprogram)) and \
-           isinstance(node.children[0].children[2],
-                      Fortran2003.Dummy_Arg_List):
+        if (isinstance(node, (Fortran2003.Subroutine_Subprogram,
+                              Fortran2003.Function_Subprogram)) and
+                isinstance(node.children[0].children[2],
+                           Fortran2003.Dummy_Arg_List)):
             arg_list = node.children[0].children[2].children
         else:
             # Routine has no arguments
             arg_list = []
 
         # Look at any SAVE statements to see which, if any symbols are static.
-        statics_list = self.process_save_statements(decl_list)
+        statics_list = self.process_save_statements(decl_list,
+                                                    routine.symbol_table)
 
         self.process_declarations(routine, decl_list, arg_list,
                                   statics_list=statics_list)
@@ -4678,7 +4688,7 @@ class Fparser2Reader():
             node)
         container.symbol_table.default_visibility = default_visibility
 
-        save_list = self.process_save_statements(node)
+        save_list = self.process_save_statements(node, container.symbol_table)
 
         # Create symbols for all routines defined within this module
         _process_routine_symbols(node, container.symbol_table, visibility_map)

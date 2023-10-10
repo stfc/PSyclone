@@ -546,11 +546,21 @@ class FortranWriter(LanguageWriter):
 
         if isinstance(symbol.datatype, UnknownType):
             if isinstance(symbol.datatype, UnknownFortranType):
+
                 if include_visibility and not isinstance(symbol,
                                                          RoutineSymbol):
-                    decln = add_accessibility_to_unknown_declaration(symbol)
-                else:
-                    decln = symbol.datatype.declaration
+                    from psyclone.psyir.frontend.fortran import FortranReader
+                    try:
+                        FortranReader.validate_name(symbol.name)
+                        decln = add_accessibility_to_unknown_declaration(
+                            symbol)
+                        return f"{self._nindent}{decln}\n"
+                    except ValueError:
+                        # The symbol does not have a valid Fortran name and
+                        # therefore is not a regular variable so we don't
+                        # attempt to modify its declaration.
+                        pass
+                decln = symbol.datatype.declaration
                 return f"{self._nindent}{decln}\n"
             # The Fortran backend only handles unknown *Fortran* declarations.
             raise VisitorError(

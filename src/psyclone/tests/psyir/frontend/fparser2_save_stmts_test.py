@@ -40,7 +40,7 @@ import pytest
 
 from psyclone.errors import GenerationError
 from psyclone.psyir.symbols import (StaticInterface, DefaultModuleInterface,
-                                    AutomaticInterface)
+                                    AutomaticInterface, UnknownFortranType)
 
 
 def test_save_statement_module(fortran_reader):
@@ -140,3 +140,25 @@ def test_save_statement_subroutine(fortran_reader):
         assert isinstance(varsym.interface, StaticInterface)
     sym = symtab.lookup("var4")
     assert isinstance(sym.interface, AutomaticInterface)
+
+
+def test_save_common(fortran_reader):
+    '''
+    Check that a SAVE statement involving a named Common Blocks correctly
+    captured.
+    '''
+    code = '''
+      module my_mod
+        save :: var3, /my_common/
+        common /my_common/ a, b
+        integer :: var1
+        integer :: a, b
+        integer :: var3
+      end module my_mod'''
+    psyir = fortran_reader.psyir_from_source(code)
+    symtab = psyir.children[0].symbol_table
+    var3 = symtab.lookup("var3")
+    assert isinstance(var3.interface, StaticInterface)
+    ufsym = symtab.lookup("/my_common/")
+    assert isinstance(ufsym.datatype, UnknownFortranType)
+    assert ufsym.datatype._declaration == "SAVE :: /my_common/"
