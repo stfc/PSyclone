@@ -1855,7 +1855,6 @@ class Fparser2Reader():
                     if normalized_string == "save":
                         if interface is not None:
                             multiple_interfaces = True
-                        interface = StaticInterface()
                         has_save_attr = True
                     elif normalized_string == "parameter":
                         # Flag the existence of a constant value in the RHS
@@ -1994,7 +1993,7 @@ class Fparser2Reader():
                         f"the subject of a SAVE statement but also has a SAVE "
                         f"attribute on its declaration.")
                 interface = StaticInterface()
-            if interface is None:
+            else:
                 # Interface not explicitly specified, provide a default
                 # value. This might still be redefined as Argument later if
                 # it appears in the argument list, but we don't know at
@@ -4508,7 +4507,7 @@ class Fparser2Reader():
             arg_list = []
 
         # Look at any SAVE statements to see which, if any symbols are static.
-        statics_list = self.process_save_statements(routine)
+        statics_list = self.process_save_statements(decl_list)
 
         self.process_declarations(routine, decl_list, arg_list,
                                   statics_list=statics_list)

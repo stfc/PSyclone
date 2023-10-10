@@ -39,7 +39,8 @@
 import pytest
 
 from psyclone.errors import GenerationError
-from psyclone.psyir.symbols import StaticInterface, DefaultModuleInterface
+from psyclone.psyir.symbols import (StaticInterface, DefaultModuleInterface,
+                                    AutomaticInterface)
 
 
 def test_save_statement_module(fortran_reader):
@@ -51,7 +52,7 @@ def test_save_statement_module(fortran_reader):
         integer :: var1
         integer, save :: var2
         save :: var1
-        integer :: var3
+        integer :: var3, var4
       end module my_mod'''
     psyir = fortran_reader.psyir_from_source(code)
     symtab = psyir.children[0].symbol_table
@@ -62,6 +63,8 @@ def test_save_statement_module(fortran_reader):
     assert isinstance(var2.interface, StaticInterface)
     var3 = symtab.lookup("var3")
     assert isinstance(var3.interface, StaticInterface)
+    var4 = symtab.lookup("var4")
+    assert isinstance(var4.interface, DefaultModuleInterface)
 
 
 def test_default_save_module(fortran_reader):
@@ -83,7 +86,7 @@ def test_default_save_module(fortran_reader):
         assert isinstance(varsym.interface, StaticInterface)
 
 
-def test_save_default_only(fortran_reader):
+def test_save_invalid_fortran(fortran_reader):
     '''
     The Fortran standard (2008) says:
 
@@ -103,7 +106,7 @@ def test_save_default_only(fortran_reader):
         _ = fortran_reader.psyir_from_source(code)
     assert ("'INTEGER, SAVE :: var3'. Symbol 'sym_name' is the subject of a "
             "SAVE statement but also has a SAVE attribute on its declaration"
-            in str(err.value)
+            in str(err.value))
     code = '''
       module my_mod
         integer :: var2, var3
@@ -112,7 +115,9 @@ def test_save_default_only(fortran_reader):
       end module my_mod'''
     with pytest.raises(GenerationError) as err:
         _ = fortran_reader.psyir_from_source(code)
-    assert "hahahah" in str(err.value)
+    assert ("Supplied nodes contain a SAVE without a saved-entity list plus "
+            "one or more SAVES *with* saved-entity lists (naming ['var3']). "
+            "This is not valid Fortran" in str(err.value))
 
 
 def test_save_statement_subroutine(fortran_reader):
@@ -134,4 +139,4 @@ def test_save_statement_subroutine(fortran_reader):
         varsym = symtab.lookup(var)
         assert isinstance(varsym.interface, StaticInterface)
     sym = symtab.lookup("var4")
-    assert isinstance(sym.interface, DefaultModuleInterface)
+    assert isinstance(sym.interface, AutomaticInterface)
