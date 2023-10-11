@@ -4589,7 +4589,10 @@ class Fparser2Reader():
                 # attempt to recreate the prefix. We have to set shadowing to
                 # True as there is likely to be a RoutineSymbol for this
                 # function in any enclosing Container.
-
+                if not base_type:
+                    raise NotImplementedError(
+                        f"No explicit type information found for function "
+                        f"'{name}'")
                 # First, update the existing RoutineSymbol with the
                 # return datatype specified in the function
                 # declaration.

@@ -293,6 +293,17 @@ def test_function_missing_return_type(fortran_reader):
         "end module\n")
     psyir = fortran_reader.psyir_from_source(code)
     assert isinstance(psyir.children[0].children[0], CodeBlock)
+    # Test where the result is specified in a suffix but there is no actual
+    # declaration of the symbol.
+    code = (
+        "module a\n"
+        "contains\n"
+        "  function my_func() result(some_var)\n"
+        "    some_var = 1.0\n"
+        "  end function my_func\n"
+        "end module\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    assert isinstance(psyir.children[0].children[0], CodeBlock)
 
 
 def test_function_unsupported_type(fortran_reader):
