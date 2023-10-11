@@ -54,7 +54,6 @@ from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import (ArrayReference, Call, Literal, Reference,
                                   Schedule, ScopingNode)
-from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 from psyclone.psyir.tools import DependencyTools
 from psyclone.psyir.tools.dependency_tools import Message, DTCode
 from psyclone.tests.lfric_build import LFRicBuild
@@ -1003,7 +1002,7 @@ end module testkern_mod
 
 
 def test_loop_independent_iterations(monkeypatch, dist_mem):
-    '''Tests for the independent_iterations method.'''
+    '''Tests for the independent_iterations() method.'''
     # A 'null' loop cannot be parallelised (because there's nothing to
     # parallelise).
     loop = DynLoop(loop_type="null")
@@ -1023,31 +1022,12 @@ def test_loop_independent_iterations(monkeypatch, dist_mem):
     loops = schedule.walk(DynLoop)
     assert not loops[0].independent_iterations()
     assert loops[1].independent_iterations()
-    # Loop over dofs.
-    _, invoke_info = parse(os.path.join(BASE_PATH,
-                                        "15.1.6_aX_plus_bY_builtin.f90"),
-                           api=TEST_API)
-    psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(invoke_info)
-    schedule = psy.invokes.invoke_list[0].schedule
-    loop = schedule.walk(DynLoop)[0]
-    assert loop.independent_iterations()
-    # Test that we can get hold of any DA messages if we supply our own
-    # instance of DependencyTools.
-    dtools = DependencyTools()
-    loop.independent_iterations(dep_tools=dtools)
-    assert len(dtools.get_all_messages()) == 1
     # Unsupported/unknown loop type
-    monkeypatch.setattr(loop, "_loop_type", "broken")
+    monkeypatch.setattr(loops[1], "_loop_type", "broken")
     with pytest.raises(InternalError) as err:
-        loop.independent_iterations()
+        loops[1].independent_iterations()
     assert "loop of type 'broken' is not supported" in str(err.value)
     monkeypatch.undo()
-    # Test that DA warnings about a scalar variable are ignored if the loop is
-    # over DoFs.
-    monkeypatch.setattr(DependencyTools, "get_all_messages",
-                        lambda _1: [Message("just a test",
-                                            DTCode.WARN_SCALAR_REDUCTION)])
-    assert loop.independent_iterations()
     # Test when the DA returns True. Since this currently never happens for an
     # LFRic kernel we use monkeypatch.
     monkeypatch.setattr(DependencyTools, "can_loop_be_parallelised",
@@ -1061,4 +1041,42 @@ def test_loop_independent_iterations(monkeypatch, dist_mem):
     def fake(_1, _2, test_all_variables=False, signatures_to_ignore=None):
         raise KeyError("This is just a test")
     monkeypatch.setattr(DependencyTools, "can_loop_be_parallelised", fake)
+    assert loop.independent_iterations()
+
+
+def test_dof_loop_independent_iterations(monkeypatch, dist_mem):
+    '''
+    Test that independent_iterations() behaves as expected when a loop
+    is over dofs.
+    '''
+    # Loop over dofs containing a reduction.
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15.9.1_X_innerproduct_Y_builtin.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(invoke_info)
+    loop = psy.invokes.invoke_list[0].schedule.walk(DynLoop)[0]
+    assert loop.loop_type == "dof"
+    assert not loop.independent_iterations()
+    # Test that we can get hold of any DA messages if we supply our own
+    # instance of DependencyTools.
+    dtools = DependencyTools()
+    loop.independent_iterations(dep_tools=dtools)
+    msgs = dtools.get_all_messages()
+    assert len(msgs) == 2
+    msg_codes = [msg.code for msg in msgs]
+    assert DTCode.WARN_SCALAR_WRITTEN_ONCE in msg_codes
+    assert DTCode.WARN_SCALAR_REDUCTION in msg_codes
+    # Loop over dofs with no reduction.
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15.1.6_aX_plus_bY_builtin.f90"),
+                           api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=dist_mem).create(invoke_info)
+    schedule = psy.invokes.invoke_list[0].schedule
+    loop = schedule.walk(DynLoop)[0]
+    assert loop.independent_iterations()
+    # Test that DA warnings about a scalar variable are ignored if the loop is
+    # over DoFs.
+    monkeypatch.setattr(DependencyTools, "get_all_messages",
+                        lambda _1: [Message("just a test",
+                                            DTCode.WARN_SCALAR_REDUCTION)])
     assert loop.independent_iterations()
