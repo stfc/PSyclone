@@ -1537,7 +1537,9 @@ class Fparser2Reader():
         :param nodes: nodes in the fparser2 parse tree describing a
                       Specification Part that will be searched.
         :type nodes: List[:py:class:`fparser.two.utils.Base`]
-        :param symbol_table: TODO
+        :param symbol_table: the table to which to add any UnknownFortranType
+            Symbols required to capture SAVEs of named common blocks.
+        :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
 
         :returns: names of symbols that are static or just "*" if they all are.
         :rtype: List[str]
@@ -1547,8 +1549,8 @@ class Fparser2Reader():
             SAVE statements (C580).
 
         '''
-        default_save = None
-        # Sets holding the names of those symbols which are marked as static
+        default_save = False
+        # Set holding the names of those symbols which are marked as static
         # via an explicit SAVE stmt (e.g. "SAVE :: my_var")
         explicit_save = set()
 
@@ -1557,6 +1559,7 @@ class Fparser2Reader():
         for stmt in save_stmts:
 
             if not stmt.children[1]:
+                # No saved-entity list means that all entities are static.
                 default_save = True
             else:
                 symbol_names = [child.string.lower() for child in
@@ -1565,21 +1568,25 @@ class Fparser2Reader():
 
         if default_save:
             if explicit_save:
+                # This should really be caught by the Fortran parser but
+                # fparser2 is lax.
                 names = sorted(list(explicit_save))
                 raise GenerationError(
-                    f"Supplied nodes contain a SAVE without a saved-entity list "
-                    f"plus one or more SAVES *with* saved-entity lists (naming "
-                    f"{names}). This is not valid Fortran.")
+                    f"Supplied nodes contain a SAVE without a saved-entity "
+                    f"list plus one or more SAVES *with* saved-entity lists "
+                    f"(naming {names}). This is not valid Fortran.")
             explicit_save.add("*")
 
         # If there are any named Common blocks listed in a SAVE statement then
-        # we must create Symbols of UnknownFortranType for them (so that the
-        # backend can recreate the necessary SAVE statement).
-        for name in explicit_save:
+        # we create Symbols of UnknownFortranType for them (so that the
+        # backend can recreate the necessary SAVE statement) and remove them
+        # from the list returned by this method.
+        for name in explicit_save.copy():
             if name.startswith("/"):
                 uftype = UnknownFortranType(f"SAVE :: {name}")
-                sym = symbol_table.new_symbol(name, symbol_type=DataSymbol,
-                                              datatype=uftype)
+                symbol_table.new_symbol(name, symbol_type=DataSymbol,
+                                        datatype=uftype)
+                explicit_save.remove(name)
         return list(explicit_save)
 
     @staticmethod
@@ -1815,27 +1822,31 @@ class Fparser2Reader():
         :type symbol_table: py:class:`psyclone.psyir.symbols.SymbolTable`
         :param decl: fparser2 parse tree of declaration to process.
         :type decl: :py:class:`fparser.two.Fortran2003.Type_Declaration_Stmt`
-        :param visibility_map: mapping of symbol name to visibility (for \
+        :param visibility_map: mapping of symbol name to visibility (for
             those symbols listed in an accessibility statement).
-        :type visibility_map: dict with str keys and \
+        :type visibility_map: dict with str keys and
             :py:class:`psyclone.psyir.symbols.Symbol.Visibility` values
+        :param statics_list: the names of symbols which are static (due to
+            appearing in a SAVE statement). If all symbols are static then
+            this contains the single entry "*".
+        :type statics_list: List[str]
 
         :raises NotImplementedError: if an unsupported attribute is found.
-        :raises NotImplementedError: if an unsupported intent attribute is \
+        :raises NotImplementedError: if an unsupported intent attribute is
             found.
-        :raises NotImplementedError: if an unsupported access-spec attribute \
+        :raises NotImplementedError: if an unsupported access-spec attribute
             is found.
-        :raises NotImplementedError: if the allocatable attribute is found on \
+        :raises NotImplementedError: if the allocatable attribute is found on
             a non-array declaration.
-        :raises InternalError: if an array with defined extent has the \
+        :raises InternalError: if an array with defined extent has the
             allocatable attribute.
-        :raises NotImplementedError: if an unsupported initialisation \
+        :raises NotImplementedError: if an unsupported initialisation
             expression is found for a parameter declaration.
-        :raises NotImplementedError: if a character-length specification is \
+        :raises NotImplementedError: if a character-length specification is
             found.
-        :raises SymbolError: if a declaration is found for a symbol that is \
+        :raises SymbolError: if a declaration is found for a symbol that is
             already present in the symbol table with a defined interface.
-        :raises GenerationError: if a set of incompatible Fortran \
+        :raises GenerationError: if a set of incompatible Fortran
             attributes are found in a symbol declaration.
 
         '''
@@ -2006,10 +2017,9 @@ class Fparser2Reader():
                         f"attribute on its declaration.")
                 this_interface = StaticInterface()
             elif not interface:
-                # Interface not explicitly specified, provide a default
-                # value. This might still be redefined as Argument later if
-                # it appears in the argument list, but we don't know at
-                # this point.
+                # Interface not explicitly specified, provide a default value.
+                # This might still be redefined as Argument later if it appears
+                # in the argument list, but we don't know at this point.
                 this_interface = (DefaultModuleInterface() if
                                   isinstance(scope, Container) else
                                   AutomaticInterface())
@@ -2086,8 +2096,7 @@ class Fparser2Reader():
             else:
                 sym.interface = this_interface.copy()
 
-    def _process_derived_type_decln(self, parent, decl, visibility_map,
-                                    statics_map):
+    def _process_derived_type_decln(self, parent, decl, visibility_map):
         '''
         Process the supplied fparser2 parse tree for a derived-type
         declaration. A DataTypeSymbol representing the derived-type is added
@@ -2333,8 +2342,8 @@ class Fparser2Reader():
         visibility of any new symbol is taken from the symbol table associated
         with the `parent` node if necessary. The `visibility_map` provides
         information on any explicit symbol visibilities that are specified
-        for the declarations. Similarly `statics_list` does the same for
-        any symbols declared to be static.
+        for the declarations. `statics_list` does the same for any symbols
+        declared to be static (via a SAVE statement).
 
         :param parent: PSyIR node in which to insert the symbols found.
         :type parent: :py:class:`psyclone.psyir.nodes.KernelSchedule`
@@ -2372,8 +2381,7 @@ class Fparser2Reader():
         # at general variable declarations in case any of the latter use
         # the former.
         for decl in walk(nodes, Fortran2003.Derived_Type_Def):
-            self._process_derived_type_decln(parent, decl, visibility_map,
-                                             statics_list)
+            self._process_derived_type_decln(parent, decl, visibility_map)
 
         # INCLUDE statements are *not* part of the Fortran language and
         # can appear anywhere. Therefore we have to do a walk to make sure we
@@ -4515,7 +4523,7 @@ class Fparser2Reader():
             # Routine has no arguments
             arg_list = []
 
-        # Look at any SAVE statements to see which, if any symbols are static.
+        # Look at any SAVE statements to see which, if any, symbols are static.
         statics_list = self.process_save_statements(decl_list,
                                                     routine.symbol_table)
 
