@@ -250,7 +250,7 @@ def test_arg_ordering_generate_domain_kernel(dist_mem, fortran_writer):
     assert create_arg_list._psyir_arglist == []
     create_arg_list.generate()
     assert create_arg_list._arglist == [
-        'nlayers', 'ncell_2d_no_halos', 'b', 'f1_proxy%data', 'ndf_w3',
+        'nlayers', 'ncell_2d_no_halos', 'b', 'f1_data', 'ndf_w3',
         'undf_w3', 'map_w3']
 
     check_psyir_results(create_arg_list, fortran_writer)
@@ -276,7 +276,7 @@ def test_arg_ordering_generate_cma_kernel(dist_mem, fortran_writer):
     create_arg_list.generate()
     assert create_arg_list._arglist == [
         'cell', 'nlayers', 'ncell_2d', 'lma_op1_proxy%ncell_3d',
-        'lma_op1_proxy%local_stencil', 'cma_op1_matrix', 'cma_op1_nrow',
+        'lma_op1_local_stencil', 'cma_op1_matrix', 'cma_op1_nrow',
         'cma_op1_ncol', 'cma_op1_bandwidth', 'cma_op1_alpha', 'cma_op1_beta',
         'cma_op1_gamma_m', 'cma_op1_gamma_p', 'ndf_adspc1_lma_op1',
         'cbanded_map_adspc1_lma_op1', 'ndf_adspc2_lma_op1',

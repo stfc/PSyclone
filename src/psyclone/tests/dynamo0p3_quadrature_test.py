@@ -39,7 +39,6 @@
 quadrature in the LFRic API '''
 
 
-from __future__ import absolute_import, print_function
 import os
 import pytest
 
@@ -109,6 +108,10 @@ def test_field_xyoz(tmpdir):
         "weights_z_qr(:) => null()\n"
         "      INTEGER(KIND=i_def) np_xy_qr, np_z_qr\n"
         "      INTEGER(KIND=i_def) nlayers\n"
+        "      REAL(KIND=r_def), pointer, dimension(:) :: m2_data => null()\n"
+        "      REAL(KIND=r_def), pointer, dimension(:) :: m1_data => null()\n"
+        "      REAL(KIND=r_def), pointer, dimension(:) :: f2_data => null()\n"
+        "      REAL(KIND=r_def), pointer, dimension(:) :: f1_data => null()\n"
         "      TYPE(field_proxy_type) f1_proxy, f2_proxy, m1_proxy, m2_proxy\n"
         "      TYPE(quadrature_xyoz_proxy_type) qr_proxy\n"
         "      INTEGER(KIND=i_def), pointer :: map_w1(:,:) => null(), "
@@ -121,9 +124,13 @@ def test_field_xyoz(tmpdir):
         "      ! Initialise field and/or operator proxies\n"
         "      !\n"
         "      f1_proxy = f1%get_proxy()\n"
+        "      f1_data => f1_proxy%data\n"
         "      f2_proxy = f2%get_proxy()\n"
+        "      f2_data => f2_proxy%data\n"
         "      m1_proxy = m1%get_proxy()\n"
+        "      m1_data => m1_proxy%data\n"
         "      m2_proxy = m2%get_proxy()\n"
+        "      m2_data => m2_proxy%data\n"
         "      !\n"
         "      ! Initialise number of layers\n"
         "      !\n"
@@ -214,8 +221,8 @@ def test_field_xyoz(tmpdir):
         "      !\n"
         "      DO cell=loop0_start,loop0_stop\n"
         "        !\n"
-        "        CALL testkern_qr_code(nlayers, f1_proxy%data, f2_proxy%data, "
-        "m1_proxy%data, a, m2_proxy%data, istp, ndf_w1, undf_w1, "
+        "        CALL testkern_qr_code(nlayers, f1_data, f2_data, "
+        "m1_data, a, m2_data, istp, ndf_w1, undf_w1, "
         "map_w1(:,cell), basis_w1_qr, ndf_w2, undf_w2, map_w2(:,cell), "
         "diff_basis_w2_qr, ndf_w3, undf_w3, map_w3(:,cell), basis_w3_qr, "
         "diff_basis_w3_qr, np_xy_qr, np_z_qr, weights_xy_qr, weights_z_qr)\n"
@@ -267,8 +274,8 @@ def test_edge_qr(tmpdir, dist_mem):
         "      call qr%compute_function(diff_basis, m2_proxy%vspace, "
         "diff_dim_w3, ndf_w3, diff_basis_w3_qr)\n" in gen_code)
 
-    assert ("call testkern_qr_edges_code(nlayers, f1_proxy%data, "
-            "f2_proxy%data, m1_proxy%data, a, m2_proxy%data, istp, "
+    assert ("call testkern_qr_edges_code(nlayers, f1_data, "
+            "f2_data, m1_data, a, m2_data, istp, "
             "ndf_w1, undf_w1, map_w1(:,cell), basis_w1_qr, ndf_w2, undf_w2, "
             "map_w2(:,cell), diff_basis_w2_qr, ndf_w3, undf_w3, "
             "map_w3(:,cell), basis_w3_qr, diff_basis_w3_qr, nedges_qr, "
@@ -310,6 +317,10 @@ def test_face_qr(tmpdir, dist_mem):
         "      REAL(KIND=r_def), pointer :: weights_xyz_qr(:,:) => null()\n"
         "      INTEGER(KIND=i_def) np_xyz_qr, nfaces_qr\n"
         "      INTEGER(KIND=i_def) nlayers\n"
+        "      REAL(KIND=r_def), pointer, dimension(:) :: m2_data => null()\n"
+        "      REAL(KIND=r_def), pointer, dimension(:) :: m1_data => null()\n"
+        "      REAL(KIND=r_def), pointer, dimension(:) :: f2_data => null()\n"
+        "      REAL(KIND=r_def), pointer, dimension(:) :: f1_data => null()\n"
         "      TYPE(field_proxy_type) f1_proxy, f2_proxy, m1_proxy, m2_proxy\n"
         "      TYPE(quadrature_face_proxy_type) qr_proxy\n"
         "      INTEGER(KIND=i_def), pointer :: map_w1(:,:) => null(), "
@@ -322,9 +333,13 @@ def test_face_qr(tmpdir, dist_mem):
         "      ! Initialise field and/or operator proxies\n"
         "      !\n"
         "      f1_proxy = f1%get_proxy()\n"
+        "      f1_data => f1_proxy%data\n"
         "      f2_proxy = f2%get_proxy()\n"
+        "      f2_data => f2_proxy%data\n"
         "      m1_proxy = m1%get_proxy()\n"
+        "      m1_data => m1_proxy%data\n"
         "      m2_proxy = m2%get_proxy()\n"
+        "      m2_data => m2_proxy%data\n"
         "      !\n"
         "      ! Initialise number of layers\n"
         "      !\n"
@@ -426,9 +441,8 @@ def test_face_qr(tmpdir, dist_mem):
     compute_output = (
         "      DO cell=loop0_start,loop0_stop\n"
         "        !\n"
-        "        CALL testkern_qr_faces_code(nlayers, f1_proxy%data, "
-        "f2_proxy%data, "
-        "m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, "
+        "        CALL testkern_qr_faces_code(nlayers, f1_data, f2_data, "
+        "m1_data, m2_data, ndf_w1, undf_w1, "
         "map_w1(:,cell), basis_w1_qr, ndf_w2, undf_w2, map_w2(:,cell), "
         "diff_basis_w2_qr, ndf_w3, undf_w3, map_w3(:,cell), basis_w3_qr, "
         "diff_basis_w3_qr, nfaces_qr, np_xyz_qr, weights_xyz_qr)\n"
@@ -500,8 +514,8 @@ def test_face_and_edge_qr(dist_mem, tmpdir):
             "diff_dim_w3, ndf_w3, diff_basis_w3_qr_edge)\n" in gen_code)
     # Check that the kernel call itself is correct
     assert (
-        "CALL testkern_2qr_code(nlayers, f1_proxy%data, f2_proxy%data, "
-        "m1_proxy%data, m2_proxy%data, "
+        "CALL testkern_2qr_code(nlayers, f1_data, f2_data, "
+        "m1_data, m2_data, "
         "ndf_w1, undf_w1, map_w1(:,cell), basis_w1_qr_face, basis_w1_qr_edge, "
         "ndf_w2, undf_w2, map_w2(:,cell), diff_basis_w2_qr_face, "
         "diff_basis_w2_qr_edge, "
