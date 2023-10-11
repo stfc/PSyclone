@@ -80,9 +80,6 @@ NOT_PERFORMANT = [
 NOT_WORKING = [
     # Array accessed inside WHERE does not use array notation
     "diurnal_bulk.f90",
-    # mpif.h include is lost
-    "mpp_map.f90", "obs_mpp.f90", "icblbc.f90",
-    "timing.f90", "lib_mpp.f90", "nemogcm.f90",
     # TODO #1960: There is a bug on a WHERE fparser2 frontend processing
     "sbccpl.f90",
 ]
