@@ -2437,11 +2437,22 @@ class Fparser2Reader():
                 # These node types are handled separately
                 pass
             elif isinstance(node, Fortran2003.Implicit_Part):
+                # Anything other than a PARAMETER statement or an
+                # IMPLICIT NONE means we can't handle this code.
                 # Any PARAMETER statements are handled separately by the
                 # call to _process_parameter_stmts below.
-                # TODO #1254: We currently silently ignore the rest of
-                # the Implicit_Part statements
-                pass
+                child_nodes = walk(node, (Fortran2003.Format_Stmt,
+                                          Fortran2003.Entry_Stmt))
+                if child_nodes:
+                    raise NotImplementedError(
+                        f"Error processing declarations: fparser2 node of type"
+                        f"(s) {type(chld).__name__ for chld in child_nodes} "
+                        f"not supported")
+                child_nodes = walk(node, Fortran2003.Implicit_Stmt)
+                if any(imp.children != ('NONE',) for imp in child_nodes):
+                    raise NotImplementedError(
+                        f"Error processing declarations: implicit variable "
+                        f"declarations not supported but found '{node}'")
             else:
                 raise NotImplementedError(
                     f"Error processing declarations: fparser2 node of type "
