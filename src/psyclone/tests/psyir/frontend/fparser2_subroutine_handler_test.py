@@ -510,3 +510,27 @@ def test_implicit_declns(fortran_reader):
     psyir = fortran_reader.psyir_from_source(code)
     cblock = psyir.children[0]
     assert isinstance(cblock, CodeBlock)
+
+
+def test_entry_stmt(parser):
+    '''
+    Check that the expected error is raised if we encounter an ENTRY statement.
+    '''
+    code = '''\
+    subroutine sub(b, c, d)
+      real :: a, b, c, d
+      a = c + d
+      return
+    entry a_no_really(b, c, d)
+      a = c * d
+      return
+    end subroutine sub'''
+    fake_parent = FileContainer("dummy")
+    processor = Fparser2Reader()
+    reader = FortranStringReader(code)
+    fparser2spec = parser(reader)
+    with pytest.raises(NotImplementedError) as err:
+        processor._subroutine_handler(fparser2spec.children[0], fake_parent)
+    assert ("PSyclone does not support routines that contain one or more ENTRY"
+            " statements but found 'ENTRY a_no_really(b, c, d)'"
+            in str(err.value))
