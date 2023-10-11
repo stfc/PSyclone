@@ -47,9 +47,9 @@
 import os
 from enum import Enum
 from collections import OrderedDict, namedtuple
-import fparser
 from dataclasses import dataclass
 from typing import Any
+import fparser
 
 from psyclone import psyGen
 from psyclone.configuration import Config
@@ -62,7 +62,7 @@ from psyclone.domain.lfric import (FunctionSpace, KernCallAccArgList,
                                    KernCallArgList, KernStubArgList,
                                    LFRicArgDescriptor, KernelInterface,
                                    LFRicCollection, LFRicConstants,
-                                   LFRicSymbolTable, LFRicInvoke,
+                                   LFRicSymbolTable,
                                    LFRicInvokes, LFRicKernCallFactory,
                                    LFRicScalarArgs)
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
@@ -73,7 +73,7 @@ from psyclone.f2pygen import (AllocateGen, AssignGen, CallGen, CommentGen,
 from psyclone.parse.algorithm import Arg, KernelCall
 from psyclone.parse.kernel import KernelType, getkerneldescriptors
 from psyclone.parse.utils import ParseError
-from psyclone.psyGen import (PSy, Invokes, InvokeSchedule, Arguments,
+from psyclone.psyGen import (PSy, InvokeSchedule, Arguments,
                              KernelArgument, HaloExchange, GlobalSum,
                              DataAccess, CodedKern)
 from psyclone.psyir.frontend.fortran import FortranReader
@@ -86,7 +86,7 @@ from psyclone.psyir.nodes import (Loop, Literal, Schedule, Reference,
 from psyclone.psyir.symbols import (INTEGER_TYPE, DataSymbol, ScalarType,
                                     DeferredType, DataTypeSymbol,
                                     ContainerSymbol, ImportInterface,
-                                    ArrayType, SymbolError)
+                                    ArrayType)
 
 # pylint: disable=too-many-lines
 # --------------------------------------------------------------------------- #
@@ -8402,24 +8402,22 @@ def check_args(call):
             f"qr_arguments'")
 
 
-@dataclass
+@dataclass(frozen=True)
 class LFRicArgStencil:
     '''
     Provides stencil information about an LFRic kernel argument.
     LFRicArgStencil can provide the extent, algorithm argument for the extent,
     and the direction argument of a stencil or set any of these properties.
 
-    :param str name:        the name of the stencil.
-    :param str extent:      the extent of the stencil if it is known. It will
+    :param name:        the name of the stencil.
+    :param extent:      the extent of the stencil if it is known. It will
                             be known if it is specified in the metadata.
     :param extent_arg:      the algorithm argument associated with the extent
                             value if extent was not found in the metadata.
-    :type extent_arg:       Any
-    :param direction_arg:   the direction argument associated with the 
+    :param direction_arg:   the direction argument associated with the
                             direction of the stencil if the direction of the
                             stencil is not known.
-    :type direction_arg:    Any
-    
+
     '''
     name: str
     extent: str = None
@@ -8462,25 +8460,31 @@ class DynKernelArguments(Arguments):
                                              parent_call, check)
             idx += 1
             if dyn_argument.descriptor.stencil:
-                # Create a stencil object and store a reference to it in our
-                # new DynKernelArgument object.
-                stencil = LFRicArgStencil(
-                    dyn_argument.descriptor.stencil['type']
-                    )
-                dyn_argument.stencil = stencil
-
                 if dyn_argument.descriptor.stencil['extent']:
                     raise GenerationError("extent metadata not yet supported")
                     # if supported we would add the following
                     # line: stencil.extent =
                     # dyn_argument.descriptor.stencil['extent']
                 # An extent argument has been added.
-                stencil.extent_arg = call.args[idx]
+                stencil_extent_arg = call.args[idx]
                 idx += 1
                 if dyn_argument.descriptor.stencil['type'] == 'xory1d':
                     # a direction argument has been added
-                    stencil.direction_arg = call.args[idx]
+                    stencil = LFRicArgStencil(
+                        name = dyn_argument.descriptor.stencil['type'],
+                        extent_arg = stencil_extent_arg,
+                        direction_arg = call.args[idx]
+                        )
                     idx += 1
+                else:
+                    # Create a stencil object and store a reference to it in our
+                    # new DynKernelArgument object.
+                    stencil = LFRicArgStencil(
+                        name = dyn_argument.descriptor.stencil['type'],
+                        extent_arg = stencil_extent_arg
+                        )
+
+                dyn_argument.stencil = stencil
             self._args.append(dyn_argument)
 
         # We have now completed the construction of the kernel arguments so
