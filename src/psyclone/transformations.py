@@ -681,8 +681,11 @@ class DynamoOMPParallelLoopTrans(OMPParallelLoopTrans):
                 raise TransformationError(
                     f"Error in {self.name} transformation. The kernel has an "
                     f"argument with INC access. Colouring is required.")
-
-        super().validate(node, options=options)
+        # As this is a domain-specific loop, we don't perform general
+        # dependence analysis.
+        local_options = options.copy() if options else {}
+        local_options["force"] = True
+        super().validate(node, options=local_options)
 
 
 class GOceanOMPParallelLoopTrans(OMPParallelLoopTrans):
