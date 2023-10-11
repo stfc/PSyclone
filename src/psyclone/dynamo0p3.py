@@ -47,9 +47,9 @@
 import os
 from enum import Enum
 from collections import OrderedDict, namedtuple
+import fparser
 from dataclasses import dataclass
 from typing import Any
-import fparser
 
 from psyclone import psyGen
 from psyclone.configuration import Config
@@ -62,7 +62,7 @@ from psyclone.domain.lfric import (FunctionSpace, KernCallAccArgList,
                                    KernCallArgList, KernStubArgList,
                                    LFRicArgDescriptor, KernelInterface,
                                    LFRicCollection, LFRicConstants,
-                                   LFRicSymbolTable,
+                                   LFRicSymbolTable, LFRicInvoke,
                                    LFRicInvokes, LFRicKernCallFactory,
                                    LFRicScalarArgs)
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
@@ -73,7 +73,7 @@ from psyclone.f2pygen import (AllocateGen, AssignGen, CallGen, CommentGen,
 from psyclone.parse.algorithm import Arg, KernelCall
 from psyclone.parse.kernel import KernelType, getkerneldescriptors
 from psyclone.parse.utils import ParseError
-from psyclone.psyGen import (PSy, InvokeSchedule, Arguments,
+from psyclone.psyGen import (PSy, Invokes, InvokeSchedule, Arguments,
                              KernelArgument, HaloExchange, GlobalSum,
                              DataAccess, CodedKern)
 from psyclone.psyir.frontend.fortran import FortranReader
@@ -86,7 +86,7 @@ from psyclone.psyir.nodes import (Loop, Literal, Schedule, Reference,
 from psyclone.psyir.symbols import (INTEGER_TYPE, DataSymbol, ScalarType,
                                     DeferredType, DataTypeSymbol,
                                     ContainerSymbol, ImportInterface,
-                                    ArrayType)
+                                    ArrayType, SymbolError)
 
 # pylint: disable=too-many-lines
 # --------------------------------------------------------------------------- #
@@ -8409,15 +8409,14 @@ class LFRicArgStencil:
     LFRicArgStencil can provide the extent, algorithm argument for the extent,
     and the direction argument of a stencil or set any of these properties.
 
-    :param name:        the name of the stencil.
-    :param extent:      the extent of the stencil if it is known. It will
+    :param name:            the name of the stencil.
+    :param extent:          the extent of the stencil if it is known. It will
                             be known if it is specified in the metadata.
     :param extent_arg:      the algorithm argument associated with the extent
                             value if extent was not found in the metadata.
     :param direction_arg:   the direction argument associated with the
                             direction of the stencil if the direction of the
                             stencil is not known.
-
     '''
     name: str
     extent: str = None
@@ -8471,19 +8470,18 @@ class DynKernelArguments(Arguments):
                 if dyn_argument.descriptor.stencil['type'] == 'xory1d':
                     # a direction argument has been added
                     stencil = LFRicArgStencil(
-                        name = dyn_argument.descriptor.stencil['type'],
-                        extent_arg = stencil_extent_arg,
-                        direction_arg = call.args[idx]
+                        name=dyn_argument.descriptor.stencil['type'],
+                        extent_arg=stencil_extent_arg,
+                        direction_arg=call.args[idx]
                         )
                     idx += 1
                 else:
-                    # Create a stencil object and store a reference to it in our
-                    # new DynKernelArgument object.
+                    # Create a stencil object and store a reference to it in
+                    # our new DynKernelArgument object.
                     stencil = LFRicArgStencil(
-                        name = dyn_argument.descriptor.stencil['type'],
-                        extent_arg = stencil_extent_arg
+                        name=dyn_argument.descriptor.stencil['type'],
+                        extent_arg=stencil_extent_arg
                         )
-
                 dyn_argument.stencil = stencil
             self._args.append(dyn_argument)
 

@@ -291,9 +291,9 @@ def test_lower_to_language_domain_loop():
     sched.lower_to_language_level()
     assert isinstance(sched[0], Call)
     assert sched.children[0].children[2].name == "a"
-    assert sched.children[0].children[3].name == "f1_proxy"
+    assert sched.children[0].children[3].name == "f1_data"
     assert sched.children[1].children[2].name == "b"
-    assert sched.children[1].children[3].name == "f2_proxy"
+    assert sched.children[1].children[3].name == "f2_data"
 
 
 def test_upper_bound_fortran_1():
@@ -1042,19 +1042,12 @@ def test_loop_independent_iterations(monkeypatch, dist_mem):
         loop.independent_iterations()
     assert "loop of type 'broken' is not supported" in str(err.value)
     monkeypatch.undo()
-    # Test when the DA returns an unexpected message.
+    # Test that DA warnings about a scalar variable are ignored if the loop is
+    # over DoFs.
     monkeypatch.setattr(DependencyTools, "get_all_messages",
                         lambda _1: [Message("just a test",
                                             DTCode.WARN_SCALAR_REDUCTION)])
-    assert not loop.independent_iterations()
-    # Test when the DA warns about a variable that is not a field or operator.
-    # Add a new symbol to the table so that we can refer to it.
-    schedule.symbol_table.add(DataSymbol("fake", INTEGER_TYPE))
-    monkeypatch.setattr(DependencyTools, "get_all_messages",
-                        lambda _1: [Message("just a test",
-                                            DTCode.WARN_SCALAR_WRITTEN_ONCE,
-                                            var_names=["fake"])])
-    assert not loop.independent_iterations()
+    assert loop.independent_iterations()
     # Test when the DA returns True. Since this currently never happens for an
     # LFRic kernel we use monkeypatch.
     monkeypatch.setattr(DependencyTools, "can_loop_be_parallelised",

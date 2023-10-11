@@ -146,7 +146,8 @@ class ParallelLoopTrans(LoopTrans, metaclass=abc.ABCMeta):
 
         dep_tools = DependencyTools()
 
-        if not node.independent_iterations(dep_tools=dep_tools):
+        if not node.independent_iterations(dep_tools=dep_tools,
+                                           test_all_variables=True):
             # The DependencyTools also returns False for things that are
             # not an issue, so we ignore specific messages.
             for message in dep_tools.get_all_messages():
