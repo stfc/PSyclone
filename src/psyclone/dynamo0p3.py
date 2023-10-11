@@ -7348,9 +7348,20 @@ class DynLoop(PSyLoop):
 
         # The generic DA says that this loop cannot be parallelised. However,
         # we use domain-specific information to qualify this.
-        if self.loop_type in ["colour", "dof"]:
+        if self.loop_type == "colour":
             # This loop is either over cells of a single colour or DoFs.
             # According to LFRic rules this is safe to parallelise.
+            return True
+
+        if self.loop_type == "dof":
+            # The generic DA can't see the PSyIR of this Builtin (because it
+            # hasn't been lowered to language level) so we use
+            # domain-specific knowledge about its properties.
+            if self.kernel.is_reduction:
+                dtools._add_message(
+                    f"Builtin '{self.kernel.name}' performs a reduction",
+                    DTCode.WARN_SCALAR_REDUCTION)
+                return False
             return True
 
         if self.loop_type == "":
