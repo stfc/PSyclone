@@ -34,12 +34,14 @@
 # Author R. W. Ford, STFC Daresbury Lab
 # Modified S. Siso, STFC Daresbury Lab
 # Modified J. Henrichs, Bureau of Meteorology
+# Modified by O. Brunt, Met Office
 
 '''Test that the LFRic-specific PSyIR classes are created and declared
 correctly'''
 
 import pytest
 
+from psyclone.configuration import Config
 from psyclone.domain.lfric import LFRicConstants, LFRicTypes
 from psyclone.errors import InternalError
 from psyclone.psyir.symbols import ContainerSymbol, DataSymbol, \
@@ -84,9 +86,11 @@ def test_constants_mod():
     created correctly.
 
     '''
+    api_config = Config.get().api_conf("dynamo0.3")
     module = LFRicTypes("constants_mod")
     assert isinstance(module, ContainerSymbol)
     symbol_list = list(LFRicConstants().PRECISION_MAP.keys())
+    symbol_list = list(api_config.precision_map.keys())
     for symbol_name in symbol_list:
         symbol = LFRicTypes(symbol_name.upper())
         # pylint: disable=no-member

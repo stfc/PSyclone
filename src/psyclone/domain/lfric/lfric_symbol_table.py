@@ -31,15 +31,17 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
+# Authors: R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 #         I. Kavcic, Met Office
 #         J. Henrichs, Bureau of Meteorology
+# Modified: O.Brunt, Met Office
 # -----------------------------------------------------------------------------
 
 ''' This module contains the LFRic-specific SymbolTable implementation.
 It provides convenience functions to create often used symbols.
 '''
 
+from psyclone.configuration import Config
 from psyclone.domain.lfric import LFRicConstants
 # Avoid circular import:
 from psyclone.domain.lfric.lfric_types import LFRicTypes
@@ -80,6 +82,12 @@ class LFRicSymbolTable(SymbolTable):
             LFRicSymbolTable._constants_mod = ContainerSymbol(mod_name)
 
             for precision in const.PRECISION_MAP:
+                LFRicSymbolTable._precision_map[precision] = \
+                    DataSymbol(precision, INTEGER_TYPE,
+                               interface=ImportInterface(self._constants_mod))
+            
+            api_config = Config.get().api_conf("dynamo0.3")
+            for precision in api_config.precision_map:
                 LFRicSymbolTable._precision_map[precision] = \
                     DataSymbol(precision, INTEGER_TYPE,
                                interface=ImportInterface(self._constants_mod))

@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
-# Modified: I. Kavcic, Met Office
+# Modified: I. Kavcic and O. Brunt, Met Office
 
 '''This module provides functionality for the PSyclone kernel extraction
 functionality for LFRic. It contains the class that creates a driver that
@@ -40,6 +40,7 @@ reads in extracted data, calls the kernel, and then compares the result with
 the output data contained in the input file.
 '''
 
+from psyclone.configuration import Config
 from psyclone.core import Signature
 from psyclone.domain.lfric import LFRicConstants
 from psyclone.errors import GenerationError, InternalError
@@ -650,13 +651,23 @@ class LFRicExtractDriverCreator:
         # r_quad is defined in constants_mod, but not exported. So
         # we have to remove it from the lists of precisions to import.
         # TODO #2018
-        all_precisions = [name for name in const.PRECISION_MAP
+        # all_precisions = [name for name in const.PRECISION_MAP
+        #                   if name != "r_quad"]
+        # for prec_name in all_precisions:
+        #     symbol_table.new_symbol(prec_name,
+        #                             symbol_type=DataSymbol,
+        #                             datatype=INTEGER_TYPE,
+        #                             interface=ImportInterface(constant_mod))
+        
+        api_config = Config.get().api_conf("dynamo0.3")
+        all_precisions = [name for name in api_config.precision_map
                           if name != "r_quad"]
         for prec_name in all_precisions:
             symbol_table.new_symbol(prec_name,
                                     symbol_type=DataSymbol,
                                     datatype=INTEGER_TYPE,
                                     interface=ImportInterface(constant_mod))
+
 
     # -------------------------------------------------------------------------
     @staticmethod

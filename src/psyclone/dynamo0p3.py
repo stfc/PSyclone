@@ -8196,6 +8196,37 @@ class DynKern(CodedKern):
                     f"({actual_precision} bytes) of the corresponding kernel "
                     f"subroutine argument '{kern_code_arg.name}' for kernel "
                     f"'{self.name}'.")
+        
+        # API Config Precision Map values
+        api_config = Config.get().api_conf("dynamo0.3")
+        if isinstance(actual_precision, DataSymbol):
+            # Convert precision into number of bytes to support
+            # mixed-precision kernels.
+            # TODO #1941: it would be better if the LFRic constants_mod.f90
+            # was the single source of truth for precision values.
+            actual_precision = api_config.precision_map[
+                actual_precision.name]
+        elif not isinstance(actual_precision, int):
+            raise GenerationError(
+                f"An argument to an LFRic kernel must have a precision defined"
+                f" by either a recognised LFRic type parameter (one of "
+                f"{sorted(api_config.precision_map.keys())}) or an integer"
+                f" number of bytes but argument '{kern_code_arg.name}' to "
+                f"kernel '{self.name}' has precision {actual_precision}.")
+
+        if alg_arg:
+            # We have information on the corresponding argument in the
+            # Algorithm layer so we can check that the precision matches.
+            # This is used to identify the correct kernel subroutine for a
+            # mixed-precision kernel.
+            alg_precision = api_config.precision_map[alg_arg.precision]
+            if alg_precision != actual_precision:
+                raise GenerationError(
+                    f"Precision ({alg_precision} bytes) of algorithm-layer "
+                    f"argument '{alg_arg.name}' does not match that "
+                    f"({actual_precision} bytes) of the corresponding kernel "
+                    f"subroutine argument '{kern_code_arg.name}' for kernel "
+                    f"'{self.name}'.")
 
         # 3: intent
         actual_intent = kern_code_arg.interface.access
