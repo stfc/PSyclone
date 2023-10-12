@@ -4570,13 +4570,6 @@ class Fparser2Reader():
                 # function of the variable used to hold the return
                 # value.
                 if isinstance(symbol, RoutineSymbol):
-                    if not base_type:
-                        # The type of the return value was not specified in the
-                        # function prefix either therefore we have no explicit
-                        # type information for it.
-                        raise NotImplementedError(
-                            f"No explicit type information found for "
-                            f"function '{name}'")
                     # Remove the RoutineSymbol ready to replace it with a
                     # DataSymbol.
                     routine.symbol_table.remove(symbol)
@@ -4590,9 +4583,16 @@ class Fparser2Reader():
                 # True as there is likely to be a RoutineSymbol for this
                 # function in any enclosing Container.
                 if not base_type:
-                    raise NotImplementedError(
-                        f"No explicit type information found for function "
-                        f"'{name}'")
+                    # The type of the return value was not specified in the
+                    # function prefix or in a local declaration and therefore
+                    # we have no explicit type information for it. Since we
+                    # default to adding `implicit none` when generating Fortran
+                    # we can't simply put this function into a CodeBlock as the
+                    # generated code won't compile.
+                    raise SymbolError(
+                        f"No explicit return-type information found for "
+                        f"function '{name}'. This is not supported by "
+                        f"PSyclone.")
                 # First, update the existing RoutineSymbol with the
                 # return datatype specified in the function
                 # declaration.

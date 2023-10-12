@@ -93,7 +93,7 @@ def test_named_interface_declared(fortran_reader):
         module procedure test_code
       end interface test
     contains
-      function test_code()
+      real function test_code()
       end function test_code
     end module test_mod
     '''
