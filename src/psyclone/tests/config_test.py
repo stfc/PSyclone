@@ -647,7 +647,8 @@ def test_numeric_mappings():
         mapping = APISpecificConfig.create_numeric_dict_from_list(
             ["k1:1", "k2:something"]
             )
-    assert "Invalid format for mapping: something" in str(err.value)
+    assert ("Wrong type supplied to mapping: something is not a number"
+            in str(err.value))
 
 
 def test_invalid_access_mapping(tmpdir):

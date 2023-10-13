@@ -298,9 +298,7 @@ def test_precision_map(tmpdir):
     with pytest.raises(ConfigurationError) as err:
         config(config_file, content)
 
-    assert ("Wrong precision_map type supplied to \'[dynamo0.3]\' in "
-            in str(err.value))
-    assert ("'r_double : pinky' is of type <CLASS 'STR'> not integer."
+    assert ("Wrong type supplied to mapping: pinky is not a number"
             in str(err.value))
 
     # Test invalid datatype
