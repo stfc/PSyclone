@@ -151,7 +151,8 @@ jobs:
         gist_id: a4049a0fc0a0a11651a5ce6a04d76160
         file_path: ../../../../store_results/performance_history_openacc_kernels_gpu
 
-    # PSyclone, compile and run ECMWF NEMO with OpenMP for CPUs
+    # PSyclone, compile and run ECMWF NEMO with OpenMP for CPUs. This uses
+    # the Intel compiler and does not disable MPI.
     - name: NEMO ECMWF OpenMP for CPU
       run: |
         source .runner_venv/bin/activate
@@ -163,12 +164,12 @@ jobs:
         export MODEL_DIR=/archive/ssiso/ecmwf_eORCA1_GO8/
         export NAMELISTS_DIR=${NEMO_DIR}/testscripts_V40/output/openmp_outer_V40_eORCA1_GO8_Z75_20170906_cray_dp_1x1/
         cd examples/nemo/scripts
-        make -j 4 openmp_cpu
         module load intel/oneapi compiler mpi
+        MPI_INC_DIR=${I_MPI_ROOT}/include make -j 4 openmp_cpu
         export LD_LIBRARY_PATH=/home/ssiso/ecmwf_nemo/ESiWACE2/scripts/dev/netcdf-c-4.9.0/lib/:$LD_LIBRARY_PATH
         export LD_LIBRARY_PATH=/home/ssiso/ecmwf_nemo/ESiWACE2/scripts/dev/netcdf-fortran-4.5.4/lib:$LD_LIBRARY_PATH
         export LD_LIBRARY_PATH=/home/ssiso/ecmwf_nemo/ESiWACE2/scripts/dev/hdf5-1.12.2/lib/:$LD_LIBRARY_PATH
-        make -j 4 compile-openmp_cpu
+        MPI_INC_DIR=${I_MPI_ROOT}/include make -j 4 compile-openmp_cpu
         export OMP_NUM_THREADS=4
         make run-openmp_cpu |& tee output.txt
         # Check the output is as expected for the first 6 digits

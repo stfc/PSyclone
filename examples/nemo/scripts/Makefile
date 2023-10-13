@@ -25,6 +25,8 @@ TEST_CASE ?= SPITZ12
 # Example Config for MetOffice - eORCA1_GO8 - nvidia
 NEMO_DIR ?= ${WORKSPACE}/NEMO
 ROOT_SRC ?= ${NEMO_DIR}/cfgs/SPITZ12_serial/BLD/ppsrc/nemo/
+# Where to find the MPI header files
+MPI_INC_DIR ?= ${NVHPC_ROOT}/comm_libs/mpi/include
 COMPILER_ARCH ?= linux_nvidia_omp_gpu
 ADD_KEYS ?= "IEEE_IS_NAN=ieee_is_nan key_nosignedzero"
 DEL_KEYS ?= "key_iomput key_mpp_mpi key_si3"
@@ -62,16 +64,16 @@ $(TARGETS): % : $(addprefix psycloned-%/, $(notdir $(SRC_FILES)))
 # We perform a 'passthrough' test by simply not providing a transformation
 # script.
 psycloned-passthrough/%.f90: ${ROOT_SRC}%.f90 psycloned-passthrough
-	${PSYCLONE_NEMO_DIR}/process_nemo.py -I ${ROOT_SRC} -o psycloned-passthrough $<
+	${PSYCLONE_NEMO_DIR}/process_nemo.py -I ${ROOT_SRC} -I ${MPI_INC_DIR} -o psycloned-passthrough $<
 
 psycloned-openmp_cpu/%.f90: ${ROOT_SRC}%.f90 psycloned-openmp_cpu
-	${PSYCLONE_NEMO_DIR}/process_nemo.py -s ${PSYCLONE_NEMO_DIR}/omp_cpu_trans.py -I ${ROOT_SRC} -o psycloned-openmp_cpu $<
+	${PSYCLONE_NEMO_DIR}/process_nemo.py -s ${PSYCLONE_NEMO_DIR}/omp_cpu_trans.py -I ${ROOT_SRC} -I ${MPI_INC_DIR} -o psycloned-openmp_cpu $<
 
 psycloned-openmp_gpu/%.f90: ${ROOT_SRC}%.f90 psycloned-openmp_gpu
-	${PSYCLONE_NEMO_DIR}/process_nemo.py -s ${PSYCLONE_NEMO_DIR}/omp_gpu_trans.py -I ${ROOT_SRC} -o psycloned-openmp_gpu $<
+	${PSYCLONE_NEMO_DIR}/process_nemo.py -s ${PSYCLONE_NEMO_DIR}/omp_gpu_trans.py -I ${ROOT_SRC} -I ${MPI_INC_DIR} -o psycloned-openmp_gpu $<
 
 psycloned-openacc_kernels/%.f90: ${ROOT_SRC}%.f90 psycloned-openacc_kernels
-	${PSYCLONE_NEMO_DIR}/process_nemo.py -s ${PSYCLONE_NEMO_DIR}/kernels_trans.py -I ${ROOT_SRC} -o psycloned-openacc_kernels $<
+	${PSYCLONE_NEMO_DIR}/process_nemo.py -s ${PSYCLONE_NEMO_DIR}/kernels_trans.py -I ${ROOT_SRC} -I ${MPI_INC_DIR} -o psycloned-openacc_kernels $<
 
 
 # Get the number of Makefile parallel jobs to pass it to the makenemo
