@@ -39,6 +39,7 @@
 import pytest
 
 from psyclone.errors import GenerationError
+from psyclone.psyir.nodes import Routine
 from psyclone.psyir.symbols import (StaticInterface, DefaultModuleInterface,
                                     AutomaticInterface, UnknownFortranType)
 
@@ -142,10 +143,10 @@ def test_save_statement_subroutine(fortran_reader):
     assert isinstance(sym.interface, AutomaticInterface)
 
 
-def test_save_common(fortran_reader):
+def test_save_common_module(fortran_reader):
     '''
-    Check that a SAVE statement involving a named Common Blocks correctly
-    captured.
+    Check that SAVE statements involving a named Common Block in a module
+    and a subroutine are correctly captured.
     '''
     code = '''
       module my_mod
@@ -154,6 +155,12 @@ def test_save_common(fortran_reader):
         integer :: var1
         integer :: a, b
         integer :: var3
+      contains
+        subroutine my_sub()
+          save :: /some_other_common/
+          common /some_other_common/ igorina
+          real :: igorina
+        end subroutine my_sub
       end module my_mod'''
     psyir = fortran_reader.psyir_from_source(code)
     symtab = psyir.children[0].symbol_table
@@ -162,3 +169,7 @@ def test_save_common(fortran_reader):
     ufsym = symtab.lookup("/my_common/")
     assert isinstance(ufsym.datatype, UnknownFortranType)
     assert ufsym.datatype._declaration == "SAVE :: /my_common/"
+    sub = psyir.walk(Routine)[0]
+    other = sub.symbol_table.lookup("/some_other_common/")
+    assert isinstance(other.datatype, UnknownFortranType)
+    assert other.datatype._declaration == "SAVE :: /some_other_common/"

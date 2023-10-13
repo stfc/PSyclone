@@ -4699,8 +4699,6 @@ class Fparser2Reader():
             node)
         container.symbol_table.default_visibility = default_visibility
 
-        save_list = self.process_save_statements(node, container.symbol_table)
-
         # Create symbols for all routines defined within this module
         _process_routine_symbols(node, container.symbol_table, visibility_map)
 
@@ -4711,7 +4709,11 @@ class Fparser2Reader():
         except ValueError:
             spec_part = None
 
+        save_list = []
         if spec_part is not None:
+            save_list = self.process_save_statements(spec_part.children,
+                                                     container.symbol_table)
+
             self.process_declarations(container, spec_part.children,
                                       [], visibility_map, save_list)
 
