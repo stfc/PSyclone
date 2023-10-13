@@ -929,7 +929,7 @@ class IntrinsicCall(Call):
             for child in self._children:
                 child.reference_accesses(var_accesses)
 
-    # TODO #2102: Maybe the two properties below can be removed if intrinsic
+    # TODO #2102: Maybe the three properties below can be removed if intrinsic
     # is a symbol, as they would act as the super() implementation.
     @property
     def is_elemental(self):
@@ -952,6 +952,16 @@ class IntrinsicCall(Call):
         '''
         return self.intrinsic.is_pure
 
+    @property
+    def is_inquiry(self):
+        '''
+        :returns: whether the routine being called is a query function (i.e.
+            returns information about its argument rather than accessing any
+            data referenced by the argument). If this information is not known
+            then it returns None.
+        :rtype: NoneType | bool
+        '''
+        return self.intrinsic.is_inquiry
 
 # TODO #658 this can be removed once we have support for determining the
 # type of a PSyIR expression.
