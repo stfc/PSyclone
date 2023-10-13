@@ -47,6 +47,8 @@ import os
 from enum import Enum
 from collections import OrderedDict, namedtuple
 import fparser
+from dataclasses import dataclass
+from typing import Any
 
 from psyclone import psyGen
 from psyclone.configuration import Config
@@ -7318,7 +7320,7 @@ class DynLoop(PSyLoop):
 
         '''
         # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.tools import DependencyTools, DTCode
+        from psyclone.psyir.tools import DependencyTools
         if not dep_tools:
             dtools = DependencyTools()
         else:
@@ -8375,41 +8377,26 @@ def check_args(call):
             f"qr_arguments'")
 
 
-class DynStencil():
-    ''' Provides stencil information about a Dynamo argument '''
-    def __init__(self, name):
-        self._name = name
-        self._extent = None
-        self._extent_arg = None
-        self._direction_arg = None
+@dataclass(frozen=True)
+class LFRicArgStencil:
+    '''
+    Provides stencil information about an LFRic kernel argument.
+    LFRicArgStencil can provide the extent, algorithm argument for the extent,
+    and the direction argument of a stencil or set any of these properties.
 
-    @property
-    def extent(self):
-        '''Returns the extent of the stencil if it is known. It will be known
-        if it is specified in the metadata.'''
-        return self._extent
-
-    @property
-    def extent_arg(self):
-        '''Returns the algorithm argument associated with the extent value if
-        extent has not been provided in the metadata.'''
-        return self._extent_arg
-
-    @extent_arg.setter
-    def extent_arg(self, value):
-        ''' sets the extent_arg argument. '''
-        self._extent_arg = value
-
-    @property
-    def direction_arg(self):
-        '''returns the direction argument associated with the direction of
-        the stencil if the direction of the stencil is not known'''
-        return self._direction_arg
-
-    @direction_arg.setter
-    def direction_arg(self, value):
-        ''' sets the direction_arg argument. '''
-        self._direction_arg = value
+    :param name:            the name of the stencil.
+    :param extent:          the extent of the stencil if it is known. It will
+                            be known if it is specified in the metadata.
+    :param extent_arg:      the algorithm argument associated with the extent
+                            value if extent was not found in the metadata.
+    :param direction_arg:   the direction argument associated with the
+                            direction of the stencil if the direction of the
+                            stencil is not known.
+    '''
+    name: str
+    extent: str = None
+    extent_arg: Any = None
+    direction_arg: Any = None
 
 
 class DynKernelArguments(Arguments):
@@ -8447,25 +8434,30 @@ class DynKernelArguments(Arguments):
                                              parent_call, check)
             idx += 1
             if dyn_argument.descriptor.stencil:
-                # Create a stencil object and store a reference to it in our
-                # new DynKernelArgument object.
-                stencil = DynStencil(dyn_argument.descriptor.stencil['type'])
-                dyn_argument.stencil = stencil
-
                 if dyn_argument.descriptor.stencil['extent']:
                     raise GenerationError("extent metadata not yet supported")
                     # if supported we would add the following
-                    # line. However, note there is currently no setter
-                    # for extent in DynStencil so this would need to
-                    # be added.  stencil.extent =
+                    # line: stencil.extent =
                     # dyn_argument.descriptor.stencil['extent']
                 # An extent argument has been added.
-                stencil.extent_arg = call.args[idx]
+                stencil_extent_arg = call.args[idx]
                 idx += 1
                 if dyn_argument.descriptor.stencil['type'] == 'xory1d':
                     # a direction argument has been added
-                    stencil.direction_arg = call.args[idx]
+                    stencil = LFRicArgStencil(
+                        name=dyn_argument.descriptor.stencil['type'],
+                        extent_arg=stencil_extent_arg,
+                        direction_arg=call.args[idx]
+                        )
                     idx += 1
+                else:
+                    # Create a stencil object and store a reference to it in
+                    # our new DynKernelArgument object.
+                    stencil = LFRicArgStencil(
+                        name=dyn_argument.descriptor.stencil['type'],
+                        extent_arg=stencil_extent_arg
+                        )
+                dyn_argument.stencil = stencil
             self._args.append(dyn_argument)
 
         # We have now completed the construction of the kernel arguments so
@@ -9469,7 +9461,7 @@ class DynKernelArgument(KernelArgument):
     def stencil(self):
         '''
         :returns: stencil information for this argument if it exists.
-        :rtype: :py:class:`psyclone.dynamo0p3.DynStencil`
+        :rtype: :py:class:`psyclone.dynamo0p3.LFRicArgStencil`
         '''
         return self._stencil
 
@@ -9479,7 +9471,7 @@ class DynKernelArgument(KernelArgument):
         Sets stencil information for this kernel argument.
 
         :param value: stencil information for this argument.
-        :type value: :py:class:`psyclone.dynamo0p3.DynStencil`
+        :type value: :py:class:`psyclone.dynamo0p3.LFRicArgStencil`
 
         '''
         self._stencil = value
@@ -9628,7 +9620,7 @@ __all__ = [
     'DynKern',
     'FSDescriptor',
     'FSDescriptors',
-    'DynStencil',
+    'LFRicArgStencil',
     'DynKernelArguments',
     'DynKernelArgument',
     'DynACCEnterDataDirective']
