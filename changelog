@@ -31,6 +31,9 @@
 	11) PR #2313 towards #2197. LFRic PSyLayer uses array pointers instead
 	of derived types accessors in the kernel/builtin arguments.
 
+	12) PR #2321 for #2319. Refactors DynStencil into a dataclass named
+	LFRicArgStencil.
+
 release 2.4.0 29th of September 2023
 
 	1) PR #1758 for #1741. Splits the PSyData read functionality into a
