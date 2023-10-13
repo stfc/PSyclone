@@ -268,12 +268,13 @@ def test_validate_query(fortran_reader):
     # Check the references to 'a' in lbound and ubound do not get modified
     loop = psyir.children[0].children[0]
     locations = [loop.start_expr, loop.stop_expr]
-    for location in locations:
+    for text, location in zip(["LBOUND", "UBOUND"], locations):
         for reference in location.walk(Reference):
             with pytest.raises(TransformationError) as info:
                 trans.validate(reference)
-            assert ("References to arrays within LBOUND, UBOUND or SIZE "
-                    "intrinsics should not be transformed." in str(info.value))
+            assert (f"References to arrays passed as arguments to intrinsic "
+                    f"enquiry routine '{text}' should not be transformed."
+                    in str(info.value))
 
     # Check the references to 'b' in the hidden lbound and ubound
     # intrinsics within 'b(:)' do not get modified.
@@ -284,23 +285,24 @@ def test_validate_query(fortran_reader):
         if type(reference) is Reference:
             with pytest.raises(TransformationError) as info:
                 trans.validate(reference)
-            assert ("References to arrays within LBOUND, UBOUND or SIZE "
-                    "intrinsics should not be transformed." in str(info.value))
+            assert ("References to arrays passed as arguments to intrinsic "
+                    "enquiry routine '" in str(info.value))
 
     # Check the reference to 'b' in the size intrinsics does not get modified
     assignment = psyir.children[0].children[2]
     reference = assignment.children[1].children[0]
     with pytest.raises(TransformationError) as info:
         trans.validate(reference)
-    assert ("References to arrays within LBOUND, UBOUND or SIZE "
-            "intrinsics should not be transformed." in str(info.value))
+    assert ("References to arrays passed as arguments to intrinsic enquiry "
+            "routine 'SIZE' should not be transformed." in str(info.value))
 
     ifblock = psyir.walk(IfBlock)[0]
     allocd = ifblock.condition
     assert isinstance(allocd, IntrinsicCall)
     with pytest.raises(TransformationError) as info:
         trans.validate(allocd.children[0])
-    assert "blah blah" in str(info.value)
+    assert ("References to arrays passed as arguments to intrinsic enquiry "
+            "routine 'ALLOCATED' should not be transformed" in str(info.value))
 
 
 def test_validate_structure(fortran_reader):
@@ -339,8 +341,8 @@ def test_validate_deallocate(fortran_reader):
     trans = Reference2ArrayRangeTrans()
     with pytest.raises(TransformationError) as info:
         trans.validate(reference)
-    assert ("References to arrays within DEALLOCATE intrinsics should not be "
-            "transformed, but found:\n DEALLOCATE(a)" in str(info.value))
+    assert ("References to arrays passed to 'DEALLOCATE' intrinsics should not"
+            " be transformed, but found:\n DEALLOCATE(a)" in str(info.value))
 
 
 def test_apply_validate():
