@@ -89,7 +89,6 @@ def test_constants_mod():
     api_config = Config.get().api_conf("dynamo0.3")
     module = LFRicTypes("constants_mod")
     assert isinstance(module, ContainerSymbol)
-    symbol_list = list(LFRicConstants().PRECISION_MAP.keys())
     symbol_list = list(api_config.precision_map.keys())
     for symbol_name in symbol_list:
         symbol = LFRicTypes(symbol_name.upper())

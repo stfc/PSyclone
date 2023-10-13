@@ -184,8 +184,6 @@ def test_get_kernel_schedule_mixed_precision():
     # precisions.
     kernel_precisions = ["r_def", "r_solver", "r_tran", "r_bl", "r_phys"]
     # Get the precision (in bytes) for each of these.
-    precisions = [LFRicConstants.PRECISION_MAP[name] for
-                  name in kernel_precisions]
     precisions = [api_config.precision_map[name] for
                   name in kernel_precisions]
     # Check that the correct kernel implementation is obtained for each

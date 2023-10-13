@@ -137,8 +137,8 @@ class LFRicTypes:
     # ------------------------------------------------------------------------
     @staticmethod
     def _create_precision_from_const_module():
-        '''This function implements all precisions defined in
-        ``LFRicConstants.PRECISION_MAP``. It adds "constants_mod" as
+        '''This function implements all precisions defined in the default
+        API configuration, `dynamo0.3`. It adds "constants_mod" as
         ContainerSymbol. The names are added to the global mapping.
 
         '''
@@ -146,9 +146,8 @@ class LFRicTypes:
         # module and the second argument declares the name(s) of any symbols
         # declared by the module.
         lfric_const = LFRicConstants()
-        lfric_kinds = list(lfric_const.PRECISION_MAP.keys())
-        
         api_config = Config.get().api_conf("dynamo0.3")
+
         lfric_kinds = list(api_config.precision_map.keys())
 
         constants_mod = lfric_const.UTILITIES_MOD_MAP["constants"]["module"]

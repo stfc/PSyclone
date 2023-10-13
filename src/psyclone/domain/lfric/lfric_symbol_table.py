@@ -80,11 +80,6 @@ class LFRicSymbolTable(SymbolTable):
             const = LFRicConstants()
             mod_name = const.UTILITIES_MOD_MAP["constants"]["module"]
             LFRicSymbolTable._constants_mod = ContainerSymbol(mod_name)
-
-            for precision in const.PRECISION_MAP:
-                LFRicSymbolTable._precision_map[precision] = \
-                    DataSymbol(precision, INTEGER_TYPE,
-                               interface=ImportInterface(self._constants_mod))
             
             api_config = Config.get().api_conf("dynamo0.3")
             for precision in api_config.precision_map:
@@ -229,8 +224,8 @@ class LFRicSymbolTable(SymbolTable):
             table but is not imported from the correct container.
 
         '''
-        consts = LFRicConstants()
-        if name not in consts.PRECISION_MAP:
+        api_config = Config.get().api_conf("dynamo0.3")
+        if name not in api_config.precision_map.keys():
             raise ValueError(f"'{name}' is not a recognised LFRic precision.")
         sym = LFRicSymbolTable._precision_map[name]
 

@@ -307,29 +307,6 @@ class LFRicConstants():
             OrderedDict(zip(LFRicConstants.VALID_INTRINSIC_TYPES,
                             ["r_def", "i_def", "l_def"]))
 
-        # ----------- Map from symbolic to actual precision -------------------
-
-        # The value of the actual precision is in bytes.
-        # TODO #1941: this mapping should be in the config file or obtained
-        # from the constants_mod.f90 file in the LFRic infrastructure. The
-        # values for 'r_tran', 'r_solver', 'r_def', 'r_bl' and 'r_phys' are
-        # set according to CPP ifdefs. The values given below are the defaults.
-        # 'l_def' is included in this dict so that it contains a complete
-        # record of the various precision symbols used in LFRic.
-        LFRicConstants.PRECISION_MAP = {"i_def": 4,
-                                        "l_def": 1,
-                                        "r_def": 8,
-                                        "r_double": 8,
-                                        "r_ncdf": 8,
-                                        "r_quad": 16,
-                                        "r_second": 8,
-                                        "r_single": 4,
-                                        "r_solver": 4,
-                                        "r_tran": 8,
-                                        "r_bl": 8,
-                                        "r_phys": 8,
-                                        "r_um": 8}
-
         # ---------- Infrastructure module maps -------------------------------
 
         # Dictionary allowing us to look-up the name of the Fortran module,
