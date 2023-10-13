@@ -44,12 +44,13 @@ from fparser.two import Fortran2003
 
 from psyclone.errors import InternalError
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
-from psyclone.psyir.nodes import Schedule, CodeBlock, Loop, ArrayReference, \
-    Assignment, Literal, Reference, UnaryOperation, BinaryOperation, IfBlock, \
-    Call, Routine, Container, Range, ArrayMember, StructureReference,\
-    IntrinsicCall
-from psyclone.psyir.symbols import DataSymbol, ArrayType, ScalarType, \
-    REAL_TYPE, INTEGER_TYPE, UnresolvedInterface
+from psyclone.psyir.nodes import (
+    Schedule, CodeBlock, Loop, ArrayReference, Assignment, Literal, Reference,
+    UnaryOperation, BinaryOperation, IfBlock, Call, Routine, Container, Range,
+    ArrayMember, StructureReference, IntrinsicCall)
+from psyclone.psyir.symbols import (
+    DataSymbol, ArrayType, ScalarType, REAL_TYPE, INTEGER_TYPE,
+    UnresolvedInterface)
 
 
 def process_where(code, fparser_cls, symbols=None):
@@ -304,13 +305,13 @@ def test_where_within_loop(fortran_reader):
     # Check that we have symbols for the two arrays
     mymod = psyir.children[0]
     assert isinstance(mymod, Container)
-    assert "var" in mymod.symbol_table
-    assert "var2" in mymod.symbol_table
-    assert isinstance(mymod.symbol_table.lookup("var").interface,
-                      UnresolvedInterface)
-    assert isinstance(mymod.symbol_table.lookup("var2").interface,
-                      UnresolvedInterface)
     sub = mymod.children[0]
+    assert "var" in sub.symbol_table
+    assert "var2" in sub.symbol_table
+    assert isinstance(sub.symbol_table.lookup("var").interface,
+                      UnresolvedInterface)
+    assert isinstance(sub.symbol_table.lookup("var2").interface,
+                      UnresolvedInterface)
     assert isinstance(sub, Routine)
     assert isinstance(sub[0], Loop)
     assert sub[0].variable.name == "jl"

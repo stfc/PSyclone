@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2022 Science and Technology Facilities Council.
+# Copyright (c) 2019-2023 Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -480,8 +480,8 @@ def test_operator(tmpdir):
     assert "TYPE(operator_proxy_type) mm_w0_proxy" in generated_code
     assert "mm_w0_proxy = mm_w0%get_proxy()" in generated_code
     assert ("CALL testkern_operator_code(cell, nlayers, mm_w0_proxy%ncell_3d, "
-            "mm_w0_proxy%local_stencil, coord_proxy(1)%data, "
-            "coord_proxy(2)%data, coord_proxy(3)%data, a, ndf_w0, undf_w0, "
+            "mm_w0_local_stencil, coord_1_data, "
+            "coord_2_data, coord_3_data, a, ndf_w0, undf_w0, "
             "map_w0(:,cell), basis_w0_qr, diff_basis_w0_qr, np_xy_qr, "
             "np_z_qr, weights_xy_qr, weights_z_qr)") in generated_code
 
@@ -526,7 +526,11 @@ def test_operator_different_spaces(tmpdir):
         "weights_z_qr(:) => null()\n"
         "      INTEGER(KIND=i_def) np_xy_qr, np_z_qr\n"
         "      INTEGER(KIND=i_def) nlayers\n"
+        "      REAL(KIND=r_def), pointer, dimension(:,:,:) :: "
+        "mapping_local_stencil => null()\n"
         "      TYPE(operator_proxy_type) mapping_proxy\n"
+        "      REAL(KIND=r_def), pointer, dimension(:) :: coord_1_data => "
+        "null(), coord_2_data => null(), coord_3_data => null()\n"
         "      TYPE(field_proxy_type) coord_proxy(3)\n"
         "      TYPE(quadrature_xyoz_proxy_type) qr_proxy\n"
         "      INTEGER(KIND=i_def), pointer :: map_w0(:,:) => null()\n"
@@ -539,9 +543,13 @@ def test_operator_different_spaces(tmpdir):
         "      ! Initialise field and/or operator proxies\n"
         "      !\n"
         "      mapping_proxy = mapping%get_proxy()\n"
+        "      mapping_local_stencil => mapping_proxy%local_stencil\n"
         "      coord_proxy(1) = coord(1)%get_proxy()\n"
+        "      coord_1_data => coord_proxy(1)%data\n"
         "      coord_proxy(2) = coord(2)%get_proxy()\n"
+        "      coord_2_data => coord_proxy(2)%data\n"
         "      coord_proxy(3) = coord(3)%get_proxy()\n"
+        "      coord_3_data => coord_proxy(3)%data\n"
         "      !\n"
         "      ! Initialise number of layers\n"
         "      !\n"
@@ -619,8 +627,8 @@ def test_operator_different_spaces(tmpdir):
         "      DO cell=loop0_start,loop0_stop\n"
         "        !\n"
         "        CALL assemble_weak_derivative_w3_w2_kernel_code(cell, "
-        "nlayers, mapping_proxy%ncell_3d, mapping_proxy%local_stencil, "
-        "coord_proxy(1)%data, coord_proxy(2)%data, coord_proxy(3)%data, "
+        "nlayers, mapping_proxy%ncell_3d, mapping_local_stencil, "
+        "coord_1_data, coord_2_data, coord_3_data, "
         "ndf_w3, basis_w3_qr, ndf_w2, diff_basis_w2_qr, ndf_w0, "
         "undf_w0, map_w0(:,cell), diff_basis_w0_qr, "
         "np_xy_qr, np_z_qr, weights_xy_qr, weights_z_qr)\n"
@@ -652,11 +660,12 @@ def test_operator_nofield(tmpdir):
     assert "TYPE(operator_type), intent(in) :: mm_w2" in gen_code_str
     assert "TYPE(operator_proxy_type) mm_w2_proxy" in gen_code_str
     assert "mm_w2_proxy = mm_w2%get_proxy()" in gen_code_str
+    assert "mm_w2_local_stencil => mm_w2_proxy%local_stencil" in gen_code_str
     assert "undf_w2" not in gen_code_str
     assert "map_w2" not in gen_code_str
     assert ("CALL testkern_operator_nofield_code(cell, nlayers, "
-            "mm_w2_proxy%ncell_3d, mm_w2_proxy%local_stencil, "
-            "coord_proxy(1)%data, coord_proxy(2)%data, coord_proxy(3)%data, "
+            "mm_w2_proxy%ncell_3d, mm_w2_local_stencil, "
+            "coord_1_data, coord_2_data, coord_3_data, "
             "ndf_w2, basis_w2_qr, ndf_w0, undf_w0, "
             "map_w0(:,cell), diff_basis_w0_qr, np_xy_qr, np_z_qr, "
             "weights_xy_qr, weights_z_qr)" in gen_code_str)
@@ -680,7 +689,7 @@ def test_operator_nofield_different_space(tmpdir):
     assert "ndf_w2 = my_mapping_proxy%fs_to%get_ndf()" in gen
     # We compute operators redundantly (out to the L1 halo)
     assert "loop0_stop = mesh%get_last_halo_cell(1)" in gen
-    assert ("(cell, nlayers, my_mapping_proxy%ncell_3d, my_mapping_proxy%"
+    assert ("(cell, nlayers, my_mapping_proxy%ncell_3d, my_mapping_"
             "local_stencil, ndf_w2, ndf_w3)" in gen)
 
 
@@ -698,7 +707,7 @@ def test_operator_nofield_scalar(tmpdir):
     assert "nlayers = my_mapping_proxy%fs_from%get_nlayers()" in gen
     assert "ndf_w2 = my_mapping_proxy%fs_from%get_ndf()" in gen
     assert "loop0_stop = mesh%get_last_halo_cell(1)" in gen
-    assert ("(cell, nlayers, my_mapping_proxy%ncell_3d, my_mapping_proxy%"
+    assert ("(cell, nlayers, my_mapping_proxy%ncell_3d, my_mapping_"
             "local_stencil, b, ndf_w2, basis_w2_qr, np_xy_qr, np_z_qr, "
             "weights_xy_qr, weights_z_qr)" in gen)
 
@@ -759,7 +768,7 @@ def test_operator_bc_kernel(tmpdir):
     assert output2 in generated_code
     output3 = (
         "CALL enforce_operator_bc_code(cell, nlayers, op_a_proxy%ncell_3d, "
-        "op_a_proxy%local_stencil, ndf_aspc1_op_a, ndf_aspc2_op_a, "
+        "op_a_local_stencil, ndf_aspc1_op_a, ndf_aspc2_op_a, "
         "boundary_dofs_op_a)")
     assert output3 in generated_code
 
@@ -781,6 +790,8 @@ def test_operator_bc_kernel_fld_err(monkeypatch, dist_mem):
     # Monkeypatch the argument object so that it thinks it is a
     # field rather than an operator
     monkeypatch.setattr(arg, "_argument_type", value="gh_field")
+    # We have to add a tag to the Symbol table to get to the desired error.
+    schedule.symbol_table.find_or_create_tag("op_a:data")
     with pytest.raises(GenerationError) as excinfo:
         _ = psy.gen
     assert ("Expected an LMA operator from which to look-up boundary dofs "
@@ -810,6 +821,8 @@ def test_operator_bc_kernel_multi_args_err(dist_mem):
             "should only have 1 (an LMA operator)") in str(excinfo.value)
     # And again but make the second argument a field this time
     call.arguments.args[1]._argument_type = "gh_field"
+    # We have to add a tag to the Symbol table to get to the desired error.
+    schedule.symbol_table.find_or_create_tag("op_a:data")
     with pytest.raises(GenerationError) as excinfo:
         _ = psy.gen
     assert ("Kernel enforce_operator_bc_code has 2 arguments when it "
