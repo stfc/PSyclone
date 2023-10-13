@@ -782,7 +782,7 @@ class APISpecificConfig:
         return_dict = {}
         for entry in input_list:
             try:
-                key, value = entry.split(":", 1)
+                key, value = entry.split(":")[:2]
             except ValueError as err:
                 # Raised when split does not return two elements:
                 raise ConfigurationError(
@@ -794,8 +794,10 @@ class APISpecificConfig:
                         value = float(value)
                     else:
                         value = int(value)
-            except ValueError:
-                pass
+            except ValueError as err:
+                # Raised when split does not return two elements:
+                raise ConfigurationError(
+                    f"Invalid format for mapping: {value.strip()}") from err
             # Remove spaces and convert unicode to normal strings in Python2
             return_dict[str(key.strip())] = value
         return return_dict

@@ -32,7 +32,8 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
-# Modified: I. Kavcic, Met Office, R. W. Ford, STFC Daresbury Lab
+# Modified: I. Kavcic and O. Brunt, Met Office,
+#          R. W. Ford, STFC Daresbury Lab
 #           J. Henrichs, Bureau of Meteorology
 #           N. Nobre, STFC Daresbury Lab
 
@@ -618,6 +619,35 @@ def test_mappings():
     with pytest.raises(ConfigurationError) as err:
         mapping = APISpecificConfig.create_dict_from_list(["k1:v1", "k2=v2"])
     assert "Invalid format for mapping: k2=v2" in str(err.value)
+
+
+def test_numeric_mappings():
+    '''Test the definition of a mapping in the config file.'''
+    mapping = APISpecificConfig.create_numeric_dict_from_list(
+        ["k1:1", "k2:2"]
+        )
+    assert mapping == {"k1": 1, "k2": 2}
+
+    mapping = APISpecificConfig.create_numeric_dict_from_list([])
+    assert not mapping
+
+    # The function only uses the first ":" :
+    mapping = \
+        APISpecificConfig.create_numeric_dict_from_list(
+            ["k1 : 1", "k2 : 2 :something"])
+    assert mapping == {"k1": 1, "k2": 2}
+    # Tests errors: check that '=' instead of ":" is detected as invalid:
+    with pytest.raises(ConfigurationError) as err:
+        mapping = APISpecificConfig.create_numeric_dict_from_list(
+            ["k1:1", "k2=2"]
+            )
+    assert "Invalid format for mapping: k2=2" in str(err.value)
+
+    with pytest.raises(ConfigurationError) as err:
+        mapping = APISpecificConfig.create_numeric_dict_from_list(
+            ["k1:1", "k2:something"]
+            )
+    assert "Invalid format for mapping: something" in str(err.value)
 
 
 def test_invalid_access_mapping(tmpdir):
