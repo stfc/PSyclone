@@ -10,6 +10,9 @@
 !! computational vector field and return the 3 components of the physical field as
 !! separate fields in the target space
 
+! This tweaked version of the the code 1) replaces ANY_SPACE_9 with
+! WCHI and 2) splits matmul onto a separate line.
+
 module convert_hdiv_field_kernel_mod
 
 use kernel_mod,              only : kernel_type

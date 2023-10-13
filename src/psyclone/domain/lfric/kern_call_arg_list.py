@@ -50,12 +50,10 @@ from psyclone.domain.lfric import ArgOrdering, LFRicConstants
 # Avoid circular import:
 from psyclone.domain.lfric.lfric_types import LFRicTypes
 from psyclone.errors import GenerationError, InternalError
-from psyclone.psyir.nodes import (ArrayOfStructuresReference, Literal,
-                                  Reference, StructureReference)
-from psyclone.psyir.symbols import (ArrayType, DataSymbol, DataTypeSymbol,
-                                    DeferredType, ContainerSymbol,
-                                    ImportInterface, INTEGER_SINGLE_TYPE,
-                                    ScalarType)
+from psyclone.psyir.nodes import Reference, StructureReference
+from psyclone.psyir.symbols import (
+    DataSymbol, DataTypeSymbol, DeferredType,
+    ContainerSymbol, ImportInterface, ScalarType)
 
 # psyir has classes created at runtime
 # pylint: disable=no-member
@@ -83,32 +81,7 @@ class KernCallArgList(ArgOrdering):
         self._nqp_positions = []
         self._ndf_positions = []
 
-    @staticmethod
-    def _map_type_to_precision(data_type):
-        '''This function returns the precision required for the various
-        LFRic types.
-
-        :param str data_type: the name of the data type.
-
-        :returns: the precision as defined in domain.lfric.lfric_types \
-            (one of R_SOLVER, R_TRAN, R_DEF).
-        :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol`
-
-        :raises InternalError: if an unknown data_type is specified.
-
-        '''
-        const = LFRicConstants()
-        for module_info in const.DATA_TYPE_MAP.values():
-            if module_info["type"] == data_type:
-                return LFRicTypes(module_info["kind"].upper())
-
-        valid = [module_info["type"]
-                 for module_info in const.DATA_TYPE_MAP.values()]
-        raise InternalError(f"Unknown data type '{data_type}', expected one "
-                            f"of {valid}.")
-
-    def get_user_type(self, module_name, user_type, name, tag=None,
-                      shape=None):
+    def get_user_type(self, module_name, user_type, name, tag=None):
         # pylint: disable=too-many-arguments
         '''Returns the symbol for a user-defined type. If required, the
         required import statements will all be generated.
@@ -119,8 +92,6 @@ class KernCallArgList(ArgOrdering):
         :param str name: the name of the variable to be used in the Reference.
         :param Optional[str] tag: tag to use for the variable, defaults to \
             the name
-        :param shape: if specified, declare an array of user types
-        :type shape: List[:py:class:`psyclone.psyir.nodes.Node`]
 
         :return: the symbol that is used in the reference
         :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
@@ -141,34 +112,24 @@ class KernCallArgList(ArgOrdering):
             # Check if the module is already declared:
             module = self._symtab.lookup(module_name)
         except KeyError:
-            module = \
-                self._symtab.new_symbol(module_name,
-                                        symbol_type=ContainerSymbol)
+            module = self._symtab.new_symbol(module_name,
+                                             symbol_type=ContainerSymbol)
 
         # Get the symbol table in which the module is declared:
         mod_sym_tab = module.find_symbol_table(self._kern)
 
         # The user-defined type must be declared in the same symbol
         # table as the container (otherwise errors will happen later):
-        user_type_symbol = \
-            mod_sym_tab.find_or_create(user_type,
-                                       symbol_type=DataTypeSymbol,
-                                       datatype=DeferredType(),
-                                       interface=ImportInterface(module))
-        if shape:
-            # Define an array of the user type
-            user_type_array = \
-                ArrayType(user_type_symbol, shape)
-            # Then add this symbol for an array to the symbol table.
-            sym = self._symtab.new_symbol(name, tag=tag,
-                                          symbol_type=DataSymbol,
-                                          datatype=user_type_array)
-        else:
-            # Declare the actual user symbol in the local symbol table, using
-            # the datatype from the root table:
-            sym = self._symtab.new_symbol(name, tag=tag,
-                                          symbol_type=DataSymbol,
-                                          datatype=user_type_symbol)
+        user_type_symbol = mod_sym_tab.find_or_create(
+            user_type,
+            symbol_type=DataTypeSymbol,
+            datatype=DeferredType(),
+            interface=ImportInterface(module))
+        # Declare the actual user symbol in the local symbol table, using
+        # the datatype from the root table:
+        sym = self._symtab.new_symbol(name, tag=tag,
+                                      symbol_type=DataSymbol,
+                                      datatype=user_type_symbol)
         return sym
 
     def append_structure_reference(self, module_name, user_type, member_list,
@@ -177,27 +138,26 @@ class KernCallArgList(ArgOrdering):
         '''Creates a reference to a variable of a user-defined type. If
         required, the required import statements will all be generated.
 
-        :param str module_name: the name of the module from which the \
+        :param str module_name: the name of the module from which the
             user-defined type must be imported.
         :param str user_type: the name of the user-defined type.
         :param member_list: the members used hierarchically.
         :type member_list: List[str]
         :param str name: the name of the variable to be used in the Reference.
-        :param Optional[str] tag: tag to use for the variable, defaults to \
+        :param Optional[str] tag: tag to use for the variable, defaults to
             the name
-        :param overwrite_datatype: the datatype for the reference, which will \
-            overwrite the value determined by analysing the corresponding \
-            user defined type. This is useful when e.g. the module that \
+        :param overwrite_datatype: the datatype for the reference, which will
+            overwrite the value determined by analysing the corresponding
+            user defined type. This is useful when e.g. the module that
             declares the structure cannot be accessed.
-        :type overwrite_datatype: \
+        :type overwrite_datatype:
             Optional[:py:class:`psyclone.psyir.symbols.DataType`]
 
         :return: the symbol that is used in the reference
         :rtype: :py:class:`psyclone.psyir.symbols.Symbol`
 
         '''
-        sym = self.get_user_type(module_name, user_type, name,
-                                 tag)
+        sym = self.get_user_type(module_name, user_type, name, tag)
         self.psyir_append(StructureReference.
                           create(sym, member_list,
                                  overwrite_datatype=overwrite_datatype))
@@ -384,24 +344,16 @@ class KernCallArgList(ArgOrdering):
             :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
-        # First declare the proxy as a 1d-array:
-        lit_ind = Literal(str(argvect.vector_size), INTEGER_SINGLE_TYPE)
-        sym = self.get_user_type(argvect.module_name,
-                                 argvect.proxy_data_type,
-                                 argvect.proxy_name, shape=[lit_ind])
-
-        # the range function below returns values from
+        suffix = LFRicConstants().ARG_TYPE_SUFFIX_MAPPING[
+            argvect.argument_type]
+        # The range function below returns values from
         # 1 to the vector size which is what we
         # require in our Fortran code
-        array_1d = ArrayType(LFRicTypes("LFRicRealScalarDataType")(),
-                             [ArrayType.Extent.DEFERRED])
         for idx in range(1, argvect.vector_size + 1):
-            # Create the accesses to each element of the vector:
-            lit_ind = Literal(str(idx), INTEGER_SINGLE_TYPE)
-            ref = ArrayOfStructuresReference.\
-                create(sym, [lit_ind], ["data"], overwrite_datatype=array_1d)
-            self.psyir_append(ref)
-            text = f"{sym.name}({idx})%data"
+            cmpt_sym = self._symtab.lookup_with_tag(
+                f"{argvect.name}_{idx}:{suffix}")
+            self.psyir_append(Reference(cmpt_sym))
+            text = cmpt_sym.name
             self.append(text, metadata_posn=argvect.metadata_index)
 
         if var_accesses is not None:
@@ -415,27 +367,21 @@ class KernCallArgList(ArgOrdering):
 
         :param arg: the field to be added.
         :type arg: :py:class:`psyclone.dynamo0p3.DynKernelArgument`
-        :param var_accesses: optional VariablesAccessInfo instance to store \
+        :param var_accesses: optional VariablesAccessInfo instance to store
             the information about variable accesses.
-        :type var_accesses: \
-            :py:class:`psyclone.core.VariablesAccessInfo`
+        :type var_accesses: :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
-        text = arg.proxy_name + "%data"
-
-        # Add the field object arg%name and not just the proxy part
-        # as being read.
-        self.append(text, var_accesses, var_access_name=arg.name,
+        const = LFRicConstants()
+        suffix = const.ARG_TYPE_SUFFIX_MAPPING[arg.argument_type]
+        # Look-up the name of the variable that stores the reference to
+        # the data in this field.
+        sym = self._symtab.lookup_with_tag(f"{arg.name}:{suffix}")
+        # Add the field data array as being read.
+        self.append(sym.name, var_accesses, var_access_name=sym.name,
                     mode=arg.access, metadata_posn=arg.metadata_index)
 
-        # Add an access to field_proxy%data:
-        precision = KernCallArgList._map_type_to_precision(arg.data_type)
-        array_1d = \
-            ArrayType(LFRicTypes("LFRicRealScalarDataType")(precision),
-                      [ArrayType.Extent.DEFERRED])
-        self.append_structure_reference(
-            arg.module_name, arg.proxy_data_type, ["data"],
-            arg.proxy_name, overwrite_datatype=array_1d)
+        self.psyir_append(Reference(sym))
 
     def stencil_unknown_extent(self, arg, var_accesses=None):
         '''Add stencil information to the argument list associated with the
@@ -612,7 +558,8 @@ class KernCallArgList(ArgOrdering):
             op_name = "r_tran_operator"
         else:
             op_name = "operator"
-        operator = LFRicConstants().DATA_TYPE_MAP[op_name]
+        const = LFRicConstants()
+        operator = const.DATA_TYPE_MAP[op_name]
         self.append_structure_reference(
             operator["module"], operator["proxy_type"], ["ncell_3d"],
             arg.proxy_name_indexed,
@@ -620,15 +567,11 @@ class KernCallArgList(ArgOrdering):
         self.append(arg.proxy_name_indexed + "%ncell_3d", var_accesses,
                     mode=AccessType.READ)
 
-        precision = KernCallArgList._map_type_to_precision(operator["type"])
-        array_type = \
-            ArrayType(LFRicTypes("LFRicRealScalarDataType")(precision),
-                      [ArrayType.Extent.DEFERRED]*3)
-        self.append_structure_reference(
-            operator["module"], operator["proxy_type"], ["local_stencil"],
-            arg.proxy_name_indexed, overwrite_datatype=array_type)
+        sym = self._symtab.lookup_with_tag(
+            f"{arg.name}:{const.ARG_TYPE_SUFFIX_MAPPING[arg.argument_type]}")
+        self.psyir_append(Reference(sym))
         # The access mode of `local_stencil` is taken from the meta-data:
-        self.append(arg.proxy_name_indexed + "%local_stencil", var_accesses,
+        self.append(sym.name, var_accesses,
                     mode=arg.access, metadata_posn=arg.metadata_index)
 
     def fs_common(self, function_space, var_accesses=None):
@@ -993,10 +936,17 @@ class KernCallArgList(ArgOrdering):
         if self._kern.is_coloured():
             colour_sym = self._symtab.find_or_create_integer_symbol(
                 "colour", tag="colours_loop_idx")
-            array_ref = self.get_array_reference("cmap",
+            if self._kern.is_intergrid:
+                tag = None
+            else:
+                # If there is only one colourmap we need to specify the tag
+                # to make sure we get the right symbol.
+                tag = "cmap"
+            array_ref = self.get_array_reference(self._kern.colourmap,
                                                  [Reference(colour_sym),
                                                   Reference(cell_sym)],
-                                                 ScalarType.Intrinsic.INTEGER)
+                                                 ScalarType.Intrinsic.INTEGER,
+                                                 tag=tag)
             if var_accesses is not None:
                 var_accesses.add_access(Signature(colour_sym.name),
                                         AccessType.READ, self._kern)

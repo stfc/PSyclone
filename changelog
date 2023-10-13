@@ -1,3 +1,38 @@
+	1) PR #2199 for #2189. Fix bugs with missing maps in enter data
+	directive.
+
+	2) PR #2269 for #2268. Rename DynInvokes to LFRicInvokes and move
+	to own module.
+	
+	3) PR #2255 for #2237. The derived type intial values are not lost
+	anymore, and the "extends" or "abstract" keywords cause a
+	UnknownFortranType.
+
+	4) PR #1822 towards #1338. Adds support for the OMP tasking
+	directive and transformation.
+
+	5) PR #2346 for #2345. Make the integration tests use a parameterised
+	version of python, currently 3.11.4. Pin pylint to < 3.0
+
+	6) PR #2325 for #1947. Adds support for OMP/ACC Atomics and OMP Simd
+	directives.
+
+	7) PR #2355 for #2347. Adds testing to demonstrate that the new LFRic
+	metadata handling works for multi-precision kernels.
+
+	8) PR #2342 for #2340. Fix issues with VERIFY, ISHFTC and PRECISION
+	intrinsics and introduce a NEMO passthrough test.
+
+	9) PR #2350 for #2349. Update to HEAD of fparser master to get
+	fparser1 fix for parsing WHERE.
+
+	10) PR #2285 for #2284. Split LFRicRunTimeChecks from dynamo0p3.py.
+
+	11) PR #2313 towards #2197. LFRic PSyLayer uses array pointers instead
+	of derived types accessors in the kernel/builtin arguments.
+
+release 2.4.0 29th of September 2023
+
 	1) PR #1758 for #1741. Splits the PSyData read functionality into a
 	standalone module to remove dependence on infrastructure for
 	driver code.
@@ -618,6 +653,18 @@
 
 	209) PR #2332 for #2318. Small bug fix to the LFRic extraction
 	driver creation. eg17/full_example_extract now builds and runs OK.
+
+	210) PR #2287 for #2253. Allow for GH_WRITE access to continuous
+	field arguments to inter-grid kernels in the LFRic API.
+
+	211) PR #2299 for #2297. Add option to get original symbol name
+	(for an imported symbol) in VariablesAccessInfo.
+
+	212) PR #2233 for #1772. Correct kernel metadata for LFRic adjoint code.
+
+	213) PR #2334. Fix missing backtick in docstrings.
+
+	214) PR #2306 for #2305. Rename DynHaloExchange to LFRicHaloExchange.
 
 release 2.3.1 17th of June 2022
 

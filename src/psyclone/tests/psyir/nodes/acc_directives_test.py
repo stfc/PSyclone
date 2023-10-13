@@ -53,9 +53,11 @@ from psyclone.psyir.nodes import (ACCKernelsDirective,
                                   ACCRegionDirective,
                                   ACCRoutineDirective,
                                   ACCUpdateDirective,
+                                  ACCAtomicDirective,
                                   Assignment,
                                   Literal,
                                   Reference,
+                                  Return,
                                   Routine)
 from psyclone.psyir.nodes.loop import Loop
 from psyclone.psyir.nodes.schedule import Schedule
@@ -186,9 +188,8 @@ def test_accenterdatadirective_gencode_3(trans):
     acc_enter_trans.apply(sched)
     code = str(psy.gen)
     assert (
-        "      !$acc enter data copyin(f1_proxy,f1_proxy%data,"
-        "f2_proxy,f2_proxy%data,m1_proxy,m1_proxy%data,m2_proxy,"
-        "m2_proxy%data,map_w1,map_w2,map_w3,ndf_w1,ndf_w2,ndf_w3,nlayers,"
+        "      !$acc enter data copyin(f1_data,f2_data,m1_data,m2_data,"
+        "map_w1,map_w2,map_w3,ndf_w1,ndf_w2,ndf_w3,nlayers,"
         "undf_w1,undf_w2,undf_w3)\n" in code)
 
 
@@ -217,9 +218,8 @@ def test_accenterdatadirective_gencode_4(trans1, trans2):
     acc_enter_trans.apply(sched)
     code = str(psy.gen)
     assert (
-        "      !$acc enter data copyin(f1_proxy,f1_proxy%data,"
-        "f2_proxy,f2_proxy%data,f3_proxy,f3_proxy%data,m1_proxy,m1_proxy%data,"
-        "m2_proxy,m2_proxy%data,map_w1,map_w2,map_w3,ndf_w1,ndf_w2,ndf_w3,"
+        "      !$acc enter data copyin(f1_data,f2_data,f3_data,m1_data,"
+        "m2_data,map_w1,map_w2,map_w3,ndf_w1,ndf_w2,ndf_w3,"
         "nlayers,undf_w1,undf_w2,undf_w3)\n" in code)
 
 
@@ -495,3 +495,88 @@ def test_accdatadirective_update_data_movement_clauses(fortran_reader,
     # 'sfactor' should have been removed from the copyin()
     assert ("!$acc data copyin(small_holding,small_holding(3)%grid,"
             "small_holding(3)%grid(jf)%data), copy(sto_tmp)" in output)
+
+
+def test_acc_atomics_is_valid_atomic_statement(fortran_reader):
+    ''' Test the ACCAtomicDirective can identify when a statement is a valid
+    expression to support OpenACC atomics. '''
+
+    code = '''
+    subroutine my_subroutine()
+        integer, dimension(10, 10) :: A = 1
+        integer, dimension(10, 10) :: B = 2
+        integer :: i, j, val
+
+        A(1,1) = A(1,1) * 2
+        A(1,1) = A(1,1) / (2 + 3 - 5)
+        A(1,1) = MAX(A(1,1), A(1,2))
+    end subroutine
+    '''
+    tree = fortran_reader.psyir_from_source(code)
+    for stmt in tree.walk(Assignment):
+        assert ACCAtomicDirective.is_valid_atomic_statement(stmt)
+
+    code = '''
+    subroutine my_subroutine()
+        integer, dimension(10, 10) :: A = 1
+        integer, dimension(10, 10) :: B = 2
+        integer :: i, j, val
+
+        A(1,1) = A(1,1) ** 2  ! Operator is not supported
+        A(1,1) = A(2,1) * 2   ! The operands are different that the lhs
+        A(1,1) = A(1,1) / 2 + 3 - 5  ! A(1,1) is not a top-level operand
+        A(:,1) = A(:,1) / 2      ! It is not a scalar expression
+        A(1,1) = MOD(A(1,1), 3)  ! Intrinsic is not supported
+    end subroutine
+    '''
+    tree = fortran_reader.psyir_from_source(code)
+    for stmt in tree.walk(Assignment):
+        assert not ACCAtomicDirective.is_valid_atomic_statement(stmt)
+
+    # Its also not valid if its not an Assignment
+    assert not ACCAtomicDirective.is_valid_atomic_statement(Return())
+
+
+def test_acc_atomics_validate_global_constraints(fortran_reader, monkeypatch):
+    ''' Test the ACCAtomicDirective can check the globals constraints to
+    validate that the directive is correctly formed.'''
+
+    code = '''
+    subroutine my_subroutine()
+        integer, dimension(10, 10) :: A = 1
+        integer, dimension(10, 10) :: B = 2
+        integer :: i, j, val
+
+        A(1,1) = A(1,1) * 2
+    end subroutine
+    '''
+    tree = fortran_reader.psyir_from_source(code)
+    routine = tree.walk(Routine)[0]
+    stmt = routine.children[0]
+    atomic = ACCAtomicDirective()
+    atomic.dir_body.addchild(stmt.detach())
+    routine.addchild(atomic)
+
+    # This is a valid atomic
+    atomic.validate_global_constraints()
+
+    # If the statement is invalid (for any reason already tested in a previous
+    # test), it raises an error
+    monkeypatch.setattr(atomic, "is_valid_atomic_statement", lambda _: False)
+    with pytest.raises(GenerationError) as err:
+        atomic.validate_global_constraints()
+    assert "is not a valid OpenACC Atomic statement." in str(err.value)
+
+    # If it doesn not have an associated statement
+    atomic.dir_body[0].detach()
+    with pytest.raises(GenerationError) as err:
+        atomic.validate_global_constraints()
+    assert ("Atomic directives must always have one and only one associated "
+            "statement, but found " in str(err.value))
+
+
+def test_acc_atomics_srtings():
+    ''' Test the ACCAtomicDirective begin and end strings '''
+    atomic = ACCAtomicDirective()
+    assert atomic.begin_string() == "acc atomic"
+    assert atomic.end_string() == "acc end atomic"

@@ -86,6 +86,14 @@ class LFRicConstants():
             LFRicConstants.VALID_OPERATOR_NAMES + \
             LFRicConstants.VALID_SCALAR_NAMES
 
+        # Mapping from argument type to the suffix used when creating
+        # pointers to actual data arrays (and the associated symbol tags).
+        LFRicConstants.ARG_TYPE_SUFFIX_MAPPING = {
+            "gh_field": "data",
+            "gh_operator": "local_stencil",
+            "gh_columnwise_operator": "cma_matrix"
+            }
+
         # Supported API argument data types ('gh_real', 'gh_integer'
         # and 'gh_logical')
         LFRicConstants.VALID_ARG_DATA_TYPES = \
@@ -491,6 +499,30 @@ class LFRicConstants():
 
         raise InternalError(f"Error mapping from meta-data function space "
                             f"to actual space: cannot handle '{space}'")
+
+    def precision_for_type(self, data_type):
+        '''This function returns the precision required for the various
+        LFRic types.
+
+        :param str data_type: the name of the data type.
+
+        :returns: the precision as defined in domain.lfric.lfric_types
+            (one of R_SOLVER, R_TRAN, R_DEF).
+        :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol`
+
+        :raises InternalError: if an unknown data_type is specified.
+
+        '''
+        for module_info in self.DATA_TYPE_MAP.values():
+            if module_info["type"] == data_type:
+                # pylint: disable=import-outside-toplevel
+                from psyclone.domain.lfric.lfric_types import LFRicTypes
+                return LFRicTypes(module_info["kind"].upper())
+
+        valid = [module_info["type"]
+                 for module_info in self.DATA_TYPE_MAP.values()]
+        raise InternalError(f"Unknown data type '{data_type}', expected one "
+                            f"of {valid}.")
 
 
 # =============================================================================

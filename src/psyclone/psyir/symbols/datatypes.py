@@ -700,8 +700,8 @@ class StructureType(DataType):
     '''
     # Each member of a StructureType is represented by a ComponentType
     # (named tuple).
-    ComponentType = namedtuple("ComponentType", ["name", "datatype",
-                                                 "visibility"])
+    ComponentType = namedtuple("ComponentType", [
+        "name", "datatype", "visibility", "initial_value"])
 
     def __init__(self):
         self._components = OrderedDict()
@@ -715,7 +715,7 @@ class StructureType(DataType):
         Creates a StructureType from the supplied list of properties.
 
         :param components: the name, type and visibility of each component.
-        :type components: list of 3-tuples
+        :type components: list of 4-tuples
 
         :returns: the new type object.
         :rtype: :py:class:`psyclone.psyir.symbols.StructureType`
@@ -723,12 +723,12 @@ class StructureType(DataType):
         '''
         stype = StructureType()
         for component in components:
-            if len(component) != 3:
+            if len(component) != 4:
                 raise TypeError(
-                    f"Each component must be specified using a 3-tuple of "
-                    f"(name, type, visibility) but found a tuple with "
-                    f"{len(component)} members: {component}")
-            stype.add(component[0], component[1], component[2])
+                    f"Each component must be specified using a 4-tuple of "
+                    f"(name, type, visibility, initial_value) but found a "
+                    f"tuple with {len(component)} members: {component}")
+            stype.add(*component)
         return stype
 
     @property
@@ -739,21 +739,28 @@ class StructureType(DataType):
         '''
         return self._components
 
-    def add(self, name, datatype, visibility):
+    def add(self, name, datatype, visibility, initial_value):
         '''
         Create a component with the supplied attributes and add it to
         this StructureType.
 
         :param str name: the name of the new component.
         :param datatype: the type of the new component.
-        :type datatype: :py:class:`psyclone.psyir.symbols.DataType` or \
-                        :py:class:`psyclone.psyir.symbols.DataTypeSymbol`
+        :type datatype: :py:class:`psyclone.psyir.symbols.DataType` |
+            :py:class:`psyclone.psyir.symbols.DataTypeSymbol`
         :param visibility: whether this component is public or private.
         :type visibility: :py:class:`psyclone.psyir.symbols.Symbol.Visibility`
+        :param initial_value: the initial value of the new component.
+        :type initial_value: Optional[
+            :py:class:`psyclone.psyir.nodes.DataNode`]
 
         :raises TypeError: if any of the supplied values are of the wrong type.
 
         '''
+        # This import must be placed here to avoid circular
+        # dependencies.
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.nodes import DataNode
         if not isinstance(name, str):
             raise TypeError(
                 f"The name of a component of a StructureType must be a 'str' "
@@ -774,8 +781,15 @@ class StructureType(DataType):
                 f"Error attempting to add component '{name}' - a "
                 f"StructureType definition cannot be recursive - i.e. it "
                 f"cannot contain components with the same type as itself.")
+        if (initial_value is not None and
+                not isinstance(initial_value, DataNode)):
+            raise TypeError(
+                f"The initial value of a component of a StructureType must "
+                f"be None or an instance of 'DataNode', but got "
+                f"'{type(initial_value).__name__}'.")
 
-        self._components[name] = self.ComponentType(name, datatype, visibility)
+        self._components[name] = self.ComponentType(
+            name, datatype, visibility, initial_value)
 
     def lookup(self, name):
         '''
