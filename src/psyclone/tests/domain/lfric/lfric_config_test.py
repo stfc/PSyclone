@@ -291,14 +291,14 @@ def test_precision_map(tmpdir):
     config_file = tmpdir.join("config_dyn")
 
     # Test invalid datatype
-    content = re.sub(r"r_double: 8,", "r_double: pinky,",
+    content = re.sub(r"r_double: 8,", "r_double: porky,",
                      _CONFIG_CONTENT,
                      flags=re.MULTILINE)
 
     with pytest.raises(ConfigurationError) as err:
         config(config_file, content)
 
-    assert ("Wrong type supplied to mapping: pinky is not a number"
+    assert ("Wrong type supplied to mapping: porky is not a number"
             in str(err.value))
 
     # Test invalid datatype

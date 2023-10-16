@@ -791,7 +791,7 @@ class APISpecificConfig:
             try:
                 if isinstance(value, str):
                     if '.' in value:
-                        value = float(value)
+                        value = int(float(value))
                     else:
                         value = int(value)
             except ValueError as err:

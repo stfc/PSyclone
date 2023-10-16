@@ -631,6 +631,12 @@ def test_numeric_mappings():
     mapping = APISpecificConfig.create_numeric_dict_from_list([])
     assert not mapping
 
+    # Check float format string values are converted to int
+    mapping = APISpecificConfig.create_numeric_dict_from_list(
+        ["k1:1.2", "k2:3.45"]
+    )
+    assert mapping == {"k1": 1, "k2": 3}
+
     # The function only uses the first ":" :
     mapping = \
         APISpecificConfig.create_numeric_dict_from_list(
