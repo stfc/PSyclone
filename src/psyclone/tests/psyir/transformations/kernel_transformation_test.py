@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2022, Science and Technology Facilities Council.
+# Copyright (c) 2018-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -49,8 +49,8 @@ from psyclone.generator import GenerationError
 from psyclone.psyGen import Kern
 from psyclone.psyir.nodes import Routine, FileContainer
 from psyclone.psyir.transformations import TransformationError
-from psyclone.transformations import ACCRoutineTrans, \
-    Dynamo0p3KernelConstTrans
+from psyclone.transformations import (ACCRoutineTrans,
+                                      Dynamo0p3KernelConstTrans)
 
 from psyclone.tests.gocean_build import GOceanBuild
 from psyclone.tests.lfric_build import LFRicBuild
@@ -59,7 +59,7 @@ from psyclone.tests.utilities import get_invoke
 
 def setup_module():
     '''
-    This setup routine ensures that and pre-exisiting Config object is
+    This setup routine ensures that any pre-exisiting Config object is
     wiped when this module is first entered and the teardown function below
     guarantees it for subsequent tests.  (Necessary when running tests in
     parallel.)
@@ -264,6 +264,114 @@ def test_new_same_kern_single(kernel_outputdir, monkeypatch):
     assert new_kernels[1].module_name == "testkern_0_mod"
     out_files = os.listdir(str(kernel_outputdir))
     assert out_files == [new_kernels[1].module_name+".f90"]
+
+
+def test_accroutine_validate_wrong_node_type():
+    '''
+    Test that the validate() method of ACCRoutineTrans rejects a node of the
+    wrong type.
+
+    '''
+    rtrans = ACCRoutineTrans()
+    with pytest.raises(TransformationError) as err:
+        rtrans.apply(FileContainer("fred"))
+    assert ("The ACCRoutineTrans must be applied to a sub-class of Kern or "
+            "Routine but got 'FileContainer'" in str(err.value))
+
+
+def test_accroutine_validate_no_schdule(monkeypatch):
+    '''
+    Test that the validate() method of ACCRoutineTrans catches any errors
+    generated when attempting to get the PSyIR of a kernel.
+
+    '''
+    _, invoke = get_invoke("1_single_invoke.f90", api="dynamo0.3", idx=0)
+    sched = invoke.schedule
+    kernels = sched.walk(Kern)
+    kern = kernels[0]
+    # We monkeypatch the 'get_kernel_schedule' method of DynKern so that it
+    # just raises an exception.
+
+    def broken(_1_):
+        raise GenerationError("this is just a test")
+    monkeypatch.setattr(kern, "get_kernel_schedule", broken)
+
+    rtrans = ACCRoutineTrans()
+    with pytest.raises(TransformationError) as err:
+        rtrans.validate(kern)
+    assert ("Failed to create PSyIR for kernel 'testkern_code'. Cannot "
+            "transform such a kernel." in str(err.value))
+
+
+def test_accroutinetrans_validate_no_import(fortran_reader):
+    '''
+    Test the validate() method of ACCRoutineTrans rejects a kernel that
+    accesses imported data.
+
+    '''
+    code = '''\
+module my_mod
+  use other_mod, only: some_data
+contains
+  subroutine my_sub(arg)
+    integer :: arg
+    arg = arg + some_data
+  end subroutine my_sub
+end module my_mod'''
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    rtrans = ACCRoutineTrans()
+    with pytest.raises(TransformationError) as err:
+        rtrans.validate(routine)
+    assert ("Transformation Error: routine 'my_sub' accesses the symbol "
+            "'some_data' which is imported. If this symbol represents data "
+            "then it must first be converted to a routine argument using the "
+            "KernelImportsToArguments transformation." in str(err.value))
+
+
+def test_accroutinetrans_validate_no_import_cblock(fortran_reader):
+    '''
+    Test the validate() method of ACCRoutineTrans rejects a kernel that
+    accesses imported data when that access is within a CodeBlock.
+
+    '''
+    code = '''\
+module my_mod
+  use other_mod, only: some_data
+contains
+  subroutine my_sub(arg)
+    integer :: arg
+    write(*,*) arg + some_data
+  end subroutine my_sub
+end module my_mod'''
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    rtrans = ACCRoutineTrans()
+    with pytest.raises(TransformationError) as err:
+        rtrans.validate(routine)
+    assert ("Transformation Error: routine 'my_sub' accesses the symbol "
+            "'some_data' within a CodeBlock and this symbol is imported. "
+            "'ACC routine' cannot be added to such a routine."
+            in str(err.value))
+
+
+def test_accroutinetrans_validate_no_call():
+    '''
+    Test the validate() method of ACCRoutineTrans rejects a kernel that calls
+    another routine.
+
+    '''
+    psy, invoke = get_invoke("1.15_invoke_kern_with_call.f90", api="dynamo0.3",
+                             idx=0)
+    sched = invoke.schedule
+    kernel = sched.coded_kernels()[0]
+    rtrans = ACCRoutineTrans()
+    with pytest.raises(TransformationError) as err:
+        rtrans.validate(kernel)
+    assert ("Kernel 'testkern_with_call_code' calls another routine "
+            "('call xyz2llr(coord(1), coord(2), coord(3), lon, lat, radius)') "
+            "and therefore cannot have 'ACC routine' added to it"
+            in str(err.value))
 
 
 def test_1kern_trans(kernel_outputdir):

@@ -57,14 +57,15 @@ from psyclone.gocean1p0 import GOInvokeSchedule
 from psyclone.nemo import NemoInvokeSchedule
 from psyclone.psyGen import Transformation, CodedKern, Kern, InvokeSchedule, \
     BuiltIn
-from psyclone.psyir.nodes import ACCDataDirective, ACCDirective, \
-    ACCEnterDataDirective, ACCKernelsDirective, ACCLoopDirective, \
-    ACCParallelDirective, ACCRoutineDirective, Assignment, CodeBlock, \
-    Directive, Loop, Node, OMPDeclareTargetDirective, \
-    OMPDirective, OMPMasterDirective, \
-    OMPParallelDirective, OMPParallelDoDirective, OMPSerialDirective, \
-    OMPSingleDirective, OMPTaskloopDirective, PSyDataNode, Reference, \
-    Return, Routine, Schedule
+from psyclone.psyir.nodes import (
+    ACCDataDirective, ACCDirective,
+    ACCEnterDataDirective, ACCKernelsDirective, ACCLoopDirective,
+    ACCParallelDirective, ACCRoutineDirective, Assignment, Call, CodeBlock,
+    Directive, IntrinsicCall, Loop, Node, OMPDeclareTargetDirective,
+    OMPDirective, OMPMasterDirective,
+    OMPParallelDirective, OMPParallelDoDirective, OMPSerialDirective,
+    OMPSingleDirective, OMPTaskloopDirective, PSyDataNode, Reference,
+    Return, Routine, Schedule)
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.nodes.structure_member import StructureMember
 from psyclone.psyir.nodes.structure_reference import StructureReference
@@ -494,7 +495,7 @@ class ACCLoopTrans(ParallelLoopTrans):
     '''
     # The types of node that must be excluded from the section of PSyIR
     # being transformed.
-    excluded_node_types = (PSyDataNode)
+    excluded_node_types = (PSyDataNode,)
 
     def __init__(self):
         # Whether to add the "independent" clause
@@ -2400,17 +2401,19 @@ class ACCRoutineTrans(Transformation):
         Perform checks that the supplied kernel or routine can be transformed.
 
         :param node: the kernel which is the target of the transformation.
-        :type node: :py:class:`psyclone.psyGen.Kern` or \
+        :type node: :py:class:`psyclone.psyGen.Kern` |
                     :py:class:`psyclone.psyir.nodes.Routine`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
 
         :raises TransformationError: if the node is not a kernel or a routine.
         :raises TransformationError: if the target is a built-in kernel.
-        :raises TransformationError: if it is a kernel but without an \
+        :raises TransformationError: if it is a kernel but without an
                                      associated PSyIR.
-        :raises TransformationError: if any of the symbols in the kernel are \
+        :raises TransformationError: if any of the symbols in the kernel are
                                      accessed via a module use statement.
+        :raises TransformationError: if the kernel contains any calls to other
+                                     routines.
         '''
         super().validate(node, options)
 
@@ -2420,13 +2423,13 @@ class ACCRoutineTrans(Transformation):
                 f"Kern or Routine but got '{type(node).__name__}'.")
 
         # If it is a kernel call it must have an accessible implementation
-        if isinstance(node, Kern):
-            if isinstance(node, BuiltIn):
-                raise TransformationError(
-                    f"Applying ACCRoutineTrans to a built-in kernel is not yet"
-                    f" supported and kernel '{node.name}' is of type "
-                    f"'{type(node).__name__}'")
+        if isinstance(node, BuiltIn):
+            raise TransformationError(
+                f"Applying ACCRoutineTrans to a built-in kernel is not yet"
+                f" supported and kernel '{node.name}' is of type "
+                f"'{type(node).__name__}'")
 
+        if isinstance(node, Kern):
             # Get the PSyIR routine from the associated kernel. If there is an
             # exception (this could mean that there is no associated tree
             # or that the frontend failed to convert it into PSyIR) reraise it
@@ -2437,20 +2440,45 @@ class ACCRoutineTrans(Transformation):
                 raise TransformationError(
                     f"Failed to create PSyIR for kernel '{node.name}'. "
                     f"Cannot transform such a kernel.") from error
+            k_or_r = "Kernel"
+        else:
+            # Supplied node is a PSyIR Routine which *is* a Schedule.
+            kernel_schedule = node
+            k_or_r = "routine"
 
-            # Check that the kernel does not access any data or routines via a
-            # module 'use' statement
-            imported_variables = kernel_schedule.symbol_table.imported_symbols
-            if imported_variables:
+        # Check that the routine does not access any data that is imported via
+        # a 'use' statement.
+        refs = kernel_schedule.walk(Reference)
+        for ref in refs:
+            if ref.symbol.is_import:
                 raise TransformationError(
-                    f"The Symbol Table for kernel '{node.name}' contains the "
-                    f"following symbol(s) with imported interface: "
-                    f"{[sym.name for sym in imported_variables]}. If these "
-                    f"symbols represent data then they must first be converted"
-                    f" to kernel arguments using the KernelImportsToArguments "
-                    f"transformation. If the symbols represent external "
-                    f"routines then PSyclone cannot currently transform this "
-                    f"kernel for execution on an OpenACC device (issue #342).")
+                    f"{k_or_r} '{node.name}' accesses the symbol "
+                    f"'{ref.symbol.name}' which is imported. If this symbol "
+                    f"represents data then it must first be converted to a "
+                    f"{k_or_r} argument using the KernelImportsToArguments "
+                    f"transformation.")
+
+        # Check any accesses within CodeBlocks.
+        cblocks = kernel_schedule.walk(CodeBlock)
+        for cblock in cblocks:
+            names = cblock.get_symbol_names()
+            for name in names:
+                sym = kernel_schedule.symbol_table.lookup(name)
+                if sym.is_import:
+                    raise TransformationError(
+                        f"{k_or_r} '{node.name}' accesses the symbol "
+                        f"'{sym.name}' within a CodeBlock and this symbol is "
+                        f"imported. 'ACC routine' cannot be added to such a "
+                        f"{k_or_r}.")
+
+        calls = kernel_schedule.walk(Call)
+        for call in calls:
+            if not isinstance(call, IntrinsicCall):
+                call_str = call.debug_string().rstrip("\n")
+                raise TransformationError(
+                    f"{k_or_r} '{node.name}' calls another routine "
+                    f"('{call_str}') and therefore cannot have "
+                    f"'ACC routine' added to it (TODO #342).")
 
 
 class ACCKernelsTrans(RegionTrans):
