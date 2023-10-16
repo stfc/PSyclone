@@ -42,7 +42,7 @@
 from psyclone.core import AccessType, Signature
 # We cannot import from 'nodes' directly due to circular import
 from psyclone.psyir.nodes.datanode import DataNode
-from psyclone.psyir.symbols import ImportInterface, Symbol
+from psyclone.psyir.symbols import Symbol
 from psyclone.psyir.symbols.datatypes import DeferredType
 
 
@@ -172,9 +172,13 @@ class Reference(DataNode):
 
         '''
         sig, all_indices = self.get_signature_and_indices()
-        if isinstance(self.symbol.interface, ImportInterface) and \
+        if self.symbol.is_import and \
                 var_accesses.options("USE-ORIGINAL-NAMES") and \
                 self.symbol.interface.orig_name:
+            # If the option is set to return the original (un-renamed)
+            # name of an imported symbol, get the original name from
+            # the interface and use it. The rest of the signature is
+            # used from the original access, it does not change.
             sig = Signature(self.symbol.interface.orig_name, sig[1:])
         for indices in all_indices:
             for index in indices:

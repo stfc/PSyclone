@@ -130,18 +130,23 @@ class Loop(Statement):
             scalar integer.
 
         '''
+        try:
+            variable_name = f"'{variable.name}'"
+        except AttributeError:
+            variable_name = "property"
         if not isinstance(variable, DataSymbol):
             raise GenerationError(
-                f"variable property in Loop class should be a DataSymbol but "
-                f"found '{type(variable).__name__}'.")
+                f"variable {variable_name} in Loop class should be a "
+                f"DataSymbol but found '{type(variable).__name__}'.")
         if not isinstance(variable.datatype, ScalarType):
             raise GenerationError(
-                f"variable property in Loop class should be a ScalarType but "
-                f"found '{type(variable.datatype).__name__}'.")
+                f"variable {variable_name} in Loop class should be a "
+                f"ScalarType but found '{type(variable.datatype).__name__}'.")
         if variable.datatype.intrinsic != ScalarType.Intrinsic.INTEGER:
             raise GenerationError(
-                f"variable property in Loop class should be a scalar integer "
-                f"but found '{variable.datatype.intrinsic.name}'.")
+                f"variable {variable_name} in Loop class should be a "
+                f"scalar integer but found "
+                f"'{variable.datatype.intrinsic.name}'.")
 
     @staticmethod
     def _validate_child(position, child):
@@ -294,8 +299,15 @@ class Loop(Statement):
         :returns: Return the dag name for this loop
         :rtype: string
 
+        :raises InternalError: if this Loop has no ancestor Routine.
+
         '''
-        _, position = self._find_position(self.ancestor(Routine))
+        routine = self.ancestor(Routine)
+        if not routine:
+            raise InternalError(f"Cannot generate DAG name for loop node "
+                                f"'{self}' because it is not contained within "
+                                f"a Routine.")
+        _, position = self._find_position(routine)
 
         return "loop_" + str(position)
 
@@ -378,6 +390,40 @@ class Loop(Statement):
         for child in self.loop_body.children:
             child.reference_accesses(var_accesses)
             var_accesses.next_location()
+
+    def independent_iterations(self,
+                               test_all_variables=False,
+                               signatures_to_ignore=None,
+                               dep_tools=None):
+        '''This function analyses a loop in the PSyIR to see whether
+        its iterations are independent.
+
+        :param bool test_all_variables: if True, it will test if all variable
+            accesses are independent, otherwise it will stop after the first
+            variable access is found that isn't.
+        :param signatures_to_ignore: list of signatures for which to skip
+            the access checks.
+        :type signatures_to_ignore: Optional[
+            List[:py:class:`psyclone.core.Signature`]]
+        :param dep_tools: an optional instance of DependencyTools so that the
+            caller can access any diagnostic messages detailing why the loop
+            iterations are not independent.
+        :type dep_tools: Optional[
+            :py:class:`psyclone.psyir.tools.DependencyTools`]
+
+        :returns: True if the loop iterations are independent, False otherwise.
+        :rtype: bool
+
+        '''
+        if not dep_tools:
+            # pylint: disable=import-outside-toplevel
+            from psyclone.psyir.tools import DependencyTools
+            dtools = DependencyTools()
+        else:
+            dtools = dep_tools
+        return dtools.can_loop_be_parallelised(
+            self, test_all_variables=test_all_variables,
+            signatures_to_ignore=signatures_to_ignore)
 
     def gen_code(self, parent):
         '''

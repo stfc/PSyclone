@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council.
+# Copyright (c) 2017-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,36 +31,37 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Lab
-# -----------------------------------------------------------------------------
+# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+# Modified I. Kavcic, A. Coughtrie, L. Turner and O. Brunt, Met Office
+# Modified J. Henrichs, Bureau of Meteorology
+# Modified A. B. G. Chalk and N. Nobre, STFC Daresbury Lab
 
-''' pytest module for the U/LBOUND intrinsic PSyIR operators. '''
+''' This module contains the LFRicInvokes class which passes the
+LFRicInvoke class to the base class.'''
 
-from __future__ import absolute_import
-import pytest
-from psyclone.psyir.nodes import BinaryOperation, Literal, ArrayReference
-from psyclone.psyir.symbols import (REAL_TYPE, INTEGER_TYPE, DataSymbol,
-                                    DeferredType)
+# Imports
+from psyclone.domain.lfric import LFRicInvoke
+from psyclone.psyGen import Invokes
 
 
-@pytest.mark.xfail(reason="#677 the create() method does not check that the "
-                   "types of the Nodes it is passed are correct for the "
-                   "provided operator.")
-@pytest.mark.parametrize("bound", [BinaryOperation.Operator.LBOUND,
-                                   BinaryOperation.Operator.UBOUND])
-def test_bound_intrinsic_wrong_type(bound):
-    ''' Check that attempting to create an L/UBOUND intrinsic operator
-    with the wrong type of arguments raises the expected error. '''
-    int_one = Literal("1", INTEGER_TYPE)
-    with pytest.raises(TypeError) as err:
-        # First argument must be an Array
-        _ = BinaryOperation.create(bound, int_one.copy(), int_one.copy())
-    assert "must be an Array but got: 'Literal" in str(err.value)
-    sym = DataSymbol("array", DeferredType())
-    with pytest.raises(TypeError) as err:
-        # Second argument cannot be a real literal
-        _ = BinaryOperation.create(
-            bound, ArrayReference.create(sym, [int_one.copy()]),
-            Literal("1.0", REAL_TYPE))
-    assert ("must be an integer but got a Literal of type REAL" in
-            str(err.value))
+class LFRicInvokes(Invokes):
+    '''The LFRic-specific invokes class. This passes the LFRic-specific
+    LFRicInvoke class to the base class so it creates the one we
+    require.
+
+    :param alg_calls: A list of objects containing the parsed invoke
+                      information.
+    :type alg_calls: List[:py:class:`psyclone.parse.algorithm.InvokeCall`]
+    :param psy: The PSy object containing this LFRicInvokes object.
+    :type psy: :py:class:`psyclone.dynamo0p3.DynamoPSy`
+
+    '''
+    def __init__(self, alg_calls, psy):
+        self._0_to_n = LFRicInvoke(None, None, None)  # for pyreverse
+        Invokes.__init__(self, alg_calls, LFRicInvoke, psy)
+
+
+# ---------- Documentation utils -------------------------------------------- #
+# The list of module members that we wish AutoAPI to generate
+# documentation for. (See https://psyclone-ref.readthedocs.io)
+__all__ = ['LFRicInvokes']

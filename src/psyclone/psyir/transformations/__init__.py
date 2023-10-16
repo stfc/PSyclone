@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2022, Science and Technology Facilities Council.
+# Copyright (c) 2019-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -66,8 +66,12 @@ from psyclone.psyir.transformations.intrinsics.matmul2code_trans import \
     Matmul2CodeTrans
 from psyclone.psyir.transformations.intrinsics.max2code_trans import \
     Max2CodeTrans
+from psyclone.psyir.transformations.intrinsics.maxval2code_trans import \
+    Maxval2CodeTrans
 from psyclone.psyir.transformations.intrinsics.min2code_trans import \
     Min2CodeTrans
+from psyclone.psyir.transformations.intrinsics.minval2code_trans import \
+    Minval2CodeTrans
 from psyclone.psyir.transformations.intrinsics.sign2code_trans import \
     Sign2CodeTrans
 from psyclone.psyir.transformations.intrinsics.sum2code_trans import \
@@ -81,6 +85,7 @@ from psyclone.psyir.transformations.nan_test_trans import NanTestTrans
 from psyclone.psyir.transformations.omp_loop_trans import OMPLoopTrans
 from psyclone.psyir.transformations.omp_target_trans import OMPTargetTrans
 from psyclone.psyir.transformations.omp_taskwait_trans import OMPTaskwaitTrans
+from psyclone.psyir.transformations.omp_task_trans import OMPTaskTrans
 from psyclone.psyir.transformations.parallel_loop_trans import \
     ParallelLoopTrans
 from psyclone.psyir.transformations.profile_trans import ProfileTrans
@@ -117,8 +122,9 @@ __all__ = ['ACCUpdateTrans',
            'LoopTrans',
            'NanTestTrans',
            'OMPLoopTrans',
-           'OMPTaskwaitTrans',
            'OMPTargetTrans',
+           'OMPTaskTrans',
+           'OMPTaskwaitTrans',
            'ParallelLoopTrans',
            'ProfileTrans',
            'PSyDataTrans',

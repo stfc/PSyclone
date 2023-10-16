@@ -45,6 +45,9 @@ jobs:
   run_if_on_mirror:
     if: ${{ github.repository == 'stfc/PSyclone-mirror' }}
     runs-on: self-hosted
+    env:
+      LFRIC_REV: 45376
+      PYTHON_VERSION: 3.11.4
 
     steps:
     - uses: actions/checkout@v3
@@ -61,6 +64,8 @@ jobs:
         commit-filter: '[skip ci]'
     - name: Install dependencies
       run: |
+        # Use a specific version of Python (rather than the system-wide one).
+        module load python/${PYTHON_VERSION}
         python -m venv .runner_venv
         . .runner_venv/bin/activate
         python -m pip install --upgrade pip
@@ -74,40 +79,83 @@ jobs:
     # PSyclone, compile and run MetOffice LFRic with 6 MPI ranks
     - name: LFRic passthrough (with DistributedMemory)
       run: |
-        . .runner_venv/bin/activate
+        # Set up environment
+        source /apps/spack/spack-repo/share/spack/setup-env.sh
+        spack env activate lfric-gnu
+        export FC="gfortran"
+        export CC="gcc"
+        export CXX="g++"
+        export FPP="cpp -traditional-cpp"
+        export LDMPI="mpif90"
+        export FFLAGS="-I$(spack location -e lfric-gnu)/.spack-env/view/include"
+        export LDFLAGS="-L$(spack location -e lfric-gnu)/.spack-env/view/lib"
+        export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$(spack location -e lfric-gnu)/.spack-env/view/lib"
+        export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$(spack location -e lfric-gnu)/.spack-env/view/lib64"
+        source .runner_venv/bin/activate
         export PSYCLONE_LFRIC_DIR=${GITHUB_WORKSPACE}/examples/lfric/scripts
-        export MINIAPP_DIR=${HOME}/LFRic/miniapps/gungho_model
+        export MINIAPP_DIR=${HOME}/LFRic_${LFRIC_REV}/miniapps/gungho_model
+        export PSYCLONE_CONFIG=${HOME}/lfric_psyclone_config.cfg
         cd ${MINIAPP_DIR}
         # Compile
-        module load lfric_env
-        export PSYCLONE_CONFIG=${HOME}/lfric_psyclone_config.cfg
         make clean
         make -j 6 build
         # Run
         cd example
-        cp ${HOME}/lfric_gunho_configuration.nml configuration.nml
-        mpirun -n 6 ../bin/gungho_model configuration.nml
-        tail PET0.gungho_model.Log
+        cp ${HOME}/lfric_gunho_configuration_4its.nml configuration.nml
+        mpirun -n 1 ../bin/gungho_model configuration.nml |& tee output.txt
+        python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${HOME}/lfric_gunho_configuration_4its_output.txt output.txt
         cat timer.txt
+        export VAR_TIME=$(grep "gungho_model" timer.txt | cut -d'|' -f5)
+        export VAR_HALOS=$(grep "gungho_model" halo_calls_counter.txt | cut -d'|' -f5)
+        echo $GITHUB_REF_NAME $GITHUB_SHA $VAR_TIME $VAR_HALOS >> ${HOME}/store_results/lfric_passthrough_performance_history
+
+    - name: Upload LFRic passthrough results
+      uses: exuanbo/actions-deploy-gist@v1
+      with:
+        token: ${{ secrets.GIST_TOKEN }}
+        gist_id: a4049a0fc0a0a11651a5ce6a04d76160
+        file_path: ../../../../store_results/lfric_passthrough_performance_history
 
     # PSyclone, compile and run MetOffice LFRic with all optimisations and 6 OpenMP threads
     - name: LFRic with all transformations
       run: |
-        . .runner_venv/bin/activate
+        # Set up environment
+        source /apps/spack/spack-repo/share/spack/setup-env.sh
+        spack env activate lfric-gnu
+        export FC="gfortran"
+        export CC="gcc"
+        export CXX="g++"
+        export FPP="cpp -traditional-cpp"
+        export LDMPI="mpif90"
+        export FFLAGS="-I$(spack location -e lfric-gnu)/.spack-env/view/include"
+        export LDFLAGS="-L$(spack location -e lfric-gnu)/.spack-env/view/lib"
+        export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$(spack location -e lfric-gnu)/.spack-env/view/lib"
+        export LD_LIBRARY_PATH="$LD_LIBRARY_PATH::$(spack location -e lfric-gnu)/.spack-env/view/lib64"
+        source .runner_venv/bin/activate
         export PSYCLONE_LFRIC_DIR=${GITHUB_WORKSPACE}/examples/lfric/scripts
-        export MINIAPP_DIR=${HOME}/LFRic/miniapps/gungho_model
+        export MINIAPP_DIR=${HOME}/LFRic_${LFRIC_REV}/miniapps/gungho_model
+        export PSYCLONE_CONFIG=${HOME}/lfric_psyclone_config.cfg
         cd ${MINIAPP_DIR}
         # Prepare script (LFRics expects a folder with a global.py)
         mkdir -p psyclone-test
         cp ${PSYCLONE_LFRIC_DIR}/everything_everywhere_all_at_once.py psyclone-test/global.py
         # Compile
-        module load lfric_env
-        export PSYCLONE_CONFIG=${HOME}/lfric_psyclone_config.cfg
         make clean
-        make OPTIMISATION_PATH=${MINIAPP_DIR}/psyclone-test -j 6 build
+        make OPTIMISATION_PATH=${MINIAPP_DIR}/psyclone-test -j 6 build |& tee compiler_output.txt
         # Run
         cd example
-        cp ${HOME}/lfric_gunho_configuration.nml configuration.nml
+        cp ${HOME}/lfric_gunho_configuration_4its.nml configuration.nml
         export OMP_NUM_THREADS=6
-        mpirun -n 1 ../bin/gungho_model configuration.nml
+        mpirun -n 1 ../bin/gungho_model configuration.nml |& tee output.txt
+        python ${PSYCLONE_LFRIC_DIR}/compare_ouput.py ${HOME}/lfric_gunho_configuration_4its_output.txt output.txt
         cat timer.txt
+        export VAR_TIME=$(grep "gungho_model" timer.txt | cut -d'|' -f5)
+        export VAR_HALOS=$(grep "gungho_model" halo_calls_counter.txt | cut -d'|' -f5)
+        echo $GITHUB_REF_NAME $GITHUB_SHA $VAR_TIME $VAR_HALOS >> ${HOME}/store_results/lfric_optimised_performance_history
+
+    - name: Upload LFRic optimised results
+      uses: exuanbo/actions-deploy-gist@v1
+      with:
+        token: ${{ secrets.GIST_TOKEN }}
+        gist_id: a4049a0fc0a0a11651a5ce6a04d76160
+        file_path: ../../../../store_results/lfric_optimised_performance_history

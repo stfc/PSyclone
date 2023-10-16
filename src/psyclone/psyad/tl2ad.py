@@ -669,20 +669,20 @@ def _create_array_inner_product(result, array1, array2, table):
     # Generate a Range object for each dimension of each array
     for idx in range(len(array1.datatype.shape)):
         idx_literal = Literal(str(idx+1), INTEGER_TYPE)
-        lbound1 = BinaryOperation.create(BinaryOperation.Operator.LBOUND,
-                                         Reference(array1),
-                                         idx_literal.copy())
-        ubound1 = BinaryOperation.create(BinaryOperation.Operator.UBOUND,
-                                         Reference(array1),
-                                         idx_literal.copy())
+        lbound1 = IntrinsicCall.create(
+            IntrinsicCall.Intrinsic.LBOUND,
+            [Reference(array1), ("dim", idx_literal.copy())])
+        ubound1 = IntrinsicCall.create(
+            IntrinsicCall.Intrinsic.UBOUND,
+            [Reference(array1), ("dim", idx_literal.copy())])
         ranges1.append(Range.create(lbound1, ubound1))
 
-        lbound2 = BinaryOperation.create(BinaryOperation.Operator.LBOUND,
-                                         Reference(array2),
-                                         idx_literal.copy())
-        ubound2 = BinaryOperation.create(BinaryOperation.Operator.UBOUND,
-                                         Reference(array2),
-                                         idx_literal.copy())
+        lbound2 = IntrinsicCall.create(
+            IntrinsicCall.Intrinsic.LBOUND,
+            [Reference(array2), ("dim", idx_literal.copy())])
+        ubound2 = IntrinsicCall.create(
+            IntrinsicCall.Intrinsic.UBOUND,
+            [Reference(array2), ("dim", idx_literal.copy())])
         ranges2.append(Range.create(lbound2, ubound2))
 
     # Use these Ranges to create references for all elements of both arrays

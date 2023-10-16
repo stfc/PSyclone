@@ -32,15 +32,21 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
-# Modified: R. W. Ford, STFC Daresbury Lab
+# Modified: R. W. Ford and S. Siso, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
-'''This module contains pytest tests for the IntrinsicCall node.'''
+'''
+This module contains pytest tests for the IntrinsicCall node.
+
+TODO #2341 - tests need to be added for all of the supported intrinsics.
+
+'''
 
 import pytest
 
+from psyclone.core import VariablesAccessInfo
 from psyclone.psyir.nodes import (
-    ArrayReference, Literal, IntrinsicCall, Reference, Schedule)
+    ArrayReference, Literal, IntrinsicCall, Reference, Schedule, Assignment)
 from psyclone.psyir.symbols import (
     ArrayType, DataSymbol, INTEGER_TYPE, IntrinsicSymbol, REAL_TYPE,
     BOOLEAN_TYPE, CHARACTER_TYPE)
@@ -91,6 +97,19 @@ def test_intrinsiccall_is_pure():
     assert intrinsic.is_pure is True
     intrinsic = IntrinsicCall(IntrinsicCall.Intrinsic.ALLOCATE)
     assert intrinsic.is_pure is False
+
+
+@pytest.mark.parametrize("intrinsic, result", [
+                (IntrinsicCall.Intrinsic.ABS, True),
+                (IntrinsicCall.Intrinsic.MIN, True),
+                (IntrinsicCall.Intrinsic.MAX, True),
+                (IntrinsicCall.Intrinsic.MAXVAL, False),
+                (IntrinsicCall.Intrinsic.ALLOCATE, False),
+                (IntrinsicCall.Intrinsic.MATMUL, False)])
+def test_intrinsiccall_is_available_on_device(intrinsic, result):
+    '''Tests that the is_available_on_device() method works as expected.'''
+    intrinsic_call = IntrinsicCall(intrinsic)
+    assert intrinsic_call.is_available_on_device() is result
 
 
 def test_intrinsiccall_alloc_create():
@@ -275,19 +294,25 @@ def test_intrinsiccall_create_errors():
                              [Reference(sym), ("stat", aref), aref])
     assert ("Found a positional argument *after* a named argument ('stat'). "
             "This is invalid." in str(err.value))
-    # 'random' does not have any optional arguments
-    with pytest.raises(ValueError) as err:
-        IntrinsicCall.create(IntrinsicCall.Intrinsic.RANDOM_NUMBER,
-                             [aref, ("willow", sym)])
-    assert ("The 'RANDOM_NUMBER' intrinsic does not support any optional "
-            "arguments but got 'willow'" in str(err.value))
+
+    # TODO #2303: We can not enable the validation of positional parameters
+    # unless we store their name, otherwise when we parse a positional argument
+    # by name, which is valid fortran, it will fail.
+    # (e.g. RANDOM_NUMBER(harvest=4)
+
+    # with pytest.raises(ValueError) as err:
+    #     IntrinsicCall.create(IntrinsicCall.Intrinsic.RANDOM_NUMBER,
+    #                          [aref, ("willow", sym)])
+    # assert ("The 'RANDOM_NUMBER' intrinsic does not support any optional "
+    #         "arguments but got 'willow'" in str(err.value))
     # An allocate only supports the 'stat' and 'mold' arguments.
-    with pytest.raises(ValueError) as err:
-        IntrinsicCall.create(IntrinsicCall.Intrinsic.ALLOCATE,
-                             [aref, ("yacht", Reference(sym))])
-    assert ("The 'ALLOCATE' intrinsic supports the optional arguments "
-            "['errmsg', 'mold', 'source', 'stat'] but got 'yacht'"
-            in str(err.value))
+    # with pytest.raises(ValueError) as err:
+    #     IntrinsicCall.create(IntrinsicCall.Intrinsic.ALLOCATE,
+    #                          [aref, ("yacht", Reference(sym))])
+    # assert ("The 'ALLOCATE' intrinsic supports the optional arguments "
+    #         "['errmsg', 'mold', 'source', 'stat'] but got 'yacht'"
+    #         in str(err.value))
+
     # Wrong type for the name of an optional argument.
     with pytest.raises(TypeError) as err:
         IntrinsicCall.create(IntrinsicCall.Intrinsic.ALLOCATE,
@@ -301,3 +326,185 @@ def test_intrinsiccall_create_errors():
                              [aref, ("stat", sym)])
     assert ("The optional argument 'stat' to intrinsic 'ALLOCATE' must be "
             "of type 'Reference' but got 'DataSymbol'" in str(err.value))
+
+
+def test_create_positional_arguments_with_names():
+    ''' Test the create method when given named positional arguments.'''
+    sym = DataSymbol("my_array",
+                     ArrayType(INTEGER_TYPE, [ArrayType.Extent.DEFERRED]))
+    aref = ArrayReference.create(sym, [Literal("20", INTEGER_TYPE)])
+    bref = ArrayReference.create(sym, [Literal("20", INTEGER_TYPE)])
+
+    # All of these are valid
+    intr = IntrinsicCall.create(IntrinsicCall.Intrinsic.DOT_PRODUCT,
+                                [aref.copy(), bref.copy()])
+    assert isinstance(intr, IntrinsicCall)
+    assert intr.children[0] == aref
+    assert intr.children[1] == bref
+    assert intr.argument_names == [None, None]
+
+    intr = IntrinsicCall.create(IntrinsicCall.Intrinsic.DOT_PRODUCT,
+                                [aref.copy(), ("vector_b", bref.copy())])
+    assert isinstance(intr, IntrinsicCall)
+    assert intr.children[0] == aref
+    assert intr.children[1] == bref
+    assert intr.argument_names == [None, "vector_b"]
+
+    intr = IntrinsicCall.create(IntrinsicCall.Intrinsic.DOT_PRODUCT,
+                                [("vector_a", aref.copy()),
+                                 ("vector_b", bref.copy())])
+    assert isinstance(intr, IntrinsicCall)
+    assert intr.children[0] == aref
+    assert intr.children[1] == bref
+    assert intr.argument_names == ["vector_a", "vector_b"]
+
+    intr = IntrinsicCall.create(IntrinsicCall.Intrinsic.DOT_PRODUCT,
+                                [("vector_b", bref.copy()),
+                                 ("vector_a", aref.copy())])
+    assert isinstance(intr, IntrinsicCall)
+    assert intr.children[0] == bref
+    assert intr.children[1] == aref
+    assert intr.argument_names == ["vector_b", "vector_a"]
+
+
+@pytest.mark.parametrize("operator", ["lbound", "ubound", "size"])
+def test_reference_accesses_bounds(operator, fortran_reader):
+    '''Test that the reference_accesses method behaves as expected when
+    the reference is the first argument to either the lbound or ubound
+    intrinsic as that is simply looking up the array bounds (therefore
+    var_access_info should be empty) and when the reference is the
+    second argument of either the lbound or ubound intrinsic (in which
+    case the access should be a read).
+
+    '''
+    code = f'''module test
+        contains
+        subroutine tmp()
+          real, dimension(:,:), allocatable:: a, b
+          integer :: n
+          n = {operator}(a, b(1,1))
+        end subroutine tmp
+        end module test'''
+    psyir = fortran_reader.psyir_from_source(code)
+    schedule = psyir.walk(Assignment)[0]
+
+    # By default, the access to 'a' should not be reported as read,
+    # but the access to b must be reported:
+    vai = VariablesAccessInfo(schedule)
+    assert str(vai) == "b: READ, n: WRITE"
+
+    # When explicitly requested, the access to 'a' should be reported:
+    vai = VariablesAccessInfo(schedule,
+                              options={"COLLECT-ARRAY-SHAPE-READS": True})
+    assert str(vai) == "a: READ, b: READ, n: WRITE"
+
+
+def test_enumerator_name_matches_name_field():
+    '''
+    Test that the name given to every IntrinsicCall matches the
+    corresponding name field in the IAttr namedtuple.
+    '''
+    for intrinsic_entry in IntrinsicCall.Intrinsic:
+        assert intrinsic_entry._name_ == intrinsic_entry.name
+
+
+def test_allocate_intrinsic(fortran_reader, fortran_writer):
+    '''
+    Test the ALLOCATE 'intrinsic'.
+    '''
+    code = '''
+program test_prog
+  implicit none
+  integer :: ierr
+  character(len=128) :: msg
+  real, allocatable, dimension(:) :: arr1, arr2
+  allocate(arr1(10), stat=ierr)
+  allocate(arr2, mold=arr1)
+  allocate(arr2, source=arr1, errmsg=msg)
+end program test_prog
+'''
+    psyir = fortran_reader.psyir_from_source(code)
+    assert len(psyir.walk(IntrinsicCall)) == 3
+    result = fortran_writer(psyir).lower()
+    assert "allocate(arr1(1:10), stat=ierr)" in result
+    assert "allocate(arr2, mold=arr1)" in result
+    assert "allocate(arr2, source=arr1, errmsg=msg)" in result
+
+
+def test_deallocate_intrinsic(fortran_reader, fortran_writer):
+    '''
+    Test the DEALLOCATE 'intrinsic'.
+    '''
+    code = '''
+program test_prog
+  implicit none
+  integer :: ierr
+  real, allocatable, dimension(:) :: arr1
+  deallocate(arr1)
+  deallocate(arr1, stat=ierr)
+end program test_prog
+'''
+    psyir = fortran_reader.psyir_from_source(code)
+    assert len(psyir.walk(IntrinsicCall)) == 2
+    result = fortran_writer(psyir).lower()
+    assert "deallocate(arr1)" in result
+    assert "deallocate(arr1, stat=ierr)" in result
+
+
+def test_index_intrinsic(fortran_reader, fortran_writer):
+    '''
+    Test the INDEX intrinsic.
+    '''
+    code = '''
+program test_prog
+  implicit none
+  character(len=10) :: clname
+  integer :: ind1, ind2
+
+  ind1 = INDEX( clname, '_', back = .TRUE. ) + 1
+  ind2 = INDEX( clname, '.') - 1
+  ind2 = INDEX( clname, '.', kind=4) - 1
+
+end program test_prog
+'''
+    psyir = fortran_reader.psyir_from_source(code)
+    assert len(psyir.walk(IntrinsicCall)) == 3
+    result = fortran_writer(psyir).lower()
+    assert "ind1 = index(clname, '_', back=.true.) + 1" in result
+    assert "ind2 = index(clname, '.') - 1" in result
+    assert "ind2 = index(clname, '.', kind=4) - 1" in result
+
+
+def test_verify_intrinsic(fortran_reader, fortran_writer):
+    '''
+    Test the VERIFY intrinsic.
+    '''
+    code = '''
+program test_prog
+  implicit none
+  character(len=10) :: clname
+  integer :: ind1, ind2, idom, jpdom_local
+
+  ind1 = 2
+  ind2 = 5
+  IF( VERIFY( clname(ind1:ind2), '0123456789' ) == 0 ) idom = jpdom_local
+  IF( VERIFY( clname(ind1:ind2), '0123456789', back=.true. ) == 0 ) &
+idom = jpdom_local
+  IF( VERIFY( clname(ind1:ind2), '0123456789', kind=kind(1) ) == 0 ) &
+idom = jpdom_local
+  IF( VERIFY( clname(ind1:ind2), '0123456789', kind=kind(1), back=.true. ) &
+== 0 ) idom = jpdom_local
+
+end program test_prog
+'''
+    psyir = fortran_reader.psyir_from_source(code)
+    # Should have 4 VERIFY and 2 KIND
+    assert len(psyir.walk(IntrinsicCall)) == 6
+    result = fortran_writer(psyir).lower()
+    assert "if (verify(clname(ind1:ind2), '0123456789') == 0) then" in result
+    assert ("if (verify(clname(ind1:ind2), '0123456789', back=.true.) "
+            "== 0) then" in result)
+    assert ("if (verify(clname(ind1:ind2), '0123456789', kind=kind(1)) "
+            "== 0) then" in result)
+    assert ("if (verify(clname(ind1:ind2), '0123456789', kind=kind(1), "
+            "back=.true.) == 0) then" in result)

@@ -42,12 +42,13 @@ matrix vector multiply. This transformation supports both with the
 restriction that the first matrix must be of at least rank 2.
 
 '''
-from psyclone.psyir.nodes import BinaryOperation, Assignment, Reference, \
-    Loop, Literal, ArrayReference, Range
-from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, REAL_TYPE, \
-    ArrayType
-from psyclone.psyir.transformations.intrinsics.operator2code_trans import \
-    Operator2CodeTrans
+from psyclone.psyir.nodes import (
+    BinaryOperation, Assignment, Reference,
+    Loop, Literal, ArrayReference, Range, IntrinsicCall)
+from psyclone.psyir.symbols import (
+    DataSymbol, INTEGER_TYPE, REAL_TYPE, ArrayType, UnknownType)
+from psyclone.psyir.transformations.intrinsics.intrinsic2code_trans import (
+    Intrinsic2CodeTrans)
 
 
 def _create_matrix_ref(matrix_symbol, loop_idx_symbols, other_dims):
@@ -85,13 +86,13 @@ def _get_array_bound(array, index):
 
     :param array: the reference that we are interested in.
     :type array: :py:class:`psyir.nodes.Reference`
-    :param int index: the (array) reference index that we are \
+    :param int index: the (array) reference index that we are
         interested in.
     :returns: the loop bounds for this array index.
-    :rtype: (Literal, Literal, Literal) or \
+    :rtype: (Literal, Literal, Literal) or
         (BinaryOperation, BinaryOperation, Literal)
 
-   :raises TransformationError: if the shape of the array's symbol is \
+   :raises TransformationError: if the shape of the array's symbol is
         not supported.
 
     '''
@@ -106,29 +107,33 @@ def _get_array_bound(array, index):
             f"Unsupported index type found for array '{array.name}': "
             f"{err}") from err
 
+    dim_index = index + 1  # The Fortran dim argument is 1-indexed
     if isinstance(my_dim, ArrayType.ArrayBounds):
         # Use .copy() to ensure we return new nodes.
         lower_bound = my_dim.lower.copy()
         if my_dim.upper == ArrayType.Extent.ATTRIBUTE:
             # Assumed-shape array.
-            upper_bound = BinaryOperation.create(
-                BinaryOperation.Operator.UBOUND, Reference(array.symbol),
-                Literal(str(index), INTEGER_TYPE))
+            upper_bound = IntrinsicCall.create(
+                IntrinsicCall.Intrinsic.UBOUND,
+                [Reference(array.symbol),
+                 ("dim", Literal(str(dim_index), INTEGER_TYPE))])
         else:
             upper_bound = my_dim.upper.copy()
     else:
-        lower_bound = BinaryOperation.create(
-            BinaryOperation.Operator.LBOUND, Reference(array.symbol),
-            Literal(str(index), INTEGER_TYPE))
-        upper_bound = BinaryOperation.create(
-            BinaryOperation.Operator.UBOUND, Reference(array.symbol),
-            Literal(str(index), INTEGER_TYPE))
+        lower_bound = IntrinsicCall.create(
+            IntrinsicCall.Intrinsic.LBOUND,
+            [Reference(array.symbol),
+             ("dim", Literal(str(dim_index), INTEGER_TYPE))])
+        upper_bound = IntrinsicCall.create(
+            IntrinsicCall.Intrinsic.UBOUND,
+            [Reference(array.symbol),
+             ("dim", Literal(str(dim_index), INTEGER_TYPE))])
 
     step = Literal("1", INTEGER_TYPE)
     return (lower_bound, upper_bound, step)
 
 
-class Matmul2CodeTrans(Operator2CodeTrans):
+class Matmul2CodeTrans(Intrinsic2CodeTrans):
     '''Provides a transformation from a PSyIR MATMUL Operator node to
     equivalent code in a PSyIR tree. Validity checks are also
     performed.
@@ -167,16 +172,14 @@ class Matmul2CodeTrans(Operator2CodeTrans):
     '''
     def __init__(self):
         super().__init__()
-        self._operator_name = "MATMUL"
-        self._classes = (BinaryOperation,)
-        self._operators = (BinaryOperation.Operator.MATMUL,)
+        self._intrinsic = IntrinsicCall.Intrinsic.MATMUL
 
     def validate(self, node, options=None):
         '''Perform checks to ensure that it is valid to apply the
         Matmul2CodeTran transformation to the supplied node.
 
         :param node: the node that is being checked.
-        :type node: :py:class:`psyclone.psyir.nodes.BinaryOperation`
+        :type node: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
         :param options: options for the transformation.
         :type options: Optional[Dict[str, Any]]
 
@@ -215,22 +218,28 @@ class Matmul2CodeTrans(Operator2CodeTrans):
                 isinstance(matrix2, Reference) and
                 isinstance(result, Reference)):
             raise TransformationError(
-                f"Expected result and operands of MATMUL BinaryOperation to "
+                f"Expected result and operands of MATMUL IntrinsicCall to "
                 f"be references, but found: '{node.parent.debug_string()}'.")
 
         # The children of matvec should be References to arrays
+        if any(isinstance(var.symbol.datatype, UnknownType) for var
+               in [matrix1, matrix2, result]):
+            raise TransformationError(
+                f"Must have full type information for result and operands of "
+                f"MATMUL IntrinsicCall but found '{result.symbol}', "
+                f"'{matrix1.symbol}' and '{matrix2.symbol}'.")
         if (len(matrix1.symbol.shape) == 0 or len(matrix2.symbol.shape) == 0 or
                 len(result.symbol.shape) == 0):
             raise TransformationError(
-                f"Expected result and operands of MATMUL BinaryOperation to "
-                f"be references to arrays but found "
-                f"'{result.symbol}', {matrix1.symbol} and {matrix2.symbol}.")
+                f"Expected result and operands of MATMUL IntrinsicCall to "
+                f"be references to arrays but found '{result.symbol}', "
+                f"'{matrix1.symbol}' and '{matrix2.symbol}'.")
 
         # The first child (matrix1) should be declared as an array
         # with at least 2 dimensions.
         if len(matrix1.symbol.shape) < 2:
             raise TransformationError(
-                f"Expected 1st child of a MATMUL BinaryOperation to be a "
+                f"Expected 1st child of a MATMUL IntrinsicCall to be a "
                 f"matrix with at least 2 dimensions, but found "
                 f"'{len(matrix1.symbol.shape)}'.")
 
@@ -238,7 +247,7 @@ class Matmul2CodeTrans(Operator2CodeTrans):
             # If matrix1 has no children then it is a reference. If
             # it is a reference then the number of dimensions must be 2.
             raise TransformationError(
-                f"Expected 1st child of a MATMUL BinaryOperation to have 2 "
+                f"Expected 1st child of a MATMUL IntrinsicCall to have 2 "
                 f"dimensions, but found '{len(matrix1.symbol.shape)}'.")
         if len(matrix1.symbol.shape) == 2 and not matrix1.children:
             # If matrix1 only has 2 dimensions and all of its data is
@@ -276,7 +285,7 @@ class Matmul2CodeTrans(Operator2CodeTrans):
             # it is a reference then the number of dimensions must be
             # 1 or 2.
             raise TransformationError(
-                f"Expected 2nd child of a MATMUL BinaryOperation to have 1 "
+                f"Expected 2nd child of a MATMUL IntrinsicCall to have 1 "
                 f"or 2 dimensions, but found '{len(matrix2.symbol.shape)}'.")
         if len(matrix2.symbol.shape) in [1, 2] and not matrix2.children:
             # If the 2nd argument only has 1 or 2 dimensions and all of its
@@ -330,7 +339,7 @@ class Matmul2CodeTrans(Operator2CodeTrans):
 
     def apply(self, node, options=None):
         '''Apply the MATMUL intrinsic conversion transformation to the
-        specified node. This node must be a MATMUL BinaryOperation. The first
+        specified node. This node must be a MATMUL IntrinsicCall. The first
         argument must currently have two dimensions while the second must have
         either one or two dimensions. Each argument is permitted to have
         additional dimensions (i.e. more than 2) but in each case it is only
@@ -338,10 +347,10 @@ class Matmul2CodeTrans(Operator2CodeTrans):
         currently be for the full index space for that dimension (i.e. array
         subsections are not supported). If the transformation is
         successful then an assignment which includes a MATMUL
-        BinaryOperation node is converted to equivalent inline code.
+        IntrinsicCall node is converted to equivalent inline code.
 
-        :param node: a MATMUL Binary-Operation node.
-        :type node: :py:class:`psyclone.psyir.nodes.BinaryOperation`
+        :param node: a MATMUL IntrinsicCall node.
+        :type node: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
         :param options: options for the transformation.
         :type options: Optional[Dict[str, Any]]
 
@@ -361,8 +370,8 @@ class Matmul2CodeTrans(Operator2CodeTrans):
         Apply the transformation for the case of a matrix-vector
         multiplication.
 
-        :param node: a MATMUL Binary-Operation node.
-        :type node: :py:class:`psyclone.psyir.nodes.BinaryOperation`
+        :param node: a MATMUL IntrinsicCall node.
+        :type node: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
 
         '''
         # pylint: disable=too-many-locals
@@ -428,8 +437,8 @@ class Matmul2CodeTrans(Operator2CodeTrans):
         Apply the transformation for the case of a matrix-matrix
         multiplication.
 
-        :param node: a MATMUL Binary-Operation node.
-        :type node: :py:class:`psyclone.psyir.nodes.BinaryOperation`
+        :param node: a MATMUL IntrinsicCall.
+        :type node: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
 
         '''
         # pylint: disable=too-many-locals

@@ -41,7 +41,7 @@
 from psyclone.errors import GenerationError
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.nodes.literal import Literal
-from psyclone.psyir.nodes.operation import BinaryOperation
+from psyclone.psyir.nodes.intrinsic_call import IntrinsicCall
 from psyclone.psyir.nodes.ranges import Range
 from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.symbols import (DataSymbol, DeferredType, UnknownType,
@@ -91,23 +91,23 @@ class ArrayReference(ArrayMixin, Reference):
                 raise GenerationError(
                     f"expecting the symbol '{symbol.name}' to be an array, but"
                     f" found '{symbol.datatype}'.")
-        if symbol.is_array:
-            if len(symbol.shape) != len(indices):
-                raise GenerationError(
-                    f"the symbol '{symbol.name}' should have the same number "
-                    f"of dimensions as indices (provided in the 'indices' "
-                    f"argument). Expecting '{len(indices)}' but found "
-                    f"'{len(symbol.shape)}'.")
+        elif len(symbol.shape) != len(indices):
+            raise GenerationError(
+                f"the symbol '{symbol.name}' should have the same number of "
+                f"dimensions as indices (provided in the 'indices' argument). "
+                f"Expecting '{len(indices)}' but found '{len(symbol.shape)}'.")
 
         array = ArrayReference(symbol)
         for ind, child in enumerate(indices):
             if child == ":":
-                lbound = BinaryOperation.create(
-                    BinaryOperation.Operator.LBOUND,
-                    Reference(symbol), Literal(f"{ind+1}", INTEGER_TYPE))
-                ubound = BinaryOperation.create(
-                    BinaryOperation.Operator.UBOUND,
-                    Reference(symbol), Literal(f"{ind+1}", INTEGER_TYPE))
+                lbound = IntrinsicCall.create(
+                    IntrinsicCall.Intrinsic.LBOUND,
+                    [Reference(symbol),
+                     ("dim", Literal(f"{ind+1}", INTEGER_TYPE))])
+                ubound = IntrinsicCall.create(
+                    IntrinsicCall.Intrinsic.UBOUND,
+                    [Reference(symbol),
+                     ("dim", Literal(f"{ind+1}", INTEGER_TYPE))])
                 my_range = Range.create(lbound, ubound)
                 array.addchild(my_range)
             else:
@@ -129,6 +129,8 @@ class ArrayReference(ArrayMixin, Reference):
         shape = self._get_effective_shape()
         if shape:
             return ArrayType(self.symbol.datatype, shape)
+        if isinstance(self.symbol.datatype, UnknownType):
+            return self.symbol.datatype
         if isinstance(self.symbol.datatype.intrinsic, DataTypeSymbol):
             return self.symbol.datatype.intrinsic
         # TODO #1857: Really we should just be able to return

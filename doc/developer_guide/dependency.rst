@@ -1,7 +1,7 @@
 .. -----------------------------------------------------------------------------
    BSD 3-Clause License
 
-   Copyright (c) 2021-2022, Science and Technology Facilities Council.
+   Copyright (c) 2021-2023, Science and Technology Facilities Council.
    All rights reserved.
 
    Redistribution and use in source and binary forms, with or without
@@ -49,11 +49,12 @@
     Config.get().api = "nemo"
 
     code = '''subroutine sub()
-    integer :: i, j, k, a(10, 10)
+    integer :: i, j, k, a(11, 11)
     a(i,j) = 1
     do i=1, 10
        j = 3
        a(i,i) = j + k
+       a(i,i) = a(i+1,i+1)
     enddo
     end subroutine sub
     '''
@@ -65,10 +66,10 @@
     access_info = all_a_accesses[0]
 
     # Take the loop node:
-    loop = psyir.children[0][1]
+    loop = psyir.walk(Loop)[0]
     loop_statements = [loop]
     # One example uses code from an OMP directive to determine
-    # private variables. But since all this example does is calling
+    # private variables. But since all this example does is call
     # `reference_accesses`, we can just pass in the PSyIR node of
     # the loop, which results in two private variables (to avoid
     # creating an OMP Parallel etc)
@@ -525,6 +526,7 @@ thread-private. Note that this code does not handle the usage of
         do i=1, 10
            j = 3
            a(i,i) = j + k
+	   a(i-1,i) = a(i,i) + 1
         enddo
     It should therefore report that 'i' and 'j' should be private
     variables, 'k' is not initialised and therefore assumed to be public.
@@ -603,7 +605,7 @@ until we find accesses that would prevent parallelisation:
 .. testoutput::
     :hide:
 
-    The first 2 statements can be parallelised.
+    The first 3 statements can be parallelised.
 
 
 .. note:: There is a certain overlap in the dependency analysis code
@@ -634,27 +636,20 @@ uses `SymPy` internally to compare expressions symbolically.
           it will set the values of removed variables at the end of the loop,
           which can prevent loop fusion etc to work as expected.
 
-An example of how to use this class is shown below. It takes a list of statements
+An example of how to use this class is shown below. (Note that this is just
+for demonstration purposes: in reality the `validate` method of `OMPLoopTrans`
+will also use the dependence analysis to check that the transformation is
+safe.) It takes a list of statements
 (i.e. nodes in the PSyIR), and adds 'OMP DO' directives around loops that
 can be parallelised:
 
 ..
     The setup passes a single (not-nested) loop as `loop_statements`.
-    This loop triggers the message that it is not a nested loop and
-    is therefore not be parallelised by default.
 
 .. testcode::
 
    parallel_loop = OMPLoopTrans()
-   # The loops in the Fortran functions that must be parallelised
-   # are over the 'lat' domain. Note that the psyclone config
-   # file specifies the mapping of loop variable to type, e.g.:
-   #
-   #   mapping-lat = var: jj, start: 1, stop: jpj
-   #
-   # This means any loop using the variable 'jj' is considered a
-   # loop of type 'lat'
-   dt = DependencyTools(["lat"])
+   dt = DependencyTools()
 
    for statement in loop_statements:
        if isinstance(statement, Loop):
@@ -671,4 +666,4 @@ can be parallelised:
 .. testoutput::
     :hide:
 
-    Info: Not a nested loop.
+    Error: The write access to 'a(i,i)' and to 'a(i + 1,i + 1)' are dependent and cannot be parallelised.

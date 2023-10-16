@@ -63,8 +63,6 @@ class DTCode(IntEnum):
 
     '''
     INFO_MIN = 1
-    INFO_NOT_NESTED_LOOP = 2
-    INFO_WRONG_LOOP_TYPE = 3
     INFO_MAX = 99
 
     WARN_MIN = 100
@@ -198,39 +196,6 @@ class DependencyTools():
         :rtype: List[str]
         '''
         return self._messages
-
-    # -------------------------------------------------------------------------
-    def _is_loop_suitable_for_parallel(self, loop, only_nested_loops=True):
-        '''Simple first test to see if a loop should even be considered to
-        be parallelised. The default implementation tests whether the loop
-        has a certain type (e.g. 'latitude'), and optional tests for
-        nested loops (to avoid parallelising single loops which will likely
-        result in a slowdown due to thread synchronisation costs). This
-        function is used by can_loop_be_parallelised() and can of course be
-        overwritten by the user to implement different suitability criteria.
-
-        :param loop: the loop to test.
-        :type loop: :py:class:`psyclone.psyir.nodes.Loop`
-        :param bool only_nested_loops: true (default) if only nested loops\
-                                        should be considered.
-
-        :returns: true if the loop fulfills the requirements.
-        :rtype: bool
-        '''
-        if only_nested_loops:
-            all_loops = loop.walk(Loop)
-            if len(all_loops) == 1:
-                self._add_message("Not a nested loop.",
-                                  DTCode.INFO_NOT_NESTED_LOOP)
-                return False
-
-        if self._loop_types_to_parallelise:
-            if loop.loop_type not in self._loop_types_to_parallelise:
-                self._add_message(f"Loop has wrong loop type '"
-                                  f"{loop.loop_type}'.",
-                                  DTCode.INFO_WRONG_LOOP_TYPE)
-                return False
-        return True
 
     # -------------------------------------------------------------------------
     @staticmethod
@@ -656,14 +621,12 @@ class DependencyTools():
                         # a(3) = ...    or a((i-2)**2) = ...
                         # Both would result in a write-write conflict
                         node = write_access.node
-                        self._add_message(LazyString(
-                            lambda node=write_access.node:
-                                (f"The write access to '"
-                                 f"{node.debug_string()}' causes "
-                                 f"a write-write race condition.")),
+                        self._add_message(
+                            f"The write access to '{var_info.var_name}' in "
+                            f"'{node.debug_string()}' causes "
+                            f"a write-write race condition.",
                             DTCode.ERROR_WRITE_WRITE_RACE,
-                            [LazyString(lambda node=node:
-                                        f"{node.debug_string()}")])
+                            [var_info.var_name])
                     else:
                         self._add_message(LazyString(
                             lambda wnode=write_access.node,
@@ -733,26 +696,23 @@ class DependencyTools():
 
     # -------------------------------------------------------------------------
     def can_loop_be_parallelised(self, loop,
-                                 only_nested_loops=True,
                                  test_all_variables=False,
                                  signatures_to_ignore=None):
         # pylint: disable=too-many-branches,too-many-locals
         '''This function analyses a loop in the PsyIR to see if
-        it can be safely parallelised over the specified variable.
+        it can be safely parallelised.
 
         :param loop: the loop node to be analysed.
         :type loop: :py:class:`psyclone.psyir.nodes.Loop`
-        :param bool only_nested_loops: if True, a loop must have an inner\
-                                       loop in order to be considered\
-                                       parallelisable (default: True).
-        :param bool test_all_variables: if True, it will test if all variable\
-                                        accesses can be parallelised,\
-                                        otherwise it will stop after the first\
-                                        variable is found that can not be\
+        :param bool test_all_variables: if True, it will test if all variable
+                                        accesses can be parallelised,
+                                        otherwise it will stop after the first
+                                        variable is found that can not be
                                         parallelised.
-        :param signatures_to_ignore: list of signatures for which to skip \
+        :param signatures_to_ignore: list of signatures for which to skip
                                      the access checks.
-        :type signatures_to_ignore: list of :py:class:`psyclone.core.Signature`
+        :type signatures_to_ignore: Optional[
+            List[:py:class:`psyclone.core.Signature`]]
 
         :returns: True if the loop can be parallelised.
         :rtype: bool
@@ -766,14 +726,6 @@ class DependencyTools():
             raise TypeError(f"can_loop_be_parallelised: node must be an "
                             f"instance of class Loop but got "
                             f"'{type(loop).__name__}'")
-
-        # Check if the loop type should be parallelised, e.g. to avoid
-        # parallelising inner loops which might not have enough work. This
-        # is supposed to be a fast first check to avoid collecting variable
-        # accesses in some unsuitable loops.
-        if not self._is_loop_suitable_for_parallel(loop, only_nested_loops):
-            # Appropriate messages will have been added already, so just exit
-            return False
 
         var_accesses = VariablesAccessInfo(loop)
         if not signatures_to_ignore:

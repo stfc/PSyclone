@@ -53,22 +53,29 @@ class VariablesAccessInfo(dict):
     statement. It can be used to easily determine if one access is before
     another.
 
-    :param nodes: optional, a single PSyIR node or list of nodes from \
+    :param nodes: optional, a single PSyIR node or list of nodes from
         which to initialise this object.
-    :type nodes: Optional[:py:class:psyclone.psyir.nodes.Node | \
+    :type nodes: Optional[:py:class:`psyclone.psyir.nodes.Node` |
         List[:py:class:`psyclone.psyir.nodes.Node`]]
-    :param options: a dictionary with options to influence which variable \
+    :param options: a dictionary with options to influence which variable
         accesses are to be collected.
     :type options: Dict[str, Any]
-    :param Any options["COLLECT-ARRAY-SHAPE-READS"]: if this option is set \
-        to a True value, arrays used as first parameter to the PSyIR query \
+    :param Any options["COLLECT-ARRAY-SHAPE-READS"]: if this option is set
+        to a True value, arrays used as first parameter to the PSyIR query
         operators lbound, ubound, or size will be reported as 'read'.
         Otherwise, these accesses will be ignored.
-    :param Any options["USE-ORIGINAL-NAMES"]: if this option is set to a \
+    :param Any options["USE-ORIGINAL-NAMES"]: if this option is set to a
         True value, an imported symbol that is renamed (``use mod, a=>b``)
         will be reported using the original name (``b`` in the example).
         Otherwise these symbols will be reported using the renamed name
         (``a``).
+
+    :raises InternalError: if the optional options parameter is not a
+        dictionary.
+    :raises InternalError: if the nodes parameter either is a list and
+        contains an element that is not a
+        :py:class:`psyclone.psyir.nodes.Node`, of if nodes is not a list and
+        is not of type :py:class:`psyclone.psyir.nodes.Node`
 
     '''
     # List of valid options and their default values. Note that only the
@@ -160,12 +167,13 @@ class VariablesAccessInfo(dict):
         or None if the key is not specified in the options. If no
         key is specified, the whole option dictionary is returned.
 
-        :param key: the option to query, or None if all options should \
-            be returned.
+        :param key: the option to query, or None if all options should
+                    be returned.
         :type key: Optional[str]
 
-        :returns: the value of the option or the whole option dictionary.
-        :rtype: Any
+        :returns: the value of the option associated with the provided key
+                  or the whole option dictionary if it is not supplied.
+        :rtype: Union[None, Any, dict]
 
         :raises InternalError: if an invalid key is specified.
 
@@ -173,6 +181,8 @@ class VariablesAccessInfo(dict):
         if key:
             if key not in VariablesAccessInfo._DEFAULT_OPTIONS:
                 valids = list(VariablesAccessInfo._DEFAULT_OPTIONS.keys())
+                # This makes sure the message always contains the valid
+                # keys in the same order, important for testing.
                 valids.sort()
                 raise InternalError(f"Option key '{key}' is invalid, it "
                                     f"must be one of {valids}.")

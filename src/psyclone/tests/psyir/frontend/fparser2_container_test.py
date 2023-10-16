@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council.
+# Copyright (c) 2020-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
+# Modified: R. W. Ford, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' Performs py.test tests on the container generation in the fparser2 PSyIR
@@ -46,7 +47,7 @@ from fparser.two import Fortran2003
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.errors import InternalError, GenerationError
 from psyclone.psyir.nodes import Container, KernelSchedule
-from psyclone.psyir.symbols import Symbol, RoutineSymbol, SymbolError
+from psyclone.psyir.symbols import Symbol, RoutineSymbol
 
 
 def test_generate_container(parser):
@@ -135,10 +136,12 @@ def test_generate_container_routine_names(parser):
     assert isinstance(sub, RoutineSymbol)
 
 
-def test_access_stmt_no_unqualified_use_error(parser):
-    ''' Check that we raise the expected error if an undeclared symbol is
-    listed in an access statement and there are no unqualified use
-    statements to bring it into scope. '''
+def test_access_stmt_no_unqualified_use(parser):
+    '''Check that no error is raised if an undeclared symbol is listed in
+    an access statement and there are no unqualified use statements to
+    bring it into scope. This is now the job of the back-end.
+
+    '''
     processor = Fparser2Reader()
     reader = FortranStringReader(
         "module modulename\n"
@@ -147,10 +150,7 @@ def test_access_stmt_no_unqualified_use_error(parser):
         "public var3\n"
         "end module modulename")
     fparser2spec = parser(reader)
-    with pytest.raises(SymbolError) as err:
-        processor.generate_container(fparser2spec)
-    assert ("module 'modulename': 'var3' is listed in an accessibility "
-            "statement as being" in str(err.value))
+    processor.generate_container(fparser2spec)
 
 
 def test_default_public_container(parser):

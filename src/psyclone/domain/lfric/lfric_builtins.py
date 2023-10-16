@@ -46,7 +46,7 @@
 import abc
 
 from psyclone.core import AccessType, Signature, VariablesAccessInfo
-from psyclone.domain.lfric import LFRicConstants, LFRicTypes
+from psyclone.domain.lfric import LFRicConstants
 from psyclone.domain.lfric.kernel import (
     LFRicKernelMetadata, FieldArgMetadata, ScalarArgMetadata,
     FieldVectorArgMetadata)
@@ -54,9 +54,8 @@ from psyclone.errors import InternalError
 from psyclone.f2pygen import AssignGen, PSyIRGen
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import BuiltIn
-from psyclone.psyir.nodes import (Assignment, BinaryOperation, Call, Reference,
-                                  StructureReference)
-from psyclone.psyir.symbols import ArrayType, RoutineSymbol
+from psyclone.psyir.nodes import (ArrayReference, Assignment, BinaryOperation,
+                                  Reference, IntrinsicCall)
 from psyclone.utils import a_or_an
 
 # The name of the file containing the meta-data describing the
@@ -225,18 +224,32 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
         :type var_accesses: \
             :py:class:`psyclone.core.VariablesAccessInfo`
 
+        :raises InternalError: if an unsupported argument type is encountered.
+
         '''
+        table = self.scope.symbol_table
         # Collect all write access in a separate object, so they can be added
         # after all read access (which must happen before something is written)
         written = VariablesAccessInfo()
+        suffix_map = LFRicConstants().ARG_TYPE_SUFFIX_MAPPING
+
         for arg in self.args:
             if arg.form in ["variable", "indexed_variable"]:
-                if arg.access == AccessType.WRITE:
-                    written.add_access(Signature(arg.declaration_name),
-                                       arg.access, self)
+                if arg.is_field:
+                    sym = table.lookup_with_tag(
+                        f"{arg.name}:{suffix_map[arg.argument_type]}")
+                    name = sym.name
+                elif arg.is_scalar:
+                    name = arg.declaration_name
                 else:
-                    var_accesses.add_access(Signature(arg.declaration_name),
-                                            arg.access, self)
+                    raise InternalError(
+                        f"LFRicBuiltin.reference_accesses only supports field "
+                        f"and scalar arguments but got '{arg.name}' of type "
+                        f"'{arg.argument_type}'")
+                if arg.access == AccessType.WRITE:
+                    written.add_access(Signature(name), arg.access, self)
+                else:
+                    var_accesses.add_access(Signature(name), arg.access, self)
         # Now merge the write access to the end of all other accesses:
         var_accesses.merge(written)
         # Forward location pointer to next index, since this built-in kernel
@@ -350,11 +363,11 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
 
     def array_ref(self, fld_name):
         '''
-        :returns: the array reference for a proxy with the supplied name.
+        :returns: the array reference for a variable with the supplied name.
         :rtype: str
 
         '''
-        return fld_name + "%data(" + self._idx_name + ")"
+        return f"{fld_name}({self._idx_name})"
 
     @property
     def undf_name(self):
@@ -458,23 +471,28 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
         '''
         Creates a DoF-indexed StructureReference for each of the field
         arguments to this Built-In kernel. e.g. if the kernel has a field
-        argument named 'fld1' then this routine will create a
-        StructureReference for 'fld1%data(df)' where 'df' is the DoF-loop
-        variable.
+        argument named 'fld1' then this routine will create an
+        ArrayReference for 'fld1_data(df)' where 'df' is the DoF-loop
+        variable and 'fld1_data' is the pointer to the data array within
+        the fld1 object.
 
-        :returns: a reference to the 'df'th element of each kernel argument \
+        :returns: a reference to the 'df'th element of each kernel argument
                   that is a field.
-        :rtype: list of :py:class:`psyclone.psyir.nodes.StructureReference`
+        :rtype: List[:py:class:`psyclone.psyir.nodes.ArrayReference`]
 
         '''
+        table = self.scope.symbol_table
         idx_sym = self.get_dof_loop_index_symbol()
+        suffixes = LFRicConstants().ARG_TYPE_SUFFIX_MAPPING
 
-        array_1d = ArrayType(LFRicTypes("LFRicRealScalarDataType")(),
-                             [ArrayType.Extent.DEFERRED])
-        return [StructureReference.create(
-            arg.psyir_expression().symbol, [("data", [Reference(idx_sym)])],
-            overwrite_datatype=array_1d)
-                for arg in self._arguments.args if arg.is_field]
+        refs = []
+        for arg in self._arguments.args:
+            if not arg.is_field:
+                continue
+            sym = table.lookup_with_tag(
+                f"{arg.name}:{suffixes[arg.argument_type]}")
+            refs.append(ArrayReference.create(sym, [Reference(idx_sym)]))
+        return refs
 
     def get_scalar_argument_references(self):
         '''
@@ -518,14 +536,21 @@ class LFRicXKern(LFRicBuiltIn, metaclass=abc.ABCMeta):
             raise InternalError(
                 "Subclasses of LFRicXKern must set the _field_type variable "
                 "to the output datatype.")
+        table = self.scope.symbol_table
         # Convert all the elements of a field of one type to the
         # corresponding elements of a field of another type using
         # the PSyclone configuration for the correct 'kind'.
-        field_name2 = self.array_ref(self._arguments.args[0].proxy_name)
-        field_name1 = self.array_ref(self._arguments.args[1].proxy_name)
+        suffixes = LFRicConstants().ARG_TYPE_SUFFIX_MAPPING
+        args = self._arguments.args
+        sym2 = table.lookup_with_tag(
+            f"{args[0].name}:{suffixes[args[0].argument_type]}")
+        field2 = self.array_ref(sym2.name)
+        sym1 = table.lookup_with_tag(
+            f"{args[1].name}:{suffixes[args[1].argument_type]}")
+        field1 = self.array_ref(sym1.name)
         precision = self._arguments.args[0].precision
-        rhs_expr = f"{self._field_type}({field_name1}, {precision})"
-        parent.add(AssignGen(parent, lhs=field_name2, rhs=rhs_expr))
+        rhs_expr = f"{self._field_type}({field1}, {precision})"
+        parent.add(AssignGen(parent, lhs=field2, rhs=rhs_expr))
         # Import the precision variable if it is not already imported
         const = LFRicConstants()
         const_mod = const.UTILITIES_MOD_MAP["constants"]["module"]
@@ -534,9 +559,8 @@ class LFRicXKern(LFRicBuiltIn, metaclass=abc.ABCMeta):
         from psyclone.dynamo0p3 import DynInvokeSchedule
         schedule = self.ancestor(DynInvokeSchedule)
         psy = schedule.invoke.invokes.psy
-        precision_list = psy.infrastructure_modules[const_mod]
-        if precision not in precision_list:
-            precision_list.append(precision)
+        precision_uses = psy.infrastructure_modules[const_mod]
+        precision_uses.add(precision)
 
 
 # ******************************************************************* #
@@ -2311,10 +2335,10 @@ class LFRicSetvalRandomKern(LFRicBuiltIn):
     def lower_to_language_level(self):
         '''
         Lowers this LFRic built-in kernel to language-level PSyIR.
-        This BuiltIn node is replaced by a Call node.
+        This BuiltIn node is replaced by an IntrinsicCall node.
 
         :returns: the lowered version of this node.
-        :rtype: :py:class:`psyclone.psyir.node.Node`
+        :rtype: :py:class:`psyclone.psyir.node.IntrinsicCall`
 
         '''
         # Get indexed refs for the field (proxy) argument.
@@ -2322,13 +2346,8 @@ class LFRicSetvalRandomKern(LFRicBuiltIn):
 
         # Create the PSyIR for the kernel:
         #      call random_number(proxy0%data(df))
-
-        # TODO #1366 - currently we have to create a Symbol for the intrinsic
-        # but *not* add it to the symbol table (since there's no import for
-        # it). This can be removed once we have proper support for intrinsics
-        # that are not operators.
-        routine = RoutineSymbol("random_number")
-        call = Call.create(routine, arg_refs)
+        call = IntrinsicCall.create(IntrinsicCall.Intrinsic.RANDOM_NUMBER,
+                                    arg_refs)
         # Finally, replace this kernel node with the Assignment
         self.replace_with(call)
         return call
@@ -2369,13 +2388,21 @@ class LFRicXInnerproductYKern(LFRicBuiltIn):
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
 
         '''
+        table = self.scope.symbol_table
         # We sum the DoF-wise product of the supplied real-valued fields.
         # The real scalar variable holding the sum is initialised to zero
         # in the PSy layer.
         innprod_name = self._reduction_ref(self._arguments.args[0].name)
-        field_name1 = self.array_ref(self._arguments.args[1].proxy_name)
-        field_name2 = self.array_ref(self._arguments.args[2].proxy_name)
-        rhs_expr = innprod_name + " + " + field_name1 + "*" + field_name2
+        suffixes = LFRicConstants().ARG_TYPE_SUFFIX_MAPPING
+
+        args = self._arguments.args
+        sym1 = table.lookup_with_tag(
+            f"{args[1].name}:{suffixes[args[1].argument_type]}")
+        field1 = self.array_ref(sym1.name)
+        sym2 = table.lookup_with_tag(
+            f"{args[2].name}:{suffixes[args[2].argument_type]}")
+        field2 = self.array_ref(sym2.name)
+        rhs_expr = f"{innprod_name} + {field1}*{field2}"
         parent.add(AssignGen(parent, lhs=innprod_name, rhs=rhs_expr))
 
 
@@ -2409,12 +2436,17 @@ class LFRicXInnerproductXKern(LFRicBuiltIn):
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
 
         '''
+        table = self.scope.symbol_table
+        suffixes = LFRicConstants().ARG_TYPE_SUFFIX_MAPPING
         # We sum the DoF-wise product of the supplied real-valued fields.
         # The real scalar variable holding the sum is initialised to zero
         # in the PSy layer.
         innprod_name = self._reduction_ref(self._arguments.args[0].name)
-        field_name = self.array_ref(self._arguments.args[1].proxy_name)
-        rhs_expr = innprod_name + " + " + field_name + "*" + field_name
+        sym = table.lookup_with_tag(
+            f"{self._arguments.args[1].name}:"
+            f"{suffixes[self._arguments.args[1].argument_type]}")
+        field_name = self.array_ref(sym.name)
+        rhs_expr = f"{innprod_name} + {field_name}*{field_name}"
         parent.add(AssignGen(parent, lhs=innprod_name, rhs=rhs_expr))
 
 
@@ -2456,11 +2488,16 @@ class LFRicSumXKern(LFRicBuiltIn):
         :type parent: :py:class:`psyclone.f2pygen.BaseGen`
 
         '''
+        table = self.scope.symbol_table
+        suffixes = LFRicConstants().ARG_TYPE_SUFFIX_MAPPING
         # Sum all the elements of a real-valued field. The real scalar
         # variable holding the sum is initialised to zero in the PSy layer.
-        field_name = self.array_ref(self._arguments.args[1].proxy_name)
+        sym = table.lookup_with_tag(
+            f"{self._arguments.args[1].name}:"
+            f"{suffixes[self._arguments.args[1].argument_type]}")
+        field_name = self.array_ref(sym.name)
         sum_name = self._reduction_ref(self._arguments.args[0].name)
-        rhs_expr = sum_name + " + " + field_name
+        rhs_expr = f"{sum_name} + {field_name}"
         parent.add(AssignGen(parent, lhs=sum_name, rhs=rhs_expr))
 
 
@@ -2511,8 +2548,8 @@ class LFRicSignXKern(LFRicBuiltIn):
 
         # Create the PSyIR for the kernel:
         #      proxy0%data(df) = SIGN(ascalar, proxy1%data)
-        rhs = BinaryOperation.create(BinaryOperation.Operator.SIGN,
-                                     scalar_args[0], arg_refs[1])
+        rhs = IntrinsicCall.create(IntrinsicCall.Intrinsic.SIGN,
+                                   [scalar_args[0], arg_refs[1]])
         assign = Assignment.create(arg_refs[0], rhs)
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
@@ -2563,8 +2600,8 @@ class LFRicMaxAXKern(LFRicBuiltIn):
 
         # Create the PSyIR for the kernel:
         #      proxy0%data(df) = MAX(ascalar, proxy1%data)
-        rhs = BinaryOperation.create(BinaryOperation.Operator.MAX,
-                                     scalar_args[0], arg_refs[1])
+        rhs = IntrinsicCall.create(IntrinsicCall.Intrinsic.MAX,
+                                   [scalar_args[0], arg_refs[1]])
         assign = Assignment.create(arg_refs[0], rhs)
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
@@ -2610,8 +2647,8 @@ class LFRicIncMaxAXKern(LFRicBuiltIn):
         # Create the PSyIR for the kernel:
         #      proxy0%data(df) = MAX(ascalar, proxy0%data)
         lhs = arg_refs[0]
-        rhs = BinaryOperation.create(BinaryOperation.Operator.MAX,
-                                     scalar_args[0], lhs.copy())
+        rhs = IntrinsicCall.create(IntrinsicCall.Intrinsic.MAX,
+                                   [scalar_args[0], lhs.copy()])
         assign = Assignment.create(lhs, rhs)
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
@@ -2662,8 +2699,8 @@ class LFRicMinAXKern(LFRicBuiltIn):
 
         # Create the PSyIR for the kernel:
         #      proxy0%data(df) = MIN(ascalar, proxy1%data)
-        rhs = BinaryOperation.create(BinaryOperation.Operator.MIN,
-                                     scalar_args[0], arg_refs[1])
+        rhs = IntrinsicCall.create(IntrinsicCall.Intrinsic.MIN,
+                                   [scalar_args[0], arg_refs[1]])
         assign = Assignment.create(arg_refs[0], rhs)
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)
@@ -2709,8 +2746,8 @@ class LFRicIncMinAXKern(LFRicBuiltIn):
         # Create the PSyIR for the kernel:
         #      proxy0%data(df) = MIN(ascalar, proxy0%data)
         lhs = arg_refs[0]
-        rhs = BinaryOperation.create(BinaryOperation.Operator.MIN,
-                                     scalar_args[0], lhs.copy())
+        rhs = IntrinsicCall.create(IntrinsicCall.Intrinsic.MIN,
+                                   [scalar_args[0], lhs.copy()])
         assign = Assignment.create(lhs, rhs)
         # Finally, replace this kernel node with the Assignment
         self.replace_with(assign)

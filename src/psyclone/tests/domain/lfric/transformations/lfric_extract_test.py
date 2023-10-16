@@ -34,7 +34,7 @@
 # Author I. Kavcic, Met Office
 # Modified by A. R. Porter and R. W. Ford, STFC Daresbury Lab
 # Modified by J. Henrichs, Bureau of Meteorology
-# Modified by L. Turner, Met Office
+# Modified by L. Turner and O. Brunt, Met Office
 # -----------------------------------------------------------------------------
 
 ''' Module containing tests for PSyclone LFRicExtractTrans
@@ -139,7 +139,7 @@ def test_distmem_error(monkeypatch):
     monkeypatch.setattr(config, "distributed_memory", False)
     with pytest.raises(TransformationError) as excinfo:
         etrans.apply(schedule.children[2:4])
-    assert ("Nodes of type 'DynHaloExchange' cannot be enclosed by a "
+    assert ("Nodes of type 'LFRicHaloExchange' cannot be enclosed by a "
             "LFRicExtractTrans transformation") in str(excinfo.value)
 
     # Try applying Extract transformation to Node(s) containing GlobalSum
@@ -321,12 +321,12 @@ def test_single_node_dynamo0p3():
       CALL extract_psy_data%PreStart("single_invoke_psy", \
 "invoke_0_testkern_type:testkern_code:r0", 17, 2)
       CALL extract_psy_data%PreDeclareVariable("a", a)
-      CALL extract_psy_data%PreDeclareVariable("f1", f1)
-      CALL extract_psy_data%PreDeclareVariable("f2", f2)
+      CALL extract_psy_data%PreDeclareVariable("f1_data", f1_data)
+      CALL extract_psy_data%PreDeclareVariable("f2_data", f2_data)
       CALL extract_psy_data%PreDeclareVariable("loop0_start", loop0_start)
       CALL extract_psy_data%PreDeclareVariable("loop0_stop", loop0_stop)
-      CALL extract_psy_data%PreDeclareVariable("m1", m1)
-      CALL extract_psy_data%PreDeclareVariable("m2", m2)
+      CALL extract_psy_data%PreDeclareVariable("m1_data", m1_data)
+      CALL extract_psy_data%PreDeclareVariable("m2_data", m2_data)
       CALL extract_psy_data%PreDeclareVariable("map_w1", map_w1)
       CALL extract_psy_data%PreDeclareVariable("map_w2", map_w2)
       CALL extract_psy_data%PreDeclareVariable("map_w3", map_w3)
@@ -338,15 +338,15 @@ def test_single_node_dynamo0p3():
       CALL extract_psy_data%PreDeclareVariable("undf_w2", undf_w2)
       CALL extract_psy_data%PreDeclareVariable("undf_w3", undf_w3)
       CALL extract_psy_data%PreDeclareVariable("cell_post", cell)
-      CALL extract_psy_data%PreDeclareVariable("f1_post", f1)
+      CALL extract_psy_data%PreDeclareVariable("f1_data_post", f1_data)
       CALL extract_psy_data%PreEndDeclaration
       CALL extract_psy_data%ProvideVariable("a", a)
-      CALL extract_psy_data%ProvideVariable("f1", f1)
-      CALL extract_psy_data%ProvideVariable("f2", f2)
+      CALL extract_psy_data%ProvideVariable("f1_data", f1_data)
+      CALL extract_psy_data%ProvideVariable("f2_data", f2_data)
       CALL extract_psy_data%ProvideVariable("loop0_start", loop0_start)
       CALL extract_psy_data%ProvideVariable("loop0_stop", loop0_stop)
-      CALL extract_psy_data%ProvideVariable("m1", m1)
-      CALL extract_psy_data%ProvideVariable("m2", m2)
+      CALL extract_psy_data%ProvideVariable("m1_data", m1_data)
+      CALL extract_psy_data%ProvideVariable("m2_data", m2_data)
       CALL extract_psy_data%ProvideVariable("map_w1", map_w1)
       CALL extract_psy_data%ProvideVariable("map_w2", map_w2)
       CALL extract_psy_data%ProvideVariable("map_w3", map_w3)
@@ -360,14 +360,14 @@ def test_single_node_dynamo0p3():
       CALL extract_psy_data%PreEnd
       DO cell=loop0_start,loop0_stop
         !
-        CALL testkern_code(nlayers, a, f1_proxy%data, f2_proxy%data, ''' + \
-        "m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, " + \
+        CALL testkern_code(nlayers, a, f1_data, f2_data, ''' + \
+        "m1_data, m2_data, ndf_w1, undf_w1, " + \
         "map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, " + \
         '''undf_w3, map_w3(:,cell))
       END DO
       CALL extract_psy_data%PostStart
       CALL extract_psy_data%ProvideVariable("cell_post", cell)
-      CALL extract_psy_data%ProvideVariable("f1_post", f1)
+      CALL extract_psy_data%ProvideVariable("f1_data_post", f1_data)
       CALL extract_psy_data%PostEnd
       !
       ! ExtractEnd'''
@@ -390,7 +390,7 @@ def test_node_list_dynamo0p3():
       !
       CALL extract_psy_data%PreStart("single_invoke_builtin_then_kernel_psy", \
 "invoke_0:r0", 11, 5)
-      CALL extract_psy_data%PreDeclareVariable("f3", f3)
+      CALL extract_psy_data%PreDeclareVariable("f3_data", f3_data)
       CALL extract_psy_data%PreDeclareVariable("loop0_start", loop0_start)
       CALL extract_psy_data%PreDeclareVariable("loop0_stop", loop0_stop)
       CALL extract_psy_data%PreDeclareVariable("loop1_start", loop1_start)
@@ -403,11 +403,11 @@ def test_node_list_dynamo0p3():
       CALL extract_psy_data%PreDeclareVariable("undf_w2", undf_w2)
       CALL extract_psy_data%PreDeclareVariable("cell_post", cell)
       CALL extract_psy_data%PreDeclareVariable("df_post", df)
-      CALL extract_psy_data%PreDeclareVariable("f2_post", f2)
-      CALL extract_psy_data%PreDeclareVariable("f3_post", f3)
-      CALL extract_psy_data%PreDeclareVariable("f5_post", f5)
+      CALL extract_psy_data%PreDeclareVariable("f2_data_post", f2_data)
+      CALL extract_psy_data%PreDeclareVariable("f3_data_post", f3_data)
+      CALL extract_psy_data%PreDeclareVariable("f5_data_post", f5_data)
       CALL extract_psy_data%PreEndDeclaration
-      CALL extract_psy_data%ProvideVariable("f3", f3)
+      CALL extract_psy_data%ProvideVariable("f3_data", f3_data)
       CALL extract_psy_data%ProvideVariable("loop0_start", loop0_start)
       CALL extract_psy_data%ProvideVariable("loop0_stop", loop0_stop)
       CALL extract_psy_data%ProvideVariable("loop1_start", loop1_start)
@@ -420,22 +420,22 @@ def test_node_list_dynamo0p3():
       CALL extract_psy_data%ProvideVariable("undf_w2", undf_w2)
       CALL extract_psy_data%PreEnd
       DO df=loop0_start,loop0_stop
-        f5_proxy%data(df) = 0.0
+        f5_data(df) = 0.0
       END DO
       DO df=loop1_start,loop1_stop
-        f2_proxy%data(df) = 0.0
+        f2_data(df) = 0.0
       END DO
       DO cell=loop2_start,loop2_stop
         !
-        CALL testkern_w2_only_code(nlayers, f3_proxy%data, """ + \
-        """f2_proxy%data, ndf_w2, undf_w2, map_w2(:,cell))
+        CALL testkern_w2_only_code(nlayers, f3_data, """ + \
+        """f2_data, ndf_w2, undf_w2, map_w2(:,cell))
       END DO
       CALL extract_psy_data%PostStart
       CALL extract_psy_data%ProvideVariable("cell_post", cell)
       CALL extract_psy_data%ProvideVariable("df_post", df)
-      CALL extract_psy_data%ProvideVariable("f2_post", f2)
-      CALL extract_psy_data%ProvideVariable("f3_post", f3)
-      CALL extract_psy_data%ProvideVariable("f5_post", f5)
+      CALL extract_psy_data%ProvideVariable("f2_data_post", f2_data)
+      CALL extract_psy_data%ProvideVariable("f3_data_post", f3_data)
+      CALL extract_psy_data%ProvideVariable("f5_data_post", f5_data)
       CALL extract_psy_data%PostEnd
       !
       ! ExtractEnd"""
@@ -466,11 +466,11 @@ def test_dynamo0p3_builtin():
       CALL extract_psy_data%PreDeclareVariable("undf_w2", undf_w2)
       CALL extract_psy_data%PreDeclareVariable("cell_post", cell)
       CALL extract_psy_data%PreDeclareVariable("df_post", df)
-      CALL extract_psy_data%PreDeclareVariable("f2_post", f2)
-      CALL extract_psy_data%PreDeclareVariable("f3_post", f3)
-      CALL extract_psy_data%PreDeclareVariable("f5_post", f5)
+      CALL extract_psy_data%PreDeclareVariable("f2_data_post", f2_data)
+      CALL extract_psy_data%PreDeclareVariable("f3_data_post", f3_data)
+      CALL extract_psy_data%PreDeclareVariable("f5_data_post", f5_data)
       CALL extract_psy_data%PreEndDeclaration
-      CALL extract_psy_data%ProvideVariable("f3", f3)
+      CALL extract_psy_data%ProvideVariable("f3_data", f3_data)
       CALL extract_psy_data%ProvideVariable("loop0_start", loop0_start)
       CALL extract_psy_data%ProvideVariable("loop0_stop", loop0_stop)
       CALL extract_psy_data%ProvideVariable("loop1_start", loop1_start)
@@ -483,22 +483,22 @@ def test_dynamo0p3_builtin():
       CALL extract_psy_data%ProvideVariable("undf_w2", undf_w2)
       CALL extract_psy_data%PreEnd
       DO df=loop0_start,loop0_stop
-        f5_proxy%data(df) = 0.0
+        f5_data(df) = 0.0
       END DO
       DO df=loop1_start,loop1_stop
-        f2_proxy%data(df) = 0.0
+        f2_data(df) = 0.0
       END DO
       DO cell=loop2_start,loop2_stop
         !
-        CALL testkern_w2_only_code(nlayers, f3_proxy%data, f2_proxy%data, """\
+        CALL testkern_w2_only_code(nlayers, f3_data, f2_data, """\
         """ndf_w2, undf_w2, map_w2(:,cell))
       END DO
       CALL extract_psy_data%PostStart
       CALL extract_psy_data%ProvideVariable("cell_post", cell)
       CALL extract_psy_data%ProvideVariable("df_post", df)
-      CALL extract_psy_data%ProvideVariable("f2_post", f2)
-      CALL extract_psy_data%ProvideVariable("f3_post", f3)
-      CALL extract_psy_data%ProvideVariable("f5_post", f5)
+      CALL extract_psy_data%ProvideVariable("f2_data_post", f2_data)
+      CALL extract_psy_data%ProvideVariable("f3_data_post", f3_data)
+      CALL extract_psy_data%ProvideVariable("f5_data_post", f5_data)
       CALL extract_psy_data%PostEnd
       !
       ! ExtractEnd"""
@@ -527,17 +527,17 @@ def test_extract_single_builtin_dynamo0p3():
       CALL extract_psy_data%PreDeclareVariable("loop1_start", loop1_start)
       CALL extract_psy_data%PreDeclareVariable("loop1_stop", loop1_stop)
       CALL extract_psy_data%PreDeclareVariable("df_post", df)
-      CALL extract_psy_data%PreDeclareVariable("f2_post", f2)
+      CALL extract_psy_data%PreDeclareVariable("f2_data_post", f2_data)
       CALL extract_psy_data%PreEndDeclaration
       CALL extract_psy_data%ProvideVariable("loop1_start", loop1_start)
       CALL extract_psy_data%ProvideVariable("loop1_stop", loop1_stop)
       CALL extract_psy_data%PreEnd
       DO df=loop1_start,loop1_stop
-        f2_proxy%data(df) = 0.0
+        f2_data(df) = 0.0
       END DO
       CALL extract_psy_data%PostStart
       CALL extract_psy_data%ProvideVariable("df_post", df)
-      CALL extract_psy_data%ProvideVariable("f2_post", f2)
+      CALL extract_psy_data%ProvideVariable("f2_data_post", f2_data)
       CALL extract_psy_data%PostEnd
       !
       ! ExtractEnd"""
@@ -556,26 +556,26 @@ def test_extract_single_builtin_dynamo0p3():
       !
       CALL extract_psy_data%PreStart("single_invoke_psy", """ \
       """"invoke_0:inc_ax_plus_y:r0", 4, 2)
-      CALL extract_psy_data%PreDeclareVariable("f1", f1)
-      CALL extract_psy_data%PreDeclareVariable("f2", f2)
+      CALL extract_psy_data%PreDeclareVariable("f1_data", f1_data)
+      CALL extract_psy_data%PreDeclareVariable("f2_data", f2_data)
       CALL extract_psy_data%PreDeclareVariable("loop1_start", loop1_start)
       CALL extract_psy_data%PreDeclareVariable("loop1_stop", loop1_stop)
       CALL extract_psy_data%PreDeclareVariable("df_post", df)
-      CALL extract_psy_data%PreDeclareVariable("f1_post", f1)
+      CALL extract_psy_data%PreDeclareVariable("f1_data_post", f1_data)
       CALL extract_psy_data%PreEndDeclaration
-      CALL extract_psy_data%ProvideVariable("f1", f1)
-      CALL extract_psy_data%ProvideVariable("f2", f2)
+      CALL extract_psy_data%ProvideVariable("f1_data", f1_data)
+      CALL extract_psy_data%ProvideVariable("f2_data", f2_data)
       CALL extract_psy_data%ProvideVariable("loop1_start", loop1_start)
       CALL extract_psy_data%ProvideVariable("loop1_stop", loop1_stop)
       CALL extract_psy_data%PreEnd
       !$omp parallel do default(shared), private(df), schedule(static)
       DO df=loop1_start,loop1_stop
-        f1_proxy%data(df) = 0.5_r_def * f1_proxy%data(df) + f2_proxy%data(df)
+        f1_data(df) = 0.5_r_def * f1_data(df) + f2_data(df)
       END DO
       !$omp end parallel do
       CALL extract_psy_data%PostStart
       CALL extract_psy_data%ProvideVariable("df_post", df)
-      CALL extract_psy_data%ProvideVariable("f1_post", f1)
+      CALL extract_psy_data%ProvideVariable("f1_data_post", f1_data)
       CALL extract_psy_data%PostEnd
       !
       ! ExtractEnd"""
@@ -600,7 +600,7 @@ def test_extract_kernel_and_builtin_dynamo0p3():
       !
       CALL extract_psy_data%PreStart("single_invoke_builtin_then_kernel_psy", """ \
       """"invoke_0:r0", 9, 4)
-      CALL extract_psy_data%PreDeclareVariable("f3", f3)
+      CALL extract_psy_data%PreDeclareVariable("f3_data", f3_data)
       CALL extract_psy_data%PreDeclareVariable("loop1_start", loop1_start)
       CALL extract_psy_data%PreDeclareVariable("loop1_stop", loop1_stop)
       CALL extract_psy_data%PreDeclareVariable("loop2_start", loop2_start)
@@ -611,10 +611,10 @@ def test_extract_kernel_and_builtin_dynamo0p3():
       CALL extract_psy_data%PreDeclareVariable("undf_w2", undf_w2)
       CALL extract_psy_data%PreDeclareVariable("cell_post", cell)
       CALL extract_psy_data%PreDeclareVariable("df_post", df)
-      CALL extract_psy_data%PreDeclareVariable("f2_post", f2)
-      CALL extract_psy_data%PreDeclareVariable("f3_post", f3)
+      CALL extract_psy_data%PreDeclareVariable("f2_data_post", f2_data)
+      CALL extract_psy_data%PreDeclareVariable("f3_data_post", f3_data)
       CALL extract_psy_data%PreEndDeclaration
-      CALL extract_psy_data%ProvideVariable("f3", f3)
+      CALL extract_psy_data%ProvideVariable("f3_data", f3_data)
       CALL extract_psy_data%ProvideVariable("loop1_start", loop1_start)
       CALL extract_psy_data%ProvideVariable("loop1_stop", loop1_stop)
       CALL extract_psy_data%ProvideVariable("loop2_start", loop2_start)
@@ -625,18 +625,18 @@ def test_extract_kernel_and_builtin_dynamo0p3():
       CALL extract_psy_data%ProvideVariable("undf_w2", undf_w2)
       CALL extract_psy_data%PreEnd
       DO df=loop1_start,loop1_stop
-        f2_proxy%data(df) = 0.0
+        f2_data(df) = 0.0
       END DO
       DO cell=loop2_start,loop2_stop
         !
-        CALL testkern_w2_only_code(nlayers, f3_proxy%data, """ + \
-        """f2_proxy%data, ndf_w2, undf_w2, map_w2(:,cell))
+        CALL testkern_w2_only_code(nlayers, f3_data, """ + \
+        """f2_data, ndf_w2, undf_w2, map_w2(:,cell))
       END DO
       CALL extract_psy_data%PostStart
       CALL extract_psy_data%ProvideVariable("cell_post", cell)
       CALL extract_psy_data%ProvideVariable("df_post", df)
-      CALL extract_psy_data%ProvideVariable("f2_post", f2)
-      CALL extract_psy_data%ProvideVariable("f3_post", f3)
+      CALL extract_psy_data%ProvideVariable("f2_data_post", f2_data)
+      CALL extract_psy_data%ProvideVariable("f3_data_post", f3_data)
       CALL extract_psy_data%PostEnd
       !
       ! ExtractEnd"""
@@ -687,12 +687,12 @@ def test_extract_colouring_omp_dynamo0p3():
       !
       CALL extract_psy_data%PreStart("multikernel_invokes_7_psy", """
               """"invoke_0:ru_code:r0", 30, 3)
-      CALL extract_psy_data%PreDeclareVariable("a", a)
-      CALL extract_psy_data%PreDeclareVariable("b", b)
+      CALL extract_psy_data%PreDeclareVariable("a_data", a_data)
+      CALL extract_psy_data%PreDeclareVariable("b_data", b_data)
       CALL extract_psy_data%PreDeclareVariable("basis_w0_qr", basis_w0_qr)
       CALL extract_psy_data%PreDeclareVariable("basis_w2_qr", basis_w2_qr)
       CALL extract_psy_data%PreDeclareVariable("basis_w3_qr", basis_w3_qr)
-      CALL extract_psy_data%PreDeclareVariable("c", c)
+      CALL extract_psy_data%PreDeclareVariable("c_data", c_data)
       CALL extract_psy_data%PreDeclareVariable("cmap", cmap)
       CALL extract_psy_data%PreDeclareVariable("diff_basis_w0_qr", """
               """diff_basis_w0_qr)
@@ -720,16 +720,16 @@ last_edge_cell_all_colours)
       CALL extract_psy_data%PreDeclareVariable("undf_w3", undf_w3)
       CALL extract_psy_data%PreDeclareVariable("weights_xy_qr", weights_xy_qr)
       CALL extract_psy_data%PreDeclareVariable("weights_z_qr", weights_z_qr)
-      CALL extract_psy_data%PreDeclareVariable("b_post", b)
+      CALL extract_psy_data%PreDeclareVariable("b_data_post", b_data)
       CALL extract_psy_data%PreDeclareVariable("cell_post", cell)
       CALL extract_psy_data%PreDeclareVariable("colour_post", colour)
       CALL extract_psy_data%PreEndDeclaration
-      CALL extract_psy_data%ProvideVariable("a", a)
-      CALL extract_psy_data%ProvideVariable("b", b)
+      CALL extract_psy_data%ProvideVariable("a_data", a_data)
+      CALL extract_psy_data%ProvideVariable("b_data", b_data)
       CALL extract_psy_data%ProvideVariable("basis_w0_qr", basis_w0_qr)
       CALL extract_psy_data%ProvideVariable("basis_w2_qr", basis_w2_qr)
       CALL extract_psy_data%ProvideVariable("basis_w3_qr", basis_w3_qr)
-      CALL extract_psy_data%ProvideVariable("c", c)
+      CALL extract_psy_data%ProvideVariable("c_data", c_data)
       CALL extract_psy_data%ProvideVariable("cmap", cmap)
       CALL extract_psy_data%ProvideVariable("diff_basis_w0_qr", """
               """diff_basis_w0_qr)
@@ -762,9 +762,9 @@ last_edge_cell_all_colours)
         !$omp parallel do default(shared), private(cell), schedule(static)
         DO cell=loop5_start,last_edge_cell_all_colours(colour)
           !
-          CALL ru_code(nlayers, b_proxy%data, a_proxy%data, istp, rdt, """
-              "c_proxy%data, e_proxy(1)%data, e_proxy(2)%data, "
-              "e_proxy(3)%data, ndf_w2, undf_w2, "
+          CALL ru_code(nlayers, b_data, a_data, istp, rdt, """
+              "c_data, e_1_data, e_2_data, "
+              "e_3_data, ndf_w2, undf_w2, "
               "map_w2(:,cmap(colour,cell)), "
               "basis_w2_qr, diff_basis_w2_qr, ndf_w3, undf_w3, "
               "map_w3(:,cmap(colour,cell)), basis_w3_qr, ndf_w0, undf_w0, "
@@ -774,7 +774,7 @@ last_edge_cell_all_colours)
         !$omp end parallel do
       END DO
       CALL extract_psy_data%PostStart
-      CALL extract_psy_data%ProvideVariable("b_post", b)
+      CALL extract_psy_data%ProvideVariable("b_data_post", b_data)
       CALL extract_psy_data%ProvideVariable("cell_post", cell)
       CALL extract_psy_data%ProvideVariable("colour_post", colour)
       CALL extract_psy_data%PostEnd

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2022, Science and Technology Facilities Council
+# Copyright (c) 2020-2023, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,22 +33,22 @@
 # -----------------------------------------------------------------------------
 # Author: R. W. Ford, STFC Daresbury Lab
 # Modified: A. R. Porter and N. Nobre, STFC Daresbury Lab
+# Modified: S. Siso, STFC Daresbury Lab
 
 '''Module providing an abstract class which provides some generic
-functionality required by transformations of PSyIR intrinsic operators
-(such as MIN and MAX).
+functionality required by transformations of PSyIR intrinsic
+(such as MIN and MAX) to code.
 
 '''
-from __future__ import absolute_import
 import abc
 from psyclone.psyGen import Transformation
-from psyclone.psyir.nodes import Assignment
+from psyclone.psyir.nodes import Assignment, IntrinsicCall
 from psyclone.psyir.transformations.transformation_error import \
     TransformationError
 
 
-class Operator2CodeTrans(Transformation, metaclass=abc.ABCMeta):
-    '''Provides support for transformations from PSyIR intrinsic Operator
+class Intrinsic2CodeTrans(Transformation, metaclass=abc.ABCMeta):
+    '''Provides support for transformations from PSyIR IntrinsicCall
     nodes to equivalent PSyIR code in a PSyIR tree. Such
     transformations can be useful when the intrinsic is not supported
     by a particular backend or if it is more efficient to have
@@ -56,53 +56,38 @@ class Operator2CodeTrans(Transformation, metaclass=abc.ABCMeta):
 
     '''
     def __init__(self):
-        super(Operator2CodeTrans, self).__init__()
-        self._operator_name = None
-        self._classes = None
-        self._operators = None
+        super().__init__()
+        self._intrinsic = None
 
     def __str__(self):
-        return (f"Convert the PSyIR {self._operator_name.upper()} intrinsic "
-                f"to equivalent PSyIR code.")
-
-    @property
-    def name(self):
-        '''
-        :returns: the name of the parent transformation as a string.
-        :rtype:str
-
-        '''
-        return f"{self._operator_name.title()}2CodeTrans"
+        return (f"Convert the PSyIR '{self._intrinsic.name}' "
+                f"intrinsic to equivalent PSyIR code.")
 
     def validate(self, node, options=None):
         '''Perform various checks to ensure that it is valid to apply
         an intrinsic transformation to the supplied Node.
 
         :param node: the node that is being checked.
-        :type node: :py:class:`psyclone.psyir.nodes.Operation`
+        :type node: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
 
         :raises TransformationError: if the node argument is not the \
             expected type.
-        :raises TransformationError: if the symbol_table argument is not a \
-            :py:class:`psyclone.psyir.symbols.SymbolTable`.
-        :raises TransformationError: if the Operation node does \
+        :raises TransformationError: if the IntrinsicCall node does \
             not have an Assignment Node as an ancestor.
 
         '''
         # Check that the node is one of the expected types.
-        if not isinstance(node, self._classes):
+        if not isinstance(node, IntrinsicCall):
             raise TransformationError(
-                f"Error in {self.name} transformation. The supplied node "
-                f"argument is not a {self._operator_name} operator, found "
-                f"'{type(node).__name__}'.")
-        if node.operator not in self._operators:
-            oper_names = list(set([oper.name for oper in self._operators]))
+                f"Error in {self.name} transformation. The supplied node must "
+                f"be an 'IntrinsicCall', but found '{type(node).__name__}'.")
+        if node.intrinsic != self._intrinsic:
             raise TransformationError(
-                f"Error in {self.name} transformation. The supplied node "
-                f"operator is invalid, found '{node.operator}', but expected "
-                f"one of '{oper_names}'.")
+                f"Error in {self.name} transformation. The supplied "
+                f"IntrinsicCall must be a '{self._intrinsic.name}' but found: "
+                f"'{node.intrinsic.name}'.")
         # Check that there is an Assignment node that is an ancestor
         # of this Operation.
         if not node.ancestor(Assignment):
@@ -110,8 +95,3 @@ class Operator2CodeTrans(Transformation, metaclass=abc.ABCMeta):
                 f"Error in {self.name} transformation. This transformation "
                 f"requires the operator to be part of an assignment "
                 f"statement, but no such assignment was found.")
-
-    @abc.abstractmethod
-    def apply(self, node, options=None):
-        '''Abstract method, see psyclone.psyGen.Transformations apply() for
-        more details.'''
