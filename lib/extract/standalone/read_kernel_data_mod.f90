@@ -225,11 +225,6 @@ contains
         ! Initialise it with "", so that an array comparison will work
         ! even though e.g. boundary areas or so might not be set at all.
         value = ""
-        ! Initialise it with 0.0d0, so that an array comparison will work
-        ! even though e.g. boundary areas or so might not be set at all. Note
-        ! that the compiler will convert the double precision value to the right
-        ! type (e.g. int or single precision).
-        value = 0.0d0
         read(this%unit_number) value
 
     end subroutine ReadArray1dChar
@@ -274,11 +269,6 @@ contains
         ! Initialise it with "", so that an array comparison will work
         ! even though e.g. boundary areas or so might not be set at all.
         value = ""
-        ! Initialise it with 0.0d0, so that an array comparison will work
-        ! even though e.g. boundary areas or so might not be set at all. Note
-        ! that the compiler will convert the double precision value to the right
-        ! type (e.g. int or single precision).
-        value = 0.0d0
         read(this%unit_number) value
 
     end subroutine ReadArray2dChar
@@ -324,11 +314,6 @@ contains
         ! Initialise it with "", so that an array comparison will work
         ! even though e.g. boundary areas or so might not be set at all.
         value = ""
-        ! Initialise it with 0.0d0, so that an array comparison will work
-        ! even though e.g. boundary areas or so might not be set at all. Note
-        ! that the compiler will convert the double precision value to the right
-        ! type (e.g. int or single precision).
-        value = 0.0d0
         read(this%unit_number) value
 
     end subroutine ReadArray3dChar
@@ -375,11 +360,6 @@ contains
         ! Initialise it with "", so that an array comparison will work
         ! even though e.g. boundary areas or so might not be set at all.
         value = ""
-        ! Initialise it with 0.0d0, so that an array comparison will work
-        ! even though e.g. boundary areas or so might not be set at all. Note
-        ! that the compiler will convert the double precision value to the right
-        ! type (e.g. int or single precision).
-        value = 0.0d0
         read(this%unit_number) value
 
     end subroutine ReadArray4dChar
@@ -444,6 +424,11 @@ contains
             stop
         endif
 
+        ! Initialise it with 0.0d0, so that an array comparison will work
+        ! even though e.g. boundary areas or so might not be set at all. Note
+        ! that the compiler will convert the double precision value to the right
+        ! type (e.g. int or single precision).
+        value = 0.0d0
         read(this%unit_number) value
 
     end subroutine ReadArray1dInt
@@ -485,6 +470,11 @@ contains
             stop
         endif
 
+        ! Initialise it with 0.0d0, so that an array comparison will work
+        ! even though e.g. boundary areas or so might not be set at all. Note
+        ! that the compiler will convert the double precision value to the right
+        ! type (e.g. int or single precision).
+        value = 0.0d0
         read(this%unit_number) value
 
     end subroutine ReadArray2dInt
@@ -527,6 +517,11 @@ contains
             stop
         endif
 
+        ! Initialise it with 0.0d0, so that an array comparison will work
+        ! even though e.g. boundary areas or so might not be set at all. Note
+        ! that the compiler will convert the double precision value to the right
+        ! type (e.g. int or single precision).
+        value = 0.0d0
         read(this%unit_number) value
 
     end subroutine ReadArray3dInt
@@ -570,6 +565,11 @@ contains
             stop
         endif
 
+        ! Initialise it with 0.0d0, so that an array comparison will work
+        ! even though e.g. boundary areas or so might not be set at all. Note
+        ! that the compiler will convert the double precision value to the right
+        ! type (e.g. int or single precision).
+        value = 0.0d0
         read(this%unit_number) value
 
     end subroutine ReadArray4dInt
@@ -634,6 +634,11 @@ contains
             stop
         endif
 
+        ! Initialise it with 0.0d0, so that an array comparison will work
+        ! even though e.g. boundary areas or so might not be set at all. Note
+        ! that the compiler will convert the double precision value to the right
+        ! type (e.g. int or single precision).
+        value = 0.0d0
         read(this%unit_number) value
 
     end subroutine ReadArray1dLong
@@ -675,6 +680,11 @@ contains
             stop
         endif
 
+        ! Initialise it with 0.0d0, so that an array comparison will work
+        ! even though e.g. boundary areas or so might not be set at all. Note
+        ! that the compiler will convert the double precision value to the right
+        ! type (e.g. int or single precision).
+        value = 0.0d0
         read(this%unit_number) value
 
     end subroutine ReadArray2dLong
@@ -717,6 +727,11 @@ contains
             stop
         endif
 
+        ! Initialise it with 0.0d0, so that an array comparison will work
+        ! even though e.g. boundary areas or so might not be set at all. Note
+        ! that the compiler will convert the double precision value to the right
+        ! type (e.g. int or single precision).
+        value = 0.0d0
         read(this%unit_number) value
 
     end subroutine ReadArray3dLong
@@ -760,6 +775,11 @@ contains
             stop
         endif
 
+        ! Initialise it with 0.0d0, so that an array comparison will work
+        ! even though e.g. boundary areas or so might not be set at all. Note
+        ! that the compiler will convert the double precision value to the right
+        ! type (e.g. int or single precision).
+        value = 0.0d0
         read(this%unit_number) value
 
     end subroutine ReadArray4dLong
@@ -1026,6 +1046,11 @@ contains
             stop
         endif
 
+        ! Initialise it with 0.0d0, so that an array comparison will work
+        ! even though e.g. boundary areas or so might not be set at all. Note
+        ! that the compiler will convert the double precision value to the right
+        ! type (e.g. int or single precision).
+        value = 0.0d0
         read(this%unit_number) value
 
     end subroutine ReadArray1dReal
@@ -1067,6 +1092,11 @@ contains
             stop
         endif
 
+        ! Initialise it with 0.0d0, so that an array comparison will work
+        ! even though e.g. boundary areas or so might not be set at all. Note
+        ! that the compiler will convert the double precision value to the right
+        ! type (e.g. int or single precision).
+        value = 0.0d0
         read(this%unit_number) value
 
     end subroutine ReadArray2dReal
@@ -1109,6 +1139,11 @@ contains
             stop
         endif
 
+        ! Initialise it with 0.0d0, so that an array comparison will work
+        ! even though e.g. boundary areas or so might not be set at all. Note
+        ! that the compiler will convert the double precision value to the right
+        ! type (e.g. int or single precision).
+        value = 0.0d0
         read(this%unit_number) value
 
     end subroutine ReadArray3dReal
@@ -1152,6 +1187,11 @@ contains
             stop
         endif
 
+        ! Initialise it with 0.0d0, so that an array comparison will work
+        ! even though e.g. boundary areas or so might not be set at all. Note
+        ! that the compiler will convert the double precision value to the right
+        ! type (e.g. int or single precision).
+        value = 0.0d0
         read(this%unit_number) value
 
     end subroutine ReadArray4dReal
@@ -1216,6 +1256,11 @@ contains
             stop
         endif
 
+        ! Initialise it with 0.0d0, so that an array comparison will work
+        ! even though e.g. boundary areas or so might not be set at all. Note
+        ! that the compiler will convert the double precision value to the right
+        ! type (e.g. int or single precision).
+        value = 0.0d0
         read(this%unit_number) value
 
     end subroutine ReadArray1dDouble
@@ -1257,6 +1302,11 @@ contains
             stop
         endif
 
+        ! Initialise it with 0.0d0, so that an array comparison will work
+        ! even though e.g. boundary areas or so might not be set at all. Note
+        ! that the compiler will convert the double precision value to the right
+        ! type (e.g. int or single precision).
+        value = 0.0d0
         read(this%unit_number) value
 
     end subroutine ReadArray2dDouble
@@ -1299,6 +1349,11 @@ contains
             stop
         endif
 
+        ! Initialise it with 0.0d0, so that an array comparison will work
+        ! even though e.g. boundary areas or so might not be set at all. Note
+        ! that the compiler will convert the double precision value to the right
+        ! type (e.g. int or single precision).
+        value = 0.0d0
         read(this%unit_number) value
 
     end subroutine ReadArray3dDouble
@@ -1342,6 +1397,11 @@ contains
             stop
         endif
 
+        ! Initialise it with 0.0d0, so that an array comparison will work
+        ! even though e.g. boundary areas or so might not be set at all. Note
+        ! that the compiler will convert the double precision value to the right
+        ! type (e.g. int or single precision).
+        value = 0.0d0
         read(this%unit_number) value
 
     end subroutine ReadArray4dDouble

@@ -226,6 +226,7 @@ contains
         ! Initialise it with "", so that an array comparison will work
         ! even though e.g. boundary areas or so might not be set at all.
         value = ""
+        {% else %}
         ! Initialise it with 0.0d0, so that an array comparison will work
         ! even though e.g. boundary areas or so might not be set at all. Note
         ! that the compiler will convert the double precision value to the right
