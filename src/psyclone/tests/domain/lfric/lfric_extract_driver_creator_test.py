@@ -664,12 +664,12 @@ def test_lfric_driver_external_symbols_name_clash():
                            "region_name": ("import", "test")})
     code = str(invoke.gen())
 
-    # Make sure the imported, clashing symbol 'f1' is renamed:
-    assert "USE module_with_name_clash_mod, ONLY: f1_1=>f1" in code
-    assert ('CALL extract_psy_data%PreDeclareVariable("f1@'
-            'module_with_name_clash_mod", f1_1)' in code)
-    assert ('CALL extract_psy_data%ProvideVariable("f1@'
-            'module_with_name_clash_mod", f1_1)' in code)
+    # Make sure the imported, clashing symbol 'f1_data' is renamed:
+    assert "USE module_with_name_clash_mod, ONLY: f1_data_1=>f1_data" in code
+    assert ('CALL extract_psy_data%PreDeclareVariable("f1_data@'
+            'module_with_name_clash_mod", f1_data_1)' in code)
+    assert ('CALL extract_psy_data%ProvideVariable("f1_data@'
+            'module_with_name_clash_mod", f1_data_1)' in code)
 
     # Even though PSyclone cannot find the variable, it should still be
     # extracted:
@@ -679,11 +679,12 @@ def test_lfric_driver_external_symbols_name_clash():
         driver = my_file.read()
 
     assert ("call extract_psy_data%ReadVariable("
-            "'f1@module_with_name_clash_mod', f1_1)" in driver)
+            "'f1_data@module_with_name_clash_mod', f1_data_1)" in driver)
     assert ("call extract_psy_data%ReadVariable("
-            "'f2@module_with_name_clash_mod', f2_1)" in driver)
+            "'f2_data@module_with_name_clash_mod', f2_data_1)" in driver)
     assert ("call extract_psy_data%ReadVariable("
-            "'f2_post@module_with_name_clash_mod', f2_1_post)" in driver)
+            "'f2_data_post@module_with_name_clash_mod', f2_data_1_post)"
+            in driver)
 
 
 # ----------------------------------------------------------------------------

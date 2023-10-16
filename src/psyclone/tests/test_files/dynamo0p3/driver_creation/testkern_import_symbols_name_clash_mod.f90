@@ -62,7 +62,7 @@ contains
                                           ndf_w2, undf_w2, map_w2, &
                                           ndf_w3, undf_w3, map_w3)
     use constants_mod, only: eps, i_def, r_def
-    use module_with_name_clash_mod, only: f1, module_function
+    use module_with_name_clash_mod, only: f1_data, module_function
     implicit none
 
     integer(kind=i_def), intent(in) :: nlayers
@@ -81,7 +81,7 @@ contains
     real(kind=r_def) :: tmp
 
     tmp = fld2(1)*fld3(1)*fld4(1)
-    fld1(1) = eps * nlayers + tmp + f1
+    fld1(1) = eps * nlayers + tmp + f1_data
     call module_function()
 
   end subroutine testkern_import_symbols_name_clash_code
