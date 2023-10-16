@@ -556,20 +556,20 @@ def test_psy_data_node_name_clash(fortran_writer):
     code = str(invoke.gen())
 
     # Make sure the imported, clashing symbols 'f1' and 'f2' are renamed:
-    assert "USE module_with_name_clash_mod, ONLY: f1_1=>f1" in code
-    assert "USE module_with_name_clash_mod, ONLY: f2_1=>f2" in code
-    assert ('CALL extract_psy_data%PreDeclareVariable("f1@'
-            'module_with_name_clash_mod", f1_1)' in code)
-    assert ('CALL extract_psy_data%ProvideVariable("f1@'
-            'module_with_name_clash_mod", f1_1)' in code)
-    assert ('CALL extract_psy_data%PreDeclareVariable("f2@'
-            'module_with_name_clash_mod", f2_1)' in code)
-    assert ('CALL extract_psy_data%PreDeclareVariable("f2_post@'
-            'module_with_name_clash_mod", f2_1)' in code)
-    assert ('CALL extract_psy_data%ProvideVariable("f2@'
-            'module_with_name_clash_mod", f2_1)' in code)
-    assert ('CALL extract_psy_data%ProvideVariable("f2_post@'
-            'module_with_name_clash_mod", f2_1)' in code)
+    assert "USE module_with_name_clash_mod, ONLY: f1_data_1=>f1_data" in code
+    assert "USE module_with_name_clash_mod, ONLY: f2_data_1=>f2_data" in code
+    assert ('CALL extract_psy_data%PreDeclareVariable("f1_data@'
+            'module_with_name_clash_mod", f1_data_1)' in code)
+    assert ('CALL extract_psy_data%ProvideVariable("f1_data@'
+            'module_with_name_clash_mod", f1_data_1)' in code)
+    assert ('CALL extract_psy_data%PreDeclareVariable("f2_data@'
+            'module_with_name_clash_mod", f2_data_1)' in code)
+    assert ('CALL extract_psy_data%PreDeclareVariable("f2_data_post@'
+            'module_with_name_clash_mod", f2_data_1)' in code)
+    assert ('CALL extract_psy_data%ProvideVariable("f2_data@'
+            'module_with_name_clash_mod", f2_data_1)' in code)
+    assert ('CALL extract_psy_data%ProvideVariable("f2_data_post@'
+            'module_with_name_clash_mod", f2_data_1)' in code)
 
     # Second test, use lower_to_language_level:
     # -----------------------------------------
@@ -579,18 +579,18 @@ def test_psy_data_node_name_clash(fortran_writer):
     # yet fully support this. So we just lower each line individually:
     code = "".join([fortran_writer(i) for i in invoke.schedule.children])
 
-    assert ('CALL extract_psy_data % PreDeclareVariable("f1_post", f1)'
-            in code)
-    assert ('CALL extract_psy_data % PreDeclareVariable("f1@'
-            'module_with_name_clash_mod", f1_1)' in code)
-    assert ('CALL extract_psy_data % PreDeclareVariable("f2@'
-            'module_with_name_clash_mod", f2_1)' in code)
-    assert ('CALL extract_psy_data % PreDeclareVariable("f2@'
-            'module_with_name_clash_mod_post", f2_1)' in code)
+    assert ('CALL extract_psy_data % PreDeclareVariable("f1_data_post", '
+            'f1_data)' in code)
+    assert ('CALL extract_psy_data % PreDeclareVariable("f1_data@'
+            'module_with_name_clash_mod", f1_data_1)' in code)
+    assert ('CALL extract_psy_data % PreDeclareVariable("f2_data@'
+            'module_with_name_clash_mod", f2_data_1)' in code)
+    assert ('CALL extract_psy_data % PreDeclareVariable("f2_data@'
+            'module_with_name_clash_mod_post", f2_data_1)' in code)
 
-    assert ('CALL extract_psy_data % ProvideVariable("f1@'
-            'module_with_name_clash_mod", f1_1)' in code)
-    assert ('CALL extract_psy_data % ProvideVariable("f2@'
-            'module_with_name_clash_mod", f2_1)' in code)
-    assert ('CALL extract_psy_data % ProvideVariable("f2@'
-            'module_with_name_clash_mod_post", f2_1)' in code)
+    assert ('CALL extract_psy_data % ProvideVariable("f1_data@'
+            'module_with_name_clash_mod", f1_data_1)' in code)
+    assert ('CALL extract_psy_data % ProvideVariable("f2_data@'
+            'module_with_name_clash_mod", f2_data_1)' in code)
+    assert ('CALL extract_psy_data % ProvideVariable("f2_data@'
+            'module_with_name_clash_mod_post", f2_data_1)' in code)

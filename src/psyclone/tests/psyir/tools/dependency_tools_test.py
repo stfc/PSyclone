@@ -725,6 +725,7 @@ def test_da_array_expression(fortran_reader):
 def test_dep_tools_non_local_inout_parameters(capsys):
     '''Tests the collection of non-local input and output parameters.
     '''
+    Config.get().api = "dynamo0.3"
     dep_tools = DependencyTools()
 
     test_file = os.path.join("driver_creation", "module_with_builtin_mod.f90")
