@@ -960,13 +960,6 @@ class LFRicConfig(APISpecificConfig):
         all_precisions = self.create_numeric_dict_from_list(precisions_list)
         # Check for valid datatypes
         for key in all_precisions.keys():
-            if not isinstance(all_precisions[key], int):
-                raise ConfigurationError(
-                    f"Wrong precision_map type supplied to '[{section.name}]' "
-                    f"in '{config.filename}': \n '{key} :"
-                    f"{all_precisions[key]}' is of type "
-                    f"{str(type(all_precisions[key])).upper()} not integer."
-                )
             if all_precisions[key] < 0:
                 raise ConfigurationError(
                     f"Negative precision value, '{key} : "

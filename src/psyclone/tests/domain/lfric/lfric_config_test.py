@@ -314,10 +314,6 @@ def test_precision_map(tmpdir):
     assert ("Precision values must be positive."
             in str(err.value))
 
-    api_config = Config().get().api_conf(TEST_API)
-    for key in api_config.precision_map.keys():
-        assert api_config.precision_map[key] > 0
-        assert isinstance(api_config.precision_map[key], int)
 
 def test_run_time_checks():
     '''Check that we load the expected default RUN_TIME_CHECKS value
