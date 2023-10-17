@@ -85,11 +85,8 @@ def trans(psy):
         # them, but we could:
         # - Inine them
         # - Annotate them with 'omp declare target' and allow to call from gpus
-
-        # TODO 2019: DDPDD in additon has a wp precision symbol that PSyclone
-        # wrongly considers undeclared
         if invoke.name in ("q_sat", "sbc_dcy", "gamma_moist", "cd_neutral_10m",
-                           "psi_h", "psi_m", "DDPDD"):
+                           "psi_h", "psi_m"):
 
             print("Skipping", invoke.name)
             continue
