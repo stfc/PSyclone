@@ -530,7 +530,6 @@ def test_psy_data_node_name_clash(fortran_writer):
     a name clash and must .
 
     '''
-    # Make sure we get a clean copy of the module manager:
     api = "dynamo0.3"
     infrastructure_path = get_base_path(api)
     # Define the path to the ReadKernelData module (which contains functions
