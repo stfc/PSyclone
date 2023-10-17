@@ -41,10 +41,10 @@
 
 from enum import Enum
 from psyclone.errors import PSycloneError, InternalError
-from psyclone.psyir.symbols.interfaces import AutomaticInterface, \
-    SymbolInterface, ArgumentInterface, UnresolvedInterface, ImportInterface, \
-    UnknownInterface, CommonBlockInterface, DefaultModuleInterface, \
-    StaticInterface
+from psyclone.psyir.symbols.interfaces import (
+    AutomaticInterface, SymbolInterface, ArgumentInterface,
+    UnresolvedInterface, ImportInterface, UnknownInterface,
+    CommonBlockInterface, DefaultModuleInterface, StaticInterface)
 
 
 class SymbolError(PSycloneError):

@@ -361,9 +361,10 @@ def test_symbol_resolve_deferred(monkeypatch):
     monkeypatch.setattr(bsym, "get_external_symbol",
                         lambda: DataSymbol("b", INTEGER_SINGLE_TYPE))
     new_sym = bsym.resolve_deferred()
-    # We should have a brand new symbol but with some of the properties
-    # of the original 'bsym' symbol.
-    assert new_sym is not bsym
+    # The symbol should be the same instance as before but with properties and
+    # type obtained from the other table.
+    assert new_sym is bsym
+    assert isinstance(new_sym, DataSymbol)
     assert new_sym.datatype == INTEGER_SINGLE_TYPE
     assert new_sym.visibility == Symbol.Visibility.PRIVATE
     assert new_sym.is_import

@@ -112,16 +112,18 @@ class DataSymbol(TypedSymbol):
 
         if "initial_value" in kwargs:
             new_initial_value = kwargs.pop("initial_value")
-        elif not hasattr(self, '_initial_value'):
+        if not hasattr(self, '_initial_value'):
             # Initialise this attribute if we reach this point and this object
-            # doesn't already have it.
+            # doesn't already have it (which may happen if this symbol has been
+            # specialised from a Symbol).
             self._initial_value = None
 
         if "is_constant" in kwargs:
             new_is_constant_value = kwargs.pop("is_constant")
-        elif not hasattr(self, '_is_constant'):
+        if not hasattr(self, '_is_constant'):
             # At least initialise it if we reach this point and it doesn't
-            # exist
+            # exist (which may happen if this symbol has been specialised from
+            # a Symbol).
             self._is_constant = False
 
         # Record whether an explicit value has been supplied for 'interface'
