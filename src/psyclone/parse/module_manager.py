@@ -77,8 +77,8 @@ class ModuleManager:
         # checked. It is stored as an ordered dict to make it easier to avoid
         # duplicating entries.
         self._remaining_search_paths = OrderedDict()
-
         self._original_search_paths = []
+
         self._ignore_modules = set()
 
     # ------------------------------------------------------------------------
@@ -118,7 +118,7 @@ class ModuleManager:
         module names are based on the filename using `get_modules_in_file()`.
         By default it is assumed that `a_mod.f90` contains the module `a_mod`.
 
-        :param str directory: the directory containing Fortran files
+        :param str directory: the directory containing Fortran files \
             to analyse.
 
         '''
@@ -334,9 +334,9 @@ class ModuleManager:
                     continue
                 # Print a warning if this module is not supposed to be ignored
                 if dep not in self.ignores():
+                    # TODO 2120: allow a choice to abort or ignore.
                     print(f"Module '{module}' contains a dependency to "
                           f"'{dep}', for which we have no dependencies.")
-                # TODO 2120: allow a choice to abort or ignore.
                 dependencies.remove(dep)
 
         while todo:
