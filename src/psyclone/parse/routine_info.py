@@ -158,7 +158,9 @@ class RoutineInfo(RoutineInfoBase):
 
         '''
         if self._var_accesses is None:
-            self._var_accesses = VariablesAccessInfo(self.get_psyir())
+            self._var_accesses = \
+                VariablesAccessInfo(self.get_psyir(),
+                                    options={"USE-ORIGINAL-NAMES": True})
 
         return self._var_accesses
 
@@ -269,6 +271,9 @@ class RoutineInfo(RoutineInfoBase):
                 # so for now set the type as unknown:
                 module_name = sym.interface.container_symbol.name
                 sig = access.get_signature_and_indices()[0]
+                # If a symbol is renamed, use the original name:
+                if sym.interface.orig_name:
+                    sig = Signature(sym.interface.orig_name, sig[1:])
                 self._non_locals.append(("unknown", module_name, sig))
                 continue
 
@@ -291,7 +296,7 @@ class RoutineInfo(RoutineInfoBase):
           which we cannot distinguish till #1314 is done.
         - the name of the module (lowercase). This can be 'None' if no
           module information is available.
-        - the name of the symbol (lowercase)
+        - the Signature of the symbol
         - the access information for the given variable
 
         :returns: the non-local accesses in this routine.
