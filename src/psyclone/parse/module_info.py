@@ -73,7 +73,7 @@ class ModuleInfoError(PSycloneError):
 # ============================================================================
 class ModuleInfo:
     # pylint: disable=too-many-instance-attributes
-    '''This class stores and cahces  information about modules: it stores
+    '''This class stores mostly cached information about modules: it stores
     the original filename, if requested it will read the file and then caches
     the plain text file, and if required it will parse the file, and then
     cache the fparser AST.
