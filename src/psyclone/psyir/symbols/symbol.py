@@ -229,27 +229,27 @@ class Symbol():
     def resolve_deferred(self):
         '''
         Search for the Container in which this Symbol is defined and
-        create and return a symbol of the correct class and type. If the
-        class and type of the looked-up symbol are the same as this one,
-        some specialisations of this method update the differing
-        properties in place rather than create a new symbol.
+        update its properties with the definition found.
         If this symbol does not have an ImportInterface then there is no
         lookup needed and we just return this symbol.
 
-        :returns: a symbol object with the class and type determined by \
+        :returns: a symbol object with the class and type determined by
                   examining the Container from which it is imported.
         :rtype: subclass of :py:class:`psyclone.psyir.symbols.Symbol`
 
         '''
         if self.is_import:
             extern_symbol = self.get_external_symbol()
-            # Create a new symbol object of the same class as the one
-            # we've just looked up but with the interface and visibility
-            # of the current symbol.
-            new_sym = extern_symbol.copy()
-            new_sym.interface = self.interface
-            new_sym.visibility = self.visibility
-            return new_sym
+            init_value = None
+            if extern_symbol.initial_value:
+                init_value = extern_symbol.initial_value.detach()
+            # Specialise the existing Symbol in-place so that all References
+            # to it remain valid.
+            self.specialise(type(extern_symbol),
+                            datatype=extern_symbol.datatype,
+                            is_constant=extern_symbol.is_constant,
+                            interface=self.interface,
+                            initial_value=init_value)
         return self
 
     @property
