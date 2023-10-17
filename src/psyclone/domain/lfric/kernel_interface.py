@@ -364,9 +364,14 @@ class KernelInterface(ArgOrdering):
             symbol_type=LFRicTypes("NumberOfDofsDataSymbol"),
             interface=self._read_access)
 
-        ncells = LFRicTypes("NumberOfCellsDataSymbol")(
-            "ncell_3d", interface=self._read_access)
-        self._symbol_table.add(ncells)
+        try:
+            # We may already have this argument as we add it for each
+            # operator (TODO #2074).
+            ncells = self._symbol_table.lookup("ncell_3d")
+        except KeyError:
+            ncells = LFRicTypes("NumberOfCellsDataSymbol")(
+                "ncell_3d", interface=self._read_access)
+            self._symbol_table.add(ncells)
         self._arglist.append(ncells)
 
         op_arg_symbol = self._symbol_table.find_or_create_tag(
