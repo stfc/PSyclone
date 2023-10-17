@@ -119,8 +119,7 @@ def test_routine_info_var_accesses():
 
 
 # -----------------------------------------------------------------------------
-@pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance",
-                         "mod_man_test_setup_directories")
+@pytest.mark.usefixtures("clear_module_manager_instance")
 def test_routine_info_get_used_symbols_from_modules():
     '''Tests that we get the used symbols from a routine reported correctly.
     '''
@@ -159,8 +158,7 @@ def test_routine_info_get_used_symbols_from_modules():
 
 
 # -----------------------------------------------------------------------------
-@pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance",
-                         "mod_man_test_setup_directories")
+@pytest.mark.usefixtures("clear_module_manager_instance")
 def test_routine_info_non_locals_invokes():
     '''Tests that kernels and builtins are handled correctly. We need to get
     the PSyIR after being processed by PSyclone, so that the invoke-call has
