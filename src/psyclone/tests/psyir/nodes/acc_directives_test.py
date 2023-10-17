@@ -496,10 +496,15 @@ def test_accdatadirective_update_data_movement_clauses(fortran_reader,
     # 'sfactor' should have been removed from the copyin()
     assert ("!$acc data copyin(small_holding,small_holding(3)%grid,"
             "small_holding(3)%grid(jf)%data), copy(sto_tmp)" in output)
-    
 
-def test_accparalleldirective(fortran_writer):
-    # It can be crated
+
+def test_accparalleldirective():
+    '''
+    Test the ACCParallelDirective constructors, property getters and
+    setters and settersm and string methods.
+    '''
+
+    # It can be created
     accpar = ACCParallelDirective()
     assert isinstance(accpar, ACCParallelDirective)
     assert accpar._default_present is True
@@ -518,9 +523,9 @@ def test_accparalleldirective(fortran_writer):
     # The default present value has getter and setter
     accpar.default_present = True
     assert accpar.default_present is True
-    
+
     with pytest.raises(TypeError) as err:
-        accpar.default_present="invalid"
+        accpar.default_present = "invalid"
     assert ("The ACCParallelDirective default_present property must be a "
             "boolean but value 'invalid' has been given." in str(err.value))
 

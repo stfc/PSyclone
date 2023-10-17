@@ -494,7 +494,7 @@ class ACCLoopTrans(ParallelLoopTrans):
     '''
     # The types of node that must be excluded from the section of PSyIR
     # being transformed.
-    excluded_node_types = (PSyDataNode)
+    excluded_node_types = (PSyDataNode,)
 
     def __init__(self):
         # Whether to add the "independent" clause
@@ -1086,11 +1086,6 @@ class ParallelRegionTrans(RegionTrans, metaclass=abc.ABCMeta):
     def __str__(self):
         pass  # pragma: no cover
 
-    @property
-    @abc.abstractmethod
-    def name(self):
-        ''' Returns the name of this transformation as a string.'''
-
     def validate(self, node_list, options=None):
         # pylint: disable=arguments-renamed
         '''
@@ -1477,25 +1472,16 @@ class ACCParallelTrans(ParallelRegionTrans):
                 f"boolean, but found '{default_present}'."
             )
         self._default_present = default_present
-        
+
     def __str__(self):
         return "Insert an OpenACC Parallel region"
 
-    @property
-    def name(self):
-        '''
-        :returns: the name of this transformation as a string.
-        :rtype: str
-        '''
-        return "ACCParallelTrans"
-
-
-    def validate(self, target_nodes, options=None):
+    def validate(self, node_list, options=None):
         '''
         Validate this transformation.
 
-        :param target_nodes: a single Node or a list of Nodes.
-        :type target_nodes: :py:class:`psyclone.psyir.nodes.Node` |
+        :param node_list: a single Node or a list of Nodes.
+        :type node_list: :py:class:`psyclone.psyir.nodes.Node` |
             List[:py:class:`psyclone.psyir.nodes.Node`]
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
@@ -1503,17 +1489,17 @@ class ACCParallelTrans(ParallelRegionTrans):
             type of the nodes enclosed in the region should be tested to
             avoid using unsupported nodes inside a region.
         :param bool options["default_present"]: this flag controls if the
-            inserted directive should include the default_present clause. 
+            inserted directive should include the default_present clause.
 
         '''
-        super().validate(target_nodes, options)
+        super().validate(node_list, options)
         if options is not None and "default_present" in options:
             if not isinstance(options["default_present"], bool):
                 raise TransformationError(
                     f"The provided 'default_present' option must be a "
                     f"boolean, but found '{options['default_present']}'."
                 )
-        
+
     def apply(self, target_nodes, options=None):
         '''
         Encapsulate given nodes with the ACCParallelDirective.
@@ -1527,7 +1513,7 @@ class ACCParallelTrans(ParallelRegionTrans):
             type of the nodes enclosed in the region should be tested to
             avoid using unsupported nodes inside a region.
         :param bool options["default_present"]: this flag controls if the
-            inserted directive should include the default_present clause. 
+            inserted directive should include the default_present clause.
 
         '''
         if not options:
@@ -1555,7 +1541,7 @@ class ACCParallelTrans(ParallelRegionTrans):
         # of the nodes being enclosed and at the original location
         # of the first of these nodes
         node_parent.addchild(directive, index=node_position)
-    
+
 
 class MoveTrans(Transformation):
     '''Provides a transformation to move a node in the tree. For

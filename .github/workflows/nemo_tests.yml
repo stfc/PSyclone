@@ -151,7 +151,7 @@ jobs:
         gist_id: a4049a0fc0a0a11651a5ce6a04d76160
         file_path: ../../../../store_results/performance_history_openacc_kernels_gpu
 
-    # PSyclone, compile and run MetOffice NEMO with OpenACC kernels for GPUs
+    # PSyclone, compile and run MetOffice NEMO with OpenACC loops for GPUs
     - name: NEMO MetOffice OpenACC loops for GPU
       run: |
         source .runner_venv/bin/activate

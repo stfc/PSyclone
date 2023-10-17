@@ -103,7 +103,7 @@ def test_parallel_single_loop_with_no_default_present_clause(parser):
         acc_trans.apply(schedule[0:1], options={"default_present": 3})
     assert ("The provided 'default_present' option must be a boolean, "
             "but found '3'." in str(err.value))
-    
+
     acc_trans.apply(schedule[0:1], options={"default_present": False})
     code = str(psy.gen).lower()
 

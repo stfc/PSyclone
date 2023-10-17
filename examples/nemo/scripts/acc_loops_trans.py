@@ -39,7 +39,6 @@ directives into Nemo code. '''
 
 from utils import insert_explicit_loop_parallelism, normalise_loops, \
     enhance_tree_information, add_profiling
-from psyclone.psyGen import TransInfo
 from psyclone.psyir.nodes import Call, Loop
 from psyclone.transformations import ACCParallelTrans, ACCLoopTrans
 from psyclone.transformations import ACCRoutineTrans
@@ -127,6 +126,6 @@ def trans(psy):
             loop_directive_trans=acc_loop_trans,
             # Collapse is necessary to give GPUs enough parallel items
             collapse=True,
-    )
+        )
 
     return psy
