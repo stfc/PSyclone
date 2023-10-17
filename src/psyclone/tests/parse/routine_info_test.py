@@ -159,6 +159,30 @@ def test_routine_info_get_used_symbols_from_modules():
 
 # -----------------------------------------------------------------------------
 @pytest.mark.usefixtures("clear_module_manager_instance")
+def test_routine_info_get_used_symbols_from_modules_renamed():
+    '''Tests that we get the used symbols from a routine reported correctly
+    when a symbol is renamed, we need to get the original name.
+    '''
+    test_dir = os.path.join(get_base_path("dynamo0.3"), "driver_creation")
+
+    mod_man = ModuleManager.get()
+    mod_man.add_search_path(test_dir)
+
+    mod_info = mod_man.get_module_info("module_renaming_external_var_mod")
+    routine_info = mod_info.get_routine_info("renaming_subroutine")
+    non_locals = routine_info.get_non_local_symbols()
+
+    # This example should report just one non-local module:
+    # use module_with_var_mod, only: renamed_var => module_var_a
+    # It must report the name in the module "module_var_a", not "renamed_var"
+    assert len(non_locals) == 1
+    # Ignore the last element, variable access
+    assert non_locals[0][0:3] == ("unknown", "module_with_var_mod",
+                                  Signature("module_var_a"))
+
+
+# -----------------------------------------------------------------------------
+@pytest.mark.usefixtures("clear_module_manager_instance")
 def test_routine_info_non_locals_invokes():
     '''Tests that kernels and builtins are handled correctly. We need to get
     the PSyIR after being processed by PSyclone, so that the invoke-call has
