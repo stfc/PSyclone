@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2022, Science and Technology Facilities Council.
+# Copyright (c) 2018-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -39,9 +39,9 @@ function via the -s option. Transforms all kernels in the invoke
 to have them compiled for an OpenACC accelerator. '''
 
 from psyclone.domain.common.transformations import KernelModuleInlineTrans
-from psyclone.transformations import ACCParallelTrans, \
-    ACCEnterDataTrans, ACCLoopTrans, ACCRoutineTrans, \
-    KernelImportsToArguments
+from psyclone.transformations import (
+    ACCParallelTrans, ACCEnterDataTrans, ACCLoopTrans, ACCRoutineTrans,
+    KernelImportsToArguments)
 from psyclone.psyir.nodes import Loop
 
 
