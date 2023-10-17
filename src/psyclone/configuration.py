@@ -786,7 +786,7 @@ class APISpecificConfig:
             except ValueError as err:
                 # Raised when split does not return two elements:
                 raise ConfigurationError(
-                    f"Invalid format for mapping: {entry.strip()}") from err
+                    f"Invalid format for mapping: '{entry.strip()}'") from err
             # Try to convert to float or int
             try:
                 if isinstance(value, str):
@@ -797,7 +797,7 @@ class APISpecificConfig:
             except ValueError as err:
                 # Raised when split does not return two elements:
                 raise ConfigurationError(
-                    f"Wrong type supplied to mapping: {value.strip()}"
+                    f"Wrong type supplied to mapping: '{value.strip()}'"
                     f" is not a number.") from err
             # Remove spaces and convert unicode to normal strings in Python2
             return_dict[str(key.strip())] = value

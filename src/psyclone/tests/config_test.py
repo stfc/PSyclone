@@ -647,13 +647,13 @@ def test_numeric_mappings():
         mapping = APISpecificConfig.create_numeric_dict_from_list(
             ["k1:1", "k2=2"]
             )
-    assert "Invalid format for mapping: k2=2" in str(err.value)
+    assert "Invalid format for mapping: 'k2=2'" in str(err.value)
 
     with pytest.raises(ConfigurationError) as err:
         mapping = APISpecificConfig.create_numeric_dict_from_list(
             ["k1:1", "k2:something"]
             )
-    assert ("Wrong type supplied to mapping: something is not a number"
+    assert ("Wrong type supplied to mapping: 'something' is not a number"
             in str(err.value))
 
 

@@ -8222,37 +8222,38 @@ class DynKern(CodedKern):
                     f"dimension(s) according to the LFRic API, but "
                     f"found {len(kern_code_arg.shape)}.")
             for dim_idx, kern_code_arg_dim in enumerate(kern_code_arg.shape):
-                if not isinstance(kern_code_arg_dim, ArrayType.ArrayBounds):
-                    continue
-                if (not isinstance(kern_code_arg_dim.lower, Literal) or
-                        kern_code_arg_dim.lower.value != "1"):
-                    raise GenerationError(
-                        f"All array arguments to LFRic kernels must have lower"
-                        f" bounds of 1 for all dimensions. However, array "
-                        f"'{kern_code_arg.name}' has a lower bound of "
-                        f"'{kern_code_arg_dim.lower}' for dimension {dim_idx}")
-                kern_code_arg_upper_dim = kern_code_arg_dim.upper
-                interface_arg_upper_dim = interface_arg.shape[dim_idx].upper
-                if (isinstance(kern_code_arg_upper_dim, Reference) and
-                        isinstance(interface_arg_upper_dim, Reference) and
-                        isinstance(kern_code_arg_upper_dim.symbol,
-                                   DataSymbol) and
-                        isinstance(interface_arg_upper_dim.symbol,
-                                   DataSymbol)):
-                    # Only check when there is a symbol. Unspecified
-                    # dimensions, dimensions with scalar values,
-                    # offsets, or dimensions that include arithmetic
-                    # are skipped.
-                    try:
-                        self._validate_kernel_code_arg(
-                            kern_code_arg_upper_dim.symbol,
-                            interface_arg_upper_dim.symbol)
-                    except GenerationError as info:
+                # if this `if isinstance` fails, we expect to go to the next
+                # iteration of the for loop.
+                if isinstance(kern_code_arg_dim, ArrayType.ArrayBounds):
+                    if (not isinstance(kern_code_arg_dim.lower, Literal) or
+                            kern_code_arg_dim.lower.value != "1"):
                         raise GenerationError(
-                            f"For dimension {dim_idx+1} in array argument "
-                            f"'{kern_code_arg.name}' to kernel '{self.name}' "
-                            f"the following error was found: "
-                            f"{info.args[0]}") from info
+                            f"All array arguments to LFRic kernels must have lower"
+                            f" bounds of 1 for all dimensions. However, array "
+                            f"'{kern_code_arg.name}' has a lower bound of "
+                            f"'{kern_code_arg_dim.lower}' for dimension {dim_idx}")
+                    kern_code_arg_upper_dim = kern_code_arg_dim.upper
+                    interface_arg_upper_dim = interface_arg.shape[dim_idx].upper
+                    if (isinstance(kern_code_arg_upper_dim, Reference) and
+                            isinstance(interface_arg_upper_dim, Reference) and
+                            isinstance(kern_code_arg_upper_dim.symbol,
+                                    DataSymbol) and
+                            isinstance(interface_arg_upper_dim.symbol,
+                                    DataSymbol)):
+                        # Only check when there is a symbol. Unspecified
+                        # dimensions, dimensions with scalar values,
+                        # offsets, or dimensions that include arithmetic
+                        # are skipped.
+                        try:
+                            self._validate_kernel_code_arg(
+                                kern_code_arg_upper_dim.symbol,
+                                interface_arg_upper_dim.symbol)
+                        except GenerationError as info:
+                            raise GenerationError(
+                                f"For dimension {dim_idx+1} in array argument "
+                                f"'{kern_code_arg.name}' to kernel '{self.name}' "
+                                f"the following error was found: "
+                                f"{info.args[0]}") from info
         else:
             raise InternalError(
                 f"unexpected argument type found for '{kern_code_arg.name}' in"
