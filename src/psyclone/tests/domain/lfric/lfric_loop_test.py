@@ -1016,6 +1016,11 @@ def test_loop_independent_iterations(monkeypatch, dist_mem):
     schedule = psy.invokes.invoke_list[0].schedule
     loop = schedule.walk(DynLoop)[0]
     assert not loop.independent_iterations()
+    dtools = DependencyTools()
+    # Check that we get the expected message back from the DA
+    loop.independent_iterations(dep_tools=dtools)
+    msgs = dtools.get_all_messages()
+    assert msgs[0].code == DTCode.ERROR_WRITE_WRITE_RACE
     # Colour the loop.
     trans = Dynamo0p3ColourTrans()
     trans.apply(loop)
@@ -1029,7 +1034,7 @@ def test_loop_independent_iterations(monkeypatch, dist_mem):
     assert "loop of type 'broken' is not supported" in str(err.value)
     monkeypatch.undo()
     # Test when the DA returns True. Since this currently never happens for an
-    # LFRic kernel we use monkeypatch.
+    # LFRic kernel that operates on cell columns we use monkeypatch.
     monkeypatch.setattr(DependencyTools, "can_loop_be_parallelised",
                         lambda _1, _2, test_all_variables=False,
                         signatures_to_ignore=[]: True)

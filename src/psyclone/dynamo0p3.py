@@ -7349,7 +7349,7 @@ class DynLoop(PSyLoop):
         # The generic DA says that this loop cannot be parallelised. However,
         # we use domain-specific information to qualify this.
         if self.loop_type == "colour":
-            # This loop is either over cells of a single colour or DoFs.
+            # This loop is either over cells of a single colour.
             # According to LFRic rules this is safe to parallelise.
             return True
 
@@ -7371,7 +7371,12 @@ class DynLoop(PSyLoop):
             # have at least one argument with GH_INC access. Therefore, we
             # can simply check whether or not it has such an argument in order
             # to infer the continuity of the space.
-            return not self.has_inc_arg()
+            if self.has_inc_arg():
+                dtools._add_message(
+                    f"Kernel '{self.kernel.name}' performs an INC update",
+                    DTCode.ERROR_WRITE_WRITE_RACE)
+                return False
+            return True
 
         raise InternalError(f"independent_iterations: loop of type "
                             f"'{self.loop_type}' is not supported.")
