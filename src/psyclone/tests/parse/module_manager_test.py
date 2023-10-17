@@ -212,7 +212,8 @@ def test_mod_manager_get_module_info():
     assert list(mod_man._remaining_search_paths) == []
     assert set(mod_man._mod_2_filename.keys()) == set(["a_mod", "b_mod",
                                                        "c_mod", "d_mod",
-                                                       "e_mod"])
+                                                       "e_mod", "g_mod",
+                                                       "error_mod"])
 
     with pytest.raises(FileNotFoundError) as err:
         mod_man.get_module_info("does_not_exist")
@@ -253,6 +254,19 @@ def test_mod_manager_get_all_dependencies_recursively(capsys):
     assert all_e["e_mod"] == set()
     out, _ = capsys.readouterr()
     assert "Could not find module 'netcdf'" in out
+
+    all_c = mod_man.get_all_dependencies_recursively({"c_mod"})
+    assert "a_mod" in all_c
+    assert "b_mod" in all_c
+    assert "c_mod" in all_c
+
+    # Instruct the module manager to ignore a_mod, which means
+    # it should only have b_mod and c_mod in its dependencies:
+    mod_man.ignore_module("a_mod")
+    all_c = mod_man.get_all_dependencies_recursively({"c_mod"})
+    assert "a_mod" not in all_c
+    assert "b_mod" in all_c
+    assert "c_mod" in all_c
 
 
 # ----------------------------------------------------------------------------
@@ -318,7 +332,6 @@ def test_mod_manager_ignore_modules():
     tmp/d2/d4/f_mod.ignore
 
     '''
-    mod_man_test_setup_directories()
     mod_man = ModuleManager.get()
     mod_man.add_search_path("d1")
     mod_man.add_search_path("d2")

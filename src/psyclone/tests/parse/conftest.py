@@ -55,6 +55,8 @@ def mod_man_test_setup_directories():
     tmp/d2/d_mod.X90       : depends on c_mod
     tmp/d2/d4/e_mod.F90    : depends on netcdf
     tmp/d2/d4/f_mod.ignore
+    tmp/d2/g_mod.F90       : no dependencies, contains an interface
+    tmp/d2/error_mod.F90   : invalid Fortran, not parseable
     '''
 
     os.makedirs("d1/d3")
@@ -66,11 +68,12 @@ def mod_man_test_setup_directories():
                                        ("d_mod.X90", "d2", ["c_mod"]),
                                        ("e_mod.F90", "d2/d4", ["netcdf"]),
                                        ("f_mod.ignore", "d2/d4", [])]:
+        base, _ = os.path.splitext(name)
         # Create a list of "use a_mod, only: a_mod_symbol" statements
         uses = "\n".join(f"use {dep}, only: {dep}_symbol"
                          for dep in dependencies)
-        base, _ = os.path.splitext(name)
-        with open(os.path.join(path, name), "w", encoding="utf-8") as f_out:
+        with open(os.path.join(path, name),
+                  "w", encoding="utf-8") as f_out:
             f_out.write(f"module {base}\n{uses}\nend module {base}")
 
     # g_mod contains a generic interface
