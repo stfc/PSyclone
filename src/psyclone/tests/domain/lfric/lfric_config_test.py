@@ -298,7 +298,7 @@ def test_precision_map(tmpdir):
     with pytest.raises(ConfigurationError) as err:
         config(config_file, content)
 
-    assert ("Wrong type supplied to mapping: porky is not a number"
+    assert ("Wrong type supplied to mapping: 'porky' is not a number"
             in str(err.value))
 
     # Test invalid datatype
