@@ -7320,7 +7320,7 @@ class DynLoop(PSyLoop):
 
         '''
         # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.tools import DependencyTools
+        from psyclone.psyir.tools import DependencyTools, DTCode
         if not dep_tools:
             dtools = DependencyTools()
         else:
