@@ -639,10 +639,10 @@ class DynamoOMPParallelLoopTrans(OMPParallelLoopTrans):
         validity checks. Actual transformation is done by the
         :py:class:`base class <OMPParallelLoopTrans>`.
 
-        :param str omp_directive: choose which OpenMP loop directive to use. \
+        :param str omp_directive: choose which OpenMP loop directive to use.
             Defaults to "do".
-        :param str omp_schedule: the OpenMP schedule to use. Must be one of \
-            'runtime', 'static', 'dynamic', 'guided' or 'auto'. Defaults to \
+        :param str omp_schedule: the OpenMP schedule to use. Must be one of
+            'runtime', 'static', 'dynamic', 'guided' or 'auto'. Defaults to
             'static'.
 
     '''
@@ -682,8 +682,14 @@ class DynamoOMPParallelLoopTrans(OMPParallelLoopTrans):
                 raise TransformationError(
                     f"Error in {self.name} transformation. The kernel has an "
                     f"argument with INC access. Colouring is required.")
-
-        super().validate(node, options=options)
+        # As this is a domain-specific loop, we don't perform general
+        # dependence analysis because it is too conservative and doesn't
+        # account for the special steps taken for such a loop at code-
+        # generation time (e.g. the way we ensure variables are given the
+        # correct sharing attributes).
+        local_options = options.copy() if options else {}
+        local_options["force"] = True
+        super().validate(node, options=local_options)
 
 
 class GOceanOMPParallelLoopTrans(OMPParallelLoopTrans):
