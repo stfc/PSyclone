@@ -34,7 +34,10 @@
 	12) PR #2321 for #2319. Refactors DynStencil into a dataclass named
 	LFRicArgStencil.
 
-	13) PR #2365 for #2351. Fix ref2arrayrange allocated bug.
+	13) PR #2361 for #2360. Fix LFRic Loop.independent_iterations with domain
+	information and allow sequential directives on loops with dependencies.
+
+	14) PR #2365 for #2351. Fix ref2arrayrange allocated bug.
 
 release 2.4.0 29th of September 2023
 
