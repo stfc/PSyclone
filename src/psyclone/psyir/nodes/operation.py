@@ -42,8 +42,10 @@ sub-classes.'''
 from abc import ABCMeta
 from enum import Enum
 
-from psyclone.errors import GenerationError
+from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir.nodes.datanode import DataNode
+from psyclone.psyir.symbols.datatypes import (
+    BOOLEAN_TYPE, DeferredType, ScalarType, UnknownType)
 
 
 class Operation(DataNode, metaclass=ABCMeta):
@@ -202,6 +204,9 @@ class BinaryOperation(Operation):
         # Logical Operators
         'AND', 'OR', 'EQV', 'NEQV',
         ])
+    # TODO have a BinaryNumericOperation subclass?
+    _numeric_ops = (Operator.ADD, Operator.SUB, Operator.MUL, Operator.DIV,
+                    Operator.REM, Operator.POW)
     # Textual description of the node.
     _children_valid_format = "DataNode, DataNode"
 
@@ -255,6 +260,47 @@ class BinaryOperation(Operation):
         binary_op.addchild(lhs)
         binary_op.addchild(rhs)
         return binary_op
+
+    @property
+    def datatype(self):
+        '''
+        :returns: the datatype of the result of this BinaryOperation.
+        :rtype: :py:class:`psyclone.psyir.symbols.DataType`
+        '''
+        # If either operand is itself an operation this will recurse.
+        argtypes = (self.children[0].datatype, self.children[1].datatype)
+
+        if self.operator not in self._numeric_ops:
+            # Must be a relational or logical operator.
+            # TODO what about precision?
+            return BOOLEAN_TYPE
+
+        # We have a numerical operation.
+        for atype in argtypes:
+            if isinstance(atype, (UnknownType, DeferredType)):
+                # If we don't know the type of one or both of the arguments
+                # then the game is up.
+                return atype
+            if atype.intrinsic not in (ScalarType.Intrinsic.INTEGER,
+                                       ScalarType.Intrinsic.REAL):
+                raise InternalError(
+                    f"Invalid argument of type '{atype.intrinsic}' to "
+                    f"numerical operation '{self.operator}'")
+
+        if argtypes[0].intrinsic == argtypes[1].intrinsic:
+            if argtypes[0].precision != argtypes[1].precision:
+                raise NotImplementedError(
+                    "Cannot determine the type of an expression involving "
+                    "arguments of the same intrinsic type but different "
+                    "precision.")
+            # Operands are of the same type so that is the type of the
+            # result.
+            return argtypes[0]
+        if argtypes[0].intrinsic == ScalarType.Intrinsic.REAL:
+            return argtypes[0]
+        if argtypes[1].intrinsic == ScalarType.Intrinsic.REAL:
+            return argtypes[1]
+        # Should not be possible to get to here?
 
 
 # For automatic API documentation generation

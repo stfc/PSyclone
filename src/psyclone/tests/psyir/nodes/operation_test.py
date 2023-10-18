@@ -42,10 +42,10 @@ sub-classes.
 '''
 import pytest
 
-from psyclone.psyir.nodes import UnaryOperation, BinaryOperation, \
-    Literal, Reference, Return
-from psyclone.psyir.symbols import DataSymbol, INTEGER_SINGLE_TYPE, \
-    REAL_SINGLE_TYPE
+from psyclone.psyir.nodes import (UnaryOperation, BinaryOperation,
+                                  Literal, Reference, Return)
+from psyclone.psyir.symbols import (DataSymbol, INTEGER_SINGLE_TYPE,
+                                    REAL_SINGLE_TYPE)
 from psyclone.errors import GenerationError
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.tests.utilities import check_links
@@ -168,6 +168,15 @@ def test_binaryoperation_children_validation():
         operation.addchild(literal3)
     assert ("Item 'Literal' can't be child 2 of 'BinaryOperation'. The valid "
             "format is: 'DataNode, DataNode'.") in str(excinfo.value)
+
+
+def test_binaryop_datatype():
+    '''Test the datatype property of BinaryOperation.'''
+    ref1 = Reference(DataSymbol("tmp1", REAL_SINGLE_TYPE))
+    ref2 = Reference(DataSymbol("tmp2", REAL_SINGLE_TYPE))
+    oper = BinaryOperation.Operator.ADD
+    binaryoperation = BinaryOperation.create(oper, ref1, ref2)
+    assert binaryoperation.datatype == REAL_SINGLE_TYPE
 
 
 # Test UnaryOperation class
