@@ -2451,9 +2451,19 @@ class ACCRoutineTrans(Transformation):
         refs = kernel_schedule.walk(Reference)
         for ref in refs:
             if ref.symbol.is_import:
+                # resolve_deferred does nothing if the Symbol type is known.
+                try:
+                    ref.symbol.resolve_deferred()
+                except SymbolError:
+                    # TODO #11 - log that we failed to resolve this Symbol.
+                    pass
+                if (isinstance(ref.symbol, DataSymbol) and
+                        ref.symbol.is_constant):
+                    # An import of a compile-time constant is fine.
+                    continue
                 raise TransformationError(
                     f"{k_or_r} '{node.name}' accesses the symbol "
-                    f"'{ref.symbol.name}' which is imported. If this symbol "
+                    f"'{ref.symbol}' which is imported. If this symbol "
                     f"represents data then it must first be converted to a "
                     f"{k_or_r} argument using the KernelImportsToArguments "
                     f"transformation.")
