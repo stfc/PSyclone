@@ -263,7 +263,7 @@ def _add_precision_symbol(symbol, table):
     :type table: :py:class:`psyclone.psyir.symbols.SymbolTable`
 
     :raises TypeError: if the supplied symbol is not of the correct type.
-    :raises NotImplementedError: if the supplied symbol is not local or \
+    :raises NotImplementedError: if the supplied symbol is not local or
                                  explicitly imported.
 
     '''
@@ -292,7 +292,7 @@ def _add_precision_symbol(symbol, table):
         kind_symbol = symbol.copy()
         kind_symbol.interface = ImportInterface(kind_contr_sym)
         table.add(kind_symbol)
-    elif symbol.is_automatic or symbol.is_modulevar or symbol.is_constant:
+    elif symbol.is_automatic or symbol.is_modulevar or symbol.is_static:
         table.add(symbol.copy())
     else:
         raise NotImplementedError(

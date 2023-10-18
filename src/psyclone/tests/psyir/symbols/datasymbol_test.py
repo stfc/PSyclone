@@ -73,13 +73,14 @@ def test_datasymbol_initialisation():
     assert sym.is_constant
     # Defaults to StaticInterface for a run-time constant.
     assert sym.is_static
-    # Run-time constant can only have StaticInterface or ImportInterface.
+    # Run-time constant can only have StaticInterface, UnresolvedInterface
+    # or ImportInterface.
     with pytest.raises(ValueError) as err:
         _ = DataSymbol('a', INTEGER_DOUBLE_TYPE, is_constant=True,
                        initial_value=1, interface=AutomaticInterface())
-    assert ("A DataSymbol representing a constant must have either a "
-            "StaticInterface or an ImportInterface but 'a' has interface "
-            "'Automatic'" in str(err.value))
+    assert ("A DataSymbol representing a constant must have a Static, Import "
+            "or Unresolved Interface but 'a' has interface 'Automatic'"
+            in str(err.value))
 
     assert isinstance(DataSymbol('a', INTEGER4_TYPE),
                       DataSymbol)

@@ -324,7 +324,8 @@ end module my_mod'''
     with pytest.raises(TransformationError) as err:
         rtrans.validate(routine)
     assert ("Transformation Error: routine 'my_sub' accesses the symbol "
-            "'some_data' which is imported. If this symbol represents data "
+            "'some_data: Symbol<Import(container='other_mod')>' which is "
+            "imported. If this symbol represents data "
             "then it must first be converted to a routine argument using the "
             "KernelImportsToArguments transformation." in str(err.value))
 

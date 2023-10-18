@@ -1484,7 +1484,8 @@ def test_accroutinetrans_module_use():
     rtrans = ACCRoutineTrans()
     with pytest.raises(TransformationError) as err:
         rtrans.apply(kernels[0])
-    assert ("accesses the symbol 'rdt' which is imported. If this symbol "
+    assert ("accesses the symbol 'rdt: Symbol<Import(container='model_mod')>' "
+            "which is imported. If this symbol "
             "represents data then it must first" in str(err.value))
 
 

@@ -136,8 +136,8 @@ class DataSymbol(TypedSymbol):
         if new_initial_value is not None:
             self.initial_value = new_initial_value
 
-        # Now that we know whether or not we have an intial_value, we can
-        # call the is_constant setter.
+        # Now that we know whether or not we have an intial_value and an
+        # interface, we can call the is_constant setter.
         if new_is_constant_value is not None:
             self.is_constant = new_is_constant_value
 
@@ -147,10 +147,11 @@ class DataSymbol(TypedSymbol):
         # one then we check it is valid.
         if self.is_constant:
             if interface_supplied:
-                if not (self.is_static or self.is_import):
+                if not (self.is_static or self.is_import or
+                        self.is_unresolved):
                     raise ValueError(
                         f"A DataSymbol representing a constant must have "
-                        f"either a StaticInterface or an ImportInterface but "
+                        f"a Static, Import or Unresolved Interface but "
                         f"'{self.name}' has interface '{self.interface}'.")
             else:
                 # No explicit interface was supplied and this Symbol represents
@@ -173,10 +174,12 @@ class DataSymbol(TypedSymbol):
             constant.
 
         :raises ValueError: if `value` is True but this symbol does not have an
-            initial value set and does not have an ImportInterface.
+            initial value set and does not have an import or unresolved
+            interface.
 
         '''
-        if value and not self.is_import and self.initial_value is None:
+        if (value and not (self.is_import or self.is_unresolved) and
+                self.initial_value is None):
             raise ValueError(
                 f"DataSymbol '{self.name}' does not have an initial value set "
                 f"and is not imported and therefore cannot be a constant.")
