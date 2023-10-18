@@ -78,127 +78,6 @@ class ArrayRange2LoopTrans(Transformation):
 
     '''
 
-    @staticmethod
-    def same_range(array1, idx1, array2, idx2):
-        '''This method compares the range node at position 'idx1' in array
-        access 'array1' with the range node at position 'idx2' in
-        array access 'array2'.
-
-        The natural place to test the equivalence of two ranges is in
-        the Range class. However, the test required here is slightly
-        different as it is valid to assume that two array slices are
-        the same even if their actual sizes are not known (as the code
-        would raise a runtime exception if this were not the case).
-
-        :param array1: an array node containing a range node at index idx1.
-        :type array1: py:class:`psyclone.psyir.node.ArrayReference`
-        :param int idx1: an index indicating the location of a range \
-            node in array1 (in its children list).
-        :param array2: an array node containing a range node at index idx2.
-        :type array2: py:class:`psyclone.psyir.node.ArrayReference`
-        :param int idx2: an index indicating the location of a range \
-            node in array2 (in its children list).
-
-        :returns: True if the ranges are the same and False if they \
-            are not the same, or if it is not possible to determine.
-        :rtype: bool
-
-        :raises: TypeError if one or more of the arguments are of the \
-            wrong type.
-
-        '''
-        # pylint: disable=too-many-branches
-        if not isinstance(array1, ArrayReference):
-            raise TypeError(
-                f"The first argument to the same_range() method should be an "
-                f"ArrayReference but found '{type(array1).__name__}'.")
-        if not isinstance(idx1, int):
-            raise TypeError(
-                f"The second argument to the same_range() method should be an "
-                f"int but found '{type(idx1).__name__}'.")
-        if not isinstance(array2, ArrayReference):
-            raise TypeError(
-                f"The third argument to the same_range() method should be an "
-                f"ArrayReference but found '{type(array2).__name__}'.")
-        if not isinstance(idx2, int):
-            raise TypeError(
-                f"The fourth argument to the same_range() method should be an "
-                f"int but found '{type(idx2).__name__}'.")
-        if not idx1 < len(array1.children):
-            raise IndexError(
-                f"The value of the second argument to the same_range() method "
-                f"'{idx1}' should be less than the number of dimensions "
-                f"'{len(array1.children)}' in the associated array 'array1'.")
-        if not idx2 < len(array2.children):
-            raise IndexError(
-                f"The value of the fourth argument to the same_range() method "
-                f"'{idx2}' should be less than the number of dimensions "
-                f"'{len(array2.children)}' in the associated array 'array2'.")
-        if not isinstance(array1.children[idx1], Range):
-            raise TypeError(
-                f"The child of the first array argument at the specified index"
-                f" ({idx1}) should be a Range node, but found "
-                f"'{type(array1.children[idx1]).__name__}'.")
-        if not isinstance(array2.children[idx2], Range):
-            raise TypeError(
-                f"The child of the second array argument at the specified "
-                f"index ({idx2}) should be a Range node, but found "
-                f"'{type(array2.children[idx2]).__name__}'.")
-
-        range1 = array1.children[idx1]
-        range2 = array2.children[idx2]
-
-        sym_maths = SymbolicMaths.get()
-        # compare lower bounds
-        if array1.is_lower_bound(idx1) and array2.is_lower_bound(idx2):
-            # Both array1 and array2 use the lbound() intrinsic to
-            # specify the lower bound of the array dimension. We may
-            # not be able to determine what the lower bounds of these
-            # arrays are statically but at runtime the code will fail
-            # if the ranges do not match so we assume that the lower
-            # bounds are consistent.
-            pass
-        elif array1.is_lower_bound(idx1) or array2.is_lower_bound(idx2):
-            # One and only one of array1 and array2 use the lbound()
-            # intrinsic to specify the lower bound of the array
-            # dimension. In this case assume that the ranges are
-            # different (although they could potentially be the same).
-            return False
-        elif not sym_maths.equal(range1.start, range2.start):
-            # Neither array1 nor array2 use the lbound() intrinsic to
-            # specify the lower bound of the array dimension. Try to
-            # determine if they are the same by matching the
-            # text. Use symbolic maths to do the comparison.
-            return False
-
-        # compare upper bounds
-        if array1.is_upper_bound(idx1) and array2.is_upper_bound(idx2):
-            # Both array1 and array2 use the ubound() intrinsic to
-            # specify the upper bound of the array dimension. We may
-            # not be able to determine what the upper bounds of these
-            # arrays are statically but at runtime the code will fail
-            # if the ranges do not match so we assume that the upper
-            # bounds are consistent.
-            pass
-        elif array1.is_upper_bound(idx1) or array2.is_upper_bound(idx2):
-            # One and only one of array1 and array2 use the ubound()
-            # intrinsic to specify the upper bound of the array
-            # dimension. In this case assume that the ranges are
-            # different (although they could potentially be the same).
-            return False
-        elif not sym_maths.equal(range1.stop, range2.stop):
-            # Neither array1 nor array2 use the ubound() intrinsic to
-            # specify the upper bound of the array dimension. Use
-            # symbolic maths to check if they are equal.
-            return False
-
-        # compare steps
-        if not sym_maths.equal(range1.step, range2.step):
-            return False
-
-        # Everything matches.
-        return True
-
     def apply(self, node, options=None):
         '''Apply the ArrayRange2Loop transformation to the specified node. The
         node must be an assignment. The rightmost range node in each array
@@ -322,8 +201,7 @@ class ArrayRange2LoopTrans(Transformation):
                     # loop variables where the ranges are
                     # different, or occur in different index
                     # locations.
-                    if not ArrayRange2LoopTrans.same_range(
-                            node.lhs, lhs_index, array, idx):
+                    if not node.lhs.same_range(lhs_index, array, idx):
                         # Ranges are, or may be, different so we
                         # can't safely replace this range with a
                         # loop iterator.

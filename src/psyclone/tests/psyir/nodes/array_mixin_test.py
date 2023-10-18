@@ -564,3 +564,93 @@ def test_get_outer_range_index_error():
     array = ArrayReference.create(symbol, [Literal("2", INTEGER_TYPE)])
     with pytest.raises(IndexError):
         _ = array.get_outer_range_index()
+
+
+def test_same_range(fortran_reader):
+    '''Test that the same_range method behaves in the expected way.
+
+    '''
+    array1 = fortran_reader.psyir_from_statement("a(:) = 0").lhs
+    array2 = fortran_reader.psyir_from_statement("b(:) = 0").lhs
+
+    with pytest.raises(TypeError) as info:
+        array1.same_range(None, None, None)
+    assert ("The 'index' argument of the same_range() method should be an "
+            "int but found 'NoneType'." in str(info.value))
+
+    with pytest.raises(TypeError) as info:
+        array1.same_range(1, None, None)
+    assert ("The 'array2' argument of the same_range() method should be an "
+            "ArrayMixin but found 'NoneType'." in str(info.value))
+
+    with pytest.raises(TypeError) as info:
+        array1.same_range(1, array2, None)
+    assert ("The fourth argument to the same_range() method should be an "
+            "int but found 'NoneType'." in str(info.value))
+
+    with pytest.raises(IndexError) as info:
+        array1.same_range(1, array2, 2)
+    assert ("The value of the 'index2' argument of the same_range() method "
+            "is '1', but it should be less than the number of dimensions '1' "
+            "in the associated array." in str(info.value))
+
+    with pytest.raises(IndexError) as info:
+        array1.same_range(0, array2, 2)
+    assert ("The value of the fourth argument to the same_range() method "
+            "'2' should be less than the number of dimensions '1' in the "
+            "associated array 'array2'." in str(info.value))
+
+    with pytest.raises(TypeError) as info:
+        array1.same_range(0, array2, 0)
+    assert ("The child of the first array argument at the specified index (0) "
+            "should be a Range node, but found 'DataNode'" in str(info.value))
+
+    with pytest.raises(TypeError) as info:
+        array1.same_range(0, array2, 0)
+    assert ("The child of the second array argument at the specified index "
+            "(0) should be a Range node, but found 'DataNode'"
+            in str(info.value))
+
+    # lower bounds both use lbound, upper bounds both use ubound and
+    # step is the same so everything matches.
+    array_x = create_array_x(SymbolTable())
+    array_x_2 = create_array_x(SymbolTable())
+    assert ArrayRange2LoopTrans.same_range(array_x, 0, array_x_2, 0) is True
+
+    # steps are different
+    tmp = array_x_2.children[0].step
+    array_x_2.children[0].step = Literal("2", INTEGER_TYPE)
+    assert ArrayRange2LoopTrans.same_range(array_x, 0, array_x_2, 0) is False
+
+    # Put step value back to what it was in case it affects the ubound
+    # and lbound tests
+    array_x_2.children[0].step = tmp
+
+    # one of upper bounds uses ubound, other does not
+    tmp1 = array_x_2.children[0].stop
+    array_x_2.children[0].stop = Literal("2", INTEGER_TYPE)
+    assert ArrayRange2LoopTrans.same_range(array_x, 0, array_x_2, 0) is False
+
+    # neither use upper bound and are different
+    tmp2 = array_x.children[0].stop
+    array_x.children[0].stop = Literal("1", INTEGER_TYPE)
+    assert ArrayRange2LoopTrans.same_range(array_x, 0, array_x_2, 0) is False
+
+    # Put upper bounds back to what they were in case they affect the
+    # lbound tests
+    array_x_2.children[0].stop = tmp1
+    array_x.children[0].stop = tmp2
+
+    # One of lower bounds uses lbound, other does not but has the same value.
+    array_x_2.children[0].start = Literal("1", INTEGER_TYPE)
+    assert ArrayRange2LoopTrans.same_range(array_x, 0, array_x_2, 0) is True
+
+    # One of lower bounds uses lbound, other does not and has a
+    # different start value.
+    array_x_2.children[0].start = Literal("2", INTEGER_TYPE)
+    assert ArrayRange2LoopTrans.same_range(array_x, 0, array_x_2, 0) is False
+
+    # Neither use lower bound and are different.
+    array_x.children[0].start = Literal("3", INTEGER_TYPE)
+    assert ArrayRange2LoopTrans.same_range(array_x, 0, array_x_2, 0) is False
+

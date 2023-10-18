@@ -141,12 +141,12 @@ class FortranReader():
         self._processor.process_nodes(fake_parent[0], [parse_tree])
         return fake_parent[0].children[0].detach()
 
-    def psyir_from_statement(self, source_code, symbol_table):
+    def psyir_from_statement(self, source_code: str, symbol_table=None):
         '''Generate the PSyIR tree for the supplied Fortran statement. The
         symbolt table is expected to provide all symbols found in the
         statement.
 
-        :param str source_code: text of the statement to be parsed.
+        :param source_code: text of the statement to be parsed.
         :param symbol_table: the SymbolTable in which to search for any
             symbols that are encountered.
         :type symbol_table: :py.class:`psyclone.psyir.symbols.SymbolTable`
@@ -159,6 +159,8 @@ class FortranReader():
             Fortran statement.
 
         '''
+        if symbol_table is None:
+            symbol_table = SymbolTable()
         if not isinstance(symbol_table, SymbolTable):
             raise TypeError(f"Must be supplied with a valid SymbolTable but "
                             f"got '{type(symbol_table).__name__}'")
