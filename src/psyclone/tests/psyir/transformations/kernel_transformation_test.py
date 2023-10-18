@@ -48,6 +48,7 @@ from psyclone.domain.lfric.lfric_builtins import LFRicBuiltIn
 from psyclone.generator import GenerationError
 from psyclone.psyGen import Kern
 from psyclone.psyir.nodes import Routine, FileContainer
+from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 from psyclone.psyir.transformations import TransformationError
 from psyclone.transformations import (ACCRoutineTrans,
                                       Dynamo0p3KernelConstTrans)
@@ -279,7 +280,7 @@ def test_accroutine_validate_wrong_node_type():
             "Routine but got 'FileContainer'" in str(err.value))
 
 
-def test_accroutine_validate_no_schdule(monkeypatch):
+def test_accroutine_validate_no_schedule(monkeypatch):
     '''
     Test that the validate() method of ACCRoutineTrans catches any errors
     generated when attempting to get the PSyIR of a kernel.
@@ -306,7 +307,8 @@ def test_accroutine_validate_no_schdule(monkeypatch):
 def test_accroutinetrans_validate_no_import(fortran_reader):
     '''
     Test the validate() method of ACCRoutineTrans rejects a kernel that
-    accesses imported data.
+    accesses imported data unless that data is known to be a compile-
+    time constant.
 
     '''
     code = '''\
@@ -328,6 +330,11 @@ end module my_mod'''
             "imported. If this symbol represents data "
             "then it must first be converted to a routine argument using the "
             "KernelImportsToArguments transformation." in str(err.value))
+    # Specialise the imported symbol and make it constant.
+    sym = psyir.children[0].symbol_table.lookup("some_data")
+    sym.specialise(DataSymbol, datatype=INTEGER_TYPE, is_constant=True)
+    # Validation should now pass.
+    rtrans.validate(routine)
 
 
 def test_accroutinetrans_validate_no_import_cblock(fortran_reader):
