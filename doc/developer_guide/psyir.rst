@@ -521,7 +521,12 @@ sections of the reference guide.
         datatype of the operands (e.g. in the select-case canonicalisation).
         A solution to this is to create an abstract interface with appropriate
         implementations for each possible datatype.
-            
+
+Data Type of an Operation Node
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Data type of a Unary operation is always that of its operand??
+Binary operation rules...
 
 IntrinsicCall Nodes
 -------------------
