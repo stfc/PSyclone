@@ -1433,31 +1433,40 @@ class OMPParallelTrans(ParallelRegionTrans):
 
 class ACCParallelTrans(ParallelRegionTrans):
     '''
-    Create an OpenACC parallel region by inserting directives. This parallel
-    region *must* come after an enter-data directive (see `ACCEnterDataTrans`)
-    or within a data region (see `ACCDataTrans`). For example:
+    Create an OpenACC parallel region by inserting an 'acc parallel'
+    directive.
 
-    >>> from psyclone.parse.algorithm import parse
-    >>> from psyclone.psyGen import PSyFactory
-    >>> api = "gocean1.0"
-    >>> ast, invokeInfo = parse(GOCEAN_SOURCE_FILE, api=api)
-    >>> psy = PSyFactory(api).create(invokeInfo)
-    >>>
     >>> from psyclone.psyGen import TransInfo
-    >>> t = TransInfo()
-    >>> ptrans = t.get_trans_name('ACCParallelTrans')
-    >>> dtrans = t.get_trans_name('ACCDataTrans')
+    >>> from psyclone.psyir.frontend.fortran import FortranReader
+    >>> from psyclone.psyir.backend.fortran import FortranWriter
+    >>> from psyclone.psyir.nodes import Loop
+    >>> psyir = FortranReader().psyir_from_source("""
+    ... program do_loop
+    ...     real, dimension(10) :: A
+    ...     integer i
+    ...     do i = 1, 10
+    ...       A(i) = i
+    ...     end do
+    ... end program do_loop
+    ... """)
+    >>> ptrans = TransInfo().get_trans_name('ACCParallelTrans')
     >>>
-    >>> schedule = psy.invokes.get('invoke_0').schedule
-    >>> # Uncomment the following line to see a text view of the schedule
-    >>> # print(schedule.view())
-    >>>
-    >>> # Enclose everything within a single OpenACC PARALLEL region
-    >>> ptrans.apply(schedule.children)
-    >>> # Add an enter-data directive
-    >>> dtrans.apply(schedule)
-    >>> # Uncomment the following line to see a text view of the schedule
-    >>> # print(schedule.view())
+    >>> # Enclose the loop within a OpenACC PARALLEL region
+    >>> # The option{"default_present":False}
+    >>> ptrans.apply(psyir.walk(Loop))
+    >>> print(FortranWriter()(psyir))
+    program do_loop
+      real, dimension(10) :: a
+      integer :: i
+    <BLANKLINE>
+      !$acc parallel default(present)
+      do i = 1, 10, 1
+        a(i) = i
+      enddo
+      !$acc end parallel
+    <BLANKLINE>
+    end program do_loop
+    <BLANKLINE>
 
     '''
     excluded_node_types = (CodeBlock, Return, PSyDataNode,
