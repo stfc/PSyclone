@@ -501,7 +501,7 @@ def test_accdatadirective_update_data_movement_clauses(fortran_reader,
 def test_accparalleldirective():
     '''
     Test the ACCParallelDirective constructors, property getters and
-    setters and settersm and string methods.
+    setters and string methods.
     '''
 
     # It can be created

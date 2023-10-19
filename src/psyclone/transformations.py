@@ -1458,7 +1458,6 @@ class ACCParallelTrans(ParallelRegionTrans):
     >>> ptrans = TransInfo().get_trans_name('ACCParallelTrans')
     >>>
     >>> # Enclose the loop within a OpenACC PARALLEL region
-    >>> # The option{"default_present":False}
     >>> ptrans.apply(psyir.walk(Loop))
     >>> print(FortranWriter()(psyir))
     program do_loop
