@@ -39,6 +39,9 @@
 
 	14) PR #2365 for #2351. Fix ref2arrayrange allocated bug.
 
+	15) PR #2363 for #1254. Fortran FORMAT, ENTRY and IMPLICIT statements
+	produce CodeBlocks instead of losing the statements.
+
 release 2.4.0 29th of September 2023
 
 	1) PR #1758 for #1741. Splits the PSyData read functionality into a
