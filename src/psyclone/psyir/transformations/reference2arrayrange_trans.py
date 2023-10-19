@@ -133,11 +133,11 @@ class Reference2ArrayRangeTrans(Transformation):
         :param options: a dict with options for transformations.
         :type options: Optional[Dict[str, Any]]
 
-        :raises TransformationError: if the node is not a Reference \
-            node or the Reference node not does not reference an array \
+        :raises TransformationError: if the node is not a Reference
+            node or the Reference node not does not reference an array
             symbol.
-        :raises TransformationError: if the Reference node is \
-            within an LBOUND, UBOUND, SIZE or DEALLOCATE intrinsic.
+        :raises TransformationError: if the Reference node is within an
+            inquiry or DEALLOCATE intrinsic.
 
         '''
         # TODO issue #1858. Add support for structures containing arrays.
@@ -150,19 +150,16 @@ class Reference2ArrayRangeTrans(Transformation):
             raise TransformationError(
                 f"The supplied node should be a Reference to a symbol "
                 f"that is an array, but '{node.symbol.name}' is not.")
-        if (isinstance(node.parent, IntrinsicCall) and
-                node.parent.intrinsic in [
-                    IntrinsicCall.Intrinsic.LBOUND,
-                    IntrinsicCall.Intrinsic.UBOUND,
-                    IntrinsicCall.Intrinsic.SIZE]):
+        if isinstance(node.parent, IntrinsicCall) and node.parent.is_inquiry:
             raise TransformationError(
-                "References to arrays within LBOUND, UBOUND or SIZE "
-                "intrinsics should not be transformed.")
+                f"References to arrays passed as arguments to intrinsic "
+                f"enquiry routine '{node.parent.routine.name}' should not be "
+                f"transformed.")
         if (isinstance(node.parent, IntrinsicCall) and
                 node.parent.routine.name in ["DEALLOCATE"]):
             raise TransformationError(LazyString(
-                lambda: f"References to arrays within "
-                f"{node.parent.routine.name} intrinsics should not be "
+                lambda: f"References to arrays passed to "
+                f"'{node.parent.routine.name}' intrinsics should not be "
                 f"transformed, but found:\n {node.parent.debug_string()}"))
 
     def apply(self, node, options=None):
