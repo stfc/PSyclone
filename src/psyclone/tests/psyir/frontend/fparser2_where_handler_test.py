@@ -392,6 +392,8 @@ def test_where_body_containing_sum_with_dim(fortran_reader, fortran_writer):
     temporary and that requires TODO #1799.
     '''
     code = '''\
+    module my_mod
+    contains
     subroutine my_sub(picefr)
       use some_mod
       REAL(wp), INTENT(in), DIMENSION(:,:) ::   picefr
@@ -404,12 +406,14 @@ def test_where_body_containing_sum_with_dim(fortran_reader, fortran_writer):
         zevap_ice(:,:,1) = 0.0
       END WHERE
     end subroutine my_sub
+    end module my_mod
 '''
     psyir = fortran_reader.psyir_from_source(code)
     routine = psyir.walk(Routine)[0]
     assert isinstance(routine[0], CodeBlock)
     output = fortran_writer(psyir)
-    assert "SUM( a_i_last_couple, dim=3 ) / picefr(:,:)" in output
+    assert "WHERE (picefr" in output
+    assert "SUM(a_i_last_couple, dim = 3) / picefr(:, :)" in output
 
 
 def test_where_containing_sum_no_dim(fortran_reader, fortran_writer):
@@ -418,6 +422,8 @@ def test_where_containing_sum_no_dim(fortran_reader, fortran_writer):
     translate a WHERE containing it into canonical form.
     '''
     code = '''\
+    module my_mod
+    contains
     subroutine my_sub(picefr)
       use some_mod
       REAL(wp), INTENT(in), DIMENSION(:,:) ::   picefr
@@ -430,12 +436,13 @@ def test_where_containing_sum_no_dim(fortran_reader, fortran_writer):
         zevap_ice(:,:,1) = 0.0
       END WHERE
     end subroutine my_sub
+    end module my_mod
 '''
     psyir = fortran_reader.psyir_from_source(code)
     routine = psyir.walk(Routine)[0]
-    assert isinstance(routine[0], CodeBlock)
+    assert isinstance(routine[0], Loop)
     output = fortran_writer(psyir)
-    assert "SUM( a_i_last_couple, dim=3 ) / picefr(:,:)" in output
+    assert "SUM(a_i_last_couple) / picefr(widx1,widx2)" in output
 
 
 def test_where_mask_containing_sum_with_dim(fortran_reader):
@@ -596,6 +603,26 @@ def test_where_stmt():
         Fortran2003.Where_Stmt, ["at_i", "rn_amax_2d", "jl", "a_i"])
     assert len(fake_parent.children) == 1
     assert isinstance(fake_parent[0], Loop)
+
+
+def test_where_stmt_no_reduction(fortran_reader, fortran_writer):
+    '''
+    Test that a WHERE statement containing an intrinsic reduction is put
+    into a CodeBlock.
+    '''
+    code = '''\
+    program my_prog
+    integer, dimension(10,10,5) :: a3d
+    integer, dimension(10,10) :: a_i, at_i, rn_amax_2d
+    WHERE( at_i(:,:) > rn_amax_2d(:,:) ) a_i(:,:,jl) = a_i(:,:,jl) * \
+rn_amax_2d(:,:) / sum(a3d, dim=3)
+    end program my_prog'''
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    assert isinstance(routine[0], CodeBlock)
+    output = fortran_writer(psyir)
+    assert ("WHERE (at_i(:, :) > rn_amax_2d(:, :)) a_i(:, :, jl) = "
+            "a_i(:, :, jl) * rn_amax_2d(:, :) / SUM(a3d, dim = 3)" in output)
 
 
 def test_where_ordering(parser):

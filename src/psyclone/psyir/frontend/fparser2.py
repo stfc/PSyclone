@@ -3546,7 +3546,7 @@ class Fparser2Reader():
             WHERE(logical-mask) statement
 
         :param node: node in the fparser2 parse tree representing the WHERE.
-        :type node: :py:class:`fparser.two.Fortran2003.Where_Construct` or \
+        :type node: :py:class:`fparser.two.Fortran2003.Where_Construct` |
                     :py:class:`fparser.two.Fortran2003.Where_Stmt`
         :param parent: parent node in the PSyIR.
         :type parent: :py:class:`psyclone.psyir.nodes.Node`
@@ -3554,11 +3554,42 @@ class Fparser2Reader():
         :returns: the top-level Loop object in the created loop nest.
         :rtype: :py:class:`psyclone.psyir.nodes.Loop`
 
-        :raises InternalError: if the parse tree does not have the expected \
-                               structure.
-        :raises NotImplementedError: if the logical mask of the WHERE does \
-                                     not use array notation.
+        :raises InternalError: if the parse tree does not have the expected
+            structure.
+        :raises NotImplementedError: if the parse tree contains a Fortran
+            intrinsic that performs a reduction but still returns an array.
+        :raises NotImplementedError: if the logical mask of the WHERE does
+            not use array notation.
+
         '''
+        def _contains_intrinsic_reduction(pnodes):
+            '''
+            Utility to check for Fortran intrinsics that perform a reduction
+            but result in an array.
+
+            :param pnodes: node(s) in the parse tree to check.
+            :type pnodes: List[:py:class:`fparser.two.utils.Base`] |
+                          :py:class:`fparser.two.utils.Base`
+
+            :returns: whether or not the supplied node(s) in the parse tree
+                      contain a call to an intrinsic that performs a reduction
+                      into an array.
+            :rtype: bool
+            '''
+            intr_nodes = walk(pnodes,
+                              Fortran2003.Intrinsic_Function_Reference)
+            for intr in intr_nodes:
+                if (intr.children[0].string in
+                        Fortran2003.Intrinsic_Name.array_reduction_names):
+                    # These intrinsics are only a problem if they return an
+                    # array rather than a scalar.
+                    arg_specs = walk(intr.children[1],
+                                     Fortran2003.Actual_Arg_Spec)
+                    if any(spec.children[0].string == 'dim'
+                           for spec in arg_specs):
+                        return True
+            return False
+
         if isinstance(node, Fortran2003.Where_Stmt):
             # We have a Where statement. Check that the parse tree has the
             # expected structure.
@@ -3572,6 +3603,11 @@ class Fparser2Reader():
                     f"Expected the second entry of a Fortran2003.Where_Stmt "
                     f"items tuple to be an Assignment_Stmt but found: "
                     f"{type(node.items[1]).__name__}")
+            if _contains_intrinsic_reduction(node.items[1]):
+                raise NotImplementedError(
+                    f"TODO #1960 - WHERE statements which contain array-"
+                    f"reduction intrinsics are not supported but found "
+                    f"'{node}'")
             was_single_stmt = True
             annotations = ["was_where", "was_single_stmt"]
             logical_expr = [node.items[0]]
@@ -3585,6 +3621,11 @@ class Fparser2Reader():
             if not isinstance(node.content[-1], Fortran2003.End_Where_Stmt):
                 raise InternalError(f"Failed to find closing end where "
                                     f"statement in: {node}")
+            if _contains_intrinsic_reduction(node.content[1:-1]):
+                raise NotImplementedError(
+                    f"TODO #1960 - WHERE constructs which contain an array-"
+                    f"reduction intrinsic are not supported but found "
+                    f"'{node}'")
             was_single_stmt = False
             annotations = ["was_where"]
             logical_expr = node.content[0].items
@@ -3597,21 +3638,11 @@ class Fparser2Reader():
         # the NEMO style where the fact that `a` is an array is made
         # explicit using the colon notation, e.g. `a(:, :) < 0.0`.
 
-        # We do not yet support intrinsics that perform reductions within
-        # the mask expression.
-        intr_nodes = walk(logical_expr,
-                         Fortran2003.Intrinsic_Function_Reference)
-        for intr in intr_nodes:
-            if (intr.children[0].string in
-                    Fortran2003.Intrinsic_Name.array_reduction_names):
-                # These intrinsics are only a problem if they return an
-                # array rather than a scalar.
-                arg_specs = walk(intr.children[1] Fortran2003.Actual_Arg_Spec)
-                # TODO WORKING HERE
-                raise NotImplementedError(
-                    f"WHERE constructs which contain an array reduction "
-                    f"intrinsic in their logical expression are not supported "
-                    f"but found '{logical_expr}'")
+        if _contains_intrinsic_reduction(logical_expr):
+            raise NotImplementedError(
+                f"TODO #1960 - WHERE constructs which contain an array-"
+                f"reduction intrinsic in their logical expression are not "
+                f"supported but found '{logical_expr}'")
 
         # For this initial processing of the logical-array expression we
         # use a temporary parent as we haven't yet constructed the PSyIR
