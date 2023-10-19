@@ -3597,6 +3597,22 @@ class Fparser2Reader():
         # the NEMO style where the fact that `a` is an array is made
         # explicit using the colon notation, e.g. `a(:, :) < 0.0`.
 
+        # We do not yet support intrinsics that perform reductions within
+        # the mask expression.
+        intr_nodes = walk(logical_expr,
+                         Fortran2003.Intrinsic_Function_Reference)
+        for intr in intr_nodes:
+            if (intr.children[0].string in
+                    Fortran2003.Intrinsic_Name.array_reduction_names):
+                # These intrinsics are only a problem if they return an
+                # array rather than a scalar.
+                arg_specs = walk(intr.children[1] Fortran2003.Actual_Arg_Spec)
+                # TODO WORKING HERE
+                raise NotImplementedError(
+                    f"WHERE constructs which contain an array reduction "
+                    f"intrinsic in their logical expression are not supported "
+                    f"but found '{logical_expr}'")
+
         # For this initial processing of the logical-array expression we
         # use a temporary parent as we haven't yet constructed the PSyIR
         # for the loop nest and innermost IfBlock. Once we have a valid
@@ -3610,7 +3626,7 @@ class Fparser2Reader():
             # because the code doesn't use explicit array syntax. At least one
             # variable in the logical-array expression must be an array for
             # this to be a valid WHERE().
-            # TODO #717. Look-up the shape of the array in the SymbolTable.
+            # TODO #1799. Look-up the shape of the array in the SymbolTable.
             raise NotImplementedError(
                 f"Only WHERE constructs using explicit array notation (e.g. "
                 f"my_array(:,:)) are supported but found '{logical_expr}'.")

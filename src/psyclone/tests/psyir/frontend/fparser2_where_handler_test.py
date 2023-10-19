@@ -384,6 +384,83 @@ def test_where_array_subsections():
     assert assign.lhs.children[2].name == "widx2"
 
 
+def test_where_body_containing_sum_with_dim(fortran_reader, fortran_writer):
+    '''
+    Since a SUM(x, dim=y) performs a reduction but produces an array, we need
+    to replace it with a temporary in order to translate the WHERE into
+    canonical form. We can't do that without being able to declare a suitable
+    temporary and that requires TODO #1799.
+    '''
+    code = '''\
+    subroutine my_sub(picefr)
+      use some_mod
+      REAL(wp), INTENT(in), DIMENSION(:,:) ::   picefr
+      REAL(wp), DIMENSION(jpi,jpj,jpl) :: zevap_ice
+      REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:,:,:) :: a_i_last_couple
+      WHERE( picefr(:,:) > 1.e-10 )
+        zevap_ice(:,:,1) = frcv(jpr_ievp)%z3(:,:,1) * &
+                           SUM( a_i_last_couple, dim=3 ) / picefr(:,:)
+      ELSEWHERE
+        zevap_ice(:,:,1) = 0.0
+      END WHERE
+    end subroutine my_sub
+'''
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    assert isinstance(routine[0], CodeBlock)
+    output = fortran_writer(psyir)
+    assert "SUM( a_i_last_couple, dim=3 ) / picefr(:,:)" in output
+
+
+def test_where_containing_sum_no_dim(fortran_reader, fortran_writer):
+    '''
+    Since a SUM without a dim argument always produces a scalar we can
+    translate a WHERE containing it into canonical form.
+    '''
+    code = '''\
+    subroutine my_sub(picefr)
+      use some_mod
+      REAL(wp), INTENT(in), DIMENSION(:,:) ::   picefr
+      REAL(wp), DIMENSION(jpi,jpj,jpl) :: zevap_ice
+      REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:,:,:) :: a_i_last_couple
+      WHERE( picefr(:,:) > SUM(picefr) )
+        zevap_ice(:,:,1) = frcv(jpr_ievp)%z3(:,:,1) * &
+                           SUM( a_i_last_couple ) / picefr(:,:)
+      ELSEWHERE
+        zevap_ice(:,:,1) = 0.0
+      END WHERE
+    end subroutine my_sub
+'''
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    assert isinstance(routine[0], CodeBlock)
+    output = fortran_writer(psyir)
+    assert "SUM( a_i_last_couple, dim=3 ) / picefr(:,:)" in output
+
+
+def test_where_mask_containing_sum_with_dim(fortran_reader):
+    '''Since a SUM(x, dim=y) appearing in a mask expression performs
+    a reduction but produces an array, we need to replace it with a
+    temporary in order to translate the WHERE into canonical form
+    (since the mask expression determines the number of nested loops
+    required). We can't do that without being able to declare a
+    suitable temporary and that requires TODO #1799.
+
+    '''
+    code = '''\
+    subroutine my_sub(v2)
+      REAL(wp), INTENT(in), DIMENSION(:,:) :: v2
+      REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:) :: v3
+      where(sum(v2(:,:), dim=2) > 0.0)
+        v3(:) = 1.0
+      end where
+    end subroutine my_sub
+'''
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    assert isinstance(routine[0], CodeBlock)
+
+
 @pytest.mark.usefixtures("parser")
 @pytest.mark.parametrize("rhs", ["depth", "maxval(depth(:))"])
 @pytest.mark.xfail(reason="#717 need to distinguish scalar and array "
