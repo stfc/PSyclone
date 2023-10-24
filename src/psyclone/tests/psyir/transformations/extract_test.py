@@ -154,16 +154,17 @@ def test_extract_validate():
 
 
 # -----------------------------------------------------------------------------
-def test_extract_distributed_memory():
-    '''Test that distributed memory must be disabled.'''
+def test_extract_halo_exchange():
+    '''Test that if distributed memory is enabled, halo exchanges are
+    not allowed to be included.'''
 
     _, invoke = get_invoke("single_invoke_three_kernels.f90",
                            "gocean1.0", idx=0, dist_mem=True)
     etrans = ExtractTrans()
     with pytest.raises(TransformationError) as excinfo:
-        etrans.validate(invoke.schedule.children[3])
-    assert ("Error in ExtractTrans: Distributed memory is "
-            "not supported.") in str(excinfo.value)
+        etrans.validate(invoke.schedule)
+    assert ("Nodes of type 'GOHaloExchange' cannot be enclosed by a "
+            "ExtractTrans transformation" in str(excinfo.value))
 
 
 # -----------------------------------------------------------------------------

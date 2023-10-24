@@ -45,6 +45,7 @@ from psyclone.domain.lfric import LFRicConstants
 from psyclone.errors import InternalError
 from psyclone.line_length import FortLineLength
 from psyclone.parse import ModuleManager
+from psyclone.psyGen import HaloExchange
 from psyclone.psyGen import InvokeSchedule, Kern
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
@@ -783,11 +784,21 @@ class LFRicExtractDriverCreator:
 
         schedule_copy = invoke_sched.copy()
 
-        # TODO #1992: if required, the following code will
-        # remove halo exchange nodes from the driver.
-        # halo_nodes = schedule_copy.walk(HaloExchange)
-        # for halo_node in halo_nodes:
-        #     halo_node.parent.children.remove(halo_node)
+        # Halo exchanges are not allowed to be included in an exchange region,
+        # so there can never be a HaloExchange node here. But if it should be
+        # useful to include them (e.g. for performance testing of several
+        # kernels), the following code will remove the halo exchange nodes
+        # from the PSyIR to allow creation of a driver (but which would likely
+        # fail due to the missing halo updates).
+        # all_halos = schedule_copy.walk(HaloExchange)[:]
+        # if all_halos:
+        #     print(f"Driver creation warning: There are {len(all_halos)} "
+        #           f"halo exchanges that will be removed.")
+        #     print("The created driver will very likely not reproduce the "
+        #           "results of the original code.")
+        #     for halo in all_halos:
+        #         parent = halo.parent
+        #         parent.children.remove(halo)
 
         original_symbol_table = invoke_sched.symbol_table
         proxy_name_mapping = self._get_proxy_name_mapping(schedule_copy)
