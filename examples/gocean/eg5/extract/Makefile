@@ -43,6 +43,17 @@
 # The dl_esm_inf extract wrapper library:
 #     export EXTRACT_DIR = ../../../../lib/extract/netcdf/dl_esm_inf
 
+MPI?=no
+
+ifeq ($(MPI), yes)
+	# -P suppresses linemarkers
+	FPP?=cpp -P -D_MPI
+	# We need to compile with mpif90 if MPI is enabled
+	F90?=mpif90
+else
+	FPP?=cpp -P
+endif
+
 PSYROOT=../../../..
 include $(PSYROOT)/examples/common.mk
 
@@ -51,7 +62,8 @@ TYPE?=standalone
 
 GENERATED_FILES += *.o *.mod $(NAME)  alg.f90 psy.f90   \
 		  $(DRIVER_INIT).$(TYPE)   $(DRIVER_INIT).f90   \
-		  $(DRIVER_UPDATE).$(TYPE) $(DRIVER_UPDATE).f90
+		  $(DRIVER_UPDATE).$(TYPE) $(DRIVER_UPDATE).f90 \
+		  main.x90
 
 # Location of the infrastucture code (which is a submodule of the
 # PSyclone git repo).
@@ -146,6 +158,9 @@ $(KERNELS):  $(INF_LIB)
 
 %.o: %.f90
 	$(F90) $(F90FLAGS) -c $<
+
+%.x90: %.X90
+	$(FPP) $< >$@
 
 # This target requires that the netcdf (Fortran) development package be
 # installed

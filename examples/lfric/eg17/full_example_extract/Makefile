@@ -39,6 +39,17 @@
 # export F90=gfortran
 # export F90FLAGS="-Wall -g -fcheck=bound"
 
+MPI?=no
+
+ifeq ($(MPI), yes)
+	# -P suppresses linemarkers
+	FPP?=cpp -P -D_MPI
+	# We need to compile with mpif90 if MPI is enabled
+	F90?=mpif90
+else
+	FPP?=cpp -P
+endif
+
 PSYROOT=../../../..
 
 # Set it to 'netcdf' to use the NetCDF writer
@@ -53,7 +64,8 @@ else
 endif
 GENERATED_FILES += driver-main-init driver-main-init.F90       \
 				   driver-main-update driver-main-update.F90   \
-				   *.o *.mod $(EXEC) main_alg.f90 main_psy.f90
+				   *.o *.mod $(EXEC) main_alg.f90 main_psy.f90 \
+				   main.x90
 
 F90 ?= gfortran
 F90FLAGS ?= -Wall -g -ffree-line-length-none
@@ -122,12 +134,15 @@ driver-main-update.o driver-main-init.o:  $(READ_KERNEL_DATA_OBJ)
 	$(F90) $(F90FLAGS) $(LFRIC_INCLUDE_FLAGS) -c $<
 
 # Keep the generated psy and alg files
-.precious: main_psy.f90 main_alg.f90
+.precious: main.x90 main_psy.f90 main_alg.f90
 
 main_alg.f90: main_psy.f90
 
 $(READ_KERNEL_DATA_OBJ):
 	$(MAKE) -C $(EXTRACT_DIR)/..
+
+%.x90:	%.X90
+	$(FPP) $< >$@
 
 %_psy.f90:	%.x90
 	${PSYCLONE} -s ./extract_transform.py       \
