@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2022, Science and Technology Facilities Council.
+# Copyright (c) 2019-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,11 +33,15 @@
 # -----------------------------------------------------------------------------
 # Author A. B. G. Chalk, STFC Daresbury Lab
 # Modified S. Siso, STFC Daresbury Lab
+# Modified J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
 ''' Performs pytest tests on the ExtractNode PSyIR node. '''
 
-from psyclone.psyir.nodes import ExtractNode, Schedule
+import pytest
+
+from psyclone.errors import InternalError
+from psyclone.psyir.nodes import ExtractNode, Node, Schedule
 from psyclone.psyir.symbols import SymbolTable
 
 
@@ -64,3 +68,18 @@ def test_extract_node_equality():
     node1._post_name = "testa"
     node2._post_name = "testb"
     assert node1 != node2
+
+
+# ---------------------------------------------------------------------------
+def test_malformed_extract_node(monkeypatch):
+    ''' Check that we raise the expected error if an ExtractNode does not have
+    a single Schedule node as its child. '''
+    enode = ExtractNode()
+    monkeypatch.setattr(enode, "_children", [])
+    with pytest.raises(InternalError) as err:
+        _ = enode.extract_body
+    assert "malformed or incomplete. It should have a " in str(err.value)
+    monkeypatch.setattr(enode, "_children", [Node(), Node()])
+    with pytest.raises(InternalError) as err:
+        _ = enode.extract_body
+    assert "malformed or incomplete. It should have a " in str(err.value)
