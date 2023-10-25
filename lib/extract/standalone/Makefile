@@ -42,8 +42,14 @@
 
 # ----------- Default "make" values, can be overwritten by the user -----------
 # Compiler and compiler flags
-F90 ?= gfortran
 F90FLAGS ?=
+ifeq ($(MPI), yes)
+       F90 ?= mpif90
+else
+       F90 ?= gfortran
+       F90FLAGS += -DNO_MPI
+endif
+
 # Path to the PSyclone wrapper libraries. It defaults to the relative path to
 # the top-level 'lib' directory. Overwrite for a custom location.
 PSYDATA_LIB_DIR ?= ./../..
