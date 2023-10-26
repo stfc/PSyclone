@@ -51,9 +51,9 @@ from psyclone.f2pygen import (AllocateGen, AssignGen, CallGen, CommentGen,
                               DeclGen, DeallocateGen, DoGen, UseGen)
 from psyclone.parse.algorithm import BuiltInCall
 from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.psyir.nodes import (ArrayReference, Call, Container, Node,
-                                  Loop, OMPDoDirective, Reference, Routine,
-                                  Schedule, Statement)
+from psyclone.psyir.nodes import (ArrayReference, Call, Container, Literal,
+                                  Loop, Node, OMPDoDirective, Reference,
+                                  Routine, Schedule, Statement)
 from psyclone.psyir.symbols import (ArgumentInterface, ArrayType,
                                     ContainerSymbol, DataSymbol, DeferredType,
                                     ImportInterface, INTEGER_TYPE,
