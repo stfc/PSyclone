@@ -336,7 +336,7 @@ contains
             tmp_var_id(1:size(this%var_id)) = this%var_id
             deallocate(this%var_id)
             call move_alloc(tmp_var_id, this%var_id)
-            ! tmp_var_id is deallacted as part of move_alloc
+            ! tmp_var_id is deallocated as part of move_alloc
         endif
         retval = CheckError(nf90_def_var(this%ncid, name, {{NETCDF_TYPE}}, &
                                          this%var_id(this%next_var_index)))
@@ -424,7 +424,7 @@ contains
             tmp_var_id(1:size(this%var_id)) = this%var_id
             deallocate(this%var_id)
             call move_alloc(tmp_var_id, this%var_id)
-            ! tmp_var_id is deallacted as part of move_alloc
+            ! tmp_var_id is deallocated as part of move_alloc
         endif
 
         {% for i in range(1, dim+1) %}
