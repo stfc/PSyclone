@@ -40,6 +40,7 @@
 
 import os
 import pytest
+
 from psyclone.configuration import Config
 from psyclone.domain.lfric import lfric_builtins
 from psyclone.parse.algorithm import parse
