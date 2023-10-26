@@ -51,11 +51,13 @@ from psyclone.f2pygen import (AllocateGen, AssignGen, CallGen, CommentGen,
                               DeclGen, DeallocateGen, DoGen, UseGen)
 from psyclone.parse.algorithm import BuiltInCall
 from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.psyir.nodes import (Node, Schedule, Loop, Statement, Container,
-                                  Routine, Call, OMPDoDirective)
-from psyclone.psyir.symbols import (ArrayType, DataSymbol, RoutineSymbol,
-                                    Symbol, ContainerSymbol, ImportInterface,
-                                    ArgumentInterface, DeferredType)
+from psyclone.psyir.nodes import (ArrayReference, Call, Container, Node,
+                                  Loop, OMPDoDirective, Reference, Routine,
+                                  Schedule, Statement)
+from psyclone.psyir.symbols import (ArgumentInterface, ArrayType,
+                                    ContainerSymbol, DataSymbol, DeferredType,
+                                    ImportInterface, INTEGER_TYPE,
+                                    RoutineSymbol, Symbol)
 from psyclone.psyir.symbols.datatypes import UnknownFortranType
 
 # The types of 'intent' that an argument to a Fortran subroutine
@@ -1107,19 +1109,27 @@ class Kern(Statement):
 
     @property
     def is_reduction(self):
-        '''if this kernel/builtin contains a reduction variable then return
-        True, otherwise return False'''
+        '''
+        :returns: `True` if this kernel/built-in contains a reduction
+        variable and `False` otherwise.
+        :rtype: bool
+
+        '''
         return self._reduction
 
     @property
     def reduction_arg(self):
-        ''' if this kernel/builtin contains a reduction variable then return
-        the variable, otherwise return None'''
+        '''
+        :returns: the reduction variable if this kernel/built-in
+        contains one and `None` otherwise.
+        :rtype: :py:class:`psyclone.psyGen.KernelArgument` or NoneType
+
+        '''
         return self._reduction_arg
 
     @property
     def reprod_reduction(self):
-        '''Determine whether this kernel/builtin is enclosed within an OpenMP
+        '''Determine whether this kernel/built-in is enclosed within an OpenMP
         do loop. If so report whether it has the reproducible flag
         set. Note, this also catches OMPParallelDo Directives but they
         have reprod set to False so it is OK.'''
@@ -1130,13 +1140,16 @@ class Kern(Statement):
 
     @property
     def local_reduction_name(self):
-        '''Generate a local variable name that is unique for the current
+        '''
+        Generate a local variable name that is unique for the current
         reduction argument name. This is used for thread-local
-        reductions with reproducible reductions '''
-        tag = self._reduction_arg.name
-        name = self.ancestor(InvokeSchedule).symbol_table.\
-            find_or_create_tag(tag, "l_" + tag).name
-        return name
+        reductions with reproducible reductions.
+
+        :returns: local reduction variable name.
+        :rtype: str
+
+        '''
+        return "l_" + self.reduction_arg.name
 
     def zero_reduction_variable(self, parent, position=None):
         '''
@@ -1218,7 +1231,10 @@ class Kern(Statement):
         '''
         var_name = self._reduction_arg.name
         local_var_name = self.local_reduction_name
-        local_var_ref = self._reduction_ref(var_name)
+        local_var_ref = self._reduction_reference().name
+        if self.reprod_reduction:
+            local_var_ref = FortranWriter().arrayreference_node(
+                self._reduction_reference())
         reduction_access = self._reduction_arg.access
         try:
             reduction_operator = REDUCTION_OPERATOR_MAPPING[reduction_access]
@@ -1239,22 +1255,35 @@ class Kern(Statement):
         parent.add(do_loop)
         parent.add(DeallocateGen(parent, local_var_name))
 
-    def _reduction_ref(self, name):
-        '''Return the name unchanged if OpenMP is set to be unreproducible, as
-        we will be using the OpenMP reduction clause. Otherwise we
-        will be computing the reduction ourselves and therefore need
-        to store values into a (padded) array separately for each
+    def _reduction_reference(self):
+        '''
+        Return the reference to the reduction variabale if OpenMP is set to
+        be unreproducible, as we will be using the OpenMP reduction clause.
+        Otherwise we will be computing the reduction ourselves and therefore
+        need to store values into a (padded) array separately for each
         thread.
 
-        :param str name: original name of the variable to be reduced.
+        :returns: reference to the variable to be reduced.
+        :rtype: :py:class:`psyclone.psyir.nodes.Reference` or
+                :py:class:`psyclone.psyir.nodes.ArrayReference`
 
         '''
         symtab = self.scope.symbol_table
+        reduction_name = self.reduction_arg.name
         if self.reprod_reduction:
-            idx_name = symtab.lookup_with_tag("omp_thread_index").name
-            local_name = symtab.find_or_create_tag(name, "l_" + name).name
-            return local_name + "(1," + idx_name + ")"
-        return name
+            array_dim = [
+                Literal("1", INTEGER_TYPE),
+                Reference(symtab.lookup_with_tag("omp_thread_index"))]
+            reduction_array = ArrayType(
+                symtab.lookup(reduction_name).datatype, array_dim)
+            local_reduction = DataSymbol(
+                self.local_reduction_name, datatype=reduction_array)
+            symtab.find_or_create_tag(
+                tag=self.local_reduction_name,
+                symbol_type=DataSymbol, datatype=reduction_array)
+            return ArrayReference.create(
+                local_reduction, array_dim)
+        return Reference(symtab.lookup(reduction_name))
 
     @property
     def arg_descriptors(self):
