@@ -398,10 +398,7 @@ def test_lfric_driver_operator():
 
 # ----------------------------------------------------------------------------
 @pytest.mark.parametrize("name, filename",
-                         [("x_innerproduct_x",
-                           "15.9.2_X_innerproduct_X_builtin.f90"),
-                          ("sum_x", "15.14.3_sum_setval_field_builtin.f90"),
-                          ("int_x", "15.10.3_int_X_builtin.f90"),
+                         [("int_x", "15.10.3_int_X_builtin.f90"),
                           ("real_x", "15.28.2_real_X_builtin.f90")
                           ])
 def test_lfric_driver_unsupported_builtins(name, filename, capsys):
