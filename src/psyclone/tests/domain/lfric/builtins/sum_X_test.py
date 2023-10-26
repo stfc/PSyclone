@@ -144,5 +144,5 @@ def test_sum_X_lowering(fortran_writer):
     loop = first_invoke.schedule.walk(Loop)[0]
     code = fortran_writer(loop)
     assert ("do df = loop0_start, loop0_stop, 1\n"
-            "  asum = asum + f1_proxy%data(df)\n"
+            "  asum = asum + f1_data(df)\n"
             "enddo") in code

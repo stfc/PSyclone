@@ -112,7 +112,7 @@ def test_X_innerproduct_X(tmpdir, dist_mem):
             "      asum = 0.0_r_def\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        asum = asum + f1_data(df)*f1_data(df)\n"
+            "        asum = asum + f1_data(df) * f1_data(df)\n"
             "      END DO\n"
             "      !\n")
         assert output_seq in code
@@ -128,7 +128,7 @@ def test_X_innerproduct_X(tmpdir, dist_mem):
             "      asum = 0.0_r_def\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        asum = asum + f1_data(df)*f1_data(df)\n"
+            "        asum = asum + f1_data(df) * f1_data(df)\n"
             "      END DO\n"
             "      global_sum%value = asum\n"
             "      asum = global_sum%get_sum()\n"
@@ -155,5 +155,5 @@ def test_X_innerproduct_X_lowering(fortran_writer):
     loop = first_invoke.schedule.walk(Loop)[0]
     code = fortran_writer(loop)
     assert ("do df = loop0_start, loop0_stop, 1\n"
-            "  asum = asum + f1_proxy%data(df) * f1_proxy%data(df)\n"
+            "  asum = asum + f1_data(df) * f1_data(df)\n"
             "enddo") in code
