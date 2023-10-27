@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
-# Modified: I. Kavcic, L. Turner and O. Brunt, Met Office
+# Modified: I. Kavcic, L. Turner, O. Brunt and J. G. Wallwork, Met Office
 # -----------------------------------------------------------------------------
 
 ''' Performs py.test tests on the psyGen module '''
@@ -65,7 +65,7 @@ from psyclone.psyGen import TransInfo, Transformation, PSyFactory, \
     DataAccess, Kern, Arguments, CodedKern, Argument, GlobalSum, \
     InvokeSchedule, BuiltIn
 from psyclone.psyir.nodes import Assignment, BinaryOperation, Container, \
-    Literal, Node, KernelSchedule, Call, colored
+    Literal, Loop, Node, KernelSchedule, Call, colored
 from psyclone.psyir.symbols import DataSymbol, RoutineSymbol, REAL_TYPE, \
     ImportInterface, ContainerSymbol, Symbol, INTEGER_TYPE, DeferredType, \
     SymbolTable
@@ -2226,3 +2226,24 @@ def test_walk():
 
     binary_op_list = invoke.schedule.walk(BinaryOperation, Kern)
     assert not binary_op_list
+
+
+def test_siblings():
+    '''Tests the siblings functionality.'''
+
+    # This function contains an integer assignment followed by two loops
+    _, invoke = get_invoke("explicit_do_two_loops.f90", "nemo", 0)
+
+    # The initial integer assignment has two other siblings, whereas the
+    # assignments at the deepest levels of the loops have no other siblings
+    for assign in invoke.schedule.walk(Assignment):
+        siblings = assign.siblings
+        assert assign in siblings
+        assert len(siblings) == (1 if assign.ancestor(Loop) else 3)
+
+    # The two outer-most loops have each other as siblings, plus the initial
+    # integer assignment, whereas the inner loops have no other siblings
+    for loop in invoke.schedule.walk(Loop):
+        siblings = loop.siblings
+        assert loop in siblings
+        assert len(siblings) == (1 if loop.ancestor(Loop) else 3)
