@@ -66,6 +66,7 @@ def test_X_innerproduct_Y(tmpdir, dist_mem):
     X(:)*Y(:)'. 3) Also test the 'metadata()' method.
 
     '''
+    # Test metadata
     metadata = LFRicXInnerproductYKern.metadata()
     assert isinstance(metadata, LFRicKernelMetadata)
     _, invoke_info = parse(

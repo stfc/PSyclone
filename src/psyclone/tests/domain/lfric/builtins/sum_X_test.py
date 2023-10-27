@@ -64,6 +64,7 @@ def test_sum_X(tmpdir, dist_mem):
     'sumfld = sum(X(:))'. 3) Also test the 'metadata()' method.
 
     '''
+    # Test metadata
     metadata = LFRicSumXKern.metadata()
     assert isinstance(metadata, LFRicKernelMetadata)
     _, invoke_info = parse(
