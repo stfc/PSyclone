@@ -36,7 +36,7 @@
 # Modified: R. W. Ford, STFC Daresbury Lab
 
 ''' Module containing pytest tests of the LFRicRealXKern built-in
-    (converting integer to real field elements).'''
+    (converting integer-valued to real-valued field elements).'''
 
 import os
 import re
@@ -50,7 +50,6 @@ from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import Loop
 from psyclone.tests.lfric_build import LFRicBuild
 
-
 # Constants
 BASE_PATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(
@@ -62,13 +61,13 @@ API = "dynamo0.3"
 
 
 def test_real_X(tmpdir, monkeypatch, annexed, dist_mem):
-    '''Test that 1) the '__str__' method of 'LFRicRealXKern' returns the
+    '''
+    Test that 1) the '__str__' method of 'LFRicRealXKern' returns the
     expected string and 2) we generate correct code for the built-in
-    operation 'Y = real(X, r_def)' where 'Y' is a real-valued field,
-    'X' is the integer-valued field being converted and the correct
-    kind, 'r_def', is read from the PSyclone configuration file. Test
-    with and without annexed DoFs being computed as this affects the
-    generated code. 3) Also test the 'metadata()' method.
+    operation 'Y = real(X, <r_precision>)' where 'Y' is a real-valued
+    field of kind '<r_precision>', 'X' is the integer-valued field being
+    converted. Test with and without annexed DoFs being computed as this
+    affects the generated code. 3) Also test the 'metadata()' method.
 
     '''
     metadata = LFRicRealXKern.metadata()
@@ -79,15 +78,13 @@ def test_real_X(tmpdir, monkeypatch, annexed, dist_mem):
                                         "15.28.2_real_X_builtin.f90"),
                            api=API)
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
-    # Test string method
+    # Test '__str__' method
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
     assert str(kern) == ("Built-in: real_X (convert an integer-valued to a "
                          "real-valued field)")
     # Test code generation
     code = str(psy.gen)
-
-    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     # First check that the correct field types and constants are used
     output = (
@@ -155,27 +152,36 @@ def test_real_X(tmpdir, monkeypatch, annexed, dist_mem):
             output_dm_2 = output_dm_2.replace("dof_annexed", "dof_owned")
         assert output_dm_2 in code
 
+    # Test compilation of generated code
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
-@pytest.mark.parametrize("kind_name", ["r_solver", "r_tran"])
+
+@pytest.mark.parametrize("kind_name", ["r_solver", "r_tran", "r_bl", "r_phys"])
 def test_real_X_precision(tmpdir, kind_name):
-    '''Test that the built-in picks up and creates correct code for a
-    scalar with precision that is not the default i.e. not
-    'r_def'. Try with two examples to make sure it works in general.
+    '''
+    Test that the built-in picks up and creates correct code for field
+    data with precision that is not the default, i.e. not 'r_def'. Try with
+    all supported LFRic real-valued field precisions to make sure all work.
 
     '''
+    # Note that monkeypatching required to change field type, field proxy
+    # type and the field data precisions is extensive and complicated.
+    # Modifying the test algorithm is easier and more effective.
     with open(os.path.join(BASE_PATH, "15.28.2_real_X_builtin.f90"),
               "r", encoding='utf-8') as alg_file:
         alg_code = alg_file.read()
 
+    # Modify the 'real'-valued field type and precision, and store the
+    # modified temporary algorithm
     pattern = re.compile(r"\bfield_")
     alg_code = re.sub(pattern, f"{kind_name}_field_", alg_code)
-
     os.mkdir(str(tmpdir.join("tmp")))
     tmp_fname = str(tmpdir.join("tmp", f"real_{kind_name}_X_builtin_alg.f90"))
     with open(tmp_fname, "w", encoding='utf-8') as tmp_file:
         tmp_file.write(alg_code)
     tmp_file.close()
 
+    # Read and parse the modified algorithm
     with open(tmp_fname, "r", encoding='utf-8') as alg_file:
         _, invoke_info = parse(alg_file, api=API)
     psy = PSyFactory(API).create(invoke_info)
@@ -191,7 +197,7 @@ def test_real_X_precision(tmpdir, kind_name):
     assert f"TYPE({kind_name}_field_proxy_type) f2_proxy" in code
     assert f"f2_data(df) = REAL(f1_data(df), kind={kind_name})" in code
 
-    # Test compilation
+    # Test compilation of generated code
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 

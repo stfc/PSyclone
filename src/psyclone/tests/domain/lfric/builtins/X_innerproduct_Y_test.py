@@ -36,7 +36,8 @@
 # Modified: R. W. Ford and N. Nobre, STFC Daresbury Lab
 # Modified: by J. Henrichs, Bureau of Meteorology
 
-''' Module containing pytest tests of the LFRicXInnerproductYKern built-in.'''
+''' Module containing pytest tests of the LFRicXInnerproductYKern built-in
+    (inner product of two real-valued fields).'''
 
 import os
 from psyclone.domain.lfric.kernel import LFRicKernelMetadata
@@ -45,7 +46,6 @@ from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import Loop
 from psyclone.tests.lfric_build import LFRicBuild
-
 
 # Constants
 BASE_PATH = os.path.join(
@@ -57,13 +57,11 @@ BASE_PATH = os.path.join(
 API = "dynamo0.3"
 
 
-# ------------- Inner product of two real fields ---------------------------- #
-
-
 def test_X_innerproduct_Y(tmpdir, dist_mem):
-    '''Test that 1) the '__str__' method of 'LFRicXInnerproductYKern'
-    returns the expected string and 2) we generate correct code for
-    the built-in operation which calculates inner product of
+    '''
+    Test that 1) the '__str__' method of 'LFRicXInnerproductYKern'
+    returns the expected string and 2) we generate correct code
+    for the built-in operation which calculates inner product of
     real-valued fields 'X' and 'Y' as 'innprod = innprod +
     X(:)*Y(:)'. 3) Also test the 'metadata()' method.
 
@@ -82,8 +80,6 @@ def test_X_innerproduct_Y(tmpdir, dist_mem):
     assert str(kern) == "Built-in: X_innerproduct_Y (real-valued fields)"
     # Test code generation
     code = str(psy.gen)
-
-    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     output = (
         "      !\n"
@@ -139,6 +135,9 @@ def test_X_innerproduct_Y(tmpdir, dist_mem):
         assert "      USE scalar_mod, ONLY: scalar_type" in code
         assert "      REAL(KIND=r_def), intent(out) :: asum\n" in code
         assert "      TYPE(scalar_type) global_sum\n" in code
+
+    # Test compilation of generated code
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_X_innerproduct_Y_lowering(fortran_writer):

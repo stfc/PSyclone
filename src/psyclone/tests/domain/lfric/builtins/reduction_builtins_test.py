@@ -48,7 +48,6 @@ from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory
 from psyclone.tests.lfric_build import LFRicBuild
 
-
 # Constants
 BASE_PATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(
@@ -62,7 +61,8 @@ API = "dynamo0.3"
 # ------------- Invalid built-in with an integer scalar reduction ----------- #
 
 def test_scalar_int_builtin_error(monkeypatch):
-    '''Test that specifying incorrect meta-data for built-in such that it
+    '''
+    Test that specifying incorrect meta-data for built-in such that it
     claims to perform a reduction into an integer variable raises the
     expected error.
 
@@ -83,7 +83,8 @@ def test_scalar_int_builtin_error(monkeypatch):
 
 
 def test_multi_builtin_single_invoke(tmpdir, monkeypatch, annexed, dist_mem):
-    '''Test that multiple built-ins, including one with reductions,
+    '''
+    Test that multiple built-ins, including one with reductions,
     produce correct code. Also test with and without annexed DoFs
     being computed as this affects the generated code.
 
@@ -95,9 +96,8 @@ def test_multi_builtin_single_invoke(tmpdir, monkeypatch, annexed, dist_mem):
                      "15.18.1_builtins_reduction_fuse_error.f90"),
         api=API)
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
+    # Test code generation
     code = str(psy.gen)
-
-    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     if dist_mem:
         assert (
@@ -202,3 +202,6 @@ def test_multi_builtin_single_invoke(tmpdir, monkeypatch, annexed, dist_mem):
             "      DO df=loop2_start,loop2_stop\n"
             "        f1_data(df) = asum * f1_data(df)\n"
             "      END DO\n") in code
+
+    # Test compilation of generated code
+    assert LFRicBuild(tmpdir).code_compiles(psy)

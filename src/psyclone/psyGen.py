@@ -1122,7 +1122,7 @@ class Kern(Statement):
         '''
         :returns: the reduction variable if this kernel/built-in
         contains one and `None` otherwise.
-        :rtype: :py:class:`psyclone.psyGen.KernelArgument` or NoneType
+        :rtype: :py:class:`psyclone.psyGen.KernelArgument` or `NoneType`
 
         '''
         return self._reduction_arg
@@ -1231,7 +1231,10 @@ class Kern(Statement):
         '''
         var_name = self._reduction_arg.name
         local_var_name = self.local_reduction_name
+        # A non-reproducible reduction requires a single-valued argument
         local_var_ref = self._reduction_reference().name
+        # A reproducible reduction requires multi-valued argument stored
+        # as a padded array separately for each thread
         if self.reprod_reduction:
             local_var_ref = FortranWriter().arrayreference_node(
                 self._reduction_reference())
@@ -1257,7 +1260,7 @@ class Kern(Statement):
 
     def _reduction_reference(self):
         '''
-        Return the reference to the reduction variabale if OpenMP is set to
+        Return the reference to the reduction variable if OpenMP is set to
         be unreproducible, as we will be using the OpenMP reduction clause.
         Otherwise we will be computing the reduction ourselves and therefore
         need to store values into a (padded) array separately for each
@@ -1270,6 +1273,7 @@ class Kern(Statement):
         '''
         symtab = self.scope.symbol_table
         reduction_name = self.reduction_arg.name
+        # Return a multi-valued ArrayReference for a reproducible reduction
         if self.reprod_reduction:
             array_dim = [
                 Literal("1", INTEGER_TYPE),
@@ -1283,6 +1287,7 @@ class Kern(Statement):
                 symbol_type=DataSymbol, datatype=reduction_array)
             return ArrayReference.create(
                 local_reduction, array_dim)
+        # Return a single-valued Reference for a non-reproducible reduction
         return Reference(symtab.lookup(reduction_name))
 
     @property

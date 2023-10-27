@@ -46,7 +46,6 @@ from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import Loop
 from psyclone.tests.lfric_build import LFRicBuild
 
-
 # Constants
 BASE_PATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(
@@ -58,7 +57,8 @@ API = "dynamo0.3"
 
 
 def test_sum_X(tmpdir, dist_mem):
-    '''Test that 1) the '__str__' method of 'LFRicSumXKern' returns the
+    '''
+    Test that 1) the '__str__' method of 'LFRicSumXKern' returns the
     expected string and 2) we generate correct code for the built-in
     operation which sums elements of a real-valued field 'X' as
     'sumfld = sum(X(:))'. 3) Also test the 'metadata()' method.
@@ -77,8 +77,6 @@ def test_sum_X(tmpdir, dist_mem):
     assert str(kern) == "Built-in: sum_X (sum a real-valued field)"
     # Test code generation
     code = str(psy.gen)
-
-    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     output = (
         "      !\n"
@@ -126,6 +124,9 @@ def test_sum_X(tmpdir, dist_mem):
             "      asum = global_sum%get_sum()")
         assert output in code
         assert "      REAL(KIND=r_def), intent(out) :: asum\n" in code
+
+    # Test compilation of generated code
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_sum_X_lowering(fortran_writer):

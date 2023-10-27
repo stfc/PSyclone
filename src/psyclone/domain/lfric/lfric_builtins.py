@@ -2696,14 +2696,12 @@ class LFRicIncMinAXKern(LFRicBuiltIn):
 class LFRicIntXKern(LFRicBuiltIn):
     ''' Converts real-valued field elements to integer-valued
     field elements using the Fortran intrinsic `int` function,
-    `Y = int(X, r_def)`. Here `Y` is an int-valued field and `X`
-    is the real-valued field being converted.
+    `Y = int(X, kind=<i_precision>)`. Here `Y` is an integer-valued
+    field of kind `<i_precision>` and `X` is the real-valued field
+    being converted.
 
     '''
-    # '_datatype' is only required to avoid an exception in '__init__',
-    # it is not required by this class.
-    _datatype = "dummy"
-    _field_type = "int"
+    _datatype = "integer"
     _case_name = "int_X"
 
     @classmethod
@@ -2735,7 +2733,7 @@ class LFRicIntXKern(LFRicBuiltIn):
         arg_refs = self.get_indexed_field_argument_references()
 
         # Create the PSyIR for the kernel:
-        #      proxy0%data(df) = INT(proxy0%data, <i_precision>)
+        #      proxy0%data(df) = INT(proxy0%data, kind=<i_precision>)
         i_precision = arg_refs[0].datatype.partial_datatype.precision
         rhs = IntrinsicCall.create(
             IntrinsicCall.Intrinsic.INT,
@@ -3041,14 +3039,12 @@ class LFRicIntIncMinAXKern(LFRicIncMinAXKern):
 class LFRicRealXKern(LFRicBuiltIn):
     ''' Converts integer-valued field elements to real-valued
     field elements using the Fortran intrinsic `real` function,
-    `Y = real(X, r_def)`. Here `Y` is a real-valued field and `X`
-    is the integer-valued field being converted.
+    `Y = real(X, kind=<r_precision>)`. Here `Y` is a real-valued
+    field of kind `<r_precision>` and `X` is the integer-valued
+    field being converted.
 
     '''
-    # '_datatype' is only required to avoid an exception in '__init__',
-    # it is not required by this class.
-    _datatype = "dummy"
-    _field_type = "real"
+    _datatype = "real"
     _case_name = "real_X"
 
     @classmethod
@@ -3080,7 +3076,7 @@ class LFRicRealXKern(LFRicBuiltIn):
         arg_refs = self.get_indexed_field_argument_references()
 
         # Create the PSyIR for the kernel:
-        #      proxy0%data(df) = REAL(proxy0%data, <r_precision>)
+        #      proxy0%data(df) = REAL(proxy0%data, kind=<r_precision>)
         r_precision = arg_refs[0].datatype.partial_datatype.precision
         rhs = IntrinsicCall.create(
             IntrinsicCall.Intrinsic.REAL,

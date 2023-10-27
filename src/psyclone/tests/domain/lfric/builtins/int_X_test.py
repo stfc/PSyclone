@@ -37,7 +37,7 @@
 # Modified: by J. Henrichs, Bureau of Meteorology
 
 ''' Module containing pytest tests of the LFRicIntXKern built-in
-    (converting real to integer field elements).'''
+    (converting real-valued to integer-valued field elements).'''
 
 import os
 import pytest
@@ -50,7 +50,6 @@ from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import Loop
 from psyclone.tests.lfric_build import LFRicBuild
 
-
 # Constants
 BASE_PATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(
@@ -62,12 +61,12 @@ API = "dynamo0.3"
 
 
 def test_int_X(tmpdir, monkeypatch, annexed, dist_mem):
-    '''Test that 1) the '__str__' method of 'LFRicIntXKern' returns the
+    '''
+    Test that 1) the '__str__' method of 'LFRicIntXKern' returns the
     expected string and 2) we generate correct code for the built-in
-    operation 'Y = int(X, i_def)' where 'Y' is an integer-valued
-    field, 'X' is the real-valued field being converted and the
-    correct kind, 'i_def', is picked up from the associated
-    field. Test with and without annexed DoFs being computed as this
+    operation 'Y = int(X, <i_precision>)' where 'Y' is an integer-valued
+    field of kind '<i_precision>' and 'X' is the real-valued field being
+    converted. Test with and without annexed DoFs being computed as this
     affects the generated code. 3) Also test the 'metadata()' method.
 
     '''
@@ -86,8 +85,6 @@ def test_int_X(tmpdir, monkeypatch, annexed, dist_mem):
                          "integer-valued field)")
     # Test code generation
     code = str(psy.gen)
-
-    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     # First check that the correct field types and constants are used
     output = (
@@ -150,14 +147,19 @@ def test_int_X(tmpdir, monkeypatch, annexed, dist_mem):
             output_dm_2 = output_dm_2.replace("dof_annexed", "dof_owned")
         assert output_dm_2 in code
 
+    # Test compilation of generated code
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
 
 @pytest.mark.parametrize("kind_name", ["i_native", "i_ncdf"])
 def test_int_X_precision(monkeypatch, kind_name):
-    '''Test that the built-in picks up and creates correct code for a
-    scalar with precision that is not the default i.e. not 'i_def'. At
-    the moment there is no other integer precision for field data so we
-    use random integer precisions from 'constants_mod'. However, this
-    does mean that we can't check whether the PSy layer compiles.
+    '''
+    Test that the built-in picks up and creates correct code for field
+    data with precision that is not the default, i.e. not 'i_def'.
+    At the moment there is no other integer precision for field data
+    so we use random integer precisions from 'constants_mod'.
+    However, this does mean that we are not able to check whether the
+    generated PSy layer compiles.
 
     '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -167,13 +169,14 @@ def test_int_X_precision(monkeypatch, kind_name):
     first_invoke = psy.invokes.invoke_list[0]
     table = first_invoke.schedule.symbol_table
     arg = first_invoke.schedule.children[0].loop_body[0].args[0]
+    # Set 'f2_data' to another '<i_precision>'
     sym_kern = table.lookup_with_tag(f"{arg.name}:data")
     monkeypatch.setattr(arg, "_precision", f"{kind_name}")
     monkeypatch.setattr(sym_kern.datatype.partial_datatype.precision,
                         "_name", f"{kind_name}")
-    code = str(psy.gen)
 
     # Test limited code generation (no equivalent field type)
+    code = str(psy.gen)
     assert f"USE constants_mod, ONLY: r_def, {kind_name}" in code
     assert (f"INTEGER(KIND={kind_name}), pointer, dimension(:) :: "
             "f2_data => null()") in code

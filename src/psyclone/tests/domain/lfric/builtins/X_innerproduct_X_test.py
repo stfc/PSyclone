@@ -36,7 +36,8 @@
 # Modified: R. W. Ford and N. Nobre, STFC Daresbury Lab
 # Modified: by J. Henrichs, Bureau of Meteorology
 
-''' Module containing pytest tests of the LFRicXInnerproductXKern built-ins.'''
+''' Module containing pytest tests of the LFRicXInnerproductXKern built-ins
+    (inner product of a real-valued field with itself).'''
 
 import os
 from psyclone.domain.lfric.kernel import LFRicKernelMetadata
@@ -45,7 +46,6 @@ from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import Loop
 from psyclone.tests.lfric_build import LFRicBuild
-
 
 # Constants
 BASE_PATH = os.path.join(
@@ -57,14 +57,12 @@ BASE_PATH = os.path.join(
 API = "dynamo0.3"
 
 
-# ------------- Inner product of a real field with itself ------------------- #
-
-
 def test_X_innerproduct_X(tmpdir, dist_mem):
-    '''Test that 1) the '__str__' method of 'LFRicXInnerproductXKern'
-    returns the expected string and 2) we generate correct code for
-    the built-in operation which calculates inner product of a
-    real-valued field 'X' by itself as 'innprod = innprod +
+    '''
+    Test that 1) the '__str__' method of 'LFRicXInnerproductXKern'
+    returns the expected string and 2) we generate correct code
+    for the built-in operation which calculates inner product of
+    a real-valued field 'X' by itself as 'innprod = innprod +
     X(:)*X(:)'. 3) Also test the 'metadata()' method.
 
     '''
@@ -82,8 +80,6 @@ def test_X_innerproduct_X(tmpdir, dist_mem):
     assert str(kern) == "Built-in: X_innerproduct_X (real-valued field)"
     # Test code generation
     code = str(psy.gen)
-
-    assert LFRicBuild(tmpdir).code_compiles(psy)
 
     output = (
         "      !\n"
@@ -137,6 +133,9 @@ def test_X_innerproduct_X(tmpdir, dist_mem):
         assert "      USE scalar_mod, ONLY: scalar_type" in code
         assert "      REAL(KIND=r_def), intent(out) :: asum\n" in code
         assert "      TYPE(scalar_type) global_sum\n" in code
+
+    # Test compilation of generated code
+    assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_X_innerproduct_X_lowering(fortran_writer):
