@@ -1294,6 +1294,18 @@ class Node():
             nodes.reverse()
         return nodes
 
+    def immediatelyPrecedes(self, node_2):
+        '''
+        :returns: True if this node immediately precedes `node_2`, False \
+                  otherwise
+        :rtype: bool
+        '''
+        return (
+            self.sameParent(node_2)
+            and self in node_2.preceding()
+            and self.position + 1 == node_2.position
+        )
+
     def immediatelyFollows(self, node_1):
         '''
         :returns: True if this node immediately follows `node_1`, False \
