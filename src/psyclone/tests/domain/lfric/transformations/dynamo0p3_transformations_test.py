@@ -50,7 +50,7 @@ from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
 from psyclone.dynamo0p3 import DynLoop, LFRicHaloExchangeStart, \
     LFRicHaloExchangeEnd, LFRicHaloExchange
 from psyclone.errors import GenerationError, InternalError
-from psyclone.psyGen import InvokeSchedule, GlobalSum, BuiltIn
+from psyclone.psyGen import InvokeSchedule, GlobalReduction, BuiltIn
 from psyclone.psyir.nodes import colored, Loop, Schedule, Literal, Directive, \
     OMPDoDirective, ACCEnterDataDirective
 from psyclone.psyir.symbols import AutomaticInterface, ScalarType, ArrayType, \
@@ -3631,7 +3631,7 @@ def test_reprod_view(monkeypatch, annexed, dist_mem):
     ompdefault = colored("OMPDefaultClause", Directive._colour)
     ompprivate = colored("OMPPrivateClause", Directive._colour)
     ompfprivate = colored("OMPFirstprivateClause", Directive._colour)
-    gsum = colored("GlobalSum", GlobalSum._colour)
+    gsum = colored("GlobalReduction", GlobalReduction._colour)
     loop = colored("Loop", Loop._colour)
     call = colored("BuiltIn", BuiltIn._colour)
     sched = colored("Schedule", Schedule._colour)

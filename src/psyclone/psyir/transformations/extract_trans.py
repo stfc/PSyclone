@@ -40,7 +40,7 @@ of an Invoke into a stand-alone application."
 '''
 
 from psyclone.configuration import Config
-from psyclone.psyGen import BuiltIn, Kern, HaloExchange, GlobalSum
+from psyclone.psyGen import BuiltIn, Kern, HaloExchange, GlobalReduction
 from psyclone.psyir.nodes import (CodeBlock, ExtractNode, Loop, Schedule,
                                   Directive, OMPParallelDirective,
                                   ACCParallelDirective)
@@ -73,7 +73,7 @@ class ExtractTrans(PSyDataTrans):
     '''
     # The types of node that this transformation cannot enclose
     excluded_node_types = (CodeBlock, ExtractNode,
-                           HaloExchange, GlobalSum)
+                           HaloExchange, GlobalReduction)
 
     def __init__(self, node_class=ExtractNode):
         # This function is required to provide the appropriate default
@@ -162,7 +162,7 @@ class ExtractTrans(PSyDataTrans):
         # Extracting distributed memory code is not supported due to
         # generation of infrastructure calls to set halos dirty or clean.
         # This constraint covers the presence of HaloExchange and
-        # GlobalSum classes as they are only generated when distributed
+        # GlobalReduction classes as they are only generated when distributed
         # memory is enabled. But in case of the Nemo API, we don't even
         # support distributed memory, so ignore the setting of distributed
         # memory in this case:

@@ -142,7 +142,7 @@ def test_distmem_error(monkeypatch):
     assert ("Nodes of type 'LFRicHaloExchange' cannot be enclosed by a "
             "LFRicExtractTrans transformation") in str(excinfo.value)
 
-    # Try applying Extract transformation to Node(s) containing GlobalSum
+    # Try applying Extract transformation to Node(s) containing GlobalReduction
     # This will set config.distributed_mem to True again.
     _, invoke = get_invoke("15.14.3_sum_setval_field_builtin.f90",
                            DYNAMO_API, idx=0, dist_mem=True)

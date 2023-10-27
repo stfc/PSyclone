@@ -710,7 +710,7 @@ def test_dag_names():
     idx = aref.children[0].detach()
     assert idx.dag_name == "Literal_0"
 
-    # GlobalSum and BuiltIn also have specialised dag_names
+    # GlobalReduction and BuiltIn also have specialised dag_names
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "15.14.3_sum_setval_field_builtin.f90"),
         api="dynamo0.3")
