@@ -64,8 +64,8 @@ def test_real_X(tmpdir, monkeypatch, annexed, dist_mem):
     '''
     Test that 1) the '__str__' method of 'LFRicRealXKern' returns the
     expected string and 2) we generate correct code for the built-in
-    operation 'Y = real(X, <r_precision>)' where 'Y' is a real-valued
-    field of kind '<r_precision>', 'X' is the integer-valued field being
+    operation 'Y = REAL(X, kind=r_<prec>)' where 'Y' is a real-valued
+    field of precision 'r_<prec>', 'X' is the integer-valued field being
     converted. Test with and without annexed DoFs being computed as this
     affects the generated code. 3) Also test the 'metadata()' method.
 

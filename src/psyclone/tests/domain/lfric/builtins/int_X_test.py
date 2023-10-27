@@ -64,8 +64,8 @@ def test_int_X(tmpdir, monkeypatch, annexed, dist_mem):
     '''
     Test that 1) the '__str__' method of 'LFRicIntXKern' returns the
     expected string and 2) we generate correct code for the built-in
-    operation 'Y = int(X, <i_precision>)' where 'Y' is an integer-valued
-    field of kind '<i_precision>' and 'X' is the real-valued field being
+    operation 'Y = INT(X, kind=i_<prec>)' where 'Y' is an integer-valued
+    field of kind 'i_<prec>' and 'X' is the real-valued field being
     converted. Test with and without annexed DoFs being computed as this
     affects the generated code. 3) Also test the 'metadata()' method.
 
@@ -171,7 +171,7 @@ def test_int_X_precision(monkeypatch, kind_name):
     first_invoke = psy.invokes.invoke_list[0]
     table = first_invoke.schedule.symbol_table
     arg = first_invoke.schedule.children[0].loop_body[0].args[0]
-    # Set 'f2_data' to another '<i_precision>'
+    # Set 'f2_data' to another 'i_<prec>'
     sym_kern = table.lookup_with_tag(f"{arg.name}:data")
     monkeypatch.setattr(arg, "_precision", f"{kind_name}")
     monkeypatch.setattr(sym_kern.datatype.partial_datatype.precision,

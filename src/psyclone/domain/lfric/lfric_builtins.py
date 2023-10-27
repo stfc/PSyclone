@@ -2695,10 +2695,10 @@ class LFRicIncMinAXKern(LFRicBuiltIn):
 
 class LFRicIntXKern(LFRicBuiltIn):
     ''' Converts real-valued field elements to integer-valued
-    field elements using the Fortran intrinsic `int` function,
-    `Y = int(X, kind=<i_precision>)`. Here `Y` is an integer-valued
-    field of kind `<i_precision>` and `X` is the real-valued field
-    being converted.
+    field elements using the Fortran intrinsic `INT` function,
+    `Y = INT(X, kind=i_<prec>)`. Here `Y` is an integer-valued
+    field of precision `i_<prec>` and `X` is the real-valued
+    field being converted.
 
     '''
     _datatype = "integer"
@@ -2733,7 +2733,7 @@ class LFRicIntXKern(LFRicBuiltIn):
         arg_refs = self.get_indexed_field_argument_references()
 
         # Create the PSyIR for the kernel:
-        #      proxy0%data(df) = INT(proxy0%data, kind=<i_precision>)
+        #      proxy0%data(df) = INT(proxy0%data, kind=i_<prec>)
         i_precision = arg_refs[0].datatype.partial_datatype.precision
         rhs = IntrinsicCall.create(
             IntrinsicCall.Intrinsic.INT,
@@ -3038,9 +3038,9 @@ class LFRicIntIncMinAXKern(LFRicIncMinAXKern):
 
 class LFRicRealXKern(LFRicBuiltIn):
     ''' Converts integer-valued field elements to real-valued
-    field elements using the Fortran intrinsic `real` function,
-    `Y = real(X, kind=<r_precision>)`. Here `Y` is a real-valued
-    field of kind `<r_precision>` and `X` is the integer-valued
+    field elements using the Fortran intrinsic `REAL` function,
+    `Y = REAL(X, kind=r_<prec>)`. Here `Y` is a real-valued
+    field of precision `r_<prec>` and `X` is the integer-valued
     field being converted.
 
     '''
@@ -3076,7 +3076,7 @@ class LFRicRealXKern(LFRicBuiltIn):
         arg_refs = self.get_indexed_field_argument_references()
 
         # Create the PSyIR for the kernel:
-        #      proxy0%data(df) = REAL(proxy0%data, kind=<r_precision>)
+        #      proxy0%data(df) = REAL(proxy0%data, kind=r_<prec>)
         r_precision = arg_refs[0].datatype.partial_datatype.precision
         rhs = IntrinsicCall.create(
             IntrinsicCall.Intrinsic.REAL,
