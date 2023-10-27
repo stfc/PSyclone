@@ -110,30 +110,6 @@ def get_api(api):
     return api
 
 
-def initialise_reduction_variables(red_call_list, parent):
-    '''
-    Initialise all reduction variables associated with the calls in the call
-    list.
-    :param red_call_list: list of kernel calls that contain \
-                          a reduction variable.
-    :type red_call_list: list of `psyGen.Kern`
-    :param parent: the node in the f2pygen AST to which to add content.
-    :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
-    '''
-    # TODO #2381: It is not clear where this function belongs. For now
-    # it is used in 'Loop.gen_code' and 'OMPParallelDoDirective.gen_code
-    # methods. Also, it does not make sense to zero global min and max
-    # variables before calculating them so this function may be renamed.
-    print("initialise_reduction_variables\n", red_call_list, "\n", parent)
-    if red_call_list:
-        parent.add(CommentGen(parent, ""))
-        parent.add(CommentGen(parent, " Initialise reduction variables"))
-        parent.add(CommentGen(parent, ""))
-        for call in red_call_list:
-            call.zero_reduction_variable(parent)
-        parent.add(CommentGen(parent, ""))
-
-
 def args_filter(arg_list, arg_types=None, arg_accesses=None, arg_meshes=None,
                 include_literals=True):
     '''

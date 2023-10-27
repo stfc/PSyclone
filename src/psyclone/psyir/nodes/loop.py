@@ -39,10 +39,11 @@
 
 ''' This module contains the Loop node implementation.'''
 
+from psyclone.psyir.nodes.global_reduction import GlobalReduction
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.routine import Routine
-from psyclone.psyir.nodes import Schedule, Literal
+from psyclone.psyir.nodes import Literal, Schedule
 from psyclone.psyir.symbols import ScalarType, DataSymbol
 from psyclone.core import AccessType, Signature
 from psyclone.errors import InternalError, GenerationError
@@ -433,10 +434,6 @@ class Loop(Statement):
         :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
 
         '''
-        # Avoid circular dependency
-        # pylint: disable=import-outside-toplevel
-        from psyclone.psyGen import initialise_reduction_variables
-
         def is_unit_literal(expr):
             ''' Check if the given expression is equal to the literal '1'.
 
@@ -449,7 +446,7 @@ class Loop(Statement):
 
         if not self.is_openmp_parallel():
             calls = self.reductions()
-            initialise_reduction_variables(calls, parent)
+            GlobalReduction.initialise_reduction_variables(calls, parent)
 
         # Avoid circular dependency
         # pylint: disable=import-outside-toplevel
@@ -466,7 +463,7 @@ class Loop(Statement):
                         fwriter(self.start_expr),
                         fwriter(self.stop_expr),
                         step_str)
-        # need to add do loop before children as children may want to add
+        # Need to add do loop before children as children may want to add
         # info outside of do loop
         parent.add(do_stmt)
         for child in self.loop_body:

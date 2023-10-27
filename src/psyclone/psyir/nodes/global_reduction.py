@@ -39,6 +39,7 @@
 ''' This module contains the Global Reduction node implementation.'''
 
 from psyclone.core import AccessType
+from psyclone.f2pygen import CommentGen
 from psyclone.psyir.nodes.node import Node
 from psyclone.psyir.nodes.statement import Statement
 
@@ -61,6 +62,7 @@ class GlobalReduction(Statement):
 
     def __init__(self, scalar, parent=None):
         print("init GlobalReduction\n", scalar, "\n", parent)
+        print("\npar parent ", parent.parent, parent.ancestor)
         Node.__init__(self, children=[], parent=parent)
         import copy
         self._scalar = copy.copy(scalar)
@@ -115,6 +117,30 @@ class GlobalReduction(Statement):
         '''
         return f"{self.coloured_name(colour)}[scalar='{self._scalar.name}']"
 
+    @staticmethod
+    def initialise_reduction_variables(red_call_list, parent):
+        '''
+        Initialise all reduction variables associated with the calls in the call
+        list.
+        :param red_call_list: list of kernel calls that contain \
+                              a reduction variable.
+        :type red_call_list: list of `psyGen.Kern`
+        :param parent: the node in the f2pygen AST to which to add content.
+        :type parent: :py:class:`psyclone.f2pygen.SubroutineGen`
+        '''
+        # TODO #2381: It is not clear where this function belongs. For now
+        # it is used in 'Loop.gen_code' and 'OMPParallelDoDirective.gen_code
+        # methods. Also, it does not make sense to zero global min and max
+        # variables before calculating them so this function may be renamed.
+        print("initialise_reduction_variables\n", red_call_list, "\n", parent)
+        print("\npar parent", parent.parent)
+        if red_call_list:
+            parent.add(CommentGen(parent, ""))
+            parent.add(CommentGen(parent, " Initialise reduction variables"))
+            parent.add(CommentGen(parent, ""))
+            for call in red_call_list:
+                call.zero_reduction_variable(parent)
+            parent.add(CommentGen(parent, ""))
 
 # For AutoAPI documentation generation
 __all__ = ['GlobalReduction']

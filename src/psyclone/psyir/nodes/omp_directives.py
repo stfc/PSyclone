@@ -58,6 +58,7 @@ from psyclone.psyir.nodes.assignment import Assignment
 from psyclone.psyir.nodes.call import Call
 from psyclone.psyir.nodes.directive import StandaloneDirective, \
     RegionDirective
+from psyclone.psyir.nodes.global_reduction import GlobalReduction
 from psyclone.psyir.nodes.if_block import IfBlock
 from psyclone.psyir.nodes.intrinsic_call import IntrinsicCall
 from psyclone.psyir.nodes.literal import Literal
@@ -1343,9 +1344,6 @@ class OMPParallelDirective(OMPRegionDirective):
             implemented yet.
 
         '''
-        # pylint: disable=import-outside-toplevel
-        from psyclone.psyGen import initialise_reduction_variables
-
         # We're not doing nested parallelism so make sure that this
         # omp parallel region is not already within some parallel region
         self.validate_global_constraints()
@@ -1369,7 +1367,7 @@ class OMPParallelDirective(OMPRegionDirective):
 
         reprod_red_call_list = self.reductions(reprod=True)
         if reprod_red_call_list:
-            # we will use a private thread index variable
+            # We will use a private thread index variable
             thread_idx = self.scope.symbol_table.\
                 lookup_with_tag("omp_thread_index")
             private_clause.addchild(Reference(thread_idx))
@@ -1380,7 +1378,7 @@ class OMPParallelDirective(OMPRegionDirective):
 
         calls = self.reductions()
 
-        # first check whether we have more than one reduction with the same
+        # First check whether we have more than one reduction with the same
         # name in this Schedule. If so, raise an error as this is not
         # supported for a parallel region.
         names = []
@@ -1393,7 +1391,7 @@ class OMPParallelDirective(OMPRegionDirective):
                     f"reduction variable")
             names.append(name)
 
-        initialise_reduction_variables(calls, parent)
+        GlobalReduction.initialise_reduction_variables(calls, parent)
 
         # pylint: disable=protected-access
         clauses_str = self.default_clause._clause_string
@@ -1409,7 +1407,7 @@ class OMPParallelDirective(OMPRegionDirective):
                                 f"{clauses_str}"))
 
         if reprod_red_call_list:
-            # add in a local thread index
+            # Add in a local thread index
             parent.add(UseGen(parent, name="omp_lib", only=True,
                               funcnames=["omp_get_thread_num"]))
             parent.add(AssignGen(parent, lhs=thread_idx,
