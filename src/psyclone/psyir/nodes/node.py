@@ -1294,6 +1294,18 @@ class Node():
             nodes.reverse()
         return nodes
 
+    def immediatelyFollows(self, node_1):
+        '''
+        :returns: True if this node immediately follows `node_1`, False \
+                  otherwise
+        :rtype: bool
+        '''
+        return (
+            self.sameParent(node_1)
+            and self in node_1.following()
+            and self.position == node_1.position + 1
+        )
+
     def coded_kernels(self):
         '''
         Returns a list of all of the user-supplied kernels (as opposed to
