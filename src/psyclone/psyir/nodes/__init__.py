@@ -35,6 +35,7 @@
 # Modified: A. R. Porter, R. W. Ford and N. Nobre, STFC Daresbury Lab
 # Modified: J. Henrichs, Bureau of Meteorology
 # Modified: A. B. G. Chalk, STFC Daresbury Lab
+# Modified: I. Kavcic, Met Office
 # -----------------------------------------------------------------------------
 
 ''' PSyIR nodes package module '''
@@ -62,6 +63,7 @@ from psyclone.psyir.nodes.intrinsic_call import IntrinsicCall
 from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.nodes.loop import Loop
 from psyclone.psyir.nodes.extract_node import ExtractNode
+from psyclone.psyir.nodes.global_reduction import GlobalReduction
 from psyclone.psyir.nodes.kernel_schedule import KernelSchedule
 from psyclone.psyir.nodes.member import Member
 from psyclone.psyir.nodes.nan_test_node import NanTestNode
@@ -117,6 +119,7 @@ __all__ = [
         'Container',
         'DataNode',
         'FileContainer',
+        'GlobalReduction',
         'IfBlock',
         'IntrinsicCall',
         'Literal',
