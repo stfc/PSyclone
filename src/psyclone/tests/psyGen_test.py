@@ -2219,6 +2219,14 @@ def test_walk():
     binary_op_list = invoke.schedule.walk(BinaryOperation)
     assert len(binary_op_list) == 3
 
+    # Test depth restriction
+    depth_12_list = invoke.schedule.walk(BinaryOperation, depth=12)
+    assert len(depth_12_list) == 1
+    depth_13_list = invoke.schedule.walk(BinaryOperation, depth=13)
+    assert len(depth_13_list) == 1
+    depth_14_list = invoke.schedule.walk(BinaryOperation, depth=14)
+    assert len(depth_14_list) == 1
+
     # Now the same tests, but stop at any Kern --> no assignment
     # or binary operation should be found"
     assignment_list = invoke.schedule.walk(Assignment, Kern)
