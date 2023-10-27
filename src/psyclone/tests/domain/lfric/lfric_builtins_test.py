@@ -52,7 +52,7 @@ from psyclone.core import Signature, VariablesAccessInfo
 from psyclone.domain.lfric import lfric_builtins, LFRicConstants
 from psyclone.domain.lfric.kernel import LFRicKernelMetadata, FieldArgMetadata
 from psyclone.domain.lfric.lfric_builtins import (
-    LFRicBuiltInCallFactory, LFRicBuiltIn, LFRicXKern)
+    LFRicBuiltInCallFactory, LFRicBuiltIn)
 from psyclone.dynamo0p3 import DynKernelArgument
 from psyclone.errors import GenerationError, InternalError
 from psyclone.parse.algorithm import BuiltInCall, parse
@@ -119,20 +119,6 @@ class Dummy3(Dummy2):
     _case_name = "test"
 
 
-class XKernDummy(LFRicXKern):
-    '''Utility class to test that LFRicXKern raises the expected
-    exception.
-
-    '''
-    _datatype = "xkerndummy"
-
-    @staticmethod
-    def metadata():
-        return None
-
-    def __str__(self):
-        return "dummy"
-
 # ------------- Tests for built-ins methods and arguments ------------------- #
 
 
@@ -198,32 +184,6 @@ def test_lfric_builtin_fs_descriptors():
     '''
     instance = Dummy2()
     assert not instance.fs_descriptors
-
-
-# pylint: disable=invalid-name
-def test_lfricxkern_abstract():
-    '''Test that the 'LFRicXKern' class is abstract and that it sets its
-    internal '_field_type' variable to 'None'.
-
-    '''
-    with pytest.raises(TypeError) as error:
-        # pylint: disable=abstract-class-instantiated
-        lfric_builtins.LFRicXKern()
-    assert ("Can't instantiate abstract class LFRicXKern with abstract "
-            "method" in str(error.value))
-    assert lfric_builtins.LFRicXKern._field_type is None
-
-
-def test_lfricxkern_exception():
-    '''Test that 'LFRicXKern' raises an exception if it is subclassed and
-    the subclass does not set the variable '_field_type' to a value.
-
-    '''
-    dummy = XKernDummy()
-    with pytest.raises(InternalError) as info:
-        dummy.gen_code(None)
-    assert ("Subclasses of LFRicXKern must set the _field_type variable "
-            "to the output datatype." in str(info.value))
 
 
 def test_lfricbuiltin_missing_defs(monkeypatch):
