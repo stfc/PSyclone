@@ -126,7 +126,7 @@ def test_int_X(tmpdir, monkeypatch, annexed, dist_mem):
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f2_data(df) = int(f1_data(df), i_def)\n"
+            "        f2_data(df) = INT(f1_data(df), kind=i_def)\n"
             "      END DO\n"
             "      !\n"
             "    END SUBROUTINE invoke_0\n")
@@ -138,7 +138,7 @@ def test_int_X(tmpdir, monkeypatch, annexed, dist_mem):
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f2_data(df) = int(f1_data(df), i_def)\n"
+            "        f2_data(df) = INT(f1_data(df), kind=i_def)\n"
             "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
@@ -151,26 +151,33 @@ def test_int_X(tmpdir, monkeypatch, annexed, dist_mem):
         assert output_dm_2 in code
 
 
-def test_int_X_precision(monkeypatch):
+@pytest.mark.parametrize("kind_name", ["i_native", "i_ncdf"])
+def test_int_X_precision(monkeypatch, kind_name):
     '''Test that the built-in picks up and creates correct code for a
     scalar with precision that is not the default i.e. not 'i_def'. At
-    the moment there is no other integer precision so we make one up
-    and use monkeypatch to get round any error checks. However, this
-    does mean that we can't check whether it compiles. 3) Also test
-    the 'metadata()' method.
+    the moment there is no other integer precision for field data so we
+    use random integer precisions from 'constants_mod'. However, this
+    does mean that we can't check whether the PSy layer compiles.
 
     '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.10.3_int_X_builtin.f90"),
                            api=API)
     psy = PSyFactory(API).create(invoke_info)
-    # Test '__str__' method
     first_invoke = psy.invokes.invoke_list[0]
-    kern = first_invoke.schedule.children[0].loop_body[0]
-    monkeypatch.setattr(kern.args[0], "_precision", "i_solver")
+    table = first_invoke.schedule.symbol_table
+    arg = first_invoke.schedule.children[0].loop_body[0].args[0]
+    sym_kern = table.lookup_with_tag(f"{arg.name}:data")
+    monkeypatch.setattr(arg, "_precision", f"{kind_name}")
+    monkeypatch.setattr(sym_kern.datatype.partial_datatype.precision,
+                        "_name", f"{kind_name}")
     code = str(psy.gen)
-    assert "USE constants_mod, ONLY: r_def, i_solver, i_def" in code
-    assert "f2_data(df) = int(f1_data(df), i_solver)" in code
+
+    # Test limited code generation (no equivalent field type)
+    assert f"USE constants_mod, ONLY: r_def, {kind_name}" in code
+    assert (f"INTEGER(KIND={kind_name}), pointer, dimension(:) :: "
+            "f2_data => null()") in code
+    assert f"f2_data(df) = INT(f1_data(df), kind={kind_name})" in code
 
 
 def test_int_X_lowering(fortran_writer):
@@ -185,9 +192,9 @@ def test_int_X_lowering(fortran_writer):
                      distributed_memory=False).create(invoke_info)
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
-    #kern.lower_to_language_level()
-    #loop = first_invoke.schedule.walk(Loop)[0]
-    #code = fortran_writer(loop)
-    #assert ("do df = loop0_start, loop0_stop, 1\n"
-    #        "  asum = asum + f1_data(df)\n"
-    #        "enddo") in code
+    kern.lower_to_language_level()
+    loop = first_invoke.schedule.walk(Loop)[0]
+    code = fortran_writer(loop)
+    assert ("do df = loop0_start, loop0_stop, 1\n"
+            "  f2_data(df) = INT(f1_data(df), kind=i_def)\n"
+            "enddo") in code
