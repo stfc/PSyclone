@@ -1072,7 +1072,7 @@ class Node():
             return False
         return self.parent is node_2.parent
 
-    def walk(self, my_type, stop_type=None):
+    def walk(self, my_type, stop_type=None, depth=None):
         ''' Recurse through the PSyIR tree and return all objects that are
         an instance of 'my_type', which is either a single class or a tuple
         of classes. In the latter case all nodes are returned that are
@@ -1086,6 +1086,8 @@ class Node():
         :type my_type: type | Tuple[type, ...]
         :param stop_type: class(es) at which recursion is halted (optional).
         :type stop_type: Optional[type | Tuple[type, ...]]
+        :param depth: the depth value the instances must have (optional).
+        :type depth: Optional[type | int]
 
         :returns: list with all nodes that are instances of my_type \
                   starting at and including this node.
@@ -1102,6 +1104,10 @@ class Node():
             return local_list
         for child in self.children:
             local_list += child.walk(my_type, stop_type)
+
+        # Restrict to nodes of specified depth.
+        if depth:
+            local_list = [node for node in local_list if node.depth == depth]
         return local_list
 
     def ancestor(self, my_type, excluding=None, include_self=False,
