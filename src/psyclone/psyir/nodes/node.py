@@ -1104,6 +1104,48 @@ class Node():
             local_list += child.walk(my_type, stop_type)
         return local_list
 
+    def split_consecutive(self, my_type, stop_type=None):
+        '''
+        Recurse through the PSyIR tree and return lists of objects that are
+        instances of 'my_type' and immediately follow one another. Here
+        'my_type' is either a single class or a tuple of classes. In the latter
+        case all nodes are returned that are instances of any classes in the
+        tuple. The recursion into the tree is stopped if an instance of
+        'stop_type' (which is either a single class or a tuple of classes) is
+        found.
+
+        :param my_type: the class(es) for which the instances are collected.
+        :type my_type: type | Tuple[type, ...]
+        :param stop_type: class(es) at which recursion is halted (optional).
+        :type stop_type: Optional[type | Tuple[type, ...]]
+
+        :returns: list of lists, each of which containing nodes that are \
+                  instances of my_type and immediately follow one another, \
+                  starting at and including this node.
+        :rtype: List[List[:py:class:`psyclone.psyir.nodes.Node`]]
+        '''
+
+        # Separate nodes by depth
+        by_depth = {}
+        for node in self.walk(my_type, stop_type=stop_type):
+            depth = node.depth
+            if depth not in by_depth:
+                by_depth[depth] = []
+            by_depth[depth].append(node)
+
+        # Determine lists of consecutive nodes
+        global_list = []
+        for depth, local_list in sorted(by_depth.items()):
+            block = []
+            for node in local_list:
+                if len(block) == 0 or node.immediatelyFollows(block[-1]):
+                    block.append(node)
+                else:
+                    global_list.append(block)
+                    block = [node]
+            global_list.append(block)
+        return global_list
+
     def ancestor(self, my_type, excluding=None, include_self=False,
                  limit=None, shared_with=None):
         '''
