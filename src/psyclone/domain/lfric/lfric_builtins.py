@@ -51,7 +51,7 @@ from psyclone.domain.lfric.kernel import (
     LFRicKernelMetadata, FieldArgMetadata, ScalarArgMetadata,
     FieldVectorArgMetadata)
 from psyclone.errors import InternalError
-from psyclone.f2pygen import AssignGen, PSyIRGen
+from psyclone.f2pygen import PSyIRGen
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import BuiltIn
 from psyclone.psyir.nodes import (ArrayReference, Assignment, BinaryOperation,
@@ -506,61 +506,6 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
         '''
         return [arg.psyir_expression() for arg in self._arguments.args
                 if arg.is_scalar]
-
-
-class LFRicXKern(LFRicBuiltIn, metaclass=abc.ABCMeta):
-    '''Abstract class providing functionaliy to convert a field of
-    one type to a field of another type. If [Datatype] (stored in
-    _field_type) is the particular datatype to convert to and
-    [Precision] is the precision of this datatype then the result is
-    `Y = [Datatype](X, [Precision])`. Here `Y` is a field of type
-    [Datatype] and `X` is a field with a different type. The correct
-    [Precision] is picked up from the associated argument.
-
-    '''
-    _field_type = None
-
-    def gen_code(self, parent):
-        '''Generates LFRic API specific PSy code for a call to the
-        [datatype]_X built-in.
-
-        :param parent: Node in f2pygen tree to which to add call.
-        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
-
-        :raises InternalError: if the _field_type variable is not set \
-            correctly.
-
-        '''
-        # Subclass must set _field_type
-        if not self._field_type:
-            raise InternalError(
-                "Subclasses of LFRicXKern must set the _field_type variable "
-                "to the output datatype.")
-        table = self.scope.symbol_table
-        # Convert all the elements of a field of one type to the
-        # corresponding elements of a field of another type using
-        # the PSyclone configuration for the correct 'kind'.
-        suffixes = LFRicConstants().ARG_TYPE_SUFFIX_MAPPING
-        args = self._arguments.args
-        sym2 = table.lookup_with_tag(
-            f"{args[0].name}:{suffixes[args[0].argument_type]}")
-        field2 = self.array_ref(sym2.name)
-        sym1 = table.lookup_with_tag(
-            f"{args[1].name}:{suffixes[args[1].argument_type]}")
-        field1 = self.array_ref(sym1.name)
-        precision = self._arguments.args[0].precision
-        rhs_expr = f"{self._field_type}({field1}, {precision})"
-        parent.add(AssignGen(parent, lhs=field2, rhs=rhs_expr))
-        # Import the precision variable if it is not already imported
-        const = LFRicConstants()
-        const_mod = const.UTILITIES_MOD_MAP["constants"]["module"]
-        # Import node type here to avoid circular dependencies
-        # pylint: disable=import-outside-toplevel
-        from psyclone.dynamo0p3 import DynInvokeSchedule
-        schedule = self.ancestor(DynInvokeSchedule)
-        psy = schedule.invoke.invokes.psy
-        precision_uses = psy.infrastructure_modules[const_mod]
-        precision_uses.add(precision)
 
 
 # ******************************************************************* #
@@ -2748,7 +2693,7 @@ class LFRicIncMinAXKern(LFRicBuiltIn):
 # ------------------------------------------------------------------- #
 
 
-class LFRicIntXKern(LFRicXKern):
+class LFRicIntXKern(LFRicBuiltIn):
     ''' Converts real-valued field elements to integer-valued
     field elements using the Fortran intrinsic `int` function,
     `Y = int(X, r_def)`. Here `Y` is an int-valued field and `X`
@@ -2776,6 +2721,29 @@ class LFRicIntXKern(LFRicXKern):
     def __str__(self):
         return (f"Built-in: {self._case_name} (convert a real-valued to "
                 f"an integer-valued field)")
+
+    def lower_to_language_level(self):
+        '''
+        Lowers this LFRic-specific built-in kernel to language-level PSyIR.
+        This BuiltIn node is replaced by an Assignment node.
+
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
+
+        '''
+        # Get indexed references for each of the field (proxy) arguments.
+        arg_refs = self.get_indexed_field_argument_references()
+
+        # Create the PSyIR for the kernel:
+        #      proxy0%data(df) = INT(proxy0%data, <i_precision>)
+        i_precision = arg_refs[0].datatype.partial_datatype.precision
+        rhs = IntrinsicCall.create(
+            IntrinsicCall.Intrinsic.INT,
+            [arg_refs[1], ("kind", Reference(i_precision))])
+        assign = Assignment.create(arg_refs[0], rhs)
+        # Finally, replace this kernel node with the Assignment
+        self.replace_with(assign)
+        return assign
 
 
 # ******************************************************************* #
@@ -3070,8 +3038,7 @@ class LFRicIntIncMinAXKern(LFRicIncMinAXKern):
 # ============== Converting integer to real field elements ========== #
 # ------------------------------------------------------------------- #
 
-
-class LFRicRealXKern(LFRicXKern):
+class LFRicRealXKern(LFRicBuiltIn):
     ''' Converts integer-valued field elements to real-valued
     field elements using the Fortran intrinsic `real` function,
     `Y = real(X, r_def)`. Here `Y` is a real-valued field and `X`
@@ -3099,6 +3066,29 @@ class LFRicRealXKern(LFRicXKern):
     def __str__(self):
         return (f"Built-in: {self._case_name} (convert an integer-valued "
                 f"to a real-valued field)")
+
+    def lower_to_language_level(self):
+        '''
+        Lowers this LFRic-specific built-in kernel to language-level PSyIR.
+        This BuiltIn node is replaced by an Assignment node.
+
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
+
+        '''
+        # Get indexed references for each of the field (proxy) arguments.
+        arg_refs = self.get_indexed_field_argument_references()
+
+        # Create the PSyIR for the kernel:
+        #      proxy0%data(df) = REAL(proxy0%data, <r_precision>)
+        r_precision = arg_refs[0].datatype.partial_datatype.precision
+        rhs = IntrinsicCall.create(
+            IntrinsicCall.Intrinsic.REAL,
+            [arg_refs[1], ("kind", Reference(r_precision))])
+        assign = Assignment.create(arg_refs[0], rhs)
+        # Finally, replace this kernel node with the Assignment
+        self.replace_with(assign)
+        return assign
 
 
 # The built-in operations that we support for this API. The meta-data
