@@ -70,8 +70,10 @@ def test_real_X(tmpdir, monkeypatch, annexed, dist_mem):
     affects the generated code. 3) Also test the 'metadata()' method.
 
     '''
+    # Test metadata
     metadata = LFRicRealXKern.metadata()
     assert isinstance(metadata, LFRicKernelMetadata)
+    # Test with and without annexed DoFs
     api_config = Config.get().api_conf(API)
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,

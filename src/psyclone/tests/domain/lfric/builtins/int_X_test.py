@@ -70,9 +70,11 @@ def test_int_X(tmpdir, monkeypatch, annexed, dist_mem):
     affects the generated code. 3) Also test the 'metadata()' method.
 
     '''
+    # Test metadata
     metadata = LFRicIntXKern.metadata()
     assert isinstance(metadata, LFRicKernelMetadata)
     api_config = Config.get().api_conf(API)
+    # Test with and without annexed DoFs
     monkeypatch.setattr(api_config, "_compute_annexed_dofs", annexed)
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "15.10.3_int_X_builtin.f90"),
