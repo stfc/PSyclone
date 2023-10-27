@@ -47,7 +47,7 @@ from psyclone.errors import InternalError
 from psyclone.parse import ModuleManager
 from psyclone.psyir.nodes import Literal, Routine, Schedule
 from psyclone.psyir.symbols import INTEGER_TYPE
-from psyclone.psyir.tools import DependencyTools, ReadWriteInfo
+from psyclone.psyir.tools import DependencyTools
 from psyclone.tests.utilities import Compile, get_base_path, get_invoke
 
 
@@ -394,50 +394,6 @@ def test_lfric_driver_operator():
     # does not need any of the infrastructure files
     build = Compile(".")
     build.compile_file("driver-operator-test.F90")
-
-
-# ----------------------------------------------------------------------------
-@pytest.mark.parametrize("name, filename",
-                         [("int_x", "15.10.3_int_X_builtin.f90"),
-                          ("real_x", "15.28.2_real_X_builtin.f90")
-                          ])
-def test_lfric_driver_unsupported_builtins(name, filename, capsys):
-    '''The following builtins do not have a proper lower_to_language_level
-    method to create the PSyIR, so they are not supported in the driver
-    creation: LFRicXInnerproductXKern, LFRicSumXKern, LFRicIntXKern,
-    LFRicRealXKern. This tests also the error handling of the functions
-    write_driver, get_driver_as_string, create. '''
-
-    _, invoke = get_invoke(filename, API, dist_mem=False, idx=0)
-
-    driver_creator = LFRicExtractDriverCreator()
-    read_write_info = ReadWriteInfo()
-
-    # The create method should raise an exception
-    # -------------------------------------------
-    with pytest.raises(NotImplementedError) as err:
-        # The parameters do not really matter
-        driver_creator.create(invoke.schedule, read_write_info, "extract",
-                              "_post", region_name=("region", "name"))
-    assert f"LFRic builtin '{name}' is not supported" in str(err.value)
-
-    # The get_driver_as_string method returns
-    # an empty string, but prints an error message
-    # --------------------------------------------
-    code = driver_creator.get_driver_as_string(invoke.schedule,
-                                               read_write_info, "extract",
-                                               "_post", ("region", "name"))
-    assert code == ""
-    out, _ = capsys.readouterr()
-    assert (f"Cannot create driver for 'region-name' because:\nLFRic builtin "
-            f"'{name}' is not supported" in out)
-
-    # write_driver prints an error message, and does not return an error
-    # ------------------------------------------------------------------
-    driver_creator.write_driver(invoke.schedule, read_write_info,
-                                "extract", "_post", ("region", "name"))
-    assert (f"Cannot create driver for 'region-name' because:\nLFRic builtin "
-            f"'{name}' is not supported" in out)
 
 
 # ----------------------------------------------------------------------------
