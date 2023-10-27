@@ -963,7 +963,8 @@ class Node():
         :returns: list of sibling nodes, including self.
         :rtype: List[:py:class:`psyclone.psyir.nodes.Node`]
         '''
-        return self.parent.children
+        parent = self.parent
+        return [self] if parent is None else parent.children
 
     @property
     def has_constructor_parent(self):
