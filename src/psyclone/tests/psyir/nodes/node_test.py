@@ -34,6 +34,7 @@
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 #         I. Kavcic and J. G. Wallwork, Met Office
 #         J. Henrichs, Bureau of Meteorology
+# Modified J. G. Wallwork, Met Office
 # -----------------------------------------------------------------------------
 
 ''' Performs py.test tests on the Node PSyIR node. '''
@@ -1480,6 +1481,16 @@ def test_following_preceding():
     # 1c: Middle node.
     assert multiply1.following() == [c_ref, d_ref]
     assert multiply1.preceding() == [assign1, a_ref, multiply2, b_ref]
+
+    # 1d: Immediately following
+    assert multiply2.immediatelyFollows(a_ref)
+    assert multiply1.immediatelyFollows(b_ref)
+    assert d_ref.immediatelyFollows(c_ref)
+
+    # 1e: Immediately preceding
+    assert a_ref.immediatelyPrecedes(multiply2)
+    assert b_ref.immediatelyPrecedes(multiply1)
+    assert c_ref.immediatelyPrecedes(d_ref)
 
     # 2: Routine is an ancestor node, but is not a root
     # node.
