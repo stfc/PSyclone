@@ -62,10 +62,10 @@ from psyclone.gocean1p0 import GOKern
 from psyclone.parse.algorithm import parse, InvokeCall
 from psyclone.psyGen import TransInfo, Transformation, PSyFactory, \
     InlinedKern, object_index, HaloExchange, Invoke, \
-    DataAccess, Kern, Arguments, CodedKern, Argument, GlobalReduction, \
+    DataAccess, Kern, Arguments, CodedKern, Argument, \
     InvokeSchedule, BuiltIn
 from psyclone.psyir.nodes import Assignment, BinaryOperation, Container, \
-    Literal, Loop, Node, KernelSchedule, Call, colored
+    Literal, Loop, Node, KernelSchedule, Call, colored, GlobalReduction
 from psyclone.psyir.symbols import DataSymbol, RoutineSymbol, REAL_TYPE, \
     ImportInterface, ContainerSymbol, Symbol, INTEGER_TYPE, DeferredType, \
     SymbolTable
@@ -889,7 +889,7 @@ def test_globalsum_children_validation():
             break
     with pytest.raises(GenerationError) as excinfo:
         gsum.addchild(Literal("2", INTEGER_TYPE))
-    assert ("Item 'Literal' can't be child 0 of 'GlobalReduction'. GlobalReduction is a"
+    assert ("Item 'Literalzz' can't be child 0 of 'GlobalReduction'. GlobalReduction is a"
             " LeafNode and doesn't accept children.") in str(excinfo.value)
 
 

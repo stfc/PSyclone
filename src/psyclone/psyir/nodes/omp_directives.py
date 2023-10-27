@@ -1344,7 +1344,7 @@ class OMPParallelDirective(OMPRegionDirective):
 
         '''
         # pylint: disable=import-outside-toplevel
-        from psyclone.psyGen import zero_reduction_variables
+        from psyclone.psyGen import initialise_reduction_variables
 
         # We're not doing nested parallelism so make sure that this
         # omp parallel region is not already within some parallel region
@@ -1393,7 +1393,7 @@ class OMPParallelDirective(OMPRegionDirective):
                     f"reduction variable")
             names.append(name)
 
-        zero_reduction_variables(calls, parent)
+        initialise_reduction_variables(calls, parent)
 
         # pylint: disable=protected-access
         clauses_str = self.default_clause._clause_string
@@ -2236,11 +2236,11 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         # We're not doing nested parallelism so make sure that this
         # omp parallel do is not already within some parallel region
         # pylint: disable=import-outside-toplevel
-        from psyclone.psyGen import zero_reduction_variables
+        from psyclone.psyGen import initialise_reduction_variables
         self.validate_global_constraints()
 
         calls = self.reductions()
-        zero_reduction_variables(calls, parent)
+        initialise_reduction_variables(calls, parent)
 
         # Set default() private() and firstprivate() clauses
         # pylint: disable=protected-access

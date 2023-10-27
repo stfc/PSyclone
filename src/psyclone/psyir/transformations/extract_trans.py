@@ -40,10 +40,10 @@ of an Invoke into a stand-alone application."
 '''
 
 from psyclone.configuration import Config
-from psyclone.psyGen import BuiltIn, Kern, HaloExchange, GlobalReduction
+from psyclone.psyGen import BuiltIn, Kern, HaloExchange
 from psyclone.psyir.nodes import (CodeBlock, ExtractNode, Loop, Schedule,
                                   Directive, OMPParallelDirective,
-                                  ACCParallelDirective)
+                                  ACCParallelDirective, GlobalReduction)
 from psyclone.psyir.transformations.psy_data_trans import PSyDataTrans
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError

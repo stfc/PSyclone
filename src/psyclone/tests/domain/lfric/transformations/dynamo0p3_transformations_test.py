@@ -50,9 +50,9 @@ from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
 from psyclone.dynamo0p3 import DynLoop, LFRicHaloExchangeStart, \
     LFRicHaloExchangeEnd, LFRicHaloExchange
 from psyclone.errors import GenerationError, InternalError
-from psyclone.psyGen import InvokeSchedule, GlobalReduction, BuiltIn
+from psyclone.psyGen import InvokeSchedule, BuiltIn
 from psyclone.psyir.nodes import colored, Loop, Schedule, Literal, Directive, \
-    OMPDoDirective, ACCEnterDataDirective
+    OMPDoDirective, ACCEnterDataDirective, GlobalReduction
 from psyclone.psyir.symbols import AutomaticInterface, ScalarType, ArrayType, \
     REAL_TYPE, INTEGER_TYPE
 from psyclone.psyir.transformations import LoopFuseTrans, LoopTrans, \
@@ -3102,6 +3102,7 @@ def test_reprod_reduction_real_do(tmpdir, dist_mem):
     psy, invoke = get_invoke("15.9.1_X_innerproduct_Y_builtin.f90",
                              TEST_API, idx=0, dist_mem=dist_mem)
     schedule = invoke.schedule
+    print(schedule.view())
     otrans = Dynamo0p3OMPLoopTrans()
     rtrans = OMPParallelTrans()
     # Apply an OpenMP do directive to the loop
@@ -3113,7 +3114,7 @@ def test_reprod_reduction_real_do(tmpdir, dist_mem):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
     assert (
-        "      USE omp_lib, ONLY: omp_get_thread_num\n"
+        "      USE omp_libzz, ONLY: omp_get_thread_num\n"
         "      USE omp_lib, ONLY: omp_get_max_threads\n") in code
     assert (
         "      REAL(KIND=r_def), allocatable, dimension(:,:) "

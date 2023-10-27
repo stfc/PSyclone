@@ -445,7 +445,7 @@ def test_node_forward_dependence():
     # b) halo exchange depends on following loop
     assert halo_field.forward_dependence() == next_loop
 
-    # 4: globalsum dependencies
+    # 4: global reduction dependencies
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "15.14.3_sum_setval_field_builtin.f90"),
         api="dynamo0.3")
@@ -453,15 +453,15 @@ def test_node_forward_dependence():
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     prev_loop = schedule.children[0]
-    sum_loop = schedule.children[1]
-    global_sum_loop = schedule.children[2]
+    reduction_loop = schedule.children[1]
+    global_reduction_loop = schedule.children[2]
     next_loop = schedule.children[3]
-    # a) prev loop depends on sum loop
-    assert prev_loop.forward_dependence() == sum_loop
-    # b) sum loop depends on global sum loop
-    assert sum_loop.forward_dependence() == global_sum_loop
-    # c) global sum loop depends on next loop
-    assert global_sum_loop.forward_dependence() == next_loop
+    # a) prev loop depends on reduction loop
+    assert prev_loop.forward_dependence() == reduction_loop
+    # b) reduction loop depends on global reduction loop
+    assert reduction_loop.forward_dependence() == global_reduction_loop
+    # c) global reduction loop depends on next loop
+    assert global_reduction_loop.forward_dependence() == next_loop
 
 
 def test_node_backward_dependence():
@@ -500,7 +500,7 @@ def test_node_backward_dependence():
     # b) halo exchange node depends on previous loop node
     result = halo_exchange.backward_dependence()
     assert result == loop2
-    # 4: globalsum dependencies
+    # 4: global reduction dependencies
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "15.14.3_sum_setval_field_builtin.f90"),
         api="dynamo0.3")
@@ -509,13 +509,13 @@ def test_node_backward_dependence():
     schedule = invoke.schedule
     loop1 = schedule.children[0]
     loop2 = schedule.children[1]
-    global_sum = schedule.children[2]
+    global_reduction = schedule.children[2]
     loop3 = schedule.children[3]
-    # a) loop3 depends on global sum
-    assert loop3.backward_dependence() == global_sum
-    # b) global sum depends on loop2
-    assert global_sum.backward_dependence() == loop2
-    # c) loop2 (sum) depends on loop1
+    # a) loop3 depends on global reduction
+    assert loop3.backward_dependence() == global_reduction
+    # b) global reduction depends on loop2
+    assert global_reduction.backward_dependence() == loop2
+    # c) loop2 (reduction) depends on loop1
     assert loop2.backward_dependence() == loop1
 
 
@@ -717,8 +717,8 @@ def test_dag_names():
     psy = PSyFactory("dynamo0.3", distributed_memory=True).create(invoke_info)
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
-    global_sum = schedule.children[2]
-    assert global_sum.dag_name == "globalsum(asum)_2"
+    global_reduction = schedule.children[2]
+    assert global_reduction.dag_name == "globalreduction(asum)_2"
     builtin = schedule.children[1].loop_body[0]
     assert builtin.dag_name == "builtin_sum_x_12"
 

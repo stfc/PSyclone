@@ -51,8 +51,9 @@ from psyclone.f2pygen import (AllocateGen, AssignGen, CallGen, CommentGen,
                               DeclGen, DeallocateGen, DoGen, UseGen)
 from psyclone.parse.algorithm import BuiltInCall
 from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.psyir.nodes import (Node, Schedule, Loop, Statement, Container,
-                                  Routine, Call, OMPDoDirective)
+from psyclone.psyir.nodes import (Call, Container, GlobalReduction, Loop,
+                                  Node, OMPDoDirective, Routine, Schedule,
+                                  Statement)
 from psyclone.psyir.symbols import (ArrayType, DataSymbol, RoutineSymbol,
                                     Symbol, ContainerSymbol, ImportInterface,
                                     ArgumentInterface, DeferredType)
@@ -109,9 +110,9 @@ def get_api(api):
     return api
 
 
-def zero_reduction_variables(red_call_list, parent):
+def initialise_reduction_variables(red_call_list, parent):
     '''
-    Zero all reduction variables associated with the calls in the call
+    Initialise all reduction variables associated with the calls in the call
     list.
     :param red_call_list: list of kernel calls that contain \
                           a reduction variable.
@@ -123,9 +124,10 @@ def zero_reduction_variables(red_call_list, parent):
     # it is used in 'Loop.gen_code' and 'OMPParallelDoDirective.gen_code
     # methods. Also, it does not make sense to zero global min and max
     # variables before calculating them so this function may be renamed.
+    print("initialise_reduction_variables\n", red_call_list, "\n", parent)
     if red_call_list:
         parent.add(CommentGen(parent, ""))
-        parent.add(CommentGen(parent, " Zero summation variables"))
+        parent.add(CommentGen(parent, " Initialise reduction variables"))
         parent.add(CommentGen(parent, ""))
         for call in red_call_list:
             call.zero_reduction_variable(parent)
@@ -800,77 +802,6 @@ class InvokeSchedule(Routine):
 
         for entity in self._children:
             entity.gen_code(parent)
-
-
-class GlobalReduction(Statement):
-    '''
-    Generic Global Reduction class which can be added to and manipulated
-    in, a schedule.
-
-    :param scalar: the scalar that the global reduction is stored into
-    :type scalar: :py:class:`psyclone.psyGen.KernelArgument`
-    :param parent: optional parent (default None) of this object
-    :type parent: :py:class:`psyclone.psyir.nodes.Node`
-
-    '''
-    # Textual description of the node.
-    _children_valid_format = "<LeafNode>"
-    _text_name = "GlobalReduction"
-    _colour = "cyan"
-
-    def __init__(self, scalar, parent=None):
-        Node.__init__(self, children=[], parent=parent)
-        import copy
-        self._scalar = copy.copy(scalar)
-        if scalar:
-            # Update scalar values appropriately
-            # Here "readwrite" denotes how the class GlobalReduction
-            # accesses/updates a scalar
-            self._scalar.access = AccessType.READWRITE
-            self._scalar.call = self
-
-    @property
-    def scalar(self):
-        '''
-        :returns: the scalar field that this global reduction acts on.
-        :rtype: str
-
-        '''
-        return self._scalar
-
-    @property
-    def dag_name(self):
-        '''
-        :returns: the name to use in the DAG for this node.
-        :rtype: str
-
-        '''
-        return f"globalreduction({self._scalar.name})_{self.position}"
-
-    @property
-    def args(self):
-        '''
-        Return the list of arguments associated with this node. Override
-        the base method and simply return our argument.
-
-        :returns: the list of scalar reduction arguments.
-        :rtype: list of :py:class:`psyclone.psyGen.KernelArgument`
-
-        '''
-        return [self._scalar]
-
-    def node_str(self, colour=True):
-        '''
-        Returns a text description of this node with (optional) control codes
-        to generate coloured output in a terminal that supports it.
-
-        :param bool colour: whether or not to include colour control codes.
-
-        :returns: description of this node, possibly coloured.
-        :rtype: str
-
-        '''
-        return f"{self.coloured_name(colour)}[scalar='{self._scalar.name}']"
 
 
 class HaloExchange(Statement):
@@ -2966,7 +2897,6 @@ __all__ = [
     'Invokes',
     'Invoke',
     'InvokeSchedule',
-    'GlobalReduction',
     'HaloExchange',
     'Kern',
     'CodedKern',

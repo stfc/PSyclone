@@ -435,7 +435,7 @@ class Loop(Statement):
         '''
         # Avoid circular dependency
         # pylint: disable=import-outside-toplevel
-        from psyclone.psyGen import zero_reduction_variables
+        from psyclone.psyGen import initialise_reduction_variables
 
         def is_unit_literal(expr):
             ''' Check if the given expression is equal to the literal '1'.
@@ -449,7 +449,7 @@ class Loop(Statement):
 
         if not self.is_openmp_parallel():
             calls = self.reductions()
-            zero_reduction_variables(calls, parent)
+            initialise_reduction_variables(calls, parent)
 
         # Avoid circular dependency
         # pylint: disable=import-outside-toplevel
