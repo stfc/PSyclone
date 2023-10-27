@@ -2247,3 +2247,8 @@ def test_siblings():
         siblings = loop.siblings
         assert loop in siblings
         assert len(siblings) == (1 if loop.ancestor(Loop) else 3)
+
+    # Special case of a root node
+    root_siblings = invoke.schedule.siblings
+    assert len(root_siblings) == 1
+    assert root_siblings[0] is invoke.schedule
