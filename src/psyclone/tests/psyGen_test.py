@@ -2240,3 +2240,27 @@ def test_split_consecutive1():
     # There is only one block of consecutive assignments, the rest stand alone
     for i, block in enumerate(invoke.schedule.split_consecutive(Assignment)):
         assert len(block) == (4 if i == 3 else 1)
+
+
+def test_split_consecutive2():
+    '''Tests the split_consecutive functionality for
+    explicit_do_two_loops.f90.'''
+
+    _, invoke = get_invoke("explicit_do_two_loops.f90", "nemo", 0)
+
+    # There is only one pair of adjacent loops, the rest stand alone
+    for i, block in enumerate(invoke.schedule.split_consecutive(Loop)):
+        assert len(block) == (2 if i == 0 else 1)
+
+    # All assignments stand alone
+    for i, block in enumerate(invoke.schedule.split_consecutive(Assignment)):
+        assert len(block) == 1
+
+    # There is an assignment immediately followed by two loops, the rest stand
+    # alone
+    blocks = invoke.schedule.split_consecutive((Assignment, Loop))
+    for i, block in enumerate(blocks):
+        assert len(block) == (3 if i == 0 else 1)
+    assert isinstance(blocks[0][0], Assignment)
+    assert isinstance(blocks[0][1], Loop)
+    assert isinstance(blocks[0][2], Loop)
