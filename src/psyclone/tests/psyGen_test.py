@@ -2226,3 +2226,17 @@ def test_walk():
 
     binary_op_list = invoke.schedule.walk(BinaryOperation, Kern)
     assert not binary_op_list
+
+
+def test_split_consecutive1():
+    '''Tests the split_consecutive functionality for imperfect_nest.f90.'''
+
+    _, invoke = get_invoke("imperfect_nest.f90", "nemo", 0)
+
+    # There is only one pair of adjacent loops, the rest stand alone
+    for i, block in enumerate(invoke.schedule.split_consecutive(Loop)):
+        assert len(block) == (2 if i == 2 else 1)
+
+    # There is only one block of consecutive assignments, the rest stand alone
+    for i, block in enumerate(invoke.schedule.split_consecutive(Assignment)):
+        assert len(block) == (4 if i == 3 else 1)
