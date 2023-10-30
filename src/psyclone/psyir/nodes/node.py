@@ -1138,7 +1138,7 @@ class Node():
         for depth, local_list in sorted(by_depth.items()):
             block = []
             for node in local_list:
-                if len(block) == 0 or node.immediatelyFollows(block[-1]):
+                if len(block) == 0 or node.immediately_follows(block[-1]):
                     block.append(node)
                 else:
                     global_list.append(block)
@@ -1336,7 +1336,7 @@ class Node():
             nodes.reverse()
         return nodes
 
-    def immediatelyPrecedes(self, node_2):
+    def immediately_precedes(self, node_2):
         '''
         :returns: True if this node immediately precedes `node_2`, False \
                   otherwise
@@ -1348,7 +1348,7 @@ class Node():
             and self.position + 1 == node_2.position
         )
 
-    def immediatelyFollows(self, node_1):
+    def immediately_follows(self, node_1):
         '''
         :returns: True if this node immediately follows `node_1`, False \
                   otherwise
