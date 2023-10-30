@@ -1080,7 +1080,8 @@ class Node():
         is stopped if an instance of 'stop_type' (which is either a single
         class or a tuple of classes) is found. This can be used to avoid
         analysing e.g. inlined kernels, or as performance optimisation to
-        reduce the number of recursive calls.
+        reduce the number of recursive calls. The recursion into the tree is
+        also stopped if the (optional) 'depth' level is reached.
 
         :param my_type: the class(es) for which the instances are collected.
         :type my_type: type | Tuple[type, ...]
@@ -1095,19 +1096,21 @@ class Node():
 
         '''
         local_list = []
-        if isinstance(self, my_type):
+        if isinstance(self, my_type) and (depth is None or self.depth == depth):
             local_list.append(self)
 
         # Stop recursion further into the tree if an instance of a class
         # listed in stop_type is found.
         if stop_type and isinstance(self, stop_type):
             return local_list
-        for child in self.children:
-            local_list += child.walk(my_type, stop_type)
 
-        # Restrict to nodes of specified depth.
-        if depth:
-            local_list = [node for node in local_list if node.depth == depth]
+        # Stop recursion further into the tree if a depth level has been
+        # specified and it is reached.
+        if depth is not None and self.depth >= depth:
+            return local_list
+
+        for child in self.children:
+            local_list += child.walk(my_type, stop_type, depth=depth)
         return local_list
 
     def ancestor(self, my_type, excluding=None, include_self=False,
