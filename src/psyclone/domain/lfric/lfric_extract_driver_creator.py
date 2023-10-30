@@ -315,6 +315,7 @@ class LFRicExtractDriverCreator:
 
 
         '''
+        # pylint: disable=too-many-locals
         all_references = sched.walk(Reference)
 
         # First we add all non-structure names to the symbol table. This way
@@ -488,7 +489,7 @@ class LFRicExtractDriverCreator:
             post_tag = f"{name}{postfix}@{module_name}"
         else:
             if index is not None:
-                post_tag = f"{name}_{index}_data{postfix}"
+                post_tag = f"{name}{postfix}%{index}"
             else:
                 # If it is not indexed then `name` will already end in "_data"
                 post_tag = f"{name}{postfix}"
@@ -517,6 +518,7 @@ class LFRicExtractDriverCreator:
     def _create_read_in_code(self, program, psy_data, original_symbol_table,
                              read_write_info, postfix):
         # pylint: disable=too-many-arguments, too-many-branches
+        # pylint: disable=too-many-locals, too-many-statements
         '''This function creates the code that reads in the NetCDF file
         produced during extraction. For each:
 
@@ -571,7 +573,6 @@ class LFRicExtractDriverCreator:
                 intrinsic_name = sym.datatype.intrinsic.name
             return intrinsic_name in self._all_field_types
 
-        # pylint: disable=too-many-locals
         symbol_table = program.scope.symbol_table
         read_var = f"{psy_data.name}%ReadVariable"
         mod_man = ModuleManager.get()
@@ -604,7 +605,7 @@ class LFRicExtractDriverCreator:
                 upper = int(orig_sym.datatype.shape[0].upper.value)
                 for i in range(1, upper+1):
                     sym = symbol_table.lookup_with_tag(f"{sig_str}_{i}_data")
-                    name_lit = Literal(f"{sig_str}_{i}_data", CHARACTER_TYPE)
+                    name_lit = Literal(f"{sig_str}%{i}", CHARACTER_TYPE)
                     self._add_call(program, read_var, [name_lit,
                                                        Reference(sym)])
                 continue

@@ -50,6 +50,7 @@ from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import (ACCKernelsDirective,
                                   ACCLoopDirective,
+                                  ACCParallelDirective,
                                   ACCRegionDirective,
                                   ACCRoutineDirective,
                                   ACCUpdateDirective,
@@ -495,6 +496,47 @@ def test_accdatadirective_update_data_movement_clauses(fortran_reader,
     # 'sfactor' should have been removed from the copyin()
     assert ("!$acc data copyin(small_holding,small_holding(3)%grid,"
             "small_holding(3)%grid(jf)%data), copy(sto_tmp)" in output)
+
+
+def test_accparalleldirective():
+    '''
+    Test the ACCParallelDirective constructors, property getters and
+    setters and string methods.
+    '''
+
+    # It can be created
+    accpar = ACCParallelDirective()
+    assert isinstance(accpar, ACCParallelDirective)
+    assert accpar._default_present is True
+
+    # Also without default(present)
+    accpar = ACCParallelDirective(default_present=False)
+    assert isinstance(accpar, ACCParallelDirective)
+    assert accpar._default_present is False
+
+    # But only with boolean values
+    with pytest.raises(TypeError) as err:
+        _ = ACCParallelDirective(default_present=3)
+    assert ("The ACCParallelDirective default_present property must be a "
+            "boolean but value '3' has been given." in str(err.value))
+
+    # The default present value has getter and setter
+    accpar.default_present = True
+    assert accpar.default_present is True
+
+    with pytest.raises(TypeError) as err:
+        accpar.default_present = "invalid"
+    assert ("The ACCParallelDirective default_present property must be a "
+            "boolean but value 'invalid' has been given." in str(err.value))
+
+    # The begin string depends on the default present value
+    accpar.default_present = True
+    assert accpar.begin_string() == "acc parallel default(present)"
+    accpar.default_present = False
+    assert accpar.begin_string() == "acc parallel"
+
+    # It has an end_string
+    assert accpar.end_string() == "acc end parallel"
 
 
 def test_acc_atomics_is_valid_atomic_statement(fortran_reader):

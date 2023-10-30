@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
-# Modified: I. Kavcic, L. Turner and O. Brunt, Met Office
+# Modified: I. Kavcic, L. Turner, O. Brunt and J. G. Wallwork, Met Office
 # -----------------------------------------------------------------------------
 
 ''' Performs py.test tests on the psyGen module '''
@@ -65,7 +65,7 @@ from psyclone.psyGen import TransInfo, Transformation, PSyFactory, \
     DataAccess, Kern, Arguments, CodedKern, Argument, GlobalSum, \
     InvokeSchedule, BuiltIn
 from psyclone.psyir.nodes import Assignment, BinaryOperation, Container, \
-    Literal, Node, KernelSchedule, Call, colored
+    Literal, Loop, Node, KernelSchedule, Call, colored
 from psyclone.psyir.symbols import DataSymbol, RoutineSymbol, REAL_TYPE, \
     ImportInterface, ContainerSymbol, Symbol, INTEGER_TYPE, DeferredType, \
     SymbolTable

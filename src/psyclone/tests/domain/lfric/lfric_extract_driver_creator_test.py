@@ -331,9 +331,9 @@ def test_lfric_driver_field_arrays():
         driver = my_file.read()
 
     # Check that the driver reads the three individual fields
-    assert "ReadVariable('chi_1_data', chi_1_data)" in driver
-    assert "ReadVariable('chi_2_data', chi_2_data)" in driver
-    assert "ReadVariable('chi_3_data', chi_3_data)" in driver
+    assert "ReadVariable('chi%1', chi_1_data)" in driver
+    assert "ReadVariable('chi%2', chi_2_data)" in driver
+    assert "ReadVariable('chi%3', chi_3_data)" in driver
 
     for mod in ["read_kernel_data_mod", "constants_mod", "kernel_mod",
                 "argument_mod", "log_mod", "fs_continuity_mod",
@@ -381,7 +381,7 @@ def test_lfric_driver_operator():
             "mm_w3_proxy_ncell_3d" in driver)
     # And check the field arrays just in case
     for i in range(1, 4):
-        assert (f"ReadVariable('coord_{i}_data_post', coord_{i}_data"
+        assert (f"ReadVariable('coord_post%{i}', coord_{i}_data"
                 in driver)
 
     for mod in ["read_kernel_data_mod", "constants_mod", "kernel_mod",
@@ -556,7 +556,7 @@ def test_lfric_driver_field_array_write():
         driver = my_file.read()
 
     for i in range(1, 4):
-        assert (f"ReadVariable('coord_{i}_data_post', coord_{i}_data_post)"
+        assert (f"ReadVariable('coord_post%{i}', coord_{i}_data_post)"
                 in driver)
         assert f"ALL(coord_{i}_data - coord_{i}_data_post == 0.0))" in driver
 
@@ -596,12 +596,12 @@ def test_lfric_driver_field_array_inc():
         driver = my_file.read()
 
     assert "ReadVariable('f1_data', f1_data)" in driver
-    assert "ReadVariable('chi_1_data', chi_1_data)" in driver
-    assert "ReadVariable('chi_2_data', chi_2_data)" in driver
-    assert "ReadVariable('chi_3_data', chi_3_data)" in driver
-    assert "ReadVariable('chi_1_data_post', chi_1_data_post)" in driver
-    assert "ReadVariable('chi_2_data_post', chi_2_data_post)" in driver
-    assert "ReadVariable('chi_3_data_post', chi_3_data_post)" in driver
+    assert "ReadVariable('chi%1', chi_1_data)" in driver
+    assert "ReadVariable('chi%2', chi_2_data)" in driver
+    assert "ReadVariable('chi%3', chi_3_data)" in driver
+    assert "ReadVariable('chi_post%1', chi_1_data_post)" in driver
+    assert "ReadVariable('chi_post%2', chi_2_data_post)" in driver
+    assert "ReadVariable('chi_post%3', chi_3_data_post)" in driver
     assert "ReadVariable('f1_data_post', f1_data_post)" in driver
 
     # Check that the required modules are inlined
