@@ -42,7 +42,7 @@
 # Imports
 from psyclone.configuration import Config
 from psyclone.core import AccessType
-from psyclone.domain.lfric import LFRicConstants, LFRicFields
+from psyclone.domain.lfric import LFRicConstants
 from psyclone.errors import GenerationError, FieldNotFoundError
 from psyclone.f2pygen import (AssignGen, CommentGen, DeclGen, SubroutineGen,
                               UseGen)
@@ -103,7 +103,7 @@ class LFRicInvoke(Invoke):
                                         LFRicMeshProperties,
                                         DynGlobalSum)
         from psyclone.domain.lfric import (LFRicLoopBounds, LFRicRunTimeChecks,
-                                           LFRicScalarArgs)
+                                           LFRicScalarArgs, LFRicFields)
 
         self.scalar_args = LFRicScalarArgs(self)
 
