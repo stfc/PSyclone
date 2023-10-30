@@ -1626,3 +1626,42 @@ def test_siblings(fortran_reader):
     root_siblings = psyir.siblings
     assert len(root_siblings) == 1
     assert root_siblings[0] is psyir
+
+
+def test_walk_depth(fortran_reader):
+    '''Test the depth restriction functionality of Node's walk method.'''
+
+    code = '''subroutine test_depth()
+    integer :: i, j, k
+    integer :: arr(2,2,2)
+
+    do i = 1, 2
+      do j = 1, 2
+        do k = 1, 2
+          arr(i,j,k) = 0
+        end do
+      end do
+    end do
+    end subroutine'''
+
+    psyir = fortran_reader.psyir_from_source(code)
+    loops = psyir.walk(Loop)
+    assignments = psyir.walk(Assignment)
+    assert len(loops) == 3
+    assert len(assignments) == 1
+    root_depth = psyir.depth
+
+    # Test walking over the depths of each loop
+    for i, loop in enumerate(loops):
+        depth = root_depth + 2 * (i + 1)
+        loop_i_list = psyir.walk(Loop, depth=depth)
+        assert len(loop_i_list) == 1
+        assert loop_i_list[0] is loop
+        assert len(psyir.walk(Assignment, depth=depth)) == 0
+
+    # Test walking over the depth of the assignment in the inner loop
+    depth = root_depth + 8
+    assign_8_list = psyir.walk(Assignment, depth=depth)
+    assert len(assign_8_list) == 1
+    assert assign_8_list[0] is assignments[0]
+    assert len(psyir.walk(Loop, depth=depth)) == 0
