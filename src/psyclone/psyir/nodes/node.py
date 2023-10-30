@@ -35,6 +35,7 @@
 #         I. Kavcic, Met Office
 #         J. Henrichs, Bureau of Meteorology
 # Modified A. B. G. Chalk, STFC Daresbury Lab
+# Modified J. G. Wallwork, Met Office
 # -----------------------------------------------------------------------------
 
 '''
@@ -955,6 +956,15 @@ class Node():
         :rtype: :py:class:`psyclone.psyir.nodes.Node` or NoneType
         '''
         return self._parent
+
+    @property
+    def siblings(self):
+        '''
+        :returns: list of sibling nodes, including self.
+        :rtype: List[:py:class:`psyclone.psyir.nodes.Node`]
+        '''
+        parent = self.parent
+        return [self] if parent is None else parent.children
 
     @property
     def has_constructor_parent(self):
