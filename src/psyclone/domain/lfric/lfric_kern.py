@@ -609,10 +609,11 @@ class LFRicKern(CodedKern):
         # pylint: disable=import-outside-toplevel
         from psyclone.dynamo0p3 import (DynCellIterators, DynDofmaps,
                                         DynFunctionSpaces, DynCMAOperators,
-                                        LFRicScalarArgs, DynBoundaryConditions,
+                                        DynBoundaryConditions,
                                         DynLMAOperators, LFRicMeshProperties,
                                         DynBasisFunctions, LFRicFields,
                                         DynReferenceElement, DynStencils)
+        from psyclone.domain.lfric import LFRicScalarArgs
         for entities in [DynCellIterators, DynDofmaps, DynFunctionSpaces,
                          DynCMAOperators, LFRicScalarArgs, LFRicFields,
                          DynLMAOperators, DynStencils, DynBasisFunctions,
