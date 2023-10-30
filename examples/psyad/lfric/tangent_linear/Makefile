@@ -61,6 +61,9 @@ transform:
 	$(MAKE) single -e TL_KERNEL_NAME=tl_rhs_sample_eos_kernel ACTIVE_VAR_LIST="rhs_eos exner rho theta moist_dyn_gas exner_cell theta_vd_cell rho_cell rho_e exner_e theta_vd_e"
 	$(MAKE) single -e TL_KERNEL_NAME=tl_poly_advective_kernel ACTIVE_VAR_LIST="advective u v dtdx dtdy tracer wind"
 	$(MAKE) single -e TL_KERNEL_NAME=strong_curl_kernel ACTIVE_VAR_LIST="xi res_dot_product curl_u u"
+	$(MAKE) single -e TL_KERNEL_NAME=apply_helmholtz_operator_kernel ACTIVE_VAR_LIST="x y"
+	$(MAKE) single -e TL_KERNEL_NAME=poly1d_reconstruction_kernel ACTIVE_VAR_LIST="tracer reconstruction"
+	$(MAKE) single -e TL_KERNEL_NAME=poly2d_reconstruction_kernel ACTIVE_VAR_LIST="tracer reconstruction"
 
 	# The following files no not need any modification after PSyAD processing so
 	# go straight into the adjoint directory.

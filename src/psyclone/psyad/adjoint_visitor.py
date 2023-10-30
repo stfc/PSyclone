@@ -155,15 +155,18 @@ class AdjointVisitor(PSyIRVisitor):
         # Split active and passive nodes.
         self._logger.debug("Adding passive code into new schedule")
         active_nodes = []
+        last_nodes = []
         for child in node.children:
-            if node_is_passive(child, self._active_variables):
+            if isinstance(child, IntrinsicCall) and child.intrinsic is IntrinsicCall.Intrinsic.DEALLOCATE:
+                    # if deallocate need to place at end
+                    last_nodes.append(child.copy())
+            elif node_is_passive(child, self._active_variables):
                 # Add passive nodes back into the schedule as they do
                 # not change.
                 node_copy.children.append(child.copy())
             else:
                 # Store active nodes for further processing.
                 active_nodes.append(child)
-
         # Reverse active nodes.
         self._logger.debug("Reversing order of active code")
         active_nodes.reverse()
@@ -177,6 +180,9 @@ class AdjointVisitor(PSyIRVisitor):
                 node_copy.children.extend(result)
             else:
                 node_copy.children.append(result)
+
+        # Add in any last nodes
+        node_copy.children.extend(last_nodes)
 
         # Creating the adjoint may have altered the way variables are
         # accessed within the code. If any of the active variables are
@@ -360,6 +366,9 @@ class AdjointVisitor(PSyIRVisitor):
         new_node.children[3] = self._visit(node.children[3])
         return new_node
 
+    def intrinsiccall_node(self, node):
+        print(node)
+        exit(1)
     def ifblock_node(self, node):
         '''This method is called if the visitor finds an ifblock node. An
         exception is raised if the condition of the ifblock node

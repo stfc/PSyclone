@@ -80,6 +80,8 @@ transform:
 	$(MAKE) single -e TL_KERNEL_NAME=matrix_vector_kernel ACTIVE_VAR_LIST="lhs x lhs_e x_e"
 	# issue: dg_inc_matrix_vector_kernel: multi-precision kernels not supported
 	$(MAKE) single -e TL_KERNEL_NAME=dg_inc_matrix_vector_kernel ACTIVE_VAR_LIST="lhs x lhs_e x_e"
+	# Issue: one matmul per line, allocate/deallocate ordering, IntrinsicCall no rule error
+	$(MAKE) single -e TL_KERNEL_NAME=apply_variable_hx_kernel ACTIVE_VAR_LIST="lhs lhs_e lhs_e_m3 lhs_e_p3t lhs_e_div p_e t_e x_e pressure x t"
 
 compile:
 	@echo No compilation supported.

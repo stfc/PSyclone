@@ -76,7 +76,11 @@ def node_is_active(node, active_variables):
             f"Expected the active_variables argument to the node_is_active() "
             f"method to be a list containing either solely PSyIR DataSymbols "
             f"or solely strings, but found {item_types}.")
-
+    from psyclone.psyir.nodes import IntrinsicCall
+    if isinstance(node, IntrinsicCall):
+        if node.intrinsic in [IntrinsicCall.Intrinsic.ALLOCATE, IntrinsicCall.Intrinsic.DEALLOCATE]:
+            # may contain an active variable but only creates or destroys it
+            return False
     if active_variables and isinstance(active_variables[0], str):
         for reference in node.walk(Reference):
             if reference.symbol.name.lower() in active_variables:
