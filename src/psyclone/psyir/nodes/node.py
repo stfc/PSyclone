@@ -1143,7 +1143,8 @@ class Node():
                 else:
                     global_list.append(block)
                     block = [node]
-            global_list.append(block)
+            if len(block) != 0:
+                global_list.append(block)
         return global_list
 
     def ancestor(self, my_type, excluding=None, include_self=False,
