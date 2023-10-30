@@ -1106,7 +1106,7 @@ class Node():
 
     def split_consecutive(self, my_type, stop_type=None):
         '''
-        Recurse through the PSyIR tree and return lists of objects that are
+        Recurse through the PSyIR tree and return lists of Nodes that are
         instances of 'my_type' and immediately follow one another. Here
         'my_type' is either a single class or a tuple of classes. In the latter
         case all nodes are returned that are instances of any classes in the
