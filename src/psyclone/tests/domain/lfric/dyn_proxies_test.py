@@ -38,7 +38,7 @@
 import os
 import pytest
 from psyclone.domain.lfric import LFRicConstants
-from psyclone.dynamo0p3 import DynKern, DynProxies
+from psyclone.dynamo0p3 import LFRicKern, DynProxies
 from psyclone.errors import InternalError
 from psyclone.f2pygen import ModuleGen, SubroutineGen
 from psyclone.parse.algorithm import parse
@@ -127,7 +127,7 @@ def test_initialise_errors(monkeypatch):
                     api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     invoke = psy.invokes.invoke_list[0]
-    kern = invoke.schedule.walk(DynKern)[0]
+    kern = invoke.schedule.walk(LFRicKern)[0]
     proxies = DynProxies(invoke)
     amod = ModuleGen("test_mod")
     node = SubroutineGen(amod, name="a_sub")
