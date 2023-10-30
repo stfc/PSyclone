@@ -254,9 +254,9 @@ class LFRicKern(CodedKern):
         # pylint: disable=import-outside-toplevel
         from psyclone.dynamo0p3 import DynKernelArguments, FSDescriptors
         # pylint: disable=too-many-branches, too-many-locals
-        CodedKern.__init__(self, DynKernelArguments,
-                           KernelCall(module_name, ktype, args),
-                           parent, check)
+        super().__init__(DynKernelArguments,
+                         KernelCall(module_name, ktype, args),
+                         parent, check)
         # Remove "_code" from the name if it exists to determine the
         # base name which (if LFRic naming conventions are
         # followed) is used as the root for the module and subroutine
@@ -385,20 +385,18 @@ class LFRicKern(CodedKern):
     def colourmap(self):
         '''
         Getter for the name of the colourmap associated with this kernel call.
-
         :returns: name of the colourmap (Fortran array).
         :rtype: str
-
         :raises InternalError: if this kernel is not coloured or the \
                                dictionary of inter-grid kernels and \
                                colourmaps has not been constructed.
-
         '''
         if not self.is_coloured():
             raise InternalError(f"Kernel '{self.name}' is not inside a "
                                 f"coloured loop.")
+        sched = self.ancestor(InvokeSchedule)
         if self._is_intergrid:
-            invoke = self.ancestor(InvokeSchedule).invoke
+            invoke = sched.invoke
             if id(self) not in invoke.meshes.intergrid_kernels:
                 raise InternalError(
                     f"Colourmap information for kernel '{self.name}' has "
@@ -406,7 +404,14 @@ class LFRicKern(CodedKern):
             cmap = invoke.meshes.intergrid_kernels[id(self)].\
                 colourmap_symbol.name
         else:
-            cmap = self.scope.symbol_table.lookup_with_tag("cmap").name
+            try:
+                cmap = sched.symbol_table.lookup_with_tag("cmap").name
+            except KeyError:
+                # We have to do this here as _init_colourmap (which calls this
+                # method) is only called at code-generation time.
+                cmap = sched.symbol_table.find_or_create_array(
+                    "cmap", 2, ScalarType.Intrinsic.INTEGER,
+                    tag="cmap").name
 
         return cmap
 
@@ -415,10 +420,8 @@ class LFRicKern(CodedKern):
         '''
         Getter for the symbol of the array holding the index of the last
         cell of each colour.
-
         :returns: name of the array.
         :rtype: str
-
         :raises InternalError: if this kernel is not coloured or the \
                                dictionary of inter-grid kernels and \
                                colourmaps has not been constructed.
@@ -426,19 +429,20 @@ class LFRicKern(CodedKern):
         if not self.is_coloured():
             raise InternalError(f"Kernel '{self.name}' is not inside a "
                                 f"coloured loop.")
+
         if self._is_intergrid:
             invoke = self.ancestor(InvokeSchedule).invoke
             if id(self) not in invoke.meshes.intergrid_kernels:
                 raise InternalError(
                     f"Colourmap information for kernel '{self.name}' has "
                     f"not yet been initialised")
-            return invoke.meshes.intergrid_kernels[id(self)].\
-                last_cell_var_symbol
+            return (invoke.meshes.intergrid_kernels[id(self)].
+                    last_cell_var_symbol)
 
+        ubnd_name = self.ancestor(Loop).upper_bound_name
         const = LFRicConstants()
 
-        if (self.ancestor(Loop).upper_bound_name in
-                const.HALO_ACCESS_LOOP_BOUNDS):
+        if (ubnd_name in const.HALO_ACCESS_LOOP_BOUNDS):
             return self.scope.symbol_table.find_or_create_array(
                 "last_halo_cell_all_colours", 2,
                 ScalarType.Intrinsic.INTEGER,
@@ -729,6 +733,25 @@ class LFRicKern(CodedKern):
 
         # Get the PSyIR Kernel Schedule(s)
         routines = Fparser2Reader().get_routine_schedules(self.name, self.ast)
+        for routine in routines:
+            # If one of the symbols is not declared in a routine then
+            # this is only picked up when writing out the routine
+            # (raising a VisitorError), so we check here so that
+            # invalid code is not inlined. We use debug_string() to
+            # minimise the overhead.
+
+            # TODO #2271 could potentially avoid the need for
+            # debug_string() within. Sergi suggests that we may be
+            # missing the traversal of the declaration init
+            # expressions and that might solve the problem. I'm not so
+            # sure as we are talking about unknown symbols that will
+            # only be resolved in the back-end (or not). If I am right
+            # then one option would be to use the FortranWriter, but
+            # that would be bigger overhead, or perhaps just the
+            # declarations part of FortranWriter if that is possible.
+            # Also see TODO issue #2336 which captures the specific
+            # problem in LFRic that this fixes.
+            routine.debug_string()
 
         if len(routines) == 1:
             sched = routines[0]

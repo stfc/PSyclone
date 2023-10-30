@@ -57,11 +57,9 @@ from psyclone.domain.lfric.lfric_builtins import (LFRicBuiltInCallFactory,
                                                   LFRicBuiltIn, BUILTIN_MAP)
 from psyclone.domain.common.psylayer import PSyLoop
 from psyclone.domain.lfric import (FunctionSpace, KernCallAccArgList,
-                                   KernCallArgList, KernStubArgList,
-                                   LFRicArgDescriptor, KernelInterface,
+                                   KernCallArgList, LFRicArgDescriptor,
                                    LFRicCollection, LFRicConstants,
-                                   LFRicSymbolTable, LFRicInvoke,
-                                   LFRicKernCallFactory, LFRicScalarArgs,
+                                   LFRicSymbolTable, LFRicKernCallFactory,
                                    LFRicKern, LFRicInvokes, LFRicTypes)
 from psyclone.errors import GenerationError, InternalError, FieldNotFoundError
 from psyclone.f2pygen import (AllocateGen, AssignGen, CallGen, CommentGen,
