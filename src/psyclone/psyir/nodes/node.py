@@ -1123,8 +1123,8 @@ class Node():
                   instances of my_type and immediately follow one another, \
                   starting at and including this node.
         :rtype: List[List[:py:class:`psyclone.psyir.nodes.Node`]]
-        '''
 
+        '''
         # Separate nodes by depth
         by_depth = {}
         for node in self.walk(my_type, stop_type=stop_type):
