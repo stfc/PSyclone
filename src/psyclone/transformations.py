@@ -34,8 +34,7 @@
 # Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 #         A. B. G. Chalk STFC Daresbury Lab
 #         J. Henrichs, Bureau of Meteorology
-# Modified I. Kavcic, J. G. Wallwork and L. Turner, Met Office
-
+# Modified I. Kavcic, J. G. Wallwork, O. Brunt and L. Turner, Met Office
 
 ''' This module provides the various transformations that can be applied to
     PSyIR nodes. There are both general and API-specific transformation
@@ -51,7 +50,7 @@ from psyclone.configuration import Config
 from psyclone.domain.lfric import KernCallArgList, LFRicConstants
 from psyclone.core import Signature, VariablesAccessInfo
 from psyclone.domain.lfric import KernCallArgList, LFRicConstants, LFRicKern
-from psyclone.dynamo0p3 import DynHaloExchangeEnd, DynHaloExchangeStart, \
+from psyclone.dynamo0p3 import LFRicHaloExchangeEnd, LFRicHaloExchangeStart, \
     DynInvokeSchedule
 from psyclone.errors import InternalError
 from psyclone.gocean1p0 import GOInvokeSchedule
@@ -495,7 +494,7 @@ class ACCLoopTrans(ParallelLoopTrans):
     '''
     # The types of node that must be excluded from the section of PSyIR
     # being transformed.
-    excluded_node_types = (PSyDataNode)
+    excluded_node_types = (PSyDataNode,)
 
     def __init__(self):
         # Whether to add the "independent" clause
@@ -639,10 +638,10 @@ class DynamoOMPParallelLoopTrans(OMPParallelLoopTrans):
         validity checks. Actual transformation is done by the
         :py:class:`base class <OMPParallelLoopTrans>`.
 
-        :param str omp_directive: choose which OpenMP loop directive to use. \
+        :param str omp_directive: choose which OpenMP loop directive to use.
             Defaults to "do".
-        :param str omp_schedule: the OpenMP schedule to use. Must be one of \
-            'runtime', 'static', 'dynamic', 'guided' or 'auto'. Defaults to \
+        :param str omp_schedule: the OpenMP schedule to use. Must be one of
+            'runtime', 'static', 'dynamic', 'guided' or 'auto'. Defaults to
             'static'.
 
     '''
@@ -653,36 +652,43 @@ class DynamoOMPParallelLoopTrans(OMPParallelLoopTrans):
     def __str__(self):
         return "Add an OpenMP Parallel Do directive to a Dynamo loop"
 
-    def apply(self, node, options=None):
-
-        '''Perform Dynamo specific loop validity checks then call the
-        :py:meth:`~OMPParallelLoopTrans.apply` method of the
-        :py:class:`base class <OMPParallelLoopTrans>`.
+    def validate(self, node, options=None):
+        '''
+        Perform LFRic-specific loop validity checks then call the `validate`
+        method of the base class.
 
         :param node: the Node in the Schedule to check
         :type node: :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.
         :type options: Optional[Dict[str, Any]]
 
-        :raises TransformationError: if the associated loop requires \
-                colouring.
-
+        :raises TransformationError: if the supplied Node is not a DynLoop.
+        :raises TransformationError: if the associated loop requires
+            colouring.
         '''
-        self.validate(node, options=options)
+        if not isinstance(node, DynLoop):
+            raise TransformationError(
+                f"Error in {self.name} transformation. The supplied node "
+                f"must be a DynLoop but got '{type(node).__name__}'")
 
         # If the loop is not already coloured then check whether or not
         # it should be. If the field space is discontinuous (including
         # any_discontinuous_space) then we don't need to worry about
         # colouring.
         const = LFRicConstants()
-        if node.field_space.orig_name not in \
-           const.VALID_DISCONTINUOUS_NAMES:
+        if node.field_space.orig_name not in const.VALID_DISCONTINUOUS_NAMES:
             if node.loop_type != 'colour' and node.has_inc_arg():
                 raise TransformationError(
                     f"Error in {self.name} transformation. The kernel has an "
                     f"argument with INC access. Colouring is required.")
-
-        OMPParallelLoopTrans.apply(self, node, options=options)
+        # As this is a domain-specific loop, we don't perform general
+        # dependence analysis because it is too conservative and doesn't
+        # account for the special steps taken for such a loop at code-
+        # generation time (e.g. the way we ensure variables are given the
+        # correct sharing attributes).
+        local_options = options.copy() if options else {}
+        local_options["force"] = True
+        super().validate(node, options=local_options)
 
 
 class GOceanOMPParallelLoopTrans(OMPParallelLoopTrans):
@@ -1086,11 +1092,6 @@ class ParallelRegionTrans(RegionTrans, metaclass=abc.ABCMeta):
     def __str__(self):
         pass  # pragma: no cover
 
-    @property
-    @abc.abstractmethod
-    def name(self):
-        ''' Returns the name of this transformation as a string.'''
-
     def validate(self, node_list, options=None):
         # pylint: disable=arguments-renamed
         '''
@@ -1438,52 +1439,122 @@ class OMPParallelTrans(ParallelRegionTrans):
 
 class ACCParallelTrans(ParallelRegionTrans):
     '''
-    Create an OpenACC parallel region by inserting directives. This parallel
-    region *must* come after an enter-data directive (see `ACCEnterDataTrans`)
-    or within a data region (see `ACCDataTrans`). For example:
+    Create an OpenACC parallel region by inserting an 'acc parallel'
+    directive.
 
-    >>> from psyclone.parse.algorithm import parse
-    >>> from psyclone.psyGen import PSyFactory
-    >>> api = "gocean1.0"
-    >>> ast, invokeInfo = parse(GOCEAN_SOURCE_FILE, api=api)
-    >>> psy = PSyFactory(api).create(invokeInfo)
-    >>>
     >>> from psyclone.psyGen import TransInfo
-    >>> t = TransInfo()
-    >>> ptrans = t.get_trans_name('ACCParallelTrans')
-    >>> dtrans = t.get_trans_name('ACCDataTrans')
+    >>> from psyclone.psyir.frontend.fortran import FortranReader
+    >>> from psyclone.psyir.backend.fortran import FortranWriter
+    >>> from psyclone.psyir.nodes import Loop
+    >>> psyir = FortranReader().psyir_from_source("""
+    ... program do_loop
+    ...     real, dimension(10) :: A
+    ...     integer i
+    ...     do i = 1, 10
+    ...       A(i) = i
+    ...     end do
+    ... end program do_loop
+    ... """)
+    >>> ptrans = TransInfo().get_trans_name('ACCParallelTrans')
     >>>
-    >>> schedule = psy.invokes.get('invoke_0').schedule
-    >>> # Uncomment the following line to see a text view of the schedule
-    >>> # print(schedule.view())
-    >>>
-    >>> # Enclose everything within a single OpenACC PARALLEL region
-    >>> ptrans.apply(schedule.children)
-    >>> # Add an enter-data directive
-    >>> dtrans.apply(schedule)
-    >>> # Uncomment the following line to see a text view of the schedule
-    >>> # print(schedule.view())
+    >>> # Enclose the loop within a OpenACC PARALLEL region
+    >>> ptrans.apply(psyir.walk(Loop))
+    >>> print(FortranWriter()(psyir))
+    program do_loop
+      real, dimension(10) :: a
+      integer :: i
+    <BLANKLINE>
+      !$acc parallel default(present)
+      do i = 1, 10, 1
+        a(i) = i
+      enddo
+      !$acc end parallel
+    <BLANKLINE>
+    end program do_loop
+    <BLANKLINE>
 
     '''
     excluded_node_types = (CodeBlock, Return, PSyDataNode,
                            ACCDataDirective, ACCEnterDataDirective,
                            psyGen.HaloExchange)
 
-    def __init__(self):
+    def __init__(self, default_present=True):
         super().__init__()
-        # Set the type of directive that the base class will use
-        self._directive_factory = ACCParallelDirective
+        if not isinstance(default_present, bool):
+            raise TypeError(
+                f"The provided 'default_present' argument must be a "
+                f"boolean, but found '{default_present}'."
+            )
+        self._default_present = default_present
 
     def __str__(self):
         return "Insert an OpenACC Parallel region"
 
-    @property
-    def name(self):
+    def validate(self, node_list, options=None):
         '''
-        :returns: the name of this transformation as a string.
-        :rtype: str
+        Validate this transformation.
+
+        :param node_list: a single Node or a list of Nodes.
+        :type node_list: :py:class:`psyclone.psyir.nodes.Node` |
+            List[:py:class:`psyclone.psyir.nodes.Node`]
+        :param options: a dictionary with options for transformations.
+        :type options: Optional[Dict[str, Any]]
+        :param bool options["node-type-check"]: this flag controls if the
+            type of the nodes enclosed in the region should be tested to
+            avoid using unsupported nodes inside a region.
+        :param bool options["default_present"]: this flag controls if the
+            inserted directive should include the default_present clause.
+
         '''
-        return "ACCParallelTrans"
+        super().validate(node_list, options)
+        if options is not None and "default_present" in options:
+            if not isinstance(options["default_present"], bool):
+                raise TransformationError(
+                    f"The provided 'default_present' option must be a "
+                    f"boolean, but found '{options['default_present']}'."
+                )
+
+    def apply(self, target_nodes, options=None):
+        '''
+        Encapsulate given nodes with the ACCParallelDirective.
+
+        :param target_nodes: a single Node or a list of Nodes.
+        :type target_nodes: :py:class:`psyclone.psyir.nodes.Node` |
+            List[:py:class:`psyclone.psyir.nodes.Node`]
+        :param options: a dictionary with options for transformations.
+        :type options: Optional[Dict[str, Any]]
+        :param bool options["node-type-check"]: this flag controls if the
+            type of the nodes enclosed in the region should be tested to
+            avoid using unsupported nodes inside a region.
+        :param bool options["default_present"]: this flag controls if the
+            inserted directive should include the default_present clause.
+
+        '''
+        if not options:
+            options = {}
+        # Check whether we've been passed a list of nodes or just a
+        # single node. If the latter then we create ourselves a
+        # list containing just that node.
+        node_list = self.get_node_list(target_nodes)
+        self.validate(node_list, options)
+
+        # Keep a reference to the parent of the nodes that are to be
+        # enclosed within a parallel region. Also keep the index of
+        # the first child to be enclosed as that will become the
+        # position of the new !$omp parallel directive.
+        node_parent = node_list[0].parent
+        node_position = node_list[0].position
+
+        # Create the parallel directive
+        directive = ACCParallelDirective(
+            children=[node.detach() for node in node_list])
+        directive.default_present = options.get("default_present",
+                                                self._default_present)
+
+        # Add the region directive as a child of the parent
+        # of the nodes being enclosed and at the original location
+        # of the first of these nodes
+        node_parent.addchild(directive, index=node_position)
 
 
 class MoveTrans(Transformation):
@@ -1861,12 +1932,12 @@ class Dynamo0p3AsyncHaloExchangeTrans(Transformation):
         # exchange
         # pylint: disable=protected-access
         node.parent.addchild(
-            DynHaloExchangeStart(
+            LFRicHaloExchangeStart(
                 node.field, check_dirty=node._check_dirty,
                 vector_index=node.vector_index, parent=node.parent),
             index=node.position)
         node.parent.addchild(
-            DynHaloExchangeEnd(
+            LFRicHaloExchangeEnd(
                 node.field, check_dirty=node._check_dirty,
                 vector_index=node.vector_index, parent=node.parent),
             index=node.position)
@@ -1889,7 +1960,7 @@ class Dynamo0p3AsyncHaloExchangeTrans(Transformation):
 
         '''
         if not isinstance(node, psyGen.HaloExchange) or \
-           isinstance(node, (DynHaloExchangeStart, DynHaloExchangeEnd)):
+           isinstance(node, (LFRicHaloExchangeStart, LFRicHaloExchangeEnd)):
             raise TransformationError(
                 f"Error in Dynamo0p3AsyncHaloExchange transformation. Supplied"
                 f" node must be a synchronous halo exchange but found "

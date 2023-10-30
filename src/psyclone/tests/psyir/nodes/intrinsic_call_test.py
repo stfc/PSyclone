@@ -35,16 +35,28 @@
 # Modified: R. W. Ford and S. Siso, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
-'''This module contains pytest tests for the IntrinsicCall node.'''
+'''
+This module contains pytest tests for the IntrinsicCall node.
+
+TODO #2341 - tests need to be added for all of the supported intrinsics.
+
+'''
 
 import pytest
 
 from psyclone.core import VariablesAccessInfo
 from psyclone.psyir.nodes import (
-    ArrayReference, Literal, IntrinsicCall, Reference, Schedule, Assignment)
+    ArrayReference, Literal, Reference, Schedule, Assignment)
+from psyclone.psyir.nodes.intrinsic_call import IntrinsicCall, IAttr
 from psyclone.psyir.symbols import (
     ArrayType, DataSymbol, INTEGER_TYPE, IntrinsicSymbol, REAL_TYPE,
     BOOLEAN_TYPE, CHARACTER_TYPE)
+
+
+def test_intrinsic_enum():
+    '''Basic test for the IntrinsicCall.Intrinsic enum.'''
+    assert isinstance(IntrinsicCall.Intrinsic.MINVAL, IAttr)
+    assert hash(IntrinsicCall.Intrinsic.MINVAL) == hash("MINVAL")
 
 
 def test_intrinsiccall_constructor():
@@ -92,6 +104,14 @@ def test_intrinsiccall_is_pure():
     assert intrinsic.is_pure is True
     intrinsic = IntrinsicCall(IntrinsicCall.Intrinsic.ALLOCATE)
     assert intrinsic.is_pure is False
+
+
+def test_intrinsiccall_is_inquiry():
+    '''Test that the is_inquiry() method works as expected.'''
+    intrinsic = IntrinsicCall(IntrinsicCall.Intrinsic.SUM)
+    assert intrinsic.is_inquiry is False
+    intrinsic = IntrinsicCall(IntrinsicCall.Intrinsic.ALLOCATED)
+    assert intrinsic.is_inquiry is True
 
 
 @pytest.mark.parametrize("intrinsic, result", [
@@ -392,3 +412,114 @@ def test_reference_accesses_bounds(operator, fortran_reader):
     vai = VariablesAccessInfo(schedule,
                               options={"COLLECT-ARRAY-SHAPE-READS": True})
     assert str(vai) == "a: READ, b: READ, n: WRITE"
+
+
+def test_enumerator_name_matches_name_field():
+    '''
+    Test that the name given to every IntrinsicCall matches the
+    corresponding name field in the IAttr namedtuple.
+    '''
+    for intrinsic_entry in IntrinsicCall.Intrinsic:
+        assert intrinsic_entry._name_ == intrinsic_entry.name
+
+
+def test_allocate_intrinsic(fortran_reader, fortran_writer):
+    '''
+    Test the ALLOCATE 'intrinsic'.
+    '''
+    code = '''
+program test_prog
+  implicit none
+  integer :: ierr
+  character(len=128) :: msg
+  real, allocatable, dimension(:) :: arr1, arr2
+  allocate(arr1(10), stat=ierr)
+  allocate(arr2, mold=arr1)
+  allocate(arr2, source=arr1, errmsg=msg)
+end program test_prog
+'''
+    psyir = fortran_reader.psyir_from_source(code)
+    assert len(psyir.walk(IntrinsicCall)) == 3
+    result = fortran_writer(psyir).lower()
+    assert "allocate(arr1(1:10), stat=ierr)" in result
+    assert "allocate(arr2, mold=arr1)" in result
+    assert "allocate(arr2, source=arr1, errmsg=msg)" in result
+
+
+def test_deallocate_intrinsic(fortran_reader, fortran_writer):
+    '''
+    Test the DEALLOCATE 'intrinsic'.
+    '''
+    code = '''
+program test_prog
+  implicit none
+  integer :: ierr
+  real, allocatable, dimension(:) :: arr1
+  deallocate(arr1)
+  deallocate(arr1, stat=ierr)
+end program test_prog
+'''
+    psyir = fortran_reader.psyir_from_source(code)
+    assert len(psyir.walk(IntrinsicCall)) == 2
+    result = fortran_writer(psyir).lower()
+    assert "deallocate(arr1)" in result
+    assert "deallocate(arr1, stat=ierr)" in result
+
+
+def test_index_intrinsic(fortran_reader, fortran_writer):
+    '''
+    Test the INDEX intrinsic.
+    '''
+    code = '''
+program test_prog
+  implicit none
+  character(len=10) :: clname
+  integer :: ind1, ind2
+
+  ind1 = INDEX( clname, '_', back = .TRUE. ) + 1
+  ind2 = INDEX( clname, '.') - 1
+  ind2 = INDEX( clname, '.', kind=4) - 1
+
+end program test_prog
+'''
+    psyir = fortran_reader.psyir_from_source(code)
+    assert len(psyir.walk(IntrinsicCall)) == 3
+    result = fortran_writer(psyir).lower()
+    assert "ind1 = index(clname, '_', back=.true.) + 1" in result
+    assert "ind2 = index(clname, '.') - 1" in result
+    assert "ind2 = index(clname, '.', kind=4) - 1" in result
+
+
+def test_verify_intrinsic(fortran_reader, fortran_writer):
+    '''
+    Test the VERIFY intrinsic.
+    '''
+    code = '''
+program test_prog
+  implicit none
+  character(len=10) :: clname
+  integer :: ind1, ind2, idom, jpdom_local
+
+  ind1 = 2
+  ind2 = 5
+  IF( VERIFY( clname(ind1:ind2), '0123456789' ) == 0 ) idom = jpdom_local
+  IF( VERIFY( clname(ind1:ind2), '0123456789', back=.true. ) == 0 ) &
+idom = jpdom_local
+  IF( VERIFY( clname(ind1:ind2), '0123456789', kind=kind(1) ) == 0 ) &
+idom = jpdom_local
+  IF( VERIFY( clname(ind1:ind2), '0123456789', kind=kind(1), back=.true. ) &
+== 0 ) idom = jpdom_local
+
+end program test_prog
+'''
+    psyir = fortran_reader.psyir_from_source(code)
+    # Should have 4 VERIFY and 2 KIND
+    assert len(psyir.walk(IntrinsicCall)) == 6
+    result = fortran_writer(psyir).lower()
+    assert "if (verify(clname(ind1:ind2), '0123456789') == 0) then" in result
+    assert ("if (verify(clname(ind1:ind2), '0123456789', back=.true.) "
+            "== 0) then" in result)
+    assert ("if (verify(clname(ind1:ind2), '0123456789', kind=kind(1)) "
+            "== 0) then" in result)
+    assert ("if (verify(clname(ind1:ind2), '0123456789', kind=kind(1), "
+            "back=.true.) == 0) then" in result)

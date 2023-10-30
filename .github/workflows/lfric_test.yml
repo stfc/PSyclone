@@ -47,6 +47,7 @@ jobs:
     runs-on: self-hosted
     env:
       LFRIC_REV: 45376
+      PYTHON_VERSION: 3.11.4
 
     steps:
     - uses: actions/checkout@v3
@@ -63,6 +64,8 @@ jobs:
         commit-filter: '[skip ci]'
     - name: Install dependencies
       run: |
+        # Use a specific version of Python (rather than the system-wide one).
+        module load python/${PYTHON_VERSION}
         python -m venv .runner_venv
         . .runner_venv/bin/activate
         python -m pip install --upgrade pip

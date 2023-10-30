@@ -34,6 +34,7 @@
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 #         I. Kavcic, Met Office
 #         J. Henrichs, Bureau of Meteorology
+# Modified A. B. G. Chalk, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' Performs py.test tests of the ArrayReference PSyIR node. '''
@@ -46,7 +47,8 @@ from psyclone.psyir.nodes import Reference, ArrayReference, Assignment, \
     Literal, BinaryOperation, Range, KernelSchedule, IntrinsicCall
 from psyclone.psyir.symbols import (
     ArrayType, DataSymbol, DataTypeSymbol, DeferredType, ScalarType,
-    REAL_SINGLE_TYPE, INTEGER_SINGLE_TYPE, REAL_TYPE, INTEGER_TYPE)
+    REAL_SINGLE_TYPE, INTEGER_SINGLE_TYPE, REAL_TYPE, INTEGER_TYPE,
+    UnknownFortranType)
 from psyclone.tests.utilities import check_links
 
 
@@ -193,7 +195,7 @@ def test_array_validate_index():
 
     with pytest.raises(ValueError) as info:
         array._validate_index(1)
-    assert ("In ArrayReference 'test' the specified index '1' must be less "
+    assert ("In 'ArrayReference' 'test' the specified index '1' must be less "
             "than the number of dimensions '1'." in str(info.value))
 
     array._validate_index(0)
@@ -313,7 +315,7 @@ def test_array_is_full_range():
     array_reference = ArrayReference.create(symbol, [one.copy()])
     with pytest.raises(ValueError) as excinfo:
         array_reference.is_full_range(1)
-    assert ("In ArrayReference 'my_array' the specified index '1' must be "
+    assert ("In 'ArrayReference' 'my_array' the specified index '1' must be "
             "less than the number of dimensions '1'." in str(excinfo.value))
 
     # Array dimension is not a Range
@@ -528,6 +530,12 @@ def test_array_datatype(fortran_writer):
     asym = DataSymbol("aos", atype)
     aref = ArrayReference.create(asym, [two.copy()])
     assert aref.datatype is stype
+    # Reference to a single element of an array of UnknownType.
+    unknown_sym = DataSymbol(
+        "unknown",
+        UnknownFortranType("real, dimension(5), pointer :: unknown"))
+    aref = ArrayReference.create(unknown_sym, [two.copy()])
+    assert isinstance(aref.datatype, UnknownFortranType)
 
 
 def test_array_create_colon(fortran_writer):

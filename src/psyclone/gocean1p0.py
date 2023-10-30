@@ -531,7 +531,7 @@ class GOLoop(PSyLoop):
             caller can access any diagnostic messages detailing why the loop
             iterations are not independent.
         :type dep_tools: Optional[
-            :py:class:`psyclone.psyir.tools.DependencyTools]
+            :py:class:`psyclone.psyir.tools.DependencyTools`]
 
         :returns: True if the loop iterations are independent, False otherwise.
         :rtype: bool

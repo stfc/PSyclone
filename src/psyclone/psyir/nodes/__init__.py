@@ -52,10 +52,10 @@ from psyclone.psyir.nodes.scoping_node import ScopingNode
 from psyclone.psyir.nodes.schedule import Schedule
 from psyclone.psyir.nodes.return_stmt import Return
 from psyclone.psyir.nodes.array_member import ArrayMember
-from psyclone.psyir.nodes.array_of_structures_member import \
-    ArrayOfStructuresMember
-from psyclone.psyir.nodes.operation import Operation, UnaryOperation, \
-    BinaryOperation
+from psyclone.psyir.nodes.array_of_structures_member import (
+    ArrayOfStructuresMember)
+from psyclone.psyir.nodes.operation import (
+    Operation, UnaryOperation, BinaryOperation)
 from psyclone.psyir.nodes.literal import Literal
 from psyclone.psyir.nodes.if_block import IfBlock
 from psyclone.psyir.nodes.intrinsic_call import IntrinsicCall
@@ -76,25 +76,30 @@ from psyclone.psyir.nodes.structure_reference import StructureReference
 from psyclone.psyir.nodes.structure_member import StructureMember
 from psyclone.psyir.nodes.call import Call
 from psyclone.psyir.nodes.file_container import FileContainer
-from psyclone.psyir.nodes.directive import Directive, StandaloneDirective, \
-    RegionDirective
-from psyclone.psyir.nodes.acc_directives import ACCDirective, \
-    ACCLoopDirective, ACCEnterDataDirective, ACCParallelDirective, \
-    ACCKernelsDirective, ACCDataDirective, ACCUpdateDirective, \
-    ACCStandaloneDirective, ACCRegionDirective, ACCRoutineDirective
-from psyclone.psyir.nodes.omp_directives import OMPDirective, OMPDoDirective, \
-    OMPParallelDirective, OMPParallelDoDirective, OMPSingleDirective, \
-    OMPMasterDirective, OMPSerialDirective, OMPTaskloopDirective, \
-    OMPTaskwaitDirective, OMPStandaloneDirective, OMPRegionDirective, \
-    OMPTargetDirective, OMPLoopDirective, OMPDeclareTargetDirective, \
-    OMPTeamsDistributeParallelDoDirective
+from psyclone.psyir.nodes.directive import (
+    Directive, StandaloneDirective, RegionDirective)
+from psyclone.psyir.nodes.dynamic_omp_task_directive import (
+    DynamicOMPTaskDirective)
+from psyclone.psyir.nodes.acc_directives import (
+    ACCDirective, ACCLoopDirective, ACCEnterDataDirective,
+    ACCParallelDirective, ACCKernelsDirective, ACCDataDirective,
+    ACCUpdateDirective, ACCStandaloneDirective, ACCRegionDirective,
+    ACCRoutineDirective, ACCAtomicDirective)
+from psyclone.psyir.nodes.omp_directives import (
+    OMPDirective, OMPDoDirective, OMPParallelDirective,
+    OMPParallelDoDirective, OMPSingleDirective, OMPMasterDirective,
+    OMPSerialDirective, OMPTaskloopDirective, OMPTaskwaitDirective,
+    OMPStandaloneDirective, OMPRegionDirective, OMPTargetDirective,
+    OMPLoopDirective, OMPDeclareTargetDirective,
+    OMPTeamsDistributeParallelDoDirective, OMPAtomicDirective,
+    OMPSimdDirective)
 from psyclone.psyir.nodes.clause import Clause, OperandClause
-from psyclone.psyir.nodes.omp_clauses import OMPGrainsizeClause, \
-    OMPNogroupClause, OMPNowaitClause, OMPNumTasksClause, OMPPrivateClause, \
-    OMPDefaultClause, OMPReductionClause, OMPScheduleClause, \
-    OMPFirstprivateClause, OMPSharedClause, OMPDependClause
+from psyclone.psyir.nodes.omp_clauses import (
+    OMPGrainsizeClause, OMPNogroupClause, OMPNowaitClause, OMPNumTasksClause,
+    OMPPrivateClause, OMPDefaultClause, OMPReductionClause, OMPScheduleClause,
+    OMPFirstprivateClause, OMPSharedClause, OMPDependClause)
+from psyclone.psyir.nodes.omp_task_directive import OMPTaskDirective
 from psyclone.psyir.nodes.while_loop import WhileLoop
-
 
 # The entities in the __all__ list are made available to import directly from
 # this package e.g. 'from psyclone.psyir.nodes import Literal'
@@ -144,6 +149,7 @@ __all__ = [
         'RegionDirective',
         'StandaloneDirective',
         # OpenACC Directive Nodes
+        'ACCAtomicDirective',
         'ACCDirective',
         'ACCRegionDirective',
         'ACCStandaloneDirective',
@@ -159,6 +165,7 @@ __all__ = [
         'ACCCopyInClause',
         'ACCCopyOutClause',
         # OpenMP Directive Nodes
+        'OMPAtomicDirective',
         'OMPDirective',
         'OMPRegionDirective',
         'OMPStandaloneDirective',
@@ -167,12 +174,15 @@ __all__ = [
         'OMPSingleDirective',
         'OMPMasterDirective',
         'OMPTaskloopDirective',
+        'OMPTaskDirective',
+        'DynamicOMPTaskDirective',
         'OMPDoDirective',
         'OMPParallelDoDirective',
         'OMPTaskwaitDirective',
         'OMPTargetDirective',
         'OMPLoopDirective',
         'OMPDeclareTargetDirective',
+        'OMPSimdDirective',
         'OMPTeamsDistributeParallelDoDirective',
         # OMP Clause Nodes
         'OMPGrainsizeClause',

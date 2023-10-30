@@ -45,7 +45,8 @@ from psyclone.core import VariablesAccessInfo
 from psyclone.psyGen import GenerationError
 from psyclone.psyir.nodes import (ArrayReference, Assignment, colored,
                                   KernelSchedule, Literal, Reference)
-from psyclone.psyir.symbols import (ArrayType, DataSymbol, DeferredType,
+from psyclone.psyir.symbols import (ArrayType, ContainerSymbol, DataSymbol,
+                                    DeferredType, ImportInterface,
                                     INTEGER_SINGLE_TYPE, REAL_SINGLE_TYPE,
                                     REAL_TYPE, ScalarType, Symbol,
                                     UnresolvedInterface)
@@ -181,6 +182,20 @@ def test_reference_accesses():
     var_access_info = VariablesAccessInfo()
     array.reference_accesses(var_access_info)
     assert str(var_access_info) == "i: READ, temp: READ"
+
+    # Test that renaming an imported reference is handled
+    # correctly by the access info code:
+    symbol = Symbol('renamed_name')
+    symbol.interface = ImportInterface(ContainerSymbol("my_mod"),
+                                       orig_name="orig_name")
+    reference.symbol = symbol
+    var_access_info = VariablesAccessInfo()
+    reference.reference_accesses(var_access_info)
+    assert "renamed_name: READ" in str(var_access_info)
+
+    var_access_info = VariablesAccessInfo(options={"USE-ORIGINAL-NAMES": True})
+    reference.reference_accesses(var_access_info)
+    assert "orig_name: READ" in str(var_access_info)
 
 
 def test_reference_can_be_copied():

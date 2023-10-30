@@ -38,6 +38,7 @@ include ${PSYROOT}/examples/common.mk
 
 CONFIG_ENV = PSYCLONE_CONFIG=${PSYCLONE_DIR}/config/psyclone.cfg
 
+API = -api dynamo0.3
 F90FLAGS += -ffree-line-length-none
 
 OUT_DIR ?= ../adjoint_partial
@@ -52,9 +53,12 @@ GENERATED_FILES = ${OUT_DIR}/adj*.[fF]90
 single: ${ADJ_KERNEL_FILE}
 
 ${ADJ_KERNEL_FILE}: ${TL_KERNEL_FILE}
-	$(PSYAD) -api dynamo0.3 $< -oad ${OUT_DIR}/$@ -a ${ACTIVE_VAR_LIST}
+	$(PSYAD) $(API) $< -oad ${OUT_DIR}/$@ -a ${ACTIVE_VAR_LIST}
 
 transform:
+	# All of these files need modifying after being processed by
+	# PSyAD (as they already have manual tweaks) so they all go
+	# into the the adjoint_partial directory.
 	$(MAKE) single -e TL_KERNEL_NAME=tl_kinetic_energy_gradient_kernel ACTIVE_VAR_LIST="r_u ru_e ke_at_quad res_dot_product mul2 u_at_quad u_e u"
 	$(MAKE) single -e TL_KERNEL_NAME=tl_moist_dyn_gas_kernel ACTIVE_VAR_LIST="moist_dyn_gas mr_v mr_v_at_dof"
 	$(MAKE) single -e TL_KERNEL_NAME=tl_project_eos_pressure_kernel ACTIVE_VAR_LIST="exner rho exner_e r_exner exner_at_quad rho_at_quad rho_e tmp2 theta theta_vd_e theta_vd_at_quad moist_dyn_gas"
@@ -63,10 +67,19 @@ transform:
 	$(MAKE) single -e TL_KERNEL_NAME=poly1d_w3_reconstruction_kernel ACTIVE_VAR_LIST="reconstruction polynomial_tracer tracer"
 	$(MAKE) single -e TL_KERNEL_NAME=tl_poly1d_vert_w3_reconstruction_kernel ACTIVE_VAR_LIST="reconstruction polynomial_tracer tracer"
 	$(MAKE) single -e TL_KERNEL_NAME=convert_hdiv_field_kernel ACTIVE_VAR_LIST="physical_field1 physical_field2 physical_field3 vector_out vector_in computational_field"
-	$(MAKE) single -e TL_KERNEL_NAME=tl_calc_exner_pointwise ACTIVE_VAR_LIST="exner rho theta"
+	# tl_calc_exner_pointwise is provided in LFRic as a
+	# function so needs to be manually tweaked to be a subroutine.
+	# Further, it does not contain any metadata, therefore we use
+	# the generic version of PSyAD (with no API) to process the
+	# code.
+	$(MAKE) single -e TL_KERNEL_NAME=tl_calc_exner_pointwise ACTIVE_VAR_LIST="exner rho theta" API=""
 	$(MAKE) single -e TL_KERNEL_NAME=poly2d_w3_reconstruction_kernel ACTIVE_VAR_LIST="reconstruction polynomial_tracer tracer"
 	$(MAKE) single -e TL_KERNEL_NAME=tl_sample_eos_pressure_kernel ACTIVE_VAR_LIST="exner rho_cell rho_e rho tmp_exner theta_vd_cell theta_vd_e theta moist_dyn_gas"
 	$(MAKE) single -e TL_KERNEL_NAME=tl_rhs_project_eos_kernel ACTIVE_VAR_LIST="rhs_eos exner rho theta moist_dyn_gas eos exner_quad theta_vd_quad rho_quad rho_e exner_e theta_vd_e"
+	# issue: multi-precision kernels not supported
+	$(MAKE) single -e TL_KERNEL_NAME=matrix_vector_kernel ACTIVE_VAR_LIST="lhs x lhs_e x_e"
+	# issue: dg_inc_matrix_vector_kernel: multi-precision kernels not supported
+	$(MAKE) single -e TL_KERNEL_NAME=dg_inc_matrix_vector_kernel ACTIVE_VAR_LIST="lhs x lhs_e x_e"
 
 compile:
 	@echo No compilation supported.

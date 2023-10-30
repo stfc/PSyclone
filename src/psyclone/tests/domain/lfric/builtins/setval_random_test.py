@@ -83,7 +83,7 @@ def test_setval_random(tmpdir):
 
     output = (
         "      do df=loop0_start,loop0_stop\n"
-        "        call random_number(f1_proxy%data(df))\n"
+        "        call random_number(f1_data(df))\n"
         "      end do\n")
     assert output in code
     assert LFRicBuild(tmpdir).code_compiles(psy)

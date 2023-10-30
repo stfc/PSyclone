@@ -72,6 +72,7 @@ class KernelModuleInlineTrans(Transformation):
     def __str__(self):
         return "Inline a kernel subroutine into the PSy module"
 
+    # pylint: disable=too-many-branches
     def validate(self, node, options=None):
         '''
         Checks that the supplied node is a Kernel and that it is possible to
@@ -174,8 +175,15 @@ class KernelModuleInlineTrans(Transformation):
 
     @staticmethod
     def _prepare_code_to_inline(code_to_inline):
-        ''' Prepare the PSyIR tree to inline by bringing in to the subroutine
+        '''Prepare the PSyIR tree to inline by bringing in to the subroutine
         all referenced symbols so that the implementation is self contained.
+
+        TODO #2271 will improve this method and could potentially
+        avoid the need for debug_string() within get_kernel_schedule()
+        in dynamo0.3.py. Sergi suggests that we may be missing the
+        traversal of the declaration init expressions here and that
+        might solve the problem. I'm not so sure and explain why in
+        get_kernel_schedule() but still referencing this issue.
 
         :param code_to_inline: the subroutine to module-inline.
         :type code_to_inline: :py:class:`psyclone.psyir.node.Routine`

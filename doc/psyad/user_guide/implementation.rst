@@ -513,23 +513,30 @@ metadata names have `_type` appended. The approach taken here
 maintains this convention for the generated adjoint names (as long as
 the tangent-linear names were also compliant).
 
-.. note:: At the moment the metadata is not modified by PSyAD (see
-	  issue #1772) so it needs to be changed manually after the
-	  adjoint code has been created.
+Kernel Metadata
++++++++++++++++
+
+In the LFRic API, a kernel is described by its associated
+:ref:`user_guide:dynamo0.3-api-kernel-metadata`. When creating the adjoint
+of such a kernel, PSyAD must also update the metadata (since only then can
+the adjoint kernel be used with PSyclone in a standard fashion). The changes
+needed are:
+
+1) Update the name of the associated type and procedure to match the name
+   of the adjointed kernel subroutine;
+2) Update the :ref:`access mode <user_guide:dynamo0.3-kernel-valid-access>`
+   of each argument passed to the kernel.
 
 Multiple Subroutines
 ++++++++++++++++++++
 
 The LFRic API supports mixed precision kernels. It does this by
 implementing multiple versions of kernel subroutines with different
-precision and a generic interface. PSyAD supports mixed precision
-kernels by translating all of the kernel subroutines. This approach
-relies on each kernel implementation using the same active variable
-names as PSyAD only supports a single list of names. If this is not
-the case then PSyAD will raise an exception.
+precision and providing a generic interface to them.
 
-.. note:: At the moment PSyAD does not modify the interface names so
-          these must be done manually by the user, see issue #1772.
+.. note:: Currently such kernels are not supported by PSyAD as the
+	  functionality that handles the updating of the associated
+	  kernel metadata needs further development.
 
 Test Harness
 ++++++++++++

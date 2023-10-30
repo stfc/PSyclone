@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council.
+# Copyright (c) 2020-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,18 +32,19 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors: A. R. Porter and N. Nobre, STFC Daresbury Lab
-# Modified A. B. G. Chalk, STFC Datesbury Lab
+# Modified A. B. G. Chalk, STFC Daresbury Lab
+# Modified R. W. Ford, STFC Daresbury Lab
 
 ''' Module containing pytest tests for the handling of the DO
 construct in the PSyIR fparser2 frontend. '''
 
 
-import pytest
 from fparser.two import Fortran2003
 
-from psyclone.errors import InternalError
-from psyclone.psyir.nodes import Assignment, BinaryOperation, CodeBlock, \
-                                 Literal, Loop, Routine, Schedule, WhileLoop
+from psyclone.psyir.nodes import (
+    Assignment, BinaryOperation, CodeBlock, Literal, Loop, Routine, Schedule,
+    WhileLoop)
+from psyclone.psyir.symbols import DataSymbol, ScalarType
 from psyclone.tests.utilities import Compile
 
 
@@ -169,8 +170,12 @@ END PROGRAM my_test'''
 
 
 def test_undeclared_loop_var(fortran_reader):
-    '''Check that the do handler raises the expected error if an undeclared
-    loop variable is encountered.
+    '''Check that the do handler defaults the loop var to an integer if
+    the declaration of the loop variable can't be found. This may be
+    because it is declared in another module or in some code that
+    can't be parsed by the parser. One result of this is that a loop
+    variable that really is not declared will be accepted by PSyclone
+    and determined to be an integer.
 
     '''
     code = '''
@@ -179,10 +184,12 @@ def test_undeclared_loop_var(fortran_reader):
         end do
       end subroutine test
     '''
-    with pytest.raises(InternalError) as err:
-        _ = fortran_reader.psyir_from_source(code)
-    assert ("Loop-variable name 'i' is not declared and there are no "
-            "unqualified use statements" in str(err.value))
+    result = fortran_reader.psyir_from_source(code)
+    i_var = result.children[0].symbol_table.lookup("i")
+    assert isinstance(i_var, DataSymbol)
+    assert isinstance(i_var.datatype, ScalarType)
+    assert i_var.datatype.intrinsic is ScalarType.Intrinsic.INTEGER
+    assert i_var.datatype.precision is ScalarType.Precision.UNDEFINED
 
 
 def test_do_inside_while(fortran_reader, fortran_writer, tmpdir):

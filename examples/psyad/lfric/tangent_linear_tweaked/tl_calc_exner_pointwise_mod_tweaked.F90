@@ -3,6 +3,12 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
+
+! This tweaked version of the code 1) modifies the code into a
+! subroutine and 2) replaces kappa, Rd and P_zero with typed
+! declarations so PSyAD knows what type they are, rather than being
+! included from a use statement.
+
 module tl_calc_exner_pointwise_mod
 
 use constants_mod,     only : r_def

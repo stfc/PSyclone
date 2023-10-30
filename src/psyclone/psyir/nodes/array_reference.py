@@ -91,13 +91,11 @@ class ArrayReference(ArrayMixin, Reference):
                 raise GenerationError(
                     f"expecting the symbol '{symbol.name}' to be an array, but"
                     f" found '{symbol.datatype}'.")
-        if symbol.is_array:
-            if len(symbol.shape) != len(indices):
-                raise GenerationError(
-                    f"the symbol '{symbol.name}' should have the same number "
-                    f"of dimensions as indices (provided in the 'indices' "
-                    f"argument). Expecting '{len(indices)}' but found "
-                    f"'{len(symbol.shape)}'.")
+        elif len(symbol.shape) != len(indices):
+            raise GenerationError(
+                f"the symbol '{symbol.name}' should have the same number of "
+                f"dimensions as indices (provided in the 'indices' argument). "
+                f"Expecting '{len(indices)}' but found '{len(symbol.shape)}'.")
 
         array = ArrayReference(symbol)
         for ind, child in enumerate(indices):
@@ -131,6 +129,8 @@ class ArrayReference(ArrayMixin, Reference):
         shape = self._get_effective_shape()
         if shape:
             return ArrayType(self.symbol.datatype, shape)
+        if isinstance(self.symbol.datatype, UnknownType):
+            return self.symbol.datatype
         if isinstance(self.symbol.datatype.intrinsic, DataTypeSymbol):
             return self.symbol.datatype.intrinsic
         # TODO #1857: Really we should just be able to return

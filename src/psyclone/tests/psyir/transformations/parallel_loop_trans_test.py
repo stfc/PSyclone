@@ -87,6 +87,22 @@ def test_paralooptrans_validate_force(fortran_reader):
     trans.validate(loop, {"force": True})
 
 
+def test_paralooptrans_validate_sequential(fortran_reader):
+    '''
+    Test that the 'sequential' option allows the validate check to succeed even
+    when the dependency analysis finds a possible loop-carried dependency.
+
+    '''
+    psyir = fortran_reader.psyir_from_source(CODE)
+    loop = psyir.walk(Loop)[0]
+    trans = ParaTrans()
+    with pytest.raises(TransformationError) as err:
+        trans.validate(loop)
+    assert "Dependency analysis failed with the following" in str(err.value)
+    # Set the 'sequential' option to True - no exception should be raised.
+    trans.validate(loop, {"sequential": True})
+
+
 def test_paralooptrans_validate_collapse(fortran_reader):
     '''
     Test the various validation checks on the 'collapse' option.
@@ -118,7 +134,9 @@ def test_paralooptrans_validate_colours(monkeypatch):
     '''
     Test that we raise an error if the user attempts to apply the
     transformation to a loop over colours (since any such
-    loop must be sequential).
+    loop must be sequential). If the user explicitly requests a 'sequential'
+    loop transformation (e.g. for "acc loop seq") then that should be
+    permitted.
 
     '''
     _, invoke = get_invoke("single_invoke_three_kernels.f90", "gocean1.0",
@@ -132,6 +150,8 @@ def test_paralooptrans_validate_colours(monkeypatch):
         trans.validate(child)
     assert ("The target loop is over colours and must be computed serially"
             in str(err.value))
+    # However, if we are requesting a sequential loop then all is fine.
+    trans.validate(child, options={"sequential": True})
 
 
 def test_paralooptrans_validate_ignore_written_once(fortran_reader):
@@ -166,6 +186,57 @@ end subroutine my_sub'''
         assert False, "Dependency tools didn't generate expected message"
     # Check that this warning is ignored by the validate() method.
     trans.validate(loop)
+
+
+def test_paralooptrans_validate_all_vars(fortran_reader):
+    '''
+    Test that validate() checks the accesses of *all* variables in a loop. We
+    use a case where the first warning the dependence analysis generates is
+    one that is ignored (scalar-written-once) so that we must look at other
+    messages to see that the loop is not safe.
+
+    '''
+    code = '''
+subroutine my_sub(ztmp3)
+  real, intent(inout) :: ztmp3(:,:)
+  real :: zcol1, zcol2, zval1, zval2
+  integer :: ipivot, ji_sd, ji1_sd, jj_sd, ninco
+  ztmp3 = 0._wp
+
+  DO ji_sd = 1, ninco
+
+     zval1 = ABS(ztmp3(ji_sd,ji_sd))
+
+     ipivot = ji_sd
+     DO jj_sd = ji_sd, ninco
+        zval2 = ABS(ztmp3(ji_sd,jj_sd))
+        IF( zval2 >= zval1 )THEN
+           ipivot = jj_sd
+           zval1  = zval2
+        ENDIF
+     END DO
+
+     DO ji1_sd = 1, ninco
+        zcol1                = ztmp3(ji1_sd,ji_sd)
+        zcol2                = ztmp3(ji1_sd,ipivot)
+        ztmp3(ji1_sd,ji_sd)  = zcol2
+        ztmp3(ji1_sd,ipivot) = zcol1
+     END DO
+
+  END DO
+end subroutine my_sub
+   '''
+    psyir = fortran_reader.psyir_from_source(code)
+    loop = psyir.walk(Loop)[1]
+    trans = ParaTrans()
+    with pytest.raises(TransformationError) as err:
+        trans.validate(loop)
+    err_text = str(err.value)
+    # Should have two messages (the first being the one that is ignored by
+    # validate).
+    assert "'ipivot' is only written once" in err_text
+    assert ("Variable 'zval1' is read first, which indicates a reduction"
+            in err_text)
 
 
 def test_paralooptrans_apply_calls_validate(fortran_reader, monkeypatch):

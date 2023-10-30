@@ -300,8 +300,7 @@ def test_validate1():
 
 def test_validate2():
     '''Check that the Matmul2Code validate method raises the expected
-    exception when the supplied node is a binary operation but not a
-    MATMUL.
+    exception when the supplied node is an IntrinsicCall but not a MATMUL.
 
     '''
     trans = Matmul2CodeTrans()
@@ -315,7 +314,7 @@ def test_validate2():
 
 def test_validate3():
     '''Check that the Matmul2Code validate method raises the expected
-    exception when the supplied node is a MATMUL binary operation but
+    exception when the supplied node is a MATMUL IntrinsicCall but
     doesn't have an assignment as an ancestor.
 
     '''
@@ -336,7 +335,7 @@ def test_validate3():
 
 def test_validate4():
     '''Check that the Matmul2Code validate method raises the expected
-    exception when the supplied node is a MATMUL binary operation but
+    exception when the supplied node is a MATMUL IntrinsicCall but
     it is not the only operation on the RHS of an assignment.
 
     '''
@@ -359,7 +358,7 @@ def test_validate4():
 
 def test_validate5():
     '''Check that the Matmul2Code validate method raises the expected
-    exception when the supplied node is a MATMUL binary operation but
+    exception when the supplied node is a MATMUL IntrinsicCall but
     either or both arguments are not references.
 
     '''
@@ -374,14 +373,14 @@ def test_validate5():
     _ = Assignment.create(array, matmul)
     with pytest.raises(TransformationError) as excinfo:
         trans.validate(matmul)
-    assert ("Expected result and operands of MATMUL BinaryOperation to be "
+    assert ("Expected result and operands of MATMUL IntrinsicCall to be "
             "references, but found: 'x(10) = MATMUL(x(10) * x(10), x(10) * "
             "x(10))\n'." in str(excinfo.value))
 
 
 def test_validate6():
     '''Check that the Matmul2Code validate method raises the expected
-    exception when the supplied node is a MATMUL binary operation but
+    exception when the supplied node is a MATMUL IntrinsicCall but
     either or both of its arguments are references to datasymbols that
     are not arrays.
 
@@ -393,7 +392,7 @@ def test_validate6():
     _ = Assignment.create(scalar.copy(), matmul)
     with pytest.raises(TransformationError) as excinfo:
         trans.validate(matmul)
-    assert ("Expected result and operands of MATMUL BinaryOperation to be "
+    assert ("Expected result and operands of MATMUL IntrinsicCall to be "
             "references to arrays but found" in str(excinfo.value))
 
 
@@ -414,13 +413,13 @@ def test_validate_structure_accesses(fortran_reader):
     assign = psyir.walk(Assignment)[0]
     with pytest.raises(TransformationError) as err:
         trans.apply(assign.rhs)
-    assert ("Expected result and operands of MATMUL BinaryOperation to be "
+    assert ("Expected result and operands of MATMUL IntrinsicCall to be "
             "references to arrays but found" in str(err.value))
 
 
 def test_validate7():
     '''Check that the Matmul2Code validate method raises the expected
-    exception when the supplied node is a MATMUL binary operation but
+    exception when the supplied node is a MATMUL intrinsic but
     its first (matrix) argument has fewer than 2 dimensions.
 
     '''
@@ -433,13 +432,13 @@ def test_validate7():
     with pytest.raises(TransformationError) as excinfo:
         trans.validate(matmul)
     assert ("Transformation Error: Expected 1st child of a MATMUL "
-            "BinaryOperation to be a matrix with at least 2 dimensions, "
+            "IntrinsicCall to be a matrix with at least 2 dimensions, "
             "but found '1'." in str(excinfo.value))
 
 
 def test_validate8():
     '''Check that the Matmul2Code validate method raises the expected
-    exception when the supplied node is a MATMUL binary operation but
+    exception when the supplied node is a MATMUL intrinsic but
     its first (matrix) argument is a reference to a matrix with
     greater than 2 dimensions.
 
@@ -453,13 +452,13 @@ def test_validate8():
     with pytest.raises(TransformationError) as excinfo:
         trans.validate(matmul)
     assert ("Transformation Error: Expected 1st child of a MATMUL "
-            "BinaryOperation to have 2 dimensions, but found '3'."
+            "IntrinsicCall to have 2 dimensions, but found '3'."
             in str(excinfo.value))
 
 
 def test_validate9():
     '''Check that the Matmul2Code validate method raises the expected
-    exception when the supplied node is a MATMUL binary operation but its
+    exception when the supplied node is a MATMUL intrinsic but its
     second argument is a reference to a matrix with more than 2 dimensions.
 
     '''
@@ -474,13 +473,13 @@ def test_validate9():
     with pytest.raises(TransformationError) as excinfo:
         trans.validate(matmul)
     assert ("Transformation Error: Expected 2nd child of a MATMUL "
-            "BinaryOperation to have 1 or 2 dimensions, but found '3'."
+            "IntrinsicCall to have 1 or 2 dimensions, but found '3'."
             in str(excinfo.value))
 
 
 def test_validate10():
     '''Check that the Matmul2Code validate method raises the expected
-    exception when the supplied node is a MATMUL binary operation but
+    exception when the supplied node is a MATMUL IntrinsicCall but
     the first two dimensions of its first argument are not full ranges.
 
     '''
@@ -496,7 +495,7 @@ def test_validate10():
 
 def test_validate11():
     '''Check that the Matmul2Code validate method raises the expected
-    exception when the supplied node is a MATMUL binary operation but
+    exception when the supplied node is a MATMUL IntrinsicCall but
     the third (or higher) dimension of the first (matrix) argument is
     indexed via a range.
 
@@ -515,7 +514,7 @@ def test_validate11():
 
 def test_validate12():
     '''Check that the Matmul2Code validate method raises the expected
-    exception when the supplied node is a MATMUL binary operation but
+    exception when the supplied node is a MATMUL IntrinsicCall but
     the first dimension of its second (vector) argument is not a full
     range.
 
@@ -548,7 +547,7 @@ def test_validate_2nd_dim_2nd_arg():
 
 def test_validate13():
     '''Check that the Matmul2Code validate method raises the expected
-    exception when the supplied node is a MATMUL binary operation but
+    exception when the supplied node is a MATMUL IntrinsicCall but
     the third (or higher) dimension of the second (vector) argument is
     indexed via a range.
 
@@ -567,7 +566,7 @@ def test_validate13():
 
 def test_validate14():
     '''Check that the Matmul2Code validate method returns without any
-    exceptions when the supplied node is a MATMUL binary operation
+    exceptions when the supplied node is a MATMUL IntrinsicCall
     that obeys the required rules and constraints.
 
     '''
@@ -629,10 +628,10 @@ def test_validate_matmat_with_same_mem(fortran_reader):
     assign = psyir.walk(Assignment)[0]
     with pytest.raises(TransformationError) as excinfo:
         trans.validate(assign.rhs)
-    assert ("Transformation Error: Expected result and operands of MATMUL "
-            "BinaryOperation to be references to arrays but found 'result: "
-            "DataSymbol<UnknownFortranType('REAL, DIMENSION(2, 2), POINTER "
-            ":: result')" in str(excinfo.value))
+    assert ("Transformation Error: Must have full type information for result "
+            "and operands of MATMUL IntrinsicCall but found 'result: "
+            "DataSymbol<UnknownFortranType('REAL, DIMENSION(2, 2), POINTER :: "
+            "result')" in str(excinfo.value))
 
 
 def test_apply_matvect(tmpdir):
