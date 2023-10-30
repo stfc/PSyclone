@@ -51,7 +51,7 @@ from psyclone.domain.lfric import KernCallArgList, LFRicConstants
 from psyclone.core import Signature, VariablesAccessInfo
 from psyclone.domain.lfric import KernCallArgList, LFRicConstants, LFRicKern
 from psyclone.dynamo0p3 import LFRicHaloExchangeEnd, LFRicHaloExchangeStart, \
-    DynInvokeSchedule
+    DynInvokeSchedule, DynLoop
 from psyclone.errors import InternalError
 from psyclone.gocean1p0 import GOInvokeSchedule
 from psyclone.nemo import NemoInvokeSchedule

@@ -1485,7 +1485,7 @@ def test_dynkernelargument_psyir_expression(monkeypatch):
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     first_invoke = psy.invokes.invoke_list[0]
-    kern = first_invoke.schedule.walk(DynKern)[0]
+    kern = first_invoke.schedule.walk(LFRicKern)[0]
     psyir = kern.arguments.args[0].psyir_expression()
     assert isinstance(psyir, Reference)
     assert psyir.symbol.name == "mm_w0_local_stencil"
@@ -1498,7 +1498,7 @@ def test_dynkernelargument_psyir_expression(monkeypatch):
                            api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     first_invoke = psy.invokes.invoke_list[0]
-    kern = first_invoke.schedule.walk(DynKern)[0]
+    kern = first_invoke.schedule.walk(LFRicKern)[0]
     psyir = kern.arguments.args[1].psyir_expression()
     assert isinstance(psyir, Reference)
     assert psyir.symbol.name == "cma_op1_cma_matrix"
