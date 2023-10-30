@@ -1138,12 +1138,12 @@ class Node():
         for depth, local_list in sorted(by_depth.items()):
             block = []
             for node in local_list:
-                if len(block) == 0 or node.immediately_follows(block[-1]):
+                if not block or node.immediately_follows(block[-1]):
                     block.append(node)
                 else:
                     global_list.append(block)
                     block = [node]
-            if len(block) != 0:
+            if block:
                 global_list.append(block)
         return global_list
 
