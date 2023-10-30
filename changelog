@@ -3,7 +3,7 @@
 
 	2) PR #2269 for #2268. Rename DynInvokes to LFRicInvokes and move
 	to own module.
-	
+
 	3) PR #2255 for #2237. The derived type intial values are not lost
 	anymore, and the "extends" or "abstract" keywords cause a
 	UnknownFortranType.
@@ -44,6 +44,9 @@
 
 	16) PR #2357 for #2353. Adds the ACC-loops NEMO transformation script
 	and includes its use in the integration testing.
+
+	17 PR #2378 for #2369. Adds sibling property to node to help tree
+	traversal.
 
 release 2.4.0 29th of September 2023
 
