@@ -79,7 +79,8 @@ from psyclone.psyir.nodes import (Loop, Literal, Schedule, Reference,
                                   Routine, ScopingNode)
 from psyclone.psyir.symbols import (INTEGER_TYPE, DataSymbol, ScalarType,
                                     DeferredType, DataTypeSymbol,
-                                    ContainerSymbol, ImportInterface)
+                                    ContainerSymbol, ImportInterface,
+                                    ArrayType, UnknownFortranType)
 
 # pylint: disable=too-many-lines
 # --------------------------------------------------------------------------- #
