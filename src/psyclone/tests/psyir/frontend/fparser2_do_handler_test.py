@@ -34,17 +34,21 @@
 # Authors: A. R. Porter and N. Nobre, STFC Daresbury Lab
 # Modified A. B. G. Chalk, STFC Daresbury Lab
 # Modified R. W. Ford, STFC Daresbury Lab
+# Modified S. Siso, STFC Daresbury Lab
 
 ''' Module containing pytest tests for the handling of the DO
 construct in the PSyIR fparser2 frontend. '''
 
 
+from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
+from fparser.two.utils import walk
 
+from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.nodes import (
     Assignment, BinaryOperation, CodeBlock, Literal, Loop, Routine, Schedule,
-    WhileLoop)
-from psyclone.psyir.symbols import DataSymbol, ScalarType
+    WhileLoop, Reference)
+from psyclone.psyir.symbols import DataSymbol, ScalarType, INTEGER_TYPE
 from psyclone.tests.utilities import Compile
 
 
@@ -255,3 +259,71 @@ end subroutine test_subroutine
 '''
     assert correct == output
     assert Compile(tmpdir).string_compiles(output)
+
+
+def test_do_concurrent(fortran_reader, fortran_writer, tmpdir):
+    '''Check that the loop handler correctly identifies do concurrent loops '''
+
+    # Single do concurrent loop
+    code = '''
+    subroutine test
+      integer, parameter :: N =10, M=20
+      integer, dimension(N,M) :: array
+      integer i
+
+      do concurrent(i=1:N)
+        array(i,5) = 1
+      end do
+    end subroutine test
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    loops = psyir.walk(Loop)
+    assert len(loops) == 1
+    assert loops[0].variable.name == "i"
+    assert loops[0].start_expr == Literal("1", INTEGER_TYPE)
+    assert isinstance(loops[0].stop_expr, Reference)
+    assert loops[0].stop_expr.symbol.name == "n"
+    assert loops[0].step_expr == Literal("1", INTEGER_TYPE)
+
+    # Do concurrent with nested loops and step values
+    code = '''
+    subroutine test
+      integer, parameter :: N =10, M=20
+      integer, dimension(N,M) :: array
+      integer i, j
+
+      do concurrent(i=1:N:3, j=1:M:2)
+        array(i,j) = 1
+      end do
+    end subroutine test
+    '''
+    psyir = fortran_reader.psyir_from_source(code)
+    loops = psyir.walk(Loop)
+    assert len(loops) == 2
+    output = fortran_writer(psyir)
+    assert """
+  do i = 1, n, 3
+    do j = 1, m, 2
+      array(i,j) = 1
+    enddo
+  enddo""" in output
+    assert Compile(tmpdir).string_compiles(output)
+
+
+def test_unsupported_loop(parser):
+    '''Test that loops with unsupported LoopCtrl are put in a CodeBlock'''
+    code = ("program test\n"
+            "do i = 1, 10\n"
+            "  a(i) = i\n"
+            "enddo\n"
+            "end program test\n")
+    reader = FortranStringReader(code)
+    ast = parser(reader)
+    ctrl = walk(ast, Fortran2003.Loop_Control)
+    ctrl[0].items = (None, None, None, None)  # Make an unsupported Loop
+
+    processor = Fparser2Reader()
+    program = ast.children[0]
+    psyir = processor._main_program_handler(program, None)
+    assert not psyir.walk(Loop)
+    assert psyir.walk(CodeBlock)
