@@ -1087,7 +1087,7 @@ class Node():
         :param stop_type: class(es) at which recursion is halted (optional).
         :type stop_type: Optional[type | Tuple[type, ...]]
         :param depth: the depth value the instances must have (optional).
-        :type depth: Optional[type | int]
+        :type depth: Optional[int]
 
         :returns: list with all nodes that are instances of my_type \
                   starting at and including this node.
