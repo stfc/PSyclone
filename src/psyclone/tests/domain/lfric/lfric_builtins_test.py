@@ -49,7 +49,7 @@ import pytest
 
 from psyclone.configuration import Config
 from psyclone.core import Signature, VariablesAccessInfo
-from psyclone.domain.lfric import lfric_builtins, LFRicConstants, LFRicTypes
+from psyclone.domain.lfric import lfric_builtins, LFRicConstants
 from psyclone.domain.lfric.kernel import LFRicKernelMetadata, FieldArgMetadata
 from psyclone.domain.lfric.lfric_builtins import (
     LFRicBuiltInCallFactory, LFRicBuiltIn, LFRicXKern)
@@ -59,9 +59,8 @@ from psyclone.parse.algorithm import BuiltInCall, parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import (
-    Loop, Reference, UnaryOperation, Literal, StructureReference)
-from psyclone.psyir.symbols import (
-    ArrayType, DataTypeSymbol, DeferredType, ScalarType)
+    ArrayReference, Loop, Reference, UnaryOperation, Literal)
+from psyclone.psyir.symbols import ArrayType, ScalarType, UnknownFortranType
 from psyclone.tests.lfric_build import LFRicBuild
 from psyclone.tests.utilities import get_invoke
 
@@ -621,24 +620,14 @@ def test_get_indexed_field_argument_refs():
     refs = kern.get_indexed_field_argument_references()
     # Kernel has two field arguments
     assert len(refs) == 2
-    array_1d = ArrayType(LFRicTypes("LFRicRealScalarDataType")(),
-                         [ArrayType.Extent.DEFERRED])
     for ref in refs:
-        assert isinstance(ref, StructureReference)
-        assert isinstance(ref.symbol.datatype, DataTypeSymbol)
-        assert ref.symbol.datatype.name == "field_proxy_type"
-        # Nothing is known about the field proxy type, so the datatype
-        # must be deferred
-        assert ref.symbol.datatype.datatype == DeferredType()
+        assert isinstance(ref, ArrayReference)
+        assert isinstance(ref.symbol.datatype, UnknownFortranType)
+        assert isinstance(ref.symbol.datatype.partial_datatype, ArrayType)
+        assert len(ref.symbol.datatype.partial_datatype.shape) == 1
         # The reference in a built-in will have a data type hard coded
-        assert ref.datatype == array_1d
-        assert ref.member.name == "data"
-        assert len(ref.member.indices) == 1
-        assert isinstance(ref.member.indices[0], Reference)
-        assert ref.member.indices[0].symbol.name == "df"
-        assert (ref.member.indices[0].symbol.datatype.intrinsic ==
-                ScalarType.Intrinsic.INTEGER)
-        assert ref.member.indices[0].symbol.datatype.precision.name == "i_def"
+        assert isinstance(ref.datatype.partial_datatype, ArrayType)
+        assert ref.datatype.partial_datatype.precision.name == "r_def"
 
 
 def test_get_scalar_argument_references():
@@ -673,6 +662,29 @@ def test_get_dof_loop_index_symbol():
     sym = kern.get_dof_loop_index_symbol()
     assert sym.name == "df"
     assert sym.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
+
+
+def test_reference_accesses(monkeypatch):
+    '''Test the 'reference_accesses()' method.'''
+    _, invoke_info = parse(os.path.join(BASE_PATH,
+                                        "15.1.8_a_plus_X_builtin.f90"),
+                           api=API)
+    psy = PSyFactory(API, distributed_memory=False).create(invoke_info)
+    loop = psy.invokes.invoke_list[0].schedule[0]
+    kern = loop.loop_body[0]
+    var_info = VariablesAccessInfo()
+    kern.reference_accesses(var_info)
+    # f2_data(df) = a + f1_data(df)
+    assert var_info.is_written(Signature("f2_data"))
+    assert var_info.is_read(Signature("f1_data"))
+    assert var_info.is_read(Signature("a"))
+    # Check for the expected error if an unsupported type of argument
+    # is encountered. Use monkeypatch to break one of the existing args.
+    monkeypatch.setattr(kern.args[0], "_argument_type", "gh_wrong")
+    with pytest.raises(InternalError) as err:
+        kern.reference_accesses(var_info)
+    assert ("LFRicBuiltin.reference_accesses only supports field and scalar "
+            "arguments but got 'f2' of type 'gh_wrong'" in str(err.value))
 
 
 # ------------- Adding (scaled) real fields --------------------------------- #
@@ -735,6 +747,9 @@ def test_X_plus_Y(
         "      TYPE(field_type), intent(in) :: f3, f1, f2\n"
         "      INTEGER df\n"
         "      INTEGER(KIND=i_def) loop0_start, loop0_stop\n"
+        "      REAL(KIND=r_def), pointer, dimension(:) :: f2_data => null()\n"
+        "      REAL(KIND=r_def), pointer, dimension(:) :: f1_data => null()\n"
+        "      REAL(KIND=r_def), pointer, dimension(:) :: f3_data => null()\n"
         "      TYPE(field_proxy_type) f3_proxy, f1_proxy, f2_proxy\n")
     assert output in code
 
@@ -742,8 +757,11 @@ def test_X_plus_Y(
         # The value of '_compute_annexed_dofs' should make no difference
         output = (
             "      f3_proxy = f3%get_proxy()\n"
+            "      f3_data => f3_proxy%data\n"
             "      f1_proxy = f1%get_proxy()\n"
+            "      f1_data => f1_proxy%data\n"
             "      f2_proxy = f2%get_proxy()\n"
+            "      f2_data => f2_proxy%data\n"
             "      !\n"
             "      ! Initialise number of DoFs for aspc1_f3\n"
             "      !\n"
@@ -757,8 +775,7 @@ def test_X_plus_Y(
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f3_proxy%data(df) = f1_proxy%data(df) + "
-            "f2_proxy%data(df)\n"
+            "        f3_data(df) = f1_data(df) + f2_data(df)\n"
             "      END DO")
         assert output in code
 
@@ -767,8 +784,7 @@ def test_X_plus_Y(
         loop = first_invoke.schedule.walk(Loop)[0]
         code = fortran_writer(loop)
         assert ("do df = loop0_start, loop0_stop, 1\n"
-                "  f3_proxy%data(df) = f1_proxy%data(df) + "
-                "f2_proxy%data(df)\n"
+                "  f3_data(df) = f1_data(df) + f2_data(df)\n"
                 "enddo") in code
     else:
         output_dm_2 = (
@@ -777,8 +793,7 @@ def test_X_plus_Y(
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f3_proxy%data(df) = f1_proxy%data(df) + "
-            "f2_proxy%data(df)\n"
+            "        f3_data(df) = f1_data(df) + f2_data(df)\n"
             "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
@@ -833,8 +848,7 @@ def test_inc_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f1_proxy%data(df) = f1_proxy%data(df) + "
-            "f2_proxy%data(df)\n"
+            "        f1_data(df) = f1_data(df) + f2_data(df)\n"
             "      END DO\n")
         assert output in code
 
@@ -843,8 +857,7 @@ def test_inc_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
         loop = first_invoke.schedule.walk(Loop)[0]
         code = fortran_writer(loop)
         assert ("do df = loop0_start, loop0_stop, 1\n"
-                "  f1_proxy%data(df) = f1_proxy%data(df) + "
-                "f2_proxy%data(df)\n"
+                "  f1_data(df) = f1_data(df) + f2_data(df)\n"
                 "enddo" in code)
     else:
         output = (
@@ -853,8 +866,7 @@ def test_inc_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f1_proxy%data(df) = f1_proxy%data(df) + "
-            "f2_proxy%data(df)\n"
+            "        f1_data(df) = f1_data(df) + f2_data(df)\n"
             "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
@@ -900,7 +912,7 @@ def test_a_plus_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f2_proxy%data(df) = a + f1_proxy%data(df)\n"
+            "        f2_data(df) = a + f1_data(df)\n"
             "      END DO\n"
             "      !\n"
             "    END SUBROUTINE invoke_0\n")
@@ -915,7 +927,7 @@ def test_a_plus_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
         assert scalar.datatype.intrinsic == ScalarType.Intrinsic.REAL
         code = fortran_writer(loop)
         assert ("do df = loop0_start, loop0_stop, 1\n"
-                "  f2_proxy%data(df) = a + f1_proxy%data(df)\n"
+                "  f2_data(df) = a + f1_data(df)\n"
                 "enddo") in code
     else:
         output_dm = (
@@ -924,7 +936,7 @@ def test_a_plus_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f2_proxy%data(df) = a + f1_proxy%data(df)\n"
+            "        f2_data(df) = a + f1_data(df)\n"
             "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
@@ -970,7 +982,7 @@ def test_inc_a_plus_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f1_proxy%data(df) = a + f1_proxy%data(df)\n"
+            "        f1_data(df) = a + f1_data(df)\n"
             "      END DO\n"
             "      !\n"
             "    END SUBROUTINE invoke_0")
@@ -981,7 +993,7 @@ def test_inc_a_plus_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
         loop = first_invoke.schedule.walk(Loop)[0]
         code = fortran_writer(loop)
         assert ("do df = loop0_start, loop0_stop, 1\n"
-                "  f1_proxy%data(df) = a + f1_proxy%data(df)\n"
+                "  f1_data(df) = a + f1_data(df)\n"
                 "enddo") in code
     else:
         output_dm = (
@@ -990,7 +1002,7 @@ def test_inc_a_plus_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f1_proxy%data(df) = a + f1_proxy%data(df)\n"
+            "        f1_data(df) = a + f1_data(df)\n"
             "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
@@ -1045,14 +1057,23 @@ def test_aX_plus_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      TYPE(r_bl_field_type), intent(in) :: f3, f1, f2\n"
             "      INTEGER df\n"
             "      INTEGER(KIND=i_def) loop0_start, loop0_stop\n"
+            "      REAL(KIND=r_bl), pointer, dimension(:) :: f2_data => "
+            "null()\n"
+            "      REAL(KIND=r_bl), pointer, dimension(:) :: f1_data => "
+            "null()\n"
+            "      REAL(KIND=r_bl), pointer, dimension(:) :: f3_data => "
+            "null()\n"
             "      TYPE(r_bl_field_proxy_type) f3_proxy, f1_proxy, f2_proxy\n"
             "      INTEGER(KIND=i_def) undf_aspc1_f3\n"
             "      !\n"
             "      ! Initialise field and/or operator proxies\n"
             "      !\n"
             "      f3_proxy = f3%get_proxy()\n"
+            "      f3_data => f3_proxy%data\n"
             "      f1_proxy = f1%get_proxy()\n"
+            "      f1_data => f1_proxy%data\n"
             "      f2_proxy = f2%get_proxy()\n"
+            "      f2_data => f2_proxy%data\n"
             "      !\n"
             "      ! Initialise number of DoFs for aspc1_f3\n"
             "      !\n"
@@ -1066,8 +1087,7 @@ def test_aX_plus_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f3_proxy%data(df) = a * f1_proxy%data(df) + "
-            "f2_proxy%data(df)\n"
+            "        f3_data(df) = a * f1_data(df) + f2_data(df)\n"
             "      END DO\n"
             "      !\n"
             "    END SUBROUTINE invoke_0\n")
@@ -1078,8 +1098,7 @@ def test_aX_plus_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
         loop = first_invoke.schedule.walk(Loop)[0]
         code = fortran_writer(loop)
         assert ("do df = loop0_start, loop0_stop, 1\n"
-                "  f3_proxy%data(df) = a * f1_proxy%data(df) + "
-                "f2_proxy%data(df)\n"
+                "  f3_data(df) = a * f1_data(df) + f2_data(df)\n"
                 "enddo") in code
     else:
         output_dm_2 = (
@@ -1088,8 +1107,7 @@ def test_aX_plus_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f3_proxy%data(df) = a * f1_proxy%data(df) + "
-            "f2_proxy%data(df)\n"
+            "        f3_data(df) = a * f1_data(df) + f2_data(df)\n"
             "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
@@ -1135,13 +1153,19 @@ def test_inc_aX_plus_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      TYPE(field_type), intent(in) :: f1, f2\n"
             "      INTEGER df\n"
             "      INTEGER(KIND=i_def) loop0_start, loop0_stop\n"
+            "      REAL(KIND=r_def), pointer, dimension(:) :: f2_data => "
+            "null()\n"
+            "      REAL(KIND=r_def), pointer, dimension(:) :: f1_data => "
+            "null()\n"
             "      TYPE(field_proxy_type) f1_proxy, f2_proxy\n"
             "      INTEGER(KIND=i_def) undf_aspc1_f1\n"
             "      !\n"
             "      ! Initialise field and/or operator proxies\n"
             "      !\n"
             "      f1_proxy = f1%get_proxy()\n"
+            "      f1_data => f1_proxy%data\n"
             "      f2_proxy = f2%get_proxy()\n"
+            "      f2_data => f2_proxy%data\n"
             "      !\n"
             "      ! Initialise number of DoFs for aspc1_f1\n"
             "      !\n"
@@ -1155,8 +1179,7 @@ def test_inc_aX_plus_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f1_proxy%data(df) = a * f1_proxy%data(df) + "
-            "f2_proxy%data(df)\n"
+            "        f1_data(df) = a * f1_data(df) + f2_data(df)\n"
             "      END DO\n"
             "      !\n"
             "    END SUBROUTINE invoke_0")
@@ -1167,8 +1190,8 @@ def test_inc_aX_plus_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
         loop = first_invoke.schedule.walk(Loop)[0]
         code = fortran_writer(loop)
         assert ("do df = loop0_start, loop0_stop, 1\n"
-                "  f1_proxy%data(df) = a * f1_proxy%data(df) + "
-                "f2_proxy%data(df)\n"
+                "  f1_data(df) = a * f1_data(df) + "
+                "f2_data(df)\n"
                 "enddo") in code
     else:
         output_dm_2 = (
@@ -1177,8 +1200,8 @@ def test_inc_aX_plus_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f1_proxy%data(df) = a * f1_proxy%data(df) + "
-            "f2_proxy%data(df)\n"
+            "        f1_data(df) = a * f1_data(df) + "
+            "f2_data(df)\n"
             "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
@@ -1224,13 +1247,19 @@ def test_inc_X_plus_bY(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      TYPE(field_type), intent(in) :: f1, f2\n"
             "      INTEGER df\n"
             "      INTEGER(KIND=i_def) loop0_start, loop0_stop\n"
+            "      REAL(KIND=r_def), pointer, dimension(:) :: f2_data => "
+            "null()\n"
+            "      REAL(KIND=r_def), pointer, dimension(:) :: f1_data => "
+            "null()\n"
             "      TYPE(field_proxy_type) f1_proxy, f2_proxy\n"
             "      INTEGER(KIND=i_def) undf_aspc1_f1\n"
             "      !\n"
             "      ! Initialise field and/or operator proxies\n"
             "      !\n"
             "      f1_proxy = f1%get_proxy()\n"
+            "      f1_data => f1_proxy%data\n"
             "      f2_proxy = f2%get_proxy()\n"
+            "      f2_data => f2_proxy%data\n"
             "      !\n"
             "      ! Initialise number of DoFs for aspc1_f1\n"
             "      !\n"
@@ -1244,8 +1273,7 @@ def test_inc_X_plus_bY(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f1_proxy%data(df) = f1_proxy%data(df) + "
-            "b * f2_proxy%data(df)\n"
+            "        f1_data(df) = f1_data(df) + b * f2_data(df)\n"
             "      END DO\n"
             "      !\n"
             "    END SUBROUTINE invoke_0")
@@ -1256,8 +1284,8 @@ def test_inc_X_plus_bY(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
         loop = first_invoke.schedule.walk(Loop)[0]
         code = fortran_writer(loop)
         assert ("do df = loop0_start, loop0_stop, 1\n"
-                "  f1_proxy%data(df) = f1_proxy%data(df) + "
-                "b * f2_proxy%data(df)\n"
+                "  f1_data(df) = f1_data(df) + "
+                "b * f2_data(df)\n"
                 "enddo") in code
     else:
         output_dm_2 = (
@@ -1266,8 +1294,8 @@ def test_inc_X_plus_bY(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f1_proxy%data(df) = f1_proxy%data(df) + "
-            "b * f2_proxy%data(df)\n"
+            "        f1_data(df) = f1_data(df) + "
+            "b * f2_data(df)\n"
             "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
@@ -1314,14 +1342,23 @@ def test_aX_plus_bY(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      TYPE(field_type), intent(in) :: f3, f1, f2\n"
             "      INTEGER df\n"
             "      INTEGER(KIND=i_def) loop0_start, loop0_stop\n"
+            "      REAL(KIND=r_def), pointer, dimension(:) :: f2_data => "
+            "null()\n"
+            "      REAL(KIND=r_def), pointer, dimension(:) :: f1_data => "
+            "null()\n"
+            "      REAL(KIND=r_def), pointer, dimension(:) :: f3_data => "
+            "null()\n"
             "      TYPE(field_proxy_type) f3_proxy, f1_proxy, f2_proxy\n"
             "      INTEGER(KIND=i_def) undf_aspc1_f3\n"
             "      !\n"
             "      ! Initialise field and/or operator proxies\n"
             "      !\n"
             "      f3_proxy = f3%get_proxy()\n"
+            "      f3_data => f3_proxy%data\n"
             "      f1_proxy = f1%get_proxy()\n"
+            "      f1_data => f1_proxy%data\n"
             "      f2_proxy = f2%get_proxy()\n"
+            "      f2_data => f2_proxy%data\n"
             "      !\n"
             "      ! Initialise number of DoFs for aspc1_f3\n"
             "      !\n"
@@ -1335,8 +1372,7 @@ def test_aX_plus_bY(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f3_proxy%data(df) = a * f1_proxy%data(df) + "
-            "b * f2_proxy%data(df)\n"
+            "        f3_data(df) = a * f1_data(df) + b * f2_data(df)\n"
             "      END DO\n"
             "      !\n"
             "    END SUBROUTINE invoke_0\n")
@@ -1347,8 +1383,7 @@ def test_aX_plus_bY(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
         loop = first_invoke.schedule.walk(Loop)[0]
         code = fortran_writer(loop)
         assert ("do df = loop0_start, loop0_stop, 1\n"
-                "  f3_proxy%data(df) = a * f1_proxy%data(df) + "
-                "b * f2_proxy%data(df)\n"
+                "  f3_data(df) = a * f1_data(df) + b * f2_data(df)\n"
                 "enddo") in code
     else:
         output_dm_2 = (
@@ -1357,8 +1392,7 @@ def test_aX_plus_bY(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f3_proxy%data(df) = a * f1_proxy%data(df) + "
-            "b * f2_proxy%data(df)\n"
+            "        f3_data(df) = a * f1_data(df) + b * f2_data(df)\n"
             "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
@@ -1407,13 +1441,19 @@ def test_inc_aX_plus_bY(
             "      TYPE(field_type), intent(in) :: f1, f2\n"
             "      INTEGER df\n"
             "      INTEGER(KIND=i_def) loop0_start, loop0_stop\n"
+            "      REAL(KIND=r_def), pointer, dimension(:) :: f2_data => "
+            "null()\n"
+            "      REAL(KIND=r_def), pointer, dimension(:) :: f1_data => "
+            "null()\n"
             "      TYPE(field_proxy_type) f1_proxy, f2_proxy\n"
             "      INTEGER(KIND=i_def) undf_aspc1_f1\n"
             "      !\n"
             "      ! Initialise field and/or operator proxies\n"
             "      !\n"
             "      f1_proxy = f1%get_proxy()\n"
+            "      f1_data => f1_proxy%data\n"
             "      f2_proxy = f2%get_proxy()\n"
+            "      f2_data => f2_proxy%data\n"
             "      !\n"
             "      ! Initialise number of DoFs for aspc1_f1\n"
             "      !\n"
@@ -1427,8 +1467,8 @@ def test_inc_aX_plus_bY(
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f1_proxy%data(df) = a * f1_proxy%data(df) + "
-            "b * f2_proxy%data(df)\n"
+            "        f1_data(df) = a * f1_data(df) + "
+            "b * f2_data(df)\n"
             "      END DO\n"
             "      !\n"
             "    END SUBROUTINE invoke_0\n")
@@ -1439,8 +1479,7 @@ def test_inc_aX_plus_bY(
         loop = first_invoke.schedule.walk(Loop)[0]
         code = fortran_writer(loop)
         assert ("do df = loop0_start, loop0_stop, 1\n"
-                "  f1_proxy%data(df) = a * f1_proxy%data(df) + "
-                "b * f2_proxy%data(df)\n"
+                "  f1_data(df) = a * f1_data(df) + b * f2_data(df)\n"
                 "enddo") in code
     else:
         output_dm_2 = (
@@ -1449,8 +1488,7 @@ def test_inc_aX_plus_bY(
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f1_proxy%data(df) = a * f1_proxy%data(df) + "
-            "b * f2_proxy%data(df)\n"
+            "        f1_data(df) = a * f1_data(df) + b * f2_data(df)\n"
             "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
@@ -1497,8 +1535,7 @@ def test_aX_plus_aY(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f3_proxy%data(df) = a * (f1_proxy%data(df) + "
-            "f2_proxy%data(df))\n"
+            "        f3_data(df) = a * (f1_data(df) + f2_data(df))\n"
             "      END DO\n"
             "      !\n"
             "    END SUBROUTINE invoke_0\n")
@@ -1509,8 +1546,8 @@ def test_aX_plus_aY(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
         loop = first_invoke.schedule.walk(Loop)[0]
         code = fortran_writer(loop)
         assert ("do df = loop0_start, loop0_stop, 1\n"
-                "  f3_proxy%data(df) = a * (f1_proxy%data(df) + "
-                "f2_proxy%data(df))\n"
+                "  f3_data(df) = a * (f1_data(df) + "
+                "f2_data(df))\n"
                 "enddo") in code
     else:
         output_dm_2 = (
@@ -1519,8 +1556,8 @@ def test_aX_plus_aY(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f3_proxy%data(df) = a * (f1_proxy%data(df) + "
-            "f2_proxy%data(df))\n"
+            "        f3_data(df) = a * (f1_data(df) + "
+            "f2_data(df))\n"
             "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
@@ -1565,8 +1602,11 @@ def test_X_minus_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
     if not dist_mem:
         output = (
             "      f3_proxy = f3%get_proxy()\n"
+            "      f3_data => f3_proxy%data\n"
             "      f1_proxy = f1%get_proxy()\n"
+            "      f1_data => f1_proxy%data\n"
             "      f2_proxy = f2%get_proxy()\n"
+            "      f2_data => f2_proxy%data\n"
             "      !\n"
             "      ! Initialise number of DoFs for aspc1_f3\n"
             "      !\n"
@@ -1580,8 +1620,7 @@ def test_X_minus_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f3_proxy%data(df) = f1_proxy%data(df) - "
-            "f2_proxy%data(df)\n"
+            "        f3_data(df) = f1_data(df) - f2_data(df)\n"
             "      END DO")
         assert output in code
 
@@ -1590,8 +1629,8 @@ def test_X_minus_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
         loop = first_invoke.schedule.walk(Loop)[0]
         code = fortran_writer(loop)
         assert ("do df = loop0_start, loop0_stop, 1\n"
-                "  f3_proxy%data(df) = f1_proxy%data(df) - "
-                "f2_proxy%data(df)\n"
+                "  f3_data(df) = f1_data(df) - "
+                "f2_data(df)\n"
                 "enddo") in code
     else:
         output_dm_2 = (
@@ -1600,8 +1639,8 @@ def test_X_minus_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f3_proxy%data(df) = f1_proxy%data(df) - "
-            "f2_proxy%data(df)\n"
+            "        f3_data(df) = f1_data(df) - "
+            "f2_data(df)\n"
             "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
@@ -1644,7 +1683,9 @@ def test_inc_X_minus_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
     if not dist_mem:
         output = (
             "      f1_proxy = f1%get_proxy()\n"
+            "      f1_data => f1_proxy%data\n"
             "      f2_proxy = f2%get_proxy()\n"
+            "      f2_data => f2_proxy%data\n"
             "      !\n"
             "      ! Initialise number of DoFs for aspc1_f1\n"
             "      !\n"
@@ -1658,8 +1699,7 @@ def test_inc_X_minus_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f1_proxy%data(df) = f1_proxy%data(df) - "
-            "f2_proxy%data(df)\n"
+            "        f1_data(df) = f1_data(df) - f2_data(df)\n"
             "      END DO\n")
         assert output in code
 
@@ -1668,8 +1708,8 @@ def test_inc_X_minus_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
         loop = first_invoke.schedule.walk(Loop)[0]
         code = fortran_writer(loop)
         assert ("do df = loop0_start, loop0_stop, 1\n"
-                "  f1_proxy%data(df) = f1_proxy%data(df) - "
-                "f2_proxy%data(df)\n"
+                "  f1_data(df) = f1_data(df) - "
+                "f2_data(df)\n"
                 "enddo") in code
     else:
         output = (
@@ -1678,8 +1718,8 @@ def test_inc_X_minus_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f1_proxy%data(df) = f1_proxy%data(df) - "
-            "f2_proxy%data(df)\n"
+            "        f1_data(df) = f1_data(df) - "
+            "f2_data(df)\n"
             "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
@@ -1731,7 +1771,7 @@ def test_a_minus_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f2_proxy%data(df) = a - f1_proxy%data(df)\n"
+            "        f2_data(df) = a - f1_data(df)\n"
             "      END DO\n"
             "      !\n"
             "    END SUBROUTINE invoke_0\n")
@@ -1742,7 +1782,7 @@ def test_a_minus_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
         loop = first_invoke.schedule.walk(Loop)[0]
         code = fortran_writer(loop)
         assert ("do df = loop0_start, loop0_stop, 1\n"
-                "  f2_proxy%data(df) = a - f1_proxy%data(df)\n"
+                "  f2_data(df) = a - f1_data(df)\n"
                 "enddo") in code
     else:
         output_dm = (
@@ -1752,7 +1792,7 @@ def test_a_minus_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f2_proxy%data(df) = a - f1_proxy%data(df)\n"
+            "        f2_data(df) = a - f1_data(df)\n"
             "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
@@ -1798,7 +1838,7 @@ def test_inc_a_minus_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f1_proxy%data(df) = a - f1_proxy%data(df)\n"
+            "        f1_data(df) = a - f1_data(df)\n"
             "      END DO\n"
             "      !\n"
             "    END SUBROUTINE invoke_0")
@@ -1809,7 +1849,7 @@ def test_inc_a_minus_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
         loop = first_invoke.schedule.walk(Loop)[0]
         code = fortran_writer(loop)
         assert ("do df = loop0_start, loop0_stop, 1\n"
-                "  f1_proxy%data(df) = a - f1_proxy%data(df)\n"
+                "  f1_data(df) = a - f1_data(df)\n"
                 "enddo") in code
     else:
         output_dm = (
@@ -1818,7 +1858,7 @@ def test_inc_a_minus_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f1_proxy%data(df) = a - f1_proxy%data(df)\n"
+            "        f1_data(df) = a - f1_data(df)\n"
             "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
@@ -1872,7 +1912,7 @@ def test_X_minus_a(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f2_proxy%data(df) = f1_proxy%data(df) - a\n"
+            "        f2_data(df) = f1_data(df) - a\n"
             "      END DO\n"
             "      !\n"
             "    END SUBROUTINE invoke_0\n")
@@ -1883,7 +1923,7 @@ def test_X_minus_a(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
         loop = first_invoke.schedule.walk(Loop)[0]
         code = fortran_writer(loop)
         assert ("do df = loop0_start, loop0_stop, 1\n"
-                "  f2_proxy%data(df) = f1_proxy%data(df) - a\n"
+                "  f2_data(df) = f1_data(df) - a\n"
                 "enddo") in code
     else:
         output_dm = (
@@ -1893,7 +1933,7 @@ def test_X_minus_a(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f2_proxy%data(df) = f1_proxy%data(df) - a\n"
+            "        f2_data(df) = f1_data(df) - a\n"
             "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
@@ -1938,6 +1978,8 @@ def test_inc_X_minus_a(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
         "      TYPE(r_tran_field_type), intent(in) :: f1\n"
         "      INTEGER df\n"
         "      INTEGER(KIND=i_def) loop0_start, loop0_stop\n"
+        "      REAL(KIND=r_tran), pointer, dimension(:) :: f1_data => "
+        "null()\n"
         "      TYPE(r_tran_field_proxy_type) f1_proxy\n")
     assert output in code
 
@@ -1949,7 +1991,7 @@ def test_inc_X_minus_a(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f1_proxy%data(df) = f1_proxy%data(df) - a\n"
+            "        f1_data(df) = f1_data(df) - a\n"
             "      END DO\n"
             "      !\n"
             "    END SUBROUTINE invoke_0")
@@ -1960,7 +2002,7 @@ def test_inc_X_minus_a(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
         loop = first_invoke.schedule.walk(Loop)[0]
         code = fortran_writer(loop)
         assert ("do df = loop0_start, loop0_stop, 1\n"
-                "  f1_proxy%data(df) = f1_proxy%data(df) - a\n"
+                "  f1_data(df) = f1_data(df) - a\n"
                 "enddo") in code
     else:
         assert "INTEGER(KIND=i_def) max_halo_depth_mesh\n" in code
@@ -1970,7 +2012,7 @@ def test_inc_X_minus_a(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f1_proxy%data(df) = f1_proxy%data(df) - a\n"
+            "        f1_data(df) = f1_data(df) - a\n"
             "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
@@ -2017,14 +2059,23 @@ def test_aX_minus_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      TYPE(field_type), intent(in) :: f3, f1, f2\n"
             "      INTEGER df\n"
             "      INTEGER(KIND=i_def) loop0_start, loop0_stop\n"
+            "      REAL(KIND=r_def), pointer, dimension(:) :: f2_data => "
+            "null()\n"
+            "      REAL(KIND=r_def), pointer, dimension(:) :: f1_data => "
+            "null()\n"
+            "      REAL(KIND=r_def), pointer, dimension(:) :: f3_data => "
+            "null()\n"
             "      TYPE(field_proxy_type) f3_proxy, f1_proxy, f2_proxy\n"
             "      INTEGER(KIND=i_def) undf_aspc1_f3\n"
             "      !\n"
             "      ! Initialise field and/or operator proxies\n"
             "      !\n"
             "      f3_proxy = f3%get_proxy()\n"
+            "      f3_data => f3_proxy%data\n"
             "      f1_proxy = f1%get_proxy()\n"
+            "      f1_data => f1_proxy%data\n"
             "      f2_proxy = f2%get_proxy()\n"
+            "      f2_data => f2_proxy%data\n"
             "      !\n"
             "      ! Initialise number of DoFs for aspc1_f3\n"
             "      !\n"
@@ -2038,8 +2089,7 @@ def test_aX_minus_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f3_proxy%data(df) = a * f1_proxy%data(df) - "
-            "f2_proxy%data(df)\n"
+            "        f3_data(df) = a * f1_data(df) - f2_data(df)\n"
             "      END DO\n"
             "      !\n"
             "    END SUBROUTINE invoke_0\n")
@@ -2050,8 +2100,7 @@ def test_aX_minus_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
         loop = first_invoke.schedule.walk(Loop)[0]
         code = fortran_writer(loop)
         assert ("do df = loop0_start, loop0_stop, 1\n"
-                "  f3_proxy%data(df) = a * f1_proxy%data(df) - "
-                "f2_proxy%data(df)\n"
+                "  f3_data(df) = a * f1_data(df) - f2_data(df)\n"
                 "enddo") in code
     else:
         output_dm_2 = (
@@ -2060,8 +2109,7 @@ def test_aX_minus_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f3_proxy%data(df) = a * f1_proxy%data(df) - "
-            "f2_proxy%data(df)\n"
+            "        f3_data(df) = a * f1_data(df) - f2_data(df)\n"
             "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
@@ -2108,14 +2156,23 @@ def test_X_minus_bY(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      TYPE(field_type), intent(in) :: f3, f1, f2\n"
             "      INTEGER df\n"
             "      INTEGER(KIND=i_def) loop0_start, loop0_stop\n"
+            "      REAL(KIND=r_def), pointer, dimension(:) :: f2_data => "
+            "null()\n"
+            "      REAL(KIND=r_def), pointer, dimension(:) :: f1_data => "
+            "null()\n"
+            "      REAL(KIND=r_def), pointer, dimension(:) :: f3_data => "
+            "null()\n"
             "      TYPE(field_proxy_type) f3_proxy, f1_proxy, f2_proxy\n"
             "      INTEGER(KIND=i_def) undf_aspc1_f3\n"
             "      !\n"
             "      ! Initialise field and/or operator proxies\n"
             "      !\n"
             "      f3_proxy = f3%get_proxy()\n"
+            "      f3_data => f3_proxy%data\n"
             "      f1_proxy = f1%get_proxy()\n"
+            "      f1_data => f1_proxy%data\n"
             "      f2_proxy = f2%get_proxy()\n"
+            "      f2_data => f2_proxy%data\n"
             "      !\n"
             "      ! Initialise number of DoFs for aspc1_f3\n"
             "      !\n"
@@ -2129,8 +2186,7 @@ def test_X_minus_bY(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f3_proxy%data(df) = f1_proxy%data(df) - "
-            "b * f2_proxy%data(df)\n"
+            "        f3_data(df) = f1_data(df) - b * f2_data(df)\n"
             "      END DO\n"
             "      !\n"
             "    END SUBROUTINE invoke_0\n")
@@ -2141,8 +2197,7 @@ def test_X_minus_bY(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
         loop = first_invoke.schedule.walk(Loop)[0]
         code = fortran_writer(loop)
         assert ("do df = loop0_start, loop0_stop, 1\n"
-                "  f3_proxy%data(df) = f1_proxy%data(df) - "
-                "b * f2_proxy%data(df)\n"
+                "  f3_data(df) = f1_data(df) - b * f2_data(df)\n"
                 "enddo") in code
     else:
         output_dm_2 = (
@@ -2151,8 +2206,7 @@ def test_X_minus_bY(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f3_proxy%data(df) = f1_proxy%data(df) - "
-            "b * f2_proxy%data(df)\n"
+            "        f3_data(df) = f1_data(df) - b * f2_data(df)\n"
             "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
@@ -2199,13 +2253,19 @@ def test_inc_X_minus_bY(
             "      TYPE(field_type), intent(in) :: f1, f2\n"
             "      INTEGER df\n"
             "      INTEGER(KIND=i_def) loop0_start, loop0_stop\n"
+            "      REAL(KIND=r_def), pointer, dimension(:) :: f2_data => "
+            "null()\n"
+            "      REAL(KIND=r_def), pointer, dimension(:) :: f1_data => "
+            "null()\n"
             "      TYPE(field_proxy_type) f1_proxy, f2_proxy\n"
             "      INTEGER(KIND=i_def) undf_aspc1_f1\n"
             "      !\n"
             "      ! Initialise field and/or operator proxies\n"
             "      !\n"
             "      f1_proxy = f1%get_proxy()\n"
+            "      f1_data => f1_proxy%data\n"
             "      f2_proxy = f2%get_proxy()\n"
+            "      f2_data => f2_proxy%data\n"
             "      !\n"
             "      ! Initialise number of DoFs for aspc1_f1\n"
             "      !\n"
@@ -2219,8 +2279,7 @@ def test_inc_X_minus_bY(
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f1_proxy%data(df) = f1_proxy%data(df) - "
-            "b * f2_proxy%data(df)\n"
+            "        f1_data(df) = f1_data(df) - b * f2_data(df)\n"
             "      END DO\n"
             "      !\n"
             "    END SUBROUTINE invoke_0")
@@ -2231,8 +2290,7 @@ def test_inc_X_minus_bY(
         loop = first_invoke.schedule.walk(Loop)[0]
         code = fortran_writer(loop)
         assert ("do df = loop0_start, loop0_stop, 1\n"
-                "  f1_proxy%data(df) = f1_proxy%data(df) - "
-                "b * f2_proxy%data(df)\n"
+                "  f1_data(df) = f1_data(df) - b * f2_data(df)\n"
                 "enddo") in code
     else:
         output_dm_2 = (
@@ -2241,8 +2299,7 @@ def test_inc_X_minus_bY(
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f1_proxy%data(df) = f1_proxy%data(df) - "
-            "b * f2_proxy%data(df)\n"
+            "        f1_data(df) = f1_data(df) - b * f2_data(df)\n"
             "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
@@ -2284,19 +2341,12 @@ def test_aX_minus_bY(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
 
     if not dist_mem:
         output = (
-            "    SUBROUTINE invoke_0(f3, a, f1, b, f2)\n"
-            "      REAL(KIND=r_def), intent(in) :: a, b\n"
-            "      TYPE(field_type), intent(in) :: f3, f1, f2\n"
-            "      INTEGER df\n"
-            "      INTEGER(KIND=i_def) loop0_start, loop0_stop\n"
-            "      TYPE(field_proxy_type) f3_proxy, f1_proxy, f2_proxy\n"
-            "      INTEGER(KIND=i_def) undf_aspc1_f3\n"
-            "      !\n"
-            "      ! Initialise field and/or operator proxies\n"
-            "      !\n"
             "      f3_proxy = f3%get_proxy()\n"
+            "      f3_data => f3_proxy%data\n"
             "      f1_proxy = f1%get_proxy()\n"
+            "      f1_data => f1_proxy%data\n"
             "      f2_proxy = f2%get_proxy()\n"
+            "      f2_data => f2_proxy%data\n"
             "      !\n"
             "      ! Initialise number of DoFs for aspc1_f3\n"
             "      !\n"
@@ -2310,8 +2360,7 @@ def test_aX_minus_bY(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f3_proxy%data(df) = a * f1_proxy%data(df) - "
-            "b * f2_proxy%data(df)\n"
+            "        f3_data(df) = a * f1_data(df) - b * f2_data(df)\n"
             "      END DO\n"
             "      !\n"
             "    END SUBROUTINE invoke_0\n")
@@ -2322,8 +2371,7 @@ def test_aX_minus_bY(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
         loop = first_invoke.schedule.walk(Loop)[0]
         code = fortran_writer(loop)
         assert ("do df = loop0_start, loop0_stop, 1\n"
-                "  f3_proxy%data(df) = a * f1_proxy%data(df) - "
-                "b * f2_proxy%data(df)\n"
+                "  f3_data(df) = a * f1_data(df) - b * f2_data(df)\n"
                 "enddo") in code
     else:
         output_dm_2 = (
@@ -2332,8 +2380,7 @@ def test_aX_minus_bY(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f3_proxy%data(df) = a * f1_proxy%data(df) - "
-            "b * f2_proxy%data(df)\n"
+            "        f3_data(df) = a * f1_data(df) - b * f2_data(df)\n"
             "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
@@ -2380,8 +2427,11 @@ def test_X_times_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      ! Initialise field and/or operator proxies\n"
             "      !\n"
             "      f3_proxy = f3%get_proxy()\n"
+            "      f3_data => f3_proxy%data\n"
             "      f1_proxy = f1%get_proxy()\n"
+            "      f1_data => f1_proxy%data\n"
             "      f2_proxy = f2%get_proxy()\n"
+            "      f2_data => f2_proxy%data\n"
             "      !\n"
             "      ! Initialise number of DoFs for aspc1_f3\n"
             "      !\n"
@@ -2395,8 +2445,7 @@ def test_X_times_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f3_proxy%data(df) = f1_proxy%data(df) * "
-            "f2_proxy%data(df)\n"
+            "        f3_data(df) = f1_data(df) * f2_data(df)\n"
             "      END DO\n")
         assert output in code
 
@@ -2405,8 +2454,7 @@ def test_X_times_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
         loop = first_invoke.schedule.walk(Loop)[0]
         code = fortran_writer(loop)
         assert ("do df = loop0_start, loop0_stop, 1\n"
-                "  f3_proxy%data(df) = f1_proxy%data(df) * "
-                "f2_proxy%data(df)\n"
+                "  f3_data(df) = f1_data(df) * f2_data(df)\n"
                 "enddo") in code
     else:
         output = (
@@ -2415,8 +2463,7 @@ def test_X_times_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f3_proxy%data(df) = f1_proxy%data(df) * "
-            "f2_proxy%data(df)\n"
+            "        f3_data(df) = f1_data(df) * f2_data(df)\n"
             "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
@@ -2459,7 +2506,9 @@ def test_inc_X_times_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
     if not dist_mem:
         output = (
             "      f1_proxy = f1%get_proxy()\n"
+            "      f1_data => f1_proxy%data\n"
             "      f2_proxy = f2%get_proxy()\n"
+            "      f2_data => f2_proxy%data\n"
             "      !\n"
             "      ! Initialise number of DoFs for aspc1_f1\n"
             "      !\n"
@@ -2473,8 +2522,7 @@ def test_inc_X_times_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f1_proxy%data(df) = f1_proxy%data(df) * "
-            "f2_proxy%data(df)\n"
+            "        f1_data(df) = f1_data(df) * f2_data(df)\n"
             "      END DO")
         assert output in code
 
@@ -2483,8 +2531,7 @@ def test_inc_X_times_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
         loop = first_invoke.schedule.walk(Loop)[0]
         code = fortran_writer(loop)
         assert ("do df = loop0_start, loop0_stop, 1\n"
-                "  f1_proxy%data(df) = f1_proxy%data(df) * "
-                "f2_proxy%data(df)\n"
+                "  f1_data(df) = f1_data(df) * f2_data(df)\n"
                 "enddo" in code)
     else:
         output_dm_2 = (
@@ -2493,8 +2540,7 @@ def test_inc_X_times_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f1_proxy%data(df) = f1_proxy%data(df) * "
-            "f2_proxy%data(df)\n"
+            "        f1_data(df) = f1_data(df) * f2_data(df)\n"
             "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
@@ -2539,7 +2585,9 @@ def test_inc_aX_times_Y(
             "      ! Initialise field and/or operator proxies\n"
             "      !\n"
             "      f1_proxy = f1%get_proxy()\n"
+            "      f1_data => f1_proxy%data\n"
             "      f2_proxy = f2%get_proxy()\n"
+            "      f2_data => f2_proxy%data\n"
             "      !\n"
             "      ! Initialise number of DoFs for aspc1_f1\n"
             "      !\n"
@@ -2553,8 +2601,7 @@ def test_inc_aX_times_Y(
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f1_proxy%data(df) = a * f1_proxy%data(df) * "
-            "f2_proxy%data(df)\n"
+            "        f1_data(df) = a * f1_data(df) * f2_data(df)\n"
             "      END DO\n"
             "      !\n"
             "    END SUBROUTINE invoke_0")
@@ -2565,8 +2612,7 @@ def test_inc_aX_times_Y(
         loop = first_invoke.schedule.walk(Loop)[0]
         code = fortran_writer(loop)
         assert ("do df = loop0_start, loop0_stop, 1\n"
-                "  f1_proxy%data(df) = a * f1_proxy%data(df) * "
-                "f2_proxy%data(df)\n"
+                "  f1_data(df) = a * f1_data(df) * f2_data(df)\n"
                 "enddo") in code
     else:
         output_dm_2 = (
@@ -2575,8 +2621,7 @@ def test_inc_aX_times_Y(
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f1_proxy%data(df) = a * f1_proxy%data(df) * "
-            "f2_proxy%data(df)\n"
+            "        f1_data(df) = a * f1_data(df) * f2_data(df)\n"
             "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
@@ -2629,18 +2674,19 @@ def test_a_times_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
 
     if not dist_mem:
         output = (
-            "    SUBROUTINE invoke_0(f2, a_scalar, f1)\n"
-            "      REAL(KIND=r_phys), intent(in) :: a_scalar\n"
-            "      TYPE(r_phys_field_type), intent(in) :: f2, f1\n"
-            "      INTEGER df\n"
-            "      INTEGER(KIND=i_def) loop0_start, loop0_stop\n"
+            "      REAL(KIND=r_phys), pointer, dimension(:) :: f1_data => "
+            "null()\n"
+            "      REAL(KIND=r_phys), pointer, dimension(:) :: f2_data => "
+            "null()\n"
             "      TYPE(r_phys_field_proxy_type) f2_proxy, f1_proxy\n"
             "      INTEGER(KIND=i_def) undf_aspc1_f2\n"
             "      !\n"
             "      ! Initialise field and/or operator proxies\n"
             "      !\n"
             "      f2_proxy = f2%get_proxy()\n"
+            "      f2_data => f2_proxy%data\n"
             "      f1_proxy = f1%get_proxy()\n"
+            "      f1_data => f1_proxy%data\n"
             "      !\n"
             "      ! Initialise number of DoFs for aspc1_f2\n"
             "      !\n"
@@ -2654,7 +2700,7 @@ def test_a_times_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f2_proxy%data(df) = a_scalar * f1_proxy%data(df)\n"
+            "        f2_data(df) = a_scalar * f1_data(df)\n"
             "      END DO")
         assert output in code
 
@@ -2663,7 +2709,7 @@ def test_a_times_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
         loop = first_invoke.schedule.walk(Loop)[0]
         code = fortran_writer(loop)
         assert ("do df = loop0_start, loop0_stop, 1\n"
-                "  f2_proxy%data(df) = a_scalar * f1_proxy%data(df)\n"
+                "  f2_data(df) = a_scalar * f1_data(df)\n"
                 "enddo") in code
     else:
         output_dm = (
@@ -2672,7 +2718,7 @@ def test_a_times_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f2_proxy%data(df) = a_scalar * f1_proxy%data(df)\n"
+            "        f2_data(df) = a_scalar * f1_data(df)\n"
             "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
@@ -2714,17 +2760,15 @@ def test_inc_a_times_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
 
     if not dist_mem:
         output = (
-            "    SUBROUTINE invoke_0(a_scalar, f1)\n"
-            "      REAL(KIND=r_def), intent(in) :: a_scalar\n"
-            "      TYPE(field_type), intent(in) :: f1\n"
-            "      INTEGER df\n"
-            "      INTEGER(KIND=i_def) loop0_start, loop0_stop\n"
+            "      REAL(KIND=r_def), pointer, dimension(:) :: f1_data => "
+            "null()\n"
             "      TYPE(field_proxy_type) f1_proxy\n"
             "      INTEGER(KIND=i_def) undf_aspc1_f1\n"
             "      !\n"
             "      ! Initialise field and/or operator proxies\n"
             "      !\n"
             "      f1_proxy = f1%get_proxy()\n"
+            "      f1_data => f1_proxy%data\n"
             "      !\n"
             "      ! Initialise number of DoFs for aspc1_f1\n"
             "      !\n"
@@ -2738,7 +2782,7 @@ def test_inc_a_times_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f1_proxy%data(df) = a_scalar * f1_proxy%data(df)\n"
+            "        f1_data(df) = a_scalar * f1_data(df)\n"
             "      END DO\n"
             "      !\n")
         assert output in code
@@ -2748,7 +2792,7 @@ def test_inc_a_times_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
         loop = first_invoke.schedule.walk(Loop)[0]
         code = fortran_writer(loop)
         assert ("do df = loop0_start, loop0_stop, 1\n"
-                "  f1_proxy%data(df) = a_scalar * f1_proxy%data(df)\n"
+                "  f1_data(df) = a_scalar * f1_data(df)\n"
                 "enddo") in code
     else:
         output_dm = (
@@ -2757,7 +2801,7 @@ def test_inc_a_times_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f1_proxy%data(df) = a_scalar * f1_proxy%data(df)\n"
+            "        f1_data(df) = a_scalar * f1_data(df)\n"
             "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
@@ -2801,8 +2845,11 @@ def test_X_divideby_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
     if not dist_mem:
         output = (
             "      f3_proxy = f3%get_proxy()\n"
+            "      f3_data => f3_proxy%data\n"
             "      f1_proxy = f1%get_proxy()\n"
+            "      f1_data => f1_proxy%data\n"
             "      f2_proxy = f2%get_proxy()\n"
+            "      f2_data => f2_proxy%data\n"
             "      !\n"
             "      ! Initialise number of DoFs for aspc1_f3\n"
             "      !\n"
@@ -2816,8 +2863,7 @@ def test_X_divideby_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f3_proxy%data(df) = f1_proxy%data(df) / "
-            "f2_proxy%data(df)\n"
+            "        f3_data(df) = f1_data(df) / f2_data(df)\n"
             "      END DO")
         assert output in code
 
@@ -2826,8 +2872,7 @@ def test_X_divideby_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
         loop = first_invoke.schedule.walk(Loop)[0]
         code = fortran_writer(loop)
         assert ("do df = loop0_start, loop0_stop, 1\n"
-                "  f3_proxy%data(df) = f1_proxy%data(df) / "
-                "f2_proxy%data(df)\n"
+                "  f3_data(df) = f1_data(df) / f2_data(df)\n"
                 "enddo") in code
     else:
         output_dm_2 = (
@@ -2836,8 +2881,7 @@ def test_X_divideby_Y(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f3_proxy%data(df) = f1_proxy%data(df) / "
-            "f2_proxy%data(df)\n"
+            "        f3_data(df) = f1_data(df) / f2_data(df)\n"
             "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
@@ -2881,7 +2925,9 @@ def test_inc_X_divideby_Y(
     if not dist_mem:
         output = (
             "      f1_proxy = f1%get_proxy()\n"
+            "      f1_data => f1_proxy%data\n"
             "      f2_proxy = f2%get_proxy()\n"
+            "      f2_data => f2_proxy%data\n"
             "      !\n"
             "      ! Initialise number of DoFs for aspc1_f1\n"
             "      !\n"
@@ -2895,8 +2941,7 @@ def test_inc_X_divideby_Y(
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f1_proxy%data(df) = f1_proxy%data(df) / "
-            "f2_proxy%data(df)\n"
+            "        f1_data(df) = f1_data(df) / f2_data(df)\n"
             "      END DO")
         assert output in code
 
@@ -2905,8 +2950,7 @@ def test_inc_X_divideby_Y(
         loop = first_invoke.schedule.walk(Loop)[0]
         code = fortran_writer(loop)
         assert ("do df = loop0_start, loop0_stop, 1\n"
-                "  f1_proxy%data(df) = f1_proxy%data(df) / "
-                "f2_proxy%data(df)\n"
+                "  f1_data(df) = f1_data(df) / f2_data(df)\n"
                 "enddo" in code)
     else:
         output_dm_2 = (
@@ -2915,8 +2959,7 @@ def test_inc_X_divideby_Y(
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f1_proxy%data(df) = f1_proxy%data(df) / "
-            "f2_proxy%data(df)\n"
+            "        f1_data(df) = f1_data(df) / f2_data(df)\n"
             "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
@@ -2963,14 +3006,20 @@ def test_X_divideby_a(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
         "      TYPE(field_type), intent(in) :: f1\n"
         "      INTEGER df\n"
         "      INTEGER(KIND=i_def) loop0_start, loop0_stop\n"
+        "      REAL(KIND=r_def), pointer, dimension(:) :: f1_data => "
+        "null()\n"
         "      TYPE(field_proxy_type) f1_proxy\n"
+        "      REAL(KIND=r_solver), pointer, dimension(:) :: f2_data => "
+        "null()\n"
         "      TYPE(r_solver_field_proxy_type) f2_proxy\n")
     assert output in code
 
     if not dist_mem:
         output = (
             "      f2_proxy = f2%get_proxy()\n"
+            "      f2_data => f2_proxy%data\n"
             "      f1_proxy = f1%get_proxy()\n"
+            "      f1_data => f1_proxy%data\n"
             "      !\n"
             "      ! Initialise number of DoFs for aspc1_f2\n"
             "      !\n"
@@ -2984,7 +3033,7 @@ def test_X_divideby_a(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f2_proxy%data(df) = f1_proxy%data(df) / a_scalar\n"
+            "        f2_data(df) = f1_data(df) / a_scalar\n"
             "      END DO")
         assert output in code
 
@@ -2993,7 +3042,7 @@ def test_X_divideby_a(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
         loop = first_invoke.schedule.walk(Loop)[0]
         code = fortran_writer(loop)
         assert ("do df = loop0_start, loop0_stop, 1\n"
-                "  f2_proxy%data(df) = f1_proxy%data(df) / a_scalar\n"
+                "  f2_data(df) = f1_data(df) / a_scalar\n"
                 "enddo") in code
     else:
         output_dm_2 = (
@@ -3002,7 +3051,7 @@ def test_X_divideby_a(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f2_proxy%data(df) = f1_proxy%data(df) / a_scalar\n"
+            "        f2_data(df) = f1_data(df) / a_scalar\n"
             "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
@@ -3049,12 +3098,15 @@ def test_inc_X_divideby_a(
         "      TYPE(r_tran_field_type), intent(in) :: f1\n"
         "      INTEGER df\n"
         "      INTEGER(KIND=i_def) loop0_start, loop0_stop\n"
+        "      REAL(KIND=r_tran), pointer, dimension(:) :: f1_data => "
+        "null()\n"
         "      TYPE(r_tran_field_proxy_type) f1_proxy\n")
     assert output in code
 
     if not dist_mem:
         output = (
             "      f1_proxy = f1%get_proxy()\n"
+            "      f1_data => f1_proxy%data\n"
             "      !\n"
             "      ! Initialise number of DoFs for aspc1_f1\n"
             "      !\n"
@@ -3068,7 +3120,7 @@ def test_inc_X_divideby_a(
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f1_proxy%data(df) = f1_proxy%data(df) / a_scalar\n"
+            "        f1_data(df) = f1_data(df) / a_scalar\n"
             "      END DO")
         assert output in code
 
@@ -3077,7 +3129,7 @@ def test_inc_X_divideby_a(
         loop = first_invoke.schedule.walk(Loop)[0]
         code = fortran_writer(loop)
         assert ("do df = loop0_start, loop0_stop, 1\n"
-                "  f1_proxy%data(df) = f1_proxy%data(df) / a_scalar\n"
+                "  f1_data(df) = f1_data(df) / a_scalar\n"
                 "enddo") in code
     else:
         output_dm_2 = (
@@ -3086,7 +3138,7 @@ def test_inc_X_divideby_a(
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f1_proxy%data(df) = f1_proxy%data(df) / a_scalar\n"
+            "        f1_data(df) = f1_data(df) / a_scalar\n"
             "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
@@ -3133,7 +3185,9 @@ def test_a_divideby_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
     if not dist_mem:
         output = (
             "      f2_proxy = f2%get_proxy()\n"
+            "      f2_data => f2_proxy%data\n"
             "      f1_proxy = f1%get_proxy()\n"
+            "      f1_data => f1_proxy%data\n"
             "      !\n"
             "      ! Initialise number of DoFs for aspc1_f2\n"
             "      !\n"
@@ -3147,7 +3201,7 @@ def test_a_divideby_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f2_proxy%data(df) = a_scalar / f1_proxy%data(df)\n"
+            "        f2_data(df) = a_scalar / f1_data(df)\n"
             "      END DO")
         assert output in code
 
@@ -3156,7 +3210,7 @@ def test_a_divideby_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
         loop = first_invoke.schedule.walk(Loop)[0]
         code = fortran_writer(loop)
         assert ("do df = loop0_start, loop0_stop, 1\n"
-                "  f2_proxy%data(df) = a_scalar / f1_proxy%data(df)\n"
+                "  f2_data(df) = a_scalar / f1_data(df)\n"
                 "enddo") in code
     else:
         output_dm = (
@@ -3165,7 +3219,7 @@ def test_a_divideby_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f2_proxy%data(df) = a_scalar / f1_proxy%data(df)\n"
+            "        f2_data(df) = a_scalar / f1_data(df)\n"
             "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
@@ -3214,7 +3268,7 @@ def test_inc_a_divideby_X(
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f1_proxy%data(df) = a_scalar / f1_proxy%data(df)\n"
+            "        f1_data(df) = a_scalar / f1_data(df)\n"
             "      END DO\n"
             "      !\n")
         assert output in code
@@ -3224,7 +3278,7 @@ def test_inc_a_divideby_X(
         loop = first_invoke.schedule.walk(Loop)[0]
         code = fortran_writer(loop)
         assert ("do df = loop0_start, loop0_stop, 1\n"
-                "  f1_proxy%data(df) = a_scalar / f1_proxy%data(df)\n"
+                "  f1_data(df) = a_scalar / f1_data(df)\n"
                 "enddo") in code
     else:
         output_dm = (
@@ -3233,7 +3287,7 @@ def test_inc_a_divideby_X(
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f1_proxy%data(df) = a_scalar / f1_proxy%data(df)\n"
+            "        f1_data(df) = a_scalar / f1_data(df)\n"
             "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
@@ -3292,7 +3346,7 @@ def test_inc_X_powreal_a(
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f1_proxy%data(df) = f1_proxy%data(df) ** a_scalar\n"
+            "        f1_data(df) = f1_data(df) ** a_scalar\n"
             "      END DO\n"
             "      !\n")
 
@@ -3305,7 +3359,7 @@ def test_inc_X_powreal_a(
         assert scalar.datatype.intrinsic == ScalarType.Intrinsic.REAL
         code = fortran_writer(loop)
         assert ("do df = loop0_start, loop0_stop, 1\n"
-                "  f1_proxy%data(df) = f1_proxy%data(df) ** a_scalar\n"
+                "  f1_data(df) = f1_data(df) ** a_scalar\n"
                 "enddo") in code
     else:
         output = (
@@ -3316,7 +3370,7 @@ def test_inc_X_powreal_a(
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f1_proxy%data(df) = f1_proxy%data(df) ** a_scalar\n"
+            "        f1_data(df) = f1_data(df) ** a_scalar\n"
             "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
@@ -3326,7 +3380,7 @@ def test_inc_X_powreal_a(
         if not annexed:
             output = output.replace("dof_annexed", "dof_owned")
         assert output in code
-        assert ("f1_proxy%data(df) = f1_proxy%data(df) ** 1.0e-3_r_def\n"
+        assert ("f1_data(df) = f1_data(df) ** 1.0e-3_r_def\n"
                 in code)
 
 
@@ -3377,7 +3431,7 @@ def test_inc_X_powint_n(
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f1_proxy%data(df) = f1_proxy%data(df) ** i_scalar\n"
+            "        f1_data(df) = f1_data(df) ** i_scalar\n"
             "      END DO\n"
             "      !\n")
 
@@ -3390,7 +3444,7 @@ def test_inc_X_powint_n(
         assert scalar.datatype.intrinsic == ScalarType.Intrinsic.INTEGER
         code = fortran_writer(loop)
         assert ("do df = loop0_start, loop0_stop, 1\n"
-                "  f1_proxy%data(df) = f1_proxy%data(df) ** i_scalar\n"
+                "  f1_data(df) = f1_data(df) ** i_scalar\n"
                 "enddo") in code
     else:
         output = (
@@ -3403,7 +3457,7 @@ def test_inc_X_powint_n(
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f1_proxy%data(df) = f1_proxy%data(df) ** i_scalar\n"
+            "        f1_data(df) = f1_data(df) ** i_scalar\n"
             "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
@@ -3414,8 +3468,8 @@ def test_inc_X_powint_n(
             output = output.replace("dof_annexed", "dof_owned")
         assert output in code
 
-        assert "f1_proxy%data(df) = f1_proxy%data(df) ** (-2_i_def)\n" in code
-        assert ("f1_proxy%data(df) = f1_proxy%data(df) ** my_var_a_scalar\n"
+        assert "f1_data(df) = f1_data(df) ** (-2_i_def)\n" in code
+        assert ("f1_data(df) = f1_data(df) ** my_var_a_scalar\n"
                 in code)
 
 
@@ -3456,12 +3510,15 @@ def test_setval_c(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      TYPE(field_type), intent(in) :: f1\n"
             "      INTEGER df\n"
             "      INTEGER(KIND=i_def) loop0_start, loop0_stop\n"
+            "      REAL(KIND=r_def), pointer, dimension(:) :: f1_data => "
+            "null()\n"
             "      TYPE(field_proxy_type) f1_proxy\n"
             "      INTEGER(KIND=i_def) undf_aspc1_f1\n"
             "      !\n"
             "      ! Initialise field and/or operator proxies\n"
             "      !\n"
             "      f1_proxy = f1%get_proxy()\n"
+            "      f1_data => f1_proxy%data\n"
             "      !\n"
             "      ! Initialise number of DoFs for aspc1_f1\n"
             "      !\n"
@@ -3475,7 +3532,7 @@ def test_setval_c(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f1_proxy%data(df) = c\n"
+            "        f1_data(df) = c\n"
             "      END DO")
         assert output in code
 
@@ -3488,7 +3545,7 @@ def test_setval_c(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
         assert scalar.datatype.intrinsic == ScalarType.Intrinsic.REAL
         code = fortran_writer(loop)
         assert ("do df = loop0_start, loop0_stop, 1\n"
-                "  f1_proxy%data(df) = c\n"
+                "  f1_data(df) = c\n"
                 "enddo") in code
     else:
         output_dm_2 = (
@@ -3497,7 +3554,7 @@ def test_setval_c(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f1_proxy%data(df) = c\n"
+            "        f1_data(df) = c\n"
             "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
@@ -3540,7 +3597,9 @@ def test_setval_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
     if not dist_mem:
         output = (
             "      f2_proxy = f2%get_proxy()\n"
+            "      f2_data => f2_proxy%data\n"
             "      f1_proxy = f1%get_proxy()\n"
+            "      f1_data => f1_proxy%data\n"
             "      !\n"
             "      ! Initialise number of DoFs for aspc1_f2\n"
             "      !\n"
@@ -3554,7 +3613,7 @@ def test_setval_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f2_proxy%data(df) = f1_proxy%data(df)\n"
+            "        f2_data(df) = f1_data(df)\n"
             "      END DO")
         assert output in code
 
@@ -3563,7 +3622,7 @@ def test_setval_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
         loop = first_invoke.schedule.walk(Loop)[0]
         code = fortran_writer(loop)
         assert ("do df = loop0_start, loop0_stop, 1\n"
-                "  f2_proxy%data(df) = f1_proxy%data(df)\n"
+                "  f2_data(df) = f1_data(df)\n"
                 "enddo") in code
     else:
         output_dm_2 = (
@@ -3572,7 +3631,7 @@ def test_setval_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f2_proxy%data(df) = f1_proxy%data(df)\n"
+            "        f2_data(df) = f1_data(df)\n"
             "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
@@ -3617,7 +3676,9 @@ def test_X_innerproduct_Y(tmpdir, dist_mem):
         "      ! Initialise field and/or operator proxies\n"
         "      !\n"
         "      f1_proxy = f1%get_proxy()\n"
+        "      f1_data => f1_proxy%data\n"
         "      f2_proxy = f2%get_proxy()\n"
+        "      f2_data => f2_proxy%data\n"
         "      !\n")
     assert output in code
     if not dist_mem:
@@ -3639,7 +3700,7 @@ def test_X_innerproduct_Y(tmpdir, dist_mem):
             "      asum = 0.0_r_def\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        asum = asum + f1_proxy%data(df)*f2_proxy%data(df)\n"
+            "        asum = asum + f1_data(df)*f2_data(df)\n"
             "      END DO\n"
             "      !\n")
         assert output_seq in code
@@ -3655,7 +3716,7 @@ def test_X_innerproduct_Y(tmpdir, dist_mem):
             "      asum = 0.0_r_def\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        asum = asum + f1_proxy%data(df)*f2_proxy%data(df)\n"
+            "        asum = asum + f1_data(df)*f2_data(df)\n"
             "      END DO\n"
             "      global_sum%value = asum\n"
             "      asum = global_sum%get_sum()\n"
@@ -3696,6 +3757,7 @@ def test_X_innerproduct_X(tmpdir, dist_mem):
         "      ! Initialise field and/or operator proxies\n"
         "      !\n"
         "      f1_proxy = f1%get_proxy()\n"
+        "      f1_data => f1_proxy%data\n"
         "      !\n")
     assert output in code
     if not dist_mem:
@@ -3717,7 +3779,7 @@ def test_X_innerproduct_X(tmpdir, dist_mem):
             "      asum = 0.0_r_def\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        asum = asum + f1_proxy%data(df)*f1_proxy%data(df)\n"
+            "        asum = asum + f1_data(df)*f1_data(df)\n"
             "      END DO\n"
             "      !\n")
         assert output_seq in code
@@ -3733,7 +3795,7 @@ def test_X_innerproduct_X(tmpdir, dist_mem):
             "      asum = 0.0_r_def\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        asum = asum + f1_proxy%data(df)*f1_proxy%data(df)\n"
+            "        asum = asum + f1_data(df)*f1_data(df)\n"
             "      END DO\n"
             "      global_sum%value = asum\n"
             "      asum = global_sum%get_sum()\n"
@@ -3775,6 +3837,7 @@ def test_sum_X(tmpdir, dist_mem):
         "      ! Initialise field and/or operator proxies\n"
         "      !\n"
         "      f1_proxy = f1%get_proxy()\n"
+        "      f1_data => f1_proxy%data\n"
         "      !\n")
     assert output in code
     if not dist_mem:
@@ -3794,7 +3857,7 @@ def test_sum_X(tmpdir, dist_mem):
             "      asum = 0.0_r_def\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        asum = asum + f1_proxy%data(df)\n"
+            "        asum = asum + f1_data(df)\n"
             "      END DO")
         assert output in code
     else:
@@ -3809,7 +3872,7 @@ def test_sum_X(tmpdir, dist_mem):
             "      asum = 0.0_r_def\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        asum = asum + f1_proxy%data(df)\n"
+            "        asum = asum + f1_data(df)\n"
             "      END DO\n"
             "      global_sum%value = asum\n"
             "      asum = global_sum%get_sum()")
@@ -3853,7 +3916,7 @@ def test_sign_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f2_proxy%data(df) = SIGN(a, f1_proxy%data(df))\n"
+            "        f2_data(df) = SIGN(a, f1_data(df))\n"
             "      END DO\n"
             "      !\n"
             "    END SUBROUTINE invoke_0\n")
@@ -3864,7 +3927,7 @@ def test_sign_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
         loop = first_invoke.schedule.walk(Loop)[0]
         code = fortran_writer(loop)
         assert ("do df = loop0_start, loop0_stop, 1\n"
-                "  f2_proxy%data(df) = SIGN(a, f1_proxy%data(df))\n"
+                "  f2_data(df) = SIGN(a, f1_data(df))\n"
                 "enddo") in code
     else:
         output_dm_2 = (
@@ -3873,7 +3936,7 @@ def test_sign_X(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f2_proxy%data(df) = SIGN(a, f1_proxy%data(df))\n"
+            "        f2_data(df) = SIGN(a, f1_data(df))\n"
             "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
@@ -3921,6 +3984,10 @@ def test_max_aX(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
         "      TYPE(r_solver_field_type), intent(in) :: f2, f1\n"
         "      INTEGER df\n"
         "      INTEGER(KIND=i_def) loop0_start, loop0_stop\n"
+        "      REAL(KIND=r_solver), pointer, dimension(:) :: f1_data => "
+        "null()\n"
+        "      REAL(KIND=r_solver), pointer, dimension(:) :: f2_data => "
+        "null()\n"
         "      TYPE(r_solver_field_proxy_type) f2_proxy, f1_proxy\n")
     assert output in code
 
@@ -3932,7 +3999,7 @@ def test_max_aX(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f2_proxy%data(df) = MAX(a, f1_proxy%data(df))\n"
+            "        f2_data(df) = MAX(a, f1_data(df))\n"
             "      END DO\n"
             "      !\n"
             "    END SUBROUTINE invoke_0\n")
@@ -3943,7 +4010,7 @@ def test_max_aX(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
         loop = first_invoke.schedule.walk(Loop)[0]
         code = fortran_writer(loop)
         assert ("do df = loop0_start, loop0_stop, 1\n"
-                "  f2_proxy%data(df) = MAX(a, f1_proxy%data(df))\n"
+                "  f2_data(df) = MAX(a, f1_data(df))\n"
                 "enddo") in code
     else:
         assert "INTEGER(KIND=i_def) max_halo_depth_mesh\n" in code
@@ -3953,7 +4020,7 @@ def test_max_aX(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f2_proxy%data(df) = MAX(a, f1_proxy%data(df))\n"
+            "        f2_data(df) = MAX(a, f1_data(df))\n"
             "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
@@ -3998,6 +4065,8 @@ def test_inc_max_aX(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
         "      TYPE(r_solver_field_type), intent(in) :: f1\n"
         "      INTEGER df\n"
         "      INTEGER(KIND=i_def) loop0_start, loop0_stop\n"
+        "      REAL(KIND=r_solver), pointer, dimension(:) :: f1_data => "
+        "null()\n"
         "      TYPE(r_solver_field_proxy_type) f1_proxy\n")
     assert output in code
 
@@ -4008,7 +4077,7 @@ def test_inc_max_aX(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f1_proxy%data(df) = MAX(a, f1_proxy%data(df))\n"
+            "        f1_data(df) = MAX(a, f1_data(df))\n"
             "      END DO\n"
             "      !\n"
             "    END SUBROUTINE invoke_0\n")
@@ -4019,7 +4088,7 @@ def test_inc_max_aX(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
         loop = first_invoke.schedule.walk(Loop)[0]
         code = fortran_writer(loop)
         assert ("do df = loop0_start, loop0_stop, 1\n"
-                "  f1_proxy%data(df) = MAX(a, f1_proxy%data(df))\n"
+                "  f1_data(df) = MAX(a, f1_data(df))\n"
                 "enddo") in code
     else:
         output_dm_2 = (
@@ -4028,7 +4097,7 @@ def test_inc_max_aX(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f1_proxy%data(df) = MAX(a, f1_proxy%data(df))\n"
+            "        f1_data(df) = MAX(a, f1_data(df))\n"
             "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
@@ -4077,7 +4146,7 @@ def test_min_aX(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f2_proxy%data(df) = MIN(a, f1_proxy%data(df))\n"
+            "        f2_data(df) = MIN(a, f1_data(df))\n"
             "      END DO\n"
             "      !\n"
             "    END SUBROUTINE invoke_0\n")
@@ -4088,7 +4157,7 @@ def test_min_aX(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
         loop = first_invoke.schedule.walk(Loop)[0]
         code = fortran_writer(loop)
         assert ("do df = loop0_start, loop0_stop, 1\n"
-                "  f2_proxy%data(df) = MIN(a, f1_proxy%data(df))\n"
+                "  f2_data(df) = MIN(a, f1_data(df))\n"
                 "enddo") in code
     else:
         output_dm_2 = (
@@ -4097,7 +4166,7 @@ def test_min_aX(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f2_proxy%data(df) = MIN(a, f1_proxy%data(df))\n"
+            "        f2_data(df) = MIN(a, f1_data(df))\n"
             "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
@@ -4143,7 +4212,7 @@ def test_inc_min_aX(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f1_proxy%data(df) = MIN(a, f1_proxy%data(df))\n"
+            "        f1_data(df) = MIN(a, f1_data(df))\n"
             "      END DO\n"
             "      !\n"
             "    END SUBROUTINE invoke_0\n")
@@ -4154,7 +4223,7 @@ def test_inc_min_aX(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
         loop = first_invoke.schedule.walk(Loop)[0]
         code = fortran_writer(loop)
         assert ("do df = loop0_start, loop0_stop, 1\n"
-                "  f1_proxy%data(df) = MIN(a, f1_proxy%data(df))\n"
+                "  f1_data(df) = MIN(a, f1_data(df))\n"
                 "enddo") in code
     else:
         output_dm_2 = (
@@ -4163,7 +4232,7 @@ def test_inc_min_aX(tmpdir, monkeypatch, annexed, dist_mem, fortran_writer):
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f1_proxy%data(df) = MIN(a, f1_proxy%data(df))\n"
+            "        f1_data(df) = MIN(a, f1_data(df))\n"
             "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
@@ -4209,7 +4278,7 @@ def test_int_X(tmpdir, monkeypatch, annexed, dist_mem):
 
     # First check that the correct field types and constants are used
     output = (
-        "    USE constants_mod, ONLY: i_def\n"
+        "    USE constants_mod, ONLY: r_def, i_def\n"
         "    USE field_mod, ONLY: field_type, field_proxy_type\n"
         "    USE integer_field_mod, ONLY: integer_field_type, "
         "integer_field_proxy_type\n")
@@ -4217,19 +4286,20 @@ def test_int_X(tmpdir, monkeypatch, annexed, dist_mem):
 
     if not dist_mem:
         output = (
-            "    SUBROUTINE invoke_0(f2, f1)\n"
-            "      TYPE(field_type), intent(in) :: f1\n"
-            "      TYPE(integer_field_type), intent(in) :: f2\n"
-            "      INTEGER df\n"
-            "      INTEGER(KIND=i_def) loop0_start, loop0_stop\n"
+            "      INTEGER(KIND=i_def), pointer, dimension(:) :: f2_data => "
+            "null()\n"
             "      TYPE(integer_field_proxy_type) f2_proxy\n"
+            "      REAL(KIND=r_def), pointer, dimension(:) :: f1_data => "
+            "null()\n"
             "      TYPE(field_proxy_type) f1_proxy\n"
             "      INTEGER(KIND=i_def) undf_aspc1_f2\n"
             "      !\n"
             "      ! Initialise field and/or operator proxies\n"
             "      !\n"
             "      f2_proxy = f2%get_proxy()\n"
+            "      f2_data => f2_proxy%data\n"
             "      f1_proxy = f1%get_proxy()\n"
+            "      f1_data => f1_proxy%data\n"
             "      !\n"
             "      ! Initialise number of DoFs for aspc1_f2\n"
             "      !\n"
@@ -4243,7 +4313,7 @@ def test_int_X(tmpdir, monkeypatch, annexed, dist_mem):
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f2_proxy%data(df) = int(f1_proxy%data(df), i_def)\n"
+            "        f2_data(df) = int(f1_data(df), i_def)\n"
             "      END DO\n"
             "      !\n"
             "    END SUBROUTINE invoke_0\n")
@@ -4255,7 +4325,7 @@ def test_int_X(tmpdir, monkeypatch, annexed, dist_mem):
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f2_proxy%data(df) = int(f1_proxy%data(df), i_def)\n"
+            "        f2_data(df) = int(f1_data(df), i_def)\n"
             "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
@@ -4288,8 +4358,8 @@ def test_int_X_precision(monkeypatch):
     kern = first_invoke.schedule.children[0].loop_body[0]
     monkeypatch.setattr(kern.args[0], "_precision", "i_solver")
     code = str(psy.gen)
-    assert "USE constants_mod, ONLY: i_solver, i_def" in code
-    assert "f2_proxy%data(df) = int(f1_proxy%data(df), i_solver)" in code
+    assert "USE constants_mod, ONLY: r_def, i_solver, i_def" in code
+    assert "f2_data(df) = int(f1_data(df), i_solver)" in code
 
 # ------------- Xfail built-ins --------------------------------------------- #
 
@@ -4362,12 +4432,15 @@ def test_builtin_set(tmpdir, monkeypatch, annexed, dist_mem):
             "      TYPE(field_type), intent(in) :: f1\n"
             "      INTEGER df\n"
             "      INTEGER(KIND=i_def) loop0_start, loop0_stop\n"
+            "      REAL(KIND=r_def), pointer, dimension(:) :: f1_data => "
+            "null()\n"
             "      TYPE(field_proxy_type) f1_proxy\n"
             "      INTEGER(KIND=i_def) undf_aspc1_f1\n"
             "      !\n"
             "      ! Initialise field and/or operator proxies\n"
             "      !\n"
             "      f1_proxy = f1%get_proxy()\n"
+            "      f1_data => f1_proxy%data\n"
             "      !\n"
             "      ! Initialise number of DoFs for aspc1_f1\n"
             "      !\n"
@@ -4381,7 +4454,7 @@ def test_builtin_set(tmpdir, monkeypatch, annexed, dist_mem):
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f1_proxy%data(df) = 0.0\n"
+            "        f1_data(df) = 0.0\n"
             "      END DO\n"
             "      !\n"
             "    END SUBROUTINE invoke_0\n")
@@ -4394,7 +4467,7 @@ def test_builtin_set(tmpdir, monkeypatch, annexed, dist_mem):
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f1_proxy%data(df) = 0.0\n"
+            "        f1_data(df) = 0.0\n"
             "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
@@ -4431,14 +4504,23 @@ def test_aX_plus_Y_by_value(tmpdir, monkeypatch, annexed, dist_mem):
             "      TYPE(field_type), intent(in) :: f3, f1, f2\n"
             "      INTEGER df\n"
             "      INTEGER(KIND=i_def) loop0_start, loop0_stop\n"
+            "      REAL(KIND=r_def), pointer, dimension(:) :: f2_data => "
+            "null()\n"
+            "      REAL(KIND=r_def), pointer, dimension(:) :: f1_data => "
+            "null()\n"
+            "      REAL(KIND=r_def), pointer, dimension(:) :: f3_data => "
+            "null()\n"
             "      TYPE(field_proxy_type) f3_proxy, f1_proxy, f2_proxy\n"
             "      INTEGER(KIND=i_def) undf_aspc1_f3\n"
             "      !\n"
             "      ! Initialise field and/or operator proxies\n"
             "      !\n"
             "      f3_proxy = f3%get_proxy()\n"
+            "      f3_data => f3_proxy%data\n"
             "      f1_proxy = f1%get_proxy()\n"
+            "      f1_data => f1_proxy%data\n"
             "      f2_proxy = f2%get_proxy()\n"
+            "      f2_data => f2_proxy%data\n"
             "      !\n"
             "      ! Initialise number of DoFs for aspc1_f3\n"
             "      !\n"
@@ -4452,8 +4534,7 @@ def test_aX_plus_Y_by_value(tmpdir, monkeypatch, annexed, dist_mem):
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f3_proxy%data(df) = 0.5_r_def * f1_proxy%data(df) + "
-            "f2_proxy%data(df)\n"
+            "        f3_data(df) = 0.5_r_def * f1_data(df) + f2_data(df)\n"
             "      END DO\n"
             "      !\n"
             "    END SUBROUTINE invoke_0")
@@ -4465,8 +4546,8 @@ def test_aX_plus_Y_by_value(tmpdir, monkeypatch, annexed, dist_mem):
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f3_proxy%data(df) = 0.5_r_def * f1_proxy%data(df) + "
-            "f2_proxy%data(df)\n"
+            "        f3_data(df) = 0.5_r_def * f1_data(df) + "
+            "f2_data(df)\n"
             "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
@@ -4503,14 +4584,23 @@ def test_aX_plus_bY_by_value(tmpdir, monkeypatch, annexed, dist_mem):
             "      TYPE(field_type), intent(in) :: f3, f1, f2\n"
             "      INTEGER df\n"
             "      INTEGER(KIND=i_def) loop0_start, loop0_stop\n"
+            "      REAL(KIND=r_def), pointer, dimension(:) :: f2_data => "
+            "null()\n"
+            "      REAL(KIND=r_def), pointer, dimension(:) :: f1_data => "
+            "null()\n"
+            "      REAL(KIND=r_def), pointer, dimension(:) :: f3_data => "
+            "null()\n"
             "      TYPE(field_proxy_type) f3_proxy, f1_proxy, f2_proxy\n"
             "      INTEGER(KIND=i_def) undf_aspc1_f3\n"
             "      !\n"
             "      ! Initialise field and/or operator proxies\n"
             "      !\n"
             "      f3_proxy = f3%get_proxy()\n"
+            "      f3_data => f3_proxy%data\n"
             "      f1_proxy = f1%get_proxy()\n"
+            "      f1_data => f1_proxy%data\n"
             "      f2_proxy = f2%get_proxy()\n"
+            "      f2_data => f2_proxy%data\n"
             "      !\n"
             "      ! Initialise number of DoFs for aspc1_f3\n"
             "      !\n"
@@ -4524,8 +4614,7 @@ def test_aX_plus_bY_by_value(tmpdir, monkeypatch, annexed, dist_mem):
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f3_proxy%data(df) = 0.5d0 * f1_proxy%data(df) + "
-            "0.8 * f2_proxy%data(df)\n"
+            "        f3_data(df) = 0.5d0 * f1_data(df) + 0.8 * f2_data(df)\n"
             "      END DO\n"
             "      !\n"
             "    END SUBROUTINE invoke_0\n")
@@ -4537,8 +4626,8 @@ def test_aX_plus_bY_by_value(tmpdir, monkeypatch, annexed, dist_mem):
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f3_proxy%data(df) = 0.5d0 * f1_proxy%data(df) + "
-            "0.8 * f2_proxy%data(df)\n"
+            "        f3_data(df) = 0.5d0 * f1_data(df) + "
+            "0.8 * f2_data(df)\n"
             "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
@@ -4574,13 +4663,19 @@ def test_sign_X_by_value(tmpdir, monkeypatch, annexed, dist_mem):
             "      TYPE(field_type), intent(in) :: f2, f1\n"
             "      INTEGER df\n"
             "      INTEGER(KIND=i_def) loop0_start, loop0_stop\n"
+            "      REAL(KIND=r_def), pointer, dimension(:) :: f1_data => "
+            "null()\n"
+            "      REAL(KIND=r_def), pointer, dimension(:) :: f2_data => "
+            "null()\n"
             "      TYPE(field_proxy_type) f2_proxy, f1_proxy\n"
             "      INTEGER(KIND=i_def) undf_aspc1_f2\n"
             "      !\n"
             "      ! Initialise field and/or operator proxies\n"
             "      !\n"
             "      f2_proxy = f2%get_proxy()\n"
+            "      f2_data => f2_proxy%data\n"
             "      f1_proxy = f1%get_proxy()\n"
+            "      f1_data => f1_proxy%data\n"
             "      !\n"
             "      ! Initialise number of DoFs for aspc1_f2\n"
             "      !\n"
@@ -4594,8 +4689,7 @@ def test_sign_X_by_value(tmpdir, monkeypatch, annexed, dist_mem):
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f2_proxy%data(df) = SIGN(-2.0_r_def, "
-            "f1_proxy%data(df))\n"
+            "        f2_data(df) = SIGN(-2.0_r_def, f1_data(df))\n"
             "      END DO\n"
             "      !\n"
             "    END SUBROUTINE invoke_0\n")
@@ -4607,8 +4701,7 @@ def test_sign_X_by_value(tmpdir, monkeypatch, annexed, dist_mem):
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f2_proxy%data(df) = SIGN(-2.0_r_def, "
-            "f1_proxy%data(df))\n"
+            "        f2_data(df) = SIGN(-2.0_r_def, f1_data(df))\n"
             "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
@@ -4650,6 +4743,12 @@ def test_multiple_builtin_set(tmpdir, monkeypatch, annexed, dist_mem):
             "      INTEGER(KIND=i_def) loop2_start, loop2_stop\n"
             "      INTEGER(KIND=i_def) loop1_start, loop1_stop\n"
             "      INTEGER(KIND=i_def) loop0_start, loop0_stop\n"
+            "      REAL(KIND=r_def), pointer, dimension(:) :: f3_data => "
+            "null()\n"
+            "      REAL(KIND=r_def), pointer, dimension(:) :: f2_data => "
+            "null()\n"
+            "      REAL(KIND=r_def), pointer, dimension(:) :: f1_data => "
+            "null()\n"
             "      TYPE(field_proxy_type) f1_proxy, f2_proxy, f3_proxy\n"
             "      INTEGER(KIND=i_def) undf_aspc1_f1, "
             "undf_aspc1_f2, undf_aspc1_f3\n"
@@ -4657,8 +4756,11 @@ def test_multiple_builtin_set(tmpdir, monkeypatch, annexed, dist_mem):
             "      ! Initialise field and/or operator proxies\n"
             "      !\n"
             "      f1_proxy = f1%get_proxy()\n"
+            "      f1_data => f1_proxy%data\n"
             "      f2_proxy = f2%get_proxy()\n"
+            "      f2_data => f2_proxy%data\n"
             "      f3_proxy = f3%get_proxy()\n"
+            "      f3_data => f3_proxy%data\n"
             "      !\n"
             "      ! Initialise number of DoFs for aspc1_f1\n"
             "      !\n"
@@ -4684,13 +4786,13 @@ def test_multiple_builtin_set(tmpdir, monkeypatch, annexed, dist_mem):
             "      ! Call our kernels\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f1_proxy%data(df) = fred\n"
+            "        f1_data(df) = fred\n"
             "      END DO\n"
             "      DO df=loop1_start,loop1_stop\n"
-            "        f2_proxy%data(df) = 3.0_r_def\n"
+            "        f2_data(df) = 3.0_r_def\n"
             "      END DO\n"
             "      DO df=loop2_start,loop2_stop\n"
-            "        f3_proxy%data(df) = ginger\n"
+            "        f3_data(df) = ginger\n"
             "      END DO\n")
         assert output in code
     if dist_mem:
@@ -4704,7 +4806,7 @@ def test_multiple_builtin_set(tmpdir, monkeypatch, annexed, dist_mem):
             "      ! Call kernels and communication routines\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        f1_proxy%data(df) = fred\n"
+            "        f1_data(df) = fred\n"
             "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
@@ -4713,7 +4815,7 @@ def test_multiple_builtin_set(tmpdir, monkeypatch, annexed, dist_mem):
             "      CALL f1_proxy%set_dirty()\n"
             "      !\n"
             "      DO df=loop1_start,loop1_stop\n"
-            "        f2_proxy%data(df) = 3.0_r_def\n"
+            "        f2_data(df) = 3.0_r_def\n"
             "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
@@ -4722,7 +4824,7 @@ def test_multiple_builtin_set(tmpdir, monkeypatch, annexed, dist_mem):
             "      CALL f2_proxy%set_dirty()\n"
             "      !\n"
             "      DO df=loop2_start,loop2_stop\n"
-            "        f3_proxy%data(df) = ginger\n"
+            "        f3_data(df) = ginger\n"
             "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
@@ -4787,14 +4889,14 @@ def test_builtin_set_plus_normal(tmpdir, monkeypatch, annexed, dist_mem):
             "      !\n"
             "      DO cell=loop0_start,loop0_stop\n"
             "        !\n"
-            "        CALL testkern_code(nlayers, ginger, f1_proxy%data, "
-            "f2_proxy%data, "
-            "m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, "
+            "        CALL testkern_code(nlayers, ginger, f1_data, "
+            "f2_data, "
+            "m1_data, m2_data, ndf_w1, undf_w1, "
             "map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, "
             "undf_w3, map_w3(:,cell))\n"
             "      END DO\n"
             "      DO df=loop1_start,loop1_stop\n"
-            "        f1_proxy%data(df) = 0.0_r_def\n"
+            "        f1_data(df) = 0.0_r_def\n"
             "      END DO")
         assert output in code
     if dist_mem:
@@ -4820,8 +4922,8 @@ def test_builtin_set_plus_normal(tmpdir, monkeypatch, annexed, dist_mem):
             "      !\n"
             "      DO cell=loop0_start,loop0_stop\n"
             "        !\n"
-            "        CALL testkern_code(nlayers, ginger, f1_proxy%data, "
-            "f2_proxy%data, m1_proxy%data, m2_proxy%data, ndf_w1, "
+            "        CALL testkern_code(nlayers, ginger, f1_data, "
+            "f2_data, m1_data, m2_data, ndf_w1, "
             "undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), "
             "ndf_w3, undf_w3, map_w3(:,cell))\n"
             "      END DO\n"
@@ -4832,7 +4934,7 @@ def test_builtin_set_plus_normal(tmpdir, monkeypatch, annexed, dist_mem):
             "      CALL f1_proxy%set_dirty()\n"
             "      !\n"
             "      DO df=loop1_start,loop1_stop\n"
-            "        f1_proxy%data(df) = 0.0_r_def\n"
+            "        f1_data(df) = 0.0_r_def\n"
             "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
@@ -4888,10 +4990,16 @@ def test_multi_builtin_single_invoke(tmpdir, monkeypatch, annexed, dist_mem):
             "      INTEGER(KIND=i_def) loop2_start, loop2_stop\n"
             "      INTEGER(KIND=i_def) loop1_start, loop1_stop\n"
             "      INTEGER(KIND=i_def) loop0_start, loop0_stop\n"
+            "      REAL(KIND=r_def), pointer, dimension(:) :: f2_data => "
+            "null()\n"
+            "      REAL(KIND=r_def), pointer, dimension(:) :: f1_data => "
+            "null()\n"
             "      TYPE(field_proxy_type) f1_proxy, f2_proxy\n") in code
         assert (
             "      f1_proxy = f1%get_proxy()\n"
+            "      f1_data => f1_proxy%data\n"
             "      f2_proxy = f2%get_proxy()\n"
+            "      f2_data => f2_proxy%data\n"
             "      !\n") in code
         output = (
             "      loop2_stop = f1_proxy%vspace%get_last_dof_annexed()\n"
@@ -4904,12 +5012,12 @@ def test_multi_builtin_single_invoke(tmpdir, monkeypatch, annexed, dist_mem):
             "      asum = 0.0_r_def\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        asum = asum + f1_proxy%data(df)*f2_proxy%data(df)\n"
+            "        asum = asum + f1_data(df)*f2_data(df)\n"
             "      END DO\n"
             "      global_sum%value = asum\n"
             "      asum = global_sum%get_sum()\n"
             "      DO df=loop1_start,loop1_stop\n"
-            "        f1_proxy%data(df) = b * f1_proxy%data(df)\n"
+            "        f1_data(df) = b * f1_data(df)\n"
             "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
@@ -4918,7 +5026,7 @@ def test_multi_builtin_single_invoke(tmpdir, monkeypatch, annexed, dist_mem):
             "      CALL f1_proxy%set_dirty()\n"
             "      !\n"
             "      DO df=loop2_start,loop2_stop\n"
-            "        f1_proxy%data(df) = asum * f1_proxy%data(df)\n"
+            "        f1_data(df) = asum * f1_data(df)\n"
             "      END DO\n"
             "      !\n"
             "      ! Set halos dirty/clean for fields modified in the "
@@ -4938,11 +5046,17 @@ def test_multi_builtin_single_invoke(tmpdir, monkeypatch, annexed, dist_mem):
             "      INTEGER(KIND=i_def) loop2_start, loop2_stop\n"
             "      INTEGER(KIND=i_def) loop1_start, loop1_stop\n"
             "      INTEGER(KIND=i_def) loop0_start, loop0_stop\n"
+            "      REAL(KIND=r_def), pointer, dimension(:) :: f2_data => "
+            "null()\n"
+            "      REAL(KIND=r_def), pointer, dimension(:) :: f1_data => "
+            "null()\n"
             "      TYPE(field_proxy_type) f1_proxy, f2_proxy\n"
             "      INTEGER(KIND=i_def) undf_aspc1_f1\n") in code
         assert (
             "      f1_proxy = f1%get_proxy()\n"
+            "      f1_data => f1_proxy%data\n"
             "      f2_proxy = f2%get_proxy()\n"
+            "      f2_data => f2_proxy%data\n"
             "      !\n"
             "      ! Initialise number of DoFs for aspc1_f1\n"
             "      !\n"
@@ -4958,13 +5072,13 @@ def test_multi_builtin_single_invoke(tmpdir, monkeypatch, annexed, dist_mem):
             "      asum = 0.0_r_def\n"
             "      !\n"
             "      DO df=loop0_start,loop0_stop\n"
-            "        asum = asum + f1_proxy%data(df)*f2_proxy%data(df)\n"
+            "        asum = asum + f1_data(df)*f2_data(df)\n"
             "      END DO\n"
             "      DO df=loop1_start,loop1_stop\n"
-            "        f1_proxy%data(df) = b * f1_proxy%data(df)\n"
+            "        f1_data(df) = b * f1_data(df)\n"
             "      END DO\n"
             "      DO df=loop2_start,loop2_stop\n"
-            "        f1_proxy%data(df) = asum * f1_proxy%data(df)\n"
+            "        f1_data(df) = asum * f1_data(df)\n"
             "      END DO\n") in code
 
 
@@ -5015,7 +5129,8 @@ def mesh_code_present(field_str, code):
 def test_field_access_info_for_arrays_in_builtins():
     '''Tests that array of fields in LFRic built-ins properly report access
     information. For example, 'call invoke( a_plus_X(f2(i), a, f1) )'
-    must report the access to 'f2'.
+    must report the access to 'f2' (which will be 'f2_data', the pointer to
+    the data array associated with the field).
 
     '''
     _, invoke = get_invoke("15.1.8_a_plus_X_builtin_array_of_fields.f90",
@@ -5023,7 +5138,7 @@ def test_field_access_info_for_arrays_in_builtins():
     schedule = invoke.schedule
     vai = VariablesAccessInfo(schedule)
 
-    assert Signature("f2") in vai
+    assert Signature("f2_data") in vai
 
-    assert ("a: READ, df: READ+WRITE, f1: READ, f2: WRITE, loop0_start: READ, "
-            "loop0_stop: READ" == str(vai))
+    assert ("a: READ, df: READ+WRITE, f1_data: READ, f2_data: WRITE, "
+            "loop0_start: READ, loop0_stop: READ" == str(vai))

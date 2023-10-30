@@ -95,13 +95,15 @@ class LFRicInvoke(Invoke):
         # pylint: disable=import-outside-toplevel
         from psyclone.dynamo0p3 import (DynStencils,
                                         DynFunctionSpaces, DynDofmaps,
-                                        DynLMAOperators, DynCMAOperators, 
-                                        DynBasisFunctions, DynMeshes, 
-                                        DynBoundaryConditions, DynProxies, 
-                                        LFRicRunTimeChecks, DynCellIterators, 
-                                        DynReferenceElement, LFRicMeshProperties,
-                                        LFRicLoopBounds, DynGlobalSum)
-        from psyclone.domain.lfric import LFRicLoopBounds, LFRicScalarArgs
+                                        LFRicFields, DynLMAOperators,
+                                        DynCMAOperators, DynBasisFunctions,
+                                        DynMeshes, DynBoundaryConditions,
+                                        DynProxies, DynCellIterators,
+                                        DynReferenceElement,
+                                        LFRicMeshProperties,
+                                        DynGlobalSum)
+        from psyclone.domain.lfric import (LFRicLoopBounds, LFRicRunTimeChecks,
+                                           LFRicScalarArgs)
 
         self.scalar_args = LFRicScalarArgs(self)
 

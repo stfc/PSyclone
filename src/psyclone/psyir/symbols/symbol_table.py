@@ -1415,7 +1415,7 @@ class SymbolTable():
                     if symbol.name in symbol_table:
                         test_symbol = symbol_table.lookup(symbol.name)
                         # pylint: disable=unidiomatic-typecheck
-                        if (type(test_symbol) == Symbol
+                        if (type(test_symbol) is Symbol
                                 and test_symbol.is_unresolved):
                             # No wildcard imports in this symbol table
                             if not [sym for sym in

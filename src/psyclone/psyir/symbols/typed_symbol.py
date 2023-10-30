@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,7 +40,6 @@
 
 '''
 
-from __future__ import absolute_import
 import abc
 from psyclone.psyir.symbols.data_type_symbol import DataTypeSymbol
 from psyclone.psyir.symbols.symbol import Symbol
@@ -199,22 +198,33 @@ class TypedSymbol(Symbol, metaclass=abc.ABCMeta):
         # This import has to be local to this method to avoid circular
         # dependencies.
         # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.symbols.datatypes import ArrayType
-        return isinstance(self.datatype, ArrayType)
+        from psyclone.psyir.symbols.datatypes import (
+            ArrayType, UnknownFortranType)
+        if isinstance(self.datatype, ArrayType):
+            return True
+        return (isinstance(self.datatype, UnknownFortranType) and
+                isinstance(self.datatype.partial_datatype, ArrayType))
 
     @property
     def shape(self):
         '''
-        :returns: shape of the symbol in column-major order (leftmost \
-                  index is contiguous in memory). Each entry represents \
-                  an array dimension. If it is 'None' the extent of that \
-                  dimension is unknown, otherwise it holds an integer \
-                  literal or a reference to an integer symbol with the \
-                  extent. If it is an empty list then the symbol \
+        :returns: shape of the symbol in column-major order (leftmost
+                  index is contiguous in memory). Each entry represents
+                  an array dimension. If it is 'None' the extent of that
+                  dimension is unknown, otherwise it holds an integer
+                  literal or a reference to an integer symbol with the
+                  extent. If it is an empty list then the symbol
                   represents a scalar.
-        :rtype: list
+        :rtype: List[Optional[:py:class:`psyclone.psyir.nodes.Literal` |
+                              :py:class:`psyclone.psyir.nodes.Reference`]]
 
         '''
         if self.is_array:
+            # pylint: disable=import-outside-toplevel
+            from psyclone.psyir.symbols.datatypes import UnknownFortranType
+            if isinstance(self.datatype, UnknownFortranType):
+                # An UnknownFortranType that has is_array True must have a
+                # partial_datatype.
+                return self._datatype.partial_datatype.shape
             return self._datatype.shape
         return []

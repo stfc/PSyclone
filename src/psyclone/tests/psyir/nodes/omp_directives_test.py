@@ -143,9 +143,9 @@ def test_ompparallel_lowering(fortran_reader, monkeypatch):
                         lambda: ({}, {}, {a_sym}))
     with pytest.raises(GenerationError) as err:
         pdir.lower_to_language_level()
-    assert("Lowering 'OMPParallelDirective' does not support symbols that "
-           "need synchronisation unless they are in a depend clause, but "
-           "found: 'a' which is not in a depend clause." in str(err.value))
+    assert ("Lowering 'OMPParallelDirective' does not support symbols that "
+            "need synchronisation unless they are in a depend clause, but "
+            "found: 'a' which is not in a depend clause." in str(err.value))
 
     # Also a case which contains the symbol in an input dependency clause.
     task_dir = OMPTaskDirective()
@@ -160,9 +160,9 @@ def test_ompparallel_lowering(fortran_reader, monkeypatch):
 
     with pytest.raises(GenerationError) as err:
         pdir.lower_to_language_level()
-    assert("Lowering 'OMPParallelDirective' does not support symbols that "
-           "need synchronisation unless they are in a depend clause, but "
-           "found: 'a' which is not in a depend clause." in str(err.value))
+    assert ("Lowering 'OMPParallelDirective' does not support symbols that "
+            "need synchronisation unless they are in a depend clause, but "
+            "found: 'a' which is not in a depend clause." in str(err.value))
 
 
 def test_ompparallel_gen_code_clauses(monkeypatch):
@@ -346,9 +346,9 @@ def test_omp_parallel_do_lowering(fortran_reader, monkeypatch):
                         lambda: ({}, {}, {Symbol("a")}))
     with pytest.raises(GenerationError) as err:
         pdir.lower_to_language_level()
-    assert("Lowering 'OMPParallelDoDirective' does not support symbols that "
-           "need synchronisation unless they are in a depend clause, but "
-           "found: 'a' which is not in a depend clause." in str(err.value))
+    assert ("Lowering 'OMPParallelDoDirective' does not support symbols that "
+            "need synchronisation unless they are in a depend clause, but "
+            "found: 'a' which is not in a depend clause." in str(err.value))
 
 
 def test_omp_teams_distribute_parallel_do_strings(
@@ -1389,7 +1389,7 @@ def test_omp_taskloop_validate_child():
 def test_omp_taskloop_validate_global_constraints():
     ''' Test the validate_global_constraints method of the OMPTaskloop
         directive '''
-    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
+    _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke_w3.f90"),
                            api="dynamo0.3")
     taskloop = OMPTaskloopTrans()
     psy = PSyFactory("dynamo0.3", distributed_memory=False).\

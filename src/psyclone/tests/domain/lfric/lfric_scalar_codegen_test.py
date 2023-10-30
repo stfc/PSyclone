@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+# Copyright (c) 2017-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -41,7 +41,6 @@ Module containing pytest tests for PSy-layer code generation for the
 LFRic scalar arguments.
 '''
 
-from __future__ import absolute_import, print_function
 import os
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
@@ -77,6 +76,10 @@ def test_real_scalar(tmpdir):
         "      INTEGER(KIND=i_def) cell\n"
         "      INTEGER(KIND=i_def) loop0_start, loop0_stop\n"
         "      INTEGER(KIND=i_def) nlayers\n"
+        "      REAL(KIND=r_def), pointer, dimension(:) :: m2_data => null()\n"
+        "      REAL(KIND=r_def), pointer, dimension(:) :: m1_data => null()\n"
+        "      REAL(KIND=r_def), pointer, dimension(:) :: f2_data => null()\n"
+        "      REAL(KIND=r_def), pointer, dimension(:) :: f1_data => null()\n"
         "      TYPE(field_proxy_type) f1_proxy, f2_proxy, m1_proxy, m2_proxy\n"
         "      INTEGER(KIND=i_def), pointer :: map_w1(:,:) => null(), "
         "map_w2(:,:) => null(), map_w3(:,:) => null()\n"
@@ -88,9 +91,13 @@ def test_real_scalar(tmpdir):
         "      ! Initialise field and/or operator proxies\n"
         "      !\n"
         "      f1_proxy = f1%get_proxy()\n"
+        "      f1_data => f1_proxy%data\n"
         "      f2_proxy = f2%get_proxy()\n"
+        "      f2_data => f2_proxy%data\n"
         "      m1_proxy = m1%get_proxy()\n"
+        "      m1_data => m1_proxy%data\n"
         "      m2_proxy = m2%get_proxy()\n"
+        "      m2_data => m2_proxy%data\n"
         "      !\n"
         "      ! Initialise number of layers\n"
         "      !\n"
@@ -147,8 +154,8 @@ def test_real_scalar(tmpdir):
         "      !\n"
         "      DO cell=loop0_start,loop0_stop\n"
         "        !\n"
-        "        CALL testkern_code(nlayers, a, f1_proxy%data, f2_proxy%data,"
-        " m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, map_w1(:,cell), "
+        "        CALL testkern_code(nlayers, a, f1_data, f2_data,"
+        " m1_data, m2_data, ndf_w1, undf_w1, map_w1(:,cell), "
         "ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3, map_w3(:,cell))\n")
     assert expected in generated_code
 
@@ -178,6 +185,10 @@ def test_int_scalar(tmpdir):
         "      INTEGER(KIND=i_def) cell\n"
         "      INTEGER(KIND=i_def) loop0_start, loop0_stop\n"
         "      INTEGER(KIND=i_def) nlayers\n"
+        "      REAL(KIND=r_def), pointer, dimension(:) :: m2_data => null()\n"
+        "      REAL(KIND=r_def), pointer, dimension(:) :: m1_data => null()\n"
+        "      REAL(KIND=r_def), pointer, dimension(:) :: f2_data => null()\n"
+        "      REAL(KIND=r_def), pointer, dimension(:) :: f1_data => null()\n"
         "      TYPE(field_proxy_type) f1_proxy, f2_proxy, m1_proxy, m2_proxy\n"
         "      INTEGER(KIND=i_def), pointer :: map_w1(:,:) => null(), "
         "map_w2(:,:) => null(), map_w3(:,:) => null()\n"
@@ -189,9 +200,13 @@ def test_int_scalar(tmpdir):
         "      ! Initialise field and/or operator proxies\n"
         "      !\n"
         "      f1_proxy = f1%get_proxy()\n"
+        "      f1_data => f1_proxy%data\n"
         "      f2_proxy = f2%get_proxy()\n"
+        "      f2_data => f2_proxy%data\n"
         "      m1_proxy = m1%get_proxy()\n"
+        "      m1_data => m1_proxy%data\n"
         "      m2_proxy = m2%get_proxy()\n"
+        "      m2_data => m2_proxy%data\n"
         "      !\n"
         "      ! Initialise number of layers\n"
         "      !\n"
@@ -248,8 +263,8 @@ def test_int_scalar(tmpdir):
         "      !\n"
         "      DO cell=loop0_start,loop0_stop\n"
         "        !\n"
-        "        CALL testkern_one_int_scalar_code(nlayers, f1_proxy%data, "
-        "iflag, f2_proxy%data, m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, "
+        "        CALL testkern_one_int_scalar_code(nlayers, f1_data, "
+        "iflag, f2_data, m1_data, m2_data, ndf_w1, undf_w1, "
         "map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, undf_w3, "
         "map_w3(:,cell))\n")
     assert expected in generated_code
@@ -280,6 +295,10 @@ def test_two_real_scalars(tmpdir):
         "      INTEGER(KIND=i_def) cell\n"
         "      INTEGER(KIND=i_def) loop0_start, loop0_stop\n"
         "      INTEGER(KIND=i_def) nlayers\n"
+        "      REAL(KIND=r_def), pointer, dimension(:) :: m2_data => null()\n"
+        "      REAL(KIND=r_def), pointer, dimension(:) :: m1_data => null()\n"
+        "      REAL(KIND=r_def), pointer, dimension(:) :: f2_data => null()\n"
+        "      REAL(KIND=r_def), pointer, dimension(:) :: f1_data => null()\n"
         "      TYPE(field_proxy_type) f1_proxy, f2_proxy, m1_proxy, m2_proxy\n"
         "      INTEGER(KIND=i_def), pointer :: map_w1(:,:) => null(), "
         "map_w2(:,:) => null(), map_w3(:,:) => null()\n"
@@ -291,9 +310,13 @@ def test_two_real_scalars(tmpdir):
         "      ! Initialise field and/or operator proxies\n"
         "      !\n"
         "      f1_proxy = f1%get_proxy()\n"
+        "      f1_data => f1_proxy%data\n"
         "      f2_proxy = f2%get_proxy()\n"
+        "      f2_data => f2_proxy%data\n"
         "      m1_proxy = m1%get_proxy()\n"
+        "      m1_data => m1_proxy%data\n"
         "      m2_proxy = m2%get_proxy()\n"
+        "      m2_data => m2_proxy%data\n"
         "      !\n"
         "      ! Initialise number of layers\n"
         "      !\n"
@@ -351,7 +374,7 @@ def test_two_real_scalars(tmpdir):
         "      DO cell=loop0_start,loop0_stop\n"
         "        !\n"
         "        CALL testkern_two_real_scalars_code(nlayers, a, "
-        "f1_proxy%data, f2_proxy%data, m1_proxy%data, m2_proxy%data, "
+        "f1_data, f2_data, m1_data, m2_data, "
         "b, ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, "
         "map_w2(:,cell), ndf_w3, undf_w3, map_w3(:,cell))\n")
     assert expected in generated_code
@@ -381,6 +404,10 @@ def test_two_int_scalars(tmpdir):
         "      INTEGER(KIND=i_def) loop1_start, loop1_stop\n"
         "      INTEGER(KIND=i_def) loop0_start, loop0_stop\n"
         "      INTEGER(KIND=i_def) nlayers\n"
+        "      REAL(KIND=r_def), pointer, dimension(:) :: m2_data => null()\n"
+        "      REAL(KIND=r_def), pointer, dimension(:) :: m1_data => null()\n"
+        "      REAL(KIND=r_def), pointer, dimension(:) :: f2_data => null()\n"
+        "      REAL(KIND=r_def), pointer, dimension(:) :: f1_data => null()\n"
         "      TYPE(field_proxy_type) f1_proxy, f2_proxy, m1_proxy, m2_proxy\n"
         "      INTEGER(KIND=i_def), pointer :: map_w1(:,:) => null(), "
         "map_w2(:,:) => null(), map_w3(:,:) => null()\n"
@@ -392,9 +419,13 @@ def test_two_int_scalars(tmpdir):
         "      ! Initialise field and/or operator proxies\n"
         "      !\n"
         "      f1_proxy = f1%get_proxy()\n"
+        "      f1_data => f1_proxy%data\n"
         "      f2_proxy = f2%get_proxy()\n"
+        "      f2_data => f2_proxy%data\n"
         "      m1_proxy = m1%get_proxy()\n"
+        "      m1_data => m1_proxy%data\n"
         "      m2_proxy = m2%get_proxy()\n"
+        "      m2_data => m2_proxy%data\n"
         "      !\n"
         "      ! Initialise number of layers\n"
         "      !\n"
@@ -454,7 +485,7 @@ def test_two_int_scalars(tmpdir):
         "      DO cell=loop0_start,loop0_stop\n"
         "        !\n"
         "        CALL testkern_two_int_scalars_code(nlayers, iflag, "
-        "f1_proxy%data, f2_proxy%data, m1_proxy%data, m2_proxy%data, istep, "
+        "f1_data, f2_data, m1_data, m2_data, istep, "
         "ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), "
         "ndf_w3, undf_w3, map_w3(:,cell))\n")
     assert expected in generated_code
@@ -463,7 +494,7 @@ def test_two_int_scalars(tmpdir):
         "      DO cell=loop1_start,loop1_stop\n"
         "        !\n"
         "        CALL testkern_two_int_scalars_code(nlayers, 1, "
-        "f1_proxy%data, f2_proxy%data, m1_proxy%data, m2_proxy%data, iflag, "
+        "f1_data, f2_data, m1_data, m2_data, iflag, "
         "ndf_w1, undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), "
         "ndf_w3, undf_w3, map_w3(:,cell))\n")
     assert expected in generated_code
@@ -500,6 +531,10 @@ def test_three_scalars(tmpdir):
         "      INTEGER(KIND=i_def) cell\n"
         "      INTEGER(KIND=i_def) loop0_start, loop0_stop\n"
         "      INTEGER(KIND=i_def) nlayers\n"
+        "      REAL(KIND=r_def), pointer, dimension(:) :: m2_data => null()\n"
+        "      REAL(KIND=r_def), pointer, dimension(:) :: m1_data => null()\n"
+        "      REAL(KIND=r_def), pointer, dimension(:) :: f2_data => null()\n"
+        "      REAL(KIND=r_def), pointer, dimension(:) :: f1_data => null()\n"
         "      TYPE(field_proxy_type) f1_proxy, f2_proxy, m1_proxy, m2_proxy\n"
         "      INTEGER(KIND=i_def), pointer :: map_w1(:,:) => null(), "
         "map_w2(:,:) => null(), map_w3(:,:) => null()\n"
@@ -511,9 +546,13 @@ def test_three_scalars(tmpdir):
         "      ! Initialise field and/or operator proxies\n"
         "      !\n"
         "      f1_proxy = f1%get_proxy()\n"
+        "      f1_data => f1_proxy%data\n"
         "      f2_proxy = f2%get_proxy()\n"
+        "      f2_data => f2_proxy%data\n"
         "      m1_proxy = m1%get_proxy()\n"
+        "      m1_data => m1_proxy%data\n"
         "      m2_proxy = m2%get_proxy()\n"
+        "      m2_data => m2_proxy%data\n"
         "      !\n"
         "      ! Initialise number of layers\n"
         "      !\n"
@@ -570,8 +609,8 @@ def test_three_scalars(tmpdir):
         "      !\n"
         "      DO cell=loop0_start,loop0_stop\n"
         "        !\n"
-        "        CALL testkern_three_scalars_code(nlayers, a, f1_proxy%data, "
-        "f2_proxy%data, m1_proxy%data, m2_proxy%data, lswitch, istep, ndf_w1, "
+        "        CALL testkern_three_scalars_code(nlayers, a, f1_data, "
+        "f2_data, m1_data, m2_data, lswitch, istep, ndf_w1, "
         "undf_w1, map_w1(:,cell), ndf_w2, undf_w2, map_w2(:,cell), ndf_w3, "
         "undf_w3, map_w3(:,cell))\n")
     assert expected in generated_code

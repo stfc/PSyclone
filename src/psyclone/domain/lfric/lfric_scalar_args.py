@@ -194,10 +194,10 @@ class LFRicScalarArgs(LFRicCollection):
         '''
         const = LFRicConstants()
         const_mod = const.UTILITIES_MOD_MAP["constants"]["module"]
-        const_mod_list = None
+        const_mod_uses = None
         if self._invoke:
-            const_mod_list = self._invoke.invokes.psy. \
-                infrastructure_modules[const_mod]
+            const_mod_uses = self._invoke.invokes.psy.infrastructure_modules[
+                const_mod]
         # Real scalar arguments
         for intent in FORTRAN_INTENT_NAMES:
             if self._real_scalars[intent]:
@@ -224,8 +224,7 @@ class LFRicScalarArgs(LFRicCollection):
                                 entity_decls=real_scalar_names,
                                 intent=intent))
                     if self._invoke:
-                        if real_scalar_kind not in const_mod_list:
-                            const_mod_list.append(real_scalar_kind)
+                        const_mod_uses.add(real_scalar_kind)
                     elif self._kernel:
                         self._kernel.argument_kinds.add(real_scalar_kind)
                     else:
@@ -246,8 +245,7 @@ class LFRicScalarArgs(LFRicCollection):
                             entity_decls=integer_scalar_names,
                             intent=intent))
                 if self._invoke:
-                    if dkind not in const_mod_list:
-                        const_mod_list.append(dkind)
+                    const_mod_uses.add(dkind)
                 elif self._kernel:
                     self._kernel.argument_kinds.add(dkind)
                 else:
@@ -268,8 +266,7 @@ class LFRicScalarArgs(LFRicCollection):
                             entity_decls=logical_scalar_names,
                             intent=intent))
                 if self._invoke:
-                    if dkind not in const_mod_list:
-                        const_mod_list.append(dkind)
+                    const_mod_uses.add(dkind)
                 elif self._kernel:
                     self._kernel.argument_kinds.add(dkind)
                 else:

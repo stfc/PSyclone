@@ -149,10 +149,10 @@ def test_lfric_acc():
     var_accesses = VariablesAccessInfo()
     create_acc_arg_list.generate(var_accesses=var_accesses)
     var_info = str(var_accesses)
-    assert "f1: READ+WRITE" in var_info
-    assert "f2: READ" in var_info
-    assert "m1: READ" in var_info
-    assert "m2: READ" in var_info
+    assert "f1_data: READ+WRITE" in var_info
+    assert "f2_data: READ" in var_info
+    assert "m1_data: READ" in var_info
+    assert "m2_data: READ" in var_info
     assert "undf_w1: READ" in var_info
     assert "map_w1: READ" in var_info
     assert "undf_w2: READ" in var_info
@@ -183,7 +183,7 @@ def test_lfric_acc_operator():
     create_acc_arg_list.generate(var_accesses=var_accesses)
     var_info = str(var_accesses)
     assert "lma_op1_proxy%ncell_3d: READ" in var_info
-    assert "lma_op1_proxy%local_stencil: READ" in var_info
+    assert "lma_op1_local_stencil: READ" in var_info
     assert "cma_op1_matrix: WRITE" in var_info
 
 
