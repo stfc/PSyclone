@@ -44,10 +44,11 @@
 '''
 
 import os
+
 from psyclone.configuration import Config
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
-
+from psyclone.psyir.nodes import Loop
 from psyclone.tests.lfric_build import LFRicBuild
 
 # Constants
@@ -94,7 +95,7 @@ def test_int_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem):
         " integer_field_proxy_type\n")
     assert output_mod in code
 
-    # Check for the correct field type declarations
+    # Check for the correct declarations
     output = (
         "      TYPE(integer_field_type), intent(in) :: f3, f1, f2\n"
         "      INTEGER df\n"
@@ -158,7 +159,7 @@ def test_int_X_plus_Y(tmpdir, monkeypatch, annexed, dist_mem):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
-def test_int_inc_X_plus_Y(tmpdir):
+def test_int_inc_X_plus_Y(tmpdir, fortran_writer):
     '''Test that 1) the '__str__' method of 'LFRicIntIncXPlusYKern'
     returns the expected string and 2) we generate correct code for
     the built-in 'X = X + Y' where 'X' and 'Y' are integer-valued
@@ -175,16 +176,22 @@ def test_int_inc_X_plus_Y(tmpdir):
     assert (str(kern) == "Built-in: int_inc_X_plus_Y (increment an "
             "integer-valued field)")
 
-    # Test code generation
-    code = str(psy.gen)
-    output = "f1_data(df) = f1_data(df) + f2_data(df)"
-    assert output in code
-
     # Test compilation of generated code
+    code = str(psy.gen)
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
+    # Test lower_to_language_level() method
+    kern.lower_to_language_level()
+    loop = first_invoke.schedule.walk(Loop)[0]
+    code = fortran_writer(loop)
+    output = (
+        "do df = loop0_start, loop0_stop, 1\n"
+        "  f1_data(df) = f1_data(df) + f2_data(df)\n"
+        "enddo")
+    assert output in code
 
-def test_int_a_plus_X(tmpdir):
+
+def test_int_a_plus_X(tmpdir, fortran_writer):
     '''Test that 1) the '__str__' method of 'LFRicIntAPlusXKern' returns
     the expected string and 2) we generate correct code for the
     built-in operation 'Y = a + X' where 'a' is an integer scalar and
@@ -201,16 +208,21 @@ def test_int_a_plus_X(tmpdir):
     kern = first_invoke.schedule[0].loop_body[0]
     assert str(kern) == "Built-in: int_a_plus_X (integer-valued fields)"
 
-    # Test code generation
-    code = str(psy.gen)
-    output = "f2_data(df) = a + f1_data(df)"
-    assert output in code
-
     # Test compilation of generated code
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
+    # Test lower_to_language_level() method
+    kern.lower_to_language_level()
+    loop = first_invoke.schedule.walk(Loop)[0]
+    code = fortran_writer(loop)
+    output = (
+        "do df = loop0_start, loop0_stop, 1\n"
+        "  f2_data(df) = a + f1_data(df)\n"
+        "enddo")
+    assert output in code
 
-def test_int_inc_a_plus_X(tmpdir):
+
+def test_int_inc_a_plus_X(tmpdir, fortran_writer):
     '''Test that 1) the '__str__' method of 'LFRicIntIncAPlusXKern'
     returns the expected string and 2) we generate correct code for
     the built-in operation 'X = a + X' where 'a' is an integer scalar
@@ -226,19 +238,25 @@ def test_int_inc_a_plus_X(tmpdir):
     kern = first_invoke.schedule.children[0].loop_body[0]
     assert str(kern) == "Built-in: int_inc_a_plus_X (integer-valued field)"
 
-    # Test code generation
-    code = str(psy.gen)
-    output = "f1_data(df) = a + f1_data(df)\n"
-    assert output in code
-
     # Test compilation of generated code
+    code = str(psy.gen)
     assert LFRicBuild(tmpdir).code_compiles(psy)
+
+    # Test lower_to_language_level() method
+    kern.lower_to_language_level()
+    loop = first_invoke.schedule.walk(Loop)[0]
+    code = fortran_writer(loop)
+    output = (
+        "do df = loop0_start, loop0_stop, 1\n"
+        "  f1_data(df) = a + f1_data(df)\n"
+        "enddo")
+    assert output in code
 
 
 # ------------- Subtracting integer fields ---------------------------------- #
 
 
-def test_int_X_minus_Y(tmpdir):
+def test_int_X_minus_Y(tmpdir, fortran_writer):
     '''Test that 1) the '__str__' method of 'LFRicIntXMinusYKern' returns
     the expected string and 2) we generate correct code for the
     built-in operation 'Z = X - Y' where 'Z', 'X' and 'Y' are
@@ -256,16 +274,22 @@ def test_int_X_minus_Y(tmpdir):
     assert (str(kern) == "Built-in: int_X_minus_Y (subtract "
             "integer-valued fields)")
 
-    # Test code generation
-    code = str(psy.gen)
-    output = "f3_data(df) = f1_data(df) - f2_data(df)"
-    assert output in code
-
     # Test compilation of generated code
+    code = str(psy.gen)
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
+    # Test lower_to_language_level() method
+    kern.lower_to_language_level()
+    loop = first_invoke.schedule.walk(Loop)[0]
+    code = fortran_writer(loop)
+    output = (
+        "do df = loop0_start, loop0_stop, 1\n"
+        "  f3_data(df) = f1_data(df) - f2_data(df)\n"
+        "enddo")
+    assert output in code
 
-def test_int_inc_X_minus_Y(tmpdir):
+
+def test_int_inc_X_minus_Y(tmpdir, fortran_writer):
     '''Test that 1) the '__str__' method of 'LFRicIntIncXMinusYKern'
     returns the expected string and 2) we generate correct code for
     the built-in operation 'X = X - Y' where 'X' and 'Y' are
@@ -283,16 +307,22 @@ def test_int_inc_X_minus_Y(tmpdir):
     assert (str(kern) == "Built-in: int_inc_X_minus_Y (decrement an "
             "integer-valued field)")
 
-    # Test code generation
-    code = str(psy.gen)
-    output = "f1_data(df) = f1_data(df) - f2_data(df)"
-    assert output in code
-
     # Test compilation of generated code
+    code = str(psy.gen)
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
+    # Test lower_to_language_level() method
+    kern.lower_to_language_level()
+    loop = first_invoke.schedule.walk(Loop)[0]
+    code = fortran_writer(loop)
+    output = (
+        "do df = loop0_start, loop0_stop, 1\n"
+        "  f1_data(df) = f1_data(df) - f2_data(df)\n"
+        "enddo")
+    assert output in code
 
-def test_int_a_minus_X(tmpdir):
+
+def test_int_a_minus_X(tmpdir, fortran_writer):
     '''Test that 1) the '__str__' method of 'LFRicIntAMinusXKern' returns
     the expected string and 2) we generate correct code for the
     built-in operation 'Y = a - X' where 'a' is an integer scalar and
@@ -310,16 +340,22 @@ def test_int_a_minus_X(tmpdir):
     kern = first_invoke.schedule[0].loop_body[0]
     assert str(kern) == "Built-in: int_a_minus_X (integer-valued fields)"
 
-    # Test code generation
-    code = str(psy.gen)
-    output = "f2_data(df) = a - f1_data(df)"
-    assert output in code
-
     # Test compilation of generated code
+    code = str(psy.gen)
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
+    # Test lower_to_language_level() method
+    kern.lower_to_language_level()
+    loop = first_invoke.schedule.walk(Loop)[0]
+    code = fortran_writer(loop)
+    output = (
+        "do df = loop0_start, loop0_stop, 1\n"
+        "  f2_data(df) = a - f1_data(df)\n"
+        "enddo")
+    assert output in code
 
-def test_int_inc_a_minus_X(tmpdir):
+
+def test_int_inc_a_minus_X(tmpdir, fortran_writer):
     '''Test that 1) the '__str__' method of 'LFRicIntIncAMinusXKern'
     returns the expected string and 2) we generate correct code for
     the built-in operation 'X = a - X' where 'a' is an integer scalar
@@ -335,16 +371,22 @@ def test_int_inc_a_minus_X(tmpdir):
     kern = first_invoke.schedule.children[0].loop_body[0]
     assert str(kern) == "Built-in: int_inc_a_minus_X (integer-valued field)"
 
-    # Test code generation
-    code = str(psy.gen)
-    output = "f1_data(df) = a - f1_data(df)"
-    assert output in code
-
     # Test compilation of generated code
+    code = str(psy.gen)
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
+    # Test lower_to_language_level() method
+    kern.lower_to_language_level()
+    loop = first_invoke.schedule.walk(Loop)[0]
+    code = fortran_writer(loop)
+    output = (
+        "do df = loop0_start, loop0_stop, 1\n"
+        "  f1_data(df) = a - f1_data(df)\n"
+        "enddo")
+    assert output in code
 
-def test_int_X_minus_a(tmpdir):
+
+def test_int_X_minus_a(tmpdir, fortran_writer):
     '''Test that 1) the '__str__' method of LFRicIntXMinusAKern returns
     the expected string and 2) we generate correct code for the
     built-in operation Y = X - a where 'a' is an integer scalar and X
@@ -362,16 +404,22 @@ def test_int_X_minus_a(tmpdir):
     kern = first_invoke.schedule[0].loop_body[0]
     assert str(kern) == "Built-in: int_X_minus_a (integer-valued fields)"
 
-    # Test code generation
-    code = str(psy.gen)
-    output = "f2_data(df) = f1_data(df) - a"
-    assert output in code
-
     # Test compilation of generated code
+    code = str(psy.gen)
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
+    # Test lower_to_language_level() method
+    kern.lower_to_language_level()
+    loop = first_invoke.schedule.walk(Loop)[0]
+    code = fortran_writer(loop)
+    output = (
+        "do df = loop0_start, loop0_stop, 1\n"
+        "  f2_data(df) = f1_data(df) - a\n"
+        "enddo")
+    assert output in code
 
-def test_int_inc_X_minus_a(tmpdir):
+
+def test_int_inc_X_minus_a(tmpdir, fortran_writer):
     '''Test that 1) the '__str__' method of 'LFRicIntIncXMinusAKern'
     returns the expected string and 2) we generate correct code for
     the built-in operation 'X = X - a' where 'a' is an integer scalar
@@ -387,19 +435,25 @@ def test_int_inc_X_minus_a(tmpdir):
     kern = first_invoke.schedule.children[0].loop_body[0]
     assert str(kern) == "Built-in: int_inc_X_minus_a (integer-valued field)"
 
-    # Test code generation
-    code = str(psy.gen)
-    output = "f1_data(df) = f1_data(df) - a"
-    assert output in code
-
     # Test compilation of generated code
+    code = str(psy.gen)
     assert LFRicBuild(tmpdir).code_compiles(psy)
+
+    # Test lower_to_language_level() method
+    kern.lower_to_language_level()
+    loop = first_invoke.schedule.walk(Loop)[0]
+    output = (
+        "do df = loop0_start, loop0_stop, 1\n"
+        "  f1_data(df) = f1_data(df) - a\n"
+        "enddo")
+    code = fortran_writer(loop)
+    assert output in code
 
 
 # ------------- Multiplying integer fields ---------------------------------- #
 
 
-def test_int_X_times_Y(tmpdir):
+def test_int_X_times_Y(tmpdir, fortran_writer):
     '''Test that 1) the '__str__' method of 'LFRicIntXTimesYKern' returns
     the expected string and 2) we generate correct code for the
     built-in operation 'Z = X*Y' where 'Z', 'X' and 'Y' are
@@ -417,16 +471,22 @@ def test_int_X_times_Y(tmpdir):
     assert (str(kern) == "Built-in: int_X_times_Y (multiply "
             "integer-valued fields)")
 
-    # Test code generation
-    code = str(psy.gen)
-    output = "f3_data(df) = f1_data(df) * f2_data(df)"
-    assert output in code
-
     # Test compilation of generated code
+    code = str(psy.gen)
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
+    # Test lower_to_language_level() method
+    kern.lower_to_language_level()
+    loop = first_invoke.schedule.walk(Loop)[0]
+    code = fortran_writer(loop)
+    output = (
+        "do df = loop0_start, loop0_stop, 1\n"
+        "  f3_data(df) = f1_data(df) * f2_data(df)\n"
+        "enddo")
+    assert output in code
 
-def test_int_inc_X_times_Y(tmpdir):
+
+def test_int_inc_X_times_Y(tmpdir, fortran_writer):
     '''Test that 1) the '__str__' method of 'LFRicIntIncXTimesYKern'
     returns the expected string and 2) we generate correct code for
     the built-in operation 'X = X*Y' where 'X' and 'Y' are
@@ -445,19 +505,25 @@ def test_int_inc_X_times_Y(tmpdir):
     assert str(kern) == ("Built-in: int_inc_X_times_Y (multiply one "
                          "integer-valued field by another)")
 
-    # Test code generation
-    code = str(psy.gen)
-    output = "f1_data(df) = f1_data(df) * f2_data(df)"
-    assert output in code
-
     # Test compilation of generated code
+    code = str(psy.gen)
     assert LFRicBuild(tmpdir).code_compiles(psy)
+
+    # Test lower_to_language_level() method
+    kern.lower_to_language_level()
+    loop = first_invoke.schedule.walk(Loop)[0]
+    code = fortran_writer(loop)
+    output = (
+        "do df = loop0_start, loop0_stop, 1\n"
+        "  f1_data(df) = f1_data(df) * f2_data(df)\n"
+        "enddo")
+    assert output in code
 
 
 # ------------- Scaling integer fields (multiplying by an integer scalar) --- #
 
 
-def test_int_a_times_X(tmpdir):
+def test_int_a_times_X(tmpdir, fortran_writer):
     '''Test that 1) the '__str__' method of 'LFRicIntATimesXKern' returns
     the expected string and 2) we generate correct code for the
     built-in operation 'Y = a*X' where 'a' is an integer scalar and
@@ -476,16 +542,22 @@ def test_int_a_times_X(tmpdir):
     assert (str(kern) == "Built-in: int_a_times_X (copy a scaled "
             "integer-valued field)")
 
-    # Test code generation
-    code = str(psy.gen)
-    output = "f2_data(df) = a_scalar * f1_data(df)"
-    assert output in code
-
     # Test compilation of generated code
+    code = str(psy.gen)
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
+    # Test lower_to_language_level() method
+    kern.lower_to_language_level()
+    loop = first_invoke.schedule.walk(Loop)[0]
+    code = fortran_writer(loop)
+    output = (
+        "do df = loop0_start, loop0_stop, 1\n"
+        "  f2_data(df) = a_scalar * f1_data(df)\n"
+        "enddo")
+    assert output in code
 
-def test_int_inc_a_times_X(tmpdir):
+
+def test_int_inc_a_times_X(tmpdir, fortran_writer):
     '''Test that 1) the '__str__' method of 'LFRicIntIncATimesXKern'
     returns the expected string and 2) we generate correct code for
     the built-in operation 'X = a*X' where 'a' is an integer scalar
@@ -504,19 +576,25 @@ def test_int_inc_a_times_X(tmpdir):
     assert (str(kern) == "Built-in: int_inc_a_times_X (scale an "
             "integer-valued field)")
 
-    # Test code generation
-    code = str(psy.gen)
-    output = "f1_data(df) = a_scalar * f1_data(df)"
-    assert output in code
-
     # Test compilation of generated code
+    code = str(psy.gen)
     assert LFRicBuild(tmpdir).code_compiles(psy)
+
+    # Test lower_to_language_level() method
+    kern.lower_to_language_level()
+    loop = first_invoke.schedule.walk(Loop)[0]
+    code = fortran_writer(loop)
+    output = (
+        "do df = loop0_start, loop0_stop, 1\n"
+        "  f1_data(df) = a_scalar * f1_data(df)\n"
+        "enddo")
+    assert output in code
 
 
 # ------------- Setting integer field elements to an integer value ---------- #
 
 
-def test_int_setval_c(tmpdir):
+def test_int_setval_c(tmpdir, fortran_writer):
     '''Test that 1) the '__str__' method of 'LFRicIntSetvalCKern' returns
     the expected string and 2) we generate correct code for the
     built-in operation 'X = c' where 'c' is an integer constant scalar
@@ -534,16 +612,22 @@ def test_int_setval_c(tmpdir):
     assert str(kern) == ("Built-in: int_setval_c (set an integer-valued "
                          "field to a integer scalar value)")
 
-    # Test code generation
-    code = str(psy.gen)
-    output = "f1_data(df) = c"
-    assert output in code
-
     # Test compilation of generated code
+    code = str(psy.gen)
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
+    # Test lower_to_language_level() method
+    kern.lower_to_language_level()
+    loop = first_invoke.schedule.walk(Loop)[0]
+    code = fortran_writer(loop)
+    output = (
+        "do df = loop0_start, loop0_stop, 1\n"
+        "  f1_data(df) = c\n"
+        "enddo")
+    assert output in code
 
-def test_int_setval_X(tmpdir):
+
+def test_int_setval_X(tmpdir, fortran_writer):
     '''Test that 1) the '__str__' method of 'LFRicIntSetvalXKern' returns
     the expected string and 2) we generate correct code for the
     built-in operation 'Y = X' where 'X' and 'Y' are integer-valued
@@ -561,19 +645,25 @@ def test_int_setval_X(tmpdir):
     assert str(kern) == ("Built-in: int_setval_X (set an integer-valued "
                          "field equal to another such field)")
 
-    # Test code generation
-    code = str(psy.gen)
-    output = "f2_data(df) = f1_data(df)"
-    assert output in code
-
     # Test compilation of generated code
+    code = str(psy.gen)
     assert LFRicBuild(tmpdir).code_compiles(psy)
+
+    # Test lower_to_language_level() method
+    kern.lower_to_language_level()
+    loop = first_invoke.schedule.walk(Loop)[0]
+    code = fortran_writer(loop)
+    output = (
+        "do df = loop0_start, loop0_stop, 1\n"
+        "  f2_data(df) = f1_data(df)\n"
+        "enddo")
+    assert output in code
 
 
 # ------------- Sign of integer field elements ------------------------------ #
 
 
-def test_int_sign_X(tmpdir):
+def test_int_sign_X(tmpdir, fortran_writer):
     '''Test that 1) the '__str__' method of 'LFRicIntSignXKern' returns
     the expected string and 2) we generate correct code for the
     built-in operation 'Y = sign(a, X)' where 'a' is an integer scalar
@@ -591,19 +681,25 @@ def test_int_sign_X(tmpdir):
     assert (str(kern) == "Built-in: int_sign_X (sign of an "
             "integer-valued field)")
 
-    # Test code generation
-    code = str(psy.gen)
-    output = "f2_data(df) = SIGN(a, f1_data(df))"
-    assert output in code
-
     # Test compilation of generated code
+    code = str(psy.gen)
     assert LFRicBuild(tmpdir).code_compiles(psy)
+
+    # Test lower_to_language_level() method
+    kern.lower_to_language_level()
+    loop = first_invoke.schedule.walk(Loop)[0]
+    code = fortran_writer(loop)
+    output = (
+        "do df = loop0_start, loop0_stop, 1\n"
+        "  f2_data(df) = SIGN(a, f1_data(df))\n"
+        "enddo")
+    assert output in code
 
 
 # ------------- Maximum of (integer scalar, integer field elements) --------- #
 
 
-def test_int_max_aX(tmpdir):
+def test_int_max_aX(tmpdir, fortran_writer):
     '''Test that 1) the '__str__' method of 'LFRicIntMaxAXKern' returns
     the expected string and 2) we generate correct code for the
     built-in operation 'Y = max(a, X)' where 'a' is an integer scalar
@@ -620,16 +716,22 @@ def test_int_max_aX(tmpdir):
     kern = first_invoke.schedule.children[0].loop_body[0]
     assert str(kern) == "Built-in: int_max_aX (integer-valued fields)"
 
-    # Test code generation
-    code = str(psy.gen)
-    output = "f2_data(df) = MAX(a, f1_data(df))"
-    assert output in code
-
     # Test compilation of generated code
+    code = str(psy.gen)
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
+    # Test lower_to_language_level() method
+    kern.lower_to_language_level()
+    loop = first_invoke.schedule.walk(Loop)[0]
+    code = fortran_writer(loop)
+    output = (
+        "do df = loop0_start, loop0_stop, 1\n"
+        "  f2_data(df) = MAX(a, f1_data(df))\n"
+        "enddo")
+    assert output in code
 
-def test_int_inc_max_aX(tmpdir):
+
+def test_int_inc_max_aX(tmpdir, fortran_writer):
     '''Test that 1) the '__str__' method of 'LFRicIntIncMaxAXKern'
     returns the expected string and 2) we generate correct code for
     the built-in operation 'X = max(a, X)' where 'a' is an integer
@@ -646,19 +748,25 @@ def test_int_inc_max_aX(tmpdir):
     kern = first_invoke.schedule.children[0].loop_body[0]
     assert str(kern) == "Built-in: int_inc_max_aX (integer-valued field)"
 
-    # Test code generation
-    code = str(psy.gen)
-    output = "f1_data(df) = MAX(a, f1_data(df))"
-    assert output in code
-
     # Test compilation of generated code
+    code = str(psy.gen)
     assert LFRicBuild(tmpdir).code_compiles(psy)
+
+    # Test lower_to_language_level() method
+    kern.lower_to_language_level()
+    loop = first_invoke.schedule.walk(Loop)[0]
+    code = fortran_writer(loop)
+    output = (
+        "do df = loop0_start, loop0_stop, 1\n"
+        "  f1_data(df) = MAX(a, f1_data(df))\n"
+        "enddo")
+    assert output in code
 
 
 # ------------- Minimum of (integer scalar, integer field elements) --------- #
 
 
-def test_int_min_aX(tmpdir):
+def test_int_min_aX(tmpdir, fortran_writer):
     '''Test that 1) the '__str__' method of 'LFRicIntMinAXKern' returns
     the expected string and 2) we generate correct code for the
     built-in operation 'Y = min(a, X)' where 'a' is an integer scalar
@@ -675,16 +783,22 @@ def test_int_min_aX(tmpdir):
     kern = first_invoke.schedule.children[0].loop_body[0]
     assert str(kern) == "Built-in: int_min_aX (integer-valued fields)"
 
-    # Test code generation
-    code = str(psy.gen)
-    output = "f2_data(df) = MIN(a, f1_data(df))"
-    assert output in code
-
     # Test compilation of generated code
+    code = str(psy.gen)
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
+    # Test lower_to_language_level() method
+    kern.lower_to_language_level()
+    loop = first_invoke.schedule.walk(Loop)[0]
+    code = fortran_writer(loop)
+    output = (
+        "do df = loop0_start, loop0_stop, 1\n"
+        "  f2_data(df) = MIN(a, f1_data(df))\n"
+        "enddo")
+    assert output in code
 
-def test_int_inc_min_aX(tmpdir):
+
+def test_int_inc_min_aX(tmpdir, fortran_writer):
     '''Test that 1) the '__str__' method of 'LFRicIntIncMinAXKern' returns
     the expected string and 2) we generate correct code for the
     built-in operation 'X = min(a, X)' where 'a' is an integer scalar
@@ -701,10 +815,16 @@ def test_int_inc_min_aX(tmpdir):
     kern = first_invoke.schedule.children[0].loop_body[0]
     assert str(kern) == "Built-in: int_inc_min_aX (integer-valued field)"
 
-    # Test code generation
-    code = str(psy.gen)
-    output = "f1_data(df) = MIN(a, f1_data(df))"
-    assert output in code
-
     # Test compilation of generated code
+    code = str(psy.gen)
     assert LFRicBuild(tmpdir).code_compiles(psy)
+
+    # Test lower_to_language_level() method
+    kern.lower_to_language_level()
+    loop = first_invoke.schedule.walk(Loop)[0]
+    code = fortran_writer(loop)
+    output = (
+        "do df = loop0_start, loop0_stop, 1\n"
+        "  f1_data(df) = MIN(a, f1_data(df))\n"
+        "enddo")
+    assert output in code

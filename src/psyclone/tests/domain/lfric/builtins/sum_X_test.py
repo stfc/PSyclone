@@ -43,7 +43,7 @@ from psyclone.domain.lfric.kernel import LFRicKernelMetadata
 from psyclone.domain.lfric.lfric_builtins import LFRicSumXKern
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
-from psyclone.psyir.nodes import Loop
+from psyclone.psyir.nodes import Assignment, Loop
 from psyclone.tests.lfric_build import LFRicBuild
 
 # Constants
@@ -56,6 +56,7 @@ BASE_PATH = os.path.join(
 API = "dynamo0.3"
 
 
+# pylint: disable=invalid-name
 def test_sum_X(tmpdir, dist_mem):
     '''
     Test that 1) the '__str__' method of 'LFRicSumXKern' returns the
@@ -72,33 +73,16 @@ def test_sum_X(tmpdir, dist_mem):
                      "15.8.1_sum_X_builtin.f90"), api=API)
     psy = PSyFactory(API,
                      distributed_memory=dist_mem).create(invoke_info)
+
     # Test '__str__' method
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
     assert str(kern) == "Built-in: sum_X (sum a real-valued field)"
+
     # Test code generation
     code = str(psy.gen)
-
+    assert "      REAL(KIND=r_def), intent(out) :: asum\n" in code
     output = (
-        "      !\n"
-        "      ! Initialise field and/or operator proxies\n"
-        "      !\n"
-        "      f1_proxy = f1%get_proxy()\n"
-        "      f1_data => f1_proxy%data\n"
-        "      !\n")
-    assert output in code
-    if not dist_mem:
-        output = (
-            "      undf_aspc1_f1 = f1_proxy%vspace%get_undf()\n"
-            "      !\n"
-            "      ! Set-up all of the loop bounds\n"
-            "      !\n"
-            "      loop0_start = 1\n"
-            "      loop0_stop = undf_aspc1_f1\n"
-            "      !\n"
-            "      ! Call our kernels\n"
-            "      !\n"
-            "      !\n"
             "      ! Zero summation variables\n"
             "      !\n"
             "      asum = 0.0_r_def\n"
@@ -106,25 +90,18 @@ def test_sum_X(tmpdir, dist_mem):
             "      DO df=loop0_start,loop0_stop\n"
             "        asum = asum + f1_data(df)\n"
             "      END DO")
-        assert output in code
+    assert output in code
+
+    if not dist_mem:
+        assert "loop0_stop = undf_aspc1_f1\n" in code
     else:
+        assert "USE scalar_mod, ONLY: scalar_type\n" in code
+        assert "TYPE(scalar_type) global_sum\n" in code
+        assert "loop0_stop = f1_proxy%vspace%get_last_dof_owned()\n" in code
         output = (
-            "      loop0_stop = f1_proxy%vspace%get_last_dof_owned()\n"
-            "      !\n"
-            "      ! Call kernels and communication routines\n"
-            "      !\n"
-            "      !\n"
-            "      ! Zero summation variables\n"
-            "      !\n"
-            "      asum = 0.0_r_def\n"
-            "      !\n"
-            "      DO df=loop0_start,loop0_stop\n"
-            "        asum = asum + f1_data(df)\n"
-            "      END DO\n"
             "      global_sum%value = asum\n"
             "      asum = global_sum%get_sum()")
         assert output in code
-        assert "      REAL(KIND=r_def), intent(out) :: asum\n" in code
 
     # Test compilation of generated code
     assert LFRicBuild(tmpdir).code_compiles(psy)
@@ -142,7 +119,11 @@ def test_sum_X_lowering(fortran_writer):
                      distributed_memory=False).create(invoke_info)
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
-    kern.lower_to_language_level()
+    parent = kern.parent
+    lowered = kern.lower_to_language_level()
+    assert parent.children[0] is lowered
+    assert isinstance(parent.children[0], Assignment)
+
     loop = first_invoke.schedule.walk(Loop)[0]
     code = fortran_writer(loop)
     assert ("do df = loop0_start, loop0_stop, 1\n"
