@@ -330,7 +330,14 @@ def test_validate_kernel_code_arg(monkeypatch):
     assert ("Argument 'field' to kernel 'dummy' should be an array with 2 "
             "dimension(s) according to the LFRic API, but found 1."
             in str(info.value))
-
+    
+    # Monkeypatch the shape of lfric_real_field_symbol3 from ArrayBounds
+    # to a Reference to check the 'continue' statement is triggered.
+    monkeypatch.setattr(lfric_real_field_symbol3.datatype, "_shape",
+                        [Reference(undf)])
+    kernel._validate_kernel_code_arg(lfric_real_field_symbol3,
+                                     lfric_real_field_symbol2)
+    
     # Lower array bound of 2 rather than 1
     monkeypatch.setattr(lfric_real_field_symbol3.datatype, "_shape",
                         [ArrayType.ArrayBounds(2, Reference(undf))])
