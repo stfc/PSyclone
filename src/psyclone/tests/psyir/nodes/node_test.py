@@ -1703,3 +1703,47 @@ def test_get_sibling_lists(fortran_reader):
         assert len(block) == len(indices)
         for node, index in zip(block, indices):
             assert node is loops_assignments[index]
+
+
+def test_get_sibling_lists_with_stopping(fortran_reader):
+    '''Tests the get_sibling_lists functionality when stop_type is provided.'''
+
+    code = '''subroutine test_get_sibling_lists_with_stopping()
+    integer :: i, j
+    integer, dimension(2,2) :: arr
+
+    arr(:,:) = 0
+    do j = 1, 2
+       do i = 1, 2
+          arr(i,j) = i*j
+       end do
+    end do
+    print *, 'first kernel done'
+    do j = 1, 2
+       do i = 1, 2
+          arr(i,j) = i*j
+       end do
+       arr(:,j) = 0
+    end do
+    print *, 'second kernel done'
+    end subroutine'''
+
+    psyir = fortran_reader.psyir_from_source(code)
+    loops = psyir.walk(Loop)
+    assignments = psyir.walk(Assignment)
+
+    # Use the same types for both my_type and stop_type so that the tree
+    # traversal stops as soon as either of the requested types are found
+    # (motivated by directive-based GPU porting)
+    to_port = (Loop, Assignment)
+    blocks_to_port = psyir.get_sibling_lists(to_port, stop_type=to_port)
+    assert len(blocks_to_port) == 2
+
+    # First kernel
+    assert len(blocks_to_port[0]) == 2
+    assert blocks_to_port[0][0] is assignments[0]
+    assert blocks_to_port[0][1] is loops[0]
+
+    # Second kernel
+    assert len(blocks_to_port[1]) == 1
+    assert blocks_to_port[1][0] is loops[2]
