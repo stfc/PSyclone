@@ -1718,14 +1718,14 @@ def test_get_sibling_lists_with_stopping(fortran_reader):
           arr(i,j) = i*j
        end do
     end do
-    print *, 'first kernel done'
-    do j = 1, 2
-       do i = 1, 2
-          arr(i,j) = i*j
-       end do
-       arr(:,j) = 0
-    end do
-    print *, 'second kernel done'
+    if (arr(1,1) == 0) then
+        do j = 1, 2
+           do i = 1, 2
+              arr(i,j) = i*j
+           end do
+           arr(:,j) = 0
+        end do
+    end if
     end subroutine'''
 
     psyir = fortran_reader.psyir_from_source(code)
