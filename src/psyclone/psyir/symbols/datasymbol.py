@@ -141,10 +141,8 @@ class DataSymbol(TypedSymbol):
         if new_is_constant_value is not None:
             self.is_constant = new_is_constant_value
 
-        # A run-time constant must have a StaticInterface or an
-        # ImportInterface. If the user did not supply an explicit interface
-        # then default to StaticInterface. If they did supply
-        # one then we check it is valid.
+        # A run-time constant must have a StaticInterface, UnresolvedInterface
+        # or an ImportInterface. Check that any supplied interface is valid.
         if self.is_constant:
             if interface_supplied:
                 if not (self.is_static or self.is_import or
@@ -153,9 +151,10 @@ class DataSymbol(TypedSymbol):
                         f"A DataSymbol representing a constant must have "
                         f"a Static, Import or Unresolved Interface but "
                         f"'{self.name}' has interface '{self.interface}'.")
-            else:
+            elif self.is_automatic:
                 # No explicit interface was supplied and this Symbol represents
-                # a runtime constant so change its interface to be static.
+                # a runtime constant so change its interface to be static if it
+                # would otherwise default to Automatic.
                 self.interface = StaticInterface()
 
     @property
@@ -182,7 +181,8 @@ class DataSymbol(TypedSymbol):
                 self.initial_value is None):
             raise ValueError(
                 f"DataSymbol '{self.name}' does not have an initial value set "
-                f"and is not imported and therefore cannot be a constant.")
+                f"and is not imported or unresolved and therefore "
+                f"cannot be a constant.")
         self._is_constant = value
 
     @property

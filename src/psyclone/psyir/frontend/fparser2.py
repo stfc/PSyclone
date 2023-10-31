@@ -696,18 +696,9 @@ def _kind_find_or_create(name, symbol_table):
         # pylint: disable=unidiomatic-typecheck
         if type(kind_symbol) is Symbol:
             # There is an existing entry but it's only a generic Symbol
-            # so we need to replace it with a DataSymbol of integer type.
-            # Since the lookup() above looks through *all* ancestor symbol
-            # tables, we have to find precisely which table the existing
-            # Symbol is in.
-            table = kind_symbol.find_symbol_table(symbol_table.node)
-            new_symbol = DataSymbol(lower_name,
-                                    default_integer_type(),
-                                    visibility=kind_symbol.visibility,
-                                    interface=kind_symbol.interface,
-                                    is_constant=True)
-            table.swap(kind_symbol, new_symbol)
-            kind_symbol = new_symbol
+            # so we need to specialise it to a DataSymbol of integer type.
+            kind_symbol.specialise(DataSymbol, datatype=default_integer_type(),
+                                   is_constant=True)
         elif isinstance(kind_symbol, DataSymbol):
 
             if not (isinstance(kind_symbol.datatype,

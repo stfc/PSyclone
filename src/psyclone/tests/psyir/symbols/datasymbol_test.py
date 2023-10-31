@@ -45,7 +45,7 @@ from fparser.two import Fortran2003
 
 from psyclone.psyir.symbols import (
     DataSymbol, ContainerSymbol, Symbol, DataTypeSymbol, AutomaticInterface,
-    ImportInterface, ArgumentInterface, UnresolvedInterface,
+    ImportInterface, ArgumentInterface, StaticInterface, UnresolvedInterface,
     ScalarType, ArrayType, REAL_SINGLE_TYPE, REAL_DOUBLE_TYPE, REAL4_TYPE,
     REAL8_TYPE, INTEGER_SINGLE_TYPE, INTEGER_DOUBLE_TYPE, INTEGER4_TYPE,
     BOOLEAN_TYPE, CHARACTER_TYPE, DeferredType)
@@ -66,20 +66,21 @@ def test_datasymbol_initialisation():
     assert isinstance(DataSymbol('a', real_kind_type),
                       DataSymbol)
     assert isinstance(DataSymbol('a', INTEGER_SINGLE_TYPE), DataSymbol)
-    # Run-time constant.
+    # Run-time constant - must have an interface supplied
     sym = DataSymbol('a', REAL_DOUBLE_TYPE, is_constant=True,
                      initial_value=0.0)
     assert isinstance(sym, DataSymbol)
     assert sym.is_constant
-    # Defaults to StaticInterface for a run-time constant.
+    # Interface defaults to static for a constant with initial value.
     assert sym.is_static
+
     # Run-time constant can only have StaticInterface, UnresolvedInterface
     # or ImportInterface.
     with pytest.raises(ValueError) as err:
         _ = DataSymbol('a', INTEGER_DOUBLE_TYPE, is_constant=True,
-                       initial_value=1, interface=AutomaticInterface())
-    assert ("A DataSymbol representing a constant must have a Static, Import "
-            "or Unresolved Interface but 'a' has interface 'Automatic'"
+                       interface=StaticInterface())
+    assert ("DataSymbol 'a' does not have an initial value set and is not "
+            "imported or unresolved and therefore cannot be a constant."
             in str(err.value))
 
     assert isinstance(DataSymbol('a', INTEGER4_TYPE),
@@ -166,7 +167,7 @@ def test_datasymbol_specialise_and_process_arguments():
         sym5.specialise(DataSymbol, datatype=INTEGER_SINGLE_TYPE,
                         is_constant=True)
     assert ("DataSymbol 'symbol5' does not have an initial value set and is "
-            "not imported and therefore cannot be a constant."
+            "not imported or unresolved and therefore cannot be a constant."
             in str(error.value))
     # The absence of an initial value is permitted if the symbol has an
     # ImportInterface.
@@ -304,7 +305,8 @@ def test_datasymbol_initial_value_setter_invalid():
     with pytest.raises(ValueError) as error:
         DataSymbol('a', BOOLEAN_TYPE, is_constant=True)
     assert ("DataSymbol 'a' does not have an initial value set and is not "
-            "imported and therefore cannot be a constant" in str(error.value))
+            "imported or unresolved and therefore cannot be a constant"
+            in str(error.value))
 
 
 def test_datasymbol_is_constant():
@@ -325,7 +327,8 @@ def test_datasymbol_is_constant():
     with pytest.raises(ValueError) as err:
         sym.is_constant = True
     assert ("DataSymbol 'a' does not have an initial value set and is not "
-            "imported and therefore cannot be a constant." in str(err.value))
+            "imported or unresolved and therefore cannot be a constant."
+            in str(err.value))
 
 
 @pytest.mark.usefixtures("parser")

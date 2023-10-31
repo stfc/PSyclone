@@ -55,8 +55,8 @@ from psyclone.dynamo0p3 import LFRicHaloExchangeEnd, LFRicHaloExchangeStart, \
 from psyclone.errors import InternalError
 from psyclone.gocean1p0 import GOInvokeSchedule
 from psyclone.nemo import NemoInvokeSchedule
-from psyclone.psyGen import Transformation, CodedKern, Kern, InvokeSchedule, \
-    BuiltIn
+from psyclone.psyGen import (Transformation, CodedKern, Kern, InvokeSchedule,
+                             BuiltIn)
 from psyclone.psyir.nodes import (
     ACCDataDirective, ACCDirective,
     ACCEnterDataDirective, ACCKernelsDirective, ACCLoopDirective,
@@ -69,8 +69,9 @@ from psyclone.psyir.nodes import (
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
 from psyclone.psyir.nodes.structure_member import StructureMember
 from psyclone.psyir.nodes.structure_reference import StructureReference
-from psyclone.psyir.symbols import ArgumentInterface, DataSymbol, \
-    DeferredType, INTEGER_TYPE, ScalarType, Symbol, SymbolError
+from psyclone.psyir.symbols import (
+    ArgumentInterface, DataSymbol, DeferredType, INTEGER_TYPE, ScalarType,
+    Symbol, SymbolError)
 from psyclone.psyir.transformations.loop_trans import LoopTrans
 from psyclone.psyir.transformations.omp_loop_trans import OMPLoopTrans
 from psyclone.psyir.transformations.parallel_loop_trans import \
@@ -2117,11 +2118,9 @@ class Dynamo0p3KernelConstTrans(Transformation):
             # Create a new symbol with a known constant value then swap
             # it with the argument. The argument then becomes xxx_dummy
             # and is unused within the kernel body.
-            # TODO: Temporarily use unsafe name change until the name
-            # space manager is introduced into the SymbolTable (Issue
-            # #321).
             orig_name = symbol.name
-            local_symbol = DataSymbol(orig_name+"_dummy", INTEGER_TYPE,
+            new_name = symbol_table.next_available_name(f"{orig_name}_dummy")
+            local_symbol = DataSymbol(new_name, INTEGER_TYPE,
                                       is_constant=True, initial_value=value)
             symbol_table.add(local_symbol)
             symbol_table.swap_symbol_properties(symbol, local_symbol)
