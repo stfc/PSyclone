@@ -1110,8 +1110,7 @@ class Kern(Statement):
     @property
     def is_reduction(self):
         '''
-        :returns: `True` if this kernel/built-in contains a reduction
-        variable and `False` otherwise.
+        :returns: whether this kernel/built-in contains a reduction variable.
         :rtype: bool
 
         '''
@@ -1129,24 +1128,25 @@ class Kern(Statement):
 
     @property
     def reprod_reduction(self):
-        '''Determine whether this kernel/built-in is enclosed within an OpenMP
+        '''
+        :returns: whether this kernel/built-in is enclosed within an OpenMP
         do loop. If so report whether it has the reproducible flag
         set. Note, this also catches OMPParallelDo Directives but they
-        have reprod set to False so it is OK.'''
+        have reprod set to False so it is OK.
+        :rtype: bool
+
+        '''
         ancestor = self.ancestor(OMPDoDirective)
         if ancestor:
             return ancestor.reprod
         return False
 
     @property
-    def local_reduction_name(self):
+    def local_reduction_name(self) -> str:
         '''
-        Generate a local variable name that is unique for the current
-        reduction argument name. This is used for thread-local
-        reductions with reproducible reductions.
-
-        :returns: local reduction variable name.
-        :rtype: str
+        :returns: a local reduction variable name that is unique for the
+                  current reduction argument name. This is used for
+                  thread-local reductions with reproducible reductions.
 
         '''
         return "l_" + self.reduction_arg.name

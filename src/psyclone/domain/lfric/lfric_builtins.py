@@ -361,14 +361,6 @@ class LFRicBuiltIn(BuiltIn, metaclass=abc.ABCMeta):
                 f" different data types. However, found different data types "
                 f"{data_types_str} for field arguments to '{self.name}'.")
 
-    def array_ref(self, fld_name):
-        '''
-        :returns: the array reference for a variable with the supplied name.
-        :rtype: str
-
-        '''
-        return f"{fld_name}({self._idx_name})"
-
     @property
     def undf_name(self):
         '''
@@ -2328,6 +2320,10 @@ class LFRicXInnerproductYKern(LFRicBuiltIn):
         '''
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
+
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
+
         '''
         # Get indexed references for the field (proxy) argument.
         arg_refs = self.get_indexed_field_argument_references()
@@ -2370,6 +2366,10 @@ class LFRicXInnerproductXKern(LFRicBuiltIn):
         '''
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
+
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
+
         '''
         # Get indexed references for the field (proxy) argument.
         arg_refs = self.get_indexed_field_argument_references()
@@ -2420,6 +2420,10 @@ class LFRicSumXKern(LFRicBuiltIn):
         '''
         Lowers this LFRic-specific built-in kernel to language-level PSyIR.
         This BuiltIn node is replaced by an Assignment node.
+
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
+
         '''
         # Get indexed references for the field (proxy) argument.
         arg_refs = self.get_indexed_field_argument_references()

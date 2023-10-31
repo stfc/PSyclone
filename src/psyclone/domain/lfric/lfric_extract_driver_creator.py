@@ -49,7 +49,7 @@ from psyclone.psyGen import InvokeSchedule, Kern
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import (Assignment, Call, FileContainer,
-                                  IntrinsicCall, Literal, Node, Reference,
+                                  IntrinsicCall, Literal, Reference,
                                   Routine, StructureReference)
 from psyclone.psyir.symbols import (ArrayType, CHARACTER_TYPE,
                                     ContainerSymbol, DataSymbol,
@@ -734,18 +734,6 @@ class LFRicExtractDriverCreator:
         extract_trans = ExtractTrans()
         # We need to provide the prefix to the validation function:
         extract_trans.validate(nodes, options={"prefix": prefix})
-
-        # Avoid circular import
-        # pylint: disable=import-outside-toplevel
-        from psyclone.domain.lfric.lfric_builtins import LFRicBuiltIn
-        for node in nodes:
-            for builtin in node.walk(LFRicBuiltIn):
-                # If the lower_to_language function is not overwritten from
-                # the implementation in Node, the builtin is not yet supported:
-                if type(builtin).lower_to_language_level == \
-                        Node.lower_to_language_level:
-                    raise NotImplementedError(
-                        f"LFRic builtin '{builtin.name}' is not supported")
 
         module_name, local_name = region_name
         unit_name = self._make_valid_unit_name(f"{module_name}_{local_name}")
