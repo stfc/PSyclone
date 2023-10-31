@@ -1118,8 +1118,8 @@ class Node():
         :param stop_type: class(es) at which recursion is halted (optional).
         :type stop_type: Optional[type | Tuple[type, ...]]
 
-        :returns: list of lists, each of which containing nodes that are \
-                  instances of my_type and are immediate siblings, starting at \
+        :returns: list of lists, each of which containing nodes that are
+                  instances of my_type and are immediate siblings, starting at
                   and including this node.
         :rtype: List[List[:py:class:`psyclone.psyir.nodes.Node`]]
 
@@ -1340,7 +1340,7 @@ class Node():
 
     def immediately_precedes(self, node_2):
         '''
-        :returns: True if this node immediately precedes `node_2`, False \
+        :returns: True if this node immediately precedes `node_2`, False
                   otherwise
         :rtype: bool
         '''
@@ -1352,7 +1352,7 @@ class Node():
 
     def immediately_follows(self, node_1):
         '''
-        :returns: True if this node immediately follows `node_1`, False \
+        :returns: True if this node immediately follows `node_1`, False
                   otherwise
         :rtype: bool
         '''
