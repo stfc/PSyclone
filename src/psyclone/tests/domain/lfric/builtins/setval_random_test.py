@@ -101,7 +101,7 @@ def test_setval_random_lowering(fortran_writer):
                                         "15.7.4_setval_random_builtin.f90"),
                            api=API)
     psy = PSyFactory(API,
-                     distributed_memory=False).create(invoke_info)
+                     distributed_memory=True).create(invoke_info)
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
     parent = kern.parent

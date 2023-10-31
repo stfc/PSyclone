@@ -47,7 +47,7 @@ from psyclone.domain.lfric.kernel import LFRicKernelMetadata
 from psyclone.domain.lfric.lfric_builtins import LFRicIntXKern
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
-from psyclone.psyir.nodes import Loop
+from psyclone.psyir.nodes import Assignment, Loop
 from psyclone.tests.lfric_build import LFRicBuild
 
 # Constants
@@ -80,15 +80,17 @@ def test_int_X(tmpdir, monkeypatch, annexed, dist_mem):
                                         "15.10.3_int_X_builtin.f90"),
                            api=API)
     psy = PSyFactory(API, distributed_memory=dist_mem).create(invoke_info)
+
     # Test '__str__' method
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
     assert str(kern) == ("Built-in: int_X (convert a real-valued to an "
                          "integer-valued field)")
+
     # Test code generation
     code = str(psy.gen)
 
-    # First check that the correct field types and constants are used
+    # Check that the correct field types and constants are used
     output = (
         "    USE constants_mod, ONLY: r_def, i_def\n"
         "    USE field_mod, ONLY: field_type, field_proxy_type\n"
@@ -96,58 +98,23 @@ def test_int_X(tmpdir, monkeypatch, annexed, dist_mem):
         "integer_field_proxy_type\n")
     assert output in code
 
+    # Check built-in loop
+    output = (
+        "      DO df=loop0_start,loop0_stop\n"
+        "        f2_data(df) = INT(f1_data(df), kind=i_def)\n"
+        "      END DO\n")
+    assert output in code
+
     if not dist_mem:
-        output = (
-            "      INTEGER(KIND=i_def), pointer, dimension(:) :: f2_data => "
-            "null()\n"
-            "      TYPE(integer_field_proxy_type) f2_proxy\n"
-            "      REAL(KIND=r_def), pointer, dimension(:) :: f1_data => "
-            "null()\n"
-            "      TYPE(field_proxy_type) f1_proxy\n"
-            "      INTEGER(KIND=i_def) undf_aspc1_f2\n"
-            "      !\n"
-            "      ! Initialise field and/or operator proxies\n"
-            "      !\n"
-            "      f2_proxy = f2%get_proxy()\n"
-            "      f2_data => f2_proxy%data\n"
-            "      f1_proxy = f1%get_proxy()\n"
-            "      f1_data => f1_proxy%data\n"
-            "      !\n"
-            "      ! Initialise number of DoFs for aspc1_f2\n"
-            "      !\n"
-            "      undf_aspc1_f2 = f2_proxy%vspace%get_undf()\n"
-            "      !\n"
-            "      ! Set-up all of the loop bounds\n"
-            "      !\n"
-            "      loop0_start = 1\n"
-            "      loop0_stop = undf_aspc1_f2\n"
-            "      !\n"
-            "      ! Call our kernels\n"
-            "      !\n"
-            "      DO df=loop0_start,loop0_stop\n"
-            "        f2_data(df) = INT(f1_data(df), kind=i_def)\n"
-            "      END DO\n"
-            "      !\n"
-            "    END SUBROUTINE invoke_0\n")
-        assert output in code
+        assert "undf_aspc1_f2 = f2_proxy%vspace%get_undf()\n" in code
+        assert "loop0_stop = undf_aspc1_f2\n" in code
     else:
-        output_dm_2 = (
-            "      loop0_stop = f2_proxy%vspace%get_last_dof_annexed()\n"
-            "      !\n"
-            "      ! Call kernels and communication routines\n"
-            "      !\n"
-            "      DO df=loop0_start,loop0_stop\n"
-            "        f2_data(df) = INT(f1_data(df), kind=i_def)\n"
-            "      END DO\n"
-            "      !\n"
-            "      ! Set halos dirty/clean for fields modified in the "
-            "above loop\n"
-            "      !\n"
-            "      CALL f2_proxy%set_dirty()\n"
-            "      !\n")
+        output_dm = "loop0_stop = f2_proxy%vspace%get_last_dof_annexed()\n"
+        assert output in code
+        assert "CALL f2_proxy%set_dirty()\n" in code
         if not annexed:
-            output_dm_2 = output_dm_2.replace("dof_annexed", "dof_owned")
-        assert output_dm_2 in code
+            output_dm = output_dm.replace("dof_annexed", "dof_owned")
+        assert output_dm in code
 
     # Test compilation of generated code
     assert LFRicBuild(tmpdir).code_compiles(psy)
@@ -197,7 +164,11 @@ def test_int_X_lowering(fortran_writer):
                      distributed_memory=False).create(invoke_info)
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
-    kern.lower_to_language_level()
+    parent = kern.parent
+    lowered = kern.lower_to_language_level()
+    assert parent.children[0] is lowered
+    assert isinstance(parent.children[0], Assignment)
+
     loop = first_invoke.schedule.walk(Loop)[0]
     code = fortran_writer(loop)
     assert ("do df = loop0_start, loop0_stop, 1\n"

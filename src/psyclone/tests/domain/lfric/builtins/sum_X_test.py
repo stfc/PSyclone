@@ -116,7 +116,7 @@ def test_sum_X_lowering(fortran_writer):
                                         "15.8.1_sum_X_builtin.f90"),
                            api=API)
     psy = PSyFactory(API,
-                     distributed_memory=False).create(invoke_info)
+                     distributed_memory=True).create(invoke_info)
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
     parent = kern.parent

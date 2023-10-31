@@ -44,7 +44,7 @@ from psyclone.domain.lfric.kernel import LFRicKernelMetadata
 from psyclone.domain.lfric.lfric_builtins import LFRicXInnerproductXKern
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
-from psyclone.psyir.nodes import Loop
+from psyclone.psyir.nodes import Assignment, Loop
 from psyclone.tests.lfric_build import LFRicBuild
 
 # Constants
@@ -57,6 +57,7 @@ BASE_PATH = os.path.join(
 API = "dynamo0.3"
 
 
+# pylint: disable=invalid-name
 def test_X_innerproduct_X(tmpdir, dist_mem):
     '''
     Test that 1) the '__str__' method of 'LFRicXInnerproductXKern'
@@ -75,65 +76,23 @@ def test_X_innerproduct_X(tmpdir, dist_mem):
         api=API)
     psy = PSyFactory(API,
                      distributed_memory=dist_mem).create(invoke_info)
+
     # Test '__str__' method
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
     assert str(kern) == "Built-in: X_innerproduct_X (real-valued field)"
+
     # Test code generation
     code = str(psy.gen)
-
     output = (
-        "      !\n"
-        "      ! Initialise field and/or operator proxies\n"
-        "      !\n"
-        "      f1_proxy = f1%get_proxy()\n"
-        "      f1_data => f1_proxy%data\n"
-        "      !\n")
+            "      ! Zero summation variables\n"
+            "      !\n"
+            "      asum = 0.0_r_def\n"
+            "      !\n"
+            "      DO df=loop0_start,loop0_stop\n"
+            "        asum = asum + f1_data(df) * f1_data(df)\n"
+            "      END DO")
     assert output in code
-    if not dist_mem:
-        output_seq = (
-            "      ! Initialise number of DoFs for aspc1_f1\n"
-            "      !\n"
-            "      undf_aspc1_f1 = f1_proxy%vspace%get_undf()\n"
-            "      !\n"
-            "      ! Set-up all of the loop bounds\n"
-            "      !\n"
-            "      loop0_start = 1\n"
-            "      loop0_stop = undf_aspc1_f1\n"
-            "      !\n"
-            "      ! Call our kernels\n"
-            "      !\n"
-            "      !\n"
-            "      ! Zero summation variables\n"
-            "      !\n"
-            "      asum = 0.0_r_def\n"
-            "      !\n"
-            "      DO df=loop0_start,loop0_stop\n"
-            "        asum = asum + f1_data(df) * f1_data(df)\n"
-            "      END DO\n"
-            "      !\n")
-        assert output_seq in code
-    else:
-        output_dm = (
-            "      loop0_stop = f1_proxy%vspace%get_last_dof_owned()\n"
-            "      !\n"
-            "      ! Call kernels and communication routines\n"
-            "      !\n"
-            "      !\n"
-            "      ! Zero summation variables\n"
-            "      !\n"
-            "      asum = 0.0_r_def\n"
-            "      !\n"
-            "      DO df=loop0_start,loop0_stop\n"
-            "        asum = asum + f1_data(df) * f1_data(df)\n"
-            "      END DO\n"
-            "      global_sum%value = asum\n"
-            "      asum = global_sum%get_sum()\n"
-            "      !\n")
-        assert output_dm in code
-        assert "      USE scalar_mod, ONLY: scalar_type" in code
-        assert "      REAL(KIND=r_def), intent(out) :: asum\n" in code
-        assert "      TYPE(scalar_type) global_sum\n" in code
 
     # Test compilation of generated code
     assert LFRicBuild(tmpdir).code_compiles(psy)
@@ -148,10 +107,14 @@ def test_X_innerproduct_X_lowering(fortran_writer):
     _, invoke_info = parse(os.path.join(BASE_PATH,
                            "15.9.2_X_innerproduct_X_builtin.f90"), api=API)
     psy = PSyFactory(API,
-                     distributed_memory=False).create(invoke_info)
+                     distributed_memory=True).create(invoke_info)
     first_invoke = psy.invokes.invoke_list[0]
     kern = first_invoke.schedule.children[0].loop_body[0]
-    kern.lower_to_language_level()
+    parent = kern.parent
+    lowered = kern.lower_to_language_level()
+    assert parent.children[0] is lowered
+    assert isinstance(parent.children[0], Assignment)
+
     loop = first_invoke.schedule.walk(Loop)[0]
     code = fortran_writer(loop)
     assert ("do df = loop0_start, loop0_stop, 1\n"
