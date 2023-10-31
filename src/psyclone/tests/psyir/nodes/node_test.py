@@ -1482,13 +1482,19 @@ def test_following_preceding():
     assert multiply1.preceding() == [assign1, a_ref, multiply2, b_ref]
 
     # 1d: Immediately following
+    assert not a_ref.immediately_follows(assign1)
     assert multiply2.immediately_follows(a_ref)
+    assert not b_ref.immediately_follows(multiply2)
     assert multiply1.immediately_follows(b_ref)
+    assert not c_ref.immediately_follows(multiply1)
     assert d_ref.immediately_follows(c_ref)
 
     # 1e: Immediately preceding
+    assert not assign1.immediately_precedes(a_ref)
     assert a_ref.immediately_precedes(multiply2)
+    assert not multiply2.immediately_precedes(b_ref)
     assert b_ref.immediately_precedes(multiply1)
+    assert not multiply1.immediately_precedes(c_ref)
     assert c_ref.immediately_precedes(d_ref)
 
     # 2: Routine is an ancestor node, but is not a root
