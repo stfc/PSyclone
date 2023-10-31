@@ -621,42 +621,6 @@ def test_mappings():
     assert "Invalid format for mapping: k2=v2" in str(err.value)
 
 
-def test_numeric_mappings():
-    '''Test the definition of a mapping in the config file.'''
-    mapping = APISpecificConfig.create_numeric_dict_from_list(
-        ["k1:1", "k2:2"]
-        )
-    assert mapping == {"k1": 1, "k2": 2}
-
-    mapping = APISpecificConfig.create_numeric_dict_from_list([])
-    assert not mapping
-
-    # Check float format string values are converted to int
-    mapping = APISpecificConfig.create_numeric_dict_from_list(
-        ["k1:1.2", "k2:3.45"]
-    )
-    assert mapping == {"k1": 1, "k2": 3}
-
-    # The function only uses the first ":" :
-    mapping = \
-        APISpecificConfig.create_numeric_dict_from_list(
-            ["k1 : 1", "k2 : 2 :something"])
-    assert mapping == {"k1": 1, "k2": 2}
-    # Tests errors: check that '=' instead of ":" is detected as invalid:
-    with pytest.raises(ConfigurationError) as err:
-        mapping = APISpecificConfig.create_numeric_dict_from_list(
-            ["k1:1", "k2=2"]
-            )
-    assert "Invalid format for mapping: 'k2=2'" in str(err.value)
-
-    with pytest.raises(ConfigurationError) as err:
-        mapping = APISpecificConfig.create_numeric_dict_from_list(
-            ["k1:1", "k2:something"]
-            )
-    assert ("Wrong type supplied to mapping: 'something' is not a number"
-            in str(err.value))
-
-
 def test_invalid_access_mapping(tmpdir):
     '''Test that providing an invalid access type (i.e. not
     'read', 'write', ...) raises an exception.

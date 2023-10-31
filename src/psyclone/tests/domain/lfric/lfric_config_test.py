@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2022, Science and Technology Facilities Council
+# Copyright (c) 2020-2023, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,6 +33,7 @@
 # -----------------------------------------------------------------------------
 # Author I. Kavcic, Met Office
 # Modified: R. W. Ford and N. Nobre, STFC Daresbury Lab
+# Modified: O. Brunt, Met Office
 
 '''
 Module containing tests for LFRic (Dynamo0.3) API configuration handling.
@@ -215,6 +216,37 @@ def test_invalid_default_kind(tmpdir):
             "datatypes [\'real\', \'integer\', \'logical\']." in test_str)
 
 
+def test_invalid_precision_map(tmpdir):
+    '''Check that we raise an error if the precision map values include
+    a special character or letter/are not a string representation of an
+    integer.
+
+    '''
+    config_file = tmpdir.join("config_dyn")
+
+    # Test invalid datatype 'special character'
+    content = re.sub(r"r_double: 8,", "r_double: -8,",
+                     _CONFIG_CONTENT,
+                     flags=re.MULTILINE)
+
+    with pytest.raises(ConfigurationError) as err:
+        config(config_file, content)
+
+    assert ("Wrong type supplied to mapping: '-8' is not a number"
+            " or contains special characters." in str(err.value))
+    
+    # Test invalid datatype 'string'
+    content = re.sub(r"r_double: 8,", "r_double: number 5,",
+                     _CONFIG_CONTENT,
+                     flags=re.MULTILINE)
+
+    with pytest.raises(ConfigurationError) as err:
+        config(config_file, content)
+
+    assert ("Wrong type supplied to mapping: 'number 5' is not a number"
+            " or contains special characters." in str(err.value))
+    
+
 def test_invalid_num_any_anyd_spaces(tmpdir):
     ''' Check that we raise an error if we supply an invalid number
     (less than or equal to 0) of ANY_SPACE and ANY_DISCONTINUOUS_SPACE
@@ -282,37 +314,27 @@ def test_default_kind():
     assert api_config.default_kind["real"] == "r_def"
     assert api_config.default_kind["integer"] == "i_def"
     assert api_config.default_kind["logical"] == "l_def"
+    
 
+def test_precision_map():
+    '''Check that we load correct precision values for all
+    datatypes. 
 
-def test_precision_map(tmpdir):
-    '''Check that we load correct default precisions value types for
-    all datatypes.
     '''
-    config_file = tmpdir.join("config_dyn")
-
-    # Test invalid datatype
-    content = re.sub(r"r_double: 8,", "r_double: porky,",
-                     _CONFIG_CONTENT,
-                     flags=re.MULTILINE)
-
-    with pytest.raises(ConfigurationError) as err:
-        config(config_file, content)
-
-    assert ("Wrong type supplied to mapping: 'porky' is not a number"
-            in str(err.value))
-
-    # Test invalid datatype
-    content = re.sub(r"r_double: 8,", "r_double: -8,",
-                     _CONFIG_CONTENT,
-                     flags=re.MULTILINE)
-
-    with pytest.raises(ConfigurationError) as err:
-        config(config_file, content)
-
-    assert ("Negative precision value, 'r_double : -8', supplied to "
-            "\'[dynamo0.3]\' in " in str(err.value))
-    assert ("Precision values must be positive."
-            in str(err.value))
+    api_config = Config().get().api_conf(TEST_API)
+    assert api_config.precision_map["i_def"] == 4
+    assert api_config.precision_map["l_def"] == 1
+    assert api_config.precision_map["r_def"] == 8
+    assert api_config.precision_map["r_double"] == 8
+    assert api_config.precision_map["r_ncdf"] == 8
+    assert api_config.precision_map["r_quad"] == 16
+    assert api_config.precision_map["r_second"] == 8
+    assert api_config.precision_map["r_single"] == 4
+    assert api_config.precision_map["r_solver"] == 4
+    assert api_config.precision_map["r_tran"] == 8
+    assert api_config.precision_map["r_bl"] == 8
+    assert api_config.precision_map["r_phys"] == 8
+    assert api_config.precision_map["r_um"] == 8
 
 
 def test_run_time_checks():

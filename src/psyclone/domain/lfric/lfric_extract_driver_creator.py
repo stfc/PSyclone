@@ -647,7 +647,6 @@ class LFRicExtractDriverCreator:
                                     datatype=INTEGER_TYPE,
                                     interface=ImportInterface(constant_mod))
 
-
     # -------------------------------------------------------------------------
     @staticmethod
     def _add_result_tests(program, output_symbols):

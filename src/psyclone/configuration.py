@@ -777,30 +777,24 @@ class APISpecificConfig:
         return return_dict
 
     @staticmethod
-    def create_numeric_dict_from_list(input_list):
-
+    def get_precision_map_dict(section):
+        '''Extracts the precision map values from the psyclone.cfg file
+        and converts them to a dictionary with integer values.
+        :returns: The precision maps to be used by this API.
+        :rtype: Dictionary of integers
+        '''
+        precisions_list = section.getlist("precision_map")
         return_dict = {}
-        for entry in input_list:
-            try:
-                key, value = entry.split(":")[:2]
-            except ValueError as err:
-                # Raised when split does not return two elements:
-                raise ConfigurationError(
-                    f"Invalid format for mapping: '{entry.strip()}'") from err
-            # Try to convert to float or int
-            try:
-                if isinstance(value, str):
-                    if '.' in value:
-                        value = int(float(value))
-                    else:
-                        value = int(value)
-            except ValueError as err:
-                # Raised when split does not return two elements:
+        return_dict = APISpecificConfig.create_dict_from_list(precisions_list)
+
+        for key, value in return_dict.items():
+            if value.isdigit():
+                return_dict[key] = int(value)
+            else:
+                # Raised when key contains special characters or letters:
                 raise ConfigurationError(
                     f"Wrong type supplied to mapping: '{value.strip()}'"
-                    f" is not a number.") from err
-            # Remove spaces and convert unicode to normal strings in Python2
-            return_dict[str(key.strip())] = value
+                    f" is not a number or contains special characters.")
         return return_dict
 
     def get_access_mapping(self):
@@ -956,17 +950,7 @@ class LFRicConfig(APISpecificConfig):
         self._default_kind = all_kinds
 
         # Parse setting for default precision map values.
-        precisions_list = section.getlist("precision_map")
-        all_precisions = self.create_numeric_dict_from_list(precisions_list)
-        # Check for valid datatypes
-        for key in all_precisions.keys():
-            if all_precisions[key] < 0:
-                raise ConfigurationError(
-                    f"Negative precision value, '{key} : "
-                    f"{all_precisions[key]}', supplied to '[{section.name}]' "
-                    f"in '{config.filename}'. Precision values must be "
-                    f"positive."
-                )
+        all_precisions = self.get_precision_map_dict(section)
         self._precision_map = all_precisions
 
         # Parse setting for the number of ANY_SPACE function spaces
@@ -1055,10 +1039,11 @@ class LFRicConfig(APISpecificConfig):
     def precision_map(self):
         '''
         Getter for precision map values for supported fortran datatypes
-        in LFRic.
+        in LFRic. (Precision in bytes indexed by the name of the LFRic
+        kind parameter).
 
         :returns: the precision map values for main datatypes in LFRic.
-        :rtype: dict of int
+        :rtype: Dict[int]
 
         '''
         return self._precision_map
