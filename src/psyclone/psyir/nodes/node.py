@@ -1107,12 +1107,11 @@ class Node():
     def get_sibling_lists(self, my_type, stop_type=None):
         '''
         Recurse through the PSyIR tree and return lists of Nodes that are
-        instances of 'my_type' and immediately follow one another. Here
-        'my_type' is either a single class or a tuple of classes. In the latter
-        case all nodes are returned that are instances of any classes in the
-        tuple. The recursion into the tree is stopped if an instance of
-        'stop_type' (which is either a single class or a tuple of classes) is
-        found.
+        instances of 'my_type' and are immediate siblings. Here 'my_type' is
+        either a single class or a tuple of classes. In the latter case all
+        nodes are returned that are instances of any classes in the tuple. The
+        recursion into the tree is stopped if an instance of 'stop_type' (which
+        is either a single class or a tuple of classes) is found.
 
         :param my_type: the class(es) for which the instances are collected.
         :type my_type: type | Tuple[type, ...]
@@ -1120,8 +1119,8 @@ class Node():
         :type stop_type: Optional[type | Tuple[type, ...]]
 
         :returns: list of lists, each of which containing nodes that are \
-                  instances of my_type and immediately follow one another, \
-                  starting at and including this node.
+                  instances of my_type and are immediate siblings, starting at \
+                  and including this node.
         :rtype: List[List[:py:class:`psyclone.psyir.nodes.Node`]]
 
         '''
