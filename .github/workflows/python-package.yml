@@ -35,7 +35,7 @@
 # Modified by R. W. Ford, STFC Daresbury Lab
 # Modified by A. J. Voysey, Met Office
 # Modified by J. Henrichs, Bureau of Meteorology
-# Modified by N. M. Nobre, STFC Daresbury Lab
+# Modified by N. Nobre, STFC Daresbury Lab
 
 # This workflow will install Python dependencies, run tests and lint with a
 # variety of Python versions.

@@ -35,7 +35,7 @@
 # Modified by R. W. Ford, STFC Daresbury Lab
 # Modified by A. J. Voysey, Met Office
 # Modified by J. Henrichs, Bureau of Meteorology
-# Modified by N. M. Nobre, STFC Daresbury Lab
+# Modified by N. Nobre, STFC Daresbury Lab
 
 # This workflow will use a self-hosted runner to perform the more expensive
 # compilation tests that are not run on GHA systems. At the moment it:
