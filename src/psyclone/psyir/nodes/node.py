@@ -1141,6 +1141,8 @@ class Node():
                 if not block or node.immediately_follows(block[-1]):
                     block.append(node)
                 else:
+                    # Current node does not immediately follow the previous one
+                    # so this marks the end of the current block.
                     global_list.append(block)
                     block = [node]
             if block:
