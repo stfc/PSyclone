@@ -292,7 +292,9 @@ def _add_precision_symbol(symbol, table):
         kind_symbol = symbol.copy()
         kind_symbol.interface = ImportInterface(kind_contr_sym)
         table.add(kind_symbol)
-    elif symbol.is_automatic or symbol.is_modulevar or symbol.is_static:
+    elif not (symbol.is_unresolved or symbol.is_argument):
+        # The symbol is declared somewhere within a parent scope and is not an
+        # argument.
         table.add(symbol.copy())
     else:
         raise NotImplementedError(
