@@ -1104,7 +1104,7 @@ class Node():
             local_list += child.walk(my_type, stop_type)
         return local_list
 
-    def split_consecutive(self, my_type, stop_type=None):
+    def get_sibling_lists(self, my_type, stop_type=None):
         '''
         Recurse through the PSyIR tree and return lists of Nodes that are
         instances of 'my_type' and immediately follow one another. Here

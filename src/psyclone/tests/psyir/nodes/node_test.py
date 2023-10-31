@@ -34,7 +34,6 @@
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 #         I. Kavcic and J. G. Wallwork, Met Office
 #         J. Henrichs, Bureau of Meteorology
-# Modified J. G. Wallwork, Met Office
 # -----------------------------------------------------------------------------
 
 ''' Performs py.test tests on the Node PSyIR node. '''
@@ -1637,3 +1636,64 @@ def test_siblings(fortran_reader):
     root_siblings = psyir.siblings
     assert len(root_siblings) == 1
     assert root_siblings[0] is psyir
+
+
+def test_get_sibling_lists(fortran_reader):
+    '''Tests the get_sibling_lists functionality.'''
+
+    code = '''subroutine test_get_sibling_lists()
+    integer :: i, j, k, n
+    integer, dimension(2,2,2) :: arr
+
+    n = 0
+    do k = 1, 2
+       do j = 1, 2
+          arr(:,j,k) = 0
+          do i = 1, 2
+             arr(i,j,k) = i*j*k
+             n = n + 1
+          end do
+       end do
+       do j = 1, 2
+          do i = 1, 2
+             arr(i,j,k) = i*j*k
+          end do
+          arr(:,j,k) = 0
+       end do
+    end do
+    end subroutine'''
+
+    psyir = fortran_reader.psyir_from_source(code)
+
+    # Test case where only loops are requested
+    loops = psyir.walk(Loop)
+    assert len(loops) == 5
+    loop_blocks = psyir.get_sibling_lists(Loop)
+    expected = [[0], [1, 3], [2], [4]]
+    assert len(loop_blocks) == len(expected)
+    for block, indices in zip(loop_blocks, expected):
+        assert len(block) == len(indices)
+        for node, index in zip(block, indices):
+            assert node is loops[index]
+
+    # Test case where only assignments are requested
+    assignments = psyir.walk(Assignment)
+    assert len(assignments) == 6
+    assignment_blocks = psyir.get_sibling_lists(Assignment)
+    expected = [[0], [1], [5], [2, 3], [4]]
+    assert len(assignment_blocks) == len(expected)
+    for block, indices in zip(assignment_blocks, expected):
+        assert len(block) == len(indices)
+        for node, index in zip(block, indices):
+            assert node is assignments[index]
+
+    # Test case where both loops and assignments are requested
+    loops_assignments = psyir.walk((Loop, Assignment))
+    assert len(loops_assignments) == 11
+    both_blocks = psyir.get_sibling_lists((Loop, Assignment))
+    expected = [[0, 1], [2, 7], [3, 4], [8, 10], [5, 6], [9]]
+    assert len(both_blocks) == len(expected)
+    for block, indices in zip(both_blocks, expected):
+        assert len(block) == len(indices)
+        for node, index in zip(block, indices):
+            assert node is loops_assignments[index]
