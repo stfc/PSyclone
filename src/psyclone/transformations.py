@@ -47,7 +47,6 @@ import abc
 
 from psyclone import psyGen
 from psyclone.configuration import Config
-from psyclone.domain.lfric import KernCallArgList, LFRicConstants
 from psyclone.core import Signature, VariablesAccessInfo
 from psyclone.domain.lfric import KernCallArgList, LFRicConstants, LFRicKern
 from psyclone.dynamo0p3 import LFRicHaloExchangeEnd, LFRicHaloExchangeStart, \
