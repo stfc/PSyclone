@@ -7320,7 +7320,7 @@ class DynLoop(PSyLoop):
 
         '''
         # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.tools import DependencyTools
+        from psyclone.psyir.tools import DependencyTools, DTCode
         if not dep_tools:
             dtools = DependencyTools()
         else:
@@ -7350,9 +7350,20 @@ class DynLoop(PSyLoop):
 
         # The generic DA says that this loop cannot be parallelised. However,
         # we use domain-specific information to qualify this.
-        if self.loop_type in ["colour", "dof"]:
-            # This loop is either over cells of a single colour or DoFs.
+        if self.loop_type == "colour":
+            # This loop is either over cells of a single colour.
             # According to LFRic rules this is safe to parallelise.
+            return True
+
+        if self.loop_type == "dof":
+            # The generic DA can't see the PSyIR of this Builtin (because it
+            # hasn't been lowered to language level) so we use
+            # domain-specific knowledge about its properties.
+            if self.kernel.is_reduction:
+                dtools._add_message(
+                    f"Builtin '{self.kernel.name}' performs a reduction",
+                    DTCode.WARN_SCALAR_REDUCTION)
+                return False
             return True
 
         if self.loop_type == "":
@@ -7362,7 +7373,12 @@ class DynLoop(PSyLoop):
             # have at least one argument with GH_INC access. Therefore, we
             # can simply check whether or not it has such an argument in order
             # to infer the continuity of the space.
-            return not self.has_inc_arg()
+            if self.has_inc_arg():
+                dtools._add_message(
+                    f"Kernel '{self.kernel.name}' performs an INC update",
+                    DTCode.ERROR_WRITE_WRITE_RACE)
+                return False
+            return True
 
         raise InternalError(f"independent_iterations: loop of type "
                             f"'{self.loop_type}' is not supported.")
