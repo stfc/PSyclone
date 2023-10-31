@@ -33,6 +33,7 @@
 .. -----------------------------------------------------------------------------
 .. Written by A. R. Porter, STFC Daresbury Lab
 .. Modified by R. W. Ford, N. Nobre and S. Siso, STFC Daresbury Lab
+.. Modified by J. G. Wallwork, Met Office
 
 .. The following section imports those Python modules that are needed in
    subsequent doctest snippets.
@@ -218,6 +219,28 @@ Finally, the `path_from` method can be used to find the route through the
 tree from an ancestor node to the node:
 
 .. automethod:: psyclone.psyir.nodes.Node.path_from
+
+Tree Interrogation
+==================
+
+Each PSyIR node provides several ways to interrogate the AST:
+
+Following the `parent` and `children` terminology, we define a node's `siblings`
+as the children of its parents. Note that this definition implies that all nodes
+are their own siblings.
+
+.. automethod:: psyclone.psyir.nodes.Node.siblings
+
+We can check whether two nodes are siblings which immediately precede or follow
+one another using the following methods:
+
+.. automethod:: psyclone.psyir.nodes.Node.immediately_precedes
+.. automethod:: psyclone.psyir.nodes.Node.immediately_follows
+
+Finally, the `get_sibling_lists` method provides functionality to `walk` over
+the tree associated with a node and gather those which are immediate siblings.
+
+.. automethod:: psyclone.psyir.nodes.Node.get_sibling_lists
 
 DataTypes
 =========
