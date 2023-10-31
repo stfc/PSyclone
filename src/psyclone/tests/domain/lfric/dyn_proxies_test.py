@@ -32,13 +32,14 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author A. R. Porter, STFC Daresbury Lab
+# Modified L. Turner, Met Office
 
 ''' This module tests the DynProxies class using pytest. '''
 
 import os
 import pytest
-from psyclone.domain.lfric import LFRicConstants
-from psyclone.dynamo0p3 import LFRicKern, DynProxies
+from psyclone.domain.lfric import LFRicConstants, LFRicKern
+from psyclone.dynamo0p3 import DynProxies
 from psyclone.errors import InternalError
 from psyclone.f2pygen import ModuleGen, SubroutineGen
 from psyclone.parse.algorithm import parse

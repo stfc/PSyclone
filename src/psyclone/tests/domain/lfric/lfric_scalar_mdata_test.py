@@ -35,7 +35,6 @@
 #         I. Kavcic, A. Coughtrie, L. Turner and O. Brunt, Met Office;
 #         C. M. Maynard, Met Office/University of Reading;
 #         J. Henrichs, Bureau of Meteorology.
-# Modified by L. Turner, Met Office
 
 '''
 Module containing pytest tests for the general LFRic scalar arguments

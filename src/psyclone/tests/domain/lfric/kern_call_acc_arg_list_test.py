@@ -31,9 +31,10 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: J. Henrichs, Bureau of Meteorology
-#          R. W. Ford and A. R. Porter, STFC Daresbury Lab
-#          I. Kavcic, Met Office
+# Authors:  J. Henrichs, Bureau of Meteorology
+#           R. W. Ford and A. R. Porter, STFC Daresbury Lab
+#           I. Kavcic, Met Office
+# Modified: L. Turner, Met Office
 
 ''' This module tests the LFric KernCallAccArgList class.'''
 
