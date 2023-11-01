@@ -176,7 +176,7 @@ def test_wrong_type_kind_param():
     type.
 
     '''
-    fake_parent, _ = process_declarations("integer :: r_def\n"
+    fake_parent, _ = process_declarations("integer, parameter :: r_def=4\n"
                                           "real(kind=r_def) :: var2")
     r_def = fake_parent.symbol_table.lookup("r_def")
     # Monkeypatch this DataSymbol so that it appears to be a RoutineSymbol

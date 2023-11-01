@@ -179,10 +179,14 @@ class DataSymbol(TypedSymbol):
         '''
         if (value and not (self.is_import or self.is_unresolved) and
                 self.initial_value is None):
-            raise ValueError(
-                f"DataSymbol '{self.name}' does not have an initial value set "
-                f"and is not imported or unresolved and therefore "
-                f"cannot be a constant.")
+            # TODO could give TypedSymbol an 'is_unknown_type' property.
+            from psyclone.psyir.symbols.datatypes import UnknownType
+            if not isinstance(self.datatype, UnknownType):
+
+                raise ValueError(
+                    f"DataSymbol '{self.name}' does not have an initial value set "
+                    f"and is not imported or unresolved and therefore "
+                    f"cannot be a constant.")
         self._is_constant = value
 
     @property
