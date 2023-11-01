@@ -48,7 +48,7 @@ from psyclone.psyir.symbols import (
     ImportInterface, ArgumentInterface, StaticInterface, UnresolvedInterface,
     ScalarType, ArrayType, REAL_SINGLE_TYPE, REAL_DOUBLE_TYPE, REAL4_TYPE,
     REAL8_TYPE, INTEGER_SINGLE_TYPE, INTEGER_DOUBLE_TYPE, INTEGER4_TYPE,
-    BOOLEAN_TYPE, CHARACTER_TYPE, DeferredType)
+    BOOLEAN_TYPE, CHARACTER_TYPE, DeferredType, UnknownFortranType)
 from psyclone.psyir.nodes import (Literal, Reference, BinaryOperation, Return,
                                   CodeBlock)
 
@@ -79,8 +79,8 @@ def test_datasymbol_initialisation():
     with pytest.raises(ValueError) as err:
         _ = DataSymbol('a', INTEGER_DOUBLE_TYPE, is_constant=True,
                        interface=StaticInterface())
-    assert ("DataSymbol 'a' does not have an initial value set and is not "
-            "imported or unresolved and therefore cannot be a constant."
+    assert ("DataSymbol 'a' cannot be a constant because it does not have an "
+            "initial value or an import or unresolved interface."
             in str(err.value))
 
     assert isinstance(DataSymbol('a', INTEGER4_TYPE),
@@ -166,8 +166,8 @@ def test_datasymbol_specialise_and_process_arguments():
     with pytest.raises(ValueError) as error:
         sym5.specialise(DataSymbol, datatype=INTEGER_SINGLE_TYPE,
                         is_constant=True)
-    assert ("DataSymbol 'symbol5' does not have an initial value set and is "
-            "not imported or unresolved and therefore cannot be a constant."
+    assert ("DataSymbol 'symbol5' cannot be a constant because it does not "
+            "have an initial value or an import or unresolved interface."
             in str(error.value))
     # The absence of an initial value is permitted if the symbol has an
     # ImportInterface.
@@ -177,6 +177,13 @@ def test_datasymbol_specialise_and_process_arguments():
                     is_constant=True, interface=ImportInterface(csym))
     assert sym6.is_constant
     assert sym6.is_import
+    # It is also permitted if the symbol is of UnknownType.
+    sym7 = Symbol("symbol7")
+    sym7.specialise(DataSymbol,
+                    datatype=UnknownFortranType("integer :: symbol7 = 5"),
+                    is_constant=True)
+    assert sym7.is_constant
+    assert sym7.is_static
 
 
 def test_datasymbol_can_be_printed():
@@ -304,8 +311,8 @@ def test_datasymbol_initial_value_setter_invalid():
     # is_constant specified but without an initial_value
     with pytest.raises(ValueError) as error:
         DataSymbol('a', BOOLEAN_TYPE, is_constant=True)
-    assert ("DataSymbol 'a' does not have an initial value set and is not "
-            "imported or unresolved and therefore cannot be a constant"
+    assert ("DataSymbol 'a' cannot be a constant because it does not have an "
+            "initial value or an import or unresolved interface."
             in str(error.value))
 
 
@@ -326,8 +333,8 @@ def test_datasymbol_is_constant():
     sym.initial_value = None
     with pytest.raises(ValueError) as err:
         sym.is_constant = True
-    assert ("DataSymbol 'a' does not have an initial value set and is not "
-            "imported or unresolved and therefore cannot be a constant."
+    assert ("DataSymbol 'a' cannot be a constant because it does not have an "
+            "initial value or an import or unresolved interface."
             in str(err.value))
 
 

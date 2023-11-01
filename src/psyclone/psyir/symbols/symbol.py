@@ -242,13 +242,12 @@ class Symbol():
             extern_symbol = self.get_external_symbol()
             init_value = None
             if extern_symbol.initial_value:
-                init_value = extern_symbol.initial_value.detach()
+                init_value = extern_symbol.initial_value.copy()
             # Specialise the existing Symbol in-place so that all References
             # to it remain valid.
             self.specialise(type(extern_symbol),
                             datatype=extern_symbol.datatype,
                             is_constant=extern_symbol.is_constant,
-                            interface=self.interface,
                             initial_value=init_value)
         return self
 

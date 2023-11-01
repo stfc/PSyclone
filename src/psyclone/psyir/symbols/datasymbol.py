@@ -173,20 +173,20 @@ class DataSymbol(TypedSymbol):
             constant.
 
         :raises ValueError: if `value` is True but this symbol does not have an
-            initial value set and does not have an import or unresolved
-            interface.
+            initial value or an import or unresolved interface.
 
         '''
         if (value and not (self.is_import or self.is_unresolved) and
                 self.initial_value is None):
+            # A Symbol of UnknownType could have initialisation within its
+            # original declaration.
             # TODO could give TypedSymbol an 'is_unknown_type' property.
             from psyclone.psyir.symbols.datatypes import UnknownType
             if not isinstance(self.datatype, UnknownType):
-
                 raise ValueError(
-                    f"DataSymbol '{self.name}' does not have an initial value set "
-                    f"and is not imported or unresolved and therefore "
-                    f"cannot be a constant.")
+                    f"DataSymbol '{self.name}' cannot be a constant because it"
+                    f" does not have an initial value or an import or "
+                    f"unresolved interface.")
         self._is_constant = value
 
     @property
