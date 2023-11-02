@@ -291,7 +291,7 @@ def test_routine_info_get_used_symbols_from_modules():
 
     mod_info = mod_man.get_module_info("testkern_import_symbols_mod")
     routine_info = mod_info.get_routine_info("testkern_import_symbols_code")
-    non_locals = routine_info.get_non_local_symbols()
+    non_locals = routine_info.get_psyir().get_non_local_symbols()
 
     # Check that the expected symbols, modules and internal type are correct:
     expected = [("unknown", "constants_mod", "eps"),
@@ -332,7 +332,7 @@ def test_routine_info_get_used_symbols_from_modules_renamed():
 
     mod_info = mod_man.get_module_info("module_renaming_external_var_mod")
     routine_info = mod_info.get_routine_info("renaming_subroutine")
-    non_locals = routine_info.get_non_local_symbols()
+    non_locals = routine_info.get_psyir().get_non_local_symbols()
 
     # This example should report just one non-local module:
     # use module_with_var_mod, only: renamed_var => module_var_a
