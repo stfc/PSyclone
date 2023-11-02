@@ -547,21 +547,14 @@ class FortranWriter(LanguageWriter):
         if isinstance(symbol.datatype, UnknownType):
             if isinstance(symbol.datatype, UnknownFortranType):
 
-                if include_visibility and not isinstance(symbol,
-                                                         RoutineSymbol):
-                    # pylint: disable=import-outside-toplevel
-                    from psyclone.psyir.frontend.fortran import FortranReader
-                    try:
-                        FortranReader.validate_name(symbol.name)
-                    except ValueError:
-                        # The symbol does not have a valid Fortran name and
-                        # therefore is not a regular variable so we don't
-                        # attempt to modify its declaration.
-                        pass
-                    else:
-                        decln = add_accessibility_to_unknown_declaration(
-                            symbol)
-                        return f"{self._nindent}{decln}\n"
+                if (include_visibility and
+                        not isinstance(symbol, RoutineSymbol) and
+                        not symbol.name.startswith("_PSYCLONE_INTERNAL")):
+                    # We don't attempt to add accessibility to RoutineSymbols
+                    # or to those created by PSyclone to handle named common
+                    # blocks appearing in SAVE statements.
+                    decln = add_accessibility_to_unknown_declaration(symbol)
+                    return f"{self._nindent}{decln}\n"
 
                 decln = symbol.datatype.declaration
                 return f"{self._nindent}{decln}\n"

@@ -1584,7 +1584,8 @@ class Fparser2Reader():
         for name in explicit_save.copy():
             if name.startswith("/"):
                 uftype = UnknownFortranType(f"SAVE :: {name}")
-                symbol_table.new_symbol(name, symbol_type=DataSymbol,
+                symbol_table.new_symbol(root_name="_PSYCLONE_INTERNAL_SAVE",
+                                        symbol_type=DataSymbol,
                                         datatype=uftype)
                 explicit_save.remove(name)
         return list(explicit_save)
@@ -2024,6 +2025,9 @@ class Fparser2Reader():
                                   isinstance(scope, Container) else
                                   AutomaticInterface())
             else:
+                # We use copies of the interface object because we will reuse
+                # the interface for each entity if there are multiple in the
+                # same declaration statement.
                 this_interface = interface.copy()
 
             if entity_shape:
@@ -2084,9 +2088,6 @@ class Fparser2Reader():
 
                 symbol_table.add(sym, tag=tag)
 
-            # We use copies of the interface object because we will reuse the
-            # interface for each entity if there are multiple in the same
-            # declaration statement.
             if init_expr:
                 # In Fortran, an initialisation expression on a declaration of
                 # a symbol (whether in a routine or a module) implies that the
@@ -2094,7 +2095,7 @@ class Fparser2Reader():
                 # unless it is a pointer initialisation.
                 sym.interface = StaticInterface()
             else:
-                sym.interface = this_interface.copy()
+                sym.interface = this_interface
 
     def _process_derived_type_decln(self, parent, decl, visibility_map):
         '''

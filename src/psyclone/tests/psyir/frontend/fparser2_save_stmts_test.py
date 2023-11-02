@@ -166,10 +166,19 @@ def test_save_common_module(fortran_reader):
     symtab = psyir.children[0].symbol_table
     var3 = symtab.lookup("var3")
     assert isinstance(var3.interface, StaticInterface)
-    ufsym = symtab.lookup("/my_common/")
-    assert isinstance(ufsym.datatype, UnknownFortranType)
-    assert ufsym.datatype._declaration == "SAVE :: /my_common/"
+    for sym in symtab.symbols:
+        if isinstance(sym.datatype, UnknownFortranType):
+            assert sym.name.lower().startswith("_psyclone_internal_save")
+            assert sym.datatype._declaration == "SAVE :: /my_common/"
+            break
+    else:
+        assert False, "No Symbol of UnknownFortranType found"
+
     sub = psyir.walk(Routine)[0]
-    other = sub.symbol_table.lookup("/some_other_common/")
-    assert isinstance(other.datatype, UnknownFortranType)
-    assert other.datatype._declaration == "SAVE :: /some_other_common/"
+    for sym in sub.symbol_table.symbols:
+        if isinstance(sym.datatype, UnknownFortranType):
+            assert sym.name.lower().startswith("_psyclone_internal_save")
+            assert sym.datatype._declaration == "SAVE :: /some_other_common/"
+            break
+    else:
+        assert False, "No Symbol of UnknownFortranType found in nested table"
