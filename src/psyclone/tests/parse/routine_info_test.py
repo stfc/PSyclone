@@ -154,7 +154,8 @@ def test_routine_info_get_used_symbols_from_modules():
     ref = psyir.walk(Reference)[0]
     # Change the name of the symbol so that it is not in the symbol table:
     ref.symbol._name = "not-in-any-symbol-table"
-    assert routine_info._compute_non_locals_references(ref, ref.symbol) is None
+    psyir = routine_info.get_psyir()
+    assert psyir._compute_non_locals_references(ref, ref.symbol) is None
 
 
 # -----------------------------------------------------------------------------
@@ -209,8 +210,8 @@ def test_routine_info_non_locals_invokes():
     assert isinstance(schedules[1].children[0], DynKern)
     assert isinstance(schedules[2].children[0], BuiltIn)
 
-    routine_info._compute_all_non_locals()
-    non_locals = routine_info._non_locals
+    psyir = routine_info.get_psyir()
+    non_locals = psyir._compute_all_non_locals()
     # There should be exactly one entry - the kernel, but not the builtin:
     assert len(non_locals) == 1
     assert non_locals[0] == ("routine", "testkern_import_symbols_mod",
@@ -220,8 +221,8 @@ def test_routine_info_non_locals_invokes():
     # as an access:
     mod_info = mod_man.get_module_info("testkern_import_symbols_mod")
     routine_info = mod_info.get_routine_info("local_func")
-    routine_info._compute_all_non_locals()
-    assert len(routine_info._non_locals) == 0
+    non_locals = routine_info.get_psyir()._compute_all_non_locals()
+    assert len(non_locals) == 0
 
 
 # -----------------------------------------------------------------------------

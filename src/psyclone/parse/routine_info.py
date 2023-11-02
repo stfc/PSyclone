@@ -38,9 +38,7 @@ and cache information about a routine (i.e. a subroutine or a function) in a
 module.
 '''
 
-from psyclone.core import Signature, VariablesAccessInfo
-from psyclone.psyir.nodes import (Call, Container, Reference)
-from psyclone.psyir.symbols import (ArgumentInterface, ImportInterface)
+from psyclone.core import VariablesAccessInfo
 
 
 # ============================================================================
@@ -165,129 +163,6 @@ class RoutineInfo(RoutineInfoBase):
         return self._var_accesses
 
     # ------------------------------------------------------------------------
-    @staticmethod
-    def _compute_non_locals_references(reference, sym):
-        '''This function analyses if the symbol is a local variable, or if
-        it was declared in the container, which is considered a non-local
-        access. The symbol's interface is LocalInterface in any case.
-        So we need to identify the symbol table in which the symbol is
-        actually declared, and check if it is declared in the routine, or
-        further up in the tree in the container (i.e. module).
-        # TODO #1089: this should simplify the implementation.
-
-        :param reference: the Reference node which accessed the specified \
-            symbol.
-        :type reference: :py:class:`psyclone.psyir.nodes.Reference`
-        :param sym: the symbol which needs to be identified to be either \
-            local or not.
-        :type sym: :py:class:`psyclone.psyir.symbols.Symbol`
-
-        :returns: either None (if the symbol cannot be found or is a \
-            constant), or a tuple indicating type, module name and symbol \
-            name.
-        :rtype: Union[None, Tuple[str, str, str]]
-
-        '''
-        node = reference
-        while node:
-            # A routine has its own name as a symbol in its symbol table.
-            # That reference is not useful to decide what kind of symbol
-            # it is (i.e. does it belong to this routine's container, in
-            # which case it is a non-local access)
-            if hasattr(node, "_symbol_table") and \
-                    sym.name in node.symbol_table and node.name != sym.name:
-                existing_sym = node.symbol_table.lookup(sym.name)
-                if existing_sym.is_automatic:
-                    return None
-                if isinstance(node, Container):
-                    if sym.is_constant:
-                        # Constants don't need to be saved
-                        return None
-                    sig = reference.get_signature_and_indices()[0]
-                    return ("reference", node.name, sig)
-
-            # Otherwise keep on looking
-            node = node.parent
-        return None
-
-    # ------------------------------------------------------------------------
-    def _compute_all_non_locals(self):
-        # pylint: disable=too-many-branches
-        '''This function computes and caches all non-local access of this
-        routine.
-
-        '''
-        # Circular dependency
-        # pylint: disable=import-outside-toplevel
-        from psyclone.psyGen import BuiltIn, Kern
-
-        self._non_locals = []
-
-        # Even if the file could not be parsed, there will be a dummy
-        # psyir returned, so no need to handle parsing errors here.
-        # TODO #2010
-        for access in self.get_psyir().walk((Kern, Call, Reference)):
-            # Builtins are certainly not externals, so ignore them.
-            if isinstance(access, BuiltIn):
-                continue
-
-            if isinstance(access, Kern):
-                # A kernel is a subroutine call from a module:
-                self._non_locals.append(("routine", access.module_name,
-                                         Signature(access.name)))
-                continue
-
-            if isinstance(access, Call):
-                sym = access.routine
-                if isinstance(sym.interface, ImportInterface):
-                    module_name = sym.interface.container_symbol.name
-                    self._non_locals.append(("routine", module_name,
-                                             Signature(sym.name)))
-                    continue
-                # No import. This could either be a routine from
-                # this module, or just a global function.
-                try:
-                    self.module_info.get_routine_info(sym.name)
-                    # A local function that is in the same module:
-                    self._non_locals.append(("routine",
-                                             self.module_info.name,
-                                             Signature(sym.name)))
-                except KeyError:
-                    # We don't know where the subroutine comes from
-                    self._non_locals.append(("routine", None, sym.name))
-
-                continue
-
-            # Now it's either a variable, or a function call (TODO #1314),
-            # both currently end up as a Reference:
-            sym = access.symbol
-            if isinstance(sym.interface, ArgumentInterface):
-                # Arguments are not external symbols and can be ignored
-                continue
-
-            if isinstance(sym.interface, ImportInterface):
-                # It is imported, record the information. The type needs
-                # to be identified when parsing the corresponding module,
-                # so for now set the type as unknown:
-                module_name = sym.interface.container_symbol.name
-                sig = access.get_signature_and_indices()[0]
-                # If a symbol is renamed, use the original name:
-                if sym.interface.orig_name:
-                    sig = Signature(sym.interface.orig_name, sig[1:])
-                self._non_locals.append(("unknown", module_name, sig))
-                continue
-
-            # Check for an assignment of a result in a function, which
-            # does not need to be reported:
-            if self._psyir.return_symbol and \
-                    sym.name == self._psyir.return_symbol.name:
-                continue
-
-            info = self._compute_non_locals_references(access, sym)
-            if info:
-                self._non_locals.append(info)
-
-    # ------------------------------------------------------------------------
     def get_non_local_symbols(self):
         '''This function returns a list of non-local accesses in this
         routine. It returns a list of triplets, each one containing:
@@ -304,20 +179,7 @@ class RoutineInfo(RoutineInfoBase):
                           :py:class:`psyclone.core.SingleVariableAccessInfo`]]
 
         '''
-        if self._non_locals is None:
-            self._compute_all_non_locals()
-
-        var_accesses = self.get_var_accesses()
-        result = []
-        for (symbol_type, module, sym_name) in self._non_locals:
-            if symbol_type == "routine":
-                result.append((symbol_type, module, Signature(sym_name), None))
-                continue
-            sig = Signature(sym_name)
-            result.append((symbol_type, module, sym_name,
-                           var_accesses[sig]))
-
-        return result
+        return self.get_psyir().get_non_local_symbols()
 
 
 # ============================================================================
