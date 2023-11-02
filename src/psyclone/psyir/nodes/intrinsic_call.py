@@ -963,6 +963,7 @@ class IntrinsicCall(Call):
         '''
         return self.intrinsic.is_inquiry
 
+
 # TODO #658 this can be removed once we have support for determining the
 # type of a PSyIR expression.
 # Intrinsics that perform a reduction on an array.
