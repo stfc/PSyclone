@@ -371,7 +371,7 @@ class KernelInterface(ArgOrdering):
             symbol_type=LFRicTypes("NumberOfDofsDataSymbol"),
             interface=self._read_access)
 
-        # We may already have this argument as we add it for each
+        # We may already have a symbol for this argument as we add it for each
         # operator (TODO #2074).
         ncells = self._symtab.find_or_create(
             "ncell_3d",
