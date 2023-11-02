@@ -80,9 +80,6 @@ jobs:
         python -m venv .runner_venv
         . .runner_venv/bin/activate
         python -m pip install --upgrade pip
-        # If you wish to install the version of fparser pointed to by the
-        # submodule instead of the released version (from PyPI) then
-        # uncomment the following line:
         pip install external/fparser
         pip install .[test,psydata]
     - name: Unit tests with compilation - gfortran
