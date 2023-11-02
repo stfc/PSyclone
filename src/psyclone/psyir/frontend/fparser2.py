@@ -1199,10 +1199,6 @@ class Fparser2Reader():
             module)
         new_container.symbol_table.default_visibility = default_visibility
 
-        # Look at any SAVE statements to determine any static symbols.
-        statics_list = self.process_save_statements(module,
-                                                    new_container.symbol_table)
-
         # Create symbols for all routines defined within this module
         _process_routine_symbols(module_ast, new_container.symbol_table,
                                  visibility_map)
@@ -1211,7 +1207,7 @@ class Fparser2Reader():
         for child in module.children:
             if isinstance(child, Fortran2003.Specification_Part):
                 self.process_declarations(new_container, child.children,
-                                          [], visibility_map, statics_list)
+                                          [], visibility_map)
                 break
 
         return new_container
@@ -1528,18 +1524,21 @@ class Fparser2Reader():
         return (default_visibility, visibility_map)
 
     @staticmethod
-    def process_save_statements(nodes, symbol_table):
+    def _process_save_statements(nodes, parent):
         '''
         Search the supplied list of fparser2 nodes (which must represent a
         complete Specification Part) for any SAVE statements (e.g.
         "SAVE :: my_var") to determine which Symbols are static.
 
+        Any common blocks referred to in a SAVE will result in Symbols of
+        UnknownFortranType being added to the symbol table associated with
+        `parent`.
+
         :param nodes: nodes in the fparser2 parse tree describing a
                       Specification Part that will be searched.
         :type nodes: List[:py:class:`fparser.two.utils.Base`]
-        :param symbol_table: the table to which to add any UnknownFortranType
-            Symbols required to capture SAVEs of named common blocks.
-        :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
+        :param : the parent node in the PSyIR under construction.
+        :type : :py:class:`psyclone.psyir.nodes.Node`
 
         :returns: names of symbols that are static or just "*" if they all are.
         :rtype: List[str]
@@ -1549,6 +1548,7 @@ class Fparser2Reader():
             SAVE statements (C580).
 
         '''
+        symbol_table = parent.scope.symbol_table
         default_save = False
         # Set holding the names of those symbols which are marked as static
         # via an explicit SAVE stmt (e.g. "SAVE :: my_var")
@@ -2335,15 +2335,14 @@ class Fparser2Reader():
                     symbol.interface = StaticInterface()
 
     def process_declarations(self, parent, nodes, arg_list,
-                             visibility_map=None, statics_list=None):
+                             visibility_map=None):
         '''
         Transform the variable declarations in the fparser2 parse tree into
         symbols in the symbol table of the PSyIR parent node. The default
         visibility of any new symbol is taken from the symbol table associated
         with the `parent` node if necessary. The `visibility_map` provides
         information on any explicit symbol visibilities that are specified
-        for the declarations. `statics_list` does the same for any symbols
-        declared to be static (via a SAVE statement).
+        for the declarations.
 
         :param parent: PSyIR node in which to insert the symbols found.
         :type parent: :py:class:`psyclone.psyir.nodes.KernelSchedule`
@@ -2354,9 +2353,7 @@ class Fparser2Reader():
         :param visibility_map: mapping of symbol names to explicit
             visibilities.
         :type visibility_map: dict[
-            :py:class:`psyclone.psyir.symbols.Symbol.Visibility`]
-        :param statics_list: names of symbols which are explicitly static.
-        :type statics_list: List[str]
+            str, :py:class:`psyclone.psyir.symbols.Symbol.Visibility`]
 
         :raises GenerationError: if an INCLUDE statement is encountered.
         :raises NotImplementedError: the provided declarations contain
@@ -2371,11 +2368,12 @@ class Fparser2Reader():
         '''
         if visibility_map is None:
             visibility_map = {}
-        if statics_list is None:
-            statics_list = []
 
         # Look at any USE statements
         self._process_use_stmts(parent, nodes, visibility_map)
+
+        # Look at any SAVE statements to determine any static symbols.
+        statics_list = self._process_save_statements(nodes, parent)
 
         # Handle any derived-type declarations/definitions before we look
         # at general variable declarations in case any of the latter use
@@ -4540,12 +4538,7 @@ class Fparser2Reader():
             # Routine has no arguments
             arg_list = []
 
-        # Look at any SAVE statements to see which, if any, symbols are static.
-        statics_list = self.process_save_statements(decl_list,
-                                                    routine.symbol_table)
-
-        self.process_declarations(routine, decl_list, arg_list,
-                                  statics_list=statics_list)
+        self.process_declarations(routine, decl_list, arg_list)
 
         # Check whether the function-stmt has a prefix specifying the
         # return type (other prefixes are handled in
@@ -4726,13 +4719,9 @@ class Fparser2Reader():
         except ValueError:
             spec_part = None
 
-        save_list = []
         if spec_part is not None:
-            save_list = self.process_save_statements(spec_part.children,
-                                                     container.symbol_table)
-
             self.process_declarations(container, spec_part.children,
-                                      [], visibility_map, save_list)
+                                      [], visibility_map)
 
         # Parse any module subprograms (subroutine or function)
         # skipping the contains node
