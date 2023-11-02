@@ -910,7 +910,7 @@ class DependencyTools():
                           f"ignored.")
                     continue
                 routine_info = mod_info.get_routine_info(kernel.name)
-                non_locals = routine_info.get_non_local_symbols()
+                non_locals = routine_info.get_psyir().get_non_local_symbols()
                 todo.extend(non_locals)
 
         # Resolve routine calls and unknown accesses:
@@ -974,7 +974,7 @@ class DependencyTools():
                           f"'{module_name}' - ignored.")
                     continue
                 # Add the list of non-locals to our todo list:
-                todo.extend(routine_info.get_non_local_symbols())
+                todo.extend(routine_info.get_psyir().get_non_local_symbols())
                 continue
 
             if external_type == "unknown":
