@@ -100,17 +100,6 @@ class LFRicFields(LFRicCollection):
                 f"Found unsupported intrinsic types for the field arguments "
                 f"{list(fld_inv)} to Invoke '{self._invoke.name}'. Supported "
                 f"types are {const.VALID_FIELD_INTRINSIC_TYPES}.")
-        # Check that the same field name is not found in both real and
-        # integer field lists (for instance if passed to one kernel as a
-        # real-valued and to another kernel as an integer-valued field)
-        fld_multi_type = \
-            set(real_field_arg_list).intersection(set(int_field_arg_list))
-        if fld_multi_type:
-            raise GenerationError(
-                f"Field argument(s) {list(fld_multi_type)} in Invoke "
-                f"'{self._invoke.name}' have different metadata for data type "
-                f"({const.VALID_FIELD_DATA_TYPES}) in different kernels. "
-                f"This is invalid.")
 
         # Create a field argument map that splits the (real and
         # integer) fields into their different datatypes.
