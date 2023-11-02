@@ -909,9 +909,8 @@ class DependencyTools():
                     print(f"Could not find module '{kernel.module_name}' - "
                           f"ignored.")
                     continue
-                routine_info = mod_info.get_routine_info(kernel.name)
-                non_locals = routine_info.get_psyir().get_non_local_symbols()
-                todo.extend(non_locals)
+                psyir = mod_info.get_psyir(kernel.name)
+                todo.extend(psyir.get_non_local_symbols())
 
         # Resolve routine calls and unknown accesses:
         self._resolve_calls_and_unknowns(todo, read_write_info)
@@ -968,13 +967,13 @@ class DependencyTools():
                     print(f"Cannot find module '{module_name}' - ignored.")
                     continue
                 try:
-                    routine_info = mod_info.get_routine_info(signature[0])
+                    routine_psyir = mod_info.get_psyir(signature[0])
                 except KeyError:
                     print(f"Cannot find symbol '{signature[0]}' in module "
                           f"'{module_name}' - ignored.")
                     continue
                 # Add the list of non-locals to our todo list:
-                todo.extend(routine_info.get_psyir().get_non_local_symbols())
+                todo.extend(routine_psyir.get_non_local_symbols())
                 continue
 
             if external_type == "unknown":
