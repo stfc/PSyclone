@@ -337,10 +337,10 @@ end module my_mod'''
     rtrans.validate(routine)
 
 
-def test_accroutinetrans_validate_no_import_cblock(fortran_reader):
+def test_accroutinetrans_validate_no_cblock(fortran_reader):
     '''
     Test the validate() method of ACCRoutineTrans rejects a kernel that
-    accesses imported data when that access is within a CodeBlock.
+    contains a CodeBlock.
 
     '''
     code = '''\
@@ -357,6 +357,14 @@ end module my_mod'''
     rtrans = ACCRoutineTrans()
     with pytest.raises(TransformationError) as err:
         rtrans.validate(routine)
+    assert ("Transformation Error: Cannot safely add 'ACC routine' to routine "
+            "'my_sub' because its PSyIR contains one or more CodeBlocks:\n"
+            "  WRITE(*, *)" in str(err.value))
+    assert ("You may use 'options={'force': True}' to override this check."
+            in str(err.value))
+    # Using 'force' will force the variable accesses to be checked.
+    with pytest.raises(TransformationError) as err:
+        rtrans.validate(routine, options={'force': True})
     assert ("Transformation Error: routine 'my_sub' accesses the symbol "
             "'some_data' within a CodeBlock and this symbol is imported. "
             "'ACC routine' cannot be added to such a routine."
@@ -377,7 +385,7 @@ def test_accroutinetrans_validate_no_call():
     with pytest.raises(TransformationError) as err:
         rtrans.validate(kernel)
     assert ("Kernel 'testkern_with_call_code' calls another routine "
-            "('call xyz2llr(coord(1), coord(2), coord(3), lon, lat, radius)') "
+            "'call xyz2llr(coord(1), coord(2), coord(3), lon, lat, radius)' "
             "and therefore cannot have 'ACC routine' added to it"
             in str(err.value))
 

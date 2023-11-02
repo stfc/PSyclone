@@ -368,6 +368,22 @@ def test_symbol_resolve_deferred(monkeypatch):
     assert new_sym.datatype == INTEGER_SINGLE_TYPE
     assert new_sym.visibility == Symbol.Visibility.PRIVATE
     assert new_sym.is_import
+    # Repeat but test when the imported Symbol is a parameter.
+    csym = Symbol("c", visibility=Symbol.Visibility.PRIVATE,
+                  interface=ImportInterface(other_container))
+    # Monkeypatch the get_external_symbol() method so that it just returns
+    # a new DataSymbol
+    monkeypatch.setattr(
+        csym, "get_external_symbol",
+        lambda: DataSymbol("c", INTEGER_SINGLE_TYPE,
+                           is_constant=True,
+                           initial_value=Literal("1", INTEGER_SINGLE_TYPE)))
+    new_sym = csym.resolve_deferred()
+    assert new_sym is csym
+    assert new_sym.datatype == INTEGER_SINGLE_TYPE
+    assert new_sym.is_import
+    assert new_sym.is_constant
+    assert new_sym.initial_value == Literal("1", INTEGER_SINGLE_TYPE)
 
 
 def test_symbol_array_handling():

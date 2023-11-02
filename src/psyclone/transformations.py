@@ -2426,6 +2426,7 @@ class ACCRoutineTrans(Transformation):
     >>> kern = schedule.children[0].children[0].children[0]
     >>> # Transform the kernel
     >>> rtrans.apply(kern)
+
     '''
     @property
     def name(self):
@@ -2487,6 +2488,8 @@ class ACCRoutineTrans(Transformation):
         '''
         super().validate(node, options)
 
+        force = options.get("force", False) if options else False
+
         if not isinstance(node, Kern) and not isinstance(node, Routine):
             raise TransformationError(
                 f"The ACCRoutineTrans must be applied to a sub-class of "
@@ -2518,6 +2521,8 @@ class ACCRoutineTrans(Transformation):
 
         # Check that the routine does not access any data that is imported via
         # a 'use' statement.
+        # TODO #2271 - this implementation will not catch symbols from literal
+        # precisions or intialisation expressions.
         refs = kernel_schedule.walk(Reference)
         for ref in refs:
             if ref.symbol.is_import:
@@ -2538,18 +2543,35 @@ class ACCRoutineTrans(Transformation):
                     f"{k_or_r} argument using the KernelImportsToArguments "
                     f"transformation.")
 
-        # Check any accesses within CodeBlocks.
+        # We forbid CodeBlocks because we can't be certain that what they
+        # contain can be executed on a GPU. However, we do permit the user
+        # to override this check.
         cblocks = kernel_schedule.walk(CodeBlock)
-        for cblock in cblocks:
-            names = cblock.get_symbol_names()
-            for name in names:
-                sym = kernel_schedule.symbol_table.lookup(name)
-                if sym.is_import:
-                    raise TransformationError(
-                        f"{k_or_r} '{node.name}' accesses the symbol "
-                        f"'{sym.name}' within a CodeBlock and this symbol is "
-                        f"imported. 'ACC routine' cannot be added to such a "
-                        f"{k_or_r}.")
+        if not force:
+            if cblocks:
+                cblock_txt = ("\n  " + "\n  ".join(str(node) for node in
+                                                   cblocks[0].get_ast_nodes)
+                              + "\n")
+                option_txt = "options={'force': True}"
+                raise TransformationError(
+                    f"Cannot safely add 'ACC routine' to {k_or_r} "
+                    f"'{node.name}' because its PSyIR contains one or more "
+                    f"CodeBlocks:{cblock_txt}You may use '{option_txt}' to "
+                    f"override this check.")
+        else:
+            # Check any accesses within CodeBlocks.
+            # TODO #2271 - this will be handled as part of the checking to be
+            # implemented using the dependence analysis.
+            for cblock in cblocks:
+                names = cblock.get_symbol_names()
+                for name in names:
+                    sym = kernel_schedule.symbol_table.lookup(name)
+                    if sym.is_import:
+                        raise TransformationError(
+                            f"{k_or_r} '{node.name}' accesses the symbol "
+                            f"'{sym.name}' within a CodeBlock and this symbol "
+                            f"is imported. 'ACC routine' cannot be added to "
+                            f"such a {k_or_r}.")
 
         calls = kernel_schedule.walk(Call)
         for call in calls:
@@ -2557,7 +2579,7 @@ class ACCRoutineTrans(Transformation):
                 call_str = call.debug_string().rstrip("\n")
                 raise TransformationError(
                     f"{k_or_r} '{node.name}' calls another routine "
-                    f"('{call_str}') and therefore cannot have "
+                    f"'{call_str}' and therefore cannot have "
                     f"'ACC routine' added to it (TODO #342).")
 
 
