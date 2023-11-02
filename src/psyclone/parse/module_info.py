@@ -50,7 +50,6 @@ from fparser.two.utils import FortranSyntaxError, walk
 
 from psyclone.errors import InternalError, PSycloneError
 from psyclone.psyir.nodes import Container, FileContainer, Routine
-from psyclone.parse.routine_info import GenericRoutineInfo, RoutineInfo
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.psyir.symbols import SymbolError
 
@@ -104,9 +103,22 @@ class ModuleInfo:
         # each module, indexed by the module names: Dict[str, Set(str)].
         self._used_symbols_from_module = None
 
-        # This dictionary will store the mapping of routine name to
-        # RoutineInfo objects.
-        self._routine_info = None
+        # This variable will be a set that stores the name of all routines
+        # (based on fparser), # so we can test is a routine is defined
+        # without having to convert the AST to PSyIR. It is initialised with
+        # None so we avoid trying to parse a file more than once (parsing
+        # errors would cause routine_names to be empty, so we can test
+        # if routine_name is None vs if routine_names is empty)
+        self._routine_names = None
+
+        # This dictionary stores the mapping of routine name to the list
+        # of PSyIR Routine nodes. It is a list since in case of a generic
+        # interface several Routine nodes are required.
+        self._psyir_of_routines = None
+
+        # This map contains the list of routine names that are part
+        # of the same generic interface.
+        self._generic_interfaces = {}
 
         # This is a dictionary that will cache non-local symbols used in
         # each routine. The key is the lowercase routine name, and the
@@ -172,10 +184,10 @@ class ModuleInfo:
 
         '''
         if self._parse_tree is None:
-            # Set routine_info to be an empty directory (it was None before).
-            # This way we avoid that get_routine_info might trigger to parse
-            # this file again.
-            self._routine_info = {}
+            # Set routine_names to be an empty set (it was None before).
+            # This way we avoid that any other function might trigger to
+            # parse this file again (in case of parsing errors).
+            self._routine_names = set()
 
             reader = FortranStringReader(self.get_source_code())
             parser = ParserFactory().create(std="f2008")
@@ -190,52 +202,26 @@ class ModuleInfo:
                                                    Interface_Block)):
                 if isinstance(routine, Interface_Block):
                     all_generic_interfaces.append(routine)
-                    continue
-                routine_info = RoutineInfo(self, routine)
-                self._routine_info[routine_info.name.lower()] = routine_info
+                else:
+                    routine_name = str(routine.content[0].items[1])
+                    self._routine_names.add(routine_name)
 
             # Then handle all generic interfaces, which will internally
             # use references to the RoutineInfo objects collected above:
             for interface in all_generic_interfaces:
                 # Get the name of the interface from the Interface_Stmt:
-                name = str(walk(interface, Interface_Stmt)[0].items[0])
-                # Now collect all specific functions
+                name = str(walk(interface, Interface_Stmt)[0].items[0]).lower()
+                self._routine_names.add(name)
+
+                # Collect all specific functions for this generic interface
                 routine_names = []
                 for proc_stmt in walk(interface, Procedure_Stmt):
                     # Convert the items to strings:
                     routine_names.extend([str(i) for i in
                                           proc_stmt.items[0].items])
-                # Create a GenericRoutineInfo object to store this information:
-                generic_info = GenericRoutineInfo(self, name, routine_names)
-                self._routine_info[name.lower()] = generic_info
+                self._generic_interfaces[name] = routine_names
 
         return self._parse_tree
-
-    # ------------------------------------------------------------------------
-    def get_routine_info(self, routine_name):
-        '''Returns the routine information for the specified routine name.
-
-        :param str routine_name: the name of the routine.
-
-        :returns: the RoutineInfo object for the specified routine.
-        :rtype: :py:class:`psyclone.parse.RoutineInfo`
-
-        :raises KeyError: if the module source file could not be parsed.
-        :raises KeyError: if the specified routine is not in the module.
-
-        '''
-        if self._routine_info is None:
-            # This will trigger adding routine information:
-            try:
-                self.get_parse_tree()
-            except FortranSyntaxError as err:
-                raise KeyError(f"Could not parse '{self.name}'") from err
-
-        routine_info = self._routine_info.get(routine_name.lower(), None)
-        if routine_info:
-            return routine_info
-        raise KeyError(f"Routine '{routine_name.lower()}' is not in module "
-                       f"'{self.name}'.")
 
     # ------------------------------------------------------------------------
     def contains_routine(self, routine_name):
@@ -245,14 +231,14 @@ class ModuleInfo:
         :rtype: bool
 
         '''
-        if self._routine_info is None:
+        if self._routine_names is None:
             # This will trigger adding routine information
             try:
                 self.get_parse_tree()
             except FortranSyntaxError:
                 return False
 
-        return routine_name.lower() in self._routine_info
+        return routine_name.lower() in self._routine_names
 
     # ------------------------------------------------------------------------
     def _extract_import_information(self):
@@ -325,7 +311,7 @@ class ModuleInfo:
         return self._used_symbols_from_module
 
     # ------------------------------------------------------------------------
-    def get_psyir(self):
+    def get_psyir(self, routine_name=None):
         '''Returns the PSyIR representation of this module. This is based
         on the fparser tree (see get_parse_tree), and the information is
         cached. If the PSyIR must be modified, it needs to be copied,
@@ -337,8 +323,11 @@ class ModuleInfo:
         #TODO 2120: This should be revisited when improving on the error
         handling.
 
+        :param routine_name: optional the name of a routine.
+        :type routine_name: Optional[str]
+
         :returns: PSyIR representing this module.
-        :rtype: :py:class:`psyclone.psyir.nodes.Node`
+        :rtype: List[:py:class:`psyclone.psyir.nodes.Node`]
 
         '''
         if self._psyir is None:
@@ -352,12 +341,49 @@ class ModuleInfo:
                 self._psyir = FileContainer(os.path.basename(self._filename))
                 module = Container("invalid-module")
                 self._psyir.children.append(module)
-            # Now update all RoutineInfo objects:
+            # Store the PSyIR of all routines:
+            self._psyir_of_routines = {}
             for routine in self._psyir.walk(Routine):
-                routine_info = self._routine_info[routine.name.lower()]
-                routine_info.set_psyir(routine)
+                self._psyir_of_routines[routine.name.lower()] = routine
 
+        if routine_name is not None:
+            return self._psyir_of_routines[routine_name.lower()]
         return self._psyir
+
+    # ------------------------------------------------------------------------
+    def get_non_local_symbols(self, routine_name):
+        '''This function returns a list of non-local accesses in this
+        routine. It returns a list of triplets, each one containing:
+        - the type ('routine', 'function', 'reference', 'unknown').
+          The latter is used for array references or function calls,
+          which we cannot distinguish till #1314 is done.
+        - the name of the module (lowercase). This can be 'None' if no
+          module information is available.
+        - the Signature of the symbol
+        - the access information for the given variable
+
+        :param str routine_name: name of the routine for which to return
+            the non-local symbol information.
+
+        :returns: the non-local accesses in this routine.
+        :rtype: List[Tuple[str, str, :py:class:`psyclone.core.Signature`, \
+                          :py:class:`psyclone.core.SingleVariableAccessInfo`]]
+
+        '''
+        if self._psyir_of_routines is None:
+            self.get_psyir()
+        routine_name = routine_name.lower()
+        if routine_name in self._generic_interfaces:
+            # If a generic interface name is queried, return the union
+            # of all routines listed. Use a better variable name:
+            generic_name = routine_name
+            non_locals = []
+            for name in self._generic_interfaces[generic_name]:
+                non_locals.extend(self.get_non_local_symbols(name))
+            return non_locals
+
+        # It's not a generic interface. Just query the Routine object:
+        return self._psyir_of_routines[routine_name].get_non_local_symbols()
 
     # ------------------------------------------------------------------------
     def get_symbol(self, name):
