@@ -2525,11 +2525,21 @@ class Fparser2Reader():
                 # These node types are handled separately
                 pass
             elif isinstance(node, Fortran2003.Implicit_Part):
+                # Anything other than a PARAMETER statement or an
+                # IMPLICIT NONE means we can't handle this code.
                 # Any PARAMETER statements are handled separately by the
                 # call to _process_parameter_stmts below.
-                # TODO #1254: We currently silently ignore the rest of
-                # the Implicit_Part statements
-                pass
+                # Any ENTRY statements are checked for in _subroutine_handler.
+                child_nodes = walk(node, Fortran2003.Format_Stmt)
+                if child_nodes:
+                    raise NotImplementedError(
+                        f"Error processing implicit-part: Format statements "
+                        f"are not supported but found '{child_nodes[0]}'")
+                child_nodes = walk(node, Fortran2003.Implicit_Stmt)
+                if any(imp.children != ('NONE',) for imp in child_nodes):
+                    raise NotImplementedError(
+                        f"Error processing implicit-part: implicit variable "
+                        f"declarations not supported but found '{node}'")
             else:
                 raise NotImplementedError(
                     f"Error processing declarations: fparser2 node of type "
@@ -4486,7 +4496,8 @@ class Fparser2Reader():
 
 
         :raises NotImplementedError: if the node contains a Contains clause.
-        :raises NotImplementedError: if an unsupported prefix is found or no \
+        :raises NotImplementedError: if the node contains an ENTRY statement.
+        :raises NotImplementedError: if an unsupported prefix is found or no
             explicit type information is available for a Function.
 
         '''
@@ -4497,6 +4508,12 @@ class Fparser2Reader():
                                       " inside a Subroutine or Function")
         except ValueError:
             pass
+
+        entry_stmts = walk(node, Fortran2003.Entry_Stmt)
+        if entry_stmts:
+            raise NotImplementedError(
+                f"PSyclone does not support routines that contain one or more "
+                f"ENTRY statements but found '{entry_stmts[0]}'")
 
         name = node.children[0].children[1].string
         routine = Routine(name, parent=parent)

@@ -38,7 +38,6 @@
 ''' Performs py.test tests on the container generation in the fparser2 PSyIR
     front-end. '''
 
-from __future__ import absolute_import
 import pytest
 
 from fparser.common.readfortran import FortranStringReader
@@ -46,7 +45,7 @@ from fparser.two import Fortran2003
 
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader
 from psyclone.errors import InternalError, GenerationError
-from psyclone.psyir.nodes import Container, KernelSchedule
+from psyclone.psyir.nodes import Container, FileContainer, KernelSchedule
 from psyclone.psyir.symbols import Symbol, RoutineSymbol
 
 
@@ -57,6 +56,7 @@ def test_generate_container(parser):
     module dummy_mod
         use mod1
         use mod2, only: var1
+        implicit none
         real :: modvar1
     contains
         subroutine dummy_code(f1, f2, f3)
@@ -339,3 +339,42 @@ def test_broken_access_spec(parser):
     with pytest.raises(InternalError) as err:
         processor.process_declarations(fake_parent, fparser2spec.children, [])
     assert "Unexpected Access Spec attribute 'not-private'" in str(err.value)
+
+
+def test_unsupported_implicit_part(parser):
+    '''
+    Test that an unsupported implicit statment results in the expected error.
+    '''
+    fake_parent = FileContainer("dummy")
+    processor = Fparser2Reader()
+    code = '''\
+      module my_modulename
+        implicit real (a-h,o-z)
+        integer, private :: var3
+      end module my_modulename'''
+    reader = FortranStringReader(code)
+    fparser2spec = parser(reader).children[0].children[1]
+    with pytest.raises(NotImplementedError) as err:
+        processor.process_declarations(fake_parent, fparser2spec.children, [])
+    assert ("implicit variable declarations not supported but found "
+            "'IMPLICIT REAL(A - H, O - Z)'" in str(err.value))
+
+
+def test_unsupported_format_stmt(parser):
+    '''
+    Test that an unsupported format statement appearing in the implicit-part
+    of a specification-part in a module results in the expected error.
+    '''
+    fake_parent = FileContainer("dummy")
+    processor = Fparser2Reader()
+    code = '''\
+      module my_modulename
+5       FORMAT (1E12.4, I10)
+        integer, private :: var3
+      end module my_modulename'''
+    reader = FortranStringReader(code)
+    fparser2spec = parser(reader).children[0].children[1]
+    with pytest.raises(NotImplementedError) as err:
+        processor.process_declarations(fake_parent, fparser2spec.children, [])
+    assert ("Error processing implicit-part: Format statements are not "
+            "supported but found 'FORMAT(1E12.4, I10)'" in str(err.value))

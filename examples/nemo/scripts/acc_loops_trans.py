@@ -2,7 +2,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2023, Science and Technology Facilities Council.
+# Copyright (c) 2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -34,22 +34,20 @@
 # -----------------------------------------------------------------------------
 # Authors: S. Siso, STFC Daresbury Lab
 
-''' PSyclone transformation script showing the introduction of OpenMP for GPU
+''' PSyclone transformation script showing the introduction of OpenACC loop
 directives into Nemo code. '''
 
 from utils import insert_explicit_loop_parallelism, normalise_loops, \
     enhance_tree_information, add_profiling
-
-from psyclone.psyGen import TransInfo
 from psyclone.psyir.nodes import Call, Loop
-from psyclone.psyir.transformations import OMPTargetTrans
-from psyclone.transformations import OMPDeclareTargetTrans
+from psyclone.transformations import ACCParallelTrans, ACCLoopTrans
+from psyclone.transformations import ACCRoutineTrans
 
 PROFILING_ENABLED = True
 
 
 def trans(psy):
-    ''' Add OpenMP Target and Loop directives to all loops, including the
+    ''' Add OpenACC Parallel and Loop directives to all loops, including the
     implicit ones, to parallelise the code and execute it in an acceleration
     device.
 
@@ -59,9 +57,8 @@ def trans(psy):
     :rtype: :py:class:`psyclone.psyGen.PSy`
 
     '''
-    omp_target_trans = OMPTargetTrans()
-    omp_loop_trans = TransInfo().get_trans_name('OMPLoopTrans')
-    omp_loop_trans.omp_directive = "loop"
+    acc_region_trans = ACCParallelTrans(default_present=False)
+    acc_loop_trans = ACCLoopTrans()
 
     print(f"Invokes found in {psy.name}:")
     for invoke in psy.invokes.invoke_list:
@@ -94,6 +91,14 @@ def trans(psy):
             print("Skipping", invoke.name)
             continue
 
+        # OpenACC fails in the following routines with the Compiler error:
+        # Could not find allocated-variable index for symbol - xxx
+        # This all happen on characters arrays, e.g. cd_nat
+        if invoke.name in ("lbc_nfd_2d_ptr", "lbc_nfd_3d_ptr",
+                           "lbc_nfd_4d_ptr", "bdy_dyn"):
+            print("Skipping", invoke.name)
+            continue
+
         enhance_tree_information(invoke.schedule)
 
         normalise_loops(
@@ -109,15 +114,15 @@ def trans(psy):
             if not invoke.schedule.walk(Loop):
                 calls = invoke.schedule.walk(Call)
                 if all(call.is_available_on_device() for call in calls):
-                    OMPDeclareTargetTrans().apply(invoke.schedule)
+                    ACCRoutineTrans().apply(invoke.schedule)
                     continue
 
         insert_explicit_loop_parallelism(
-                invoke.schedule,
-                region_directive_trans=omp_target_trans,
-                loop_directive_trans=omp_loop_trans,
-                # Collapse is necessary to give GPUs enough parallel items
-                collapse=True
+            invoke.schedule,
+            region_directive_trans=acc_region_trans,
+            loop_directive_trans=acc_loop_trans,
+            # Collapse is necessary to give GPUs enough parallel items
+            collapse=True,
         )
 
     return psy
