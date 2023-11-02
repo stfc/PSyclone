@@ -315,6 +315,7 @@ class Routine(Schedule, CommentableMixin):
         :rtype: Union[None, Tuple[str, str, str]]
 
         '''
+        # Circular import:
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.nodes.container import Container
         node = reference
@@ -376,20 +377,15 @@ class Routine(Schedule, CommentableMixin):
                 # No import. This could either be a routine from
                 # this module, or just a global function.
                 parent = self.parent
-                from psyclone.psyir.nodes.container import Container
-                if not isinstance(parent, Container):
-                    non_locals.append(("routine", None, sym.name))
+                for routine in parent.walk(Routine):
+                    if routine.name == sym.name:
+                        # A local function that is in the same module:
+                        non_locals.append(("routine", parent.name,
+                                           Signature(sym.name)))
+                        break
                 else:
-                    for routine in parent.walk(Routine):
-                        if routine.name == sym.name:
-                            # A local function that is in the same module:
-                            non_locals.append(("routine", parent.name,
-                                               Signature(sym.name)))
-                            break
-                    else:
-                        # We don't know where the subroutine comes from
-                        non_locals.append(("routine", None, sym.name))
-
+                    # We don't know where the subroutine comes from
+                    non_locals.append(("routine", None, sym.name))
                 continue
 
             # Now it's either a variable, or a function call (TODO #1314),
