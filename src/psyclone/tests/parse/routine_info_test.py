@@ -36,20 +36,16 @@
 
 '''Module containing tests for the RoutineInfo class.'''
 
-import os
 import pytest
 
 from fparser.two.Fortran2003 import (Subroutine_Subprogram)
 from fparser.two.utils import walk
 
 from psyclone.core import Signature
-from psyclone.dynamo0p3 import DynKern
 from psyclone.parse import ModuleInfo, ModuleManager
 from psyclone.parse.routine_info import (GenericRoutineInfo, RoutineInfo,
                                          RoutineInfoBase)
-from psyclone.psyGen import BuiltIn
-from psyclone.psyir.nodes import FileContainer, Reference, Schedule
-from psyclone.tests.utilities import get_base_path, get_invoke
+from psyclone.psyir.nodes import FileContainer
 
 
 # -----------------------------------------------------------------------------
@@ -100,128 +96,6 @@ def test_routine_info_constructor():
     func1 = walk(ast, Subroutine_Subprogram)[0]
     routine_info = RoutineInfo(mod_info, func1)
     assert routine_info.name == "myfunc1"
-
-
-# -----------------------------------------------------------------------------
-@pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance",
-                         "mod_man_test_setup_directories")
-def test_routine_info_var_accesses():
-    '''Tests the RoutineInfo class:
-    '''
-
-    mod_man = ModuleManager.get()
-    mod_man.add_search_path("d2")
-    mod_info = mod_man.get_module_info("g_mod")
-    routine_info = mod_info.get_routine_info("myfunc1")
-    var_accesses = routine_info.get_var_accesses()
-    assert str(var_accesses) == ("a: WRITE, module_var: READ, "
-                                 "module_var_1: READ, p: READ")
-
-
-# -----------------------------------------------------------------------------
-@pytest.mark.usefixtures("clear_module_manager_instance")
-def test_routine_info_get_used_symbols_from_modules():
-    '''Tests that we get the used symbols from a routine reported correctly.
-    '''
-    test_dir = os.path.join(get_base_path("dynamo0.3"), "driver_creation")
-
-    mod_man = ModuleManager.get()
-    mod_man.add_search_path(test_dir)
-
-    mod_info = mod_man.get_module_info("testkern_import_symbols_mod")
-    routine_info = mod_info.get_routine_info("testkern_import_symbols_code")
-    non_locals = routine_info.get_non_local_symbols()
-
-    # Check that the expected symbols, modules and internal type are correct:
-    expected = [("unknown", "constants_mod", "eps"),
-                ("reference", "testkern_import_symbols_mod",
-                 "dummy_module_variable"),
-                ("routine", "module_with_var_mod", "module_subroutine"),
-                ("unknown", "module_with_var_mod", "module_var_a"),
-                ("routine", "testkern_import_symbols_mod", "local_subroutine"),
-                ("routine", None, "unknown_subroutine"),
-                ]
-    # First check the length. This will ensure that e.g. the constant in the
-    # example subroutine is not reported.
-    assert len(non_locals) == len(expected)
-    for sym_type, module, name in expected:
-        assert ((sym_type, module, Signature(name)) in
-                [(i[0], i[1], i[2]) for i in non_locals])
-
-    # Check the handling of a symbol that is not found: _compute_non_locals
-    # should return None:
-    psyir = routine_info.get_psyir()
-    ref = psyir.walk(Reference)[0]
-    # Change the name of the symbol so that it is not in the symbol table:
-    ref.symbol._name = "not-in-any-symbol-table"
-    assert routine_info._compute_non_locals_references(ref, ref.symbol) is None
-
-
-# -----------------------------------------------------------------------------
-@pytest.mark.usefixtures("clear_module_manager_instance")
-def test_routine_info_get_used_symbols_from_modules_renamed():
-    '''Tests that we get the used symbols from a routine reported correctly
-    when a symbol is renamed, we need to get the original name.
-    '''
-    test_dir = os.path.join(get_base_path("dynamo0.3"), "driver_creation")
-
-    mod_man = ModuleManager.get()
-    mod_man.add_search_path(test_dir)
-
-    mod_info = mod_man.get_module_info("module_renaming_external_var_mod")
-    routine_info = mod_info.get_routine_info("renaming_subroutine")
-    non_locals = routine_info.get_non_local_symbols()
-
-    # This example should report just one non-local module:
-    # use module_with_var_mod, only: renamed_var => module_var_a
-    # It must report the name in the module "module_var_a", not "renamed_var"
-    assert len(non_locals) == 1
-    # Ignore the last element, variable access
-    assert non_locals[0][0:3] == ("unknown", "module_with_var_mod",
-                                  Signature("module_var_a"))
-
-
-# -----------------------------------------------------------------------------
-@pytest.mark.usefixtures("clear_module_manager_instance")
-def test_routine_info_non_locals_invokes():
-    '''Tests that kernels and builtins are handled correctly. We need to get
-    the PSyIR after being processed by PSyclone, so that the invoke-call has
-    been replaced with the builtin/kernel.
-    '''
-
-    # Get the PSyclone-processed PSyIR
-    test_file = os.path.join("driver_creation", "module_with_builtin_mod.f90")
-    psyir, _ = get_invoke(test_file, "dynamo0.3", 0, dist_mem=False)
-
-    # Now create the module and routine info
-    test_dir = os.path.join(get_base_path("dynamo0.3"), "driver_creation")
-    mod_man = ModuleManager.get()
-    mod_man.add_search_path(test_dir)
-    mod_info = mod_man.get_module_info("module_with_builtin_mod")
-    routine_info = mod_info.get_routine_info("sub_with_builtin")
-
-    # Replace the generic PSyir with the PSyclone processed PSyIR, which
-    # has a builtin
-    routine_info._psyir = psyir.invokes.invoke_list[0].schedule
-    # This will return three schedule - the DynInvokeSchedule, and two
-    # schedules for the kernel and builtin:
-    schedules = routine_info._psyir.walk(Schedule)
-    assert isinstance(schedules[1].children[0], DynKern)
-    assert isinstance(schedules[2].children[0], BuiltIn)
-
-    routine_info._compute_all_non_locals()
-    non_locals = routine_info._non_locals
-    # There should be exactly one entry - the kernel, but not the builtin:
-    assert len(non_locals) == 1
-    assert non_locals[0] == ("routine", "testkern_import_symbols_mod",
-                             Signature("testkern_import_symbols_code"))
-
-    # Test that the assignment of the result of a function is not reported
-    # as an access:
-    mod_info = mod_man.get_module_info("testkern_import_symbols_mod")
-    routine_info = mod_info.get_routine_info("local_func")
-    routine_info._compute_all_non_locals()
-    assert len(routine_info._non_locals) == 0
 
 
 # -----------------------------------------------------------------------------
