@@ -38,8 +38,6 @@ and cache information about a routine (i.e. a subroutine or a function) in a
 module.
 '''
 
-from psyclone.core import VariablesAccessInfo
-
 
 # ============================================================================
 class RoutineInfoBase:
@@ -144,43 +142,6 @@ class RoutineInfo(RoutineInfoBase):
         super().__init__(module_info, name)
         self._ast = ast
 
-        # List[Tuple[str, str, :py:class:`psyclone.core.Signature`, \
-        #           :py:class:`psyclone.core.SingleVariableAccessInfo`]]
-        self._non_locals = None
-        self._var_accesses = None
-
-    # ------------------------------------------------------------------------
-    def get_var_accesses(self):
-        ''':returns: the variable access information for this routine.
-        :rtype: :py:class:`psyclone.core.VariablesAccessInfo`
-
-        '''
-        if self._var_accesses is None:
-            self._var_accesses = \
-                VariablesAccessInfo(self.get_psyir(),
-                                    options={"USE-ORIGINAL-NAMES": True})
-
-        return self._var_accesses
-
-    # ------------------------------------------------------------------------
-    def get_non_local_symbols(self):
-        '''This function returns a list of non-local accesses in this
-        routine. It returns a list of triplets, each one containing:
-        - the type ('routine', 'function', 'reference', 'unknown').
-          The latter is used for array references or function calls,
-          which we cannot distinguish till #1314 is done.
-        - the name of the module (lowercase). This can be 'None' if no
-          module information is available.
-        - the Signature of the symbol
-        - the access information for the given variable
-
-        :returns: the non-local accesses in this routine.
-        :rtype: List[Tuple[str, str, :py:class:`psyclone.core.Signature`, \
-                          :py:class:`psyclone.core.SingleVariableAccessInfo`]]
-
-        '''
-        return self.get_psyir().get_non_local_symbols()
-
 
 # ============================================================================
 class GenericRoutineInfo(RoutineInfoBase):
@@ -228,6 +189,6 @@ class GenericRoutineInfo(RoutineInfoBase):
         non_locals = []
 
         for routine_info in self._all_routines:
-            non_locals.extend(routine_info.get_non_local_symbols())
+            non_locals.extend(routine_info.get_psyir().get_non_local_symbols())
 
         return non_locals

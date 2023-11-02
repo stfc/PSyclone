@@ -101,22 +101,6 @@ def test_routine_info_constructor():
 # -----------------------------------------------------------------------------
 @pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance",
                          "mod_man_test_setup_directories")
-def test_routine_info_var_accesses():
-    '''Tests the RoutineInfo class:
-    '''
-
-    mod_man = ModuleManager.get()
-    mod_man.add_search_path("d2")
-    mod_info = mod_man.get_module_info("g_mod")
-    routine_info = mod_info.get_routine_info("myfunc1")
-    var_accesses = routine_info.get_var_accesses()
-    assert str(var_accesses) == ("a: WRITE, module_var: READ, "
-                                 "module_var_1: READ, p: READ")
-
-
-# -----------------------------------------------------------------------------
-@pytest.mark.usefixtures("change_into_tmpdir", "clear_module_manager_instance",
-                         "mod_man_test_setup_directories")
 def test_generic_routine_info():
     '''Tests the GenericRoutineInfo class, which should return the combined
     results from all individual subroutines. The example in g_mod declares
