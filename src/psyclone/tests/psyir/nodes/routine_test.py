@@ -290,8 +290,8 @@ def test_routine_info_get_used_symbols_from_modules():
     mod_man.add_search_path(test_dir)
 
     mod_info = mod_man.get_module_info("testkern_import_symbols_mod")
-    routine_info = mod_info.get_routine_info("testkern_import_symbols_code")
-    non_locals = routine_info.get_non_local_symbols()
+    psyir = mod_info.get_psyir("testkern_import_symbols_code")
+    non_locals = psyir.get_non_local_symbols()
 
     # Check that the expected symbols, modules and internal type are correct:
     expected = [("unknown", "constants_mod", "eps"),
@@ -311,11 +311,10 @@ def test_routine_info_get_used_symbols_from_modules():
 
     # Check the handling of a symbol that is not found: _compute_non_locals
     # should return None:
-    psyir = routine_info.get_psyir()
     ref = psyir.walk(Reference)[0]
     # Change the name of the symbol so that it is not in the symbol table:
     ref.symbol._name = "not-in-any-symbol-table"
-    psyir = routine_info.get_psyir()
+    psyir = mod_info.get_psyir("testkern_import_symbols_code")
     assert psyir._compute_non_locals_references(ref, ref.symbol) is None
 
 
@@ -331,8 +330,8 @@ def test_routine_info_get_used_symbols_from_modules_renamed():
     mod_man.add_search_path(test_dir)
 
     mod_info = mod_man.get_module_info("module_renaming_external_var_mod")
-    routine_info = mod_info.get_routine_info("renaming_subroutine")
-    non_locals = routine_info.get_non_local_symbols()
+    psyir = mod_info.get_psyir("renaming_subroutine")
+    non_locals = psyir.get_non_local_symbols()
 
     # This example should report just one non-local module:
     # use module_with_var_mod, only: renamed_var => module_var_a
@@ -353,25 +352,24 @@ def test_routine_info_non_locals_invokes():
 
     # Get the PSyclone-processed PSyIR
     test_file = os.path.join("driver_creation", "module_with_builtin_mod.f90")
-    psyir, _ = get_invoke(test_file, "dynamo0.3", 0, dist_mem=False)
+    mod_psyir, _ = get_invoke(test_file, "dynamo0.3", 0, dist_mem=False)
 
     # Now create the module and routine info
     test_dir = os.path.join(get_base_path("dynamo0.3"), "driver_creation")
     mod_man = ModuleManager.get()
     mod_man.add_search_path(test_dir)
     mod_info = mod_man.get_module_info("module_with_builtin_mod")
-    routine_info = mod_info.get_routine_info("sub_with_builtin")
 
     # Replace the generic PSyir with the PSyclone processed PSyIR, which
     # has a builtin
-    routine_info._psyir = psyir.invokes.invoke_list[0].schedule
+    psyir = mod_psyir.invokes.invoke_list[0].schedule
+
     # This will return three schedule - the DynInvokeSchedule, and two
     # schedules for the kernel and builtin:
-    schedules = routine_info._psyir.walk(Schedule)
+    schedules = psyir.walk(Schedule)
     assert isinstance(schedules[1].children[0], DynKern)
     assert isinstance(schedules[2].children[0], BuiltIn)
 
-    psyir = routine_info.get_psyir()
     non_locals = psyir._compute_all_non_locals()
     # There should be exactly one entry - the kernel, but not the builtin:
     assert len(non_locals) == 1
@@ -381,6 +379,5 @@ def test_routine_info_non_locals_invokes():
     # Test that the assignment of the result of a function is not reported
     # as an access:
     mod_info = mod_man.get_module_info("testkern_import_symbols_mod")
-    routine_info = mod_info.get_routine_info("local_func")
-    non_locals = routine_info.get_psyir()._compute_all_non_locals()
+    non_locals = mod_info.get_psyir("local_func")._compute_all_non_locals()
     assert len(non_locals) == 0
