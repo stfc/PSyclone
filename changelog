@@ -50,6 +50,8 @@
 	18) PR #2375 for #2374. Bug fix for LFRic kernel-extraction driver
 	creation for netcdf.
 
+	19) PR #2385. Update tests to include python 3.12.
+
 release 2.4.0 29th of September 2023
 
 	1) PR #1758 for #1741. Splits the PSyData read functionality into a
