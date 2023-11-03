@@ -209,8 +209,14 @@ def test_lfricxkern_abstract():
     with pytest.raises(TypeError) as error:
         # pylint: disable=abstract-class-instantiated
         lfric_builtins.LFRicXKern()
-    assert ("Can't instantiate abstract class LFRicXKern with abstract "
-            "method" in str(error.value))
+    # Python >= 3.9 spots that 'method' should be singular. Prior to this it
+    # was plural. Python >= 3.12 tweaks the error message yet again to mention
+    # the lack of an implementation and to quote the method name.
+    # We split the check to accomodate for this.
+    assert ("Can't instantiate abstract class LFRicXKern with"
+            in str(error.value))
+    assert ("abstract method" in str(error.value))
+    assert ("metadata" in str(error.value))
     assert lfric_builtins.LFRicXKern._field_type is None
 
 
