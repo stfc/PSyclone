@@ -140,19 +140,15 @@ class Maxval2CodeTrans(MMSBaseTrans):
     subroutine maxval_test(array)
       real, dimension(10,10) :: array
       real :: result
-      real :: maxval_var
-      integer :: i_0
-      integer :: i_1
+      integer :: idx
+      integer :: idx_1
     <BLANKLINE>
-      maxval_var = TINY(maxval_var)
-      do i_1 = 1, 10, 1
-        do i_0 = 1, 10, 1
-          if (maxval_var < array(i_0,i_1)) then
-            maxval_var = array(i_0,i_1)
-          end if
+      result = TINY(result)
+      do idx = 1, 10, 1
+        do idx_1 = 1, 10, 1
+          result = MAX(result, array(idx_1,idx))
         enddo
       enddo
-      result = maxval_var
     <BLANKLINE>
     end subroutine maxval_test
     <BLANKLINE>

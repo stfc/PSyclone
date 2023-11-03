@@ -141,17 +141,15 @@ class Sum2CodeTrans(MMSBaseTrans):
       integer :: m
       real, dimension(10,10) :: array
       real :: result
-      real :: sum_var
-      integer :: i_0
-      integer :: i_1
+      integer :: idx
+      integer :: idx_1
     <BLANKLINE>
-      sum_var = 0.0
-      do i_1 = 1, 10, 1
-        do i_0 = 1, 10, 1
-          sum_var = sum_var + array(i_0,i_1)
+      result = 0.0
+      do idx = 1, 10, 1
+        do idx_1 = 1, 10, 1
+          result = result + array(idx_1,idx)
         enddo
       enddo
-      result = sum_var
     <BLANKLINE>
     end subroutine sum_test
     <BLANKLINE>
