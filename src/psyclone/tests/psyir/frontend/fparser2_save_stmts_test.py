@@ -39,9 +39,10 @@
 import pytest
 
 from psyclone.errors import GenerationError
-from psyclone.psyir.nodes import Routine
+from psyclone.psyir.nodes import Routine, Literal
 from psyclone.psyir.symbols import (StaticInterface, DefaultModuleInterface,
-                                    AutomaticInterface, UnknownFortranType)
+                                    AutomaticInterface, UnknownFortranType,
+                                    UnknownInterface, INTEGER_TYPE)
 
 
 def test_save_statement_module(fortran_reader):
@@ -141,6 +142,53 @@ def test_save_statement_subroutine(fortran_reader):
         assert isinstance(varsym.interface, StaticInterface)
     sym = symtab.lookup("var4")
     assert isinstance(sym.interface, AutomaticInterface)
+
+
+@pytest.mark.parametrize("declns",
+                         ["        integer, parameter :: var1 = 1\n"
+                          "        save\n",
+                          "        parameter(var1=1)\n"
+                          "        integer, save :: var1\n"])
+def test_save_and_parameter(fortran_reader, declns):
+    '''
+    Check that when a variable is effectively declared with both the parameter
+    and save attributes the resulting Symbol has the correct properties.
+    (Although Fortran forbids 'parameter' and 'save' from appearing in the
+    same declaration statement, it doesn't say anything about situations
+    where they are separate and gfortran [at least] permits this.)
+
+    '''
+    code = f'''
+      subroutine my_sub()
+{declns}
+        write(*,*) var1
+      end subroutine my_sub
+'''
+    psyir = fortran_reader.psyir_from_source(code)
+    symtab = psyir.walk(Routine)[0].symbol_table
+    var1 = symtab.lookup("var1")
+    assert var1.is_constant
+    assert var1.is_static
+    assert var1.initial_value == Literal("1", INTEGER_TYPE)
+
+
+def test_save_and_unsupported_attr(fortran_reader):
+    '''
+    Check that a SAVE statement does not have any effect on a variable
+    declared with an unsupported attribute.
+    '''
+    code = '''
+      subroutine my_sub()
+        integer, volatile :: var1
+        save
+        write(*,*) var1
+      end subroutine my_sub
+'''
+    psyir = fortran_reader.psyir_from_source(code)
+    symtab = psyir.walk(Routine)[0].symbol_table
+    var1 = symtab.lookup("var1")
+    assert isinstance(var1.datatype, UnknownFortranType)
+    assert isinstance(var1.interface, UnknownInterface)
 
 
 def test_save_common_module(fortran_reader):
