@@ -41,6 +41,7 @@
 
 from psyclone.psyir.nodes.commentable_mixin import CommentableMixin
 from psyclone.psyir.nodes.call import Call
+from psyclone.psyir.nodes.intrinsic_call import IntrinsicCall
 from psyclone.psyir.nodes.node import Node
 from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.nodes.schedule import Schedule
@@ -365,6 +366,10 @@ class Routine(Schedule, CommentableMixin):
                 # A kernel is a subroutine call from a module:
                 non_locals.append(("routine", access.module_name,
                                    Signature(access.name)))
+                continue
+
+            if isinstance(access, IntrinsicCall):
+                # Intrinsic calls can be ignored
                 continue
 
             if isinstance(access, Call):

@@ -303,7 +303,7 @@ def test_routine_info_get_used_symbols_from_modules():
                 ("routine", None, "unknown_subroutine"),
                 ]
     # First check the length. This will ensure that e.g. the constant in the
-    # example subroutine is not reported.
+    # example subroutine and the intrinsic SQRT are not reported
     assert len(non_locals) == len(expected)
     for sym_type, module, name in expected:
         assert ((sym_type, module, Signature(name)) in

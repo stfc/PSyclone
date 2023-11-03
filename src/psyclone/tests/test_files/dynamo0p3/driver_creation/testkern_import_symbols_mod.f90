@@ -92,7 +92,8 @@ contains
     real(kind=r_def), intent(in), dimension(undf_w3)  :: fld4
     real(kind=r_def) :: tmp
 
-    tmp = fld2(1)*fld3(1)*fld4(1)
+    ! Also test handling of intrinsics
+    tmp = fld2(1)*fld3(1)*fld4(1) + sqrt(ascalar)
     fld1(1) = eps * nlayers + tmp
     dummy_module_variable = 1 + dummy_constant + local_func()
     fld1(1) = module_function()
