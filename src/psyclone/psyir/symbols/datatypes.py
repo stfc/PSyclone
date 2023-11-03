@@ -204,20 +204,27 @@ class UnknownFortranType(UnknownType):
         string_reader.set_format(FortranFormat(True, False))
         ParserFactory().create(std="f2008")
         try:
-            ptree = Fortran2003.Declaration_Construct(
+            ptree = Fortran2003.Specification_Part(
                 string_reader)
         except Exception as err:
             raise NotImplementedError(
                 f"Cannot extract the declaration part from UnknownFortranType "
-                f"'{self._declaration}' because parsing failed.") from err
-        if not ptree or not isinstance(ptree,
-                                       (Fortran2003.Declaration_Construct,
-                                        Fortran2003.Type_Declaration_Stmt)):
+                f"'{self._declaration}' because parsing (attempting to match "
+                f"a Fortran2003.Specification_Part) failed.") from err
+        node = ptree.children[0]
+        if isinstance(node, (Fortran2003.Declaration_Construct,
+                             Fortran2003.Type_Declaration_Stmt)):
+            self._type_text = str(node.children[0])
+        elif isinstance(node, Fortran2003.Save_Stmt):
+            self._type_text = "SAVE"
+        elif isinstance(node, Fortran2003.Common_Stmt):
+            self._type_text = "COMMON"
+        else:
             raise NotImplementedError(
                 f"Cannot extract the declaration part from UnknownFortranType "
-                f"'{self._declaration}'")
-        self._type_text = str(ptree.children[0])
-
+                f"'{self._declaration}'. Only Declaration_Construct, "
+                f"Type_Declaration_Stmt, Save_Stmt and Common_Stmt are "
+                f"supported but got '{type(node).__name__}' from the parser.")
         return self._type_text
 
     def __eq__(self, other):
