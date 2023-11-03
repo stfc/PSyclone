@@ -110,10 +110,10 @@ def test_accparallel():
 
     with pytest.raises(TypeError) as err:
         _ = ACCParallelTrans(default_present=3)
-    assert("The provided 'default_present' argument must be a boolean, "
-           "but found '3'." in str(err.value))
+    assert ("The provided 'default_present' argument must be a boolean, "
+            "but found '3'." in str(err.value))
 
-    
+
 def test_accenterdata():
     ''' Generic tests for the ACCEnterDataTrans class '''
     acct = ACCEnterDataTrans()
