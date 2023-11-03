@@ -76,7 +76,7 @@ def trans(psy):
                         matmul_trans.apply(icall)
                     except TransformationError as err:
                         print(f"Inline MATMUL failed for '{kschedule.name}' "
-                               "because:")
+                              f"because:")
                         print(str(err))
 
     return psy
