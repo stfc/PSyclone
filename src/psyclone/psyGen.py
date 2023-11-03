@@ -1142,13 +1142,17 @@ class Kern(Statement):
         return False
 
     @property
-    def local_reduction_name(self) -> str:
+    def local_reduction_name(self):
         '''
         :returns: a local reduction variable name that is unique for the
                   current reduction argument name. This is used for
                   thread-local reductions with reproducible reductions.
+        :rtype: str
 
         '''
+        # TODO #2381: Revisit symbol creation, now moved to the
+        # Kern._reduction_reference() method, and try to associate it
+        # with the PSy-layer generation or relevant transformation.
         return "l_" + self.reduction_arg.name
 
     def zero_reduction_variable(self, parent, position=None):
@@ -1271,6 +1275,9 @@ class Kern(Statement):
                 :py:class:`psyclone.psyir.nodes.ArrayReference`
 
         '''
+        # TODO #2381: Revisit symbol creation, moved from the
+        # Kern.local_reduction_name property, and try to associate it
+        # with the PSy-layer generation or relevant transformation.
         symtab = self.scope.symbol_table
         reduction_name = self.reduction_arg.name
         # Return a multi-valued ArrayReference for a reproducible reduction
