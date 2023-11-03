@@ -53,11 +53,13 @@ def test_create():
     with pytest.raises(TypeError) as excinfo:
         _ = Intrinsic2CodeTrans()
     msg = str(excinfo.value)
-    # Have to split this check as Python >= 3.10 spots that 'method'
-    # should be singular.
-    assert ("Can't instantiate abstract class Intrinsic2CodeTrans with "
-            "abstract method" in msg)
-    assert " apply" in msg
+    # Python >= 3.9 spots that 'method' should be singular. Prior to this it
+    # was plural. Python >= 3.12 tweaks the error message yet again to mention
+    # the lack of an implementation and to quote the method name.
+    # We split the check to accomodate for this.
+    assert ("Can't instantiate abstract class Intrinsic2CodeTrans with" in msg)
+    assert ("abstract method" in msg)
+    assert ("apply" in msg)
 
 
 class DummyTrans(Intrinsic2CodeTrans):
