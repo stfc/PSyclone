@@ -44,7 +44,6 @@ from psyclone.psyir.nodes import (
     Assignment, Reference, ArrayReference, IfBlock,
     IntrinsicCall, Node, UnaryOperation, BinaryOperation)
 from psyclone.psyir.symbols import ArrayType
-from psyclone.psyir.transformations import Reference2ArrayRangeTrans
 from psyclone.psyGen import Transformation
 from psyclone.psyir.transformations.transformation_error import \
     TransformationError
@@ -202,6 +201,8 @@ class MMSBaseTrans(Transformation, ABC):
                 UnaryOperation.Operator.PLUS, rhs)
 
         # Convert references to arrays to array ranges where appropriate
+        # Add here to avoid circular imports
+        from psyclone.psyir.transformations import Reference2ArrayRangeTrans
         reference2arrayrange = Reference2ArrayRangeTrans()
         rhs_parent = rhs.parent
         for reference in rhs.walk(Reference):
