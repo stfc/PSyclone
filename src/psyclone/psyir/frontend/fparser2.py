@@ -1811,7 +1811,7 @@ class Fparser2Reader():
         return base_type, precision
 
     def _process_decln(self, scope, symbol_table, decl, visibility_map=None,
-                       statics_list=None):
+                       statics_list=()):
         '''
         Process the supplied fparser2 parse tree for a declaration. For each
         entity that is declared, a symbol is added to the supplied symbol
@@ -1830,7 +1830,7 @@ class Fparser2Reader():
         :param statics_list: the names of symbols which are static (due to
             appearing in a SAVE statement). If all symbols are static then
             this contains the single entry "*".
-        :type statics_list: List[str]
+        :type statics_list: Optional[Iterable[str]]
 
         :raises NotImplementedError: if an unsupported attribute is found.
         :raises NotImplementedError: if an unsupported intent attribute is
@@ -2008,8 +2008,7 @@ class Fparser2Reader():
                 else:
                     visibility = symbol_table.default_visibility
 
-            listed_in_save = statics_list and (statics_list == ["*"] or
-                                               sym_name in statics_list)
+            listed_in_save = "*" in statics_list or sym_name in statics_list
             if has_save_attr or listed_in_save:
                 if has_save_attr and listed_in_save:
                     raise GenerationError(
