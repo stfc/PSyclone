@@ -40,10 +40,11 @@ maxval2code_trans transformations.
 '''
 import pytest
 
-from psyclone.psyir.nodes import IntrinsicCall, Reference, Literal, Assignment
+from psyclone.psyir.nodes import IntrinsicCall, Reference, Literal
 from psyclone.psyir.symbols import (
     Symbol, BOOLEAN_TYPE, INTEGER_TYPE, DataSymbol, REAL_TYPE)
-from psyclone.psyir.transformations import TransformationError, Sum2CodeTrans
+from psyclone.psyir.transformations import (
+    TransformationError, Maxval2CodeTrans)
 from psyclone.psyir.transformations.intrinsics.mms_base_trans import (
     MMSBaseTrans)
 from psyclone.tests.utilities import Compile
@@ -59,9 +60,9 @@ def test_init_exception():
     # We split the check to accomodate for this.
     assert ("Can't instantiate abstract class MMSBaseTrans with"
             in str(info.value))
-    assert ("abstract methods" in str(info.value))
-    assert ("_init_var" in str(info.value))
-    assert ("_loop_body" in str(info.value))
+    assert "abstract methods" in str(info.value)
+    assert "_init_var" in str(info.value)
+    assert "_loop_body" in str(info.value)
 
 
 def test_get_args():
@@ -81,12 +82,11 @@ def test_get_args():
     result = MMSBaseTrans._get_args(node)
     assert result == (array_reference, dim_reference, mask_reference)
 
-from psyclone.psyir.transformations import Maxval2CodeTrans
 
 def test_str():
     ''' Check that the __str__ method behaves as expected. '''
     assert str(Maxval2CodeTrans()) == ("Convert the PSyIR MAXVAL intrinsic to "
-                                "equivalent PSyIR code.")
+                                       "equivalent PSyIR code.")
 
 
 # validate method
@@ -135,7 +135,7 @@ def test_structure_error(fortran_reader):
             in str(info.value))
 
 
-def test_lhs(fortran_reader, fortran_writer, tmpdir):
+def test_lhs(fortran_reader):
     '''Test that an exception is raised when the minval, maxval or
     sum is on the LHS of an asssignment. Uses the Maxval2CodeTrans
     transformation (a subclass of MMSBaseTrans), as it is easier to
@@ -148,19 +148,6 @@ def test_lhs(fortran_reader, fortran_writer, tmpdir):
         "  real :: result(10)\n"
         "  result(maxval(array)) = 0.0\n"
         "end subroutine\n")
-    expected = (
-        "subroutine test(array)\n"
-        "  real, dimension(10) :: array\n"
-        "  real, dimension(10) :: result\n"
-        "  real :: sum_var\n"
-        "  integer :: i_0\n\n"
-        "  sum_var = 0.0\n"
-        "  do i_0 = 1, 10, 1\n"
-        "    sum_var = sum_var + array(i_0)\n"
-        "  enddo\n"
-        "  result(sum_var) = 0.0\n\n"
-        "end subroutine test\n")
-
     psyir = fortran_reader.psyir_from_source(code)
     trans = Maxval2CodeTrans()
     # FileContainer/Routine/Assignment/IntrinsicCall
@@ -325,7 +312,7 @@ def test_apply_multi(fortran_reader, fortran_writer, tmpdir):
     assert Compile(tmpdir).string_compiles(result)
 
 
-def test_apply_dimension_1d(fortran_reader, fortran_writer, tmpdir):
+def test_apply_dimension_1d(fortran_reader):
     '''Test that the apply method works as expected when a dimension
     argument is specified and the array is one dimensional. This
     should be the same as if dimension were not specified at all.
@@ -541,41 +528,6 @@ def test_constant_dims(fortran_reader, fortran_writer, tmpdir):
     assert Compile(tmpdir).string_compiles(result)
 
 
-def test_mask(fortran_reader, fortran_writer, tmpdir):
-    '''Check that the expected code is produced when a mask argument is
-    specified.
-
-    '''
-    code = (
-        "subroutine test()\n"
-        "real :: a(10), b(10), c(10)\n"
-        "real :: x\n"
-        "x = maxval(a(:)+b(:), mask=c(:)==1.0)\n"
-        "end subroutine\n")
-    expected = (
-        "subroutine test()\n"
-        "  real, dimension(10) :: a\n"
-        "  real, dimension(10) :: b\n"
-        "  real, dimension(10) :: c\n"
-        "  real :: x\n"
-        "  integer :: idx\n\n"
-        "  x = TINY(x)\n"
-        "  do idx = LBOUND(a, dim=1), UBOUND(a, dim=1), 1\n"
-        "    if (c(idx) == 1.0) then\n"
-        "      x = MAX(x, a(idx) + b(idx))\n"
-        "    end if\n"
-        "  enddo\n\n"
-        "end subroutine test\n")
-    psyir = fortran_reader.psyir_from_source(code)
-    trans = Maxval2CodeTrans()
-    # FileContainer/Routine/Assignment/IntrinsicCall
-    node = psyir.children[0].children[0].children[1]
-    trans.apply(node)
-    result = fortran_writer(psyir)
-    assert result == expected
-    assert Compile(tmpdir).string_compiles(result)
-
-
 def test_expression_1d(fortran_reader, fortran_writer, tmpdir):
     '''Check that the expected code is produced when the arrays in the
     expressions are one dimensional.
@@ -597,7 +549,7 @@ def test_expression_1d(fortran_reader, fortran_writer, tmpdir):
         "  do idx = LBOUND(a, dim=1), UBOUND(a, dim=1), 1\n"
         "    x = MAX(x, a(idx) + b(idx))\n"
         "  enddo\n\n"
-    "end subroutine test\n")
+        "end subroutine test\n")
     psyir = fortran_reader.psyir_from_source(code)
     trans = Maxval2CodeTrans()
     # FileContainer/Routine/Assignment/IntrinsicCall

@@ -39,9 +39,7 @@ supported by the back-end, the required parallelisation approach, or
 if the performance in the inline code is better than the intrinsic.
 
 '''
-from psyclone.psyir.nodes import (
-    Reference, Assignment, IfBlock, BinaryOperation, ArrayReference,
-    IntrinsicCall)
+from psyclone.psyir.nodes import Reference, IntrinsicCall
 from psyclone.psyir.transformations.intrinsics.mms_base_trans import (
     MMSBaseTrans)
 

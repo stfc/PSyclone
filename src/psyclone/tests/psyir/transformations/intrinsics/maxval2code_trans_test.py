@@ -37,9 +37,8 @@
 
 import pytest
 
-from psyclone.psyir.nodes import Reference, ArrayReference, Literal
-from psyclone.psyir.symbols import (
-    REAL_TYPE, DataSymbol, INTEGER_TYPE, ArrayType)
+from psyclone.psyir.nodes import Reference, Literal
+from psyclone.psyir.symbols import REAL_TYPE, DataSymbol
 from psyclone.psyir.transformations import (
     Maxval2CodeTrans, TransformationError)
 from psyclone.tests.utilities import Compile

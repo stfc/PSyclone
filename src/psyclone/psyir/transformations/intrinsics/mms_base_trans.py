@@ -41,10 +41,10 @@ PSyIR SUM, MINVAL or MAXVAL intrinsic to PSyIR code.
 from abc import ABC, abstractmethod
 
 from psyclone.psyir.nodes import (
-    Assignment, Reference, Literal, Loop, ArrayReference, IfBlock, Range,
-    IntrinsicCall)
-from psyclone.psyir.symbols import (
-    DataSymbol, INTEGER_TYPE, ScalarType, ArrayType)
+    Assignment, Reference, ArrayReference, IfBlock,
+    IntrinsicCall, Node, UnaryOperation, BinaryOperation)
+from psyclone.psyir.symbols import ArrayType
+from psyclone.psyir.transformations import Reference2ArrayRangeTrans
 from psyclone.psyGen import Transformation
 from psyclone.psyir.transformations.transformation_error import \
     TransformationError
@@ -138,6 +138,7 @@ class MMSBaseTrans(Transformation, ABC):
 
         # There should be at least one arrayreference or reference to
         # an array in the expression
+        # pylint: disable=unidiomatic-typecheck
         for reference in array_ref.walk(Reference):
             if (isinstance(reference, ArrayReference) or
                     type(reference) == Reference and
@@ -148,16 +149,14 @@ class MMSBaseTrans(Transformation, ABC):
                 f"Error, no ArrayReference's found in the expression "
                 f"'{array_ref.debug_string()}'.")
 
-        
         if not node.ancestor(Assignment):
             raise TransformationError(
                 f"{self.name} only works when the intrinsic is part "
                 f"of an Assignment.")
 
         assignment = array_ref.ancestor(Assignment)
-        from psyclone.psyir.nodes import Node
-        for node in assignment.lhs.walk(Node):
-            if node == array_ref:
+        for this_node in assignment.lhs.walk(Node):
+            if this_node == array_ref:
                 raise TransformationError(
                     "Error, intrinsics on the lhs of an assignment are not "
                     "currently supported.")
@@ -174,6 +173,7 @@ class MMSBaseTrans(Transformation, ABC):
                         f"Unexpected shape for array. Expecting one of "
                         f"Deferred, Attribute or Bounds but found '{shape}'.")
 
+    # pylint: disable=too-many-locals
     def apply(self, node, options=None):
         '''Apply the SUM, MINVAL or MAXVAL intrinsic conversion transformation
         to the specified node. This node must be one of these
@@ -188,7 +188,7 @@ class MMSBaseTrans(Transformation, ABC):
         '''
         self.validate(node)
 
-        expr, dimension_ref, mask_ref = self._get_args(node)
+        expr, _, mask_ref = self._get_args(node)
 
         # Step 1 extract the expression within the intrinsic and put
         # it on the rhs of an argument with one of the arrays within
@@ -198,17 +198,14 @@ class MMSBaseTrans(Transformation, ABC):
             # If the the reference is the only thing on the rhs it
             # will not have a parent which is required by the
             # replace_with() method. Add a fake parent (+)
-            from psyclone.psyir.nodes import UnaryOperation
-            unary_op = UnaryOperation.create(
+            _ = UnaryOperation.create(
                 UnaryOperation.Operator.PLUS, rhs)
-        
+
         # Convert references to arrays to array ranges where appropriate
-        from psyclone.psyir.transformations import Reference2ArrayRangeTrans
         reference2arrayrange = Reference2ArrayRangeTrans()
         rhs_parent = rhs.parent
         for reference in rhs.walk(Reference):
             try:
-                reference_parent = reference.parent
                 reference2arrayrange.apply(reference)
             except TransformationError:
                 pass
@@ -238,17 +235,19 @@ class MMSBaseTrans(Transformation, ABC):
         # is created). Also deal with the mask if it exists.
         if mask_ref:
             # add mask to the rhs of the assignment
-            from psyclone.psyir.nodes import BinaryOperation
             assignment_rhs = BinaryOperation.create(
-                BinaryOperation.Operator.AND, assignment.rhs.copy(), mask_ref.copy())
+                BinaryOperation.Operator.AND, assignment.rhs.copy(),
+                mask_ref.copy())
             assignment.rhs.replace_with(assignment_rhs)
 
         assignment_parent = assignment.parent
         assignment_position = assignment.position
         # Must be placed here to avoid circular imports
-        from psyclone.domain.nemo.transformations import NemoAllArrayRange2LoopTrans
+        # pylint: disable=import-outside-toplevel
+        from psyclone.domain.nemo.transformations import \
+            NemoAllArrayRange2LoopTrans
         array_range = NemoAllArrayRange2LoopTrans()
-        array_range.apply(assignment)        
+        array_range.apply(assignment)
         outer_loop = assignment_parent.children[assignment_position]
         if mask_ref:
             # remove mask from the rhs of the assignment
@@ -260,21 +259,21 @@ class MMSBaseTrans(Transformation, ABC):
         # and indexed) to its intrinsic form by replacing the
         # assignment with orig_lhs=INTRINSIC(orig_lhs,<expr>)
         new_assignment = Assignment.create(
-            orig_lhs.copy(), self._loop_body(orig_lhs.copy(), assignment.rhs.copy()))
+            orig_lhs.copy(), self._loop_body(
+                orig_lhs.copy(), assignment.rhs.copy()))
         if mask_ref:
             # Place the indexed mask around the statement.
-            new_assignment = IfBlock.create(indexed_mask_ref.copy(), [new_assignment])
+            new_assignment = IfBlock.create(
+                indexed_mask_ref.copy(), [new_assignment])
 
         assignment.replace_with(new_assignment)
-        
+
         # Step 4 initialise the variable and place it before the newly
         # created outer loop (in step 2).
         lhs = orig_lhs.copy()
         rhs = self._init_var(lhs.symbol)
         assignment = Assignment.create(lhs, rhs)
         outer_loop.parent.children.insert(outer_loop.position, assignment)
-
-        return
 
     @abstractmethod
     def _loop_body(self, lhs, rhs):
