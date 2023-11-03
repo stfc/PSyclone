@@ -1096,7 +1096,7 @@ class Node():
 
         '''
         local_list = []
-        if isinstance(self, my_type) and (depth is None or self.depth == depth):
+        if isinstance(self, my_type) and depth in [None, self.depth]:
             local_list.append(self)
 
         # Stop recursion further into the tree if an instance of a class
