@@ -44,8 +44,9 @@ import pytest
 
 from psyclone.psyir.nodes import (UnaryOperation, BinaryOperation,
                                   Literal, Reference, Return)
-from psyclone.psyir.symbols import (DataSymbol, INTEGER_SINGLE_TYPE,
-                                    REAL_SINGLE_TYPE)
+from psyclone.psyir.symbols import (
+    DataSymbol, DeferredType, INTEGER_SINGLE_TYPE,
+    REAL_SINGLE_TYPE, UnknownFortranType)
 from psyclone.errors import GenerationError
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.tests.utilities import check_links
@@ -177,6 +178,20 @@ def test_binaryop_datatype():
     oper = BinaryOperation.Operator.ADD
     binaryoperation = BinaryOperation.create(oper, ref1, ref2)
     assert binaryoperation.datatype == REAL_SINGLE_TYPE
+    iref1 = Reference(DataSymbol("itmp1", INTEGER_SINGLE_TYPE))
+    binop2 = BinaryOperation.create(oper, ref1.copy(), iref1)
+    assert binop2.datatype == REAL_SINGLE_TYPE
+    iref2 = Reference(DataSymbol("itmp2", INTEGER_SINGLE_TYPE))
+    binop3 = BinaryOperation.create(oper, iref1.copy(), iref2)
+    assert binop3.datatype == INTEGER_SINGLE_TYPE
+    # When any one of the arguments is of UnknownType then we know
+    # nothing about the type of the result.
+    uref1 = Reference(
+        DataSymbol("trouble",
+                   UnknownFortranType("real, volatile :: trouble")))
+    binop4 = BinaryOperation.create(oper, iref1.copy(), uref1)
+    assert isinstance(binop4.datatype, DeferredType)
+    # TODO - Test when we do have partial type information.
 
 
 # Test UnaryOperation class
