@@ -284,7 +284,14 @@ class ACCParallelDirective(ACCRegionDirective):
     means this node must either come after an EnterDataDirective or within
     a DataDirective.
 
+    :param bool default_present: whether this directive includes the
+        'DEFAULT(PRESENT)' clause.
+
     '''
+    def __init__(self, default_present=True, **kwargs):
+        super().__init__(**kwargs)
+        self.default_present = default_present
+
     def gen_code(self, parent):
         '''
         Generate the elements of the f2pygen AST for this Node in the Schedule.
@@ -295,8 +302,8 @@ class ACCParallelDirective(ACCRegionDirective):
         '''
         self.validate_global_constraints()
 
-        parent.add(DirectiveGen(parent, "acc", "begin", "parallel",
-                                "default(present)"))
+        parent.add(DirectiveGen(parent, "acc", "begin",
+                                *self.begin_string().split()[1:]))
 
         for child in self.children:
             child.gen_code(parent)
@@ -315,11 +322,13 @@ class ACCParallelDirective(ACCRegionDirective):
         :rtype: str
 
         '''
-        # "default(present)" means that the compiler is to assume that
-        # all data required by the parallel region is already present
-        # on the device. If we've made a mistake and it isn't present
-        # then we'll get a run-time error.
-        return "acc parallel default(present)"
+        if self._default_present:
+            # "default(present)" means that the compiler is to assume that
+            # all data required by the parallel region is already present
+            # on the device. If we've made a mistake and it isn't present
+            # then we'll get a run-time error.
+            return "acc parallel default(present)"
+        return "acc parallel"
 
     def end_string(self):
         '''
@@ -327,6 +336,29 @@ class ACCParallelDirective(ACCRegionDirective):
         :rtype: str
         '''
         return "acc end parallel"
+
+    @property
+    def default_present(self):
+        '''
+        :returns: whether the directive includes the 'default(present)' clause.
+        :rtype: bool
+        '''
+        return self._default_present
+
+    @default_present.setter
+    def default_present(self, value):
+        '''
+        :param bool value: whether the directive should include the
+            'default(present)' clause.
+
+        :raises TypeError: if the given value is not a boolean.
+
+        '''
+        if not isinstance(value, bool):
+            raise TypeError(
+                f"The ACCParallelDirective default_present property must be "
+                f"a boolean but value '{value}' has been given.")
+        self._default_present = value
 
     @property
     def fields(self):
@@ -829,7 +861,7 @@ class ACCUpdateDirective(ACCStandaloneDirective):
             raise TypeError(
                 f"The ACCUpdateDirective signatures argument must be a "
                 f"set of signatures but got "
-                f"{ {type(sig).__name__ for sig in signatures} }")
+                f"{set(type(sig).__name__ for sig in signatures)}")
 
         self._sig_set = signatures
 

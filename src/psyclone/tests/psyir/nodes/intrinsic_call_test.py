@@ -46,10 +46,17 @@ import pytest
 
 from psyclone.core import VariablesAccessInfo
 from psyclone.psyir.nodes import (
-    ArrayReference, Literal, IntrinsicCall, Reference, Schedule, Assignment)
+    ArrayReference, Literal, Reference, Schedule, Assignment)
+from psyclone.psyir.nodes.intrinsic_call import IntrinsicCall, IAttr
 from psyclone.psyir.symbols import (
     ArrayType, DataSymbol, INTEGER_TYPE, IntrinsicSymbol, REAL_TYPE,
     BOOLEAN_TYPE, CHARACTER_TYPE)
+
+
+def test_intrinsic_enum():
+    '''Basic test for the IntrinsicCall.Intrinsic enum.'''
+    assert isinstance(IntrinsicCall.Intrinsic.MINVAL, IAttr)
+    assert hash(IntrinsicCall.Intrinsic.MINVAL) == hash("MINVAL")
 
 
 def test_intrinsiccall_constructor():
@@ -97,6 +104,14 @@ def test_intrinsiccall_is_pure():
     assert intrinsic.is_pure is True
     intrinsic = IntrinsicCall(IntrinsicCall.Intrinsic.ALLOCATE)
     assert intrinsic.is_pure is False
+
+
+def test_intrinsiccall_is_inquiry():
+    '''Test that the is_inquiry() method works as expected.'''
+    intrinsic = IntrinsicCall(IntrinsicCall.Intrinsic.SUM)
+    assert intrinsic.is_inquiry is False
+    intrinsic = IntrinsicCall(IntrinsicCall.Intrinsic.ALLOCATED)
+    assert intrinsic.is_inquiry is True
 
 
 @pytest.mark.parametrize("intrinsic, result", [

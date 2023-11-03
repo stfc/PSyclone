@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-#         I. Kavcic, Met Office
+#         I. Kavcic and J. G. Wallwork, Met Office
 #         J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
@@ -1580,3 +1580,93 @@ def test_path_from(fortran_reader):
         assigns[0].path_from(loops[0])
     assert ("Attempted to find path_from a non-ancestor 'Loop' "
             "node." in str(excinfo.value))
+
+
+def test_siblings(fortran_reader):
+    '''Tests the siblings method of the Node class.'''
+
+    code = '''subroutine test_siblings()
+    integer :: i, j, k
+    integer, dimension(2,2,2) :: arr
+
+    arr(1,1,1) = 0
+    do k = 1, 2
+       do j = 1, 2
+          do i = 1, 2
+             arr(i,j,k) = i*j*k
+          end do
+       end do
+    end do
+    do k = 1, 2
+       do j = 1, 2
+          do i = 1, 2
+             arr(i,j,k) = i*j*k
+          end do
+       end do
+    end do
+    end subroutine'''
+
+    psyir = fortran_reader.psyir_from_source(code)
+
+    # The initial assignment has two other siblings, whereas the assignments at
+    # the deepest levels of the loops have no other siblings
+    for assign in psyir.walk(Assignment):
+        siblings = assign.siblings
+        assert assign in siblings
+        assert len(siblings) == (1 if assign.ancestor(Loop) else 3)
+
+    # The two outer-most loops have each other as siblings, plus the initial
+    # integer assignment, whereas the inner loops have no other siblings
+    for loop in psyir.walk(Loop):
+        siblings = loop.siblings
+        assert loop in siblings
+        assert len(siblings) == (1 if loop.ancestor(Loop) else 3)
+
+    # Special case of a root node
+    root_siblings = psyir.siblings
+    assert len(root_siblings) == 1
+    assert root_siblings[0] is psyir
+
+
+def test_walk_depth(fortran_reader):
+    '''Test the depth restriction functionality of Node's walk method.'''
+
+    code = '''subroutine test_depth()
+    integer :: i, j, k
+    integer :: arr(2,2,2)
+
+    do i = 1, 2
+      do j = 1, 2
+        do k = 1, 2
+          if (k == 1) then
+              arr(i,j,k) = 0
+          else
+              arr(i,j,k) = -1
+          end if
+        end do
+      end do
+    end do
+    end subroutine'''
+
+    psyir = fortran_reader.psyir_from_source(code)
+    loops = psyir.walk(Loop)
+    assignments = psyir.walk(Assignment)
+    assert len(loops) == 3
+    assert len(assignments) == 2
+    root_depth = psyir.depth
+
+    # Test walking over the depths of each loop
+    for i, loop in enumerate(loops):
+        depth = root_depth + 2 * (i + 1)
+        loop_i_list = psyir.walk(Loop, depth=depth)
+        assert len(loop_i_list) == 1
+        assert loop_i_list[0] is loop
+        assert len(psyir.walk(Assignment, depth=depth)) == 0
+
+    # Test walking over the depth of the assignment in the inner loop
+    depth = root_depth + 10
+    assign_10_list = psyir.walk(Assignment, depth=depth)
+    assert len(assign_10_list) == 2
+    assert assign_10_list[0] is assignments[0]
+    assert assign_10_list[1] is assignments[1]
+    assert len(psyir.walk(Loop, depth=depth)) == 0

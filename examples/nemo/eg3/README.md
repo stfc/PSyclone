@@ -8,7 +8,7 @@ Kernel and Data directives to NEMO code. Note, the transformations are
 indicative of what could be done - no claim is made as to the performance of
 the resulting code.
 
-A more sophisticated `kernels_trans.py` script is provided in the
+A more sophisticated `acc_kernels_trans.py` script is provided in the
 `../scripts` directory. This is designed to work with the NVIDIA (PGI)
 compiler's 'managed memory' option (`-ta=tesla:managed`) and therefore makes
 no attempt to control data movement to/from the GPU. It also adds
@@ -31,7 +31,7 @@ directives added. Note that some of the lines in this Fortran code will
 exceed the 132-character limit. This may be remedied by supplying the
 `-l all` flag to PSyclone (as is done in the Makefile).
 
-Running PSyclone with the `../scripts/kernels_trans.py` script will
+Running PSyclone with the `../scripts/acc_kernels_trans.py` script will
 produce similar output but the Schedule will contain `Profile` nodes
 and there will be no Data directives.
 

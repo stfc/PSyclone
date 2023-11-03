@@ -3,7 +3,7 @@
 
 	2) PR #2269 for #2268. Rename DynInvokes to LFRicInvokes and move
 	to own module.
-	
+
 	3) PR #2255 for #2237. The derived type intial values are not lost
 	anymore, and the "extends" or "abstract" keywords cause a
 	UnknownFortranType.
@@ -33,6 +33,26 @@
 
 	12) PR #2321 for #2319. Refactors DynStencil into a dataclass named
 	LFRicArgStencil.
+
+	13) PR #2361 for #2360. Fix LFRic Loop.independent_iterations with domain
+	information and allow sequential directives on loops with dependencies.
+
+	14) PR #2365 for #2351. Fix ref2arrayrange allocated bug.
+
+	15) PR #2363 for #1254. Fortran FORMAT, ENTRY and IMPLICIT statements
+	produce CodeBlocks instead of losing the statements.
+
+	16) PR #2357 for #2353. Adds the ACC-loops NEMO transformation script
+	and includes its use in the integration testing.
+
+	17) PR #2380 and #2378 for #2369. Add PSyIR node.sibilings property.
+
+	18) PR #2375 for #2374. Bug fix for LFRic kernel-extraction driver
+	creation for netcdf.
+
+	19) PR #2385. Update tests to include python 3.12.
+
+	20) PR #2377 for #2368. Adds optional 'depth' argument to Node.walk().
 
 release 2.4.0 29th of September 2023
 
