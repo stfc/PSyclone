@@ -160,49 +160,21 @@ class Minval2CodeTrans(MMSBaseTrans):
     '''
     _INTRINSIC_NAME = "MINVAL"
 
-    def _loop_body(self, array_reduction, array_iterators, var_symbol,
-                   array_ref):
+    def _loop_body(self, lhs, rhs):
         '''Provide the body of the nested loop that computes the minimum value
-        of an array.
+        of the lhs and rhs
 
-        :param bool array_reduction: True if the implementation should
-            provide a minimum over a particular array dimension and False
-            if the minimum is for all elements of the array.
-        :param array_iterators: a list of datasymbols containing the
-            loop iterators ordered from outermost loop symbol to innermost
-            loop symbol.
-        :type array_iterators:
-            List[:py:class:`psyclone.psyir.symbols.DataSymbol`]
-        :param var_symbol: the symbol used to store the final result.
-        :type var_symbol: :py:class:`psyclone.psyir.symbols.DataSymbol`
-        :param array_ref: a reference to the array for which the
-            minimum is being determined.
-        :type array_ref: :py:class:`psyclone.psyir.nodes.ArrayReference`
+        :param lhs: the lhs value for the min operation.
+        :type lhs: :py:class:`psyclone.psyir.nodes.Node`
+        :param rhs: the rhs value for the min operation.
+        :type rhs: :py:class:`psyclone.psyir.nodes.Node`
 
-        :returns: PSyIR for the body of the nested loop.
-        :rtype: :py:class:`psyclone.psyir.nodes.IfBlock`
+        :returns: a MIN IntrinsicCall.
+        :rtype: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
 
         '''
-        # minval_var() = array(i...)
-        if array_reduction:
-            array_indices = [Reference(iterator)
-                             for iterator in array_iterators]
-            lhs = ArrayReference.create(var_symbol, array_indices)
-        else:
-            lhs = Reference(var_symbol)
-        rhs = array_ref
-        assignment = Assignment.create(lhs, rhs)
-
-        # minval_var() > array(i...)
-        lhs = lhs.copy()
-        rhs = rhs.copy()
-        if_condition = BinaryOperation.create(
-            BinaryOperation.Operator.GT, lhs, rhs)
-
-        # if minval_var() > array(i...) then
-        #   minval_var() = array(i...)
-        # end if
-        return IfBlock.create(if_condition, [assignment])
+        # return min(lhs,rhs)
+        return IntrinsicCall.create(IntrinsicCall.Intrinsic.MIN, [lhs, rhs])
 
     def _init_var(self, var_symbol):
         '''The initial value for the variable that computes the minimum value

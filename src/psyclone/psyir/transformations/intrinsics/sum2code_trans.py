@@ -41,7 +41,7 @@ performance in the inline code is better than the intrinsic.
 
 '''
 from psyclone.psyir.nodes import (
-    BinaryOperation, Assignment, Reference, Literal, ArrayReference)
+    BinaryOperation, Assignment, Reference, Literal, ArrayReference, IntrinsicCall)
 from psyclone.psyir.symbols import ScalarType
 from psyclone.psyir.transformations.intrinsics.mms_base_trans import (
     MMSBaseTrans)
@@ -159,46 +159,21 @@ class Sum2CodeTrans(MMSBaseTrans):
     '''
     _INTRINSIC_NAME = "SUM"
 
-    def _loop_body(self, array_reduction, array_iterators, var_symbol,
-                   array_ref):
-        '''Provide the body of the nested loop that computes the sum of an
-        array.
+    def _loop_body(self, lhs, rhs):
+        '''Provide the body of the nested loop that computes the sum
+        of the lhs and rhs
 
-        :param bool array_reduction: True if the implementation should
-            provide a sum over a particular array dimension and False
-            if the sum is for all elements of the array.
-        :param array_iterators: a list of datasymbols containing the
-            loop iterators ordered from outermost loop symbol to innermost
-            loop symbol.
-        :type array_iterators:
-            List[:py:class:`psyclone.psyir.symbols.DataSymbol`]
-        :param var_symbol: the symbol used to store the final result.
-        :type var_symbol: :py:class:`psyclone.psyir.symbols.DataSymbol`
-        :param array_ref: a reference to the array for which the
-            sum is being determined.
-        :type array_ref: :py:class:`psyclone.psyir.nodes.ArrayReference`
+        :param lhs: the lhs value for the sum operation.
+        :type lhs: :py:class:`psyclone.psyir.nodes.Node`
+        :param rhs: the rhs value for the sum operation.
+        :type rhs: :py:class:`psyclone.psyir.nodes.Node`
 
-        :returns: PSyIR for the body of the nested loop.
-        :rtype: :py:class:`psyclone.psyir.nodes.Assignment`
+        :returns: the sum of the lhs and rhs.
+        :rtype: :py:class:`psyclone.psyir.nodes.BinaryOperation`
 
         '''
-        if array_reduction:
-            # sum_var(i,...) = sum_var(i,...) + array(i,...)
-            array_indices = [Reference(iterator)
-                             for iterator in array_iterators]
-            lhs = ArrayReference.create(var_symbol, array_indices)
-            array_indices = [Reference(iterator)
-                             for iterator in array_iterators]
-            rhs_child1 = ArrayReference.create(var_symbol, array_indices)
-        else:
-            # sum_var = sum_var + array(i,...)
-            lhs = Reference(var_symbol)
-            rhs_child1 = Reference(var_symbol)
-
-        rhs_child2 = array_ref
-        rhs = BinaryOperation.create(BinaryOperation.Operator.ADD, rhs_child1,
-                                     rhs_child2)
-        return Assignment.create(lhs, rhs)
+        # return lhs + rhs
+        return BinaryOperation.create(BinaryOperation.Operator.ADD, lhs, rhs)
 
     def _init_var(self, var_symbol):
         '''The initial value for the variable that computes the sum

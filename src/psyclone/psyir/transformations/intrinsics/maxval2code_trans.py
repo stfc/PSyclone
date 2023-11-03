@@ -160,49 +160,21 @@ class Maxval2CodeTrans(MMSBaseTrans):
     '''
     _INTRINSIC_NAME = "MAXVAL"
 
-    def _loop_body(self, array_reduction, array_iterators, var_symbol,
-                   array_ref):
+    def _loop_body(self, lhs, rhs):
         '''Provide the body of the nested loop that computes the maximum value
-        of an array.
+        of the lhs and rhs
 
-        :param bool array_reduction: True if the implementation should
-            provide a maximum over a particular array dimension and False
-            if the maximum is for all elements of the array.
-        :param array_iterators: a list of datasymbols containing the
-            loop iterators ordered from innermost loop symbol to outermost
-            loop symbol.
-        :type array_iterators:
-            List[:py:class:`psyclone.psyir.symbols.DataSymbol`]
-        :param var_symbol: the symbol used to store the final result.
-        :type var_symbol: :py:class:`psyclone.psyir.symbols.DataSymbol`
-        :param array_ref: a reference to the array for which the
-            maximum is being determined.
-        :type array_ref: :py:class:`psyclone.psyir.nodes.ArrayReference`
+        :param lhs: the lhs value for the max operation.
+        :type lhs: :py:class:`psyclone.psyir.nodes.Node`
+        :param rhs: the rhs value for the max operation.
+        :type rhs: :py:class:`psyclone.psyir.nodes.Node`
 
-        :returns: PSyIR for the body of the nested loop.
-        :rtype: :py:class:`psyclone.psyir.nodes.IfBlock`
+        :returns: a MAX IntrinsicCall.
+        :rtype: :py:class:`psyclone.psyir.nodes.IntrinsicCall`
 
         '''
-        # maxval_var() = array(i...)
-        if array_reduction:
-            array_indices = [Reference(iterator)
-                             for iterator in array_iterators]
-            lhs = ArrayReference.create(var_symbol, array_indices)
-        else:
-            lhs = Reference(var_symbol)
-        rhs = array_ref
-        assignment = Assignment.create(lhs, rhs)
-
-        # maxval_var() < array(i...)
-        lhs = lhs.copy()
-        rhs = rhs.copy()
-        if_condition = BinaryOperation.create(
-            BinaryOperation.Operator.LT, lhs, rhs)
-
-        # if maxval_var() < array(i...) then
-        #   maxval_var() = array(i...)
-        # end if
-        return IfBlock.create(if_condition, [assignment])
+        # return max(lhs,rhs)
+        return IntrinsicCall.create(IntrinsicCall.Intrinsic.MAX, [lhs, rhs])
 
     def _init_var(self, var_symbol):
         '''The initial value for the variable that computes the maximum value

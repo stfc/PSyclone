@@ -37,7 +37,7 @@
 
 import pytest
 
-from psyclone.psyir.nodes import Reference, ArrayReference
+from psyclone.psyir.nodes import Reference, ArrayReference, Literal
 from psyclone.psyir.symbols import (
     REAL_TYPE, DataSymbol, INTEGER_TYPE, ArrayType)
 from psyclone.psyir.transformations import (
@@ -56,45 +56,12 @@ def test_initialise():
 
 
 def test_loop_body():
-    '''Test that the _loop_body method works as expected, without an array
-    reduction.
-
-    '''
+    '''Test that the _loop_body method works as expected.'''
     trans = Maxval2CodeTrans()
-    i_iterator = DataSymbol("i", INTEGER_TYPE)
-    j_iterator = DataSymbol("j", INTEGER_TYPE)
-    array_iterators = [j_iterator, i_iterator]
-    var_symbol = DataSymbol("var", REAL_TYPE)
-    array_symbol = DataSymbol("array", ArrayType(REAL_TYPE, [10, 10]))
-    array_ref = ArrayReference.create(
-        array_symbol, [Reference(i_iterator), Reference(j_iterator)])
-    result = trans._loop_body(False, array_iterators, var_symbol, array_ref)
-    assert result.debug_string() == (
-        "if (var < array(i,j)) then\n"
-        "  var = array(i,j)\n"
-        "end if\n")
-
-
-def test_loop_body_reduction():
-    '''Test that the _loop_body method works as expected, with an array
-    reduction.
-
-    '''
-    trans = Maxval2CodeTrans()
-    i_iterator = DataSymbol("i", INTEGER_TYPE)
-    j_iterator = DataSymbol("j", INTEGER_TYPE)
-    k_iterator = DataSymbol("k", INTEGER_TYPE)
-    array_iterators = [i_iterator, k_iterator]
-    var_symbol = DataSymbol("var", ArrayType(REAL_TYPE, [10, 10]))
-    array_symbol = DataSymbol("array", ArrayType(REAL_TYPE, [10, 10, 10]))
-    array_ref = ArrayReference.create(
-        array_symbol, [Reference(i_iterator), Reference(j_iterator),
-                       Reference(k_iterator)])
-    result = trans._loop_body(True, array_iterators, var_symbol, array_ref)
-    assert result.debug_string() == (
-        "if (var(i,k) < array(i,j,k)) then\n"
-        "  var(i,k) = array(i,j,k)\n"
-        "end if\n")
+    lhs = Reference(DataSymbol("i", REAL_TYPE))
+    rhs = Literal("1.0", REAL_TYPE)
+    result = trans._loop_body(lhs, rhs)
+    assert "MAX(i, 1.0)" in result.debug_string()
 
 
 def test_init_var():
@@ -153,19 +120,18 @@ def test_apply(fortran_reader, fortran_writer, tmpdir):
         "end subroutine\n")
     expected = (
         "subroutine maxval_test(array, n, m)\n"
-        "  integer :: n\n  integer :: m\n"
+        "  integer :: n\n"
+        "  integer :: m\n"
         "  real, dimension(10,20) :: array\n"
-        "  real :: result\n  real :: maxval_var\n"
-        "  integer :: i_0\n  integer :: i_1\n\n"
-        "  maxval_var = TINY(maxval_var)\n"
-        "  do i_1 = 1, 20, 1\n"
-        "    do i_0 = 1, 10, 1\n"
-        "      if (maxval_var < array(i_0,i_1)) then\n"
-        "        maxval_var = array(i_0,i_1)\n"
-        "      end if\n"
+        "  real :: result\n"
+        "  integer :: idx\n"
+        "  integer :: idx_1\n\n"
+        "  result = TINY(result)\n"
+        "  do idx = 1, 20, 1\n"
+        "    do idx_1 = 1, 10, 1\n"
+        "      result = MAX(result, array(idx_1,idx))\n"
         "    enddo\n"
-        "  enddo\n"
-        "  result = maxval_var\n\n"
+        "  enddo\n\n"
         "end subroutine maxval_test\n")
     psyir = fortran_reader.psyir_from_source(code)
     # FileContainer/Routine/Assignment/IntrinsicCall

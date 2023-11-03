@@ -57,6 +57,7 @@ class MMSBaseTrans(Transformation, ABC):
 
     '''
     _INTRINSIC_NAME = None
+    _CHILD_INTRINSIC = None
 
     @staticmethod
     def _get_args(node):
@@ -129,31 +130,37 @@ class MMSBaseTrans(Transformation, ABC):
 
         array_ref, dim_ref, _ = self._get_args(node)
 
-        # If there is a dim argument then PSyclone curently needs to
-        # be able to determine the literal value.
-        # pylint: disable=unidiomatic-typecheck
-        if dim_ref and not (
-                isinstance(dim_ref, Literal)
-                or (type(dim_ref) is Reference and
-                    dim_ref.symbol.is_constant and
-                    isinstance(dim_ref.symbol.initial_value, Literal))):
-            if isinstance(dim_ref, Reference):
-                info = f"a reference to a '{type(dim_ref.symbol).__name__}'"
-            else:
-                info = f"type '{type(dim_ref).__name__}'"
+        # dim_ref is not yet supported by this transformation.
+        if dim_ref:
             raise TransformationError(
-                f"Can't find the value of the 'dim' argument to the "
-                f"{self._INTRINSIC_NAME} intrinsic. Expected "
-                f"it to be a literal or a reference to a known constant "
-                f"value, but found '{dim_ref.debug_string()}' which is "
-                f"{info}.")
+                f"The dimension argument to {self._INTRINSIC_NAME} is not "
+                f"yet supported.")
 
-        # pylint: disable=unidiomatic-typecheck
-        if not (isinstance(array_ref, ArrayReference) or
-                (type(array_ref) is Reference)):
+        # There should be at least one arrayreference or reference to
+        # an array in the expression
+        for reference in array_ref.walk(Reference):
+            if (isinstance(reference, ArrayReference) or
+                    type(reference) == Reference and
+                    reference.symbol.is_array):
+                break
+        else:
             raise TransformationError(
-                f"{self.name} only supports arrays or plain references for "
-                f"the first argument, but found '{type(array_ref).__name__}'.")
+                f"Error, no ArrayReference's found in the expression "
+                f"'{array_ref.debug_string()}'.")
+
+        
+        if not node.ancestor(Assignment):
+            raise TransformationError(
+                f"{self.name} only works when the intrinsic is part "
+                f"of an Assignment.")
+
+        assignment = array_ref.ancestor(Assignment)
+        from psyclone.psyir.nodes import Node
+        for node in assignment.lhs.walk(Node):
+            if node == array_ref:
+                raise TransformationError(
+                    "Error, intrinsics on the lhs of an assignment are not "
+                    "currently supported.")
 
         if len(array_ref.children) == 0:
             if not array_ref.symbol.is_array:
@@ -167,28 +174,6 @@ class MMSBaseTrans(Transformation, ABC):
                         f"Unexpected shape for array. Expecting one of "
                         f"Deferred, Attribute or Bounds but found '{shape}'.")
 
-        for shape in array_ref.children:
-            if not isinstance(shape, Range):
-                raise TransformationError(
-                    f"{self.name} only supports arrays with array ranges, "
-                    f"but found a fixed dimension in "
-                    f"'{array_ref.debug_string()}'.")
-
-        array_intrinsic = array_ref.symbol.datatype.intrinsic
-        if array_intrinsic not in [ScalarType.Intrinsic.REAL,
-                                   ScalarType.Intrinsic.INTEGER]:
-            raise TransformationError(
-                f"Only real and integer types supported for array "
-                f"'{array_ref.name}', but found '{array_intrinsic.name}'.")
-
-        if not node.ancestor(Assignment):
-            raise TransformationError(
-                f"{self.name} only works when the intrinsic is part "
-                f"of an Assignment.")
-
-    # pylint: disable=too-many-locals
-    # pylint: disable=too-many-branches
-    # pylint: disable=too-many-statements
     def apply(self, node, options=None):
         '''Apply the SUM, MINVAL or MAXVAL intrinsic conversion transformation
         to the specified node. This node must be one of these
@@ -203,170 +188,96 @@ class MMSBaseTrans(Transformation, ABC):
         '''
         self.validate(node)
 
-        array_ref, dimension_ref, mask_ref = self._get_args(node)
+        expr, dimension_ref, mask_ref = self._get_args(node)
 
-        # Determine the literal value of the dimension argument
-        dimension_literal = None
-        # pylint: disable=unidiomatic-typecheck
-        if not dimension_ref:
-            # there is no dimension argument
-            pass
-        elif isinstance(dimension_ref, Literal):
-            dimension_literal = dimension_ref
-        elif ((type(dimension_ref) is Reference) and
-              dimension_ref.symbol.is_constant):
-            dimension_literal = dimension_ref.symbol.initial_value
-        # else exception is handled by the validate method.
-
-        # Determine the dimension and extent of the array
-        ndims = None
-        allocatable = False
-        if len(array_ref.children) == 0:
-            # There is no bounds information in the array reference,
-            # so look at the declaration.
-            # Note, the potential 'if not array_ref.symbol.is_array:'
-            # exception is already handled by the validate method.
-            ndims = len(array_ref.datatype.shape)
-
-            loop_bounds = []
-            for idx, shape in enumerate(array_ref.datatype.shape):
-                if shape in [ArrayType.Extent.DEFERRED,
-                             ArrayType.Extent.ATTRIBUTE]:
-                    if shape == ArrayType.Extent.DEFERRED:
-                        allocatable = True
-                    # runtime extent using LBOUND and UBOUND required
-                    lbound = IntrinsicCall.create(
-                        IntrinsicCall.Intrinsic.LBOUND,
-                        [Reference(array_ref.symbol),
-                         ("dim", Literal(str(idx+1), INTEGER_TYPE))])
-                    ubound = IntrinsicCall.create(
-                        IntrinsicCall.Intrinsic.UBOUND,
-                        [Reference(array_ref.symbol),
-                         ("dim", Literal(str(idx+1), INTEGER_TYPE))])
-                    loop_bounds.append((lbound, ubound))
-                elif isinstance(shape, ArrayType.ArrayBounds):
-                    # array extent is defined in the array declaration
-                    loop_bounds.append(shape)
-                #  Note, the validate method guarantees that an else
-                #  clause is not required.
-        else:
-            # The validate method guarantees that this is an array
-            # reference.
-            loop_bounds = []
-            ndims = len(array_ref.children)
-            for shape in array_ref.children:
-                loop_bounds.append((shape.start.copy(), shape.stop.copy()))
-
-        # Determine the datatype of the array's values and create a
-        # scalar of that type
-        array_intrinsic = array_ref.datatype.intrinsic
-        array_precision = array_ref.datatype.precision
-        scalar_type = ScalarType(array_intrinsic, array_precision)
-
-        symbol_table = node.scope.symbol_table
-        assignment = node.ancestor(Assignment)
-
-        datatype = scalar_type
-        array_reduction = False
-        if dimension_ref and ndims > 1:
-            array_reduction = True
-            # We are reducing from one array to another
-            shape = []
-            for idx, bounds in enumerate(loop_bounds):
-                # The validation constrains the transformation to only
-                # allow cases where the literal value for dimension
-                # is known.
-                if int(dimension_literal.value)-1 == idx:
-                    # This is the dimension we are performing the
-                    # reduction over so do not loop over it.
-                    pass
-                else:
-                    shape.append(bounds)
-            if allocatable:
-                # Reduction and allocatable means we need to make the
-                # reduction array allocatable. We keep the bounds in
-                # datatype_keep for allocating the array.
-                datatype = ArrayType(
-                    scalar_type, len(shape)*[ArrayType.Extent.DEFERRED])
-            else:
-                datatype = ArrayType(scalar_type, shape)
-
-        # Detach the intrinsics array-reference argument to the
-        # intrinsic as it will be used later within a loop nest.
-        array_ref = node.children[0].detach()
-
-        # Create temporary variable based on the name of the intrinsic.
-        var_symbol = symbol_table.new_symbol(
-            f"{self._INTRINSIC_NAME.lower()}_var", symbol_type=DataSymbol,
-            datatype=datatype)
-        # Replace operation with a temporary variable.
-        if array_reduction:
-            # This is a reduction so the number of array dimensions is
-            # reduced by 1 cf. the original array.
-            array_indices = (ndims - 1)*[":"]
-            reference = ArrayReference.create(var_symbol, array_indices)
-        else:
-            reference = Reference(var_symbol)
-        node.replace_with(reference)
-
-        if allocatable and array_reduction:
-            range_list = [
-                Range.create(lbound, ubound) for (lbound, ubound) in shape]
-            # Allocate the reduction and place it just before it is
-            # initialised.
-            allocate = IntrinsicCall.create(
-                IntrinsicCall.Intrinsic.ALLOCATE,
-                [ArrayReference.create(var_symbol, range_list)])
-            assignment = reference.parent
-            assignment.parent.children.insert(assignment.position, allocate)
-
-        # Create the loop iterators
-        loop_iterators = []
-        array_iterators = []
-        for idx in range(ndims):
-            loop_iterator = symbol_table.new_symbol(
-                f"i_{idx}", symbol_type=DataSymbol, datatype=INTEGER_TYPE)
-            loop_iterators.append(loop_iterator)
-            if array_reduction and idx != int(dimension_literal.value)-1:
-                array_iterators.append(loop_iterator)
-
-        # Initialise the temporary variable.
-        rhs = self._init_var(var_symbol)
-        lhs = reference.copy()
-        new_assignment = Assignment.create(lhs, rhs)
-        assignment.parent.children.insert(assignment.position, new_assignment)
-
-        array_indices = []
-        for idx in range(ndims):
-            array_indices.append(Reference(loop_iterators[idx]))
-        array_ref = ArrayReference.create(array_ref.symbol, array_indices)
-
-        statement = self._loop_body(
-            array_reduction, array_iterators, var_symbol, array_ref)
-
+        # Step 1 extract the expression within the intrinsic and put
+        # it on the rhs of an argument with one of the arrays within
+        # the expression being added to the lhs of the argument.
+        rhs = expr.copy()
+        if not rhs.parent:
+            # If the the reference is the only thing on the rhs it
+            # will not have a parent which is required by the
+            # replace_with() method. Add a fake parent (+)
+            from psyclone.psyir.nodes import UnaryOperation
+            unary_op = UnaryOperation.create(
+                UnaryOperation.Operator.PLUS, rhs)
+        
+        # Convert references to arrays to array ranges where appropriate
+        from psyclone.psyir.transformations import Reference2ArrayRangeTrans
+        reference2arrayrange = Reference2ArrayRangeTrans()
+        rhs_parent = rhs.parent
+        for reference in rhs.walk(Reference):
+            try:
+                reference_parent = reference.parent
+                reference2arrayrange.apply(reference)
+            except TransformationError:
+                pass
+        # We know there is only one child
+        rhs = rhs_parent.children[0]
         if mask_ref:
-            # A mask argument has been provided
-            for ref in mask_ref.walk(Reference):
-                # pylint: disable=unidiomatic-typecheck
-                if ref.name == array_ref.name and type(ref) is Reference:
-                    # The array is not indexed so it needs indexing
-                    # for the loop nest.
-                    shape = [Reference(obj) for obj in loop_iterators]
-                    reference = ArrayReference.create(ref.symbol, shape)
-                    ref.replace_with(reference)
-            statement = IfBlock.create(mask_ref.detach(), [statement])
+            mask_ref_parent = mask_ref.parent
+            mask_ref_index = mask_ref.position
+            for reference in mask_ref.walk(Reference):
+                try:
+                    reference2arrayrange.apply(reference)
+                except TransformationError:
+                    pass
+            mask_ref = mask_ref_parent.children[mask_ref_index]
 
-        for idx in range(ndims):
-            statement = Loop.create(
-                loop_iterators[idx].copy(), loop_bounds[idx][0].copy(),
-                loop_bounds[idx][1].copy(), Literal("1", INTEGER_TYPE),
-                [statement])
+        orig_lhs = node.ancestor(Assignment).lhs.copy()
+        array_refs = rhs.walk(ArrayReference)
+        lhs = array_refs[0].copy()
+        assignment = Assignment.create(lhs, rhs.detach())
+        # Replace existing code so the new code gets access to symbol
+        # tables etc.
+        orig_assignment = node.ancestor(Assignment)
+        orig_assignment.replace_with(assignment)
 
-        assignment.parent.children.insert(assignment.position, statement)
+        # Step 2 call nemoarrayrange2loop_trans to create loop bounds
+        # and array indexing (keeping track of where the new loop nest
+        # is created). Also deal with the mask if it exists.
+        if mask_ref:
+            # add mask to the rhs of the assignment
+            from psyclone.psyir.nodes import BinaryOperation
+            assignment_rhs = BinaryOperation.create(
+                BinaryOperation.Operator.AND, assignment.rhs.copy(), mask_ref.copy())
+            assignment.rhs.replace_with(assignment_rhs)
+
+        assignment_parent = assignment.parent
+        assignment_position = assignment.position
+        # Must be placed here to avoid circular imports
+        from psyclone.domain.nemo.transformations import NemoAllArrayRange2LoopTrans
+        array_range = NemoAllArrayRange2LoopTrans()
+        array_range.apply(assignment)        
+        outer_loop = assignment_parent.children[assignment_position]
+        if mask_ref:
+            # remove mask from the rhs of the assignment
+            orig_assignment = assignment_rhs.children[0].copy()
+            indexed_mask_ref = assignment_rhs.children[1].copy()
+            assignment_rhs.replace_with(orig_assignment)
+
+        # Step 3 convert the original assignment (now within a loop
+        # and indexed) to its intrinsic form by replacing the
+        # assignment with orig_lhs=INTRINSIC(orig_lhs,<expr>)
+        new_assignment = Assignment.create(
+            orig_lhs.copy(), self._loop_body(orig_lhs.copy(), assignment.rhs.copy()))
+        if mask_ref:
+            # Place the indexed mask around the statement.
+            new_assignment = IfBlock.create(indexed_mask_ref.copy(), [new_assignment])
+
+        assignment.replace_with(new_assignment)
+        
+        # Step 4 initialise the variable and place it before the newly
+        # created outer loop (in step 2).
+        lhs = orig_lhs.copy()
+        rhs = self._init_var(lhs.symbol)
+        assignment = Assignment.create(lhs, rhs)
+        outer_loop.parent.children.insert(outer_loop.position, assignment)
+
+        return
 
     @abstractmethod
-    def _loop_body(
-            self, array_reduction, array_iterators, var_symbol, array_ref):
+    def _loop_body(self, lhs, rhs):
         '''The intrinsic-specific content of the created loop body.'''
 
     @abstractmethod
