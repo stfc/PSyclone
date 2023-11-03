@@ -54,8 +54,14 @@ def test_init_exception():
     # pylint: disable=abstract-class-instantiated
     with pytest.raises(TypeError) as info:
         _ = MMSBaseTrans()
-    assert ("Can't instantiate abstract class MMSBaseTrans with abstract "
-            "methods _init_var, _loop_body" in str(info.value))
+    # Python >= 3.12 tweaks the error message to mention
+    # the lack of an implementation and to quote the method names.
+    # We split the check to accomodate for this.
+    assert ("Can't instantiate abstract class MMSBaseTrans with"
+            in str(info.value))
+    assert ("abstract methods" in str(info.value))
+    assert ("_init_var" in str(info.value))
+    assert ("_loop_body" in str(info.value))
 
 
 def test_get_args():

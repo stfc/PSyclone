@@ -861,7 +861,7 @@ class ACCUpdateDirective(ACCStandaloneDirective):
             raise TypeError(
                 f"The ACCUpdateDirective signatures argument must be a "
                 f"set of signatures but got "
-                f"{ {type(sig).__name__ for sig in signatures} }")
+                f"{set(type(sig).__name__ for sig in signatures)}")
 
         self._sig_set = signatures
 
