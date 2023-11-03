@@ -57,8 +57,7 @@ BASE_PATH = os.path.join(
 API = "dynamo0.3"
 
 
-# pylint: disable=invalid-name
-def test_X_innerproduct_X(tmpdir, dist_mem):
+def test_x_innerproduct_x(tmpdir, dist_mem):
     '''
     Test that 1) the '__str__' method of 'LFRicXInnerproductXKern'
     returns the expected string and 2) we generate correct code
@@ -98,7 +97,7 @@ def test_X_innerproduct_X(tmpdir, dist_mem):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
-def test_X_innerproduct_X_lowering(fortran_writer):
+def test_x_innerproduct_x_lowering(fortran_writer):
     '''
     Test that the lower_to_language_level() method of X_innerproduct_X
     built-in works as expected.

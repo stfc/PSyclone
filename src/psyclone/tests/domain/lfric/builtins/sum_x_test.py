@@ -56,8 +56,7 @@ BASE_PATH = os.path.join(
 API = "dynamo0.3"
 
 
-# pylint: disable=invalid-name
-def test_sum_X(tmpdir, dist_mem):
+def test_sum_x(tmpdir, dist_mem):
     '''
     Test that 1) the '__str__' method of 'LFRicSumXKern' returns the
     expected string and 2) we generate correct code for the built-in
@@ -107,7 +106,7 @@ def test_sum_X(tmpdir, dist_mem):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
-def test_sum_X_lowering(fortran_writer):
+def test_sum_x_lowering(fortran_writer):
     '''
     Test that the lower_to_language_level() method works as expected.
 

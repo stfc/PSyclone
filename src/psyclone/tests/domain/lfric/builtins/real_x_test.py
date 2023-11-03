@@ -60,8 +60,7 @@ BASE_PATH = os.path.join(
 API = "dynamo0.3"
 
 
-# pylint: disable=invalid-name
-def test_real_X(tmpdir, monkeypatch, annexed, dist_mem):
+def test_real_x(tmpdir, monkeypatch, annexed, dist_mem):
     '''
     Test that 1) the '__str__' method of 'LFRicRealXKern' returns the
     expected string and 2) we generate correct code for the built-in
@@ -121,7 +120,7 @@ def test_real_X(tmpdir, monkeypatch, annexed, dist_mem):
 
 
 @pytest.mark.parametrize("kind_name", ["r_solver", "r_tran", "r_bl", "r_phys"])
-def test_real_X_precision(tmpdir, kind_name):
+def test_real_x_precision(tmpdir, kind_name):
     '''
     Test that the built-in picks up and creates correct code for field
     data with precision that is not the default, i.e. not 'r_def'. Try with
@@ -165,7 +164,7 @@ def test_real_X_precision(tmpdir, kind_name):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
-def test_real_X_lowering(fortran_writer):
+def test_real_x_lowering(fortran_writer):
     '''
     Test that the lower_to_language_level() method works as expected.
 

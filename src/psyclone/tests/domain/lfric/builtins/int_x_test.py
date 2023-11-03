@@ -60,7 +60,7 @@ BASE_PATH = os.path.join(
 API = "dynamo0.3"
 
 
-def test_int_X(tmpdir, monkeypatch, annexed, dist_mem):
+def test_int_x(tmpdir, monkeypatch, annexed, dist_mem):
     '''
     Test that 1) the '__str__' method of 'LFRicIntXKern' returns the
     expected string and 2) we generate correct code for the built-in
@@ -121,7 +121,7 @@ def test_int_X(tmpdir, monkeypatch, annexed, dist_mem):
 
 
 @pytest.mark.parametrize("kind_name", ["i_native", "i_ncdf"])
-def test_int_X_precision(monkeypatch, kind_name):
+def test_int_x_precision(monkeypatch, kind_name):
     '''
     Test that the built-in picks up and creates correct code for field
     data with precision that is not the default, i.e. not 'i_def'.
@@ -152,7 +152,7 @@ def test_int_X_precision(monkeypatch, kind_name):
     assert f"f2_data(df) = INT(f1_data(df), kind={kind_name})" in code
 
 
-def test_int_X_lowering(fortran_writer):
+def test_int_x_lowering(fortran_writer):
     '''
     Test that the lower_to_language_level() method works as expected.
 
