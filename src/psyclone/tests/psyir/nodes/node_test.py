@@ -1638,7 +1638,11 @@ def test_walk_depth(fortran_reader):
     do i = 1, 2
       do j = 1, 2
         do k = 1, 2
-          arr(i,j,k) = 0
+          if (k == 1) then
+              arr(i,j,k) = 0
+          else
+              arr(i,j,k) = -1
+          end if
         end do
       end do
     end do
@@ -1648,7 +1652,7 @@ def test_walk_depth(fortran_reader):
     loops = psyir.walk(Loop)
     assignments = psyir.walk(Assignment)
     assert len(loops) == 3
-    assert len(assignments) == 1
+    assert len(assignments) == 2
     root_depth = psyir.depth
 
     # Test walking over the depths of each loop
@@ -1660,8 +1664,9 @@ def test_walk_depth(fortran_reader):
         assert len(psyir.walk(Assignment, depth=depth)) == 0
 
     # Test walking over the depth of the assignment in the inner loop
-    depth = root_depth + 8
-    assign_8_list = psyir.walk(Assignment, depth=depth)
-    assert len(assign_8_list) == 1
-    assert assign_8_list[0] is assignments[0]
+    depth = root_depth + 10
+    assign_10_list = psyir.walk(Assignment, depth=depth)
+    assert len(assign_10_list) == 2
+    assert assign_10_list[0] is assignments[0]
+    assert assign_10_list[1] is assignments[1]
     assert len(psyir.walk(Loop, depth=depth)) == 0
