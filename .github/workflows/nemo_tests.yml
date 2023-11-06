@@ -193,7 +193,7 @@ jobs:
         export DEL_KEYS="key_iomput"
         export MODEL_DIR=/archive/ssiso/ecmwf_eORCA1_GO8/
         export NAMELISTS_DIR=${NEMO_DIR}/testscripts_V40/output/openmp_outer_V40_eORCA1_GO8_Z75_20170906_cray_dp_1x1/
-	export MPI_INC_DIR=${I_MPI_ROOT}/include
+        export MPI_INC_DIR=${I_MPI_ROOT}/include
         cd $PSYCLONE_NEMO_DIR
         make -j 4 openmp_cpu
         export LD_LIBRARY_PATH=/home/ssiso/ecmwf_nemo/ESiWACE2/scripts/dev/netcdf-c-4.9.0/lib/:$LD_LIBRARY_PATH
