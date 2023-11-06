@@ -56,11 +56,13 @@ def test_datatype():
     with pytest.raises(TypeError) as excinfo:
         _ = DataType()
     msg = str(excinfo.value)
-    # Have to split this check as Python >= 3.10 spots that 'method'
-    # should be singular.
-    assert ("Can't instantiate abstract class DataType with abstract "
-            "method" in msg)
-    assert " __str__" in msg
+    # Python >= 3.9 spots that 'method' should be singular. Prior to this it
+    # was plural. Python >= 3.12 tweaks the error message yet again to mention
+    # the lack of an implementation and to quote the method name.
+    # We split the check to accomodate for this.
+    assert ("Can't instantiate abstract class DataType with" in msg)
+    assert ("abstract method" in msg)
+    assert ("__str__" in msg)
 
 
 # DeferredType class

@@ -45,8 +45,14 @@
 	16) PR #2357 for #2353. Adds the ACC-loops NEMO transformation script
 	and includes its use in the integration testing.
 
-	17 PR #2378 for #2369. Adds sibling property to node to help tree
-	traversal.
+	17) PR #2380 and #2378 for #2369. Add PSyIR node.sibilings property.
+
+	18) PR #2375 for #2374. Bug fix for LFRic kernel-extraction driver
+	creation for netcdf.
+
+	19) PR #2385. Update tests to include python 3.12.
+
+	20) PR #2377 for #2368. Adds optional 'depth' argument to Node.walk().
 
 release 2.4.0 29th of September 2023
 
