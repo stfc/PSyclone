@@ -295,7 +295,8 @@ def test_function_missing_return_type(fortran_reader):
     with pytest.raises(SymbolError) as err:
         _ = fortran_reader.psyir_from_source(code)
     assert ("No explicit return-type information found for function "
-            "'my_func'. This is not supported by PSyclone." in str(err.value))
+            "'my_func'. PSyclone requires that all symbols be explicitly "
+            "typed." in str(err.value))
     # Test where the result is specified in a suffix but there is no actual
     # declaration of the symbol.
     code = (
@@ -308,7 +309,8 @@ def test_function_missing_return_type(fortran_reader):
     with pytest.raises(SymbolError) as err:
         _ = fortran_reader.psyir_from_source(code)
     assert ("No explicit return-type information found for function "
-            "'my_func'. This is not supported by PSyclone." in str(err.value))
+            "'my_func'. PSyclone requires that all symbols be explicitly "
+            "typed." in str(err.value))
 
 
 def test_function_unsupported_type(fortran_reader):

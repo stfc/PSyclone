@@ -13,7 +13,7 @@ PSYCLONE_NEMO_DIR ?= ${WORKSPACE}/PSyclone/examples/nemo/scripts
 # - Specify location of preprocessed files - you need to call 'make compile-serial' once first)
 # ROOT_SRC ?=
 # Where to find the MPI header files
-# MPI_INC_DIR ?=
+# MPI_INC_DIR ?= ${I_MPI_ROOT}/include
 # - Specify NEMO test case
 TEST_CASE ?= SPITZ12
 # - Specify compilation options

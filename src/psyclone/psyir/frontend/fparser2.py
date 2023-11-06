@@ -1830,7 +1830,7 @@ class Fparser2Reader():
         :param statics_list: the names of symbols which are static (due to
             appearing in a SAVE statement). If all symbols are static then
             this contains the single entry "*".
-        :type statics_list: Optional[Iterable[str]]
+        :type statics_list: Iterable[str]
 
         :raises NotImplementedError: if an unsupported attribute is found.
         :raises NotImplementedError: if an unsupported intent attribute is
@@ -4484,7 +4484,7 @@ class Fparser2Reader():
         statement into a PSyIR Routine node.
 
         :param node: node in fparser2 parse tree.
-        :type node: :py:class:`fparser.two.Fortran2003.Subroutine_Subprogram` \
+        :type node: :py:class:`fparser.two.Fortran2003.Subroutine_Subprogram`
             or :py:class:`fparser.two.Fortran2003.Function_Subprogram`
         :param parent: parent node of the PSyIR node being constructed.
         :type parent: subclass of :py:class:`psyclone.psyir.nodes.Node`
@@ -4495,8 +4495,9 @@ class Fparser2Reader():
 
         :raises NotImplementedError: if the node contains a Contains clause.
         :raises NotImplementedError: if the node contains an ENTRY statement.
-        :raises NotImplementedError: if an unsupported prefix is found or no
-            explicit type information is available for a Function.
+        :raises NotImplementedError: if an unsupported prefix is found.
+        :raises SymbolError: if no explicit type information is available for
+                             the return value of a Function.
 
         '''
         try:
@@ -4601,8 +4602,9 @@ class Fparser2Reader():
                     # generated code won't compile.
                     raise SymbolError(
                         f"No explicit return-type information found for "
-                        f"function '{name}'. This is not supported by "
-                        f"PSyclone.")
+                        f"function '{name}'. PSyclone requires that all "
+                        f"symbols be explicitly typed.")
+
                 # First, update the existing RoutineSymbol with the
                 # return datatype specified in the function
                 # declaration.
