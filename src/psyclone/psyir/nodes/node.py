@@ -1072,7 +1072,7 @@ class Node():
             return False
         return self.parent is node_2.parent
 
-    def walk(self, my_type, stop_type=None):
+    def walk(self, my_type, stop_type=None, depth=None):
         ''' Recurse through the PSyIR tree and return all objects that are
         an instance of 'my_type', which is either a single class or a tuple
         of classes. In the latter case all nodes are returned that are
@@ -1080,12 +1080,15 @@ class Node():
         is stopped if an instance of 'stop_type' (which is either a single
         class or a tuple of classes) is found. This can be used to avoid
         analysing e.g. inlined kernels, or as performance optimisation to
-        reduce the number of recursive calls.
+        reduce the number of recursive calls. The recursion into the tree is
+        also stopped if the (optional) 'depth' level is reached.
 
         :param my_type: the class(es) for which the instances are collected.
         :type my_type: type | Tuple[type, ...]
         :param stop_type: class(es) at which recursion is halted (optional).
         :type stop_type: Optional[type | Tuple[type, ...]]
+        :param depth: the depth value the instances must have (optional).
+        :type depth: Optional[int]
 
         :returns: list with all nodes that are instances of my_type \
                   starting at and including this node.
@@ -1093,15 +1096,21 @@ class Node():
 
         '''
         local_list = []
-        if isinstance(self, my_type):
+        if isinstance(self, my_type) and depth in [None, self.depth]:
             local_list.append(self)
 
         # Stop recursion further into the tree if an instance of a class
         # listed in stop_type is found.
         if stop_type and isinstance(self, stop_type):
             return local_list
+
+        # Stop recursion further into the tree if a depth level has been
+        # specified and it is reached.
+        if depth is not None and self.depth >= depth:
+            return local_list
+
         for child in self.children:
-            local_list += child.walk(my_type, stop_type)
+            local_list += child.walk(my_type, stop_type, depth=depth)
         return local_list
 
     def get_sibling_lists(self, my_type, stop_type=None):
