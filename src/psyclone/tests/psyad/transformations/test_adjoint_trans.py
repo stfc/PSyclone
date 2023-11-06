@@ -1,6 +1,6 @@
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -30,14 +30,13 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 #
 '''Module to test the psyad adjoint base class transformation.'''
 
 from __future__ import absolute_import
 import pytest
 
-from psyclone.psyir.backend.sir import SIRWriter
 from psyclone.psyir.symbols import DataSymbol, REAL_TYPE
 from psyclone.psyad.transformations.adjoint_trans import AdjointTransformation
 
@@ -85,12 +84,5 @@ def test_args():
             "'NoneType'." in str(info.value))
 
     active_vars = [DataSymbol("x", REAL_TYPE)]
-    with pytest.raises(TypeError) as info:
-        DummyTrans(active_vars, None)
-    assert ("The writer argument should be a PSyIRVisitor but found "
-            "'NoneType'." in str(info.value))
-
-    writer = SIRWriter()
-    dummy_trans = DummyTrans(active_vars, writer)
+    dummy_trans = DummyTrans(active_vars)
     assert dummy_trans._active_variables is active_vars
-    assert dummy_trans._writer is writer

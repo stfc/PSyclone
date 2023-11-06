@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2020, Science and Technology Facilities Council
+! Copyright (c) 2017-2023, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -37,19 +37,21 @@
 program restrict_prolong
 
   ! Description: invoke containing restrictions/prolongations where
-  ! fields swap roles (what was 'fine' becomes 'coarse')
+  ! fields swap roles (what was 'fine' becomes 'coarse'). Once of the fields is
+  ! also named so as to provoke a name clash with the standard name that
+  ! PSyclone would generate for a colour map.
   use field_mod,                only: field_type
   use restrict_test_kernel_mod, only: restrict_test_kernel_type
   use prolong_test_kernel_mod,  only: prolong_test_kernel_type
 
   implicit none
 
-  type(field_type) :: fld_f, fld_m, fld_c
+  type(field_type) :: fld_f, fld_m, cmap_fld_c
 
-  call invoke(                                         &
-              prolong_test_kernel_type(fld_m, fld_c),  & ! coarse -> medium
-              prolong_test_kernel_type(fld_f, fld_m),  & ! medium -> fine
-              restrict_test_kernel_type(fld_m, fld_f), & ! fine -> medium
-              restrict_test_kernel_type(fld_c, fld_m) )  ! medium -> coarse
+  call invoke(                                             &
+              prolong_test_kernel_type(fld_m, cmap_fld_c), & ! coarse -> medium
+              prolong_test_kernel_type(fld_f, fld_m),      & ! medium -> fine
+              restrict_test_kernel_type(fld_m, fld_f),     & ! fine -> medium
+              restrict_test_kernel_type(cmap_fld_c, fld_m) ) ! medium -> coarse
 
 end program restrict_prolong

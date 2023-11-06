@@ -48,7 +48,7 @@ from fparser.two import Fortran2003
 from psyclone.domain.lfric.lfric_builtins import BUILTIN_MAP as builtins
 from psyclone.domain.lfric.lfric_builtins import \
     BUILTIN_DEFINITIONS_FILE as fname
-from psyclone.parse.kernel import KernelType, get_kernel_metadata,\
+from psyclone.parse.kernel import KernelType, get_kernel_metadata, \
     get_kernel_interface, KernelProcedure, Descriptor, \
     BuiltInKernelTypeFactory, get_kernel_filepath, get_kernel_ast
 from psyclone.parse.utils import ParseError

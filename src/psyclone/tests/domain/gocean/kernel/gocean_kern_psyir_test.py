@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022, Science and Technology Facilities Council
+# Copyright (c) 2022-2023, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,8 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford, STFC Daresbury Lab
+# Author: R. W. Ford, STFC Daresbury Lab
+# Modified: A. R. Porter and S. Siso, STFC Daresbury Lab
 
 '''Module containing tests for the KernelMetadataSymbol
 kernel-layer-specific symbol. The tests include translation of
@@ -70,8 +71,8 @@ PROGRAM = (
     f"module dummy\n"
     f"{METADATA}"
     f"contains\n"
-    f"  subroutine kern()\n"
-    f"  end subroutine kern\n"
+    f"  subroutine compute_cu_code()\n"
+    f"  end subroutine compute_cu_code\n"
     f"end module dummy\n")
 
 
@@ -121,7 +122,8 @@ def test_goceancontainer_lower(fortran_reader):
 
     # Now use lower_to_language_level and perform checks
     container = kernel_psyir.children[0]
-    container.lower_to_language_level()
+    lowered = container.lower_to_language_level()
+    assert lowered is kernel_psyir.children[0]
     assert isinstance(kernel_psyir.children[0], Container)
     assert not isinstance(kernel_psyir.children[0], GOceanContainer)
     assert kernel_psyir.children[0].symbol_table.lookup("compute_cu")
@@ -179,8 +181,7 @@ def test_goceankernelmetadata_init2():
 
     with pytest.raises(ValueError) as info:
         _ = GOceanKernelMetadata(name="1error")
-    assert ("Expected name to be a valid value but found '1error'."
-            in str(info.value))
+    assert "Invalid Fortran name '1error' found." in str(info.value)
 
     metadata = GOceanKernelMetadata(
         iterates_over="go_all_pts", index_offset="go_offset_ne", meta_args=[],
@@ -476,8 +477,7 @@ def test_metadata_name():
     assert kernel_metadata.name == "new_name"
     with pytest.raises(ValueError) as info:
         kernel_metadata.name = "1invalid"
-    assert ("Expected name to be a valid value but found "
-            "'1invalid'." in str(info.value))
+    assert "Invalid Fortran name '1invalid' found." in str(info.value)
 
 
 # internal GridArg class

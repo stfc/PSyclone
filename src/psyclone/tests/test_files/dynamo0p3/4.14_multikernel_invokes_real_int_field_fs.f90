@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2021, Science and Technology Facilities Council
+! Copyright (c) 2021-2023, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,8 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author I. Kavcic, Met Office
+! Author: I. Kavcic, Met Office
+! Modified: A. R. Porter, STFC Daresbury Lab
 
 program multikernel_invokes_real_int_field_fs
 
@@ -50,7 +51,7 @@ program multikernel_invokes_real_int_field_fs
   type(field_type) :: f1, f2, f3, f4, f5, f6, &
                       m1, m2, m3, m4, m5, m6, m7
 
-  call invoke(name = "Integer and real field",            &
+  call invoke(name = "Integer_and_real_field",            &
        testkern_fs_int_field_type(i1, i2, n1, n2, i3, i4, &
                                   n3, n4, i5, i6, n5, n6, &
                                   i7, i8, n7),            &

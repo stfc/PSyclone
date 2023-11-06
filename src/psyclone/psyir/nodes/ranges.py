@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2021, Science and Technology Facilities Council
+# Copyright (c) 2020-2023, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -63,20 +63,20 @@ class Range(Node):
 
     A common use case is to want to specify all the elements of a given
     array dimension without knowing the extent of that dimension. In the
-    PSyIR this is achieved by using the ``LBOUND``, and ``UBOUND`` binary
-    operators::
+    PSyIR this is achieved by using the ``LBOUND``, and ``UBOUND``
+    intrinsics::
 
       >>> one = Literal("1", INTEGER_TYPE)
       >>> # Declare a 1D real array called 'a' with 10 elements
       >>> symbol = DataSymbol("a", ArrayType(REAL_TYPE, [10]))
       >>> # Return the lower bound of the first dimension of array 'a'
-      >>> lbound = BinaryOperation.create(
-              BinaryOperation.Operator.LBOUND,
-              Reference(symbol), one.copy())
+      >>> lbound = IntrinsicCall.create(
+              IntrinsicCall.Intrinsic.LBOUND,
+              [Reference(symbol), one.copy()])
       >>> # Return the upper bound of the first dimension of array 'a'
-      >>> ubound = BinaryOperation.create(
-              BinaryOperation.Operator.UBOUND,
-              Reference(symbol), one.copy())
+      >>> ubound = IntrinsicCall.create(
+              IntrinsicCall.Intrinsic.UBOUND,
+              [Reference(symbol), one.copy()])
       >>> # Step defaults to 1 so no need to include it when creating range
       >>> my_range = Range.create(lbound, ubound)
       >>> # Create an access to all elements in the 1st dimension of array 'a'

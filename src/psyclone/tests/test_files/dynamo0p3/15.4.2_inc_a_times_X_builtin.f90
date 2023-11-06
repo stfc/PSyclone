@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2020, Science and Technology Facilities Council.
+! Copyright (c) 2017-2023, Science and Technology Facilities Council.
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -31,8 +31,8 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 ! -----------------------------------------------------------------------------
-! Author A. R. Porter STFC Daresbury Lab
-! Modified I. Kavcic Met Office
+! Author: A. R. Porter, STFC Daresbury Lab
+! Modified: I. Kavcic, Met Office
 
 program single_invoke
 
@@ -45,6 +45,8 @@ program single_invoke
 
   type(field_type) :: f1
   real(r_def)      :: a_scalar
+
+  a_scalar = 2.0_r_def
 
   call invoke( inc_a_times_X(a_scalar, f1) )
 

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022, Science and Technology Facilities Council.
+# Copyright (c) 2022-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: R. W. Ford, STFC Daresbury Lab
+# Modified: S. Siso, STFC Daresbury Lab
 
 '''Module containing tests for the Reference2ArrayRangeLoopTrans
 transformation.'''
@@ -39,7 +40,7 @@ transformation.'''
 import pytest
 
 from psyclone.psyGen import Transformation
-from psyclone.psyir.nodes import Reference, Literal, BinaryOperation
+from psyclone.psyir.nodes import Reference, Literal, IntrinsicCall
 from psyclone.psyir.symbols import DataSymbol, REAL_TYPE
 from psyclone.psyir.transformations import Reference2ArrayRangeTrans, \
     TransformationError
@@ -99,10 +100,10 @@ def test_get_array_bound(fortran_reader):
     symbol = node.symbol
     lower_bound, upper_bound, step = \
         Reference2ArrayRangeTrans._get_array_bound(symbol, 0)
-    assert isinstance(lower_bound, BinaryOperation)
-    assert lower_bound.operator == BinaryOperation.Operator.LBOUND
-    assert isinstance(upper_bound, BinaryOperation)
-    assert upper_bound.operator == BinaryOperation.Operator.UBOUND
+    assert isinstance(lower_bound, IntrinsicCall)
+    assert lower_bound.intrinsic == IntrinsicCall.Intrinsic.LBOUND
+    assert isinstance(upper_bound, IntrinsicCall)
+    assert upper_bound.intrinsic == IntrinsicCall.Intrinsic.UBOUND
     assert isinstance(step, Literal)
     assert step.value == "1"
     reference = lower_bound.children[0]
@@ -161,7 +162,7 @@ def test_variable(fortran_reader, fortran_writer):
     code = CODE.replace("  real, dimension(10) :: a\n",
                         "  integer :: n\n  real, dimension(n) :: a\n")
     result = apply_trans(fortran_reader, fortran_writer, code)
-    assert "a(:n) = b\n" in result
+    assert "a(:) = b\n" in result
 
 
 def test_range(fortran_reader, fortran_writer):
@@ -188,11 +189,11 @@ def test_multid(fortran_reader, fortran_writer):
     code = code.replace("a = b", "a = b * c\n")
     code = code.replace("  real :: b\n\n", "")
     result = apply_trans(fortran_reader, fortran_writer, code)
-    assert "a(:n,:m,:) = b(:n,:m,:) * c(:n,:m,:)\n" in result
+    assert "a(:,:,:) = b(:,:,:) * c(:,:,:)\n" in result
 
 
-def test_operators(fortran_reader, fortran_writer):
-    '''Test that references to arrays within operators are transformed to
+def test_intrinsics(fortran_reader, fortran_writer):
+    '''Test that references to arrays within intrinsics are transformed to
     array slice notation, using dotproduct as the example.
 
     '''
@@ -268,27 +269,27 @@ def test_validate_query(fortran_reader):
             with pytest.raises(TransformationError) as info:
                 trans.validate(reference)
             assert ("References to arrays within LBOUND, UBOUND or SIZE "
-                    "operators should not be transformed." in str(info.value))
+                    "intrinsics should not be transformed." in str(info.value))
 
     # Check the references to 'b' in the hidden lbound and ubound
-    # operators within 'b(:)' do not get modified.
+    # intrinsics within 'b(:)' do not get modified.
     assignment = psyir.children[0].children[1]
     for reference in assignment.walk(Reference):
         # We want to avoid subclasses such as ArrayReference
         # pylint: disable=unidiomatic-typecheck
-        if type(reference) == Reference:
+        if type(reference) is Reference:
             with pytest.raises(TransformationError) as info:
                 trans.validate(reference)
             assert ("References to arrays within LBOUND, UBOUND or SIZE "
-                    "operators should not be transformed." in str(info.value))
+                    "intrinsics should not be transformed." in str(info.value))
 
-    # Check the reference to 'b' in the size operator does not get modified
+    # Check the reference to 'b' in the size intrinsics does not get modified
     assignment = psyir.children[0].children[2]
     reference = assignment.children[1].children[0]
     with pytest.raises(TransformationError) as info:
         trans.validate(reference)
     assert ("References to arrays within LBOUND, UBOUND or SIZE "
-            "operators should not be transformed." in str(info.value))
+            "intrinsics should not be transformed." in str(info.value))
 
 
 def test_validate_structure(fortran_reader):
@@ -312,6 +313,23 @@ def test_validate_structure(fortran_reader):
         trans.validate(reference)
     assert ("The supplied node should be a Reference but found "
             "'StructureReference'." in str(info.value))
+
+
+def test_validate_deallocate(fortran_reader):
+    '''Test that a DEALLOCATE statement raises an exception. '''
+    code = (
+        "program test\n"
+        "  real, dimension(:), allocatable :: a\n\n"
+        "  allocate(a(10))\n"
+        "  deallocate(a)\n"
+        "end program test\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    reference = psyir.walk(Reference)[1]
+    trans = Reference2ArrayRangeTrans()
+    with pytest.raises(TransformationError) as info:
+        trans.validate(reference)
+    assert ("References to arrays within DEALLOCATE intrinsics should not be "
+            "transformed, but found:\n DEALLOCATE(a)" in str(info.value))
 
 
 def test_apply_validate():

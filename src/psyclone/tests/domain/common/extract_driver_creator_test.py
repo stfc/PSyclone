@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council
+# Copyright (c) 2021-2023, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -57,7 +57,7 @@ from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
 from psyclone.psyir.nodes import Reference, Routine
 from psyclone.psyir.symbols import ContainerSymbol, SymbolTable
-from psyclone.psyir.tools import DependencyTools
+from psyclone.psyir.tools import DependencyTools, ReadWriteInfo
 from psyclone.psyir.transformations import PSyDataTrans, TransformationError
 from psyclone.tests.utilities import get_base_path, get_invoke
 
@@ -124,7 +124,7 @@ def test_driver_creation1():
   call extract_psy_data%OpenRead('psy_extract_example_with_various_variable_''' \
   '''access_patterns', 'invoke_0_compute_kernel:compute_kernel_code:r0')
   call extract_psy_data%ReadVariable('out_fld_post', out_fld_post)
-  ALLOCATE(out_fld(SIZE(out_fld_post, 1), SIZE(out_fld_post, 2)))
+  ALLOCATE(out_fld, mold=out_fld_post)
   out_fld = 0
   call extract_psy_data%ReadVariable('in_fld', in_fld)
   call extract_psy_data%ReadVariable('in_out_fld_post', in_out_fld_post)
@@ -175,11 +175,11 @@ def test_driver_creation2():
     clb_trans.apply(invoke.schedule)
 
     dep = DependencyTools()
-    input_list, output_list = dep.get_in_out_parameters(nodes)
+    read_write_info = dep.get_in_out_parameters(nodes)
 
     edc = ExtractDriverCreator()
 
-    driver_code = edc.get_driver_as_string(nodes, input_list, output_list,
+    driver_code = edc.get_driver_as_string(nodes, read_write_info,
                                            "extract", "_post",
                                            ("module_name", "local_name"))
 
@@ -204,7 +204,7 @@ def test_driver_creation2():
   type(ReadKernelDataType) :: extract_psy_data
   call extract_psy_data%OpenRead('module_name', 'local_name')
   call extract_psy_data%ReadVariable('out_fld_post', out_fld_post)
-  ALLOCATE(out_fld(SIZE(out_fld_post, 1), SIZE(out_fld_post, 2)))
+  ALLOCATE(out_fld, mold=out_fld_post)
   out_fld = 0
   call extract_psy_data%ReadVariable('in_fld', in_fld)
   call extract_psy_data%ReadVariable('in_out_fld_post', in_out_fld_post)
@@ -299,7 +299,7 @@ def test_rename_suffix_if_name_clash():
   call extract_psy_data%ReadVariable('in_out_fld', in_out_fld)
   call extract_psy_data%ReadVariable('in_out_fld_post0', in_out_fld_post0)
   call extract_psy_data%ReadVariable('out_fld_post0', out_fld_post0)
-  ALLOCATE(out_fld(SIZE(out_fld_post0, 1), SIZE(out_fld_post0, 2)))
+  ALLOCATE(out_fld, mold=out_fld_post0)
   call extract_psy_data%ReadVariable('out_fld_post', out_fld_post)"""
 
     for line in expected.split("\n"):
@@ -481,10 +481,10 @@ def test_driver_creation_same_symbol():
 
     nodes = [invoke.schedule.children[0]]
     dep = DependencyTools()
-    input_list, output_list = dep.get_in_out_parameters(nodes)
+    read_write_info = dep.get_in_out_parameters(nodes)
 
     edc = ExtractDriverCreator()
-    driver_code = edc.get_driver_as_string(nodes, input_list, output_list,
+    driver_code = edc.get_driver_as_string(nodes, read_write_info,
                                            "extract", "_post",
                                            ("module_name", "local_name"))
     # Make sure we have both kernel calls in the driver.
@@ -528,7 +528,8 @@ def test_driver_creation_import_modules(fortran_reader):
     assert str(all_symbols["my_module"]) == \
         "my_module: ContainerSymbol<not linked>"
     mod_func = all_symbols["mod_func"]
-    assert str(mod_func) == "mod_func: RoutineSymbol<DeferredType>"
+    assert str(mod_func) == ("mod_func: RoutineSymbol<DeferredType, "
+                             "pure=unknown, elemental=unknown>")
 
 
 # -----------------------------------------------------------------------------
@@ -553,11 +554,12 @@ def test_driver_node_verification():
     # Provide the nodes in the wrong order.
     # Invoke #3 has all in all three kernels:
     schedule = invokes[3].schedule
+    read_write_info = ReadWriteInfo()
     with pytest.raises(TransformationError) as err:
         edc.create(nodes=[schedule.children[1],
                           schedule.children[2],
                           schedule.children[0]],
-                   input_list=[], output_list=[], prefix="extract",
+                   read_write_info=read_write_info, prefix="extract",
                    postfix="post", region_name=("file", "region"))
     assert ("Children are not consecutive children of one parent"
             in str(err.value))
@@ -568,7 +570,7 @@ def test_driver_node_verification():
     with pytest.raises(TransformationError) as err:
         edc.create(nodes=[invokes[3].schedule.children[1],
                           invokes[2].schedule.children[0]],
-                   input_list=[], output_list=[], prefix="extract",
+                   read_write_info=read_write_info, prefix="extract",
                    postfix="post", region_name=("file", "region"))
     assert ("supplied nodes are not children of the same parent."
             in str(err.value))

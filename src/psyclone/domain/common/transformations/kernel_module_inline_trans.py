@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+# Copyright (c) 2017-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -42,9 +42,9 @@
 from psyclone.psyGen import Transformation, CodedKern
 from psyclone.psyir.transformations import TransformationError
 from psyclone.psyir.symbols import RoutineSymbol, DataSymbol, \
-    DataTypeSymbol, Symbol, ContainerSymbol
+    DataTypeSymbol, Symbol, ContainerSymbol, DefaultModuleInterface
 from psyclone.psyir.nodes import Container, ScopingNode, Reference, Routine, \
-    Literal, CodeBlock, Call
+    Literal, CodeBlock, Call, IntrinsicCall
 
 
 class KernelModuleInlineTrans(Transformation):
@@ -83,10 +83,14 @@ class KernelModuleInlineTrans(Transformation):
         :type options: Optional[Dict[str, Any]]
 
         :raises TransformationError: if the target node is not a sub-class of \
-                                     psyGen.CodedKern.
+            psyGen.CodedKern.
         :raises TransformationError: if the subroutine containing the \
-                                     implementation of the kernel cannot be \
-                                     retrieved with 'get_kernel_schedule'.
+            implementation of the kernel cannot be retrieved with \
+            'get_kernel_schedule'.
+        :raises TransformationError: if the name of the routine that \
+            implements the kernel is not the same as the kernel name. This \
+            will happen if the kernel is polymorphic (uses a Fortran \
+            INTERFACE) and will be resolved by #1824.
         :raises TransformationError: if the kernel cannot be safely inlined.
 
         '''
@@ -103,39 +107,44 @@ class KernelModuleInlineTrans(Transformation):
         except Exception as error:
             raise TransformationError(
                 f"{self.name} failed to retrieve PSyIR for kernel "
-                f"'{node.name}' using the 'get_kernel_schedule' method."
+                f"'{node.name}' using the 'get_kernel_schedule' method"
+                f" due to {error}."
                 ) from error
 
-        # Check that all kernel symbols are declared in the kernel
-        # symbol table(s). At this point they may be declared in a
-        # container containing this kernel which is not supported.
-        # TODO #1823: What about symbols not in References (e.g.
-        # literal datatypes, parameters initializations, ...)
-        # It could be more nuanced. Global parameters can be
-        # brought into the inlined subroutine scope
-        for var in kernel_schedule.walk(Reference):
-            try:
-                var.scope.symbol_table.lookup(
-                    var.name, scope_limit=var.ancestor(Routine))
-            except KeyError as err:
-                raise TransformationError(
-                    f"Kernel '{node.name}' contains accesses to data (variable"
-                    f" '{var.name}') that are not present in the Symbol Table"
-                    f"(s) within subroutine scope. Cannot inline such a"
-                    f" kernel.") from err
-
-        # CodeBlocks also have symbols that we need to check
+        # We do not support kernels that use symbols representing global
+        # variables declared in its own parent module (we would need to
+        # create new imports to this module for those, and we don't do
+        # this yet).
+        # These can only be found in References, Calls and CodeBlocks
+        for var in kernel_schedule.walk((Reference, Call)):
+            if isinstance(var, Reference):
+                symbol = var.symbol
+            elif isinstance(var, Call) and not isinstance(var, IntrinsicCall):
+                symbol = var.routine
+            else:
+                # At this point it can only be a IntrinsicCall
+                continue
+            if not symbol.is_import:
+                try:
+                    var.scope.symbol_table.lookup(
+                        symbol.name, scope_limit=kernel_schedule)
+                except KeyError as err:
+                    raise TransformationError(
+                        f"Kernel '{node.name}' contains accesses to "
+                        f"'{symbol.name}' which is declared in the same "
+                        f"module scope. Cannot inline such a kernel.") from err
         for block in kernel_schedule.walk(CodeBlock):
             for name in block.get_symbol_names():
                 try:
                     block.scope.symbol_table.lookup(
-                        name, scope_limit=block.ancestor(Routine))
+                        name, scope_limit=kernel_schedule)
                 except KeyError as err:
-                    raise TransformationError(
-                        f"Kernel '{node.name}' contains accesses to data "
-                        f"(variable '{name}' in a CodeBlock) that are not "
-                        f"present in the Symbol Table(s) within subroutine "
-                        f"scope. Cannot inline such a kernel.") from err
+                    if not block.scope.symbol_table.lookup(name).is_import:
+                        raise TransformationError(
+                            f"Kernel '{node.name}' contains accesses to "
+                            f"'{name}' in a CodeBlock that is declared in the "
+                            f"same module scope. "
+                            f"Cannot inline such a kernel.") from err
 
         # We can't transform subroutines that shadow top-level symbol module
         # names, because we won't be able to bring this into the subroutine
@@ -188,15 +197,13 @@ class KernelModuleInlineTrans(Transformation):
                 all_symbols.add(literal.datatype.precision)
         for caller in code_to_inline.walk(Call):
             all_symbols.add(caller.routine)
+        for cblock in code_to_inline.walk(CodeBlock):
+            for name in cblock.get_symbol_names():
+                all_symbols.add(cblock.scope.symbol_table.lookup(name))
 
         # Then decide which symbols need to be brought inside the subroutine
         symbols_to_bring_in = set()
         for symbol in all_symbols:
-            # TODO #1366: We still need a solution for intrinsics that
-            # currently are parsed into Calls/RoutineSymbols, for the
-            # moment here we skip the ones causing issues.
-            if symbol.name in ("random_number", ) and symbol.is_unresolved:
-                continue  # Skip intrinsic symbols
             if symbol.is_unresolved or symbol.is_import:
                 # This symbol is already in the symbol table, but adding it
                 # to the 'symbols_to_bring_in' will make the next step bring
@@ -249,19 +256,28 @@ class KernelModuleInlineTrans(Transformation):
         if not options:
             options = {}
 
-        name = node.name
+        # Note that we use the resolved callee subroutine name and not the
+        # caller one, this is important because if it is an interface it will
+        # use the concrete implementation name. When this happens the new name
+        # may already be in use, but the equality check below guarantees
+        # that if it exists it is only valid when it references the exact same
+        # implementation.
+        code_to_inline = node.get_kernel_schedule()
+        name = code_to_inline.name
+
         try:
             existing_symbol = node.scope.symbol_table.lookup(name)
         except KeyError:
             existing_symbol = None
 
-        code_to_inline = node.get_kernel_schedule()
         self._prepare_code_to_inline(code_to_inline)
 
         if not existing_symbol:
             # If it doesn't exist already, module-inline the subroutine by:
             # 1) Registering the subroutine symbol in the Container
-            node.ancestor(Container).symbol_table.add(RoutineSymbol(name))
+            node.ancestor(Container).symbol_table.add(RoutineSymbol(
+                    name, interface=DefaultModuleInterface()
+            ))
             # 2) Insert the relevant code into the tree.
             node.ancestor(Container).addchild(code_to_inline.detach())
         else:
@@ -281,6 +297,12 @@ class KernelModuleInlineTrans(Transformation):
                             f"another, different, subroutine with the same "
                             f"name already exists and versioning of module-"
                             f"inlined subroutines is not implemented yet.")
+
+        # We only modify the kernel call name after the equality check to
+        # ensure the apply will succeed and we don't leave with an inconsistent
+        # tree.
+        if node.name.lower() != name:
+            node.name = name
 
         # Set the module-inline flag to avoid generating the kernel imports
         # TODO #1823. If the kernel imports were generated at PSy-layer

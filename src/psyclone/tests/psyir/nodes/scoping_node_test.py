@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -36,7 +36,6 @@
 
 ''' Performs py.test tests on the ScopingNode PSyIR node. '''
 
-from __future__ import absolute_import
 import pytest
 from psyclone.psyir.nodes import (Schedule, Assignment, Reference, Container,
                                   Loop, Literal, Routine, ArrayReference)
@@ -147,8 +146,11 @@ def test_scoping_node_copy_hierarchy(fortran_writer):
     assert new_schedule[0].rhs.children[0].symbol in \
         new_schedule.symbol_table.symbols
 
-    # Add the "_new" suffix to all symbol in the copied schedule
+    # Add the "_new" suffix to all Symbols in the copied schedule
     for symbol in new_schedule.symbol_table.symbols:
+        if symbol.is_argument:
+            # Can't rename a routine argument.
+            continue
         new_schedule.symbol_table.rename_symbol(symbol, symbol.name+"_new")
 
     # An update to a symbol in the outer scope must affect both copies of the
@@ -174,11 +176,11 @@ module module
     a = b_global(i)
 
   end subroutine routine
-  subroutine routine(a_new)
-    integer, intent(inout) :: a_new
+  subroutine routine(a)
+    integer, intent(inout) :: a
     integer :: i_new
 
-    a_new = b_global(i_new)
+    a = b_global(i_new)
 
   end subroutine routine
 

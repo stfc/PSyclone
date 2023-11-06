@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council.
+# Copyright (c) 2017-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -38,7 +38,6 @@
 function. '''
 
 
-from __future__ import absolute_import, print_function
 import os
 import pytest
 from fparser import api as fpapi
@@ -197,8 +196,8 @@ def test_invalid_named_invoke():
             os.path.join(TEST_PATH, "1.0.6_invoke_name_invalid_chars.f90"),
             api="dynamo0.3")
     assert ("the (optional) name of an invoke must be a string containing a "
-            "valid Fortran name (with any spaces replaced by underscores) but "
-            "got 'ja_ck(1)' " in str(err.value))
+            "valid Fortran name (with no whitespace) but "
+            "got 'jack(1)' " in str(err.value))
     assert "1.0.6_invoke_name_invalid_chars.f90" in str(err.value)
 
 

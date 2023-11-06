@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022, Science and Technology Facilities Council.
+# Copyright (c) 2022-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,8 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford STFC Daresbury Lab
+# Author: R. W. Ford, STFC Daresbury Lab
+# Modified: A. R. Porter and S. Siso, STFC Daresbury Lab
 
 '''This module contains PSyclone Kernel-layer-specific PSyIR classes
 for the GOcean API.
@@ -48,6 +49,7 @@ from psyclone.configuration import Config
 from psyclone.domain.gocean import GOceanConstants
 from psyclone.errors import InternalError
 from psyclone.parse.utils import ParseError
+from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Container
 from psyclone.psyir.symbols import DataTypeSymbol, UnknownFortranType
 
@@ -109,8 +111,12 @@ class GOceanContainer(Container):
         return self._metadata
 
     def lower_to_language_level(self):
-        '''Lower this GOcean-specific container to language level psyir.'''
+        '''Lower this GOcean-specific container to language level psyir.
 
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
+
+        '''
         # Create metadata symbol and add it to the container symbol
         # table.
         data_symbol = self.metadata.lower_to_psyir()
@@ -121,6 +127,7 @@ class GOceanContainer(Container):
         generic_container = Container.create(
             self.name, self.symbol_table.detach(), children)
         self.replace_with(generic_container)
+        return generic_container
 
 
 class GOceanKernelMetadata():
@@ -447,10 +454,7 @@ class GOceanKernelMetadata():
         :raises ValueError: if the name is not valid.
 
         '''
-        config = Config.get()
-        if not value or not config.valid_name.match(value):
-            raise ValueError(
-                f"Expected name to be a valid value but found '{value}'.")
+        FortranReader.validate_name(value)
         self._name = value
 
     @property
@@ -526,14 +530,18 @@ class GOceanKernelMetadata():
     @procedure_name.setter
     def procedure_name(self, value):
         '''
-        :param str value: set the procedure name specified in the \
+        :param str value: set the procedure name specified in the
             metadata to the specified value.
+
+        :raises ValueError: if the supplied procedure name is invalid.
+
         '''
-        config = Config.get()
-        if not value or not config.valid_name.match(value):
+        try:
+            FortranReader.validate_name(value)
+        except (TypeError, ValueError) as err:
             raise ValueError(
                 f"Expected procedure_name to be a valid value but found "
-                f"'{value}'.")
+                f"'{value}'.") from err
         self._procedure_name = value
 
     class GridArg():

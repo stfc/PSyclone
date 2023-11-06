@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022, Science and Technology Facilities Council.
+# Copyright (c) 2022-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,14 +31,14 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 
 ''' Provides various utilities in support of the PSyAD adjoint
     functionality. '''
 
 from psyclone.errors import InternalError
 from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyir.nodes import (UnaryOperation, BinaryOperation,
+from psyclone.psyir.nodes import (IntrinsicCall, BinaryOperation,
                                   Reference, Assignment, IfBlock,
                                   Container, FileContainer, Node)
 from psyclone.psyir.symbols import DataSymbol
@@ -100,8 +100,8 @@ def create_real_comparison(sym_table, kernel, var1, var2):
     overall_tol = sym_table.new_symbol("overall_tolerance",
                                        symbol_type=DataSymbol,
                                        datatype=var1.datatype,
-                                       constant_value=INNER_PRODUCT_TOLERANCE)
-    # TODO #1161 - the PSyIR does not support `SPACING`
+                                       is_constant=True,
+                                       initial_value=INNER_PRODUCT_TOLERANCE)
     assign = freader.psyir_from_statement(
         f"MachineTol = SPACING ( MAX( ABS({var1.name}), ABS({var2.name}) ) )",
         sym_table)
@@ -111,7 +111,7 @@ def create_real_comparison(sym_table, kernel, var1, var2):
         "precision of the active variables")
     sub_op = BinaryOperation.create(BinaryOperation.Operator.SUB,
                                     Reference(var1), Reference(var2))
-    abs_op = UnaryOperation.create(UnaryOperation.Operator.ABS, sub_op)
+    abs_op = IntrinsicCall.create(IntrinsicCall.Intrinsic.ABS, [sub_op])
     div_op = BinaryOperation.create(BinaryOperation.Operator.DIV,
                                     abs_op, Reference(mtol))
     statements.append(Assignment.create(Reference(rel_diff), div_op))

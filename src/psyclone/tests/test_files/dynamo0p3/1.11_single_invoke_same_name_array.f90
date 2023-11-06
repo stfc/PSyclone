@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2020, Science and Technology Facilities Council
+! Copyright (c) 2017-2023, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -39,7 +39,7 @@ program single_invoke
   ! Description: single function specified in an invoke call with the
   ! same name (f1) being passed in twice. Also varied the case. This
   ! should make PSyclone raise an exception
-  use constants_mod, only: r_def
+  use constants_mod, only: i_def, r_def
   use field_mod,     only: field_type
   use testkern_mod,  only: testkern_type
 
@@ -47,6 +47,7 @@ program single_invoke
 
   type(field_type) :: f1, m1, m2
   real(r_def)      :: a
+  integer(i_def)   :: n
 
   call invoke(                                     &
        testkern_type(a, F1(1, N), f1(1,n), m1, m2) &

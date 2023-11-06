@@ -49,7 +49,7 @@ class DummyPSycloneError(PSycloneError):
     '''
     def __init__(self):
         PSycloneError.__init__(self, "")
-        self.value = "Dummy Psyclone Error"
+        self.value = "Dummy PSyclone Error"
 
 
 def all_sub_exceptions(expt):
@@ -82,7 +82,7 @@ def import_submodules(package, recursive=True):
 
 
 def test_exception_repr():
-    ''' Test the properties of Exception classes defined by Psyclone. '''
+    ''' Test the properties of Exception classes defined by PSyclone. '''
 
     modules = {}
 
@@ -97,7 +97,7 @@ def test_exception_repr():
     psy_excepts = [exc for exc in all_exceptions if "psyclone." in str(exc)]
     psy_excepts.append(DummyPSycloneError)
 
-    # Different vertions of pytest behave differently with repect to their
+    # Different versions of pytest behave differently with respect to their
     # handling of an exception's representation. This can lead to some tests
     # passing/failing assertions depending on which pytest version is
     # installed.
@@ -110,11 +110,11 @@ def test_exception_repr():
     #      with that returned by the __repr__ method,
     #
     # When these conditions are met, assertion behaviour is consistent across
-    # all pytest verions.
+    # all pytest versions.
 
     for psy_except in psy_excepts:
 
-        # Check if the excpetion inherits PSycloneError
+        # Check if the exception inherits PSycloneError
         assert issubclass(psy_except, PSycloneError)
 
         # Ensure there are __str__ & __repr__ methods implemented which are not

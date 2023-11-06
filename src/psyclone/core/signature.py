@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022, Science and Technology Facilities Council.
+# Copyright (c) 2022-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,13 +33,10 @@
 # -----------------------------------------------------------------------------
 # Author J. Henrichs, Bureau of Meteorology
 # Modified by N. Nobre, STFC Daresbury Lab
+# Modified by S. Siso, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 '''This module provides management of variable access information.'''
-
-from __future__ import print_function, absolute_import
-
-import six
 
 from psyclone.errors import InternalError
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
@@ -72,9 +69,8 @@ class Signature:
         else:
             # null-tuple
             sub_tuple = ()
-        if isinstance(variable, (str, six.text_type)):
-            # str() required for python2 unicode support
-            self._signature = (str(variable),) + sub_tuple
+        if isinstance(variable, str):
+            self._signature = tuple(variable.split("%")) + sub_tuple
         elif isinstance(variable, tuple):
             self._signature = variable + sub_tuple
         elif isinstance(variable, list):
@@ -151,11 +147,11 @@ class Signature:
                                 f"{len(component_indices)}.")
         # Avoid circular import
         # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.backend.fortran import FortranWriter
+        from psyclone.psyir.backend.debug_writer import DebugWriter
         from psyclone.psyir.nodes import Literal, Node, Reference
 
         if language_writer is None:
-            writer = FortranWriter()
+            writer = DebugWriter()
         else:
             writer = language_writer
 

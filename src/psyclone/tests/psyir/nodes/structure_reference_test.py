@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2022, Science and Technology Facilities Council.
+# Copyright (c) 2020-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -44,6 +44,20 @@ from psyclone.core import Signature, VariablesAccessInfo
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyir import symbols, nodes
 from psyclone.tests.utilities import check_links
+
+
+def test_struc_ref_init():
+    '''Tests the constructor.'''
+
+    sym = symbols.symbol.Symbol("test")
+    s_ref = nodes.StructureReference(sym)
+
+    assert s_ref._overwrite_datatype is None
+
+    with pytest.raises(TypeError) as excinfo:
+        _ = nodes.StructureReference("hello")
+    assert ("The StructureReference symbol setter expects a PSyIR Symbol "
+            "object but found 'str'." in str(excinfo.value))
 
 
 def test_struc_ref_create():
@@ -104,6 +118,12 @@ def test_struc_ref_create_errors():
         _ = nodes.StructureReference.create(None, [])
     assert ("'symbol' argument to StructureReference.create() should be a "
             "DataSymbol but found 'NoneType'" in str(err.value))
+    with pytest.raises(TypeError) as err:
+        _ = nodes.StructureReference.create(
+            symbols.DataSymbol("grid", symbols.DeferredType()), [],
+            overwrite_datatype=1)
+    assert ("The 'overwrite_datatype' argument to StructureReference.create() "
+            "should be a DataType but found 'DataSymbol'." in str(err.value))
     with pytest.raises(TypeError) as err:
         _ = nodes.StructureReference.create(
             symbols.DataSymbol("fake", symbols.INTEGER_TYPE), [])
@@ -264,6 +284,15 @@ def test_struc_ref_datatype():
     fullref = nodes.StructureReference.create(ssym, ["titty"])
     dtype = fullref.datatype
     assert dtype == artype
+
+    # Check that we can enforce a certain data type for a reference:
+    # nx is defined to be an integer above:
+    grid_type_symbol = symbols.DataTypeSymbol("grid_type", grid_type)
+    ssym = symbols.DataSymbol("grid", grid_type_symbol)
+    # Reference to scalar member of structure
+    sref = nodes.StructureReference.\
+        create(ssym, ["nx"], overwrite_datatype=symbols.REAL_TYPE)
+    assert sref.datatype == symbols.REAL_TYPE
 
 
 def test_structure_reference_deferred_type():

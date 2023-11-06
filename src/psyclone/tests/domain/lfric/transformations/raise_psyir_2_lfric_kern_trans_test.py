@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022, Science and Technology Facilities Council.
+# Copyright (c) 2022-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -198,6 +198,7 @@ def test_validate_metadata_name(fortran_reader):
     '''
     kernel_psyir = fortran_reader.psyir_from_source(PROGRAM)
     kern_trans = RaisePSyIR2LFRicKernTrans()
+    # Incorrect name (causes KeyError internally).
     with pytest.raises(TransformationError) as info:
         kern_trans.validate(kernel_psyir, {"invalid": "testkern_type"})
     assert ("Transformation Error: Error in RaisePSyIR2LFRicKernTrans "
@@ -205,6 +206,15 @@ def test_validate_metadata_name(fortran_reader):
             "variable containing the metadata to be provided in the options "
             "argument with lookup name 'metadata_name', but found "
             "'['invalid']'." in str(info.value))
+    # No name provided, so options defaults to None (causes TypeError
+    # internally).
+    with pytest.raises(TransformationError) as info:
+        kern_trans.validate(kernel_psyir)
+    assert ("Transformation Error: Error in RaisePSyIR2LFRicKernTrans "
+            "transformation. This transformation requires the name of the "
+            "variable containing the metadata to be provided in the options "
+            "argument with lookup name 'metadata_name', but found '[]'."
+            in str(info.value))
 
 
 def test_validate_medatata():
@@ -279,8 +289,8 @@ def test_apply_ok(fortran_reader):
     # and should contain the metadata
     expected = (
         "TYPE, PUBLIC, EXTENDS(kernel_type) :: testkern_type\n"
-        "  TYPE(arg_type) :: meta_args(1) = (/ &\n"
-        "arg_type(GH_FIELD, gh_real, gh_inc, w1)/)\n"
+        "  type(ARG_TYPE) :: META_ARGS(1) = (/ &\n"
+        "    arg_type(gh_field, gh_real, gh_inc, w1)/)\n"
         "  INTEGER :: OPERATES_ON = cell_column\n"
         "  CONTAINS\n"
         "    PROCEDURE, NOPASS :: testkern_code\n"

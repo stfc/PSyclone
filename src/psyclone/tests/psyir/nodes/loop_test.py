@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2022, Science and Technology Facilities Council.
+# Copyright (c) 2019-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -38,18 +38,41 @@
 
 ''' Performs py.test tests on the Loop PSyIR node. '''
 
-from __future__ import absolute_import
 import os
 import pytest
 from psyclone.errors import InternalError, GenerationError
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
-from psyclone.psyir.nodes import Loop, Literal, Schedule, Return, Assignment, \
-    Reference
-from psyclone.psyir.symbols import DataSymbol, REAL_SINGLE_TYPE, \
-    INTEGER_SINGLE_TYPE, INTEGER_TYPE, ArrayType, REAL_TYPE, \
-    SymbolTable
+from psyclone.psyir.nodes import (
+    Assignment, Loop, Literal, Schedule, Return, Reference, Routine)
+from psyclone.psyir.symbols import (
+    DataSymbol, REAL_SINGLE_TYPE, INTEGER_SINGLE_TYPE, INTEGER_TYPE, ArrayType,
+    REAL_TYPE, SymbolTable)
+from psyclone.psyir.tools import DependencyTools
 from psyclone.tests.utilities import check_links
+
+
+def make_loop():
+    '''
+    Utility to create a simple PSyIR loop for testing. The loop is contained
+    within a Routine as it must have a parent scope for its Symbols.
+
+    :returns: a PSyIR Loop instance.
+    :rtype: :py:class:`psyclone.psyir.nodes.Loop`
+
+    '''
+    start = Literal("0", INTEGER_SINGLE_TYPE)
+    stop = Literal("1", INTEGER_SINGLE_TYPE)
+    step = Literal("1", INTEGER_SINGLE_TYPE)
+    sched = Routine("loop_test_sub")
+    tmp = sched.symbol_table.new_symbol("tmp", symbol_type=DataSymbol,
+                                        datatype=REAL_SINGLE_TYPE)
+    isym = sched.symbol_table.new_symbol("i", symbol_type=DataSymbol,
+                                         datatype=INTEGER_SINGLE_TYPE)
+    child_node = Assignment.create(Reference(tmp), Reference(isym))
+    loop = Loop.create(isym, start, stop, step, [child_node])
+    sched.addchild(loop)
+    return loop
 
 
 def test_loop_init():
@@ -97,9 +120,9 @@ def test_loop_navigation_properties():
         _ = loop.start_expr
     assert error_str in str(err.value)
 
-    loop.addchild(Literal("start", INTEGER_SINGLE_TYPE))
-    loop.addchild(Literal("stop", INTEGER_SINGLE_TYPE))
-    loop.addchild(Literal("step", INTEGER_SINGLE_TYPE))
+    loop.addchild(Literal("0", INTEGER_SINGLE_TYPE))
+    loop.addchild(Literal("2", INTEGER_SINGLE_TYPE))
+    loop.addchild(Literal("1", INTEGER_SINGLE_TYPE))
 
     # If it's not fully complete, it still returns an error
     with pytest.raises(InternalError) as err:
@@ -115,32 +138,81 @@ def test_loop_navigation_properties():
         _ = loop.loop_body
     assert error_str in str(err.value)
     with pytest.raises(InternalError) as err:
-        loop.start_expr = Literal("invalid", INTEGER_SINGLE_TYPE)
+        loop.start_expr = Literal("NOT_INITIALISED", INTEGER_SINGLE_TYPE)
     assert error_str in str(err.value)
     with pytest.raises(InternalError) as err:
-        loop.stop_expr = Literal("invalid", INTEGER_SINGLE_TYPE)
+        loop.stop_expr = Literal("NOT_INITIALISED", INTEGER_SINGLE_TYPE)
     assert error_str in str(err.value)
     with pytest.raises(InternalError) as err:
-        loop.step_expr = Literal("invalid", INTEGER_SINGLE_TYPE)
+        loop.step_expr = Literal("NOT_INITIALISED", INTEGER_SINGLE_TYPE)
     assert error_str in str(err.value)
 
     # Check that Getters properties work
     loop.addchild(Schedule(parent=loop))
     loop.loop_body.addchild(Return(parent=loop.loop_body))
 
-    assert loop.start_expr.value == "start"
-    assert loop.stop_expr.value == "stop"
-    assert loop.step_expr.value == "step"
+    assert loop.start_expr.value == "0"
+    assert loop.stop_expr.value == "2"
+    assert loop.step_expr.value == "1"
     assert isinstance(loop.loop_body[0], Return)
 
     # Test Setters
-    loop.start_expr = Literal("newstart", INTEGER_SINGLE_TYPE)
-    loop.stop_expr = Literal("newstop", INTEGER_SINGLE_TYPE)
-    loop.step_expr = Literal("newstep", INTEGER_SINGLE_TYPE)
+    loop.start_expr = Literal("1", INTEGER_SINGLE_TYPE)
+    loop.stop_expr = Literal("3", INTEGER_SINGLE_TYPE)
+    loop.step_expr = Literal("2", INTEGER_SINGLE_TYPE)
 
-    assert loop.start_expr.value == "newstart"
-    assert loop.stop_expr.value == "newstop"
-    assert loop.step_expr.value == "newstep"
+    assert loop.start_expr.value == "1"
+    assert loop.stop_expr.value == "3"
+    assert loop.step_expr.value == "2"
+
+
+def test_loop_dag_name():
+    '''Test the dag_name method of Loop.'''
+    loop = make_loop()
+    assert loop.dag_name == "loop_1"
+    # Make the Loop an orphan to test the error handling.
+    loop.detach()
+    with pytest.raises(InternalError) as err:
+        _ = loop.dag_name
+    assert ("Cannot generate DAG name for loop node 'Loop[variable:'i']"
+            in str(err.value))
+
+
+def test_loop_node_str(monkeypatch):
+    '''Test the node_str method of Loop.'''
+    loop = make_loop()
+    assert loop.node_str(colour=False) == "Loop[variable='i']"
+
+    # Rather than mess about with colour codes, it's simpler if we
+    # monkeypatch the 'coloured_name' method (inherited from Node).
+    def fake_coloured_name(colour=True):
+        if colour:
+            return "yes"
+        return "no"
+    monkeypatch.setattr(loop, "coloured_name", fake_coloured_name)
+    assert loop.node_str(colour=True) == "yes[variable='i']"
+    assert loop.node_str(colour=False) == "no[variable='i']"
+
+
+def test_loop_str():
+    '''Test the __str__ property of Loop.'''
+    loop = make_loop()
+    out = str(loop)
+    assert "Loop[variable:'i']\n" in out
+    assert "End Loop" in out
+
+
+def test_loop_independent_iterations():
+    '''Test the independent_iterations method of Loop.'''
+    loop = make_loop()
+    assert not loop.independent_iterations()
+    # Test that we can supply our own instance of DependencyTools and use
+    # it to query any messages.
+    dtools = DependencyTools()
+    loop.independent_iterations(dep_tools=dtools)
+    msgs = dtools.get_all_messages()
+    assert len(msgs) == 1
+    assert "variable 'tmp' is only written once" in str(msgs[0])
 
 
 def test_loop_gen_code():

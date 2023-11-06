@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2022, Science and Technology Facilities Council.
+# Copyright (c) 2019-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -45,18 +45,19 @@ from psyclone.psyir.symbols import (Symbol, DataSymbol, DataTypeSymbol,
                                     SymbolTable, ContainerSymbol, ScalarType,
                                     DeferredType, StructureType, RoutineSymbol,
                                     ImportInterface, UnresolvedInterface,
-                                    ArgumentInterface, INTEGER_TYPE, REAL_TYPE)
+                                    ArgumentInterface, INTEGER_TYPE, REAL_TYPE,
+                                    StaticInterface)
 
 
 def test_gen_param_decls_dependencies(fortran_writer):
     ''' Test that dependencies between parameter declarations are handled. '''
     symbol_table = SymbolTable()
-    rlg_sym = DataSymbol("rlg", INTEGER_TYPE,
-                         constant_value=Literal("8", INTEGER_TYPE))
-    wp_sym = DataSymbol("wp", INTEGER_TYPE,
-                        constant_value=Reference(rlg_sym))
-    var_sym = DataSymbol("var", INTEGER_TYPE,
-                         constant_value=BinaryOperation.create(
+    rlg_sym = DataSymbol("rlg", INTEGER_TYPE, is_constant=True,
+                         initial_value=Literal("8", INTEGER_TYPE))
+    wp_sym = DataSymbol("wp", INTEGER_TYPE, is_constant=True,
+                        initial_value=Reference(rlg_sym))
+    var_sym = DataSymbol("var", INTEGER_TYPE, is_constant=True,
+                         initial_value=BinaryOperation.create(
                              BinaryOperation.Operator.ADD,
                              Reference(rlg_sym), Reference(wp_sym)))
     symbol_table.add(var_sym)
@@ -69,8 +70,8 @@ def test_gen_param_decls_dependencies(fortran_writer):
     # Check that an (invalid, obviously) circular dependency is handled.
     # Replace "rlg" with a new one that depends on "wp".
     del symbol_table._symbols[rlg_sym.name]
-    rlg_sym = DataSymbol("rlg", INTEGER_TYPE,
-                         constant_value=Reference(wp_sym))
+    rlg_sym = DataSymbol("rlg", INTEGER_TYPE, is_constant=True,
+                         initial_value=Reference(wp_sym))
     symbol_table.add(rlg_sym)
     with pytest.raises(VisitorError) as err:
         fortran_writer._gen_parameter_decls(symbol_table)
@@ -98,15 +99,15 @@ def test_gen_param_decls_kind_dep(fortran_writer):
     ''' Check that symbols defining precision are accounted for when
     allowing for dependencies between parameter declarations. '''
     table = SymbolTable()
-    rdef_sym = DataSymbol("r_def", INTEGER_TYPE,
-                          constant_value=Literal("4", INTEGER_TYPE))
-    wp_sym = DataSymbol("wp", INTEGER_TYPE,
-                        constant_value=Reference(rdef_sym))
+    rdef_sym = DataSymbol("r_def", INTEGER_TYPE, is_constant=True,
+                          initial_value=Literal("4", INTEGER_TYPE))
+    wp_sym = DataSymbol("wp", INTEGER_TYPE, is_constant=True,
+                        initial_value=Reference(rdef_sym))
     rdef_type = ScalarType(ScalarType.Intrinsic.REAL, wp_sym)
-    var_sym = DataSymbol("var", rdef_type,
-                         constant_value=Literal("1.0", rdef_type))
-    var2_sym = DataSymbol("var2", REAL_TYPE,
-                          constant_value=Literal("1.0", rdef_type))
+    var_sym = DataSymbol("var", rdef_type, is_constant=True,
+                         initial_value=Literal("1.0", rdef_type))
+    var2_sym = DataSymbol("var2", REAL_TYPE, is_constant=True,
+                          initial_value=Literal("1.0", rdef_type))
     table.add(var2_sym)
     table.add(var_sym)
     table.add(wp_sym)
@@ -143,8 +144,8 @@ def test_gen_decls(fortran_writer):
     symbol_table.add(grid_type)
     grid_variable = DataSymbol("grid", grid_type)
     symbol_table.add(grid_variable)
-    symbol_table.add(DataSymbol("rlg", INTEGER_TYPE,
-                                constant_value=Literal("8", INTEGER_TYPE)))
+    symbol_table.add(DataSymbol("rlg", INTEGER_TYPE, is_constant=True,
+                                initial_value=Literal("8", INTEGER_TYPE)))
     result = fortran_writer.gen_decls(symbol_table)
     # If derived type declaration is not inside a module then its components
     # cannot have accessibility attributes.
@@ -227,10 +228,9 @@ def test_gen_decls_nested_scope(fortran_writer):
     assert result == ""
 
 
-def test_gen_decls_routine(fortran_writer):
-    '''Test that the gen_decls method raises an exception if the interface
-    of a routine symbol is not an ImportInterface, unless there's a wildcard
-    import from a Container.
+def test_gen_decls_routine_unresolved(fortran_writer):
+    '''Test that the gen_decls method accepts routine symbols with
+    unresolved interfaces.
 
     '''
     symbol_table = SymbolTable()
@@ -238,34 +238,76 @@ def test_gen_decls_routine(fortran_writer):
     symbol_table.add(RoutineSymbol("nint", interface=UnresolvedInterface()))
     result = fortran_writer.gen_decls(symbol_table)
     assert result == ""
+
+    # Check that a RoutineSymbol representing a user-defined Routine is OK
+    symbol_table.add(RoutineSymbol("my_sub", interface=UnresolvedInterface()))
+    result = fortran_writer.gen_decls(symbol_table)
+    assert result == ""
+
     # Check that a routine 'symbol' resulting from a call to a type-
     # bound procedure is quietly ignored.
     symbol_table.add(RoutineSymbol("grid%init",
                                    interface=UnresolvedInterface()))
     result = fortran_writer.gen_decls(symbol_table)
     assert result == ""
-    # Now add a user-defined routine symbol but with an (unsupported)
-    # ArgumentInterface
+
+
+def test_gen_decls_routine_wrong_interface(fortran_writer):
+    '''Test that the gen_decls method raises an exception if the interface
+    of a routine symbol is of the wrong type.
+
+    '''
+    symbol_table = SymbolTable()
+    # Add a routine symbol with an unsupported ArgumentInterface
     rsym = RoutineSymbol("arg_sub", interface=ArgumentInterface())
     symbol_table.add(rsym)
     with pytest.raises(VisitorError) as info:
         _ = fortran_writer.gen_decls(symbol_table)
-    assert ("Routine symbol 'arg_sub' is passed as an argument (has an "
-            "ArgumentInterface). This is not supported by the Fortran "
-            "back-end." in str(info.value))
-    # Replace that symbol with one that has a deferred interface
-    symbol_table.remove(rsym)
-    symbol_table.add(RoutineSymbol("sub2", interface=UnresolvedInterface()))
-    with pytest.raises(VisitorError) as info:
-        _ = fortran_writer.gen_decls(symbol_table)
-    assert (
-        "Routine symbol 'sub2' does not have an ImportInterface or "
-        "LocalInterface, is not a Fortran intrinsic and there is no wildcard "
-        "import which could bring it into scope. This is not supported by the "
-        "Fortran back-end." in str(info.value))
-    # Now add a wildcard import from a ContainerSymbol
-    csym = ContainerSymbol("some_mod")
-    csym.wildcard_import = True
-    symbol_table.add(csym)
-    result = fortran_writer.gen_decls(symbol_table)
-    assert result == ""
+    assert (" Routine symbol 'arg_sub' has 'Argument(Access.UNKNOWN)'. This "
+            "is not supported by the Fortran back-end." in str(info.value))
+
+
+def test_gen_decls_static_variables(fortran_writer):
+    '''Test that the gen_decls and gen_vardecl methods add the appropriate
+    Fortran attributes to static variables.
+
+    '''
+    symbol_table = SymbolTable()
+    sym = DataSymbol("v1", datatype=INTEGER_TYPE, interface=StaticInterface())
+    symbol_table.add(sym)
+    assert "integer, save :: v1" in fortran_writer.gen_decls(symbol_table)
+    assert "integer, save :: v1" in fortran_writer.gen_vardecl(sym)
+    sym.initial_value = 1
+    sym.is_constant = True
+    assert "parameter :: v1 = 1" in fortran_writer.gen_vardecl(sym)
+
+
+@pytest.mark.parametrize("visibility", ["public", "private"])
+def test_visibility_interface(fortran_reader, fortran_writer, visibility):
+    '''Test that PSyclone's Fortran backend successfully writes out
+    public/private clauses and symbols when the symbol's declaration
+    is hidden in an abstract interface.
+
+    '''
+    code = (
+        f"module test\n"
+        f"  abstract interface\n"
+        f"     subroutine update_interface()\n"
+        f"     end subroutine update_interface\n"
+        f"  end interface\n"
+        f"  {visibility} :: update_interface\n"
+        f"contains\n"
+        f"  subroutine alg()\n"
+        f"  end subroutine alg\n"
+        f"end module test\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    result = fortran_writer(psyir)
+    # The default visibility is PUBLIC so it is always output by
+    # the backend.
+    assert "public\n" in result
+    if visibility == "public":
+        # The generic PUBLIC visibility covers all symbols so we do
+        # not need to output "public :: update_interface".
+        assert "public :: update_interface" not in result
+    if visibility == "private":
+        assert "private :: update_interface" in result

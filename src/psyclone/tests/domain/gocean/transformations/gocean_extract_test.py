@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2022, Science and Technology Facilities Council
+# Copyright (c) 2019-2023, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -101,6 +101,19 @@ def test_gocean_extract_trans():
     assert str(etrans) == "Create a sub-tree of the PSyIR that has a " \
                           "node of type ExtractNode at its root."
     assert etrans.name == "GOceanExtractTrans"
+
+
+# -----------------------------------------------------------------------------
+def test_gocean_extract_distributed_memory():
+    '''Test that distributed memory must be disabled.'''
+
+    _, invoke = get_invoke("single_invoke_three_kernels.f90",
+                           GOCEAN_API, idx=0, dist_mem=True)
+    etrans = GOceanExtractTrans()
+    with pytest.raises(TransformationError) as excinfo:
+        etrans.apply(invoke.schedule.children[3])
+    assert ("Error in GOceanExtractTrans: Distributed memory is "
+            "not supported.") in str(excinfo.value)
 
 
 # -----------------------------------------------------------------------------

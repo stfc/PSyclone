@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+# Copyright (c) 2017-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,8 +31,8 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified I. Kavcic, Met Office
+# Authors: R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
+# Modified: I. Kavcic, L. Turner and O. Brunt, Met Office
 # -----------------------------------------------------------------------------
 
 ''' Performs py.test tests on the psyGen module '''
@@ -64,8 +64,6 @@ from psyclone.psyGen import TransInfo, Transformation, PSyFactory, \
     InlinedKern, object_index, HaloExchange, Invoke, \
     DataAccess, Kern, Arguments, CodedKern, Argument, GlobalSum, \
     InvokeSchedule, BuiltIn
-from psyclone.psyir.backend.c import CWriter
-from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import Assignment, BinaryOperation, Container, \
     Literal, Node, KernelSchedule, Call, colored
 from psyclone.psyir.symbols import DataSymbol, RoutineSymbol, REAL_TYPE, \
@@ -167,10 +165,7 @@ def test_base_class_not_callable():
 
 
 def test_transformation_init_name():
-    '''Make sure a FortranWriter is created by default, is stored by the
-    base class, can be changed if required and an exception is raised
-    if the wrong argument type is supplied. Also test that the name()
-    method behaves in the expected way.
+    '''Test that the name() method behaves in the expected way.
 
     '''
     class TestTrans(Transformation):
@@ -179,19 +174,12 @@ def test_transformation_init_name():
         transformation methods.
 
         '''
-        def apply(self, _1, _2=None):
+        def apply(self, _1):
             '''Dummy apply method to ensure this transformation is not
             abstract.'''
 
     trans = TestTrans()
     assert trans.name == "TestTrans"
-    assert isinstance(trans._writer, FortranWriter)
-    with pytest.raises(TypeError) as info:
-        _ = TestTrans(writer="wrong")
-    assert ("The writer argument to a transformation should be a "
-            "PSyIRVisitor, but found 'str'." in str(info.value))
-    trans = TestTrans(writer=CWriter())
-    assert isinstance(trans._writer, CWriter)
 
 
 # TransInfo class unit tests
@@ -274,7 +262,28 @@ def test_valid_return_object_from_name():
     assert isinstance(transform, Transformation)
 
 
-# tests for class Call
+# Tests for class Invokes
+
+def test_invokes_get():
+    '''Test the get() method of the Invokes class.'''
+    # Making an Invokes object is not easy so we do a full PSy generation.
+    _, invoke = parse(
+        os.path.join(BASE_PATH, "1.0.1_single_named_invoke.f90"),
+        api="dynamo0.3")
+    psy = PSyFactory("dynamo0.3", distributed_memory=False).create(invoke)
+    # Check that the get isn't case sensitive and doesn't require the
+    # leading "invoke_" text.
+    inv = psy.invokes.get("important_INVOKE")
+    # Stored name has "invoke_" prepended.
+    assert inv._name == "invoke_important_invoke"
+    # No matching name found.
+    with pytest.raises(RuntimeError) as err:
+        psy.invokes.get("missing")
+    assert ("Cannot find an invoke named 'missing' or 'invoke_missing' in "
+            "['invoke_important_invoke']" in str(err.value))
+
+
+# Tests for class InvokeCall
 
 def test_invokes_can_always_be_printed():
     '''Test that an Invoke instance can always be printed (i.e. is
@@ -557,7 +566,7 @@ def test_codedkern_module_inline_gen_code(tmpdir):
 def test_codedkern_module_inline_kernel_in_multiple_invokes(tmpdir):
     ''' Check that module-inline works as expected when the same kernel
     is provided in different invokes'''
-    # Use LFRic example with the kernel 'testkern_qr' repeated once in
+    # Use LFRic example with the kernel 'testkern_qr_mod' repeated once in
     # the first invoke and 3 times in the second invoke.
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "3.1_multi_functions_multi_invokes.f90"),
@@ -566,7 +575,7 @@ def test_codedkern_module_inline_kernel_in_multiple_invokes(tmpdir):
 
     # By default the kernel is imported once per invoke
     gen = str(psy.gen)
-    assert gen.count("USE testkern_qr, ONLY: testkern_qr_code") == 2
+    assert gen.count("USE testkern_qr_mod, ONLY: testkern_qr_code") == 2
 
     # Module inline kernel in invoke 1
     schedule = psy.invokes.invoke_list[0].schedule
@@ -580,7 +589,7 @@ def test_codedkern_module_inline_kernel_in_multiple_invokes(tmpdir):
 
     # After this, one invoke uses the inlined top-level subroutine
     # and the other imports it (shadowing the top-level symbol)
-    assert gen.count("USE testkern_qr, ONLY: testkern_qr_code") == 1
+    assert gen.count("USE testkern_qr_mod, ONLY: testkern_qr_code") == 1
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
     # Module inline kernel in invoke 2
@@ -591,7 +600,7 @@ def test_codedkern_module_inline_kernel_in_multiple_invokes(tmpdir):
     gen = str(psy.gen)
     # After this, no imports are remaining and both use the same
     # top-level implementation
-    assert gen.count("USE testkern_qr, ONLY: testkern_qr_code") == 0
+    assert gen.count("USE testkern_qr_mod, ONLY: testkern_qr_code") == 0
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
@@ -631,10 +640,11 @@ def test_codedkern_lower_to_language_level(monkeypatch):
     assert len(kern.children) == 0
     number_of_arguments = len(kern.arguments.psyir_expressions())
 
-    kern.lower_to_language_level()
+    lowered = kern.lower_to_language_level()
 
     # In language-level it is a Call with arguments as children
     call = schedule.children[0].loop_body[0]
+    assert call is lowered
     assert not isinstance(call, CodedKern)
     assert isinstance(call, Call)
     assert call.routine.name == 'testkern_code'
@@ -1156,8 +1166,8 @@ def test_invalid_reprod_pad_size(monkeypatch, dist_mem):
     with pytest.raises(GenerationError) as excinfo:
         _ = str(psy.gen)
     assert (
-        "REPROD_PAD_SIZE in {0} should be a positive "
-        "integer".format(Config.get().filename) in str(excinfo.value))
+        f"REPROD_PAD_SIZE in {Config.get().filename} should be a positive "
+        f"integer" in str(excinfo.value))
 
 
 def test_argument_properties():
@@ -1560,7 +1570,7 @@ def test_haloexchange_node_str():
     invoke = psy.invokes.invoke_list[0]
     schedule = invoke.schedule
     # We have to manually call the correct node_str() method as the one we want
-    # to test is overridden in DynHaloExchange.
+    # to test is overridden in LFRicHaloExchange.
     out = HaloExchange.node_str(schedule.children[2])
     assert (colored("HaloExchange", HaloExchange._colour) +
             "[field='m1', type='None', depth=None, check_dirty=True]" in out)

@@ -1,5 +1,5 @@
 !-------------------------------------------------------------------------------
-! Copyright (c) 2018-2020, Science and Technology Facilities Council
+! Copyright (c) 2018-2023, Science and Technology Facilities Council
 !
 ! Redistribution and use in source and binary forms, with or without
 ! modification, are permitted provided that the following conditions are met:
@@ -26,8 +26,8 @@
 ! OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 !-------------------------------------------------------------------------------
-! Author: A. R. Porter STFC Daresbury Lab
-! Modified: I. Kavcic Met Office
+! Author: A. R. Porter, STFC Daresbury Lab
+! Modified: I. Kavcic and L. Turner, Met Office
 
 program eval_invoke
 
@@ -39,7 +39,7 @@ program eval_invoke
   use quadrature_xyoz_mod,   only: quadrature_xyoz_type
   use testkern_eval_2fs_mod, only: testkern_eval_2fs_type
   use testkern_eval_op_mod,  only: testkern_eval_op_type
-  use testkern_qr,           only: testkern_qr_type
+  use testkern_qr_mod,       only: testkern_qr_type
 
   implicit none
 

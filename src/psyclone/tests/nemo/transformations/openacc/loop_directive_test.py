@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2021, Science and Technology Facilities Council.
+# Copyright (c) 2019-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,13 +32,13 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+# Modified: J. G. Wallwork, Met Office
 
 '''Module containing py.test tests for the transformation of the PSy
    representation of NEMO code using the OpenACC loop directive.
 
 '''
 
-from __future__ import print_function, absolute_import
 import pytest
 from fparser.common.readfortran import FortranStringReader
 from psyclone.psyGen import PSyFactory, TransInfo
@@ -162,6 +162,28 @@ def test_seq_loop(parser):
             "\n"
             "  !$acc kernels\n"
             "  !$acc loop seq\n"
+            "  do ji = 1, jpj, 1\n" in code)
+
+
+@pytest.mark.parametrize("clause", ["gang", "vector"])
+def test_loop_clauses(parser, clause):
+    ''' Check that we can apply the transformation with different
+    clauses for independent loops. '''
+    reader = FortranStringReader(SINGLE_LOOP)
+    code = parser(reader)
+    psy = PSyFactory(API, distributed_memory=False).create(code)
+    schedule = psy.invokes.invoke_list[0].schedule
+    acc_trans = TransInfo().get_trans_name('ACCLoopTrans')
+    # An ACC Loop must be within a KERNELS or PARALLEL region
+    kernels_trans = TransInfo().get_trans_name('ACCKernelsTrans')
+    kernels_trans.apply(schedule.children)
+    loops = schedule[0].walk(Loop)
+    acc_trans.apply(loops[0], {clause: True})
+    code = str(psy.gen).lower()
+    assert ("  real(kind=wp), dimension(jpj) :: sto_tmp\n"
+            "\n"
+            "  !$acc kernels\n"
+            f"  !$acc loop {clause} independent\n"
             "  do ji = 1, jpj, 1\n" in code)
 
 

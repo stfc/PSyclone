@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -42,13 +42,11 @@
 
 from __future__ import absolute_import
 import abc
-import six
 from psyclone.psyir.symbols.data_type_symbol import DataTypeSymbol
 from psyclone.psyir.symbols.symbol import Symbol
 
 
-@six.add_metaclass(abc.ABCMeta)
-class TypedSymbol(Symbol):
+class TypedSymbol(Symbol, metaclass=abc.ABCMeta):
     '''
     Abstract base class for those Symbols that have an associated datatype.
 

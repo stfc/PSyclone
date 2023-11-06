@@ -1,6 +1,6 @@
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -30,12 +30,11 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors: R. W. Ford, A. R. Porter, N. Nobre and S. Siso, STFC Daresbury Lab
 # Modified by J. Henrichs, Bureau of Meteorology
-#
+
 '''Module to test the psyad assignment transformation.'''
 
-from __future__ import absolute_import
 import pytest
 
 from psyclone.psyad.transformations import AssignmentTrans, TangentLinearError
@@ -43,7 +42,7 @@ from psyclone.psyad.transformations import AssignmentTrans, TangentLinearError
 from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import BinaryOperation, Reference, Assignment, \
-    Literal, UnaryOperation, ArrayReference, Range
+    Literal, UnaryOperation, ArrayReference, Range, IntrinsicCall
 from psyclone.psyir.symbols import DataSymbol, REAL_TYPE, INTEGER_TYPE, \
     ScalarType, ArrayType
 from psyclone.psyir.transformations import TransformationError
@@ -273,8 +272,8 @@ def test_single_assign(tmpdir):
         "  integer, parameter :: n = 10\n"
         "  real, dimension(n) :: a\n"
         "  real, dimension(n) :: b\n\n"
-        "  b(:n - 1) = b(:n - 1) + a(2:n)\n"
-        "  a(2:n) = 0.0\n\n")
+        "  b(:n - 1) = b(:n - 1) + a(2:)\n"
+        "  a(2:) = 0.0\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
 
 
@@ -468,7 +467,7 @@ def test_increment_add_reorder(tmpdir, index_str):
         f"  integer :: i\n"
         f"  integer :: k\n\n"
         f"  b({index_str}) = b({index_str}) + a({index_str})\n"
-        f"  a({index_str}) = k * a({index_str})\n\n".format(index_str))
+        f"  a({index_str}) = k * a({index_str})\n\n")
     check_adjoint(tl_fortran, active_variables, ad_fortran, tmpdir)
 
 
@@ -952,7 +951,8 @@ def test_validate_rhs_zero():
         assignment = Assignment.create(Reference(lhs_symbol), rhs_literal)
         trans.validate(assignment)
     # 0 with a kind value
-    real_kind = DataSymbol("r_def", INTEGER_TYPE, constant_value=8)
+    real_kind = DataSymbol("r_def", INTEGER_TYPE, is_constant=True,
+                           initial_value=8)
     scalar_type = ScalarType(ScalarType.Intrinsic.REAL, real_kind)
     rhs_literal = Literal("0.0", scalar_type)
     assignment = Assignment.create(Reference(lhs_symbol), rhs_literal)
@@ -981,7 +981,7 @@ def test_validate_rhs_term_active(operator, string):
     trans = AssignmentTrans(active_variables=[lhs_symbol, rhs_symbol1])
     with pytest.raises(TangentLinearError) as info:
         trans.validate(assignment)
-    assert (f"Each non-zero term on the RHS of the assigment 'a = b "
+    assert (f"Each non-zero term on the RHS of the assignment 'a = b "
             f"{string} c\n' must have an active variable but 'c' does "
             f"not." in str(info.value))
 
@@ -1005,7 +1005,7 @@ def test_validate_rhs_assign():
     trans = AssignmentTrans(active_variables=[lhs_symbol])
     with pytest.raises(TangentLinearError) as info:
         trans.validate(assignment)
-    assert ("Each non-zero term on the RHS of the assigment 'a = 1.0\n' must "
+    assert ("Each non-zero term on the RHS of the assignment 'a = 1.0\n' must "
             "have an active variable but '1.0' does not." in str(info.value))
 
 
@@ -1028,7 +1028,7 @@ def test_validate_rhs_term_multi_active():
         lhs_symbol, rhs_symbol1, rhs_symbol2])
     with pytest.raises(TangentLinearError) as info:
         trans.validate(assignment)
-    assert ("Each term on the RHS of the assigment 'a = b * c\n' must not "
+    assert ("Each term on the RHS of the assignment 'a = b * c\n' must not "
             "have more than one active variable but 'b * c' has 2."
             in str(info.value))
 
@@ -1276,8 +1276,8 @@ def test_validate_unaryop():
     '''
     lhs_symbol = DataSymbol("a", REAL_TYPE)
     rhs_symbol = DataSymbol("b", REAL_TYPE)
-    sqrt = UnaryOperation.create(
-        UnaryOperation.Operator.SQRT, Reference(rhs_symbol))
+    sqrt = IntrinsicCall.create(
+        IntrinsicCall.Intrinsic.SQRT, [Reference(rhs_symbol)])
     assignment = Assignment.create(Reference(lhs_symbol), sqrt)
     trans = AssignmentTrans(active_variables=[
         lhs_symbol, rhs_symbol])

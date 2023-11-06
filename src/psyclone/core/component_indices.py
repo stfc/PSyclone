@@ -56,6 +56,9 @@ class ComponentIndices():
     indices as `[l]`, i.e. a single component variable, which uses
     all the indices in the list `l` as array indices).
 
+    TODO #845 - the constructor should check that the things it is passed
+    are PSyIR nodes. Currently it is sometimes given strings.
+
     :param indices: the indices from which to create this object.
     :type indices: None, [], a list or a list of lists of \
         :py:class:`psyclone.psyir.nodes.Node`

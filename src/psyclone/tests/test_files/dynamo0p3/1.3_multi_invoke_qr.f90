@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2020, Science and Technology Facilities Council
+! Copyright (c) 2017-2023, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -31,8 +31,8 @@
 ! ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 ! POSSIBILITY OF SUCH DAMAGE.
 !-------------------------------------------------------------------------------
-! Author R. W. Ford STFC Daresbury Lab
-! Modified I. Kavcic Met Office
+! Author R. W. Ford, STFC Daresbury Lab
+! Modified I. Kavcic and L. Turner, Met Office
 
 program multi_invoke_qr
 
@@ -42,7 +42,7 @@ program multi_invoke_qr
   use constants_mod,       only: r_def, i_def
   use field_mod,           only: field_type
   use quadrature_xyoz_mod, only: quadrature_xyoz_type
-  use testkern_qr,         only: testkern_qr_type
+  use testkern_qr_mod,     only: testkern_qr_type
   use testkern_mod,        only: testkern_type
 
   implicit none

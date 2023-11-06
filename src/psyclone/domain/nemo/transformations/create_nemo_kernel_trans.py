@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
-# Modified by S. Siso and R. W. Ford, STFC Daresbury Lab
+# Modified by S. Siso, R. W. Ford and N. Nobre, STFC Daresbury Lab
 
 '''
 Module providing a transformation from a generic PSyIR Schedule into a
@@ -41,8 +41,8 @@ NEMO Kernel.
 
 from psyclone.errors import LazyString
 from psyclone.nemo import NemoKern
-from psyclone.psyir.backend.fortran import FortranWriter
-from psyclone.psyir.nodes import Schedule, Loop, Call, CodeBlock, Assignment
+from psyclone.psyir.nodes import (Schedule, Loop, Call, CodeBlock, Assignment,
+                                  IntrinsicCall)
 from psyclone.transformations import Transformation, TransformationError
 
 
@@ -109,19 +109,19 @@ class CreateNemoKernelTrans(Transformation):
             transformations. No options are used in this \
             transformation. This is an optional argument that defaults \
             to None.
-        :type options: dict of string:values or None
+        :type options: Optional[Dict[str, Any]]
 
         :raises TransformationError: if the supplied node is not a Schedule, \
             is not within a loop or cannot be represented as a Kernel.
 
         '''
-        super(CreateNemoKernelTrans, self).validate(node, options=options)
+        super().validate(node, options=options)
 
         if not isinstance(node, Schedule):
             raise TransformationError(
-                "Error in NemoKernelTrans transformation. The supplied node "
-                "should be a PSyIR Schedule but found '{0}'".format(
-                    type(node).__name__))
+                f"Error in NemoKernelTrans transformation. The supplied node "
+                f"should be a PSyIR Schedule but found '{type(node).__name__}'"
+                )
 
         # A Kernel must be within a Loop
         if not isinstance(node.parent, Loop):
@@ -138,24 +138,27 @@ class CreateNemoKernelTrans(Transformation):
         nodes = node.walk((Assignment, CodeBlock, Loop, Call, NemoKern),
                           stop_type=(CodeBlock, Loop, Call, NemoKern))
         if nodes and isinstance(nodes[-1], (CodeBlock, Loop, Call, NemoKern)):
-            raise TransformationError(
-                "Error in NemoKernelTrans transformation. A NEMO Kernel cannot"
-                " contain a node of type: '{0}'".format(
-                    type(nodes[-1]).__name__))
+            if not isinstance(nodes[-1], IntrinsicCall):
+                raise TransformationError(
+                    f"Error in NemoKernelTrans transformation. A NEMO Kernel "
+                    f"cannot contain a node of type: "
+                    f"'{type(nodes[-1]).__name__}'")
 
         # Check for array assignments
         assigns = [assign for assign in nodes if
-                   (isinstance(assign, Assignment) and assign.is_array_range)]
+                   (isinstance(assign, Assignment) and
+                    assign.is_array_assignment)]
         if assigns:
-            fwriter = FortranWriter()
             # Using LazyString to improve performance when using
             # exceptions to skip invalid regions.
+            # Since "Backslashes may not appear inside the expression
+            # portions of f-strings" via PEP 498, use chr(10) for '\n'.
             raise TransformationError(LazyString(
-                lambda: "A NEMO Kernel cannot contain array assignments "
-                "but found: {0}".format(
-                    [fwriter(node).rstrip("\n") for node in nodes])))
+                lambda: "A NEMO Kernel cannot contain array assignments but "
+                f"found: "
+                f"{[ass.debug_string().rstrip(chr(10)) for ass in assigns]}"))
 
-    def apply(self, sched, options=None):
+    def apply(self, node, options=None):
         '''
         Takes a generic PSyIR Schedule and replaces it with a NEMO Kernel.
 
@@ -165,13 +168,13 @@ class CreateNemoKernelTrans(Transformation):
             transformations. No options are used in this \
             transformation. This is an optional argument that defaults \
             to None.
-        :type options: dict of string:values or None
+        :type options: Optional[Dict[str, Any]]
 
         '''
-        self.validate(sched, options=options)
+        self.validate(node, options=options)
 
-        nemokern = NemoKern(sched.pop_all_children(), parent=sched)
-        sched.addchild(nemokern)
+        nemokern = NemoKern(node.pop_all_children(), parent=node)
+        node.addchild(nemokern)
 
 
 # For AutoAPI documentation generation

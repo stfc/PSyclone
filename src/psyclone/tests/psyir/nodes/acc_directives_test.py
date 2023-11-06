@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -34,24 +34,34 @@
 # Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 # Modified I. Kavcic, Met Office
 # Modified A. B. G. Chalk, STFC Daresbury Lab
+# Modified J. G. Wallwork, Met Office
 # -----------------------------------------------------------------------------
 
 ''' Performs py.test tests on the OpenACC PSyIR Directive nodes. '''
 
-from __future__ import absolute_import
 import os
 import pytest
 
 from psyclone.configuration import Config
+from psyclone.core import Signature
 from psyclone.errors import GenerationError
 from psyclone.f2pygen import ModuleGen
 from psyclone.parse.algorithm import parse
 from psyclone.psyGen import PSyFactory
-from psyclone.psyir.nodes import ACCRoutineDirective, \
-    ACCKernelsDirective, Schedule, ACCUpdateDirective, ACCLoopDirective
-from psyclone.psyir.symbols import DataSymbol, REAL_TYPE, SymbolTable
-from psyclone.transformations import ACCEnterDataTrans, ACCParallelTrans, \
-    ACCKernelsTrans
+from psyclone.psyir.nodes import (ACCKernelsDirective,
+                                  ACCLoopDirective,
+                                  ACCRegionDirective,
+                                  ACCRoutineDirective,
+                                  ACCUpdateDirective,
+                                  Assignment,
+                                  Literal,
+                                  Reference,
+                                  Routine)
+from psyclone.psyir.nodes.loop import Loop
+from psyclone.psyir.nodes.schedule import Schedule
+from psyclone.psyir.symbols import SymbolTable, DataSymbol, INTEGER_TYPE
+from psyclone.transformations import (ACCDataTrans, ACCEnterDataTrans,
+                                      ACCParallelTrans, ACCKernelsTrans)
 
 BASE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__)))), "test_files", "dynamo0p3")
@@ -64,6 +74,47 @@ def setup():
     yield
     Config._instance = None
 
+
+# Class ACCRegionDirective
+
+class MyACCRegion(ACCRegionDirective):
+    '''Concreate test class sub-classed from ACCRegionDirective.'''
+
+
+def test_accregiondir_validate_global(fortran_reader):
+    '''Check that the validate_global_constraints() method rejects PSyDataNode
+    and CodeBlock nodes.'''
+    accnode = MyACCRegion()
+    cblock = fortran_reader.psyir_from_statement("write(*,*) 'hello'",
+                                                 SymbolTable())
+    accnode.dir_body.addchild(cblock)
+    with pytest.raises(GenerationError) as err:
+        accnode.validate_global_constraints()
+    assert ("Cannot include CodeBlocks or calls to PSyData routines within "
+            "OpenACC regions but found ['CodeBlock'] within a region enclosed "
+            "by an 'MyACCRegion'" in str(err.value))
+
+
+def test_accregiondir_signatures():
+    '''Test the signatures property of ACCRegionDirective.'''
+    routine = Routine("test_prog")
+    accnode = MyACCRegion()
+    routine.addchild(accnode)
+    bob = DataSymbol("bob", INTEGER_TYPE)
+    richard = DataSymbol("richard", INTEGER_TYPE)
+    routine.symbol_table.add(bob)
+    accnode.dir_body.addchild(
+        Assignment.create(lhs=Reference(bob), rhs=Literal("1", INTEGER_TYPE)))
+    accnode.dir_body.addchild(
+        Assignment.create(lhs=Reference(bob), rhs=Literal("1", INTEGER_TYPE)))
+    accnode.dir_body.addchild(
+        Assignment.create(lhs=Reference(bob), rhs=Literal("1", INTEGER_TYPE)))
+    accnode.dir_body.addchild(
+        Assignment.create(lhs=Reference(bob), rhs=Reference(richard)))
+    # pylint: disable=unbalanced-tuple-unpacking
+    reads, writes = accnode.signatures
+    assert Signature("richard") in reads
+    assert Signature("bob") in writes
 
 # Class ACCEnterDataDirective start
 
@@ -183,8 +234,8 @@ def test_accloopdirective_node_str(monkeypatch):
                         lambda x: "ACCLoopDirective")
 
     # Default value output
-    expected = ("ACCLoopDirective[sequential=False,collapse=None,"
-                "independent=True]")
+    expected = ("ACCLoopDirective[sequential=False,gang=False,vector=False,"
+                "collapse=None,independent=True]")
     assert directive.node_str() == expected
     assert str(directive) == expected
 
@@ -192,8 +243,10 @@ def test_accloopdirective_node_str(monkeypatch):
     directive._sequential = True
     directive._collapse = 2
     directive._independent = False
-    expected = ("ACCLoopDirective[sequential=True,collapse=2,"
-                "independent=False]")
+    directive._gang = True
+    directive._vector = True
+    expected = ("ACCLoopDirective[sequential=True,gang=True,vector=True,"
+                "collapse=2,independent=False]")
     assert directive.node_str() == expected
     assert str(directive) == expected
 
@@ -241,6 +294,16 @@ def test_accloopdirective_equality():
     # Check equality fails when sequential is different
     directive2._independent = directive1.independent
     directive2._sequential = not directive1._sequential
+    assert directive1 != directive2
+
+    # Check equality fails when gang is different
+    directive2._sequential = directive1.sequential
+    directive2._gang = not directive1._gang
+    assert directive1 != directive2
+
+    # Check equality fails when vector is different
+    directive2._gang = directive1.gang
+    directive2._vector = not directive1._vector
     assert directive1 != directive2
 
 # Class ACCLoopDirective end
@@ -322,49 +385,113 @@ def test_acc_routine_directive_constructor_and_strings():
 # Class ACCUpdateDirective
 
 def test_accupdatedirective_init():
-    ''' Test the constructor of ACCUpdateDirective node'''
+    ''' Test the constructor of ACCUpdateDirective node. '''
 
     # Check argument validations
     with pytest.raises(TypeError) as err:
-        _ = ACCUpdateDirective("invalid", "host")
-    assert ("The ACCUpdateDirective symbol argument must be a 'DataSymbol' "
-            "but found 'str'." in str(err.value))
+        _ = ACCUpdateDirective({"invalid"}, "host")
+    assert ("The ACCUpdateDirective signatures argument must be a "
+            "set of signatures but got {'str'}"
+            in str(err.value))
 
-    symbol = DataSymbol("x", REAL_TYPE)
+    sig = {Signature("x")}
     with pytest.raises(ValueError) as err:
-        _ = ACCUpdateDirective(symbol, "invalid")
+        _ = ACCUpdateDirective(sig, "invalid")
     assert ("The ACCUpdateDirective direction argument must be a string with "
             "any of the values in '('self', 'host', 'device')' but found "
             "'invalid'." in str(err.value))
 
+    with pytest.raises(TypeError) as err:
+        _ = ACCUpdateDirective(sig, "host", if_present=1)
+    assert ("The ACCUpdateDirective if_present argument must be a "
+            "boolean but got int"
+            in str(err.value))
+
     # Successful init
-    directive = ACCUpdateDirective(symbol, "host")
-    assert directive._symbol is symbol
-    assert directive._direction == "host"
+    directive = ACCUpdateDirective(sig, "host")
+    assert directive.sig_set == sig
+    assert directive.direction == "host"
+    assert directive.if_present is True
+
+    directive = ACCUpdateDirective(sig, "host", if_present=False)
+    assert directive.if_present is False
 
 
 def test_accupdatedirective_begin_string():
-    ''' Test the begin_string method of ACCUpdateDirective'''
+    ''' Test the begin_string method of ACCUpdateDirective. '''
 
-    symbol = DataSymbol("x", REAL_TYPE)
-    directive1 = ACCUpdateDirective(symbol, "host")
-    directive2 = ACCUpdateDirective(symbol, "device")
+    sig = {Signature("x")}
+    directive_host = ACCUpdateDirective(sig, "host", if_present=False)
+    directive_device = ACCUpdateDirective(sig, "device")
+    directive_empty = ACCUpdateDirective(set(), "host", if_present=False)
 
-    assert directive1.begin_string() == "acc update host(x)"
-    assert directive2.begin_string() == "acc update device(x)"
+    assert directive_host.begin_string() == "acc update host(x)"
+    assert directive_device.begin_string() == "acc update if_present device(x)"
+
+    with pytest.raises(GenerationError) as err:
+        directive_empty.begin_string()
+    assert ("ACCUpdate directive did not find any data to update."
+            in str(err.value))
 
 
 def test_accupdatedirective_equality():
     ''' Test the __eq__ method of ACCUpdateDirective node. '''
-    symbol = DataSymbol("x", REAL_TYPE)
-    directive1 = ACCUpdateDirective(symbol, "device")
-    directive2 = ACCUpdateDirective(symbol, "device")
+    sig = {Signature("x")}
+    directive1 = ACCUpdateDirective(sig, "device")
+    directive2 = ACCUpdateDirective(sig, "device")
     assert directive1 == directive2
 
-    # Check equality fails when different symbols
-    directive3 = ACCUpdateDirective(DataSymbol("t", REAL_TYPE), "device")
+    # Check equality fails when different signatures
+    directive3 = ACCUpdateDirective({Signature("t")}, "device")
     assert directive1 != directive3
 
     # Check equality fails when different directions
-    directive4 = ACCUpdateDirective(symbol, "host")
+    directive4 = ACCUpdateDirective(sig, "host")
     assert directive1 != directive4
+
+    # Check equality fails when different if_present settings
+    directive5 = ACCUpdateDirective(sig, "device", if_present=False)
+    assert directive1 != directive5
+
+
+def test_accdatadirective_update_data_movement_clauses(fortran_reader,
+                                                       fortran_writer):
+    '''Test that the data movement clauses are constructed correctly for the
+    ACCDataDirective class and that they are updated appropriately when the
+    tree beneath them is changed.
+
+    '''
+    psyir = fortran_reader.psyir_from_source(
+        "program dtype_read\n"
+        "use field_mod, only: fld_type\n"
+        "integer, parameter :: jpj = 10\n"
+        "type(fld_type), dimension(5) :: small_holding\n"
+        "real, dimension(jpj) :: sto_tmp\n"
+        "integer :: ji, jf\n"
+        "real, dimension(jpj) :: sfactor\n"
+        "sfactor(:) = 0.1\n"
+        "sto_tmp(:) = 0.0\n"
+        "jf = 3\n"
+        "do ji = 1,jpj\n"
+        "  sto_tmp(ji) = sto_tmp(ji) + small_holding(3)%grid(jf)%data(ji)\n"
+        "  sto_tmp(ji) = sfactor * sto_tmp(ji)\n"
+        "end do\n"
+        "end program dtype_read\n")
+    loop = psyir.walk(Loop)[0]
+    dtrans = ACCDataTrans()
+    dtrans.apply(loop)
+    output = fortran_writer(psyir)
+    expected = ("!$acc data copyin(sfactor,small_holding,small_holding(3)%grid"
+                ",small_holding(3)%grid(jf)%data), copy(sto_tmp)")
+    assert expected in output
+    # Check that calling update_signal() explicitly has no effect as the tree
+    # has not changed.
+    loop.update_signal()
+    output = fortran_writer(psyir)
+    assert expected in output
+    # Now remove the second statement from the loop body.
+    del loop.loop_body.children[1]
+    output = fortran_writer(psyir)
+    # 'sfactor' should have been removed from the copyin()
+    assert ("!$acc data copyin(small_holding,small_holding(3)%grid,"
+            "small_holding(3)%grid(jf)%data), copy(sto_tmp)" in output)

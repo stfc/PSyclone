@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
-# Modified by: R. W. Ford and S. Siso, STFC Daresbury
+# Modified by: R. W. Ford, S. Siso and N. Nobre, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' Module containing tests for NanTestTrans and NanTestNode
@@ -87,9 +87,9 @@ def test_nan_test_basic():
     # Create the coloured text (if required)
     read_node = colored("NanTest", NanTestNode._colour)
     sched_node = colored("Schedule", Schedule._colour)
-    assert """{0}[]
-            0: {1}[]
-                {0}[]""".format(sched_node, read_node) in result
+    assert f"""{sched_node}[]
+            0: {read_node}[]
+                {sched_node}[]""" in result
 
 
 # -----------------------------------------------------------------------------

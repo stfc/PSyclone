@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022, Science and Technology Facilities Council.
+# Copyright (c) 2022-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
+# Modified by J. Henrichs, Bureau of Meteorology
 
 '''
     This module provides the PSyclone kernel-generation 'run' routine
@@ -52,8 +53,8 @@ import sys
 import traceback
 
 from psyclone import gen_kernel_stub
-from psyclone.domain.lfric.algorithm import LFRicAlg
 from psyclone.configuration import Config, ConfigurationError
+from psyclone.domain.lfric.algorithm import LFRicAlg
 from psyclone.errors import GenerationError, InternalError
 from psyclone.line_length import FortLineLength
 from psyclone.parse.utils import ParseError
@@ -118,13 +119,11 @@ def run(args):
     parser.add_argument("--config", help="config file with "
                         "PSyclone specific options.")
     parser.add_argument(
-        '-v', '--version', dest='version', action="store_true",
-        help=f"display version information ({__VERSION__})")
+        '--version', '-v', action='version',
+        version=f'psyclone-kern version: {__VERSION__}',
+        help=f'display version information ({__VERSION__})')
 
     args = parser.parse_args(args)
-
-    if args.version:
-        print(f"psyclone-kern version: {__VERSION__}", file=sys.stdout)
 
     # If no config file name is specified, args.config is none
     # and config will load the default config file.

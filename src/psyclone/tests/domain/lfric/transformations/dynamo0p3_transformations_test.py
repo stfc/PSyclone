@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+# Copyright (c) 2017-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,15 +31,14 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
-# Modified I. Kavcic and A. Coughtrie, Met Office
+# Authors: R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
+# Modified: I. Kavcic, A. Coughtrie and O. Brunt, Met Office
 #          C.M. Maynard, Met Office / University of Reading
-# MOdified J. Henrichs, Bureau of Meteorology
-# Modified A. B. G. Chalk, STFC Daresbury Lab
+# Modified: J. Henrichs, Bureau of Meteorology
+# Modified: A. B. G. Chalk, STFC Daresbury Lab
 
-''' Tests of transformations with the Dynamo 0.3 API '''
+''' Tests of transformations with the LFRic (Dynamo 0.3) API '''
 
-from __future__ import absolute_import, print_function
 import inspect
 from importlib import import_module
 import pytest
@@ -48,13 +47,13 @@ from psyclone.configuration import Config
 from psyclone.core.access_type import AccessType
 from psyclone.domain.lfric.lfric_builtins import LFRicXInnerproductYKern
 from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
-from psyclone.dynamo0p3 import DynLoop, DynHaloExchangeStart, \
-    DynHaloExchangeEnd, DynHaloExchange
+from psyclone.dynamo0p3 import DynLoop, LFRicHaloExchangeStart, \
+    LFRicHaloExchangeEnd, LFRicHaloExchange
 from psyclone.errors import GenerationError, InternalError
 from psyclone.psyGen import InvokeSchedule, GlobalSum, BuiltIn
 from psyclone.psyir.nodes import colored, Loop, Schedule, Literal, Directive, \
-    OMPDoDirective, ACCEnterDataDirective
-from psyclone.psyir.symbols import LocalInterface, ScalarType, ArrayType, \
+    OMPDoDirective, ACCEnterDataDirective, Reference
+from psyclone.psyir.symbols import AutomaticInterface, ScalarType, ArrayType, \
     REAL_TYPE, INTEGER_TYPE
 from psyclone.psyir.transformations import LoopFuseTrans, LoopTrans, \
     TransformationError
@@ -232,9 +231,9 @@ def test_colour_trans(tmpdir, dist_mem):
     assert (
         "call testkern_code(nlayers, a, f1_proxy%data, f2_proxy%data, "
         "m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, "
-        "map_w1(:,cmap(colour, cell)), ndf_w2, undf_w2, "
-        "map_w2(:,cmap(colour, cell)), ndf_w3, undf_w3, "
-        "map_w3(:,cmap(colour, cell)))" in gen)
+        "map_w1(:,cmap(colour,cell)), ndf_w2, undf_w2, "
+        "map_w2(:,cmap(colour,cell)), ndf_w3, undf_w3, "
+        "map_w3(:,cmap(colour,cell)))" in gen)
 
     if dist_mem:
         # Check that we get the right number of set_dirty halo calls in
@@ -276,7 +275,7 @@ def test_colour_trans_operator(tmpdir, dist_mem):
     gen = str(psy.gen)
 
     # check the first argument is a colourmap lookup
-    assert "CALL testkern_operator_code(cmap(colour, cell), nlayers" in gen
+    assert "CALL testkern_operator_code(cmap(colour,cell), nlayers" in gen
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -313,16 +312,16 @@ def test_colour_trans_cma_operator(tmpdir, dist_mem):
         f"        DO cell=loop1_start,{lookup}\n"
         f"          !\n"
         f"          CALL columnwise_op_asm_field_kernel_code("
-        f"cmap(colour, ") in gen
+        f"cmap(colour,") in gen
 
     assert (
-        "          CALL columnwise_op_asm_field_kernel_code(cmap(colour, "
+        "          CALL columnwise_op_asm_field_kernel_code(cmap(colour,"
         "cell), nlayers, ncell_2d, afield_proxy%data, "
         "lma_op1_proxy%ncell_3d, lma_op1_proxy%local_stencil, "
         "cma_op1_matrix, cma_op1_nrow, cma_op1_ncol, cma_op1_bandwidth, "
         "cma_op1_alpha, cma_op1_beta, cma_op1_gamma_m, cma_op1_gamma_p, "
         "ndf_aspc1_afield, undf_aspc1_afield, "
-        "map_aspc1_afield(:,cmap(colour, cell)), cbanded_map_aspc1_afield, "
+        "map_aspc1_afield(:,cmap(colour,cell)), cbanded_map_aspc1_afield, "
         "ndf_aspc2_lma_op1, cbanded_map_aspc2_lma_op1)\n"
         "        END DO\n"
         "      END DO\n") in gen
@@ -351,11 +350,11 @@ def test_colour_trans_stencil(dist_mem, tmpdir):
     # Check that we index the stencil dofmap appropriately
     assert (
         "          CALL testkern_stencil_code(nlayers, f1_proxy%data, "
-        "f2_proxy%data, f2_stencil_size(cmap(colour, cell)), "
-        "f2_stencil_dofmap(:,:,cmap(colour, cell)), f3_proxy%data, "
-        "f4_proxy%data, ndf_w1, undf_w1, map_w1(:,cmap(colour, cell)), "
-        "ndf_w2, undf_w2, map_w2(:,cmap(colour, cell)), ndf_w3, "
-        "undf_w3, map_w3(:,cmap(colour, cell)))" in gen)
+        "f2_proxy%data, f2_stencil_size(cmap(colour,cell)), "
+        "f2_stencil_dofmap(:,:,cmap(colour,cell)), f3_proxy%data, "
+        "f4_proxy%data, ndf_w1, undf_w1, map_w1(:,cmap(colour,cell)), "
+        "ndf_w2, undf_w2, map_w2(:,cmap(colour,cell)), ndf_w3, "
+        "undf_w3, map_w3(:,cmap(colour,cell)))" in gen)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -387,14 +386,15 @@ def test_colour_trans_adjacent_face(dist_mem, tmpdir):
     # Check that we index the adjacent face dofmap appropriately
     assert (
         "CALL testkern_mesh_prop_code(nlayers, a, f1_proxy%data, ndf_w1, "
-        "undf_w1, map_w1(:,cmap(colour, cell)), nfaces_re_h, "
-        "adjacent_face(:,cmap(colour, cell))" in gen)
+        "undf_w1, map_w1(:,cmap(colour,cell)), nfaces_re_h, "
+        "adjacent_face(:,cmap(colour,cell))" in gen)
 
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
 def test_colour_trans_continuous_write(dist_mem, tmpdir):
-    ''' Test the colouring transformation for a loop containing a kernel that
+    '''
+    Test the colouring transformation for a loop containing a kernel that
     has a 'GH_WRITE' access for a field on a continuous space.
 
     '''
@@ -412,6 +412,36 @@ def test_colour_trans_continuous_write(dist_mem, tmpdir):
             "mesh%get_last_edge_cell_all_colours()" in gen)
     assert "DO cell=loop1_start,last_edge_cell_all_colours(colour)" in gen
 
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+
+def test_colour_continuous_writer_intergrid(tmpdir, dist_mem):
+    '''
+    Test the loop-colouring transformation for an inter-grid kernel that has
+    a GH_WRITE access to a field on a continuous space. Since it has GH_WRITE
+    it does not need to iterate into the halos (to get clean annexed dofs) and
+    therefore should use the 'last_edge_cell' colour map.
+
+    '''
+    psy, invoke = get_invoke("22.1.1_intergrid_cont_restrict.f90",
+                             TEST_API, idx=0, dist_mem=dist_mem)
+    loop = invoke.schedule[0]
+    ctrans = Dynamo0p3ColourTrans()
+    ctrans.apply(loop)
+    result = str(psy.gen).lower()
+    # Declarations.
+    assert ("integer(kind=i_def), allocatable :: "
+            "last_edge_cell_all_colours_field1(:)" in result)
+    # Initialisation.
+    assert ("last_edge_cell_all_colours_field1 = mesh_field1%"
+            "get_last_edge_cell_all_colours()" in result)
+    # Usage. Since there is no need to loop into the halo, the upper loop
+    # bound should be independent of whether or not DM is enabled.
+    upper_bound = "last_edge_cell_all_colours_field1(colour)"
+    assert (f"      do colour=loop0_start,loop0_stop\n"
+            f"        do cell=loop1_start,{upper_bound}\n"
+            f"          !\n"
+            f"          call restrict_w2_code(nlayers" in result)
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
@@ -599,44 +629,6 @@ def test_omp_colouring_needed(monkeypatch, annexed, dist_mem):
     assert "Error in Dynamo0p3OMPLoopTrans transfo" in str(excinfo.value)
     assert "kernel has an argument with INC access" in str(excinfo.value)
     assert "Colouring is required" in str(excinfo.value)
-
-
-def test_check_seq_colours_omp_parallel_do(monkeypatch, annexed, dist_mem):
-    '''Test that we raise an error if the user attempts to apply an OpenMP
-    PARALLEL DO transformation to a loop over colours (since any such
-    loop must be sequential). We test when distributed memory is on or
-    off. We also test when annexed is False and True as it affects how
-    many halo exchanges are generated.
-
-    '''
-    config = Config.get()
-    dyn_config = config.api_conf("dynamo0.3")
-    monkeypatch.setattr(dyn_config, "_compute_annexed_dofs", annexed)
-    _, invoke = get_invoke("1.1.0_single_invoke_xyoz_qr.f90", TEST_API,
-                           name="invoke_0_testkern_qr_type",
-                           dist_mem=dist_mem)
-    schedule = invoke.schedule
-    if dist_mem:
-        if annexed:
-            index = 3
-        else:
-            index = 4
-    else:
-        index = 0
-
-    ctrans = Dynamo0p3ColourTrans()
-    otrans = DynamoOMPParallelLoopTrans()
-
-    # Colour the loop
-    ctrans.apply(schedule.children[index])
-
-    # Then erroneously attempt to apply OpenMP to the loop over
-    # colours
-    with pytest.raises(TransformationError) as excinfo:
-        otrans.apply(schedule.children[index])
-    assert "Error in DynamoOMPParallelLoopTrans" in str(excinfo.value)
-    assert "target loop is over colours" in str(excinfo.value)
-    assert "must be computed serially" in str(excinfo.value)
 
 
 def test_check_seq_colours_omp_do(tmpdir, monkeypatch, annexed, dist_mem):
@@ -1311,10 +1303,10 @@ def test_fuse_colour_loops(tmpdir, monkeypatch, annexed, dist_mem):
         f"          !\n"
         f"          CALL ru_code(nlayers, a_proxy%data, b_proxy%data, "
         f"istp, rdt, d_proxy%data, e_proxy(1)%data, e_proxy(2)%data, "
-        f"e_proxy(3)%data, ndf_w2, undf_w2, map_w2(:,cmap(colour, "
+        f"e_proxy(3)%data, ndf_w2, undf_w2, map_w2(:,cmap(colour,"
         f"cell)), basis_w2_qr, diff_basis_w2_qr, ndf_w3, undf_w3, "
-        f"map_w3(:,cmap(colour, cell)), basis_w3_qr, ndf_w0, undf_w0, "
-        f"map_w0(:,cmap(colour, cell)), basis_w0_qr, diff_basis_w0_qr, "
+        f"map_w3(:,cmap(colour,cell)), basis_w3_qr, ndf_w0, undf_w0, "
+        f"map_w0(:,cmap(colour,cell)), basis_w0_qr, diff_basis_w0_qr, "
         f"np_xy_qr, np_z_qr, weights_xy_qr, weights_z_qr)\n"
         f"        END DO\n"
         f"        !$omp end do\n"
@@ -1323,10 +1315,10 @@ def test_fuse_colour_loops(tmpdir, monkeypatch, annexed, dist_mem):
         f"          !\n"
         f"          CALL ru_code(nlayers, f_proxy%data, b_proxy%data, "
         f"istp, rdt, d_proxy%data, e_proxy(1)%data, e_proxy(2)%data, "
-        f"e_proxy(3)%data, ndf_w2, undf_w2, map_w2(:,cmap(colour, "
+        f"e_proxy(3)%data, ndf_w2, undf_w2, map_w2(:,cmap(colour,"
         f"cell)), basis_w2_qr, diff_basis_w2_qr, ndf_w3, undf_w3, "
-        f"map_w3(:,cmap(colour, cell)), basis_w3_qr, ndf_w0, undf_w0, "
-        f"map_w0(:,cmap(colour, cell)), basis_w0_qr, diff_basis_w0_qr, "
+        f"map_w3(:,cmap(colour,cell)), basis_w3_qr, ndf_w0, undf_w0, "
+        f"map_w0(:,cmap(colour,cell)), basis_w0_qr, diff_basis_w0_qr, "
         f"np_xy_qr, np_z_qr, weights_xy_qr, weights_z_qr)\n"
         f"        END DO\n"
         f"        !$omp end do\n"
@@ -1432,8 +1424,8 @@ def test_omp_par_and_halo_exchange_error():
     # Enclose the invoke code within a single region
     with pytest.raises(TransformationError) as excinfo:
         rtrans.apply(schedule.children)
-    assert ("type 'DynHaloExchange' cannot be enclosed by a OMPParallelTrans "
-            "transformation" in str(excinfo.value))
+    assert ("type 'LFRicHaloExchange' cannot be enclosed by a "
+            "OMPParallelTrans transformation" in str(excinfo.value))
 
 
 def test_builtin_single_omp_pdo(tmpdir, monkeypatch, annexed, dist_mem):
@@ -3637,13 +3629,13 @@ def test_reprod_view(monkeypatch, annexed, dist_mem):
     ompdo = colored("OMPDoDirective", Directive._colour)
     ompdefault = colored("OMPDefaultClause", Directive._colour)
     ompprivate = colored("OMPPrivateClause", Directive._colour)
+    ompfprivate = colored("OMPFirstprivateClause", Directive._colour)
     gsum = colored("GlobalSum", GlobalSum._colour)
     loop = colored("Loop", Loop._colour)
     call = colored("BuiltIn", BuiltIn._colour)
     sched = colored("Schedule", Schedule._colour)
     lit = colored("Literal", Literal._colour)
-    lit_uninit = (lit + "[value:'NOT_INITIALISED', Scalar<INTEGER, "
-                  "UNDEFINED>]\n")
+    ref = colored("Reference", Reference._colour)
     lit_one = lit + "[value:'1', Scalar<INTEGER, UNDEFINED>]\n"
     indent = "    "
 
@@ -3669,13 +3661,16 @@ def test_reprod_view(monkeypatch, annexed, dist_mem):
             5*indent + "0: " + loop + "[type='dof', "
             "field_space='any_space_1', it_space='dof', "
             "upper_bound='ndofs']\n" +
-            6*indent + lit_uninit +
-            6*indent + lit_uninit +
+            6*indent + lit + "[value:'NOT_INITIALISED', " +
+            "Scalar<INTEGER, UNDEFINED>]\n" +
+            6*indent + lit + "[value:'NOT_INITIALISED', " +
+            "Scalar<INTEGER, UNDEFINED>]\n" +
             6*indent + lit_one +
             6*indent + sched + "[]\n" +
             7*indent + "0: " + call + " x_innerproduct_y(asum,f1,f2)\n" +
             2*indent + ompdefault + "[default=DefaultClauseTypes.SHARED]\n" +
             2*indent + ompprivate + "[]\n" +
+            2*indent + ompfprivate + "[]\n" +
             indent + "1: " + gsum + "[scalar='asum']\n" +
             indent + "2: " + ompparallel + "[]\n" +
             2*indent + sched + "[]\n" +
@@ -3684,13 +3679,16 @@ def test_reprod_view(monkeypatch, annexed, dist_mem):
             5*indent + "0: " + loop + "[type='dof', "
             "field_space='any_space_1', it_space='dof', "
             "upper_bound='nannexed']\n" +
-            6*indent + lit_uninit +
-            6*indent + lit_uninit +
+            6*indent + lit + "[value:'NOT_INITIALISED', " +
+            "Scalar<INTEGER, UNDEFINED>]\n" +
+            6*indent + lit + "[value:'NOT_INITIALISED', " +
+            "Scalar<INTEGER, UNDEFINED>]\n" +
             6*indent + lit_one +
             6*indent + sched + "[]\n" +
             7*indent + "0: " + call + " inc_a_times_x(asum,f1)\n" +
             2*indent + ompdefault + "[default=DefaultClauseTypes.SHARED]\n" +
             2*indent + ompprivate + "[]\n" +
+            2*indent + ompfprivate + "[]\n" +
             indent + "3: " + ompparallel + "[]\n" +
             2*indent + sched + "[]\n" +
             3*indent + "0: " + ompdo + "[omp_schedule=static,reprod=True]\n" +
@@ -3698,13 +3696,16 @@ def test_reprod_view(monkeypatch, annexed, dist_mem):
             5*indent + "0: " + loop + "[type='dof', "
             "field_space='any_space_1', it_space='dof', "
             "upper_bound='ndofs']\n" +
-            6*indent + lit_uninit +
-            6*indent + lit_uninit +
+            6*indent + lit + "[value:'NOT_INITIALISED', " +
+            "Scalar<INTEGER, UNDEFINED>]\n" +
+            6*indent + lit + "[value:'NOT_INITIALISED', " +
+            "Scalar<INTEGER, UNDEFINED>]\n" +
             6*indent + lit_one +
             6*indent + sched + "[]\n" +
             7*indent + "0: " + call + " sum_x(bsum,f2)\n" +
             2*indent + ompdefault + "[default=DefaultClauseTypes.SHARED]\n" +
             2*indent + ompprivate + "[]\n" +
+            2*indent + ompfprivate + "[]\n" +
             indent + "4: " + gsum + "[scalar='bsum']\n")
         if not annexed:
             expected = expected.replace("nannexed", "ndofs")
@@ -3718,13 +3719,16 @@ def test_reprod_view(monkeypatch, annexed, dist_mem):
             5*indent + "0: " + loop + "[type='dof', "
             "field_space='any_space_1', it_space='dof', "
             "upper_bound='ndofs']\n" +
-            6*indent + lit_uninit +
-            6*indent + lit_uninit +
+            6*indent + lit + "[value:'NOT_INITIALISED', " +
+            "Scalar<INTEGER, UNDEFINED>]\n" +
+            6*indent + lit + "[value:'NOT_INITIALISED', " +
+            "Scalar<INTEGER, UNDEFINED>]\n" +
             6*indent + lit_one +
             6*indent + sched + "[]\n" +
             7*indent + "0: " + call + " x_innerproduct_y(asum,f1,f2)\n" +
             2*indent + ompdefault + "[default=DefaultClauseTypes.SHARED]\n" +
             2*indent + ompprivate + "[]\n" +
+            2*indent + ompfprivate + "[]\n" +
             indent + "1: " + ompparallel + "[]\n" +
             2*indent + sched + "[]\n" +
             3*indent + "0: " + ompdo + "[omp_schedule=static]\n" +
@@ -3732,13 +3736,16 @@ def test_reprod_view(monkeypatch, annexed, dist_mem):
             5*indent + "0: " + loop + "[type='dof', "
             "field_space='any_space_1', it_space='dof', "
             "upper_bound='ndofs']\n" +
-            6*indent + lit_uninit +
-            6*indent + lit_uninit +
+            6*indent + lit + "[value:'NOT_INITIALISED', " +
+            "Scalar<INTEGER, UNDEFINED>]\n" +
+            6*indent + lit + "[value:'NOT_INITIALISED', " +
+            "Scalar<INTEGER, UNDEFINED>]\n" +
             6*indent + lit_one +
             6*indent + sched + "[]\n" +
             7*indent + "0: " + call + " inc_a_times_x(asum,f1)\n" +
             2*indent + ompdefault + "[default=DefaultClauseTypes.SHARED]\n" +
             2*indent + ompprivate + "[]\n" +
+            2*indent + ompfprivate + "[]\n" +
             indent + "2: " + ompparallel + "[]\n" +
             2*indent + sched + "[]\n" +
             3*indent + "0: " + ompdo + "[omp_schedule=static,reprod=True]\n" +
@@ -3746,13 +3753,16 @@ def test_reprod_view(monkeypatch, annexed, dist_mem):
             5*indent + "0: " + loop + "[type='dof', "
             "field_space='any_space_1', it_space='dof', "
             "upper_bound='ndofs']\n" +
-            6*indent + lit_uninit +
-            6*indent + lit_uninit +
+            6*indent + lit + "[value:'NOT_INITIALISED', " +
+            "Scalar<INTEGER, UNDEFINED>]\n" +
+            6*indent + lit + "[value:'NOT_INITIALISED', " +
+            "Scalar<INTEGER, UNDEFINED>]\n" +
             6*indent + lit_one +
             6*indent + sched + "[]\n" +
             7*indent + "0: " + call + " sum_x(bsum,f2)\n" +
             2*indent + ompdefault + "[default=DefaultClauseTypes.SHARED]\n" +
-            2*indent + ompprivate + "[]")
+            2*indent + ompprivate + "[]\n" +
+            2*indent + ompfprivate + "[]\n")
     if expected not in result:
         print("Expected ...")
         print(expected)
@@ -3806,7 +3816,7 @@ def test_list_multiple_reductions(dist_mem):
     arg._argument_type = "gh_scalar"
     arg.descriptor._access = AccessType.SUM
     result = omp_loop_directive._reduction_string()
-    assert " reduction(+:asum), reduction(+:f2)" in result
+    assert "reduction(+:asum), reduction(+:f2)" in result
 
 
 def test_move_name():
@@ -3962,7 +3972,7 @@ def test_rc_node_not_loop():
     with pytest.raises(TransformationError) as excinfo:
         rc_trans.apply(schedule.children[0])
     assert ("Target of Dynamo0p3RedundantComputationTrans transformation must "
-            "be a sub-class of Loop but got \'DynHaloExchange\'" in
+            "be a sub-class of Loop but got \'LFRicHaloExchange\'" in
             str(excinfo.value))
 
 
@@ -4105,7 +4115,6 @@ def test_rc_discontinuous_depth(tmpdir, monkeypatch, annexed):
     loop = schedule.children[index]
     rc_trans.apply(loop, {"depth": 3})
     result = str(psy.gen)
-    print(result)
     for field_name in ["f1", "f2", "m1"]:
         assert (f"      IF ({field_name}_proxy%is_dirty(depth=3)) THEN\n"
                 f"        CALL {field_name}_proxy%halo_exchange(depth=3)"
@@ -4167,7 +4176,6 @@ def test_rc_all_discontinuous_depth(tmpdir):
     loop = schedule.children[0]
     rc_trans.apply(loop, {"depth": 3})
     result = str(psy.gen)
-    print(result)
     assert "IF (f2_proxy%is_dirty(depth=3)) THEN" in result
     assert "CALL f2_proxy%halo_exchange(depth=3)" in result
     assert "loop0_stop = mesh%get_last_halo_cell(3)" in result
@@ -4678,7 +4686,7 @@ def test_rc_updated_dependence_analysis():
     previous_node = previous_field.call
     # check f2_field has a backward dependence with the new halo
     # exchange field
-    assert isinstance(previous_node, DynHaloExchange)
+    assert isinstance(previous_node, LFRicHaloExchange)
     # check the new halo exchange field has a forward dependence with
     # the kernel f2_field
     assert previous_field.forward_dependence() == f2_field
@@ -5346,7 +5354,7 @@ def test_rc_parent_loop_colour(monkeypatch):
 
     # Make the outermost loop iterate over cells (it should be
     # colours). We can ignore the previous monkeypatch as this
-    # exception is ecountered before the previous one.
+    # exception is encountered before the previous one.
     monkeypatch.setattr(schedule.children[4], "_loop_type", "cells")
 
     rc_trans = Dynamo0p3RedundantComputationTrans()
@@ -5613,9 +5621,9 @@ def test_rc_then_colour(tmpdir):
         "          !\n"
         "          CALL testkern_code(nlayers, a, f1_proxy%data,"
         " f2_proxy%data, m1_proxy%data, m2_proxy%data, ndf_w1, undf_w1, "
-        "map_w1(:,cmap(colour, cell)), ndf_w2, undf_w2, "
-        "map_w2(:,cmap(colour, cell)), ndf_w3, undf_w3, "
-        "map_w3(:,cmap(colour, cell)))\n" in result)
+        "map_w1(:,cmap(colour,cell)), ndf_w2, undf_w2, "
+        "map_w2(:,cmap(colour,cell)), ndf_w3, undf_w3, "
+        "map_w3(:,cmap(colour,cell)))\n" in result)
 
     assert (
         "      CALL f1_proxy%set_dirty()\n"
@@ -6109,13 +6117,13 @@ def test_haloex_rc4_colouring(tmpdir, monkeypatch, annexed):
 
     if annexed:
         assert result.count("f1_proxy%halo_exchange(depth=1)") == 1
-        assert isinstance(schedule.children[2], DynHaloExchange)
+        assert isinstance(schedule.children[2], LFRicHaloExchange)
         assert schedule.children[2].field.name == "f1"
     else:
         assert result.count("f1_proxy%halo_exchange(depth=1)") == 2
-        assert isinstance(schedule.children[0], DynHaloExchange)
+        assert isinstance(schedule.children[0], LFRicHaloExchange)
         assert schedule.children[0].field.name == "f1"
-        assert isinstance(schedule.children[4], DynHaloExchange)
+        assert isinstance(schedule.children[4], LFRicHaloExchange)
         assert schedule.children[4].field.name == "f1"
 
     w_loop_idx = 2
@@ -6162,7 +6170,7 @@ def test_haloex_rc4_colouring(tmpdir, monkeypatch, annexed):
             index = 1
         else:
             index = 0
-        assert isinstance(schedule.children[index], DynHaloExchange)
+        assert isinstance(schedule.children[index], LFRicHaloExchange)
         assert schedule.children[index].field.name == "f1"
 
         assert LFRicBuild(tmpdir).code_compiles(psy)
@@ -6191,8 +6199,8 @@ def test_intergrid_colour(dist_mem):
       cmap_fld_m => mesh_fld_m%get_colour_map()'''
     assert expected in gen
     expected = '''\
-      ncolour_fld_c = mesh_fld_c%get_ncolours()
-      cmap_fld_c => mesh_fld_c%get_colour_map()'''
+      ncolour_cmap_fld_c = mesh_cmap_fld_c%get_ncolours()
+      cmap_cmap_fld_c => mesh_cmap_fld_c%get_colour_map()'''
     assert expected in gen
     assert "loop1_stop = ncolour_fld_m" in gen
     assert "loop2_stop" not in gen
@@ -6213,10 +6221,10 @@ def test_intergrid_colour(dist_mem):
     assert expected in gen
     expected = (
         "          call prolong_test_kernel_code(nlayers, cell_map_fld_m"
-        "(:,:,cmap_fld_m(colour, cell)), ncpc_fld_f_fld_m_x, "
+        "(:,:,cmap_fld_m(colour,cell)), ncpc_fld_f_fld_m_x, "
         "ncpc_fld_f_fld_m_y, ncell_fld_f, fld_f_proxy%data, fld_m_proxy%data, "
         "ndf_w1, undf_w1, map_w1, undf_w2, "
-        "map_w2(:,cmap_fld_m(colour, cell)))\n")
+        "map_w2(:,cmap_fld_m(colour,cell)))\n")
     assert expected in gen
 
 
@@ -6280,20 +6288,20 @@ def test_intergrid_omp_parado(dist_mem, tmpdir):
     otrans.apply(loops[2])
     otrans.apply(loops[5])
     gen = str(psy.gen)
-    assert "loop4_stop = ncolour_fld_c" in gen
+    assert "loop4_stop = ncolour_cmap_fld_c" in gen
     assert ("      DO colour=loop4_start,loop4_stop\n"
             "        !$omp parallel do default(shared), private(cell), "
             "schedule(static)\n" in gen)
 
     if dist_mem:
-        assert ("last_halo_cell_all_colours_fld_c = "
-                "mesh_fld_c%get_last_halo_cell_all_colours()" in gen)
-        assert ("DO cell=loop5_start,last_halo_cell_all_colours_fld_c"
+        assert ("last_halo_cell_all_colours_cmap_fld_c = "
+                "mesh_cmap_fld_c%get_last_halo_cell_all_colours()" in gen)
+        assert ("DO cell=loop5_start,last_halo_cell_all_colours_cmap_fld_c"
                 "(colour,1)\n" in gen)
     else:
-        assert ("last_edge_cell_all_colours_fld_c = mesh_fld_c%get_last_edge_"
-                "cell_all_colours()" in gen)
-        assert ("DO cell=loop5_start,last_edge_cell_all_colours_fld_c"
+        assert ("last_edge_cell_all_colours_cmap_fld_c = mesh_cmap_fld_c%"
+                "get_last_edge_cell_all_colours()" in gen)
+        assert ("DO cell=loop5_start,last_edge_cell_all_colours_cmap_fld_c"
                 "(colour)\n" in gen)
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
@@ -6308,7 +6316,7 @@ def test_intergrid_omp_para_region1(dist_mem, tmpdir):
     ctrans = Dynamo0p3ColourTrans()
     ptrans = OMPParallelTrans()
     otrans = Dynamo0p3OMPLoopTrans()
-    # Colour the first loop (where 'fld_c' is the field on the coarse mesh)
+    # Colour the first loop (where 'cmap_fld_c' is the field on the coarse mesh)
     loops = schedule.walk(Loop)
     ctrans.apply(loops[0])
     # Parallelise the loop over cells of a given colour
@@ -6319,24 +6327,24 @@ def test_intergrid_omp_para_region1(dist_mem, tmpdir):
     ptrans.apply(dirs[0])
     gen = str(psy.gen)
     if dist_mem:
-        assert ("last_halo_cell_all_colours_fld_c = mesh_fld_c%get_last_halo_"
-                "cell_all_colours()" in gen)
-        upper_bound = "last_halo_cell_all_colours_fld_c(colour,1)"
+        assert ("last_halo_cell_all_colours_cmap_fld_c = mesh_cmap_fld_c%"
+                "get_last_halo_cell_all_colours()" in gen)
+        upper_bound = "last_halo_cell_all_colours_cmap_fld_c(colour,1)"
     else:
-        assert ("last_edge_cell_all_colours_fld_c = mesh_fld_c%get_last_edge_"
-                "cell_all_colours()\n" in gen)
-        upper_bound = "last_edge_cell_all_colours_fld_c(colour)"
-    assert "loop0_stop = ncolour_fld_c\n" in gen
+        assert ("last_edge_cell_all_colours_cmap_fld_c = mesh_cmap_fld_c%"
+                "get_last_edge_cell_all_colours()\n" in gen)
+        upper_bound = "last_edge_cell_all_colours_cmap_fld_c(colour)"
+    assert "loop0_stop = ncolour_cmap_fld_c\n" in gen
     assert (f"      DO colour=loop0_start,loop0_stop\n"
             f"        !$omp parallel default(shared), private(cell)\n"
             f"        !$omp do schedule(static)\n"
             f"        DO cell=loop1_start,{upper_bound}\n"
             f"          !\n"
-            f"          CALL prolong_test_kernel_code(nlayers, cell_map_fld_c"
-            f"(:,:,cmap_fld_c(colour, cell)), ncpc_fld_m_fld_c_x, "
-            f"ncpc_fld_m_fld_c_y, ncell_fld_m, "
-            f"fld_m_proxy%data, fld_c_proxy%data, ndf_w1, undf_w1, map_w1, "
-            f"undf_w2, map_w2(:,cmap_fld_c(colour, cell)))\n"
+            f"          CALL prolong_test_kernel_code(nlayers, "
+            f"cell_map_cmap_fld_c(:,:,cmap_cmap_fld_c(colour,cell)), "
+            f"ncpc_fld_m_cmap_fld_c_x, ncpc_fld_m_cmap_fld_c_y, ncell_fld_m, "
+            f"fld_m_proxy%data, cmap_fld_c_proxy%data, ndf_w1, undf_w1, "
+            f"map_w1, undf_w2, map_w2(:,cmap_cmap_fld_c(colour,cell)))\n"
             f"        END DO\n"
             f"        !$omp end do\n"
             f"        !$omp end parallel\n"
@@ -6476,7 +6484,7 @@ def test_acckernelstrans_dm():
     sched = invoke.schedule
     with pytest.raises(TransformationError) as err:
         kernels_trans.apply(sched.children)
-    assert ("Nodes of type 'DynHaloExchange' cannot be enclosed by a "
+    assert ("Nodes of type 'LFRicHaloExchange' cannot be enclosed by a "
             "ACCKernelsTrans transformation" in str(err.value))
     kernels_trans.apply(sched.walk(Loop))
     code = str(psy.gen)
@@ -6545,7 +6553,7 @@ def test_accparalleltrans_dm(tmpdir):
     # Cannot include halo-exchange nodes within an ACC parallel region.
     with pytest.raises(TransformationError) as err:
         acc_par_trans.apply(sched)
-    assert ("Nodes of type 'DynHaloExchange' cannot be enclosed by a "
+    assert ("Nodes of type 'LFRicHaloExchange' cannot be enclosed by a "
             "ACCParallelTrans transformation" in str(err.value))
     acc_par_trans.apply(sched.walk(Loop)[0])
     acc_enter_trans.apply(sched)
@@ -7025,7 +7033,7 @@ def test_vector_halo_exchange_remove():
     rc_trans.apply(schedule.children[3], {"depth": 2})
     assert len(schedule.children) == 5
     for index in [0, 1, 2]:
-        assert isinstance(schedule.children[index], DynHaloExchange)
+        assert isinstance(schedule.children[index], LFRicHaloExchange)
     assert isinstance(schedule.children[3], DynLoop)
     assert isinstance(schedule.children[4], DynLoop)
 
@@ -7083,8 +7091,8 @@ def test_vector_async_halo_exchange(tmpdir):
 
     assert len(schedule.children) == 8
     for index in [0, 2, 4]:
-        assert isinstance(schedule.children[index], DynHaloExchangeStart)
-        assert isinstance(schedule.children[index+1], DynHaloExchangeEnd)
+        assert isinstance(schedule.children[index], LFRicHaloExchangeStart)
+        assert isinstance(schedule.children[index+1], LFRicHaloExchangeEnd)
     assert isinstance(schedule.children[6], DynLoop)
     assert isinstance(schedule.children[7], DynLoop)
 
@@ -7124,7 +7132,7 @@ def test_async_halo_exchange_nomatch1():
         hex_start._get_hex_end()
     assert ("Halo exchange start for field 'f1' should match with a halo "
             "exchange end, but found <class 'psyclone.dynamo0p3."
-            "DynHaloExchange'>") in str(excinfo.value)
+            "LFRicHaloExchange'>") in str(excinfo.value)
 
 
 def test_async_halo_exchange_nomatch2():
@@ -7453,10 +7461,11 @@ def test_kern_const_invalid_make_constant1():
     kernel_schedule = kernel.get_kernel_schedule()
     symbol_table = kernel_schedule.symbol_table
     # Make the symbol table's argument list empty. We have to make sure that
-    # the interface of any existing argument Symbols is set to LocalInterface
-    # first otherwise we fall foul of our internal-consistency checks.
+    # the interface of any existing argument Symbols is set to
+    # AutomaticInterface first otherwise we fall foul of our
+    # internal-consistency checks.
     for symbol in symbol_table.argument_list:
-        symbol.interface = LocalInterface()
+        symbol.interface = AutomaticInterface()
     symbol_table._argument_list = []
     kctrans = Dynamo0p3KernelConstTrans()
     with pytest.raises(TransformationError) as excinfo:
@@ -7494,7 +7503,8 @@ def test_kern_const_invalid_make_constant2():
     # Expecting scalar integer. Set to constant.
     symbol._datatype = ScalarType(ScalarType.Intrinsic.INTEGER,
                                   ScalarType.Precision.UNDEFINED)
-    symbol._constant_value = 10
+    symbol._initial_value = Literal("10", INTEGER_TYPE)
+    symbol._is_constant = True
     with pytest.raises(TransformationError) as excinfo:
         kctrans.apply(kernel, {"element_order": 0})
     assert ("Expected entry to be a scalar integer argument but found "

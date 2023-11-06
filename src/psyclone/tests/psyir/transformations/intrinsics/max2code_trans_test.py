@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council
+# Copyright (c) 2021-2023, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,12 +32,11 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: R. W. Ford, STFC Daresbury Lab
+# Author: S. Siso, STFC Daresbury Lab
 
 '''Module containing tests for the Max2CodeTrans transformation.'''
 
-from __future__ import absolute_import
-
-from psyclone.psyir.nodes import BinaryOperation, NaryOperation
+from psyclone.psyir.nodes import BinaryOperation, IntrinsicCall
 from psyclone.psyir.transformations import Max2CodeTrans
 from psyclone.psyir.transformations.intrinsics.minormax2code_trans import \
     MinOrMax2CodeTrans
@@ -50,7 +49,5 @@ def test_initialise():
     '''
     assert issubclass(Max2CodeTrans, MinOrMax2CodeTrans)
     trans = Max2CodeTrans()
-    assert trans._operator_name == "MAX"
-    assert trans._operators == (BinaryOperation.Operator.MAX,
-                                NaryOperation.Operator.MAX)
+    assert trans._intrinsic == IntrinsicCall.Intrinsic.MAX
     assert trans._compare_operator == BinaryOperation.Operator.GT

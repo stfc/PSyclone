@@ -31,8 +31,8 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
-#        J. Henrichs, Bureau of Meteorology
+# Authors: R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
+#          J. Henrichs, Bureau of Meteorology
 # Modified I. Kavcic, Met Office
 
 '''This module provides the generic loop fusion class, which is the base
@@ -65,7 +65,7 @@ class LoopFuseTrans(LoopTrans):
         :param node2: the second Node that is being checked.
         :type node2: :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.
-        :type options: dictionary of string:values or None
+        :type options: Optional[Dict[str, Any]]
 
         :raises TransformationError: if one or both of the Nodes is/are not \
                                      a :py:class:`psyclone.psyir.nodes.Loop`.
@@ -120,7 +120,7 @@ class LoopFuseTrans(LoopTrans):
         :param node2: the second Node that is being checked.
         :type node2: :py:class:`psyclone.psyir.nodes.Node`
         :param options: a dictionary with options for transformations.
-        :type options: dictionary of string:values or None
+        :type options: Optional[Dict[str, Any]]
 
         '''
         # Validity checks for the supplied nodes

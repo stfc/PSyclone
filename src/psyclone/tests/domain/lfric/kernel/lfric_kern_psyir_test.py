@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022, Science and Technology Facilities Council
+# Copyright (c) 2022-2023, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,8 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford, STFC Daresbury Lab
+# Author: R. W. Ford, STFC Daresbury Lab
+# Modified: S. Siso, STFC Daresbury Lab
 
 '''Module containing tests for the KernelMetadataSymbol
 kernel-layer-specific symbol. The tests include translation of
@@ -41,9 +42,8 @@ Kernel PSyIR to language-level PSyIR.
 '''
 import pytest
 
-from psyclone.domain.lfric.kernel.lfric_kernel_metadata import \
-    LFRicKernelMetadata
-from psyclone.domain.lfric.kernel.psyir import LFRicKernelContainer
+from psyclone.domain.lfric.kernel import (
+    LFRicKernelMetadata, LFRicKernelContainer)
 from psyclone.domain.lfric.transformations.raise_psyir_2_lfric_kern_trans \
     import RaisePSyIR2LFRicKernTrans
 from psyclone.psyir.nodes import Container
@@ -99,12 +99,16 @@ def test_lfrickernelcontainer_create():
     assert container.name == "name"
     expected = (
         "TYPE, PUBLIC, EXTENDS(kernel_type) :: w3_solver_kernel_type\n"
-        "  TYPE(arg_type) :: meta_args(4) = (/ &\n"
-        "arg_type(GH_FIELD, GH_REAL, GH_WRITE, W3), &\n"
-        "arg_type(GH_FIELD, GH_REAL, GH_READ, W3), &\n"
-        "arg_type(GH_FIELD*3, GH_REAL, GH_READ, Wchi), &\n"
-        "arg_type(GH_FIELD, GH_INTEGER, GH_READ, "
-        "ANY_DISCONTINUOUS_SPACE_3)/)\n"
+        "  type(ARG_TYPE) :: META_ARGS(4) = (/ &\n"
+        "    arg_type(gh_field, gh_real, gh_write, w3), &\n"
+        "    arg_type(gh_field, gh_real, gh_read, w3), &\n"
+        "    arg_type(gh_field*3, gh_real, gh_read, wchi), &\n"
+        "    arg_type(gh_field, gh_integer, gh_read, "
+        "any_discontinuous_space_3)/)\n"
+        "  type(FUNC_TYPE) :: META_FUNCS(2) = (/ &\n"
+        "    func_type(w3, gh_basis), &\n"
+        "    func_type(wchi, gh_basis, gh_diff_basis)/)\n"
+        "  INTEGER :: GH_SHAPE = gh_quadrature_xyoz\n"
         "  INTEGER :: OPERATES_ON = cell_column\n"
         "  CONTAINS\n"
         "    PROCEDURE, NOPASS :: solver_w3_code\n"
@@ -113,7 +117,7 @@ def test_lfrickernelcontainer_create():
     assert container.children == []
     with pytest.raises(ValueError) as info:
         _ = LFRicKernelMetadata.create_from_fortran_string("Not valid")
-    assert ("Expected kernel metadata to be a Fortran derived type, but "
+    assert ("Expected kernel metadata to be a Fortran Derived_Type_Def, but "
             "found 'Not valid'." in str(str(info.value)))
 
 
@@ -138,7 +142,8 @@ def test_lfrickernelcontainer_lower(fortran_reader):
 
     # Now use lower_to_language_level and perform checks
     container = kernel_psyir.children[0]
-    container.lower_to_language_level()
+    lowered = container.lower_to_language_level()
+    assert lowered is kernel_psyir.children[0]
     assert isinstance(kernel_psyir.children[0], Container)
     assert not isinstance(kernel_psyir.children[0], LFRicKernelContainer)
     assert kernel_psyir.children[0].symbol_table.lookup(

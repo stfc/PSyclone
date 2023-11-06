@@ -41,6 +41,7 @@ from enum import Enum
 from psyclone.psyir.nodes.clause import Clause, OperandClause
 from psyclone.psyir.nodes.literal import Literal
 from psyclone.psyir.nodes.reference import Reference
+from psyclone.psyir.symbols import Symbol
 
 
 class OMPNowaitClause(Clause):
@@ -158,6 +159,35 @@ class OMPPrivateClause(Clause):
     '''
     _children_valid_format = "Reference*"
 
+    @staticmethod
+    def create(symbols):
+        ''' Create a OMPPrivateClause containing a Reference to each of the
+        provided symbols as children.
+
+        :param symbols: List of symbols to reference in the private clause.
+        :type symbols: List[:py:class:`psyclone.psyir.symbols.Symbol`]
+
+        :returns: A OMPPrivateClause referencing the provided symbols.
+        :rtype: py:class:`psyclone.psyir.nodes.OMPPrivateClause`
+
+        :raises TypeError: If the symbols argument is not a List that \
+            contains only PSyIR Symbols.
+
+        '''
+        if not isinstance(symbols, list):
+            raise TypeError(
+                f"OMPPrivateClause expected the 'symbols' argument to be a "
+                f"list, but found '{type(symbols).__name__}' instead.")
+        for symbol in symbols:
+            if not isinstance(symbol, Symbol):
+                raise TypeError(
+                    f"OMPPrivateClause expected all the items in the 'symbols'"
+                    f" list to be PSyIR Symbols, but found a "
+                    f"'{type(symbol).__name__}'.")
+
+        references = [Reference(symbol) for symbol in symbols]
+        return OMPPrivateClause(children=references)
+
     @property
     def _clause_string(self):
         '''
@@ -193,6 +223,36 @@ class OMPFirstprivateClause(Clause):
     firstprivate to an OpenMP region.
     '''
     _children_valid_format = "Reference*"
+
+    @staticmethod
+    def create(symbols):
+        ''' Create an OMPFirstprivateClause containing a Reference to each of
+        the provided symbols as children.
+
+        :param symbols: List of symbols to reference in the firstprivate \
+            clause.
+        :type symbols: List[:py:class:`psyclone.psyir.symbols.Symbol`]
+
+        :returns: A OMPFirstprivateClause referencing the provided symbols.
+        :rtype: py:class:`psyclone.psyir.nodes.OMPFirstprivateClause`
+
+        :raises TypeError: If the symbols argument is not a List that \
+            contains only PSyIR Symbols.
+
+        '''
+        if not isinstance(symbols, list):
+            raise TypeError(
+                f"OMPFirstprivateClause expected the 'symbols' argument to be "
+                f"a list, but found '{type(symbols).__name__}' instead.")
+        for symbol in symbols:
+            if not isinstance(symbol, Symbol):
+                raise TypeError(
+                    f"OMPFirstprivateClause expected all the items in the "
+                    f"'symbols' list to be PSyIR Symbols, but found a "
+                    f"'{type(symbol).__name__}'.")
+
+        references = [Reference(symbol) for symbol in symbols]
+        return OMPFirstprivateClause(children=references)
 
     @property
     def _clause_string(self):
@@ -295,27 +355,34 @@ class OMPScheduleClause(Clause):
     '''
     OpenMP Schedule clause used for OMP Do Directives.
 
-    :param str schedule: The OpenMP schedule to use with this directive.\
-                         The default value is "static".
+    :param str schedule: The OpenMP schedule to use with this directive. \
+        The default value is "none" which means that no explicit schedule \
+        is specified.
     :param kwargs: additional keyword arguments provided to the PSyIR node.
     :type kwargs: unwrapped dict.
+
     '''
     _children_valid_format = "None"
-    _schedule = ""
 
-    def __init__(self, schedule="static", **kwargs):
+    VALID_OMP_SCHEDULES = ["runtime", "static", "dynamic", "guided", "auto",
+                           "none"]
+
+    def __init__(self, schedule="none", **kwargs):
         self.schedule = schedule
         super().__init__(**kwargs)
 
     @property
     def _clause_string(self):
         '''
-        :returns: the string that represents this clause in OpenMP (e.g.\
-                "schedule(static)"). The value inside parentheses is\
-                set to the value of the schedule of this clause.
+        :returns: the string that represents this clause in OpenMP (e.g. \
+            "schedule(static)"). The value inside parentheses is \
+            set to the value of the schedule of this clause unless \
+            that value is 'none' in which case an empty string is returned.
         :rtype: str
         '''
-        return f"schedule({self._schedule})"
+        if self._schedule != "none":
+            return f"schedule({self._schedule})"
+        return ""
 
     @property
     def schedule(self):
@@ -329,10 +396,14 @@ class OMPScheduleClause(Clause):
     def schedule(self, schedule):
         '''
         :param str schedule: the schedule to use for this clause.
+
+        :raises ValueError: if the supplied value is not a recognised \
+                            OpenMP schedule.
         '''
-        if schedule not in ("runtime", "static", "dynamic", "guided", "auto"):
-            raise ValueError(f"Schedule must be one of runtime, static, "
-                             f"dynamic, guided or auto. Found {schedule}.")
+        if schedule not in self.VALID_OMP_SCHEDULES:
+            raise ValueError(
+                f"Schedule must be one of {self.VALID_OMP_SCHEDULES}. "
+                f"Found '{schedule}'.")
         self._schedule = schedule
 
     def __eq__(self, other):

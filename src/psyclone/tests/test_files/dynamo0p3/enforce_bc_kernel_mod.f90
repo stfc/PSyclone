@@ -43,7 +43,7 @@
 
 !> @brief Applies boundary conditions to a field
 !> @details Wrapper code for applying boundary conditions to a field
-!>          When the Psyclone api is updated to correctly deal with
+!>          When the PSyclone api is updated to correctly deal with
 !>          boundary dofs this can be removed
 module enforce_bc_kernel_mod
 use kernel_mod,              only : kernel_type

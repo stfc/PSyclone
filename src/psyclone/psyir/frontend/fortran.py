@@ -1,6 +1,6 @@
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -38,7 +38,7 @@
 
 from fparser.common.readfortran import FortranStringReader
 from fparser.common.sourceinfo import FortranFormat
-from fparser.two import Fortran2003
+from fparser.two import Fortran2003, pattern_tools
 from fparser.two.parser import ParserFactory
 from fparser.two.symbol_table import SYMBOL_TABLES
 from fparser.two.utils import NoMatchError
@@ -61,10 +61,31 @@ class FortranReader():
         self._processor = Fparser2Reader()
         SYMBOL_TABLES.clear()
 
-    def psyir_from_source(self, source_code):
+    @staticmethod
+    def validate_name(name):
+        '''
+        Utility method that checks that the supplied name is a valid
+        Fortran name.
+
+        :param str name: the name to check.
+
+        :raises TypeError: if the name is not a string.
+        :raises ValueError: if this is not a valid name.
+
+        '''
+        if not isinstance(name, str):
+            raise TypeError(
+                f"A name should be a string, but found "
+                f"'{type(name).__name__}'.")
+        if not pattern_tools.abs_name.match(name):
+            raise ValueError(
+                f"Invalid Fortran name '{name}' found.")
+
+    def psyir_from_source(self, source_code, free_form=True):
         ''' Generate the PSyIR tree representing the given Fortran source code.
 
         :param str source_code: text representation of the code to be parsed.
+        :param bool free_form: If parsing free-form code or not (default True).
 
         :returns: PSyIR representing the provided Fortran source code.
         :rtype: :py:class:`psyclone.psyir.nodes.Node`
@@ -73,7 +94,7 @@ class FortranReader():
         SYMBOL_TABLES.clear()
         string_reader = FortranStringReader(source_code)
         # Set reader to free format.
-        string_reader.set_format(FortranFormat(True, False))
+        string_reader.set_format(FortranFormat(free_form, False))
         parse_tree = self._parser(string_reader)
         psyir = self._processor.generate_psyir(parse_tree)
         return psyir
@@ -112,7 +133,7 @@ class FortranReader():
         # that we can process the expression and lookup any symbols that it
         # references. We provide the SymbolTable directly to the private
         # attribute to avoid the symbol table's node link to connect to the
-        # new Schedule and therfore stealing it from its original scope.
+        # new Schedule and therefore stealing it from its original scope.
         # pylint: disable=protected-access
         fake_parent = Schedule()
         fake_parent._symbol_table = symbol_table
@@ -176,11 +197,14 @@ class FortranReader():
                 f"imports which might be bringing them into scope.") from err
         return fake_parent[0].detach()
 
-    def psyir_from_file(self, file_path):
+    def psyir_from_file(self, file_path, free_form=True):
         ''' Generate the PSyIR tree representing the given Fortran file.
 
         :param file_path: path of the file to be read and parsed.
         :type file_path: str or any Python Path format.
+
+        :param free_form: If parsing free-form code or not (default True).
+        :type free_form: bool
 
         :returns: PSyIR representing the provided Fortran file.
         :rtype: :py:class:`psyclone.psyir.nodes.Node`
@@ -193,8 +217,8 @@ class FortranReader():
         # place to implement caching in order to avoid repeating parsing steps
         # that have already been done before.
 
-        with open(file_path, "r") as source:
-            return self.psyir_from_source(source.read())
+        with open(file_path, "r", encoding="utf-8") as source:
+            return self.psyir_from_source(source.read(), free_form=free_form)
 
 
 # For Sphinx AutoAPI documentation generation

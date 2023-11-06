@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2018-2022, Science and Technology Facilities Council.
+# Copyright (c) 2018-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -303,6 +303,7 @@ def test_invoke_opencl_initialisation_grid():
     expected = '''
     subroutine initialise_grid_device_buffers(field)
       use fortcl, only: create_ronly_buffer
+      use iso_c_binding, only: c_size_t
       use field_mod
       type(r2d_field), intent(inout), target :: field
       integer(kind=c_size_t) size_in_bytes
@@ -515,6 +516,7 @@ offset_in_bytes,size_in_bytes,c_loc(from(1,starty)),0,c_null_ptr,c_null_ptr)
     expected = '''\
     subroutine initialise_device_buffer(field)
       use fortcl, only: create_rw_buffer
+      use iso_c_binding, only: c_size_t
       use field_mod
       type(r2d_field), intent(inout), target :: field
       integer(kind=c_size_t) size_in_bytes
@@ -549,21 +551,21 @@ def test_psy_init_defaults(kernel_outputdir):
     otrans.apply(sched)
     generated_code = str(psy.gen)
     expected = '''
-    SUBROUTINE psy_init()
-      USE fortcl, ONLY: add_kernels, ocl_env_init
-      CHARACTER(LEN=30) kernel_names(1)
-      INTEGER :: ocl_device_num = 1
-      LOGICAL, SAVE :: initialised = .FALSE.
+    subroutine psy_init()
+      use fortcl, only: add_kernels, ocl_env_init
+      character(len=30) kernel_names(1)
+      integer, save :: ocl_device_num = 1
+      logical, save :: initialised = .false.
 
-      IF (.NOT.initialised) THEN
+      if (.not.initialised) then
         initialised = .true.
-        CALL ocl_env_init(1, ocl_device_num, .false., .false.)
+        call ocl_env_init(1, ocl_device_num, .false., .false.)
         kernel_names(1) = 'compute_cu_code'
-        CALL add_kernels(1, kernel_names)
-      END IF
+        call add_kernels(1, kernel_names)
+      end if
 
-    END SUBROUTINE psy_init'''
-    assert expected in generated_code
+    end subroutine psy_init'''
+    assert expected in generated_code.lower()
     assert GOceanOpenCLBuild(kernel_outputdir).code_compiles(psy)
 
 
@@ -626,23 +628,23 @@ def test_psy_init_multiple_devices_per_node(kernel_outputdir, monkeypatch):
     generated_code = str(psy.gen)
 
     expected = '''
-    SUBROUTINE psy_init()
-      USE parallel_mod, ONLY: get_rank
-      USE fortcl, ONLY: add_kernels, ocl_env_init
-      CHARACTER(LEN=30) kernel_names(1)
-      INTEGER :: ocl_device_num = 1
-      LOGICAL, SAVE :: initialised = .FALSE.
+    subroutine psy_init()
+      use parallel_mod, only: get_rank
+      use fortcl, only: add_kernels, ocl_env_init
+      character(len=30) kernel_names(1)
+      integer, save :: ocl_device_num = 1
+      logical, save :: initialised = .false.
 
-      IF (.NOT.initialised) THEN
+      if (.not.initialised) then
         initialised = .true.
-        ocl_device_num = MOD(get_rank() - 1, 2) + 1
-        CALL ocl_env_init(1, ocl_device_num, .false., .false.)
+        ocl_device_num = mod(get_rank() - 1, 2) + 1
+        call ocl_env_init(1, ocl_device_num, .false., .false.)
         kernel_names(1) = 'compute_cu_code'
-        CALL add_kernels(1, kernel_names)
-      END IF
+        call add_kernels(1, kernel_names)
+      end if
 
-    END SUBROUTINE psy_init'''
-    assert expected in generated_code
+    end subroutine psy_init'''
+    assert expected in generated_code.lower()
     assert GOceanOpenCLBuild(kernel_outputdir).code_compiles(psy)
 
 
@@ -1214,7 +1216,7 @@ def test_symtab_implementation_for_opencl():
     # Test symbol table without any kernel argument
     with pytest.raises(GenerationError) as err:
         _ = kschedule.symbol_table.iteration_indices
-    assert ("GOcean 1.0 API kernels should always have at least two "
+    assert ("GOcean API kernels should always have at least two "
             "arguments representing the iteration indices but the Symbol "
             "Table for kernel 'test' has only 0 argument(s)."
             in str(err.value))
@@ -1227,7 +1229,7 @@ def test_symtab_implementation_for_opencl():
     kschedule.symbol_table.specify_argument_list([arg1])
     with pytest.raises(GenerationError) as err:
         _ = kschedule.symbol_table.iteration_indices
-    assert ("GOcean 1.0 API kernels should always have at least two "
+    assert ("GOcean API kernels should always have at least two "
             "arguments representing the iteration indices but the Symbol "
             "Table for kernel 'test' has only 1 argument(s)."
             in str(err.value))
@@ -1259,7 +1261,7 @@ def test_symtab_implementation_for_opencl():
     arg1._datatype._intrinsic = ScalarType.Intrinsic.REAL
     with pytest.raises(GenerationError) as err:
         _ = kschedule.symbol_table.iteration_indices
-    assert ("GOcean 1.0 API kernels first argument should be a scalar "
+    assert ("GOcean API kernels first argument should be a scalar "
             "integer but got 'Scalar<REAL, UNDEFINED>' for kernel 'test'."
             in str(err.value))
 
@@ -1267,7 +1269,7 @@ def test_symtab_implementation_for_opencl():
     arg2._datatype = ArrayType(INTEGER_TYPE, [10])
     with pytest.raises(GenerationError) as err:
         _ = kschedule.symbol_table.iteration_indices
-    assert ("GOcean 1.0 API kernels second argument should be a scalar integer"
+    assert ("GOcean API kernels second argument should be a scalar integer"
             " but got 'Array<Scalar<INTEGER, UNDEFINED>, shape=[10]>' for "
             "kernel 'test'." in str(err.value))
 

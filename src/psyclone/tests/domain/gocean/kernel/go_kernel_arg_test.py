@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+# Copyright (c) 2017-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -43,16 +43,16 @@ import os
 
 import pytest
 from psyclone.configuration import Config
+from psyclone.domain.gocean import GOSymbolTable
 from psyclone.errors import InternalError, GenerationError
-from psyclone.gocean1p0 import (GOKernelArgument, GOKernelArguments,
-                                GOSymbolTable)
+from psyclone.gocean1p0 import GOKernelArgument, GOKernelArguments
 from psyclone.parse.algorithm import Arg, parse
 from psyclone.parse.kernel import Descriptor
 from psyclone.parse.utils import ParseError
 from psyclone.psyir.nodes import (Node, StructureReference, Member,
                                   StructureMember, Reference, Literal)
 from psyclone.psyir.symbols import (SymbolTable, DeferredType, DataSymbol,
-                                    ScalarType, INTEGER_TYPE,
+                                    ScalarType, INTEGER_TYPE, REAL_TYPE,
                                     ArgumentInterface, DataTypeSymbol)
 from psyclone.tests.utilities import get_base_path, get_invoke
 
@@ -85,8 +85,12 @@ def test_gokernelarguments_append():
            "should be a string, but found 'int' instead." in str(err.value)
 
     # Append well-constructed arguments
-    argument_list.append(symtab.new_symbol("var1").name, "go_r_scalar")
-    argument_list.append(symtab.new_symbol("var2").name, "go_i_scalar")
+    var1 = symtab.new_symbol("var1", symbol_type=DataSymbol,
+                             datatype=REAL_TYPE)
+    var2 = symtab.new_symbol("var2", symbol_type=DataSymbol,
+                             datatype=INTEGER_TYPE)
+    argument_list.append(var1.name, "go_r_scalar")
+    argument_list.append(var2.name, "go_i_scalar")
 
     assert isinstance(kernelcall.args[-1], GOKernelArgument)
     assert isinstance(kernelcall.args[-2], GOKernelArgument)
@@ -290,7 +294,7 @@ def test_gokernelargument_type(monkeypatch):
     symbol_table._argument_list[0].datatype = DeferredType()
     with pytest.raises(GenerationError) as excinfo:
         symbol_table._check_gocean_conformity()
-    assert ("GOcean 1.0 API kernels first argument should be a scalar integer "
+    assert ("GOcean API kernels first argument should be a scalar integer "
             "but got 'DeferredType'." in str(excinfo.value))
 
 

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -42,12 +42,20 @@
     node implementation.'''
 
 import abc
+from collections import OrderedDict
+
 from psyclone.configuration import Config
+from psyclone.core import Signature, VariablesAccessInfo
 from psyclone.errors import InternalError
 from psyclone.f2pygen import CommentGen
+from psyclone.psyir.nodes.array_of_structures_reference import (
+    ArrayOfStructuresReference)
 from psyclone.psyir.nodes.loop import Loop
-from psyclone.psyir.nodes.statement import Statement
+from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.nodes.schedule import Schedule
+from psyclone.psyir.nodes.statement import Statement
+from psyclone.psyir.nodes.structure_reference import StructureReference
+from psyclone.psyir.symbols.datatypes import ScalarType
 
 
 class Directive(Statement, metaclass=abc.ABCMeta):
@@ -68,6 +76,103 @@ class Directive(Statement, metaclass=abc.ABCMeta):
         :rtype: List of :py:class:`psyclone.psyir.nodes.Clause`
         '''
 
+    def create_data_movement_deep_copy_refs(self):
+        '''
+        Creates the References required to perform a deep copy (in e.g.
+        OpenACC or OpenMP) of all of the quantities accessed in Nodes below
+        this one in the tree. It distringuishes between those quantities that
+        are only read, only written or are both read and written. The necessary
+        References are added to the returned OrderedDicts in the order in which
+        they must be copied.
+
+        :returns: a 3-tuple containing dicts describing the quantities that
+            are read-only, write-only and readwrite. Each dict contains
+            References indexed by Signatures.
+        :rtype: Tuple[OrderedDict[:py:class:`psyclone.core.Signature`,
+                                  :py:class:`psyclone.psyir.nodes.Reference`]]
+
+        '''
+        readwrites = OrderedDict()
+        read_only = OrderedDict()
+        write_only = OrderedDict()
+        table = self.scope.symbol_table
+
+        var_info = VariablesAccessInfo()
+        self.reference_accesses(var_info)
+
+        for sig in var_info.all_signatures:
+            vinfo = var_info[sig]
+            node = vinfo.all_accesses[0].node
+            sym = table.lookup(sig.var_name)
+
+            if isinstance(sym.datatype, ScalarType):
+                # We ignore scalars as these are typically copied by value.
+                continue
+
+            if var_info.has_read_write(sig):
+                access_dict = readwrites
+            else:
+                if var_info.is_read(sig):
+                    if var_info.is_written(sig):
+                        if vinfo.is_written_first():
+                            access_dict = write_only
+                        else:
+                            access_dict = readwrites
+                    else:
+                        access_dict = read_only
+                else:
+                    access_dict = write_only
+
+            if not sig.is_structure:
+                # This must be an array.
+                # TODO #2304 - in languages such as C++ it will be necessary to
+                # supply the extent of an array that is being accessed. For now
+                # we only supply a Reference (which is sufficient in Fortran).
+                if sig not in access_dict:
+                    access_dict[sig] = Reference(node.symbol)
+                continue
+
+            # We have a structure access and so we need the list of
+            # references required to do a 'deep copy'. This means that if
+            # we have an access `a%b%c(i)` then we need references to `a`,
+            # `a%b` and then `a%b%c`.
+
+            # A Signature does not contain indexing information so we use
+            # a PSyIR node that corresponds to this access.
+            _, index_lists = node.get_signature_and_indices()
+
+            # First add the root access (`a` in the above example).
+            if Signature(node.symbol.name) not in access_dict:
+                access_dict[Signature(node.symbol.name)] = Reference(
+                    node.symbol)
+
+            # Then work our way down the various members.
+            for depth in range(1, len(sig)):
+                if sig[:depth+1] not in access_dict:
+                    if node.is_array:
+                        base_cls = ArrayOfStructuresReference
+                        # Copy the indices so as not to modify the original
+                        # node.
+                        base_args = [node.symbol,
+                                     [idx.copy() for idx in node.indices]]
+                    else:
+                        base_cls = StructureReference
+                        base_args = [node.symbol]
+                    # Create the new lists of indices, one list for each
+                    # member of the structure access apart from the last
+                    # one where we assume the whole array (if it is an
+                    # array) is accessed. Hence the loop is 1:depth and
+                    # then we set the last one separately.
+                    new_lists = []
+                    for idx_list in index_lists[1:depth]:
+                        new_lists.append([idx.copy() for idx in idx_list])
+                    members = list(zip(sig[1:depth], new_lists))
+                    # The last member has no array indexing.
+                    members.append(sig[depth])
+                    access_dict[sig[:depth+1]] = base_cls.create(
+                        *base_args, members)
+        return read_only, write_only, readwrites
+
 
 class RegionDirective(Directive):
     '''
@@ -77,14 +182,14 @@ class RegionDirective(Directive):
     All classes that generate RegionDirective statements (e.g. OpenMP,
     OpenACC, compiler-specific) inherit from this class.
 
-    :param ast: the entry in the fparser2 parse tree representing the code \
+    :param ast: the entry in the fparser2 parse tree representing the code
                 contained within this directive or None.
-    :type ast: :py:class:`fparser.two.Fortran2003.Base` or NoneType
-    :param children: list of PSyIR nodes that will be children of this \
+    :type ast: Optional[:py:class:`fparser.two.Fortran2003.Base`]
+    :param children: the nodes that will be children of this
                      Directive node or None.
-    :type children: list of :py:class:`psyclone.psyir.nodes.Node` or NoneType
+    :type children: Optional[List[:py:class:`psyclone.psyir.nodes.Node`]]
     :param parent: PSyIR node that is the parent of this Directive or None.
-    :type parent: :py:class:`psyclone.psyir.nodes.Node` or NoneType
+    :type parent: Optional[:py:class:`psyclone.psyir.nodes.Node`]
 
     '''
     # Textual description of the node.
@@ -92,8 +197,8 @@ class RegionDirective(Directive):
 
     def __init__(self, ast=None, children=None, parent=None):
         # A Directive always contains a Schedule
-        sched = Schedule(children=children, parent=self)
-        super().__init__(ast, children=[sched], parent=parent)
+        super().__init__(ast, parent=parent)
+        self.addchild(Schedule(children=children))
 
     @staticmethod
     def _validate_child(position, child):

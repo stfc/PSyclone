@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+# Copyright (c) 2017-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -34,7 +34,7 @@
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 #         I. Kavcic, Met Office
 #         J. Henrichs, Bureau of Meteorology
-# Modified A. B. G. Chalk, STFC Daresbury Lab
+# Modified A. B. G. Chalk and N. Nobre, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' This module contains the implementation of the Reference node.'''
@@ -43,6 +43,7 @@ from psyclone.core import AccessType, Signature
 # We cannot import from 'nodes' directly due to circular import
 from psyclone.psyir.nodes.datanode import DataNode
 from psyclone.psyir.symbols import Symbol
+from psyclone.psyir.symbols.datatypes import DeferredType
 
 
 class Reference(DataNode):
@@ -84,12 +85,21 @@ class Reference(DataNode):
 
     @property
     def is_array(self):
-        ''':returns: if this reference is an array.
+        '''
+        :returns: whether this reference is an array. Note that if an array
+            expression is used, it will be a Reference in the PSyIR, but if the
+            symbol has been resolved, the symbol will be queried to determine
+            whether it is an array or not.
         :rtype: bool
 
         '''
-        # pylint: disable=no-self-use
-        return False
+        try:
+            # The standard symbol raises a ValueError if is_array
+            # is called - which indicates that we don't know if this
+            # symbol is an array or not.
+            return self.symbol.is_array
+        except ValueError:
+            return False
 
     @property
     def symbol(self):
@@ -112,8 +122,8 @@ class Reference(DataNode):
         '''
         if not isinstance(symbol, Symbol):
             raise TypeError(
-                f"The Reference symbol setter expects a PSyIR Symbol object "
-                f"but found '{type(symbol).__name__}'.")
+                f"The {type(self).__name__} symbol setter expects a PSyIR "
+                f"Symbol object but found '{type(symbol).__name__}'.")
         self._symbol = symbol
 
     @property
@@ -158,10 +168,18 @@ class Reference(DataNode):
         :param var_accesses: VariablesAccessInfo instance that stores the \
             information about variable accesses.
         :type var_accesses: \
-            :py:class:`psyclone.core.access_info.VariablesAccessInfo`
+            :py:class:`psyclone.core.VariablesAccessInfo`
 
         '''
         sig, all_indices = self.get_signature_and_indices()
+        if self.symbol.is_import and \
+                var_accesses.options("USE-ORIGINAL-NAMES") and \
+                self.symbol.interface.orig_name:
+            # If the option is set to return the original (un-renamed)
+            # name of an imported symbol, get the original name from
+            # the interface and use it. The rest of the signature is
+            # used from the original access, it does not change.
+            sig = Signature(self.symbol.interface.orig_name, sig[1:])
         for indices in all_indices:
             for index in indices:
                 index.reference_accesses(var_accesses)
@@ -172,7 +190,13 @@ class Reference(DataNode):
         '''
         :returns: the datatype of this reference.
         :rtype: :py:class:`psyclone.psyir.symbols.DataType`
+
         '''
+        # pylint: disable=unidiomatic-typecheck
+        # Use type() directly as we need to ignore inheritance.
+        if type(self.symbol) is Symbol:
+            # We don't even have a DataSymbol
+            return DeferredType()
         return self.symbol.datatype
 
 

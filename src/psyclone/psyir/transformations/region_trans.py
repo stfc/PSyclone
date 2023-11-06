@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council.
+# Copyright (c) 2017-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,7 +40,6 @@
 '''
 
 import abc
-import six
 
 from psyclone.psyGen import Kern, Transformation
 from psyclone.psyir.transformations.transformation_error \
@@ -48,8 +47,7 @@ from psyclone.psyir.transformations.transformation_error \
 from psyclone.psyir.nodes import Schedule, Node
 
 
-@six.add_metaclass(abc.ABCMeta)
-class RegionTrans(Transformation):
+class RegionTrans(Transformation, metaclass=abc.ABCMeta):
     # Avoid pylint warning about abstract functions (apply, name) not
     # overwritten:
     # pylint: disable=abstract-method,arguments-differ

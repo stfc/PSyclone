@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+# Copyright (c) 2017-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -35,7 +35,7 @@
 # Modified by J. Henrichs, Bureau of Meteorology
 
 ''' This module contains tests for the the various utility functions in
-psyclone_test_utils.'''
+tests/utilities.py.'''
 
 import os
 
@@ -152,7 +152,7 @@ def test_compiler_with_flags(monkeypatch):
     with open("hello_world.f90", "w", encoding="utf-8") as ffile:
         ffile.write(HELLO_CODE)
     _compile = Compile()
-    _compile._f90flags = "not-a-flag"
+    _compile._f90flags = "-not-a-flag"
     with pytest.raises(CompileError) as excinfo:
         _compile.compile_file("hello_world.f90")
 

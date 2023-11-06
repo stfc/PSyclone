@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2022, Science and Technology Facilities Council.
+# Copyright (c) 2020-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -75,8 +75,8 @@ def test_transform_apply_mixed_implicit_do():
     result = writer(schedule)
     expected = (
         "  do jk = 1, jpk, 1\n"
-        "    do idx = LBOUND(umask, 2), UBOUND(umask, 2), 1\n"
-        "      do idx_1 = LBOUND(umask, 1), UBOUND(umask, 1), 1\n"
+        "    do idx = LBOUND(umask, dim=2), UBOUND(umask, dim=2), 1\n"
+        "      do idx_1 = LBOUND(umask, dim=1), UBOUND(umask, dim=1), 1\n"
         "        umask(idx_1,idx,jk) = vmask(idx_1,idx,jk) + 1.0\n"
         "      enddo\n"
         "    enddo\n"
@@ -85,7 +85,7 @@ def test_transform_apply_mixed_implicit_do():
 
 
 def test_apply_multi_assignments():
-    '''Check that the apply() method can be called for multiple assigments
+    '''Check that the apply() method can be called for multiple assignments
     with and without ranges.
 
     '''
@@ -97,9 +97,9 @@ def test_apply_multi_assignments():
     writer = FortranWriter()
     result = writer(schedule)
     expected = (
-        "  do idx = LBOUND(zftv, 3), UBOUND(zftv, 3), 1\n"
-        "    do idx_1 = LBOUND(zftv, 2), UBOUND(zftv, 2), 1\n"
-        "      do idx_2 = LBOUND(zftv, 1), UBOUND(zftv, 1), 1\n"
+        "  do idx = LBOUND(zftv, dim=3), UBOUND(zftv, dim=3), 1\n"
+        "    do idx_1 = LBOUND(zftv, dim=2), UBOUND(zftv, dim=2), 1\n"
+        "      do idx_2 = LBOUND(zftv, dim=1), UBOUND(zftv, dim=1), 1\n"
         "        zftv(idx_2,idx_1,idx) = 0.0d0\n"
         "      enddo\n"
         "    enddo\n"
@@ -108,13 +108,13 @@ def test_apply_multi_assignments():
         "    call dia_ptr_hst(jn, 'ldf', -zftv(:,:,:))\n"
         "  end if\n"
         "  call dia_ptr_hst(jn, 'ldf', -zftv(:,:,:))\n"
-        "  do idx_3 = LBOUND(zftu, 2), UBOUND(zftu, 2), 1\n"
-        "    do idx_4 = LBOUND(zftu, 1), UBOUND(zftu, 1), 1\n"
+        "  do idx_3 = LBOUND(zftu, dim=2), UBOUND(zftu, dim=2), 1\n"
+        "    do idx_4 = LBOUND(zftu, dim=1), UBOUND(zftu, dim=1), 1\n"
         "      zftu(idx_4,idx_3,1) = 1.0d0\n"
         "    enddo\n"
         "  enddo\n"
-        "  do idx_5 = LBOUND(tmask, 2), UBOUND(tmask, 2), 1\n"
-        "    do idx_6 = LBOUND(tmask, 1), UBOUND(tmask, 1), 1\n"
+        "  do idx_5 = LBOUND(tmask, dim=2), UBOUND(tmask, dim=2), 1\n"
+        "    do idx_6 = LBOUND(tmask, dim=1), UBOUND(tmask, dim=1), 1\n"
         "      tmask(idx_6,idx_5) = jpi\n"
         "    enddo\n"
         "  enddo\n")
@@ -156,6 +156,44 @@ def test_apply_with_structures(fortran_reader, fortran_writer):
     result = fortran_writer(assignment)
     assert ("ptab(jf)%pt2d(jpi,idx_1,idx) = "
             "ptab(jf)%pt2d(jpim1,idx_1,idx)") in result
+
+
+def test_apply_option_verbose(fortran_reader, capsys):
+    '''Check that the transformation with the verbose option provides more
+    information about why the last attempt to convert the array range into
+    a loop was not successful.
+
+    '''
+    trans = NemoAllArrayRange2LoopTrans()
+
+    psyir = fortran_reader.psyir_from_source('''
+    subroutine test
+        use my_variables
+        integer, parameter :: constant = 3
+        integer :: jk, a, b
+        integer, dimension(3) :: array
+        a = b
+        array(:) = my_func()
+    end subroutine test
+    ''')
+
+    # Basic cases like assignment 1 are skipped
+    assignment = psyir.walk(Assignment)[0]
+    trans.apply(assignment, options={'verbose': True})
+    out, _ = capsys.readouterr()
+    assert out == ""
+
+    # Other cases like assignment 2 are printed to stdout because they are due
+    # to PSyclone limitations, in this case my_func is a codeblock because
+    # currently the Fortran reader only generate functions if it can see its
+    # declaration.
+    assignment = psyir.walk(Assignment)[1]
+    trans.apply(assignment, options={'verbose': True})
+    out, _ = capsys.readouterr()
+    assert ("Error in NemoArrayRange2LoopTrans transformation. This "
+            "transformation does not support array assignments that contain "
+            "a CodeBlock anywhere in the expression, but found:\n"
+            "array(:) = my_func()" in out)
 
 
 def test_apply_calls_validate():

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author: A. R. Porter, STFC Daresbury Lab
+# Authors: A. R. Porter and N. Nobre, STFC Daresbury Lab
 
 ''' Module containing tests for the NEMO-specific loop transformations. '''
 
@@ -76,5 +76,4 @@ def test_all_nemo_loop_trans_base_validate(monkeypatch):
                 with pytest.raises(NotImplementedError) as err:
                     trans.validate(loop)
             assert "validate test exception" in str(err.value), \
-                "{0}.validate() does not call LoopTrans.validate()".format(
-                    name)
+                   f"{name}.validate() does not call LoopTrans.validate()"

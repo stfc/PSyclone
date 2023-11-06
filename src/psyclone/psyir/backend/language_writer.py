@@ -144,7 +144,7 @@ class LanguageWriter(PSyIRVisitor):
                 f"found: must have one or more children.")
         args = self.gen_indices(node.children, node.name)
         result = f"{node.name}{self._array_parenthesis[0]}"\
-                 f"{','.join(args)}{self._array_parenthesis[1]}"
+                 f"{','.join(args)}{self._array_parenthesis[1]}"              
         return result
 
     # ------------------------------------------------------------------------

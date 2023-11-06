@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022, Science and Technology Facilities Council.
+# Copyright (c) 2022-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,13 +32,15 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Laboratory.
+# Modified by: R. W. Ford, STFC Daresbury Laboratory.
 
 '''This module contains the LFRicAlg class which encapsulates tools for
    creating standalone LFRic algorithm-layer code.
 
 '''
 
-from psyclone.domain.lfric import KernCallInvokeArgList, LFRicConstants, psyir
+from psyclone.domain.lfric import (KernCallInvokeArgList, LFRicConstants,
+                                   LFRicSymbolTable, LFRicTypes)
 from psyclone.domain.lfric.algorithm.psyir import (
     LFRicAlgorithmInvokeCall, LFRicBuiltinFunctorFactory, LFRicKernelFunctor)
 from psyclone.dynamo0p3 import DynKern
@@ -46,8 +48,8 @@ from psyclone.errors import InternalError
 from psyclone.parse.kernel import get_kernel_parse_tree, KernelTypeFactory
 from psyclone.parse.utils import ParseError
 from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyir.nodes import (Routine, Assignment, Reference, Literal,
-                                  Container)
+from psyclone.psyir.nodes import (Assignment, Container, Literal,
+                                  Reference, Routine, ScopingNode)
 from psyclone.psyir.symbols import (
     DeferredType, UnknownFortranType, DataTypeSymbol, DataSymbol, ArrayType,
     ImportInterface, ContainerSymbol, RoutineSymbol, ArgumentInterface)
@@ -59,11 +61,6 @@ class LFRicAlg:
     layer from Kernel metadata.
 
     '''
-
-    #: The order of the finite-element scheme that will be used by any
-    #: generated algorithm layer.
-    _ELEMENT_ORDER = "1"
-
     def create_from_kernel(self, name, kernel_path):
         '''
         Generates LFRic algorithm PSyIR that calls the supplied kernel through
@@ -129,11 +126,11 @@ class LFRicAlg:
         # arbitrary value, we use an *integer* literal for this, irrespective
         # of the actual type of the scalar argument. The compiler/run-time will
         # take care of appropriate type casting.
-        psyir.add_lfric_precision_symbol(table, "i_def")
+        table.add_lfric_precision_symbol("i_def")
         for sym in kern_args.scalars:
             sub.addchild(Assignment.create(
                 Reference(sym),
-                Literal("1", psyir.LfricIntegerScalarDataType())))
+                Literal("1", LFRicTypes("LFRicIntegerScalarDataType")())))
 
         # We use the setval_c builtin to initialise all fields to unity.
         # As with the scalar initialisation, we don't worry about precision
@@ -142,14 +139,15 @@ class LFRicAlg:
         # integer rather than real) we rely on type casting by the
         # compiler/run-time.
         factory = LFRicBuiltinFunctorFactory.get()
-        psyir.add_lfric_precision_symbol(table, "r_def")
+        table.add_lfric_precision_symbol("r_def")
         kernel_list = []
         for sym, _ in kern_args.fields:
             kernel_list.append(
                 factory.create(
                     "setval_c", table,
                     [Reference(sym),
-                     Literal("1.0", psyir.LfricRealScalarDataType())]))
+                     Literal("1.0",
+                             LFRicTypes("LFRicRealScalarDataType")())]))
 
         # Finally, add the kernel itself to the list for the invoke().
         arg_nodes = []
@@ -186,7 +184,10 @@ class LFRicAlg:
         if not isinstance(name, str):
             raise TypeError(f"Supplied routine name must be a str but got "
                             f"'{type(name).__name__}'")
-
+        # Make sure the scoping node creates LFRicSymbolTables
+        # pylint: disable=protected-access
+        # TODO #1954 Remove the protected access using a factory
+        ScopingNode._symbol_table_class = LFRicSymbolTable
         alg_sub = Routine(name)
         table = alg_sub.symbol_table
 
@@ -218,12 +219,12 @@ class LFRicAlg:
         chi_type = UnknownFortranType(
             "type(field_type), dimension(3), intent(in), optional :: chi")
         chi = DataSymbol("chi", chi_type, interface=ArgumentInterface())
-        table.add(chi)
+        table.add(chi, tag="coord_field")
 
         pid_type = UnknownFortranType(
             "type(field_type), intent(in), optional :: panel_id")
         pid = DataSymbol("panel_id", pid_type, interface=ArgumentInterface())
-        table.add(pid)
+        table.add(pid, tag="panel_id_field")
         table.specify_argument_list([mesh_ptr, chi, pid])
 
         # Create top-level Container and put the new Subroutine inside it.
@@ -234,9 +235,10 @@ class LFRicAlg:
 
     def _create_function_spaces(self, prog, fspaces):
         '''
-        Adds PSyIR to the supplied Routine that declares and intialises the
-        specified function spaces. The order of these spaces is set by the
-        `_ELEMENT_ORDER` class constant.
+        Adds PSyIR to the supplied Routine that declares and intialises
+        the specified function spaces. The order of these spaces is
+        set by the element_order variable which is provided by the
+        LFRic finite_element_config_mod module.
 
         :param prog: the routine to which to add declarations and \
                      initialisation.
@@ -246,19 +248,19 @@ class LFRicAlg:
 
         :raises InternalError: if a function space is supplied that is not a \
                                recognised LFRic function space.
+
         '''
         table = prog.symbol_table
 
         reader = FortranReader()
 
         # The order of the finite-element scheme.
-        psyir.add_lfric_precision_symbol(table, "i_def")
-        order = table.new_symbol("element_order", tag="element_order",
-                                 symbol_type=DataSymbol,
-                                 datatype=psyir.LfricIntegerScalarDataType(),
-                                 constant_value=Literal(
-                                     self._ELEMENT_ORDER,
-                                     psyir.LfricIntegerScalarDataType()))
+        fe_config_mod = table.new_symbol(
+            "finite_element_config_mod", symbol_type=ContainerSymbol)
+        order = table.new_symbol(
+            "element_order", tag="element_order",
+            symbol_type=DataSymbol, datatype=DeferredType(),
+            interface=ImportInterface(fe_config_mod))
 
         fs_cont_mod = table.new_symbol("fs_continuity_mod",
                                        symbol_type=ContainerSymbol)
@@ -309,7 +311,7 @@ class LFRicAlg:
         '''
         reader = FortranReader()
 
-        psyir.add_lfric_precision_symbol(prog.symbol_table, "i_def")
+        prog.symbol_table.add_lfric_precision_symbol("i_def")
 
         if isinstance(sym.datatype, DataTypeSymbol):
             # Single field argument.
@@ -333,6 +335,31 @@ class LFRicAlg:
                 f"Expected a field symbol to either be of ArrayType or have "
                 f"a type specified by a DataTypeSymbol but found "
                 f"{sym.datatype} for field '{sym.name}'")
+
+    @staticmethod
+    def initialise_operator(prog, sym, from_space, to_space):
+        '''
+        Creates the PSyIR for initialisation of the operator
+        represented by the supplied symbol and adds it to the supplied
+        routine.
+
+        :param prog: the routine to which to add initialisation code.
+        :type prog: :py:class:`psyclone.psyir.nodes.Routine`
+        :param sym: the symbol representing the LFRic operator.
+        :type sym: :py:class:`psyclone.psyir.symbols.DataSymbol`
+        :param str from_space: the function space that the operator maps from.
+        :param str to_space: the function space that the operator maps to.
+
+        :raises InternalError: if the supplied symbol is of the wrong type.
+
+        '''
+        reader = FortranReader()
+
+        prog.addchild(
+            reader.psyir_from_statement(
+                f"CALL {sym.name} % initialise("
+                f"vector_space_{to_space}_ptr, vector_space_{from_space}_ptr)",
+                prog.symbol_table))
 
     @staticmethod
     def initialise_quadrature(prog, qr_sym, shape):
@@ -398,7 +425,8 @@ class LFRicAlg:
         except ParseError as err:
             raise ValueError(
                 f"Failed to find kernel '{kernel_name}' in supplied "
-                f"code: '{parse_tree}'. Is it a valid LFRic kernel?") from err
+                f"code: '{parse_tree}'. Is it a valid LFRic kernel? Original "
+                f"error was '{err}'.") from err
         # Construct a DynKern using the metadata.
         kern = DynKern()
         kern.load_meta(ktype)
@@ -420,7 +448,8 @@ class LFRicAlg:
         '''
         const = LFRicConstants()
         # Construct a list of the names of the function spaces that the field
-        # argument(s) are on. We use LFRicConstants.specific_function_space()
+        # argument(s) are on and any operators map between. We use
+        # LFRicConstants.specific_function_space()
         # to ensure that any 'wildcard' names in the meta-data are converted to
         # an appropriate, specific function space.
         function_spaces = []
@@ -438,6 +467,9 @@ class LFRicAlg:
         # respective function spaces extracted from the kernel metadata.
         for sym, space in kern_args.fields:
             self.initialise_field(prog, sym, space)
+
+        for sym, from_space, to_space in kern_args.operators:
+            self.initialise_operator(prog, sym, from_space, to_space)
 
         for qr_sym, shape in kern_args.quadrature_objects:
             self.initialise_quadrature(prog, qr_sym, shape)

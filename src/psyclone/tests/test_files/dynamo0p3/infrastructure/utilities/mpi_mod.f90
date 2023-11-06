@@ -50,7 +50,8 @@ module mpi_mod
 
   use constants_mod, only : i_def, i_halo_index, i_native, &
                             l_def, r_def, str_def,         &
-                            real_type, integer_type, logical_type
+                            real_type, integer_type,       &
+                            r_single, logical_type
   use log_mod,       only : log_event, LOG_LEVEL_ERROR
 
   implicit none
@@ -82,19 +83,22 @@ module mpi_mod
   ! Generic interface for specific global_sum functions
   interface global_sum
    module procedure global_sum_i_def, &
-                    global_sum_r_def
+                    global_sum_r_def, &
+                    global_sum_r32_def
   end interface
 
   ! Generic interface for specific max functions
   interface global_max
    module procedure global_max_i_def, &
-                    global_max_r_def
+                    global_max_r_def, &
+                    global_max_r32_def
   end interface
 
   ! Generic interface for specific min functions
   interface global_min
    module procedure global_min_i_def, &
-                    global_min_r_def
+                    global_min_r_def, &
+                    global_min_r32_def
   end interface
 
 contains
@@ -165,6 +169,26 @@ contains
 
   end subroutine global_sum_r_def
 
+  !> Calculates the global sum of a collection of real local sums
+  !>
+  !> @param l_sum The sum of the reals on the local partition
+  !> @param g_sum The calculated global sum
+  !>
+  subroutine global_sum_r32_def(l_sum, g_sum)
+    implicit none
+    real(r_single), intent(in)  :: l_sum
+    real(r_single), intent(out) :: g_sum
+
+    if(comm_set)then
+      g_sum = l_sum
+    else
+      call log_event( &
+      'Call to global_sum failed. Must call store_comm first',&
+      LOG_LEVEL_ERROR )
+    end if
+
+  end subroutine global_sum_r32_def
+
   !> Calculates the global sum of a collection of integer local sums
   !>
   !> @param l_sum The sum of the integers on the local partition
@@ -206,6 +230,25 @@ contains
 
   end subroutine global_min_r_def
 
+  !> Calculates the global minimum of a collection of local real minimums
+  !>
+  !> @param l_min The min on the local partition
+  !> @param g_min The calculated global minimum
+  !>
+  subroutine global_min_r32_def(l_min, g_min)
+    implicit none
+    real(r_single), intent(in)  :: l_min
+    real(r_single), intent(out) :: g_min
+
+    if(comm_set)then
+      g_min = l_min
+    else
+      call log_event( &
+      'Call to global_min failed. Must call store_comm first',&
+      LOG_LEVEL_ERROR )
+    end if
+
+  end subroutine global_min_r32_def
 
   !> Calculates the global minimum of a collection of local integer minimums
   !>
@@ -248,6 +291,26 @@ contains
 
   end subroutine global_max_r_def
 
+
+  !> Calculates the global maximum of a collection of local real maximums
+  !>
+  !> @param l_min The max on the local partition
+  !> @param g_max The calculated global maximum
+  !>
+  subroutine global_max_r32_def(l_max, g_max)
+    implicit none
+    real(r_single), intent(in)  :: l_max
+    real(r_single), intent(out) :: g_max
+
+    if(comm_set)then
+      g_max = l_max
+    else
+      call log_event( &
+      'Call to global_max failed. Must call store_comm first',&
+      LOG_LEVEL_ERROR )
+    end if
+
+  end subroutine global_max_r32_def
 
   !> Calculates the global maximum of a collection of local integer maximums
   !>

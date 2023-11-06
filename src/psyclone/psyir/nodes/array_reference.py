@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2022, Science and Technology Facilities Council.
+# Copyright (c) 2020-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -38,11 +38,15 @@
 
 ''' This module contains the implementation of the ArrayReference node. '''
 
+from psyclone.errors import GenerationError
 from psyclone.psyir.nodes.array_mixin import ArrayMixin
+from psyclone.psyir.nodes.literal import Literal
+from psyclone.psyir.nodes.intrinsic_call import IntrinsicCall
+from psyclone.psyir.nodes.ranges import Range
 from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.symbols import (DataSymbol, DeferredType, UnknownType,
-                                    ScalarType, ArrayType)
-from psyclone.errors import GenerationError
+                                    DataTypeSymbol, ScalarType, ArrayType,
+                                    INTEGER_TYPE)
 
 
 class ArrayReference(ArrayMixin, Reference):
@@ -58,12 +62,13 @@ class ArrayReference(ArrayMixin, Reference):
     @staticmethod
     def create(symbol, indices):
         '''Create an ArrayReference instance given a symbol and a list of Node
-        array indices.
+        array indices. The special value ":" can be used as an index to
+        create the corresponding PSyIR Range that represents ":".
 
         :param symbol: the symbol that this array is associated with.
         :type symbol: :py:class:`psyclone.psyir.symbols.DataSymbol`
-        :param indices: a list of Nodes describing the array indices.
-        :type indices: list of :py:class:`psyclone.psyir.nodes.Node`
+        :param indices: a list of Nodes or ":" describing the array indices.
+        :type indices: List[Union[:py:class:`psyclone.psyir.nodes.Node`,":"]]
 
         :returns: an ArrayReference instance.
         :rtype: :py:class:`psyclone.psyir.nodes.ArrayReference`
@@ -95,8 +100,20 @@ class ArrayReference(ArrayMixin, Reference):
                     f"'{len(symbol.shape)}'.")
 
         array = ArrayReference(symbol)
-        for child in indices:
-            array.addchild(child)
+        for ind, child in enumerate(indices):
+            if child == ":":
+                lbound = IntrinsicCall.create(
+                    IntrinsicCall.Intrinsic.LBOUND,
+                    [Reference(symbol),
+                     ("dim", Literal(f"{ind+1}", INTEGER_TYPE))])
+                ubound = IntrinsicCall.create(
+                    IntrinsicCall.Intrinsic.UBOUND,
+                    [Reference(symbol),
+                     ("dim", Literal(f"{ind+1}", INTEGER_TYPE))])
+                my_range = Range.create(lbound, ubound)
+                array.addchild(my_range)
+            else:
+                array.addchild(child)
         return array
 
     def __str__(self):
@@ -114,6 +131,8 @@ class ArrayReference(ArrayMixin, Reference):
         shape = self._get_effective_shape()
         if shape:
             return ArrayType(self.symbol.datatype, shape)
+        if isinstance(self.symbol.datatype.intrinsic, DataTypeSymbol):
+            return self.symbol.datatype.intrinsic
         # TODO #1857: Really we should just be able to return
         # self.symbol.datatype here but currently arrays of scalars are
         # handled in a different way to all other types of array.

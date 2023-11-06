@@ -31,50 +31,50 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author A. R. Porter, STFC Daresbury Lab
+# Authors: A. R. Porter and N. Nobre, STFC Daresbury Lab
+# Modified A. B. G. Chalk, STFC Datesbury Lab
 
 ''' Module containing pytest tests for the handling of the DO
 construct in the PSyIR fparser2 frontend. '''
 
-from __future__ import absolute_import
 
 import pytest
-from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
-from psyclone.psyir.nodes import Schedule, CodeBlock, Loop, Assignment, Routine
-from psyclone.psyir.frontend.fparser2 import Fparser2Reader
+
+from psyclone.errors import InternalError
+from psyclone.psyir.nodes import Assignment, BinaryOperation, CodeBlock, \
+                                 Literal, Loop, Routine, Schedule, WhileLoop
+from psyclone.tests.utilities import Compile
 
 
-def test_handling_end_do_stmt(parser):
+def test_handling_end_do_stmt(fortran_reader):
     ''' Test that the fparser2 End_Do_Stmt is ignored.'''
-    reader = FortranStringReader('''
+    code = '''
       subroutine test()
         integer :: i, a
         do i=1,10
             a=a+1
         end do
       end subroutine test
-        ''')
-    fparser2_tree = parser(reader)
-    processor = Fparser2Reader()
-    result = processor.generate_schedule("test", fparser2_tree)
-    assert len(result.children) == 1  # Just the loop (no end statement)
+        '''
+    psyir = fortran_reader.psyir_from_source(code)
+    sched = psyir.walk(Schedule)[0]
+    assert len(sched.children) == 1  # Just the loop (no end statement)
 
 
-def test_do_construct(parser):
+def test_do_construct(fortran_reader):
     ''' Check that do loop constructs are converted to the expected
     PSyIR node. '''
-    reader = FortranStringReader('''
+    code = '''
       subroutine test()
         integer :: i, sum
         do i = 1, 10 , 2
             sum = sum + i
         end do
       end subroutine test
-      ''')
-    fparser2_tree = parser(reader)
-    processor = Fparser2Reader()
-    result = processor.generate_schedule("test", fparser2_tree)
+      '''
+    psyir = fortran_reader.psyir_from_source(code)
+    result = psyir.walk(Routine)[0]
     assert result.children[0]
     new_loop = result.children[0]
     assert isinstance(new_loop, Loop)
@@ -86,43 +86,33 @@ def test_do_construct(parser):
     assert isinstance(new_loop.loop_body[0], Assignment)
 
 
-@pytest.mark.usefixtures("f2008_parser")
-def test_do_construct_while():
-    ''' Check that do while constructs are placed in Codeblocks. '''
-    reader = FortranStringReader('''
-        do while(a .gt. b)\n
-            c = c + 1\n
-        end do\n
-        ''')
-    fparser2while = Fortran2003.Execution_Part.match(reader)[0][0]
-    processor = Fparser2Reader()
-    fake_parent = Schedule()
-    processor.process_nodes(fake_parent, [fparser2while])
-    assert isinstance(fake_parent[0], CodeBlock)
-    assert isinstance(fake_parent[0].ast,
-                      Fortran2003.Block_Nonlabel_Do_Construct)
-
-
-def test_unhandled_do(f2008_parser):
-    ''' Test that a DO without any control logic results in a CodeBlock. '''
-    lines = ["SUBROUTINE a_loop()",
-             "  integer :: niter_atgen, jp_maxniter_atgen",
-             "  real :: zh, zh_prev",
-             "  DO",
-             "    IF (niter_atgen >= jp_maxniter_atgen) THEN",
-             "      zh = - 1._wp",
-             "      EXIT",
-             "    END IF",
-             "    zh_prev = zh",
-             "    niter_atgen = niter_atgen + 1",
-             "  END DO",
-             "END SUBROUTINE a_loop"]
-    reader = FortranStringReader("\n".join(lines))
-    fp2spec = f2008_parser(reader)
-    processor = Fparser2Reader()
-    sched = processor.generate_schedule("a_loop", fp2spec)
-    assert isinstance(sched[0], CodeBlock)
-    assert isinstance(sched[0].ast, Fortran2003.Block_Nonlabel_Do_Construct)
+def test_do_construct_while(fortran_reader):
+    ''' Check that do while and general, uncoditioned loop constructs are
+    converted to WhileLoop PSyIR nodes. '''
+    code = '''
+      subroutine test()
+        integer :: a, b, c
+        do while (a .gt. b)
+          c = c + 1
+        end do
+        do
+          c = c + 1
+        end do
+      end subroutine test
+      '''
+    psyir = fortran_reader.psyir_from_source(code)
+    result = psyir.walk(Routine)[0]
+    while_loop = result.children[0]
+    assert isinstance(while_loop, WhileLoop)
+    assert isinstance(while_loop.condition, BinaryOperation)
+    assert len(while_loop.loop_body.children) == 1
+    assert isinstance(while_loop.loop_body[0], Assignment)
+    no_condition_loop = result.children[1]
+    assert isinstance(no_condition_loop, WhileLoop)
+    assert isinstance(no_condition_loop.condition, Literal)
+    assert len(no_condition_loop.loop_body.children) == 1
+    assert isinstance(no_condition_loop.loop_body[0], Assignment)
+    assert no_condition_loop.annotations == ['was_unconditional']
 
 
 def test_handled_named_do_without_exit(fortran_reader):
@@ -176,3 +166,85 @@ END PROGRAM my_test'''
     assert isinstance(prog.children[0], CodeBlock)
     assert isinstance(prog.children[0].ast,
                       Fortran2003.Block_Nonlabel_Do_Construct)
+
+
+def test_undeclared_loop_var(fortran_reader):
+    '''Check that the do handler raises the expected error if an undeclared
+    loop variable is encountered.
+
+    '''
+    code = '''
+      subroutine test()
+        do i=1,10
+        end do
+      end subroutine test
+    '''
+    with pytest.raises(InternalError) as err:
+        _ = fortran_reader.psyir_from_source(code)
+    assert ("Loop-variable name 'i' is not declared and there are no "
+            "unqualified use statements" in str(err.value))
+
+
+def test_do_inside_while(fortran_reader, fortran_writer, tmpdir):
+    '''Check that the loop handler correctly identifies a while loop
+    containing a do loop as a separate while loop.'''
+    code = '''subroutine test_subroutine
+    integer :: j, iu_stdout, range_bands, i
+
+    i = 0
+    DO
+      WRITE(iu_stdout, '(A)') &
+        'Enter units followed by lower and upper limits and increment:'
+      DO
+        EXIT
+      END DO
+      range_bands = 3
+      if (range_bands + i > 3 .and. range_bands + i < 15) then
+        CYCLE
+      end if
+      do j = 1, range_bands
+        i = i + 1
+      end do
+      if (i > 15) then
+        EXIT
+      end if
+  end do
+
+  end subroutine'''
+
+    psyir = fortran_reader.psyir_from_source(code)
+    loops = psyir.walk((WhileLoop, Loop))
+    assert isinstance(loops[0], WhileLoop)
+    assert isinstance(loops[1], WhileLoop)
+    assert isinstance(loops[2], Loop)
+
+    output = fortran_writer(psyir)
+    correct = '''subroutine test_subroutine()
+  integer :: j
+  integer :: iu_stdout
+  integer :: range_bands
+  integer :: i
+
+  i = 0
+  do while (.true.)
+    WRITE(iu_stdout, '(A)') 'Enter units followed by lower and upper \
+limits and increment:'
+    do while (.true.)
+      EXIT
+    end do
+    range_bands = 3
+    if (range_bands + i > 3 .AND. range_bands + i < 15) then
+      CYCLE
+    end if
+    do j = 1, range_bands, 1
+      i = i + 1
+    enddo
+    if (i > 15) then
+      EXIT
+    end if
+  end do
+
+end subroutine test_subroutine
+'''
+    assert correct == output
+    assert Compile(tmpdir).string_compiles(output)

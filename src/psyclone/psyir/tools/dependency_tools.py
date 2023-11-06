@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2022, Science and Technology Facilities Council.
+# Copyright (c) 2019-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -38,7 +38,6 @@
 ''' This module provides tools that are based on the code
     dependency analysis.'''
 
-from __future__ import absolute_import, print_function
 from enum import IntEnum
 
 import sympy
@@ -48,9 +47,9 @@ from psyclone.core import (AccessType, SymbolicMaths,
                            VariablesAccessInfo)
 from psyclone.errors import InternalError, LazyString
 from psyclone.psyir.nodes import Loop
-from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.backend.sympy_writer import SymPyWriter
 from psyclone.psyir.backend.visitor import VisitorError
+from psyclone.psyir.tools.read_write_info import ReadWriteInfo
 
 
 class DTCode(IntEnum):
@@ -60,8 +59,6 @@ class DTCode(IntEnum):
 
     '''
     INFO_MIN = 1
-    INFO_NOT_NESTED_LOOP = 2
-    INFO_WRONG_LOOP_TYPE = 3
     INFO_MAX = 99
 
     WARN_MIN = 100
@@ -136,17 +133,11 @@ class DependencyTools():
         specified in the PSyclone config file. This can be used to\
         exclude for example 1-dimensional loops.
     :type loop_types_to_parallelise: Optional[List[str]]
-    :param language_writer: a backend visitor to convert PSyIR expressions \
-        to a representation in the selected language. This is used for \
-        creating error and warning messages.
-    :type language_writer: \
-        Optional[:py:class:`psyclone.psyir.backend.visitor.PSyIRVisitor`]
 
     :raises TypeError: if an invalid loop type is specified.
 
     '''
-    def __init__(self, loop_types_to_parallelise=None,
-                 language_writer=None):
+    def __init__(self, loop_types_to_parallelise=None):
         if loop_types_to_parallelise:
             # Verify that all loop types specified are valid:
             config = Config.get()
@@ -162,10 +153,6 @@ class DependencyTools():
             self._loop_types_to_parallelise = loop_types_to_parallelise[:]
         else:
             self._loop_types_to_parallelise = []
-        if not language_writer:
-            self._language_writer = FortranWriter()
-        else:
-            self._language_writer = language_writer
         self._clear_messages()
 
     # -------------------------------------------------------------------------
@@ -205,39 +192,6 @@ class DependencyTools():
         :rtype: List[str]
         '''
         return self._messages
-
-    # -------------------------------------------------------------------------
-    def _is_loop_suitable_for_parallel(self, loop, only_nested_loops=True):
-        '''Simple first test to see if a loop should even be considered to
-        be parallelised. The default implementation tests whether the loop
-        has a certain type (e.g. 'latitude'), and optional tests for
-        nested loops (to avoid parallelising single loops which will likely
-        result in a slowdown due to thread synchronisation costs). This
-        function is used by can_loop_be_parallelised() and can of course be
-        overwritten by the user to implement different suitability criteria.
-
-        :param loop: the loop to test.
-        :type loop: :py:class:`psyclone.psyir.nodes.Loop`
-        :param bool only_nested_loops: true (default) if only nested loops\
-                                        should be considered.
-
-        :returns: true if the loop fulfills the requirements.
-        :rtype: bool
-        '''
-        if only_nested_loops:
-            all_loops = loop.walk(Loop)
-            if len(all_loops) == 1:
-                self._add_message("Not a nested loop.",
-                                  DTCode.INFO_NOT_NESTED_LOOP)
-                return False
-
-        if self._loop_types_to_parallelise:
-            if loop.loop_type not in self._loop_types_to_parallelise:
-                self._add_message(f"Loop has wrong loop type '"
-                                  f"{loop.loop_type}'.",
-                                  DTCode.INFO_WRONG_LOOP_TYPE)
-                return False
-        return True
 
     # -------------------------------------------------------------------------
     @staticmethod
@@ -379,20 +333,35 @@ class DependencyTools():
 
         '''
         # pylint: disable=too-many-return-statements
-        sym_maths = SymbolicMaths.get()
+        sympy_writer = SymPyWriter()
         try:
-            sympy_expressions, symbol_map = SymPyWriter.\
-                get_sympy_expressions_and_symbol_map([index_read,
-                                                     index_written])
+            sympy_expressions = sympy_writer([index_read, index_written])
         except VisitorError:
             return None
-        # If the subscripts do not even depend on the specified variable,
-        # any dependency distance is possible (e.g. `do i ... a(j)=a(j)+1`)
-        if var_name not in symbol_map:
+
+        if isinstance(sympy_expressions[0], tuple) or \
+                isinstance(sympy_expressions[1], tuple):
+            # TODO 2168: the SymPy expressions represent a range, so we
+            # need to analyse this in more detail, i.e. evaluate the
+            # start/stop/step tuple. For now it is safe to flag this
+            # array range as a (potential) overlap.
             return None
 
-        var = symbol_map[var_name]
-        # Create a unique 'dx' variable name if 'x' is the variable.
+        symbol_map = sympy_writer.type_map
+        # Find the SymPy symbol that has the same name as the var name. We
+        # cannot use the dictionary key, since a symbol might be renamed
+        # (e.g. if a Fortran variable 'lambda' is used, it will be
+        # renamed to lambda_1, and the type map will have lambda_1 as key
+        # and the SymPy symbol for 'lambda' as value).
+        for var in symbol_map.values():
+            if str(var) == var_name:
+                break
+        else:
+            # If the subscripts do not even depend on the specified variable,
+            # any dependency distance is possible (e.g. `do i ... a(j)=a(j)+1`)
+            return None
+
+        # Create a unique 'd_x' variable name if 'x' is the variable.
         d_var_name = "d_"+var_name
         idx = 1
         while d_var_name in symbol_map:
@@ -406,6 +375,7 @@ class DependencyTools():
         sympy_expressions[1] = sympy_expressions[1].subs({var: (var+d_var)})
 
         # Now solve for `d_var` to identify the distance
+        sym_maths = SymbolicMaths.get()
         solutions = sym_maths.solve_equal_for(sympy_expressions[0],
                                               sympy_expressions[1],
                                               d_var)
@@ -425,7 +395,7 @@ class DependencyTools():
                 # evaluated here. We then also need to check if `i+di` (i.e.
                 # the iteration to which the dependency is) is a valid
                 # iteration. E.g. in case of a(i^2)=a(i^2) --> di=0 or di=-2*i
-                # --> # i+di = -i < 0 for i>0. Since this is not a valid loop
+                # --> i+di = -i < 0 for i>0. Since this is not a valid loop
                 # iteration that means no dependencies.
                 return None
 
@@ -461,10 +431,10 @@ class DependencyTools():
         :param str var_name: the name of the loop variable of the loop to be \
             parallelised.
         :param write_access: access information a single write access.
-        :type write_access: :py:class:`psyclone.core.access_info.AccessInfo`
+        :type write_access: :py:class:`psyclone.core.AccessInfo`
         :param other_access: access information the other (read or write) \
             access.
-        :type other_access: :py:class:`psyclone.core.access_info.AccessInfo`
+        :type other_access: :py:class:`psyclone.core.AccessInfo`
         :param subscripts: the subscript indices (as a tuple, see \
             ComponentIndices class) which are all handled together because \
             of shared loop variables.
@@ -507,10 +477,10 @@ class DependencyTools():
             the loop variable is a constant within the loop to be parallelised.
         :type loop_variables: List[str]
         :param write_access: access information of a single array write access.
-        :type write_access: :py:class:`psyclone.core.access_info.AccessInfo`
+        :type write_access: :py:class:`psyclone.core.AccessInfo`
         :param other_access: access information of the second single array \
             access (for the same variable).
-        :type other_access: :py:class:`psyclone.core.access_info.AccessInfo`
+        :type other_access: :py:class:`psyclone.core.AccessInfo`
 
         :returns: whether there is a loop carried dependency between the \
             pair of accesses, which prevents parallelisation.
@@ -612,7 +582,7 @@ class DependencyTools():
         :type loop_variables: List[str]
         :param var_info: access information for this variable.
         :type var_info: \
-            :py:class:`psyclone.core.access_info.SingleVariableAccessInfo`
+            :py:class:`psyclone.core.SingleVariableAccessInfo`
 
         :return: whether the variable can be used in parallel.
         :rtype: bool
@@ -650,26 +620,26 @@ class DependencyTools():
                         self._add_message(LazyString(
                             lambda node=write_access.node:
                                 (f"The write access to '"
-                                 f"{self._language_writer(node)}' causes "
+                                 f"{node.debug_string()}' causes "
                                  f"a write-write race condition.")),
                             DTCode.ERROR_WRITE_WRITE_RACE,
                             [LazyString(lambda node=node:
-                                        f"{self._language_writer(node)}")])
+                                        f"{node.debug_string()}")])
                     else:
                         self._add_message(LazyString(
                             lambda wnode=write_access.node,
                             onode=other_access.node:
                                 (f"The write access to "
-                                 f"'{self._language_writer(wnode)}' "
-                                 f"and to '{self._language_writer(onode)}"
+                                 f"'{wnode.debug_string()}' "
+                                 f"and to '{onode.debug_string()}"
                                  f"' are dependent and cannot be "
                                  f"parallelised.")),
                             DTCode.ERROR_DEPENDENCY,
                             [LazyString(lambda wnode=write_access.node:
-                                        f"{self._language_writer(wnode)}"
+                                        f"{wnode.debug_string()}"
                                         ),
                              LazyString(lambda onode=other_access.node:
-                                        f"{self._language_writer(onode)}")])
+                                        f"{onode.debug_string()}")])
 
                     return False
         return True
@@ -724,26 +694,23 @@ class DependencyTools():
 
     # -------------------------------------------------------------------------
     def can_loop_be_parallelised(self, loop,
-                                 only_nested_loops=True,
                                  test_all_variables=False,
                                  signatures_to_ignore=None):
         # pylint: disable=too-many-branches,too-many-locals
         '''This function analyses a loop in the PsyIR to see if
-        it can be safely parallelised over the specified variable.
+        it can be safely parallelised.
 
         :param loop: the loop node to be analysed.
         :type loop: :py:class:`psyclone.psyir.nodes.Loop`
-        :param bool only_nested_loops: if True, a loop must have an inner\
-                                       loop in order to be considered\
-                                       parallelisable (default: True).
-        :param bool test_all_variables: if True, it will test if all variable\
-                                        accesses can be parallelised,\
-                                        otherwise it will stop after the first\
-                                        variable is found that can not be\
+        :param bool test_all_variables: if True, it will test if all variable
+                                        accesses can be parallelised,
+                                        otherwise it will stop after the first
+                                        variable is found that can not be
                                         parallelised.
-        :param signatures_to_ignore: list of signatures for which to skip \
+        :param signatures_to_ignore: list of signatures for which to skip
                                      the access checks.
-        :type signatures_to_ignore: list of :py:class:`psyclone.core.Signature`
+        :type signatures_to_ignore: Optional[
+            List[:py:class:`psyclone.core.Signature`]]
 
         :returns: True if the loop can be parallelised.
         :rtype: bool
@@ -757,14 +724,6 @@ class DependencyTools():
             raise TypeError(f"can_loop_be_parallelised: node must be an "
                             f"instance of class Loop but got "
                             f"'{type(loop).__name__}'")
-
-        # Check if the loop type should be parallelised, e.g. to avoid
-        # parallelising inner loops which might not have enough work. This
-        # is supposed to be a fast first check to avoid collecting variable
-        # accesses in some unsuitable loops.
-        if not self._is_loop_suitable_for_parallel(loop, only_nested_loops):
-            # Appropriate messages will have been added already, so just exit
-            return False
 
         var_accesses = VariablesAccessInfo(loop)
         if not signatures_to_ignore:
@@ -812,12 +771,14 @@ class DependencyTools():
         return result
 
     # -------------------------------------------------------------------------
-    def get_input_parameters(self, node_list, variables_info=None,
-                             options=None):
-        # pylint: disable=no-self-use
-        '''Return all variables that are input parameters, i.e. are
-        read (before potentially being written).
+    def get_input_parameters(self, read_write_info, node_list,
+                             variables_info=None, options=None):
+        '''Adds all variables that are input parameters (i.e. are read before
+        potentially being written) to the read_write_info object.
 
+        :param read_write_info: this object stores the information about \
+            all input parameters.
+        :type read_write_info: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
         :param node_list: list of PSyIR nodes to be analysed.
         :type node_list: List[:py:class:`psyclone.psyir.nodes.Node`]
         :param variables_info: optional variable usage information, \
@@ -833,34 +794,28 @@ class DependencyTools():
             PSyIR operators lbound, ubound, or size will be reported as \
             'read'. Otherwise, these accesses will be ignored.
 
-        :returns: a list of all variable signatures that are read.
-        :rtype: List[:py:class:`psyclone.core.Signature`]
-
         '''
         # Collect the information about all variables used:
         if not variables_info:
             variables_info = VariablesAccessInfo(node_list, options=options)
 
-        input_list = []
         for signature in variables_info.all_signatures:
-            # Take the first access (index 0) of this variable. Note that
-            # loop variables have a WRITE before a READ access, so they
-            # will be ignored
-            first_access = variables_info[signature][0]
             # If the first access is a write, the variable is not an input
-            # parameter and does not need to be saved.
-            if first_access.access_type != AccessType.WRITE:
-                input_list.append(signature)
-
-        return input_list
+            # parameter and does not need to be saved. Note that loop variables
+            # have a WRITE before a READ access, so they will be ignored
+            # automatically.
+            if not variables_info[signature].is_written_first():
+                read_write_info.add_read(signature)
 
     # -------------------------------------------------------------------------
-    def get_output_parameters(self, node_list, variables_info=None,
-                              options=None):
-        # pylint: disable=no-self-use
-        '''Return all variables that are output parameters, i.e. are
-        written.
+    def get_output_parameters(self, read_write_info, node_list,
+                              variables_info=None, options=None):
+        '''Adds all variables that are output parameters (i.e. are written)
+        to the read_write_info object.
 
+        :param read_write_info: this object stores the information about \
+            output parameters.
+        :type read_write_info: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
         :param node_list: list of PSyIR nodes to be analysed.
         :type node_list: List[:py:class:`psyclone.psyir.nodes.Node`]
         :param variables_info: optional variable usage information, \
@@ -876,23 +831,21 @@ class DependencyTools():
             PSyIR operators lbound, ubound, or size will be reported as \
             'read'. Otherwise, these accesses will be ignored.
 
-        :returns: a list of all variable signatures that are written.
-        :rtype: List[:py:class:`psyclone.core.Signature`]
-
         '''
         # Collect the information about all variables used:
         if not variables_info:
             variables_info = VariablesAccessInfo(node_list, options=options)
 
-        return [signature for signature in variables_info.all_signatures
-                if variables_info.is_written(signature)]
+        for signature in variables_info.all_signatures:
+            if variables_info.is_written(signature):
+                read_write_info.add_write(signature)
 
     # -------------------------------------------------------------------------
     def get_in_out_parameters(self, node_list, options=None):
-        '''Return a 2-tuple of lists that contains all variables that are input
-        parameters (first entry) and output parameters (second entry).
-        This function calls get_input_parameter and get_output_parameter,
-        but avoids the repeated computation of the variable usage.
+        '''Returns a ReadWriteInfo object that contains all variables that are
+        input and output parameters to the specified node list. This function
+        calls `get_input_parameter` and `get_output_parameter`, but avoids the
+        repeated computation of the variable usage.
 
         :param node_list: list of PSyIR nodes to be analysed.
         :type node_list: List[:py:class:`psyclone.psyir.nodes.Node`]
@@ -905,12 +858,13 @@ class DependencyTools():
             PSyIR operators lbound, ubound, or size will be reported as \
             'read'. Otherwise, these accesses will be ignored.
 
-        :returns: a 2-tuple of two lists, the first one containing \
-            the input parameters, the second the output parameters.
-        :rtype: Tuple[List[:py:class:`psyclone.core.Signature`],
-                      List[:py:class:`psyclone.core.Signature`])
+        :returns: a ReadWriteInfo object with the information about input- \
+            and output parameters.
+        :rtype: :py:class:`psyclone.psyir.tools.ReadWriteInfo`
 
         '''
         variables_info = VariablesAccessInfo(node_list, options=options)
-        return (self.get_input_parameters(node_list, variables_info),
-                self.get_output_parameters(node_list, variables_info))
+        read_write_info = ReadWriteInfo()
+        self.get_input_parameters(read_write_info, node_list, variables_info)
+        self.get_output_parameters(read_write_info, node_list, variables_info)
+        return read_write_info

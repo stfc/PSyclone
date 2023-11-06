@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -46,20 +46,22 @@ import abc
 
 from psyclone.configuration import Config
 from psyclone.core import AccessType, VariablesAccessInfo
-from psyclone.errors import GenerationError, InternalError
+from psyclone.errors import GenerationError
 from psyclone.f2pygen import (AssignGen, UseGen, DeclGen, DirectiveGen,
                               CommentGen)
 from psyclone.psyir.nodes.directive import StandaloneDirective, \
     RegionDirective
 from psyclone.psyir.nodes.loop import Loop
+from psyclone.psyir.nodes.if_block import IfBlock
+from psyclone.psyir.nodes.while_loop import WhileLoop
 from psyclone.psyir.nodes.literal import Literal
 from psyclone.psyir.nodes.omp_clauses import OMPGrainsizeClause, \
-    OMPNowaitClause, OMPNogroupClause, OMPNumTasksClause, OMPPrivateClause,\
-    OMPDefaultClause, OMPReductionClause, OMPScheduleClause
+    OMPNowaitClause, OMPNogroupClause, OMPNumTasksClause, OMPPrivateClause, \
+    OMPDefaultClause, OMPReductionClause, OMPScheduleClause, \
+    OMPFirstprivateClause
 from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.nodes.routine import Routine
 from psyclone.psyir.nodes.schedule import Schedule
-from psyclone.psyir.nodes.codeblock import CodeBlock
 from psyclone.psyir.symbols import INTEGER_TYPE
 
 # OMP_OPERATOR_MAPPING is used to determine the operator to use in the
@@ -146,7 +148,6 @@ class OMPDeclareTargetDirective(OMPStandaloneDirective):
         :rtype: str
 
         '''
-        # pylint: disable=no-self-use
         return "omp declare target"
 
     def validate_global_constraints(self):
@@ -219,7 +220,6 @@ class OMPTaskwaitDirective(OMPStandaloneDirective):
         :rtype: str
 
         '''
-        # pylint: disable=no-self-use
         return "omp taskwait"
 
 
@@ -354,7 +354,6 @@ class OMPSingleDirective(OMPSerialDirective):
         :rtype: str
 
         '''
-        # pylint: disable=no-self-use
         return "omp single"
 
     def end_string(self):
@@ -366,7 +365,6 @@ class OMPSingleDirective(OMPSerialDirective):
         :rtype: str
 
         '''
-        # pylint: disable=no-self-use
         return "omp end single"
 
 
@@ -409,7 +407,6 @@ class OMPMasterDirective(OMPSerialDirective):
         :rtype: str
 
         '''
-        # pylint: disable=no-self-use
         return "omp master"
 
     def end_string(self):
@@ -421,7 +418,6 @@ class OMPMasterDirective(OMPSerialDirective):
         :rtype: str
 
         '''
-        # pylint: disable=no-self-use
         return "omp end master"
 
 
@@ -429,8 +425,8 @@ class OMPParallelDirective(OMPRegionDirective):
     ''' Class representing an OpenMP Parallel directive.
     '''
 
-    _children_valid_format = ("Schedule, OMPDefaultClause, OMPPrivateClause,"
-                              " [OMPReductionClause]*")
+    _children_valid_format = ("Schedule, OMPDefaultClause, OMPPrivateClause, "
+                              "OMPFirstprivate, [OMPReductionClause]*")
 
     @staticmethod
     def create(children=None):
@@ -446,13 +442,14 @@ class OMPParallelDirective(OMPRegionDirective):
 
         instance = OMPParallelDirective(children=children)
 
-        # An OMPParallelDirective must have 3 children.
-        # Child 0 is a Schedule, create in the constructor.
-        # The create function adds the other two children, and OMPDefaultClause
-        # and an OMPPrivateClause.
+        # An OMPParallelDirective must have 4 children.
+        # Child 0 is a Schedule, created in the constructor.
+        # The create function adds the other three mandatory children:
+        # OMPDefaultClause, OMPPrivateClause and OMPFirstprivateClause
         instance.addchild(OMPDefaultClause(clause_type=OMPDefaultClause.
                                            DefaultClauseTypes.SHARED))
         instance.addchild(OMPPrivateClause())
+        instance.addchild(OMPFirstprivateClause())
 
         return instance
 
@@ -473,7 +470,9 @@ class OMPParallelDirective(OMPRegionDirective):
             return True
         if position == 2 and isinstance(child, OMPPrivateClause):
             return True
-        if position >= 3 and isinstance(child, OMPReductionClause):
+        if position == 3 and isinstance(child, OMPFirstprivateClause):
+            return True
+        if position >= 4 and isinstance(child, OMPReductionClause):
             return True
         return False
 
@@ -495,7 +494,16 @@ class OMPParallelDirective(OMPRegionDirective):
 
     def gen_code(self, parent):
         '''Generate the fortran OMP Parallel Directive and any associated
-        code'''
+        code.
+
+        :param parent: the node in the generated AST to which to add content.
+        :type parent: :py:class:`psyclone.f2pygen.BaseGen`
+
+        :raises GenerationError: if the OpenMP directive needs some
+            synchronisation mechanism to create valid code. These are not
+            implemented yet.
+
+        '''
         # pylint: disable=import-outside-toplevel
         from psyclone.psyGen import zero_reduction_variables
 
@@ -508,10 +516,17 @@ class OMPParallelDirective(OMPRegionDirective):
         # this almost certainly indicates a user error.
         self._encloses_omp_directive()
 
-        # Update/generate the private clause if the code has changed.
-        private_clause = self._get_private_clause()
-        if private_clause != self.private_clause:
-            self._children[2] = private_clause
+        # Generate the private and firstprivate clauses
+        private, fprivate, need_sync = self._infer_sharing_attributes()
+        private_clause = OMPPrivateClause.create(
+                            sorted(private, key=lambda x: x.name))
+        fprivate_clause = OMPFirstprivateClause.create(
+                            sorted(fprivate, key=lambda x: x.name))
+        if need_sync:
+            raise GenerationError(
+                f"OMPParallelDirective.gen_code() does not support symbols "
+                f"that need synchronisation, but found: "
+                f"{[x.name for x in need_sync]}")
 
         reprod_red_call_list = self.reductions(reprod=True)
         if reprod_red_call_list:
@@ -541,13 +556,18 @@ class OMPParallelDirective(OMPRegionDirective):
 
         zero_reduction_variables(calls, parent)
 
-        default_str = self.default_clause._clause_string
-        private_list = []
-        for child in self.private_clause.children:
-            private_list.append(child.symbol.name)
-        private_str = "private(" + ",".join(private_list) + ")"
+        # pylint: disable=protected-access
+        clauses_str = self.default_clause._clause_string
+        # pylint: enable=protected-access
+
+        private_list = [child.symbol.name for child in private_clause.children]
+        if private_list:
+            clauses_str += ", private(" + ",".join(private_list) + ")"
+        fp_list = [child.symbol.name for child in fprivate_clause.children]
+        if fp_list:
+            clauses_str += ", firstprivate(" + ",".join(fp_list) + ")"
         parent.add(DirectiveGen(parent, "omp", "begin", "parallel",
-                                f"{default_str}, {private_str}"))
+                                f"{clauses_str}"))
 
         if reprod_red_call_list:
             # add in a local thread index
@@ -585,12 +605,37 @@ class OMPParallelDirective(OMPRegionDirective):
         lowering step to find out which References are private, and place them
         explicitly in the lower-level tree to be processed by the backend
         visitor.
-        '''
-        private_clause = self._get_private_clause()
-        if private_clause != self.private_clause:
-            self._children[2] = private_clause
 
-        super().lower_to_language_level()
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
+
+        :raises GenerationError: if the OpenMP directive needs some
+            synchronisation mechanism to create valid code. These are not
+            implemented yet.
+        '''
+        # Keep the first two children and compute the rest using the current
+        # state of the node/tree (lowering it first in case new symbols are
+        # created)
+        self._children = self._children[:2]
+        for child in self.children:
+            child.lower_to_language_level()
+
+        # Create data sharing clauses (order alphabetically to make generation
+        # reproducible)
+        private, fprivate, need_sync = self._infer_sharing_attributes()
+        private_clause = OMPPrivateClause.create(
+                            sorted(private, key=lambda x: x.name))
+        fprivate_clause = OMPFirstprivateClause.create(
+                            sorted(fprivate, key=lambda x: x.name))
+        if need_sync:
+            raise GenerationError(
+                f"Lowering {type(self).__name__} does not support symbols that"
+                f" need synchronisation, but found: "
+                f"{[x.name for x in need_sync]}")
+
+        self.addchild(private_clause)
+        self.addchild(fprivate_clause)
+        return self
 
     def begin_string(self):
         '''Returns the beginning statement of this directive, i.e.
@@ -617,50 +662,74 @@ class OMPParallelDirective(OMPRegionDirective):
         :rtype: str
 
         '''
-        # pylint: disable=no-self-use
         return "omp end parallel"
 
-    def _get_private_clause(self):
+    def _infer_sharing_attributes(self):
         '''
-        Returns the variable names used for any loops within a directive
-        and any variables that have been declared private by a Kernel
-        within the directive.
+        The PSyIR does not specify if each symbol inside an OpenMP region is
+        private, firstprivate, shared or shared but needs synchronisation,
+        the attributes are infered looking at the usage of each symbol inside
+        the parallel region.
 
-        :returns: a private clause containing the variables that need to be \
-                  private for this directive.
-        :rtype: :py:class:`psyclone.psyir.nodes.omp_clauses.OMPPrivateClause`
+        This method analyses the directive body and automatically classifies
+        each symbol using the following rules:
+        - All arrays are shared.
+        - Scalars that are accessed only once are shared.
+        - Scalars that are read-only or written outside a loop are shared.
+        - Scalars written in multiple iterations of a loop are private, unless:
+          * there is a write-after-read dependency in a loop iteration,
+          in this case they are shared but need synchronisation;
+          * they are read before in the same parallel region (but not inside
+          the same loop iteration), in this case they are firstprivate.
+          * they are only conditionally written in some iterations;
+          in this case they are firstprivate.
+
+        This method returns the sets of private, firstprivate, and shared but
+        needing synchronisation symbols, all symbols not in these sets are
+        assumed shared. How to synchronise the symbols in the third set is
+        up to the caller of this method.
+
+        :returns: three set of symbols that classify each of the symbols in \
+            the directive body as PRIVATE, FIRSTPRIVATE or SHARED NEEDING \
+            SYNCHRONISATION.
+        :rtype: Tuple[Set(:py:class:`psyclone.psyir.symbols.symbol), \
+                      Set(:py:class:`psyclone.psyir.symbols.symbol), \
+                      Set(:py:class:`psyclone.psyir.symbols.symbol)]
 
         :raises GenerationError: if the DefaultClauseType associated with \
                                  this OMPParallelDirective is not shared.
-        :raises InternalError: if a Kernel has local variable(s) but they \
-                               aren't named.
-        '''
-        # pylint: disable=import-outside-toplevel
-        from psyclone.psyGen import InvokeSchedule
 
+        '''
         if (self.default_clause.clause_type !=
                 OMPDefaultClause.DefaultClauseTypes.SHARED):
             raise GenerationError("OMPParallelClause cannot correctly generate"
                                   " the private clause when its default "
                                   "data sharing attribute in its default "
-                                  "clause is not shared.")
+                                  "clause is not 'shared'.")
 
-        result = set()
-        # get variable names from all calls that are a child of this node
-        for call in self.kernels():
-            for variable_name in call.local_vars():
-                if variable_name == "":
-                    raise InternalError(
-                        f"call '{call.name}' has a local variable but its "
-                        f"name is not set.")
-                result.add(variable_name.lower())
+        # TODO #598: Improve the handling of scalar variables, there are
+        # remaining issues when we have accesses after the parallel region
+        # of variables that we currently declare as private. This should be
+        # lastprivate.
+        # e.g:
+        # !$omp parallel do <- will set private(ji, my_index)
+        # do ji = 1, jpk
+        #   my_index = ji+1
+        #   array(my_index) = 2
+        # enddo
+        # #end do
+        # call func(my_index) <- my_index has not been updated
 
-        # Now determine scalar variables that must be private:
+        private = set()
+        fprivate = set()
+        need_sync = set()
+
+        # Determine variables that must be private, firstprivate or need_sync
         var_accesses = VariablesAccessInfo()
         self.reference_accesses(var_accesses)
         for signature in var_accesses.all_signatures:
             accesses = var_accesses[signature].all_accesses
-            # Ignore variables that have indices, we only look at scalar
+            # Ignore variables that have indices, we only look at scalars
             if accesses[0].is_array():
                 continue
 
@@ -669,45 +738,81 @@ class OMPParallelDirective(OMPRegionDirective):
             if len(accesses) == 1:
                 continue
 
-            # We have at least two accesses. If the first one is a write,
-            # assume the variable should be private:
-            if accesses[0].access_type == AccessType.WRITE:
-                # Check if the write access is inside the parallel loop. If
-                # the write is outside of a loop, it is an assignment to
-                # a shared variable. Example where jpk is likely used
-                # outside of the parallel section later, so it must be
-                # declared as shared in order to have its value in other loops:
-                # !$omp parallel
-                # jpk = 100
-                # !omp do
-                # do ji = 1, jpk
+            # TODO #598: If we only have writes, it must be need_sync:
+            # do ji = 1, jpk
+            #   if ji=3:
+            #      found = .true.
+            # Or lastprivate in order to maintain the serial semantics
+            # do ji = 1, jpk
+            #   found = ji
 
-                # TODO #598: improve the handling of scalar variables.
+            # We consider private variables as being the ones that are written
+            # in every iteration of a loop.
+            # If one such scalar is potentially read before it is written, it
+            # will be considered firstprivate.
+            has_been_read = False
+            last_read_position = 0
+            for access in accesses:
+                if access.access_type == AccessType.READ:
+                    has_been_read = True
+                    last_read_position = access.node.abs_position
 
-                # Go up the tree till we either find the InvokeSchedule,
-                # which is at the top, or a Loop statement (or no parent,
-                # which means we have reached the end of a called kernel).
-                parent = accesses[0].node.ancestor((Loop, InvokeSchedule),
-                                                   include_self=True)
+                if access.access_type == AccessType.WRITE:
 
-                if parent and isinstance(parent, Loop):
-                    # The assignment to the variable is inside a loop, so
-                    # declare it to be private
-                    result.add(str(signature).lower())
+                    # Check if the write access is outside a loop. In this case
+                    # it will be marked as shared. This is done because it is
+                    # likely to be re-used later. e.g:
+                    # !$omp parallel
+                    # jpk = 100
+                    # !omp do
+                    # do ji = 1, jpk
+                    loop_ancestor = access.node.ancestor(
+                        (Loop, WhileLoop),
+                        limit=self,
+                        include_self=True)
+                    if not loop_ancestor:
+                        # If we find it at least once outside a loop we keep it
+                        # as shared
+                        break
 
-        # Convert the set into a list and sort it, so that we get
-        # reproducible results
-        list_result = list(result)
-        list_result.sort()
+                    # Otherwise, the assignment to this variable is inside a
+                    # loop (and it will be repeated for each iteration), so
+                    # we declare it as private or need_synch
+                    name = signature.var_name
+                    # TODO #2094: var_name only captures the top-level
+                    # component in the derived type accessor. If the attributes
+                    # only apply to a sub-component, this won't be captured
+                    # appropriately.
+                    symbol = access.node.scope.symbol_table.lookup(name)
 
-        # Create the OMPPrivateClause corresponding to the results
-        priv_clause = OMPPrivateClause()
-        symbol_table = self.scope.symbol_table
-        for ref_name in list_result:
-            symbol = symbol_table.lookup(ref_name)
-            ref = Reference(symbol)
-            priv_clause.addchild(ref)
-        return priv_clause
+                    # If it has been read before we have to check if ...
+                    if has_been_read:
+                        loop_pos = loop_ancestor.loop_body.abs_position
+                        if last_read_position < loop_pos:
+                            # .. it was before the loop, so it is fprivate
+                            fprivate.add(symbol)
+                        else:
+                            # or inside the loop, in which case it needs sync
+                            need_sync.add(symbol)
+                        break
+
+                    # If the write is not guaranteed, we make it firstprivate
+                    # so that in the case that the write doesn't happen we keep
+                    # the original value
+                    conditional_write = access.node.ancestor(
+                        IfBlock,
+                        limit=loop_ancestor,
+                        include_self=True)
+                    if conditional_write:
+                        fprivate.add(symbol)
+                        break
+
+                    # Already found the first write and decided if it is
+                    # shared, private or firstprivate. We can stop looking.
+                    private.add(symbol)
+                    break
+
+        return private, fprivate, need_sync
 
     def validate_global_constraints(self):
         '''
@@ -719,6 +824,7 @@ class OMPParallelDirective(OMPRegionDirective):
         '''
         if self.ancestor(OMPParallelDirective) is not None:
             raise GenerationError("Cannot nest OpenMP parallel regions.")
+        self._encloses_omp_directive()
 
     def _encloses_omp_directive(self):
         ''' Check that this Parallel region contains other OpenMP
@@ -900,7 +1006,6 @@ class OMPTaskloopDirective(OMPRegionDirective):
         :rtype: str
 
         '''
-        # pylint: disable=no-self-use
         return "omp taskloop"
 
     def end_string(self):
@@ -912,7 +1017,6 @@ class OMPTaskloopDirective(OMPRegionDirective):
         :rtype: str
 
         '''
-        # pylint: disable=no-self-use
         return "omp end taskloop"
 
 
@@ -920,7 +1024,8 @@ class OMPDoDirective(OMPRegionDirective):
     '''
     Class representing an OpenMP DO directive in the PSyIR.
 
-    :param str omp_schedule: the OpenMP schedule to use (defaults to "auto").
+    :param str omp_schedule: the OpenMP schedule to use (defaults to
+        "none" which means it is implementation dependent).
     :param Optional[int] collapse: optional number of nested loops to \
         collapse into a single iteration space to parallelise. Defaults to \
         None.
@@ -931,10 +1036,9 @@ class OMPDoDirective(OMPRegionDirective):
     :type kwargs: unwrapped dict.
 
     '''
-    VALID_OMP_SCHEDULES = ["runtime", "static", "dynamic", "guided", "auto"]
     _directive_string = "do"
 
-    def __init__(self, omp_schedule="auto", collapse=None, reprod=None,
+    def __init__(self, omp_schedule="none", collapse=None, reprod=None,
                  **kwargs):
 
         super().__init__(**kwargs)
@@ -1012,23 +1116,28 @@ class OMPDoDirective(OMPRegionDirective):
         :returns: description of this node, possibly coloured.
         :rtype: str
         '''
-        val = f"{self.coloured_name(colour)}[omp_schedule={self.omp_schedule}"
+        parts = []
+        if self.omp_schedule != "none":
+            parts.append(f"omp_schedule={self.omp_schedule}")
         if self.reductions():
-            val += f",reprod={self._reprod}"
+            parts.append(f"reprod={self._reprod}")
         if self._collapse and self._collapse > 1:
-            val += f",collapse={self._collapse}"
-        return val + "]"
+            parts.append(f"collapse={self._collapse}")
+        return f"{self.coloured_name(colour)}[{','.join(parts)}]"
 
     def _reduction_string(self):
-        ''' Return the OMP reduction information as a string '''
-        reduction_str = ""
+        '''
+        :returns: the OMP reduction information.
+        :rtype: str
+        '''
         for reduction_type in AccessType.get_valid_reduction_modes():
             reductions = self._get_reductions_list(reduction_type)
+            parts = []
             for reduction in reductions:
-                reduction_str += (f", reduction("
-                                  f"{OMP_OPERATOR_MAPPING[reduction_type]}:"
-                                  f"{reduction})")
-        return reduction_str
+                parts.append(f"reduction("
+                             f"{OMP_OPERATOR_MAPPING[reduction_type]}:"
+                             f"{reduction})")
+        return ", ".join(parts)
 
     @property
     def omp_schedule(self):
@@ -1050,10 +1159,12 @@ class OMPDoDirective(OMPRegionDirective):
             raise TypeError(
                 f"{type(self).__name__} omp_schedule should be a str "
                 f"but found '{type(value).__name__}'.")
-        if value.split(',')[0].lower() not in self.VALID_OMP_SCHEDULES:
+        if (value.split(',')[0].lower() not in
+                OMPScheduleClause.VALID_OMP_SCHEDULES):
             raise TypeError(
                 f"{type(self).__name__} omp_schedule should be one of "
-                f"{self.VALID_OMP_SCHEDULES} but found '{value}'.")
+                f"{OMPScheduleClause.VALID_OMP_SCHEDULES} but found "
+                f"'{value}'.")
         self._omp_schedule = value
 
     @property
@@ -1154,15 +1265,20 @@ class OMPDoDirective(OMPRegionDirective):
         '''
         self.validate_global_constraints()
 
-        if self._reprod:
-            local_reduction_string = ""
-        else:
-            local_reduction_string = self._reduction_string()
+        parts = []
+
+        if self.omp_schedule != "none":
+            parts.append(f"schedule({self.omp_schedule})")
+
+        if not self._reprod:
+            red_str = self._reduction_string()
+            if red_str:
+                parts.append(red_str)
 
         # As we're a loop we don't specify the scope
         # of any variables so we don't have to generate the
         # list of private variables
-        options = f"schedule({self._omp_schedule}){local_reduction_string}"
+        options = ", ".join(parts)
         parent.add(DirectiveGen(parent, "omp", "begin", "do", options))
 
         for child in self.children:
@@ -1182,7 +1298,9 @@ class OMPDoDirective(OMPRegionDirective):
         :rtype: str
 
         '''
-        string = f"omp {self._directive_string} schedule({self._omp_schedule})"
+        string = f"omp {self._directive_string}"
+        if self.omp_schedule != "none":
+            string += f" schedule({self.omp_schedule})"
         if self._collapse:
             string += f" collapse({self._collapse})"
         return string
@@ -1210,7 +1328,8 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
     '''
 
     _children_valid_format = ("Schedule, OMPDefaultClause, OMPPrivateClause, "
-                              "OMPScheduleClause, [OMPReductionClause]*")
+                              "OMPFirstprivateClause, OMPScheduleClause, "
+                              "[OMPReductionClause]*")
     _directive_string = "parallel do"
 
     def __init__(self, **kwargs):
@@ -1235,9 +1354,11 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
             return True
         if position == 2 and isinstance(child, OMPPrivateClause):
             return True
-        if position == 3 and isinstance(child, OMPScheduleClause):
+        if position == 3 and isinstance(child, OMPFirstprivateClause):
             return True
-        if position >= 4 and isinstance(child, OMPReductionClause):
+        if position == 4 and isinstance(child, OMPScheduleClause):
+            return True
+        if position >= 5 and isinstance(child, OMPReductionClause):
             return True
         return False
 
@@ -1264,27 +1385,44 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
 
         calls = self.reductions()
         zero_reduction_variables(calls, parent)
-        private_clause = self._get_private_clause()
-        if len(self._children) >= 3 and private_clause != self._children[2]:
-            # Replace the current private clause.
-            self._children[2] = private_clause
-        elif len(self._children) < 3:
-            self.addchild(private_clause, index=2)
-        default_str = self.children[1]._clause_string
-        private_list = []
-        for child in self.children[2].children:
-            private_list.append(child.symbol.name)
-        private_str = "private(" + ",".join(private_list) + ")"
 
-        sched_clause = OMPScheduleClause(self._omp_schedule)
-        if len(self._children) >= 4 and sched_clause != self._children[3]:
-            self._children[3] = sched_clause
-        elif len(self._children) < 4:
-            self.addchild(sched_clause, index=3)
-        schedule_str = f"schedule({sched_clause.schedule})"
-        parent.add(DirectiveGen(parent, "omp", "begin", "parallel do",
-                                f"{default_str}, {private_str}, {schedule_str}"
-                                f"{self._reduction_string()}"))
+        # Set default() private() and firstprivate() clauses
+        # pylint: disable=protected-access
+        default_str = self.children[1]._clause_string
+        # pylint: enable=protected-access
+        private, fprivate, need_sync = self._infer_sharing_attributes()
+        private_clause = OMPPrivateClause.create(
+                            sorted(private, key=lambda x: x.name))
+        fprivate_clause = OMPFirstprivateClause.create(
+                            sorted(fprivate, key=lambda x: x.name))
+        if need_sync:
+            raise GenerationError(
+                f"OMPParallelDoDirective.gen_code() does not support symbols "
+                f"that need synchronisation, but found: "
+                f"{[x.name for x in need_sync]}")
+
+        private_str = ""
+        fprivate_str = ""
+        private_list = [child.symbol.name for child in private_clause.children]
+        if private_list:
+            private_str = "private(" + ",".join(private_list) + ")"
+        fp_list = [child.symbol.name for child in fprivate_clause.children]
+        if fp_list:
+            fprivate_str = "firstprivate(" + ",".join(fp_list) + ")"
+
+        # Set schedule clause
+        if self._omp_schedule != "none":
+            schedule_str = f"schedule({self._omp_schedule})"
+        else:
+            schedule_str = ""
+
+        # Add directive to the f2pygen tree
+        parent.add(
+            DirectiveGen(
+                parent, "omp", "begin", "parallel do", ", ".join(
+                    text for text in [default_str, private_str, fprivate_str,
+                                      schedule_str, self._reduction_string()]
+                    if text)))
 
         for child in self.dir_body:
             child.gen_code(parent)
@@ -1301,23 +1439,20 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
         In-place construction of clauses as PSyIR constructs.
         The clauses here may need to be updated if code has changed, or be
         added if not yet present.
-        '''
-        private_clause = self._get_private_clause()
-        if len(self._children) >= 3 and private_clause != self._children[2]:
-            self._children[2] = private_clause
-        elif len(self._children) < 3:
-            self.addchild(private_clause, index=2)
-        sched_clause = OMPScheduleClause(self._omp_schedule)
-        if len(self._children) >= 4 and sched_clause != self._children[3]:
-            self._children[3] = sched_clause
-        elif len(self._children) < 4:
-            self.addchild(sched_clause, index=3)
 
-        super().lower_to_language_level()
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
+
+        '''
+        # Calling the super() explicitly to avoid confusion
+        # with the multiple-inheritance
+        OMPParallelDirective.lower_to_language_level(self)
+        self.addchild(OMPScheduleClause(self._omp_schedule))
+        return self
 
     def begin_string(self):
         '''Returns the beginning statement of this directive, i.e.
-        "omp do ...". The visitor is responsible for adding the
+        "omp parallel do ...". The visitor is responsible for adding the
         correct directive beginning (e.g. "!$").
 
         :returns: the beginning statement for this directive.
@@ -1332,7 +1467,7 @@ class OMPParallelDoDirective(OMPParallelDirective, OMPDoDirective):
 
     def end_string(self):
         '''Returns the end (or closing) statement of this directive, i.e.
-        "omp end do". The visitor is responsible for adding the
+        "omp end parallel do". The visitor is responsible for adding the
         correct directive beginning (e.g. "!$").
 
         :returns: the end statement for this directive.
@@ -1371,7 +1506,6 @@ class OMPTargetDirective(OMPRegionDirective):
         :rtype: str
 
         '''
-        # pylint: disable=no-self-use
         return "omp target"
 
     def end_string(self):
@@ -1383,27 +1517,7 @@ class OMPTargetDirective(OMPRegionDirective):
         :rtype: str
 
         '''
-        # pylint: disable=no-self-use
         return "omp end target"
-
-    def validate_global_constraints(self):
-        '''
-        Perform validation checks that can only be done at code-generation
-        time.
-
-        TODO #1837. This should be expanded to all intrinsics not supported
-        on GPUs. But it may be implementation-dependent!
-
-        :raises GenerationError: if this OMPTargetDirective contains \
-            CodeBlocks.
-        '''
-        super().validate_global_constraints()
-
-        cbs = self.walk(CodeBlock)
-        if cbs:
-            raise GenerationError(
-                f"The OMPTargetDirective must not have "
-                f"CodeBlocks inside, but found: '{cbs}'.")
 
 
 class OMPLoopDirective(OMPRegionDirective):
@@ -1514,7 +1628,6 @@ class OMPLoopDirective(OMPRegionDirective):
         :rtype: str
 
         '''
-        # pylint: disable=no-self-use
         return "omp end loop"
 
     def validate_global_constraints(self):

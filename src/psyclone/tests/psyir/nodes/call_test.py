@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2022, Science and Technology Facilities Council.
+# Copyright (c) 2020-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,15 +31,15 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford STFC Daresbury Lab
+# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' Performs py.test tests on the Call PSyIR node. '''
 
-from __future__ import absolute_import
 import pytest
+from psyclone.core import Signature, VariablesAccessInfo
 from psyclone.psyir.nodes import (
-    Call, Reference, ArrayReference, Schedule, Literal)
+    BinaryOperation, Call, Reference, ArrayReference, Schedule, Literal)
 from psyclone.psyir.nodes.node import colored
 from psyclone.psyir.symbols import ArrayType, INTEGER_TYPE, DataSymbol, \
     RoutineSymbol, NoType, REAL_TYPE
@@ -69,6 +69,36 @@ def test_call_init():
     assert call.routine is routine
     assert call.parent is parent
     assert call.children == []
+
+
+def test_call_is_elemental():
+    '''Test the is_elemental property of a Call is set correctly and can be
+    queried.'''
+    routine = RoutineSymbol("zaphod", NoType())
+    call = Call(routine)
+    assert call.is_elemental is None
+    routine = RoutineSymbol("beeblebrox", NoType(), is_elemental=True)
+    call = Call(routine)
+    assert call.is_elemental is True
+
+
+def test_call_is_pure():
+    '''Test the is_pure property of a Call is set correctly and can be
+    queried.'''
+    routine = RoutineSymbol("zaphod", NoType())
+    call = Call(routine)
+    assert call.is_pure is None
+    routine = RoutineSymbol("beeblebrox", NoType(), is_pure=True)
+    call = Call(routine)
+    assert call.is_pure is True
+
+
+def test_call_is_available_on_device():
+    '''Test the is_available_on_device() method of a Call (currently always
+    returns False). '''
+    routine = RoutineSymbol("zaphod", NoType())
+    call = Call(routine)
+    assert call.is_available_on_device() is False
 
 
 def test_call_equality():
@@ -104,7 +134,7 @@ def test_call_init_error():
     '''
     with pytest.raises(TypeError) as info:
         _ = Call(None)
-    assert ("Call routine argument should be a RoutineSymbol but found "
+    assert ("Call 'routine' argument should be a RoutineSymbol but found "
             "'NoneType'." in str(info.value))
 
 
@@ -151,30 +181,6 @@ def test_call_create_error2():
 
 
 def test_call_create_error3():
-    '''Test that the appropriate exception is raised if an entry in the
-    arguments argument to the create method is is a tuple that does
-    not have two elements.'''
-    routine = RoutineSymbol("isaac", NoType())
-    with pytest.raises(GenerationError) as info:
-        _ = Call.create(routine, [(1, 2, 3)])
-    assert ("If a child of the children argument in create method of Call "
-            "class is a tuple, it's length should be 2, but found 3."
-            in str(info.value))
-
-
-def test_call_create_error4():
-    '''Test that the appropriate exception is raised if an entry in the
-    arguments argument to the create method is is a tuple with two
-    elements and the first element is not a string.'''
-    routine = RoutineSymbol("isaac", NoType())
-    with pytest.raises(GenerationError) as info:
-        _ = Call.create(routine, [(1, 2)])
-    assert ("If a child of the children argument in create method of Call "
-            "class is a tuple, its first argument should be a str, but "
-            "found int." in str(info.value))
-
-
-def test_call_create_error5():
     '''Test that the appropriate exception is raised if one or more of the
     argument names is not valid.'''
     routine = RoutineSymbol("roo", INTEGER_TYPE)
@@ -182,10 +188,10 @@ def test_call_create_error5():
         _ = Call.create(
             routine, [Reference(DataSymbol(
                 "arg1", INTEGER_TYPE)), (" a", None)])
-    assert "Invalid name ' a' found." in str(info.value)
+    assert "Invalid Fortran name ' a' found." in str(info.value)
 
 
-def test_call_create_error6():
+def test_call_create_error4():
     '''Test that the appropriate exception is raised if one or more of the
     arguments argument list entries to the create method is not a
     DataNode.
@@ -198,6 +204,54 @@ def test_call_create_error6():
                 "arg1", INTEGER_TYPE)), ("name", None)])
     assert ("Item 'NoneType' can't be child 1 of 'Call'. The valid format "
             "is: '[DataNode]*'." in str(info.value))
+
+
+def test_call_add_args():
+    '''Test the _add_args method in the Call class.'''
+
+    routine = RoutineSymbol("myeloma", INTEGER_TYPE)
+    call = Call(routine)
+    array_type = ArrayType(INTEGER_TYPE, shape=[10, 20])
+    arguments = [Reference(DataSymbol("arg1", INTEGER_TYPE)),
+                 ArrayReference(DataSymbol("arg2", array_type))]
+    Call._add_args(call, [arguments[0], ("name", arguments[1])])
+    assert call.routine is routine
+    assert call.argument_names == [None, "name"]
+    for idx, child, in enumerate(call.children):
+        assert child is arguments[idx]
+        assert child.parent is call
+    # For some reason pylint thinks that call.children[0,1] are of
+    # type Literal and complains about there being no name member,
+    # even though they are not.
+    # pylint: disable=no-member
+    assert call.children[0].name == "arg1"
+    assert call.children[1].name == "arg2"
+
+
+def test_call_add_args_error1():
+    '''Test that the appropriate exception is raised if an entry in the
+    arguments argument to the _add_args method is a tuple that does
+    not have two elements.
+
+    '''
+    routine = RoutineSymbol("isaac", NoType())
+    with pytest.raises(GenerationError) as info:
+        _ = Call._add_args(routine, [(1, 2, 3)])
+    assert ("If a child of the children argument in create method of Call "
+            "class is a tuple, it's length should be 2, but found 3."
+            in str(info.value))
+
+
+def test_call_add_args_error2():
+    '''Test that the appropriate exception is raised if an entry in the
+    arguments argument to the _add_args method is is a tuple with two
+    elements and the first element is not a string.'''
+    routine = RoutineSymbol("isaac", NoType())
+    with pytest.raises(GenerationError) as info:
+        _ = Call._add_args(routine, [(1, 2)])
+    assert ("If a child of the children argument in create method of Call "
+            "class is a tuple, its first argument should be a str, but "
+            "found int." in str(info.value))
 
 
 def test_call_appendnamedarg():
@@ -213,12 +267,12 @@ def test_call_appendnamedarg():
     # name arg wrong type
     with pytest.raises(TypeError) as info:
         call.append_named_arg(1, op1)
-    assert ("A name should be a string or None, but found int."
+    assert ("A name should be a string, but found 'int'."
             in str(info.value))
     # invalid name
     with pytest.raises(ValueError) as info:
         call.append_named_arg("_", op1)
-    assert "Invalid name '_' found." in str(info.value)
+    assert "Invalid Fortran name '_' found." in str(info.value)
     # name arg already used
     call.append_named_arg("name1", op1)
     with pytest.raises(ValueError) as info:
@@ -246,12 +300,12 @@ def test_call_insertnamedarg():
     # name arg wrong type
     with pytest.raises(TypeError) as info:
         call.insert_named_arg(1, op1, 0)
-    assert ("A name should be a string or None, but found int."
+    assert ("A name should be a string, but found 'int'."
             in str(info.value))
     # invalid name
     with pytest.raises(ValueError) as info:
         call.insert_named_arg("1", op1, 0)
-    assert "Invalid name '1' found." in str(info.value)
+    assert "Invalid Fortran name '1' found." in str(info.value)
     # name arg already used
     call.insert_named_arg("name1", op1, 0)
     with pytest.raises(ValueError) as info:
@@ -310,39 +364,50 @@ def test_call_replacenamedarg():
     assert call._argument_names[1][0] == id(op2)
 
 
-def test_validate_name_type():
-    '''Test that the _validate_name utility raise an error if the wrong
-    type is provided and returns successfully if the expected type is
-    provided.
-
-    '''
-    call = Call(RoutineSymbol("x"))
-    # invalid type
-    with pytest.raises(TypeError) as info:
-        call._validate_name(2)
-    assert ("A name should be a string or None, but found int."
-            in str(info.value))
-    # ok
-    call._validate_name(None)
-    # ok
-    call._validate_name("hello")
-
-
-@pytest.mark.parametrize("name", ["", "0", "_", " a", "a ", "a*"])
-def test_validate_name_invalid(name):
-    '''Test the _validate_name utility raises the expected exception when
-    the supplied name is invalid.'''
-    call = Call(RoutineSymbol("x"))
-    with pytest.raises(ValueError) as info:
-        call._validate_name(name)
-    assert f"Invalid name '{name}' found." in str(info.value)
-
-
-@pytest.mark.parametrize("name", ["a", "A", "aA", "a1", "a_", "a3B_"])
-def test_validate_name_valid(name):
-    '''Test the _validate_name utility accepts valid names.'''
-    call = Call(RoutineSymbol("x"))
-    call._validate_name(name)
+def test_call_reference_accesses():
+    '''Test the reference_accesses() method.'''
+    rsym = RoutineSymbol("trillian")
+    # A call with an argument passed by value.
+    call1 = Call.create(rsym, [Literal("1", INTEGER_TYPE)])
+    var_info = VariablesAccessInfo()
+    call1.reference_accesses(var_info)
+    assert not var_info.all_signatures
+    dsym = DataSymbol("beta", INTEGER_TYPE)
+    # Simple argument passed by reference.
+    call2 = Call.create(rsym, [Reference(dsym)])
+    call2.reference_accesses(var_info)
+    assert var_info.has_read_write(Signature("beta"))
+    # Array access argument. The array should be READWRITE, any variable in
+    # the index expression should be READ.
+    idx_sym = DataSymbol("ji", INTEGER_TYPE)
+    asym = DataSymbol("gamma", ArrayType(INTEGER_TYPE, shape=[10]))
+    aref = ArrayReference.create(asym, [Reference(idx_sym)])
+    call3 = Call.create(rsym, [aref])
+    call3.reference_accesses(var_info)
+    assert var_info.has_read_write(Signature("gamma"))
+    assert var_info.is_read(Signature("ji"))
+    # Argument is a temporary so any inputs to it are READ only.
+    expr = BinaryOperation.create(BinaryOperation.Operator.MUL,
+                                  Literal("2", INTEGER_TYPE), Reference(dsym))
+    call4 = Call.create(rsym, [expr])
+    var_info = VariablesAccessInfo()
+    call4.reference_accesses(var_info)
+    assert var_info.is_read(Signature("beta"))
+    # Argument is itself a function call: call trillian(some_func(gamma(ji)))
+    fsym = RoutineSymbol("some_func")
+    fcall = Call.create(fsym,
+                        [ArrayReference.create(asym, [Reference(idx_sym)])])
+    call5 = Call.create(rsym, [fcall])
+    call5.reference_accesses(var_info)
+    assert var_info.has_read_write(Signature("gamma"))
+    assert var_info.is_read(Signature("ji"))
+    # Call to a PURE routine - arguments should be READ only.
+    puresym = RoutineSymbol("dirk", is_pure=True)
+    call6 = Call.create(puresym, [Reference(dsym)])
+    var_info = VariablesAccessInfo()
+    call6.reference_accesses(var_info)
+    assert var_info.is_read(Signature("beta"))
+    assert not var_info.is_written(Signature("beta"))
 
 
 def test_call_argumentnames_after_removearg():

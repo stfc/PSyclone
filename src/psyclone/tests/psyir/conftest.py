@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2020, Science and Technology Facilities Council.
+# Copyright (c) 2019-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,14 +32,15 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author A. R. Porter, STFC Daresbury Lab
+# Modified R. W. Ford, STFC Daresbury Lab
 
 
 ''' Module which performs pytest set-up specific to the PSyIR tests. '''
 
-from __future__ import absolute_import
 import pytest
-from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
+
 import psyclone.psyir.frontend.fparser2 as fp2
+from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE
 
 
 @pytest.fixture(scope="function")
@@ -52,6 +53,6 @@ def disable_declaration_check(monkeypatch):
 
     '''
     monkeypatch.setattr(
-        fp2, "_find_or_create_imported_symbol",
+        fp2, "_find_or_create_unresolved_symbol",
         lambda _1, name, _2=None: DataSymbol(name,
                                              INTEGER_TYPE))

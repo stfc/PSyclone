@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022, Science and Technology Facilities Council
+# Copyright (c) 2022-2023, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,8 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Author R. W. Ford, STFC Daresbury Lab
+# Author: R. W. Ford, STFC Daresbury Lab
+# Modified: S. Siso, STFC Daresbury Lab
 
 '''Module containing the LFRic-specific Container class for a Kernel.
 
@@ -45,11 +46,11 @@ class LFRicKernelContainer(Container):
 
     :param str name: the name of the container.
     :param metadata: the metadata object.
-    :type metadata: :py:class:`psyclone.domain.gocean.kernel.psyir.\
-        LFRicKernelMetadata`
-    :param **kwargs: additional keyword arguments to pass to parent \
+    :type metadata: \
+        :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+    :param kwargs: additional keyword arguments to pass to parent \
         constructor.
-    :type **kwargs: unwrapped dict
+    :type kwargs: unwrapped dict
 
     '''
     def __init__(self, name, metadata, **kwargs):
@@ -65,12 +66,12 @@ class LFRicKernelContainer(Container):
         a single kernel routine within the container.
 
         :param str name: the name of the Container.
-        :param symbol_table: the symbol table associated with this \
-            Container.
-        :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
         :param metadata: the metadata object.
         :type metadata: \
             :py:class:`psyclone.domain.lfric.kernel.LFRicKernelMetadata`
+        :param symbol_table: the symbol table associated with this \
+            Container.
+        :type symbol_table: :py:class:`psyclone.psyir.symbols.SymbolTable`
         :param children: a list of PSyIR nodes contained in the \
             Container. These must be Containers or Routines.
         :type children: List[:py:class:`psyclone.psyir.nodes.Container` \
@@ -94,8 +95,12 @@ class LFRicKernelContainer(Container):
         return self._metadata
 
     def lower_to_language_level(self):
-        '''Lower this LFRic-specific container to language level psyir.'''
+        '''Lower this LFRic-specific container to language level psyir.
 
+        :returns: the lowered version of this node.
+        :rtype: :py:class:`psyclone.psyir.node.Node`
+
+        '''
         # Create metadata symbol and add it to the container symbol
         # table.
         data_symbol = self.metadata.lower_to_psyir()
@@ -106,3 +111,7 @@ class LFRicKernelContainer(Container):
         generic_container = Container.create(
             self.name, self.symbol_table.detach(), children)
         self.replace_with(generic_container)
+        return generic_container
+
+
+__all__ = ["LFRicKernelContainer"]

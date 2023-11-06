@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council
+# Copyright (c) 2021-2023, Science and Technology Facilities Council
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,13 +32,12 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author R. W. Ford, STFC Daresbury Lab
-# Modified by S. Siso, STFC Daresbury Lab
+# Modified: A. R. Porter and S. Siso, STFC Daresbury Lab
 
 '''Module containing tests for the translation of PSyIR to PSyclone
 Algorithm PSyIR.
 
 '''
-from __future__ import absolute_import
 import pytest
 
 from psyclone.psyir.frontend.fortran import FortranReader
@@ -323,25 +322,33 @@ def test_array_reference(fortran_reader):
     invoke_trans.validate(subroutine[0])
 
 
-def test_arg_error(fortran_reader):
+@pytest.mark.parametrize("arg", ["0", "'hello'", "alg(field)"])
+def test_arg_error(fortran_reader, arg):
     '''Test that the validate method raises an exception if unexpected
     content is found as an argument to an invoke.
 
     '''
     code = (
-        "subroutine alg()\n"
-        "  use kern_mod\n"
-        "  use field_mod, only : r2d_field\n"
-        "  type(r2d_field) :: field\n"
-        "  call invoke('hello')\n"
-        "end subroutine alg\n")
+        f"subroutine alg()\n"
+        f"  use kern_mod\n"
+        f"  use field_mod, only : r2d_field\n"
+        f"  type(r2d_field) :: field\n"
+        f"  call invoke({arg})\n"
+        f"end subroutine alg\n")
 
     psyir = fortran_reader.psyir_from_source(code)
     invoke_trans = RaisePSyIR2AlgTrans()
     with pytest.raises(TransformationError) as info:
         invoke_trans.validate(psyir.children[0][0])
-    assert ("The arguments to this invoke call are expected to be a "
-            "CodeBlock or an ArrayReference, but found 'Literal'."
+    if arg == "alg(field)":
+        assert ("Error in RaisePSyIR2AlgTrans transformation. The invoke "
+                "call argument 'alg' has been used as a routine name. This "
+                "is not allowed." in str(info.value))
+    else:
+        assert (
+            f"The arguments to this invoke call are expected to be kernel "
+            f"calls which are represented in generic PSyIR as CodeBlocks "
+            f"or ArrayReferences, but '{arg}' is of type 'Literal'."
             in str(info.value))
 
 
@@ -410,7 +417,7 @@ def test_apply_codeblocks(fortran_reader):
     code = (
         "subroutine alg()\n"
         "  use kern_mod, only: kern\n"
-        "  call invoke(kern(0.0), kern(1.0), name='an invoke')\n"
+        "  call invoke(kern(0.0), kern(1.0), name='an_invoke')\n"
         "end subroutine alg\n")
 
     psyir = fortran_reader.psyir_from_source(code)
@@ -424,7 +431,7 @@ def test_apply_codeblocks(fortran_reader):
 
     invoke = subroutine.children[0]
     assert isinstance(invoke, AlgorithmInvokeCall)
-    assert invoke._name == "'an invoke'"
+    assert invoke._name == "an_invoke"
     assert invoke._index == 3
     assert len(invoke.children) == 2
     check_literal(invoke.children[0], "kern", "0.0")

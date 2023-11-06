@@ -10,3 +10,8 @@ generated-members=Fortran2003.*_List,psyir.Lfric*
 [DESIGN]
 # Maximum number of parents for a class (see R0901)
 max-parents=9
+
+# Make sure private functions (_my_private_function) are also
+# documented, but standard double-underscore functions do not
+# need to have a docstring.
+no-docstring-rgx=__.*__

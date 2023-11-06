@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2022, Science and Technology Facilities Council.
+# Copyright (c) 2019-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -35,11 +35,17 @@
 # Modified by: R. W. Ford, STFC Daresbury Lab
 #              A. R. Porter, STFC Daresbury Lab
 #              S. Siso, STFC Daresbury Lab
+#              N. Nobre, STFC Daresbury Lab
 
 '''Transformation module, containing all generic (API independent)
 transformations and base classes.
 '''
 
+# Order of TransformationError is not alphabetical because otherwise it
+# produces an ImportError due to cyclic dependencies
+from psyclone.psyir.transformations.transformation_error \
+    import TransformationError
+from psyclone.psyir.transformations.acc_update_trans import ACCUpdateTrans
 from psyclone.psyir.transformations.arrayrange2loop_trans import \
     ArrayRange2LoopTrans
 from psyclone.psyir.transformations.chunk_loop_trans import ChunkLoopTrans
@@ -60,8 +66,12 @@ from psyclone.psyir.transformations.intrinsics.matmul2code_trans import \
     Matmul2CodeTrans
 from psyclone.psyir.transformations.intrinsics.max2code_trans import \
     Max2CodeTrans
+from psyclone.psyir.transformations.intrinsics.maxval2code_trans import \
+    Maxval2CodeTrans
 from psyclone.psyir.transformations.intrinsics.min2code_trans import \
     Min2CodeTrans
+from psyclone.psyir.transformations.intrinsics.minval2code_trans import \
+    Minval2CodeTrans
 from psyclone.psyir.transformations.intrinsics.sign2code_trans import \
     Sign2CodeTrans
 from psyclone.psyir.transformations.intrinsics.sum2code_trans import \
@@ -84,22 +94,20 @@ from psyclone.psyir.transformations.read_only_verify_trans \
 from psyclone.psyir.transformations.region_trans import RegionTrans
 from psyclone.psyir.transformations.replace_induction_variables_trans import \
      ReplaceInductionVariablesTrans
-from psyclone.psyir.transformations.transformation_error \
-    import TransformationError
 from psyclone.psyir.transformations.reference2arrayrange_trans import \
     Reference2ArrayRangeTrans
 
-# The entities in the __all__ list are made available to import directly from
-# this package e.g.:
-# from psyclone.psyir.transformations import ExtractTrans
 
-__all__ = ['ArrayRange2LoopTrans',
+# For AutoAPI documentation generation
+__all__ = ['ACCUpdateTrans',
+           'ArrayRange2LoopTrans',
            'ChunkLoopTrans',
            'ExtractTrans',
            'FoldConditionalReturnExpressionsTrans',
            'HoistLocalArraysTrans',
            'HoistLoopBoundExprTrans',
            'HoistTrans',
+           'InlineTrans',
            'Abs2CodeTrans',
            'DotProduct2CodeTrans',
            'Matmul2CodeTrans',

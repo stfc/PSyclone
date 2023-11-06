@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021, Science and Technology Facilities Council.
+# Copyright (c) 2021-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -36,8 +36,6 @@
 
 ''' This module contains the CommentableMixin implementation.'''
 
-import six
-
 
 class CommentableMixin:
     '''
@@ -66,7 +64,7 @@ class CommentableMixin:
         '''
         :param str comment: comment preceding this statement.
         '''
-        if not isinstance(comment, six.string_types):
+        if not isinstance(comment, str):
             raise TypeError(f"The preceding_comment must be a string but"
                             f" found '{type(comment).__name__}'.")
         self._preceding_comment = comment
@@ -84,7 +82,7 @@ class CommentableMixin:
         '''
         :param str comment: inline comment associated with this statement.
         '''
-        if not isinstance(comment, six.string_types):
+        if not isinstance(comment, str):
             raise TypeError(f"The inline_comment must be a string but"
                             f" found '{type(comment).__name__}'.")
         self._inline_comment = comment

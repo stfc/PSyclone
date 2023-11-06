@@ -113,7 +113,6 @@ class PSyDataTrans(RegionTrans):
 
     # -------------------------------------------------------------------------
     def get_default_options(self):
-        # pylint: disable=no-self-use
         '''Returns a new dictionary with additional options, specific to the
         transformation, that will be added to the user option. Any values
         specified by the user will take precedence.
@@ -166,7 +165,6 @@ class PSyDataTrans(RegionTrans):
         '''
         # We don't use a static method here since it might be useful to
         # overwrite this functions in derived classes
-        # pylint: disable=no-self-use
         name = options.get("region_name", None)
         if name:
             # pylint: disable=too-many-boolean-expressions

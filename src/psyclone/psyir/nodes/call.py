@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2022, Science and Technology Facilities Council.
+# Copyright (c) 2020-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,15 +31,16 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford and S. Siso STFC Daresbury Lab
+# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' This module contains the Call node implementation.'''
 
-import re
 
+from psyclone.core import AccessType
 from psyclone.psyir.nodes.statement import Statement
 from psyclone.psyir.nodes.datanode import DataNode
+from psyclone.psyir.nodes.reference import Reference
 from psyclone.psyir.symbols import RoutineSymbol
 from psyclone.errors import GenerationError
 
@@ -49,12 +50,12 @@ class Call(Statement, DataNode):
     or an expression.
 
     TODO #1437: The combined Statement and Expression implementation is simple
-    but it has some shortcoming that may need to be addressed.
+    but it has some shortcomings that may need to be addressed.
 
     :param routine: the routine that this call calls.
     :type routine: py:class:`psyclone.psyir.symbols.RoutineSymbol`
-    :param parent: parent of this node in the PSyIR.
-    :type parent: sub-class of :py:class:`psyclone.psyir.nodes.Node`
+    :param kwargs: additional keyword arguments provided to the PSyIR node.
+    :type kwargs: unwrapped dict.
 
     :raises TypeError: if the routine argument is not a RoutineSymbol.
 
@@ -64,12 +65,17 @@ class Call(Statement, DataNode):
     _text_name = "Call"
     _colour = "cyan"
 
-    def __init__(self, routine, parent=None):
-        super(Call, self).__init__(parent=parent)
+    #: The type of Symbol this Call must refer to. Used for type checking in
+    #: the constructor.
+    _symbol_type = RoutineSymbol
 
-        if not isinstance(routine, RoutineSymbol):
+    def __init__(self, routine, **kwargs):
+        super().__init__(**kwargs)
+
+        if not isinstance(routine, self._symbol_type):
             raise TypeError(
-                f"Call routine argument should be a RoutineSymbol but found "
+                f"{self._text_name} 'routine' argument should be a "
+                f"{self._symbol_type.__name__} but found "
                 f"'{type(routine).__name__}'.")
 
         self._routine = routine
@@ -117,8 +123,6 @@ class Call(Statement, DataNode):
             RoutineSymbol.
         :raises GenerationError: if the arguments argument is not a \
             list.
-        :raises GenerationError: if the contents of the arguments \
-            argument are not the expected type.
 
         '''
         if not isinstance(routine, RoutineSymbol):
@@ -131,6 +135,28 @@ class Call(Statement, DataNode):
                 f"'{type(arguments).__name__}'.")
 
         call = cls(routine)
+        cls._add_args(call, arguments)
+        return call
+
+    @staticmethod
+    def _add_args(call, arguments):
+        '''Internal utility method to add arguments to a call node. These are
+        added as child nodes.
+
+        :param call: the supplied call node.
+        :type call: :py:class:`psyclone.psyir.nodes.Call`
+        :param arguments: the arguments to this call, and/or \
+            2-tuples containing an argument name and the \
+            argument.
+        :type arguments: List[ \
+            Union[:py:class:``psyclone.psyir.nodes.DataNode``, \
+                  Tuple[str, :py:class:``psyclone.psyir.nodes.DataNode``]]]
+
+        :raises GenerationError: if the contents of the arguments \
+            argument are not in the expected form or of the expected
+            type.
+
+        '''
         for arg in arguments:
             name = None
             if isinstance(arg, tuple):
@@ -147,7 +173,6 @@ class Call(Statement, DataNode):
                         f"{type(arg[0]).__name__}.")
                 name, arg = arg
             call.append_named_arg(name, arg)
-        return call
 
     def append_named_arg(self, name, arg):
         '''Append a named argument to this call.
@@ -161,8 +186,11 @@ class Call(Statement, DataNode):
                for an existing argument.
 
         '''
-        self._validate_name(name)
         if name is not None:
+            # Avoid circular import.
+            # pylint: disable=import-outside-toplevel
+            from psyclone.psyir.frontend.fortran import FortranReader
+            FortranReader.validate_name(name)
             for check_name in self.argument_names:
                 if check_name and check_name.lower() == name.lower():
                     raise ValueError(
@@ -187,8 +215,11 @@ class Call(Statement, DataNode):
            :raises TypeError: if the index argument is the wrong type.
 
         '''
-        self._validate_name(name)
         if name is not None:
+            # Avoid circular import.
+            # pylint: disable=import-outside-toplevel
+            from psyclone.psyir.frontend.fortran import FortranReader
+            FortranReader.validate_name(name)
             for check_name in self.argument_names:
                 if check_name and check_name.lower() == name.lower():
                     raise ValueError(
@@ -236,28 +267,6 @@ class Call(Statement, DataNode):
         self._argument_names[index] = (id(arg), existing_name)
 
     @staticmethod
-    def _validate_name(name):
-        '''Utility method that checks that the supplied name has a valid
-        format.
-
-        :param name: the name to check.
-        :type name: Optional[str]
-
-        :raises TypeError: if the name is not a string or None.
-        :raises ValueError: if this is not a valid name.
-
-        '''
-        if name is None:
-            return
-        if not isinstance(name, str):
-            raise TypeError(
-                f"A name should be a string or None, but found "
-                f"{type(name).__name__}.")
-        if not re.match(r'^[a-zA-Z]\w*$', name):
-            raise ValueError(
-                f"Invalid name '{name}' found.")
-
-    @staticmethod
     def _validate_child(position, child):
         '''
         :param int position: the position to be validated.
@@ -270,6 +279,45 @@ class Call(Statement, DataNode):
         '''
         return isinstance(child, DataNode)
 
+    def reference_accesses(self, var_accesses):
+        '''
+        Updates the supplied var_accesses object with information on the
+        arguments passed to this call.
+
+        TODO #446 - all arguments that are passed by reference are currently
+        marked as having READWRITE access (unless we know that the routine is
+        PURE). We could do better than this if we have the PSyIR of the called
+        Routine.
+
+        :param var_accesses: VariablesAccessInfo instance that stores the
+            information about variable accesses.
+        :type var_accesses: :py:class:`psyclone.core.VariablesAccessInfo`
+
+        '''
+        if self.is_pure:
+            # If the called routine is pure then any arguments are only
+            # read.
+            default_access = AccessType.READ
+        else:
+            # We conservatively default to READWRITE otherwise (TODO #446).
+            default_access = AccessType.READWRITE
+
+        for arg in self.children:
+            if isinstance(arg, Reference):
+                # This argument is pass-by-reference.
+                sig, indices_list = arg.get_signature_and_indices()
+                var_accesses.add_access(sig, default_access, arg)
+                # Any symbols referenced in any index expressions are READ.
+                for indices in indices_list:
+                    for idx in indices:
+                        idx.reference_accesses(var_accesses)
+            else:
+                # This argument is not a Reference so continue to walk down the
+                # tree. (e.g. it could be/contain a Call to
+                # an impure routine in which case any arguments to that Call
+                # will have READWRITE access.)
+                arg.reference_accesses(var_accesses)
+
     @property
     def routine(self):
         '''
@@ -277,6 +325,35 @@ class Call(Statement, DataNode):
         :rtype: py:class:`psyclone.psyir.symbols.RoutineSymbol`
         '''
         return self._routine
+
+    @property
+    def is_elemental(self):
+        '''
+        :returns: whether the routine being called is elemental (provided with\
+            an input array it will apply the operation individually to each of\
+            the array elements and return an array with the results). If this \
+            information is not known then it returns None.
+        :rtype: NoneType | bool
+        '''
+        return self._routine.is_elemental
+
+    @property
+    def is_pure(self):
+        '''
+        :returns: whether the routine being called is pure (guaranteed to \
+            return the same result when provided with the same argument \
+            values).  If this information is not known then it returns None.
+        :rtype: NoneType | bool
+        '''
+        return self._routine.is_pure
+
+    def is_available_on_device(self):
+        '''
+        :returns: whether this intrinsic is available on an accelerated device.
+        :rtype: bool
+
+        '''
+        return False
 
     @property
     def argument_names(self):
@@ -332,7 +409,7 @@ class Call(Statement, DataNode):
         # before copying.
         self._reconcile()
         # copy
-        new_copy = super(Call, self).copy()
+        new_copy = super().copy()
         # Fix invalid id's in _argument_names after copying.
         # pylint: disable=protected-access
         new_list = []

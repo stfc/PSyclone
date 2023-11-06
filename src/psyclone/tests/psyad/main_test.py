@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,14 +31,18 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Authors: R. W. Ford, A. R. Porter and N. Nobre, STFC Daresbury Lab
+# Modified by J. Henrichs, Bureau of Meteorology
 
 '''A module to perform pytest tests on the code in the main.py file
 within the psyad directory.
 
 '''
 import logging
+import os
+
 import pytest
+
 from psyclone.psyad import main
 
 
@@ -58,7 +62,7 @@ TEST_MOD = (
     "end module my_mod\n"
 )
 
-EXPECTED_HARNESS_CODE = ('''program adj_test
+EXPECTED_HARNESS_CODE = '''program adj_test
   use my_mod, only : kern
   use adj_my_mod, only : adj_kern
   integer, parameter :: array_extent = 20
@@ -96,7 +100,7 @@ relative_diff
 relative_diff
   end if
 
-end program adj_test''')
+end program adj_test'''
 
 # main function
 
@@ -105,6 +109,9 @@ end program adj_test''')
 def test_main_h_option(capsys):
     '''Test that the -h script option works as expected'''
 
+    # This line avoids test failures caused by different wrapping of help
+    # messages depending on terminal width.
+    os.environ["COLUMNS"] = "79"
     with pytest.raises(SystemExit) as info:
         main(["-h", "filename"])
     assert str(info.value) == "0"
@@ -114,7 +121,8 @@ def test_main_h_option(capsys):
     # when using pytest, therefore we split this test into sections.
     assert "usage: " in output
     expected2 = (
-        "[-h] [-oad OAD] [-v] [-t] [-api API] [-otest TEST_FILENAME] "
+        "[-h] [-oad OAD] [-v] [-t] [-api API] [-coord-arg COORD_ARG] "
+        "[-panel-id-arg PANEL_ID_ARG] [-otest TEST_FILENAME] "
         "-a ACTIVE [ACTIVE ...] -- filename\n\n"
         "Run the PSyclone adjoint code generator on a tangent-linear "
         "kernel file\n\n"
@@ -131,6 +139,16 @@ def test_main_h_option(capsys):
         "  -api API              the PSyclone API that the TL kernel conforms "
         "to (if\n"
         "                        any)\n"
+        "  -coord-arg COORD_ARG  the position of the coordinate (chi) field "
+        "in the\n"
+        "                        meta_args list of arguments in the kernel "
+        "metadata\n"
+        "                        (LFRic only)\n"
+        "  -panel-id-arg PANEL_ID_ARG\n"
+        "                        the position of the panel-ID field in the "
+        "meta_args\n"
+        "                        list of arguments in the kernel metadata "
+        "(LFRic only)\n"
         "  -otest TEST_FILENAME  filename for the unit test (implies -t)\n"
         "  -oad OAD              filename for the transformed code\n")
     assert expected3 in output
@@ -151,7 +169,8 @@ def test_main_no_args(capsys):
     output, error = capsys.readouterr()
     assert output == ""
     expected1 = "usage: "
-    expected2 = ("[-h] [-oad OAD] [-v] [-t] [-api API] [-otest TEST_FILENAME] "
+    expected2 = ("[-h] [-oad OAD] [-v] [-t] [-api API] [-coord-arg COORD_ARG] "
+                 "[-panel-id-arg PANEL_ID_ARG] [-otest TEST_FILENAME] "
                  "-a ACTIVE [ACTIVE ...] -- filename")
     expected3 = ("error: the following arguments are required: "
                  "-a/--active, filename\n")
@@ -220,19 +239,23 @@ def test_main_no_separator(capsys):
 
 
 # invalid filename
-@pytest.mark.xfail(reason="issue #1235: caplog returns an empty string in "
-                   "github actions.", strict=False)
 def test_main_invalid_filename(capsys, caplog):
     '''Test that the the main() function raises an exception if the
     file specified by filename does not exist.
 
     '''
-    with pytest.raises(SystemExit) as info:
-        main(["-a", "var", "--", "does_not_exist.f90"])
+    logger = logging.getLogger("psyclone.psyad.main")
+    logger.propagate = True
+    with caplog.at_level(logging.ERROR, "psyclone.psyad.main"):
+        with pytest.raises(SystemExit) as info:
+            main(["-a", "var", "--", "does_not_exist.f90"])
     assert str(info.value) == "1"
     output, error = capsys.readouterr()
     assert output == ""
     assert error == ""
+    if not caplog.text:
+        pytest.xfail("#1235: caplog returns an empty string in "
+                     "github actions.")
     assert "file 'does_not_exist.f90', not found." in caplog.text
 
 
@@ -406,9 +429,33 @@ def test_main_otest_option(tmpdir, capsys, extra_args):
     assert EXPECTED_HARNESS_CODE in data.lower()
 
 
+@pytest.mark.parametrize("geom_arg", ["-coord-arg", "-panel-id-arg"])
+def test_main_geom_args_api(tmpdir, geom_arg, capsys, caplog):
+    '''
+    Test that the main() function rejects attempts to specify any geometry
+    arguments if the API != dynamo0.3 (LFRic).
+
+    '''
+    filename_in = str(tmpdir.join("tl.f90"))
+    with open(filename_in, "w", encoding='utf-8') as my_file:
+        my_file.write(TEST_MOD)
+    logger = logging.getLogger("psyclone.psyad.main")
+    logger.propagate = True
+    with caplog.at_level(logging.ERROR, "psyclone.psyad.main"):
+        with pytest.raises(SystemExit) as err:
+            main([filename_in, "-a", "field", geom_arg, "0"])
+    assert str(err.value) == "1"
+    output, error = capsys.readouterr()
+    assert error == ""
+    assert output == ""
+    if not caplog.text:
+        pytest.xfail("issue #1235: caplog returns an empty string in "
+                     "github actions.")
+    assert (f"The '{geom_arg}' argument is only applicable to the LFRic "
+            f"('dynamo0.3') API" in caplog.text)
+
+
 # -v output
-@pytest.mark.xfail(reason="issue #1235: caplog returns an empty string in "
-                   "github actions.", strict=False)
 def test_main_verbose(tmpdir, capsys, caplog):
     '''Test that the the main() function outputs additional information if
     the -v flag is set. Actually -v seems to have no effect here as
@@ -425,20 +472,23 @@ def test_main_verbose(tmpdir, capsys, caplog):
     filename_out = str(tmpdir.join("ad.f90"))
     with open(filename_in, "w", encoding='utf-8') as my_file:
         my_file.write(tl_code)
-    with caplog.at_level(logging.DEBUG):
+    logger = logging.getLogger("psyclone.psyad.main")
+    logger.propagate = True
+    with caplog.at_level(logging.INFO, "psyclone.psyad.main"):
         main([filename_in, "-v", "-a", "a", "-oad", filename_out])
 
     output, error = capsys.readouterr()
     assert error == ""
     assert output == ""
+    if not caplog.text:
+        pytest.xfail("issue #1235: caplog returns an empty string in "
+                     "github actions.")
     assert "Reading kernel file" in caplog.text
     assert "/tl.f90" in caplog.text
     assert "Writing adjoint of kernel to file /" in caplog.text
     assert "/ad.f90" in caplog.text
 
 
-@pytest.mark.xfail(reason="issue #1235: caplog returns an empty string in "
-                   "github actions.", strict=False)
 def test_main_otest_verbose(tmpdir, caplog):
     ''' Test that the -otest option combined with -v generates the expected
     logging output. '''
@@ -447,11 +497,13 @@ def test_main_otest_verbose(tmpdir, caplog):
     harness_out = str(tmpdir.join("harness.f90"))
     with open(filename_in, "w", encoding='utf-8') as my_file:
         my_file.write(TEST_MOD)
-    with caplog.at_level(logging.DEBUG):
-        main([filename_in, "-v", "-oad", filename_out, "-otest", harness_out])
-    assert ("Creating test harness for TL kernel 'kern' and AD kernel "
-            "'kern_adj'" in caplog.text)
-    assert "Created test-harness program named 'adj_test'" in caplog.text
-    assert "end program adj_test" in caplog.text
+    logger = logging.getLogger("psyclone.psyad.main")
+    logger.propagate = True
+    with caplog.at_level(logging.INFO, "psyclone.psyad.main"):
+        main([filename_in, "-v", "-a", "field", "-oad", filename_out, "-otest",
+              harness_out])
+    if not caplog.text:
+        pytest.xfail("issue #1235: caplog returns an empty string in "
+                     "github actions.")
     assert "Writing test harness for adjoint kernel to file" in caplog.text
     assert "/harness.f90" in caplog.text

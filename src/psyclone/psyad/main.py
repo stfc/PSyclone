@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab
+# Modified by J. Henrichs, Bureau of Meteorology
 
 '''Top-level driver functions for PSyAD : the PSyclone Adjoint
 support. Transforms an LFRic tangent linear kernel to its adjoint.
@@ -41,6 +42,7 @@ import argparse
 import logging
 import sys
 
+from psyclone.configuration import Config
 from psyclone.line_length import FortLineLength
 from psyclone.psyad.tl2ad import generate_adjoint_str
 from psyclone.psyad.transformations import TangentLinearError
@@ -54,6 +56,7 @@ def main(args):
                       been invoked with.
 
     '''
+    # pylint: disable=too-many-statements, too-many-branches
     # TODO #1863 - expose line-length limiting as a command-line flag.
     line_length_limit = True
 
@@ -66,6 +69,7 @@ def main(args):
     def msg():
         '''Function to overide the argpass usage message'''
         return ("psyad [-h] [-oad OAD] [-v] [-t] [-api API] "
+                "[-coord-arg COORD_ARG] [-panel-id-arg PANEL_ID_ARG] "
                 "[-otest TEST_FILENAME] "
                 "-a ACTIVE [ACTIVE ...] -- filename")
 
@@ -85,6 +89,14 @@ def main(args):
     parser.add_argument('-api', default=None,
                         help='the PSyclone API that the TL kernel conforms '
                         'to (if any)')
+    parser.add_argument('-coord-arg', default=None, type=int,
+                        help='the position of the coordinate (chi) field in '
+                        'the meta_args list of arguments in the kernel '
+                        'metadata (LFRic only)')
+    parser.add_argument('-panel-id-arg', default=None, type=int,
+                        help='the position of the panel-ID field in the '
+                        'meta_args list of arguments in the kernel metadata '
+                        '(LFRic only)')
     parser.add_argument('-otest',
                         help='filename for the unit test (implies -t)',
                         dest='test_filename')
@@ -96,9 +108,25 @@ def main(args):
     if args.verbose:
         logging.basicConfig(level=logging.DEBUG)
 
+    # Create a config file so we don't trigger the 'LFRicConstants' created
+    # before config file was read exception
+    Config.get()
+
     # Specifying an output file for the test harness is taken to mean that
     # the user wants us to generate it.
     generate_test = args.gen_test or args.test_filename
+
+    # Check the command-line arguments for consistency.
+    if args.api != "dynamo0.3":
+        if args.coord_arg is not None:
+            logger.error(
+                "The '-coord-arg' argument is only applicable to the LFRic "
+                "('dynamo0.3') API.")
+            sys.exit(1)
+        if args.panel_id_arg is not None:
+            logger.error("The '-panel-id-arg' argument is only applicable to "
+                         "the LFRic ('dynamo0.3') API.")
+            sys.exit(1)
 
     # TL Fortran code
     filename = args.filename
@@ -115,6 +143,8 @@ def main(args):
         # Create the adjoint (and associated test framework if requested)
         ad_fortran_str, test_fortran_str = generate_adjoint_str(
             tl_fortran_str, args.active, api=args.api,
+            coord_arg_index=args.coord_arg,
+            panel_id_arg_index=args.panel_id_arg,
             create_test=generate_test)
     except TangentLinearError as info:
         print(str(info.value))
@@ -136,7 +166,7 @@ def main(args):
     else:
         print(ad_fortran_str, file=sys.stdout)
 
-    # Output test framework if requested
+    # Output test harness if requested
     if generate_test:
 
         if line_length_limit:

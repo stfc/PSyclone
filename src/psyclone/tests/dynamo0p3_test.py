@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+# Copyright (c) 2017-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
-# Modified I. Kavcic and A. Coughtrie, Met Office,
+# Modified I. Kavcic, A. Coughtrie, L. Turner and O. Brunt, Met Office,
 #          C. M. Maynard, Met Office/University of Reading,
 #          J. Henrichs, Bureau of Meteorology.
 
@@ -59,7 +59,8 @@ from psyclone.gen_kernel_stub import generate
 from psyclone.parse.algorithm import Arg, parse
 from psyclone.parse.utils import ParseError
 from psyclone.psyGen import PSyFactory, InvokeSchedule, HaloExchange, BuiltIn
-from psyclone.psyir.nodes import colored, UnaryOperation, Reference, Routine
+from psyclone.psyir.nodes import (colored, BinaryOperation, UnaryOperation,
+                                  Reference, Routine)
 from psyclone.psyir.symbols import ScalarType, DataTypeSymbol
 from psyclone.psyir.transformations import LoopFuseTrans
 from psyclone.tests.lfric_build import LFRicBuild
@@ -601,8 +602,8 @@ def test_invoke_uniq_declns_valid_access():
     assert fields_proxy_readwritten == ["f1_proxy"]
 
 
-def test_dyninvoke_first_access():
-    ''' Tests that we raise an error if DynInvoke.first_access(name) is
+def test_lfricinvoke_first_access():
+    ''' Tests that we raise an error if LFRicInvoke.first_access(name) is
     called for an argument name that doesn't exist '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.7_single_invoke_3scalar.f90"),
@@ -614,8 +615,8 @@ def test_dyninvoke_first_access():
             in str(excinfo.value))
 
 
-def test_dyninvoke_uniq_declns_intent_inv_argtype():
-    ''' Tests that we raise an error when DynInvoke.unique_declns_by_intent()
+def test_lfricinvoke_uniq_declns_intent_inv_argtype():
+    ''' Tests that we raise an error when LFRicInvoke.unique_declns_by_intent()
     is called with at least one invalid argument type. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.7_single_invoke_3scalar.f90"),
@@ -630,7 +631,7 @@ def test_dyninvoke_uniq_declns_intent_inv_argtype():
             in str(excinfo.value))
 
 
-def test_dyninvoke_uniq_declns_intent_invalid_intrinsic():
+def test_lfricinvoke_uniq_declns_intent_invalid_intrinsic():
     ''' Tests that we raise an error when Invoke.unique_declns_by_intent()
     is called for an invalid intrinsic type. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
@@ -647,8 +648,8 @@ def test_dyninvoke_uniq_declns_intent_invalid_intrinsic():
             in str(excinfo.value))
 
 
-def test_dyninvoke_uniq_declns_intent_ops(tmpdir):
-    ''' Tests that DynInvoke.unique_declns_by_intent() returns the correct
+def test_lfricinvoke_uniq_declns_intent_ops(tmpdir):
+    ''' Tests that LFRicInvoke.unique_declns_by_intent() returns the correct
     list of arguments for operator arguments. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "4.4_multikernel_invokes.f90"),
@@ -663,8 +664,8 @@ def test_dyninvoke_uniq_declns_intent_ops(tmpdir):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
-def test_dyninvoke_uniq_declns_intent_cma_ops(tmpdir):
-    ''' Tests that DynInvoke.unique_declns_by_intent() returns the correct
+def test_lfricinvoke_uniq_declns_intent_cma_ops(tmpdir):
+    ''' Tests that LFRicInvoke.unique_declns_by_intent() returns the correct
     list of arguments for columnwise operator arguments. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "20.5_multi_cma_invoke.f90"),
@@ -682,8 +683,8 @@ def test_dyninvoke_uniq_declns_intent_cma_ops(tmpdir):
     assert LFRicBuild(tmpdir).code_compiles(psy)
 
 
-def test_dyninvoke_arg_for_fs():
-    ''' Tests that we raise an error when DynInvoke.arg_for_funcspace() is
+def test_lfricinvoke_arg_for_fs():
+    ''' Tests that we raise an error when LFRicInvoke.arg_for_funcspace() is
     called for an unused space. '''
     _, invoke_info = parse(os.path.join(BASE_PATH,
                                         "1.7_single_invoke_3scalar.f90"),
@@ -1161,7 +1162,7 @@ def test_stub_file_content_not_fortran():
 def test_stub_file_fortran_invalid():
     ''' fail if the fortran in the kernel is not valid '''
     with pytest.raises(ParseError) as excinfo:
-        generate(os.path.join(BASE_PATH, "testkern_invalid_fortran.F90"),
+        generate(os.path.join(BASE_PATH, "testkern_invalid_fortran_mod.f90"),
                  api=TEST_API)
     assert 'contain <== no parse pattern found' in str(excinfo.value)
 
@@ -1178,7 +1179,7 @@ def test_file_fortran_not_kernel():
 def test_module_name_too_short():
     ''' fail if length of kernel module name is too short '''
     with pytest.raises(ParseError) as excinfo:
-        generate(os.path.join(BASE_PATH, "testkern_short_name.F90"),
+        generate(os.path.join(BASE_PATH, "testkern_short_name_mod.f90"),
                  api=TEST_API)
     assert "too short to have '_mod' as an extension" in str(excinfo.value)
 
@@ -1194,7 +1195,7 @@ def test_module_name_convention():
 def test_kernel_datatype_not_found():
     ''' fail if kernel datatype is not found '''
     with pytest.raises(ParseError) as excinfo:
-        generate(os.path.join(BASE_PATH, "testkern_no_datatype.F90"),
+        generate(os.path.join(BASE_PATH, "testkern_no_datatype_mod.f90"),
                  api=TEST_API)
     assert 'Kernel type testkern_type does not exist' in str(excinfo.value)
 
@@ -1466,6 +1467,23 @@ def test_dynkernelargument_psyir_expression(monkeypatch):
     psyir = kern.arguments.args[1].psyir_expression()
     assert isinstance(psyir, UnaryOperation)
     assert psyir.operator == UnaryOperation.Operator.MINUS
+    # Test an expression involving only literals
+    monkeypatch.setattr(kern.arguments.args[1], "_name", "3.0 + 1.0")
+    psyir = kern.arguments.args[1].psyir_expression()
+    assert isinstance(psyir, BinaryOperation)
+    assert psyir.operator == BinaryOperation.Operator.ADD
+    # Test that we catch invalid literal expressions
+    monkeypatch.setattr(kern.arguments.args[1], "_name", "missing")
+    with pytest.raises(InternalError) as err:
+        _ = kern.arguments.args[1].psyir_expression()
+    assert ("Unexpected literal expression 'missing' when processing kernel "
+            "'inc_x_powint_n" in str(err.value))
+    monkeypatch.setattr(kern.arguments.args[1], "_name", "3.0 + f1")
+    with pytest.raises(InternalError) as err:
+        _ = kern.arguments.args[1].psyir_expression()
+    assert ("Expected argument '3.0 + f1' to kernel 'inc_x_powint_n' to be a "
+            "literal but the created PSyIR contains one or more References"
+            in str(err.value))
 
 
 def test_arg_ref_name_method_error1():
@@ -1798,7 +1816,9 @@ def test_dynkernelargument_idtp_vector_field():
 
 @pytest.mark.parametrize("filename,kind_name", [
     ("26.6.2_mixed_precision_rsolver_vector.f90", "r_solver"),
-    ("26.6.3_mixed_precision_rtran_vector.f90", "r_tran")])
+    ("26.6.3_mixed_precision_rtran_vector.f90", "r_tran"),
+    ("26.6.4_mixed_precision_rbl_vector.f90", "r_bl"),
+    ("26.6.5_mixed_precision_rphys_vector.f90", "r_phys")])
 def test_dynkernelargument_idtp_vector_field_kind(filename, kind_name):
     '''Test the '_init_data_type_properties' method in the
     DynKernelArgument class for a field that is part of a
@@ -1847,7 +1867,7 @@ def test_dynkernelargument_idtp_r_solver_operator(tmpdir):
     class for an r_solver_operator.
 
     '''
-    # Use one of the examples to create an instance of
+    # Use one of the test algorithms to create an instance of
     # DynKernelArgument that describes an r_solver_operator.
     _, invoke_info = parse(
         os.path.join(BASE_PATH, "26.2_mixed_precision_self.f90"), api=TEST_API)
@@ -1879,12 +1899,50 @@ def test_dynkernelargument_idtp_r_solver_operator(tmpdir):
             "algorithm code." in str(info.value))
 
 
+def test_dynkernelargument_idtp_r_tran_operator(tmpdir):
+    '''
+    Test the _init_data_type_properties method in the DynKernelArgument
+    class for an r_tran_operator.
+
+    '''
+    # Use one of the test algorithms to create an instance of
+    # DynKernelArgument that describes an r_tran_operator.
+    _, invoke_info = parse(
+        os.path.join(BASE_PATH, "26.8_mixed_precision_args.f90"), api=TEST_API)
+    psy = PSyFactory(TEST_API, distributed_memory=False).create(invoke_info)
+    operator_argument = psy.invokes.invoke_list[0].schedule.args[8]
+    assert operator_argument.is_operator
+    assert operator_argument._precision == "r_tran"
+    assert operator_argument._data_type == "r_tran_operator_type"
+    assert operator_argument._proxy_data_type == "r_tran_operator_proxy_type"
+    assert operator_argument._module_name == "r_tran_operator_mod"
+
+    # Test compilation
+    assert LFRicBuild(tmpdir).code_compiles(psy)
+
+    # No algorithm information - raise exception
+    with pytest.raises(GenerationError) as info:
+        operator_argument._init_data_type_properties(None)
+    assert ("It was not possible to determine the operator type from the "
+            "algorithm layer for argument 'operator_r_tran' in kernel "
+            "'mixed_code'." in str(info.value))
+
+    # Inconsistent datatype
+    arg = Arg("variable", None, None, ("columnwise_operator_type", None))
+    with pytest.raises(GenerationError) as info:
+        operator_argument._init_data_type_properties(arg)
+    assert ("The metadata for argument 'operator_r_tran' in kernel "
+            "'mixed_code' specifies that this is an operator, "
+            "however it is declared as a 'columnwise_operator_type' in the "
+            "algorithm code." in str(info.value))
+
+
 def test_dynkernelargument_idtp_operator():
     '''Test the _init_data_type_properties method in the DynKernelArgument
     class for an operator of type operator_type.
 
     '''
-    # Use one of the examples to create an instance of
+    # Use one of the test algorithms to create an instance of
     # DynKernelArgument that describes an operator.
     _, invoke_info = parse(os.path.join(BASE_PATH, "10_operator.f90"),
                            api=TEST_API)
@@ -1934,7 +1992,7 @@ def test_dynkernelargument_idtp_columnwise_operator():
     class for a columnwise operator.
 
     '''
-    # Use one of the examples to create an instance of
+    # Use one of the test algorithms to create an instance of
     # DynKernelArgument that describes a columnwise operator.
     _, invoke_info = parse(os.path.join(BASE_PATH, "20.1_cma_apply.f90"),
                            api=TEST_API)
@@ -2260,7 +2318,7 @@ def test_func_descriptor_str():
 
 
 def test_dynkern_arg_for_fs():
-    ''' Test that DynInvoke.arg_for_funcspace() raises an error if
+    ''' Test that LFRicInvoke.arg_for_funcspace() raises an error if
     passed an invalid function space.
 
     '''
@@ -2814,7 +2872,7 @@ def test_multiple_derived_type_args(dist_mem, tmpdir):
 
 def test_haloexchange_unknown_halo_depth():
     ''' If a stencil extent is provided in the kernel metadata then the
-    value is stored in an instance of the DynHaloExchange class. This test
+    value is stored in an instance of the LFRicHaloExchange class. This test
     checks that the value is stored as expected (although stencil extents
     in metadata are not currently supported in PSyclone).
 
@@ -3221,7 +3279,7 @@ def test_halo_different_stencils_no_red_comp(tmpdir):
 
 def test_comp_halo_intern_err(monkeypatch):
     '''Check that we raise an exception if the compute_halo_read_info method in
-    dynhaloexchange does not find any read dependencies. This should
+    LFRicHaloExchange does not find any read dependencies. This should
     never be the case. We use monkeypatch to force the exception to be
     raised'''
     _, invoke_info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
@@ -3310,7 +3368,7 @@ def test_HaloReadAccess_field_in_call():
     with pytest.raises(GenerationError) as excinfo:
         _ = HaloReadAccess(field, None)
     assert ("field 'f1' should be from a call but found "
-            "<class 'psyclone.dynamo0p3.DynHaloExchange'>"
+            "<class 'psyclone.dynamo0p3.LFRicHaloExchange'>"
             in str(excinfo.value))
 
 
@@ -3589,32 +3647,34 @@ def test_haloex_not_required(monkeypatch):
         assert haloex.required() == (False, True)
 
 
-def test_dyncollection_err1():
-    ''' Check that the DynCollection constructor raises the expected
-    error if it is not provided with a DynKern or DynInvoke. '''
+def test_lfriccollection_err1():
+    ''' Check that the LFRicCollection constructor raises the expected
+    error if it is not provided with a DynKern or LFRicInvoke. '''
     _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                     api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     with pytest.raises(InternalError) as err:
         _ = DynProxies(psy)
-    assert ("DynCollection takes only a DynInvoke or a DynKern but"
+    assert ("LFRicCollection takes only an LFRicInvoke or a DynKern but"
             in str(err.value))
 
 
-def test_dyncollection_err2(monkeypatch):
-    ''' Check that the DynCollection constructor raises the expected
-    error if it is not provided with a DynKern or DynInvoke. '''
+def test_lfriccollection_err2(monkeypatch):
+    ''' Check that the LFRicCollection constructor raises the expected
+    error if it is not provided with a DynKern or LFRicInvoke. '''
+
     _, info = parse(os.path.join(BASE_PATH, "1_single_invoke.f90"),
                     api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(info)
     invoke = psy.invokes.invoke_list[0]
-    # Create a valid sub-class of a DynCollection
+    # Create a valid sub-class of a LFRicCollection
     proxies = DynProxies(invoke)
     # Monkeypatch it to break internal state
     monkeypatch.setattr(proxies, "_invoke", None)
     with pytest.raises(InternalError) as err:
         proxies.declarations(ModuleGen(name="testmodule"))
-    assert "DynCollection has neither a Kernel or an Invoke" in str(err.value)
+    assert "LFRicCollection has neither a Kernel nor an Invoke" \
+        in str(err.value)
 
 
 def test_dyncelliterators_err(monkeypatch):
@@ -3827,8 +3887,8 @@ def test_dynaccenterdatadirective_dataondevice():
 # Class DynKernelArguments end
 
 
-def test_dyninvoke_runtime(tmpdir, monkeypatch):
-    '''Test that run-time checks are added to the PSy-layer via dyninvoke
+def test_lfricinvoke_runtime(tmpdir, monkeypatch):
+    '''Test that run-time checks are added to the PSy-layer via LFRicInvoke
     in the expected way (correct location and correct code).
 
     '''
@@ -4278,38 +4338,57 @@ def test_mixed_precision_args(tmpdir):
         api=TEST_API)
     psy = PSyFactory(TEST_API, distributed_memory=True).create(invoke_info)
     generated_code = str(psy.gen)
+
     expected = (
-        "    USE constants_mod, ONLY: r_tran, r_solver, r_def, i_def\n"
+        "    USE constants_mod, ONLY: r_tran, r_solver, r_phys, r_def, "
+        "r_bl, i_def\n"
         "    USE field_mod, ONLY: field_type, field_proxy_type\n"
         "    USE r_solver_field_mod, ONLY: r_solver_field_type, "
         "r_solver_field_proxy_type\n"
         "    USE r_tran_field_mod, ONLY: r_tran_field_type, "
         "r_tran_field_proxy_type\n"
+        "    USE r_bl_field_mod, ONLY: r_bl_field_type, "
+        "r_bl_field_proxy_type\n"
+        "    USE r_phys_field_mod, ONLY: r_phys_field_type, "
+        "r_phys_field_proxy_type\n"
         "    USE operator_mod, ONLY: operator_type, operator_proxy_type\n"
         "    USE r_solver_operator_mod, ONLY: r_solver_operator_type, "
         "r_solver_operator_proxy_type\n"
+        "    USE r_tran_operator_mod, ONLY: r_tran_operator_type, "
+        "r_tran_operator_proxy_type\n"
         "    IMPLICIT NONE\n"
         "    CONTAINS\n"
         "    SUBROUTINE invoke_0(scalar_r_def, field_r_def, operator_r_def, "
         "scalar_r_solver, field_r_solver, operator_r_solver, scalar_r_tran, "
-        "field_r_tran)\n"
-        "      USE mixed_mod, ONLY: mixed_code\n"
+        "field_r_tran, operator_r_tran, scalar_r_bl, field_r_bl, "
+        "scalar_r_phys, field_r_phys)\n"
+        "      USE mixed_kernel_mod, ONLY: mixed_code\n"
         "      USE mesh_mod, ONLY: mesh_type\n"
         "      REAL(KIND=r_def), intent(in) :: scalar_r_def\n"
         "      REAL(KIND=r_solver), intent(in) :: scalar_r_solver\n"
         "      REAL(KIND=r_tran), intent(in) :: scalar_r_tran\n"
+        "      REAL(KIND=r_bl), intent(in) :: scalar_r_bl\n"
+        "      REAL(KIND=r_phys), intent(in) :: scalar_r_phys\n"
         "      TYPE(field_type), intent(in) :: field_r_def\n"
         "      TYPE(r_solver_field_type), intent(in) :: field_r_solver\n"
         "      TYPE(r_tran_field_type), intent(in) :: field_r_tran\n"
+        "      TYPE(r_bl_field_type), intent(in) :: field_r_bl\n"
+        "      TYPE(r_phys_field_type), intent(in) :: field_r_phys\n"
         "      TYPE(operator_type), intent(in) :: operator_r_def\n"
         "      TYPE(r_solver_operator_type), intent(in) :: operator_r_solver\n"
+        "      TYPE(r_tran_operator_type), intent(in) :: operator_r_tran\n"
         "      INTEGER(KIND=i_def) cell\n"
+        "      INTEGER(KIND=i_def) loop4_start, loop4_stop\n"
+        "      INTEGER(KIND=i_def) loop3_start, loop3_stop\n"
         "      INTEGER(KIND=i_def) loop2_start, loop2_stop\n"
         "      INTEGER(KIND=i_def) loop1_start, loop1_stop\n"
         "      INTEGER(KIND=i_def) loop0_start, loop0_stop\n"
         "      INTEGER(KIND=i_def) nlayers\n"
+        "      TYPE(r_tran_operator_proxy_type) operator_r_tran_proxy\n"
         "      TYPE(r_solver_operator_proxy_type) operator_r_solver_proxy\n"
         "      TYPE(operator_proxy_type) operator_r_def_proxy\n"
+        "      TYPE(r_phys_field_proxy_type) field_r_phys_proxy\n"
+        "      TYPE(r_bl_field_proxy_type) field_r_bl_proxy\n"
         "      TYPE(r_tran_field_proxy_type) field_r_tran_proxy\n"
         "      TYPE(r_solver_field_proxy_type) field_r_solver_proxy\n"
         "      TYPE(field_proxy_type) field_r_def_proxy\n"

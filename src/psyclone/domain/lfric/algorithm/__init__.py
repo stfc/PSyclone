@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,12 +40,15 @@ from psyclone.domain.lfric.algorithm.lfric_alg import LFRicAlg
 from psyclone.domain.lfric.algorithm.psyir import (
     LFRicAlgorithmInvokeCall, LFRicKernelFunctor, LFRicBuiltinFunctor,
     LFRicBuiltinFunctorFactory)
+from psyclone.domain.lfric.algorithm.psyir.lfric_kernel_functor import \
+    LFRicFunctor
 
 
 # For AutoAPI documentation generation.
 __all__ = [
     'LFRicAlg',
     'LFRicAlgorithmInvokeCall',
-    'LFRicKernelFunctor',
     'LFRicBuiltinFunctor',
-    'LFRicBuiltinFunctorFactory']
+    'LFRicBuiltinFunctorFactory',
+    'LFRicFunctor',
+    'LFRicKernelFunctor']

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council.
+# Copyright (c) 2017-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+# Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 # Modified I. Kavcic, Met Office
 #          J. Henrichs, Bureau of Meteorology
 
@@ -68,10 +68,8 @@ class FunctionSpace():
         # Check whether the function space name is a valid name
         if self._orig_name not in const.VALID_FUNCTION_SPACE_NAMES:
             raise InternalError(
-                "Unrecognised function space '{0}'. The "
-                "supported spaces are {1}."
-                .format(self._orig_name,
-                        const.VALID_FUNCTION_SPACE_NAMES))
+                f"Unrecognised function space '{self._orig_name}'. The "
+                f"supported spaces are {const.VALID_FUNCTION_SPACE_NAMES}.")
 
         if self._orig_name not in const.VALID_ANY_SPACE_NAMES + \
                 const.VALID_ANY_DISCONTINUOUS_SPACE_NAMES:
@@ -154,10 +152,9 @@ class FunctionSpace():
         if self._orig_name not in const.VALID_ANY_SPACE_NAMES + \
                 const.VALID_ANY_DISCONTINUOUS_SPACE_NAMES:
             raise InternalError(
-                "_mangle_fs_name: function space '{0}' is not one of "
-                "{1} or {2} spaces.".
-                format(self._orig_name, const.VALID_ANY_SPACE_NAMES,
-                       const.VALID_ANY_DISCONTINUOUS_SPACE_NAMES))
+                f"_mangle_fs_name: function space '{self._orig_name}' is not "
+                f"one of {const.VALID_ANY_SPACE_NAMES} or "
+                f"{const.VALID_ANY_DISCONTINUOUS_SPACE_NAMES} spaces.")
 
         # List kernel arguments
         args = self._kernel_args.args
@@ -170,8 +167,8 @@ class FunctionSpace():
                     return mngl_name
         # Raise an error if there are no kernel arguments on this
         # function space
-        raise FieldNotFoundError("No kernel argument found for function space "
-                                 "'{0}'".format(self._orig_name))
+        raise FieldNotFoundError(f"No kernel argument found for function "
+                                 f"space '{self._orig_name}'")
 
     def _shorten_fs_name(self):
         '''
@@ -195,10 +192,9 @@ class FunctionSpace():
             start = "ad"
         else:
             raise InternalError(
-                "_shorten_fs_name: function space '{0}' is not one of "
-                "{1} or {2} spaces.".
-                format(self._orig_name, const.VALID_ANY_SPACE_NAMES,
-                       const.VALID_ANY_DISCONTINUOUS_SPACE_NAMES))
+                f"_shorten_fs_name: function space '{self._orig_name}' is not "
+                f"one of {const.VALID_ANY_SPACE_NAMES} or "
+                f"{const.VALID_ANY_DISCONTINUOUS_SPACE_NAMES} spaces.")
 
         # Split name string to find any_*_space ID and create a short name as
         # "<start>" + "spc" + "ID"
@@ -315,8 +311,8 @@ class FunctionSpace():
 
         const = LFRicConstants()
         raise GenerationError(
-            "Unsupported name '{0}' found. Expected one of {1}".
-            format(operator_name, const.VALID_METAFUNC_NAMES))
+            f"Unsupported name '{operator_name}' found. Expected one of "
+            f"{const.VALID_METAFUNC_NAMES}")
 
     def field_on_space(self, arguments):
         '''Returns the corresponding argument if the supplied list of

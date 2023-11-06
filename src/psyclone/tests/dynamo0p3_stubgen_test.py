@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2022, Science and Technology Facilities Council.
+# Copyright (c) 2017-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford and A. R. Porter, STFC Daresbury Lab
-# Modified I. Kavcic, Met Office
+# Modified I. Kavcic and L. Turner, Met Office
 # Modified J. Henrichs, Bureau of Meteorology
 
 ''' This module tests the LFRic (Dynamo 0.3) kernel-stub generator using
@@ -121,7 +121,7 @@ SIMPLE = (
 
 def test_stub_generate_working():
     ''' Check that the stub generate produces the expected output '''
-    result = generate(os.path.join(BASE_PATH, "simple.f90"),
+    result = generate(os.path.join(BASE_PATH, "testkern_simple_mod.f90"),
                       api=TEST_API)
     assert SIMPLE in str(result)
 
@@ -129,7 +129,7 @@ def test_stub_generate_working():
 def test_stub_generate_working_noapi():
     ''' check that the stub generate produces the expected output when
     we use the default api (which should be dynamo0.3)'''
-    result = generate(os.path.join(BASE_PATH, "simple.f90"))
+    result = generate(os.path.join(BASE_PATH, "testkern_simple_mod.f90"))
     assert SIMPLE in str(result)
 
 

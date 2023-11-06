@@ -32,8 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: J. Henrichs, Bureau of Meteorology
-# Modified by: R. W. Ford, STFC Daresbury Lab
-# Modified by: S. Siso, STFC Daresbury Lab
+# Modified by: R. W. Ford, S. Siso and N. Nobre, STFC Daresbury Lab
 # -----------------------------------------------------------------------------
 
 ''' Module containing tests for ReadOnlyVerifyTrans and ReadOnlyVerifyNode
@@ -91,9 +90,9 @@ def test_read_only_basic():
     # Create the coloured text (if required)
     read_node = colored("ReadOnlyVerify", ReadOnlyVerifyNode._colour)
     sched_node = colored("Schedule", Schedule._colour)
-    assert """{0}[]
-            0: {1}[]
-                {0}[]""".format(sched_node, read_node) in result
+    assert f"""{sched_node}[]
+            0: {read_node}[]
+                {sched_node}[]""" in result
 
 
 # -----------------------------------------------------------------------------

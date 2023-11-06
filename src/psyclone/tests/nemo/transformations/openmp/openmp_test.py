@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2017-2021, Science and Technology Facilities Council.
+# Copyright (c) 2017-2022, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+# Authors: R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 
 ''' Module containing py.test tests for the transformation of
     the PSy representation of NEMO code '''
@@ -42,8 +42,7 @@ from fparser.common.readfortran import FortranStringReader
 from psyclone import nemo
 from psyclone.errors import GenerationError
 from psyclone.psyGen import TransInfo, PSyFactory
-from psyclone.psyir.nodes import Return, OMPDoDirective, \
-    OMPParallelDirective, OMPParallelDoDirective
+from psyclone.psyir.nodes import OMPDoDirective, OMPParallelDirective
 from psyclone.tests.utilities import get_invoke
 from psyclone.transformations import OMPLoopTrans, OMPParallelTrans, \
     OMPParallelLoopTrans

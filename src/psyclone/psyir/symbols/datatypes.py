@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2022, Science and Technology Facilities Council.
+# Copyright (c) 2019-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
+# Modified J. Henrichs, Bureau of Meteorology
 # -----------------------------------------------------------------------------
 
 ''' This module contains the datatype definitions.'''
@@ -68,6 +69,7 @@ class DataType(metaclass=abc.ABCMeta):
 
 
 class DeferredType(DataType):
+    # pylint: disable=too-few-public-methods
     '''Indicates that the type is unknown at this point.'''
 
     def __str__(self):
@@ -80,6 +82,7 @@ class DeferredType(DataType):
 
 
 class NoType(DataType):
+    # pylint: disable=too-few-public-methods
     ''' Indicates that the associated symbol has an empty type (equivalent
     to `void` in C). '''
 
@@ -93,8 +96,8 @@ class UnknownType(DataType, metaclass=abc.ABCMeta):
     This class is abstract and must be subclassed for each language
     supported by the PSyIR frontends.
 
-    :param str declaration_txt: string containing the original variable \
-                                declaration.
+    :param str declaration_txt: the original textual declaration of
+        the symbol.
 
     :raises TypeError: if the supplied declaration_txt is not a str.
 
@@ -105,13 +108,16 @@ class UnknownType(DataType, metaclass=abc.ABCMeta):
                 f"UnknownType constructor expects the original variable "
                 f"declaration as a string but got an argument of type "
                 f"'{type(declaration_txt).__name__}'")
-        self._declaration = None
-        self.declaration = declaration_txt
+        self._declaration = declaration_txt
 
     @abc.abstractmethod
     def __str__(self):
         ''' Abstract method that must be implemented in subclass. '''
 
+    # Note, an UnknownType is immutable so a declaration setter is not
+    # allowed. This is to allow subclasses to extract and provide
+    # parts of the declaration without worrying about their values
+    # becoming invalid due to a change in the original declaration.
     @property
     def declaration(self):
         '''
@@ -121,52 +127,45 @@ class UnknownType(DataType, metaclass=abc.ABCMeta):
         '''
         return self._declaration
 
-    @declaration.setter
-    def declaration(self, value):
-        '''
-        Sets the original declaration that this instance represents.
-
-        :param str value: the original declaration.
-
-        '''
-        self._declaration = value[:]
-
 
 class UnknownFortranType(UnknownType):
-    '''
-    Indicates that a Fortran declaration is not supported by the PSyIR.
+    '''Indicates that a Fortran declaration is not supported by the PSyIR.
 
-    :param str declaration_txt: string containing the original variable \
-                                declaration.
+    :param str declaration_txt: string containing the original variable
+        declaration.
+    :param partial_datatype: a subset of the unknown type if the
+        subset can form a valid PSyIR datatype.
+    :type partial_datatype: Optional[
+        :py:class:`psyclone.psyir.symbols.DataType` or
+        :py:class:`psyclone.psyir.symbols.DataTypeSymbol`]
+
     '''
-    def __init__(self, declaration_txt):
+    def __init__(self, declaration_txt, partial_datatype=None):
         super().__init__(declaration_txt)
         # This will hold the Fortran type specification (as opposed to
         # the whole declaration).
         self._type_text = ""
+        if not isinstance(
+                partial_datatype, (type(None), DataType, DataTypeSymbol)):
+            raise TypeError(
+                f"partial_datatype argument in UnknownFortranType "
+                f"initialisation should be a DataType, DataTypeSymbol, or "
+                f"NoneType, but found '{type(partial_datatype).__name__}'.")
+        # This holds a subset of the type in a datatype if it is
+        # possible to determine enough information to create one.
+        self._partial_datatype = partial_datatype
 
     def __str__(self):
         return f"UnknownFortranType('{self._declaration}')"
 
     @property
-    def declaration(self):
+    def partial_datatype(self):
         '''
-        This useless routine is required so that we can override the associated
-        setter method below.
+        :returns: partial datatype information if it can be determined, \
+            else None.
+        :rtype: Optional[:py:class:`psyclone.symbols.DataType`]
         '''
-        return super().declaration
-
-    @declaration.setter
-    def declaration(self, value):
-        '''
-        Sets the original declaration that this instance represents and
-        removes any cached type text.
-
-        :param str value: the original declaration.
-
-        '''
-        self._declaration = value[:]
-        self._type_text = ""
+        return self._partial_datatype
 
     @property
     def type_text(self):
@@ -175,7 +174,7 @@ class UnknownFortranType(UnknownType):
         parse tree to extract the type information. This is returned in
         text form and also cached.
 
-        TODO #1419 - alter Unknown(Fortran)Type so that it is only the
+        TODO #2137 - alter Unknown(Fortran)Type so that it is only the
         type information that is stored as a string. i.e. remove the name
         of the variable being declared. Once that is done this method
         won't be required.
@@ -190,13 +189,13 @@ class UnknownFortranType(UnknownType):
         # pylint:disable=import-outside-toplevel
         from fparser.common.readfortran import FortranStringReader
         from fparser.common.sourceinfo import FortranFormat
-        from fparser.two import Fortran2008
+        from fparser.two import Fortran2003
         from fparser.two.parser import ParserFactory
         string_reader = FortranStringReader(self._declaration)
         # Set reader to free format.
         string_reader.set_format(FortranFormat(True, False))
         ParserFactory().create(std="f2008")
-        ptree = Fortran2008.Declaration_Construct(
+        ptree = Fortran2003.Declaration_Construct(
             string_reader)
         self._type_text = str(ptree.children[0])
 
@@ -365,21 +364,40 @@ class ArrayType(DataType):
 
         # This import must be placed here to avoid circular dependencies.
         # pylint: disable=import-outside-toplevel
-        from psyclone.psyir.nodes import Literal, DataNode
+        from psyclone.psyir.nodes import Literal, DataNode, Assignment
 
         def _node_from_int(var):
             ''' Helper routine that simply creates a Literal out of an int.
             If the supplied arg is not an int then it is returned unchanged.
 
             :param var: variable for which to create a Literal if necessary.
-            :type var: int or :py:class:`psyclone.psyir.nodes.DataNode`
+            :type var: int | :py:class:`psyclone.psyir.nodes.DataNode` | Extent
 
-            :returns: a DataNode representing the supplied input.
-            :rtype: :py:class:`psyclone.psyir.nodes.DataNode`
+            :returns: the variable with ints converted to DataNodes.
+            :rtype: :py:class:`psyclone.psyir.nodes.DataNode` | Extent
 
             '''
             if isinstance(var, int):
                 return Literal(str(var), INTEGER_TYPE)
+            return var
+
+        def _dangling_parent(var):
+            ''' Helper routine that copies and adds a dangling parent
+            Assignment to a given node, this implicitly guarantees that the
+            node is not attached anywhere else (and is unexpectedly modified)
+            and also makes it behave like other nodes (e.g. calls inside an
+            expression do not have the "call" keyword in Fortran)
+
+            :param var: variable with a dangling parent if necessary.
+            :type var: int | :py:class:`psyclone.psyir.nodes.DataNode` | Extent
+
+            :returns: the variable with dangling parent when necessary.
+            :rtype: :py:class:`psyclone.psyir.nodes.DataNode` | Extent
+            '''
+            if isinstance(var, DataNode):
+                parent = Assignment()
+                parent.addchild(var.copy())
+                return parent.children[0]
             return var
 
         if isinstance(datatype, DataType):
@@ -413,16 +431,28 @@ class ArrayType(DataType):
         for dim in shape:
             if isinstance(dim, (DataNode, int)):
                 # The lower bound is 1 by default.
-                self._shape.append(ArrayType.ArrayBounds(one.copy(),
-                                                         _node_from_int(dim)))
+                self._shape.append(
+                    ArrayType.ArrayBounds(
+                        _dangling_parent(one),
+                        _dangling_parent(_node_from_int(dim))))
             elif isinstance(dim, tuple):
                 self._shape.append(
-                    ArrayType.ArrayBounds(_node_from_int(dim[0]),
-                                          _node_from_int(dim[1])))
+                    ArrayType.ArrayBounds(
+                        _dangling_parent(_node_from_int(dim[0])),
+                        _dangling_parent(_node_from_int(dim[1]))))
             else:
                 self._shape.append(dim)
 
         self._datatype = datatype
+
+    @property
+    def datatype(self):
+        '''
+        :returns: the datatype of each element in the array.
+        :rtype: :py:class:`psyclone.psyir.symbols.DataSymbol`
+        '''
+        # TODO #1857: This property might be affected.
+        return self._datatype
 
     @property
     def intrinsic(self):
@@ -445,7 +475,7 @@ class ArrayType(DataType):
     @property
     def shape(self):
         '''
-        :returns: the shape of the symbol in column-major order \
+        :returns: the (validated) shape of the symbol in column-major order \
             (leftmost index is contiguous in memory) with each entry \
             representing an array dimension.
 
@@ -461,6 +491,7 @@ class ArrayType(DataType):
             entry is a DataNode that returns an int.
 
         '''
+        self._validate_shape(self._shape)
         return self._shape
 
     def _validate_shape(self, extents):
@@ -468,16 +499,19 @@ class ArrayType(DataType):
         implemented as a setter because the shape property is immutable.
 
         :param extents: list of extents, one for each array dimension.
-        :type extents: list of \
-            :py:class:`psyclone.psyir.symbols.ArrayType.Extent`, int \
-            or subclass of :py:class:`psyclone.psyir.nodes.DataNode` or \
-            2-tuple of int or `DataNode`.
+        :type extents: List[ \
+            :py:class:`psyclone.psyir.symbols.ArrayType.Extent` | int \
+            | :py:class:`psyclone.psyir.nodes.DataNode` | \
+            Tuple[int | :py:class:`psyclone.psyir.nodes.DataNode | \
+                  :py:class:`psyclone.psyir.symbols.ArrayType.Extent]]
 
         :raises TypeError: if extents is not a list.
         :raises TypeError: if one or more of the supplied extents is a \
             DataSymbol that is not a scalar integer or of Unknown/DeferredType.
         :raises TypeError: if one or more of the supplied extents is not an \
             int, ArrayType.Extent or DataNode.
+        :raises TypeError: if the extents contain an invalid combination of \
+            ATTRIBUTE/DEFERRED and known limits.
 
         '''
         # This import must be placed here to avoid circular
@@ -485,17 +519,23 @@ class ArrayType(DataType):
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.nodes import DataNode, Reference
 
-        def _validate_data_node(dim_node):
+        def _validate_data_node(dim_node, is_lower_bound=False):
             '''
             Checks that the supplied DataNode is valid as part of an
             array-shape specification.
 
-            :param dim_node: the DataNode to check.
-            :type dim_node: :py:class:`psyclone.psyir.nodes.DataNode`
+            :param dim_node: the node to check for validity.
+            :type dim_node: int | :py:class:`psyclone.psyir.nodes.DataNode`
+            :param bool is_lower_bound: whether the supplied node represents \
+                                        the lower bound of an array shape.
 
             :raises TypeError: if the DataNode is not valid in this context.
 
             '''
+            if isinstance(dim_node, int):
+                # An integer value is always valid.
+                return
+
             # When issue #1799 is addressed then check that the
             # datatype returned is an int (or is unknown). For the
             # moment, just check that if the DataNode is a
@@ -520,35 +560,61 @@ class ArrayType(DataType):
                 # TODO #1089 - add check that any References are not to a
                 # local datasymbol that is not constant (as this would have
                 # no value).
+                return
 
+            if isinstance(dim_node, ArrayType.Extent):
+                if is_lower_bound:
+                    raise TypeError(
+                        "If present, the lower bound in an ArrayType 'shape' "
+                        "must represent a value but found ArrayType.Extent")
+                return
+
+            if isinstance(dim_node, DataNode):
+                return
+
+            raise TypeError(
+                f"ArrayType shape-list elements can only be 'int', "
+                f"ArrayType.Extent, 'DataNode' or a 2-tuple thereof but found "
+                f"'{type(dim_node).__name__}'.")
+
+        # ---------------------------------------------------------------------
         if not isinstance(extents, list):
             raise TypeError(
                 f"ArrayType 'shape' must be of type list but found "
                 f"'{type(extents).__name__}'.")
 
         for dimension in extents:
-            if isinstance(dimension, DataNode):
-                _validate_data_node(dimension)
-            elif isinstance(dimension, tuple):
+            if isinstance(dimension, tuple):
                 if len(dimension) != 2:
                     raise TypeError(
-                        f"A DataSymbol shape-list element specifying lower "
+                        f"An ArrayType shape-list element specifying lower "
                         f"and upper bounds must be a 2-tuple but "
                         f"'{dimension}' has {len(dimension)} entries.")
-                for dim in dimension:
-                    if isinstance(dim, DataNode):
-                        _validate_data_node(dim)
-                    elif not isinstance(dim, int):
-                        raise TypeError(
-                            f"A DataSymbol shape-list element specifying lower"
-                            f" and upper bounds must be a 2-tuple containing "
-                            f"either int or DataNode entries but '{dimension}'"
-                            f" contains '{type(dim).__name__}'")
-            elif not isinstance(dimension, (self.Extent, int)):
+                _validate_data_node(dimension[0], is_lower_bound=True)
+                _validate_data_node(dimension[1])
+            else:
+                _validate_data_node(dimension)
+
+        if ArrayType.Extent.DEFERRED in extents:
+            if not all(dim == ArrayType.Extent.DEFERRED
+                       for dim in extents):
                 raise TypeError(
-                    f"DataSymbol shape list elements can only be 'int', "
-                    f"ArrayType.Extent, 'DataNode' or tuple but found "
-                    f"'{type(dimension).__name__}'.")
+                    f"A declaration of an allocatable array must have"
+                    f" the extent of every dimension as 'DEFERRED' but "
+                    f"found shape: {extents}.")
+
+        if ArrayType.Extent.ATTRIBUTE in extents:
+            # If we have an 'assumed-shape' array then *every*
+            # dimension must have an 'ATTRIBUTE' extent
+            for dim in extents:
+                if not (dim == ArrayType.Extent.ATTRIBUTE or
+                        (isinstance(dim, tuple) and
+                         dim[-1] == ArrayType.Extent.ATTRIBUTE)):
+                    raise TypeError(
+                        f"An assumed-shape array must have every "
+                        f"dimension unspecified (either as 'ATTRIBUTE' or "
+                        f"with the upper bound as 'ATTRIBUTE') but found "
+                        f"shape: {extents}.")
 
     def __str__(self):
         '''
@@ -557,7 +623,8 @@ class ArrayType(DataType):
             for the sake of brevity.
         :rtype: str
 
-        :raises InternalError: if an unsupported dimensions type is found.
+        :raises InternalError: if the shape of this datatype contains \
+            any elements that aren't ArrayBounds or ArrayType.Extent objects.
 
         '''
         dims = []
@@ -583,9 +650,11 @@ class ArrayType(DataType):
                 dims.append(f"'{dimension.name}'")
             else:
                 raise InternalError(
-                    f"ArrayType shape list elements can only be 'ArrayType."
-                    f"ArrayBounds', or 'ArrayType.Extent', but found "
-                    f"'{type(dimension).__name__}'.")
+                    f"Once constructed, every member of an ArrayType shape-"
+                    f"list should either be an ArrayBounds object or an "
+                    f"instance of ArrayType.Extent but found "
+                    f"'{type(dimension).__name__}'")
+
         return f"Array<{self._datatype}, shape=[{', '.join(dims)}]>"
 
     def __eq__(self, other):

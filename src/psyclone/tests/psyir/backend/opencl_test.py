@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2020, Science and Technology Facilities Council.
+# Copyright (c) 2019-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -37,7 +37,6 @@
 
 '''Performs pytest tests on the psyclond.psyir.backend.opencl module'''
 
-from __future__ import absolute_import
 import pytest
 from psyclone.psyir.backend.visitor import VisitorError
 from psyclone.psyir.backend.opencl import OpenCLWriter
@@ -79,7 +78,9 @@ def test_oclw_gen_id_variable():
     result = oclwriter.gen_id_variable(symbol, 3)
     assert result == "int id1 = get_global_id(3);\n"
 
-    array_type = ArrayType(INTEGER_TYPE, [2, ArrayType.Extent.ATTRIBUTE, 2])
+    array_type = ArrayType(INTEGER_TYPE, [ArrayType.Extent.ATTRIBUTE,
+                                          ArrayType.Extent.ATTRIBUTE,
+                                          ArrayType.Extent.ATTRIBUTE])
     symbol = DataSymbol("array", array_type)
     with pytest.raises(VisitorError) as excinfo:
         _ = oclwriter.gen_id_variable(symbol, 3)
@@ -101,13 +102,14 @@ def test_oclw_gen_declaration():
     assert result == "int dummy1"
 
     # Array argument has a memory qualifier (only __global for now)
-    array_type = ArrayType(INTEGER_TYPE, [2, ArrayType.Extent.ATTRIBUTE, 2])
+    array_type = ArrayType(INTEGER_TYPE, [ArrayType.Extent.ATTRIBUTE,
+                                          ArrayType.Extent.ATTRIBUTE,
+                                          ArrayType.Extent.ATTRIBUTE])
     symbol = DataSymbol("dummy2", array_type)
     result = oclwriter.gen_declaration(symbol)
     assert result == "__global int * restrict dummy2"
 
     # Array with unknown intent
-    array_type = ArrayType(INTEGER_TYPE, [2, ArrayType.Extent.ATTRIBUTE, 2])
     symbol = DataSymbol("dummy2", array_type,
                         interface=ArgumentInterface(
                             ArgumentInterface.Access.UNKNOWN))
@@ -142,7 +144,9 @@ def test_oclw_gen_array_length_variables():
     assert result == "int dummy1LEN1 = get_global_size(0);\n"
 
     # Array with multiple dimension generates one variable per dimension
-    array_type = ArrayType(INTEGER_TYPE, [2, ArrayType.Extent.ATTRIBUTE, 2])
+    array_type = ArrayType(INTEGER_TYPE, [ArrayType.Extent.ATTRIBUTE,
+                                          ArrayType.Extent.ATTRIBUTE,
+                                          ArrayType.Extent.ATTRIBUTE])
     symbol3 = DataSymbol("dummy2", array_type)
     result = oclwriter.gen_array_length_variables(symbol3)
     assert result == "int dummy2LEN1 = get_global_size(0);\n" \

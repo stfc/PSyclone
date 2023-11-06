@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2020, Science and Technology Facilities Council
+! Copyright (c) 2017-2023, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -51,16 +51,16 @@ program multikernel_invokes_7
   integer(i_def)             :: istp
   type(quadrature_xyoz_type) :: qr
 
-  call invoke( name="name first",                         &
+  call invoke( name="name_first",                         &
                ru_kernel_type(a, b, istp, rdt, d, e, qr), &
                testkern_type(ascalar, f, b, c, g) )
 
   call invoke( ru_kernel_type(a, b, istp, rdt, d, e, qr), &
-               name="name middle",                        &
+               name="name_middle",                        &
                testkern_type(ascalar, f, b, c, g) )
 
   call invoke( ru_kernel_type(a, b, istp, rdt, d, e, qr), &
                testkern_type(ascalar, f, b, c, g),        &
-               name="name last")
+               name="name_last")
 
 end program multikernel_invokes_7

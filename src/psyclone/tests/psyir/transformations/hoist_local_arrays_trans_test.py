@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022, Science and Technology Facilities Council.
+# Copyright (c) 2022-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
+# Modified: S. Siso, STFC Daresbury Lab
 
 '''This module tests the hoist local arrays transformation.
 '''
@@ -110,7 +111,7 @@ def test_apply_1d_known(fortran_reader, fortran_writer, tmpdir):
     code = fortran_writer(psyir).lower()
     assert "real, allocatable, dimension(:), private :: a\n" in code
     assert ("    if (.not.allocated(a)) then\n"
-            "      allocate(a(1 : 10))\n"
+            "      allocate(a(1:10))\n"
             "    end if\n"
             "    do i = 1, 10, 1\n" in code)
     assert Compile(tmpdir).string_compiles(code)
@@ -136,8 +137,12 @@ def test_apply_multi_dim_imported_limits(fortran_reader, fortran_writer):
     # We cannot test the compilation of the generated code because of
     # the 'use some_mod'.
     assert "real, allocatable, dimension(:,:), private :: a\n" in code
-    assert ("    if (.not.allocated(a)) then\n"
-            "      allocate(a(1 : jpi, 1 : jpj))\n"
+    assert ("    if (.not.allocated(a) .or. ubound(a, dim=1) /= jpi .or. "
+            "ubound(a, dim=2) /= jpj) then\n"
+            "      if (allocated(a)) then\n"
+            "        deallocate(a)\n"
+            "      end if\n"
+            "      allocate(a(1:jpi,1:jpj))\n"
             "    end if\n"
             "    a(:,:) = 1.0\n" in code)
 
@@ -161,8 +166,56 @@ def test_apply_arg_limits(fortran_reader, fortran_writer, tmpdir):
     hoist_trans.apply(routine)
     code = fortran_writer(psyir).lower()
     assert "real, allocatable, dimension(:,:), private :: a\n" in code
-    assert ("    if (.not.allocated(a)) then\n"
-            "      allocate(a(2 : nx, 3 : ny))\n"
+    assert ("    if (.not.allocated(a) .or. ubound(a, dim=1) /= nx .or. "
+            "ubound(a, dim=2) /= ny) then\n"
+            "      if (allocated(a)) then\n"
+            "        deallocate(a)\n"
+            "      end if\n"
+            "      allocate(a(2:nx,3:ny))\n"
+            "    end if\n" in code)
+    assert Compile(tmpdir).string_compiles(code)
+
+
+def test_apply_runtime_checks(fortran_reader, fortran_writer, tmpdir):
+    ''' Test that the transformation correctly adds runtime checks for each
+    boundary that is not a literal. '''
+    code = (
+        "module my_mod\n"
+        "contains\n"
+        "subroutine test(nx,ny)\n"
+        "  integer, intent(in) :: nx, ny\n"
+        "  real :: a(nx,ny)\n"
+        "  real :: b(nx:ny,nx:ny)\n"
+        "  real :: c(3:4,5:6)\n"
+        "  a(:,:) = 1.0\n"
+        "  b(:,:) = 1.0\n"
+        "  c(:,:) = 1.0\n"
+        "end subroutine test\n"
+        "end module my_mod\n")
+    psyir = fortran_reader.psyir_from_source(code)
+    routine = psyir.walk(Routine)[0]
+    hoist_trans = HoistLocalArraysTrans()
+    hoist_trans.apply(routine)
+    code = fortran_writer(psyir).lower()
+    assert "real, allocatable, dimension(:,:), private :: a\n" in code
+    assert ("    if (.not.allocated(a) .or. ubound(a, dim=1) /= nx .or. "
+            "ubound(a, dim=2) /= ny) then\n"
+            "      if (allocated(a)) then\n"
+            "        deallocate(a)\n"
+            "      end if\n"
+            "      allocate(a(1:nx,1:ny))\n"
+            "    end if\n" in code)
+    assert ("    if (.not.allocated(b) .or. lbound(b, dim=1) /= nx .or. "
+            "ubound(b, dim=1) /= ny .or. lbound(b, dim=2) /= nx .or. "
+            "ubound(b, dim=2) /= ny) then\n"
+            "      if (allocated(b)) then\n"
+            "        deallocate(b)\n"
+            "      end if\n"
+            "      allocate(b(nx:ny,nx:ny))\n"
+            "    end if\n" in code)
+    # Unneeded inner condition is not inserted
+    assert ("    if (.not.allocated(c)) then\n"
+            "      allocate(c(3:4,5:6))\n"
             "    end if\n" in code)
     assert Compile(tmpdir).string_compiles(code)
 
@@ -190,8 +243,19 @@ def test_apply_multi_arrays(fortran_reader, fortran_writer):
     assert "real, allocatable, dimension(:,:), private :: a" in code
     assert "integer, allocatable, dimension(:,:), private :: mask" in code
     assert (
-        "    if (.not.allocated(a)) then\n"
-        "      allocate(a(1 : nx, 1 : ny), mask(1 : jpi, 1 : jpj))\n"
+        "    if (.not.allocated(mask) .or. ubound(mask, dim=1) /= jpi .or. "
+        "ubound(mask, dim=2) /= jpj) then\n"
+        "      if (allocated(mask)) then\n"
+        "        deallocate(mask)\n"
+        "      end if\n"
+        "      allocate(mask(1:jpi,1:jpj))\n"
+        "    end if\n"
+        "    if (.not.allocated(a) .or. ubound(a, dim=1) /= nx .or. "
+        "ubound(a, dim=2) /= ny) then\n"
+        "      if (allocated(a)) then\n"
+        "        deallocate(a)\n"
+        "      end if\n"
+        "      allocate(a(1:nx,1:ny))\n"
         "    end if\n"
         "    a(:,:) = 1.0\n" in code)
 
@@ -218,8 +282,12 @@ def test_apply_name_clash(fortran_reader, fortran_writer, tmpdir):
     code = fortran_writer(psyir).lower()
     assert ("  real, allocatable, dimension(:,:), private :: a\n"
             "  real, allocatable, dimension(:,:), private :: a_2\n" in code)
-    assert ("    if (.not.allocated(a_2)) then\n"
-            "      allocate(a_2(1 : nx, 1 : ny))\n"
+    assert ("    if (.not.allocated(a_2) .or. ubound(a_2, dim=1) /= nx .or. "
+            "ubound(a_2, dim=2) /= ny) then\n"
+            "      if (allocated(a_2)) then\n"
+            "        deallocate(a_2)\n"
+            "      end if\n"
+            "      allocate(a_2(1:nx,1:ny))\n"
             "    end if\n"
             "    a_2(:,:) = a_1\n" in code)
     assert Compile(tmpdir).string_compiles(code)

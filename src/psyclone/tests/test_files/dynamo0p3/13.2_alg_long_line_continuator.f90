@@ -1,7 +1,7 @@
 ! -----------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Copyright (c) 2017-2020, Science and Technology Facilities Council
+! Copyright (c) 2017-2023, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -37,7 +37,7 @@
 program single_invoke
 
   ! Description: A very long assignment statement with continuation characters
-  use constants_mod, only: r_def
+  use constants_mod, only: i_def, r_def
   use field_mod,     only: field_type
   use testkern_mod,  only: testkern_type
 
@@ -45,6 +45,10 @@ program single_invoke
 
   type(field_type) :: f1, f2, m1, m2
   real(r_def)      :: a
+  integer(i_def)   :: my_very_long_index
+  integer(i_def)   :: my_very_long_lookup_name(10)
+  real(r_def)      :: my_very_long_value_name
+  real(r_def)      :: my_very_long_variable_name(10)
 
   my_very_long_variable_name(my_very_long_lookup_name(my_very_long_index)) = &
   my_very_long_variable_name(my_very_long_lookup_name(my_very_long_index)) + &

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors: R. W. Ford and A. R. Porter, STFC Daresbury Lab.
+# Authors: R. W. Ford, A. R. Porter and N. Nobre, STFC Daresbury Lab
 
 '''Specialise generic PSyIR to LFRic algorithm-layer PSyIR. Currently
 we transform PSyIR invoke calls to LFRic algorithm-layer-specific
@@ -59,7 +59,7 @@ class RaisePSyIR2LFRicAlgTrans(RaisePSyIR2AlgTrans):
         :param int index: the position of this invoke call relative to \
             other invokes in the algorithm layer.
         :param options: a dictionary with options for transformations.
-        :type options: dictionary of string:values or None
+        :type options: Optional[Dict[str, Any]]
 
         '''
         self.validate(call, options=options)
@@ -73,7 +73,7 @@ class RaisePSyIR2LFRicAlgTrans(RaisePSyIR2AlgTrans):
         for idx, call_arg in enumerate(call.children):
 
             if call.argument_names[idx]:
-                call_name = f"'{call_arg.value}'"
+                call_name = f"{call_arg.value}"
             elif isinstance(call_arg, ArrayReference):
                 # kernel or builtin misrepresented as ArrayReference
                 args = call_arg.pop_all_children()

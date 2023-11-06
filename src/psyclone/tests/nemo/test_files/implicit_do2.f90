@@ -32,7 +32,7 @@
 ! Author R. W. Ford and A. R. Porter, STFC Daresbury Lab
 
 ! This code demonstrates an 3d implicit loop with implicit arrays on
-! both the lhs and rhs of the assingment.
+! both the lhs and rhs of the assignment.
 
 program implicit_do2
   implicit none

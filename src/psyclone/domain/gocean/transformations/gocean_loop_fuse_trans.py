@@ -31,7 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+# Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 #        J. Henrichs, Bureau of Meteorology
 # Modified I. Kavcic, Met Office
 
@@ -75,7 +75,7 @@ class GOceanLoopFuseTrans(LoopFuseTrans):
         :param node2: the second Node representing a GOLoop.
         :type node2: :py:class:`psyclone.gocean1p0.GOLoop`
         :param options: a dictionary with options for transformations.
-        :type options: dictionary of string:values or None
+        :type options: Optional[Dict[str, Any]]
 
         :raises TransformationError: if the supplied loops are over \
                                      different grid-point types.

@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2021-2022, Science and Technology Facilities Council.
+# Copyright (c) 2021-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -49,10 +49,10 @@ from psyclone.psyir.backend.opencl import OpenCLWriter
 from psyclone.psyir.frontend.fortran import FortranReader
 from psyclone.psyir.nodes import Routine, Call, Reference, Literal, \
     Assignment, IfBlock, ArrayReference, Schedule, BinaryOperation, \
-    StructureReference, FileContainer, CodeBlock
-from psyclone.psyir.symbols import DataSymbol, RoutineSymbol, \
+    StructureReference, FileContainer, CodeBlock, IntrinsicCall
+from psyclone.psyir.symbols import ArrayType, DataSymbol, RoutineSymbol, \
     ContainerSymbol, UnknownFortranType, ArgumentInterface, ImportInterface, \
-    INTEGER_TYPE, CHARACTER_TYPE, ArrayType, BOOLEAN_TYPE, ScalarType
+    INTEGER_TYPE, CHARACTER_TYPE, BOOLEAN_TYPE, ScalarType
 from psyclone.transformations import TransformationError
 
 
@@ -654,10 +654,10 @@ class GOOpenCLTrans(Transformation):
         '''
         check = BinaryOperation.create(
                     BinaryOperation.Operator.NE,
-                    BinaryOperation.create(
-                        BinaryOperation.Operator.REM,
-                        global_size_expr,
-                        Literal(str(local_size), INTEGER_TYPE)
+                    IntrinsicCall.create(
+                        IntrinsicCall.Intrinsic.MOD,
+                        [global_size_expr,
+                         Literal(str(local_size), INTEGER_TYPE)]
                         ),
                     Literal("0", INTEGER_TYPE))
         message = ("Global size is not a multiple of local size ("
@@ -870,14 +870,15 @@ class GOOpenCLTrans(Transformation):
                 symbol = symtab.lookup_with_tag(arg.name + "_cl_mem")
                 source = StructureReference.create(field, ['device_ptr'])
                 dest = Reference(symbol)
-                bop = BinaryOperation.create(BinaryOperation.Operator.CAST,
-                                             source, dest)
-                assig = Assignment.create(dest.copy(), bop)
+                icall = IntrinsicCall.create(IntrinsicCall.Intrinsic.TRANSFER,
+                                             [source, dest])
+                assig = Assignment.create(dest.copy(), icall)
                 call_block.addchild(assig)
                 arguments.append(Reference(symbol))
             elif arg.argument_type == "grid_property":
                 garg = kernel.arguments.find_grid_access()
                 if arg.is_scalar:
+                    # pylint: disable=protected-access
                     arguments.append(
                         StructureReference.create(
                             symtab.lookup(garg.name),
@@ -892,9 +893,10 @@ class GOOpenCLTrans(Transformation):
                                 field, ['grid', device_grid_property])
                     symbol = symtab.lookup_with_tag(arg.name + "_cl_mem")
                     dest = Reference(symbol)
-                    bop = BinaryOperation.create(BinaryOperation.Operator.CAST,
-                                                 source, dest)
-                    assig = Assignment.create(dest.copy(), bop)
+                    icall = IntrinsicCall.create(
+                        IntrinsicCall.Intrinsic.TRANSFER,
+                        [source, dest])
+                    assig = Assignment.create(dest.copy(), icall)
                     call_block.addchild(assig)
                     arguments.append(Reference(symbol))
 
@@ -1151,6 +1153,7 @@ class GOOpenCLTrans(Transformation):
         code = f'''
         subroutine initialise_device_grid(field)
             USE fortcl, ONLY: create_ronly_buffer
+            USE iso_c_binding, only: c_size_t
             use field_mod
             type(r2d_field), intent(inout), target :: field
             integer(kind=c_size_t) size_in_bytes
@@ -1508,6 +1511,7 @@ class GOOpenCLTrans(Transformation):
         code = f'''
         subroutine initialise_device_buffer(field)
             USE fortcl, ONLY: create_rw_buffer
+            USE iso_c_binding, only: c_size_t
             use field_mod
             type(r2d_field), intent(inout), target :: field
             integer(kind=c_size_t) size_in_bytes

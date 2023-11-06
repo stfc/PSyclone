@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2019-2021, Science and Technology Facilities Council.
+# Copyright (c) 2019-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,21 +31,20 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-# Authors R. W. Ford, A. R. Porter and S. Siso, STFC Daresbury Lab
+# Authors R. W. Ford, A. R. Porter, S. Siso and N. Nobre, STFC Daresbury Lab
 
 
 ''' Performs py.test tests on the support for literals in the fparser2
     PSyIR front-end '''
 
-from __future__ import absolute_import
 import pytest
 from fparser.common.readfortran import FortranStringReader
 from fparser.two import Fortran2003
 from psyclone.psyir.frontend import fparser2
 from psyclone.psyir.frontend.fparser2 import Fparser2Reader, \
     get_literal_precision
-from psyclone.psyir.symbols import ScalarType, DataSymbol, INTEGER_TYPE, \
-    UnknownFortranType
+from psyclone.psyir.symbols import (ScalarType, DataSymbol, INTEGER_TYPE,
+                                    UnknownFortranType, ContainerSymbol)
 from psyclone.psyir.nodes import Node, Literal, CodeBlock, Schedule, Assignment
 from psyclone.errors import InternalError
 
@@ -150,12 +149,16 @@ def test_handling_literal_precision_1(value, dprecision, intrinsic):
 
     '''
     if intrinsic == ScalarType.Intrinsic.CHARACTER:
-        code = "x={0}_{1}".format(dprecision, value)
+        code = f"x={dprecision}_{value}"
     else:
-        code = "x={0}_{1}".format(value, dprecision)
+        code = f"x={value}_{dprecision}"
     reader = FortranStringReader(code)
     astmt = Fortran2003.Assignment_Stmt(reader)
     fake_parent = Schedule()
+    # Add a wildcard import so that there's somewhere for the precision
+    # symbols to have come from.
+    fake_parent.symbol_table.add(ContainerSymbol("amod",
+                                                 wildcard_import=True))
     # Ensure the symbol table has an entry for "x"
     fake_parent.symbol_table.add(
         DataSymbol("x", ScalarType(ScalarType.Intrinsic.INTEGER, 4)))
@@ -166,9 +169,9 @@ def test_handling_literal_precision_1(value, dprecision, intrinsic):
     assert isinstance(literal, Literal)
     assert literal.datatype.intrinsic == intrinsic
     if intrinsic == ScalarType.Intrinsic.BOOLEAN:
-        assert ".{0}.".format(literal.value) == value.lower()
+        assert f".{literal.value}." == value.lower()
     elif intrinsic == ScalarType.Intrinsic.CHARACTER:
-        assert "'{0}'".format(literal.value) == value
+        assert f"'{literal.value}'" == value
     else:
         assert literal.value == value
     assert isinstance(literal.datatype.precision, DataSymbol)
@@ -177,6 +180,8 @@ def test_handling_literal_precision_1(value, dprecision, intrinsic):
                       ScalarType)
     assert (literal.datatype.precision.datatype.intrinsic ==
             ScalarType.Intrinsic.INTEGER)
+    assert (fake_parent.symbol_table.lookup(dprecision) is
+            literal.datatype.precision)
 
 
 @pytest.mark.parametrize("value,dprecision,intrinsic",
@@ -192,9 +197,9 @@ def test_handling_literal_precision_2(value, dprecision, intrinsic):
 
     '''
     if intrinsic == ScalarType.Intrinsic.CHARACTER:
-        code = "x={0}_{1}".format(dprecision, value)
+        code = f"x={dprecision}_{value}"
     else:
-        code = "x={0}_{1}".format(value, dprecision)
+        code = f"x={value}_{dprecision}"
     reader = FortranStringReader(code)
     astmt = Fortran2003.Assignment_Stmt(reader)
     fake_parent = Schedule()
@@ -208,9 +213,9 @@ def test_handling_literal_precision_2(value, dprecision, intrinsic):
     assert isinstance(literal, Literal)
     assert literal.datatype.intrinsic == intrinsic
     if intrinsic == ScalarType.Intrinsic.BOOLEAN:
-        assert ".{0}.".format(literal.value) == value.lower()
+        assert f".{literal.value}." == value.lower()
     elif intrinsic == ScalarType.Intrinsic.CHARACTER:
-        assert "'{0}'".format(literal.value) == value
+        assert f"'{literal.value}'" == value
     else:
         assert literal.value == value
     assert isinstance(literal.datatype.precision, int)
@@ -231,7 +236,7 @@ def test_handling_literal_precision_3(value, dprecision):
     required.
     should always use a lower case "e" for the exponent.
     '''
-    code = "x={0}".format(value)
+    code = f"x={value}"
     reader = FortranStringReader(code)
     astmt = Fortran2003.Assignment_Stmt(reader)
     fake_parent = Schedule()
@@ -256,7 +261,7 @@ def test_literal_constant_value_format(value, result):
     TODO #754 fix test so that 'disable_declaration_check' fixture is not
     required.
     '''
-    reader = FortranStringReader("a = {0}".format(value))
+    reader = FortranStringReader(f"a = {value}")
     astmt = Fortran2003.Assignment_Stmt(reader)
     fake_parent = Schedule()
     processor = Fparser2Reader()

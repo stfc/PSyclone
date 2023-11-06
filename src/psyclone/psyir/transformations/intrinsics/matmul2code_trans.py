@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2020-2022, Science and Technology Facilities Council.
+# Copyright (c) 2020-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,8 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: R. W. Ford, STFC Daresbury Laboratory
-# Modified: S. Siso, STFC Daresbury Laboratory
-#           A. R. Porter, STFC Daresbury Laboratory
+# Modified: S. Siso, A. R. Porter and N. Nobre, STFC Daresbury Lab
 
 '''Module providing a transformation from a PSyIR MATMUL operator to
 PSyIR code. This could be useful if the MATMUL operator is not
@@ -44,11 +43,11 @@ restriction that the first matrix must be of at least rank 2.
 
 '''
 from psyclone.psyir.nodes import BinaryOperation, Assignment, Reference, \
-    Loop, Literal, ArrayReference, Range
+    Loop, Literal, ArrayReference, Range, IntrinsicCall
 from psyclone.psyir.symbols import DataSymbol, INTEGER_TYPE, REAL_TYPE, \
     ArrayType
-from psyclone.psyir.transformations.intrinsics.operator2code_trans import \
-    Operator2CodeTrans
+from psyclone.psyir.transformations.intrinsics.intrinsic2code_trans import \
+    Intrinsic2CodeTrans
 
 
 def _create_matrix_ref(matrix_symbol, loop_idx_symbols, other_dims):
@@ -92,35 +91,48 @@ def _get_array_bound(array, index):
     :rtype: (Literal, Literal, Literal) or \
         (BinaryOperation, BinaryOperation, Literal)
 
-    :raises TransformationError: if the shape of the array's symbol is \
+   :raises TransformationError: if the shape of the array's symbol is \
         not supported.
 
     '''
-    # Added import here to avoid circular dependencies.
-    # pylint: disable=import-outside-toplevel
-    from psyclone.psyir.transformations import TransformationError
+    # The 'shape' getter performs validation checks.
+    try:
+        my_dim = array.symbol.shape[index]
+    except TypeError as err:
+        # Added import here to avoid circular dependencies.
+        # pylint: disable=import-outside-toplevel
+        from psyclone.psyir.transformations import TransformationError
+        raise TransformationError(
+            f"Unsupported index type found for array '{array.name}': "
+            f"{err}") from err
 
-    my_dim = array.symbol.shape[index]
+    dim_index = index + 1  # The Fortran dim argument is 1-indexed
     if isinstance(my_dim, ArrayType.ArrayBounds):
         # Use .copy() to ensure we return new nodes.
         lower_bound = my_dim.lower.copy()
-        upper_bound = my_dim.upper.copy()
-    elif my_dim in [ArrayType.Extent.DEFERRED, ArrayType.Extent.ATTRIBUTE]:
-        lower_bound = BinaryOperation.create(
-            BinaryOperation.Operator.LBOUND, Reference(array.symbol),
-            Literal(str(index), INTEGER_TYPE))
-        upper_bound = BinaryOperation.create(
-            BinaryOperation.Operator.UBOUND, Reference(array.symbol),
-            Literal(str(index), INTEGER_TYPE))
+        if my_dim.upper == ArrayType.Extent.ATTRIBUTE:
+            # Assumed-shape array.
+            upper_bound = IntrinsicCall.create(
+                IntrinsicCall.Intrinsic.UBOUND,
+                [Reference(array.symbol),
+                 ("dim", Literal(str(dim_index), INTEGER_TYPE))])
+        else:
+            upper_bound = my_dim.upper.copy()
     else:
-        raise TransformationError(
-            f"Unsupported index type '{type(my_dim).__name__}' found for "
-            f"dimension {index+1} of array '{array.name}'.")
+        lower_bound = IntrinsicCall.create(
+            IntrinsicCall.Intrinsic.LBOUND,
+            [Reference(array.symbol),
+             ("dim", Literal(str(dim_index), INTEGER_TYPE))])
+        upper_bound = IntrinsicCall.create(
+            IntrinsicCall.Intrinsic.UBOUND,
+            [Reference(array.symbol),
+             ("dim", Literal(str(dim_index), INTEGER_TYPE))])
+
     step = Literal("1", INTEGER_TYPE)
     return (lower_bound, upper_bound, step)
 
 
-class Matmul2CodeTrans(Operator2CodeTrans):
+class Matmul2CodeTrans(Intrinsic2CodeTrans):
     '''Provides a transformation from a PSyIR MATMUL Operator node to
     equivalent code in a PSyIR tree. Validity checks are also
     performed.
@@ -158,10 +170,8 @@ class Matmul2CodeTrans(Operator2CodeTrans):
 
     '''
     def __init__(self):
-        super(Matmul2CodeTrans, self).__init__()
-        self._operator_name = "MATMUL"
-        self._classes = (BinaryOperation,)
-        self._operators = (BinaryOperation.Operator.MATMUL,)
+        super().__init__()
+        self._intrinsic = IntrinsicCall.Intrinsic.MATMUL
 
     def validate(self, node, options=None):
         '''Perform checks to ensure that it is valid to apply the
@@ -170,7 +180,7 @@ class Matmul2CodeTrans(Operator2CodeTrans):
         :param node: the node that is being checked.
         :type node: :py:class:`psyclone.psyir.nodes.BinaryOperation`
         :param options: options for the transformation.
-        :type options: Optional[Dict[str,str]]
+        :type options: Optional[Dict[str, Any]]
 
         :raises TransformationError: if the node argument is not the \
             expected type.
@@ -178,7 +188,7 @@ class Matmul2CodeTrans(Operator2CodeTrans):
             operation is not an assignment.
         :raises TransformationError: if the matmul arguments are not in \
             the required form.
-        :raises NotImplementedError: if sub-sections of an array are present \
+        :raises TransformationError: if sub-sections of an array are present \
             in the arguments.
 
         '''
@@ -188,7 +198,7 @@ class Matmul2CodeTrans(Operator2CodeTrans):
         # pylint: disable=import-outside-toplevel
         from psyclone.psyir.transformations import TransformationError
 
-        super(Matmul2CodeTrans, self).validate(node, options)
+        super().validate(node, options)
 
         # Check the matmul is the only code on the rhs of an assignment
         # i.e. ... = matmul(a,b)
@@ -200,23 +210,23 @@ class Matmul2CodeTrans(Operator2CodeTrans):
 
         matrix1 = node.children[0]
         matrix2 = node.children[1]
+        result = node.parent.lhs
 
         # The children of matvec should be References
         if not (isinstance(matrix1, Reference) and
-                isinstance(matrix2, Reference)):
+                isinstance(matrix2, Reference) and
+                isinstance(result, Reference)):
             raise TransformationError(
-                f"Expected children of a MATMUL BinaryOperation to be "
-                f"references, but found '{type(matrix1).__name__}', "
-                f"'{type(matrix2).__name__}'.")
+                f"Expected result and operands of MATMUL BinaryOperation to "
+                f"be references, but found: '{node.parent.debug_string()}'.")
 
         # The children of matvec should be References to arrays
-        if not (matrix1.symbol.shape or matrix2.symbol.shape):
+        if (len(matrix1.symbol.shape) == 0 or len(matrix2.symbol.shape) == 0 or
+                len(result.symbol.shape) == 0):
             raise TransformationError(
-                f"Expected children of a MATMUL BinaryOperation to be "
-                f"references to arrays but found "
-                f"'{type(matrix1.symbol).__name__}', "
-                f"'{type(matrix2.symbol).__name__}' for "
-                f"'{matrix1.symbol.name}', '{matrix2.symbol.name}'.")
+                f"Expected result and operands of MATMUL BinaryOperation to "
+                f"be references to arrays but found "
+                f"'{result.symbol}', {matrix1.symbol} and {matrix2.symbol}.")
 
         # The first child (matrix1) should be declared as an array
         # with at least 2 dimensions.
@@ -248,7 +258,7 @@ class Matmul2CodeTrans(Operator2CodeTrans):
             # limited to Ranges which specify the full extent of the
             # dimension.
             if not (matrix1.is_full_range(0) and matrix1.is_full_range(1)):
-                raise NotImplementedError(
+                raise TransformationError(
                     f"To use matmul2code_trans on matmul, the first two "
                     f"indices of the 1st argument '{matrix1.name}' must be "
                     f"full ranges.")
@@ -257,7 +267,7 @@ class Matmul2CodeTrans(Operator2CodeTrans):
                 # The 3rd index and onwards must not be ranges.
                 for (count, index) in enumerate(matrix1.children[2:]):
                     if isinstance(index, Range):
-                        raise NotImplementedError(
+                        raise TransformationError(
                             f"To use matmul2code_trans on matmul, only the "
                             f"first two indices of the 1st argument are "
                             f"permitted to be Ranges but found "
@@ -283,7 +293,7 @@ class Matmul2CodeTrans(Operator2CodeTrans):
             # transformation is currently limited to Ranges which
             # specify the full extent of the dimension.
             if not matrix2.is_full_range(0):
-                raise NotImplementedError(
+                raise TransformationError(
                     f"To use matmul2code_trans on matmul, the first index of "
                     f"the 2nd argument '{matrix2.name}' must be a full range.")
             # Check that the second dimension is a full range if it is
@@ -291,7 +301,7 @@ class Matmul2CodeTrans(Operator2CodeTrans):
             if (len(matrix2.symbol.shape) > 1 and
                     isinstance(matrix2.children[1], Range)
                     and not matrix2.is_full_range(1)):
-                raise NotImplementedError(
+                raise TransformationError(
                     f"To use matmul2code_trans on matmul for a matrix-matrix "
                     f"multiplication, the second index of the 2nd "
                     f"argument '{matrix2.name}' must be a full range.")
@@ -299,11 +309,26 @@ class Matmul2CodeTrans(Operator2CodeTrans):
                 # The 3rd index and onwards must not be ranges.
                 for (count, index) in enumerate(matrix2.children[2:]):
                     if isinstance(index, Range):
-                        raise NotImplementedError(
+                        raise TransformationError(
                             f"To use matmul2code_trans on matmul, only the "
                             f"first two indices of the 2nd argument are "
                             f"permitted to be a Range but found "
                             f"{type(index).__name__} at index {count+2}.")
+
+        # Make sure the result has as many full range as needed
+        if result.children:
+            for idx, child in enumerate(result.children):
+                if isinstance(child, Range) and not result.is_full_range(idx):
+                    raise TransformationError(
+                        f"To use matmul2code_trans on matmul, each range on "
+                        f"the result variable '{result.name}' must be a full "
+                        f"range but found {result.debug_string()}")
+
+        # Make sure the result is not one of the MATMUL operands
+        if result.symbol in (matrix1.symbol, matrix2.symbol):
+            raise TransformationError(
+                f"'{result.symbol.name}' is the result location and one of "
+                f"the MATMUL operators. This is not supported.")
 
     def apply(self, node, options=None):
         '''Apply the MATMUL intrinsic conversion transformation to the
@@ -320,7 +345,7 @@ class Matmul2CodeTrans(Operator2CodeTrans):
         :param node: a MATMUL Binary-Operation node.
         :type node: :py:class:`psyclone.psyir.nodes.BinaryOperation`
         :param options: options for the transformation.
-        :type options: Optional[Dict[str, str]]
+        :type options: Optional[Dict[str, Any]]
 
         '''
         self.validate(node)
@@ -392,7 +417,7 @@ class Matmul2CodeTrans(Operator2CodeTrans):
         # Create "result(i) = 0.0"
         assign = Assignment.create(result_ref.copy(),
                                    Literal("0.0", REAL_TYPE))
-        # Create i loop and add assigment and j loop as children
+        # Create i loop and add assignment and j loop as children
         lower_bound, upper_bound, step = _get_array_bound(matrix, 0)
         iloop = Loop.create(i_loop_sym, lower_bound, upper_bound, step,
                             [assign, jloop])
@@ -446,18 +471,19 @@ class Matmul2CodeTrans(Operator2CodeTrans):
         assign = Assignment.create(result_ref.copy(), rhs)
         # Create ii loop and add the above code as a child
         # Work out the bounds
-        lower_bound, upper_bound, step = _get_array_bound(matrix1, 0)
+        lower_bound, upper_bound, step = _get_array_bound(matrix1, 1)
+        # Must be the same as _get_array_bound(matrix2, 0)
         iiloop = Loop.create(ii_loop_sym, lower_bound, upper_bound, step,
                              [assign])
         # Create "result(i,j) = 0.0"
         assign = Assignment.create(result_ref.copy(),
                                    Literal("0.0", REAL_TYPE))
         # Create i loop and add assignment and ii loop as children.
-        lower_bound, upper_bound, step = _get_array_bound(matrix2, 0)
+        lower_bound, upper_bound, step = _get_array_bound(matrix1, 0)
         iloop = Loop.create(i_loop_sym, lower_bound, upper_bound, step,
                             [assign, iiloop])
         # Create j loop and add i loop as child.
-        lower_bound, upper_bound, step = _get_array_bound(matrix1, 1)
+        lower_bound, upper_bound, step = _get_array_bound(matrix2, 1)
         jloop = Loop.create(j_loop_sym, lower_bound, upper_bound, step,
                             [iloop])
         # Replace the original assignment with the new loop.

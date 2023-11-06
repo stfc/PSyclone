@@ -8,7 +8,7 @@
 !-------------------------------------------------------------------------------
 ! BSD 3-Clause License
 !
-! Modifications copyright (c) 2022, Science and Technology Facilities Council
+! Modifications copyright (c) 2022-2023, Science and Technology Facilities Council
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without
@@ -39,7 +39,7 @@
 ! Modified by: I. Kavcic, Met Office
 !
 !> @brief A module containing the abstract type that is the parent to all
-!>        child operaor types.
+!>        child operator types.
 !>
 !> @details All concrete operator types are part of the same family.
 !!          This module contains the abstract type that will be the parent
@@ -75,16 +75,16 @@ module operator_parent_mod
     !> Function returns the the functions_space which the local stencil maps to
     procedure, public :: get_fs_to
     !> Returns a pointer to the mesh on which the function spaces, used by
-    !! function returns the enumerated integer for the functions_spaces which
+    !! function returns the enumerated integer for the function_spaces which
     !! the local stencil maps from
     procedure, public :: which_fs_from
-    !> Function returns the enumerated integer for the functions_spaces which
+    !> Function returns the enumerated integer for the function_spaces which
     !! the local stencil maps to
     procedure, public :: which_fs_to
     !> Returns a pointer to the mesh on which the function spaces, used by
     !! this operator, are built
     procedure, public :: get_mesh
-    !> Finaliser for an operatot parent object
+    !> Finaliser for an operator parent object
     procedure, public :: destroy_operator_parent
   end type operator_parent_type
 
@@ -100,14 +100,14 @@ module operator_parent_mod
     procedure, public :: destroy_operator_parent_proxy
   end type operator_parent_proxy_type
 
-!______end of type declarations_______________________________________________
+!______End of type declarations_______________________________________________
 
 contains
 
   !> @brief Initialise a <code>operator_parent_type</code> object.
   !>
-  !> @param[in] fs_from  The function space that the operator maps from
-  !> @param[in] fs_to    The function space that the operator maps to
+  !> @param[in] fs_from The function space that the operator maps from
+  !> @param[in] fs_to   The function space that the operator maps to
   !>
   subroutine operator_parent_initialiser( self, fs_to, fs_from )
     implicit none
@@ -118,7 +118,7 @@ contains
     self%fs_from => fs_from
   end subroutine operator_parent_initialiser
 
-  ! Initialise public pointers that belong to the operator_parent_type
+  !> @brief Initialise public pointers that belong to the operator_parent_type.
   subroutine operator_parent_proxy_initialiser(self, operator_proxy)
    implicit none
    class(operator_parent_type), target, intent(in)  :: self
@@ -127,7 +127,7 @@ contains
    operator_proxy%fs_from => self%fs_from
   end subroutine operator_parent_proxy_initialiser
 
-  ! Copy the contents of one operator_parent_type to another
+  !> @brief Copy the contents of one operator_parent_type to another.
   subroutine copy_operator_parent(self, dest)
     implicit none
     class(operator_parent_type), target, intent(in)    :: self
@@ -151,7 +151,7 @@ contains
   !> @return fs Function space the operator maps to
   function get_fs_to(self) result(fs)
     implicit none
-    class(operator_parent_type), intent(in)  :: self
+    class(operator_parent_type), intent(in) :: self
     type( function_space_type ), pointer :: fs
     fs => self%fs_to
   end function get_fs_to
@@ -169,7 +169,7 @@ contains
   !> @return fs ID of function space the operator maps to
   function which_fs_to(self) result(fs)
     implicit none
-    class(operator_parent_type), intent(in):: self
+    class(operator_parent_type), intent(in) :: self
     integer(kind=i_def) :: fs
     fs = self%fs_to%which()
   end function which_fs_to
@@ -183,7 +183,7 @@ contains
     mesh => self%fs_from%get_mesh()
   end function get_mesh
 
-  ! Destroy an operator_parent_type instance.
+  !> @brief Destroy an operator_parent_type instance.
   subroutine destroy_operator_parent(self)
     implicit none
     class(operator_parent_type), intent(inout) :: self
@@ -191,7 +191,7 @@ contains
     nullify( self%fs_from )
   end subroutine destroy_operator_parent
 
-  ! Destroy an operator_parent_type instance.
+  !> @brief Destroy an operator_parent_type instance.
   subroutine destroy_operator_parent_proxy(self)
     implicit none
     class(operator_parent_proxy_type), intent(inout) :: self

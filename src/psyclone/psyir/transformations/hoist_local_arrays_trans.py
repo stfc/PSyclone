@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # BSD 3-Clause License
 #
-# Copyright (c) 2022, Science and Technology Facilities Council.
+# Copyright (c) 2022-2023, Science and Technology Facilities Council.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,19 +32,21 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 # Author: A. R. Porter, STFC Daresbury Lab
+# Modified: S. Siso, STFC Daresbury Lab
 
 '''
 This module contains the HoistLocalArraysTrans transformation.
 
 '''
 
+import copy
+
 from psyclone.psyGen import Transformation
-from psyclone.psyir.frontend.fortran import FortranReader
-from psyclone.psyir.backend.fortran import FortranWriter
 from psyclone.psyir.nodes import (Routine, Container, ArrayReference, Range,
                                   FileContainer, IfBlock, UnaryOperation,
-                                  CodeBlock, ACCRoutineDirective)
-from psyclone.psyir.symbols import ArrayType, Symbol
+                                  CodeBlock, ACCRoutineDirective, Literal,
+                                  IntrinsicCall, BinaryOperation, Reference)
+from psyclone.psyir.symbols import ArrayType, Symbol, INTEGER_TYPE
 from psyclone.psyir.transformations.transformation_error \
     import TransformationError
 
@@ -88,7 +90,11 @@ class HoistLocalArraysTrans(Transformation):
         integer :: j
         real :: value = 1.0
     <BLANKLINE>
-        if (.not.allocated(a)) then
+        if (.not.allocated(a) .or. ubound(a, 1) /= n .or. ubound(a, 2) /= n) \
+then
+          if (allocated(a)) then
+            deallocate(a)
+          end if
           allocate(a(1 : n, 1 : n))
         end if
         do i = 1, n, 1
@@ -142,8 +148,6 @@ class HoistLocalArraysTrans(Transformation):
             # No automatic arrays found so nothing to do.
             return
 
-        # arefs will hold the list of array references to be allocated.
-        arefs = []
         # Get the reversed tags map so that we can lookup the tag (if any)
         # associated with the symbol being hoisted.
         tags_dict = node.symbol_table.get_reverse_tags_dict()
@@ -153,9 +157,11 @@ class HoistLocalArraysTrans(Transformation):
             orig_shape = sym.datatype.shape[:]
             # Modify the *existing* symbol so that any references to it
             # remain valid.
-            # pylint: disable=consider-using-enumerate
-            for idx in range(len(sym.shape)):
-                sym.shape[idx] = ArrayType.Extent.DEFERRED
+            new_type = copy.copy(sym.datatype)
+            # pylint: disable=protected-access
+            new_type._shape = len(orig_shape)*[ArrayType.Extent.DEFERRED]
+            # pylint: enable=protected-access
+            sym.datatype = new_type
             # Ensure that the promoted symbol is private to the container.
             sym.visibility = Symbol.Visibility.PRIVATE
             # We must allow for the situation where there's a clash with a
@@ -173,27 +179,70 @@ class HoistLocalArraysTrans(Transformation):
             # new memory allocation statement.
             dim_list = [Range.create(dim.lower.copy(), dim.upper.copy())
                         for dim in orig_shape]
-            arefs.append(ArrayReference.create(sym, dim_list))
+            aref = ArrayReference.create(sym, dim_list)
 
-        freader = FortranReader()
-        fwriter = FortranWriter()
-        # TODO #1366: we have to use a CodeBlock in order to query whether or
-        # not the array has been allocated already.
-        code = f"allocated({automatic_arrays[0].name})"
-        expr = freader.psyir_from_expression(code, node.symbol_table)
-        if_expr = UnaryOperation.create(UnaryOperation.Operator.NOT, expr)
-        # TODO #1366: we also have to use a CodeBlock for the allocate().
-        alloc_arg = ",".join(fwriter(aref) for aref in arefs)
-        body = [freader.psyir_from_statement(f"allocate({alloc_arg})",
-                                             node.symbol_table)]
-        # Insert the conditional allocation at the start of the supplied
-        # routine.
-        node.children.insert(0, IfBlock.create(if_expr, body))
+            # Add a conditional expression to avoid repeating the allocation
+            # if its already done
+            allocated_expr = IntrinsicCall.create(
+                    IntrinsicCall.Intrinsic.ALLOCATED,
+                    [Reference(sym)])
+            cond_expr = UnaryOperation.create(
+                            UnaryOperation.Operator.NOT, allocated_expr)
+
+            # Add runtime checks to verify that the boundaries haven't changed
+            # (we skip literals as we know they can't have changed)
+            check_added = False
+            for idx, dim in enumerate(orig_shape):
+                if not isinstance(dim.lower, Literal):
+                    expr = BinaryOperation.create(
+                            BinaryOperation.Operator.NE,
+                            IntrinsicCall.create(
+                                IntrinsicCall.Intrinsic.LBOUND,
+                                [Reference(sym),
+                                 ("dim", Literal(str(idx+1), INTEGER_TYPE))]),
+                            dim.lower.copy())
+                    # We chain the new check to the already existing cond_expr
+                    # which starts with the 'not allocated' condition added
+                    # before this loop.
+                    cond_expr = BinaryOperation.create(
+                                    BinaryOperation.Operator.OR,
+                                    cond_expr, expr)
+                    check_added = True
+                if not isinstance(dim.upper, Literal):
+                    expr = BinaryOperation.create(
+                            BinaryOperation.Operator.NE,
+                            IntrinsicCall.create(
+                                IntrinsicCall.Intrinsic.UBOUND,
+                                [Reference(sym),
+                                 ("dim", Literal(str(idx+1), INTEGER_TYPE))]),
+                            dim.upper.copy())
+                    # We chain the new check to the already existing cond_expr
+                    # which starts with the 'not allocated' condition added
+                    # before this loop.
+                    cond_expr = BinaryOperation.create(
+                                    BinaryOperation.Operator.OR,
+                                    cond_expr, expr)
+                    check_added = True
+
+            body = []
+            if check_added:
+                body.append(
+                    IfBlock.create(
+                        allocated_expr.copy(),
+                        [IntrinsicCall.create(
+                            IntrinsicCall.Intrinsic.DEALLOCATE,
+                            [Reference(sym)])]))
+            body.append(
+                IntrinsicCall.create(IntrinsicCall.Intrinsic.ALLOCATE,
+                                     [aref]))
+            # Insert the conditional allocation at the start of the supplied
+            # routine.
+            node.children.insert(0, IfBlock.create(cond_expr, body))
 
         # Finally, remove the hoisted symbols (and any associated tags)
         # from the routine scope.
         for sym in automatic_arrays:
-            # TODO #898:Currently the SymbolTable.remove() method does not
+            # TODO #898: Currently the SymbolTable.remove() method does not
             # support DataSymbols.
             # pylint: disable=protected-access
             del node.symbol_table._symbols[sym.name]
@@ -217,7 +266,7 @@ class HoistLocalArraysTrans(Transformation):
 
         '''
         local_arrays = {}
-        for sym in node.symbol_table.local_datasymbols:
+        for sym in node.symbol_table.automatic_datasymbols:
             if (sym is node.return_symbol or not sym.is_array or
                     sym.is_constant):
                 continue
