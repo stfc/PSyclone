@@ -226,7 +226,7 @@ Tree Interrogation
 Each PSyIR node provides several ways to interrogate the AST:
 
 Following the `parent` and `children` terminology, we define a node's `siblings`
-as the children of its parents. Note that this definition implies that all nodes
+as the children of its parent. Note that this definition implies that all nodes
 are their own siblings.
 
 .. automethod:: psyclone.psyir.nodes.Node.siblings
